@@ -108,7 +108,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
 	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, Occupied: &o.Rectangle{Minimum: cell, Maximum: cell}, Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Rotation: pp.Rotation_ROTATION_NORTH.Enum(), Stuff: proto.String("WoodLog")}}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Structures: []*o.UpkeepStructure{{Building: entity, Flammability: proto.Float64(1)}},
+		Structures: []*o.UpkeepStructure{{Building: n.head(entity), Flammability: proto.Float64(1)}},
 		Comfort:    &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	n.sites = bridge.WallUpgradeSites{Context: proto.Clone(v.Context).(*c.ObservationContext), Sites: []bridge.WallUpgradeSite{{

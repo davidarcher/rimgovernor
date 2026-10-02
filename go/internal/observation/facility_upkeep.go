@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -54,14 +55,18 @@ func colonyHomeCoverage(v *o.ColonyFactsSnapshot) domain.Fact[policy.HomeCoverag
 	}
 	return domain.Known(r)
 }
-func colonyStoneStructures(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.StoneStructure] {
+func colonyStoneStructures(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.StoneStructure] {
 	u := v.GetUpkeep().GetObserved()
 	if u == nil || hasIssue(u.Issues, "structures") {
 		return domain.Unknown[[]policy.StoneStructure]()
 	}
 	rows := []policy.StoneStructure{}
 	for _, r := range u.Structures {
-		rows = append(rows, policy.StoneStructure{ID: r.Building.GetId(), Definition: policy.Resource(r.Building.GetDefName()), Flammability: optional(r.Flammability)})
+		head := buildings.Entity(r.Building)
+		if head == nil {
+			return domain.Unknown[[]policy.StoneStructure]()
+		}
+		rows = append(rows, policy.StoneStructure{ID: r.Building.GetId(), Definition: policy.Resource(head.GetDefName()), Flammability: optional(r.Flammability)})
 	}
 	return domain.Known(rows)
 }

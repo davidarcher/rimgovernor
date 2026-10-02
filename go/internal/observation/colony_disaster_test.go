@@ -1,13 +1,14 @@
 package observation
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 // buildingRows is the building table of rows.
@@ -26,7 +27,7 @@ func TestColonyDisasterPreservesServiceUnknowns(t *testing.T) {
 		t.Fatal("missing census became empty")
 	}
 	b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall")}, UsesHitPoints: proto.Bool(true), HitPoints: proto.Int32(40), MaxHitPoints: proto.Int32(100), Burning: proto.Bool(false), Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}, Service: &o.BuildingServiceState{BrokenDown: proto.Bool(false)}}
-	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Buildings: []*o.EntityRef{b.Building}}}}
+	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Buildings: []*c.Ref{bridge.NewRef(b.Building.GetId())}}}}
 	table := buildingRows(b)
 	f = policy.RoutineFacts{}
 	colonyDisaster(v, &f, nil)

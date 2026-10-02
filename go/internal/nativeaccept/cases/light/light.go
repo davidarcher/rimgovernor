@@ -412,11 +412,12 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 		if !ok {
 			return lightingSummary{}, fmt.Errorf("%s: lamp %v is not in the building table", label, ref["id"])
 		}
-		position, _ := na.AsMap(ref["position"])
+		head, _ := na.AsMap(building["building"])
+		position, _ := na.AsMap(head["position"])
 		service, _ := na.AsMap(building["service"])
 		lit, _ := na.AsBool(row["lit"])
 		powered, _ := na.AsBool(service["powerOn"])
-		s.lamps[na.AsString(ref["id"])] = lampRow{definition: na.AsString(ref["defName"]), cell: domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, radius: na.AsNumber(row["glowRadius"]), lit: lit, powered: powered}
+		s.lamps[na.AsString(ref["id"])] = lampRow{definition: na.AsString(head["defName"]), cell: domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, radius: na.AsNumber(row["glowRadius"]), lit: lit, powered: powered}
 	}
 	return s, nil
 }

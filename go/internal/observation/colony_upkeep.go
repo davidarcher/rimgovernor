@@ -36,7 +36,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.U
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Cell: domain.Cell{X: item.Building.GetPosition().GetX(), Z: item.Building.GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
+			rows = append(rows, policy.UpkeepStructure{ID: item.Building.GetId(), Cell: domain.Cell{X: b.GetBuilding().GetPosition().GetX(), Z: b.GetBuilding().GetPosition().GetZ()}, Home: item.GetHome(), HitPoints: int64(b.GetHitPoints()), MaxHitPoints: int64(b.GetMaxHitPoints()), Priority: int(item.GetRepairPriority())})
 		}
 		if known {
 			r.Structures = domain.Known(rows)
@@ -154,7 +154,7 @@ func colonyRoutes(section *o.RoutesSection) domain.Fact[policy.RoutesObservation
 		r.TrafficSince = domain.Known(domain.Tick(f.GetTrafficSinceTick()))
 	}
 	for _, row := range f.Facilities {
-		out := policy.RouteFacility{ID: row.Facility.GetId(), Definition: row.Facility.GetDefName(), Kind: bridge.RouteKindName(row.GetKind()), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Travel: []policy.RouteTravel{}, Breaches: []policy.RouteBreach{}}
+		out := policy.RouteFacility{ID: row.Facility.GetId(), Kind: bridge.RouteKindName(row.GetKind()), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Travel: []policy.RouteTravel{}, Breaches: []policy.RouteBreach{}}
 		if row.Room != nil {
 			out.Room = domain.Known(row.GetRoom().GetId())
 		}
@@ -204,14 +204,14 @@ func colonyLighting(section *o.LightingSection, buildings bridge.Buildings) doma
 	}
 	r := policy.LightingObservation{WorkCells: []policy.WorkLightCell{}, Lamps: []policy.Lamp{}}
 	for _, row := range l.WorkCells {
-		if row.Glow == nil || row.Roofed == nil {
+		if row.Glow == nil || row.Roofed == nil || buildings.Entity(row.Bench) == nil {
 			return domain.Fact[policy.LightingObservation]{}
 		}
-		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: row.Bench.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optionalRef(row.Room), LightSensitive: row.GetLightSensitive()})
+		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: buildings.Entity(row.Bench).GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optionalRef(row.Room), LightSensitive: row.GetLightSensitive()})
 	}
 	for _, row := range l.Lamps {
-		ref := row.GetBuilding()
-		b, ok := buildings.Row(ref)
+		b, ok := buildings.Row(row.GetBuilding())
+		ref := b.GetBuilding()
 		if !ok || row.GlowRadius == nil || row.Lit == nil {
 			return domain.Fact[policy.LightingObservation]{}
 		}

@@ -545,7 +545,7 @@ message BillState {
   repeated IngredientReservation reservations = 27;
 }
 message IngredientReservation { optional string pawn_id = 1; repeated Quantity items = 2; }
-message BillStack { SnapshotRef snapshot = 1; EntityRef bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
+message BillStack { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
 message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5;
   repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9;
@@ -847,8 +847,8 @@ message WasteItem { EntityRef thing = 1; optional int64 count = 2; optional Wast
 message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated WasteItem items = 2; reserved 3; }
 message WasteRequest { ReadScope scope = 1; repeated string unwanted_ids = 2; repeated string bury_ids = 3; reserved 4; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message RecoveryRestriction { EntityRef pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }
-message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2, 3; reserved "roof_hazard", "areas"; repeated RecoveryRestriction restrictions = 4; reserved 5, 6; repeated EntityRef buildings = 7; }
+message RecoveryRestriction { rimgovernor.common.v1.Ref pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }
+message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2, 3; reserved "roof_hazard", "areas"; repeated RecoveryRestriction restrictions = 4; reserved 5, 6; repeated rimgovernor.common.v1.Ref buildings = 7; }
 message RecoveryRequest { ReadScope scope = 1; reserved 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // pawn refers to the bundle pawn table row (#1343); its snapshot is the
@@ -1032,10 +1032,10 @@ message JoyBuildingMethod { string definition = 1; string kind = 2; double power
 message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; repeated JoyBuildingMethod methods = 3; }
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; reserved 5; RecreationCensus joy = 6; }
 message UpkeepItem { EntityRef item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; optional bool perishable = 10; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
-message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
+message UpkeepBed { rimgovernor.common.v1.Ref bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
 message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
-message UpkeepStructure { reserved 1; EntityRef building = 7; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
+message UpkeepStructure { reserved 1; rimgovernor.common.v1.Ref building = 7; optional bool home = 2; optional bool holds_roof = 3; optional int32 repair_priority = 4; optional double flammability = 5; optional bool roofed = 6; }
 message FireState { EntityRef fire = 1; optional double size = 2; optional bool home = 3; repeated rimgovernor.common.v1.Ref safe_workers = 4; }
 message FilthState { EntityRef filth = 1; optional bool home = 2; optional uint32 thickness = 3; optional string room_role = 4; optional bool cleanable = 5; rimgovernor.common.v1.Ref room = 6; }
 message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home = 2; optional bool roofed = 3; }
@@ -1065,10 +1065,10 @@ message AnimalFeedStorage { rimgovernor.common.v1.Ref zone = 1; repeated string 
 // pawn refers to the bundle pawn table row (#1343), whose animal_state
 // carries the herd facts.
 message AnimalFeed { reserved 1; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
-message DevelopmentPower { reserved 1; EntityRef building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
+message DevelopmentPower { reserved 1; rimgovernor.common.v1.Ref building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }
-message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
+message DevelopmentFurniture { rimgovernor.common.v1.Ref building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 // One steam geyser on the map: geyser is the Building_SteamGeyser with its
 // anchor position, cells its 2x2 footprint, and occupied whether a harvester
 // (a geothermal generator, built or under construction) or any other
@@ -1111,8 +1111,8 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network
 // power headroom split by source so night and outage margins are computable.
-message GrowLight { EntityRef building = 1; rimgovernor.common.v1.Ref room = 2; optional bool powered = 3; optional double power_w = 4; repeated rimgovernor.common.v1.Cell growth_cells = 5; optional bool lit_now = 6; optional string power_net_id = 7; repeated ReadIssue issues = 8; }
-message PlantGrower { EntityRef building = 1; rimgovernor.common.v1.Ref room = 2; optional bool powered = 3; optional double power_w = 4; optional double fertility = 5; repeated rimgovernor.common.v1.Cell plant_cells = 6; optional string sow_tag = 7; optional string crop_def_name = 8; optional bool can_sow = 9; optional string power_net_id = 10; repeated ReadIssue issues = 11; }
+message GrowLight { rimgovernor.common.v1.Ref building = 1; rimgovernor.common.v1.Ref room = 2; optional bool powered = 3; optional double power_w = 4; repeated rimgovernor.common.v1.Cell growth_cells = 5; optional bool lit_now = 6; optional string power_net_id = 7; repeated ReadIssue issues = 8; }
+message PlantGrower { rimgovernor.common.v1.Ref building = 1; rimgovernor.common.v1.Ref room = 2; optional bool powered = 3; optional double power_w = 4; optional double fertility = 5; repeated rimgovernor.common.v1.Cell plant_cells = 6; optional string sow_tag = 7; optional string crop_def_name = 8; optional bool can_sow = 9; optional string power_net_id = 10; repeated ReadIssue issues = 11; }
 message GrowRoom { rimgovernor.common.v1.Ref room = 1; optional double temperature_c = 2; optional uint32 cell_count = 3; optional uint32 open_roof_count = 4; optional bool proper_room = 5; optional bool psychologically_outdoors = 6; optional uint32 lit_cells = 7; }
 message PowerHeadroom { optional string id = 1; optional double generation_w = 2; optional double solar_w = 3; optional double wind_w = 4; optional double consumption_w = 5; optional double stored_watt_days = 6; optional double capacity_watt_days = 7; optional bool has_active_source = 8; }
 message ControlledEnvironment { repeated GrowLight lights = 1; repeated PlantGrower growers = 2; repeated GrowRoom rooms = 3; repeated PowerHeadroom networks = 4; reserved 5; optional bool daylight = 6; reserved 7; repeated ReadIssue issues = 8; }
@@ -1129,9 +1129,11 @@ message FoodProduct { optional string def_name = 1; optional int64 count = 2; op
   // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
   optional int64 storable = 8; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
-message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; rimgovernor.common.v1.Ref room = 6;
+message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; rimgovernor.common.v1.Ref room = 6;
   // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
-  optional bool auto_refuel = 7; }
+  optional bool auto_refuel = 7;
+  // The bench's CAS token (#1342).
+  SnapshotRef bench_snapshot = 8; }
 // A blighted plant standing in a player growing zone or on home ground: the
 // crop-blight census RemoveBlight cuts from. Nearest the colony first, at
 // most 64 rows; plant.snapshot is the CutPlant designation's CAS token.
@@ -1139,7 +1141,7 @@ message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated R
 // designated: a CutPlant or HarvestPlant designation already exists.
 message BlightedPlant { EntityRef plant = 1; rimgovernor.common.v1.Ref zone = 2; optional bool designated = 3; optional double growth = 4; }
 message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional double weapon_range = 13; optional int64 designated_tick = 14; optional bool taken = 15; }
-message ButcheringFacts { EntityRef bench = 1; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; repeated rimgovernor.common.v1.Cell human_storage_cells = 8; optional bool human_storage_ready = 9; optional string human_corpse_def = 10; }
+message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; repeated rimgovernor.common.v1.Cell human_storage_cells = 8; optional bool human_storage_ready = 9; optional string human_corpse_def = 10; }
 message HumanButcherCandidate { string pawn_id = 1; repeated string traits = 2; optional bool precept_acceptable = 3; optional bool can_work = 4; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }
@@ -1183,8 +1185,8 @@ message HomeCoverageSection { oneof outcome { HomeCoverageFacts observed = 1; ri
 // cell is light_sensitive when its room holds a plant (or a growing zone set
 // to a plant) that native says dies to light, such as cave fungus: lighting
 // that room would kill the crop, so the cell is never a lighting deficit.
-message WorkLightCell { EntityRef bench = 1; rimgovernor.common.v1.Cell cell = 2; optional double glow = 3; optional bool roofed = 4; rimgovernor.common.v1.Ref room = 5; optional bool light_sensitive = 6; }
-message LampState { reserved 1; EntityRef building = 5; optional double glow_radius = 2; optional bool lit = 3; rimgovernor.common.v1.Ref room = 4; }
+message WorkLightCell { rimgovernor.common.v1.Ref bench = 1; rimgovernor.common.v1.Cell cell = 2; optional double glow = 3; optional bool roofed = 4; rimgovernor.common.v1.Ref room = 5; optional bool light_sensitive = 6; }
+message LampState { reserved 1; rimgovernor.common.v1.Ref building = 5; optional double glow_radius = 2; optional bool lit = 3; rimgovernor.common.v1.Ref room = 4; }
 message LightingFacts { repeated WorkLightCell work_cells = 1; repeated LampState lamps = 2; reserved 3; }
 message LightingSection { oneof outcome { LightingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Flooring facts: every proper indoor home room with the terrain under each
@@ -1219,7 +1221,7 @@ enum TrafficLayer {
 message RouteTravel { optional string pawn_id = 1; optional bool reachable = 2; optional int32 path_cost = 3; optional int32 path_cells = 4; }
 message RouteBreach { rimgovernor.common.v1.Cell cell = 1; optional string edifice = 2; optional string pending = 3; optional int32 distance = 4; }
 enum RouteFacilityKind { ROUTE_FACILITY_KIND_UNSPECIFIED = 0; ROUTE_FACILITY_KIND_BED = 1; ROUTE_FACILITY_KIND_BENCH = 2; ROUTE_FACILITY_KIND_STORAGE = 3; ROUTE_FACILITY_KIND_DINING = 4; ROUTE_FACILITY_KIND_DEFENSE = 5; ROUTE_FACILITY_KIND_STOCKPILE = 6; }
-message RouteFacility { EntityRef facility = 1; optional RouteFacilityKind kind = 2; rimgovernor.common.v1.Cell cell = 3; rimgovernor.common.v1.Ref room = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
+message RouteFacility { rimgovernor.common.v1.Ref facility = 1; optional RouteFacilityKind kind = 2; rimgovernor.common.v1.Cell cell = 3; rimgovernor.common.v1.Ref room = 4; repeated RouteTravel travel = 5; repeated RouteBreach breaches = 6; }
 message TrafficCell { rimgovernor.common.v1.Cell cell = 1; optional uint32 samples = 2; optional string terrain = 3; optional bool home = 4; optional string pending = 5; TrafficLayer layer = 6; }
 message RoutesFacts { repeated RouteFacility facilities = 1; repeated string pawn_ids = 2; repeated TrafficCell traffic = 3; optional uint32 traffic_samples = 4; optional int32 traffic_since_tick = 5; reserved 6; }
 message RoutesSection { oneof outcome { RoutesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }

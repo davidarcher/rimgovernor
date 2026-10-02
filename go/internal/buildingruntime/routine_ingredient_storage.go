@@ -188,10 +188,8 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		protected = append(protected, h.Footprint...)
 	}
 	benchCell := domain.Unknown[domain.Cell]()
-	for _, b := range benches {
-		if b.ID == bench {
-			benchCell = b.Cell
-		}
+	if at := read.Frame.Tables.Entity(bridge.NewRef(bench)).GetPosition(); at != nil {
+		benchCell = domain.Known(domain.Cell{X: at.GetX(), Z: at.GetZ()})
 	}
 	sites, err := ingredientStorageSites(rooms.Rooms, benchCell, projection.Bounds, projection.Cells, protected)
 	if err != nil {

@@ -9069,7 +9069,6 @@
         "X": 115,
         "Z": 127
        },
-       "Definition": "ButcherSpot",
        "ID": "Thing_ButcherSpot44907",
        "Kind": "bench",
        "Travel": [
@@ -9161,7 +9160,6 @@
         "X": 114,
         "Z": 129
        },
-       "Definition": "ShelfSmall",
        "ID": "Thing_ShelfSmall44690",
        "Kind": "storage",
        "Travel": [

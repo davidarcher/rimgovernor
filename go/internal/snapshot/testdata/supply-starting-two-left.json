@@ -10197,7 +10197,6 @@
         "X": 115,
         "Z": 121
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44690",
        "Kind": "bed",
        "Travel": [
@@ -10289,7 +10288,6 @@
         "X": 113,
         "Z": 122
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44691",
        "Kind": "bed",
        "Travel": [
@@ -10381,7 +10379,6 @@
         "X": 110,
         "Z": 123
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44692",
        "Kind": "bed",
        "Travel": [
@@ -10473,7 +10470,6 @@
         "X": 114,
         "Z": 123
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44693",
        "Kind": "bed",
        "Travel": [
@@ -10565,7 +10561,6 @@
         "X": 115,
         "Z": 123
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44694",
        "Kind": "bed",
        "Travel": [
@@ -10657,7 +10652,6 @@
         "X": 109,
         "Z": 124
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44695",
        "Kind": "bed",
        "Travel": [
@@ -10749,7 +10743,6 @@
         "X": 110,
         "Z": 125
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44696",
        "Kind": "bed",
        "Travel": [
@@ -10841,7 +10834,6 @@
         "X": 114,
         "Z": 125
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44697",
        "Kind": "bed",
        "Travel": [

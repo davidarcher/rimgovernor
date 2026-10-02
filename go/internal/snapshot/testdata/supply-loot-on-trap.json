@@ -5503,7 +5503,6 @@
         "X": 104,
         "Z": 116
        },
-       "Definition": "Zone_Stockpile",
        "ID": "zone-0",
        "Kind": "stockpile",
        "Travel": [

@@ -10043,7 +10043,6 @@
         "X": 105,
         "Z": 115
        },
-       "Definition": "ButcherSpot",
        "ID": "Thing_ButcherSpot44690",
        "Kind": "bench",
        "Travel": [
@@ -10135,7 +10134,6 @@
         "X": 105,
         "Z": 123
        },
-       "Definition": "ButcherSpot",
        "ID": "Thing_ButcherSpot44691",
        "Kind": "bench",
        "Travel": [

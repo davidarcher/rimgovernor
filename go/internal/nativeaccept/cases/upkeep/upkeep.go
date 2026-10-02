@@ -186,8 +186,9 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 		if !ok {
 			return c, fmt.Errorf("%s: structure %v is not in the building table", label, building["id"])
 		}
+		head, _ := na.AsMap(state["building"])
 		home, _ := na.AsBool(row["home"])
-		c.Structures[na.AsString(building["id"])] = structureRow{Definition: na.AsString(building["defName"]), Home: home,
+		c.Structures[na.AsString(building["id"])] = structureRow{Definition: na.AsString(head["defName"]), Home: home,
 			HitPoints: int64(na.AsNumber(state["hitPoints"])), Max: int64(na.AsNumber(state["maxHitPoints"]))}
 	}
 	for _, raw := range na.AsSlice(upkeep["fires"]) {

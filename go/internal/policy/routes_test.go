@@ -7,7 +7,7 @@ import (
 )
 
 func routesFacility(id, kind string, reachable ...bool) RouteFacility {
-	f := RouteFacility{ID: id, Definition: "Thing", Kind: kind, Cell: domain.Cell{X: 10, Z: 10}, Room: domain.Known("7")}
+	f := RouteFacility{ID: id, Kind: kind, Cell: domain.Cell{X: 10, Z: 10}, Room: domain.Known("7")}
 	for i, r := range reachable {
 		t := RouteTravel{Pawn: []string{"a", "b"}[i], Reachable: r}
 		if r {

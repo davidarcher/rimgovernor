@@ -114,7 +114,7 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCens
 	seen := map[string]bool{}
 	resolved := make([]*o.PawnState, len(observed.Persons))
 	for i, person := range observed.Persons {
-		if person == nil || !pawnRef(person.Pawn, seen) {
+		if person == nil || !uniqueRef(person.Pawn, seen) {
 			return PrisonerCensus{}, contract("invalid or duplicate population person")
 		}
 		row, ok := pawns.Row(person.Pawn)

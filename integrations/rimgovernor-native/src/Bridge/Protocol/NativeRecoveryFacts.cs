@@ -20,9 +20,9 @@ namespace HomeBridge.BridgeTools
                 var result = new Obs.RecoverySnapshot { Context = context };
                 // Each building's hit points, fuel and breakdown state is its
                 // row in the bundle's building table (#1343).
-                foreach (var building in buildings) result.Buildings.Add(Entity(building));
+                foreach (var building in buildings) result.Buildings.Add(NativeBuildingObservationTools.Ref(building));
                 foreach (var pawn in pawns) {
-                    var row = new Obs.RecoveryRestriction { Pawn = Entity(pawn) };
+                    var row = new Obs.RecoveryRestriction { Pawn = NativePawnObservationTools.Ref(pawn) };
                     var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
                     if (area != null) row.AreaId = area.GetUniqueLoadID();
                     result.Restrictions.Add(row);

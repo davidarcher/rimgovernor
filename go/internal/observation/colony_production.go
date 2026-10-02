@@ -128,15 +128,15 @@ func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 	}
 }
 
-func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.ProductionBench] {
-	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") {
+func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.ProductionBench] {
+	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") || !headed(buildings, v.Cooking, (*o.CookingFacts).GetBench) || !headed(buildings, v.Butchering, (*o.ButcheringFacts).GetBench) {
 		return domain.Unknown[[]policy.ProductionBench]()
 	}
 	var rows []policy.ProductionBench
-	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *c.Ref) {
-		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optionalRef(room)}
-		if entity.Snapshot != nil {
-			row.Token = optional(entity.Snapshot.Token)
+	add := func(bench *c.Ref, snapshot *o.SnapshotRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *c.Ref) {
+		row := policy.ProductionBench{ID: bench.GetId(), Definition: buildings.Entity(bench).GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optionalRef(room)}
+		if snapshot != nil {
+			row.Token = optional(snapshot.Token)
 		}
 		for _, r := range recipes {
 			recipe := policy.ProductionRecipe{Name: r.Recipe.GetDefName()}
@@ -162,10 +162,10 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 		rows = append(rows, row)
 	}
 	for _, b := range v.Cooking {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false, b.Room)
+		add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, b.Production, false, b.Room)
 	}
 	for _, b := range v.Butchering {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true, b.Room)
+		add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, nil, true, b.Room)
 		row := &rows[len(rows)-1]
 		row.HumanCorpseNutrition = optional(b.HumanCorpseNutrition)
 		row.HumanStorageReady = optional(b.HumanStorageReady)

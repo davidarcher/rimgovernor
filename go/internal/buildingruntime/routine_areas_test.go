@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -50,7 +51,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 	entity := &o.EntityRef{Id: proto.String("patient"), DefName: proto.String("Human"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell)}
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{
 		Context:      v.Context,
-		Restrictions: []*o.RecoveryRestriction{{Pawn: entity, AreaId: proto.String("manual")}},
+		Restrictions: []*o.RecoveryRestriction{{Pawn: bridge.NewRef(entity.GetId()), AreaId: proto.String("manual")}},
 	}}}
 	// "manual" is the Safe area and no sheltering trigger holds (#1326).
 	v.Policies = &o.PolicySection{Outcome: &o.PolicySection_Observed{Observed: &o.PolicyFacts{AllowedAreas: []*o.AllowedAreaEntry{{Id: proto.String("manual"), Label: proto.String(policy.SafeAreaLabel)}}}}}

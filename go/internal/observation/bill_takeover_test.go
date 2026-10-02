@@ -12,8 +12,11 @@ import (
 
 func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), Worker: &commonpb.Ref{Id: proto.String("pawn")}, IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
-	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &o.EntityRef{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
-	benches, known := colonyProductionBenches(snapshot).Value()
+	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &commonpb.Ref{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
+	if _, k := colonyProductionBenches(snapshot, nil).Value(); k {
+		t.Fatal("an unresolved bench became a known census")
+	}
+	benches, known := colonyProductionBenches(snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
 	if !known {
 		t.Fatal("missing benches")
 	}
@@ -37,7 +40,7 @@ func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 		t.Fatal(got)
 	}
 	bill.DefaultIngredients, bill.UnrestrictedWorker, bill.Worker, bill.IngredientFilter = nil, nil, nil, nil
-	benches, _ = colonyProductionBenches(snapshot).Value()
+	benches, _ = colonyProductionBenches(snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
 	got = benches[0].Bills[0]
 	if _, k := got.DefaultIngredients.Value(); k {
 		t.Fatal("missing defaults became known")

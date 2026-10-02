@@ -113,16 +113,16 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	lighting := &o.LightingFacts{
-		WorkCells: []*o.WorkLightCell{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}, LightSensitive: proto.Bool(true)}},
-		Lamps:     []*o.LampState{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), Room: &c.Ref{Id: proto.String("7")}}},
+		WorkCells: []*o.WorkLightCell{{Bench: &c.Ref{Id: proto.String("stove")}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}, LightSensitive: proto.Bool(true)}},
+		Lamps:     []*o.LampState{{Building: &c.Ref{Id: proto.String("lamp")}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), Room: &c.Ref{Id: proto.String("7")}}},
 	}
-	lamp := &o.BuildingState{Building: lighting.Lamps[0].Building, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
+	lamp := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
 	u := &o.UpkeepFacts{Lighting: &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: lighting}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
 		t.Fatal("an unresolved lamp reference became a known census")
 	}
-	f, known := colonyUpkeep(v, buildingRows(lamp)).Lighting.Value()
+	f, known := colonyUpkeep(v, buildingRows(lamp, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}})).Lighting.Value()
 	if !known || len(f.WorkCells) != 1 || len(f.Lamps) != 1 {
 		t.Fatal(f, known)
 	}
@@ -171,7 +171,7 @@ func routesWireFacts() *o.RoutesFacts {
 	return &o.RoutesFacts{
 		PawnIds: []string{"a", "b"},
 		Facilities: []*o.RouteFacility{{
-			Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
+			Facility: &c.Ref{Id: proto.String("zone-3")},
 			Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), Room: &c.Ref{Id: proto.String("7")},
 			Travel: []*o.RouteTravel{
 				{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
@@ -194,7 +194,7 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 		t.Fatal(r, known)
 	}
 	f := r.Facilities[0]
-	if f.ID != "zone-3" || f.Definition != "Zone_Stockpile" || f.Kind != "stockpile" || f.Cell != (domain.Cell{X: 10, Z: 10}) || f.Room != domain.Known("7") || len(f.Travel) != 2 || len(f.Breaches) != 1 {
+	if f.ID != "zone-3" || f.Kind != "stockpile" || f.Cell != (domain.Cell{X: 10, Z: 10}) || f.Room != domain.Known("7") || len(f.Travel) != 2 || len(f.Breaches) != 1 {
 		t.Fatal(f)
 	}
 	if f.Travel[0] != (policy.RouteTravel{Pawn: "a"}) || f.Travel[1] != (policy.RouteTravel{Pawn: "b", Reachable: true, Cost: domain.Known[int32](120), Cells: domain.Known[int32](9)}) {

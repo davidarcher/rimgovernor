@@ -61,15 +61,15 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		if b.HumanCorpseDef != nil && validID(b.GetHumanCorpseDef()) != nil {
 			return contract("invalid human corpse definition")
 		}
-		rows = append(rows, &o.CookingFacts{Bench: b.Bench, Usable: b.Usable, Bills: b.Bills, Recipes: b.Recipes})
+		rows = append(rows, &o.CookingFacts{Bench: b.Bench, BenchSnapshot: b.BenchSnapshot, Usable: b.Usable, Bills: b.Bills, Recipes: b.Recipes})
 	}
 	benches := map[string]bool{}
 	for _, bench := range rows {
-		if bench == nil || bench.Bench == nil || validID(bench.Bench.GetId()) != nil || validID(bench.Bench.GetDefName()) != nil || bench.Bench.MapId == nil || bench.Bench.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(bench.Bench.Position, v.MapSize) || benches[bench.Bench.GetId()] || bench.Bench.Label != nil {
+		if bench == nil || bench.Bench == nil || !validRef(bench.Bench) || benches[bench.Bench.GetId()] {
 			return contract("invalid production bench")
 		}
 		benches[bench.Bench.GetId()] = true
-		if snapshot := bench.Bench.Snapshot; snapshot != nil {
+		if snapshot := bench.BenchSnapshot; snapshot != nil {
 			if !proto.Equal(snapshot.Context, v.Context) || snapshot.GetEntityId() != bench.Bench.GetId() || validID(snapshot.GetToken()) != nil {
 				return contract("bill stack snapshot mismatch")
 			}

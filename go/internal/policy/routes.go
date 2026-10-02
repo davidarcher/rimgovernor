@@ -50,11 +50,11 @@ type RoutesObservation struct {
 	TrafficSince   domain.Fact[domain.Tick]
 }
 type RouteFacility struct {
-	ID, Definition, Kind string
-	Cell                 domain.Cell
-	Room                 domain.Fact[string]
-	Travel               []RouteTravel
-	Breaches             []RouteBreach
+	ID, Kind string
+	Cell     domain.Cell
+	Room     domain.Fact[string]
+	Travel   []RouteTravel
+	Breaches []RouteBreach
 }
 type RouteTravel struct {
 	Pawn      string
@@ -122,7 +122,7 @@ func (v RoutesObservation) Validate() error {
 	}
 	ids := map[string]bool{}
 	for _, f := range v.Facilities {
-		if !foodID(f.ID) || ids[f.ID] || !foodID(f.Definition) || !foodID(f.Kind) {
+		if !foodID(f.ID) || ids[f.ID] || !foodID(f.Kind) {
 			return errors.New("invalid routes facility")
 		}
 		ids[f.ID] = true

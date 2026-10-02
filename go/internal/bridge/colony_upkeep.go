@@ -47,7 +47,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		if row == nil || row.Building == nil {
 			return contract("missing upkeep structure")
 		}
-		if !entity(row.Building, seen) || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
+		if !uniqueRef(row.Building, seen) || row.RepairPriority != nil && (row.GetRepairPriority() < 0 || row.GetRepairPriority() > 2) ||
 			!number(row.Flammability) || !proto.Equal(row, &o.UpkeepStructure{Building: row.Building, Home: row.Home, RepairPriority: row.RepairPriority, Flammability: row.Flammability}) {
 			return contract("invalid upkeep structure")
 		}
@@ -77,19 +77,19 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		return true
 	}
 	for _, row := range append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...) {
-		if row == nil || !pawnRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Beds {
-		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !validRefs(row.Owners) || !validRefs(row.Users) || !validRefs(row.AccessibleTo) || !optionalRef(row.Room) || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, Room: row.Room, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
+		if row == nil || !uniqueRef(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !validRefs(row.Owners) || !validRefs(row.Users) || !validRefs(row.AccessibleTo) || !optionalRef(row.Room) || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, Room: row.Room, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
 			return contract("invalid upkeep bed")
 		}
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
 			return contract("invalid upkeep animal")
 		}
 		for _, zone := range row.ReachableStorage {
@@ -109,7 +109,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		stocks := map[string]bool{}
 		for _, stock := range row.ReachableStoredFeed {
 			// A feed stock references its things table row (#1343).
-			if stock == nil || !thingRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.Eaters) != 1 || stock.Eaters[0].GetId() != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, Eaters: stock.Eaters}) {
+			if stock == nil || !uniqueRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.Eaters) != 1 || stock.Eaters[0].GetId() != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, Eaters: stock.Eaters}) {
 				return contract("invalid reachable animal feed")
 			}
 		}
@@ -118,7 +118,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	// feed, pen or ownership facts; the tame facts ride the table row.
 	seen = map[string]bool{}
 	for _, row := range v.WildAnimals {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
+		if row == nil || !uniqueRef(row.Pawn, seen) || row.Diet != nil && validID(row.GetDiet()) != nil || row.RequiresPen != nil && row.GetRequiresPen() || !proto.Equal(row, &o.AnimalFeed{Pawn: row.Pawn, Diet: row.Diet, RequiresPen: row.RequiresPen}) {
 			return contract("invalid wild animal")
 		}
 	}
@@ -235,7 +235,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	}
 	seen := map[string]bool{}
 	for _, row := range f.Facilities {
-		if row == nil || !entity(row.Facility, seen) || RouteKindName(row.GetKind()) == "" || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, Room: row.Room, Travel: row.Travel, Breaches: row.Breaches}) {
+		if row == nil || !uniqueRef(row.Facility, seen) || RouteKindName(row.GetKind()) == "" || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, Room: row.Room, Travel: row.Travel, Breaches: row.Breaches}) {
 			return contract("invalid routes facility")
 		}
 		travelled := map[string]bool{}
@@ -326,7 +326,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	benches := map[string]bool{}
 	for _, row := range l.WorkCells {
-		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, Room: row.Room, LightSensitive: row.LightSensitive}) {
+		if row == nil || !uniqueRef(row.Bench, benches) || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, Room: row.Room, LightSensitive: row.LightSensitive}) {
 			return contract("invalid lighting work cell")
 		}
 		if row.Glow != nil && (math.IsNaN(row.GetGlow()) || row.GetGlow() < 0 || row.GetGlow() > 1) {
@@ -335,7 +335,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	lamps := map[string]bool{}
 	for _, row := range l.Lamps {
-		if row == nil || !entity(row.Building, lamps) || !optionalRef(row.Room) || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, Room: row.Room}) {
+		if row == nil || !uniqueRef(row.Building, lamps) || !optionalRef(row.Room) || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, Room: row.Room}) {
 			return contract("invalid lighting lamp")
 		}
 		if row.GlowRadius != nil && (math.IsNaN(row.GetGlowRadius()) || row.GetGlowRadius() < 0 || row.GetGlowRadius() > 1e3) {

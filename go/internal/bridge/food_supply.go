@@ -22,7 +22,7 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 	}
 	stocks := map[string]bool{}
 	for _, row := range v.Stocks {
-		if row == nil || !thingRef(row.Item, stocks) || !combatNumber(row.Nutrition, true) {
+		if row == nil || !uniqueRef(row.Item, stocks) || !combatNumber(row.Nutrition, true) {
 			return contract("invalid food stock")
 		}
 		if row.GetReserve() && row.Holder != nil {

@@ -16,7 +16,7 @@ func sleepingWire() *o.UpkeepFacts {
 	bed := proto.Clone(v.Items[0].Item).(*o.EntityRef)
 	bed.Id = proto.String("bed")
 	v.People = []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: person.Id}, ComfortableMinC: proto.Float64(-10), ComfortableMaxC: proto.Float64(30)}}
-	v.Beds = []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(-5), RestEffectiveness: proto.Float64(.8), Owners: NewRefs([]string{"pawn"}), AccessibleTo: NewRefs([]string{"pawn"})}}
+	v.Beds = []*o.UpkeepBed{{Bed: NewRef(bed.GetId()), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(-5), RestEffectiveness: proto.Float64(.8), Owners: NewRefs([]string{"pawn"}), AccessibleTo: NewRefs([]string{"pawn"})}}
 	return v
 }
 

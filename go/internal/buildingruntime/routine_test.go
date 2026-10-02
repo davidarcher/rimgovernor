@@ -83,6 +83,16 @@ func (n *routineNative) building(row *o.BuildingState) *o.EntityRef {
 	return row.Building
 }
 
+// head puts a building row with only ref's head in the frame's building
+// table, unless it already holds one, and returns the reference a section
+// carries to it (#1342).
+func (n *routineNative) head(ref *o.EntityRef) *c.Ref {
+	if _, ok := n.buildings[ref.GetId()]; !ok {
+		n.building(&o.BuildingState{Building: ref})
+	}
+	return &c.Ref{Id: ref.Id}
+}
+
 // pawn puts row in the frame's pawn table and returns the reference a
 // section carries to it.
 func (n *routineNative) pawn(row *o.PawnState) *o.EntityRef {

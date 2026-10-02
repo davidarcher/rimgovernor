@@ -274,7 +274,7 @@ namespace HomeBridge.BridgeTools
             if (incidents.Count > 0) result.ShortCircuitTick = incidents.Max();
             foreach (var power in traders) {
                 var building = (Building)power.parent;
-                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = BuildingRef(map, building),
+                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = NativeBuildingObservationTools.Ref(building),
                     RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second (#1188).
                 try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
@@ -282,12 +282,11 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = BuildingRef(map, building), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = NativeBuildingObservationTools.Ref(building), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
                     StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)
-                result.Furniture.Add(new Obs.DevelopmentFurniture { Building = new Obs.EntityRef { Id = conduit.GetUniqueLoadID(),
-                    MapId = map.uniqueID, DefName = conduit.def.defName, Position = Cell(conduit.Position) } });
+                result.Furniture.Add(new Obs.DevelopmentFurniture { Building = NativeBuildingObservationTools.Ref(conduit) });
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
@@ -316,11 +315,6 @@ namespace HomeBridge.BridgeTools
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
-        // BuildingRef points at a building's row in the bundle's building
-        // table, which carries its service state and footprint (#1343).
-        private static Obs.EntityRef BuildingRef(Map map, Building building) => new Obs.EntityRef { Id = building.GetUniqueLoadID(), MapId = map.uniqueID,
-            DefName = building.def.defName, Position = Cell(building.Position) };
-
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)
         {
@@ -328,8 +322,7 @@ namespace HomeBridge.BridgeTools
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
             var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in benches) {
-                var row = new Obs.CookingFacts { Bench = new Obs.EntityRef { Id = bench.GetUniqueLoadID(), DefName = bench.def.defName,
-                    MapId = map.uniqueID, Position = Cell(bench.Position), Snapshot = NativeProductionBills.Snapshot(bench,bench,result.Context) },
+                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,result.Context),
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
@@ -353,7 +346,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
                 var giver=(IBillGiver)bench;
-                var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
+                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context),Usable=NativeProductionBills.Usable(bench)};
                 HumanFoodFacts.Fill(row,bench);
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
@@ -509,7 +502,7 @@ namespace HomeBridge.BridgeTools
                 var power = building.TryGetComp<CompPowerTrader>();
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
-                    var row = new Obs.GrowLight { Building = new Obs.EntityRef { Id = lamp.GetUniqueLoadID(), MapId = map.uniqueID, DefName = lamp.def.defName, Position = Cell(lamp.Position) } };
+                    var row = new Obs.GrowLight { Building = NativeBuildingObservationTools.Ref(lamp) };
                     if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
                     else row.Issues.Add(Issue("powered", Common.UnavailableReason.NotApplicable, "Lamp has no power trader."));
                     var schedule = lamp.TryGetComp<CompSchedule>();
@@ -518,7 +511,7 @@ namespace HomeBridge.BridgeTools
                     if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
                     result.Lights.Add(row);
                 } else if (building is Building_PlantGrower grower) {
-                    var row = new Obs.PlantGrower { Building = new Obs.EntityRef { Id = grower.GetUniqueLoadID(), MapId = map.uniqueID, DefName = grower.def.defName, Position = Cell(grower.Position) },
+                    var row = new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
                         CanSow = grower.CanAcceptSowNow() };
                     if (grower.def.fertility >= 0f) row.Fertility = Finite(grower.def.fertility);
                     if (grower.def.building?.sowTag != null) row.SowTag = grower.def.building.sowTag;

@@ -263,9 +263,6 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		return err
 	}
 	optionalID := func(v *string) bool { return v == nil || validID(*v) == nil }
-	entity := func(ref *o.EntityRef) bool {
-		return ref != nil && validID(ref.GetId()) == nil && validID(ref.GetDefName()) == nil && colonyCell(ref.Position, size)
-	}
 	cells := func(rows []*c.Cell) bool {
 		for _, row := range rows {
 			if !colonyCell(row, size) {
@@ -283,7 +280,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		return true
 	}
 	for _, row := range e.Lights {
-		if row == nil || !entity(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
+		if row == nil || !validRef(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
 			return contract("invalid environment light")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
@@ -291,7 +288,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		}
 	}
 	for _, row := range e.Growers {
-		if row == nil || !entity(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
+		if row == nil || !validRef(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
 			return contract("invalid environment grower")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {

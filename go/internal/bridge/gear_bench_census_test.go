@@ -24,7 +24,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 		Context: gearBenchContext(),
 		Benches: []*o.BillStack{{
 			Snapshot: &o.SnapshotRef{Context: gearBenchContext(), EntityId: proto.String("bench1"), Token: proto.String("bench1-token")},
-			Bench:    &o.EntityRef{Id: proto.String("bench1")},
+			Bench:    &c.Ref{Id: proto.String("bench1")},
 			Bills: []*o.BillState{
 				{Id: proto.String("bill1"), Recipe: &o.DefinitionRef{DefName: proto.String("MakeParka")}, Suspended: proto.Bool(false), Finished: proto.Bool(false)},
 			},

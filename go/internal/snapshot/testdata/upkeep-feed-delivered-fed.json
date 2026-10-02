@@ -10032,7 +10032,6 @@
         "X": 105,
         "Z": 115
        },
-       "Definition": "ButcherSpot",
        "ID": "Thing_ButcherSpot44690",
        "Kind": "bench",
        "Travel": [
@@ -10124,7 +10123,6 @@
         "X": 105,
         "Z": 123
        },
-       "Definition": "Zone_Stockpile",
        "ID": "zone-0",
        "Kind": "stockpile",
        "Travel": [

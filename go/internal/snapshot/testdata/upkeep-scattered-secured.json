@@ -8820,7 +8820,6 @@
         "X": 102,
         "Z": 137
        },
-       "Definition": "Zone_Stockpile",
        "ID": "zone-0",
        "Kind": "stockpile",
        "Travel": [

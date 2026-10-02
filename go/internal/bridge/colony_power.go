@@ -20,7 +20,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			return contract("missing power building")
 		}
 		ref := row.Building
-		if !powerEntity(ref, identity, size) || seen[ref.GetId()] {
+		if !validRef(ref) || seen[ref.GetId()] {
 			return contract("invalid power building identity")
 		}
 		seen[ref.GetId()] = true
@@ -54,7 +54,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	geysers := map[string]bool{}
 	for _, row := range v.Geysers {
 		ref := row.GetGeyser()
-		if row == nil || !proto.Equal(row, &o.SteamGeyser{Geyser: row.Geyser, Cells: row.Cells, Occupied: row.Occupied}) || !powerEntity(ref, identity, size) || ref.Position == nil || row.Occupied == nil || geysers[ref.GetId()] {
+		if row == nil || !proto.Equal(row, &o.SteamGeyser{Geyser: row.Geyser, Cells: row.Cells, Occupied: row.Occupied}) || ref == nil || validID(ref.GetId()) != nil || ref.Position == nil || row.Occupied == nil || geysers[ref.GetId()] {
 			return contract("invalid steam geyser")
 		}
 		geysers[ref.GetId()] = true
@@ -73,25 +73,13 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 			return contract("steam geyser footprint misses anchor")
 		}
 	}
-	conduits := map[[2]int32]bool{}
 	for _, row := range v.Furniture {
-		if row == nil || !proto.Equal(row, &o.DevelopmentFurniture{Building: row.Building}) || !powerEntity(row.Building, identity, size) {
-			return contract("invalid power conduit")
-		}
-		ref := row.Building
-		key := [2]int32{ref.GetPosition().GetX(), ref.GetPosition().GetZ()}
-		if (ref.GetDefName() != "PowerConduit" && ref.GetDefName() != "HiddenConduit" && ref.GetDefName() != "WaterproofConduit") || ref.Position == nil || seen[ref.GetId()] || conduits[key] {
+		if row == nil || !proto.Equal(row, &o.DevelopmentFurniture{Building: row.Building}) || !validRef(row.Building) || seen[row.Building.GetId()] {
 			return contract("invalid or duplicate power conduit")
 		}
-		seen[ref.GetId()], conduits[key] = true, true
+		seen[row.Building.GetId()] = true
 	}
 	return nil
-}
-
-func powerEntity(ref *o.EntityRef, identity *c.Identity, size *o.MapSize) bool {
-	return ref != nil && validID(ref.GetId()) == nil && ref.MapId != nil && ref.GetMapId() == identity.GetMapId() &&
-		(ref.DefName == nil || validID(ref.GetDefName()) == nil) && (ref.Position == nil || colonyCell(ref.Position, size)) &&
-		proto.Equal(ref, &o.EntityRef{Id: ref.Id, MapId: ref.MapId, DefName: ref.DefName, Position: ref.Position})
 }
 
 func validateColonyEnvironment(v *o.ColonyFactsSnapshot) error {

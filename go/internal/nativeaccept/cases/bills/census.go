@@ -77,9 +77,8 @@ func run(ctx context.Context, s cases.Session) error {
 	for _, section := range []string{"cooking", "butchering"} {
 		for _, raw := range na.AsSlice(factsObserved[section]) {
 			row, _ := na.AsMap(raw)
-			bench, _ := na.AsMap(row["bench"])
-			snapshot, _ := na.AsMap(bench["snapshot"])
-			productionTokens[na.AsString(bench["id"])] = na.AsString(snapshot["token"])
+			snapshot, _ := na.AsMap(row["benchSnapshot"])
+			productionTokens[na.RefID(row["bench"])] = na.AsString(snapshot["token"])
 		}
 	}
 	seen := map[string]bool{}

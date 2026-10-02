@@ -325,10 +325,7 @@ type GearRecipe struct {
 	RequiredWork           domain.Fact[[]WorkRequirement]
 }
 type GearBench struct {
-	ID string
-	// Cell is the bench's native position, unknown when the read omits it;
-	// stockpile siting measures hauling distance from it (#723).
-	Cell    domain.Fact[domain.Cell]
+	ID      string
 	Bills   domain.Fact[[]GearBill]
 	Recipes domain.Fact[[]GearRecipe]
 }

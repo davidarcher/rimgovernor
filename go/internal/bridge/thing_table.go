@@ -74,15 +74,6 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 	return nil
 }
 
-// thingRef reports a well-formed thing reference not yet in seen.
-func thingRef(e *c.Ref, seen map[string]bool) bool {
-	if !validRef(e) || seen[e.GetId()] {
-		return false
-	}
-	seen[e.GetId()] = true
-	return true
-}
-
 // ThingsSection names the things table in the colony mirror, keyed by
 // thing id: what a recording replays food stock references against.
 const ThingsSection = "things"

@@ -29,6 +29,25 @@ type Tables struct {
 	Things    Things
 }
 
+// Entity is the head (def, label, position) of the row ref points at in
+// any of the tables, nil when none holds it: the one place a reference
+// reaches its def, label and position (#1342).
+func (t Tables) Entity(ref Reference) *o.EntityRef {
+	if ref == nil {
+		return nil
+	}
+	if head := t.Buildings.Entity(ref); head != nil {
+		return head
+	}
+	if row, ok := t.Pawns.Row(ref); ok {
+		return row.GetPawn()
+	}
+	if row, ok := t.Things.Row(ref); ok {
+		return row.GetThing()
+	}
+	return nil
+}
+
 // tableDetails is every detail family a pawn table row may carry: the
 // table varies detail by pawn kind, so a row is checked against the
 // union, never against one kind's selection.
@@ -70,8 +89,8 @@ func (p Pawns) Snapshot(context *c.ObservationContext, ids []string) (*o.PawnSna
 	return out, true
 }
 
-// pawnRef reports a well-formed pawn reference not yet in seen.
-func pawnRef(e *c.Ref, seen map[string]bool) bool {
+// uniqueRef reports a well-formed reference not yet in seen, and adds it.
+func uniqueRef(e *c.Ref, seen map[string]bool) bool {
 	if !validRef(e) || seen[e.GetId()] {
 		return false
 	}

@@ -12283,7 +12283,6 @@
         "X": 102,
         "Z": 138
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44690",
        "Kind": "bed",
        "Travel": [
@@ -12375,7 +12374,6 @@
         "X": 109,
         "Z": 132
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44691",
        "Kind": "bed",
        "Travel": [

@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 // native -1 sentinel and cannot be repair targets.
                 var rows = sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).ToList();
                 var values = rows.Select(b => new Obs.UpkeepStructure {
-                    Building = Ref(b),
+                    Building = NativeBuildingObservationTools.Ref(b),
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c]), Flammability = Number(b.GetStatValue(StatDefOf.Flammability)),
                     RepairPriority = b.TryGetComp<CompTempControl>() != null || b.TryGetComp<CompPowerPlant>() != null
                         || b is Building_Bed bed && bed.Medical ? 0
@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.LightingFacts();
                 foreach (var b in benches) {
                     var cell = b.InteractionCell;
-                    var row = new Obs.WorkLightCell { Bench = Ref(b), Cell = Cell(cell), Glow = Number(map.glowGrid.GroundGlowAt(cell)), Roofed = cell.Roofed(map) };
+                    var row = new Obs.WorkLightCell { Bench = NativeBuildingObservationTools.Ref(b), Cell = Cell(cell), Glow = Number(map.glowGrid.GroundGlowAt(cell)), Roofed = cell.Roofed(map) };
                     var room = cell.GetRoom(map);
                     if (room != null)
                     {
@@ -187,7 +187,7 @@ namespace HomeBridge.BridgeTools
                 }
                 foreach (var b in lamps) {
                     var glower = b.TryGetComp<CompGlower>();
-                    var row = new Obs.LampState { Building = Ref(b),
+                    var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b),
                         GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
                     var room = b.Position.GetRoom(map);
                     if (room != null) row.Room = NativeRef.Room(room);
@@ -258,7 +258,7 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.RoutesFacts();
                 facts.PawnIds.AddRange(people.Select(p => Id(p.GetUniqueLoadID())));
                 var measured = 0; long pathTicks = 0, reachTicks = 0;
-                Obs.RouteFacility Facility(Obs.EntityRef reference, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
+                Obs.RouteFacility Facility(Common.Ref reference, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
                     var room = cell.GetRoom(map);
@@ -345,14 +345,14 @@ namespace HomeBridge.BridgeTools
                 foreach (var (thing, kind, cell) in facilities)
                 {
                     var mode = thing.def.hasInteractionCell ? PathEndMode.InteractionCell : PathEndMode.Touch;
-                    facts.Facilities.Add(Facility(Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
+                    facts.Facilities.Add(Facility(NativeBuildingObservationTools.Ref(thing), kind, cell, p => !thing.IsForbidden(p) && p.CanReach(thing, mode, Danger.Some), p => thing, mode));
                 }
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
                 foreach (var zone in stockpiles)
                 {
                     var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
                     if (cell == default) continue;
-                    var reference = new Obs.EntityRef { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)), DefName = Id("Zone_Stockpile"), MapId = map.uniqueID, Position = Cell(cell) };
+                    var reference = new Common.Ref { Id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
                     facts.Facilities.Add(Facility(reference, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
                 }
                 var traffic = map.GetComponent<TrafficState>();
@@ -394,7 +394,7 @@ namespace HomeBridge.BridgeTools
                 var beds = sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).ToList();
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => (p.IsFreeColonist || p.IsSlaveOfColony) && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 var values = beds.Select(b => {
-                    var row = new Obs.UpkeepBed { Bed = Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
+                    var row = new Obs.UpkeepBed { Bed = NativeBuildingObservationTools.Ref(b), Slots = checked((uint)b.SleepingSlotsCount),
                         Humanlike = b.def.building.bed_humanlike, RestEffectiveness = Number(b.GetStatValue(StatDefOf.BedRestEffectiveness)),
                         Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };

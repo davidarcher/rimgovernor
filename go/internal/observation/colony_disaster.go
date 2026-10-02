@@ -22,7 +22,7 @@ func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildi
 		facts.DisasterConditions = domain.Known(conditions)
 	}
 	facts.DisasterTick = domain.Tick(v.Context.GetTick())
-	if recovery := v.GetRecovery().GetObserved(); recovery != nil && resolved(buildings, recovery.Buildings, func(ref *o.EntityRef) *o.EntityRef { return ref }) {
+	if recovery := v.GetRecovery().GetObserved(); recovery != nil && resolved(buildings, recovery.Buildings, func(ref *c.Ref) *c.Ref { return ref }) {
 		safety := policy.RecoverySafety{}
 		for _, restriction := range recovery.Restrictions {
 			safety.Restrictions = append(safety.Restrictions, policy.RecoveryRestriction{Pawn: policy.PawnID(restriction.Pawn.GetId()), Area: domain.Known(restriction.GetAreaId())})

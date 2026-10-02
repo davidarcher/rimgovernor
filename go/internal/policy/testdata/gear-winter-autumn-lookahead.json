@@ -26608,7 +26608,6 @@
         "X": 115,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44722",
        "Kind": "bed",
        "Room": {
@@ -26703,7 +26702,6 @@
         "X": 116,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44723",
        "Kind": "bed",
        "Room": {
@@ -26798,7 +26796,6 @@
         "X": 117,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44724",
        "Kind": "bed",
        "Room": {
@@ -26893,7 +26890,6 @@
         "X": 118,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44725",
        "Kind": "bed",
        "Room": {
@@ -26988,7 +26984,6 @@
         "X": 119,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44726",
        "Kind": "bed",
        "Room": {
@@ -27083,7 +27078,6 @@
         "X": 120,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44727",
        "Kind": "bed",
        "Room": {
@@ -27178,7 +27172,6 @@
         "X": 121,
         "Z": 130
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44728",
        "Kind": "bed",
        "Room": {
@@ -27273,7 +27266,6 @@
         "X": 115,
         "Z": 132
        },
-       "Definition": "SleepingSpot",
        "ID": "Thing_SleepingSpot44729",
        "Kind": "bed",
        "Room": {
@@ -27368,7 +27360,6 @@
         "X": 117,
         "Z": 131
        },
-       "Definition": "HandTailoringBench",
        "ID": "Thing_HandTailoringBench44730",
        "Kind": "bench",
        "Room": {

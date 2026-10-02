@@ -24,14 +24,14 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 	}
 	seen := map[string]bool{}
 	for _, ref := range v.Buildings {
-		if !powerEntity(ref, colony.Context.Identity, colony.MapSize) || seen[ref.GetId()] {
+		if !validRef(ref) || seen[ref.GetId()] {
 			return contract("invalid recovery building identity")
 		}
 		seen[ref.GetId()] = true
 	}
 	seen = map[string]bool{}
 	for _, r := range v.Restrictions {
-		if r == nil || !powerEntity(r.Pawn, colony.Context.Identity, colony.MapSize) || seen[r.Pawn.GetId()] || r.AreaId != nil && validID(r.GetAreaId()) != nil || !proto.Equal(r, &o.RecoveryRestriction{Pawn: r.Pawn, AreaId: r.AreaId}) {
+		if r == nil || !validRef(r.Pawn) || seen[r.Pawn.GetId()] || r.AreaId != nil && validID(r.GetAreaId()) != nil || !proto.Equal(r, &o.RecoveryRestriction{Pawn: r.Pawn, AreaId: r.AreaId}) {
 			return contract("invalid recovery restriction")
 		}
 		seen[r.Pawn.GetId()] = true

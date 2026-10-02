@@ -73,7 +73,7 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 			case "numbers":
 				r.WorkerCount = proto.Uint32(100)
 			case "environment-cell":
-				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("SunLamp"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}}
+				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Lights: []*o.GrowLight{{Building: &c.Ref{Id: proto.String("lamp")}, GrowthCells: []*c.Cell{{X: proto.Int32(-1), Z: proto.Int32(0)}}}}}
 			case "crop-demand":
 				r.Planning.GetObserved().Crops[0].NutritionDemandPerDay = proto.Float64(math.NaN())
 			case "crop-diet":

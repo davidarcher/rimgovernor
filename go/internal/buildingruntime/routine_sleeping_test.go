@@ -201,7 +201,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	var beds []*o.UpkeepBed
 	for i, medical := range []bool{false, true, true} {
 		ref := &o.EntityRef{Id: proto.String(fmt.Sprintf("spot%d", i)), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(int32(i)), Z: proto.Int32(0)}}
-		beds = append(beds, &o.UpkeepBed{Bed: ref, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(medical), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20)})
+		beds = append(beds, &o.UpkeepBed{Bed: n.head(ref), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(medical), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20)})
 	}
 	n.reply.GetObserved().Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: beds,
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}

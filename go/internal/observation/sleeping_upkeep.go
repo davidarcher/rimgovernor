@@ -7,7 +7,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObservation] {
+func colonySleeping(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[policy.SleepingObservation] {
 	u := v.GetUpkeep().GetObserved()
 	if u == nil || v.ColonistCount == nil || hasIssue(u.Issues, "people") || hasIssue(u.Issues, "beds") {
 		return domain.Unknown[policy.SleepingObservation]()
@@ -30,7 +30,11 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 		r.Slaves = append(r.Slaves, person(p))
 	}
 	for _, b := range u.Beds {
-		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
+		head := buildings.Entity(b.Bed)
+		if head == nil {
+			return domain.Unknown[policy.SleepingObservation]()
+		}
+		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(head.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
 	}
 	return domain.Known(r)
 }

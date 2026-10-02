@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -68,9 +67,9 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 			want := BuildingExistingFacility
 			switch change {
 			case "usable", "campfire", "unknown":
-				bench := &o.CookingFacts{Bench: &o.EntityRef{Id: proto.String("bench"), DefName: proto.String("FueledStove"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, Usable: proto.Bool(true)}
+				bench := &o.CookingFacts{Bench: native.head(&o.EntityRef{Id: proto.String("bench"), DefName: proto.String("FueledStove")}), Usable: proto.Bool(true)}
 				if change == "campfire" {
-					bench.Bench.DefName = proto.String("Campfire")
+					native.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bench"), DefName: proto.String("Campfire")}})
 					bench.Usable = proto.Bool(false)
 				}
 				if change == "unknown" {

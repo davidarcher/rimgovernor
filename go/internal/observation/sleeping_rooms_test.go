@@ -15,10 +15,13 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
 		People: []*o.UpkeepPerson{{Pawn: &commonpb.Ref{Id: proto.String("pawn")}, Partners: bridge.NewRefs([]string{"lover"}), BedSharingAllowed: proto.Bool(false),
 			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
-		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		Beds: []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	r, known := colonySleeping(v).Value()
+	if _, k := colonySleeping(v, nil).Value(); k {
+		t.Fatal("an unresolved bed became a known census")
+	}
+	r, known := colonySleeping(v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}})).Value()
 	if !known {
 		t.Fatal("unknown")
 	}
@@ -70,7 +73,7 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	// No title stays nil; the colony read alone leaves room quality unknown
 	// (the frame's rooms census fills it), and so does a bed of unknown kind.
 	u.People[0].Title = nil
-	r, known = colonySleeping(v).Value()
+	r, known = colonySleeping(v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}})).Value()
 	if !known || r.People[0].Title != nil {
 		t.Fatal("title", r.People[0].Title)
 	}
