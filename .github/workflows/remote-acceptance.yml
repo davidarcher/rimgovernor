@@ -65,6 +65,12 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 10
     environment: remote-acceptance
+    # Go build and module caches (restored below, saved only by pushes to
+    # main, one entry per role, go.sum and ISO week so they cannot pile up
+    # and evict the bundle cache).
+    env:
+      GOCACHE: C:\rg\gocache
+      GOMODCACHE: C:\rg\gomod
     outputs:
       head: ${{ steps.gate.outputs.head }}
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -101,9 +107,28 @@ jobs:
         with:
           go-version-file: trusted/go/.go-version
           cache: false
+      - name: Name the Go cache
+        id: gokey
+        shell: bash
+        run: echo "key=go-plan-windows-${{ hashFiles('tested/go/go.sum') }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: gocache
+        with:
+          path: |
+            C:\rg\gocache
+            C:\rg\gomod
+          key: ${{ steps.gokey.outputs.key }}
+          restore-keys: go-plan-windows-${{ hashFiles('tested/go/go.sum') }}-
       - name: Plan complete selection from detached tested source
         id: plan
         run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.gocache.outputs.cache-hit != 'true' }}
+        with:
+          path: |
+            C:\rg\gocache
+            C:\rg\gomod
+          key: ${{ steps.gokey.outputs.key }}
       - name: Upload immutable plan inputs
         if: always() && steps.gate.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -211,6 +236,12 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 360
     environment: remote-acceptance
+    # Go build and module caches (restored below, saved only by pushes to
+    # main, one entry per role, go.sum and ISO week so they cannot pile up
+    # and evict the bundle cache).
+    env:
+      GOCACHE: C:\rg\gocache
+      GOMODCACHE: C:\rg\gomod
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -239,6 +270,18 @@ jobs:
         with:
           go-version-file: trusted/go/.go-version
           cache: false
+      - name: Name the Go cache
+        id: gokey
+        shell: bash
+        run: echo "key=go-shard-windows-${{ hashFiles('tested/go/go.sum') }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: gocache
+        with:
+          path: |
+            C:\rg\gocache
+            C:\rg\gomod
+          key: ${{ steps.gokey.outputs.key }}
+          restore-keys: go-shard-windows-${{ hashFiles('tested/go/go.sum') }}-
       - name: Fetch the trusted public-evidence exporter
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -264,6 +307,13 @@ jobs:
         with:
           path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
           key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.gocache.outputs.cache-hit != 'true' && matrix.shard == 's1' && matrix.rep == 1 }}
+        with:
+          path: |
+            C:\rg\gocache
+            C:\rg\gomod
+          key: ${{ steps.gokey.outputs.key }}
       - name: Record why governed processes exited (#1358)
         if: always() && steps.gate.outcome == 'success'
         continue-on-error: true
