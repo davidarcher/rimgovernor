@@ -18,7 +18,7 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	reviewer, db, _, _, native := routineFixture(t)
 	setGearProductionNeed(native.reply.GetObserved())
 	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
-	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), PawnName: proto.String("Ann"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
@@ -38,7 +38,7 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 		t.Fatal(err)
 	}
 	value, ok := state.Spec.Actions()[0].ApparelPolicy()
-	if !ok || value.Pawn() != "a" || value.Spec().Name != "RimGovernor worker" || value.Spec().Token != "policy-cas" {
+	if !ok || value.Pawn() != "a" || value.Spec().Name != "Ann" || value.Spec().Token != "policy-cas" {
 		t.Fatal(value, ok)
 	}
 }
@@ -51,7 +51,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	setGearProductionNeed(native.reply.GetObserved())
 	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
 	for _, pawn := range gear.Pawns {
-		pawn.ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas-" + pawn.GetPawn().GetId()), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+		pawn.ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas-" + pawn.GetPawn().GetId()), PawnName: proto.String("Name " + pawn.GetPawn().GetId()), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
 	}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n

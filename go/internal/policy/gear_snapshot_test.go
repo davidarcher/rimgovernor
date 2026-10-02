@@ -55,9 +55,10 @@ func TestGearTaintedAssignsTheWorkerPolicy(t *testing.T) {
 	wantEquipmentDeficit(t, r)
 	offered := false
 	for _, p := range recordedGear(t, r).Pawns {
+		p = named(p, "Name "+string(p.Pawn))
 		desired, needed := policy.DesiredApparelPolicy(p)
-		if !needed || desired.Spec().Name != "RimGovernor "+string(policy.GearWorker) {
-			t.Fatalf("%s: policy write %v %q, want the RimGovernor worker policy", p.Pawn, needed, desired.Spec().Name)
+		if !needed || desired.Spec().Name != "Name "+string(p.Pawn) {
+			t.Fatalf("%s: policy write %v %q, want the pawn's own outfit", p.Pawn, needed, desired.Spec().Name)
 		}
 		candidates, _ := p.Candidates.Value()
 		for _, c := range candidates {
@@ -76,6 +77,9 @@ func TestGearTaintedWorkerPolicyNeverWearsTheTaintedParka(t *testing.T) {
 	obs := recordedGear(t, r)
 	for _, p := range obs.Pawns {
 		state, known := p.Policy.Value()
+		// The recording predates per-pawn outfits (#1302): its worker policy
+		// stands in for the pawn's own.
+		p = named(p, state.Current.Name)
 		if !known || state.Current.Name != "RimGovernor "+string(policy.GearWorker) || !state.ExcludesTainted {
 			t.Fatalf("%s: on %q excludesTainted=%v", p.Pawn, state.Current.Name, state.ExcludesTainted)
 		}
@@ -311,4 +315,14 @@ func hasDefinition(candidates []policy.GearCandidate, def policy.Resource) bool 
 		}
 	}
 	return false
+}
+
+// named gives a recorded pawn's outfit census the short name the recording
+// predates.
+func named(p policy.GearPawn, name string) policy.GearPawn {
+	if state, known := p.Policy.Value(); known {
+		state.PawnName = name
+		p.Policy = domain.Known(state)
+	}
+	return p
 }

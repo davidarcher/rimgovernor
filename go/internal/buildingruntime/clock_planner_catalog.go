@@ -615,7 +615,7 @@ var plannerCatalog = []plannerEntry{
 			})
 			return "", nil
 		}},
-	{name: "gear", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction}, sections: sectionsMedical,
+	{name: "gear", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction, domain.PolicyPruneAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Gear != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.Gear.step(ctx, epoch, arbiter)

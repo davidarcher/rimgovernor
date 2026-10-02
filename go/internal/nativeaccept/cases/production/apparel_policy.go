@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "The ApparelPolicyIntent creates, assigns and updates a role policy, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
+	cases.Register(cases.Case{Name: "production/apparel-policy", Scope: "The ApparelPolicyIntent creates, assigns and updates the pawn's own outfit, labelled with its short name (#1302),, reapplies as applied, and overrides manual policies and forced/locked apparel under autonomous control. A Go test cannot see the native filter write.", Start: cases.LabStart(), Budget: 2 * time.Minute, Run: runApparelPolicy})
 }
 func runApparelPolicy(ctx context.Context, s cases.Session) error {
 	h := s.Harness()
@@ -26,7 +26,7 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	apply := func(label string, row map[string]any, hp float64, defs []string) error {
-		intent := map[string]any{"pawnId": row["pawn"], "name": "RimGovernor worker", "allowedDefs": defs, "minHitPoints": hp, "maxHitPoints": 1, "minQuality": 1, "maxQuality": 6}
+		intent := map[string]any{"pawnId": row["pawn"], "name": row["shortName"], "allowedDefs": defs, "minHitPoints": hp, "maxHitPoints": 1, "minQuality": 1, "maxQuality": 6}
 		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": label, "apparelPolicy": intent}}})
 		if err != nil {
 			return err
@@ -65,7 +65,7 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 		clean, _ := na.AsBool(after["clean"])
 		minHP, _ := after["minHP"].(float64)
 		actualDefs, _ := after["defs"].([]any)
-		if na.AsString(after["name"]) != "RimGovernor worker" || forced != 0 || locked || tainted || !clean || minHP < hp-.00001 || minHP > hp+.00001 || len(actualDefs) != len(defs) || after["minQuality"] != float64(1) || after["maxQuality"] != float64(6) {
+		if na.AsString(after["name"]) != na.AsString(before["shortName"]) || forced != 0 || locked || tainted || !clean || minHP < hp-.00001 || minHP > hp+.00001 || len(actualDefs) != len(defs) || after["minQuality"] != float64(1) || after["maxQuality"] != float64(6) {
 			return fmt.Errorf("native filter/assignment mismatch: %v", after)
 		}
 		for j, d := range defs {
@@ -73,7 +73,8 @@ func runApparelPolicy(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("definition mismatch: %v", actualDefs)
 			}
 		}
-		if i > 0 && after["policy"] != row["policy"] {
+		// The player's outfit the pawn alone held is reused, relabelled.
+		if after["policy"] != before["policy"] {
 			return fmt.Errorf("update created another policy")
 		}
 		s.Report()[label] = after

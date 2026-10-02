@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -72,6 +73,13 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 	}
 	return result
 }
+
+// gearModelFacts is observation.GearLoadoutModelFacts; the package name is
+// shadowed where it is used.
+func gearModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+	return observation.GearLoadoutModelFacts(gear, outdoor, p, state)
+}
+
 func optionalBool(v *bool) domain.Fact[bool] {
 	if v == nil {
 		return domain.Unknown[bool]()
@@ -142,7 +150,7 @@ func equipmentSlots(call context.Context, p *Player, review store.RoutineReview)
 			if err != nil {
 				return 0, "", err
 			}
-			// An apparel policy write holds no development slot (#660).
+			// An apparel policy write or outfit prune holds no development slot (#660).
 			if store.PlanOpen(plan) && !apparelPolicyPlan(plan.Spec) {
 				open++
 			}
@@ -165,7 +173,9 @@ func equipmentSlots(call context.Context, p *Player, review store.RoutineReview)
 
 func apparelPolicyPlan(spec domain.PlanSpec) bool {
 	for _, action := range spec.Actions() {
-		if _, ok := action.ApparelPolicy(); !ok {
+		_, write := action.ApparelPolicy()
+		_, prune := action.PolicyPrune()
+		if !write && !prune {
 			return false
 		}
 	}
@@ -199,6 +209,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	busy := map[domain.PawnID]bool{}
 	claimed := map[string]bool{}
+	pruning := false
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -211,6 +222,8 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 					claimed[wear.Thing()] = true
 				} else if settings, ok := action.ApparelPolicy(); ok {
 					busy[settings.Pawn()] = true
+				} else if _, ok := action.PolicyPrune(); ok {
+					pruning = true
 				} else {
 					return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
 				}
@@ -234,6 +247,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
 		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
+	outfits := observation.OutfitIDs(observation.ColonyPolicies(observed.Policies))
 	observation := gearObservationFacts(gear)
 	for i := range observation.Pawns {
 		pawn := &observation.Pawns[i]
@@ -254,8 +268,15 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	// colonists before any wear order or bill (#660). A write whose CAS token an
 	// earlier write in the batch staled is cancelled and re-admitted next round,
 	// so the batch converges in about one round per distinct role policy.
+	// Outfits are judged with the loadout model, as the review judges them
+	// (the quality floor reads its stock); method selection below keeps the
+	// census without it.
+	outfitCensus := policy.GearObservation{Pawns: append([]policy.GearPawn{}, observation.Pawns...), Outfits: outfits}
+	for i := range outfitCensus.Pawns {
+		outfitCensus.Pawns[i].LoadoutModel = gearModelFacts(gear, observed.OutdoorTemperatureC, gear.GetPawns()[i], outfitCensus.Pawns[i].Policy)
+	}
 	var policies RoutineGearResult
-	for _, pawn := range observation.Pawns {
+	for _, pawn := range outfitCensus.Pawns {
 		if pawn.Blocked {
 			continue
 		}
@@ -263,41 +284,34 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		if !needed {
 			continue
 		}
-		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, value.Encoded())))
-		method := domain.MethodID(fmt.Sprintf("apparel-policy-%x", digest[:16]))
-		seen := false
-		for _, m := range goal.Methods {
-			seen = seen || m.Method == method
-		}
-		if seen {
+		if seenMethod(goal, policyMethod(goal, "apparel-policy", value.Encoded())) || !arbiter.tryClaim([]domain.PawnID{value.Pawn()}) {
 			continue
 		}
-		if !arbiter.tryClaim([]domain.PawnID{value.Pawn()}) {
-			continue
-		}
-		id := domain.MintPlanID()
-		action, err := domain.NewApparelPolicyAction(domain.ActionID(string(id)+"-0"), value)
+		result, err := r.commitPolicyPlan(call, epoch, state, started, &goal, "apparel-policy", value.Encoded(), func(id domain.ActionID) (domain.Action, error) {
+			return domain.NewApparelPolicyAction(id, value)
+		})
 		if err != nil {
-			return RoutineGearResult{}, err
+			return result, err
 		}
-		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-		if err != nil {
-			return RoutineGearResult{}, err
-		}
-		if err = p.current(call, epoch); err != nil {
-			return RoutineGearResult{}, err
-		}
-		elapsed := r.reviewer.clock.Now().Sub(started)
-		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
-		}
-		if goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-			return RoutineGearResult{}, err
-		}
-		policies = RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}
+		policies = result
 	}
 	if policies.Plan != "" {
 		return policies, nil
+	}
+	// Once every pawn is on its own outfit, every other outfit (vanilla and
+	// player-made included) is pruned (#1302, #1298). The other policy
+	// databases wait for their own per-pawn planners.
+	if drop := outfitCensus.OutfitsToPrune(); len(drop) > 0 && !pruning {
+		prune, err := domain.NewPolicyPrune(domain.OutfitPolicies, drop)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		result, err := r.commitPolicyPlan(call, epoch, state, started, &goal, "outfit-prune", fmt.Sprint(prune.IDs()), func(id domain.ActionID) (domain.Action, error) {
+			return domain.NewPolicyPruneAction(id, prune)
+		})
+		if err != nil || result.Plan != "" {
+			return result, err
+		}
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -409,6 +423,53 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
+		return RoutineGearResult{}, err
+	}
+	return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// policyMethod is the method id of a policy write or prune: the goal epoch
+// and the action's canonical value, so a repeat of the same write is seen.
+func policyMethod(goal store.GoalState, prefix, value string) domain.MethodID {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, value)))
+	return domain.MethodID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
+}
+
+func seenMethod(goal store.GoalState, method domain.MethodID) bool {
+	for _, m := range goal.Methods {
+		if m.Method == method {
+			return true
+		}
+	}
+	return false
+}
+
+// commitPolicyPlan admits a one-action policy plan (an outfit write or the
+// outfit prune) under the goal unless the same method was already tried;
+// the zero result is a repeat. goal is advanced to the committed revision.
+func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state ControlState, started time.Time, goal *store.GoalState, prefix, value string, build func(domain.ActionID) (domain.Action, error)) (RoutineGearResult, error) {
+	p := r.reviewer.player
+	method := policyMethod(*goal, prefix, value)
+	if seenMethod(*goal, method) {
+		return RoutineGearResult{}, nil
+	}
+	id := domain.MintPlanID()
+	action, err := build(domain.ActionID(string(id) + "-0"))
+	if err != nil {
+		return RoutineGearResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineGearResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineGearResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineGearResult{}, fmt.Errorf("%w: commitPolicyPlan: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+	}
+	if *goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

@@ -37,7 +37,7 @@ func pawnIDs(ids []string) []policy.PawnID {
 	return r
 }
 
-func colonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
+func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	f := section.GetObserved()
 	if f == nil {
 		return domain.Fact[Policies]{}

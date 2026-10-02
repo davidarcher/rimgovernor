@@ -1485,5 +1485,12 @@ message FoodRestriction {
   repeated string eligible_defs = 3;
 }
 
-message ApparelPolicyDefinition { optional string def_name = 1; optional bool armor = 2; optional bool child = 3; optional bool adult = 4; }
-message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; repeated ApparelPolicyDefinition definitions = 10; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; repeated Skill skills = 16; }
+// One apparel definition the pawn can wear (stage, gender, body parts and
+// body type), listed per pawn. covers_body: it covers the torso or legs.
+message ApparelPolicyDefinition { optional string def_name = 1; optional bool armor = 2; optional bool child = 3; optional bool adult = 4; optional bool covers_body = 5; }
+message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; repeated ApparelPolicyDefinition definitions = 10; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; repeated Skill skills = 16;
+  // The pawn's short name (its outfit's label), the load id of its current
+  // outfit, the wearable definitions its royal title, ideoligion role and
+  // ideoligion apparel precepts require, and whether it goes nude (nudist
+  // trait or mandatory nudity precept).
+  optional string pawn_name = 17; optional string policy_id = 18; repeated string required_defs = 19; optional bool nude = 20; }

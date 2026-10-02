@@ -45,6 +45,14 @@ namespace HomeBridge.BridgeTools
                         outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray(),
                         areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Select(a => a.GetUniqueLoadID()).ToArray() };
                 }
+                if (mode == "outfits") {
+                    // production/per-pawn-outfits (#1302): every free colonist's
+                    // outfit and the whole outfit database.
+                    return new { success = true,
+                        pawns = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(p),
+                            outfit = p.outfits?.CurrentApparelPolicy?.GetUniqueLoadID() ?? "", label = p.outfits?.CurrentApparelPolicy?.label ?? "" }).ToArray(),
+                        outfits = Current.Game.outfitDatabase.AllOutfits.Select(o => o.GetUniqueLoadID()).ToArray() };
+                }
                 if (mode.StartsWith("policy_")) {
                     if (mode == "policy_setup") {
                         subject = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => !p.Downed && !p.InMentalState);
@@ -57,7 +65,7 @@ namespace HomeBridge.BridgeTools
                     }
                     if (mode == "policy_edit") subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
                     var outfit = subject.outfits.CurrentApparelPolicy;
-                    return new { success = true, pawn = subject.GetUniqueLoadID(), token = NativeApparelPolicyOperations.Token(subject),
+                    return new { success = true, pawn = subject.GetUniqueLoadID(), shortName = NativeApparelPolicyOperations.ShortName(subject), token = NativeApparelPolicyOperations.Token(subject),
                         policy = outfit.GetUniqueLoadID(), name = outfit.label, defs = outfit.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).ToArray(),
                         minHP = outfit.filter.AllowedHitPointsPercents.min, maxHP = outfit.filter.AllowedHitPointsPercents.max,
                         minQuality = (int)outfit.filter.AllowedQualityLevels.min, maxQuality = (int)outfit.filter.AllowedQualityLevels.max,

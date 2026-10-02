@@ -34911,12 +34911,15 @@ func (x *FoodRestriction) GetEligibleDefs() []string {
 	return nil
 }
 
+// One apparel definition the pawn can wear (stage, gender, body parts and
+// body type), listed per pawn. covers_body: it covers the torso or legs.
 type ApparelPolicyDefinition struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DefName       *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	Armor         *bool                  `protobuf:"varint,2,opt,name=armor,proto3,oneof" json:"armor,omitempty"`
 	Child         *bool                  `protobuf:"varint,3,opt,name=child,proto3,oneof" json:"child,omitempty"`
 	Adult         *bool                  `protobuf:"varint,4,opt,name=adult,proto3,oneof" json:"adult,omitempty"`
+	CoversBody    *bool                  `protobuf:"varint,5,opt,name=covers_body,json=coversBody,proto3,oneof" json:"covers_body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -34979,6 +34982,13 @@ func (x *ApparelPolicyDefinition) GetAdult() bool {
 	return false
 }
 
+func (x *ApparelPolicyDefinition) GetCoversBody() bool {
+	if x != nil && x.CoversBody != nil {
+		return *x.CoversBody
+	}
+	return false
+}
+
 type ApparelPolicyState struct {
 	state               protoimpl.MessageState     `protogen:"open.v1"`
 	Token               *string                    `protobuf:"bytes,1,opt,name=token,proto3,oneof" json:"token,omitempty"`
@@ -34996,8 +35006,16 @@ type ApparelPolicyState struct {
 	Work                []*WorkSetting             `protobuf:"bytes,14,rep,name=work,proto3" json:"work,omitempty"`
 	Drafted             *bool                      `protobuf:"varint,15,opt,name=drafted,proto3,oneof" json:"drafted,omitempty"`
 	Skills              []*Skill                   `protobuf:"bytes,16,rep,name=skills,proto3" json:"skills,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// The pawn's short name (its outfit's label), the load id of its current
+	// outfit, the wearable definitions its royal title, ideoligion role and
+	// ideoligion apparel precepts require, and whether it goes nude (nudist
+	// trait or mandatory nudity precept).
+	PawnName      *string  `protobuf:"bytes,17,opt,name=pawn_name,json=pawnName,proto3,oneof" json:"pawn_name,omitempty"`
+	PolicyId      *string  `protobuf:"bytes,18,opt,name=policy_id,json=policyId,proto3,oneof" json:"policy_id,omitempty"`
+	RequiredDefs  []string `protobuf:"bytes,19,rep,name=required_defs,json=requiredDefs,proto3" json:"required_defs,omitempty"`
+	Nude          *bool    `protobuf:"varint,20,opt,name=nude,proto3,oneof" json:"nude,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApparelPolicyState) Reset() {
@@ -35133,6 +35151,34 @@ func (x *ApparelPolicyState) GetSkills() []*Skill {
 		return x.Skills
 	}
 	return nil
+}
+
+func (x *ApparelPolicyState) GetPawnName() string {
+	if x != nil && x.PawnName != nil {
+		return *x.PawnName
+	}
+	return ""
+}
+
+func (x *ApparelPolicyState) GetPolicyId() string {
+	if x != nil && x.PolicyId != nil {
+		return *x.PolicyId
+	}
+	return ""
+}
+
+func (x *ApparelPolicyState) GetRequiredDefs() []string {
+	if x != nil {
+		return x.RequiredDefs
+	}
+	return nil
+}
+
+func (x *ApparelPolicyState) GetNude() bool {
+	if x != nil && x.Nude != nil {
+		return *x.Nude
+	}
+	return false
 }
 
 var File_observations_proto protoreflect.FileDescriptor
@@ -39934,16 +39980,19 @@ const file_observations_proto_rawDesc = "" +
 	"\fallowed_defs\x18\x02 \x03(\tR\vallowedDefs\x12#\n" +
 	"\religible_defs\x18\x03 \x03(\tR\feligibleDefsB\f\n" +
 	"\n" +
-	"_policy_id\"\xb5\x01\n" +
+	"_policy_id\"\xeb\x01\n" +
 	"\x17ApparelPolicyDefinition\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05armor\x18\x02 \x01(\bH\x01R\x05armor\x88\x01\x01\x12\x19\n" +
 	"\x05child\x18\x03 \x01(\bH\x02R\x05child\x88\x01\x01\x12\x19\n" +
-	"\x05adult\x18\x04 \x01(\bH\x03R\x05adult\x88\x01\x01B\v\n" +
+	"\x05adult\x18\x04 \x01(\bH\x03R\x05adult\x88\x01\x01\x12$\n" +
+	"\vcovers_body\x18\x05 \x01(\bH\x04R\n" +
+	"coversBody\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_armorB\b\n" +
 	"\x06_childB\b\n" +
-	"\x06_adult\"\xcb\x06\n" +
+	"\x06_adultB\x0e\n" +
+	"\f_covers_body\"\xf2\a\n" +
 	"\x12ApparelPolicyState\x12\x19\n" +
 	"\x05token\x18\x01 \x01(\tH\x00R\x05token\x88\x01\x01\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x01R\x04name\x88\x01\x01\x12!\n" +
@@ -39963,7 +40012,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x04work\x18\x0e \x03(\v2(.rimgovernor.observations.v1.WorkSettingR\x04work\x12\x1d\n" +
 	"\adrafted\x18\x0f \x01(\bH\n" +
 	"R\adrafted\x88\x01\x01\x12:\n" +
-	"\x06skills\x18\x10 \x03(\v2\".rimgovernor.observations.v1.SkillR\x06skillsB\b\n" +
+	"\x06skills\x18\x10 \x03(\v2\".rimgovernor.observations.v1.SkillR\x06skills\x12 \n" +
+	"\tpawn_name\x18\x11 \x01(\tH\vR\bpawnName\x88\x01\x01\x12 \n" +
+	"\tpolicy_id\x18\x12 \x01(\tH\fR\bpolicyId\x88\x01\x01\x12#\n" +
+	"\rrequired_defs\x18\x13 \x03(\tR\frequiredDefs\x12\x17\n" +
+	"\x04nude\x18\x14 \x01(\bH\rR\x04nude\x88\x01\x01B\b\n" +
 	"\x06_tokenB\a\n" +
 	"\x05_nameB\x11\n" +
 	"\x0f_min_hit_pointsB\x11\n" +
@@ -39975,7 +40028,12 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_slaveB\x18\n" +
 	"\x16_incapable_of_violenceB\n" +
 	"\n" +
-	"\b_draftedJ\x04\b\x02\x10\x03*\xb7\x01\n" +
+	"\b_draftedB\f\n" +
+	"\n" +
+	"_pawn_nameB\f\n" +
+	"\n" +
+	"_policy_idB\a\n" +
+	"\x05_nudeJ\x04\b\x02\x10\x03*\xb7\x01\n" +
 	"\x0eClearanceClass\x12\x1f\n" +
 	"\x1bCLEARANCE_CLASS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!CLEARANCE_CLASS_ANCIENT_WALL_DOOR\x10\x01\x12\x1e\n" +

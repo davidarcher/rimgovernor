@@ -49,6 +49,26 @@ type GearPawn struct {
 type GearObservation struct {
 	Pawns  []GearPawn
 	Stored domain.Fact[[]GearStock]
+	// Outfits is every outfit policy's load id; one no pawn keeps (OutfitKeep)
+	// is owed a prune (#1302).
+	Outfits domain.Fact[[]string]
+}
+
+// OutfitsToPrune is the outfits owed a prune: none until every pawn is on
+// its own outfit (OutfitKeep).
+func (v GearObservation) OutfitsToPrune() []string {
+	keep, settled := OutfitKeep(v.Pawns)
+	all, known := v.Outfits.Value()
+	if !settled || !known {
+		return nil
+	}
+	var r []string
+	for _, id := range all {
+		if !keep[id] {
+			r = append(r, id)
+		}
+	}
+	return r
 }
 
 // GearReview is the census MaintainEquipment is judged on. Recovered and
@@ -220,6 +240,10 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		if p.uncovered() {
 			uncovered++
 		}
+	}
+	// Outfits owed a prune keep the goal open for the prune (#1302).
+	if missing == 0 && len(v.OutfitsToPrune()) > 0 {
+		missing++
 	}
 	n := float64(len(v.Pawns))
 	review := GearReview{Loadouts: loadouts, Demand: demand, Recovered: domain.Known(missing == 0), Deficit: domain.Known(float64(missing) / n)}

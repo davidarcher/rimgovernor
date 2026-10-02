@@ -28,6 +28,7 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		row.LoadoutModel = GearLoadoutModelFacts(gear, v.OutdoorTemperatureC, p, row.Policy)
 		result.Pawns = append(result.Pawns, row)
 	}
+	result.Outfits = OutfitIDs(ColonyPolicies(v.Policies))
 	return domain.Known(result)
 }
 
@@ -53,10 +54,8 @@ func GearLoadoutModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoad
 	var allowed map[string]bool
 	if len(role.Definitions) > 0 {
 		allowed = map[string]bool{}
-		if desired, ok := policy.RoleApparelPolicy(policy.PawnID(p.GetPawn().GetId()), policy.DeriveGearRole(role.Role), role); ok {
-			for _, d := range desired.Spec().Definitions {
-				allowed[d] = true
-			}
+		for _, d := range policy.RoleApparelDefinitions(policy.DeriveGearRole(role.Role), role) {
+			allowed[d] = true
 		}
 	}
 	for _, x := range m.GetWorn() {
@@ -201,4 +200,18 @@ func routineGear(v domain.Fact[policy.GearObservation], emergency policy.Emergen
 		delete(ids, p.Pawn)
 	}
 	return v
+}
+
+// OutfitIDs is every outfit policy's load id; unknown with the policy
+// section.
+func OutfitIDs(f domain.Fact[Policies]) domain.Fact[[]string] {
+	p, known := f.Value()
+	if !known {
+		return domain.Unknown[[]string]()
+	}
+	ids := []string{}
+	for _, row := range p.Outfit {
+		ids = append(ids, row.ID)
+	}
+	return domain.Known(ids)
 }

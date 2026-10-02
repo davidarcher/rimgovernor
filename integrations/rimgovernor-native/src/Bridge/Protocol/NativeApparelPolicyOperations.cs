@@ -26,47 +26,84 @@ namespace HomeBridge.BridgeTools
         {
             var outfit = p.outfits?.CurrentApparelPolicy;
             var row = new Obs.ApparelPolicyState { Token = Token(p), Child = p.DevelopmentalStage.Child(), Slave = p.IsSlaveOfColony,
-                IncapableOfViolence = p.WorkTagIsDisabled(WorkTags.Violent) };
+                IncapableOfViolence = p.WorkTagIsDisabled(WorkTags.Violent), PawnName = ShortName(p), Nude = Nude(p) };
             if (outfit != null) {
-                row.Name = outfit.label; row.AllowedDefs.Add(outfit.filter.AllowedThingDefs.Where(d => d.IsApparel).Select(d => d.defName).OrderBy(d => d));
+                row.Name = outfit.label; row.PolicyId = outfit.GetUniqueLoadID(); row.AllowedDefs.Add(outfit.filter.AllowedThingDefs.Where(d => d.IsApparel).Select(d => d.defName).OrderBy(d => d));
                 row.MinHitPoints = outfit.filter.AllowedHitPointsPercents.min; row.MaxHitPoints = outfit.filter.AllowedHitPointsPercents.max;
                 row.MinQuality = (int)outfit.filter.AllowedQualityLevels.min; row.MaxQuality = (int)outfit.filter.AllowedQualityLevels.max;
                 row.ExcludesTainted = !outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
             }
-            foreach (var d in DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName))
+            var requirements = Requirements(p).ToList();
+            var precepts = new HashSet<string>(ModsConfig.IdeologyActive && p.Ideo != null
+                ? p.Ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(v => v.apparelDef != null).Select(v => v.apparelDef.defName) : Enumerable.Empty<string>());
+            // Listed per pawn: only what its body, stage and gender can wear.
+            foreach (var d in DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel && d.apparel.PawnCanWear(p) && ApparelUtility.HasPartsToWear(p, d)).OrderBy(d => d.defName))
+            {
                 row.Definitions.Add(new Obs.ApparelPolicyDefinition { DefName = d.defName,
                     Armor = d.apparel.defaultOutfitTags.NotNullAndContains("Soldier") && !d.apparel.defaultOutfitTags.NotNullAndContains("Worker"),
-                    Child = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Child), Adult = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Adult) });
+                    Child = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Child), Adult = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Adult),
+                    CoversBody = d.apparel.bodyPartGroups.Any(g => g == BodyPartGroupDefOf.Torso || g == BodyPartGroupDefOf.Legs) });
+                if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row.RequiredDefs.Add(d.defName);
+            }
             row.Drafted = p.Drafted;
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row.Work.Add(new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
             if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = s.passion.ToString(), Disabled = s.TotallyDisabled });
             return row;
         }
 
+        internal static string ShortName(Pawn p) => p.Name?.ToStringShort ?? p.LabelShort;
+
+        // A nudist, or a pawn whose ideoligion makes nudity mandatory for its gender.
+        private static bool Nude(Pawn p) => p.story?.traits?.HasTrait(TraitDefOf.Nudist) == true
+            || ModsConfig.IdeologyActive && p.Ideo != null && p.Ideo.PreceptsListForReading.Any(v => v.def.defName == (p.gender == Gender.Female ? "Nudity_Female_Mandatory" : "Nudity_Male_Mandatory"));
+
+        // The apparel requirements of the pawn's royal title and ideoligion role.
+        private static IEnumerable<ApparelRequirement> Requirements(Pawn p)
+        {
+            if (ModsConfig.RoyaltyActive && p.royalty?.MostSeniorTitle?.def.requiredApparel is List<ApparelRequirement> title)
+                foreach (var r in title) yield return r;
+            if (ModsConfig.IdeologyActive && p.Ideo?.GetRole(p)?.ApparelRequirements is List<PreceptApparelRequirement> role)
+                foreach (var r in role) if (r.requirement != null) yield return r.requirement;
+        }
+
+        // The pawn's own outfit, found through its assignment (#1302): its
+        // current outfit when no other pawn holds it, else an unheld outfit
+        // already carrying its name, else a new one.
+        private static ApparelPolicy Own(Pawn p, string name)
+        {
+            var others = PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v != p).Select(v => v.outfits?.CurrentApparelPolicy).Where(v => v != null).ToHashSet();
+            var current = p.outfits.CurrentApparelPolicy;
+            if (current != null && !others.Contains(current)) return current;
+            return Current.Game.outfitDatabase.AllOutfits.FirstOrDefault(v => v.label == name && !others.Contains(v)) ?? Current.Game.outfitDatabase.MakeNewOutfit();
+        }
+
         // Resolves the intent's pawn and checks the filter; null when it applies.
         internal static Common.Failure? Resolve(Operations.ApparelPolicyIntent? c, Common.ObservationContext context, out Pawn p)
         {
             p = null!;
-            if (c == null || !c.HasPawnId || !ProtoBoundary.IsIdentifier(c.PawnId) || !c.HasName || !c.Name.StartsWith("RimGovernor ", StringComparison.Ordinal) || c.Name.Length > 80
+            if (c == null || !c.HasPawnId || !ProtoBoundary.IsIdentifier(c.PawnId) || !c.HasName || string.IsNullOrWhiteSpace(c.Name) || c.Name.Length > 80
                 || !c.HasMinHitPoints || !c.HasMaxHitPoints || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
                 || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
                 || !c.HasMinQuality || !c.HasMaxQuality || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
+<<<<<<< HEAD
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a RimGovernor name, apparel definitions and valid bounds.");
             p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId)!;
+=======
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
+            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.FirstOrDefault(v => v.GetUniqueLoadID() == c.PawnId)!;
+>>>>>>> 082b80b (Per-pawn outfits labelled by short name, outfit prune wired (#1302))
             if (p == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
             var unavailable = GearUpkeepTools.Available(p);
             if (unavailable != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
-            if (Current.Game.outfitDatabase.AllOutfits.Count(v => v.label == c.Name) > 1)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "More than one apparel policy has this name.");
             return null;
         }
 
         private static bool Matches(Pawn p, Operations.ApparelPolicyIntent c)
         {
             var v = p.outfits?.CurrentApparelPolicy;
-            return v != null && p.outfits != null && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == c.Name && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
+            return v != null && p.outfits != null && !PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Any(o => o != p && o.outfits?.CurrentApparelPolicy == v) && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == c.Name && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
                 && v.filter.AllowedHitPointsPercents.min == c.MinHitPoints && v.filter.AllowedHitPointsPercents.max == c.MaxHitPoints
                 && (int)v.filter.AllowedQualityLevels.min == c.MinQuality && (int)v.filter.AllowedQualityLevels.max == c.MaxQuality
                 && !v.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && v.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
@@ -81,7 +118,7 @@ namespace HomeBridge.BridgeTools
             var before = Token(p);
             if (!Matches(p, c))
             {
-                var outfit = Current.Game.outfitDatabase.AllOutfits.FirstOrDefault(v => v.label == c.Name) ?? Current.Game.outfitDatabase.MakeNewOutfit();
+                var outfit = Own(p, c.Name);
                 outfit.label = c.Name; outfit.filter.SetDisallowAll();
                 foreach (var d in c.AllowedDefs) outfit.filter.SetAllow(DefDatabase<ThingDef>.GetNamed(d), true);
                 outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints, c.MaxHitPoints);

@@ -11,9 +11,9 @@ func ApparelPolicyFacts(p *o.GearLoadout) domain.Fact[policy.ApparelPolicyState]
 	if v == nil {
 		return domain.Unknown[policy.ApparelPolicyState]()
 	}
-	s := policy.ApparelPolicyState{Token: v.GetToken(), ExcludesTainted: v.GetExcludesTainted(), Role: policy.GearRoleInput{Child: v.GetChild(), Slave: v.GetSlave(), IncapableOfViolence: v.GetIncapableOfViolence(), DraftedSquad: v.GetDrafted()}, Current: domain.ApparelPolicySpec{Name: v.GetName(), Definitions: append([]string{}, v.AllowedDefs...), MinHP: float64(v.GetMinHitPoints()), MaxHP: float64(v.GetMaxHitPoints()), MinQuality: v.GetMinQuality(), MaxQuality: v.GetMaxQuality()}}
+	s := policy.ApparelPolicyState{Token: v.GetToken(), PawnName: v.GetPawnName(), PolicyID: v.GetPolicyId(), Required: append([]string{}, v.RequiredDefs...), Nude: v.GetNude(), ExcludesTainted: v.GetExcludesTainted(), Role: policy.GearRoleInput{Child: v.GetChild(), Slave: v.GetSlave(), IncapableOfViolence: v.GetIncapableOfViolence(), DraftedSquad: v.GetDrafted()}, Current: domain.ApparelPolicySpec{Name: v.GetName(), Definitions: append([]string{}, v.AllowedDefs...), MinHP: float64(v.GetMinHitPoints()), MaxHP: float64(v.GetMaxHitPoints()), MinQuality: v.GetMinQuality(), MaxQuality: v.GetMaxQuality()}}
 	for _, d := range v.Definitions {
-		s.Definitions = append(s.Definitions, policy.ApparelDefinition{Name: d.GetDefName(), Armor: d.GetArmor(), Child: d.GetChild(), Adult: d.GetAdult()})
+		s.Definitions = append(s.Definitions, policy.ApparelDefinition{Name: d.GetDefName(), Armor: d.GetArmor(), Child: d.GetChild(), Adult: d.GetAdult(), CoversBody: d.GetCoversBody()})
 	}
 	for _, a := range p.GetEquipment().GetApparel() {
 		s.Overrides = s.Overrides || a.GetForced() || a.GetLocked()
