@@ -289,6 +289,13 @@ type RoutineFacts struct {
 	// colonists a raid or manhunter pack does not shelter. Unknown shelters
 	// no colonist for a threat.
 	ShelterCombatants domain.Fact[[]PawnID]
+	// NoKillboxArea is the NoKillbox allowed area's native load id, ""
+	// when the map has none; KillboxWindow whether haulers are kept out of
+	// the killbox now (KillboxWindowOf); KillboxHaulers the pawns with
+	// Hauling enabled (#1327).
+	NoKillboxArea  domain.Fact[string]
+	KillboxWindow  domain.Fact[bool]
+	KillboxHaulers domain.Fact[[]PawnID]
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).

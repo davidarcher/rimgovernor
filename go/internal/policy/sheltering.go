@@ -18,6 +18,65 @@ type AllowedAreaChange struct {
 // AreaIntent labels an area with its plain key.
 const SafeAreaLabel = SafeAreaKey
 
+// NoKillboxAreaKey is the bot area key of the NoKillbox allowed area: the
+// home area minus the killbox cells (#1327).
+const NoKillboxAreaKey = "NoKillbox"
+
+// NoKillboxAreaLabel is the native label of the NoKillbox area.
+const NoKillboxAreaLabel = NoKillboxAreaKey
+
+// KillboxCooldown is how long after the last live, unrestrained hostile
+// haulers stay out of the killbox (one in-game hour).
+const KillboxCooldown domain.Tick = 2500
+
+// KillboxWindowOf reports whether haulers are kept out of the killbox: a
+// hostile is live (hostiles > 0) or the last one was seen (lastThreat, when
+// lastKnown) less than KillboxCooldown before now. Unknown with hostiles.
+func KillboxWindowOf(hostiles domain.Fact[int64], lastThreat domain.Tick, lastKnown bool, now domain.Tick) domain.Fact[bool] {
+	n, known := hostiles.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(n > 0 || lastKnown && now-lastThreat < KillboxCooldown)
+}
+
+// KillboxHaulers are the work pawns with Hauling enabled (priority 1..4).
+// Unknown when any row's work is unknown.
+func KillboxHaulers(workers domain.Fact[[]WorkPawn]) domain.Fact[[]PawnID] {
+	rows, known := workers.Value()
+	if !known {
+		return domain.Unknown[[]PawnID]()
+	}
+	out := []PawnID{}
+	for _, w := range rows {
+		work, wk := w.Work.Value()
+		if !wk {
+			return domain.Unknown[[]PawnID]()
+		}
+		for _, p := range work {
+			if p.Work == WorkHauling && !p.Disabled && p.Priority > 0 {
+				out = append(out, w.ID)
+			}
+		}
+	}
+	return domain.Known(out)
+}
+
+// NoKillboxCells is the home area minus the killbox cells, sorted.
+func NoKillboxCells(home, killbox []domain.Cell) []domain.Cell {
+	excluded := map[domain.Cell]bool{}
+	for _, c := range killbox {
+		excluded[c] = true
+	}
+	set := map[domain.Cell]bool{}
+	for _, c := range home {
+		if !excluded[c] {
+			set[c] = true
+		}
+	}
+	return sortedCells(set)
+}
+
 // ShelterTrigger is why pawns shelter now.
 type ShelterTrigger string
 
@@ -64,14 +123,23 @@ func ShelterTriggerOf(f RoutineFacts) (ShelterTrigger, bool) {
 // trigger holds, undrafted colonists (for a threat, those outside the squad's
 // draft set, ShelterCombatants) and animals that take areas without a pen
 // are moved into the Safe area. Once every trigger is known clear, pawns
-// still restricted to the Safe area go back to unrestricted; other areas are
-// left to their own planners. It keeps no history: the same facts give the
+// still restricted to the Safe area go back to unrestricted. Haulers not
+// sheltered are kept to the NoKillbox area while KillboxWindow holds, and go
+// back to unrestricted once it is known closed; other areas are left to
+// their own planners. It keeps no history: the same facts give the
 // same moves after a restart or reload.
 func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
-	safe, sk := f.ShelterArea.Value()
+	safe, _ := f.ShelterArea.Value()
 	trigger, tk := ShelterTriggerOf(f)
-	if !sk || safe == "" || !tk {
+	if !tk {
 		return nil
+	}
+	noKill, _ := f.NoKillboxArea.Value()
+	window, windowKnown := f.KillboxWindow.Value()
+	haulerRows, hk := f.KillboxHaulers.Value()
+	haulers := map[PawnID]bool{}
+	for _, id := range haulerRows {
+		haulers[id] = true
 	}
 	var combatants map[PawnID]bool
 	if trigger == ShelterThreat {
@@ -89,10 +157,22 @@ func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
 		if !known {
 			return
 		}
-		if shelter && area != safe {
-			changes = append(changes, AllowedAreaChange{id, animal, safe})
-		} else if !shelter && trigger == ShelterNone && area == safe {
-			changes = append(changes, AllowedAreaChange{id, animal, ""})
+		hauler := !animal && haulers[id]
+		to, move := "", false
+		switch {
+		case shelter && safe != "":
+			to, move = safe, area != safe
+		case noKill != "" && windowKnown && window && hk && hauler:
+			// Haulers stay out of the killbox through the fight and its
+			// cooldown (#1327).
+			to, move = noKill, area != noKill
+		case safe != "" && area == safe:
+			move = trigger == ShelterNone
+		case noKill != "" && area == noKill:
+			move = windowKnown && (!window || hk && !hauler)
+		}
+		if move {
+			changes = append(changes, AllowedAreaChange{id, animal, to})
 		}
 	}
 	safety, known := f.RecoverySafety.Value()

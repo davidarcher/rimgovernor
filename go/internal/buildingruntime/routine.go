@@ -376,6 +376,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	reading.Projection.Facts.KillboxWindow = r.safeArea.killboxWindow(stockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, expected.Tick)
+	reading.Projection.Facts.KillboxHaulers = policy.KillboxHaulers(reading.Projection.WorkPawns)
 	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients = policy.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients)
 	// RestoreWorkers stands while a drafted colonist no live plan needs

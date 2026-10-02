@@ -99,6 +99,8 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	facts.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	facts.KillboxWindow = r.reviewer.safeArea.killboxWindow(stockpileWorld(state.Snapshot), facts.Hostiles, expected.Tick)
+	facts.KillboxHaulers = policy.KillboxHaulers(read.Projection.WorkPawns)
 	changes := policy.PlanSheltering(facts)
 	workers, _ := read.Projection.WorkPawns.Value()
 	if err = p.current(call, epoch); err != nil {

@@ -51,16 +51,24 @@ func SafeAreaCells(rooms RoomObservation, killbox []domain.Cell) []domain.Cell {
 // cells, clear_cells for removed ones); none when the area is stable.
 func PlanSafeArea(rooms RoomObservation, killbox []domain.Cell, current []domain.Cell, currentKnown bool) ([]domain.Area, []domain.Cell, error) {
 	want := SafeAreaCells(rooms, killbox)
+	edits, err := PlanBotArea(SafeAreaKey, want, current, currentKnown)
+	return edits, want, err
+}
+
+// PlanBotArea returns the AreaIntent edits that bring the bot area key from
+// current to want: with current unknown a reset (delete, then create with
+// want), otherwise only real diffs (set_cells, clear_cells).
+func PlanBotArea(key string, want, current []domain.Cell, currentKnown bool) ([]domain.Area, error) {
 	if !currentKnown {
-		del, err := domain.NewArea(domain.AreaDelete, SafeAreaKey, nil)
+		del, err := domain.NewArea(domain.AreaDelete, key, nil)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		create, err := domain.NewArea(domain.AreaCreate, SafeAreaKey, want)
+		create, err := domain.NewArea(domain.AreaCreate, key, want)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		return []domain.Area{del, create}, want, nil
+		return []domain.Area{del, create}, nil
 	}
 	have := map[domain.Cell]bool{}
 	for _, c := range current {
@@ -82,18 +90,18 @@ func PlanSafeArea(rooms RoomObservation, killbox []domain.Cell, current []domain
 	}
 	var out []domain.Area
 	if len(added) > 0 {
-		a, err := domain.NewArea(domain.AreaSetCells, SafeAreaKey, added)
+		a, err := domain.NewArea(domain.AreaSetCells, key, added)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		out = append(out, a)
 	}
 	if len(removed) > 0 {
-		a, err := domain.NewArea(domain.AreaClearCells, SafeAreaKey, sortedCells(removed))
+		a, err := domain.NewArea(domain.AreaClearCells, key, sortedCells(removed))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		out = append(out, a)
 	}
-	return out, want, nil
+	return out, nil
 }

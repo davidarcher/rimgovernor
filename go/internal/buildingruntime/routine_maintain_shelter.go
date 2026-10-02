@@ -11,30 +11,54 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// safeAreaMemory holds MaintainShelter's Safe area state (#1325) in memory
-// only: the cells last committed, and the edits the latest review planned.
-// A new world (start, reload) forgets the cells, so the first pass resets
-// the area (delete, then create with the full set).
-type safeAreaMemory struct {
-	mu      sync.Mutex
-	world   string
+// ownedArea is one bot-owned area's committed cells and latest planned cells.
+type ownedArea struct {
 	current []domain.Cell
 	known   bool
-	// pending is the latest review's plan for world: its edits and the
-	// cells they leave.
+	want    []domain.Cell
+}
+
+// safeAreaMemory holds MaintainShelter's bot area state in memory only: the
+// Safe area (#1325) and the NoKillbox area (#1327), each with the cells last
+// committed and the latest review's plan. A new world (start, reload)
+// forgets the cells, so the first pass resets each area (delete, then
+// create with the full set).
+type safeAreaMemory struct {
+	mu    sync.Mutex
+	world string
+	areas map[string]*ownedArea
+	// edits is the latest review's plan for world.
 	edits []domain.Area
-	want  []domain.Cell
+	// last is the tick a live hostile was last seen in world (#1327).
+	last      domain.Tick
+	lastKnown bool
 }
 
 func (m *safeAreaMemory) enter(world string) {
-	if m.world != world {
+	if m.world != world || m.areas == nil {
 		// Field by field: overwriting *m would reset the held mutex.
-		m.world, m.current, m.known, m.edits, m.want = world, nil, false, nil, nil
+		m.world, m.areas, m.edits, m.lastKnown = world, map[string]*ownedArea{}, nil, false
 	}
 }
 
-// review plans the Safe area from the review's rooms and layout plan and
-// reports whether an edit is owed; unknown when the rooms are.
+func (m *safeAreaMemory) plan(key string, want []domain.Cell) error {
+	a := m.areas[key]
+	if a == nil {
+		a = &ownedArea{}
+		m.areas[key] = a
+	}
+	edits, err := policy.PlanBotArea(key, want, a.current, a.known)
+	if err != nil {
+		return err
+	}
+	a.want = want
+	m.edits = append(m.edits, edits...)
+	return nil
+}
+
+// review plans the bot areas from the review's rooms, home area and layout
+// plan and reports whether an edit is owed; unknown when the rooms are. The
+// NoKillbox area is planned only while the home area is known and not empty.
 func (m *safeAreaMemory) review(world string, projection observation.ColonyProjection) (domain.Fact[bool], error) {
 	rooms, known := projection.Rooms.Value()
 	if !known {
@@ -47,27 +71,49 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
-	edits, want, err := policy.PlanSafeArea(rooms, killbox, m.current, m.known)
-	if err != nil {
+	m.edits = nil
+	if err := m.plan(policy.SafeAreaKey, policy.SafeAreaCells(rooms, killbox)); err != nil {
 		return domain.Unknown[bool](), err
 	}
-	m.edits, m.want = edits, want
-	return domain.Known(len(edits) > 0), nil
+	if census, ok := projection.Facts.HomeCoverage.Value(); ok {
+		if home, hk := census.Home.Value(); hk && len(home) > 0 {
+			if err := m.plan(policy.NoKillboxAreaKey, policy.NoKillboxCells(home, killbox)); err != nil {
+				return domain.Unknown[bool](), err
+			}
+		}
+	}
+	return domain.Known(len(m.edits) > 0), nil
 }
 
 // take returns the pending edits for world; commit records their cells.
-func (m *safeAreaMemory) take(world string) ([]domain.Area, []domain.Cell) {
+func (m *safeAreaMemory) take(world string) []domain.Area {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
-	return m.edits, m.want
+	return m.edits
 }
 
-func (m *safeAreaMemory) commit(world string, cells []domain.Cell) {
+func (m *safeAreaMemory) commit(world string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
-	m.current, m.known, m.edits = cells, true, nil
+	for _, a := range m.areas {
+		a.current, a.known = a.want, true
+	}
+	m.edits = nil
+}
+
+// killboxWindow records a live hostile at tick and reports whether haulers
+// are kept out of the killbox (policy.KillboxWindowOf). A new world forgets
+// the last threat, so a reload releases them.
+func (m *safeAreaMemory) killboxWindow(world string, hostiles domain.Fact[int64], tick domain.Tick) domain.Fact[bool] {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.enter(world)
+	if n, known := hostiles.Value(); known && n > 0 {
+		m.last, m.lastKnown = tick, true
+	}
+	return policy.KillboxWindowOf(hostiles, m.last, m.lastKnown, tick)
 }
 
 // MaintainShelterPlanner is MaintainShelter's planner: it commits the Safe
@@ -120,7 +166,7 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	world := stockpileWorld(state.Snapshot)
-	edits, want := r.reviewer.safeArea.take(world)
+	edits := r.reviewer.safeArea.take(world)
 	if len(edits) == 0 {
 		return MaintainShelterResult{Reason: BuildingMethodUsed}, nil
 	}
@@ -144,9 +190,9 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 		return MaintainShelterResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("safe-area-%s", id))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("safe area %d cells", len(want)), plan); err != nil {
+	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("bot areas %d edits", len(edits)), plan); err != nil {
 		return MaintainShelterResult{}, err
 	}
-	r.reviewer.safeArea.commit(world, want)
+	r.reviewer.safeArea.commit(world)
 	return MaintainShelterResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }

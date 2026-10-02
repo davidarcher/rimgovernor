@@ -257,6 +257,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
+	r.Facts.NoKillboxArea = allowedAreaID(r.Policies, policy.NoKillboxAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
