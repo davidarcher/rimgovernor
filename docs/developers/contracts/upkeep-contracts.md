@@ -269,7 +269,13 @@ through native `Designator_Deconstruct` (#940). Native checks player
 deconstructibility, visible geometry, safe remaining roof support and a
 pending wall upgrade live when it applies. Enclosing colony walls require
 guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure and
-replacement checks.
+replacement checks, except on cleared ground (#1366): with `cleared_ground`
+a player wall or door whose every enclosed room (all eight neighbours) lies
+inside the ground is allowed, a room reaching outside is refused, and while
+those rooms keep any roof the designation stands with pawns held
+(`DeconstructEffect.waiting_for_roof`). Clearance issues `remove_roof` (the
+vanilla NoRoof area) over the rooms first; roof support is checked once the
+roof is gone.
 
 The intent adopts a standing designation rather than placing a second one,
 and a target the controller already owns applies again. Applied evidence is

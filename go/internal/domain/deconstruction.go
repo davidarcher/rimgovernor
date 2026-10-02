@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+)
 
 const DeconstructionAction ActionKind = "deconstruction"
 
@@ -9,6 +12,42 @@ const DeconstructionAction ActionKind = "deconstruction"
 type Deconstruction struct {
 	target, definition string
 	cell               Cell
+	ground             string // canonical JSON []GroundRect, empty without cleared ground
+}
+
+// GroundRect is one rectangle of cleared ground (#1366): Width x Height
+// cells from Origin.
+type GroundRect struct {
+	Origin        Cell
+	Width, Height int32
+}
+
+// WithClearedGround returns the deconstruction carrying the ground clearance
+// is emptying (#1366): native then allows a player wall or door whose every
+// enclosed room lies inside it, and holds the pawns while those rooms keep
+// roof. Rectangles keep their order; none clears the ground.
+func (c Deconstruction) WithClearedGround(rects []GroundRect) (Deconstruction, error) {
+	c.ground = ""
+	if len(rects) == 0 {
+		return c, nil
+	}
+	for _, r := range rects {
+		if r.Origin.X < 0 || r.Origin.Z < 0 || r.Width <= 0 || r.Height <= 0 || r.Width > 4096 || r.Height > 4096 {
+			return Deconstruction{}, errors.New("invalid cleared ground rectangle")
+		}
+	}
+	data, _ := json.Marshal(rects)
+	c.ground = string(data)
+	return c, nil
+}
+
+func (c Deconstruction) ClearedGround() []GroundRect {
+	if c.ground == "" {
+		return nil
+	}
+	var rects []GroundRect
+	_ = json.Unmarshal([]byte(c.ground), &rects)
+	return rects
 }
 
 func NewDeconstruction(target, definition string, cell Cell) (Deconstruction, error) {
@@ -25,8 +64,12 @@ func NewDeconstructionAction(id ActionID, cut Deconstruction) (Action, error) {
 	if !validID(string(id)) {
 		return Action{}, errors.New("invalid action identity")
 	}
-	if _, err := NewDeconstruction(cut.target, cut.definition, cut.cell); err != nil {
+	base, err := NewDeconstruction(cut.target, cut.definition, cut.cell)
+	if err != nil {
 		return Action{}, err
+	}
+	if canonical, err := base.WithClearedGround(cut.ClearedGround()); err != nil || canonical != cut {
+		return Action{}, errors.New("invalid deconstruction cleared ground")
 	}
 	return Action{id: id, kind: DeconstructionAction, deconstruction: cut}, nil
 }

@@ -66,7 +66,15 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if floor, ok := a.FloorRemoval(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'floor_removal',?,?,?)", a.ID(), plan, ordinal, floor.Definition(), floor.Cell().X, floor.Cell().Z)
 	} else if cut, ok := a.Deconstruction(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'deconstruction',?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
+		// zone_payload is the cleared ground (#1366), NULL without it.
+		var ground []byte
+		if rects := cut.ClearedGround(); len(rects) > 0 {
+			var encodeErr error
+			if ground, encodeErr = json.Marshal(rects); encodeErr != nil {
+				return encodeErr
+			}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,zone_payload) VALUES(?,?,?,'deconstruction',?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, ground)
 	} else if move, _, ok := a.Relocation(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,rotation) VALUES(?,?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), move.Thing(), move.Definition(), move.Cell().X, move.Cell().Z, move.Rotation())
 	} else if cut, ok := a.CutPlant(); ok {
@@ -387,7 +395,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewStockpilePatchAction(id, patch)
 		return a, ordinal, err
 	}
-	if zone != nil {
+	if zone != nil && kind != "deconstruction" { // deconstruction carries cleared ground (#1366)
 		return domain.Action{}, 0, errors.New("mixed zone payload")
 	}
 	if kind == "work_assignment" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
@@ -606,6 +614,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		c, err := domain.NewDeconstruction(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if zone != nil {
+			var rects []domain.GroundRect
+			if len(zone) > 32768 || json.Unmarshal(zone, &rects) != nil || len(rects) == 0 {
+				return domain.Action{}, 0, errors.New("invalid deconstruction cleared ground payload")
+			}
+			if c, err = c.WithClearedGround(rects); err != nil {
+				return domain.Action{}, 0, err
+			}
 		}
 		a, err := domain.NewDeconstructionAction(id, c)
 		return a, ordinal, err

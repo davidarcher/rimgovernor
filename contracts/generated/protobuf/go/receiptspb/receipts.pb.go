@@ -2514,6 +2514,7 @@ type DeconstructEffect struct {
 	WorkerIds          []string               `protobuf:"bytes,3,rep,name=worker_ids,json=workerIds,proto3" json:"worker_ids,omitempty"`
 	DemolitionObserved *bool                  `protobuf:"varint,4,opt,name=demolition_observed,json=demolitionObserved,proto3,oneof" json:"demolition_observed,omitempty"`
 	Site               *SnapshotEvidence      `protobuf:"bytes,5,opt,name=site,proto3" json:"site,omitempty"`
+	WaitingForRoof     *bool                  `protobuf:"varint,6,opt,name=waiting_for_roof,json=waitingForRoof,proto3,oneof" json:"waiting_for_roof,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -2581,6 +2582,13 @@ func (x *DeconstructEffect) GetSite() *SnapshotEvidence {
 		return x.Site
 	}
 	return nil
+}
+
+func (x *DeconstructEffect) GetWaitingForRoof() bool {
+	if x != nil && x.WaitingForRoof != nil {
+		return *x.WaitingForRoof
+	}
+	return false
 }
 
 // One result per CombatOrders order, in request order. An applied result
@@ -4837,18 +4845,20 @@ const file_receipts_proto_rawDesc = "" +
 	"\a_bed_idB\x12\n" +
 	"\x10_previous_bed_idB\v\n" +
 	"\t_assignedB\v\n" +
-	"\t_sleeping\"\xae\x02\n" +
+	"\t_sleeping\"\xf2\x02\n" +
 	"\x11DeconstructEffect\x12 \n" +
 	"\ttarget_id\x18\x01 \x01(\tH\x00R\btargetId\x88\x01\x01\x12*\n" +
 	"\x0edesignation_id\x18\x02 \x01(\tH\x01R\rdesignationId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"worker_ids\x18\x03 \x03(\tR\tworkerIds\x124\n" +
 	"\x13demolition_observed\x18\x04 \x01(\bH\x02R\x12demolitionObserved\x88\x01\x01\x12=\n" +
-	"\x04site\x18\x05 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04siteB\f\n" +
+	"\x04site\x18\x05 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04site\x12-\n" +
+	"\x10waiting_for_roof\x18\x06 \x01(\bH\x03R\x0ewaitingForRoof\x88\x01\x01B\f\n" +
 	"\n" +
 	"_target_idB\x11\n" +
 	"\x0f_designation_idB\x16\n" +
-	"\x14_demolition_observed\"\xf8\x01\n" +
+	"\x14_demolition_observedB\x13\n" +
+	"\x11_waiting_for_roof\"\xf8\x01\n" +
 	"\x11CombatOrderResult\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12\x1c\n" +
 	"\apawn_id\x18\x02 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12\x1d\n" +

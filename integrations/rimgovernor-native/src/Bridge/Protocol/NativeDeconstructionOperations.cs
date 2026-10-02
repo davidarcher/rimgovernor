@@ -23,8 +23,9 @@ namespace HomeBridge.BridgeTools
         internal Designation? Designation;
         internal bool Complete, Released;
         internal readonly HashSet<string> Workers = new HashSet<string>();
-        internal NativeDeconstructionRecord(Building target, Common.ObservationContext context)
-        { Target = target; Map = target.Map; Cell = target.Position; Rotation = target.Rotation; Before = NativeBuildingObservationTools.Token(target, context).Token; }
+        internal readonly HashSet<IntVec3>? Ground;
+        internal NativeDeconstructionRecord(Building target, HashSet<IntVec3>? ground, Common.ObservationContext context)
+        { Target = target; Map = target.Map; Cell = target.Position; Rotation = target.Rotation; Ground = ground; Before = NativeBuildingObservationTools.Token(target, context).Token; }
 
         // After explicit admission, never adopt a replacement designation on
         // the same target. Reference identity is scoped to the loaded game.
@@ -36,12 +37,12 @@ namespace HomeBridge.BridgeTools
             if (!Target.Spawned || Target.Map != Map || Target.Position != Cell || Target.Rotation != Rotation)
                 return "Exact deconstruction occupant changed without an observed demolition.";
             if (!Owns) return "Controller designation was removed or replaced; player ownership is preserved.";
-            return NativeDeconstructionOperations.Safety(Target);
+            return NativeDeconstructionOperations.Safety(Target, Ground) ?? NativeDeconstructionOperations.RoofWait(Target, Ground);
         }
         internal Receipts.EffectEvidence Evidence(Common.ObservationContext context)
         {
             var effect = new Receipts.DeconstructEffect { TargetId = Target.GetUniqueLoadID(), DesignationId = Id,
-                DemolitionObserved = Complete, Site = new Receipts.SnapshotEvidence { EntityId = Target.GetUniqueLoadID(), BeforeToken = Before } };
+                DemolitionObserved = Complete, WaitingForRoof = !Complete && NativeDeconstructionOperations.RoofWait(Target, Ground) != null, Site = new Receipts.SnapshotEvidence { EntityId = Target.GetUniqueLoadID(), BeforeToken = Before } };
             effect.WorkerIds.AddRange(Workers.OrderBy(id => id, StringComparer.Ordinal));
             if (Target.Spawned && Target.Map == Map) effect.Site.AfterToken = NativeBuildingObservationTools.Token(Target, context).Token;
             return new Receipts.EffectEvidence { Deconstruct = effect };
@@ -101,7 +102,43 @@ namespace HomeBridge.BridgeTools
             return __exception;
         }
 
-        internal static string? Safety(Building target)
+        // Cleared ground (#1366): the cells of DeconstructIntent.cleared_ground,
+        // null when the intent carries none.
+        internal static HashSet<IntVec3>? Ground(Operations.DeconstructIntent intent, out string? refusal)
+        {
+            refusal = null;
+            if (intent.ClearedGround.Count == 0) return null;
+            var cells = new HashSet<IntVec3>();
+            foreach (var r in intent.ClearedGround)
+            {
+                if (r?.Origin == null || !r.Origin.HasX || !r.Origin.HasZ || r.Origin.X < 0 || r.Origin.Z < 0 || r.Width <= 0 || r.Height <= 0 || r.Width > 4096 || r.Height > 4096)
+                { refusal = "Cleared ground rectangle is invalid."; return null; }
+                for (var x = r.Origin.X; x < r.Origin.X + r.Width; x++)
+                    for (var z = r.Origin.Z; z < r.Origin.Z + r.Height; z++) cells.Add(new IntVec3(x, 0, z));
+            }
+            return cells;
+        }
+        // The indoor rooms a player wall or door bounds, when every one lies
+        // inside the cleared ground; null when there is no ground, the target
+        // is not a player wall or door, or a room reaches outside.
+        private static List<Room>? ClearedRooms(Building target, HashSet<IntVec3>? ground)
+        {
+            if (ground == null || target.Faction != Faction.OfPlayer || !(target.def == ThingDefOf.Wall || target.def.IsDoor)) return null;
+            // All eight neighbours: a corner holds the room's roof too.
+            var rooms = GenAdj.AdjacentCells.Select(d => target.Position + d)
+                .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>()
+                .Where(r => r.ProperRoom && !r.TouchesMapEdge && !r.IsDoorway).Distinct().ToList();
+            return rooms.All(r => r.Cells.All(ground.Contains)) ? rooms : null;
+        }
+        // A cleared-ground wall or door waits (designated, pawns held) while
+        // any room it bounds still has roof; clearance removes it first.
+        internal static string? RoofWait(Building target, HashSet<IntVec3>? ground)
+        {
+            if (!target.Spawned) return null;
+            var rooms = ClearedRooms(target, ground);
+            return rooms != null && rooms.Any(r => r.Cells.Any(c => c.Roofed(target.Map))) ? "Waiting for the enclosed rooms' roof removal." : null;
+        }
+        internal static string? Safety(Building target, HashSet<IntVec3>? ground = null)
         {
             if (!target.Spawned || !target.DeconstructibleBy(Faction.OfPlayer))
                 return "Target must be a spawned building deconstructible by the player.";
@@ -112,7 +149,10 @@ namespace HomeBridge.BridgeTools
             // an enclosed room on every open side only joins rooms (a suite's
             // old wall once its grown ring stands, #1218), so it is no
             // enclosure.
-            if (target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall)
+            var cleared = ClearedRooms(target, ground);
+            if (ground != null && target.Faction == Faction.OfPlayer && (target.def == ThingDefOf.Wall || target.def.IsDoor) && cleared == null)
+                return "A room this wall or door encloses extends outside the cleared ground.";
+            if (cleared == null && target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall)
             {
                 var rooms = GenAdj.CardinalDirections.Select(d => target.Position + d)
                     .Where(c => c.InBounds(target.Map)).Select(c => c.GetRoom(target.Map)).OfType<Room>().ToList();
@@ -121,6 +161,9 @@ namespace HomeBridge.BridgeTools
                     return "Enclosing colony walls require guarded RemoveWall.";
             }
             if (!target.def.holdsRoof) return null;
+            // The roof the cleared rooms still carry comes off first (RoofWait);
+            // support is checked once it is gone.
+            if (cleared != null && cleared.Any(r => r.Cells.Any(c => c.Roofed(target.Map)))) return null;
             var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
             if (shrineStructure != null)
                 return RoofSupportSafety.Blocker(target, null, out _, shrineStructure);
@@ -131,14 +174,16 @@ namespace HomeBridge.BridgeTools
         // The apply-time precondition list for Deconstruct: the exact target,
         // its safety, no pending wall upgrade, and the game designator. A
         // target this controller already owns applies again with its record.
-        private static string? Refusal(Operations.DeconstructIntent? intent, Common.ObservationContext context, out Building? target, out Common.FailureCode code)
+        private static string? Refusal(Operations.DeconstructIntent? intent, Common.ObservationContext context, out Building? target, out HashSet<IntVec3>? ground, out Common.FailureCode code)
         {
-            target = null; code = Common.FailureCode.InvalidRequest;
+            target = null; ground = null; code = Common.FailureCode.InvalidRequest;
             if (intent == null || !intent.HasTargetId || !ProtoBoundary.IsIdentifier(intent.TargetId)) return "Deconstruct requires an exact target.";
+            ground = Ground(intent, out var groundRefusal);
+            if (groundRefusal != null) return groundRefusal;
             var map = ProtoBoundary.ResolveMap(context);
             target = RefIndex.Thing<Building>(map, intent.TargetId);
             if (target == null) { code = Common.FailureCode.NotFound; return "Exact deconstruction target is absent."; }
-            var blocker = Safety(target);
+            var blocker = Safety(target, ground);
             if (blocker != null) return blocker;
             if (Claim(target) != null) return null;
             if (WallUpgradeSafety.Pending(target) != null) return "A pending wall upgrade owns the target.";
@@ -149,7 +194,7 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Validate(Operations.DeconstructIntent? intent, Common.ObservationContext context)
         {
             CurrentRecords();
-            var refusal = Refusal(intent, context, out _, out var code);
+            var refusal = Refusal(intent, context, out _, out _, out var code);
             return refusal == null ? null : ProtoBoundary.Fail(code, refusal);
         }
         // Apply designates the target (adopting a player designation already
@@ -158,11 +203,11 @@ namespace HomeBridge.BridgeTools
         internal static Receipts.EffectEvidence Apply(Operations.DeconstructIntent intent, Common.ObservationContext context)
         {
             Install(); CurrentRecords();
-            var refusal = Refusal(intent, context, out var target, out _);
+            var refusal = Refusal(intent, context, out var target, out var ground, out _);
             if (refusal != null) throw new InvalidOperationException("Deconstruction prerequisites changed before apply: " + refusal);
             var owned = Claim(target!);
             if (owned != null) return owned.Evidence(context);
-            var record = new NativeDeconstructionRecord(target!, context);
+            var record = new NativeDeconstructionRecord(target!, ground, context);
             if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
                 new Designator_Deconstruct().DesignateThing(target);
             record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);

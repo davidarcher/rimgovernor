@@ -415,7 +415,12 @@ message DesignateIntent { optional string thing_id = 1; optional ThingDesignatio
 // support, enclosing colony walls, a pending wall upgrade) and the game
 // designator live when it applies; a target this controller already owns
 // applies again. Revoking authority releases every owned designation.
-message DeconstructIntent { optional string target_id = 1; }
+// cleared_ground (#1366) is the ground clearance is emptying: a player wall
+// or door whose every enclosed room lies inside it is allowed (a room
+// reaching outside stays refused); while those rooms keep any roof the
+// designation stands but pawns wait (DeconstructEffect.waiting_for_roof),
+// so clearance issues remove_roof over them first.
+message DeconstructIntent { optional string target_id = 1; repeated Rectangle cleared_ground = 2; }
 // Designate one rock cell for ordinary pawn mining as part of a staged
 // room/corridor, adopting a Mine designation already there. Native checks
 // the rock, roof support and the game designator live when it applies; a

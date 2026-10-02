@@ -41,6 +41,17 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
+        [Tool("test/roof_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1366): with set, put a constructed roof over exact cells (\"x,z;x,z\"); always reply how many of them are roofed. Test builds only.")]
+        public async Task<object> RoofCells(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, bool set = false)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var parsed = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
+                    .Where(p => p.Length == 2).Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
+                if (map == null || parsed.Count == 0 || parsed.Count > 256 || parsed.Any(c => !c.InBounds(map))) return new { success = false, error = "Expected 1..256 in-bounds x,z cells on the current map" };
+                if (set) foreach (var c in parsed) map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                return new { success = true, roofed = parsed.Count(c => c.Roofed(map)) };
+            }, cancellationToken);
+
         [Tool("test/deconstruct_target", Description = "Inspect or mutate one staged deconstruction target. Test builds only.")]
         public async Task<object> DeconstructionTarget(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact target id.")] string target,
