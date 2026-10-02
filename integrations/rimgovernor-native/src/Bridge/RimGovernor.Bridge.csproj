@@ -21,6 +21,7 @@
     <Compile Include="../../../../scripts/fixtures/StorageHaulFixture.cs" Condition="'$(StorageHaulFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DefenseFixture.cs" Condition="'$(DefenseFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ShelterFixture.cs" Condition="'$(ShelterFixture)' == 'true'" />
     <Compile Include="../../../../contracts/generated/protobuf/csharp/*.cs" />
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />
@@ -79,7 +80,7 @@
     <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SubdueFixture.cs" Condition="'$(SubdueFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true' Or '$(ShelterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CleanlinessFixture.cs" Condition="'$(CleanlinessFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
