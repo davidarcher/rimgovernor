@@ -41,14 +41,6 @@ on:
   push:
     branches: [main]
 
-# Push runs share one group without cancelling: the running push run
-# finishes and only the newest waiting push is kept, so landings arriving
-# faster than a land tier still get verified in batches. Dispatches and
-# the nightly each get their own group.
-concurrency:
-  group: remote-acceptance-${{ github.event_name == 'push' && 'push' || github.run_id }}
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
