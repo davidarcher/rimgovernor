@@ -126,9 +126,6 @@ type SleepingReview struct {
 }
 
 func (h SleepingHistory) Validate() error {
-	if len(h.Uses) > 256 {
-		return errors.New("sleeping history exceeds bound")
-	}
 	seen := map[PawnID]bool{}
 	for _, use := range h.Uses {
 		if !foodID(string(use.Pawn)) || !foodID(use.Bed) || use.Tick < 0 || seen[use.Pawn] {
@@ -161,7 +158,7 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 	if !known {
 		return r, nil
 	}
-	if v.Colonists < 0 || v.Colonists > 256 || len(v.People) > 256 || len(v.Slaves) > 256 || len(v.Beds) > 256 {
+	if v.Colonists < 0 {
 		return r, invalid
 	}
 	if len(v.People) != v.Colonists {
@@ -213,9 +210,6 @@ func ReviewSleeping(observed domain.Fact[SleepingObservation], previous Sleeping
 			}
 		}
 		for _, ids := range [][]PawnID{b.Owners, b.Users, b.AccessibleTo} {
-			if len(ids) > 256 {
-				return r, invalid
-			}
 			seen := map[PawnID]bool{}
 			for _, id := range ids {
 				if !foodID(string(id)) || seen[id] {

@@ -98,9 +98,6 @@ type MedicalCareHistory struct {
 }
 
 func (h MedicalCareHistory) Validate() error {
-	if len(h.Patients)+len(h.Unknown) > 256 {
-		return errors.New("medical care history exceeds patient bound")
-	}
 	seen := map[PawnID]bool{}
 	for _, ids := range [][]PawnID{h.Patients, h.Unknown} {
 		for i, id := range ids {
@@ -134,9 +131,6 @@ func ReviewMedicalCare(observed domain.Fact[[]CarePawn], previous MedicalCareHis
 		}
 	}
 	rows, known := observed.Value()
-	if len(rows) > 256 {
-		return MedicalCareHistory{}, errors.New("medical care census exceeds bound")
-	}
 	resting, err := ReviewDiseaseRest(observed, previous.Resting)
 	if err != nil {
 		return MedicalCareHistory{}, err

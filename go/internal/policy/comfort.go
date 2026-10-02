@@ -56,9 +56,6 @@ func (v ComfortObservation) Validate() error {
 	if err := v.validateJoy(); err != nil {
 		return err
 	}
-	if len(v.People) > 256 || len(v.Surfaces) > 256 || len(v.Dining) > 256 || len(v.Recreation) > 256 {
-		return errors.New("comfort census exceeds bound")
-	}
 	people := map[PawnID]bool{}
 	for _, id := range v.People {
 		if !foodID(string(id)) || people[id] {
@@ -68,7 +65,7 @@ func (v ComfortObservation) Validate() error {
 	}
 	surfaces := map[string]bool{}
 	for _, s := range v.Surfaces {
-		if !foodID(s.ID) || surfaces[s.ID] || len(s.Adjacent) > 4096 {
+		if !foodID(s.ID) || surfaces[s.ID] {
 			return errors.New("invalid dining surface")
 		}
 		surfaces[s.ID] = true
@@ -88,9 +85,6 @@ func (v ComfortObservation) Validate() error {
 			}
 			seen[f.ID] = true
 			for _, ids := range [][]PawnID{f.AccessibleTo, f.Users} {
-				if len(ids) > 256 {
-					return errors.New("comfort facility census exceeds bound")
-				}
 				found := map[PawnID]bool{}
 				for _, id := range ids {
 					if !people[id] || found[id] {

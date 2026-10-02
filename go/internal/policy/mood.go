@@ -75,9 +75,6 @@ func (p MoodPawn) Validate() error {
 }
 
 func (h MoodHistory) Validate() error {
-	if len(h.States) > 256 {
-		return errors.New("mood history exceeds bound")
-	}
 	seen := map[PawnID]bool{}
 	for _, s := range h.States {
 		if err := s.Pawn.Validate(); err != nil {
@@ -158,9 +155,6 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 		old[s.Pawn.ID] = s
 	}
 	rows, known := observed.Value()
-	if len(rows) > 256 {
-		return MoodHistory{}, errors.New("mood census exceeds bound")
-	}
 	result := MoodHistory{}
 	seen := map[PawnID]bool{}
 	if known {

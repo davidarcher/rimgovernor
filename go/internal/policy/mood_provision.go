@@ -98,9 +98,6 @@ func validateMoodThoughts(f domain.Fact[[]MoodThought]) error {
 	if !known {
 		return nil
 	}
-	if len(rows) > 64 {
-		return errors.New("mood thoughts exceed bound")
-	}
 	seen := map[string]bool{}
 	for _, t := range rows {
 		if !foodID(t.Def) || seen[t.Def] || math.IsNaN(t.Offset) || math.IsInf(t.Offset, 0) || t.Offset >= 0 {

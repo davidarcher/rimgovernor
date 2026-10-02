@@ -32,7 +32,7 @@ type Identity struct {
 
 func (i Identity) Validate() error {
 	for _, value := range []string{string(i.Colony), string(i.Load)} {
-		if !utf8.ValidString(value) || strings.TrimSpace(value) == "" || len(value) > 256 || strings.ContainsRune(value, 0) {
+		if !utf8.ValidString(value) || strings.TrimSpace(value) == "" || strings.ContainsRune(value, 0) {
 			return fmt.Errorf("%w: colony/load identity", ErrContract)
 		}
 	}

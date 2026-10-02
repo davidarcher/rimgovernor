@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -68,15 +67,9 @@ type HospitalChoice struct {
 // never evicted for a hospital bed while one can be built instead. It issues
 // no orders and reserves nothing.
 func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
-	if len(r.Definitions) > 256 {
-		return HospitalChoice{}, errors.New("hospital request exceeds bound")
-	}
 	patients, known := r.Patients.Value()
 	if !known {
 		return HospitalChoice{Method: HospitalUnknown}, nil
-	}
-	if len(patients) > 256 {
-		return HospitalChoice{}, errors.New("hospital census exceeds bound")
 	}
 	// A hospital bed serves medical rest. MaintainMedicalReserves's wider
 	// census (any bad condition, e.g. a scar) keeps the deficit; it does
@@ -120,9 +113,6 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 	if !sk || !rk {
 		choice.Method = HospitalUnknown
 		return choice, nil
-	}
-	if len(sleeping.Beds) > 256 || len(rooms.Rooms) > 256 {
-		return HospitalChoice{}, errors.New("hospital census exceeds bound")
 	}
 	hosted := map[string]bool{}
 	for _, room := range rooms.Rooms {

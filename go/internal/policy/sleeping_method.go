@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"errors"
 	"slices"
 	"sort"
 
@@ -182,15 +181,9 @@ type SleepingChoice struct {
 // cold or hot for them is not a site, so the temperature family keeps that
 // deficit. It issues no orders and reserves nothing.
 func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
-	if len(r.Definitions) > 256 {
-		return SleepingChoice{}, errors.New("sleeping request exceeds bound")
-	}
 	targets, known := r.Targets.Value()
 	if !known {
 		return SleepingChoice{Method: SleepingUnknown}, nil
-	}
-	if len(targets) > 256 {
-		return SleepingChoice{}, errors.New("sleeping census exceeds bound")
 	}
 	choice := SleepingChoice{Waiting: len(targets)}
 	if choice.Waiting == 0 {
@@ -224,9 +217,6 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	if !sk {
 		choice.Method = SleepingUnknown
 		return choice, nil
-	}
-	if len(sleeping.People) > 256 || len(sleeping.Slaves) > 256 {
-		return SleepingChoice{}, errors.New("sleeping census exceeds bound")
 	}
 	if pawn, bed, ok := slaveBedToMark(ordered, sleeping); ok {
 		choice.Method, choice.Pawn, choice.Bed = SleepingMarkSlaves, pawn, bed
@@ -266,9 +256,6 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	if !rk {
 		choice.Method = SleepingUnknown
 		return choice, nil
-	}
-	if len(rooms.Rooms) > 256 {
-		return SleepingChoice{}, errors.New("sleeping census exceeds bound")
 	}
 	for _, room := range rooms.Rooms {
 		role, known := room.Role.Value()

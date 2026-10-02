@@ -347,7 +347,7 @@ func days(t domain.Tick) float64 { return float64(t) / float64(DevelopmentStallT
 
 // ValidateColonyStage checks a persisted record against the review tick.
 func ValidateColonyStage(r ColonyStageRecord, tick domain.Tick) error {
-	if !r.Stage.valid() || r.Since < 0 || r.Since > tick || r.ProductionSince < 0 || r.ProductionSince > tick || !r.Blocker.valid() || len(r.Reason) > 256 {
+	if !r.Stage.valid() || r.Since < 0 || r.Since > tick || r.ProductionSince < 0 || r.ProductionSince > tick || !r.Blocker.valid() {
 		return errors.New("invalid colony stage")
 	}
 	return nil

@@ -74,9 +74,6 @@ func ReviewMedicalReserve(v MedicalReserveObservation, active bool, p MedicalRes
 	if !pk || !ik || !rk {
 		return r, nil
 	}
-	if len(items) > 256 || len(resources) > 4096 {
-		return r, invalid
-	}
 	stockByDefinition := map[Resource]int64{}
 	for _, q := range resources {
 		if !validResource(q.Resource) || q.Count < 0 {
@@ -200,9 +197,6 @@ func SelectMedicineMethod(r MedicinePlanningRequest) (MedicineMethod, error) {
 	}
 	if target > 10000 {
 		return MedicineMethod{Kind: MedicineBlocked}, nil
-	}
-	if len(r.Seen) > 4096 {
-		return MedicineMethod{}, errors.New("medicine method history exceeds bound")
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {

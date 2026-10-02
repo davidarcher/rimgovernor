@@ -66,7 +66,7 @@ func validateDefenseArrivals(r DefenseRequest) error {
 	}
 	seen := map[string]DefenseArrival{}
 	for _, a := range r.Arrivals {
-		if a.ID == "" || len(a.ID) > 256 || a.Tick < 0 || a.Tick > r.Tick || a.Edge.X < 0 || a.Edge.Z < 0 || a.Edge.X >= r.Bounds.Width || a.Edge.Z >= r.Bounds.Height {
+		if a.ID == "" || a.Tick < 0 || a.Tick > r.Tick || a.Edge.X < 0 || a.Edge.Z < 0 || a.Edge.X >= r.Bounds.Width || a.Edge.Z >= r.Bounds.Height {
 			return errors.New("invalid defense arrival")
 		}
 		if old, ok := seen[a.ID]; ok && old != a {

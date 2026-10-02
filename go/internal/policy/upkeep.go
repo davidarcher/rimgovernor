@@ -264,7 +264,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	if rows, known := v.Filth.Value(); known {
 		seen := map[string]bool{}
 		for _, row := range rows {
-			if !valid(seen, row.ID) || len(row.Room) > 256 || row.Cell.X < 0 || row.Cell.Z < 0 {
+			if !valid(seen, row.ID) || row.Cell.X < 0 || row.Cell.Z < 0 {
 				return r, errors.New("invalid upkeep filth")
 			}
 		}

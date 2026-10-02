@@ -365,14 +365,14 @@ func AddProgressCooldown(p GoalProgress, key string, until, now domain.Tick) Goa
 
 // ValidateGoalProgress checks a persisted record against the review tick.
 func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
-	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || len(p.Expected) > 256 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) {
+	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) {
 		return errors.New("invalid goal progress")
 	}
 	if p.Observed != nil && (*p.Observed < 0 || *p.Observed > 1) {
 		return errors.New("invalid goal progress")
 	}
 	for _, cd := range p.Cooldowns {
-		if cd.Key == "" || len(cd.Key) > 256 || cd.Until <= 0 || cd.Until > tick+ProgressCooldownMax {
+		if cd.Key == "" || cd.Until <= 0 || cd.Until > tick+ProgressCooldownMax {
 			return errors.New("invalid goal progress cooldown")
 		}
 	}
