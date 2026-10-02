@@ -72,7 +72,7 @@ func (s SpatialAccess) Accepted() bool {
 	return true
 }
 
-// ReadSpatialAccess audits the paused map's colonist access with blocked
+// ReadSpatialAccess audits the map's colonist access (paused or running) with blocked
 // impassable and targets checked; pawnIDs empty audits every mobile free
 // colonist. Unknown never becomes access: an incomplete or partial reply is
 // a contract error.

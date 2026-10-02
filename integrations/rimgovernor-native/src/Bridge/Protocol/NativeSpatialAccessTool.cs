@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         internal const long MaximumMapCells = 262144;
 
         [Tool("rimgovernor/observations_read_spatial_access", Title = "Read projected colony access",
-            Description = "Official SpatialAccessRequest ProtoJSON. Paused-map audit of each mobile colonist's current safe four-neighbour reach against the same reach with blocked_cells impassable, plus native CanReach for target_cells. At most 16384 blocked and 128 target cells, 32 colonists; pawn_ids restricts the census. Unavailable instead of truncation.")]
+            Description = "Official SpatialAccessRequest ProtoJSON. Single-frame main-thread audit of each mobile colonist's current safe four-neighbour reach against the same reach with blocked_cells impassable, plus native CanReach for target_cells. At most 16384 blocked and 128 target cells, 32 colonists; pawn_ids restricts the census. Unavailable instead of truncation.")]
         [ToolResponse("payload", "string", "Official observations SpatialAccessReply ProtoJSON.", Always = true)]
         public async Task<object> ReadSpatialAccess(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a SpatialAccessRequest ProtoJSON string.")] object? request = null)
@@ -38,8 +38,6 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
-                if (Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
-                    return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Spatial access requires a paused map.") });
                 if ((long)map.Size.x * map.Size.z > MaximumMapCells)
                     return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size.") });
                 try {
