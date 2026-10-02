@@ -307,9 +307,13 @@ func (b *baseline) rank(e entry) float64 {
 }
 
 // tier is the row's scheduling tier: 0 keeps the process, 1 ends or
-// replaces it (NoKeep, Rendered), 2 hosts a service.
+// replaces it (NoKeep, Rendered), 2 hosts a service and keeps the process,
+// 3 hosts a service and ends it. The row after an ending one boots cold, so
+// the ending serve-driven rows go behind the keeping ones.
 func (e entry) tier() int {
 	switch {
+	case e.serveDriven() && e.registered.NoKeep:
+		return 3
 	case e.serveDriven():
 		return 2
 	case e.registered != nil && (e.registered.NoKeep || e.registered.Rendered):
