@@ -31,10 +31,12 @@ type StepBudget struct {
 }
 
 // DefaultStepWall is the planner waves' wall budget, counted from the wave's
-// start (after the routine review): under the 30 s step call, so a wave that
-// never returns holds admission with its planners named instead of failing
-// the step on the context deadline, when the review is quick.
-const DefaultStepWall = 20 * time.Second
+// start (after the routine review): under the 60 s step call (the cold review
+// and layout of a slow 2-vCPU runner take ~12 s and its planners ~20 s each, so
+// the former 30 s step and 20 s wall cut the step off at every attempt), so a
+// wave that never returns holds admission with its planners named instead of
+// failing the step on the context deadline.
+const DefaultStepWall = 40 * time.Second
 
 // DefaultOptionalGrace is the least grace the optional wave gets after the
 // critical wave returns. A step whose critical wave is quicker than this

@@ -190,7 +190,7 @@ func clockResourceThresholds(targets map[policy.Resource]int64) []*k.ResourceThr
 // peer load (several headless RimWorld instances on one machine) a planner
 // read alone can exceed the lease-bound 7s renew budget, which used to time
 // out every step so no clock window was ever admitted (issue #73).
-const serviceClockStepTimeout = 30 * time.Second
+const serviceClockStepTimeout = time.Minute
 
 // serviceClockTimeouts sizes the worker loops. Poll and renew share the
 // bridge call timeout clamped under lease/4 (NewClockWorker's validation,

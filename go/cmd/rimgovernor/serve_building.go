@@ -266,7 +266,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		result = errors.Join(result, drainBuilding(owner))
 	}()
-	player, err := buildingruntime.NewPlayer(lifetime, buildingruntime.PlayerConfig{CallTimeout: 30 * time.Second, JournalTimeout: 3 * time.Second}, database, session, buildingWorldSource{client.reads})
+	player, err := buildingruntime.NewPlayer(lifetime, buildingruntime.PlayerConfig{CallTimeout: serviceClockStepTimeout, JournalTimeout: 3 * time.Second}, database, session, buildingWorldSource{client.reads})
 	if err != nil {
 		return err
 	}
