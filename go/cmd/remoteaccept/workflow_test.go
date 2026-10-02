@@ -100,7 +100,7 @@ func TestWorkflowProgressOrderingAndFailureIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflow := string(b)
-	if strings.Count(workflow, "checks: write") != 2 || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\remoteaccept.exe progress -finish") || !strings.Contains(workflow, "$env:GH_TOKEN | go run ./cmd/remoteaccept progress -sweep") {
+	if strings.Count(workflow, "checks: write") != 2 || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\remoteaccept.exe progress -finish") || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\remoteaccept.exe progress -sweep") {
 		t.Fatal("progress permissions or stdin wiring missing")
 	}
 }
