@@ -3,9 +3,10 @@ package bridge
 import (
 	"context"
 	"encoding/json"
-	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
 	"time"
+
+	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"

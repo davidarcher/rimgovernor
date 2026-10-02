@@ -1,9 +1,7 @@
 package bridge
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 // validateColonyAcquisition binds the acquisition census: a hunt row is a
@@ -19,7 +17,7 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 			return contract("missing acquisition row")
 		}
 		source := row.Source
-		if source == nil || validID(source.GetId()) != nil || seen[source.GetId()] || validID(source.GetDefName()) != nil || source.MapId == nil || source.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(source.Position, v.MapSize) || source.Snapshot == nil || source.Snapshot.GetEntityId() != source.GetId() || validID(source.Snapshot.GetToken()) != nil || !proto.Equal(source.Snapshot.Context, v.Context) || validID(row.GetResource()) != nil || row.Hunt == nil || row.Tree == nil || row.Food == nil || row.Designated == nil || row.Yield == nil || row.GetYield() <= 0 || !combatNumber(row.Yield, true) || row.NutritionYield == nil || !combatNumber(row.NutritionYield, true) || !row.GetFood() && row.GetNutritionYield() != 0 || row.GetHunt() && (row.GetTree() || row.GetYield() != 1 || !row.GetFood() && !policy.PestDefinition(policy.Resource(source.GetDefName()))) {
+		if !validRef(source) || seen[source.GetId()] || !refSnapshot(row.SourceSnapshot, source, v.Context) || validID(row.GetResource()) != nil || row.Hunt == nil || row.Tree == nil || row.Food == nil || row.Designated == nil || row.Yield == nil || row.GetYield() <= 0 || !combatNumber(row.Yield, true) || row.NutritionYield == nil || !combatNumber(row.NutritionYield, true) || !row.GetFood() && row.GetNutritionYield() != 0 || row.GetHunt() && (row.GetTree() || row.GetYield() != 1) {
 			return contract("invalid acquisition source or yield")
 		}
 		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.WeaponRange == nil || !combatNumber(row.WeaponRange, true)) {

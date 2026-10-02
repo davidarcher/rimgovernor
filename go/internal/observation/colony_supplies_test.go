@@ -27,8 +27,9 @@ func TestColonyStartingSuppliesPreservesRowsAndUnavailableCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 	mapID := r.GetObserved().Context.Identity.MapId
-	r.GetObserved().ForbiddenSupplies = []*o.EntityRef{{Id: proto.String("Thing_Pemmican1"), DefName: proto.String("Pemmican"), MapId: mapID, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}}
-	p, err := DecodeColony(r, id, bridge.Tables{})
+	pemmican := &o.EntityRef{Id: proto.String("Thing_Pemmican1"), DefName: proto.String("Pemmican"), MapId: mapID, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}
+	r.GetObserved().ForbiddenSupplies = []*c.Ref{bridge.NewRef("Thing_Pemmican1")}
+	p, err := DecodeColony(r, id, heads(pemmican))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +37,7 @@ func TestColonyStartingSuppliesPreservesRowsAndUnavailableCensus(t *testing.T) {
 	if !known || !reflect.DeepEqual(rows, []policy.StartingSupply{{Thing: "Thing_Pemmican1", Definition: "Pemmican", Cell: domain.Cell{X: 1, Z: 2}}}) {
 		t.Fatal(rows, known)
 	}
-	r.GetObserved().ForbiddenSupplies[0].Position.X = proto.Int32(3)
+	pemmican.Position.X = proto.Int32(3)
 	if rows[0].Cell.X != 1 {
 		t.Fatal("projection aliases wire cells")
 	}

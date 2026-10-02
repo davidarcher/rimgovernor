@@ -11,6 +11,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// heads is a frame whose things table holds a head-only row for each of
+// refs (#1342).
+func heads(refs ...*o.EntityRef) bridge.Tables {
+	things := bridge.Things{}
+	for _, ref := range refs {
+		things[ref.GetId()] = &o.Thing{Thing: ref}
+	}
+	return bridge.Tables{Things: things}
+}
+
 // buildingRows is the building table of rows.
 func buildingRows(rows ...*o.BuildingState) bridge.Buildings {
 	return bridge.BuildingTable(&o.BuildingsSnapshot{Buildings: rows})

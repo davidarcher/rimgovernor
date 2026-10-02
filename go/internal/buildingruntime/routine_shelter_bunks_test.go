@@ -2,8 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"testing"
+
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"

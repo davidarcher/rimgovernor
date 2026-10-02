@@ -33,19 +33,33 @@ namespace HomeBridge.BridgeTools
             grid = null;
             if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
+            var read = false;
+            var referenced = NativeRef.Collect(() => read = ReadSections(map, request, context, observed));
+            if (!read) return null;
+            var thingsBegan = Now();
+            try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("things", ex)); }
+            ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
+            var gridBegan = Now();
+            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("grid", ex)); }
+            ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
+            return observed;
+        }
+
+        // On the main thread: every section of the frame but its things
+        // table and grid, false when the status census fails. The things
+        // the sections reference become the things table (#1342).
+        private static bool ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        {
             var status = new Obs.StatusRequest { Scope = new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() },
                 Colonists = true, Threats = true };
             var statusBegan = Now();
             var statusRead = NativeObservationTools.TryStatus(map, status, context, out var emergency, out _);
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
-            if (!statusRead) return null;
+            if (!statusRead) return false;
             observed.Emergency = emergency;
             ReadFamilies(map, context, observed);
             ReadStepFamilies(map, context, observed);
             ReadSubscribed(map, request, context, observed);
-            var gridBegan = Now();
-            try { grid = CellGridEncoder.Read(map); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("grid", ex)); }
-            ObservationWork.Captured("grid", Now() - gridBegan, grid != null ? grid.Count : 0);
             var combatBegan = Now();
             Supervisor.EnsureHazardHooks(); Supervisor.EnsureCombatHooks();
             CombatMirror.Capture(map, observed);
@@ -53,7 +67,7 @@ namespace HomeBridge.BridgeTools
             var inputsBegan = Now();
             CombatInputs(map, context, observed);
             ObservationWork.Captured("combatInputs", Now() - inputsBegan, observed.CombatDoors.Count + observed.CombatMortars.Count);
-            return observed;
+            return true;
         }
 
         // The census pawns the pawn table carries combat detail for (#1343):
@@ -142,15 +156,9 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
             {
                 var began = Now();
-                var referenced = new List<Thing>();
-                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony, referenced);
+                var read = NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true }, context, out var colony);
                 ObservationWork.Captured("colonyFacts", Now() - began, read ? colony!.Resources.Count : 0);
-                if (read) {
-                    observed.ColonyFacts = colony;
-                    var thingsBegan = Now();
-                    try { observed.Things = NativeObservationTools.Things(referenced, context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("things", ex)); }
-                    ObservationWork.Captured("things", Now() - thingsBegan, observed.Things != null ? observed.Things.Things.Count : 0);
-                }
+                if (read) { observed.ColonyFacts = colony; }
             }
             {
                 var began = Now();

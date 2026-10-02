@@ -66,6 +66,16 @@ func (n *routineNative) thing(row *o.Thing) *c.Ref {
 	return &c.Ref{Id: row.Thing.Id}
 }
 
+// entity puts a things table row with only ref's head in the frame,
+// unless the frame already holds one, and returns the reference a section
+// carries to it (#1342).
+func (n *routineNative) entity(ref *o.EntityRef) *c.Ref {
+	if _, ok := n.things[ref.GetId()]; !ok {
+		n.thing(&o.Thing{Thing: ref})
+	}
+	return &c.Ref{Id: ref.Id}
+}
+
 // building puts row in the frame's building table and returns the
 // reference a section carries to it; a row without service or settings
 // gets empty ones.

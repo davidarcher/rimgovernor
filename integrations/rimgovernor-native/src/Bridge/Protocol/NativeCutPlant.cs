@@ -61,8 +61,7 @@ namespace HomeBridge.BridgeTools
             foreach (var plant in plants)
             {
                 var row = new Obs.BlightedPlant {
-                    Plant = new Obs.EntityRef { Id = plant.GetUniqueLoadID(), DefName = plant.def.defName, MapId = map.uniqueID,
-                        Position = new Common.Cell { X = plant.Position.x, Z = plant.Position.z }, Snapshot = Snapshot(plant, result.Context) },
+                    Plant = NativeRef.Thing(plant), PlantSnapshot = Snapshot(plant, result.Context),
                     Designated = Designated(plant), Growth = plant.Growth };
                 if (map.zoneManager.ZoneAt(plant.Position) is Zone_Growing zone) row.Zone = NativeRef.Of(zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 result.BlightedPlants.Add(row);

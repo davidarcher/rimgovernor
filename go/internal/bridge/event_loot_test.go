@@ -10,7 +10,7 @@ import (
 
 func TestEventLootBoundary(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{Context: &c.ObservationContext{Identity: &c.Identity{MapId: proto.Int32(1)}}, MapSize: &o.MapSize{Width: proto.Uint32(100), Height: proto.Uint32(100)}}
-	row := &o.LootItem{Item: &o.EntityRef{Id: proto.String("steel-1"), DefName: proto.String("Steel"), MapId: proto.Int32(1), Position: &c.Cell{X: proto.Int32(70), Z: proto.Int32(80)}}, Forbidden: proto.Bool(true), SafeToHaul: proto.Bool(true)}
+	row := &o.LootItem{Item: NewRef("steel-1"), Forbidden: proto.Bool(true), SafeToHaul: proto.Bool(true)}
 	census := &o.LootCensus{Items: []*o.LootItem{row}}
 	v.EventLoot = &o.LootSection{Outcome: &o.LootSection_Observed{Observed: census}}
 	if err := validateEventLoot(v); err != nil {

@@ -203,11 +203,17 @@ func resolved[R any, F bridge.Reference](buildings bridge.Buildings, rows []R, r
 	return true
 }
 
-// headed reports whether buildings holds the head every row refers to:
-// the def and position a family reads from the table (#1342).
-func headed[R any, F bridge.Reference](buildings bridge.Buildings, rows []R, ref func(R) F) bool {
+// entities resolves a reference to its row's head: bridge.Buildings or
+// bridge.Tables.
+type entities interface {
+	Entity(bridge.Reference) *o.EntityRef
+}
+
+// headed reports whether tables hold the head every row refers to: the
+// def and position a family reads from the table (#1342).
+func headed[R any, F bridge.Reference](tables entities, rows []R, ref func(R) F) bool {
 	for _, row := range rows {
-		if buildings.Entity(ref(row)) == nil {
+		if tables.Entity(ref(row)) == nil {
 			return false
 		}
 	}
@@ -348,7 +354,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 			topology.Networks = append(topology.Networks, policy.PowerNetworkFact{ID: row.GetId(), GenerationW: optional(row.GenerationW), ConsumptionW: optional(row.ConsumptionW), StoredWD: optional(row.StoredWattDays), CapacityWD: optional(row.CapacityWattDays)})
 		}
 		for _, row := range development.Geysers {
-			ref := row.GetGeyser()
+			ref := tables.Entity(row.GetGeyser())
+			if ref.GetPosition() == nil {
+				geometryKnown = false
+				continue
+			}
 			geyser := policy.PowerGeyser{ID: ref.GetId(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Occupied: row.GetOccupied()}
 			for _, c := range row.Cells {
 				geyser.Cells = append(geyser.Cells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
@@ -372,7 +382,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining)}
 		r.Facts.Calendar = colonyCalendar(climate)
 	}
-	colonyAcquisition(v, &r)
+	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)
 	r.ProductionBenches = colonyProductionBenches(v, buildings)
 	r.Facts.TradeMealIngredients = policy.TradeMealIngredients(r.ProductionBenches)
@@ -391,10 +401,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.Sleeping = colonySleeping(v, buildings)
 	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns), r.FoodChannels)
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns)
-	r.Facts.Waste = colonyWaste(v)
-	r.Facts.Blight = colonyBlight(v)
-	r.Facts.Upkeep = colonyUpkeep(v, buildings)
-	r.Facts.MedicalReserve = colonyMedicalReserve(v)
+	r.Facts.Waste = colonyWaste(v, tables)
+	r.Facts.Blight = colonyBlight(v, tables)
+	r.Facts.Upkeep = colonyUpkeep(v, tables)
+	r.Facts.MedicalReserve = ColonyMedicalReserve(v, tables)
 	// The dialog section is present exactly while a force-pausing choice
 	// dialog is open (#156); native omits it otherwise.
 	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)
@@ -474,18 +484,20 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		r.Resources = domain.Known(stock)
 	}
-	if !hasIssue(v.Issues, "forbidden_supplies") {
+	if !hasIssue(v.Issues, "forbidden_supplies") && headed(tables, v.ForbiddenSupplies, func(r *c.Ref) *c.Ref { return r }) {
 		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)
 		rows := make([]policy.StartingSupply, 0, len(v.ForbiddenSupplies))
 		for _, row := range v.ForbiddenSupplies {
-			rows = append(rows, policy.StartingSupply{Thing: row.GetId(), Definition: row.GetDefName(), Cell: domain.Cell{X: row.Position.GetX(), Z: row.Position.GetZ()}})
+			head := tables.Entity(row)
+			rows = append(rows, policy.StartingSupply{Thing: row.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}})
 		}
 		r.Facts.StartingSupplies = domain.Known(rows)
 	}
-	if loot := v.GetEventLoot().GetObserved(); loot != nil {
+	if loot := v.GetEventLoot().GetObserved(); loot != nil && headed(tables, loot.Items, (*o.LootItem).GetItem) {
 		rows := make([]policy.LootItem, 0, len(loot.Items))
 		for _, row := range loot.Items {
-			item := policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: row.Item.GetDefName(), Cell: domain.Cell{X: row.Item.Position.GetX(), Z: row.Item.Position.GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil, Count: row.GetCount()}
+			head := tables.Entity(row.Item)
+			item := policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil, Count: row.GetCount()}
 			if row.PathLength != nil {
 				item.PathLength = domain.Known(row.GetPathLength())
 			}

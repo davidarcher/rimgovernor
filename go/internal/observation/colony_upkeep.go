@@ -7,13 +7,14 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.UpkeepObservation {
+func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepObservation {
+	buildings := tables.Buildings
 	r := policy.UpkeepObservation{}
 	u := v.GetUpkeep().GetObserved()
 	if u == nil {
 		return r
 	}
-	if !hasIssue(u.Issues, "items") {
+	if !hasIssue(u.Issues, "items") && headed(tables, u.Items, (*o.UpkeepItem).GetItem) {
 		rows := []policy.UpkeepItem{}
 		known := true
 		for _, item := range u.Items {
@@ -21,7 +22,8 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.U
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: item.Item.GetDefName(), Cell: domain.Cell{X: item.Item.GetPosition().GetX(), Z: item.Item.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: item.GetBaseDeteriorationRate(), Medicine: item.GetMedicine(), Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
+			head := tables.Entity(item.Item)
+			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: item.GetBaseDeteriorationRate(), Medicine: item.GetMedicine(), Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
 		}
 		if known {
 			r.Items = domain.Known(rows)
@@ -56,7 +58,7 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.U
 			r.Fires = domain.Known(rows)
 		}
 	}
-	if !hasIssue(u.Issues, "filth") {
+	if !hasIssue(u.Issues, "filth") && headed(tables, u.Filth, (*o.FilthState).GetFilth) {
 		rows := []policy.UpkeepFilth{}
 		known := true
 		for _, item := range u.Filth {
@@ -64,7 +66,8 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) policy.U
 				known = false
 				break
 			}
-			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Definition: item.Filth.GetDefName(), Cell: domain.Cell{X: item.Filth.GetPosition().GetX(), Z: item.Filth.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), RoomID: optionalRef(item.Room), Thickness: item.GetThickness()})
+			head := tables.Entity(item.Filth)
+			rows = append(rows, policy.UpkeepFilth{ID: item.Filth.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Home: item.GetHome(), Room: item.GetRoomRole(), RoomID: optionalRef(item.Room), Thickness: item.GetThickness()})
 		}
 		if known {
 			r.Filth = domain.Known(rows)

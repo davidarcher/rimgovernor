@@ -1,9 +1,10 @@
 package bridge
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
-	"testing"
 )
 
 func TestGearBatchWireCountAndFilter(t *testing.T) {

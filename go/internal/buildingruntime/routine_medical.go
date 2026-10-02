@@ -39,6 +39,7 @@ const medicineResourceDefinition = policy.Resource("MedicineHerbal")
 // live state when the ProductionBillIntent applies.
 type RoutineMedicalSource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool) (*o.ColonyFactsReply, bridge.Result, error)
+	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
 }
@@ -58,25 +59,8 @@ func NewRoutineMedicalPlanner(reviewer *RoutineReviewer, native RoutineMedicalSo
 	return &RoutineMedicalPlanner{reviewer, native}, nil
 }
 
-// medicalOptionalBool and medicalOptionalTicks mirror observation.optional's
-// generic pointer-to-Fact lift for the two medicine-stack fields this
-// boundary decodes; medicalIssue mirrors observation.hasIssue. These are
-// duplicated here (rather than exported from the observation package)
-// because the routine planner reads a fresh census of its own immediately
-// before proposing a method, the same way RoutineGearPlanner duplicates
-// gearObservationFacts rather than reusing the review's cached facts.
-func medicalOptionalBool(v *bool) domain.Fact[bool] {
-	if v == nil {
-		return domain.Unknown[bool]()
-	}
-	return domain.Known(*v)
-}
-func medicalOptionalTicks(v *int64) domain.Fact[int64] {
-	if v == nil {
-		return domain.Unknown[int64]()
-	}
-	return domain.Known(*v)
-}
+// medicalIssue mirrors observation.hasIssue for the fresh census the
+// routine planners read.
 func medicalIssue(issues []*o.ReadIssue, field string) bool {
 	for _, issue := range issues {
 		if issue.GetField() == field {
@@ -84,49 +68,6 @@ func medicalIssue(issues []*o.ReadIssue, field string) bool {
 		}
 	}
 	return false
-}
-
-// medicalReserveObservationFacts decodes the same medicine-reserve section
-// observation.colonyMedicalReserve does, from a freshly read
-// ColonyFactsSnapshot rather than the cached routine review snapshot.
-func medicalReserveObservationFacts(v *o.ColonyFactsSnapshot) policy.MedicalReserveObservation {
-	r := policy.MedicalReserveObservation{}
-	if v.ColonistCount != nil {
-		r.Colonists = domain.Known(int64(v.GetColonistCount()))
-	}
-	if !medicalIssue(v.Issues, "resources") {
-		rows := []policy.Amount{}
-		known := true
-		for _, q := range v.Resources {
-			if q.Units == nil {
-				known = false
-				break
-			}
-			rows = append(rows, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
-		}
-		if known {
-			r.Resources = domain.Known(rows)
-		}
-	}
-	u := v.GetUpkeep().GetObserved()
-	if u == nil || medicalIssue(u.Issues, "items") {
-		return r
-	}
-	rows := []policy.MedicineStack{}
-	for _, item := range u.Items {
-		if item.Medicine == nil {
-			return r
-		}
-		if !item.GetMedicine() {
-			continue
-		}
-		if item.Count == nil || item.Forbidden == nil {
-			return r
-		}
-		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(item.Item.GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: medicalOptionalBool(item.Perishable), RotTicks: medicalOptionalTicks(item.RotTicks)})
-	}
-	r.Items = domain.Known(rows)
-	return r
 }
 
 func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineMedicalResult, error) {
@@ -171,9 +112,13 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
+	tables, err := r.native.FrameTables(call, identity)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
 	// Stalls are read from the acquisition census (#1044): a designated,
 	// untaken plant past AcquisitionStallTicks since native first saw it.
-	sources := observation.ColonyAcquisition(observed)
+	sources := observation.ColonyAcquisition(observed, tables)
 	// Each is withdrawn by its own one-action method (#1046), admitted
 	// before anything else and using up this step's admission.
 	stalledSources := map[string]bool{}
@@ -211,7 +156,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	facts := medicalReserveObservationFacts(observed)
+	facts := observation.ColonyMedicalReserve(observed, tables)
 	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
 		return RoutineMedicalResult{}, err
@@ -246,7 +191,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if choice.Kind == policy.MedicineBlocked {
-		return r.harvestMedicine(call, epoch, state, goal, observed, medicalReview, stalledSources, started)
+		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, stalledSources, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
@@ -295,7 +240,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 // already designated. The same executor and native designation path
 // EnsureFoodSupply's berry harvest uses carry it out; recovery is still
 // only the observed reserve.
-func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, medicalReview policy.MedicalReserveReview, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, tables bridge.Tables, medicalReview policy.MedicalReserveReview, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	replenish, known := medicalReview.Replenish.Value()
 	if !known {
@@ -304,7 +249,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	if replenish <= 0 {
 		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	sources := observation.ColonyAcquisition(observed)
+	sources := observation.ColonyAcquisition(observed, tables)
 	rows, known := sources.Value()
 	if !known {
 		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil

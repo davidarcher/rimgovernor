@@ -3,9 +3,10 @@ package bridge
 import (
 	"context"
 	"encoding/json"
-	rp "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"testing"
 	"time"
+
+	rp "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"

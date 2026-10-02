@@ -14,10 +14,10 @@ import (
 )
 
 // forbiddenSupplyRows seeds count forbidden starting stacks item-00.. at one cell.
-func forbiddenSupplyRows(n *routineNative, count int, cell domain.Cell) []*o.EntityRef {
-	var rows []*o.EntityRef
+func forbiddenSupplyRows(n *routineNative, count int, cell domain.Cell) []*c.Ref {
+	var rows []*c.Ref
 	for i := 0; i < count; i++ {
-		rows = append(rows, &o.EntityRef{Id: proto.String(fmt.Sprintf("item-%02d", i)), DefName: proto.String("Steel"), MapId: n.reply.GetObserved().Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}})
+		rows = append(rows, n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String(fmt.Sprintf("item-%02d", i)), DefName: proto.String("Steel"), MapId: n.reply.GetObserved().Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}}}))
 	}
 	return rows
 }

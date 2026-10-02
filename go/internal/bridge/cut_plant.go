@@ -35,12 +35,20 @@ func (client *Client) ReadBlightedPlants(ctx context.Context, identity *c.Identi
 			return CutPlantRead{}, raw, ErrUnavailable
 		}
 	}
+	tables, err := client.FrameTables(ctx, identity)
+	if err != nil {
+		return CutPlantRead{}, raw, err
+	}
 	out := CutPlantRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []CutPlantTarget{}}
 	for _, row := range v.BlightedPlants {
-		plant := row.GetPlant()
-		// A plant native offers no snapshot for is not designatable.
-		if row.GetDesignated() || plant.GetSnapshot() == nil {
+		if row.GetDesignated() {
 			continue
+		}
+		// A plant the frame's things table does not hold yet waits for
+		// the next frame (#1342).
+		plant := tables.Entity(row.GetPlant())
+		if plant == nil {
+			return CutPlantRead{}, raw, ErrUnavailable
 		}
 		target, err := domain.NewCutPlant(plant.GetId(), plant.GetDefName(), domain.Cell{X: plant.GetPosition().GetX(), Z: plant.GetPosition().GetZ()})
 		if err != nil {

@@ -349,7 +349,8 @@ namespace HomeBridge.BridgeTools
         private static Obs.EntityRef Entity(Thing thing)
         {
             var row = new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap) };
-            if (thing.Spawned && thing.Map != null) { row.MapId=thing.Map.uniqueID; row.Position=Cell(thing.Position.x,thing.Position.z); }
+            // A held thing (gear, a buried corpse) is at its holder's cell.
+            if (thing.MapHeld != null) { row.MapId=thing.MapHeld.uniqueID; row.Position=Cell(thing.PositionHeld.x,thing.PositionHeld.z); }
             return row;
         }
         // ThingRow is the one thing row builder (#1343): the cells read's
@@ -359,9 +360,8 @@ namespace HomeBridge.BridgeTools
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
             var entity = Entity(thing);
-            entity.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) };
             var row = new Obs.Thing {
-                Thing_ = entity, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
+                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) }, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
             // A plant's growth marks the cell sown (#1567).
@@ -406,8 +406,6 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // A reference to a thing's table row (#1343).
-        internal static Common.Ref ThingRef(Thing thing) => new Common.Ref { Id = Identifier(thing.GetUniqueLoadID()) };
         private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value!) ? value! : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);

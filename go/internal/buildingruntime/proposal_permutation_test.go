@@ -62,7 +62,7 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(3), proto.Uint32(3)
 	item := func(id, def string, deterioration float64) *o.UpkeepItem {
-		return &o.UpkeepItem{Item: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}},
+		return &o.UpkeepItem{Item: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}}),
 			Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), BaseDeteriorationRate: proto.Float64(deterioration), Medicine: proto.Bool(false), Count: proto.Int64(10)}
 	}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{

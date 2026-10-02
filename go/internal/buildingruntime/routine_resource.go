@@ -91,7 +91,7 @@ func NewRoutineResourcePlanner(reviewer *RoutineReviewer, native RoutineResource
 }
 
 // resourceStockFacts decodes the same generic top-level resource census
-// medicalReserveObservationFacts reads (v.Resources), from a freshly read
+// observation.ColonyMedicalReserve reads (v.Resources), from a freshly read
 // ColonyFactsSnapshot rather than the cached routine review snapshot.
 func resourceStockFacts(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Amount] {
 	if medicalIssue(v.Issues, "resources") {

@@ -39,8 +39,7 @@ namespace HomeBridge.BridgeTools
                 var food = humanFood(resource);
                 var designated = ResourceAcquisitionTools.Designated(plant);
                 var row = new Obs.AcquisitionFacts {
-                    Source = new Obs.EntityRef { Id = plant.GetUniqueLoadID(), DefName = plant.def.defName, MapId = map.uniqueID,
-                        Position = new Common.Cell { X = plant.Position.x, Z = plant.Position.z }, Snapshot = Snapshot(plant, result.Context) },
+                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context),
                     Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = yield,
                     NutritionYield = food ? yield * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };

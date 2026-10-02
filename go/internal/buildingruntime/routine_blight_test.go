@@ -29,7 +29,8 @@ func (n *routineBlightNative) ReadBlightedPlants(_ context.Context, _ *c.Identit
 		if row.GetDesignated() {
 			continue
 		}
-		plant, _ := domain.NewCutPlant(row.Plant.GetId(), row.Plant.GetDefName(), domain.Cell{X: row.Plant.Position.GetX(), Z: row.Plant.Position.GetZ()})
+		head := n.things[row.Plant.GetId()].GetThing()
+		plant, _ := domain.NewCutPlant(row.Plant.GetId(), head.GetDefName(), domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()})
 		out.Targets = append(out.Targets, bridge.CutPlantTarget{Plant: plant})
 	}
 	return out, bridge.Result{}, nil
@@ -43,9 +44,9 @@ func (n *routineBlightNative) ReadEmergency(ctx context.Context, identity *c.Ide
 	return v, receipt, err
 }
 
-func blightedRow(v *o.ColonyFactsSnapshot, id string, x, z int32, designated bool) *o.BlightedPlant {
-	return &o.BlightedPlant{Plant: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Rice"), MapId: proto.Int32(v.Context.Identity.GetMapId()),
-		Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cut-" + id), Context: proto.Clone(v.Context).(*c.ObservationContext)}},
+func blightedRow(native *routineNative, v *o.ColonyFactsSnapshot, id string, x, z int32, designated bool) *o.BlightedPlant {
+	return &o.BlightedPlant{Plant: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Rice"), MapId: proto.Int32(v.Context.Identity.GetMapId()),
+		Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}), PlantSnapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cut-" + id), Context: proto.Clone(v.Context).(*c.ObservationContext)},
 		Designated: proto.Bool(designated), Zone: &c.Ref{Id: proto.String("7")}}
 }
 
@@ -56,7 +57,7 @@ func TestRoutineBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	v.ColonistCount = proto.Uint32(2)
 	v.WorkerCount = proto.Uint32(2)
 	for i := int32(0); i < 10; i++ {
-		v.BlightedPlants = append(v.BlightedPlants, blightedRow(v, "Plant_Rice"+string(rune('a'+i)), 10+i, 4, i == 0))
+		v.BlightedPlants = append(v.BlightedPlants, blightedRow(native, v, "Plant_Rice"+string(rune('a'+i)), 10+i, 4, i == 0))
 	}
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}

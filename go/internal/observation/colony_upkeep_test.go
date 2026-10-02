@@ -3,6 +3,7 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -11,25 +12,25 @@ import (
 )
 
 func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
-	u := &o.UpkeepFacts{Fires: []*o.FireState{{Fire: &o.EntityRef{Id: proto.String("fire")}, Home: proto.Bool(true)}}}
+	u := &o.UpkeepFacts{Fires: []*o.FireState{{Fire: bridge.NewRef("fire"), Home: proto.Bool(true)}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	r, err := policy.ReviewUpkeep(colonyUpkeep(v, nil), policy.UpkeepHistory{}, nil)
+	r, err := policy.ReviewUpkeep(colonyUpkeep(v, bridge.Tables{}), policy.UpkeepHistory{}, nil)
 	if err != nil || !r.Needs[0].Active || !r.Needs[0].Unsafe || r.Needs[1].Active {
 		t.Fatal(r, err)
 	}
 	u.Fires[0].Home = proto.Bool(false)
-	r, err = policy.ReviewUpkeep(colonyUpkeep(v, nil), r.History, nil)
+	r, err = policy.ReviewUpkeep(colonyUpkeep(v, bridge.Tables{}), r.History, nil)
 	if err != nil || r.Needs[0].Active {
 		t.Fatal("false Home treated as absent", r, err)
 	}
 	u.Fires[0].Home = nil
-	f := colonyUpkeep(v, nil)
+	f := colonyUpkeep(v, bridge.Tables{})
 	if _, known := f.Fires.Value(); known {
 		t.Fatal("missing Home became known")
 	}
 	u.Fires = nil
 	u.Issues = []*o.ReadIssue{{Field: proto.String("fires")}}
-	f = colonyUpkeep(v, nil)
+	f = colonyUpkeep(v, bridge.Tables{})
 	if _, known := f.Fires.Value(); known {
 		t.Fatal("failed empty census recovered")
 	}
@@ -37,21 +38,21 @@ func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
 		t.Fatal("unrelated census lost")
 	}
 	u.Items = []*o.UpkeepItem{{}}
-	if _, known := colonyUpkeep(v, nil).Items.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Items.Value(); known {
 		t.Fatal("partial item became known")
 	}
-	if _, known := colonyUpkeep(&o.ColonyFactsSnapshot{}, nil).Items.Value(); known {
+	if _, known := colonyUpkeep(&o.ColonyFactsSnapshot{}, bridge.Tables{}).Items.Value(); known {
 		t.Fatal("absent section became empty")
 	}
 }
 
 func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
 	u := &o.UpkeepFacts{Filth: []*o.FilthState{
-		{Filth: &o.EntityRef{Id: proto.String("blood"), DefName: proto.String("Filth_Blood")}, Home: proto.Bool(true), Thickness: proto.Uint32(2), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}},
-		{Filth: &o.EntityRef{Id: proto.String("dirt")}, Home: proto.Bool(true), Thickness: proto.Uint32(1)},
+		{Filth: bridge.NewRef("blood"), Home: proto.Bool(true), Thickness: proto.Uint32(2), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}},
+		{Filth: bridge.NewRef("dirt"), Home: proto.Bool(true), Thickness: proto.Uint32(1)},
 	}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	rows, known := colonyUpkeep(v, nil).Filth.Value()
+	rows, known := colonyUpkeep(v, heads(&o.EntityRef{Id: proto.String("blood"), DefName: proto.String("Filth_Blood")}, &o.EntityRef{Id: proto.String("dirt")})).Filth.Value()
 	if !known || len(rows) != 2 {
 		t.Fatal(rows, known)
 	}
@@ -77,7 +78,7 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	}
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	f, known := colonyUpkeep(v, nil).Flooring.Value()
+	f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value()
 	if !known || len(f.Rooms) != 2 || len(f.Terrains) != 2 {
 		t.Fatal(f, known)
 	}
@@ -92,20 +93,20 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 		t.Fatal(f.Terrains)
 	}
 	flooring.Terrains[0].Natural = nil
-	if _, known := colonyUpkeep(v, nil).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
 		t.Fatal("unmeasured terrain became known")
 	}
 	flooring.Terrains[0].Natural = proto.Bool(true)
 	flooring.Rooms[0].Cells[0].Terrain = nil
-	if _, known := colonyUpkeep(v, nil).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
 		t.Fatal("unmeasured cell became known")
 	}
 	u.Flooring = nil
-	if _, known := colonyUpkeep(v, nil).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
 		t.Fatal("absent section became known")
 	}
 	u.Flooring = &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{}}}
-	if f, known := colonyUpkeep(v, nil).Flooring.Value(); !known || len(f.Rooms) != 0 {
+	if f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); !known || len(f.Rooms) != 0 {
 		t.Fatal("empty census is a known census", f, known)
 	}
 }
@@ -119,10 +120,10 @@ func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	lamp := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
 	u := &o.UpkeepFacts{Lighting: &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: lighting}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("an unresolved lamp reference became a known census")
 	}
-	f, known := colonyUpkeep(v, buildingRows(lamp, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}})).Lighting.Value()
+	f, known := colonyUpkeep(v, bridge.Tables{Buildings: buildingRows(lamp, &o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}})}).Lighting.Value()
 	if !known || len(f.WorkCells) != 1 || len(f.Lamps) != 1 {
 		t.Fatal(f, known)
 	}
@@ -144,24 +145,24 @@ func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 		t.Fatal("fuel invented", l)
 	}
 	lighting.WorkCells[0].Glow = nil
-	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("unmeasured glow became known")
 	}
 	lighting.WorkCells[0].Glow = proto.Float64(0.1)
 	lighting.Lamps[0].Lit = nil
-	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("unmeasured lamp became known")
 	}
 	u.Lighting = nil
-	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("absent section became known")
 	}
 	u.Lighting = &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: &o.LightingFacts{}}}
-	if f, known := colonyUpkeep(v, nil).Lighting.Value(); !known || len(f.WorkCells) != 0 {
+	if f, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); !known || len(f.WorkCells) != 0 {
 		t.Fatal("empty census is a known census", f, known)
 	}
 	u.Issues = []*o.ReadIssue{{Field: proto.String("lighting")}}
-	if _, known := colonyUpkeep(v, nil).Lighting.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Lighting.Value(); known {
 		t.Fatal("failed section became known")
 	}
 }
@@ -189,7 +190,7 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 	routes := routesWireFacts()
 	u := &o.UpkeepFacts{Routes: &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: routes}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	r, known := colonyUpkeep(v, nil).Routes.Value()
+	r, known := colonyUpkeep(v, bridge.Tables{}).Routes.Value()
 	if !known || len(r.Pawns) != 2 || len(r.Facilities) != 1 || len(r.Traffic) != 2 || r.TrafficSamples != 200 || r.TrafficSince != domain.Known(domain.Tick(400)) {
 		t.Fatal(r, known)
 	}
@@ -207,16 +208,16 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 		t.Fatal(r.Traffic)
 	}
 	routes.Facilities[0].Travel[0].Reachable = nil
-	if _, known := colonyUpkeep(v, nil).Routes.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Routes.Value(); known {
 		t.Fatal("unmeasured reachability became known")
 	}
 	routes.Facilities[0].Travel[0].Reachable = proto.Bool(false)
 	routes.Traffic[0].Home = nil
-	if _, known := colonyUpkeep(v, nil).Routes.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Routes.Value(); known {
 		t.Fatal("unmeasured traffic cell became known")
 	}
 	u.Routes = nil
-	if _, known := colonyUpkeep(v, nil).Routes.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Routes.Value(); known {
 		t.Fatal("absent section became known")
 	}
 }
@@ -230,7 +231,7 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	routes := routesWireFacts()
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}, Routes: &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: routes}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	f, known := colonyUpkeep(v, nil).Flooring.Value()
+	f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value()
 	// The traffic cell on a terrain the table does not name is left out.
 	if !known || f.TrafficSamples != 200 || len(f.Traffic) != 1 || f.Traffic[0].Cell != (domain.Cell{X: 5, Z: 5}) {
 		t.Fatal(f, known)
@@ -238,18 +239,18 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	// An unmeasured routes census leaves flooring unknown too, as does a
 	// routes read issue.
 	routes.Traffic[0].Samples = nil
-	if _, known := colonyUpkeep(v, nil).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
 		t.Fatal("flooring known without its traffic evidence")
 	}
 	routes.Traffic[0].Samples = proto.Uint32(30)
 	u.Issues = []*o.ReadIssue{{Field: proto.String("routes")}}
 	u.Routes = nil
-	if _, known := colonyUpkeep(v, nil).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
 		t.Fatal("flooring known under a routes issue")
 	}
 	// A native without the routes section (older mod) still measures floors.
 	u.Issues = nil
-	if f, known := colonyUpkeep(v, nil).Flooring.Value(); !known || len(f.Traffic) != 0 {
+	if f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); !known || len(f.Traffic) != 0 {
 		t.Fatal(f, known)
 	}
 }

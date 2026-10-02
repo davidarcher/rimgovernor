@@ -3,6 +3,7 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -11,10 +12,10 @@ import (
 // A census row carries its designation age and taken flag (#1043).
 func TestColonyAcquisitionMapsDesignationAgeAndTaken(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{Acquisition: []*o.AcquisitionFacts{
-		{Source: &o.EntityRef{Id: proto.String("deer")}, Hunt: proto.Bool(true), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},
-		{Source: &o.EntityRef{Id: proto.String("oak")}, Designated: proto.Bool(false), Taken: proto.Bool(false)},
+		{Source: bridge.NewRef("deer"), Hunt: proto.Bool(true), Food: proto.Bool(true), Designated: proto.Bool(true), DesignatedTick: proto.Int64(1200), Taken: proto.Bool(true)},
+		{Source: bridge.NewRef("oak"), Designated: proto.Bool(false), Taken: proto.Bool(false)},
 	}}
-	rows, ok := ColonyAcquisition(v).Value()
+	rows, ok := ColonyAcquisition(v, heads(&o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer")}, &o.EntityRef{Id: proto.String("oak")})).Value()
 	if !ok || len(rows) != 2 {
 		t.Fatal(rows, ok)
 	}

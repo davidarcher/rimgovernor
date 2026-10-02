@@ -24,8 +24,7 @@ namespace HomeBridge.BridgeTools
             var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
                 var row = new Obs.LootItem {
-                    Item = new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName,
-                        MapId = map.uniqueID, Position = new Common.Cell { X = t.Position.x, Z = t.Position.z } },
+                    Item = NativeRef.Thing(t),
                     Forbidden = t.IsForbidden(Faction.OfPlayer), Count = t.stackCount
                 };
                 var safe = safety.Safe(t);

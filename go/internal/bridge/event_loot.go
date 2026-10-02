@@ -19,7 +19,7 @@ func validateEventLoot(v *o.ColonyFactsSnapshot) error {
 				return contract("incomplete event loot item")
 			}
 			item := row.Item
-			if validID(item.GetId()) != nil || validID(item.GetDefName()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(item.Position, v.MapSize) {
+			if !validRef(item) || seen[item.GetId()] {
 				return contract("invalid event loot item")
 			}
 			seen[item.GetId()] = true

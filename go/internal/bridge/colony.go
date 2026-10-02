@@ -120,7 +120,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	}
 	seen := map[string]bool{}
 	for _, row := range v.ForbiddenSupplies {
-		if row == nil || validID(row.GetId()) != nil || seen[row.GetId()] || validID(row.GetDefName()) != nil || row.MapId == nil || row.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(row.Position, v.MapSize) {
+		if !validRef(row) || seen[row.GetId()] {
 			return contract("invalid forbidden supply")
 		}
 		seen[row.GetId()] = true

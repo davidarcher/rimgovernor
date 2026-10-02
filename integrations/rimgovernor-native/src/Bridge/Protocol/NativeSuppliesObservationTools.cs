@@ -230,7 +230,7 @@ namespace HomeBridge.BridgeTools
                 if (entry.Thing is Corpse corpse)
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
-                    var detail = new Obs.CorpseState { Corpse = Entity(corpse, entry.Position), InnerPawn = Entity(pawn, entry.Position),
+                    var detail = new Obs.CorpseState { Corpse = NativeRef.Thing(corpse), InnerPawn = NativeRef.Of(pawn),
                         Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike, WasColonist = pawn.IsColonist };
                     var rot = corpse.GetComp<CompRottable>();
                     if (rot != null) detail.RotStage = NativeEnums.Rot(rot.Stage);

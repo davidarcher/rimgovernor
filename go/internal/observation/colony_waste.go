@@ -28,9 +28,9 @@ func wasteLocation(v o.WasteLocation) policy.WasteState {
 // generic census is never repaged mid-review) stays unknown; a row's own
 // missing eligibility/state is treated as not-pending (a truthy eligible
 // check) rather than failing the whole census over one partial row.
-func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
+func colonyWaste(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fact[[]policy.WasteItem] {
 	snapshot := v.GetWaste().GetObserved()
-	if snapshot == nil {
+	if snapshot == nil || !headed(tables, snapshot.Items, (*o.WasteItem).GetThing) {
 		return domain.Unknown[[]policy.WasteItem]()
 	}
 	items := make([]policy.WasteItem, 0, len(snapshot.Items))
@@ -42,7 +42,7 @@ func colonyWaste(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.WasteItem] {
 		if id == "" {
 			continue
 		}
-		position := row.GetThing().GetPosition()
+		position := tables.Entity(row.GetThing()).GetPosition()
 		if position == nil || position.X == nil || position.Z == nil || position.GetX() < 0 || position.GetZ() < 0 {
 			continue
 		}

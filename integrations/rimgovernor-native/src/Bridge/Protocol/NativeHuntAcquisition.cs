@@ -133,8 +133,7 @@ namespace HomeBridge.BridgeTools
             {
                 var designated = Designated(prey);
                 var row = new Obs.AcquisitionFacts {
-                Source = new Obs.EntityRef { Id = prey.GetUniqueLoadID(), DefName = prey.def.defName, MapId = map.uniqueID,
-                    Position = new Common.Cell { X = prey.Position.x, Z = prey.Position.z }, Snapshot = Snapshot(prey, result.Context) },
+                Source = NativeRef.Thing(prey), SourceSnapshot = Snapshot(prey, result.Context),
                 Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = !Pest(prey), Hunt = true,
                 Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = designated,
                 RevengeChance = prey.RaceProps.manhunterOnDamageChance,

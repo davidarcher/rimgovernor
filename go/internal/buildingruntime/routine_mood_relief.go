@@ -26,9 +26,7 @@ func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer) (*RoutineMoodReliefP
 
 // moodReliefValue mirrors store's unexported moodFact/moodValue lift for
 // the review's persisted RoutineMoodPawn/RoutineMoodCause pointer fields;
-// duplicated here (rather than exported from store) the same way
-// medicalOptionalBool/medicalOptionalTicks duplicate observation's lift for
-// RoutineMedicalPlanner's own fresh census.
+// duplicated here rather than exported from store.
 func moodReliefValue[T any](v *T) domain.Fact[T] {
 	if v == nil {
 		return domain.Unknown[T]()

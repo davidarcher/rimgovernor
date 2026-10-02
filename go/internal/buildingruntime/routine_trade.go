@@ -470,14 +470,14 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: err != nil", ErrControl)
 	}
-	medicalFacts := medicalReserveObservationFacts(observed)
-	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
-	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
-	}
 	// Refresh through the same projection and per-tick plan owner used by
 	// goal review; a staged trade never relies on a previous tick's need.
 	tables, err := r.native.FrameTables(call, identity)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	medicalFacts := observation.ColonyMedicalReserve(observed, tables)
+	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}

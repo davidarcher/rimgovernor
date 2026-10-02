@@ -1,8 +1,9 @@
 package bridge
 
 import (
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
+
+	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )

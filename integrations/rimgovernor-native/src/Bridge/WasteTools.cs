@@ -78,7 +78,6 @@ namespace HomeBridge.BridgeTools
         {
             var empty = new HashSet<string>();
             var items = new List<Obs.WasteItem>();
-            Obs.EntityRef Ref(Thing t, IntVec3 at) => new Obs.EntityRef { Id = Id(t), DefName = t.def.defName, MapId = map.uniqueID, Position = new Common.Cell { X = at.x, Z = at.z } };
             // Filter before sorting (#1273): the stable sort of the few kept
             // rows orders them exactly as sorting every thing's load ID did,
             // without building and comparing a string per thing on the map.
@@ -94,7 +93,7 @@ namespace HomeBridge.BridgeTools
             {
                 var thing = pair.Key; var kind = pair.Value;
                 var protection = Protection(thing);
-                var row = new Obs.WasteItem { Thing = Ref(thing, thing.Position), Count = thing.stackCount, Eligible = protection == null && kind != null,
+                var row = new Obs.WasteItem { Thing = NativeRef.Thing(thing), Count = thing.stackCount, Eligible = protection == null && kind != null,
                     State = protection == null && Stored(thing) ? Obs.WasteLocation.Relocated : Obs.WasteLocation.Exposed };
                 if (kind != null) row.Kind = NativeEnums.Waste(kind);
                 if (protection != null) row.ProtectedReason = protection;
@@ -107,7 +106,7 @@ namespace HomeBridge.BridgeTools
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
                 foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
                 {
-                    var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = Obs.WasteKind.Corpse, ProtectedReason = "grave",
+                    var row = new Obs.WasteItem { Thing = NativeRef.Thing(body), Count = 1, Kind = Obs.WasteKind.Corpse, ProtectedReason = "grave",
                         Eligible = false, State = Obs.WasteLocation.Buried, Grave = NativeRef.Of(Id(grave)) };
                     var of = CorpseOf(body);
                     if (of != null) row.CorpseClass = of.Value;

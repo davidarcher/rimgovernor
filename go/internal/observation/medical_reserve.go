@@ -1,12 +1,14 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyMedicalReserve(v *o.ColonyFactsSnapshot) policy.MedicalReserveObservation {
+// ColonyMedicalReserve decodes the medicine-reserve facts of one colony read.
+func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.MedicalReserveObservation {
 	r := policy.MedicalReserveObservation{Colonists: countFact(v.ColonistCount)}
 	if !hasIssue(v.Issues, "resources") {
 		rows := []policy.Amount{}
@@ -23,7 +25,7 @@ func colonyMedicalReserve(v *o.ColonyFactsSnapshot) policy.MedicalReserveObserva
 		}
 	}
 	u := v.GetUpkeep().GetObserved()
-	if u == nil || hasIssue(u.Issues, "items") {
+	if u == nil || hasIssue(u.Issues, "items") || !headed(tables, u.Items, (*o.UpkeepItem).GetItem) {
 		return r
 	}
 	rows := []policy.MedicineStack{}
@@ -37,7 +39,7 @@ func colonyMedicalReserve(v *o.ColonyFactsSnapshot) policy.MedicalReserveObserva
 		if item.Count == nil || item.Forbidden == nil {
 			return r
 		}
-		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(item.Item.GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: optional(item.Perishable), RotTicks: optional(item.RotTicks)})
+		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(tables.Entity(item.Item).GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: optional(item.Perishable), RotTicks: optional(item.RotTicks)})
 	}
 	r.Items = domain.Known(rows)
 	return r

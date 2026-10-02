@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"math"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"math"
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
@@ -54,7 +55,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	geysers := map[string]bool{}
 	for _, row := range v.Geysers {
 		ref := row.GetGeyser()
-		if row == nil || !proto.Equal(row, &o.SteamGeyser{Geyser: row.Geyser, Cells: row.Cells, Occupied: row.Occupied}) || ref == nil || validID(ref.GetId()) != nil || ref.Position == nil || row.Occupied == nil || geysers[ref.GetId()] {
+		if row == nil || !proto.Equal(row, &o.SteamGeyser{Geyser: row.Geyser, Cells: row.Cells, Occupied: row.Occupied}) || !validRef(ref) || row.Occupied == nil || geysers[ref.GetId()] {
 			return contract("invalid steam geyser")
 		}
 		geysers[ref.GetId()] = true
@@ -68,9 +69,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 				return contract("invalid steam geyser footprint")
 			}
 			cells[key] = true
-		}
-		if !cells[[2]int32{ref.Position.GetX(), ref.Position.GetZ()}] {
-			return contract("steam geyser footprint misses anchor")
 		}
 	}
 	for _, row := range v.Furniture {

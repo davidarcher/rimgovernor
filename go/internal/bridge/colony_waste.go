@@ -24,16 +24,9 @@ func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 		if snapshot == nil {
 			return contract("missing waste census")
 		}
-		entity := func(e *o.EntityRef, seen map[string]bool) bool {
-			if e == nil || validID(e.GetId()) != nil || validID(e.GetDefName()) != nil || e.MapId == nil || e.GetMapId() != mapID || !colonyCell(e.Position, size) || e.Label != nil || e.Snapshot != nil || seen[e.GetId()] {
-				return false
-			}
-			seen[e.GetId()] = true
-			return true
-		}
 		seen := map[string]bool{}
 		for _, row := range snapshot.Items {
-			if row == nil || !entity(row.Thing, seen) || row.Count != nil && row.GetCount() < 0 ||
+			if row == nil || !uniqueRef(row.Thing, seen) || row.Count != nil && row.GetCount() < 0 ||
 				!optionalRef(row.Zone) || !optionalRef(row.Grave) ||
 				row.RotStage != nil && o.RotStage_name[int32(row.GetRotStage())] == "" || row.Kind != nil && WasteKindName(row.GetKind()) == "" ||
 				row.ProtectedReason != nil && validID(row.GetProtectedReason()) != nil ||

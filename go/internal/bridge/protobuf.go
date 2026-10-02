@@ -472,6 +472,11 @@ func validRef(ref *c.Ref) bool {
 	return ref != nil && validID(ref.GetId()) == nil && len(ref.ProtoReflect().GetUnknown()) == 0
 }
 
+// refSnapshot reports snapshot as ref's CAS token read under ctx (#1342).
+func refSnapshot(snapshot *o.SnapshotRef, ref *c.Ref, ctx *c.ObservationContext) bool {
+	return snapshot != nil && ref != nil && snapshot.GetEntityId() == ref.GetId() && validID(snapshot.GetToken()) == nil && proto.Equal(snapshot.Context, ctx)
+}
+
 // optionalRef reports an absent reference or a valid one.
 func optionalRef(ref *c.Ref) bool { return ref == nil || validRef(ref) }
 

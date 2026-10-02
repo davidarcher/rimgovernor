@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {
-                        Item = Ref(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
+                        Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
                         DeteriorationRate = Number(t.GetStatValue(StatDefOf.DeteriorationRate)),
                         BaseDeteriorationRate = Number(t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff)),
                         Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), Medicine = t.def.IsMedicine,
@@ -103,7 +103,7 @@ namespace HomeBridge.BridgeTools
             });
             Read("fires", result, () => {
                 var rows = sets.Fires.OrderBy(f => f.thingIDNumber).ToList();
-                var values = rows.Select(f => new Obs.FireState { Fire = Ref(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
+                var values = rows.Select(f => new Obs.FireState { Fire = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Size = Number(f.fireSize) }).ToList();
                 result.Fires.AddRange(values);
             });
             Read("filth", result, () => {
@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
                 // whole-map census exceeded the bound on every real map.
                 var rows = sets.Filth.Where(f => map.areaManager.Home[f.Position]).OrderBy(f => f.thingIDNumber).ToList();
                 var values = rows.Select(f => {
-                    var value = new Obs.FilthState { Filth = Ref(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
+                    var value = new Obs.FilthState { Filth = NativeRef.Thing(f), Home = map.areaManager.Home[f.Position], Thickness = checked((uint)f.thickness) };
                     var room = f.GetRoom();
                     if (room?.Role != null) value.RoomRole = Id(room.Role.defName);
                     // The same room identity the typed room census reports, so
@@ -438,7 +438,7 @@ namespace HomeBridge.BridgeTools
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position])).OrderBy(t => t.thingIDNumber).ToList();
                     // Each feed stock references its things table row (#1343).
                     foreach (var item in reachable) {
-                        var stock = new Obs.FoodStock { Item = NativeObservationTools.ThingRef(item),
+                        var stock = new Obs.FoodStock { Item = NativeRef.Thing(item),
                             Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount) };
                         stock.Eaters.Add(NativeRef.Of(Id(p.GetUniqueLoadID()))!);
                         value.ReachableStoredFeed.Add(stock);
@@ -556,10 +556,6 @@ namespace HomeBridge.BridgeTools
             row.AnyOf.AddRange(defs.Where(d => d != null).Select(d => Id(d.defName)));
             return row;
         }
-
-        private static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef {
-            Id = Id(thing.GetUniqueLoadID()), DefName = Id(thing.def.defName), MapId = thing.Map.uniqueID, Position = Cell(thing.Position)
-        };
 
         private static void Read(string field, Obs.UpkeepFacts result, Action read)
         {
