@@ -361,3 +361,123 @@ func TestFlooringTrafficTierStyleAndDisable(t *testing.T) {
 		t.Fatal(r, err)
 	}
 }
+
+func firebreakFlooringFacts(steel, wood int64) FlooringFacts {
+	amounts := func(r Resource, n int64) domain.Fact[[]Amount] {
+		return domain.Known([]Amount{{Resource: r, Count: n}})
+	}
+	def := func(flammability float64, costs domain.Fact[[]Amount]) FloorDefinition {
+		return FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(0.0), Beauty: domain.Known(0.0), Flammability: domain.Known(flammability), PathCost: domain.Known[int32](0), Costs: costs}
+	}
+	return FlooringFacts{
+		Definitions: map[string]FloorDefinition{
+			"WoodPlankFloor": def(0.22, amounts("WoodLog", 1)),
+			"Concrete":       def(0, amounts("Steel", 2)),
+			"SterileTile":    def(0, amounts("Steel", 4)),
+		},
+		Stock: domain.Known(map[Resource]int64{"WoodLog": wood, "Steel": steel}),
+		Style: func(RoomRole) (string, bool) { return "WoodPlankFloor", true },
+	}
+}
+
+func firebreakReview(t *testing.T, census FlooringObservation, cells ...domain.Cell) FlooringReview {
+	t.Helper()
+	census.Firebreak = cells
+	r, err := ReviewFlooring(domain.Known(census), domain.Unknown[RoomObservation](), nil, flooringPolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestFlooringFirebreakTier(t *testing.T) {
+	ring := []domain.Cell{{X: 3, Z: 1}, {X: 1, Z: 1}, {X: 2, Z: 1}}
+	empty := FlooringObservation{Terrains: flooringTerrains()}
+	t.Run("only pave cells", func(t *testing.T) {
+		if r := firebreakReview(t, empty); r.Active {
+			t.Fatal(r)
+		}
+		r := firebreakReview(t, empty, ring...)
+		if len(r.Deficits) != 1 || r.Deficits[0].Tier != FloorTierFirebreak || len(r.Deficits[0].Cells) != 3 || r.Deficits[0].Cells[0] != (domain.Cell{X: 1, Z: 1}) {
+			t.Fatal(r)
+		}
+	})
+	t.Run("cheapest non-flammable", func(t *testing.T) {
+		got, err := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(100, 100), flooringPolicy())
+		if err != nil || got.Method != FlooringBuild || got.Definition != "Concrete" || got.Tier != FloorTierFirebreak || len(got.Cells) != 3 {
+			t.Fatal(got, err)
+		}
+	})
+	t.Run("batch limited by stock", func(t *testing.T) {
+		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(4, 100), flooringPolicy())
+		if got.Method != FlooringBuild || got.Definition != "Concrete" || len(got.Cells) != 2 {
+			t.Fatal(got)
+		}
+	})
+	t.Run("held when unaffordable", func(t *testing.T) {
+		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), firebreakFlooringFacts(1, 100), flooringPolicy())
+		if got.Method != FlooringMaterialsNeeded {
+			t.Fatal(got)
+		}
+	})
+	t.Run("unknown flammability is not laid", func(t *testing.T) {
+		facts := firebreakFlooringFacts(100, 100)
+		for _, name := range []string{"Concrete", "SterileTile"} {
+			d := facts.Definitions[name]
+			d.Flammability = domain.Unknown[float64]()
+			facts.Definitions[name] = d
+		}
+		got, _ := SelectFlooringMethod(firebreakReview(t, empty, ring...), facts, flooringPolicy())
+		if got.Method == FlooringBuild {
+			t.Fatal(got)
+		}
+	})
+	t.Run("ranks below clean and living", func(t *testing.T) {
+		r := firebreakReview(t, flooringCensus(), ring...)
+		var tiers []FloorTier
+		for _, d := range r.Deficits {
+			tiers = append(tiers, d.Tier)
+		}
+		if len(tiers) != 3 || tiers[0] != FloorTierClean || tiers[1] != FloorTierLiving || tiers[2] != FloorTierFirebreak {
+			t.Fatal(tiers)
+		}
+	})
+}
+
+// A settled Development colony with stone blocks paves its ring in
+// non-flammable floor although wood is cheaper (#1549).
+func TestFlooringFirebreakPavesSettledRing(t *testing.T) {
+	r := firebreakFixture(t, domain.Cell{X: 30, Z: 30})
+	stone := firebreakFloorDef(0, 4, 10)
+	stone.Costs = domain.Known([]Amount{{Resource: "BlocksGranite", Count: 4}})
+	wood := firebreakFloorDef(0.22, 1, 1)
+	wood.Costs = domain.Known([]Amount{{Resource: "WoodLog", Count: 1}})
+	r.Floors = map[string]FloorDefinition{"FlagstoneGranite": stone, "WoodPlankFloor": wood}
+	r.Policy.Floors = []string{"FlagstoneGranite", "WoodPlankFloor"}
+	r.Stock = domain.Known(map[Resource]int64{"BlocksGranite": 10000, "WoodLog": 10000})
+	dwell := map[domain.Cell]domain.Tick{}
+	for x := int32(0); x < 60; x++ {
+		for z := int32(0); z < 60; z++ {
+			dwell[domain.Cell{X: x, Z: z}] = r.Now - FirebreakSettleTicks
+		}
+	}
+	plan, _ := firebreakRun(t, r, dwell)
+	var pave []domain.Cell
+	for _, c := range plan.Cells {
+		if c.Treatment == FirebreakPave {
+			pave = append(pave, c.Cell)
+		}
+	}
+	if len(pave) == 0 {
+		t.Fatal("nothing paved", plan)
+	}
+	census := FlooringObservation{Terrains: flooringTerrains(), Firebreak: pave}
+	review, err := ReviewFlooring(domain.Known(census), domain.Unknown[RoomObservation](), nil, r.Policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := SelectFlooringMethod(review, FlooringFacts{Definitions: r.Floors, Stock: r.Stock}, r.Policy)
+	if err != nil || got.Method != FlooringBuild || got.Tier != FloorTierFirebreak || got.Definition != "FlagstoneGranite" {
+		t.Fatal(got, err)
+	}
+}

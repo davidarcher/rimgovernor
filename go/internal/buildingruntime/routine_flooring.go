@@ -29,6 +29,13 @@ func NewRoutineFlooringPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainFlooring, definition: "WoodPlankFloor"}, nil
 }
 
+// SetFirebreakPave supplies the firebreak tier's cells: pave reports the
+// firebreak ring's pave cells that are still natural ground with no floor
+// ordered, read at each review.
+func (r *RoutineBuildingPlanner) SetFirebreakPave(pave func() []domain.Cell) {
+	r.firebreakPave = pave
+}
+
 // flooringDefinitions lists every floor the policy may choose so the census
 // read carries each one's availability, stats and cost list, the entry floors included.
 func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
@@ -48,6 +55,10 @@ func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
 func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	p := r.reviewer.policy.Flooring
 	census := trafficFlooringFacts(facts, p)
+	if v, known := census.Value(); known && r.firebreakPave != nil {
+		v.Firebreak = r.firebreakPave()
+		census = domain.Known(v)
+	}
 	logTrafficFindings(census)
 	review, err := policy.ReviewFlooring(census, facts.Rooms, latches.Flooring, p)
 	if err != nil {

@@ -105,7 +105,10 @@ type RoutineBuildingPlanner struct {
 	refrigeration    *policy.RefrigerationProposal
 	lighting         *policy.LightingProposal
 	flooring         *policy.FlooringProposal
-	routes           *policy.RoutesProposal
+	// firebreakPave supplies MaintainFlooring's firebreak tier: the ring's
+	// pave cells still natural ground with no floor ordered (#1549).
+	firebreakPave func() []domain.Cell
+	routes        *policy.RoutesProposal
 	// facility restricts furnishing to rooms whose native role can host the
 	// function; with none observed, furnishing has no verified space and the
 	// same planner falls back to staging a starter shell for it.

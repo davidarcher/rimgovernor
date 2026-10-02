@@ -51,7 +51,17 @@ const (
 	// into a clean workspace first. Each gets an entry floor (straw
 	// matting: 5% filth acceptance) so tracked dirt stops at the door.
 	FloorTierEntry FloorTier = "entry"
+	// FloorTierFirebreak covers the firebreak ring's settled pave cells
+	// (#1549): the cheapest affordable floor with zero flammability.
+	FloorTierFirebreak FloorTier = "firebreak"
 )
+
+// firebreakKey is the latch key of the single firebreak deficit.
+const firebreakKey = "firebreak"
+
+// firebreakWeights score the firebreak tier on cost alone; floorScore
+// refuses any flammable floor for it.
+var firebreakWeights = FloorWeights{Cost: 1}
 
 // trafficKey is the latch key of the single traffic deficit.
 const trafficKey = "traffic"
@@ -156,6 +166,10 @@ type FlooringObservation struct {
 	Floors       map[string]FloorDefinition
 	Stock        domain.Fact[map[Resource]int64]
 	TrafficStyle string
+	// Firebreak are the firebreak ring's pave cells (PlanFirebreak) that
+	// are still natural ground with no floor ordered, as the caller reads
+	// them; nil when none.
+	Firebreak []domain.Cell
 }
 type FloorRoom struct {
 	ID    string
@@ -538,6 +552,19 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
 	}
+	if len(v.Firebreak) > 0 {
+		d := FloorDeficit{Key: firebreakKey, Tier: FloorTierFirebreak}
+		for _, c := range v.Firebreak {
+			if !roomed[c] && !slices.Contains(d.Cells, c) {
+				d.Cells = append(d.Cells, c)
+			}
+		}
+		sort.Slice(d.Cells, func(i, j int) bool { return cellLess(d.Cells[i], d.Cells[j]) })
+		if len(d.Cells) > 0 {
+			r.Deficits = append(r.Deficits, d)
+			r.Latched = append(r.Latched, d.Key)
+		}
+	}
 	if d, ok := entryDeficit(v, clean, p); ok {
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
@@ -553,7 +580,7 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 	return r, nil
 }
 
-var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierTraffic: 3}
+var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierFirebreak: 3, FloorTierTraffic: 4}
 
 type FlooringMethod string
 
@@ -611,6 +638,9 @@ func floorScore(tier FloorTier, d FloorDefinition, w FloorWeights) (float64, boo
 	beauty, _ := d.Beauty.Value()
 	flammability, _ := d.Flammability.Value()
 	pathCost, _ := d.PathCost.Value()
+	if _, fk := d.Flammability.Value(); tier == FloorTierFirebreak && (!fk || flammability > 0) {
+		return 0, false
+	}
 	if tier == FloorTierClean && cleanliness < 0 || tier == FloorTierLiving && beauty < 0 || tier == FloorTierTraffic && pathCost > 0 {
 		return 0, false
 	}
@@ -645,8 +675,8 @@ func affordableCells(d FloorDefinition, stock domain.Fact[map[Resource]int64], w
 // living rooms. Candidates must be known available, be terrain, meet the
 // tier's requirement and be affordable for at least one cell; a floor that
 // pays for the whole batch beats one that pays for part of it, then the
-// tier's score decides. A room whose deficient cells are all ordered
-// already waits for them. Dirt entry points choose among the entry floors
+// tier's score decides; the firebreak tier is never styled. A room whose
+// deficient cells are all ordered already waits for them. Dirt entry points choose among the entry floors
 // only. The traffic deficit lays the floor its cells were priced on.
 // A traffic latch the review could not price is unknown.
 func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p FlooringPolicy) (FlooringProposal, error) {
@@ -676,6 +706,8 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 			weights = p.Living
 		case FloorTierTraffic:
 			weights = p.Traffic
+		case FloorTierFirebreak:
+			weights = firebreakWeights
 		}
 		type candidate struct {
 			name  string
@@ -693,7 +725,7 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		} else if d.Floor != "" {
 			// The traffic tier lays the floor its payback was priced on.
 			scored = []string{d.Floor}
-		} else if name, ok := styledFloor(d, facts, batch, weights); ok {
+		} else if name, ok := styledFloor(d, facts, batch, weights); ok && d.Tier != FloorTierFirebreak {
 			best, scored = &candidate{name, batch, 0}, nil
 		}
 		for _, name := range scored {
