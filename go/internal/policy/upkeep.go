@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 
@@ -132,9 +133,9 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 		r.Needs = append(r.Needs, UpkeepNeed{goal, priority, active, targets, metric, unsafe})
 		return active
 	}
-	ids := func(n int) (map[string]bool, error) {
+	ids := func(section string, n int) (map[string]bool, error) {
 		if n > 256 {
-			return nil, errors.New("upkeep section exceeds bound")
+			return nil, fmt.Errorf("upkeep %s section has %d rows, over the 256 bound", section, n)
 		}
 		return map[string]bool{}, nil
 	}
@@ -148,7 +149,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	targets, metric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	unsafe := false
 	if rows, known := v.Fires.Value(); known {
-		seen, err := ids(len(rows))
+		seen, err := ids("fires", len(rows))
 		if err != nil {
 			return r, err
 		}
@@ -179,7 +180,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	storageTargets, storageMetric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Items.Value(); known {
-		seen, err := ids(len(rows))
+		seen, err := ids("items", len(rows))
 		if err != nil {
 			return r, err
 		}
@@ -238,7 +239,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Supplies = add(SecureSupplies, 3, previous.Supplies, targets, metric, false)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Structures.Value(); known {
-		seen, err := ids(len(rows))
+		seen, err := ids("structures", len(rows))
 		if err != nil {
 			return r, err
 		}
@@ -273,7 +274,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Repairs = add(MaintainEssentialRepairs, 3, previous.Repairs, targets, metric, false)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Filth.Value(); known {
-		seen, err := ids(len(rows))
+		seen, err := ids("filth", len(rows))
 		if err != nil {
 			return r, err
 		}
@@ -335,7 +336,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Clearance = add(ClearHomeObstructions, 3, previous.Clearance, clearanceTargets, domain.Unknown[float64](), false)
 	shrineTargets := domain.Unknown[[]string]()
 	if rows, known := v.Shrines.Value(); known {
-		seen, err := ids(len(rows))
+		seen, err := ids("shrines", len(rows))
 		if err != nil {
 			return r, err
 		}
