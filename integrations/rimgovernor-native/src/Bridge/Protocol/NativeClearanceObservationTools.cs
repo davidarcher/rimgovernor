@@ -404,6 +404,8 @@ namespace HomeBridge.BridgeTools
             building.def == ThingDefOf.ShipChunk ? Obs.ClearanceClass.ShipChunk :
             building.def == ThingDefOf.Wall || building is Building_Door ? Obs.ClearanceClass.AncientWallDoor : Obs.ClearanceClass.Other;
 
+        private const int HiveDangerRadius = 14;
+
         internal static bool AncientDanger(Map map, Building building, Faction player) => AncientDanger(map, building, player, TempleTriggers(map));
 
         // TempleTriggers lists the map's ancient-temple approach triggers once so
@@ -418,6 +420,12 @@ namespace HomeBridge.BridgeTools
             // The warning trigger can disappear when a colonist approaches,
             // before the room opens. Retain the room-content check as well.
             if (triggers.Any(t => t.Rect.CenterCell.Fogged(map) && occupied.Any(c => t.Rect.Contains(c)))) return true;
+            // A hive near the target is danger whether or not its cave is
+            // fogged: colonists sent to deconstruct beside one wake it and are
+            // wrecked at close range. Unfogging or an open roof must not clear it.
+            var center = building.Position;
+            foreach (var hive in map.listerThings.ThingsOfDef(ThingDefOf.Hive))
+                if (hive.Spawned && hive.Position.DistanceToSquared(center) <= HiveDangerRadius * HiveDangerRadius) return true;
             var rooms = new HashSet<Room>();
             foreach (var cell in occupied)
                 foreach (var offset in GenAdj.CardinalDirectionsAndInside) {
