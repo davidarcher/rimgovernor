@@ -80,6 +80,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase gate
+      # Several script steps are continue-on-error; parse every script here so
+      # a syntax error fails the run instead of hiding as an annotation.
+      - name: Parse every PowerShell script
+        run: |
+          $bad = 0
+          Get-ChildItem trusted -Recurse -Filter *.ps1 | ForEach-Object {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$errors)
+            foreach ($e in $errors) { "::error file=$($_.FullName),line=$($e.Extent.StartLineNumber)::$($e.Message)"; $bad++ }
+          }
+          if ($bad) { exit 1 }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.gate.outputs.head }}
