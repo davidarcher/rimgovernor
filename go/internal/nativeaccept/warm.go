@@ -72,8 +72,8 @@ type Game struct {
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
 // Core-only process cannot load a DLC save, #166) or with a package other
 // than the one now installed (a rebuilt mod's fixtures are not in the old
-// DLL's catalog, #209), or one a resumed run must relaunch (Config.Resumed,
-// #249), is stopped and launched
+// DLL's catalog, #209), or one a resumed run (Config.Resumed, #249) or a graphics case
+// (Config.Graphics) must relaunch, is stopped and launched
 // fresh instead; Game.Relaunched and the report's game_reuse.relaunched
 // say so. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
@@ -104,6 +104,10 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 		}
 		if cfg.Resumed {
 			reason = "checkpoint"
+		}
+		if cfg.Graphics {
+			// A kept game may have launched with -nographics.
+			reason = "graphics"
 		}
 		if reason != "" {
 			if err := stopRunning(ctx, client); err != nil {

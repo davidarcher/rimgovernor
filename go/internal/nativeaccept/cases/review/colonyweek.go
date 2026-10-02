@@ -75,9 +75,13 @@ func init() {
 		Keep:        []string{string(na.LiveNeeds)},
 		Quiet:       na.Loud,
 		RequiredOps: []string{RecorderTool},
-		Serve:       &cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: "colony-review"},
-		Reason:      "a week of whole-colony play with the storyteller on is the thing under review",
-		Budget:      100 * time.Minute,
+		// The recorder renders through a graphics device; the game is
+		// launched for this case alone.
+		Graphics: true,
+		NoKeep:   true,
+		Serve:    &cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: "colony-review"},
+		Reason:   "a week of whole-colony play with the storyteller on is the thing under review",
+		Budget:   100 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			dir := filepath.Join(s.Config().Output, "review")
 			s.Report()["review_dir"] = dir

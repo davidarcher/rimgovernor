@@ -364,7 +364,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if resumed.resuming() {
 		s.resumed = &resumed.entry
 	}
-	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
+	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, Graphics: c.Graphics, GameID: opts.GameID,
 		QuietWorld: c.QuietWorld}
 	s.config = cfg
 	if len(c.Expansions) > 0 {
@@ -534,7 +534,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 		return fmt.Errorf("bundle %s cannot be loaded under this tree: %s", entry.Path, reason)
 	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor, resumed: &entry, resumeSuffix: opts.RunID(), stagePlan: staging{hit: -1}}
-	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
+	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, Graphics: c.Graphics, GameID: opts.GameID,
 		QuietWorld: c.QuietWorld}
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()

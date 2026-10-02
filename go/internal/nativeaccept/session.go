@@ -178,9 +178,13 @@ func marshalReport(r Report) ([]byte, error) {
 
 // Config holds the resolved acceptance-run configuration common to all four binaries.
 type Config struct {
-	Root          string
-	Output        string
-	Headless      bool
+	Root     string
+	Output   string
+	Headless bool
+	// Graphics keeps a graphics device in the headless profile (no
+	// -nographics): the game still opens no window, but a camera can
+	// render on demand (Case.Graphics).
+	Graphics      bool
 	GameID        string
 	Timeout       time.Duration
 	Configuration string // resolved by Prepare/PrepareRendered
@@ -238,7 +242,7 @@ func (c *Config) PrepareConfig() error {
 	var configuration string
 	var err error
 	if c.Headless {
-		configuration, err = prepare(c.Root, c.FixtureOps, expansions)
+		configuration, err = prepare(c.Root, c.FixtureOps, expansions, c.Graphics)
 	} else {
 		configuration, err = prepareRendered(c.Root, c.FixtureOps, expansions)
 	}

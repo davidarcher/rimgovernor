@@ -309,6 +309,11 @@ type Case struct {
 	// cases that need a drawing game (batch mode never draws). Remote plans skip
 	// these GPU-dependent cases on hosted Windows runners.
 	Rendered bool
+	// Graphics keeps a graphics device in the headless profile, for a case
+	// that renders on demand without a window (review/colony-week's
+	// screenshots). Unlike Rendered it runs on hosted runners. A kept game
+	// launched without one cannot serve it, so it implies a fresh process.
+	Graphics bool
 	// NoCheckpoint opts the case out of the runner's checkpoint ring
 	// (#249): no periodic bundles, no failed bundle, no resume. The
 	// speedmatrix and tickbudget areas are out regardless.

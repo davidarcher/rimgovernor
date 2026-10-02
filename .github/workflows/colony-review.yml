@@ -112,15 +112,12 @@ jobs:
       - name: Audit process exits so a vanished game leaves its exit status
         continue-on-error: true
         run: auditpol /set /subcategory:"Process Termination" /success:enable
-      # The recorder renders through a graphics device: the headless game
-      # keeps one (no -nographics) under RIMGOVERNOR_ACCEPT_GRAPHICS.
       - name: Bootstrap and play the review week
         id: play
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
-          RIMGOVERNOR_ACCEPT_GRAPHICS: '1'
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
           RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard s1

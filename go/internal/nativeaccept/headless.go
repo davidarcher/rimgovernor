@@ -645,7 +645,7 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 // batch mode, writes config-headless/config.json, and returns that
 // directory. fixtureOps feed the stale-package check's rebuild hint
 // (Config.FixtureOps).
-func prepare(root string, fixtureOps, expansions []string) (string, error) {
+func prepare(root string, fixtureOps, expansions []string, graphics bool) (string, error) {
 	root = mustAbs(root)
 	config, err := loadConfig(filepath.Join(root, "config", "config.json"))
 	if err != nil {
@@ -718,7 +718,7 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
 		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
-	if os.Getenv(GraphicsEnv) == "1" {
+	if graphics {
 		args = slices.DeleteFunc(args, func(a any) bool { return a == "-nographics" })
 	}
 	game["args"] = args
@@ -731,11 +731,6 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	}
 	return destination, nil
 }
-
-// GraphicsEnv set to 1 keeps a graphics device in the headless profile
-// (no -nographics): the game still never opens a window, but a camera can
-// render on demand, which the colony review recorder needs.
-const GraphicsEnv = "RIMGOVERNOR_ACCEPT_GRAPHICS"
 
 // BaselineSave is the committed starting colony most save-driven harnesses
 // load: the Lost Tribe scenario with eight colonists (#192), generated with

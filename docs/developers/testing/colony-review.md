@@ -14,9 +14,10 @@ Pages for a person (or a model) to skim for bugs.
   `<case output>/review/colony-<tick>.jpg`, and once a day the whole map to
   `map-<tick>.jpg`. It records no colony facts: the run's timeline already
   samples the colony census and every `sustained.ColonyGoals` goal each
-  in-game hour. It needs a graphics device:
-  `RIMGOVERNOR_ACCEPT_GRAPHICS=1` drops `-nographics` from the headless
-  profile, so the camera renders on demand without a window.
+  in-game hour. It needs a graphics device: the case sets
+  `Graphics`, which drops `-nographics` from the headless profile (the
+  camera renders on demand, no window opens, so it runs on hosted runners
+  unlike a `Rendered` case) and always launches a fresh game.
 - **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
   reads `result.json`'s timeline and the screenshots and writes
   `index.html` (summary, trends, flagged hours, daily map shots, hourly
