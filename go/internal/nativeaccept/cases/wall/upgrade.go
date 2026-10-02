@@ -62,8 +62,14 @@ func checkSites(wall string, rows []any) error {
 		if na.AsNumber(normal["x"]) == 0 && na.AsNumber(normal["z"]) == 0 {
 			return fmt.Errorf("%s: site without a normal", wall)
 		}
-		if na.AsString(leftBuilding["id"]) == "" || na.AsString(rightBuilding["id"]) == "" || cells(row["backupCells"]) == "" {
-			return fmt.Errorf("%s: site without both supports and backup cells: %v", wall, row)
+		if na.AsString(leftBuilding["id"]) == "" || na.AsString(rightBuilding["id"]) == "" {
+			return fmt.Errorf("%s: site without both supports: %v", wall, row)
+		}
+		// A corner (diagonal normal) is replaced in place and has no backup
+		// cells; a straight site has its three exterior backups.
+		corner := na.AsNumber(normal["x"]) != 0 && na.AsNumber(normal["z"]) != 0
+		if backups := len(na.AsSlice(row["backupCells"])); corner && backups != 0 || !corner && backups != 3 {
+			return fmt.Errorf("%s: site with %d backup cells for normal %v: %v", wall, backups, normal, row)
 		}
 		options := na.AsSlice(row["replacementMaterials"])
 		if len(options) == 0 {
@@ -84,15 +90,6 @@ func checkSites(wall string, rows []any) error {
 		}
 	}
 	return nil
-}
-
-func cells(v any) string {
-	out := ""
-	for _, raw := range na.AsSlice(v) {
-		cell, _ := na.AsMap(raw)
-		out += fmt.Sprintf("%v,%v;", na.AsNumber(cell["x"]), na.AsNumber(cell["z"]))
-	}
-	return out
 }
 
 // maxWalls bounds the colonist walls cross-checked per target (the first

@@ -32,7 +32,8 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	applied, _ := na.AsMap(result["applied"])
+	receipt, _ := na.AsMap(result["applied"])
+	applied, _ := na.AsMap(receipt["applied"])
 	observed, _ := na.AsMap(applied["observed"])
 	effect, _ := na.AsMap(observed["deconstruct"])
 	if effect["targetId"] != ids[0] || na.AsString(effect["designationId"]) == "" {

@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
@@ -16,6 +17,22 @@ namespace HomeBridge.BridgeTools
     // the whole intent. Applied means designated: pawns remove the roof.
     internal static class NativeRemoveRoof
     {
+        private static bool installed;
+        // Vanilla auto-roof (AutoBuildRoofAreaSetter) re-adds an enclosed
+        // room's cells to the BuildRoof area without clearing NoRoof, so
+        // pawns would rebuild the roof they are removing. The NoRoof
+        // designator makes the two areas exclusive; this holds that rule
+        // for roof building.
+        private static void Install()
+        {
+            if (installed) return;
+            new Harmony("rimgovernor.remove-roof").Patch(AccessTools.Method(typeof(WorkGiver_BuildRoof), nameof(WorkGiver_BuildRoof.HasJobOnCell)),
+                postfix: new HarmonyMethod(typeof(NativeRemoveRoof), nameof(NoRoofHoldsBuild)));
+            installed = true;
+        }
+        private static void NoRoofHoldsBuild(Pawn pawn, IntVec3 c, ref bool __result)
+        { if (__result && pawn.Map != null && pawn.Map.areaManager.NoRoof[c]) __result = false; }
+
         private static string? Refusal(Operations.RemoveRoofIntent? intent, Common.ObservationContext context, out Map? map, out List<IntVec3> cells)
         {
             map = null; cells = new List<IntVec3>();
@@ -45,6 +62,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Receipts.EffectEvidence Apply(Operations.RemoveRoofIntent intent, Common.ObservationContext context)
         {
+            Install();
             var refusal = Refusal(intent, context, out var map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Remove roof prerequisites changed before apply: " + refusal);
             var effect = new Receipts.RemoveRoofEffect { Designated = 0, Adopted = 0, Unroofed = 0 };

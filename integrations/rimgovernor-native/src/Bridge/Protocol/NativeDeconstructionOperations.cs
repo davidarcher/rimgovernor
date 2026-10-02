@@ -76,8 +76,9 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(NativeDeconstructionOperations), nameof(GuardJob)));
             NativeControlAuthority.GenerationChanged += (authority, snapshot, previous) =>
             {
-                if (!snapshot.Active && ReferenceEquals(game, Current.Game))
-                    using (authority.Owned()) ReleaseAll();
+                // Revocation has already ended the owned scope (Owned()
+                // throws once inactive), so the release runs unscoped.
+                if (!snapshot.Active && ReferenceEquals(game, Current.Game)) ReleaseAll();
             };
             installed = true;
         }
@@ -106,8 +107,15 @@ namespace HomeBridge.BridgeTools
             if (__state != null && __exception == null && __state.Target.Destroyed)
             {
                 __state.Complete = true;
+                // The wall is the controller's own order, so it is placed
+                // in the owned scope the authority hooks attribute to it.
                 if (__state.WallStuff != null)
-                    try { PlaceWall(__state, __instance.pawn, queued: true); }
+                    try
+                    {
+                        if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
+                            throw new InvalidOperationException("Native authority is unavailable.");
+                        using (authority.Owned()) PlaceWall(__state, __instance.pawn, queued: true);
+                    }
                     catch (Exception e) { Log.Warning("[RimGovernor] door-to-wall swap: " + e.Message); }
             }
             return __exception;
