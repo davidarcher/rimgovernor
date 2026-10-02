@@ -116,6 +116,30 @@ jobs:
             ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
           }
           if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      - name: Summarize why the play step failed
+        if: always() && steps.play.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          foreach ($result in Get-ChildItem C:\rg\*\job\out -Recurse -File -Filter result.json -ErrorAction SilentlyContinue) {
+            $r = Get-Content -LiteralPath $result.FullName -Raw | ConvertFrom-Json
+            "Play failed: $($r.error)" >> $env:GITHUB_STEP_SUMMARY
+            "$($result.FullName): $($r.error)"
+          }
+          foreach ($log in Get-ChildItem C:\rg\*\job -Recurse -File -Filter HeadlessPlayer.log -ErrorAction SilentlyContinue) {
+            "--- tail of $($log.FullName)"
+            Get-Content -LiteralPath $log.FullName -Tail 80
+          }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.play.outcome == 'failure'
+        with:
+          name: colony-review-diagnostics
+          path: |
+            C:\rg\*\job\out\**\result.json
+            C:\rg\*\job\out\**\*.log
+            C:\rg\*\job\out\**\review\stats.jsonl
+            C:\rg\*\job\**\HeadlessPlayer.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Render the report
         id: report
         env:
