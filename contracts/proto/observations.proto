@@ -821,8 +821,7 @@ message WasteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; re
 message WasteRequest { ReadScope scope = 1; repeated string unwanted_ids = 2; repeated string bury_ids = 3; reserved 4; }
 message WasteReply { oneof outcome { WasteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecoveryRestriction { EntityRef pawn = 1; optional string area_id = 2; optional bool leased = 3; optional int64 until_tick = 4; }
-message RecoveryArea { optional string id = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool roofed = 3; reserved 4; SnapshotRef snapshot = 5; }
-message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional bool roof_hazard = 2; repeated RecoveryArea areas = 3; repeated RecoveryRestriction restrictions = 4; repeated BuildingState buildings = 5; reserved 6; }
+message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; reserved 2, 3; reserved "roof_hazard", "areas"; repeated RecoveryRestriction restrictions = 4; repeated BuildingState buildings = 5; reserved 6; }
 message RecoveryRequest { ReadScope scope = 1; reserved 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; BuildingState owned_bed = 7; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9;

@@ -120,19 +120,11 @@ func TestNativeRoutineDisasterReplay(t *testing.T) {
 	}
 	selection := result.Review.Recovery
 	if selection == nil || selection.Selection.Reason != policy.RecoveryAdmissionRequired || len(selection.Selection.Candidates) == 0 {
-		t.Fatal("native refuge proposals missing", selection)
+		t.Fatal("native recovery proposals missing", selection)
 	}
-	safety, _ := projection.Facts.RecoverySafety.Value()
 	for _, candidate := range selection.Selection.Candidates {
-		if candidate.Kind != policy.RecoveryAreaProposal {
-			t.Fatal("exposure bypassed refuge", candidate)
-		}
-		found := false
-		for _, area := range safety.SafeAreas {
-			found = found || area == candidate.Area
-		}
-		if !found || candidate.PriorArea == nil {
-			t.Fatal("unobserved refuge or restriction", candidate)
+		if candidate.Kind != policy.RecoveryServiceProposal || candidate.PriorArea == nil {
+			t.Fatal("unobserved service or restriction", candidate)
 		}
 	}
 	journal.Close()

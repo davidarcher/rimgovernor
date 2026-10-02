@@ -24,8 +24,6 @@ type RoutineRecovery struct {
 	Selection policy.RecoverySelection
 }
 type RoutineRecoverySafety struct {
-	RoofHazard   *bool
-	Areas        []string
 	Restrictions []RoutineRecoveryRestriction
 }
 type RoutineRecoveryRestriction struct {
@@ -46,7 +44,7 @@ type RoutineRecoveryBuilding struct {
 func recoveryRecord(p policy.RecoveryPlanning) *RoutineRecovery {
 	r := &RoutineRecovery{}
 	if s, k := p.Safety.Value(); k {
-		r.Safety = &RoutineRecoverySafety{RoofHazard: moodValue(s.RoofHazard), Areas: append([]string(nil), s.SafeAreas...)}
+		r.Safety = &RoutineRecoverySafety{}
 		for _, v := range s.Restrictions {
 			r.Safety.Restrictions = append(r.Safety.Restrictions, RoutineRecoveryRestriction{v.Pawn, moodValue(v.Area)})
 		}
@@ -70,7 +68,7 @@ func recoveryRecord(p policy.RecoveryPlanning) *RoutineRecovery {
 func (r *RoutineRecovery) planning() policy.RecoveryPlanning {
 	p := policy.RecoveryPlanning{}
 	if r.Safety != nil {
-		s := policy.RecoverySafety{RoofHazard: moodFact(r.Safety.RoofHazard), SafeAreas: append([]string(nil), r.Safety.Areas...)}
+		s := policy.RecoverySafety{}
 		for _, v := range r.Safety.Restrictions {
 			s.Restrictions = append(s.Restrictions, policy.RecoveryRestriction{Pawn: v.Pawn, Area: moodFact(v.Area)})
 		}

@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // colonist to the outdoor area, and registers a ToxicFallout hazard
     // condition on the current paused map, so recoveryareaaccept can
     // exercise NativeWorkSettings' PatchPawn AllowedArea dispatch (the
-    // native write surface RecoveryAreaProposal ultimately reaches) without
+    // native write surface PlanSheltering's area changes reach) without
     // depending on native random colony layout or an existing named safe
     // area, mirroring RecoveryServiceFixture's/DisasterFixture's own
     // minimal disposable-spawn pattern.

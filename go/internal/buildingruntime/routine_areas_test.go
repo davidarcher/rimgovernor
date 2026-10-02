@@ -49,7 +49,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 	v := native.reply.GetObserved()
 	entity := &o.EntityRef{Id: proto.String("patient"), DefName: proto.String("Human"), MapId: v.Context.Identity.MapId, Position: proto.Clone(v.Center).(*c.Cell)}
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{
-		Context: v.Context, RoofHazard: proto.Bool(false),
+		Context:      v.Context,
 		Restrictions: []*o.RecoveryRestriction{{Pawn: entity, AreaId: proto.String("manual")}},
 	}}}
 	// "manual" is the Safe area and no sheltering trigger holds (#1326).

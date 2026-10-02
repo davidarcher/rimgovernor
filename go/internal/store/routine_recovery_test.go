@@ -14,7 +14,7 @@ func recoveryRequest() RoutineReviewRequest {
 	r := routineRequest()
 	k := domain.Known(false)
 	r.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "fallout", Definition: "ToxicFallout"}})
-	r.Facts.RecoverySafety = domain.Known(policy.RecoverySafety{RoofHazard: domain.Known(true), SafeAreas: []string{"roof"}, Restrictions: []policy.RecoveryRestriction{{Pawn: "pawn", Area: domain.Known("player-area")}}})
+	r.Facts.RecoverySafety = domain.Known(policy.RecoverySafety{Restrictions: []policy.RecoveryRestriction{{Pawn: "pawn", Area: domain.Known("player-area")}}})
 	r.Facts.RecoveryWorkers = domain.Known([]policy.RecoveryWorker{{Pawn: "pawn", Dead: k, Downed: k, Drafted: k, Mental: k, PlayerForced: k}})
 	r.Facts.RecoveryBuildings = domain.Known([]policy.RecoveryBuilding{})
 	return r
@@ -101,7 +101,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 			v := out.Review
 			switch name {
 			case "target":
-				v.Recovery.Selection.Candidates[0].Area = "outside"
+				v.Recovery.Selection.Candidates[0].Building = "outside"
 			case "worker":
 				value := true
 				(*v.Recovery.Workers)[0].Dead = &value

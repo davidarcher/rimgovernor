@@ -20,7 +20,7 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(reply.GetUnavailable())
 	}
 	v := reply.GetObserved()
-	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, RoofHazard: v.RoofHazard, Areas: v.Areas, Restrictions: v.Restrictions, Buildings: v.Buildings}) {
+	if v == nil || !proto.Equal(v.Context, colony.Context) || !proto.Equal(v, &o.RecoverySnapshot{Context: v.Context, Restrictions: v.Restrictions, Buildings: v.Buildings}) {
 		return contract("invalid recovery context or outcome")
 	}
 	seen := map[string]bool{}
@@ -59,21 +59,6 @@ func validateColonyRecovery(colony *o.ColonyFactsSnapshot) error {
 			if issue.GetField() != "fuel" || issue.GetUnavailable().GetReason() != c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE || s.Fuel != nil || s.TargetFuel != nil || len(s.AllowedFuelDefs) > 0 {
 				return contract("conflicting recovery fuel availability")
 			}
-		}
-	}
-	seen = map[string]bool{}
-	for _, a := range v.Areas {
-		if a == nil || validID(a.GetId()) != nil || seen[a.GetId()] || !a.GetRoofed() || !proto.Equal(a, &o.RecoveryArea{Id: a.Id, Roofed: a.Roofed, Cells: a.Cells}) || len(a.Cells) == 0 {
-			return contract("invalid recovery area")
-		}
-		seen[a.GetId()] = true
-		cells := map[[2]int32]bool{}
-		for _, cell := range a.Cells {
-			key := [2]int32{cell.GetX(), cell.GetZ()}
-			if !colonyCell(cell, colony.MapSize) || cells[key] {
-				return contract("invalid recovery area geometry")
-			}
-			cells[key] = true
 		}
 	}
 	seen = map[string]bool{}

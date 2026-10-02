@@ -143,11 +143,8 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	var chosen *policy.RecoveryCandidate
 	for i := range selection.Candidates {
-		switch selection.Candidates[i].Kind {
-		case policy.RecoveryServiceProposal, policy.RecoveryAreaProposal:
+		if selection.Candidates[i].Kind == policy.RecoveryServiceProposal {
 			chosen = &selection.Candidates[i]
-		}
-		if chosen != nil {
 			break
 		}
 	}
@@ -158,44 +155,17 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
 	}
 	id := domain.MintPlanID()
-	var action domain.Action
-	switch chosen.Kind {
-	case policy.RecoveryAreaProposal:
-		workers, wk := read.Projection.WorkPawns.Value()
-		if !wk {
-			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !wk", ErrControl)
-		}
-		found := false
-		for _, w := range workers {
-			if w.ID == chosen.Pawn {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !found", ErrControl)
-		}
-		assignment, err := domain.NewAreaAssignment(domain.PawnID(chosen.Pawn), false, chosen.Area)
-		if err != nil {
-			return RoutineRecoveryResult{}, err
-		}
-		action, err = domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assignment)
-		if err != nil {
-			return RoutineRecoveryResult{}, err
-		}
-	default:
-		method, ok := recoveryServiceMethod(chosen.Method)
-		if !ok {
-			return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
-		}
-		service, err := domain.NewRecoveryService(domain.PawnID(chosen.Pawn), chosen.Building, method)
-		if err != nil {
-			return RoutineRecoveryResult{}, err
-		}
-		action, err = domain.NewRecoveryServiceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), service)
-		if err != nil {
-			return RoutineRecoveryResult{}, err
-		}
+	method, ok := recoveryServiceMethod(chosen.Method)
+	if !ok {
+		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
+	}
+	service, err := domain.NewRecoveryService(domain.PawnID(chosen.Pawn), chosen.Building, method)
+	if err != nil {
+		return RoutineRecoveryResult{}, err
+	}
+	action, err := domain.NewRecoveryServiceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), service)
+	if err != nil {
+		return RoutineRecoveryResult{}, err
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

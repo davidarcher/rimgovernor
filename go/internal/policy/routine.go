@@ -1449,7 +1449,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	areaChanges := PlanSheltering(f)
 	if _, safetyKnown := f.RecoverySafety.Value(); r.Disaster != nil || safetyKnown {
-		need := RecoveryNeed(r.Disaster, f.RecoverySafety)
+		need := RecoveryNeed(r.Disaster)
 		if len(areaChanges) > 0 {
 			need = domain.NeedDeficit
 		}

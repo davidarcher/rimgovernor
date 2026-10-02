@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -16,8 +15,6 @@ type RecoveryRestriction struct {
 	Area domain.Fact[string]
 }
 type RecoverySafety struct {
-	RoofHazard   domain.Fact[bool]
-	SafeAreas    []string
 	Restrictions []RecoveryRestriction
 }
 type RecoveryWorker struct {
@@ -32,37 +29,30 @@ type RecoveryPlanning struct {
 
 type RecoveryProposalKind string
 
-const (
-	RecoveryAreaProposal    RecoveryProposalKind = "roofed_area"
-	RecoveryServiceProposal RecoveryProposalKind = "service_work"
-)
+const RecoveryServiceProposal RecoveryProposalKind = "service_work"
 
 type RecoverySelectionReason string
 
 const (
 	RecoveryAdmissionRequired RecoverySelectionReason = "native_admission_required"
 	RecoveryFactsUnknown      RecoverySelectionReason = "observations_unknown"
-	RecoveryNoRefuge          RecoverySelectionReason = "no_roofed_refuge"
 	RecoveryNoWorker          RecoverySelectionReason = "no_available_worker"
 	RecoveryMethodsSeen       RecoverySelectionReason = "methods_already_seen"
 	RecoveryTrackedMissing    RecoverySelectionReason = "tracked_infrastructure_missing_or_protected"
 	RecoveryNoWork            RecoverySelectionReason = "no_pending_work"
 )
 
-// These are candidates for native preview, never admitted jobs or area leases.
-// PriorArea is the observed restriction; native admission must prove that a
-// proposed refuge is safe/reachable for this exact pawn. The saved restriction
-// is current state, not permanent player intent under Auto.
+// These are candidates for native preview, never admitted jobs. PriorArea is
+// the pawn's observed restriction; hazard sheltering is PlanSheltering's.
 type RecoveryCandidate struct {
-	ID             domain.MethodID
-	Kind           RecoveryProposalKind
-	Pawn           PawnID
-	Building, Area string
-	Method         RecoveryMethod
-	HitPoints      *int64
-	Fuel           *float64
-	PriorArea      *string
-	Window         domain.Tick
+	ID        domain.MethodID
+	Kind      RecoveryProposalKind
+	Pawn      PawnID
+	Building  string
+	Method    RecoveryMethod
+	HitPoints *int64
+	Fuel      *float64
+	PriorArea *string
 }
 type RecoverySelection struct {
 	Tick       domain.Tick
@@ -89,13 +79,6 @@ func (p RecoveryPlanning) Validate() error {
 		return err
 	}
 	if s, k := p.Safety.Value(); k {
-		areas := map[string]bool{}
-		for _, id := range s.SafeAreas {
-			if !foodID(id) || areas[id] {
-				return errors.New("invalid recovery refuge identity")
-			}
-			areas[id] = true
-		}
 		pawns := map[PawnID]bool{}
 		for _, r := range s.Restrictions {
 			if !foodID(string(r.Pawn)) || pawns[r.Pawn] {
@@ -119,32 +102,14 @@ func (p RecoveryPlanning) Validate() error {
 	return nil
 }
 
-func RecoveryNeed(h *DisasterHistory, safety domain.Fact[RecoverySafety]) domain.NeedState {
-	if h.Validate() != nil {
+func RecoveryNeed(h *DisasterHistory) domain.NeedState {
+	if h.Validate() != nil || h != nil && h.Phase == DisasterUnknown {
 		return domain.NeedUnknown
 	}
 	if h == nil || h.Phase == DisasterRestored {
 		return domain.NeedRecovered
 	}
-	if s, k := safety.Value(); k && positive(s.RoofHazard) {
-		return domain.NeedDeficit
-	}
-	if h.Phase == DisasterUnknown {
-		return domain.NeedUnknown
-	}
-	need := h.Services[len(h.Services)-1].Need
-	if s, k := safety.Value(); k {
-		if hazard, known := s.RoofHazard.Value(); known {
-			if hazard {
-				return domain.NeedDeficit
-			}
-			return need
-		}
-	}
-	if need == domain.NeedRecovered {
-		return domain.NeedUnknown
-	}
-	return need
+	return h.Services[len(h.Services)-1].Need
 }
 
 // SelectRecoveryMethods bounds the next admission batch to eight proposals.
@@ -179,8 +144,7 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 	work, wk := pending.Value()
 	safety, sk := p.Safety.Value()
 	workers, pk := p.Workers.Value()
-	hazard, hk := safety.RoofHazard.Value()
-	if !sk || !pk || !hk || h.Phase == DisasterUnknown && !hazard {
+	if !sk || !pk || h.Phase == DisasterUnknown {
 		return out, nil
 	}
 	// The independent exact-pawn and restriction censuses must agree. Missing
@@ -235,44 +199,20 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 			out.Candidates = append(out.Candidates, c)
 		}
 	}
-	areas := slices.Clone(safety.SafeAreas)
-	sort.Strings(areas)
-	if hazard && len(areas) == 0 {
-		out.Reason = RecoveryNoRefuge
-		return out, nil
-	}
 	restrictions := map[PawnID]domain.Fact[string]{}
 	for _, r := range safety.Restrictions {
 		restrictions[r.Pawn] = r.Area
 	}
 	eligible := []RecoveryWorker{}
-	areaNeeded, areaUnknown := false, false
+	areaUnknown := false
 	for _, w := range available {
-		area, known := restrictions[w.Pawn].Value()
-		if !known {
+		if _, known := restrictions[w.Pawn].Value(); !known {
 			areaUnknown = true
-			continue
-		}
-		if hazard && !slices.Contains(areas, area) {
-			areaNeeded = true
-			for _, target := range areas[:min(2, len(areas))] {
-				prior := area
-				add(RecoveryCandidate{Kind: RecoveryAreaProposal, Pawn: w.Pawn, Area: target, PriorArea: &prior, Window: tick / 600})
-			}
 			continue
 		}
 		eligible = append(eligible, w)
 	}
-	// Exposure protection precedes repair. Refused/exhausted protection never
-	// grants permission to send that pawn into unrelated unroofed service work.
-	if areaNeeded {
-		out.Reason = RecoveryMethodsSeen
-		if len(out.Candidates) > 0 {
-			out.Reason = RecoveryAdmissionRequired
-		}
-		return out, nil
-	}
-	if areaUnknown || unknownWorker || !wk || h.Phase == DisasterUnknown {
+	if areaUnknown || unknownWorker || !wk {
 		return out, nil
 	}
 	byBuilding := map[string]RecoveryBuilding{}
@@ -311,7 +251,7 @@ func (s RecoverySelection) Validate() error {
 		return errors.New("invalid recovery selection bounds")
 	}
 	switch s.Reason {
-	case RecoveryAdmissionRequired, RecoveryFactsUnknown, RecoveryNoRefuge, RecoveryNoWorker, RecoveryMethodsSeen, RecoveryTrackedMissing, RecoveryNoWork:
+	case RecoveryAdmissionRequired, RecoveryFactsUnknown, RecoveryNoWorker, RecoveryMethodsSeen, RecoveryTrackedMissing, RecoveryNoWork:
 	default:
 		return errors.New("invalid recovery selection reason")
 	}
@@ -327,17 +267,8 @@ func (s RecoverySelection) Validate() error {
 		if c.HitPoints != nil && *c.HitPoints < 0 || c.Fuel != nil && !foodNumber(*c.Fuel) {
 			return errors.New("invalid recovery candidate state")
 		}
-		switch c.Kind {
-		case RecoveryAreaProposal:
-			if !foodID(c.Area) || c.Building != "" || c.Method != "" || c.HitPoints != nil || c.Fuel != nil || c.Window != s.Tick/600 || c.Area == *c.PriorArea {
-				return errors.New("invalid recovery area proposal")
-			}
-		case RecoveryServiceProposal:
-			if !foodID(c.Building) || c.Area != "" || c.Window != 0 || (c.Method != RecoveryRefuel && c.Method != RecoveryBreakdown && c.Method != RecoveryRepair) || c.Method == RecoveryRefuel && c.Fuel == nil || c.Method == RecoveryRepair && c.HitPoints == nil {
-				return errors.New("invalid recovery service proposal")
-			}
-		default:
-			return errors.New("invalid recovery candidate kind")
+		if c.Kind != RecoveryServiceProposal || !foodID(c.Building) || (c.Method != RecoveryRefuel && c.Method != RecoveryBreakdown && c.Method != RecoveryRepair) || c.Method == RecoveryRefuel && c.Fuel == nil || c.Method == RecoveryRepair && c.HitPoints == nil {
+			return errors.New("invalid recovery service proposal")
 		}
 	}
 	return nil

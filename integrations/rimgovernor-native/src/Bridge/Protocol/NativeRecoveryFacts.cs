@@ -15,14 +15,9 @@ namespace HomeBridge.BridgeTools
         internal static Obs.RecoveryReply Read(Map map, Common.ObservationContext context)
         {
             try {
-                var conditions = new List<GameCondition>();
-                map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
                 var buildings = map.listerBuildings.allBuildingsColonist.Where(b => !b.Position.Fogged(map)).OrderBy(b => b.thingIDNumber).ToList();
-                var areas = map.areaManager.AllAreas.OfType<Area_Allowed>().Where(a => a.TrueCount > 0
-                    && a.ActiveCells.All(c => c.Roofed(map) && !c.Fogged(map))).OrderBy(a => a.ID).ToList();
                 var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
-                var result = new Obs.RecoverySnapshot { Context = context, RoofHazard = conditions.Any(c => c is GameCondition_ToxicFallout),
-                    };
+                var result = new Obs.RecoverySnapshot { Context = context };
                 foreach (var building in buildings) {
                     var service = new Obs.BuildingServiceState { BrokenDown = building.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false };
                     var fuel = building.TryGetComp<CompRefuelable>();
@@ -36,18 +31,6 @@ namespace HomeBridge.BridgeTools
                         Burning = building.IsBurning(), Service = service, Settings = new Obs.BuildingSettings { Forbidden = building.IsForbidden(Faction.OfPlayer) } };
                     if (building.def.useHitPoints) { row.HitPoints = building.HitPoints; row.MaxHitPoints = building.MaxHitPoints; }
                     result.Buildings.Add(row);
-                }
-                foreach (var area in areas) {
-                    var cells = area.ActiveCells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
-                    // GetUniqueLoadID(), not the bare Area.ID int: this is the
-                    // same identifier space WorkSettingsIntent's allowed_area
-                    // assignment resolves and NativePawnDetails' own
-                    // allowed_area_id publishes, so a RecoveryAreaProposal
-                    // naming a refuge from this census round-trips through
-                    // native admission and native readback consistently.
-                    var row = new Obs.RecoveryArea { Id = area.GetUniqueLoadID(), Roofed = true};
-                    foreach (var cell in cells) row.Cells.Add(Cell(cell));
-                    result.Areas.Add(row);
                 }
                 foreach (var pawn in pawns) {
                     var row = new Obs.RecoveryRestriction { Pawn = Entity(pawn) };
