@@ -1306,6 +1306,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.ArtBills != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.ArtBills.NativeWorkTicks)
 	}
+	if out.PreservationBills != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.PreservationBills.NativeWorkTicks)
+	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoutineResourceResult.NativeWorkTicks).
 	for _, result := range []*RoutineResourceResult{out.Resource, out.AnimalFeed} {

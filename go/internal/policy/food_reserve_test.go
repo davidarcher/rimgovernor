@@ -154,3 +154,21 @@ func TestReserveBillCapsAtStorableProduct(t *testing.T) {
 		})
 	}
 }
+
+func TestReserveBillRunningNeedsActiveReserveBillAndDeficit(t *testing.T) {
+	bench := ProductionBench{ID: "stove", Recipes: []ProductionRecipe{
+		{Name: "MakePemmican", Products: []ProductionProduct{{Name: "Pemmican"}}},
+		{Name: "CookMealSimple", Products: []ProductionProduct{{Name: "MealSimple"}}},
+	}, Bills: []ExistingProductionBill{{Recipe: "MakePemmican", Active: domain.Known(true)}}}
+	short := FoodReserveReview{DeficitNutrition: 5}
+	if !ReserveBillRunning(domain.Known([]ProductionBench{bench}), short) {
+		t.Fatal("an active short reserve bill is clock work")
+	}
+	if ReserveBillRunning(domain.Known([]ProductionBench{bench}), FoodReserveReview{}) {
+		t.Fatal("a covered reserve is no work")
+	}
+	bench.Bills = []ExistingProductionBill{{Recipe: "MakePemmican", Active: domain.Known(false)}, {Recipe: "CookMealSimple", Active: domain.Known(true)}}
+	if ReserveBillRunning(domain.Known([]ProductionBench{bench}), short) {
+		t.Fatal("a paused reserve bill or a meal bill is not reserve work")
+	}
+}

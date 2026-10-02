@@ -69,11 +69,17 @@ namespace HomeBridge.BridgeTools
                 // Corpses deteriorate and rot like food but are never
                 // supplies to secure: a raider corpse across the map would
                 // otherwise keep the SecureSupplies deficit open forever.
+                // A settled stored stack (roofed, or not deteriorating) is no
+                // target of any upkeep goal: only unstored rows and deteriorating
+                // unroofed ones are selected. Medicine stays for the reserve count.
                 var rows = sets.Items.Where(t => !t.def.IsCorpse
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
                     && (map.areaManager.Home[t.Position] || t.IsInValidStorage() || t.def.IsMedicine
                         || t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff) > 0f
-                        || (t.TryGetComp<CompRottable>()?.Active ?? false))).OrderBy(t => t.thingIDNumber).ToList();
+                        || (t.TryGetComp<CompRottable>()?.Active ?? false))
+                    && !(t.IsInValidStorage() && !t.def.IsMedicine
+                        && (t.Position.Roofed(map) || t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff) <= 0f)))
+                    .OrderBy(t => t.thingIDNumber).ToList();
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
                     var value = new Obs.UpkeepItem {

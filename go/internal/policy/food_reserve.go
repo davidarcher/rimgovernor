@@ -149,6 +149,29 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 	return r, nil
 }
 
+// ReserveBillRunning reports an active bill for a reserve product while the
+// reserve is short: the product it makes needs game time, not another method.
+func ReserveBillRunning(benches domain.Fact[[]ProductionBench], reserve FoodReserveReview) bool {
+	rows, known := benches.Value()
+	if !known || reserve.Emergency || !fieldPositive(reserve.DeficitNutrition) {
+		return false
+	}
+	for _, bench := range rows {
+		products := map[string]bool{}
+		for _, recipe := range bench.Recipes {
+			if len(recipe.Products) == 1 && ReserveFoodDefinition(Resource(recipe.Products[0].Name)) {
+				products[recipe.Name] = true
+			}
+		}
+		for _, bill := range bench.Bills {
+			if active, ak := bill.Active.Value(); ak && active && products[bill.Recipe] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // SelectReserveBill selects a standing native target-count bill. Its target
 // includes existing stock of the selected product because native counts that
 // stock toward satisfaction; only other reserve products reduce the target.

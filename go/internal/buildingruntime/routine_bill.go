@@ -210,6 +210,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	var billContext []policy.ProductionBillContext
+	reserveRunning := false
 	if r.purpose == policy.CookFood {
 		seasonal := r.reviewer.seasonal(projection.Facts)
 		meals := projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
@@ -224,6 +225,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
 		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
+		// A standing short reserve bill is native cook work: lend game time
+		// instead of parking the clock on no_work while it fills.
+		reserveRunning = policy.ReserveBillRunning(benches, value)
 	}
 	if r.purpose == policy.CookFood {
 		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
@@ -264,9 +268,19 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if !known {
-		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+		return r.lendReserveWork(RoutineBillResult{Reason: BuildingMethodUnknown}, reserveRunning), nil
 	}
-	return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
+	result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
+	return r.lendReserveWork(result, reserveRunning), err
+}
+
+// lendReserveWork asks for game time while a reserve bill runs and no new
+// bill was admitted this step.
+func (r *RoutineBillPlanner) lendReserveWork(result RoutineBillResult, running bool) RoutineBillResult {
+	if running && result.Reason != BuildingMethodAdmitted {
+		result.NativeWorkTicks = max(result.NativeWorkTicks, animalFeedBillWorkTicks)
+	}
+	return result
 }
 
 // admit commits the selected bill as the goal's method, once per goal

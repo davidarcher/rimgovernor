@@ -95,13 +95,20 @@ namespace HomeBridge.BridgeTools
                 // 0.05 per pemmican) so the stock stays short of it and the bill refills the rest.
                 int pemmican = (int)Math.Floor(reserveDays * people.Count * 1.6 / 0.05 * seedShare);
                 var cook = people.First(p => !p.Downed);
+                // A rerun on a world that already holds the food room (a resumed
+                // checkpoint) reuses it and its stock instead of clearing ground again.
                 var room = CellRect.Empty;
+                Building_WorkTable stove = null;
+                var existing = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Where(z => z.cells.Count > 0 && z.settings.Priority == StoragePriority.Important).Select(z => CellRect.FromLimits(z.cells.Min(c => c.x), z.cells.Min(c => c.z), z.cells.Max(c => c.x), z.cells.Max(c => c.z))).ToList();
+                foreach (var rect in existing) { stove = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().FirstOrDefault(b => b.def.defName == "FueledStove" && rect.Contains(b.Position)); if (stove != null) { room = rect.ExpandedBy(1); break; } }
+                foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
+                if (stove != null) pemmican = map.listerThings.ThingsOfDef(ThingDef.Named("Pemmican")).Sum(t => t.stackCount);
+                else {
                 foreach (var c in GenRadial.RadialCellsAround(cook.Position, 25, true)) {
                     var rect = CellRect.CenteredOn(c, 11, 9);
                     if (rect.Cells.All(x => x.InBounds(map) && !x.Fogged(map) && x.Standable(map) && x.GetEdifice(map) == null && x.GetTerrain(map).passability != Traversability.Impassable && !x.GetThingList(map).Any(t => t is Pawn))) { room = rect; break; }
                 }
                 if (room.IsEmpty) throw new InvalidOperationException("No clear ground for the food room");
-                foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
                 Thing Spawn(string name, IntVec3 cell) { var def = ThingDef.Named(name); var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDefOf.WoodLog : null); if (def.CanHaveFaction) thing.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(thing, cell, map); thing.SetForbidden(false, false); return thing; }
                 var door = new IntVec3(room.minX, 0, room.CenterCell.z);
                 foreach (var cell in room.Cells) {
@@ -110,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     if (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ) Spawn(cell == door ? "Door" : "Wall", cell);
                 }
                 var inside = room.ContractedBy(1);
-                var stove = (Building_WorkTable)Spawn("FueledStove", new IntVec3(inside.maxX - 1, 0, inside.CenterCell.z));
+                stove = (Building_WorkTable)Spawn("FueledStove", new IntVec3(inside.maxX - 1, 0, inside.CenterCell.z));
                 stove.TryGetComp<CompRefuelable>().Refuel(100);
                 foreach (var recipe in stove.def.AllRecipes) if (recipe.products.Any(p => p.thingDef.defName == "Pemmican")) { if (recipe.researchPrerequisite != null) Find.ResearchManager.FinishProject(recipe.researchPrerequisite, false); foreach (var research in recipe.researchPrerequisites ?? new List<ResearchProjectDef>()) Find.ResearchManager.FinishProject(research, false); }
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
@@ -127,6 +134,7 @@ namespace HomeBridge.BridgeTools
                         var def = ThingDef.Named(seed.Item1); int remaining = seed.Item2; var cells = seed.Item3; if (cells == outside) index = 0;
                         while (remaining > 0) { var food = ThingMaker.MakeThing(def); food.stackCount = Math.Min(def.stackLimit, remaining); remaining -= food.stackCount; GenSpawn.Spawn(food, cells[index++], map); food.SetForbidden(false, false); }
                     }
+                }
                 reserveEaten = 0;
                 if (!reservePatched) { new Harmony("rimgovernor.fixture.foodreserve").Patch(AccessTools.Method(typeof(Thing), "Ingested"), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(ReserveIngested))); reservePatched = true; }
                 return new { success = true, bench = stove.GetUniqueLoadID(), pemmican, colonists = people.Count, room = new { x = room.minX, z = room.minZ, w = room.Width, h = room.Height } };
