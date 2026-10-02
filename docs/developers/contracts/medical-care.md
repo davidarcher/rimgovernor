@@ -65,7 +65,7 @@ evidence and monitoring composition remain in G01.07a/e.
 the surgery facts on the pawn care read. Per part it takes the best recipe whose
 ingredients are on the map (bionic, then prosthetic, then peg) that some eligible
 doctor performs with a native failure chance of 20% or less; each patient queues
-its most valuable part (capacity weight times part tier) as one `SurgeryIntent`,
+its most valuable part (capacity weight times part tier) as one medical `ProductionBillIntent` (`patient` set),
 and no patient gets a second while a bill is queued or a surgery action is open.
 Otherwise the goal's reason names the want: `surgery_part_short` or
 `surgery_no_doctor`. The goal settles when the operation leaves the census (the
@@ -102,7 +102,7 @@ colonist takes -5; `OrganUse_Horrible*` -4 each and -15 on the surgeon, and
 sale; `OrganUse_Acceptable` costs no mood; `OrganUse_Abhorrent` or any unknown
 precept refuses. At these prices a classic five-colonist colony harvests a kidney
 (900) from a prisoner whose faction loses 70 goodwill (850), and a colony of seven
-does not. The harvest queues a `SurgeryIntent` with `acknowledge_violation`.
+does not. The harvest queues a medical `ProductionBillIntent` with `acknowledge_violation`.
 
 Peg-leg cycling (#1236) takes the same one-surgery slot after harvest and part
 recovery. It installs and removes cheap wood parts (peg leg, wooden hand, wooden
@@ -116,7 +116,7 @@ foot) on colony prisoners:
   it runs on factionless, pirate or -100 prisoners. With no wood slot open a
   natural hand, foot or leg (never a second leg) is amputated, its `HarvestCost`
   spread over the cycles the slot supports until the doctor reaches 10. The
-  bill is restricted (SurgeryIntent `surgeon_id`, #1253) to the lowest-Medicine
+  bill is restricted (ProductionBillIntent `surgeon`, #1253) to the lowest-Medicine
   doctor below 10 whose `doctor_chances` entry clears the failure cap; with none,
   vanilla picks. Other surgeries never name a surgeon.
 - Prisoner control: a legless prisoner is downed, so no mental, withdrawal or
@@ -180,7 +180,7 @@ reports the eligible doctor count, whether ingredients and medicine are on the
 map, vanilla `IsViolationOnPawn`, and `lethal` (`WouldDieAfterAddingHediff`, or an
 execution). Go maps them into `policy.CarePawn` and does no surgery math.
 
-`SurgeryIntent` on Actions/Apply (#1162) queues one operation bill; see the
+A medical `ProductionBillIntent` (`patient` set) on Actions/Apply (#1162) queues one operation bill; see the
 `surgery` row of [action contracts](action-contracts.md). No planner sends it
 yet (epic #1160).
 

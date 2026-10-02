@@ -118,9 +118,9 @@ func TestAcquisitionKindsBuildAcquireIntent(t *testing.T) {
 	}
 }
 
-// A surgery builds one SurgeryIntent (#1162); a whole-body recipe leaves
+// A surgery builds one medical ProductionBillIntent (#1162); a whole-body recipe leaves
 // part_index absent.
-func TestSurgeryBuildsSurgeryIntent(t *testing.T) {
+func TestSurgeryBuildsMedicalBill(t *testing.T) {
 	for _, tc := range []struct {
 		part int
 		ack  bool
@@ -140,8 +140,8 @@ func TestSurgeryBuildsSurgeryIntent(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		s := wire.GetSurgery()
-		if s.GetPawnId() != "Human1" || s.GetRecipeDef() != "InstallPegLeg" || (s.PartIndex != nil) != (tc.part >= 0) || int(s.GetPartIndex()) != max(tc.part, 0) || s.GetAcknowledgeViolation() != tc.ack {
+		s := wire.GetProductionBill()
+		if s.GetPatient().GetId() != "Human1" || s.BenchId != nil || s.GetRecipeDef() != "InstallPegLeg" || (s.PartIndex != nil) != (tc.part >= 0) || int(s.GetPartIndex()) != max(tc.part, 0) || s.GetAcknowledgeViolation() != tc.ack {
 			t.Fatalf("%v", wire)
 		}
 	}

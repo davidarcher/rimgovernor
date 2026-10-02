@@ -13,7 +13,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "medical/surgery-intent",
-		Scope: "SurgeryIntent on Actions/Apply (#1162): a peg-leg bill on a colonist missing a leg is QUEUED past an " +
+		Scope: "A medical ProductionBillIntent (patient set) on Actions/Apply (#1162): a peg-leg bill on a colonist missing a leg is QUEUED past an " +
 			"unrelated bill, a resent intent applies again with the same Bill_Medical, a surgeon-restricted resend (#1253) applies again twice, and organ removal on a " +
 			"prisoner is refused without acknowledge_violation.",
 		Start:  cases.Fixture{Op: "test/surgery_intent_prepare", On: cases.LabStart()},
@@ -33,7 +33,7 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	apply := func(key string, surgery map[string]any) (map[string]any, error) {
-		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "surgery": surgery}}})
+		reply, err := h.Wire(ctx, key, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "productionBill": surgery}}})
 		if err != nil {
 			return nil, err
 		}
@@ -45,9 +45,9 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		return result, nil
 	}
 	queued := func(key, surgeon string) (string, error) {
-		intent := map[string]any{"pawnId": patient, "recipeDef": "InstallPegLeg", "partIndex": prepared["part"]}
+		intent := map[string]any{"patient": map[string]any{"id": patient}, "recipeDef": "InstallPegLeg", "partIndex": prepared["part"]}
 		if surgeon != "" {
-			intent["surgeonId"] = surgeon
+			intent["surgeon"] = map[string]any{"id": surgeon}
 		}
 		result, err := apply(key, intent)
 		if err != nil {
@@ -86,7 +86,7 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		}
 	}
 	report["bill"] = first
-	result, err := apply("surgery-violation", map[string]any{"pawnId": prisoner, "recipeDef": "RemoveBodyPart", "partIndex": prepared["kidney"]})
+	result, err := apply("surgery-violation", map[string]any{"patient": map[string]any{"id": prisoner}, "recipeDef": "RemoveBodyPart", "partIndex": prepared["kidney"]})
 	if err != nil {
 		return err
 	}

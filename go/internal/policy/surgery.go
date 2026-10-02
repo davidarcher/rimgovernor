@@ -49,7 +49,7 @@ const (
 	SurgeryBedShort SurgeryWantReason = "surgery_bed_short"
 )
 
-// SurgeryChoice is one operation to queue as a SurgeryIntent.
+// SurgeryChoice is one operation to queue as a medical ProductionBillIntent.
 type SurgeryChoice struct {
 	Pawn   PawnID
 	Recipe string

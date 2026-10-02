@@ -26,14 +26,14 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "medical/surgery-restore",
 		Scope: "Restore (#1164): a colonist missing a leg with a prosthetic in stock gets an InstallSimpleProstheticLeg " +
-			"SurgeryIntent from MaintainSurgery, and native doctors install it (the part is no longer missing). " +
+			"medical ProductionBillIntent from MaintainSurgery, and native doctors install it (the part is no longer missing). " +
 			"End to end: the vanilla doctor job completing the bill is no Go snapshot; the service queues it, the case then advances the game.",
 		Start: setup("restore"), Service: true, Budget: 10 * time.Minute, Run: surgeryRestore,
 	})
 	cases.Register(cases.Case{
 		Name: "medical/surgery-cataract",
 		Scope: "Chronic replacement (#1165): the pawn read carries a Cataract on the eye, and with a bionic eye in stock " +
-			"MaintainSurgery admits a SurgeryIntent on that eye. A native read contract: the chronic defName and part index come from vanilla hediffs.",
+			"MaintainSurgery admits a medical bill on that eye. A native read contract: the chronic defName and part index come from vanilla hediffs.",
 		Start: setup("cataract"), Service: true, Budget: 5 * time.Minute, Run: surgeryCataract,
 	})
 	cases.Register(cases.Case{

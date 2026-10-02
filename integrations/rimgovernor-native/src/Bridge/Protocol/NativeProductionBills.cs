@@ -185,9 +185,10 @@ namespace HomeBridge.BridgeTools {
    var definitions=intent.Settings.Ingredients.Replace.Selectors.Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.ThingDef)).ToArray();
    return !definitions.Any(d=>d==null||recipe.fixedIngredientFilter!=null&&!recipe.fixedIngredientFilter.Allows(d)||!recipe.ingredients.Any(i=>i.filter.Allows(d)))&&recipe.ingredients.All(i=>definitions.Any(d=>i.filter.Allows(d)));
   }
-  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.ProductionBill,context,out _);
+  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>action.ProductionBill?.Patient!=null?NativeSurgery.Validate(action.ProductionBill,context):Resolve(action.ProductionBill,context,out _);
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
    var intent=action.ProductionBill;
+   if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
    var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+failure.Detail);
    var standing=t.Standing;

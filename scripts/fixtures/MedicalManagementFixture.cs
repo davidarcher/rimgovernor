@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
             return origin + new IntVec3(3, 0, 1);
         }
 
-        // SurgeryIntent probe (#1162): one colonist missing a leg (InstallPegLeg's
+        // Medical-bill probe (#1162): one colonist missing a leg (InstallPegLeg's
         // precondition) with an unrelated bill already on it, and one colony
         // prisoner of a non-player faction, on whom RemoveBodyPart is a violation.
         [Tool("test/surgery_intent_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Remove one colonist's leg, queue an unrelated bill on them, and hold one non-player pawn prisoner. Never installs anything.")]

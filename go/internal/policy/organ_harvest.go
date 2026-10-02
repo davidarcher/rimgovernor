@@ -159,7 +159,7 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 	return out
 }
 
-// OrganHarvest is one prisoner removal to queue as a SurgeryIntent: an
+// OrganHarvest is one prisoner removal to queue as a medical ProductionBillIntent: an
 // organ harvest, or an added part recovery (#1232, Organ the part item).
 // Violation sets acknowledge_violation.
 type OrganHarvest struct {

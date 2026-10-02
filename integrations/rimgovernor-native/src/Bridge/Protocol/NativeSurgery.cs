@@ -9,32 +9,34 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // SurgeryIntent on Actions/Apply (#1162): queue one medical operation
+    // A medical ProductionBillIntent (patient set) on Actions/Apply (#1162): queue one medical operation
     // bill on one patient (a colonist, slave or colony prisoner) through
     // HealthCardUtility.CreateSurgeryBill, the bill a player's operations tab
     // queues. Native re-checks the patient, the recipe on the part and the
     // part's current hediffs live; a recipe that is a violation on the
     // patient needs acknowledge_violation. Other bills never block. The same
     // recipe already queued on the same part applies again. Native doctor
-    // jobs choose the surgeon unless surgeon_id names one (#1253): the bill's
+    // jobs choose the surgeon unless surgeon names one (#1253): the bill's
     // pawn restriction, set on an already queued bill too. Applied means queued.
     internal static class NativeSurgery
     {
-        private static Common.Failure? Resolve(Operations.SurgeryIntent? intent, Common.ObservationContext context,
+        private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent, Common.ObservationContext context,
             out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part, out Pawn? surgeon)
         {
             pawn = null; recipe = null; part = null; surgeon = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
+            if (intent == null || intent.HasBenchId || intent.Settings != null || intent.ReplaceOwnedBill != null
+                || !ProtoBoundary.IsIdentifier(intent.Patient?.Id) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
+                || (intent.Surgeon != null && !ProtoBoundary.IsIdentifier(intent.Surgeon.Id))
                 || (intent.HasPartIndex && intent.PartIndex < 0))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
             var map = ProtoBoundary.LoadedMap(context);
-            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
+            pawn = map.mapPawns.AllPawnsSpawned.ById(intent.Patient.Id);
             if (pawn == null || pawn.Dead || !pawn.RaceProps.Humanlike
                 || !(pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
-            if (intent.HasSurgeonId)
+            if (intent.Surgeon != null)
             {
-                var id = intent.SurgeonId;
+                var id = intent.Surgeon.Id;
                 surgeon = map.mapPawns.FreeColonistsSpawned.ById(id);
                 if (surgeon == null || surgeon == pawn || surgeon.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
                     return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Surgeon " + id + " is not a spawned free colonist who can doctor.");
@@ -68,9 +70,9 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical? Queued(Pawn pawn, RecipeDef recipe, BodyPartRecord? part) =>
             pawn.BillStack?.Bills.OfType<Bill_Medical>().FirstOrDefault(b => b.recipe == recipe && b.Part == part);
 
-        internal static Common.Failure? Validate(Operations.SurgeryIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
+        internal static Common.Failure? Validate(Operations.ProductionBillIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.SurgeryIntent intent, Common.ObservationContext context)
+        internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var recipe, out var part, out var surgeon);
             if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
@@ -90,11 +92,5 @@ namespace HomeBridge.BridgeTools
             if (part != null) effect.PartIndex = intent.PartIndex;
             return new Receipts.EffectEvidence { SurgeryBill = effect };
         }
-    }
-
-    internal sealed class SurgeryActionHandler : IActionHandler
-    {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeSurgery.Validate(action.Surgery, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeSurgery.Apply(action.Surgery, context);
     }
 }

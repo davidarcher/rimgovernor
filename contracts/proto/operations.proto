@@ -271,7 +271,7 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
-  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 41, 42, 43; reserved "melee", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item";
+  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 41, 42, 43, 47; reserved "melee", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item", "surgery";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -300,7 +300,6 @@ message Action {
     DraftIntent draft = 44;
     CombatOrders combat_orders = 45;
     AcquireIntent acquire = 46;
-    SurgeryIntent surgery = 47;
     AreaIntent area = 48;
     AutoHomeAreaIntent auto_home_area = 49;
     PawnSettingsIntent pawn_settings = 50;
@@ -350,18 +349,6 @@ message PawnSettingsIntent {
     string food_policy = 9;
   }
 }
-// Queue one medical operation bill on one patient (#1162): the recipe on the
-// body part at part_index in the race body's AllParts (absent for a
-// whole-body recipe). Native re-checks the patient, the recipe and the part
-// live and refuses a recipe that is a violation on the patient unless
-// acknowledge_violation is set. Other bills on the patient never block; a
-// recipe whose hediff already stands on the part is refused.
-// Evidence is the SurgeryEffect: QUEUED with the Bill_Medical id; the same
-// recipe and part already queued applies again. Native doctor jobs choose
-// the surgeon; applied means queued, and the health read decides success.
-// surgeon_id, when set, restricts the bill to that colonist (Bill_Medical
-// pawn restriction, #1253); unset keeps vanilla's choice of surgeon.
-message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; optional string surgeon_id = 5; }
 // Create, edit or delete one bot-owned allowed area, or edit the home area
 // (#1321). A bot area is the Area_Allowed labelled with its key;
 // native never touches an area the player made. home and key are exclusive;
@@ -579,11 +566,27 @@ message HusbandryIntent { optional string animal_id = 1; optional HusbandryOrder
 // applies; a bench already carrying a matching bill applies again. With
 // replace_owned_bill the named bill (same recipe on this bench, or an
 // ordinary meal tier on this map) is deleted in the same apply.
+//
+// A medical bill (#1162) sets patient instead of bench_id and settings: it
+// queues the recipe on the patient's body part at part_index in the race
+// body's AllParts (absent for a whole-body recipe). Native re-checks the
+// patient, the recipe and the part live and refuses a recipe that is a
+// violation on the patient unless acknowledge_violation is set. Other bills
+// on the patient never block; a recipe whose hediff already stands on the
+// part is refused. Evidence is the SurgeryEffect: QUEUED with the
+// Bill_Medical id; the same recipe and part already queued applies again.
+// Native doctor jobs choose the surgeon; applied means queued, and the
+// health read decides success. surgeon, when set, restricts the bill to
+// that colonist (Bill_Medical pawn restriction, #1253).
 message ProductionBillIntent {
   optional string bench_id = 1;
   optional string recipe_def = 2;
   BillSettings settings = 3;
   rimgovernor.common.v1.Ref replace_owned_bill = 4;
+  rimgovernor.common.v1.Ref patient = 5;
+  optional int32 part_index = 6;
+  optional bool acknowledge_violation = 7;
+  rimgovernor.common.v1.Ref surgeon = 8;
 }
 // Write one free colonist's settings: work priorities, allowed area and the
 // 24-hour timetable together, or the medicine ceiling

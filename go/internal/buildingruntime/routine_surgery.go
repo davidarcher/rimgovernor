@@ -10,7 +10,7 @@ import (
 )
 
 // RoutineSurgeryPlanner composes MaintainSurgery's method (#1164): one plan
-// of SurgeryIntents, at most one per patient, from a fresh pawn care read.
+// of medical ProductionBillIntents, at most one per patient, from a fresh pawn care read.
 // A patient with a queued bill or an open surgery action is in flight. The
 // goal settles on the health change (the operation leaving the census),
 // never on the bill. When nothing can be queued the first want (part short

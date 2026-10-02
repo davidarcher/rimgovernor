@@ -56,7 +56,6 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.RemoveWall] = new RemoveWallActionHandler(),
             [Operations.Action.IntentOneofCase.GiveJob] = new GiveJobActionHandler(),
             [Operations.Action.IntentOneofCase.Acquire] = new AcquireActionHandler(),
-            [Operations.Action.IntentOneofCase.Surgery] = new SurgeryActionHandler(),
             [Operations.Action.IntentOneofCase.Area] = new AreaActionHandler(),
             [Operations.Action.IntentOneofCase.PolicyPrune] = new PolicyPruneActionHandler(),
             [Operations.Action.IntentOneofCase.RemoveRoof] = new RemoveRoofActionHandler(),

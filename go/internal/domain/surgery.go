@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // SurgeryAction queues one medical operation bill on one patient (#1162): a
-// SurgeryIntent on Actions/Apply. Native re-checks the patient, recipe and
+// medical ProductionBillIntent on Actions/Apply. Native re-checks the patient, recipe and
 // part live; native doctor jobs choose the surgeon. Applied means queued.
 const SurgeryAction ActionKind = "surgery"
 
