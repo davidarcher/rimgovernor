@@ -46,9 +46,8 @@ func checkSites(wall string, rows []any) error {
 		row, _ := na.AsMap(raw)
 		target, _ := na.AsMap(row["target"])
 		original, _ := na.AsMap(row["original"])
-		originalBuilding, _ := na.AsMap(original["building"])
-		snapshot, _ := na.AsMap(target["snapshot"])
-		if na.AsString(target["id"]) != wall || na.AsString(originalBuilding["id"]) != wall || na.AsString(snapshot["token"]) == "" {
+		snapshot, _ := na.AsMap(row["targetSnapshot"])
+		if na.AsString(target["id"]) != wall || na.AsString(original["id"]) != wall || na.AsString(snapshot["token"]) == "" {
 			return fmt.Errorf("%s: replacement row must target the original wall with a CAS token", wall)
 		}
 		if present, _ := na.AsBool(row["targetPresent"]); !present {
@@ -56,13 +55,11 @@ func checkSites(wall string, rows []any) error {
 		}
 		normal, _ := na.AsMap(row["normal"])
 		leftSupport, _ := na.AsMap(row["leftSupport"])
-		leftBuilding, _ := na.AsMap(leftSupport["building"])
 		rightSupport, _ := na.AsMap(row["rightSupport"])
-		rightBuilding, _ := na.AsMap(rightSupport["building"])
 		if na.AsNumber(normal["x"]) == 0 && na.AsNumber(normal["z"]) == 0 {
 			return fmt.Errorf("%s: site without a normal", wall)
 		}
-		if na.AsString(leftBuilding["id"]) == "" || na.AsString(rightBuilding["id"]) == "" {
+		if na.AsString(leftSupport["id"]) == "" || na.AsString(rightSupport["id"]) == "" {
 			return fmt.Errorf("%s: site without both supports: %v", wall, row)
 		}
 		// A corner (diagonal normal) is replaced in place and has no backup

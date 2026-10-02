@@ -57,11 +57,21 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
+// deconstructIntent is the enclosure-guarded DECONSTRUCT Designate arm of one
+// building, with extra DesignateIntent fields (clearedGround, replaceWithWall).
+func deconstructIntent(key string, target any, extra map[string]any) map[string]any {
+	intent := map[string]any{"designation": "THING_DESIGNATION_DECONSTRUCT", "target": map[string]any{"id": target}, "guard": "DESIGNATION_GUARD_ENCLOSURE"}
+	for k, v := range extra {
+		intent[k] = v
+	}
+	return map[string]any{"key": key, "designate": intent}
+}
+
 // applyDeconstruct sends one DECONSTRUCT Designate under key and returns its
 // ActionResult; a refusal or failure is an error.
 func applyDeconstruct(ctx context.Context, s cases.Session, key string, target any) (map[string]any, error) {
 	reply, err := s.Harness().Wire(ctx, key, "operations_apply", map[string]any{"identity": s.Identity(),
-		"actions": []any{map[string]any{"key": key, "deconstruct": map[string]any{"targetId": target}}}})
+		"actions": []any{deconstructIntent(key, target, nil)}})
 	if err != nil {
 		return nil, err
 	}

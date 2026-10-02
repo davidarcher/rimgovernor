@@ -63,7 +63,7 @@ func runDoorSwap(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	reply, err := h.Wire(ctx, "swap", "operations_apply", map[string]any{"identity": identity, "actions": []any{
-		map[string]any{"key": "swap", "deconstruct": map[string]any{"targetId": doorID, "replaceWithWall": true}},
+		deconstructIntent("swap", doorID, map[string]any{"replaceWithWall": true}),
 	}})
 	if err != nil {
 		return err

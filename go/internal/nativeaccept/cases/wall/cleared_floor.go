@@ -105,11 +105,11 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 		return p, nil
 	}
 	// Clearance order: furniture, then walls (roof first), then floors.
-	if err := apply("stool", map[string]any{"deconstruct": map[string]any{"targetId": stoolID, "clearedGround": ground}}); err != nil {
+	if err := apply("stool", deconstructIntent("stool", stoolID, map[string]any{"clearedGround": ground})); err != nil {
 		return err
 	}
 	for i, id := range wallIDs {
-		if err := apply(fmt.Sprintf("wall-%d", i), map[string]any{"deconstruct": map[string]any{"targetId": id, "clearedGround": ground}}); err != nil {
+		if err := apply(fmt.Sprintf("wall-%d", i), deconstructIntent("", id, map[string]any{"clearedGround": ground})); err != nil {
 			return err
 		}
 	}

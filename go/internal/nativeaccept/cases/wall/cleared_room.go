@@ -120,7 +120,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 		return result, nil
 	}
 	// The straddling room's west wall (x0, cz) is refused.
-	straddle, err := apply("straddle", map[string]any{"key": "straddle", "deconstruct": map[string]any{"targetId": bIDs[2], "clearedGround": ground}})
+	straddle, err := apply("straddle", deconstructIntent("straddle", bIDs[2], map[string]any{"clearedGround": ground}))
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 	// Room A: designate its walls first, which wait on the roof, then the roof.
 	for i, id := range aIDs {
 		key := fmt.Sprintf("wall-a-%d", i)
-		result, err := apply(key, map[string]any{"key": key, "deconstruct": map[string]any{"targetId": id, "clearedGround": ground}})
+		result, err := apply(key, deconstructIntent(key, id, map[string]any{"clearedGround": ground}))
 		if err != nil {
 			return err
 		}

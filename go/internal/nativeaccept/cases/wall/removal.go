@@ -85,6 +85,28 @@ func colonistWalls(ctx context.Context, h *na.Harness, scope map[string]any, lab
 	return ids, nil
 }
 
+// wallPosition reads one wall's cell from the building census; the site row
+// names its wall by Ref only.
+func wallPosition(ctx context.Context, h *na.Harness, scope map[string]any, wall string) (map[string]any, error) {
+	reply, err := h.Wire(ctx, "position-"+wall, "observations_list_buildings", map[string]any{"scope": scope, "ids": []any{wall}})
+	if err != nil {
+		return nil, err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return nil, fmt.Errorf("position-%s: %w", wall, err)
+	}
+	for _, raw := range na.AsSlice(observed["buildings"]) {
+		row, _ := na.AsMap(raw)
+		building, _ := na.AsMap(row["building"])
+		if na.AsString(building["id"]) == wall {
+			position, _ := na.AsMap(building["position"])
+			return position, nil
+		}
+	}
+	return nil, fmt.Errorf("position-%s: wall absent from the building census", wall)
+}
+
 func init() {
 	cases.Register(cases.Case{
 		Name: "wall/removal",
@@ -154,11 +176,11 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 				continue
 			}
 			material, _ := na.AsMap(materials[0])
-			original, _ := na.AsMap(row["original"])
-			originalBuilding, _ := na.AsMap(original["building"])
-			position, _ := na.AsMap(originalBuilding["position"])
-			target, _ := na.AsMap(row["target"])
-			snapshot, _ := na.AsMap(target["snapshot"])
+			position, err := wallPosition(ctx, h, scope, wall)
+			if err != nil {
+				return err
+			}
+			snapshot, _ := na.AsMap(row["targetSnapshot"])
 			chosen = &site{wall: wall, stuff: na.AsString(material["stuff"]), x: na.AsNumber(position["x"]), z: na.AsNumber(position["z"]), nx: nx, nz: nz, token: na.AsString(snapshot["token"])}
 			for _, rawCell := range cells {
 				cell, _ := na.AsMap(rawCell)
@@ -367,7 +389,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("standing demolition designation not observed: %#v", standingRow)
 	}
 	unsafeReply, err := h.Wire(ctx, "generic-enclosure-refusal", "operations_apply", map[string]any{
-		"identity": identity, "actions": []any{map[string]any{"key": "generic-enclosure-refusal", "deconstruct": map[string]any{"targetId": chosen.wall}}}})
+		"identity": identity, "actions": []any{deconstructIntent("generic-enclosure-refusal", chosen.wall, nil)}})
 	if err != nil {
 		return err
 	}

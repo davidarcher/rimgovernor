@@ -3,19 +3,20 @@ package wall
 import "testing"
 
 func siteRow(nx, nz float64, backups int) map[string]any {
-	building := func(id string) map[string]any { return map[string]any{"building": map[string]any{"id": id}} }
+	building := func(id string) map[string]any { return map[string]any{"id": id} }
 	var cells []any
 	for i := 0; i < backups; i++ {
 		cells = append(cells, map[string]any{"x": float64(i), "z": 0.0})
 	}
 	return map[string]any{
-		"target":        map[string]any{"id": "W", "snapshot": map[string]any{"token": "t"}},
-		"original":      building("W"),
-		"targetPresent": true,
-		"normal":        map[string]any{"x": nx, "z": nz},
-		"leftSupport":   building("L"),
-		"rightSupport":  building("R"),
-		"backupCells":   cells,
+		"target":         map[string]any{"id": "W"},
+		"targetSnapshot": map[string]any{"token": "t"},
+		"original":       building("W"),
+		"targetPresent":  true,
+		"normal":         map[string]any{"x": nx, "z": nz},
+		"leftSupport":    building("L"),
+		"rightSupport":   building("R"),
+		"backupCells":    cells,
 		"replacementMaterials": []any{map[string]any{"stuff": "BlocksGranite",
 			"costs": []any{map[string]any{"defName": "BlocksGranite", "units": 5.0}}}},
 	}
