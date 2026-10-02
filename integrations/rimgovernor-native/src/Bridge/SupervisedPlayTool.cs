@@ -404,11 +404,11 @@ namespace HomeBridge.BridgeTools
         /// vanilla (only a LetterWithTimeout with an active timeout does), so
         /// an autopiloted colony piled them up on the right edge. A letter is
         /// processed once this epoch's census published it (s.Letters) and a
-        /// full in-game day has passed: its pause, if any, stopped a window
+        /// in-game hour has passed: its pause, if any, stopped a window
         /// the controller reviewed. Only exact StandardLetter is removed --
         /// choice letters (quests, joiners, ransoms) keep their own handling
         /// or run out through the game's timeout.
-        internal const int ProcessedLetterAgeTicks = 60000;
+        internal const int ProcessedLetterAgeTicks = 2500;
         private static void DismissProcessedLetters(State s, TickManager tm)
         {
             var stack = Find.LetterStack;
