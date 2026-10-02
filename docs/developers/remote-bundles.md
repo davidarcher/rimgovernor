@@ -16,6 +16,12 @@ their absolute paths. `age-keygen -o identity.txt` creates a maintainer-held
 identity; `age-keygen -y identity.txt` prints its public recipient. Store the
 identity outside the checkout with restricted access. Never commit or upload it.
 
+The current CI identity's public recipient is committed in
+`scripts/remote-bundle-recipient.txt` (key ID `remote-acceptance-2026-09-19`).
+Packing needs only that recipient, not the identity. If it is ever lost, run
+the **Bundle recipient** workflow, which prints it from
+`REMOTE_BUNDLE_IDENTITY` without exposing the identity.
+
 Create an empty public release through the maintainer's normal release process
 and record its numeric ID. Packaging itself does not contact or publish to GitHub.
 Use exact installed dependency versions, not `latest`:
