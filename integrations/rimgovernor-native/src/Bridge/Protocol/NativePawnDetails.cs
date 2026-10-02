@@ -438,9 +438,7 @@ namespace HomeBridge.BridgeTools
         // master_id and the 24-hour schedule are the wider Assign-tab row --
         // deliberately never requested via this protobuf
         // (rimgovernor/observations_list_pawns) path, so they must never be
-        // set here regardless of what native happens to hold; home/pawn_config
-        // and home/list_pawns reach that wider row through PawnSettingsRead's
-        // own dictionary-based SettingsBlock/ScheduleBlock instead.
+        // set here regardless of what native happens to hold.
         // allowed_area_id belongs to the work snapshot (AllowedArea below).
         private static void CarePolicy(Pawn pawn,Obs.PawnSettings row)
         {

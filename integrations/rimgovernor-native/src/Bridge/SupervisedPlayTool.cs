@@ -33,28 +33,6 @@ namespace HomeBridge.BridgeTools
             _epoch = Math.Max(_epoch, _cursor);
             return journal;
         }
-        // Journal evidence for home/runtime_health: the newest cursor.
-        // Read-only; a journal
-        // that has not been opened yet is reported as such, not opened here.
-        internal static object JournalHealth()
-        {
-            lock (Gate)
-            {
-                var journal = Journal;
-                // waiters is how many clock_read_events long polls the host is
-                // holding right now (#617): a caller establishes a held poll by
-                // observing it rather than by elapsed time, and the observation
-                // itself travels on a concurrent call.
-                var waiters = WaitersHeldLocked();
-                if (journal == null) return new { initialized = false, waiters };
-                return new
-                {
-                    initialized = true,
-                    newestCursor = journal.Newest.ToString(CultureInfo.InvariantCulture),
-                    waiters
-                };
-            }
-        }
         private static State? _state;
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static long _epoch;

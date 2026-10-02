@@ -14,9 +14,8 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Dedicated per-cycle population census: PopulationTool.cs's legacy
-    // home/population read ported onto the official protobuf boundary, the
-    // same migration NativeHusbandryOperations/NativePrisonerInteractionOperations
+    // Dedicated per-cycle population census on the official protobuf
+    // boundary, the same migration NativeHusbandryOperations/NativePrisonerInteractionOperations
     // already made for the write side. Population-*'s recruit/maintain deficit
     // facts (recruitable, current interaction) live only here -- the generic
     // colony/upkeep census NativeUpkeepFacts populates has no guest section --

@@ -156,18 +156,6 @@ namespace HomeBridge.BridgeTools
             else { __state.Complete = true; __state.CompletedTick = Find.TickManager.TicksGame; }
             return __exception;
         }
-        internal static object Read(Map map)
-        {
-            Install();
-            return (State()?.Records ?? new List<WallRemovalRecord>()).Where(r => r.MapId == map.uniqueID).Select(r => {
-                if (!r.Complete && r.Blocker == null) r.Blocker = Check(r);
-                return new { id = r.Id, target = r.Target, complete = r.Complete, completedTick = r.CompletedTick,
-                    blocker = r.Blocker, retired = r.Retired,
-                    targetPresent = Wall(map, r.Target) != null,
-                    designated = Wall(map, r.Target) is Building target
-                        && map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null };
-            }).ToList();
-        }
         internal static WallRemovalRecord NewRecord(Map map, string target, string original, string left, string right, IEnumerable<string> backup,
             string permanent, string material, int x, int z, int nx, int nz) => new WallRemovalRecord {
                 Id = Guid.NewGuid().ToString("N"), Target = target, Original = original, Left = left, Right = right,
@@ -209,42 +197,5 @@ namespace HomeBridge.BridgeTools
             return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
                 ? "Native demolition designation was not observed" : null;
         }
-    }
-    public sealed class WallUpgradeTools
-    {
-        public WallUpgradeTools() { WallUpgradeSafety.Install(); }
-        [Tool("home/wall_upgrade_sites", Description = "Read bounded straight-wall and corner replacement geometry and installed stone material costs. Empty exterior backup cells and an enclosed roofed interior are required. No work is admitted or designated.")]
-        public async Task<object> Sites(IRimBridgeContext ctx, CancellationToken cancellationToken, string target)
-            => await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap;
-                if (map == null) return new { success = false, error = "Exact wall unavailable" };
-                var wall = map.listerBuildings.allBuildingsColonist.ById(target) is Building b && b.def == ThingDefOf.Wall ? b : null;
-                if (wall == null) return new { success = false, error = "Exact wall unavailable" };
-                var sites = new List<object>();
-                foreach (var normal in WallUpgradeSafety.Directions) {
-                    var inside = wall.Position - normal; var outside = wall.Position + normal;
-                    var cells = WallUpgradeSafety.BackupCells(wall.Position, normal).ToList();
-                    if (!inside.InBounds(map) || inside.Fogged(map) || !inside.Roofed(map)
-                        || !inside.Standable(map)
-                        || inside.GetRoom(map) == null || inside.GetRoom(map).TouchesMapEdge || inside.GetRoom(map).OpenRoofCount != 0
-                        || !outside.InBounds(map) || outside.GetRoom(map)?.TouchesMapEdge != true) continue;
-                    var left = WallUpgradeSafety.LeftCell(wall.Position, normal).GetEdifice(map);
-                    var right = WallUpgradeSafety.RightCell(wall.Position, normal).GetEdifice(map);
-                    if (left?.def != ThingDefOf.Wall || right?.def != ThingDefOf.Wall
-                        || left.Faction != Faction.OfPlayerSilentFail || right.Faction != Faction.OfPlayerSilentFail) continue;
-                    if (WallUpgradeSafety.Corner(normal) && (RoofSupportSafety.Blocker(wall, out _) != null
-                        || !WallUpgradeSafety.CornerAccess(map, wall.Position, normal))) continue;
-                    if (cells.Any(c => !c.InBounds(map) || c.Fogged(map) || !c.Standable(map) || map.zoneManager.ZoneAt(c) != null
-                        || !RoofSupportSafety.GeometryKnown(map, c)
-                        || c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t is Plant || t.def.category == ThingCategory.Item))) continue;
-                    sites.Add(new { x = wall.Position.x, z = wall.Position.z, nx = normal.x, nz = normal.z,
-                        left = left.GetUniqueLoadID(), right = right.GetUniqueLoadID(),
-                        backupCells = cells.Select(c => new { x = c.x, z = c.z }).ToList() });
-                }
-                var materials = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true)
-                    .OrderBy(s => s.defName).Select(s => new { defName = s.defName,
-                        costs = ThingDefOf.Wall.CostListAdjusted(s).ToDictionary(c => c.thingDef.defName, c => c.count) }).ToList();
-                return new { success = true, target, tick = Find.TickManager.TicksGame, sites, materials };
-            }, cancellationToken).ConfigureAwait(false);
     }
 }

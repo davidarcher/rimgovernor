@@ -1,6 +1,5 @@
 // The pawn/reads case reads typed pawn rows from a fresh debug game and
-// asserts the typed pawn read facts against the legacy home/list_pawns reads
-// and each other.
+// asserts the typed pawn read facts against each other.
 package pawn
 
 import (
@@ -107,14 +106,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if len(baseline) <= 3 {
 		return fmt.Errorf("expected more than 3 fresh pawns, found %d", len(baseline))
 	}
-	legacy, err := h.Call(ctx, "legacy-pawns", "home/list_pawns", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if success, _ := nativeaccept.AsBool(legacy["success"]); !success {
-		return fmt.Errorf("legacy home/list_pawns refused")
-	}
-	if err := compareCore(baseline, nativeaccept.AsSlice(legacy["pawns"])); err != nil {
+	if err := requireCore(baseline); err != nil {
 		return err
 	}
 
@@ -125,14 +117,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if len(colonists) != 3 {
 		return fmt.Errorf("expected exactly 3 colonists, found %d", len(colonists))
 	}
-	oldColonistDetails, err := h.Call(ctx, "legacy-colonist-details", "home/list_pawns", map[string]any{
-		"colonistsOnly": true, "health": true, "needs": true, "equipment": true,
-		"bio": true, "work": true, "schedule": true, "settings": true, "visibleHediffsOnly": false,
-	})
-	if err != nil {
-		return err
-	}
-	if err := compareDetails(colonists, nativeaccept.AsSlice(oldColonistDetails["pawns"])); err != nil {
+	if err := requireDetails(colonists); err != nil {
 		return err
 	}
 
@@ -361,74 +346,36 @@ func draftControl(row map[string]any, context any) error {
 // RequireSnapshotStrict is RequireSnapshot with a pawn-acceptance-specific message.
 func RequireSnapshotStrict(v any) error { return nativeaccept.RequireSnapshot(v) }
 
-func compareCore(typed []any, legacy []any) error {
-	byThingID := map[string]map[string]any{}
-	for _, raw := range legacy {
-		row, _ := nativeaccept.AsMap(raw)
-		byThingID[nativeaccept.AsString(row["thingId"])] = row
-	}
-	seen := map[string]bool{}
-	for _, raw := range typed {
-		row, _ := nativeaccept.AsMap(raw)
-		pawn, _ := nativeaccept.AsMap(row["pawn"])
-		seen[nativeaccept.AsString(pawn["id"])] = true
-	}
-	if len(seen) != len(byThingID) {
-		return fmt.Errorf("typed pawn set does not exactly match legacy home/list_pawns: typed=%d legacy=%d", len(seen), len(byThingID))
+// requireCore checks every core classification of every typed row is an
+// explicit boolean.
+func requireCore(typed []any) error {
+	if len(typed) == 0 {
+		return fmt.Errorf("typed pawn read returned no rows")
 	}
 	for _, raw := range typed {
 		row, _ := nativeaccept.AsMap(raw)
 		pawn, _ := nativeaccept.AsMap(row["pawn"])
-		old, ok := byThingID[nativeaccept.AsString(pawn["id"])]
-		if !ok {
-			return fmt.Errorf("typed pawn %s missing from legacy home/list_pawns", pawn["id"])
+		if nativeaccept.AsString(pawn["id"]) == "" || nativeaccept.AsString(pawn["defName"]) == "" {
+			return fmt.Errorf("typed pawn row without an id and defName: %#v", pawn)
 		}
-		if nativeaccept.AsString(pawn["defName"]) != nativeaccept.AsString(old["defName"]) {
-			return fmt.Errorf("defName mismatch for %s", pawn["id"])
-		}
-		pairs := map[string]string{"colonist": "isColonist", "freeColonist": "isFreeColonist", "prisoner": "isPrisoner"}
-		for _, key := range []string{"animal", "humanlike", "mechanoid", "tame", "wild", "hostile", "dead", "downed", "drafted"} {
-			pairs[key] = key
-		}
-		for newKey, oldKey := range pairs {
-			newVal, newOK := nativeaccept.AsBool(row[newKey])
-			oldVal, oldOK := nativeaccept.AsBool(old[oldKey])
-			if !newOK {
-				return fmt.Errorf("%s must be an explicit boolean for pawn %s, found %#v", newKey, pawn["id"], row[newKey])
-			}
-			if !oldOK || newVal != oldVal {
-				return fmt.Errorf("%s mismatch for pawn %s: typed=%v legacy=%#v", newKey, pawn["id"], newVal, old[oldKey])
+		for _, key := range []string{"colonist", "freeColonist", "prisoner", "animal", "humanlike", "mechanoid", "tame", "wild", "hostile", "dead", "downed", "drafted"} {
+			if _, ok := nativeaccept.AsBool(row[key]); !ok {
+				return fmt.Errorf("%s must be an explicit boolean for pawn %s, found %#v", key, pawn["id"], row[key])
 			}
 		}
 	}
 	return nil
 }
 
-func compareDetails(typed []any, legacy []any) error {
-	byThingID := map[string]map[string]any{}
-	for _, raw := range legacy {
-		row, _ := nativeaccept.AsMap(raw)
-		byThingID[nativeaccept.AsString(row["thingId"])] = row
-	}
+// requireDetails checks each colonist's health section carries a populated
+// CAS snapshot and its social section is well formed.
+func requireDetails(typed []any) error {
 	for _, raw := range typed {
 		row, _ := nativeaccept.AsMap(raw)
 		pawn, _ := nativeaccept.AsMap(row["pawn"])
-		old, ok := byThingID[nativeaccept.AsString(pawn["id"])]
-		if !ok {
-			return fmt.Errorf("typed colonist %s missing from legacy detail read", pawn["id"])
-		}
 		health, _ := nativeaccept.AsMap(row["health"])
-		oldHealth, _ := nativeaccept.AsMap(old["health"])
 		if err := RequireSnapshotStrict(health["snapshot"]); err != nil {
 			return fmt.Errorf("health section missing populated snapshot for %s: %w", pawn["id"], err)
-		}
-		if needsTend, _ := nativeaccept.AsBool(health["needsTend"]); needsTend != mustBool(oldHealth["needsTend"]) {
-			return fmt.Errorf("needsTend mismatch for %s", pawn["id"])
-		}
-		equipment, _ := nativeaccept.AsMap(row["equipment"])
-		oldEquipment, _ := nativeaccept.AsMap(old["equipment"])
-		if armed, _ := nativeaccept.AsBool(equipment["armed"]); armed != mustBool(oldEquipment["armed"]) {
-			return fmt.Errorf("armed mismatch for %s", pawn["id"])
 		}
 		if err := nativeaccept.RequireSocial(row); err != nil {
 			return fmt.Errorf("colonist %s: %w", pawn["id"], err)
@@ -436,5 +383,3 @@ func compareDetails(typed []any, legacy []any) error {
 	}
 	return nil
 }
-
-func mustBool(v any) bool { b, _ := v.(bool); return b }

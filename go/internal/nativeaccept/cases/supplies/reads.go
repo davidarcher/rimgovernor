@@ -1,5 +1,5 @@
-// The supplies/reads case proves typed supply-stock reads against the legacy
-// home/list_things census, for both held and spawned-only ownership modes, on the lab.
+// The supplies/reads case proves typed supply-stock reads are internally
+// consistent, for both held and spawned-only ownership modes, on the lab.
 package supplies
 
 import (
@@ -16,7 +16,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name:   "supplies/reads",
-		Scope:  "Fresh typed supply census against existing native stock reads; no stock spawning, fixture mutation or gameplay orders.",
+		Scope:  "Fresh typed supply census: quantities, instances and holders agree within each row for held and spawned-only ownership over spawned WoodLog and Steel; no gameplay orders.",
 		Start:  cases.LabStart(),
 		Budget: 5 * time.Minute,
 		Run:    run,
@@ -55,37 +55,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if includeHeld {
 			label = "held"
 		}
-		legacy, err := h.Call(ctx, label+"-native-census", "home/list_things", map[string]any{
-			"category": "haulable", "ownership": "all", "includeHeld": includeHeld,
-			"maxPositionsPerDef": 0, "maxCorpsesPerRow": 0,
-		})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(legacy["success"]); !success {
-			return fmt.Errorf("legacy home/list_things refused")
-		}
-		known := map[string]map[string]any{}
-		for _, raw := range na.AsSlice(legacy["things"]) {
-			row, _ := na.AsMap(raw)
-			known[na.AsString(row["defName"])] = row
-		}
-		for _, required := range []string{"WoodLog", "Steel"} {
-			row, ok := known[required]
-			if !ok || na.AsNumber(row["total"]) <= 0 {
-				return fmt.Errorf("fresh native starting material %s unavailable", required)
-			}
-		}
-		var heldDefs []string
-		for name, row := range known {
-			if na.AsNumber(row["carried"])+na.AsNumber(row["inContainer"]) > 0 {
-				heldDefs = append(heldDefs, name)
-			}
-		}
-		heldDefs = dedupSorted(heldDefs)
-		selected := dedupSorted(append([]string{"WoodLog", "Steel"}, limit(heldDefs, 14)...))
-		report[label+"_held_definitions"] = heldDefs
-
+		selected := []string{"WoodLog", "Steel"}
 		defNames := make([]any, len(selected))
 		for i, s := range selected {
 			defNames[i] = s
@@ -111,12 +81,7 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, raw := range rows {
 			row, _ := na.AsMap(raw)
-			definition, _ := na.AsMap(row["definition"])
-			source, ok := known[na.AsString(definition["defName"])]
-			if !ok {
-				return fmt.Errorf("%s: typed row %v missing from legacy census", label, definition["defName"])
-			}
-			if err := checkStock(row, source, identity, includeHeld); err != nil {
+			if err := checkStock(row, identity, includeHeld); err != nil {
 				return fmt.Errorf("%s: %w", label, err)
 			}
 		}
@@ -193,43 +158,31 @@ func run(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// checkStock compares one typed ResourceStock row against home/list_things's legacy
-// row. Contained EntityRef items now carry their own populated CAS snapshot
-// (contracts/proto/observations.proto EntityRef.snapshot=6): earlier acceptance runs
-// predated that and asserted its absence ("snapshot" not in item), which this port
-// corrects rather than preserves.
-func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld bool) error {
+// checkStock asserts one typed ResourceStock row is internally consistent:
+// every quantity a canonical count, spawned plus held units equal to the
+// total, one item per stack with its CAS snapshot, and holders summing to
+// the held units.
+func checkStock(row map[string]any, identity map[string]any, includeHeld bool) error {
 	definition, _ := na.AsMap(row["definition"])
-	if na.AsString(definition["defName"]) != na.AsString(legacy["defName"]) {
-		return fmt.Errorf("definition defName mismatch: typed=%v legacy=%v", definition["defName"], legacy["defName"])
+	if na.AsString(definition["defName"]) == "" {
+		return fmt.Errorf("stock row without a definition: %v", row)
 	}
-	mapping := map[string]string{
-		"units": "total", "stacks": "stacks", "ours": "ours", "oursUnforbidden": "oursUnforbidden",
-		"forbidden": "forbidden", "otherFaction": "otherFaction", "fogged": "fogged", "reserved": "reserved",
-		"inStockpile": "inStockpile", "inHomeArea": "inHomeArea",
-	}
+	keys := []string{"units", "stacks", "ours", "oursUnforbidden", "forbidden", "otherFaction", "fogged", "reserved", "inStockpile", "inHomeArea"}
 	if includeHeld {
-		mapping["carried"] = "carried"
-		mapping["inContainer"] = "inContainer"
-		mapping["traderStock"] = "traderStock"
+		keys = append(keys, "carried", "inContainer", "traderStock")
 	}
-	for typedKey, legacyKey := range mapping {
-		legacyVal := na.AsNumber(legacy[legacyKey])
-		if legacyVal < 0 {
-			return fmt.Errorf("legacy %s must be a non-negative integer", legacyKey)
-		}
-		typedVal, err := count(row[typedKey])
+	values := map[string]int64{}
+	for _, key := range keys {
+		value, err := count(row[key])
 		if err != nil {
-			return fmt.Errorf("native stock %v.%s: %w", row["definition"], typedKey, err)
+			return fmt.Errorf("native stock %v.%s: %w", row["definition"], key, err)
 		}
-		if typedVal != int64(legacyVal) {
-			return fmt.Errorf("native stock mismatch %v.%s: typed=%v legacy=%v", row["definition"], typedKey, row[typedKey], legacyVal)
-		}
+		values[key] = value
 	}
-	held := int64(0)
-	if includeHeld {
-		held = int64(na.AsNumber(legacy["carried"])) + int64(na.AsNumber(legacy["inContainer"]))
+	if values["units"] <= 0 {
+		return fmt.Errorf("native stock %v has no units", row["definition"])
 	}
+	held := values["carried"] + values["inContainer"]
 	spawned, err := count(row["spawned"])
 	if err != nil {
 		return fmt.Errorf("spawned for %v: %w", row["definition"], err)
@@ -245,8 +198,8 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 	if err != nil {
 		return fmt.Errorf("playerFaction for %v: %w", row["definition"], err)
 	}
-	if playerFaction > units {
-		return fmt.Errorf("playerFaction exceeds units for %v", row["definition"])
+	if playerFaction > units || values["ours"] > units {
+		return fmt.Errorf("playerFaction or ours exceeds units for %v", row["definition"])
 	}
 	stacks, err := count(row["stacks"])
 	if err != nil {
@@ -409,29 +362,4 @@ func count(v any) (int64, error) {
 		return 0, fmt.Errorf("quantity exceeds int64 max: %q", s)
 	}
 	return int64(n), nil
-}
-
-func dedupSorted(values []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, v := range values {
-		if !seen[v] {
-			seen[v] = true
-			out = append(out, v)
-		}
-	}
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j-1] > out[j]; j-- {
-			out[j-1], out[j] = out[j], out[j-1]
-		}
-	}
-	return out
-}
-
-func limit(values []string, n int) []string {
-	dedupSortedInPlace := dedupSorted(values)
-	if len(dedupSortedInPlace) > n {
-		return dedupSortedInPlace[:n]
-	}
-	return dedupSortedInPlace
 }

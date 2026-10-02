@@ -2,13 +2,8 @@ package supplies
 
 import "testing"
 
-// suppliesSamples returns the complete and truncated sample pages.
-func suppliesSamples() (map[string]any, map[string]any) {
-	legacy := map[string]any{
-		"defName": "WoodLog", "total": 5.0, "stacks": 2.0, "ours": 2.0, "oursUnforbidden": 2.0, "forbidden": 0.0,
-		"otherFaction": 3.0, "fogged": 0.0, "reserved": 0.0, "inStockpile": 2.0, "inHomeArea": 5.0,
-		"carried": 3.0, "inContainer": 0.0, "traderStock": 3.0,
-	}
+// suppliesSample returns a complete held-scope stock row.
+func suppliesSample() map[string]any {
 	row := map[string]any{
 		"stacks": "2", "ours": "2", "oursUnforbidden": "2", "forbidden": "0", "otherFaction": "3",
 		"fogged": "0", "reserved": "0", "inStockpile": "2", "inHomeArea": "5",
@@ -21,7 +16,7 @@ func suppliesSamples() (map[string]any, map[string]any) {
 		"holders": []any{map[string]any{"holder": map[string]any{"id": "muffalo1"}, "units": "3"}},
 		"issues":  []any{},
 	}
-	return row, legacy
+	return row
 }
 
 func copySuppliesAny(m map[string]any) map[string]any {
@@ -33,43 +28,38 @@ func copySuppliesAny(m map[string]any) map[string]any {
 }
 
 func TestCheckStockRequiresActualQuantitiesAndCompleteInstances(t *testing.T) {
-	row, legacy := suppliesSamples()
-	if err := checkStock(row, legacy, map[string]any{"mapId": 0.0}, true); err != nil {
+	row := suppliesSample()
+	if err := checkStock(row, map[string]any{"mapId": 0.0}, true); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	cases := []struct {
 		field string
 		value any
 	}{
-		{"units", "0"}, {"carried", "0"}, {"ours", "5"}, {"items", []any{}},
+		{"units", "0"}, {"carried", "0"}, {"ours", "6"}, {"items", []any{}},
 		{"holders", []any{}},
 	}
 	for _, c := range cases {
 		t.Run(c.field, func(t *testing.T) {
 			changed := copySuppliesAny(row)
 			changed[c.field] = c.value
-			if err := checkStock(changed, legacy, map[string]any{"mapId": 0.0}, true); err == nil {
+			if err := checkStock(changed, map[string]any{"mapId": 0.0}, true); err == nil {
 				t.Fatalf("expected an error for changed field %q", c.field)
 			}
 		})
 	}
 	missing := copySuppliesAny(row)
 	delete(missing, "carried")
-	if err := checkStock(missing, legacy, map[string]any{"mapId": 0.0}, true); err == nil {
+	if err := checkStock(missing, map[string]any{"mapId": 0.0}, true); err == nil {
 		t.Fatal("expected an error for a missing carried field")
 	}
 }
 
 func TestCheckStockExcludedHeldScopeCannotClaimKnownEmpty(t *testing.T) {
-	row, legacy := suppliesSamples()
+	row := suppliesSample()
 	for _, key := range []string{"carried", "inContainer", "traderStock"} {
-		legacy[key] = 0.0
 		delete(row, key)
 	}
-	legacy["total"] = 2.0
-	legacy["stacks"] = 1.0
-	legacy["otherFaction"] = 0.0
-	legacy["inHomeArea"] = 2.0
 	row["units"] = "2"
 	row["stacks"] = "1"
 	row["otherFaction"] = "0"
@@ -82,11 +72,11 @@ func TestCheckStockExcludedHeldScopeCannotClaimKnownEmpty(t *testing.T) {
 		issues = append(issues, map[string]any{"field": field, "unavailable": map[string]any{"reason": "UNAVAILABLE_REASON_NOT_REQUESTED"}})
 	}
 	row["issues"] = issues
-	if err := checkStock(row, legacy, map[string]any{"mapId": 0.0}, false); err != nil {
+	if err := checkStock(row, map[string]any{"mapId": 0.0}, false); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	row["carried"] = "0"
-	if err := checkStock(row, legacy, map[string]any{"mapId": 0.0}, false); err == nil {
+	if err := checkStock(row, map[string]any{"mapId": 0.0}, false); err == nil {
 		t.Fatal("expected an error: carried must not be present at all when excluded from scope")
 	}
 }

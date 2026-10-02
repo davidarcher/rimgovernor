@@ -97,8 +97,7 @@ namespace HomeBridge.BridgeTools
                         reachable = p.CanReach(prison, PathEndMode.OnCell, Danger.Some),
                         reservable = p.CanReserve(prison),
                         nativeBed = RestUtility.FindBedFor(candidate, p, false, false, GuestStatus.Prisoner)?.GetUniqueLoadID() }).ToArray(),
-                    scope = "Prepared recruitable downed hostile; native capture assigns resistance, ordinary care and recruitment required",
-                    state = PopulationTools.Person(candidate) };
+                    scope = "Prepared recruitable downed hostile; native capture assigns resistance, ordinary care and recruitment required" };
             }, cancellationToken).ConfigureAwait(false);
         }
 

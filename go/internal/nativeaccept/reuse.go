@@ -403,7 +403,7 @@ func (g *GameReuse) load(ctx context.Context, h *Harness, save string) error {
 	// The trusted rimgovernor/lifecycle_load path is not usable here: it
 	// requires the expected identity to survive the load, but a fixture save
 	// that was never written by the mod carries no persisted colony id, so
-	// native mints a fresh one per load (ColonyIdentity.cs) and lifecycle_load
+	// native mints a fresh one per load (Runtime/Persistence/ColonyIdentity.cs) and lifecycle_load
 	// reports the load as superseded. loadaccept covers that path with a
 	// save it wrote itself.
 	_, err := h.Call(ctx, "reuse-load", "rimworld/load_game_ready", map[string]any{

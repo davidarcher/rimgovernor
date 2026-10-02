@@ -687,8 +687,8 @@ func readSafetyStatus(ctx context.Context, clock *ScenarioClock, label string) (
 // its scenario from one goroutine.
 type ScenarioRuntime struct {
 	// Query issues a generic native/MCP tool call (e.g. Harness.Call) for the
-	// game-observation reads AdvanceGame needs (home/colony_identity)
-	// outside the rimgovernor/* protobuf surface ScenarioClock.Wire covers.
+	// calls AdvanceGame needs outside the rimgovernor/* protobuf surface
+	// ScenarioClock.Wire covers (letter dismissal).
 	Query  func(ctx context.Context, label, tool string, arguments any) (map[string]any, error)
 	Clock  *ScenarioClock
 	Report Report
@@ -756,19 +756,20 @@ func (rt *ScenarioRuntime) note(kind, message string, details map[string]any) {
 }
 
 func (rt *ScenarioRuntime) identityNow(ctx context.Context) (map[string]any, error) {
-	value, err := rt.Query(ctx, "scenario-identity", "home/colony_identity", nil)
+	reply, err := rt.Clock.Wire(ctx, "scenario-identity", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]any{}
-	for _, key := range []string{"colonyId", "mapId", "loadToken"} {
-		v, ok := value[key]
-		if !ok || v == nil {
-			return nil, &ScenarioInterrupted{"Native identity unavailable"}
-		}
-		out[key] = v
+	_, loaded, err := Outcome(reply, "loaded")
+	if err != nil {
+		return nil, &ScenarioInterrupted{"Native identity unavailable"}
 	}
-	return out, nil
+	loadedContext, _ := AsMap(loaded["context"])
+	identity, _ := AsMap(loadedContext["identity"])
+	if AsString(identity["colonyId"]) == "" || AsString(identity["loadToken"]) == "" {
+		return nil, &ScenarioInterrupted{"Native identity unavailable"}
+	}
+	return identity, nil
 }
 
 // combatHealthStopsPerAdvance bounds the colonist_health stops one combat

@@ -709,17 +709,19 @@ func ConfirmColonyNames(ctx context.Context, h *Harness, report Report) (map[str
 		return nil, fmt.Errorf("colony facts: %w", err)
 	}
 	if naming, ok := AsMap(facts["naming"]); ok && naming != nil {
-		confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-			"windowId":       int(AsNumber(naming["windowId"])),
-			"factionName":    AsString(naming["factionName"]),
-			"settlementName": AsString(naming["settlementName"]),
-			"dryRun":         false,
+		windowID := int(AsNumber(naming["windowId"]))
+		confirmed, err := ApplyOne(ctx, h, "confirm-colony-names", identity, fmt.Sprintf("confirm-colony-names-%d", windowID), map[string]any{
+			"naming": map[string]any{
+				"windowId":       windowID,
+				"factionName":    AsString(naming["factionName"]),
+				"settlementName": AsString(naming["settlementName"]),
+			},
 		})
 		if err != nil {
 			return nil, err
 		}
-		if success, _ := AsBool(confirmed["success"]); !success {
-			return nil, fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
+		if _, ok := AsMap(confirmed["applied"]); !ok {
+			return nil, fmt.Errorf("naming intent refused: %#v", confirmed)
 		}
 		report["confirmed_colony_names"] = confirmed
 	} else {

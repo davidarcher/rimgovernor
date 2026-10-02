@@ -38,15 +38,14 @@ func init() {
 				FailFast: sustainedfood.FailFast{Disabled: true},
 			},
 			Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-				listed, err := h.Call(ctx, "stable-initial", "home/list_pawns", map[string]any{"colonistsOnly": true})
+				listed, err := na.ListColonists(ctx, h, "stable-initial", false, false)
 				if err != nil {
 					return err
 				}
-				for _, raw := range na.AsSlice(listed["pawns"]) {
-					row, _ := na.AsMap(raw)
-					id := na.AsString(row["thingId"])
+				for _, row := range listed {
+					id := na.RowID(row)
 					if id == "" {
-						return fmt.Errorf("initial colonist has no thingId")
+						return fmt.Errorf("initial colonist has no id")
 					}
 					initial = append(initial, id)
 				}
@@ -63,15 +62,14 @@ func init() {
 					failures = append(failures, fmt.Errorf("fifteen-day window not reached: %v", report["window"]))
 				}
 				failures = append(failures, auditReacquisitions(ctx, h, report), AuditNutrition(ctx, h, report))
-				listed, err := h.Call(ctx, "stable-health", "home/list_pawns", map[string]any{"colonistsOnly": true, "includeDead": true, "health": true})
+				listed, err := na.ListColonists(ctx, h, "stable-health", true, true)
 				if err != nil {
 					return errors.Join(append(failures, err)...)
 				}
 				report["stable_health"] = listed
 				alive := map[string]bool{}
-				for _, raw := range na.AsSlice(listed["pawns"]) {
-					row, _ := na.AsMap(raw)
-					id := na.AsString(row["thingId"])
+				for _, row := range listed {
+					id := na.RowID(row)
 					dead, known := na.AsBool(row["dead"])
 					alive[id] = known && !dead
 					if !alive[id] {
@@ -86,14 +84,14 @@ func init() {
 						disease, _ := na.AsMap(raw)
 						immunizable, _ := na.AsBool(disease["immunizable"])
 						immune, _ := na.AsBool(disease["fullyImmune"])
-						tended, _ := na.AsBool(disease["isTended"])
+						tended, _ := na.AsBool(disease["tended"])
 						if immunizable && !immune && !tended {
-							failures = append(failures, fmt.Errorf("colonist %s has untreated nonimmune %s", id, na.AsString(disease["defName"])))
+							failures = append(failures, fmt.Errorf("colonist %s has untreated nonimmune %s", id, na.HediffDef(disease)))
 						}
 					}
 				}
 				// Corpses can despawn or be buried: a missing initial pawn must
-				// fail even when list_pawns no longer returns the dead pawn.
+				// fail even when the pawn read no longer returns the dead pawn.
 				for _, id := range initial {
 					if !alive[id] {
 						failures = append(failures, fmt.Errorf("initial colonist %s no longer alive on map", id))

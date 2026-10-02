@@ -1,9 +1,8 @@
 // The wall/upgrade case proves the typed wall-upgrade census behind
 // rimgovernor/observations_list_wall_upgrade_sites (#78) on a loaded save:
-// the cleanup census (no target) is complete, and for every colonist wall the
-// per-target replacement rows agree with the legacy home/wall_upgrade_sites
-// geometry (normal, side supports, backup cells) and stone material costs,
-// each row carrying the target's CAS token. At least one wall must yield a
+// the cleanup census (no target) is complete, and for every colonist wall
+// each per-target replacement row names the target with its CAS token, a
+// normal, both side supports, its backup cells and priced stone materials. At least one wall must yield a
 // site or the run is vacuous. A fixture build's test/lighting_prepare first
 // builds an enclosed roofed room so the census has colonist walls to read;
 // the stock saves hold none.
@@ -41,30 +40,8 @@ func upgradeColonistWalls(ctx context.Context, h *na.Harness, scope map[string]a
 	return ids, nil
 }
 
-type geometry struct {
-	nx, nz      float64
-	left, right string
-	backups     string
-}
-
-func compareSites(wall string, rows []any, legacy map[string]any) error {
-	want := map[geometry]bool{}
-	for _, raw := range na.AsSlice(legacy["sites"]) {
-		site, _ := na.AsMap(raw)
-		want[geometry{na.AsNumber(site["nx"]), na.AsNumber(site["nz"]), na.AsString(site["left"]), na.AsString(site["right"]), cells(site["backupCells"])}] = true
-	}
-	if len(want) != len(rows) {
-		return fmt.Errorf("%s: legacy lists %d sites, typed census %d", wall, len(want), len(rows))
-	}
-	materials := map[string]map[string]float64{}
-	for _, raw := range na.AsSlice(legacy["materials"]) {
-		material, _ := na.AsMap(raw)
-		costs := map[string]float64{}
-		for name, units := range func() map[string]any { m, _ := na.AsMap(material["costs"]); return m }() {
-			costs[name] = na.AsNumber(units)
-		}
-		materials[na.AsString(material["defName"])] = costs
-	}
+// checkSites asserts every per-target row is a complete replacement site.
+func checkSites(wall string, rows []any) error {
 	for _, raw := range rows {
 		row, _ := na.AsMap(raw)
 		target, _ := na.AsMap(row["target"])
@@ -82,25 +59,26 @@ func compareSites(wall string, rows []any, legacy map[string]any) error {
 		leftBuilding, _ := na.AsMap(leftSupport["building"])
 		rightSupport, _ := na.AsMap(row["rightSupport"])
 		rightBuilding, _ := na.AsMap(rightSupport["building"])
-		key := geometry{na.AsNumber(normal["x"]), na.AsNumber(normal["z"]), na.AsString(leftBuilding["id"]), na.AsString(rightBuilding["id"]), cells(row["backupCells"])}
-		if !want[key] {
-			return fmt.Errorf("%s: typed site %+v missing from the legacy listing", wall, key)
+		if na.AsNumber(normal["x"]) == 0 && na.AsNumber(normal["z"]) == 0 {
+			return fmt.Errorf("%s: site without a normal", wall)
 		}
-		delete(want, key)
+		if na.AsString(leftBuilding["id"]) == "" || na.AsString(rightBuilding["id"]) == "" || cells(row["backupCells"]) == "" {
+			return fmt.Errorf("%s: site without both supports and backup cells: %v", wall, row)
+		}
 		options := na.AsSlice(row["replacementMaterials"])
-		if len(options) != len(materials) {
-			return fmt.Errorf("%s: %d typed materials vs %d legacy", wall, len(options), len(materials))
+		if len(options) == 0 {
+			return fmt.Errorf("%s: site without replacement materials", wall)
 		}
 		for _, rawOption := range options {
 			option, _ := na.AsMap(rawOption)
-			costs, ok := materials[na.AsString(option["stuff"])]
-			if !ok {
-				return fmt.Errorf("%s: material %v missing from legacy", wall, option["stuff"])
+			costs := na.AsSlice(option["costs"])
+			if na.AsString(option["stuff"]) == "" || len(costs) == 0 {
+				return fmt.Errorf("%s: material without a stuff or costs: %v", wall, option)
 			}
-			for _, rawCost := range na.AsSlice(option["costs"]) {
+			for _, rawCost := range costs {
 				cost, _ := na.AsMap(rawCost)
-				if costs[na.AsString(cost["defName"])] != na.AsNumber(cost["units"]) {
-					return fmt.Errorf("%s: material %v cost %v disagrees with legacy", wall, option["stuff"], cost)
+				if na.AsString(cost["defName"]) == "" || na.AsNumber(cost["units"]) <= 0 {
+					return fmt.Errorf("%s: material %v has an unpriced cost %v", wall, option["stuff"], cost)
 				}
 			}
 		}
@@ -124,7 +102,7 @@ const maxWalls = 64
 func init() {
 	cases.Register(cases.Case{
 		Name:  "wall/upgrade",
-		Scope: "Typed wall-upgrade site census against the legacy home/wall_upgrade_sites geometry; read-only, no designation or construction.",
+		Scope: "Typed wall-upgrade site census: complete cleanup rows and, per colonist wall, complete replacement sites with supports, backup cells and priced stone materials; read-only, no designation or construction.",
 		// The save carries its own expansion list (the runner enables them);
 		// the lighting fixture builds the walls on top of it.
 		Start:  cases.Fixture{Op: "test/lighting_prepare", On: cases.LabStart()},
@@ -185,13 +163,6 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 	}
 	sitesFound, wallsWithSites := 0, 0
 	for _, wall := range walls {
-		legacy, err := h.Call(ctx, "legacy-"+wall, "home/wall_upgrade_sites", map[string]any{"target": wall})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(legacy["success"]); !success {
-			return fmt.Errorf("legacy home/wall_upgrade_sites refused %s", wall)
-		}
 		typedReply, err := h.Wire(ctx, "typed-"+wall, "observations_list_wall_upgrade_sites", map[string]any{"scope": scope, "targetId": wall})
 		if err != nil {
 			return err
@@ -201,7 +172,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: %w", wall, err)
 		}
 		rows := na.AsSlice(observed["sites"])
-		if err := compareSites(wall, rows, legacy); err != nil {
+		if err := checkSites(wall, rows); err != nil {
 			return err
 		}
 		if len(rows) > 0 {

@@ -345,7 +345,7 @@ frees, so a renew or stop never queues behind a burst of bundle reads. The
 class rides beside `request` and `trace` on the wire and
 the companion's `ProtoBoundary.OnMainThread` runs queued control hops before
 observation hops within a frame (`MainThreadAdmission`); the few remaining
-`home/*` tools call the host's main thread directly and stay outside that
+untyped tools call the host's main thread directly and stay outside that
 ordering. `bridge.WithAdmissionClass` overrides a call's class for a caller
 whose use differs from the method's default.
 

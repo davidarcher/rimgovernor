@@ -31,7 +31,7 @@ func TestEvidenceSequenceContinuesAcrossHarnessesOnOneOutput(t *testing.T) {
 func TestEvidenceRowCarriesObservationStamps(t *testing.T) {
 	sent := time.Date(2026, 9, 18, 10, 30, 0, 123456789, time.UTC)
 	tick := uint64(90010)
-	row := evidenceRow(7, "home/status", json.RawMessage(`{}`), sent, 250*time.Millisecond, json.RawMessage(`{"ok":true}`), nil, &tick)
+	row := evidenceRow(7, "legacy/status", json.RawMessage(`{}`), sent, 250*time.Millisecond, json.RawMessage(`{"ok":true}`), nil, &tick)
 	output := t.TempDir()
 	writeEvidence(evidencePath(output, 7, "status"), row)
 	data, err := os.ReadFile(filepath.Join(output, "0007-status.json"))
@@ -49,7 +49,7 @@ func TestEvidenceRowCarriesObservationStamps(t *testing.T) {
 		t.Errorf("result = %v", written["result"])
 	}
 
-	failed := evidenceRow(8, "home/status", json.RawMessage(`{}`), sent, time.Second, nil, errors.New("timed out"), nil)
+	failed := evidenceRow(8, "legacy/status", json.RawMessage(`{}`), sent, time.Second, nil, errors.New("timed out"), nil)
 	if failed["error"] != "timed out" {
 		t.Errorf("error = %v", failed["error"])
 	}

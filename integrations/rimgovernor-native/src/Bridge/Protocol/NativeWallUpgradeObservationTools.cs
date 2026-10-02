@@ -14,8 +14,8 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Read-only census behind Observations/ListWallUpgradeSites, sharing the
-    // legacy home/wall_upgrade_sites geometry (WallUpgradeSafety). Two row
+    // Read-only census behind Observations/ListWallUpgradeSites, on the
+    // WallUpgradeSafety geometry. Two row
     // kinds serve the two WallRemoval steps the Go boundary re-validates by
     // exact (origin, normal) geometry:
     //  - with target_id: replacement candidates for that one colonist wall,

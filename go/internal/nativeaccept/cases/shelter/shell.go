@@ -490,13 +490,17 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 	// stands on its ring, one per cell, and none is still a blueprint or
 	// frame.
 	b := sh.footprint.Bounds()
-	listed, err := h.Call(ctx, "walls-after", "home/list_buildings", map[string]any{
-		"status": "all", "playerOnly": true, "aggregate": false,
-		"x": b.X + b.Width/2, "z": b.Z + b.Height/2, "radius": 64,
+	reply, err := h.Wire(ctx, "walls-after", "observations_list_buildings", map[string]any{
+		"scope": map[string]any{"expectedIdentity": expected}, "statuses": []any{"all"}, "playerOnly": true,
 	})
 	if err != nil {
 		return err
 	}
+	_, listed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return fmt.Errorf("walls-after: %w", err)
+	}
+	centerX, centerZ := b.X+b.Width/2, b.Z+b.Height/2
 	ring := map[domain.Cell]bool{}
 	for _, w := range sh.footprint.Walls() {
 		ring[w] = true
@@ -506,13 +510,18 @@ func verifyNative(ctx context.Context, h *na.Harness, expected map[string]any, s
 		row, _ := na.AsMap(raw)
 		def := na.AsString(row["buildDefName"])
 		if def == "" {
-			def = na.AsString(row["defName"])
+			building, _ := na.AsMap(row["building"])
+			def = na.AsString(building["defName"])
 		}
 		if def != "Wall" && def != "Door" {
 			continue
 		}
-		pos, _ := na.AsMap(row["position"])
+		building, _ := na.AsMap(row["building"])
+		pos, _ := na.AsMap(building["position"])
 		c := domain.Cell{X: int32(na.AsNumber(pos["x"])), Z: int32(na.AsNumber(pos["z"]))}
+		if dx, dz := int(c.X)-int(centerX), int(c.Z)-int(centerZ); dx*dx+dz*dz > 64*64 {
+			continue
+		}
 		if !ring[c] {
 			return fmt.Errorf("player %s at %v stands off the hut ring: a second shell was ordered", def, c)
 		}

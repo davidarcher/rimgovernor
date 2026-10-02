@@ -272,7 +272,7 @@ func admissionClassOf(nativeTool string) AdmissionClass {
 		return class
 	}
 	switch {
-	case strings.HasPrefix(nativeTool, "rimgovernor/observations_"), strings.HasPrefix(nativeTool, "rimgovernor/presentation_"), strings.HasPrefix(nativeTool, "home/"), strings.HasPrefix(nativeTool, "test/"):
+	case strings.HasPrefix(nativeTool, "rimgovernor/observations_"), strings.HasPrefix(nativeTool, "rimgovernor/presentation_"), strings.HasPrefix(nativeTool, "test/"):
 		return AdmissionObservation
 	}
 	return AdmissionControl

@@ -9,7 +9,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    /// <summary>Installation state of the extension dispatch patch, for runtime_health.</summary>
+    /// <summary>Installation state of the extension dispatch patch.</summary>
     public sealed class ExtensionDispatchStatus
     {
         internal ExtensionDispatchStatus(bool installed, int rewrapped, string hostVersion, string error)
@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
     /// Everything is resolved by name so the Runtime assembly needs no
     /// reference to RimBridgeServer or Lib.GAB; a target that does not
     /// resolve leaves the host serial, logs an error and reads as not
-    /// installed under home/runtime_health.
+    /// installed (Status.Installed).
     /// </summary>
     [StaticConstructorOnStartup]
     public static class ExtensionDispatchPatch

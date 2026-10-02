@@ -16,8 +16,6 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class HomeWasteTools
     {
-        private static HashSet<string> Ids(string text) => new HashSet<string>((text ?? "").Split(',')
-            .Select(s => s.Trim()).Where(s => s.Length > 0), StringComparer.Ordinal);
         private static string Id(Thing thing) => thing.GetUniqueLoadID();
 
         private static string? Protection(Thing thing, bool burialAllowed = false)
@@ -61,33 +59,6 @@ namespace HomeBridge.BridgeTools
             return zone != null && zone.GetStoreSettings().AllowedToAccept(thing) && DirtyCell(thing.Map, thing.Position);
         }
 
-        internal static object Census(string unwanted, string bury)
-        {
-            var map = Find.CurrentMap;
-            if (map == null) return BridgeCommon.Failure("home/waste_state", "No loaded map");
-            var selected = Ids(unwanted);
-            var burials = Ids(bury);
-            var rows = new List<object>();
-            foreach (var thing in map.listerThings.AllThings.OrderBy(Id))
-            {
-                if (thing.Position.Fogged(map)) continue;
-                var kind = burials.Contains(Id(thing)) && thing is Corpse ? "corpse" : Kind(thing, selected);
-                if (kind == null && !(thing is Corpse)) continue;
-                var protection = Protection(thing, burials.Contains(Id(thing)));
-                var stored = !burials.Contains(Id(thing)) && protection == null && Stored(thing);
-                rows.Add(new { thingId = Id(thing), defName = thing.def.defName, count = thing.stackCount,
-                    kind, protectedReason = protection, eligible = protection == null && kind != null,
-                    position = BridgeCommon.Pos(thing.Position), rotStage = thing.TryGetComp<CompRottable>()?.Stage.ToString(),
-                    state = stored ? "relocated" : "exposed", zoneId = (thing.Position.GetZone(map) as Zone_Stockpile)?.ID });
-            }
-            foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
-                foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
-                    rows.Add(new { thingId = Id(body), defName = body.def.defName, count = 1, kind = "corpse",
-                        protectedReason = "grave", eligible = false, state = "buried", graveId = Id(grave) });
-            return new { success = true, mapId = map.uniqueID, tick = Find.TickManager.TicksGame, items = rows,
-                meaning = "Exposed and relocated are live item states; buried is native containment. Absence does not prove destruction." };
-        }
-
         // CorpseOf is a corpse's inner pawn class (#832): colonist for the
         // player faction's humanlike, stranger for any other humanlike,
         // animal otherwise; null for anything that is not a corpse.
@@ -99,7 +70,7 @@ namespace HomeBridge.BridgeTools
             return inner.Faction == Faction.OfPlayer ? Common.CorpseClass.Colonist : Common.CorpseClass.Stranger;
         }
 
-        // Project is the same census as Census("", "") on the typed wire
+        // Project is the waste census on the typed wire
         // (ColonyFactsSnapshot.waste): every visible waste candidate and
         // corpse, then every buried corpse at its grave's cell. More rows
         // than the 256 the Go contract admits leave the section unavailable.

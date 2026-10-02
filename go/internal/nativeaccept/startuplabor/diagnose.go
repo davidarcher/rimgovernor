@@ -7,7 +7,7 @@
 // It is diagnosis only. Nothing here ranks, plans, dispatches or changes
 // game speed or authority; every field is read from evidence the run
 // already holds (the durable review record, plan progress and one bounded
-// home/list_pawns sample per observation). Missing evidence is reported as
+// observations_list_pawns sample per observation). Missing evidence is reported as
 // missing -- a subject never infers a fact it did not observe.
 package startuplabor
 

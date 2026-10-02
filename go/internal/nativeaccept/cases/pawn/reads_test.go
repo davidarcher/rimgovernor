@@ -138,28 +138,23 @@ func TestDraftControlLiveCurrentMapAnimalIsNotBlanketNotApplicable(t *testing.T)
 	}
 }
 
-func pawnCompareRows() ([]any, []any) {
-	old := map[string]any{"thingId": "Human1", "defName": "Human", "isColonist": true, "isFreeColonist": true, "isPrisoner": false}
-	newRow := map[string]any{"pawn": map[string]any{"id": "Human1", "defName": "Human"}, "colonist": true, "freeColonist": true, "prisoner": false}
-	for _, key := range []string{"animal", "humanlike", "mechanoid", "tame", "wild", "hostile", "dead", "downed", "drafted"} {
-		old[key] = false
-		newRow[key] = false
+func TestRequireCoreRejectsEmptyAndFalseCoercion(t *testing.T) {
+	row := func() map[string]any {
+		r := map[string]any{"pawn": map[string]any{"id": "Human1", "defName": "Human"}}
+		for _, key := range []string{"colonist", "freeColonist", "prisoner", "animal", "humanlike", "mechanoid", "tame", "wild", "hostile", "dead", "downed", "drafted"} {
+			r[key] = false
+		}
+		return r
 	}
-	return []any{newRow}, []any{old}
-}
-
-func TestCompareCoreRejectsMissingPawnsAndFalseCoercion(t *testing.T) {
-	typed, legacy := pawnCompareRows()
-	if err := compareCore(typed, legacy); err != nil {
+	if err := requireCore([]any{row()}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if err := compareCore(nil, legacy); err == nil {
-		t.Fatal("expected an error when the typed pawn is missing entirely")
+	if err := requireCore(nil); err == nil {
+		t.Fatal("expected an error for an empty read")
 	}
-	bad, _ := pawnCompareRows()
-	badRow, _ := nativeaccept.AsMap(bad[0])
-	badRow["drafted"] = 0.0
-	if err := compareCore(bad, legacy); err == nil {
-		t.Fatal("expected an error for a falsy-but-not-boolean drafted mismatch")
+	bad := row()
+	bad["drafted"] = 0.0
+	if err := requireCore([]any{bad}); err == nil {
+		t.Fatal("expected an error for a falsy-but-not-boolean drafted")
 	}
 }

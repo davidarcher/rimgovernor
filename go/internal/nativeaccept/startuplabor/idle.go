@@ -47,7 +47,7 @@ var nonWorkJobs = map[string]Activity{
 }
 
 // PawnSample is one bounded observation of one pawn, as a
-// home/list_pawns row reports it. JobKnown false (the row carried no job
+// observations_list_pawns row reports it. JobKnown false (the row carried no job
 // field at all) is the only unknown: an absent job on a present row is a
 // pawn with nothing to do.
 type PawnSample struct {

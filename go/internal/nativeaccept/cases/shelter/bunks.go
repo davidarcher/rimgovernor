@@ -155,11 +155,11 @@ func bunksFirst(ctx context.Context, s cases.Session) error {
 	if err := verifyNative(ctx, h, s.Identity(), sh, bedCells, report); err != nil {
 		return err
 	}
-	listed, err := h.Call(ctx, "colonists-after", "home/list_pawns", map[string]any{"colonistsOnly": true})
+	listed, err := na.ListColonists(ctx, h, "colonists-after", false, false)
 	if err != nil {
 		return err
 	}
-	after := len(na.AsSlice(listed["pawns"]))
+	after := len(listed)
 	if after != colonists {
 		return fmt.Errorf("the colony changed size during the run: %d colonists, %d before", after, colonists)
 	}
@@ -197,11 +197,11 @@ func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int
 		rooms++
 		indoorBeds += len(na.AsSlice(row["beds"]))
 	}
-	listed, err := h.Call(ctx, "colonists-before", "home/list_pawns", map[string]any{"colonistsOnly": true})
+	listed, err := na.ListColonists(ctx, h, "colonists-before", false, false)
 	if err != nil {
 		return 0, domain.Cell{}, err
 	}
-	colonists := len(na.AsSlice(listed["pawns"]))
+	colonists := len(listed)
 	report["precondition"] = map[string]any{"colonists": colonists, "roofed_rooms": rooms, "indoor_beds": indoorBeds}
 	if colonists == 0 {
 		return 0, domain.Cell{}, errors.New("the baseline has no colonists to shelter")
@@ -209,7 +209,7 @@ func unhousedColony(ctx context.Context, s cases.Session, report na.Report) (int
 	if indoorBeds > 0 {
 		return 0, domain.Cell{}, fmt.Errorf("the baseline already holds %d beds in %d roofed rooms: the precondition satisfies the outcome", indoorBeds, rooms)
 	}
-	first, _ := na.AsMap(na.AsSlice(listed["pawns"])[0])
+	first, _ := na.AsMap(listed[0]["pawn"])
 	position, _ := na.AsMap(first["position"])
 	return colonists, domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, nil
 }

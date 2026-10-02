@@ -364,7 +364,7 @@ func (f *fakeQuery) query(_ context.Context, _, tool string, _ any) (map[string]
 }
 
 func identityToolReply() map[string]any {
-	return map[string]any{"colonyId": "colony", "mapId": 0.0, "loadToken": "load"}
+	return map[string]any{"loaded": map[string]any{"context": map[string]any{"identity": scenarioIdentity()}}}
 }
 
 func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
@@ -377,7 +377,7 @@ func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
 				"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
 			}}
 			fq := &fakeQuery{byTool: map[string][]map[string]any{
-				"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply()},
+				"lifecycle_read_identity": {identityToolReply(), identityToolReply(), identityToolReply()},
 			}}
 			clock := &ScenarioClock{
 				Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
@@ -385,6 +385,7 @@ func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
 				TestAcceleration: accelerated,
 			}
 			rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+			fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 
 			// The status poll loop asks clock_read_status repeatedly; queue a running
 			// reply once then a stopped/tick_budget reply.
@@ -441,7 +442,7 @@ func TestAdvanceGameRejectsMismatchedCombatTargets(t *testing.T) {
 
 func TestAdvanceGameStopsOnIdentityDrift(t *testing.T) {
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {
+		"lifecycle_read_identity": {
 			identityToolReply(),
 			{"colonyId": "different-colony", "mapId": 0.0, "loadToken": "load"},
 			{"colonyId": "different-colony", "mapId": 0.0, "loadToken": "load"},
@@ -456,6 +457,7 @@ func TestAdvanceGameStopsOnIdentityDrift(t *testing.T) {
 		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 	_, err := AdvanceGame(context.Background(), rt, 60)
 	if err == nil {
 		t.Fatal("expected an error for a drifted identity")
@@ -518,13 +520,14 @@ func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
 		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"lifecycle_read_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
 		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}, CombatTargets: []string{"hare-1"}}
+	fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 	final, err := AdvanceGame(context.Background(), rt, 60, WithCombatTargets("hare-1"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -558,13 +561,14 @@ func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
 		"clock_start": {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"lifecycle_read_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
 		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}, CombatTargets: []string{"hare-1"}}
+	fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 	_, err := AdvanceGame(context.Background(), rt, 60, WithCombatTargets("hare-1"))
 	var interrupted *ScenarioInterrupted
 	if !isScenarioInterrupted(err, &interrupted) || !strings.Contains(interrupted.Reason, "downed") {
@@ -595,13 +599,14 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 		})}, {"page": eventPage(scenarioIdentity(), 12, nil)}},
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"lifecycle_read_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
 		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 	_, err := AdvanceGame(context.Background(), rt, 60)
 	// The diagnosis attributes the letter and moves on to the colony.
 	if err == nil || !strings.Contains(err.Error(), "Safety observation incomplete") {
@@ -678,13 +683,14 @@ func TestAdvanceGameContinuesPastNotificationBatchStop(t *testing.T) {
 		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
 	}}
 	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"lifecycle_read_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
 	}}
 	clock := &ScenarioClock{
 		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
 		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
 	}
 	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	fw.replies["lifecycle_read_identity"] = fq.byTool["lifecycle_read_identity"]
 	final, err := AdvanceGame(context.Background(), rt, 60)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

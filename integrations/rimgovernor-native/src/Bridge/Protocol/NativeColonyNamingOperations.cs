@@ -10,10 +10,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // NamingIntent (#941): the colony-wide, one-shot autopilot counterpart of
-    // the legacy, unauthenticated home/confirm_colony_names tool
-    // (ColonyNamingTool.cs), reusing its dialog lookup, field reflection and
-    // native name validators/callbacks. It is independent of
+    // NamingIntent (#941): the colony-wide, one-shot autopilot confirmation
+    // of the initial naming dialog, through ColonyNamingTools' dialog lookup
+    // and the native name validators/callbacks. It is independent of
     // PlayerPresentation.Apply's own confirm_colony_names branch, which stays
     // explicit-player-only. With the dialog gone and the names holding, the
     // intent applies again as it stands.

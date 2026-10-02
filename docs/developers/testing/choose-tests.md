@@ -139,11 +139,11 @@ Three different things, kept apart:
 
 An *ordering* claim needs synchronization, not a bound. `smoke/dispatch` is the
 worked example: the claim is that an independent call is answered while a
-`clock_read_events` long poll is held. It establishes the held poll by
-observing it — `home/runtime_health` reports `journal.waiters`, the polls the
-host holds right now, and the observation itself rides on a concurrent call —
-and then decides the claim by comparing the two completion instants, which a
-serial host can only produce in the opposite order. Failing to establish the
+`clock_read_events` long poll is held. No typed read reports the host's held
+polls, so it establishes the held poll by a declared timing approximation (a
+settle, a held floor and a read bound) and then decides the claim by comparing
+the two completion instants, which a serial host can only produce in the
+opposite order. Failing to establish the
 held poll fails the case; it never passes for want of a precondition, and every
 attempt stays in the report. The controllable version of the same scenario
 lives in `internal/bridge` (`TestIndependentCallAnsweredWhileLongPollHeld`),
@@ -844,12 +844,11 @@ older cursor skips to the new process's first row with no gap; a resumed
 checkpoint relaunches a kept process for that reason. `lifecycle/runtime-fault`
 injects a missing authority hook (`RuntimeFaultFixture`:
 `test/runtime_fault_unpatch`) and asserts the recovery.
-`smoke/dispatch` (#227) is the transport regression: `home/runtime_health`
-reports `extensionDispatch` installed with every discovered companion tool
-rewrapped by `ExtensionDispatchPatch` (RimBridgeServer 2.1.1 registers
-companion tools with Lib.GAB as synchronous handlers on the GABP reader,
-so a held read blocked every later call, #115), and an identity read
-issued under a 4s held `clock_read_events` returns in a round trip (60ms
+`smoke/dispatch` (#227) is the transport regression for
+`ExtensionDispatchPatch` (RimBridgeServer 2.1.1 registers companion tools
+with Lib.GAB as synchronous handlers on the GABP reader, so a held read
+blocked every later call, #115): an identity read issued under a held
+`clock_read_events` returns in a round trip (60ms
 measured; 3.8s on the unpatched host). About 15s on a kept process.
 The `authority/warm` case (below) is the regression: its second phase
 prepares the profile again the way a second run would, attaches to the

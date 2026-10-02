@@ -18,9 +18,9 @@ namespace HomeBridge.BridgeTools
     // (NativeAuthorityHooks.Install from the next admission or poll).
     public sealed class RuntimeFaultFixture
     {
-        [Tool("test/runtime_fault_unpatch", Description = "Disposable fixture: removes the named required authority hook (see home/runtime_health hooks[].name) from the live game so authority reports HooksUnavailable. Recovery is production behavior, not this fixture's.")]
+        [Tool("test/runtime_fault_unpatch", Description = "Disposable fixture: removes the named required authority hook (a NativeAuthorityHooks status name) from the live game so authority reports HooksUnavailable. Recovery is production behavior, not this fixture's.")]
         public async Task<object> Unpatch(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Exact hook name from home/runtime_health.")] string hook)
+            [ToolParameter(Description = "Exact required authority hook name (NativeAuthorityHooks).")] string hook)
         {
             return await ctx.MainThread.InvokeAsync<object>(() =>
             {
@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
                 new Harmony(NativeAuthorityHooks.Owner).Unpatch(status.Method, HarmonyPatchType.All, NativeAuthorityHooks.Owner);
                 var removed = !NativeAuthorityHooks.Statuses.First(h => h.Name == hook).Installed;
                 if (!removed) throw new InvalidOperationException("Hook is still installed after Unpatch");
-                return new { success = true, hook, removed = true, health = NativeAuthorityHooks.Health.VerifiedTargets };
+                return new { success = true, hook, removed = true, health = NativeAuthorityHooks.Health.VerifiedTargets, required = NativeAuthorityHooks.Health.RequiredTargets };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

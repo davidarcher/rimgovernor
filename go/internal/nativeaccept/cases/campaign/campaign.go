@@ -379,15 +379,14 @@ func colonyFacts(ctx context.Context, h *na.Harness, s cases.Session, label stri
 func auditColony(ctx context.Context, h *na.Harness, s cases.Session, report na.Report, label string, initial []string) error {
 	var failures []error
 	failures = append(failures, sustained.AuditNutrition(ctx, h, report))
-	listed, err := h.Call(ctx, label+"-pawns", "home/list_pawns", map[string]any{"colonistsOnly": true, "includeDead": true})
+	listed, err := na.ListColonists(ctx, h, label+"-pawns", true, false)
 	if err != nil {
 		return errors.Join(append(failures, err)...)
 	}
 	alive := map[string]bool{}
-	for _, raw := range na.AsSlice(listed["pawns"]) {
-		row, _ := na.AsMap(raw)
+	for _, row := range listed {
 		dead, known := na.AsBool(row["dead"])
-		alive[na.AsString(row["thingId"])] = known && !dead
+		alive[na.RowID(row)] = known && !dead
 	}
 	for _, id := range initial {
 		if !alive[id] {
@@ -415,14 +414,13 @@ func auditColony(ctx context.Context, h *na.Harness, s cases.Session, report na.
 // initialColonists lists the colonists at setup, the roster every audit
 // requires intact.
 func initialColonists(ctx context.Context, h *na.Harness, report na.Report) ([]string, error) {
-	listed, err := h.Call(ctx, "initial-colonists", "home/list_pawns", map[string]any{"colonistsOnly": true})
+	listed, err := na.ListColonists(ctx, h, "initial-colonists", false, false)
 	if err != nil {
 		return nil, err
 	}
 	var ids []string
-	for _, raw := range na.AsSlice(listed["pawns"]) {
-		row, _ := na.AsMap(raw)
-		if id := na.AsString(row["thingId"]); id != "" {
+	for _, row := range listed {
+		if id := na.RowID(row); id != "" {
 			ids = append(ids, id)
 		}
 	}

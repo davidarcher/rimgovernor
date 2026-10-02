@@ -12,7 +12,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// Helpers shared by every home/ tool. Nothing here knows about a specific
+    /// Helpers shared by the bridge tools. Nothing here knows about a specific
     /// tool: it is the floor the tool files stand on.
     ///
     /// The one non-obvious member is <see cref="RawArguments"/>. The SDK binder
@@ -30,85 +30,14 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class BridgeCommon
     {
-        /// <summary>
-        /// The host's own execution-timeout key. It rides along on every call
-        /// made through IRimBridgeToolClient with a TimeoutMs option and is not
-        /// a caller mistake, so it is never reported as unknown.
-        /// </summary>
-        private const string HostTimeoutArgument = "_rimBridgeTimeoutMs";
 
         // ------------------------------------------------------------------
         // Unknown-argument detection
         // ------------------------------------------------------------------
 
-        /// <summary>
-        /// What a tool was sent that it does not understand. Unknown is always a
-        /// list, never null. Unavailable is null when the caller's raw keys were
-        /// actually read; when it is set, an empty Unknown means "not known",
-        /// NOT "nothing unknown", and the reply says so out loud.
-        /// </summary>
-        internal sealed class ArgumentReport
-        {
-            internal List<string> Unknown = new List<string>();
-            internal string? Unavailable;
-        }
-
         private static readonly object CacheGate = new object();
-        private static readonly Dictionary<string, string[]> DeclaredByToolName =
-            new Dictionary<string, string[]>(StringComparer.Ordinal);
 
         private static PropertyInfo? _journalProperty;
-
-        /// <summary>
-        /// The names a tool actually declares as [ToolParameter]s, found by
-        /// locating the [Tool] method on the tool class rather than by a hand
-        /// written list, so the check cannot drift from the schema. Injected
-        /// parameters (IRimBridgeContext, CancellationToken) are not caller
-        /// arguments and are excluded, matching the binder's own IsInjectedParameter.
-        /// </summary>
-        internal static string[] DeclaredParameters(Type toolClass, string toolName)
-        {
-            if (toolClass == null || string.IsNullOrEmpty(toolName))
-                return new string[0];
-
-            lock (CacheGate)
-            {
-                string[] cached;
-                if (DeclaredByToolName.TryGetValue(toolName, out cached))
-                    return cached;
-            }
-
-            string[] names;
-            try
-            {
-                var method = toolClass
-                    .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
-                    .FirstOrDefault(m =>
-                    {
-                        var attribute = m.GetCustomAttribute<ToolAttribute>(false);
-                        return attribute != null && string.Equals(attribute.Name, toolName, StringComparison.Ordinal);
-                    });
-
-                names = method == null
-                    ? new string[0]
-                    : method.GetParameters()
-                        .Where(p => !typeof(IRimBridgeContext).IsAssignableFrom(p.ParameterType)
-                                    && p.ParameterType != typeof(CancellationToken))
-                        .Select(p => p.Name ?? string.Empty)
-                        .ToArray();
-            }
-            catch
-            {
-                names = new string[0];
-            }
-
-            lock (CacheGate)
-            {
-                DeclaredByToolName[toolName] = names;
-            }
-
-            return names;
-        }
 
         /// <summary>
         /// The caller's raw argument dictionary for the operation currently
@@ -242,178 +171,14 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        /// <summary>Diff the caller's keys against what the tool declares.</summary>
-        internal static ArgumentReport Inspect(IRimBridgeContext ctx, Type toolClass, string toolName)
-        {
-            var report = new ArgumentReport();
-
-            string? unavailable;
-            var arguments = RawArguments(ctx, out unavailable);
-            if (arguments == null)
-            {
-                report.Unavailable = unavailable ?? "the caller's argument keys could not be read";
-                return report;
-            }
-
-            var declared = new HashSet<string>(DeclaredParameters(toolClass, toolName), StringComparer.Ordinal);
-            foreach (var key in arguments.Keys)
-            {
-                if (string.IsNullOrEmpty(key))
-                    continue;
-                if (string.Equals(key, HostTimeoutArgument, StringComparison.Ordinal))
-                    continue;
-                if (declared.Contains(key))
-                    continue;
-
-                report.Unknown.Add(key);
-            }
-
-            report.Unknown.Sort(StringComparer.Ordinal);
-            return report;
-        }
-
-        /// <summary>
-        /// Attach unknownArguments[] (always) and unknownArgumentsWarning (only
-        /// when there is something to say) to a finished reply. Wrapped around a
-        /// tool's whole body so failures carry it too. Argument binding is
-        /// case-sensitive in the binder, so "MaxRows" really is an unknown key
-        /// and saying so is the point.
-        /// </summary>
-        internal static object? WithUnknownArguments(object? reply, IRimBridgeContext ctx, Type toolClass, string toolName)
-        {
-            Dictionary<string, object?>? payload;
-            try
-            {
-                payload = AsDictionary(reply);
-            }
-            catch
-            {
-                return reply;
-            }
-
-            if (payload == null)
-                return reply;
-
-            try
-            {
-                var report = Inspect(ctx, toolClass, toolName);
-                payload["unknownArguments"] = report.Unknown;
-
-                if (report.Unavailable != null)
-                {
-                    payload["unknownArgumentsWarning"] =
-                        "Unrecognised arguments could NOT be checked on this call (" + report.Unavailable
-                        + "), so the empty unknownArguments list means 'not known', not 'nothing unknown'.";
-                }
-                else if (report.Unknown.Count > 0)
-                {
-                    payload["unknownArgumentsWarning"] =
-                        toolName + " ignored " + report.Unknown.Count + " unrecognised argument"
-                        + (report.Unknown.Count == 1 ? "" : "s") + ": " + string.Join(", ", report.Unknown.ToArray())
-                        + ". Names are case-sensitive. This tool accepts: "
-                        + string.Join(", ", DeclaredParameters(toolClass, toolName)) + ".";
-                }
-            }
-            catch (Exception ex)
-            {
-                payload["unknownArguments"] = new List<string>();
-                payload["unknownArgumentsWarning"] =
-                    "The unknown-argument check itself threw " + ex.GetType().Name
-                    + ", so the empty unknownArguments list means 'not known', not 'nothing unknown'.";
-            }
-
-            return payload;
-        }
-
-        /// <summary>
-        /// A reply as a mutable dictionary. A Dictionary is returned as-is so key
-        /// order and values are untouched; anything else (an anonymous type) is
-        /// flattened over its public readable properties in declaration order —
-        /// which is exactly what RimBridgeServer.LegacyToolExecution does to it
-        /// one layer up, so the JSON on the wire is unchanged.
-        /// </summary>
-        internal static Dictionary<string, object?>? AsDictionary(object? reply)
-        {
-            if (reply == null)
-                return null;
-
-            var already = reply as Dictionary<string, object?>;
-            if (already != null)
-                return already;
-
-            var typed = reply as IDictionary<string, object?>;
-            if (typed != null)
-            {
-                var copy = new Dictionary<string, object?>(StringComparer.Ordinal);
-                foreach (var pair in typed)
-                    copy[pair.Key] = pair.Value;
-                return copy;
-            }
-
-            var type = reply.GetType();
-            if (type.IsPrimitive || type.IsEnum || type == typeof(string) || type == typeof(decimal)
-                || type == typeof(DateTime) || type == typeof(DateTimeOffset) || type == typeof(Guid)
-                || type == typeof(TimeSpan))
-            {
-                return null;
-            }
-
-            var flattened = new Dictionary<string, object?>(StringComparer.Ordinal);
-            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
-            {
-                if (!property.CanRead || property.GetIndexParameters().Length != 0)
-                    continue;
-
-                try { flattened[property.Name] = property.GetValue(reply, null); }
-                catch { flattened[property.Name] = null; }
-            }
-
-            return flattened.Count == 0 ? null : flattened;
-        }
-
         // ------------------------------------------------------------------
         // Reply pieces
         // ------------------------------------------------------------------
-
-        /// <summary>The refusal shape every tool returns: success false, which
-        /// tool refused, and why. Not an exception: a refusal is an answer.</summary>
-        internal static Dictionary<string, object?> Failure(string toolName, string? error)
-        {
-            return new Dictionary<string, object?>
-            {
-                { "success", false },
-                { "tool", toolName },
-                { "error", error }
-            };
-        }
 
         /// <summary>A cell as {x, z}. The only position shape any tool emits.</summary>
         internal static Dictionary<string, object?> Pos(IntVec3 cell)
         {
             return new Dictionary<string, object?> { { "x", cell.x }, { "z", cell.z } };
-        }
-
-        /// <summary>The standard "is there a map to read" gate. The error text is
-        /// the caller's, not an exception's, and names the tool that refused.</summary>
-        internal static bool TryGetMap(string toolName, [NotNullWhen(true)] out Map? map, out string error)
-        {
-            map = null;
-            error = string.Empty;
-
-            if (Current.Game == null)
-            {
-                error = "No game is currently loaded.";
-                return false;
-            }
-
-            if (Current.ProgramState != ProgramState.Playing || Find.CurrentMap == null)
-            {
-                error = toolName + " requires an active map.";
-                return false;
-            }
-
-            map = Find.CurrentMap;
-            return true;
         }
 
         // ------------------------------------------------------------------
@@ -472,15 +237,6 @@ namespace HomeBridge.BridgeTools
         // Reading values back out of a payload dictionary
         // ------------------------------------------------------------------
 
-        /// <summary>A bool out of a payload dictionary; absent or another type
-        /// reads as false.</summary>
-        internal static bool Bool(Dictionary<string, object?> d, string key)
-        {
-            object? v;
-            return d != null && d.TryGetValue(key, out v) && v is bool && (bool)v;
-        }
-
-
         /// <summary>A double out of a payload dictionary; absent or another type
         /// reads as 0.</summary>
         internal static double Num(Dictionary<string, object?> d, string key)
@@ -502,9 +258,8 @@ namespace HomeBridge.BridgeTools
         /// <c>Blueprint_Install</c> and <c>Blueprint_Storage</c>, which subclass
         /// them), which is why one call covers every construction site.
         ///
-        /// This lives here because <c>home/list_buildings</c> reports it per site
-        /// as <c>resources[].stillNeeded</c> and <see cref="MaterialBudget"/> sums it
-        /// map-wide. Two copies of this arithmetic would eventually disagree.
+        /// <see cref="MaterialBudget"/> sums it map-wide; this is its one copy of
+        /// the arithmetic.
         ///
         /// A throwing read falls back to the full <paramref name="need"/> — the
         /// pessimistic answer, never a confident zero.
@@ -523,9 +278,8 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Every resource every blueprint and frame on the map is still waiting
-        /// for, summed by def. This is the same number
-        /// <c>home/list_buildings</c> rolls up as <c>resourceDeficit</c>, built
-        /// from the same two calls, so the two tools cannot drift apart.
+        /// for, summed by def, from the same calls as
+        /// <see cref="ConstructibleStillNeeded"/>.
         ///
         /// <c>Blueprint</c> and <c>Frame</c> are NOT in
         /// <c>ThingRequestGroup.BuildingArtificial</c>; they have their own

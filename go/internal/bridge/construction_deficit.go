@@ -11,7 +11,7 @@ import (
 // ConstructionDeficitRead is native's own view of what the colony's still
 // unbuilt player orders are still short of: for every blueprint and frame on
 // the map, the sum of its ConstructionState.resources[].still_needed by
-// definition. It is the `resourceDeficit` list home/list_buildings reports,
+// definition. It is the per-definition resource deficit of every unbuilt order,
 // which the economic floors add so a trade never sells material a
 // construction already in flight is waiting on.
 //

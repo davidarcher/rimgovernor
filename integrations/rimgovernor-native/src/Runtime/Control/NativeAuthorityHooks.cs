@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         /// already verified are left alone; each failure is recorded on its
         /// own hook and never blocks the rest. A target that failed to resolve
         /// is not retried: game assemblies do not change within a process, so
-        /// that is a restart-required fault, and runtime_health says so.
+        /// that is a restart-required fault.
         /// Returns the resulting health.
         /// </summary>
         public static NativeAuthorityHookHealth Install()

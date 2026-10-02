@@ -126,7 +126,7 @@ func TestOfficialReadSDKBoundary(t *testing.T) {
 	if rows[0].Available != nil || rows[1].Available == nil {
 		t.Fatal("unknown/zero material conflated")
 	}
-	for _, name := range []string{"home/colony_identity", "home/status", "home/placement_previews", "rimgovernor/operations_apply", "rimgovernor/lifecycle_load"} {
+	for _, name := range []string{"legacy/colony_identity", "legacy/status", "legacy/placement_previews", "rimgovernor/operations_apply", "rimgovernor/lifecycle_load"} {
 		if _, err = client.protoRead(context.Background(), name, &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrContract) {
 			t.Fatalf("unapproved name accepted: %s", name)
 		}

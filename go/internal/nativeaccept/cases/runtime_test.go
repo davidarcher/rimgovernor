@@ -96,7 +96,7 @@ func TestRuntimeRebindsAfterReattach(t *testing.T) {
 	// The rebuilt runtime's Query and Clock.Wire reach the new bridge: the
 	// exhausted replay refuses further calls, and the refusal names the
 	// call, proving it went out on that client rather than the old one.
-	if _, err := rt2.Query(ctx, "probe", "home/status", nil); err == nil || !strings.Contains(err.Error(), "transcript exhausted") {
+	if _, err := rt2.Query(ctx, "probe", "legacy/status", nil); err == nil || !strings.Contains(err.Error(), "transcript exhausted") {
 		t.Fatalf("Query on the rebuilt runtime: %v", err)
 	}
 	if err := firstReplay.Err(); err != nil {

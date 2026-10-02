@@ -140,10 +140,10 @@ func TestReplayUnrecordedCallFailsWithDiff(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := h2.Call(context.Background(), "status", "home/status", nil); err == nil {
+	if _, err := h2.Call(context.Background(), "status", "legacy/status", nil); err == nil {
 		t.Fatal("a call past the transcript succeeded")
 	}
-	if err := replay2.Err(); err == nil || !strings.Contains(err.Error(), "exhausted; unrecorded call games_call_tool home/status") {
+	if err := replay2.Err(); err == nil || !strings.Contains(err.Error(), "exhausted; unrecorded call games_call_tool legacy/status") {
 		t.Fatalf("exhausted: %v", err)
 	}
 }

@@ -63,10 +63,9 @@ The private `scripts/fixtures/GuardedConstructionFixture.cs` supplies
 `test/guarded_construction_prepare` under the fixture compile condition. It
 requires exclusion from production discovery.
 
-`home/placement_previews` has been removed, with no alias. `home/colony_identity`
-remains a separately exported old surface pending its consumers'
-cutover; it is not an alias implemented by the new adapters. All other retained
-production exports keep their current source ownership entries.
+`home/placement_previews` and `home/colony_identity` have been removed, with no
+alias. All other retained production exports keep their current source
+ownership entries.
 
 `Observations/ListBuildings` returns complete bounded building, blueprint and frame
 rows, including individual walls and construction work/resources. Entity CAS,

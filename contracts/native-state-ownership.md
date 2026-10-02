@@ -145,7 +145,7 @@ drill frame completion, depletion and player drill replacement. Existing entry p
 ## Wall replacement
 
 Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistence/WallRemovalState.cs),
-[guard and release](../integrations/rimgovernor-native/src/Bridge/WallUpgradeTool.cs).
+[guard and release](../integrations/rimgovernor-native/src/Bridge/WallUpgradeSafety.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |

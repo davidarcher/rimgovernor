@@ -16,7 +16,7 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed successor to the legacy untyped "home/resource_sources" tool
+    // Typed successor to the legacy untyped home/resource_sources tool
     // (ResourceAcquisitionTools.Sources) production_policy.py's resource_method
     // still calls directly. This adapter reuses that class's exact eligibility,
     // designation and safety logic (ResourceAcquisitionTools.Eligible/
@@ -113,7 +113,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Ports ResourceAcquisitionTools.Storage's exact hauler/capacity/
-        // candidate-cell scan (the legacy "home/resource_sources" storage
+        // candidate-cell scan (the legacy home/resource_sources storage
         // payload production_policy.py's resource_method keys its storage
         // branch off) into the typed StorageCapacity message: haulers,
         // capacity, stored, stack_limit and candidates match that method

@@ -106,23 +106,22 @@ const colonyMalnutritionLimit = 0.3
 // hunting, fields) did not stack in time. The report keeps every
 // colonist's worst nutrition hediff either way.
 func AuditNutrition(ctx context.Context, h *na.Harness, report na.Report) error {
-	listed, err := h.Call(ctx, "audit-nutrition", "home/list_pawns", map[string]any{"colonistsOnly": true, "health": true})
+	listed, err := na.ListColonists(ctx, h, "audit-nutrition", false, true)
 	if err != nil {
 		return err
 	}
 	var rows []map[string]any
 	var over []string
-	for _, raw := range na.AsSlice(listed["pawns"]) {
-		row, _ := na.AsMap(raw)
+	for _, row := range listed {
 		health, _ := na.AsMap(row["health"])
 		worst := 0.0
 		for _, entry := range na.AsSlice(health["hediffs"]) {
 			hediff, _ := na.AsMap(entry)
-			if na.AsString(hediff["defName"]) == "Malnutrition" {
+			if na.HediffDef(hediff) == "Malnutrition" {
 				worst = max(worst, na.AsNumber(hediff["severity"]))
 			}
 		}
-		id := na.AsString(row["thingId"])
+		id := na.RowID(row)
 		rows = append(rows, map[string]any{"pawn": id, "malnutrition": worst})
 		if worst > colonyMalnutritionLimit {
 			over = append(over, fmt.Sprintf("%s %.2f", id, worst))
