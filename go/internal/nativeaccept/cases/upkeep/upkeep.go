@@ -198,10 +198,11 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 // waitNeed polls until need's goal binding reports state (deficit or
 // recovered) and returns the goal.
 func waitNeed(ctx context.Context, journal *store.Store, need policy.GoalID, state domain.NeedState) (store.GoalState, error) {
-	for {
+	var found store.GoalState
+	err := na.WaitProgress(ctx, na.Wait{Stall: needStall, Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
 		if err != nil {
-			return store.GoalState{}, err
+			return "", false, err
 		}
 		for _, binding := range review.Goals {
 			if binding.Need != need {
@@ -209,19 +210,25 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.GoalID, sta
 			}
 			goal, err := journal.LoadGoal(ctx, binding.Goal)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return store.GoalState{}, err
+				return "", false, err
 			}
 			if err == nil && goal.Goal.Need == state {
-				return goal, nil
+				found = goal
+				return "", true, nil
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return store.GoalState{}, fmt.Errorf("%s never reported %s: %w", need, state, ctx.Err())
-		case <-time.After(time.Second):
-		}
+		// A parked or dead game stops producing reviews at new ticks.
+		return fmt.Sprintf("tick=%d revision=%d", review.Tick, review.Revision), false, nil
+	})
+	if err != nil {
+		return store.GoalState{}, fmt.Errorf("%s never reported %s: %w", need, state, err)
 	}
+	return found, nil
 }
+
+// needStall ends waitNeed once the routine review stops advancing: the
+// governor parked the game (no work) or it died, and the need cannot move.
+const needStall = 3 * time.Minute
 
 // followMethods waits for methods on need whose plan's single action
 // satisfies accept, following the goal's method lineage across incidental

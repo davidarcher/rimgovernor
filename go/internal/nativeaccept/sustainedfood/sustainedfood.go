@@ -312,7 +312,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 const (
 	DefaultPollTicks uint64 = 600
 	DefaultPoll             = 5 * time.Second
-	DefaultTickStall        = 10 * time.Minute
+	DefaultTickStall        = 3 * time.Minute
 	DefaultIdleGrace        = 30 * time.Second
 )
 
