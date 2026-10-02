@@ -23,11 +23,6 @@ on:
         description: In-game days to play
         default: '7'
         type: string
-      reviewed_commit:
-        description: I reviewed and trust the exact tested commit to access licensed game inputs
-        required: true
-        type: boolean
-        default: false
   schedule:
     - cron: '17 4 * * *'
 

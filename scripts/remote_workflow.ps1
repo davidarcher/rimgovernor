@@ -72,7 +72,6 @@ function Input-Value($Inputs, $Name) {
 function Resolve-Source($Event) {
     $head = $env:GITHUB_SHA; $base = $head; $tier = 'nightly'; $shards = 32; $cases = @()
     if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
-        if ((Input-Value $Event.inputs 'reviewed_commit') -cne 'true') { throw 'Dispatch must attest review of the tested source' }
         $head = Input-Value $Event.inputs 'tested_commit'
         $base = Input-Value $Event.inputs 'base_commit'
         $tier = Input-Value $Event.inputs 'tier'

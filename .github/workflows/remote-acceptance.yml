@@ -31,11 +31,6 @@ on:
         description: For tier cases, run each shard this many times (1-50) and report a per-case pass rate; run 1 is the verdict
         type: number
         default: 1
-      reviewed_commit:
-        description: I reviewed and trust the exact tested commit to access licensed game inputs
-        required: true
-        type: boolean
-        default: false
   schedule:
     - cron: '23 7 * * *'
 

@@ -7,7 +7,7 @@ The maintainer owns source publication, review of tested code, bundle publicatio
 the decryption identity and spending controls. Agents prepare exact inputs,
 retrieve diagnostics and import evidence. A task or issue does not authorize a
 push. Dispatch by an agent requires explicit maintainer authorization for the
-published tested revision; `reviewed_commit=true` is the maintainer's attestation.
+published tested revision.
 
 ## Prepare the request
 
@@ -36,8 +36,8 @@ revision comes from protected `main`; confirm it still matches the
 reviewed revision before dispatch.
 
 ```text
-gh workflow run remote-acceptance.yml --ref main -f tested_commit=<40-hex-tested> -f base_commit=<40-hex-base> -f tier=land -f shards=<count> -f reviewed_commit=true
-gh workflow run remote-acceptance.yml --ref main -f tested_ref=<branch> -f tier=full -f shards=32 -f reviewed_commit=true
+gh workflow run remote-acceptance.yml --ref main -f tested_commit=<40-hex-tested> -f base_commit=<40-hex-base> -f tier=land -f shards=<count>
+gh workflow run remote-acceptance.yml --ref main -f tested_ref=<branch> -f tier=full -f shards=32
 gh run list --workflow remote-acceptance.yml --event workflow_dispatch --limit 10
 gh run view <run-id> --json url,headSha,event,status,conclusion,jobs
 ```

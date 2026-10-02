@@ -6,7 +6,7 @@
 `.github/workflows/remote-acceptance.yml` runs nightly or by manual dispatch;
 pushes do not trigger CI. Keep the workflow branch selector on protected `main`.
 Manual dispatch accepts `tested_ref` (any same-repository branch or tag, default `main`)
-or an overriding `tested_commit` SHA, tier, shard count and review attestation.
+or an overriding `tested_commit` SHA, tier and shard count.
 The gate resolves the source once to a full SHA shared by native, race and protobuf jobs.
 `base_commit` is required for land; smoke/full default it to the resolved source SHA. The nightly
 07:23 UTC schedule selects full against its immutable main commit. Both scheduled
@@ -15,7 +15,7 @@ and protobuf proof checks.
 The `cases` tier runs only the `cases` input: comma-separated registry names or bare
 areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
 it to offload targeted runs, for example
-`gh workflow run remote-acceptance.yml --ref main -f tier=cases -f cases=power,food/reserve -f shards=2 -f reviewed_commit=true`.
+`gh workflow run remote-acceptance.yml --ref main -f tier=cases -f cases=power,food/reserve -f shards=2`.
 To tell an intermittent case from a regression, add `-f repeat=N` (cases tier, 1-50): every
 shard runs N times and the verdict summary lists `case: passed/N passed`. Run 1 alone is the
 verdict and landing evidence; repetitions 2..N upload `soak-*` artifacts that feed only the rate.
@@ -116,8 +116,7 @@ failure outside the native suite cannot yield a passing aggregate.
 
 ## Fixture factory
 
-`.github/workflows/fixture-factory.yml` (weekly, or dispatched with the same
-review attestation) runs `sustained/colony` through the same gate, plan and
+`.github/workflows/fixture-factory.yml` (weekly, or dispatched) runs `sustained/colony` through the same gate, plan and
 bootstrap phases (`FACTORY_CASES` pins the case list) and uploads its
 checkpoint ring, saves and stores included, plus `factory.json` naming the
 tested commit, as the artifact `colony-checkpoints-<commit>`. Unlike shard

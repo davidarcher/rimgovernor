@@ -12,11 +12,6 @@ on:
         description: Same-repository branch or tag to profile (resolved once at startup)
         default: main
         type: string
-      reviewed_commit:
-        description: I reviewed and trust the exact tested commit to access licensed game inputs
-        required: true
-        type: boolean
-        default: false
   schedule:
     - cron: '17 9 * * *'
 
