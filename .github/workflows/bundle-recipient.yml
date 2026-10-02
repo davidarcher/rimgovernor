@@ -1,0 +1,46 @@
+name: Bundle recipient
+
+# Prints the public age recipient of REMOTE_BUNDLE_IDENTITY so a maintainer
+# can pack a new remote-acceptance bundle without the identity on their
+# machine. The recipient is public; the identity never leaves this job. The
+# printed value is committed as scripts/remote-bundle-recipient.txt.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  recipient:
+    if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main' && contains(vars.REMOTE_ACCEPTANCE_MAINTAINERS, github.actor)
+    runs-on: windows-2022
+    timeout-minutes: 10
+    environment: remote-acceptance
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Derive the recipient with the pinned age
+        env:
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+        run: |
+          $age = (Get-Content scripts/remote-tools.windows.json -Raw | ConvertFrom-Json).tools | Where-Object name -eq 'age'
+          $zip = Join-Path $env:RUNNER_TEMP 'age.zip'
+          Invoke-WebRequest -Uri $age.url -OutFile $zip
+          if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -cne $age.sha256) { throw 'age checksum mismatch' }
+          Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $env:RUNNER_TEMP 'age')
+          $identity = Join-Path $env:RUNNER_TEMP 'identity.txt'
+          Set-Content -LiteralPath $identity -Value $env:REMOTE_BUNDLE_IDENTITY -NoNewline
+          try {
+            $recipient = & (Join-Path $env:RUNNER_TEMP 'age/age/age-keygen.exe') -y $identity
+            if ($LASTEXITCODE -or $recipient -notmatch '^age1[0-9a-z]+$') { throw 'could not derive a recipient' }
+            "recipient: $recipient"
+            "### Bundle recipient`n``$recipient``" >> $env:GITHUB_STEP_SUMMARY
+          } finally {
+            Remove-Item -LiteralPath $identity -ErrorAction SilentlyContinue
+          }
