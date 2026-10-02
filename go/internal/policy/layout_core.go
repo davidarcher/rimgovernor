@@ -257,6 +257,9 @@ func newCoreGrid(zones []LayoutZone, reserved []LayoutReservation) coreGrid {
 		}
 	}
 	for _, r := range reserved {
+		if r.Kind == ReserveInnerWall || r.Kind == ReserveInnerGate {
+			continue // the inner ring follows the core, never bounds it (#1584)
+		}
 		for x := r.Area.X; x < r.Area.X+r.Area.Width; x++ {
 			for z := r.Area.Z; z < r.Area.Z+r.Area.Height; z++ {
 				delete(g.core, domain.Cell{X: x, Z: z})

@@ -44,7 +44,7 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveInnerWall: true, ReserveInnerGate: true}
 
 const (
 	perimeterThick int32 = 3
@@ -552,6 +552,29 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		for _, r := range cellRects(set) {
 			add(kind, r)
 		}
+	}
+
+	// The inner ring and the walls cutting the ring (#1584): open ground
+	// inside the outer ring, the killbox and every
+	// reservation the perimeter does not own.
+	innerFree := func(c domain.Cell, strict bool) bool {
+		sc, read := cells[c]
+		if !read || !enc.inside(c) || impassable(c) || soft(c) || sc.Footing != FootingFirm || strict && fields[c] || contains(killbox, c) || detour[c] || shut[c] {
+			return false
+		}
+		for _, r := range plan.Reservations {
+			if !perimeterKinds[r.Kind] && contains(r.Area, c) {
+				return false
+			}
+		}
+		return true
+	}
+	inner, innerGates := innerWalls(core, enc.inside, innerFree)
+	for _, r := range cellRects(inner) {
+		add(ReserveInnerWall, r)
+	}
+	for _, g := range innerGates {
+		add(ReserveInnerGate, g)
 	}
 
 	// Moisture pumps (#954): sites inside the wall, greedily covering the

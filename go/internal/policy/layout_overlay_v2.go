@@ -45,6 +45,8 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveGeothermal:   {planCyan, "geothermal"},
 	ReservePerimeter:    {planRed, "perimeter"},
 	ReserveGate:         {planYellow, "gate"},
+	ReserveInnerWall:    {planAmber, "inner wall"},
+	ReserveInnerGate:    {planYellow, "inner gate"},
 	ReserveBridge:       {planBrown, "bridge"},
 	ReservePerimeterGap: {planYellow, "open gap"},
 	ReserveMoisturePump: {planCyan, "moisture pump"},

@@ -52,6 +52,19 @@ func tierBuildings(record store.DefenseLayoutRecord, keep func(store.DefenseTier
 // Marsh across the ring takes a wooden wall and pumps; once the ground has
 // dried the replanned ring wants stone there, so the wooden walls are
 // removed ahead of the new sections, the pumps left standing (#954).
+// outerRing drops the wooden inner walls (#1584): these cases are about the
+// outer ring's wood and stone.
+func outerRing(plan policy.LayoutPlan) policy.LayoutPlan {
+	kept := plan.Reservations[:0:0]
+	for _, r := range plan.Reservations {
+		if r.Kind != policy.ReserveInnerWall && r.Kind != policy.ReserveInnerGate {
+			kept = append(kept, r)
+		}
+	}
+	plan.Reservations = kept
+	return plan
+}
+
 func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	t.Parallel()
 	survey := func(dried bool) policy.MapSurvey {
@@ -66,6 +79,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
+	plan = outerRing(plan)
 	record := perimeterRecord(t, plan)
 	transmitters := []domain.Cell{{X: plan.Rooms[0].Interior.X, Z: plan.Rooms[0].Interior.Z}}
 	if changed, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, transmitters, 1e6, nil); err != nil || !changed || record.PerimeterRevision != 0 || record.PerimeterKey == "" {
@@ -85,6 +99,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 		t.Fatal("an unchanged plan re-cut")
 	}
 	dried, changed := policy.ReplanLayout(plan, survey(true), 3, 1, policy.BuildTierCamp, nil, nil)
+	dried = outerRing(dried)
 	if !changed {
 		t.Fatal("dried ground kept the plan")
 	}
@@ -189,6 +204,7 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
+	plan = outerRing(plan)
 	record := perimeterRecord(t, plan)
 	record.Anchored = true
 	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, nil); err != nil {
@@ -214,6 +230,7 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
+	plan = outerRing(plan)
 	record := perimeterRecord(t, plan)
 	if _, err := defenseRecutPerimeter(&record, plan, perimeterBounds, policy.PerimeterBridge, nil, 0, nil); err != nil {
 		t.Fatal(err)

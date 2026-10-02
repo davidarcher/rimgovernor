@@ -732,3 +732,68 @@ func TestPerimeterKillboxWholeAtACorner(t *testing.T) {
 		checkPerimeter(t, p)
 	}
 }
+
+// The inner ring closes in the buildings only; door walls run from it to the
+// outer ring (#1584).
+func TestPerimeterInnerRingAndCrossWalls(t *testing.T) {
+	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	inner, gates := reserved(p, ReserveInnerWall), reserved(p, ReserveInnerGate)
+	if len(inner) == 0 || len(gates) < 4 {
+		t.Fatal("inner walls", inner, "gates", gates)
+	}
+	wall := map[domain.Cell]bool{}
+	for _, r := range inner {
+		for _, c := range rectCells(r) {
+			wall[c] = true
+		}
+	}
+	for _, g := range gates {
+		if g.Width*g.Height != perimeterThick {
+			t.Fatal("inner gate spans the wall", g)
+		}
+		for _, c := range rectCells(g) {
+			if !wall[c] {
+				t.Fatal("inner gate off its wall", g)
+			}
+		}
+	}
+	for _, r := range p.AllRooms() {
+		for _, c := range rectCells(pad(r.Interior, 1)) {
+			if wall[c] {
+				t.Fatal("inner wall on a room", c)
+			}
+		}
+	}
+	outer := map[domain.Cell]bool{}
+	for _, r := range reserved(p, ReservePerimeter) {
+		for _, c := range rectCells(r) {
+			outer[c] = true
+		}
+	}
+	for c := range wall {
+		if outer[c] {
+			t.Fatal("inner and outer walls share", c)
+		}
+	}
+	secs, err := PerimeterSections(p, "Wall", "Door", PerimeterBridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	built := map[domain.Cell]bool{}
+	for _, s := range secs {
+		for _, b := range s.Buildings {
+			built[b.Cell()] = true
+		}
+	}
+	for _, g := range gates {
+		cs := rectCells(g)
+		for _, c := range cs[1 : len(cs)-1] {
+			delete(wall, c) // the airlock cell stays open
+		}
+	}
+	for c := range wall {
+		if !built[c] {
+			t.Fatal("inner wall cell never built", c)
+		}
+	}
+}
