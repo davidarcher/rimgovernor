@@ -120,7 +120,7 @@ func actionLabor(action domain.Action) policy.LaborProfile {
 		return policy.LaborProfile{policy.WorkConstruction}
 	case domain.HaulAction, domain.StripAction:
 		return policy.LaborProfile{policy.WorkHauling}
-	case domain.CutPlantAction:
+	case domain.CutPlantAction, domain.AreaPlantCutAction:
 		return policy.LaborProfile{policy.WorkPlantCutting}
 	case domain.MineAcquisitionAction, domain.ExcavationAction:
 		return policy.LaborProfile{policy.WorkMining}

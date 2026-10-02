@@ -69,6 +69,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Area] = new AreaActionHandler(),
             [Operations.Action.IntentOneofCase.PolicyPrune] = new PolicyPruneActionHandler(),
             [Operations.Action.IntentOneofCase.RemoveRoof] = new RemoveRoofActionHandler(),
+            [Operations.Action.IntentOneofCase.AreaPlantCut] = new AreaPlantCutActionHandler(),
             [Operations.Action.IntentOneofCase.ReadingPolicy] = new ReadingPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.DrugPolicy] = new DrugPolicyActionHandler(),
             [Operations.Action.IntentOneofCase.AutoHomeArea] = new AutoHomeAreaActionHandler(),

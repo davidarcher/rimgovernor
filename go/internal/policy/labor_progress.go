@@ -24,6 +24,8 @@ func ActionWorkTargets(a domain.Action) domain.Fact[WorkTargets] {
 	var t WorkTargets
 	if v, ok := a.Haul(); ok {
 		t = WorkTargets{Things: []string{v.Thing()}, Cells: []domain.Cell{v.Cell()}}
+	} else if v, ok := a.AreaPlantCut(); ok {
+		t = WorkTargets{Cells: v.Cells()}
 	} else if v, ok := a.CutPlant(); ok {
 		t = WorkTargets{Things: []string{v.Plant()}, Cells: []domain.Cell{v.Cell()}}
 	} else if v, ok := a.Acquisition(); ok {

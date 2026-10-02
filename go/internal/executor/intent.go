@@ -63,6 +63,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.AreaAction:                true,
 	domain.PolicyPruneAction:         true,
 	domain.RemoveRoofAction:          true,
+	domain.AreaPlantCutAction:        true,
 	domain.ReadingPolicyAction:       true,
 	domain.DrugPolicyAction:          true,
 	domain.PawnSettingsAction:        true,

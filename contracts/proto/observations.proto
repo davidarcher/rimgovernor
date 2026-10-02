@@ -791,6 +791,14 @@ message ExcavationSiteSnapshot {
 }
 message ExcavationSiteRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; rimgovernor.common.v1.Cell access_cell = 3; }
 message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Plant cut census (#1547): for up to 1024 exact cells, the undesignated
+// non-crop plants still standing, the plants AreaPlantCutIntent would
+// designate. chop_wood marks a harvestable tree (chop-wood). Fogged and
+// out-of-bounds cells report nothing.
+message PlantCutCensusRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; }
+message PlantCutTarget { EntityRef plant = 1; optional bool chop_wood = 2; }
+message PlantCutCensusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PlantCutTarget plants = 2; }
+message PlantCutCensusReply { oneof outcome { PlantCutCensusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // One material a stuffed definition may be built from, with the native cost
 // list for that material.
 message StuffOption { optional string stuff = 1; repeated Quantity costs = 2; }
@@ -1489,6 +1497,7 @@ service Observations {
   rpc ReadSpatialAccess(SpatialAccessRequest) returns (SpatialAccessReply);
   rpc ReadRoofSupport(RoofSupportRequest) returns (RoofSupportReply);
   rpc ReadExcavationSite(ExcavationSiteRequest) returns (ExcavationSiteReply);
+  rpc ReadPlantCutCensus(PlantCutCensusRequest) returns (PlantCutCensusReply);
   rpc ReadDefenseSite(DefenseSiteRequest) returns (DefenseSiteReply);
   rpc ReadLinesOfFire(LinesOfFireRequest) returns (LinesOfFireReply);
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);

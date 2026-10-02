@@ -251,6 +251,7 @@ var nativeAdmissionClass = map[string]AdmissionClass{
 	"rimgovernor/observations_read_trade_session":      AdmissionObservation,
 	"rimgovernor/observations_list_traders":            AdmissionObservation,
 	"rimgovernor/observations_read_excavation_site":    AdmissionObservation,
+	plantCutCensusTool:                                 AdmissionObservation,
 	"rimgovernor/observations_get_clearance_targets":   AdmissionObservation,
 	"rimgovernor/observations_get_ancient_shrines":     AdmissionObservation,
 	"rimgovernor/presentation_camera":                  AdmissionObservation,

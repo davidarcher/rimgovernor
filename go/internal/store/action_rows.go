@@ -167,6 +167,13 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'remove_roof',?)", a.ID(), plan, ordinal, data)
+	} else if cut, ok := a.AreaPlantCut(); ok {
+		// zone_payload is the canonical cells (#1547).
+		data, encodeErr := json.Marshal(cut.Cells())
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,zone_payload) VALUES(?,?,?,'area_plant_cut',?)", a.ID(), plan, ordinal, data)
 	} else if prune, ok := a.PolicyPrune(); ok {
 		// definition is the database, zone_payload the canonical ids (#1298).
 		data, encodeErr := json.Marshal(prune.IDs())
@@ -356,6 +363,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRemoveRoofAction(id, roof)
+		return a, ordinal, err
+	}
+	if kind == "area_plant_cut" && !def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 65536 {
+		var cells []domain.Cell
+		if json.Unmarshal(zone, &cells) != nil {
+			return domain.Action{}, 0, errors.New("invalid area plant cut payload")
+		}
+		cut, err := domain.NewAreaPlantCut(cells)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewAreaPlantCutAction(id, cut)
 		return a, ordinal, err
 	}
 	if kind == "policy_prune" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {

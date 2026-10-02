@@ -64,6 +64,7 @@ message EffectEvidence {
     AreaEffect area_edit = 28;
     PolicyPruneEffect policy_prune = 29;
     RemoveRoofEffect remove_roof = 30;
+    AreaPlantCutEffect area_plant_cut = 31;
   }
 }
 message SnapshotEvidence {
@@ -193,6 +194,11 @@ message PolicyPruneEffect { optional string database = 1; repeated string delete
 // whose RemoveRoof designation already stood, and cells already unroofed.
 // Applied means designated; the roof read decides when pawns finished.
 message RemoveRoofEffect { optional int32 designated = 1; optional int32 adopted = 2; optional int32 unroofed = 3; }
+// One AreaPlantCutIntent's result (#1547): plants this apply designated
+// CutPlant, trees it designated chop-wood, and plants whose cut or chop
+// designation already stood. Applied means designated; the plant cut census
+// decides when pawns finished.
+message AreaPlantCutEffect { optional int32 cut = 1; optional int32 chopped = 2; optional int32 adopted = 3; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {

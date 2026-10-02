@@ -59,7 +59,7 @@ const (
 // ReadyMigratedKinds are the action kinds whose stage, work and claims are
 // described exactly in this slice (startup shelter/building, supply hauling,
 // animal feed, wood).
-var ReadyMigratedKinds = []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.CutPlantAction, domain.ProductionBillAction, domain.GrowerCropAction, domain.ZoneCreateAction, domain.SupplyAllowAction, domain.SupplyForbidAction}
+var ReadyMigratedKinds = []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.CutPlantAction, domain.AreaPlantCutAction, domain.ProductionBillAction, domain.GrowerCropAction, domain.ZoneCreateAction, domain.SupplyAllowAction, domain.SupplyForbidAction}
 
 // ReadyClaim is a resource or cell a candidate would use. Candidates with
 // the same stage, work and claims are one piece of work.
@@ -371,6 +371,14 @@ func readyActionStage(a domain.Action) (readyStage, bool) {
 	}
 	if v, ok := a.CutPlant(); ok {
 		return readyStage{stage: "cut_plant:" + v.Definition(), work: WorkPlantCutting, claims: []ReadyClaim{{"thing", v.Plant()}}}, true
+	}
+	if v, ok := a.AreaPlantCut(); ok {
+		cells := v.Cells()
+		claims := make([]ReadyClaim, 0, len(cells))
+		for _, cell := range cells {
+			claims = append(claims, CellClaim(cell))
+		}
+		return readyStage{stage: "area_plant_cut", work: WorkPlantCutting, claims: claims}, true
 	}
 	if v, ok := a.ProductionBill(); ok {
 		return readyStage{stage: "bill:" + v.Recipe(), work: billWork(v.Recipe()), claims: []ReadyClaim{{"bench", v.Bench()}}}, true

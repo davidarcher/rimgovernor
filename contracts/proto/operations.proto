@@ -303,6 +303,7 @@ message Action {
     RemoveRoofIntent remove_roof = 53;
     ReadingPolicyIntent reading_policy = 54;
     DrugPolicyIntent drug_policy = 55;
+    AreaPlantCutIntent area_plant_cut = 56;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -503,6 +504,12 @@ message RemoveWallIntent { rimgovernor.common.v1.Cell cell = 1; optional string 
 // refuses a fogged or out-of-bounds cell and a thick (overhead mountain)
 // roof; a cell already unroofed or already designated applies again.
 message RemoveRoofIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
+// Order every non-crop plant on cells cut (#1547): wild plants get CutPlant,
+// a harvestable tree gets chop-wood (HarvestPlant). Plants in a growing zone,
+// on a plant grower and sown crops are never touched. Native refuses an
+// out-of-bounds or repeated cell; a fogged cell, a cell with nothing to cut
+// and a plant already designated are no-ops.
+message AreaPlantCutIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
 message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
