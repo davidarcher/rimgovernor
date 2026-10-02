@@ -242,18 +242,25 @@ namespace HomeBridge.BridgeTools
                 if(!def.AvailableNow || def.Worker==null || !def.Worker.AvailableReport(pawn).Accepted) continue;
                 var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
                     :new System.Collections.Generic.List<BodyPartRecord?>{null};
+                // Everything but the part is the recipe's: read once for all its parts.
+                var shared=false;
+                System.Collections.Generic.List<Pawn> doctors=null!; ThingDef? medicine=null; bool others=false, usesMedicine=false, careLimited=false;
                 foreach(var part in targets) {
                     if(!def.AvailableOnNow(pawn,part)) continue;
-                    var doctors=colonists.Where(p => p!=pawn && !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
-                        && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList();
-                    var medicine=MedicineFor(pawn,def,map,true);
-                    var others=!def.PotentiallyMissingIngredients(null,map).Any();
-                    var usesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine));
+                    if(!shared) {
+                        shared=true;
+                        doctors=colonists.Where(p => p!=pawn && !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
+                            && !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor) && def.PawnSatisfiesSkillRequirements(p)).ToList();
+                        medicine=MedicineFor(pawn,def,map,true);
+                        others=!def.PotentiallyMissingIngredients(null,map).Any();
+                        usesMedicine=def.ingredients.Any(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine));
+                        careLimited=others && usesMedicine && medicine==null && MedicineFor(pawn,def,map,false)!=null;
+                    }
                     var op=new Obs.SurgeryOperation {Recipe=Definition(def),Kind=Kind(pawn,def,part),
                         EligibleDoctors=(uint)doctors.Count,
                         IngredientsOnMap=others && (!usesMedicine || medicine!=null),
                         // #1239: medicine is stocked but the care level forbids all of it.
-                        MedicineCareLimited=others && usesMedicine && medicine==null && MedicineFor(pawn,def,map,false)!=null,
+                        MedicineCareLimited=careLimited,
                         Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer),Lethal=Lethal(pawn,def,part)};
                     if(part!=null) {op.PartIndex=parts.IndexOf(part);op.PartDefName=Id(part.def.defName);}
                     if(op.Kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved!=null) op.YieldMarketValue=Number(part.def.spawnThingOnRemoved.BaseMarketValue);
@@ -392,6 +399,9 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        private static readonly WorkTags[] SingleWorkTags=((WorkTags[])Enum.GetValues(typeof(WorkTags)))
+            .Where(tag => tag!=WorkTags.None && ((int)tag&((int)tag-1))==0).ToArray();
+
         internal static Obs.PawnBiography Biography(Pawn pawn)
         {
             var row=new Obs.PawnBiography();
@@ -422,7 +432,7 @@ namespace HomeBridge.BridgeTools
                 }
             }
             var tags=pawn.CombinedDisabledWorkTags;
-            foreach(WorkTags tag in Enum.GetValues(typeof(WorkTags))) if(tag!=WorkTags.None && ((int)tag&((int)tag-1))==0 && (tags&tag)!=0) row.DisabledWorkTags.Add(tag.ToString());
+            foreach(var tag in SingleWorkTags) if((tags&tag)!=0) row.DisabledWorkTags.Add(tag.ToString());
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading; 
             foreach(var def in defs) if(pawn.WorkTypeIsDisabled(def)) row.IncapableWorkTypes.Add(Id(def.defName));
             row.Issues.Add(Unsupported("incapable_sources","Individual incapability sources are not projected."));

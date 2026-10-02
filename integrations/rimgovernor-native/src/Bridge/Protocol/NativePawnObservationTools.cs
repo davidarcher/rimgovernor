@@ -171,8 +171,14 @@ namespace HomeBridge.BridgeTools
             row.Hostile=manhunter || pawn.Faction!=null && pawn.Faction!=player && pawn.Faction.HostileTo(player);
             row.HostileReason=manhunter ? "manhunter:"+mental : row.Hostile ? "faction:"+Id(pawn.Faction!.GetUniqueLoadID()) : "none";
             if (pawn.MapHeld!=null) { row.Pawn.MapId=pawn.MapHeld.uniqueID; row.Pawn.Position=Cell(pawn.PositionHeld); }
-            var nearest=colonists.Where(p => p!=pawn).OrderBy(p => Distance(p.Position,pawn.PositionHeld)).ThenBy(p => p.GetUniqueLoadID(),StringComparer.Ordinal).FirstOrDefault();
-            if (nearest!=null) { row.NearestColonist=NativeRef.Thing(nearest); row.NearestColonistDistance=Distance(nearest.Position,pawn.PositionHeld); }
+            Pawn? nearest=null; long nearestDistance=0;
+            foreach(var other in colonists) {
+                if(other==pawn) continue;
+                var d=Distance(other.Position,pawn.PositionHeld);
+                if(nearest==null || d<nearestDistance
+                    || d==nearestDistance && string.CompareOrdinal(other.GetUniqueLoadID(),nearest.GetUniqueLoadID())<0) { nearest=other; nearestDistance=d; }
+            }
+            if (nearest!=null) { row.NearestColonist=NativeRef.Thing(nearest); row.NearestColonistDistance=nearestDistance; }
             else {
                 row.Issues.Add(Issue("nearest_colonist",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
                 row.Issues.Add(Issue("nearest_colonist_distance",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));

@@ -58,7 +58,14 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static string? Eligible(Pawn p, Apparel a)
+        // Eligible is Screened (every check but pathing) then the pathing
+        // check; the census scores between the two, so an item it discards
+        // for low gain is never pathed to.
+        internal static string? Eligible(Pawn p, Apparel a) => Screened(p, a) ?? (Reachable(p, a) ? null : "Cannot reserve or safely reach item");
+
+        internal static bool Reachable(Pawn p, Apparel a) => p.CanReserveAndReach(a, PathEndMode.OnCell, p.NormalMaxDanger());
+
+        internal static string? Screened(Pawn p, Apparel a)
         {
             if (!a.Spawned || a.Map != p.Map || a.Position.Fogged(p.Map) || a.IsForbidden(p) || a.IsBurning())
                 return "Item unavailable or forbidden";
@@ -67,23 +74,27 @@ namespace HomeBridge.BridgeTools
             if (!a.PawnCanWear(p) || !ApparelUtility.HasPartsToWear(p, a.def) ||
                 !a.def.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)) return "Body, age or definition incompatible";
             if (CompBiocodable.IsBiocoded(a) && !CompBiocodable.IsBiocodedFor(a, p)) return "Biocoded to another pawn";
-            if (!p.CanReserveAndReach(a, PathEndMode.OnCell, p.NormalMaxDanger())) return "Cannot reserve or safely reach item";
             if (p.apparel.WornApparel.Any(w => !ApparelUtility.CanWearTogether(w.def, a.def, p.RaceProps.body) &&
                 (!p.outfits.forcedHandler.AllowedToAutomaticallyDrop(w) || p.apparel.IsLocked(w)))) return "Forced or locked apparel would be displaced";
             return null;
         }
 
-        internal static float Gain(Pawn p, Apparel? a)
+        private static readonly System.Reflection.FieldInfo? NeededWarmth = AccessTools.Field(typeof(JobGiver_OptimizeApparel), "neededWarmth");
+
+        internal static float Gain(Pawn p, Apparel? a) => WithGainScorer(p, score => score(a));
+
+        // Vanilla's scorer uses a static seasonal context: set once for the
+        // pawn and restored even if a mod throws. The pawn's worn-apparel
+        // scores are read once however many items are scored.
+        internal static T WithGainScorer<T>(Pawn p, Func<Func<Apparel?, float>, T> use)
         {
-            // Vanilla's scorer uses a static seasonal context. Restore it even if a mod throws.
-            var field = AccessTools.Field(typeof(JobGiver_OptimizeApparel), "neededWarmth");
-            if (field == null) throw new InvalidOperationException("Native seasonal apparel scorer unavailable");
-            var prior = field.GetValue(null);
+            if (NeededWarmth == null) throw new InvalidOperationException("Native seasonal apparel scorer unavailable");
+            var prior = NeededWarmth.GetValue(null);
             try {
-                field.SetValue(null, PawnApparelGenerator.CalculateNeededWarmth(p, p.Map.TileInfo.tile, GenLocalDate.Twelfth(p)));
-                return JobGiver_OptimizeApparel.ApparelScoreGain(p, a,
-                    p.apparel.WornApparel.Select(w => JobGiver_OptimizeApparel.ApparelScoreRaw(p, w)).ToList());
-            } finally { field.SetValue(null, prior); }
+                NeededWarmth.SetValue(null, PawnApparelGenerator.CalculateNeededWarmth(p, p.Map.TileInfo.tile, GenLocalDate.Twelfth(p)));
+                var worn = p.apparel.WornApparel.Select(w => JobGiver_OptimizeApparel.ApparelScoreRaw(p, w)).ToList();
+                return use(a => JobGiver_OptimizeApparel.ApparelScoreGain(p, a, worn));
+            } finally { NeededWarmth.SetValue(null, prior); }
         }
 
         internal sealed class ProductionNeed

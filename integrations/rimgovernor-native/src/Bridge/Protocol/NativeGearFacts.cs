@@ -20,6 +20,10 @@ namespace HomeBridge.BridgeTools
             result.FinishedResearch.Add(DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(r => r.IsFinished)
                 .Select(r => Id(r.defName)).OrderBy(n => n, StringComparer.Ordinal));
             var catalog = Catalog();
+            var apparelOnMap = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToList();
+            var byId = new Dictionary<string, Apparel>();
+            foreach (var apparel in apparelOnMap) byId[apparel.GetUniqueLoadID()] = apparel;
+            var billOptions = new Dictionary<RecipeDef, Obs.GearLoadoutOption?>();
             var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
                 .Where(a => a.IsInValidStorage() && !a.IsForbidden(Faction.OfPlayer) && !a.WornByCorpse
                     && (!a.def.useHitPoints || (float)a.HitPoints / a.MaxHitPoints > .5f))
@@ -54,12 +58,17 @@ namespace HomeBridge.BridgeTools
                     // equip family's (PAWN_ORDER_KIND_EQUIP); listing them
                     // here had a WoodLog admitted as apparel wear and refused
                     // on every attempt (issue #339).
-                    var candidates = new List<KeyValuePair<Thing, float>>();
-                    foreach (var apparel in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()) {
-                        if (GearUpkeepTools.Eligible(pawn, apparel) != null) continue;
-                        var gain = GearUpkeepTools.Gain(pawn, apparel);
-                        if (gain >= .05f) candidates.Add(new KeyValuePair<Thing, float>(apparel, gain));
-                    }
+                    // Pathing is the costly check, so it runs only for an
+                    // item whose gain already qualifies.
+                    var candidates = GearUpkeepTools.WithGainScorer(pawn, score => {
+                        var found = new List<KeyValuePair<Thing, float>>();
+                        foreach (var apparel in apparelOnMap) {
+                            if (GearUpkeepTools.Screened(pawn, apparel) != null) continue;
+                            var gain = score(apparel);
+                            if (gain >= .05f && GearUpkeepTools.Reachable(pawn, apparel)) found.Add(new KeyValuePair<Thing, float>(apparel, gain));
+                        }
+                        return found;
+                    });
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
                         row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
                 }
@@ -69,7 +78,7 @@ namespace HomeBridge.BridgeTools
                     if (need.stuff != null) replacement.Stuff = Id(need.stuff);
                     row.ReplacementNeeds.Add(replacement);
                 }
-                row.LoadoutModel = Model(map, pawn, row, catalog);
+                row.LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions);
                 result.Pawns.Add(row);
             }
             return result;
@@ -86,7 +95,8 @@ namespace HomeBridge.BridgeTools
             .GroupBy(r => r.ProducedThingDef).Select(g => g.OrderBy(r => r.defName, StringComparer.Ordinal).First())
             .OrderBy(r => r.ProducedThingDef.defName, StringComparer.Ordinal).ToList();
 
-        private static Obs.GearLoadoutModel Model(Map map, Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog)
+        private static Obs.GearLoadoutModel Model(Map map, Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog,
+            Dictionary<string, Apparel> things, Dictionary<RecipeDef, Obs.GearLoadoutOption?> billOptions)
         {
             var model = new Obs.GearLoadoutModel { Female = pawn.gender == Gender.Female };
             if (pawn.story?.traits != null)
@@ -97,7 +107,6 @@ namespace HomeBridge.BridgeTools
                     option.Locked = pawn.apparel.IsLocked(worn) || pawn.outfits?.forcedHandler.AllowedToAutomaticallyDrop(worn) == false;
                     model.Worn.Add(option);
                 }
-            var things = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToDictionary(a => a.GetUniqueLoadID());
             foreach (var candidate in row.Candidates.Take(ModelPhysical))
                 if (things.TryGetValue(candidate.Item.Thing.Id, out var apparel))
                     model.Options.Add(Physical(apparel, apparel.IsInValidStorage() ? "stored" : "loose"));
@@ -106,20 +115,28 @@ namespace HomeBridge.BridgeTools
                 var def = recipe.ProducedThingDef;
                 if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
                     || !ApparelUtility.HasPartsToWear(pawn, def)) continue;
-                // One stuff per definition: the allowed stuff with the most stock.
-                var stuff = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).OrderByDescending(s => map.resourceCounter.GetCount(s))
-                    .ThenBy(s => s.defName, StringComparer.Ordinal).FirstOrDefault() : null;
-                if (def.MadeFromStuff && stuff == null) continue;
-                var option = Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
-                var research = new List<ResearchProjectDef>();
-                if (recipe.researchPrerequisite != null) research.Add(recipe.researchPrerequisite);
-                if (recipe.researchPrerequisites != null) research.AddRange(recipe.researchPrerequisites);
-                option.Research.Add(research.Select(r => Id(r.defName)).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList());
-                foreach (var cost in def.CostListAdjusted(stuff, false))
-                    option.Ingredients.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
-                model.Options.Add(option);
+                // A bill option does not depend on the pawn: built once per census.
+                if (!billOptions.TryGetValue(recipe, out var option)) billOptions[recipe] = option = BillOption(map, recipe);
+                if (option != null) model.Options.Add(option.Clone());
             }
             return model;
+        }
+
+        // One stuff per definition: the allowed stuff with the most stock.
+        private static Obs.GearLoadoutOption? BillOption(Map map, RecipeDef recipe)
+        {
+            var def = recipe.ProducedThingDef;
+            var stuff = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).OrderByDescending(s => map.resourceCounter.GetCount(s))
+                .ThenBy(s => s.defName, StringComparer.Ordinal).FirstOrDefault() : null;
+            if (def.MadeFromStuff && stuff == null) return null;
+            var option = Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
+            var research = new List<ResearchProjectDef>();
+            if (recipe.researchPrerequisite != null) research.Add(recipe.researchPrerequisite);
+            if (recipe.researchPrerequisites != null) research.AddRange(recipe.researchPrerequisites);
+            option.Research.Add(research.Select(r => Id(r.defName)).Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList());
+            foreach (var cost in def.CostListAdjusted(stuff, false))
+                option.Ingredients.Add(new Obs.Quantity { DefName = Id(cost.thingDef.defName), Units = cost.count });
+            return option;
         }
 
         private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
