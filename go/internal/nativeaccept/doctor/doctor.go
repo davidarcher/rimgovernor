@@ -457,9 +457,14 @@ func process(o Options, gameCopy string) (int, Check) {
 }
 
 // gocache warns on a private build cache (AGENTS.md: the shared default
-// is what makes cmd/test and the setup builds fast).
+// is what makes cmd/test and the setup builds fast). A CI runner keeps its
+// cache at a fixed path the workflow saves and restores, so it is exempt.
 func gocache() Check {
 	c := Check{Name: "gocache"}
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		c.Detail = "CI runner: the workflow saves and restores its cache"
+		return c
+	}
 	out, err := exec.Command("go", "env", "GOCACHE").Output()
 	if err != nil {
 		c.Detail = "go env failed: " + err.Error()
