@@ -51,6 +51,7 @@ func init() {
 	registerIntentKind(domain.ZoneCellEditAction, zoneCellsAction)
 	registerIntentKind(domain.StockpilePatchAction, stockpileAction)
 	registerIntentKind(domain.FoundationRemovalAction, foundationRemovalAction)
+	registerIntentKind(domain.FloorRemovalAction, floorRemovalAction)
 	registerIntentKind(domain.CoverClearanceAction, coverAction)
 	registerIntentKind(domain.CutPlantAction, cutPlantAction)
 	registerIntentKind(domain.SupplyAllowAction, supplyAction)
@@ -115,6 +116,20 @@ func foundationRemovalAction(action domain.Action) (*o.Action, error) {
 		return nil, err
 	}
 	return &o.Action{Intent: &o.Action_RemoveFoundation{RemoveFoundation: &o.RemoveFoundationIntent{
+		Cell: &c.Cell{X: proto.Int32(f.Cell().X), Z: proto.Int32(f.Cell().Z)}, DefName: proto.String(f.Definition())}}}, nil
+}
+
+// floorRemovalAction is the Actions/Apply remove_floor arm of one
+// floor_removal (epic #1249).
+func floorRemovalAction(action domain.Action) (*o.Action, error) {
+	f, ok := action.FloorRemoval()
+	if !ok {
+		return nil, contract("not a floor removal action")
+	}
+	if err := validID(f.Definition()); err != nil {
+		return nil, err
+	}
+	return &o.Action{Intent: &o.Action_RemoveFloor{RemoveFloor: &o.RemoveFloorIntent{
 		Cell: &c.Cell{X: proto.Int32(f.Cell().X), Z: proto.Int32(f.Cell().Z)}, DefName: proto.String(f.Definition())}}}, nil
 }
 

@@ -51,6 +51,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.ZoneCells] = new ZoneCellsActionHandler(),
             [Operations.Action.IntentOneofCase.Stockpile] = new StockpileActionHandler(),
             [Operations.Action.IntentOneofCase.RemoveFoundation] = new FoundationRemovalActionHandler(),
+            [Operations.Action.IntentOneofCase.RemoveFloor] = new FloorRemovalActionHandler(),
             [Operations.Action.IntentOneofCase.Cover] = new CoverActionHandler(),
             [Operations.Action.IntentOneofCase.Designate] = new DesignateActionHandler(),
             [Operations.Action.IntentOneofCase.Deconstruct] = new DeconstructActionHandler(),

@@ -166,6 +166,10 @@ message DeleteZoneIntent { optional string zone_id = 1; }
 // removal (#954). A cell without that foundation, or one already
 // designated, applies again; ordinary construction work lifts it.
 message RemoveFoundationIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
+// Vanilla's RemoveFloor designation on one cell whose constructed floor is
+// def_name (epic #1249). A cell already designated, or without that floor,
+// applies again.
+message RemoveFloorIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
 enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
 // Add free zoneable cells to one zone, or remove cells of its own. Native
 // checks the zone, every cell and a contiguous result live when it applies;
@@ -293,6 +297,7 @@ message Action {
     AutoHomeAreaIntent auto_home_area = 49;
     PawnSettingsIntent pawn_settings = 50;
     PolicyPruneIntent policy_prune = 51;
+    RemoveFloorIntent remove_floor = 52;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
