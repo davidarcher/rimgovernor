@@ -333,6 +333,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			return store.RoutineReviewResult{}, err
 		}
 	}
+	// The review's PlanSheltering raises RecoverDisasterServices, so it reads
+	// the same draft set as the recovery planner: unknown, a threat shelters
+	// no colonist and the planner never runs (#1560).
+	if reading.Projection.Facts.ShelterCombatants, err = shelterCombatants(ctx, p.journal, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}); err != nil {
+		return store.RoutineReviewResult{}, err
+	}
 	if r.methodEnabled(policy.MaintainArt) {
 		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)
 	}

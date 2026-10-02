@@ -1288,12 +1288,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	// MaintainShelter (#1325): a Safe area edit is owed. A settings write,
 	// ranked with the upkeep projects; unknown raises nothing. While a
-	// sheltering trigger holds it is urgent (priority 2), so a threat's
-	// emergency, which holds development, cannot hold the Safe area that
-	// PlanSheltering moves pawns into.
+	// sheltering trigger holds it is ShelterPriority, so a threat's
+	// emergency cannot veto the Safe area that PlanSheltering moves pawns
+	// into.
 	shelterPriority := 3
 	if trigger, _ := ShelterTriggerOf(f); trigger != ShelterNone {
-		shelterPriority = 2
+		shelterPriority = ShelterPriority(trigger)
 	}
 	addAssessment(MaintainShelter, shelterPriority, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.SafeAreaOwed.Value(); known && owed {
@@ -1473,7 +1473,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
 		if len(areaChanges) > 0 {
-			priority = 2
+			trigger, _ := ShelterTriggerOf(f)
+			priority = ShelterPriority(trigger)
 		}
 		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})
 		for i := range r.Goals {

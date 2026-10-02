@@ -190,3 +190,35 @@ func TestNoKillboxCells(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A threat is itself the ActiveCombat emergency, and EmergencyRule vetoes
+// priority 2 and above: the Safe area and the moves into it must sit below
+// that floor, or a manhunter pack shelters no one (#1560).
+func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
+	f := shelterFacts("")
+	f.Hostiles = domain.Known(int64(3))
+	f.ShelterCombatants = domain.Known([]PawnID{})
+	f.SafeAreaOwed = domain.Known(true)
+	r := needs(t, f, RoutineLatches{})
+	rule := RuleContext{Enabled: true, Emergency: []GoalID{ActiveCombat}}
+	seen := map[GoalID]bool{}
+	for _, g := range r.Goals {
+		if g.ID == MaintainShelter {
+			seen[g.ID] = true
+			if reason := VetoProposal(rule, RuleProposal{Need: g.ID, Priority: g.Priority}); reason != "" {
+				t.Fatal("MaintainShelter vetoed under a threat:", reason)
+			}
+		}
+	}
+	for _, a := range r.All() {
+		if a.ID == RecoverDisasterServices && a.Need == domain.NeedDeficit {
+			seen[a.ID] = true
+			if reason := VetoProposal(rule, RuleProposal{Need: a.ID, Priority: a.Priority}); reason != "" {
+				t.Fatal("sheltering vetoed under a threat:", reason)
+			}
+		}
+	}
+	if !seen[MaintainShelter] || !seen[RecoverDisasterServices] {
+		t.Fatal("threat raised no sheltering work", seen)
+	}
+}
