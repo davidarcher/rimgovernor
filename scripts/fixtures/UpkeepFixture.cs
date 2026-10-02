@@ -52,6 +52,17 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, roofed = parsed.Count(c => c.Roofed(map)) };
             }, cancellationToken);
 
+        [Tool("test/cell_things", Description = "Disposable fixture (#1245): the things standing on one cell (\"x,z\") with their def, stuff and id. Test builds only.")]
+        public async Task<object> CellThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var p = (cell ?? "").Split(',');
+                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x, 0, z).InBounds(map))
+                    return new { success = false, error = "Expected one in-bounds x,z cell on the current map" };
+                var things = new IntVec3(x, 0, z).GetThingList(map).Select(t => new { id = t.GetUniqueLoadID(), def = t.def.defName, stuff = t.Stuff?.defName ?? "" }).ToList();
+                return new { success = true, things };
+            }, cancellationToken);
+
         [Tool("test/deconstruct_target", Description = "Inspect or mutate one staged deconstruction target. Test builds only.")]
         public async Task<object> DeconstructionTarget(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact target id.")] string target,
