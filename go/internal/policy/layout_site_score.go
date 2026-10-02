@@ -60,17 +60,17 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 		return plan
 	}
 	scores := make([]siteScore, len(seeds))
+	ground := newSiteGround(s)
 	eachParallel(len(seeds), func(i int) {
 		p := plan
 		p.Spine = []SpineSegment{{From: seeds[i], To: seeds[i]}}
 		p = Grow(p, pawns, tombs, tier)
-		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p) - siteEdgeCost(p, s.Bounds), plan: p}
+		scores[i] = siteScore{seed: seeds[i], score: g.scoreSite(p) - siteEdgeCost(p, s.Bounds, ground), plan: p}
 	})
 	rankSites(scores)
 	// The wall terms (#1288) need PlanPerimeter, far dearer than Grow, so
 	// only the best siteWallCandidates by core score are walled and reranked.
 	walled := scores[:min(siteWallCandidates, len(scores))]
-	ground := newSiteGround(s)
 	eachParallel(len(walled), func(i int) {
 		walled[i].score += g.scoreWall(PlanPerimeter(walled[i].plan, s), ground)
 	})
@@ -224,17 +224,43 @@ const (
 
 // siteEdgeCost charges every room cell siteEdgeWeight per cell it stands
 // closer to the map edge than siteEdgeClear, or a fifth of the map's
-// short side on a small map.
-func siteEdgeCost(p LayoutPlan, b Bounds) int {
+// short side on a small map. A cell whose nearest edge cell is rock costs
+// nothing: raiders spawn only on open edge cells, so a core tucked into a
+// mountain that runs to the edge is shielded by it, not exposed.
+func siteEdgeCost(p LayoutPlan, b Bounds, ground siteGround) int {
 	clear := min(siteEdgeClear, int(min(b.Width, b.Height))/5)
 	cost := 0
 	for _, r := range p.AllRooms() {
 		for _, c := range rectCells(r.Interior) {
-			d := min(c.X, c.Z, b.Width-1-c.X, b.Height-1-c.Z)
-			cost += siteEdgeWeight * max(0, clear-int(d))
+			d, edge := nearestEdge(c, b)
+			if int(d) >= clear || ground.rockAt(edge) {
+				continue
+			}
+			cost += siteEdgeWeight * (clear - int(d))
 		}
 	}
 	return cost
+}
+
+// nearestEdge is c's distance to the nearest map edge and the edge cell
+// straight out from c in that direction.
+func nearestEdge(c domain.Cell, b Bounds) (int32, domain.Cell) {
+	d, edge := c.X, domain.Cell{X: 0, Z: c.Z}
+	if v := b.Width - 1 - c.X; v < d {
+		d, edge = v, domain.Cell{X: b.Width - 1, Z: c.Z}
+	}
+	if c.Z < d {
+		d, edge = c.Z, domain.Cell{X: c.X, Z: 0}
+	}
+	if v := b.Height - 1 - c.Z; v < d {
+		d, edge = v, domain.Cell{X: c.X, Z: b.Height - 1}
+	}
+	return d, edge
+}
+
+// rockAt reports whether c is rock or otherwise blocked ground.
+func (g siteGround) rockAt(c domain.Cell) bool {
+	return c.X >= 0 && c.X < g.w && c.Z >= 0 && c.Z < g.h && g.blocked[c.Z*g.w+c.X]
 }
 
 func union(a, b Rectangle) Rectangle {

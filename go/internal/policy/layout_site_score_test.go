@@ -186,3 +186,21 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 		}
 	}
 }
+
+// A room whose nearest map edge is rock costs nothing: raiders cannot arrive
+// there, so a core tucked into an edge-to-edge mountain is not penalized.
+func TestSiteEdgeCostSparesRockEdge(t *testing.T) {
+	b := Bounds{Width: 200, Height: 200}
+	plan := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: 20, Z: 100, Width: 3, Height: 3}}}}
+	open := newSiteGround(MapSurvey{Bounds: b})
+	if siteEdgeCost(plan, b, open) == 0 {
+		t.Fatal("open edge not charged")
+	}
+	rock := make([]SurveyCell, 0, 200)
+	for z := int32(0); z < 200; z++ {
+		rock = append(rock, SurveyCell{Cell: domain.Cell{X: 0, Z: z}, Rock: true})
+	}
+	if got := siteEdgeCost(plan, b, newSiteGround(MapSurvey{Bounds: b, Cells: rock})); got != 0 {
+		t.Fatalf("rock edge charged %d", got)
+	}
+}
