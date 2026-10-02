@@ -179,8 +179,11 @@ type Client struct {
 	dialCancel context.CancelFunc
 	factory    backendFactory
 	gameID     string
-	timeout    time.Duration
-	gate       *admission
+	// stateDir is the launch state dir, empty for clients built without
+	// a game host.
+	stateDir string
+	timeout  time.Duration
+	gate     *admission
 	// writes counts the typed side-effect calls queued or in flight.
 	writes atomic.Int64
 
@@ -214,6 +217,7 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	}
 	// The snapshot stream (#858) serves the state families of a game on
 	// this host; test clients built with open read over GABP only.
+	client.stateDir = launch.StateDir
 	client.frames = newFrameStream()
 	client.replies = newReplySlots()
 	return client, nil
@@ -395,6 +399,26 @@ func (c *Client) Disconnected() <-chan struct{} {
 }
 
 var closedChannel = func() chan struct{} { ch := make(chan struct{}); close(ch); return ch }()
+
+// GameClosed reports, after a lost session, whether the player closed the
+// game: its most recent launch, started by this process, exited 0. A crash,
+// a kill or a game another process launched reads false, as does one still
+// running when ctx ends.
+func (c *Client) GameClosed(ctx context.Context) bool {
+	if c.stateDir == "" {
+		return false
+	}
+	for {
+		if code, ok := gamehost.LastExit(c.stateDir, c.gameID); ok {
+			return code == 0
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
+}
 
 // Reattach restores service after the session was lost: a fresh session,
 // then games_start and ConnectWithPoll against the game that kept running

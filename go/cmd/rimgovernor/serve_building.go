@@ -387,7 +387,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
 	superviseDone := make(chan struct{})
 	defer func() { <-superviseDone }()
-	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out) }()
+	go func() { defer close(superviseDone); superviseBridge(lifetime, client.reads, out, cancel) }()
 	if shadowed {
 		shadowDone := make(chan struct{})
 		defer func() { <-shadowDone }()

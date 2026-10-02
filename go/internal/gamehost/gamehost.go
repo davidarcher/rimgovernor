@@ -241,7 +241,16 @@ func Launch(ctx context.Context, spec Spec) (*Game, error) {
 	pid := cmd.Process.Pid
 	// Reap in the background so a child that dies early is not left a
 	// zombie; the endpoint names the process by pid, not by this handle.
-	go func() { _ = cmd.Wait() }()
+	// The exit code is recorded for LastExit: a player closing the game
+	// exits 0, a crash or a kill does not.
+	go func() {
+		_ = cmd.Wait()
+		code := -1
+		if cmd.ProcessState != nil {
+			code = cmd.ProcessState.ExitCode()
+		}
+		_ = writeJSONAtomic(exitPath(spec.StateDir, spec.GameID), exitRecord{Generation: generation, Code: code})
+	}()
 
 	start, err := processStartTime(pid)
 	if err != nil {
@@ -375,4 +384,35 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// exitRecord is how the launching process saw a launch end.
+type exitRecord struct {
+	Generation int64 `json:"generation"`
+	Code       int   `json:"code"`
+}
+
+func exitPath(stateDir, gameID string) string {
+	return filepath.Join(gameDir(stateDir, gameID), "exit.json")
+}
+
+// LastExit reports the exit code of the most recent launch of gameID. ok is
+// false while that launch still runs, and when a process that has since
+// gone launched it (only the launcher can read a child's exit code).
+func LastExit(stateDir, gameID string) (code int, ok bool) {
+	dir := gameDir(stateDir, gameID)
+	data, err := os.ReadFile(filepath.Join(dir, "generation"))
+	if err != nil {
+		return 0, false
+	}
+	latest, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	var rec exitRecord
+	data, err = os.ReadFile(exitPath(stateDir, gameID))
+	if err != nil || json.Unmarshal(data, &rec) != nil || rec.Generation != latest {
+		return 0, false
+	}
+	return rec.Code, true
 }

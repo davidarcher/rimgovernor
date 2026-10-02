@@ -434,6 +434,9 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	// The supervisor ends the service when the player closes the game.
+	ctx, closed := context.WithCancel(ctx)
+	defer closed()
 	listener, err := net.Listen("tcp", config.listen)
 	if err != nil {
 		return err
@@ -476,7 +479,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	done := make(chan struct{})
 	go func() { defer close(done); snapshots.Poll(pollCtx, config.refresh) }()
 	superviseDone := make(chan struct{})
-	go func() { defer close(superviseDone); superviseBridge(pollCtx, client, out) }()
+	go func() { defer close(superviseDone); superviseBridge(pollCtx, client, out, closed) }()
 	defer func() { cancel(); <-done; <-superviseDone }()
 	if _, err := fmt.Fprintf(out, "RimGovernor Go read-only service: http://%s\n", listener.Addr()); err != nil {
 		return err

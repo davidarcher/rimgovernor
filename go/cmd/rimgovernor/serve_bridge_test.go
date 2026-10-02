@@ -18,6 +18,8 @@ type reattachFake struct {
 	failures int
 	attempts int
 	attached chan struct{}
+	// closedGame makes GameClosed report a game the player closed.
+	closedGame bool
 }
 
 func newReattachFake(failures int) *reattachFake {
@@ -32,6 +34,11 @@ func (f *reattachFake) lose() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	close(f.lost)
+}
+func (f *reattachFake) GameClosed(context.Context) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.closedGame
 }
 func (f *reattachFake) Reattach(ctx context.Context) error {
 	f.mu.Lock()
@@ -50,7 +57,10 @@ func TestSuperviseBridgeReattachesWithBackoffUntilContextEnds(t *testing.T) {
 	var out bytes.Buffer
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
-	go func() { defer close(done); superviseBridge(ctx, fake, &out) }()
+	go func() {
+		defer close(done)
+		superviseBridge(ctx, fake, &out, func() { t.Error("a crashed game ended the service") })
+	}()
 	fake.lose()
 	select {
 	case <-fake.attached:
@@ -79,5 +89,28 @@ func TestSuperviseBridgeReattachesWithBackoffUntilContextEnds(t *testing.T) {
 	log := out.String()
 	if strings.Count(log, "game session lost") != 2 || !strings.Contains(log, "attempt 2 failed") || !strings.Contains(log, "reattached after 3 attempt(s)") || !strings.Contains(log, "reattached after 1 attempt(s)") {
 		t.Fatal(log)
+	}
+}
+
+// A game the player closed ends the service instead of being relaunched.
+func TestSuperviseBridgeStopsWhenThePlayerClosesTheGame(t *testing.T) {
+	fake := newReattachFake(0)
+	fake.closedGame = true
+	var out bytes.Buffer
+	closed := make(chan struct{})
+	done := make(chan struct{})
+	go func() { defer close(done); superviseBridge(context.Background(), fake, &out, func() { close(closed) }) }()
+	fake.lose()
+	select {
+	case <-closed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("service not stopped")
+	}
+	<-done
+	fake.mu.Lock()
+	attempts := fake.attempts
+	fake.mu.Unlock()
+	if attempts != 0 || !strings.Contains(out.String(), "the game was closed") {
+		t.Fatalf("attempts %d: %s", attempts, out.String())
 	}
 }

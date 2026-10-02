@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,10 @@ func TestMain(m *testing.M) {
 			for {
 				time.Sleep(time.Hour)
 			}
+		case "gamehost-exit":
+			time.Sleep(200 * time.Millisecond)
+			code, _ := strconv.Atoi(os.Args[2])
+			os.Exit(code)
 		case "gamehost-launch":
 			g, err := Launch(context.Background(), gameSpec(os.Args[2], os.Args[3]))
 			if err != nil {
@@ -196,5 +201,37 @@ func TestGameOutlivesController(t *testing.T) {
 	defer g.Stop(context.Background())
 	if strings.TrimSpace(string(out)) != fmt.Sprint(g.PID()) {
 		t.Fatalf("controller launched %s, endpoint names %d", out, g.PID())
+	}
+}
+
+// A closed game exits 0 and a crashed one does not; LastExit tells the
+// two apart for the most recent launch only, and not while it runs.
+func TestLastExitRecordsTheLaunchExitCode(t *testing.T) {
+	exe, _ := os.Executable()
+	dir := t.TempDir()
+	for _, want := range []int{0, 3} {
+		g, err := Launch(context.Background(), Spec{GameID: "fixture", Executable: exe, Args: []string{"gamehost-exit", strconv.Itoa(want)}, StateDir: dir})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := LastExit(dir, "fixture"); ok && g.Alive() {
+			t.Fatal("LastExit reported a launch that still runs")
+		}
+		deadline := time.Now().Add(60 * time.Second)
+		code, ok := LastExit(dir, "fixture")
+		for !ok && time.Now().Before(deadline) {
+			time.Sleep(20 * time.Millisecond)
+			code, ok = LastExit(dir, "fixture")
+		}
+		if !ok || code != want {
+			t.Fatalf("LastExit = %d, %v; want %d", code, ok, want)
+		}
+		_ = g.Stop(context.Background())
+	}
+	if err := os.WriteFile(filepath.Join(dir, "fixture", "generation"), []byte("9"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := LastExit(dir, "fixture"); ok {
+		t.Fatal("LastExit reported an older launch's exit")
 	}
 }

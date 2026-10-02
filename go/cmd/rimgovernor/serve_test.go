@@ -125,7 +125,8 @@ type serviceFake struct {
 func (f *serviceFake) GamesStart(context.Context) (bridge.Result, error) {
 	return bridge.Result{}, f.connectErr
 }
-func (f *serviceFake) Disconnected() <-chan struct{} { return make(chan struct{}) }
+func (f *serviceFake) Disconnected() <-chan struct{}   { return make(chan struct{}) }
+func (f *serviceFake) GameClosed(context.Context) bool { return false }
 func (f *serviceFake) Reattach(context.Context) error {
 	return errors.New("fake bridge never reattaches")
 }
