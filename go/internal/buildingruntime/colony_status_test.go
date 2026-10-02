@@ -155,3 +155,16 @@ func TestColonyStatusReadTolerantOfTickBetweenReads(t *testing.T) {
 		t.Fatal(report.Tick, report.RosterTick)
 	}
 }
+
+// A census issues only native reads, so a caller holding the player gate (a
+// planner step runs up to CallTimeout under it) must not delay it.
+func TestColonyStatusReadDoesNotWaitForPlayerGate(t *testing.T) {
+	status, _ := colonyStatusFixture(t)
+	status.player.gate <- struct{}{}
+	defer func() { <-status.player.gate }()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := status.Read(ctx); err != nil {
+		t.Fatal(err)
+	}
+}

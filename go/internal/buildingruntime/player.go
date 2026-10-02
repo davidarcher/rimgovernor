@@ -175,6 +175,21 @@ func (p *Player) enterTimed(ctx context.Context, label string, manual bool) (con
 	}
 	return call, epoch, func() { release(); cleanup() }, waited, nil
 }
+
+// observe opens a bounded context for a read-only caller that claims no gate:
+// a census issues only native reads, which need no ordering against the
+// planner steps and writes that hold the gate (a step holds it up to
+// CallTimeout), so queuing one behind them only makes it miss its deadline.
+func (p *Player) observe(ctx context.Context) (context.Context, func(), error) {
+	p.mu.Lock()
+	closed := p.closing || p.closed || p.lifetime.Err() != nil
+	p.mu.Unlock()
+	if closed {
+		return nil, nil, fmt.Errorf("%w: observe: p.closing || p.closed || p.lifetime.Err() != nil", ErrControl)
+	}
+	call, cancel := context.WithTimeout(ctx, p.config.CallTimeout)
+	return call, cancel, nil
+}
 func (p *Player) current(ctx, epoch context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err

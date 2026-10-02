@@ -29,8 +29,8 @@ type ColonyStatusNative interface {
 // ColonyStatus is a live, read-only census of the facts a sustained run is
 // judged by (issue #261): the food stock and runway the reviewer sees and
 // every home colonist's downed state and needs, read under one identity. It
-// claims no plan slot and serializes through Player.enter like
-// WorldEvaluation, so it never interleaves with an in-flight native write.
+// claims no plan slot and no player gate: it issues only native reads, so a
+// planner step holding the gate never delays a sample past its timeout.
 type ColonyStatus struct {
 	player *Player
 	native ColonyStatusNative
@@ -103,7 +103,7 @@ func NewColonyStatus(player *Player, native ColonyStatusNative, food ...*facts.S
 // it. The game may be running under a live window, so the two reads land
 // on nearby ticks rather than one; the report carries both.
 func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
-	call, _, done, err := s.player.enter(ctx, "colony_status", false)
+	call, done, err := s.player.observe(ctx)
 	if err != nil {
 		return ColonyStatusReport{}, err
 	}
