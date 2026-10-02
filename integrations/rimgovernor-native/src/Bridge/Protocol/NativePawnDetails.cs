@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
             var d=Defaults(requested);
             if(d.Needs) {
                 var needs=row.Needs;
-                if(pawn.needs?.food!=null) {needs.Food=Number(pawn.needs.food.CurLevelPercentage);needs.HungerCategory=pawn.needs.food.CurCategory.ToString();}
+                if(pawn.needs?.food!=null) {needs.Food=Number(pawn.needs.food.CurLevelPercentage);needs.HungerCategory=NativeEnums.Hunger(pawn.needs.food.CurCategory);}
                 else {needs.Issues.Add(Missing("food"));needs.Issues.Add(Missing("hunger_category"));}
                 if(pawn.needs?.rest!=null) needs.Rest=Number(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Missing("rest"));
                 if(pawn.needs?.joy!=null) needs.Joy=Number(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Missing("joy"));

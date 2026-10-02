@@ -391,7 +391,7 @@ namespace HomeBridge.BridgeTools
             if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);
             else needs.Issues.Add(Issue("mood",Common.UnavailableReason.NativeComponentMissing,"Mood tracker unavailable."));
             if (detail) {
-                if(pawn.needs?.food != null) { needs.Food=Finite(pawn.needs.food.CurLevelPercentage); needs.HungerCategory=pawn.needs.food.CurCategory.ToString(); }
+                if(pawn.needs?.food != null) { needs.Food=Finite(pawn.needs.food.CurLevelPercentage); needs.HungerCategory=NativeEnums.Hunger(pawn.needs.food.CurCategory); }
                 else needs.Issues.Add(Issue("food",Common.UnavailableReason.NativeComponentMissing,"Food tracker unavailable."));
                 if(pawn.needs?.rest != null) needs.Rest=Finite(pawn.needs.rest.CurLevelPercentage); else needs.Issues.Add(Issue("rest",Common.UnavailableReason.NativeComponentMissing,"Rest tracker unavailable."));
                 if(pawn.needs?.joy != null) needs.Joy=Finite(pawn.needs.joy.CurLevelPercentage); else needs.Issues.Add(Issue("joy",Common.UnavailableReason.NativeComponentMissing,"Joy tracker unavailable."));
@@ -401,7 +401,7 @@ namespace HomeBridge.BridgeTools
                 if (psylink > 0) { needs.Psyfocus=Finite(pawn.psychicEntropy.CurrentPsyfocus); needs.PsyfocusTarget=Finite(pawn.psychicEntropy.TargetPsyfocus); needs.PsylinkLevel=psylink; } }
             var breaker=pawn.mindState?.mentalBreaker;
             if(breaker != null) { needs.BreakThresholdMinor=Finite(breaker.BreakThresholdMinor); needs.BreakThresholdMajor=Finite(breaker.BreakThresholdMajor); needs.BreakThresholdExtreme=Finite(breaker.BreakThresholdExtreme);
-                if(needs.HasMood) needs.BreakRisk=needs.Mood<=needs.BreakThresholdExtreme?"extreme":needs.Mood<=needs.BreakThresholdMajor?"major":needs.Mood<=needs.BreakThresholdMinor?"minor":"none"; }
+                if(needs.HasMood) needs.BreakRisk=needs.Mood<=needs.BreakThresholdExtreme?Obs.BreakRisk.Extreme:needs.Mood<=needs.BreakThresholdMajor?Obs.BreakRisk.Major:needs.Mood<=needs.BreakThresholdMinor?Obs.BreakRisk.Minor:Obs.BreakRisk.None; }
             else needs.Issues.Add(Issue("break_thresholds",Common.UnavailableReason.NativeComponentMissing,"Mental breaker unavailable."));
             if(pawn.health?.summaryHealth == null || pawn.health.hediffSet == null) row.Issues.Add(Issue("health",Common.UnavailableReason.NativeComponentMissing,"Health tracker unavailable."));
             else {

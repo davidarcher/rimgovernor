@@ -35,7 +35,7 @@ func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 		for _, row := range snapshot.Items {
 			if row == nil || !entity(row.Thing, seen) || row.Count != nil && row.GetCount() < 0 ||
 				row.ZoneId != nil && validID(row.GetZoneId()) != nil || row.GraveId != nil && validID(row.GetGraveId()) != nil ||
-				row.RotStage != nil && validID(row.GetRotStage()) != nil || row.Kind != nil && validID(row.GetKind()) != nil ||
+				row.RotStage != nil && o.RotStage_name[int32(row.GetRotStage())] == "" || row.Kind != nil && WasteKindName(row.GetKind()) == "" ||
 				row.ProtectedReason != nil && validID(row.GetProtectedReason()) != nil ||
 				row.CorpseClass != nil && !CorpseOf(row.GetCorpseClass()).Valid() {
 				return contract("invalid waste item")

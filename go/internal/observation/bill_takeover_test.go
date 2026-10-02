@@ -1,6 +1,7 @@
 package observation
 
 import (
+	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
-	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: proto.String("RepeatCount"), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), WorkerId: proto.String("pawn"), IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
+	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), WorkerId: proto.String("pawn"), IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
 	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &o.EntityRef{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
 	benches, known := colonyProductionBenches(snapshot).Value()
 	if !known {

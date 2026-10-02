@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools {
     row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));
    }
    else {row.IngredientFilter=new Obs.StockpileFilter();row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));}
-   if(bill is Bill_Production p){row.RepeatMode=p.repeatMode.defName;row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
+   if(bill is Bill_Production p){row.RepeatMode=NativeEnums.Repeat(p.repeatMode);row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
    return row;
   }
   internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};NativeMealRecipeFacts.Fill(row,bench.def,recipe);return row;}

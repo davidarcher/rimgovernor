@@ -50,7 +50,7 @@ func TestRoutineWastePlannerSelectsAndCommitsMethod(t *testing.T) {
 		Context: proto.Clone(v.Context).(*c.ObservationContext),
 		Items: []*o.WasteItem{{
 			Thing:    &o.EntityRef{Id: proto.String("junk-1"), DefName: proto.String("Filth_Trash"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-			Kind:     proto.String("junk"),
+			Kind:     o.WasteKind_WASTE_KIND_UNWANTED.Enum(),
 			State:    o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
 			Eligible: proto.Bool(true),
 		}},

@@ -226,14 +226,14 @@ namespace HomeBridge.BridgeTools
                     NativeGearFacts.Biocode(entry.Thing, weapon);
                     row.WeaponItems.Add(weapon);
                 }
-                if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = Entity(entry.Holder, entry.Position), HolderKind = entry.HolderKind!, Units = units });
+                if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = Entity(entry.Holder, entry.Position), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units });
                 if (entry.Thing is Corpse corpse)
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
                     var detail = new Obs.CorpseState { Corpse = Entity(corpse, entry.Position), InnerPawn = Entity(pawn, entry.Position),
                         Race = Id(pawn.def.defName), Humanlike = pawn.RaceProps.Humanlike, WasColonist = pawn.IsColonist };
                     var rot = corpse.GetComp<CompRottable>();
-                    if (rot != null) detail.RotStage = rot.Stage.ToString();
+                    if (rot != null) detail.RotStage = NativeEnums.Rot(rot.Stage);
                     else row.Issues.Add(Issue("corpses." + Id(corpse.GetUniqueLoadID()) + ".rot_stage", Common.UnavailableReason.NotApplicable, "Corpse has no rot component."));
                     row.Corpses.Add(detail);
                 }

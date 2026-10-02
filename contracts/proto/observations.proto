@@ -223,7 +223,7 @@ message JobEvidence {
 }
 message PawnNeeds {
   optional double food = 1; optional double rest = 2; optional double mood = 3; optional double joy = 4;
-  optional string hunger_category = 5; optional string break_risk = 6;
+  optional HungerCategory hunger_category = 5; optional BreakRisk break_risk = 6;
   optional double break_threshold_minor = 7; optional double break_threshold_major = 8; optional double break_threshold_extreme = 9;
   repeated ReadIssue issues = 10;
   // Psyfocus (#1313): Pawn_PsychicEntropyTracker CurrentPsyfocus and
@@ -483,8 +483,21 @@ message PawnSnapshot { rimgovernor.common.v1.ObservationContext context = 1; rep
 message ListPawnsRequest { ReadScope scope = 1; PawnFilter filter = 2; PawnDetails details = 3; reserved 4, 5; }
 message ListPawnsReply { oneof outcome { PawnSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
-message HeldStock { EntityRef holder = 1; optional string holder_kind = 2; optional int64 units = 3; }
-message CorpseState { EntityRef corpse = 1; EntityRef inner_pawn = 2; optional string race = 3; optional bool humanlike = 4; optional bool was_colonist = 5; optional string rot_stage = 6; }
+// Closed vanilla value sets read off pawns, stock and bills (#1341).
+enum HungerCategory { HUNGER_CATEGORY_UNSPECIFIED = 0; HUNGER_CATEGORY_FED = 1; HUNGER_CATEGORY_HUNGRY = 2; HUNGER_CATEGORY_URGENTLY_HUNGRY = 3; HUNGER_CATEGORY_STARVING = 4; }
+// BreakRisk is the mental-break band the mood sits in.
+enum BreakRisk { BREAK_RISK_UNSPECIFIED = 0; BREAK_RISK_NONE = 1; BREAK_RISK_MINOR = 2; BREAK_RISK_MAJOR = 3; BREAK_RISK_EXTREME = 4; }
+// HolderKind is what holds a held stack: a building container, a corpse's
+// inventory, a living pawn's inventory or its carry tracker.
+enum HolderKind { HOLDER_KIND_UNSPECIFIED = 0; HOLDER_KIND_CONTAINER = 1; HOLDER_KIND_CORPSE = 2; HOLDER_KIND_PAWN_INVENTORY = 3; HOLDER_KIND_CARRIED = 4; }
+enum RotStage { ROT_STAGE_UNSPECIFIED = 0; ROT_STAGE_FRESH = 1; ROT_STAGE_ROTTING = 2; ROT_STAGE_DESSICATED = 3; }
+// WasteKind is why an item is waste: a rotten corpse, spoiled food, or an
+// item the caller named unwanted.
+enum WasteKind { WASTE_KIND_UNSPECIFIED = 0; WASTE_KIND_CORPSE = 1; WASTE_KIND_SPOILED = 2; WASTE_KIND_UNWANTED = 3; }
+// BenchUnusableReason is why a bench takes no bills.
+enum BenchUnusableReason { BENCH_UNUSABLE_REASON_UNSPECIFIED = 0; BENCH_UNUSABLE_REASON_NOT_PLAYER_OWNED = 1; BENCH_UNUSABLE_REASON_FORBIDDEN = 2; BENCH_UNUSABLE_REASON_BURNING = 3; BENCH_UNUSABLE_REASON_NOT_USABLE_FOR_BILLS = 4; BENCH_UNUSABLE_REASON_OTHER = 5; }
+message HeldStock { EntityRef holder = 1; optional HolderKind holder_kind = 2; optional int64 units = 3; }
+message CorpseState { EntityRef corpse = 1; EntityRef inner_pawn = 2; optional string race = 3; optional bool humanlike = 4; optional bool was_colonist = 5; optional RotStage rot_stage = 6; }
 message ResourceStock {
   DefinitionRef definition = 1; optional int64 units = 2; optional int64 stacks = 3; optional int64 spawned = 4;
   optional int64 carried = 5; optional int64 in_container = 6; optional int64 ours = 7; optional int64 ours_unforbidden = 8;
@@ -517,13 +530,13 @@ message BillState {
   optional bool unrestricted_worker = 26; // No skill or worker-category restriction; worker_id separately records a pinned pawn.
   optional bool managed_unchanged = 24; // Current-load controller bill with unchanged player settings.
   optional string id = 1; optional uint32 index = 2; DefinitionRef recipe = 3; optional string bill_class = 4;
-  optional string repeat_mode = 5; optional int32 repeat_count = 6; optional int32 target_count = 7; optional int32 unpause_below = 8;
+  optional rimgovernor.operations.v1.RepeatMode repeat_mode = 5; optional int32 repeat_count = 6; optional int32 target_count = 7; optional int32 unpause_below = 8;
   optional bool pause_when_satisfied = 9; optional bool paused = 10; optional bool suspended = 11; optional bool finished = 12;
   optional string worker_id = 13; optional int32 skill_min = 14; optional int32 skill_max = 15; optional double ingredient_radius = 16;
-  StockpileFilter ingredient_filter = 17; optional string store_mode = 18; optional string store_zone_id = 19;
+  StockpileFilter ingredient_filter = 17; optional rimgovernor.operations.v1.StoreMode store_mode = 18; optional string store_zone_id = 19;
   optional bool can_run_now = 20; repeated string blockers = 21; repeated IngredientRequirement ingredients = 22; repeated ReadIssue issues = 23;
 }
-message BillStack { SnapshotRef snapshot = 1; EntityRef bench = 2; optional bool usable = 3; optional string unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
+message BillStack { SnapshotRef snapshot = 1; EntityRef bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
 message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5;
   repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9;
@@ -813,7 +826,7 @@ message HusbandrySnapshot { rimgovernor.common.v1.ObservationContext context = 1
 message HusbandryRequest { ReadScope scope = 1; optional bool include_wild = 3; reserved 2; }
 message HusbandryReply { oneof outcome { HusbandrySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 enum WasteLocation { WASTE_LOCATION_UNSPECIFIED = 0; WASTE_LOCATION_EXPOSED = 1; WASTE_LOCATION_RELOCATED = 2; WASTE_LOCATION_BURIED = 3; }
-message WasteItem { EntityRef thing = 1; optional int64 count = 2; optional WasteLocation state = 3; optional string zone_id = 4; optional string grave_id = 5; optional string rot_stage = 6; optional string kind = 7; optional bool eligible = 8; optional string protected_reason = 9;
+message WasteItem { EntityRef thing = 1; optional int64 count = 2; optional WasteLocation state = 3; optional string zone_id = 4; optional string grave_id = 5; optional RotStage rot_stage = 6; optional WasteKind kind = 7; optional bool eligible = 8; optional string protected_reason = 9;
   reserved 10; reserved "corpse_of";
   // A corpse's inner pawn; unset for non-corpses.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 11; }

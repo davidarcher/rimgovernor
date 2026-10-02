@@ -13,7 +13,7 @@ func TestColonyWasteCorpseOfIsOneOfThreeClasses(t *testing.T) {
 		return &o.WasteReply{Outcome: &o.WasteReply_Observed{Observed: &o.WasteSnapshot{
 			Items: []*o.WasteItem{{
 				Thing:       &o.EntityRef{Id: proto.String("Corpse_1"), DefName: proto.String("Corpse_Human"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-				Kind:        proto.String("corpse"),
+				Kind:        o.WasteKind_WASTE_KIND_CORPSE.Enum(),
 				State:       o.WasteLocation_WASTE_LOCATION_EXPOSED.Enum(),
 				CorpseClass: of.Enum(),
 			}},

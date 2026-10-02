@@ -127,8 +127,9 @@ namespace HomeBridge.BridgeTools
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
             var row = new Obs.BillStack { Snapshot = NativeProductionBills.Snapshot(bench, giver, context), Bench = Entity(bench, map),
                 Usable = NativeProductionBills.Usable(bench), Capacity = 15};
-            if (!row.Usable) row.UnusableReason = bench.Faction != Faction.OfPlayer ? "not player owned"
-                : bench.IsForbidden(Faction.OfPlayer) ? "forbidden" : bench.IsBurning() ? "burning" : !giver.CurrentlyUsableForBills() ? "not currently usable for bills" : "unusable";
+            if (!row.Usable) row.UnusableReason = bench.Faction != Faction.OfPlayer ? Obs.BenchUnusableReason.NotPlayerOwned
+                : bench.IsForbidden(Faction.OfPlayer) ? Obs.BenchUnusableReason.Forbidden : bench.IsBurning() ? Obs.BenchUnusableReason.Burning
+                : !giver.CurrentlyUsableForBills() ? Obs.BenchUnusableReason.NotUsableForBills : Obs.BenchUnusableReason.Other;
             for (var index = 0; index < stack.Count; index++) row.Bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
             return row;
         }

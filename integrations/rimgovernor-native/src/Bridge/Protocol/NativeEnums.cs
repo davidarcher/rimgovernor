@@ -38,6 +38,48 @@ namespace HomeBridge.BridgeTools
             _ => null
         };
 
+        internal static Obs.HungerCategory Hunger(HungerCategory hunger) => hunger switch
+        {
+            HungerCategory.Fed => Obs.HungerCategory.Fed,
+            HungerCategory.Hungry => Obs.HungerCategory.Hungry,
+            HungerCategory.UrgentlyHungry => Obs.HungerCategory.UrgentlyHungry,
+            HungerCategory.Starving => Obs.HungerCategory.Starving,
+            _ => Obs.HungerCategory.Unspecified
+        };
+
+        internal static Obs.RotStage Rot(RotStage stage) => stage switch
+        {
+            RotStage.Fresh => Obs.RotStage.Fresh,
+            RotStage.Rotting => Obs.RotStage.Rotting,
+            RotStage.Dessicated => Obs.RotStage.Dessicated,
+            _ => Obs.RotStage.Unspecified
+        };
+
+        // Holder is the read's holder kind ("container", "corpse",
+        // "pawnInventory", "carried") on the wire.
+        internal static Obs.HolderKind Holder(string kind) => kind switch
+        {
+            "container" => Obs.HolderKind.Container,
+            "corpse" => Obs.HolderKind.Corpse,
+            "pawnInventory" => Obs.HolderKind.PawnInventory,
+            "carried" => Obs.HolderKind.Carried,
+            _ => throw new InvalidOperationException("Unknown holder kind.")
+        };
+
+        // Waste is the waste read's kind ("corpse", "spoiled", "unwanted").
+        internal static Obs.WasteKind Waste(string kind) => kind switch
+        {
+            "corpse" => Obs.WasteKind.Corpse,
+            "spoiled" => Obs.WasteKind.Spoiled,
+            "unwanted" => Obs.WasteKind.Unwanted,
+            _ => throw new InvalidOperationException("Unknown waste kind.")
+        };
+
+        internal static Operations.RepeatMode Repeat(BillRepeatModeDef mode) =>
+            mode == BillRepeatModeDefOf.Forever ? Operations.RepeatMode.Forever
+            : mode == BillRepeatModeDefOf.RepeatCount ? Operations.RepeatMode.Count
+            : mode == BillRepeatModeDefOf.TargetCount ? Operations.RepeatMode.Target : Operations.RepeatMode.Unspecified;
+
         internal static Operations.HostilityResponse Hostility(HostilityResponseMode mode) => mode switch
         {
             HostilityResponseMode.Ignore => Operations.HostilityResponse.Ignore,

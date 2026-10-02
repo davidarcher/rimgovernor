@@ -96,10 +96,10 @@ namespace HomeBridge.BridgeTools
                 var protection = Protection(thing);
                 var row = new Obs.WasteItem { Thing = Ref(thing, thing.Position), Count = thing.stackCount, Eligible = protection == null && kind != null,
                     State = protection == null && Stored(thing) ? Obs.WasteLocation.Relocated : Obs.WasteLocation.Exposed };
-                if (kind != null) row.Kind = kind;
+                if (kind != null) row.Kind = NativeEnums.Waste(kind);
                 if (protection != null) row.ProtectedReason = protection;
                 var rot = thing.TryGetComp<CompRottable>();
-                if (rot != null) row.RotStage = rot.Stage.ToString();
+                if (rot != null) row.RotStage = NativeEnums.Rot(rot.Stage);
                 var of = CorpseOf(thing);
                 if (of != null) row.CorpseClass = of.Value;
                 items.Add(row);
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
                 foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
                 {
-                    var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = "corpse", ProtectedReason = "grave",
+                    var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = Obs.WasteKind.Corpse, ProtectedReason = "grave",
                         Eligible = false, State = Obs.WasteLocation.Buried, GraveId = Id(grave) };
                     var of = CorpseOf(body);
                     if (of != null) row.CorpseClass = of.Value;
