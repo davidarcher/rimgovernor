@@ -41,6 +41,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/recovery"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/refrigeration"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/research"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/review"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/rooms"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/route"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/routinehaul"

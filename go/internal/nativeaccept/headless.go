@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -713,10 +714,14 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	// acceleration (StartRequest.test_acceleration); both acceptance
 	// profiles (this one and PrepareRendered) carry it, a player launch
 	// never does.
-	game["args"] = []any{
+	args := []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
 		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration", IdleExitArg,
 	}
+	if os.Getenv(GraphicsEnv) == "1" {
+		args = slices.DeleteFunc(args, func(a any) bool { return a == "-nographics" })
+	}
+	game["args"] = args
 	destination := filepath.Join(root, "config-headless")
 	if err := os.MkdirAll(destination, 0755); err != nil {
 		return "", err
@@ -726,6 +731,11 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	}
 	return destination, nil
 }
+
+// GraphicsEnv set to 1 keeps a graphics device in the headless profile
+// (no -nographics): the game still never opens a window, but a camera can
+// render on demand, which the colony review recorder needs.
+const GraphicsEnv = "RIMGOVERNOR_ACCEPT_GRAPHICS"
 
 // BaselineSave is the committed starting colony most save-driven harnesses
 // load: the Lost Tribe scenario with eight colonists (#192), generated with

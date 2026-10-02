@@ -424,6 +424,12 @@ func (c Case) Lint() error {
 	if c.Serve != nil {
 		switch c.Start.(type) {
 		case Save, Fixture, Lab:
+		case Scenario:
+			// A fresh scenario start is the precondition of a whole-game
+			// review run, which must say why.
+			if c.Reason == "" {
+				fail("Serve declared on a Scenario start without a Reason", 1, "Open on the precondition")
+			}
 		default:
 			fail("Serve declared on a bare DebugStart: a serve-driven case opens on a committed save, the lab or a fixture op", 1, "Open on the precondition")
 		}

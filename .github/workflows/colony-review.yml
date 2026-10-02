@@ -1,0 +1,187 @@
+name: Colony review
+
+# Plays review/colony-week (a fresh random map for an in-game week with the
+# governor in charge, recording an hourly screenshot and colony facts) on
+# the remote-acceptance runner setup, renders the recording with
+# cmd/colonyreview and publishes the newest reports to GitHub Pages. A
+# review, not a gate: the report is built from whatever was recorded even
+# when the run fails. Gate, planning and bootstrap are remote_workflow.ps1's,
+# as in fixture-factory.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tested_ref:
+        description: Same-repository branch or tag to run (resolved once at startup)
+        default: main
+        type: string
+      seed:
+        description: World seed (empty picks review-<UTC date>)
+        required: false
+        type: string
+      days:
+        description: In-game days to play
+        default: '7'
+        type: string
+      reviewed_commit:
+        description: I reviewed and trust the exact tested commit to access licensed game inputs
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 4 * * *'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  REMOTE_ACCEPTANCE_ENABLED: ${{ vars.REMOTE_ACCEPTANCE_ENABLED }}
+  REMOTE_ACCEPTANCE_MAINTAINERS: ${{ vars.REMOTE_ACCEPTANCE_MAINTAINERS }}
+  REMOTE_BUNDLE_ASSET: ${{ vars.REMOTE_BUNDLE_ASSET }}
+  REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
+  REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
+  REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
+  FACTORY_CASES: review/colony-week
+  GOTOOLCHAIN: local
+  GOWORK: 'off'
+  CGO_ENABLED: '0'
+  # How many reports the Pages site keeps, newest first.
+  KEEP_RUNS: '14'
+
+concurrency:
+  group: colony-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 360
+    environment: remote-acceptance
+    outputs:
+      report: ${{ steps.report.outputs.name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Authorize before selected code, bundle cache or identity access
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase gate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.gate.outputs.head }}
+          path: tested
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - name: Plan the review case
+        env:
+          RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
+          RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
+      - name: Compile trusted tools
+        working-directory: trusted/go
+        run: |
+          go build -o C:\rg\remoteaccept.exe ./cmd/remoteaccept
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          go build -o C:\rg\colonyreview.exe ./cmd/colonyreview
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      # The recorder renders through a graphics device: the headless game
+      # keeps one (no -nographics) under RIMGOVERNOR_ACCEPT_GRAPHICS.
+      - name: Bootstrap and play the review week
+        id: play
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+          RIMGOVERNOR_ACCEPT_GRAPHICS: '1'
+          RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
+          RIMGOVERNOR_REVIEW_DAYS: ${{ inputs.days }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard s1
+      - name: Stop this job's processes and remove identity
+        if: always() && steps.gate.outcome == 'success'
+        run: |
+          foreach ($role in @('fixture','production')) {
+            ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
+          }
+          if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      - name: Render the report
+        id: report
+        env:
+          TESTED_COMMIT: ${{ steps.gate.outputs.head }}
+          PLAYED: ${{ steps.play.outcome }}
+        run: |
+          $stats = Get-ChildItem C:\rg\*\job\out -Recurse -File -Filter stats.jsonl -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $stats) { throw "The run recorded nothing (play step: $env:PLAYED); see its log" }
+          $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+          $name = "$date-$env:GITHUB_RUN_ID"
+          $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          & C:\rg\colonyreview.exe report -in $stats.DirectoryName -out "C:\rg\review-report\$name" `
+            -meta "date=$date" -meta "commit=$($env:TESTED_COMMIT.Substring(0,9))" -meta "run=$url" -meta "outcome=$env:PLAYED"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "name=$name" >> $env:GITHUB_OUTPUT
+          "Colony review $name rendered (play step: $env:PLAYED)." >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: colony-review-report
+          path: C:\rg\review-report
+          if-no-files-found: error
+          retention-days: 90
+
+  pages:
+    needs: review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go/.go-version
+          cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: colony-review-report
+          path: runs
+      # Earlier reports come back from their own runs' artifacts, so the
+      # site needs no branch of its own.
+      - name: Fetch earlier reports
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list -R "$GITHUB_REPOSITORY" -w colony-review.yml -s success -L "$KEEP_RUNS" --json databaseId -q '.[].databaseId' |
+            while read -r id; do
+              [ "$id" = "$GITHUB_RUN_ID" ] && continue
+              gh run download "$id" -R "$GITHUB_REPOSITORY" -n colony-review-report -D runs || echo "run $id: no report artifact"
+            done
+          ls runs | sort -r | tail -n +"$((KEEP_RUNS + 1))" | while read -r old; do rm -rf "runs/$old"; done
+      - name: Build the site
+        working-directory: go
+        run: go run ./cmd/colonyreview site -runs ../runs -out ../site
+        shell: bash
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
