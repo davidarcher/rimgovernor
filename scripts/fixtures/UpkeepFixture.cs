@@ -52,6 +52,21 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, roofed = parsed.Count(c => c.Roofed(map)) };
             }, cancellationToken);
 
+        [Tool("test/floor_cells", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#1245): with def, lay that constructed floor on exact cells (\"x,z;x,z\"); always reply how many of them carry a removable constructed floor. Test builds only.")]
+        public async Task<object> FloorCells(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, string def = "")
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var parsed = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
+                    .Where(p => p.Length == 2).Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
+                if (map == null || parsed.Count == 0 || parsed.Count > 256 || parsed.Any(c => !c.InBounds(map))) return new { success = false, error = "Expected 1..256 in-bounds x,z cells on the current map" };
+                if (!string.IsNullOrEmpty(def)) {
+                    var terrain = DefDatabase<TerrainDef>.GetNamedSilentFail(def);
+                    if (terrain == null) return new { success = false, error = "Unknown terrain " + def };
+                    foreach (var c in parsed) map.terrainGrid.SetTerrain(c, terrain);
+                }
+                return new { success = true, floored = parsed.Count(c => map.terrainGrid.CanRemoveTopLayerAt(c)) };
+            }, cancellationToken);
+
         [Tool("test/cell_things", Description = "Disposable fixture (#1245): the things standing on one cell (\"x,z\") with their def, stuff and id. Test builds only.")]
         public async Task<object> CellThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
             => await ctx.MainThread.InvokeAsync<object>(() => {
