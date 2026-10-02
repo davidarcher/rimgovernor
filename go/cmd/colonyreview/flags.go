@@ -23,9 +23,8 @@ func flags(rows []Row, prev *Row) []Flag {
 	c := r.Census
 	var out []Flag
 	add := func(sev, format string, a ...any) { out = append(out, Flag{sev, fmt.Sprintf(format, a...)}) }
-	if c.Error != "" {
-		add("warn", "colony census unreadable: %s", c.Error)
-		return out
+	if c.Error != "" || c.Colonists == nil {
+		return out // no readings this hour: the card says so, no colony fact to flag
 	}
 	if prev != nil && colonists(r) < colonists(*prev) {
 		add("bad", "colonists fell %d → %d", colonists(*prev), colonists(r))

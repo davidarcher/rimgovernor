@@ -199,9 +199,16 @@ func Derive(rows []Row, meta map[string]string) Summary {
 		}
 	}
 	if len(rows) > 0 {
-		s.FirstColonists, s.LastColonists = colonists(rows[0]), colonists(rows[len(rows)-1])
-		if w := rows[len(rows)-1].Census.WealthTotal; w != nil {
-			s.FinalWealth = *w
+		for _, r := range rows {
+			if r.Census.Colonists != nil {
+				if s.FirstColonists == 0 {
+					s.FirstColonists = colonists(r)
+				}
+				s.LastColonists = colonists(r)
+			}
+			if r.Census.WealthTotal != nil {
+				s.FinalWealth = *r.Census.WealthTotal
+			}
 		}
 	}
 	return s
