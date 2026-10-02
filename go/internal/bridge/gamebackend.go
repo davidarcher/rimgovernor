@@ -299,32 +299,37 @@ func (b *gameBackend) ackPreexisting(ctx context.Context, conn *gabp.Conn, state
 	b.mu.Lock()
 	item := state.current
 	b.mu.Unlock()
-	if blockingItem(item) == nil {
+	if blockingItem(item) == nil || !b.ack(ctx, conn, state, item) {
 		return nil
 	}
+	return item
+}
+
+// ack acknowledges item and records what the game reports open after it.
+func (b *gameBackend) ack(ctx context.Context, conn *gabp.Conn, state *attentionState, item json.RawMessage) bool {
 	var id struct {
 		AttentionID string `json:"attentionId"`
 	}
 	if json.Unmarshal(item, &id) != nil || id.AttentionID == "" {
-		return nil
+		return false
 	}
 	raw, err := conn.Call(ctx, attentionAck, map[string]string{"attentionId": id.AttentionID})
 	if err != nil {
-		return nil
+		return false
 	}
 	var result struct {
 		Acknowledged     bool            `json:"acknowledged"`
 		CurrentAttention json.RawMessage `json:"currentAttention"`
 	}
 	if json.Unmarshal(raw, &result) != nil || !result.Acknowledged {
-		return nil
+		return false
 	}
 	current := result.CurrentAttention
 	if string(current) == "null" {
 		current = nil
 	}
 	b.setAttention(state, current)
-	return item
+	return true
 }
 
 // watch ends the session when conn drops on its own. games_stop and close
@@ -483,6 +488,11 @@ func (b *gameBackend) callTool(ctx context.Context, arguments json.RawMessage) (
 		b.mu.Lock()
 		item := attention.current
 		b.mu.Unlock()
+		if blocked := blockingItem(item); blocked != nil && benignAttention(blocked.Summary) && b.ack(ctx, conn, attention, item) {
+			b.mu.Lock()
+			item = attention.current
+			b.mu.Unlock()
+		}
 		if blocked := blockingItem(item); blocked != nil {
 			summary := ""
 			if s := strings.TrimSpace(blocked.Summary); s != "" {
@@ -519,6 +529,18 @@ func (b *gameBackend) callTool(ctx context.Context, arguments json.RawMessage) (
 		return receiptEnvelope(structured, true, text), nil
 	}
 	return receiptEnvelope(structured, false, text), nil
+}
+
+// benignErrors are vanilla error logs that report a pawn misbehaving, not
+// a broken game: left open, their attention item would refuse every native
+// call and freeze an unattended colony, so a call acknowledges them and
+// runs.
+var benignErrors = []string{
+	" started 10 jobs in one tick.",
+}
+
+func benignAttention(summary string) bool {
+	return slices.ContainsFunc(benignErrors, func(s string) bool { return strings.Contains(summary, s) })
 }
 
 type attentionItem struct {

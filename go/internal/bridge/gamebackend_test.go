@@ -206,6 +206,27 @@ func TestGameSessionCallsAttentionAndReattach(t *testing.T) {
 		t.Fatalf("call after acknowledgement: %v", err)
 	}
 
+	// A pawn job loop is a benign vanilla error: the next call acknowledges
+	// it and runs instead of freezing the colony.
+	game.open(map[string]any{"attentionId": "att-2", "state": "open", "blocking": true, "summary": "RimWorld logged a error message: Komodo started 10 jobs in one tick. newJob=HaulToCell"})
+	deadline = time.Now().Add(10 * time.Second)
+	for {
+		game.mu.Lock()
+		acked := game.attention == nil
+		game.mu.Unlock()
+		_, err = client.NativeCall(context.Background(), "fixture/read", nil)
+		if err != nil {
+			t.Fatalf("benign attention blocked the call: %v", err)
+		}
+		if acked {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("benign attention never acknowledged")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
 	// The game connection dropping on its own ends the session; Reattach
 	// finds the same game and dials it again. The server side drops first,
 	// then the client side through DropConnection.
