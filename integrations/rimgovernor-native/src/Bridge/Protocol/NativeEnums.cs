@@ -4,13 +4,12 @@ using RimWorld;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
-using Clock = RimGovernor.Protocol.Clock;
 
 namespace HomeBridge.BridgeTools
 {
     // Vanilla enums onto their proto counterparts, one mapping each so
     // reads and writes share the same vocabulary (#1341).
-    internal static class NativeEnums
+    internal static partial class NativeEnums
     {
         internal static Obs.Passion Passion(RimWorld.Passion passion) => passion switch
         {
@@ -144,14 +143,6 @@ namespace HomeBridge.BridgeTools
             RimWorld.QuestState.EndedOfferExpired => Receipts.QuestStatus.EndedOfferExpired,
             RimWorld.QuestState.EndedInvalid => Receipts.QuestStatus.EndedInvalid,
             _ => Receipts.QuestStatus.Unspecified
-        };
-
-        // The clock watcher records what held a force pause by name.
-        internal static Clock.ForcePauseKind ForcePause(string? kind) => kind switch
-        {
-            "long_event" => Clock.ForcePauseKind.LongEvent,
-            "transient_force_pause" => Clock.ForcePauseKind.Transient,
-            _ => Clock.ForcePauseKind.Unspecified
         };
     }
 }
