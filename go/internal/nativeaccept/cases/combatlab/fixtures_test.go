@@ -15,7 +15,7 @@ func labCenter() (int, int) { return na.LabMapSize / 2, na.LabMapSize / 2 }
 
 func TestFixturesFitTheLabWithoutOverlap(t *testing.T) {
 	cx, cz := labCenter()
-	for _, name := range append(slices.Clone(Names), "lab-prison", "lab-infestation") {
+	for _, name := range append(slices.Clone(Names), "lab-prison", "lab-infestation", "lab-mech-line") {
 		f, err := Build(name, cx, cz)
 		if err != nil {
 			t.Fatal(err)

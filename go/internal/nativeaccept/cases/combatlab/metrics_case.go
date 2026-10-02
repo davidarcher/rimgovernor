@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -64,7 +65,7 @@ func Baseline(name string) (Metrics, error) {
 }
 
 func init() {
-	for _, name := range Names {
+	for _, name := range append(slices.Clone(Names), "lab-mech-line") {
 		probe, _ := Build(name, 0, 0)
 		cases.Register(cases.Case{
 			Name:        "combatlab/metrics-" + name,

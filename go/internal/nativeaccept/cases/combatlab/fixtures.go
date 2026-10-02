@@ -8,7 +8,10 @@
 // storyteller.
 package combatlab
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // StageTool stages a fixture spec on a wiped lab
 // (scripts/fixtures/DebugStartFixture.cs, carried by every fixture build).
@@ -168,6 +171,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return infestation(cx, cz), nil
 	case "lab-mech":
 		return mech(cx, cz), nil
+	case "lab-mech-line":
+		return mechLine(cx, cz), nil
 	case "lab-breach":
 		return breach(cx, cz), nil
 	}
@@ -181,6 +186,19 @@ func mech(cx, cz int) Fixture {
 		{Side: Colonist, Index: 0, X: cx, Z: cz - 12, Weapon: rifle},
 		{Side: Mech, Kind: "Mech_Scyther", X: cx, Z: cz + 13, StunTicks: mechStunTicks},
 	}}
+}
+
+// mechLine (#1184): lab-ranged's four riflemen and held line against two
+// lancers 25 cells north, a mech fight the squad takes on (lab-mech is the
+// shelter case), so the first attacks' target (#863) is checked on mechs.
+func mechLine(cx, cz int) Fixture {
+	f := ranged(cx, cz)
+	f.Name = "lab-mech-line"
+	f.Pawns = slices.DeleteFunc(f.Pawns, func(p Pawn) bool { return p.Side == Hostile })
+	for _, dx := range []int{-2, 2} {
+		f.Pawns = append(f.Pawns, Pawn{Side: Mech, Kind: "Mech_Lancer", X: cx + dx, Z: cz + 16})
+	}
+	return f
 }
 
 // Breach room (#1149): an 11x11 granite wall ring with no door around the
