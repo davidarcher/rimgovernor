@@ -158,10 +158,12 @@ func (p *ServiceProcess) SubmitAndResume(prefix string, identity map[string]any,
 
 // Resume enters automate mode without an anchor plan: authority is the
 // world's own root plan, created on first resume (SIMP02, #55). It returns
-// that root plan id.
+// that root plan id. The request ID is unique per call: a run resumed from
+// a checkpoint restores the store, whose earlier resume under the same
+// prefix names another load and would replay as a conflict.
 func (p *ServiceProcess) Resume(prefix string, identity map[string]any, token string, report Report) (rootPlanID string, err error) {
 	resumed, status, err := p.API("POST", "/api/player/control/resume", map[string]any{
-		"requestId": prefix + "-resume-1", "expected": identity,
+		"requestId": fmt.Sprintf("%s-resume-%d", prefix, time.Now().UnixNano()), "expected": identity,
 	}, token)
 	if err != nil {
 		return "", err
