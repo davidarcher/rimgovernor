@@ -683,3 +683,22 @@ func TestPerimeterAllFertileStopsAtMargin(t *testing.T) {
 		t.Fatal("the ring stops short of the margin line")
 	}
 }
+
+// On an all-soil map the opening once fell on the turbine lane: the
+// killbox keeps clear of every utility reservation.
+func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	k := reserved(p, ReserveKillbox)
+	if len(k) != 1 || max(k[0].Width, k[0].Height) != 2*killboxHalf+1 {
+		t.Fatal("killbox", k)
+	}
+	for _, r := range p.Reservations {
+		if !perimeterKinds[r.Kind] && rectsOverlap(k[0], r.Area) {
+			t.Fatal(r.Kind, r.Area, "inside the killbox", k[0])
+		}
+	}
+}

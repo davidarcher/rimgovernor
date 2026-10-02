@@ -59,7 +59,7 @@ const (
 	// squared off in, so a diagonal edge steps in gateable sides.
 	perimeterStep      int32 = 10
 	perimeterCoverBand int32 = 30
-	killboxHalf        int32 = 5
+	killboxHalf        int32 = 7
 	killboxDepth       int32 = 10
 	approachLeg        int32 = 8
 	// perimeterDetour caps a shoreline detour's wall at this many times
@@ -285,6 +285,12 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		for c := range shut {
 			if contains(killbox, c) {
+				return false
+			}
+		}
+		// Raiders fight through the killbox: no utility stands in it.
+		for _, r := range plan.Reservations {
+			if !perimeterKinds[r.Kind] && rectsOverlap(killbox, r.Area) {
 				return false
 			}
 		}
