@@ -506,7 +506,7 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 			}
 		}
 	} else if _, unavailable := UnavailableReason(suppliesReply); !unavailable {
-		return state, nil, fmt.Errorf("supplies: %w", err)
+		return state, nil, fmt.Errorf("supplies: %w (reply: %v)", err, suppliesReply)
 	}
 	return state, identity, nil
 }
