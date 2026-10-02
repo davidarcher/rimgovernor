@@ -265,7 +265,7 @@ namespace HomeBridge.BridgeTools
                 return Take(animal, JobMaker.MakeJob(JobDefOf.AttackMelee, target), out job);
             }
             var id = animal.GetUniqueLoadID();
-            var owned = map.areaManager.GetLabeled("RimGovernor " + id) as Area_Allowed;
+            var owned = map.areaManager.GetLabeled(CombatAreaPrefix + id) as Area_Allowed;
             if (order.AnimalArea.AreaCase == Operations.CombatAnimalArea.AreaOneofCase.Clear)
             {
                 Area? prior = null;
@@ -282,7 +282,7 @@ namespace HomeBridge.BridgeTools
             if (owned == null)
             {
                 if (!map.areaManager.CanMakeNewAllowed()) return "native_refused";
-                owned = new Area_Allowed(map.areaManager, "RimGovernor " + id);
+                owned = new Area_Allowed(map.areaManager, CombatAreaPrefix + id);
                 map.areaManager.AllAreas.Add(owned);
             }
             var current = animal.playerSettings.AreaRestrictionInPawnCurrentMap;
@@ -296,6 +296,9 @@ namespace HomeBridge.BridgeTools
         // The restriction each animal had before its first animal_area order;
         // lost on a reload, when clear falls back to unrestricted.
         private static readonly Dictionary<string, Area?> PriorAreas = new Dictionary<string, Area?>();
+
+        // The label of the allowed area an animal_area order owns.
+        internal const string CombatAreaPrefix = "Combat ";
 
         private static string Take(Pawn pawn, Job made, out string? job)
         {

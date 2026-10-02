@@ -14,7 +14,7 @@ func TestFishingZoneCreateAndExtend(t *testing.T) {
 	}
 	for _, z := range []ZoneCreate{created, extended} {
 		copy, err := ReconstructZone(z)
-		if err != nil || copy != z || z.Kind() != FishingZone || z.Label() != "RimGovernor fishing" {
+		if err != nil || copy != z || z.Kind() != FishingZone || z.Label() != "Fishing" {
 			t.Fatal(z, err)
 		}
 		if _, err := NewZoneCreateAction("fish", z); err != nil {

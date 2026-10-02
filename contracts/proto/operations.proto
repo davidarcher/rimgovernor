@@ -336,7 +336,7 @@ message PawnSettingsIntent {
 // pawn restriction, #1253); unset keeps vanilla's choice of surgeon.
 message SurgeryIntent { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional bool acknowledge_violation = 4; optional string surgeon_id = 5; }
 // Create, edit or delete one bot-owned allowed area, or edit the home area
-// (#1321). A bot area is the Area_Allowed labelled "RimGovernor <key>";
+// (#1321). A bot area is the Area_Allowed labelled with its key;
 // native never touches an area the player made. home and key are exclusive;
 // home takes set_cells and clear_cells only. create refuses when the map
 // cannot make another allowed area, applies again on an existing bot area,

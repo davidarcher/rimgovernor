@@ -1,8 +1,11 @@
 package buildingruntime
 
 import (
+	"strings"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // policyPrunes is the prune step that runs after the per-pawn policy
@@ -40,8 +43,17 @@ func policyPrunes(p observation.Policies, keep map[string]bool) []domain.PolicyP
 	add(domain.ReadingPolicies, ids(p.Reading))
 	areas := make([]string, 0, len(p.AllowedAreas))
 	for _, a := range p.AllowedAreas {
-		areas = append(areas, a.ID)
+		if !botArea(a.Label) {
+			areas = append(areas, a.ID)
+		}
 	}
 	add(domain.AllowedAreas, areas)
 	return r
+}
+
+// botArea reports whether an allowed area is one the bot made (#1321): the
+// safe area or a combat animal area ("Combat <id>", NativeCombatOrders.cs).
+// They stay in the keep set, so the prune never deletes them.
+func botArea(label string) bool {
+	return label == policy.SafeAreaKey || strings.HasPrefix(label, "Combat ")
 }

@@ -192,11 +192,11 @@ func (z ZoneCreate) Role() string { return z.role }
 func (z ZoneCreate) Label() string {
 	switch {
 	case z.kind == FishingZone:
-		return "RimGovernor fishing"
+		return "Fishing"
 	case z.kind == StockpileZone:
 		return stockpileLabel(z.filter, z.priority)
 	default:
-		return "RimGovernor crops"
+		return "Crops"
 	}
 }
 

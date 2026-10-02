@@ -70,12 +70,6 @@ namespace HomeBridge.BridgeTools
             layers.Remove(id);
         }
 
-        public override void FinalizeInit()
-        {
-            base.FinalizeInit();
-            ClearLegacyPlans();
-        }
-
         public override void MapComponentUpdate()
         {
             if (!Application.isBatchMode && Find.CurrentMap == map) WidenZoomOut();
@@ -207,28 +201,6 @@ namespace HomeBridge.BridgeTools
                     last = c;
                 }
                 Flush();
-            }
-        }
-
-        // The #726 overlay drew native plans labelled "RimGovernor ...";
-        // delete any a save still carries. Removed at Layout v2 D1.
-        // Cell by cell from the end: Plan.Delete plays a sound and touches
-        // the selector, which headless lacks.
-        private void ClearLegacyPlans()
-        {
-            try
-            {
-                foreach (var plan in map.planManager.AllPlans.ToList())
-                {
-                    if (plan.label == null || !plan.label.StartsWith("RimGovernor", StringComparison.Ordinal)) continue;
-                    var owned = plan.Cells;
-                    for (var i = owned.Count - 1; i >= 0; i--) plan.RemoveCell(owned[i]);
-                    if (map.planManager.AllPlans.Contains(plan)) plan.Deregister();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warning("[RimGovernor] Legacy overlay plan cleanup failed: " + ex.Message);
             }
         }
     }

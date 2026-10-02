@@ -70,7 +70,7 @@ func runAnimals(ctx context.Context, s cases.Session) error {
 	if p := after.pawns[trained]; na.AsString(p["job"]) != "AttackMelee" || na.AsString(p["jobThing"]) != wargs[0] {
 		return fmt.Errorf("released husky does not attack the warg: %v", p)
 	}
-	if p := after.pawns[pup]; na.AsString(p["area"]) != "RimGovernor "+pup || int(na.AsNumber(p["areaCells"])) != 1 {
+	if p := after.pawns[pup]; na.AsString(p["area"]) != "Combat "+pup || int(na.AsNumber(p["areaCells"])) != 1 {
 		return fmt.Errorf("zoned husky not restricted to one cell: %v", p)
 	}
 	results, err = issue(ctx, h, identity, "combat-animals-2", []any{

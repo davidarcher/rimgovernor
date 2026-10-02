@@ -36,12 +36,12 @@ namespace HomeBridge.BridgeTools
             var cells = command.Cells.ExplicitCells.Cells;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Type == Operations.ZoneType.Fishing)
-                return command.Label == "RimGovernor fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
+                return command.Label == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
                     && command.Fishing != null && command.Fishing.HasPopulationFloor && command.Fishing.PopulationFloor == 0.6
                     && (!command.HasExtendZoneId || ProtoBoundary.IsIdentifier(command.ExtendZoneId));
             if (command.Fishing != null || command.HasExtendZoneId) return false;
             if (command.Type == Operations.ZoneType.Growing)
-                return command.Label == "RimGovernor crops" && command.Stockpile == null && !command.RequireCoveredEmpty
+                return command.Label == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
                     && command.Growing.HasAllowSow && command.Growing.AllowSow && command.Growing.HasAllowCut && command.Growing.AllowCut;
             // A stockpile takes any label and any typed settings body; the

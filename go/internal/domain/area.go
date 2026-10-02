@@ -8,7 +8,7 @@ import (
 
 // AreaAction creates, edits or deletes one bot-owned allowed area, or edits
 // the home area (#1321): an AreaIntent on Actions/Apply. A bot-owned area is
-// the Area_Allowed labelled "RimGovernor <key>"; native never touches an
+// the Area_Allowed labelled with its key; native never touches an
 // area the player made.
 const AreaAction ActionKind = "area"
 

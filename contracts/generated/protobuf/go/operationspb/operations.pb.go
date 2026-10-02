@@ -933,7 +933,7 @@ func (EndTradeKind) EnumDescriptor() ([]byte, []int) {
 }
 
 // Create, edit or delete one bot-owned allowed area, or edit the home area
-// (#1321). A bot area is the Area_Allowed labelled "RimGovernor <key>";
+// (#1321). A bot area is the Area_Allowed labelled with its key;
 // native never touches an area the player made. home and key are exclusive;
 // home takes set_cells and clear_cells only. create refuses when the map
 // cannot make another allowed area, applies again on an existing bot area,

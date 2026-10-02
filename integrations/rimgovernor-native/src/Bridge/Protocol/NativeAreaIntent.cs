@@ -11,18 +11,16 @@ namespace HomeBridge.BridgeTools
 {
     // AreaIntent on Actions/Apply (#1321): create, edit or delete one
     // bot-owned Area_Allowed, or edit the home area. A bot area is the
-    // Area_Allowed labelled "RimGovernor <key>" (the combat animal_area
-    // scheme); an area the player made is never resolved, so never touched.
+    // Area_Allowed labelled with its key (combat animal areas are
+    // "Combat <id>"); a player area is never resolved, so never touched.
     // create refuses when the map cannot make another allowed area and
     // applies again on an existing bot area; delete of a missing bot area
     // applies again. Evidence is the area's load id and cell count after the
     // edit.
     internal static class NativeAreaIntent
     {
-        internal const string LabelPrefix = "RimGovernor ";
-
         internal static Area_Allowed? BotArea(Map map, string key) =>
-            map.areaManager.AllAreas.OfType<Area_Allowed>().FirstOrDefault(a => a.Label == LabelPrefix + key);
+            map.areaManager.AllAreas.OfType<Area_Allowed>().FirstOrDefault(a => a.Label == key);
 
         private static Common.Failure? Resolve(Operations.AreaIntent? intent, Common.ObservationContext context,
             out Map? map, out Area? area, out List<IntVec3> cells)
@@ -68,7 +66,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.AreaOperation.Create:
                     if (area == null)
                     {
-                        area = new Area_Allowed(map!.areaManager, LabelPrefix + intent.Key);
+                        area = new Area_Allowed(map!.areaManager, intent.Key);
                         map.areaManager.AllAreas.Add(area);
                     }
                     foreach (var cell in cells) area[cell] = true;
