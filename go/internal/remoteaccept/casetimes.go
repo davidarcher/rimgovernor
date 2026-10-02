@@ -34,6 +34,9 @@ func ShardCost(name string, budget time.Duration) int64 {
 	return int64(budget)
 }
 
+// Measured reports whether the table has a time for name.
+func Measured(name string) bool { return measured[name] > 0 }
+
 // CaseTimes reads every suite result.json under root (a downloaded run's
 // shard artifacts) and returns the table merged over the current one.
 func CaseTimes(root string) (map[string]int64, error) {

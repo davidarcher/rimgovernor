@@ -127,7 +127,7 @@ func (r planRun) validate() error {
 		return fmt.Errorf("invalid bundle reference")
 	}
 	l := r.Limits
-	if l.Runner != "windows-2022" || l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 20 || l.Workers != 1 || l.Paid || l.JobMinutes < 16 || l.JobMinutes > 360 || l.SuiteMinutes < 1 || l.SuiteMinutes > 345 || l.JobMinutes-l.SuiteMinutes < 15 || l.Attempts < 1 || l.Attempts > 2 || l.Retention < 1 || l.Retention > 7 || l.ArtifactBytes < 0 {
+	if l.Runner != "windows-2022" || l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 20 || l.Workers != 1 || l.Paid || l.JobMinutes < 15 || l.JobMinutes > 360 || l.SuiteMinutes < 1 || l.SuiteMinutes > 345 || l.JobMinutes-l.SuiteMinutes < 5 || l.Attempts < 1 || l.Attempts > 2 || l.Retention < 1 || l.Retention > 7 || l.ArtifactBytes < 0 {
 		return fmt.Errorf("run limits exceed remote v1 capabilities")
 	}
 	return nil
@@ -312,6 +312,17 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		p.Skipped = append(p.Skipped, remoteaccept.SkippedCase{Name: c.Name, Reason: "rendered"})
 		return true
 	})
+	// The land tier is capped at a 10 min suite per shard; a case measured
+	// longer than landCaseLimit cannot finish inside it and runs nightly.
+	if r.Tier == "land" {
+		selected = slices.DeleteFunc(selected, func(c cases.Case) bool {
+			if remoteaccept.ShardCost(c.Name, c.Budget) <= int64(landCaseLimit) || !remoteaccept.Measured(c.Name) {
+				return false
+			}
+			p.Skipped = append(p.Skipped, remoteaccept.SkippedCase{Name: c.Name, Reason: "long: nightly only"})
+			return true
+		})
+	}
 	if len(selected) == 0 {
 		return p, fmt.Errorf("empty remote selection")
 	}
@@ -395,6 +406,9 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	}
 	return p, nil
 }
+
+// landCaseLimit is the longest measured case the capped land tier runs.
+const landCaseLimit = 5 * time.Minute
 
 func plan(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("plan", flag.ContinueOnError)

@@ -233,9 +233,9 @@ jobs:
     # and the verdict see only repetition 1.
     name: acceptance-${{ matrix.shard }}${{ matrix.rep > 1 && format('-r{0}', matrix.rep) || '' }}
     runs-on: windows-2022
-    # Push-to-main land runs are capped at 45 min (suite 30 min, see
+    # Push-to-main land runs are capped at 15 min (suite 10 min, see
     # remote_workflow.ps1); dispatched and nightly tiers keep 360.
-    timeout-minutes: ${{ github.event_name == 'push' && 45 || 360 }}
+    timeout-minutes: ${{ github.event_name == 'push' && 15 || 360 }}
     environment: remote-acceptance
     # Go build and module caches (restored below, saved only by pushes to
     # main, one entry per role, go.sum and ISO week so they cannot pile up).
