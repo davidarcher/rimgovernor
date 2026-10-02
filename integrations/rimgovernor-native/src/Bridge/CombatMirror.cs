@@ -69,9 +69,11 @@ namespace HomeBridge.BridgeTools
         // over the rest (0), so a downing inside a damage call keeps the
         // downing's mark.
         private static readonly Dictionary<int, (Mark Mark, int Rank)> Stamped = new Dictionary<int, (Mark, int)>();
-        // Each pawn row as last captured (without its changed mark) and the
-        // mark of its last change, keyed by load id.
-        private static readonly Dictionary<string, (Mirror.CombatPawn Row, Mark Changed)> Captured = new Dictionary<string, (Mirror.CombatPawn, Mark)>();
+        // Each pawn row's hash as last captured (without its changed mark),
+        // by the shared row diff (#1348), and the mark of its last change,
+        // keyed by load id.
+        private static readonly RowDiff Compared = new RowDiff();
+        private static readonly Dictionary<string, Mark> ChangedAt = new Dictionary<string, Mark>();
         private static void Stamp(Thing? thing, Mark mark, int rank)
         {
             if (!(thing is Pawn pawn)) return;
@@ -225,24 +227,24 @@ namespace HomeBridge.BridgeTools
             if (!Active)
             {
                 Stamped.Clear();
-                Captured.Clear();
+                Compared.Reset();
+                ChangedAt.Clear();
                 return;
             }
             Mark? capture = null;
-            var seen = new HashSet<string>();
-            foreach (var (pawn, side) in pawns)
+            var rows = pawns.Select(e => (e.pawn, row: Project(e.pawn, e.side))).ToList();
+            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>(e.row.Id, e.row)));
+            foreach (var (pawn, row) in rows)
             {
-                var row = Project(pawn, side);
-                seen.Add(row.Id);
                 Mark changed;
                 if (Stamped.TryGetValue(pawn.thingIDNumber, out var stamp)) changed = stamp.Mark;
-                else if (Captured.TryGetValue(row.Id, out var held) && held.Row.Equals(row)) changed = held.Changed;
+                else if (!step.Changed.Contains(row.Id) && ChangedAt.TryGetValue(row.Id, out var held)) changed = held;
                 else changed = capture ??= Next();
-                Captured[row.Id] = (row.Clone(), changed);
+                ChangedAt[row.Id] = changed;
                 row.Changed = changed.Wire();
                 frame.CombatPawns.Add(row);
             }
-            foreach (var id in Captured.Keys.Where(id => !seen.Contains(id)).ToList()) Captured.Remove(id);
+            foreach (var id in step.Removed) ChangedAt.Remove(id);
             Stamped.Clear();
             frame.CombatEvents.AddRange(Ring.Where(e => e.MapId == map.uniqueID).Select(e => e.Row.Clone()));
         }

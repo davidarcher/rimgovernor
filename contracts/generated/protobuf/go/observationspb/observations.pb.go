@@ -7305,8 +7305,10 @@ type PawnSnapshot struct {
 	// Colony fact (#1313): the Meditate TimeAssignmentDef exists
 	// (DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate")); false on Core only.
 	MeditateAssignmentAvailable *bool `protobuf:"varint,5,opt,name=meditate_assignment_available,json=meditateAssignmentAvailable,proto3,oneof" json:"meditate_assignment_available,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	Removed       []string `protobuf:"bytes,6,rep,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PawnSnapshot) Reset() {
@@ -7365,6 +7367,13 @@ func (x *PawnSnapshot) GetMeditateAssignmentAvailable() bool {
 		return *x.MeditateAssignmentAvailable
 	}
 	return false
+}
+
+func (x *PawnSnapshot) GetRemoved() []string {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
 }
 
 type ListPawnsRequest struct {
@@ -10134,6 +10143,8 @@ type BuildingsSnapshot struct {
 	Buildings     []*BuildingState             `protobuf:"bytes,2,rep,name=buildings,proto3" json:"buildings,omitempty"`
 	PowerNetworks []*PowerNetwork              `protobuf:"bytes,3,rep,name=power_networks,json=powerNetworks,proto3" json:"power_networks,omitempty"`
 	Completeness  *Completeness                `protobuf:"bytes,4,opt,name=completeness,proto3" json:"completeness,omitempty"`
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	Removed       []string `protobuf:"bytes,10,rep,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10192,6 +10203,13 @@ func (x *BuildingsSnapshot) GetPowerNetworks() []*PowerNetwork {
 func (x *BuildingsSnapshot) GetCompleteness() *Completeness {
 	if x != nil {
 		return x.Completeness
+	}
+	return nil
+}
+
+func (x *BuildingsSnapshot) GetRemoved() []string {
+	if x != nil {
+		return x.Removed
 	}
 	return nil
 }
@@ -11879,9 +11897,11 @@ func (x *Thing) GetSnapshot() *SnapshotRef {
 }
 
 type ThingsSnapshot struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Things        []*Thing                     `protobuf:"bytes,2,rep,name=things,proto3" json:"things,omitempty"`
+	state   protoimpl.MessageState       `protogen:"open.v1"`
+	Context *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Things  []*Thing                     `protobuf:"bytes,2,rep,name=things,proto3" json:"things,omitempty"`
+	// Row ids removed since the base table, in a delta section (SectionWatermark.delta, #1348).
+	Removed       []string `protobuf:"bytes,3,rep,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -11926,6 +11946,13 @@ func (x *ThingsSnapshot) GetContext() *commonpb.ObservationContext {
 func (x *ThingsSnapshot) GetThings() []*Thing {
 	if x != nil {
 		return x.Things
+	}
+	return nil
+}
+
+func (x *ThingsSnapshot) GetRemoved() []string {
+	if x != nil {
+		return x.Removed
 	}
 	return nil
 }
@@ -33570,11 +33597,19 @@ func (x *BundleSnapshot) GetSkyGlow() float64 {
 
 // seq counts a section's changes since the stream opened; captured_tick is
 // the tick of the frame that last carried it.
+// A keyed table section (pawns, buildings, things; #1348) is a keyframe,
+// carrying every row, unless delta is set: then it carries only the rows
+// whose content changed or appeared since the table at base_seq, plus the
+// ids that left it in removed, and the reader merges it into the table it
+// holds at base_seq (a different held seq is a gap: it asks for a keyframe).
+// An unchanged table is omitted like a singleton section.
 type SectionWatermark struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Section       *string                `protobuf:"bytes,1,opt,name=section,proto3,oneof" json:"section,omitempty"`
 	Seq           *uint64                `protobuf:"varint,2,opt,name=seq,proto3,oneof" json:"seq,omitempty"`
 	CapturedTick  *int64                 `protobuf:"varint,3,opt,name=captured_tick,json=capturedTick,proto3,oneof" json:"captured_tick,omitempty"`
+	Delta         *bool                  `protobuf:"varint,4,opt,name=delta,proto3,oneof" json:"delta,omitempty"`
+	BaseSeq       *uint64                `protobuf:"varint,5,opt,name=base_seq,json=baseSeq,proto3,oneof" json:"base_seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -33626,6 +33661,20 @@ func (x *SectionWatermark) GetSeq() uint64 {
 func (x *SectionWatermark) GetCapturedTick() int64 {
 	if x != nil && x.CapturedTick != nil {
 		return *x.CapturedTick
+	}
+	return 0
+}
+
+func (x *SectionWatermark) GetDelta() bool {
+	if x != nil && x.Delta != nil {
+		return *x.Delta
+	}
+	return false
+}
+
+func (x *SectionWatermark) GetBaseSeq() uint64 {
+	if x != nil && x.BaseSeq != nil {
+		return *x.BaseSeq
 	}
 	return 0
 }
@@ -36427,12 +36476,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x15_visible_hediffs_onlyB\a\n" +
 	"\x05_workB\v\n" +
 	"\t_scheduleB\a\n" +
-	"\x05_tend\"\xd1\x02\n" +
+	"\x05_tend\"\xeb\x02\n" +
 	"\fPawnSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05pawns\x18\x02 \x03(\v2&.rimgovernor.observations.v1.PawnStateR\x05pawns\x12M\n" +
 	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12G\n" +
-	"\x1dmeditate_assignment_available\x18\x05 \x01(\bH\x00R\x1bmeditateAssignmentAvailable\x88\x01\x01B \n" +
+	"\x1dmeditate_assignment_available\x18\x05 \x01(\bH\x00R\x1bmeditateAssignmentAvailable\x88\x01\x01\x12\x18\n" +
+	"\aremoved\x18\x06 \x03(\tR\aremovedB \n" +
 	"\x1e_meditate_assignment_availableJ\x04\b\x04\x10\x05\"\xe1\x01\n" +
 	"\x10ListPawnsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12?\n" +
@@ -36882,12 +36932,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\r\n" +
 	"\v_has_sourceB\x14\n" +
-	"\x12_has_active_sourceJ\x04\b\x10\x10\x11\"\xe1\x02\n" +
+	"\x12_has_active_sourceJ\x04\b\x10\x10\x11\"\xfb\x02\n" +
 	"\x11BuildingsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\tbuildings\x18\x02 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12P\n" +
 	"\x0epower_networks\x18\x03 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\rpowerNetworks\x12M\n" +
-	"\fcompleteness\x18\x04 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompletenessJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\fcompleteness\x18\x04 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12\x18\n" +
+	"\aremoved\x18\n" +
+	" \x03(\tR\aremovedJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"\"\x95\x04\n" +
 	"\x14ListBuildingsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x10\n" +
@@ -37140,10 +37192,11 @@ const file_observations_proto_rawDesc = "" +
 	"_vegetableB\v\n" +
 	"\t_raw_meatB\f\n" +
 	"\n" +
-	"_raw_class\"\x91\x01\n" +
+	"_raw_class\"\xab\x01\n" +
 	"\x0eThingsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12:\n" +
-	"\x06things\x18\x02 \x03(\v2\".rimgovernor.observations.v1.ThingR\x06things\"\xe2\x02\n" +
+	"\x06things\x18\x02 \x03(\v2\".rimgovernor.observations.v1.ThingR\x06things\x12\x18\n" +
+	"\aremoved\x18\x03 \x03(\tR\aremoved\"\xe2\x02\n" +
 	"\rCellsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x123\n" +
@@ -39910,15 +39963,19 @@ const file_observations_proto_rawDesc = "" +
 	"\x1a_combat_hive_temperature_cB\x0f\n" +
 	"\r_keyframe_seqB\v\n" +
 	"\t_sky_glowJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\t\x10\n" +
-	"J\x04\b\x11\x10\x12J\x04\b\x16\x10\x17J\x04\b\x18\x10\x19J\x04\b\x1a\x10\x1bJ\x04\b\x1d\x10\x1eR\x0ecolonist_pawnsR\rcombat_detailR\x13project_definitions\"\x98\x01\n" +
+	"J\x04\b\x11\x10\x12J\x04\b\x16\x10\x17J\x04\b\x18\x10\x19J\x04\b\x1a\x10\x1bJ\x04\b\x1d\x10\x1eR\x0ecolonist_pawnsR\rcombat_detailR\x13project_definitions\"\xea\x01\n" +
 	"\x10SectionWatermark\x12\x1d\n" +
 	"\asection\x18\x01 \x01(\tH\x00R\asection\x88\x01\x01\x12\x15\n" +
 	"\x03seq\x18\x02 \x01(\x04H\x01R\x03seq\x88\x01\x01\x12(\n" +
-	"\rcaptured_tick\x18\x03 \x01(\x03H\x02R\fcapturedTick\x88\x01\x01B\n" +
+	"\rcaptured_tick\x18\x03 \x01(\x03H\x02R\fcapturedTick\x88\x01\x01\x12\x19\n" +
+	"\x05delta\x18\x04 \x01(\bH\x03R\x05delta\x88\x01\x01\x12\x1e\n" +
+	"\bbase_seq\x18\x05 \x01(\x04H\x04R\abaseSeq\x88\x01\x01B\n" +
 	"\n" +
 	"\b_sectionB\x06\n" +
 	"\x04_seqB\x10\n" +
-	"\x0e_captured_tick\"\xb6\x05\n" +
+	"\x0e_captured_tickB\b\n" +
+	"\x06_deltaB\v\n" +
+	"\t_base_seq\"\xb6\x05\n" +
 	"\x18ObservationBatchSnapshot\x12N\n" +
 	"\rstart_context\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\fstartContext\x12J\n" +
 	"\vend_context\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\n" +
