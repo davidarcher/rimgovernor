@@ -14,8 +14,8 @@ func sleepingWire() *o.UpkeepFacts {
 	person.Id = proto.String("pawn")
 	bed := proto.Clone(v.Items[0].Item).(*o.EntityRef)
 	bed.Id = proto.String("bed")
-	v.People = []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: person.Id}, OwnedBedId: proto.String(""), ComfortableMinC: proto.Float64(-10), ComfortableMaxC: proto.Float64(30)}}
-	v.Beds = []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(-5), RestEffectiveness: proto.Float64(.8), Owners: []string{"pawn"}, AccessibleTo: []string{"pawn"}}}
+	v.People = []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: person.Id}, ComfortableMinC: proto.Float64(-10), ComfortableMaxC: proto.Float64(30)}}
+	v.Beds = []*o.UpkeepBed{{Bed: bed, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(-5), RestEffectiveness: proto.Float64(.8), Owners: NewRefs([]string{"pawn"}), AccessibleTo: NewRefs([]string{"pawn"})}}
 	return v
 }
 
@@ -28,7 +28,7 @@ func TestSleepingUpkeepBoundary(t *testing.T) {
 		func(v *o.UpkeepFacts) { v.People[0].Pawn.MapId = proto.Int32(4) },
 		func(v *o.UpkeepFacts) { v.Beds = append(v.Beds, v.Beds[0]) },
 		func(v *o.UpkeepFacts) { v.People = append(v.People, v.People[0]) },
-		func(v *o.UpkeepFacts) { v.Beds[0].Owners = []string{"pawn", "pawn"} },
+		func(v *o.UpkeepFacts) { v.Beds[0].Owners = NewRefs([]string{"pawn", "pawn"}) },
 		func(v *o.UpkeepFacts) { v.Beds[0].TemperatureC = proto.Float64(math.NaN()) },
 		func(v *o.UpkeepFacts) { v.People[0].ComfortableMaxC = proto.Float64(-20) },
 		func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("beds")}} },
@@ -41,7 +41,7 @@ func TestSleepingUpkeepBoundary(t *testing.T) {
 		}
 	}
 	v := sleepingWire()
-	v.People[0].OwnedBedId = nil
+	v.People[0].OwnedBed = nil
 	v.Beds[0].Roofed = nil
 	if err := validateDirectUpkeep(v, size, 3); err != nil {
 		t.Fatal("unknown field rejected", err)

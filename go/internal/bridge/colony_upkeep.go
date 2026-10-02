@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"math"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"math"
 )
 
 func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error {
@@ -59,7 +60,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Filth {
-		if row == nil || !entity(row.Filth, seen) || row.RoomRole != nil && validID(row.GetRoomRole()) != nil || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.FilthState{Filth: row.Filth, Home: row.Home, Thickness: row.Thickness, RoomRole: row.RoomRole, RoomId: row.RoomId}) {
+		if row == nil || !entity(row.Filth, seen) || row.RoomRole != nil && validID(row.GetRoomRole()) != nil || !optionalRef(row.Room) || !proto.Equal(row, &o.FilthState{Filth: row.Filth, Home: row.Home, Thickness: row.Thickness, RoomRole: row.RoomRole, Room: row.Room}) {
 			return contract("invalid upkeep filth")
 		}
 	}
@@ -76,23 +77,23 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		return true
 	}
 	for _, row := range append(append([]*o.UpkeepPerson{}, v.People...), v.Slaves...) {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.OwnedBedId != nil && row.GetOwnedBedId() != "" && validID(row.GetOwnedBedId()) != nil || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !ids(row.PartnerIds) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBedId: row.OwnedBedId, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, PartnerIds: row.PartnerIds, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || !optionalRef(row.OwnedBed) || !finite(row.ComfortableMinC) || !finite(row.ComfortableMaxC) || !finite(row.TemperatureC) || row.ComfortableMinC != nil && row.ComfortableMaxC != nil && row.GetComfortableMinC() > row.GetComfortableMaxC() || !validRefs(row.Partners) || !validTitle(row.Title) || !proto.Equal(row, &o.UpkeepPerson{Pawn: row.Pawn, OwnedBed: row.OwnedBed, ComfortableMinC: row.ComfortableMinC, ComfortableMaxC: row.ComfortableMaxC, TemperatureC: row.TemperatureC, Partners: row.Partners, BedSharingAllowed: row.BedSharingAllowed, Title: row.Title}) {
 			return contract("invalid sleeping person")
 		}
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Beds {
-		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !ids(row.Owners) || !ids(row.Users) || !ids(row.AccessibleTo) || row.RoomId != nil && validID(row.GetRoomId()) != nil || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, RoomId: row.RoomId, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
+		if row == nil || !entity(row.Bed, seen) || row.Slots != nil && row.GetSlots() > 256 || !finite(row.RestEffectiveness) || !finite(row.TemperatureC) || !validRefs(row.Owners) || !validRefs(row.Users) || !validRefs(row.AccessibleTo) || !optionalRef(row.Room) || row.Quality != nil && validID(row.GetQuality()) != nil || row.Stuff != nil && validID(row.GetStuff()) != nil || !proto.Equal(row, &o.UpkeepBed{Bed: row.Bed, Slots: row.Slots, Humanlike: row.Humanlike, RestEffectiveness: row.RestEffectiveness, Medical: row.Medical, Prisoners: row.Prisoners, Roofed: row.Roofed, TemperatureC: row.TemperatureC, Owners: row.Owners, Users: row.Users, AccessibleTo: row.AccessibleTo, Room: row.Room, Quality: row.Quality, Stuff: row.Stuff, ForSlaves: row.ForSlaves}) {
 			return contract("invalid upkeep bed")
 		}
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || !ids(row.ReachableBenchIds) {
+		if row == nil || !pawnRef(row.Pawn, seen) || row.Pawn.Snapshot != nil || row.Diet != nil && validID(row.GetDiet()) != nil || !optionalRef(row.SuitablePen) || !validRefs(row.ReachableBenches) {
 			return contract("invalid upkeep animal")
 		}
 		for _, zone := range row.ReachableStorage {
-			if zone == nil || zone.ZoneId == nil || validID(zone.GetZoneId()) != nil || !ids(zone.Accepts) || !proto.Equal(zone, &o.AnimalFeedStorage{ZoneId: zone.ZoneId, Accepts: zone.Accepts}) {
+			if zone == nil || !validRef(zone.Zone) || !ids(zone.Accepts) || !proto.Equal(zone, &o.AnimalFeedStorage{Zone: zone.Zone, Accepts: zone.Accepts}) {
 				return contract("invalid upkeep animal storage")
 			}
 		}
@@ -102,13 +103,13 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 			}
 		}
 		p := row.Pawn
-		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePenId != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
+		if row.RequiresPen != nil && !row.GetRequiresPen() && row.SuitablePen != nil || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePen: row.SuitablePen, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenches: row.ReachableBenches, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}
 		for _, stock := range row.ReachableStoredFeed {
 			// A feed stock references its things table row (#1343).
-			if stock == nil || !thingRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.EaterIds) != 1 || stock.EaterIds[0] != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, EaterIds: stock.EaterIds}) {
+			if stock == nil || !thingRef(stock.Item, stocks) || !number(stock.Nutrition) || len(stock.Eaters) != 1 || stock.Eaters[0].GetId() != p.GetId() || !proto.Equal(stock, &o.FoodStock{Item: stock.Item, Nutrition: stock.Nutrition, Eaters: stock.Eaters}) {
 				return contract("invalid reachable animal feed")
 			}
 		}
@@ -234,7 +235,7 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32, enti
 	}
 	seen := map[string]bool{}
 	for _, row := range f.Facilities {
-		if row == nil || !entity(row.Facility, seen) || RouteKindName(row.GetKind()) == "" || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, RoomId: row.RoomId, Travel: row.Travel, Breaches: row.Breaches}) {
+		if row == nil || !entity(row.Facility, seen) || RouteKindName(row.GetKind()) == "" || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.RouteFacility{Facility: row.Facility, Kind: row.Kind, Cell: row.Cell, Room: row.Room, Travel: row.Travel, Breaches: row.Breaches}) {
 			return contract("invalid routes facility")
 		}
 		travelled := map[string]bool{}
@@ -297,10 +298,10 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	rooms := map[string]bool{}
 	cells := map[[2]int32]bool{}
 	for _, room := range f.Rooms {
-		if room == nil || validID(room.GetRoomId()) != nil || rooms[room.GetRoomId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{RoomId: room.RoomId, Role: room.Role, Cells: room.Cells}) {
+		if room == nil || validID(room.GetRoom().GetId()) != nil || rooms[room.GetRoom().GetId()] || room.Role != nil && validID(room.GetRole()) != nil || !proto.Equal(room, &o.FloorRoom{Room: room.Room, Role: room.Role, Cells: room.Cells}) {
 			return contract("invalid flooring room")
 		}
-		rooms[room.GetRoomId()] = true
+		rooms[room.GetRoom().GetId()] = true
 		for _, cell := range room.Cells {
 			if cell == nil || !colonyCell(cell.Cell, size) || cell.Terrain == nil || !terrains[cell.GetTerrain()] || cell.Pending != nil && validID(cell.GetPending()) != nil || !proto.Equal(cell, &o.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain, Pending: cell.Pending}) {
 				return contract("invalid flooring cell")
@@ -325,7 +326,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	benches := map[string]bool{}
 	for _, row := range l.WorkCells {
-		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, RoomId: row.RoomId, LightSensitive: row.LightSensitive}) {
+		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || !optionalRef(row.Room) || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, Room: row.Room, LightSensitive: row.LightSensitive}) {
 			return contract("invalid lighting work cell")
 		}
 		if row.Glow != nil && (math.IsNaN(row.GetGlow()) || row.GetGlow() < 0 || row.GetGlow() > 1) {
@@ -334,7 +335,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	lamps := map[string]bool{}
 	for _, row := range l.Lamps {
-		if row == nil || !entity(row.Building, lamps) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, RoomId: row.RoomId}) {
+		if row == nil || !entity(row.Building, lamps) || !optionalRef(row.Room) || !proto.Equal(row, &o.LampState{Building: row.Building, GlowRadius: row.GlowRadius, Lit: row.Lit, Room: row.Room}) {
 			return contract("invalid lighting lamp")
 		}
 		if row.GlowRadius != nil && (math.IsNaN(row.GetGlowRadius()) || row.GetGlowRadius() < 0 || row.GetGlowRadius() > 1e3) {

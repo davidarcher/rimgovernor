@@ -18,7 +18,7 @@ func productionFixture(t *testing.T) *o.ColonyFactsSnapshot {
 		}
 	}
 	v.Issues = issues
-	v.Farms = []*o.FarmFacts{{ZoneId: proto.String("field"), Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), PlantedCells: proto.Uint32(40), GrowingCells: proto.Uint32(30)}}
+	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("field")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), PlantedCells: proto.Uint32(40), GrowingCells: proto.Uint32(30)}}
 	v.Cooking = []*o.CookingFacts{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, Usable: proto.Bool(true), Recipes: []*o.RecipeState{{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}}}, Bills: []*o.BillState{{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(false)}}}}
 	return v
 }

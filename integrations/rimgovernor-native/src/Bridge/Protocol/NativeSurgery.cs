@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
             if (surgeon != null && bill.PawnRestriction != surgeon) bill.SetPawnRestriction(surgeon);
             var effect = new Receipts.SurgeryEffect
             {
-                PawnId = pawn!.GetUniqueLoadID(), RecipeDef = recipe!.defName, BillId = bill.GetUniqueLoadID(),
+                PawnId = pawn!.GetUniqueLoadID(), RecipeDef = recipe!.defName, Bill = NativeRef.Of(bill.GetUniqueLoadID()),
                 State = Receipts.SurgeryState.Queued,
             };
             if (part != null) effect.PartIndex = intent.PartIndex;

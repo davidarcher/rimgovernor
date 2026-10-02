@@ -466,7 +466,7 @@ func readFilth(ctx context.Context, h *na.Harness, identity map[string]any, labe
 		row, _ := na.AsMap(raw)
 		filth, _ := na.AsMap(row["filth"])
 		home, _ := na.AsBool(row["home"])
-		rows[na.AsString(filth["id"])] = filthRow{room: na.AsString(row["roomId"]), home: home}
+		rows[na.AsString(filth["id"])] = filthRow{room: na.RefID(row["room"]), home: home}
 	}
 	return rows, nil
 }

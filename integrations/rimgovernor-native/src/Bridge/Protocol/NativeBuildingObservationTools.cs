@@ -171,8 +171,8 @@ namespace HomeBridge.BridgeTools
             var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
             if (stuff != null) row.Stuff = Id(stuff.defName);
             else row.Issues.Add(Issue("stuff", Common.UnavailableReason.NotApplicable, "No material definition applies."));
-            if (thing.Faction != null) row.FactionId = Id(thing.Faction.GetUniqueLoadID());
-            else row.Issues.Add(Issue("faction_id", Common.UnavailableReason.NotApplicable, "Unowned native thing."));
+            if (thing.Faction != null) row.Faction = NativeRef.Of(Id(thing.Faction.GetUniqueLoadID()));
+            else row.Issues.Add(Issue("faction", Common.UnavailableReason.NotApplicable, "Unowned native thing."));
             var rectangle = thing.OccupiedRect();
             foreach (var cell in rectangle.Cells)
             {

@@ -471,7 +471,7 @@ func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 		switch {
 		case !harvest:
 			return fmt.Errorf("prisoner %s has no kidney harvest operation: %#v", prisoner, surgery["operations"])
-		case na.AsString(person["factionId"]) == "":
+		case na.RefID(person["faction"]) == "":
 			return fmt.Errorf("prisoner %s has no faction_id", prisoner)
 		case !gk || goodwill > 0:
 			return fmt.Errorf("prisoner %s harvest_goodwill_change absent or positive: %#v", prisoner, person["harvestGoodwillChange"])

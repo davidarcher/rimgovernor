@@ -358,7 +358,7 @@ func ownsBed(ctx context.Context, h *na.Harness, identity any, pawn domain.PawnI
 		return fmt.Errorf("pawn read: %#v", observed)
 	}
 	row, _ := na.AsMap(rows[0])
-	if owned := na.AsString(row["ownedBedId"]); owned != bed {
+	if owned := na.RefID(row["ownedBed"]); owned != bed {
 		return fmt.Errorf("%s: colonist %s owns %q, not the suite bed %q", when, pawn, owned, bed)
 	}
 	return nil

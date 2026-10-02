@@ -415,6 +415,54 @@ func (x *AttemptKey) GetAttemptId() uint64 {
 	return 0
 }
 
+// A pointer at a thing, pawn, building, zone, bill, room or faction by its
+// load id (#1342). Definition, label and position come from the row it
+// resolves to (the frame's tables) and the definition catalog, never from
+// the reference.
+type Ref struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ref) Reset() {
+	*x = Ref{}
+	mi := &file_common_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ref) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ref) ProtoMessage() {}
+
+func (x *Ref) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ref.ProtoReflect.Descriptor instead.
+func (*Ref) Descriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Ref) GetId() string {
+	if x != nil && x.Id != nil {
+		return *x.Id
+	}
+	return ""
+}
+
 type Cell struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             *int32                 `protobuf:"varint,1,opt,name=x,proto3,oneof" json:"x,omitempty"`
@@ -425,7 +473,7 @@ type Cell struct {
 
 func (x *Cell) Reset() {
 	*x = Cell{}
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -437,7 +485,7 @@ func (x *Cell) String() string {
 func (*Cell) ProtoMessage() {}
 
 func (x *Cell) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[3]
+	mi := &file_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -450,7 +498,7 @@ func (x *Cell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cell.ProtoReflect.Descriptor instead.
 func (*Cell) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Cell) GetX() int32 {
@@ -479,7 +527,7 @@ type Failure struct {
 
 func (x *Failure) Reset() {
 	*x = Failure{}
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -491,7 +539,7 @@ func (x *Failure) String() string {
 func (*Failure) ProtoMessage() {}
 
 func (x *Failure) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[4]
+	mi := &file_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -504,7 +552,7 @@ func (x *Failure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Failure.ProtoReflect.Descriptor instead.
 func (*Failure) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Failure) GetCode() FailureCode {
@@ -538,7 +586,7 @@ type Unavailable struct {
 
 func (x *Unavailable) Reset() {
 	*x = Unavailable{}
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -550,7 +598,7 @@ func (x *Unavailable) String() string {
 func (*Unavailable) ProtoMessage() {}
 
 func (x *Unavailable) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_msgTypes[5]
+	mi := &file_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -563,7 +611,7 @@ func (x *Unavailable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unavailable.ProtoReflect.Descriptor instead.
 func (*Unavailable) Descriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Unavailable) GetReason() UnavailableReason {
@@ -609,7 +657,10 @@ const file_common_proto_rawDesc = "" +
 	"\x16_controller_session_idB\f\n" +
 	"\n" +
 	"_action_idB\r\n" +
-	"\v_attempt_id\"8\n" +
+	"\v_attempt_id\"!\n" +
+	"\x03Ref\x12\x13\n" +
+	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01B\x05\n" +
+	"\x03_id\"8\n" +
 	"\x04Cell\x12\x11\n" +
 	"\x01x\x18\x01 \x01(\x05H\x00R\x01x\x88\x01\x01\x12\x11\n" +
 	"\x01z\x18\x02 \x01(\x05H\x01R\x01z\x88\x01\x01B\x04\n" +
@@ -675,7 +726,7 @@ func file_common_proto_rawDescGZIP() []byte {
 }
 
 var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_common_proto_goTypes = []any{
 	(CorpseClass)(0),           // 0: rimgovernor.common.v1.CorpseClass
 	(FailureCode)(0),           // 1: rimgovernor.common.v1.FailureCode
@@ -683,9 +734,10 @@ var file_common_proto_goTypes = []any{
 	(*Identity)(nil),           // 3: rimgovernor.common.v1.Identity
 	(*ObservationContext)(nil), // 4: rimgovernor.common.v1.ObservationContext
 	(*AttemptKey)(nil),         // 5: rimgovernor.common.v1.AttemptKey
-	(*Cell)(nil),               // 6: rimgovernor.common.v1.Cell
-	(*Failure)(nil),            // 7: rimgovernor.common.v1.Failure
-	(*Unavailable)(nil),        // 8: rimgovernor.common.v1.Unavailable
+	(*Ref)(nil),                // 6: rimgovernor.common.v1.Ref
+	(*Cell)(nil),               // 7: rimgovernor.common.v1.Cell
+	(*Failure)(nil),            // 8: rimgovernor.common.v1.Failure
+	(*Unavailable)(nil),        // 9: rimgovernor.common.v1.Unavailable
 }
 var file_common_proto_depIdxs = []int32{
 	3, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
@@ -710,13 +762,14 @@ func file_common_proto_init() {
 	file_common_proto_msgTypes[3].OneofWrappers = []any{}
 	file_common_proto_msgTypes[4].OneofWrappers = []any{}
 	file_common_proto_msgTypes[5].OneofWrappers = []any{}
+	file_common_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

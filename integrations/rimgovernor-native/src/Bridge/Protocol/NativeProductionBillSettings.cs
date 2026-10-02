@@ -6,7 +6,7 @@ namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBillSettings {
   internal static bool Valid(Operations.ProductionBillIntent? command){
    var s=command?.Settings;
-   if(command?.HasReplaceOwnedBillId==true && !ProtoBoundary.IsIdentifier(command.ReplaceOwnedBillId))return false;
+   if(command?.ReplaceOwnedBill!=null && !ProtoBoundary.IsIdentifier(command.ReplaceOwnedBill.Id))return false;
    if(!ValidIngredients(s?.Ingredients))return false;
    if(command==null||!command.HasBenchId||!ProtoBoundary.IsIdentifier(command.BenchId)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
    var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()};

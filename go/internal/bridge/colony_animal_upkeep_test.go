@@ -4,13 +4,14 @@ import (
 	"math"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func animalWire() *o.UpkeepFacts {
 	v := upkeepWire()
-	v.Animals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: &o.EntityRef{Id: v.Items[0].Item.Id}, Nutrition: proto.Float64(.5), EaterIds: []string{"animal"}}}}}
+	v.Animals = []*o.AnimalFeed{{Pawn: &o.EntityRef{Id: proto.String("animal")}, RequiresPen: proto.Bool(true), ReachableStoredFeed: []*o.FoodStock{{Item: &o.EntityRef{Id: v.Items[0].Item.Id}, Nutrition: proto.Float64(.5), Eaters: NewRefs([]string{"animal"})}}}}
 	return v
 }
 
@@ -29,12 +30,14 @@ func TestAnimalUpkeepBoundary(t *testing.T) {
 		func(v *o.UpkeepFacts) { v.Issues = []*o.ReadIssue{{Field: proto.String("animals")}} },
 		func(v *o.UpkeepFacts) {
 			v.Animals[0].RequiresPen = proto.Bool(false)
-			v.Animals[0].SuitablePenId = proto.String("pen")
+			v.Animals[0].SuitablePen = &commonpb.Ref{Id: proto.String("pen")}
 		},
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Nutrition = proto.Float64(math.NaN()) },
 		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Item.DefName = proto.String("Hay") },
-		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].EaterIds = []string{"other"} },
-		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].HolderId = proto.String("animal") },
+		func(v *o.UpkeepFacts) { v.Animals[0].ReachableStoredFeed[0].Eaters = NewRefs([]string{"other"}) },
+		func(v *o.UpkeepFacts) {
+			v.Animals[0].ReachableStoredFeed[0].Holder = &commonpb.Ref{Id: proto.String("animal")}
+		},
 	} {
 		v := animalWire()
 		mutate(v)
@@ -64,7 +67,7 @@ func TestWildAnimalUpkeepBoundary(t *testing.T) {
 		func(v *o.UpkeepFacts) { v.WildAnimals = append(v.WildAnimals, v.WildAnimals[0]) },
 		func(v *o.UpkeepFacts) { v.WildAnimals[0].Pawn.DefName = proto.String("Muffalo") },
 		func(v *o.UpkeepFacts) { v.WildAnimals[0].RequiresPen = proto.Bool(true) },
-		func(v *o.UpkeepFacts) { v.WildAnimals[0].SuitablePenId = proto.String("pen") },
+		func(v *o.UpkeepFacts) { v.WildAnimals[0].SuitablePen = &commonpb.Ref{Id: proto.String("pen")} },
 		func(v *o.UpkeepFacts) {
 			v.WildAnimals[0].ReachableStoredFeed = animalWire().Animals[0].ReachableStoredFeed
 		},

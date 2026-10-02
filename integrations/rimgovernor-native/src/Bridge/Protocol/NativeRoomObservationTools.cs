@@ -135,11 +135,11 @@ namespace HomeBridge.BridgeTools
             }
             var stockpiles = new List<Zone_Stockpile>();
             foreach (var cell in cells) if (map.zoneManager.ZoneAt(cell) is Zone_Stockpile stockpile && !stockpiles.Contains(stockpile)) stockpiles.Add(stockpile);
-            row.StockpileZoneIds.Add(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal));
+            row.StockpileZones.Add(NativeRef.All(stockpiles.Select(z => Name(z.GetUniqueLoadID())).OrderBy(v => v, StringComparer.Ordinal)));
             foreach (var stockpile in stockpiles.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var stockpileContents = stockpile.slotGroup?.HeldThings?.ToList() ?? new List<Thing>();
-                var membership = new Obs.StockpileMembership { ZoneId = Name(stockpile.GetUniqueLoadID()) };
+                var membership = new Obs.StockpileMembership { Zone = NativeRef.Of(Name(stockpile.GetUniqueLoadID())) };
                 var grouped = stockpileContents.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
                 foreach (var group in grouped) membership.Contents.Add(new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = group.Key }, Units = group.Sum(t => (long)t.stackCount) });
                 row.StockpileMemberships.Add(membership);
@@ -195,7 +195,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var door in row.Doors) { w.Write(door.Cell.X); w.Write(door.Cell.Z); w.Write(door.Outside.X); w.Write(door.Outside.Z); w.Write(door.HasOutdoors ? (door.Outdoors ? 2 : 1) : 0); }
                 foreach (var quantity in row.Contents) { w.Write(quantity.DefName); w.Write(quantity.Units); }
                 foreach (var membership in row.BedMemberships) { w.Write(membership.Building.Id); w.Write(membership.Owners.Count); w.Write(membership.Users.Count); }
-                foreach (var membership in row.StockpileMemberships) { w.Write(membership.ZoneId??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }
+                foreach (var membership in row.StockpileMemberships) { w.Write(membership.Zone?.Id??""); foreach (var stock in membership.Contents) { w.Write(stock.Definition.DefName); w.Write(stock.Units); } }
             });
             return row;
         }

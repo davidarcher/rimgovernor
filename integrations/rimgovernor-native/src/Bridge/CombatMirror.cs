@@ -261,7 +261,7 @@ namespace HomeBridge.BridgeTools
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
-            try { if (pawn.Faction != null) row.FactionId = pawn.Faction.GetUniqueLoadID(); } catch { }
+            try { if (pawn.Faction != null) row.Faction = NativeRef.Of(pawn.Faction); } catch { }
             try { var lord = pawn.GetLord(); if (lord != null) row.LordId = lord.GetUniqueLoadID(); } catch { }
             if (pawn.MentalStateDef != null) row.MentalState = pawn.MentalStateDef.defName;
             if (pawn.drafter != null)

@@ -10,7 +10,7 @@ func roomSample() map[string]any {
 		"role": "None", "properRoom": true, "outdoors": false, "psychologicallyOutdoors": false,
 		"touchesMapEdge": false, "fogged": false, "openRoofCount": 0.0, "cellCount": 1.0,
 		"id": "0", "doorway": false, "temperatureC": 0.0, "label": "Room", "contents": []any{},
-		"beds": []any{}, "pawns": []any{}, "stockpileZoneIds": []any{}, "stats": []any{},
+		"beds": []any{}, "pawns": []any{}, "stockpileZones": []any{}, "stats": []any{},
 		"cells": []any{map[string]any{"x": 1.0, "z": 1.0}}, "center": map[string]any{"x": 1.0, "z": 1.0},
 		"extents":  map[string]any{"minimum": map[string]any{"x": 1.0, "z": 1.0}, "maximum": map[string]any{"x": 1.0, "z": 1.0}},
 		"snapshot": map[string]any{"context": map[string]any{}, "entityId": "Room_0", "token": "tok"},

@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.BuildingSettings Settings(Building_Bed bed, Common.ObservationContext context)
         {
             var settings = new Obs.BuildingSettings { Snapshot = Snapshot(bed, context), Medical = bed.Medical, ForPrisoners = bed.ForPrisoners };
-            foreach (var owner in bed.OwnersForReading) settings.AssignedPawnIds.Add(owner.GetUniqueLoadID());
+            foreach (var owner in bed.OwnersForReading) settings.AssignedPawns.Add(NativeRef.Of(owner)!);
             return settings;
         }
 

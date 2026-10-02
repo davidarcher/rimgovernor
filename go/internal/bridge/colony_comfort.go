@@ -1,10 +1,11 @@
 package bridge
 
 import (
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 	"math"
 	"slices"
+
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
@@ -35,7 +36,7 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	}
 	surfaces := map[string]bool{}
 	for _, surface := range comfort.Surfaces {
-		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || surface.RoomId != nil && validID(surface.GetRoomId()) != nil {
+		if surface == nil || validID(surface.GetId()) != nil || surfaces[surface.GetId()] || !optionalRef(surface.Room) {
 			return contract("invalid dining surface")
 		}
 		surfaces[surface.GetId()] = true
@@ -51,11 +52,11 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 	for kind, facilities := range [][]*o.ComfortFacility{comfort.Dining, comfort.Recreation} {
 		seen := map[string]bool{}
 		for _, f := range facilities {
-			if f == nil || validID(f.GetId()) != nil || seen[f.GetId()] || kind == 0 && f.Kind != nil || kind == 1 && validID(f.GetKind()) != nil || f.RoomId != nil && validID(f.GetRoomId()) != nil {
+			if f == nil || validID(f.GetId()) != nil || seen[f.GetId()] || kind == 0 && f.Kind != nil || kind == 1 && validID(f.GetKind()) != nil || !optionalRef(f.Room) {
 				return contract("invalid comfort facility")
 			}
 			seen[f.GetId()] = true
-			for _, ids := range [][]string{f.AccessibleTo, f.Users} {
+			for _, ids := range [][]string{RefIDs(f.AccessibleTo), RefIDs(f.Users)} {
 				found := map[string]bool{}
 				for _, id := range ids {
 					if !people[id] || found[id] {

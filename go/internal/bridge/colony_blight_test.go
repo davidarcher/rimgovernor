@@ -10,7 +10,7 @@ import (
 
 func TestBlightCensusBindsPlantSnapshot(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
-	base.BlightedPlants = []*o.BlightedPlant{{Plant: &o.EntityRef{Id: proto.String("Plant_Rice1"), DefName: proto.String("Plant_Rice"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("Plant_Rice1"), Token: proto.String("cut-a"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Designated: proto.Bool(false), ZoneId: proto.String("7"), Growth: proto.Float64(0.5)}}
+	base.BlightedPlants = []*o.BlightedPlant{{Plant: &o.EntityRef{Id: proto.String("Plant_Rice1"), DefName: proto.String("Plant_Rice"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("Plant_Rice1"), Token: proto.String("cut-a"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Designated: proto.Bool(false), Zone: &c.Ref{Id: proto.String("7")}, Growth: proto.Float64(0.5)}}
 	base.Issues = nil
 	if err := validateColonyBlight(base); err != nil {
 		t.Fatal(err)

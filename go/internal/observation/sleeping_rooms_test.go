@@ -3,17 +3,19 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 	u := &o.UpkeepFacts{
-		People: []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: proto.String("pawn")}, PartnerIds: []string{"lover"}, BedSharingAllowed: proto.Bool(false),
+		People: []*o.UpkeepPerson{{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Partners: bridge.NewRefs([]string{"lover"}), BedSharingAllowed: proto.Bool(false),
 			Title: &o.RoyalTitleFacts{DefName: proto.String("Knight"), Seniority: proto.Int32(100), BedroomMinArea: proto.Int32(24), BedroomMinImpressiveness: proto.Int32(40), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"DoubleBed", "RoyalBed"}, Count: proto.Int32(1)}}}}},
-		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, RoomId: proto.String("7"), Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
+		Beds: []*o.UpkeepBed{{Bed: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	r, known := colonySleeping(v).Value()

@@ -1,15 +1,17 @@
 package observation
 
 import (
-	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	ops "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
-	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), WorkerId: proto.String("pawn"), IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
+	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), Worker: &commonpb.Ref{Id: proto.String("pawn")}, IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
 	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &o.EntityRef{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
 	benches, known := colonyProductionBenches(snapshot).Value()
 	if !known {
@@ -34,7 +36,7 @@ func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	if v, k := got.Ingredients.Value(); !k || len(v) != 1 || v[0] != "Rice" {
 		t.Fatal(got)
 	}
-	bill.DefaultIngredients, bill.UnrestrictedWorker, bill.WorkerId, bill.IngredientFilter = nil, nil, nil, nil
+	bill.DefaultIngredients, bill.UnrestrictedWorker, bill.Worker, bill.IngredientFilter = nil, nil, nil, nil
 	benches, _ = colonyProductionBenches(snapshot).Value()
 	got = benches[0].Bills[0]
 	if _, k := got.DefaultIngredients.Value(); k {
@@ -43,8 +45,9 @@ func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	if _, k := got.UnrestrictedWorker.Value(); k {
 		t.Fatal("missing restriction became known")
 	}
-	if _, k := got.Worker.Value(); k {
-		t.Fatal("missing worker became unrestricted")
+	// No worker reference is an unrestricted bill (#1342).
+	if v, k := got.Worker.Value(); !k || v != "" {
+		t.Fatal("absent worker is not unrestricted")
 	}
 	if _, k := got.Ingredients.Value(); k {
 		t.Fatal("missing filter became empty")

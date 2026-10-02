@@ -541,7 +541,7 @@ actual reachable stock and demand determine recovery. At most eight eligible
 resources are considered through the shared source/bill method. When no
 covering feed is reachable the method falls back to the kibble bill. A bill drops
 its product at its bench, so the census names, per animal, the player work
-tables it can reach inside its allowed area (`reachable_bench_ids`) and the
+tables it can reach inside its allowed area (`reachable_benches`) and the
 bill lands on a bench every covered animal reaches when one exists. With no
 such bench, feed made elsewhere still counts once hauled where the animals
 eat: the census also names, per animal, the stockpile zones it can reach with

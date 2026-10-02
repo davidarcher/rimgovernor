@@ -60,7 +60,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 		t.Fatal("unknown deadline certified food")
 	}
 	things["rice"].RotTicks = proto.Int64(60000)
-	wire.Stocks[1].EaterIds = append(wire.Stocks[1].EaterIds, "b")
+	wire.Stocks[1].Eaters = append(wire.Stocks[1].Eaters, bridge.NewRef("b"))
 	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("shared private inventory accepted")
 	}
@@ -116,7 +116,7 @@ func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
 		t.Fatal("ordinary food accepted as reserve")
 	}
 	things["rice"].Thing.DefName = proto.String("Pemmican")
-	wire.Stocks[0].HolderId = proto.String(wire.Stocks[0].EaterIds[0])
+	wire.Stocks[0].Holder = wire.Stocks[0].Eaters[0]
 	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("held inventory accepted as reserve")
 	}

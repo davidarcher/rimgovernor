@@ -283,7 +283,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		return true
 	}
 	for _, row := range e.Lights {
-		if row == nil || !entity(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalID(row.RoomId) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
+		if row == nil || !entity(row.Building) || !unique("light/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !combatNumber(row.PowerW, true) || !cells(row.GrowthCells) {
 			return contract("invalid environment light")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
@@ -291,7 +291,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		}
 	}
 	for _, row := range e.Growers {
-		if row == nil || !entity(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalID(row.RoomId) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
+		if row == nil || !entity(row.Building) || !unique("grower/"+row.Building.GetId()) || !optionalRef(row.Room) || !optionalID(row.PowerNetId) || !optionalID(row.SowTag) || !optionalID(row.CropDefName) || !combatNumber(row.PowerW, true) || !combatNumber(row.Fertility, true) || !cells(row.PlantCells) {
 			return contract("invalid environment grower")
 		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
@@ -299,7 +299,7 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		}
 	}
 	for _, row := range e.Rooms {
-		if row == nil || validID(row.GetRoomId()) != nil || !unique("room/"+row.GetRoomId()) || !combatNumber(row.TemperatureC, false) || row.LitCells != nil && row.CellCount != nil && row.GetLitCells() > row.GetCellCount() {
+		if row == nil || validID(row.GetRoom().GetId()) != nil || !unique("room/"+row.GetRoom().GetId()) || !combatNumber(row.TemperatureC, false) || row.LitCells != nil && row.CellCount != nil && row.GetLitCells() > row.GetCellCount() {
 			return contract("invalid environment room")
 		}
 	}

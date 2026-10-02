@@ -13,7 +13,7 @@ func upkeepWire() *o.UpkeepFacts {
 	entity := func(id string) *o.EntityRef {
 		return &o.EntityRef{Id: proto.String(id), DefName: proto.String("Thing"), MapId: proto.Int32(3), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}
 	}
-	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Medicine: proto.Bool(false), BaseDeteriorationRate: proto.Float64(1)}}, Structures: []*o.UpkeepStructure{{Building: entity("wall"), Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), RoomId: proto.String("7")}}}
+	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Medicine: proto.Bool(false), BaseDeteriorationRate: proto.Float64(1)}}, Structures: []*o.UpkeepStructure{{Building: entity("wall"), Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}}}}
 }
 func TestDirectUpkeepBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
@@ -44,8 +44,8 @@ func lightingWire() *o.LightingSection {
 		return &o.EntityRef{Id: proto.String(id), DefName: proto.String("Thing"), MapId: proto.Int32(3), Position: cell(x, z)}
 	}
 	return &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: &o.LightingFacts{
-		WorkCells: []*o.WorkLightCell{{Bench: entity("stove", 10, 10), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), RoomId: proto.String("7")}},
-		Lamps:     []*o.LampState{{Building: entity("lamp", 12, 12), GlowRadius: proto.Float64(10), Lit: proto.Bool(true), RoomId: proto.String("7")}},
+		WorkCells: []*o.WorkLightCell{{Bench: entity("stove", 10, 10), Cell: cell(10, 11), Glow: proto.Float64(0.2), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}}},
+		Lamps:     []*o.LampState{{Building: entity("lamp", 12, 12), GlowRadius: proto.Float64(10), Lit: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}}},
 	}}}
 }
 
@@ -55,7 +55,7 @@ func flooringWire() *o.FlooringSection {
 		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(0), Beauty: proto.Float64(0), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
 	}
 	return &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{
-		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
+		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
@@ -77,7 +77,7 @@ func TestDirectUpkeepFlooringBoundary(t *testing.T) {
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Pending = proto.String("") },
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells = append(f.Rooms[0].Cells, f.Rooms[0].Cells[0]) },
 		func(f *o.FlooringFacts) { f.Rooms = append(f.Rooms, f.Rooms[0]) },
-		func(f *o.FlooringFacts) { f.Rooms[0].RoomId = proto.String("") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Room = &c.Ref{Id: proto.String("")} },
 		func(f *o.FlooringFacts) { f.Rooms[0].Role = proto.String("") },
 		func(f *o.FlooringFacts) { f.Terrains = append(f.Terrains, f.Terrains[0]) },
 		func(f *o.FlooringFacts) { f.Terrains[0].Cleanliness = proto.Float64(math.NaN()) },
@@ -113,11 +113,11 @@ func TestDirectUpkeepLightingBoundary(t *testing.T) {
 		func(l *o.LightingFacts) { l.WorkCells[0].Cell.X = proto.Int32(50) },
 		func(l *o.LightingFacts) { l.WorkCells[0].Bench.MapId = proto.Int32(4) },
 		func(l *o.LightingFacts) { l.WorkCells = append(l.WorkCells, l.WorkCells[0]) },
-		func(l *o.LightingFacts) { l.WorkCells[0].RoomId = proto.String("") },
+		func(l *o.LightingFacts) { l.WorkCells[0].Room = &c.Ref{Id: proto.String("")} },
 		func(l *o.LightingFacts) { l.Lamps = append(l.Lamps, l.Lamps[0]) },
 		func(l *o.LightingFacts) { l.Lamps[0].GlowRadius = proto.Float64(-1) },
 		func(l *o.LightingFacts) { l.Lamps[0].Building.MapId = proto.Int32(4) },
-		func(l *o.LightingFacts) { l.Lamps[0].RoomId = proto.String("") },
+		func(l *o.LightingFacts) { l.Lamps[0].Room = &c.Ref{Id: proto.String("")} },
 	} {
 		v := upkeepWire()
 		v.Lighting = lightingWire()
@@ -141,7 +141,7 @@ func routesWire() *o.RoutesSection {
 		Facilities: []*o.RouteFacility{
 			{
 				Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
-				Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), RoomId: proto.String("7"),
+				Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), Room: &c.Ref{Id: proto.String("7")},
 				Travel: []*o.RouteTravel{
 					{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
 					{PawnId: proto.String("b"), Reachable: proto.Bool(false)},
@@ -174,7 +174,7 @@ func TestDirectUpkeepRoutesBoundary(t *testing.T) {
 		func(f *o.RoutesFacts) { f.Facilities[0].Facility.MapId = proto.Int32(4) },
 		func(f *o.RoutesFacts) { f.Facilities[0].Kind = nil },
 		func(f *o.RoutesFacts) { f.Facilities[0].Cell.X = proto.Int32(50) },
-		func(f *o.RoutesFacts) { f.Facilities[0].RoomId = proto.String("") },
+		func(f *o.RoutesFacts) { f.Facilities[0].Room = &c.Ref{Id: proto.String("")} },
 		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PawnId = proto.String("zed") },
 		func(f *o.RoutesFacts) { f.Facilities[0].Travel[1].PawnId = proto.String("a") },
 		func(f *o.RoutesFacts) { f.Facilities[0].Travel[0].PathCost = proto.Int32(3) },

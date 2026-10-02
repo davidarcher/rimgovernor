@@ -191,7 +191,7 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bri
 		}
 	}
 	for _, farm := range v.Farms {
-		out.Rows = append(out.Rows, &o.ZoneState{Id: farm.ZoneId, Farm: farm, FoodStorage: proto.Bool(false)})
+		out.Rows = append(out.Rows, &o.ZoneState{Id: farm.Zone.Id, Farm: farm, FoodStorage: proto.Bool(false)})
 	}
 	if v.GetFoodStorage() {
 		out.Rows = append(out.Rows, &o.ZoneState{Id: proto.String("storage"), FoodStorage: proto.Bool(true)})
@@ -351,7 +351,7 @@ func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
 	r, db, _, _, n := routineFixture(t)
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
-	v.Farms = []*o.FarmFacts{{ZoneId: proto.String("farm"), Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
+	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
 	d := n.catalog[0]
 	d.Definition.DefName = proto.String("Plant_Rice")
 	d.GrowDays, d.HarvestNutrition = proto.Float64(3), proto.Float64(1)

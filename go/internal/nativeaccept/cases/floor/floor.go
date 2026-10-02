@@ -351,7 +351,7 @@ func readFlooring(ctx context.Context, h *na.Harness, identity map[string]any, l
 	}
 	for _, raw := range na.AsSlice(facts["rooms"]) {
 		room, _ := na.AsMap(raw)
-		s := flooringSummary{roomID: na.AsString(room["roomId"]), role: na.AsString(room["role"]), cells: map[domain.Cell]floorCellRow{}}
+		s := flooringSummary{roomID: na.RefID(room["room"]), role: na.AsString(room["role"]), cells: map[domain.Cell]floorCellRow{}}
 		for _, rawCell := range na.AsSlice(room["cells"]) {
 			row, _ := na.AsMap(rawCell)
 			cell, _ := na.AsMap(row["cell"])

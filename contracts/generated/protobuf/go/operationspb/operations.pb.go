@@ -6720,16 +6720,16 @@ func (x *HusbandryIntent) GetFollow() bool {
 // settings, ingredient filter, corpse class and pinned worker. Native checks
 // the bench, recipe, ingredients and a skilled reaching worker live when it
 // applies; a bench already carrying a matching bill applies again. With
-// replace_owned_bill_id the named bill (same recipe on this bench, or an
+// replace_owned_bill the named bill (same recipe on this bench, or an
 // ordinary meal tier on this map) is deleted in the same apply.
 type ProductionBillIntent struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	BenchId            *string                `protobuf:"bytes,1,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
-	RecipeDef          *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
-	Settings           *BillSettings          `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
-	ReplaceOwnedBillId *string                `protobuf:"bytes,4,opt,name=replace_owned_bill_id,json=replaceOwnedBillId,proto3,oneof" json:"replace_owned_bill_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	BenchId          *string                `protobuf:"bytes,1,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
+	RecipeDef        *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
+	Settings         *BillSettings          `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
+	ReplaceOwnedBill *commonpb.Ref          `protobuf:"bytes,4,opt,name=replace_owned_bill,json=replaceOwnedBill,proto3" json:"replace_owned_bill,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProductionBillIntent) Reset() {
@@ -6783,11 +6783,11 @@ func (x *ProductionBillIntent) GetSettings() *BillSettings {
 	return nil
 }
 
-func (x *ProductionBillIntent) GetReplaceOwnedBillId() string {
-	if x != nil && x.ReplaceOwnedBillId != nil {
-		return *x.ReplaceOwnedBillId
+func (x *ProductionBillIntent) GetReplaceOwnedBill() *commonpb.Ref {
+	if x != nil {
+		return x.ReplaceOwnedBill
 	}
-	return ""
+	return nil
 }
 
 // Write one free colonist's settings: work priorities, allowed area and the
@@ -8414,16 +8414,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x0e_trainable_defB\f\n" +
 	"\n" +
 	"_target_idB\t\n" +
-	"\a_follow\"\x8d\x02\n" +
+	"\a_follow\"\x85\x02\n" +
 	"\x14ProductionBillIntent\x12\x1e\n" +
 	"\bbench_id\x18\x01 \x01(\tH\x00R\abenchId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"recipe_def\x18\x02 \x01(\tH\x01R\trecipeDef\x88\x01\x01\x12C\n" +
-	"\bsettings\x18\x03 \x01(\v2'.rimgovernor.operations.v1.BillSettingsR\bsettings\x126\n" +
-	"\x15replace_owned_bill_id\x18\x04 \x01(\tH\x02R\x12replaceOwnedBillId\x88\x01\x01B\v\n" +
+	"\bsettings\x18\x03 \x01(\v2'.rimgovernor.operations.v1.BillSettingsR\bsettings\x12H\n" +
+	"\x12replace_owned_bill\x18\x04 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x10replaceOwnedBillB\v\n" +
 	"\t_bench_idB\r\n" +
-	"\v_recipe_defB\x18\n" +
-	"\x16_replace_owned_bill_id\"\xbf\x02\n" +
+	"\v_recipe_def\"\xbf\x02\n" +
 	"\x12WorkSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +
 	"\x04work\x18\x02 \x03(\v2'.rimgovernor.operations.v1.WorkPriorityR\x04work\x12H\n" +
@@ -8802,9 +8801,10 @@ var file_operations_proto_goTypes = []any{
 	(*commonpb.ObservationContext)(nil),    // 107: rimgovernor.common.v1.ObservationContext
 	(*commonpb.Failure)(nil),               // 108: rimgovernor.common.v1.Failure
 	(placementpb.Rotation)(0),              // 109: rimgovernor.placement.v1.Rotation
-	(*placementpb.PlacementCandidate)(nil), // 110: rimgovernor.placement.v1.PlacementCandidate
-	(commonpb.FailureCode)(0),              // 111: rimgovernor.common.v1.FailureCode
-	(*receiptspb.Receipt)(nil),             // 112: rimgovernor.receipts.v1.Receipt
+	(*commonpb.Ref)(nil),                   // 110: rimgovernor.common.v1.Ref
+	(*placementpb.PlacementCandidate)(nil), // 111: rimgovernor.placement.v1.PlacementCandidate
+	(commonpb.FailureCode)(0),              // 112: rimgovernor.common.v1.FailureCode
+	(*receiptspb.Receipt)(nil),             // 113: rimgovernor.receipts.v1.Receipt
 }
 var file_operations_proto_depIdxs = []int32{
 	21,  // 0: rimgovernor.operations.v1.Assignment.clear:type_name -> rimgovernor.operations.v1.Clear
@@ -8941,33 +8941,34 @@ var file_operations_proto_depIdxs = []int32{
 	104, // 131: rimgovernor.operations.v1.ExcavateIntent.cell:type_name -> rimgovernor.common.v1.Cell
 	19,  // 132: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
 	40,  // 133: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	34,  // 134: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	22,  // 135: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	35,  // 136: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	22,  // 137: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
-	14,  // 138: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	23,  // 139: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
-	104, // 140: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	110, // 141: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	51,  // 142: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	53,  // 143: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	54,  // 144: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	55,  // 145: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	111, // 146: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	112, // 147: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	101, // 148: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	108, // 149: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	102, // 150: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	108, // 151: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	56,  // 152: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
-	59,  // 153: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	58,  // 154: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
-	103, // 155: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	154, // [154:156] is the sub-list for method output_type
-	152, // [152:154] is the sub-list for method input_type
-	152, // [152:152] is the sub-list for extension type_name
-	152, // [152:152] is the sub-list for extension extendee
-	0,   // [0:152] is the sub-list for field type_name
+	110, // 134: rimgovernor.operations.v1.ProductionBillIntent.replace_owned_bill:type_name -> rimgovernor.common.v1.Ref
+	34,  // 135: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	22,  // 136: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	35,  // 137: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
+	22,  // 138: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	14,  // 139: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	23,  // 140: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
+	104, // 141: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	111, // 142: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	51,  // 143: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	53,  // 144: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	54,  // 145: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	55,  // 146: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	112, // 147: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	113, // 148: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	101, // 149: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	108, // 150: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	102, // 151: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	108, // 152: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	56,  // 153: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
+	59,  // 154: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	58,  // 155: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
+	103, // 156: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	155, // [155:157] is the sub-list for method output_type
+	153, // [153:155] is the sub-list for method input_type
+	153, // [153:153] is the sub-list for extension type_name
+	153, // [153:153] is the sub-list for extension extendee
+	0,   // [0:153] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }

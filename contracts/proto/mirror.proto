@@ -32,7 +32,7 @@ enum CombatStance {
 message CombatPawn {
   optional string id = 1; // load id
   optional CombatSide side = 2;
-  optional string faction_id = 3;
+  rimgovernor.common.v1.Ref faction = 3;
   optional string lord_id = 4;
   rimgovernor.common.v1.Cell cell = 5;
   optional bool downed = 6;

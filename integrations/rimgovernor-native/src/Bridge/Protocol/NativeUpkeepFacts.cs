@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
                     // The same room identity the typed room census reports, so
                     // the controller can pair filth with a measured room
                     // cleanliness instead of a role name alone.
-                    if (room != null) value.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null) value.Room = NativeRef.Room(room);
                     return value;
                 }).ToList();
                 result.Filth.AddRange(values);
@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
                     var room = cell.GetRoom(map);
                     if (room != null)
                     {
-                        row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        row.Room = NativeRef.Room(room);
                         // A room growing a plant that dies to light (cave
                         // fungus) is protected: lighting it kills the crop.
                         row.LightSensitive = room.ProperRoom && room.Cells.Any(c => c.GetPlant(map) is Plant plant && plant.def.plant != null && plant.def.plant.diesToLight
@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
                     var row = new Obs.LampState { Building = Ref(b),
                         GlowRadius = Number(glower.Props.glowRadius), Lit = glower.Glows };
                     var room = b.Position.GetRoom(map);
-                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null) row.Room = NativeRef.Room(room);
                     facts.Lamps.Add(row);
                 }
                 result.Lighting = new Obs.LightingSection { Observed = facts };
@@ -207,7 +207,7 @@ namespace HomeBridge.BridgeTools
                 var facts = new Obs.FlooringFacts();
                 var terrains = new System.Collections.Generic.SortedDictionary<string, TerrainDef>(StringComparer.Ordinal);
                 foreach (var r in rooms) {
-                    var row = new Obs.FloorRoom { RoomId = r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                    var row = new Obs.FloorRoom { Room = NativeRef.Room(r) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
                     foreach (var c in r.Cells.OrderBy(c => c.z).ThenBy(c => c.x)) {
                         var terrain = c.GetTerrain(map);
@@ -262,7 +262,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var row = new Obs.RouteFacility { Facility = reference, Kind = kind, Cell = Cell(cell) };
                     var room = cell.GetRoom(map);
-                    if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null && room.ProperRoom && !room.PsychologicallyOutdoors) row.Room = NativeRef.Room(room);
                     // A door frame is walkable before the door stands, so a
                     // measured path may cross an ordered door; those cells are
                     // reported as pending breaches of a reachable facility so
@@ -379,7 +379,7 @@ namespace HomeBridge.BridgeTools
             Read("people", result, () => {
                 var people = map.mapPawns.AllPawnsSpawned.Where(p => p.IsFreeColonist && !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
                 Obs.UpkeepPerson Person(Pawn p) => new Obs.UpkeepPerson {
-                    Pawn = NativePawnObservationTools.Ref(p), OwnedBedId = p.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
+                    Pawn = NativePawnObservationTools.Ref(p), OwnedBed = NativeRef.Of(p.ownership?.OwnedBed),
                     ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)), TemperatureC = Number(p.AmbientTemperature)
                 };
@@ -399,12 +399,12 @@ namespace HomeBridge.BridgeTools
                         Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
                         TemperatureC = Number(b.AmbientTemperature) };
                     var room = b.GetRoom();
-                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null) row.Room = NativeRef.Room(room);
                     if (b.TryGetQuality(out var quality)) row.Quality = quality.ToString(); if (b.Stuff != null) row.Stuff = b.Stuff.defName;
                     var owners = b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).ToList();
-                    row.Owners.AddRange(owners);
-                    row.Users.AddRange(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID())));
-                    row.AccessibleTo.AddRange(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID())));
+                    row.Owners.AddRange(NativeRef.All(owners));
+                    row.Users.AddRange(NativeRef.All(people.Where(p => p.CurrentBed() == b).Select(p => Id(p.GetUniqueLoadID()))));
+                    row.AccessibleTo.AddRange(NativeRef.All(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)).Select(p => Id(p.GetUniqueLoadID()))));
                     return row;
                 }).ToList();
                 result.Beds.AddRange(values);
@@ -431,7 +431,7 @@ namespace HomeBridge.BridgeTools
                         Pawn = NativePawnObservationTools.Ref(p),
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen
                     };
-                    if (suitable != null) value.SuitablePenId = Id(suitable.parent.GetUniqueLoadID());
+                    if (suitable != null) value.SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID()));
                     var reachable = food.Where(t => p.WillEat(t) && !t.IsForbidden(p)
                         && p.CanReach(t, PathEndMode.Touch, Danger.None)
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
@@ -440,7 +440,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var item in reachable) {
                         var stock = new Obs.FoodStock { Item = NativeObservationTools.ThingRef(item),
                             Nutrition = Number(FoodUtility.NutritionForEater(p, item) * item.stackCount) };
-                        stock.EaterIds.Add(Id(p.GetUniqueLoadID()));
+                        stock.Eaters.Add(NativeRef.Of(Id(p.GetUniqueLoadID()))!);
                         value.ReachableStoredFeed.Add(stock);
                     }
                     // A bill drops its product at the bench, so only a bench
@@ -448,7 +448,7 @@ namespace HomeBridge.BridgeTools
                     var reachableBenches = benches.Where(b => p.CanReach(b, PathEndMode.Touch, Danger.None)
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position])).ToList();
-                    value.ReachableBenchIds.AddRange(reachableBenches.Select(b => Id(b.GetUniqueLoadID())));
+                    value.ReachableBenches.AddRange(NativeRef.All(reachableBenches.Select(b => Id(b.GetUniqueLoadID()))));
                     // Feed made elsewhere still feeds the animal once hauled
                     // into a stockpile it can reach: name those zones with
                     // the edible definitions each accepts, and a free
@@ -458,7 +458,7 @@ namespace HomeBridge.BridgeTools
                     bool AnimalReach(IntVec3 c) => Allowed(c) && p.CanReach(c, PathEndMode.OnCell, Danger.None);
                     foreach (var zone in stockpiles) {
                         if (!zone.Cells.Any(AnimalReach)) continue;
-                        var storage = new Obs.AnimalFeedStorage { ZoneId = Id(zone.GetUniqueLoadID()) };
+                        var storage = new Obs.AnimalFeedStorage { Zone = NativeRef.Of(Id(zone.GetUniqueLoadID())) };
                         storage.Accepts.AddRange(feedDefs.Where(d => p.RaceProps.CanEverEat(d) && zone.settings.filter.Allows(d)).Select(d => Id(d.defName)));
                         value.ReachableStorage.Add(storage);
                     }
@@ -528,7 +528,7 @@ namespace HomeBridge.BridgeTools
                 .Where(r => (r.def == PawnRelationDefOf.Lover || r.def == PawnRelationDefOf.Spouse || r.def == PawnRelationDefOf.Fiance)
                     && r.otherPawn != null && !r.otherPawn.Dead && r.otherPawn.Spawned && r.otherPawn.Map == p.Map)
                 .Select(r => r.otherPawn).Distinct().OrderBy(o => o.thingIDNumber).ToList();
-            row.PartnerIds.AddRange(partners.Select(o => Id(o.GetUniqueLoadID())));
+            row.Partners.AddRange(NativeRef.All(partners.Select(o => Id(o.GetUniqueLoadID()))));
             row.BedSharingAllowed = partners.Count == 0 ? IdeoUtility.DoerWillingToDo(HistoryEventDefOf.SharedBed, p) : partners.All(o => BedUtility.WillingToShareBed(p, o));
             if (!ModsConfig.RoyaltyActive) return;
             var title = p.royalty?.MostSeniorTitle?.def;

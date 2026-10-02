@@ -552,13 +552,13 @@ message HusbandryIntent { optional string animal_id = 1; optional HusbandryOrder
 // settings, ingredient filter, corpse class and pinned worker. Native checks
 // the bench, recipe, ingredients and a skilled reaching worker live when it
 // applies; a bench already carrying a matching bill applies again. With
-// replace_owned_bill_id the named bill (same recipe on this bench, or an
+// replace_owned_bill the named bill (same recipe on this bench, or an
 // ordinary meal tier on this map) is deleted in the same apply.
 message ProductionBillIntent {
   optional string bench_id = 1;
   optional string recipe_def = 2;
   BillSettings settings = 3;
-  optional string replace_owned_bill_id = 4;
+  rimgovernor.common.v1.Ref replace_owned_bill = 4;
 }
 // Write one free colonist's settings: work priorities, allowed area and the
 // 24-hour timetable together, or the medicine ceiling

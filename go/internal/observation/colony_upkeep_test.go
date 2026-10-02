@@ -1,12 +1,13 @@
 package observation
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
@@ -46,7 +47,7 @@ func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
 
 func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
 	u := &o.UpkeepFacts{Filth: []*o.FilthState{
-		{Filth: &o.EntityRef{Id: proto.String("blood"), DefName: proto.String("Filth_Blood")}, Home: proto.Bool(true), Thickness: proto.Uint32(2), RoomRole: proto.String("Kitchen"), RoomId: proto.String("7")},
+		{Filth: &o.EntityRef{Id: proto.String("blood"), DefName: proto.String("Filth_Blood")}, Home: proto.Bool(true), Thickness: proto.Uint32(2), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}},
 		{Filth: &o.EntityRef{Id: proto.String("dirt")}, Home: proto.Bool(true), Thickness: proto.Uint32(1)},
 	}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
@@ -68,10 +69,10 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
 	}
 	flooring := &o.FlooringFacts{
-		Rooms: []*o.FloorRoom{{RoomId: proto.String("7"), Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
+		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
-		}}, {RoomId: proto.String("8"), Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
+		}}, {Room: &c.Ref{Id: proto.String("8")}, Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
 		Terrains: []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
 	}
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}}
@@ -112,8 +113,8 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	lighting := &o.LightingFacts{
-		WorkCells: []*o.WorkLightCell{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), RoomId: proto.String("7"), LightSensitive: proto.Bool(true)}},
-		Lamps:     []*o.LampState{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), RoomId: proto.String("7")}},
+		WorkCells: []*o.WorkLightCell{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), Room: &c.Ref{Id: proto.String("7")}, LightSensitive: proto.Bool(true)}},
+		Lamps:     []*o.LampState{{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), Room: &c.Ref{Id: proto.String("7")}}},
 	}
 	lamp := &o.BuildingState{Building: lighting.Lamps[0].Building, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}
 	u := &o.UpkeepFacts{Lighting: &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: lighting}}}
@@ -171,7 +172,7 @@ func routesWireFacts() *o.RoutesFacts {
 		PawnIds: []string{"a", "b"},
 		Facilities: []*o.RouteFacility{{
 			Facility: &o.EntityRef{Id: proto.String("zone-3"), DefName: proto.String("Zone_Stockpile"), MapId: proto.Int32(3), Position: cell(10, 10)},
-			Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), RoomId: proto.String("7"),
+			Kind:     o.RouteFacilityKind_ROUTE_FACILITY_KIND_STOCKPILE.Enum(), Cell: cell(10, 10), Room: &c.Ref{Id: proto.String("7")},
 			Travel: []*o.RouteTravel{
 				{PawnId: proto.String("a"), Reachable: proto.Bool(false)},
 				{PawnId: proto.String("b"), Reachable: proto.Bool(true), PathCost: proto.Int32(120), PathCells: proto.Int32(9)},
@@ -223,7 +224,7 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	flooring := &o.FlooringFacts{
-		Rooms:    []*o.FloorRoom{{RoomId: proto.String("7"), Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
+		Rooms:    []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
 		Terrains: []*o.FloorTerrain{{DefName: proto.String("Soil"), Cleanliness: proto.Float64(-1), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(true)}},
 	}
 	routes := routesWireFacts()

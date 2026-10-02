@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -21,7 +22,7 @@ func colonyComfort(v *o.ColonyFactsSnapshot) domain.Fact[policy.ComfortObservati
 	facilities := func(values []*o.ComfortFacility) []policy.ComfortFacility {
 		rows := make([]policy.ComfortFacility, 0, len(values))
 		for _, f := range values {
-			rows = append(rows, policy.ComfortFacility{ID: f.GetId(), RoomID: f.GetRoomId(), Kind: f.GetKind(), AccessibleTo: ids(f.AccessibleTo), Users: ids(f.Users)})
+			rows = append(rows, policy.ComfortFacility{ID: f.GetId(), RoomID: f.GetRoom().GetId(), Kind: f.GetKind(), AccessibleTo: ids(bridge.RefIDs(f.AccessibleTo)), Users: ids(bridge.RefIDs(f.Users))})
 		}
 		return rows
 	}
@@ -36,7 +37,7 @@ func colonyComfort(v *o.ColonyFactsSnapshot) domain.Fact[policy.ComfortObservati
 		}
 	}
 	for _, s := range value.Surfaces {
-		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoomId()}
+		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoom().GetId()}
 		for _, c := range s.Adjacent {
 			row.Adjacent = append(row.Adjacent, domain.Cell{X: c.GetX(), Z: c.GetZ()})
 		}

@@ -45,10 +45,10 @@ func ValidateForecast(v *o.ForecastFacts, human *o.FoodSupplyFacts) error {
 	}
 	zones := map[string]bool{}
 	for _, row := range v.Crops {
-		if row == nil || validID(row.GetZoneId()) != nil || zones[row.GetZoneId()] || row.Crop != nil && validID(row.GetCrop()) != nil || row.Product != nil && validID(row.GetProduct()) != nil {
+		if row == nil || validID(row.GetZone().GetId()) != nil || zones[row.GetZone().GetId()] || row.Crop != nil && validID(row.GetCrop()) != nil || row.Product != nil && validID(row.GetProduct()) != nil {
 			return contract("invalid crop forecast")
 		}
-		zones[row.GetZoneId()] = true
+		zones[row.GetZone().GetId()] = true
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
 			return err
 		}

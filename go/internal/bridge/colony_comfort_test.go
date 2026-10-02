@@ -44,8 +44,8 @@ func TestRecreationCensusBoundary(t *testing.T) {
 func comfortWire() *o.UpkeepFacts {
 	return &o.UpkeepFacts{Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Observed{Observed: &o.ComfortFacts{
 		People: []string{"p"}, Surfaces: []*o.ComfortSurface{{Id: proto.String("table"), Adjacent: []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}}},
-		Dining:     []*o.ComfortFacility{{Id: proto.String("chair"), AccessibleTo: []string{"p"}, Users: []string{"p"}}},
-		Recreation: []*o.ComfortFacility{{Id: proto.String("hoop"), Kind: proto.String("Dexterity"), AccessibleTo: []string{"p"}}},
+		Dining:     []*o.ComfortFacility{{Id: proto.String("chair"), AccessibleTo: NewRefs([]string{"p"}), Users: NewRefs([]string{"p"})}},
+		Recreation: []*o.ComfortFacility{{Id: proto.String("hoop"), Kind: proto.String("Dexterity"), AccessibleTo: NewRefs([]string{"p"})}},
 	}}}}
 }
 
@@ -56,8 +56,8 @@ func TestColonyComfortStrictCensusAndAdjacency(t *testing.T) {
 	}
 	for _, mutate := range []func(*o.UpkeepFacts){
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().People = []string{"p", "p"} },
-		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].Users = []string{"outsider"} },
-		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].AccessibleTo = []string{"p", "p"} },
+		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].Users = NewRefs([]string{"outsider"}) },
+		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Dining[0].AccessibleTo = NewRefs([]string{"p", "p"}) },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Recreation[0].Kind = nil },
 		func(v *o.UpkeepFacts) { v.Comfort.GetObserved().Surfaces[0].Adjacent[0].X = proto.Int32(50) },
 		func(v *o.UpkeepFacts) {

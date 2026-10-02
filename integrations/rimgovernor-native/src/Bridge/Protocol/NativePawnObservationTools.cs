@@ -177,10 +177,10 @@ namespace HomeBridge.BridgeTools
                 row.Issues.Add(Issue("nearest_colonist",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
                 row.Issues.Add(Issue("nearest_colonist_distance",Common.UnavailableReason.NotApplicable,"No other live colonist on this map."));
             }
-            if(pawn.Faction==null) row.Issues.Add(Issue("faction_id",Common.UnavailableReason.NotApplicable,"Pawn has no faction."));
+            if(pawn.Faction==null) row.Issues.Add(Issue("faction",Common.UnavailableReason.NotApplicable,"Pawn has no faction."));
             if(pawn.MentalStateDef==null) row.Issues.Add(Issue("mental_state",Common.UnavailableReason.NotApplicable,"Pawn has no mental state."));
-            if (pawn.ownership?.OwnedBed!=null) row.OwnedBedId=Id(pawn.ownership.OwnedBed.GetUniqueLoadID());
-            else row.Issues.Add(Issue("owned_bed_id",Common.UnavailableReason.NotApplicable,"No owned bed."));
+            if (pawn.ownership?.OwnedBed!=null) row.OwnedBed=NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID()));
+            else row.Issues.Add(Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed."));
             if (row.Job!=null && pawn.CurJob!=null) {
                 var job=pawn.CurJob; var target=job.targetA;
                 if (target.HasThing) row.Job.TargetA=new Obs.TargetRef { Entity=Entity(target.Thing) };
@@ -195,7 +195,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef PawnSnapshotToken(Pawn pawn,Obs.PawnState row,Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("pawn-state", context, row.Pawn.Id, w => {
                 w.Write(row.Dead); w.Write(row.Downed); w.Write(row.Drafted); w.Write(row.InBed); w.Write(row.Hostile);
-                w.Write(row.MentalState??""); w.Write(row.HostileReason??""); w.Write(row.FactionId??"");
+                w.Write(row.MentalState??""); w.Write(row.HostileReason??""); w.Write(row.Faction?.Id??"");
             });
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {

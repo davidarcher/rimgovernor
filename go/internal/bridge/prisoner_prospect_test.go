@@ -3,6 +3,7 @@ package bridge
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -11,7 +12,7 @@ import (
 // row; the snapshot carries the OrganUse precept.
 func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner := prisonerPerson("p", "MaintainOnly")
-	prisoner.FactionId, prisoner.HarvestGoodwillChange, prisoner.Withdrawal = proto.String("Faction_3"), proto.Int32(-70), proto.Bool(true)
+	prisoner.Faction, prisoner.HarvestGoodwillChange, prisoner.Withdrawal = &commonpb.Ref{Id: proto.String("Faction_3")}, proto.Int32(-70), proto.Bool(true)
 	prisoner.Surgery = &o.PawnHealth{SurgeryBills: []*o.SurgeryBill{{Id: proto.String("Bill_1")}}, Operations: []*o.SurgeryOperation{{
 		Recipe: &o.DefinitionRef{DefName: proto.String("RemoveBodyPart")}, PartIndex: proto.Int32(20), PartDefName: proto.String("Kidney"),
 		Kind: o.SurgeryKind_SURGERY_KIND_HARVEST, YieldMarketValue: proto.Float64(900)}}}

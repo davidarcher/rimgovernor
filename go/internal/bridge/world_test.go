@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -17,7 +18,7 @@ func worldFixture() *o.WorldSnapshot {
 		Context: pbContext(),
 		Settlements: []*o.Settlement{{
 			Id: proto.String("settlement-1"), Label: proto.String("Outpost"), Tile: proto.Int32(42), Player: proto.Bool(false),
-			FactionId: proto.String("faction-1"), FactionDefName: proto.String("Tribe"), Relation: proto.String("Neutral"), Goodwill: proto.Int32(10),
+			Faction: &commonpb.Ref{Id: proto.String("faction-1")}, FactionDefName: proto.String("Tribe"), Relation: proto.String("Neutral"), Goodwill: proto.Int32(10),
 			Snapshot:        &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("settlement-1"), Token: proto.String("settlement-cas")},
 			FactionSnapshot: &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("faction-1"), Token: proto.String("faction-cas")},
 		}},

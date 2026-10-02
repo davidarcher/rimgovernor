@@ -25,20 +25,20 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row == nil || !thingRef(row.Item, stocks) || !combatNumber(row.Nutrition, true) {
 			return contract("invalid food stock")
 		}
-		if row.GetReserve() && row.HolderId != nil {
+		if row.GetReserve() && row.Holder != nil {
 			return contract("reserve must be shared")
 		}
-		if len(row.EaterIds) > len(consumers) {
+		if len(row.Eaters) > len(consumers) {
 			return contract("missing food eligibility")
 		}
 		eaters := map[string]bool{}
-		for _, id := range row.EaterIds {
+		for _, id := range RefIDs(row.Eaters) {
 			if !consumers[id] || eaters[id] {
 				return contract("invalid food eligibility")
 			}
 			eaters[id] = true
 		}
-		if row.HolderId != nil && (!consumers[row.GetHolderId()] || len(row.EaterIds) != 1 || row.EaterIds[0] != row.GetHolderId()) {
+		if !optionalRef(row.Holder) || row.Holder != nil && (!consumers[row.GetHolder().GetId()] || len(row.Eaters) != 1 || row.Eaters[0].GetId() != row.GetHolder().GetId()) {
 			return contract("private food cannot be shared")
 		}
 	}
@@ -86,7 +86,7 @@ func JoinFoodSupply(v *o.FoodSupplyFacts, things Things) (map[string]*o.Thing, b
 		if validID(def) != nil {
 			return nil, false, contract("food stock row without a definition")
 		}
-		if len(stock.EaterIds) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() {
+		if len(stock.Eaters) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() {
 			return nil, false, contract("missing food eligibility")
 		}
 		if stock.GetReserve() && def != "Pemmican" && def != "MealSurvivalPack" {

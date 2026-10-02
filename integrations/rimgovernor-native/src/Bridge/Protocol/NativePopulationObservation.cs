@@ -120,7 +120,7 @@ namespace HomeBridge.BridgeTools
                     person.HarvestGoodwillChange = 0;
                     if (home != null && !home.IsPlayer)
                     {
-                        person.FactionId = NativePawnObservationTools.Id(home.GetUniqueLoadID());
+                        person.Faction = NativeRef.Of(NativePawnObservationTools.Id(home.GetUniqueLoadID()));
                         if (player.CanChangeGoodwillFor(home, -70))
                             person.HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home));
                     }

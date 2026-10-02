@@ -492,7 +492,7 @@ internal static class NativeProtoRoomsProbe
             var stockpileMemberships = (IList)Get(rowFirst, "StockpileMemberships");
             Check(stockpileMemberships.Count == 1, "Stockpile membership recorded for the room's single zone");
             var stockMembership = stockpileMemberships[0]!;
-            Check((string)Get(stockMembership, "ZoneId") == "Zone_42", "Stockpile membership carries the zone's unique load ID");
+            Check((string)Get(Get(stockMembership, "Zone"), "Id") == "Zone_42", "Stockpile membership carries the zone's unique load ID");
             var contents = (IList)Get(stockMembership, "Contents");
             Check(contents.Count == 2, "Stockpile contents grouped by def: steel and wood");
             var steelStock = contents[0]!; var woodStock = contents[1]!;

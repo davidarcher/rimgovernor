@@ -57,7 +57,7 @@ func surgeryIntent(ctx context.Context, s cases.Session) error {
 		applied, _ = na.AsMap(applied["applied"])
 		observed, _ := na.AsMap(applied["observed"])
 		effect, _ := na.AsMap(observed["surgeryBill"])
-		bill := na.AsString(effect["billId"])
+		bill := na.RefID(effect["bill"])
 		if na.AsString(effect["state"]) != "SURGERY_STATE_QUEUED" || bill == "" || na.AsString(effect["pawnId"]) != patient {
 			return "", fmt.Errorf("%s: expected a QUEUED surgery bill, got %#v", key, result)
 		}

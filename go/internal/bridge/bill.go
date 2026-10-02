@@ -50,7 +50,7 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 	}
 	intent := &op.ProductionBillIntent{BenchId: proto.String(bill.Bench()), RecipeDef: proto.String(bill.Recipe()), Settings: settings}
 	if bill.Replaces() != "" {
-		intent.ReplaceOwnedBillId = proto.String(bill.Replaces())
+		intent.ReplaceOwnedBill = NewRef(bill.Replaces())
 	}
 	return intent
 }

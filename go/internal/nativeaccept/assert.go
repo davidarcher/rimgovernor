@@ -22,6 +22,12 @@ func AsString(v any) string {
 	s, _ := v.(string)
 	return s
 }
+
+// RefID is a JSON Ref's id (#1342), empty without one.
+func RefID(v any) string {
+	m, _ := v.(map[string]any)
+	return AsString(m["id"])
+}
 func AsBool(v any) (bool, bool) {
 	b, ok := v.(bool)
 	return b, ok

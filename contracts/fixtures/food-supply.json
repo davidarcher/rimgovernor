@@ -4,7 +4,7 @@
     {"pawnId": "b", "nutritionPerDay": 1}
   ],
   "stocks": [
-    {"item": {"id": "rice"}, "nutrition": 9, "eaterIds": ["a", "b"]},
-    {"item": {"id": "pack"}, "holderId": "a", "nutrition": 4, "eaterIds": ["a"]}
+    {"item": {"id": "rice"}, "nutrition": 9, "eaters": [{"id": "a"}, {"id": "b"}]},
+    {"item": {"id": "pack"}, "holder": {"id": "a"}, "nutrition": 4, "eaters": [{"id": "a"}]}
   ]
 }

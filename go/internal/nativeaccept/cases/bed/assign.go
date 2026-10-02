@@ -90,7 +90,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if na.AsString(pawn["id"]) != pawnID {
 			return "", fmt.Errorf("%s: unexpected pawn row: %#v", label, row)
 		}
-		return na.AsString(row["ownedBedId"]), nil
+		return na.RefID(row["ownedBed"]), nil
 	}
 
 	// apply sends one BedAssignIntent and returns the action's result.
@@ -179,7 +179,7 @@ func run(ctx context.Context, s cases.Session) error {
 		row, _ := na.AsMap(raw)
 		pawn, _ := na.AsMap(row["pawn"])
 		if id := na.AsString(pawn["id"]); id != "" && id != pawnID {
-			otherID, otherBed = id, na.AsString(row["ownedBedId"])
+			otherID, otherBed = id, na.RefID(row["ownedBed"])
 			break
 		}
 	}

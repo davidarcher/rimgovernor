@@ -64,10 +64,10 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 	room := &o.RoomState{Id: proto.String("42"), Role: proto.String("Barracks"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(4), TemperatureC: proto.Float64(20), Center: cell(0, 0), Extents: &o.Rectangle{Minimum: cell(0, 0), Maximum: cell(1, 1)}, Cells: []*c.Cell{cell(0, 0), cell(0, 1), cell(1, 0), cell(1, 1)}, Contents: []*o.Quantity{{DefName: proto.String("Bed"), Units: proto.Int64(1)}}, Beds: []*o.EntityRef{bed}}
 	native.rooms = &o.ListRoomsReply{Outcome: &o.ListRoomsReply_Observed{Observed: &o.RoomsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: hospitalCount(1), Rooms: []*o.RoomState{room}}}}
 	person := func(id string, owned string) *o.UpkeepPerson {
-		return &o.UpkeepPerson{Pawn: &o.EntityRef{Id: proto.String(id)}, OwnedBedId: proto.String(owned), ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
+		return &o.UpkeepPerson{Pawn: &o.EntityRef{Id: proto.String(id)}, OwnedBed: bridge.NewRef(owned), ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
 	}
 	upkeepBed := func(ref *o.EntityRef, owners ...string) *o.UpkeepBed {
-		return &o.UpkeepBed{Bed: ref, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), RestEffectiveness: proto.Float64(1), TemperatureC: proto.Float64(20), AccessibleTo: []string{"patient", "other"}, Owners: owners, Users: owners}
+		return &o.UpkeepBed{Bed: ref, Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), RestEffectiveness: proto.Float64(1), TemperatureC: proto.Float64(20), AccessibleTo: bridge.NewRefs([]string{"patient", "other"}), Owners: bridge.NewRefs(owners), Users: bridge.NewRefs(owners)}
 	}
 	otherBed := &o.EntityRef{Id: proto.String("bed-other"), DefName: proto.String("Bed"), MapId: proto.Int32(0), Position: cell(1, 0)}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
@@ -238,8 +238,8 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	// The census now shows the bed owned by the sleeper: still in deficit,
 	// nothing to dispatch, until the sleeper is observed using it.
 	upkeep := native.reply.GetObserved().Upkeep.GetObserved()
-	upkeep.Beds[0].Owners = []string{"patient"}
-	upkeep.People[0].OwnedBedId = proto.String("bed")
+	upkeep.Beds[0].Owners = bridge.NewRefs([]string{"patient"})
+	upkeep.People[0].OwnedBed = &c.Ref{Id: proto.String("bed")}
 	if _, err := planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || (result.Reason != BuildingSleepingUseNeeded && result.Reason != BuildingMethodExistingWork) {
 		t.Fatal(result, err)
 	}
-	upkeep.Beds[0].Users = []string{"patient"}
+	upkeep.Beds[0].Users = bridge.NewRefs([]string{"patient"})
 	if _, err := planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	planner, db, native := sleepingUpkeepFixture(t)
 	// A bed another colonist owns cannot be reassigned, so a Bed is staged
 	// in the barracks; the sleeping spot definition is never a fallback.
-	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = []string{"other"}
+	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
@@ -338,7 +338,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	// previewed there and the ladder falls through to its shell rung, which
 	// waits: the shelter phase has passed, and the
 	// fixture colony has no known stage prerequisites for a new shell.
-	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = []string{"other"}
+	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	result, err := planner.Step(ctx)
 	if err != nil || (result.Reason != BuildingShellBlocked && result.Reason != BuildingMethodUnknown) || native.previews != 0 {

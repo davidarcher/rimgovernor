@@ -487,7 +487,7 @@ func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any
 			s.temperature = t
 		}
 		ticks := na.AsNumber(row["rotTicks"])
-		if roofed && present(row, "temperatureC") && t > p.ChilledMaxC && ticks > 0 && ticks < p.SafeRotDays*60000 && na.AsString(row["roomId"]) != "" {
+		if roofed && present(row, "temperatureC") && t > p.ChilledMaxC && ticks > 0 && ticks < p.SafeRotDays*60000 && na.RefID(row["room"]) != "" {
 			s.warmNutrition += na.AsNumber(row["nutrition"])
 		}
 	}

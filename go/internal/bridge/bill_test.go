@@ -30,10 +30,10 @@ func TestProductionBillAction(t *testing.T) {
 		t.Fatal(err)
 	}
 	intent := sent.GetProductionBill()
-	if intent.GetBenchId() != "stove" || intent.GetRecipeDef() != "CookMealSimple" || intent.GetReplaceOwnedBillId() != "old-bill" || intent.GetSettings() == nil {
+	if intent.GetBenchId() != "stove" || intent.GetRecipeDef() != "CookMealSimple" || intent.GetReplaceOwnedBill().GetId() != "old-bill" || intent.GetSettings() == nil {
 		t.Fatal("lost bench/recipe identity", intent)
 	}
-	if billIntent(billFoodTarget(t)).ReplaceOwnedBillId != nil {
+	if billIntent(billFoodTarget(t)).ReplaceOwnedBill != nil {
 		t.Fatal("a bill without replacement names none")
 	}
 	if _, err := productionBillAction(domain.Action{}); err == nil {

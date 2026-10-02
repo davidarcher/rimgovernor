@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
             if (from.HasValue) { try { row.DistanceTiles = Find.WorldGrid.ApproxDistanceInTiles(from.Value, settlement.Tile); } catch (Exception) { } }
             if (faction != null)
             {
-                row.FactionId = faction.GetUniqueLoadID();
+                row.Faction = NativeRef.Of(faction);
                 row.FactionDefName = faction.def.defName;
                 row.Relation = faction.IsPlayer ? "player" : faction.HostileTo(Faction.OfPlayer) ? "hostile" : "neutral";
                 if (!faction.IsPlayer) row.Goodwill = faction.PlayerGoodwill;

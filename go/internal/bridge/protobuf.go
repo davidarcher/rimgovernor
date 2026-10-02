@@ -463,6 +463,61 @@ func validID(value string) error {
 	}
 	return nil
 }
+
+// validRef reports a reference with a valid id and nothing else (#1342).
+func validRef(ref *c.Ref) bool {
+	return ref != nil && validID(ref.GetId()) == nil && len(ref.ProtoReflect().GetUnknown()) == 0
+}
+
+// optionalRef reports an absent reference or a valid one.
+func optionalRef(ref *c.Ref) bool { return ref == nil || validRef(ref) }
+
+// validRefs reports every reference valid and distinct.
+func validRefs(refs []*c.Ref) bool {
+	seen := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		if !validRef(ref) || seen[ref.GetId()] {
+			return false
+		}
+		seen[ref.GetId()] = true
+	}
+	return true
+}
+
+// refID is ref's id field, nil without a reference.
+func refID(ref *c.Ref) *string {
+	if ref == nil {
+		return nil
+	}
+	return ref.Id
+}
+
+// RefIDs are refs' ids, in order.
+func RefIDs(refs []*c.Ref) []string {
+	out := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		out = append(out, ref.GetId())
+	}
+	return out
+}
+
+// NewRef points at id; nil for an empty id.
+func NewRef(id string) *c.Ref {
+	if id == "" {
+		return nil
+	}
+	return &c.Ref{Id: &id}
+}
+
+// NewRefs points at each of ids.
+func NewRefs(ids []string) []*c.Ref {
+	out := make([]*c.Ref, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, &c.Ref{Id: &id})
+	}
+	return out
+}
+
 func diagnostic(value *string) bool {
 	return value == nil || (utf8.ValidString(*value) && utf8.RuneCountInString(*value) <= 4096)
 }

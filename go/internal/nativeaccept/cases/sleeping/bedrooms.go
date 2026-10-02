@@ -137,7 +137,7 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("pawn read: %#v", observed)
 			}
 			row, _ := na.AsMap(rows[0])
-			if owned := na.AsString(row["ownedBedId"]); owned != move.Bed() {
+			if owned := na.RefID(row["ownedBed"]); owned != move.Bed() {
 				return fmt.Errorf("colonist %s owns %q, not the bedroom bed %q", move.Pawn(), owned, move.Bed())
 			}
 			reply, err = h.Wire(ctx, "spare", "observations_list_buildings", map[string]any{

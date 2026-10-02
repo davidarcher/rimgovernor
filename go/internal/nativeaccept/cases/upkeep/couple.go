@@ -82,7 +82,7 @@ func runCouple(ctx context.Context, s cases.Session) error {
 		}
 		owners := map[string]bool{}
 		for _, o := range na.AsSlice(row["owners"]) {
-			owners[na.AsString(o)] = true
+			owners[na.RefID(o)] = true
 		}
 		report["double_bed_owners"] = row["owners"]
 		if !owners[pawn] || !owners[partner] || len(owners) != 2 {

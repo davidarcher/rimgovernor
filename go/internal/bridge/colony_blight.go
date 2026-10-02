@@ -12,7 +12,7 @@ func validateColonyBlight(v *o.ColonyFactsSnapshot) error {
 	seen := map[string]bool{}
 	for _, row := range v.BlightedPlants {
 		plant := row.GetPlant()
-		if plant == nil || validID(plant.GetId()) != nil || seen[plant.GetId()] || validID(plant.GetDefName()) != nil || plant.MapId == nil || plant.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(plant.Position, v.MapSize) || plant.Snapshot == nil || plant.Snapshot.GetEntityId() != plant.GetId() || validID(plant.Snapshot.GetToken()) != nil || !proto.Equal(plant.Snapshot.Context, v.Context) || row.Designated == nil || row.ZoneId != nil && validID(row.GetZoneId()) != nil || row.Growth != nil && (!combatNumber(row.Growth, true) || row.GetGrowth() > 1) {
+		if plant == nil || validID(plant.GetId()) != nil || seen[plant.GetId()] || validID(plant.GetDefName()) != nil || plant.MapId == nil || plant.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(plant.Position, v.MapSize) || plant.Snapshot == nil || plant.Snapshot.GetEntityId() != plant.GetId() || validID(plant.Snapshot.GetToken()) != nil || !proto.Equal(plant.Snapshot.Context, v.Context) || row.Designated == nil || !optionalRef(row.Zone) || row.Growth != nil && (!combatNumber(row.Growth, true) || row.GetGrowth() > 1) {
 			return contract("invalid blighted plant")
 		}
 		seen[plant.GetId()] = true

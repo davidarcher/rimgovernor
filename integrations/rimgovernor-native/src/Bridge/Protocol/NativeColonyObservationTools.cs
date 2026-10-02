@@ -347,7 +347,7 @@ namespace HomeBridge.BridgeTools
                 }
                 for(var index=0;index<bench.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(bench.BillStack.Bills[index],index));
                 var cookingRoom = bench.GetRoom();
-                if (cookingRoom != null) row.RoomId = cookingRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (cookingRoom != null) row.Room = NativeRef.Room(cookingRoom);
                 if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row.AutoRefuel = refuel.allowAutoRefuel;
                 result.Cooking.Add(row);
             }
@@ -358,7 +358,7 @@ namespace HomeBridge.BridgeTools
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
                 var butcherRoom = bench.GetRoom();
-                if (butcherRoom != null) row.RoomId = butcherRoom.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (butcherRoom != null) row.Room = NativeRef.Room(butcherRoom);
                 result.Butchering.Add(row);
             }
 
@@ -515,7 +515,7 @@ namespace HomeBridge.BridgeTools
                     var schedule = lamp.TryGetComp<CompSchedule>();
                     row.LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed);
                     foreach (var c in GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map))) row.GrowthCells.Add(Cell(c));
-                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
                     result.Lights.Add(row);
                 } else if (building is Building_PlantGrower grower) {
                     var row = new Obs.PlantGrower { Building = new Obs.EntityRef { Id = grower.GetUniqueLoadID(), MapId = map.uniqueID, DefName = grower.def.defName, Position = Cell(grower.Position) },
@@ -526,7 +526,7 @@ namespace HomeBridge.BridgeTools
                     if (crop != null) row.CropDefName = crop.defName;
                     if (power != null) { row.Powered = power.PowerOn; row.PowerW = Finite(power.Props.PowerConsumption); var id = NetId(power); if (id != null) row.PowerNetId = id; }
                     foreach (var c in ((IPlantToGrowSettable)grower).Cells) row.PlantCells.Add(Cell(c));
-                    if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); Note(room); }
+                    if (room != null) { row.Room = NativeRef.Room(room); Note(room); }
                     result.Growers.Add(row);
                 }
             }
@@ -535,7 +535,7 @@ namespace HomeBridge.BridgeTools
                 if (!c.Fogged(map)) Note(c.GetRoom(map));
             }
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
-                var row = new Obs.GrowRoom { RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
+                var row = new Obs.GrowRoom { Room = NativeRef.Room(room), TemperatureC = Finite(room.Temperature), CellCount = (uint)room.CellCount,
                     OpenRoofCount = (uint)room.OpenRoofCount, ProperRoom = room.ProperRoom, PsychologicallyOutdoors = room.PsychologicallyOutdoors };
                 uint lit = 0;
                 foreach (var c in room.Cells) if (map.glowGrid.GroundGlowAt(c) >= 0.3f) lit++;
@@ -574,7 +574,7 @@ namespace HomeBridge.BridgeTools
                 };
             result.AnimalIds.Add(source.animalIds);
             foreach (var crop in source.crops) {
-                var row = new Obs.CropForecast { ZoneId = crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+                var row = new Obs.CropForecast { Zone = NativeRef.Of(crop.id.ToString(System.Globalization.CultureInfo.InvariantCulture)) };
                 if (crop.crop != null) row.Crop = crop.crop;
                 if (crop.sowWork.HasValue) row.SowWork = Finite(crop.sowWork.Value);
                 if (crop.harvestWork.HasValue) row.HarvestWork = Finite(crop.harvestWork.Value);
@@ -614,8 +614,8 @@ namespace HomeBridge.BridgeTools
             foreach (var stock in source.stocks) {
                 // The stock's thing is a things table row (#1343).
                 var row = new Obs.FoodStock { Item = NativeObservationTools.ThingRef(stock.thing!), Nutrition = Finite(stock.nutrition), Reserve = stock.reserve };
-                row.EaterIds.Add(stock.eaters);
-                if (stock.holder != null) row.HolderId = stock.holder;
+                row.Eaters.Add(NativeRef.All(stock.eaters!));
+                if (stock.holder != null) row.Holder = NativeRef.Of(stock.holder);
                 referenced?.Add(stock.thing!);
                 result.Stocks.Add(row);
             }

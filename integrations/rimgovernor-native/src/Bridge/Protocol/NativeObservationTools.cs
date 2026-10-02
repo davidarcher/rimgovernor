@@ -291,7 +291,7 @@ namespace HomeBridge.BridgeTools
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid,
                 Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
-            if (pawn.Faction != null) row.FactionId=Identifier(pawn.Faction.GetUniqueLoadID());
+            if (pawn.Faction != null) row.Faction=NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID()));
             // Fog is the discovery fact, not a guess at reachability: a hostile
             // the colony has never seen is no emergency (#659).
             row.Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map);
@@ -380,7 +380,7 @@ namespace HomeBridge.BridgeTools
             if (thing.Spawned) {
                 row.Roofed = thing.Position.Roofed(thing.Map);
                 var room = thing.Position.GetRoom(thing.Map);
-                if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                if (room != null) row.Room = NativeRef.Room(room);
             }
             row.RawClass = (Obs.FoodIngredientClass)(NativeMealRecipeFacts.InCategory(thing.def, "MeatRaw") ? 1 : NativeMealRecipeFacts.InCategory(thing.def, "PlantFoodRaw") ? 2 : NativeMealRecipeFacts.InCategory(thing.def, "AnimalProductRaw") ? 3 : 0);
             row.IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing);

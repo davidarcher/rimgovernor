@@ -165,7 +165,7 @@ message FieldResult {
 }
 message SettingsEffect { SnapshotEvidence snapshot = 1; repeated FieldResult fields = 2; }
 // The bill a production bill intent placed or found already standing.
-message BillEffect { SnapshotEvidence stack = 1; optional string bill_id = 2; optional string recipe_def = 3; reserved 4 to 11; reserved "present", "index", "ordered_bill_ids", "configuration_matches", "iterations", "output_complete", "output_observed", "outputs"; }
+message BillEffect { SnapshotEvidence stack = 1; rimgovernor.common.v1.Ref bill = 2; optional string recipe_def = 3; reserved 4 to 11; reserved "present", "index", "ordered_bill_ids", "configuration_matches", "iterations", "output_complete", "output_observed", "outputs"; }
 message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
 message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted = 2; optional string reason = 3; optional string taken_from_zone_id = 4; }
 message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
@@ -181,7 +181,7 @@ message CombatOrdersEffect { repeated CombatOrderResult results = 1; }
 // A queued medical operation bill (#1162): the patient, recipe, part index
 // (absent for a whole-body recipe) and the Bill_Medical id.
 enum SurgeryState { SURGERY_STATE_UNSPECIFIED = 0; SURGERY_STATE_QUEUED = 1; }
-message SurgeryEffect { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional SurgeryState state = 5; }
+message SurgeryEffect { optional string pawn_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; rimgovernor.common.v1.Ref bill = 4; optional SurgeryState state = 5; }
 // One AreaIntent's result (#1321): the bot area key or home, the area's load
 // id (absent once deleted), whether it stands, and its cell count after the
 // edit.

@@ -65,8 +65,9 @@ func (r ColonyRow) Equal(x ColonyRow) bool {
 }
 
 // colonyFallbackKeys are the element fields a list keys on when the #773
-// rule finds none: farms by zone, resources by definition.
-var colonyFallbackKeys = []protoreflect.Name{"zone_id", "def_name"}
+// rule (an id, or a singular reference's id) finds none: resources by
+// definition.
+var colonyFallbackKeys = []protoreflect.Name{"def_name"}
 
 type colonyLayout struct {
 	sections []string

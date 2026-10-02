@@ -200,7 +200,7 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCens
 			f.QueuedSurgeries = QueuedSurgeries(h)
 			f.QueuedRecipes = QueuedSurgeryRecipes(h)
 		}
-		f.Faction = person.GetFactionId()
+		f.Faction = person.GetFaction().GetId()
 		if person.HarvestGoodwillChange != nil {
 			f.HarvestGoodwill = domain.Known(int(person.GetHarvestGoodwillChange()))
 		}

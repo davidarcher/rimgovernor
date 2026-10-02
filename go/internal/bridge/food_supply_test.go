@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -52,9 +53,9 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 		func(v *o.FoodSupplyFacts) { v.Consumers[1].PawnId = v.Consumers[0].PawnId },
 		func(v *o.FoodSupplyFacts) { v.Stocks[1].Item.Id = v.Stocks[0].Item.Id },
 		func(v *o.FoodSupplyFacts) { v.Stocks[0].Item.DefName = proto.String("RawRice") },
-		func(v *o.FoodSupplyFacts) { v.Stocks[0].EaterIds = []string{"missing"} },
-		func(v *o.FoodSupplyFacts) { v.Stocks[0].EaterIds = []string{"a", "a"} },
-		func(v *o.FoodSupplyFacts) { v.Stocks[1].HolderId = proto.String("") },
+		func(v *o.FoodSupplyFacts) { v.Stocks[0].Eaters = NewRefs([]string{"missing"}) },
+		func(v *o.FoodSupplyFacts) { v.Stocks[0].Eaters = NewRefs([]string{"a", "a"}) },
+		func(v *o.FoodSupplyFacts) { v.Stocks[1].Holder = &commonpb.Ref{Id: proto.String("")} },
 		func(v *o.FoodSupplyFacts) { v.Stocks[0].Nutrition = proto.Float64(math.NaN()) },
 		func(v *o.FoodSupplyFacts) { v.Consumers[0].NutritionPerDay = proto.Float64(-1) },
 	} {
@@ -66,7 +67,7 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 	}
 	// The facts a stock's row decides are checked once it is joined.
 	for _, change := range []func(*o.FoodSupplyFacts, Things){
-		func(v *o.FoodSupplyFacts, _ Things) { v.Stocks[0].EaterIds = nil },
+		func(v *o.FoodSupplyFacts, _ Things) { v.Stocks[0].Eaters = nil },
 		func(v *o.FoodSupplyFacts, _ Things) { v.Stocks[0].Reserve = proto.Bool(true) },
 		func(v *o.FoodSupplyFacts, _ Things) {
 			v.Larder = &o.FoodLarderFacts{Corpses: []*o.CorpseHandling{{StockId: "rice"}}}

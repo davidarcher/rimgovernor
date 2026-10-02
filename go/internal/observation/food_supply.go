@@ -36,7 +36,7 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing) policy.Foo
 	}
 	for _, s := range v.Stocks {
 		row := rows[s.Item.GetId()]
-		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: row.GetRawMeat(), IsHumanlike: row.GetIsHumanlike(), Vegetable: row.GetVegetable(), Reserve: s.GetReserve(), Holder: domain.Known(policy.PawnID(s.GetHolderId())), Nutrition: optional(s.Nutrition), Perishable: optional(row.Perishable), RotTicks: optional(row.RotTicks), DefName: policy.Resource(row.GetThing().GetDefName()), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optional(row.RoomId)}
+		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: row.GetRawMeat(), IsHumanlike: row.GetIsHumanlike(), Vegetable: row.GetVegetable(), Reserve: s.GetReserve(), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: optional(row.Perishable), RotTicks: optional(row.RotTicks), DefName: policy.Resource(row.GetThing().GetDefName()), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
 		if row.StackCount != nil {
 			stock.Count = domain.Known(row.GetStackCount())
 		}
@@ -48,7 +48,7 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing) policy.Foo
 		stock.MeatAmount = optional(row.MeatAmount)
 		stock.BodySize = optional(row.BodySize)
 		stock.TileFootprint = optional(row.TileFootprint)
-		for _, id := range s.EaterIds {
+		for _, id := range bridge.RefIDs(s.Eaters) {
 			stock.Eaters = append(stock.Eaters, policy.PawnID(id))
 		}
 		supply.Stocks = append(supply.Stocks, stock)

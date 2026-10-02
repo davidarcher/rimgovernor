@@ -40,5 +40,5 @@ func (client *Client) ReadBedUseTarget(ctx context.Context, identity *c.Identity
 	if settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || settings.Medical == nil || settings.TargetTemperatureC != nil {
 		return BedUseTarget{}, raw, contract("building is not a humanlike bed")
 	}
-	return BedUseTarget{Context: v.Context, Thing: thing, Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: append([]string{}, settings.AssignedPawnIds...)}, raw, nil
+	return BedUseTarget{Context: v.Context, Thing: thing, Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: RefIDs(settings.AssignedPawns)}, raw, nil
 }

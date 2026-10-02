@@ -2230,7 +2230,7 @@ func (x *SettingsEffect) GetFields() []*FieldResult {
 type BillEffect struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Stack         *SnapshotEvidence      `protobuf:"bytes,1,opt,name=stack,proto3" json:"stack,omitempty"`
-	BillId        *string                `protobuf:"bytes,2,opt,name=bill_id,json=billId,proto3,oneof" json:"bill_id,omitempty"`
+	Bill          *commonpb.Ref          `protobuf:"bytes,2,opt,name=bill,proto3" json:"bill,omitempty"`
 	RecipeDef     *string                `protobuf:"bytes,3,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2273,11 +2273,11 @@ func (x *BillEffect) GetStack() *SnapshotEvidence {
 	return nil
 }
 
-func (x *BillEffect) GetBillId() string {
-	if x != nil && x.BillId != nil {
-		return *x.BillId
+func (x *BillEffect) GetBill() *commonpb.Ref {
+	if x != nil {
+		return x.Bill
 	}
-	return ""
+	return nil
 }
 
 func (x *BillEffect) GetRecipeDef() string {
@@ -2813,7 +2813,7 @@ type SurgeryEffect struct {
 	PawnId        *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	RecipeDef     *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
 	PartIndex     *int32                 `protobuf:"varint,3,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
-	BillId        *string                `protobuf:"bytes,4,opt,name=bill_id,json=billId,proto3,oneof" json:"bill_id,omitempty"`
+	Bill          *commonpb.Ref          `protobuf:"bytes,4,opt,name=bill,proto3" json:"bill,omitempty"`
 	State         *SurgeryState          `protobuf:"varint,5,opt,name=state,proto3,enum=rimgovernor.receipts.v1.SurgeryState,oneof" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2870,11 +2870,11 @@ func (x *SurgeryEffect) GetPartIndex() int32 {
 	return 0
 }
 
-func (x *SurgeryEffect) GetBillId() string {
-	if x != nil && x.BillId != nil {
-		return *x.BillId
+func (x *SurgeryEffect) GetBill() *commonpb.Ref {
+	if x != nil {
+		return x.Bill
 	}
-	return ""
+	return nil
 }
 
 func (x *SurgeryEffect) GetState() SurgeryState {
@@ -4947,15 +4947,13 @@ const file_receipts_proto_rawDesc = "" +
 	"\a_reason\"\x95\x01\n" +
 	"\x0eSettingsEffect\x12E\n" +
 	"\bsnapshot\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\bsnapshot\x12<\n" +
-	"\x06fields\x18\x02 \x03(\v2$.rimgovernor.receipts.v1.FieldResultR\x06fields\"\xa0\x02\n" +
+	"\x06fields\x18\x02 \x03(\v2$.rimgovernor.receipts.v1.FieldResultR\x06fields\"\xa6\x02\n" +
 	"\n" +
 	"BillEffect\x12?\n" +
-	"\x05stack\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x05stack\x12\x1c\n" +
-	"\abill_id\x18\x02 \x01(\tH\x00R\x06billId\x88\x01\x01\x12\"\n" +
+	"\x05stack\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x05stack\x12.\n" +
+	"\x04bill\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04bill\x12\"\n" +
 	"\n" +
-	"recipe_def\x18\x03 \x01(\tH\x01R\trecipeDef\x88\x01\x01B\n" +
-	"\n" +
-	"\b_bill_idB\r\n" +
+	"recipe_def\x18\x03 \x01(\tH\x00R\trecipeDef\x88\x01\x01B\r\n" +
 	"\v_recipe_defJ\x04\b\x04\x10\fR\apresentR\x05indexR\x10ordered_bill_idsR\x15configuration_matchesR\n" +
 	"iterationsR\x0foutput_completeR\x0foutput_observedR\aoutputs\"\xf4\x01\n" +
 	"\x0eResearchEffect\x125\n" +
@@ -5034,21 +5032,19 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_job_defJ\x04\b\x06\x10\aR\x0edraft_claim_id\"Z\n" +
 	"\x12CombatOrdersEffect\x12D\n" +
-	"\aresults\x18\x01 \x03(\v2*.rimgovernor.receipts.v1.CombatOrderResultR\aresults\"\x95\x02\n" +
+	"\aresults\x18\x01 \x03(\v2*.rimgovernor.receipts.v1.CombatOrderResultR\aresults\"\x9b\x02\n" +
 	"\rSurgeryEffect\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"recipe_def\x18\x02 \x01(\tH\x01R\trecipeDef\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"part_index\x18\x03 \x01(\x05H\x02R\tpartIndex\x88\x01\x01\x12\x1c\n" +
-	"\abill_id\x18\x04 \x01(\tH\x03R\x06billId\x88\x01\x01\x12@\n" +
-	"\x05state\x18\x05 \x01(\x0e2%.rimgovernor.receipts.v1.SurgeryStateH\x04R\x05state\x88\x01\x01B\n" +
+	"part_index\x18\x03 \x01(\x05H\x02R\tpartIndex\x88\x01\x01\x12.\n" +
+	"\x04bill\x18\x04 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04bill\x12@\n" +
+	"\x05state\x18\x05 \x01(\x0e2%.rimgovernor.receipts.v1.SurgeryStateH\x03R\x05state\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\r\n" +
 	"\v_recipe_defB\r\n" +
-	"\v_part_indexB\n" +
-	"\n" +
-	"\b_bill_idB\b\n" +
+	"\v_part_indexB\b\n" +
 	"\x06_state\"\xd5\x01\n" +
 	"\n" +
 	"AreaEffect\x12\x15\n" +
@@ -5440,8 +5436,9 @@ var file_receipts_proto_goTypes = []any{
 	(*commonpb.ObservationContext)(nil), // 56: rimgovernor.common.v1.ObservationContext
 	(*commonpb.Cell)(nil),               // 57: rimgovernor.common.v1.Cell
 	(placementpb.Rotation)(0),           // 58: rimgovernor.placement.v1.Rotation
-	(*commonpb.Identity)(nil),           // 59: rimgovernor.common.v1.Identity
-	(*commonpb.Failure)(nil),            // 60: rimgovernor.common.v1.Failure
+	(*commonpb.Ref)(nil),                // 59: rimgovernor.common.v1.Ref
+	(*commonpb.Identity)(nil),           // 60: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 61: rimgovernor.common.v1.Failure
 }
 var file_receipts_proto_depIdxs = []int32{
 	55, // 0: rimgovernor.receipts.v1.Receipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
@@ -5493,51 +5490,53 @@ var file_receipts_proto_depIdxs = []int32{
 	12, // 46: rimgovernor.receipts.v1.SettingsEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
 	21, // 47: rimgovernor.receipts.v1.SettingsEffect.fields:type_name -> rimgovernor.receipts.v1.FieldResult
 	12, // 48: rimgovernor.receipts.v1.BillEffect.stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	12, // 49: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	57, // 50: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
-	12, // 51: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	25, // 52: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
-	12, // 53: rimgovernor.receipts.v1.DeconstructEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	29, // 54: rimgovernor.receipts.v1.CombatOrdersEffect.results:type_name -> rimgovernor.receipts.v1.CombatOrderResult
-	4,  // 55: rimgovernor.receipts.v1.SurgeryEffect.state:type_name -> rimgovernor.receipts.v1.SurgeryState
-	12, // 56: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	57, // 57: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	37, // 58: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
-	37, // 59: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
-	12, // 60: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	12, // 61: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	41, // 62: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
-	12, // 63: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	12, // 64: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	5,  // 65: rimgovernor.receipts.v1.QuestEffect.state:type_name -> rimgovernor.receipts.v1.QuestStatus
-	12, // 66: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	59, // 67: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	55, // 68: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	56, // 69: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
-	55, // 70: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	56, // 71: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
-	7,  // 72: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
-	47, // 73: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
-	46, // 74: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
-	60, // 75: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
-	11, // 76: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	11, // 77: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	6,  // 78: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
-	11, // 79: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	55, // 80: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	56, // 81: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
-	52, // 82: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
-	49, // 83: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
-	50, // 84: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	51, // 85: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	53, // 86: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	45, // 87: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
-	48, // 88: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
-	88, // [88:89] is the sub-list for method output_type
-	87, // [87:88] is the sub-list for method input_type
-	87, // [87:87] is the sub-list for extension type_name
-	87, // [87:87] is the sub-list for extension extendee
-	0,  // [0:87] is the sub-list for field type_name
+	59, // 49: rimgovernor.receipts.v1.BillEffect.bill:type_name -> rimgovernor.common.v1.Ref
+	12, // 50: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	57, // 51: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
+	12, // 52: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	25, // 53: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
+	12, // 54: rimgovernor.receipts.v1.DeconstructEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	29, // 55: rimgovernor.receipts.v1.CombatOrdersEffect.results:type_name -> rimgovernor.receipts.v1.CombatOrderResult
+	59, // 56: rimgovernor.receipts.v1.SurgeryEffect.bill:type_name -> rimgovernor.common.v1.Ref
+	4,  // 57: rimgovernor.receipts.v1.SurgeryEffect.state:type_name -> rimgovernor.receipts.v1.SurgeryState
+	12, // 58: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	57, // 59: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	37, // 60: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
+	37, // 61: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
+	12, // 62: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	12, // 63: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	41, // 64: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
+	12, // 65: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	12, // 66: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	5,  // 67: rimgovernor.receipts.v1.QuestEffect.state:type_name -> rimgovernor.receipts.v1.QuestStatus
+	12, // 68: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	60, // 69: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	55, // 70: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	56, // 71: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
+	55, // 72: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	56, // 73: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	7,  // 74: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
+	47, // 75: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
+	46, // 76: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
+	61, // 77: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
+	11, // 78: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	11, // 79: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	6,  // 80: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
+	11, // 81: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	55, // 82: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	56, // 83: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
+	52, // 84: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	49, // 85: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
+	50, // 86: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	51, // 87: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	53, // 88: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	45, // 89: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
+	48, // 90: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
+	90, // [90:91] is the sub-list for method output_type
+	89, // [89:90] is the sub-list for method input_type
+	89, // [89:89] is the sub-list for extension type_name
+	89, // [89:89] is the sub-list for extension extendee
+	0,  // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_receipts_proto_init() }

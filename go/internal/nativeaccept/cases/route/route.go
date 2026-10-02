@@ -367,7 +367,7 @@ func readRoutes(ctx context.Context, h *na.Harness, identity map[string]any, lab
 		}
 		cell, _ := na.AsMap(row["cell"])
 		s.kind = na.AsString(row["kind"])
-		s.roomID = na.AsString(row["roomId"])
+		s.roomID = na.RefID(row["room"])
 		s.cell = domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}
 		for _, rawTravel := range na.AsSlice(row["travel"]) {
 			t, _ := na.AsMap(rawTravel)

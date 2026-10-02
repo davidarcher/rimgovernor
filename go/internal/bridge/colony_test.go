@@ -89,7 +89,7 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 			case "calendar-non-growing":
 				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(-1), SowingNow: proto.Bool(true)}
 			case "environment-room":
-				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{RoomId: proto.String("7"), CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}}
+				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{Room: &c.Ref{Id: proto.String("7")}, CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}}
 			}
 			if err := ValidateColonyFacts(r, id); err == nil {
 				t.Fatal("malformed facts accepted")

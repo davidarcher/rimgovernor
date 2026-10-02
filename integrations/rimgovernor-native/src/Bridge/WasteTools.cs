@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
                 {
                     var row = new Obs.WasteItem { Thing = Ref(body, grave.Position), Count = 1, Kind = Obs.WasteKind.Corpse, ProtectedReason = "grave",
-                        Eligible = false, State = Obs.WasteLocation.Buried, GraveId = Id(grave) };
+                        Eligible = false, State = Obs.WasteLocation.Buried, Grave = NativeRef.Of(Id(grave)) };
                     var of = CorpseOf(body);
                     if (of != null) row.CorpseClass = of.Value;
                     items.Add(row);

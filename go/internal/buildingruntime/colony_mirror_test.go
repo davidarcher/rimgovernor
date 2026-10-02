@@ -54,7 +54,7 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 	observed := &o.ColonyFactsSnapshot{
 		ColonistCount: proto.Uint32(3), Biome: proto.String("TemperateForest"),
 		Resources: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(40)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(7)}},
-		Farms:     []*o.FarmFacts{{ZoneId: proto.String("Zone_1"), Crop: proto.String("Plant_Rice")}},
+		Farms:     []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("Zone_1")}, Crop: proto.String("Plant_Rice")}},
 		Upkeep:    &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{}}},
 		Planning:  &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{}}},
 	}

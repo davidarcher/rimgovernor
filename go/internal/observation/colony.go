@@ -209,6 +209,15 @@ func optional[T any](p *T) domain.Fact[T] {
 	}
 	return domain.Known(*p)
 }
+
+// optionalRef is r's id, unknown without a reference.
+func optionalRef(r *c.Ref) domain.Fact[string] {
+	if r == nil {
+		return domain.Unknown[string]()
+	}
+	return optional(r.Id)
+}
+
 func countFact(p *uint32) domain.Fact[int64] {
 	if p == nil {
 		return domain.Unknown[int64]()
@@ -357,7 +366,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if !hasIssue(v.Issues, "butchering") {
 		benches := []CookingBench{}
 		for _, b := range v.Butchering {
-			benches = append(benches, CookingBench{ID: b.Bench.GetId(), Definition: b.Bench.GetDefName(), Usable: optional(b.Usable), Room: optional(b.RoomId)})
+			benches = append(benches, CookingBench{ID: b.Bench.GetId(), Definition: b.Bench.GetDefName(), Usable: optional(b.Usable), Room: optionalRef(b.Room)})
 		}
 		r.ButcheringBenches = domain.Known(benches)
 	}
@@ -393,7 +402,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if !hasIssue(v.Issues, "cooking") {
 		benches := []CookingBench{}
 		for _, bench := range v.Cooking {
-			benches = append(benches, CookingBench{ID: bench.Bench.GetId(), Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable), Room: optional(bench.RoomId), AutoRefuel: optional(bench.AutoRefuel)})
+			benches = append(benches, CookingBench{ID: bench.Bench.GetId(), Definition: bench.Bench.GetDefName(), Usable: optional(bench.Usable), Room: optionalRef(bench.Room), AutoRefuel: optional(bench.AutoRefuel)})
 		}
 		r.CookingBenches = domain.Known(benches)
 	}
@@ -533,14 +542,14 @@ func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64) policy.Cont
 	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight)}
 	for _, row := range v.Lights {
 		ref := row.Building
-		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
+		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
 	}
 	for _, row := range v.Growers {
 		ref := row.Building
-		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optional(row.RoomId), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), Fertility: optional(row.Fertility), SowTag: optional(row.SowTag), Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
+		e.Growers = append(e.Growers, policy.PlantGrower{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), Fertility: optional(row.Fertility), SowTag: optional(row.SowTag), Crop: optional(row.CropDefName), CanSow: optional(row.CanSow), Cells: cellsOf(row.PlantCells)})
 	}
 	for _, row := range v.Rooms {
-		e.Rooms = append(e.Rooms, policy.GrowRoom{ID: row.GetRoomId(), TemperatureC: optional(row.TemperatureC), Cells: count(row.CellCount), OpenRoof: count(row.OpenRoofCount), Lit: count(row.LitCells), Proper: optional(row.ProperRoom), Outdoors: optional(row.PsychologicallyOutdoors)})
+		e.Rooms = append(e.Rooms, policy.GrowRoom{ID: row.GetRoom().GetId(), TemperatureC: optional(row.TemperatureC), Cells: count(row.CellCount), OpenRoof: count(row.OpenRoofCount), Lit: count(row.LitCells), Proper: optional(row.ProperRoom), Outdoors: optional(row.PsychologicallyOutdoors)})
 	}
 	for _, row := range v.Networks {
 		e.Networks = append(e.Networks, policy.PowerHeadroom{ID: row.GetId(), GenerationW: optional(row.GenerationW), SolarW: optional(row.SolarW), WindW: optional(row.WindW), ConsumptionW: optional(row.ConsumptionW), StoredWattDays: optional(row.StoredWattDays), CapacityWattDays: optional(row.CapacityWattDays), ActiveSource: optional(row.HasActiveSource)})

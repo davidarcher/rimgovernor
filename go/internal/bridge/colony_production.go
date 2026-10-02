@@ -15,10 +15,10 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 	}
 	farms := map[string]bool{}
 	for _, farm := range v.Farms {
-		if farm == nil || validID(farm.GetZoneId()) != nil || validID(farm.GetCrop()) != nil || farms[farm.GetZoneId()] {
+		if farm == nil || validID(farm.GetZone().GetId()) != nil || validID(farm.GetCrop()) != nil || farms[farm.GetZone().GetId()] {
 			return contract("invalid or duplicate farm")
 		}
-		farms[farm.GetZoneId()] = true
+		farms[farm.GetZone().GetId()] = true
 		for _, count := range []*uint32{farm.UsableCells, farm.PlantedCells, farm.GrowingCells} {
 			if count != nil && uint64(*count) > uint64(v.MapSize.GetWidth())*uint64(v.MapSize.GetHeight()) {
 				return contract("farm cells exceed map")
@@ -88,11 +88,11 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 			recipes[recipe.Recipe.GetDefName()] = true
 		}
 		ids := map[string]bool{}
-		for i, bill := range bench.Bills {
-			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{DefaultIngredients: bill.DefaultIngredients, UnrestrictedWorker: bill.UnrestrictedWorker, ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, WorkerId: bill.WorkerId, IngredientFilter: bill.IngredientFilter}) {
+		for _, bill := range bench.Bills {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{DefaultIngredients: bill.DefaultIngredients, UnrestrictedWorker: bill.UnrestrictedWorker, ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, Worker: bill.Worker, IngredientFilter: bill.IngredientFilter}) {
 				return contract("invalid production bill")
 			}
-			if bill.WorkerId != nil && bill.GetWorkerId() != "" && validID(bill.GetWorkerId()) != nil {
+			if !optionalRef(bill.Worker) {
 				return contract("invalid bill worker")
 			}
 			if filter := bill.IngredientFilter; filter != nil {
@@ -108,7 +108,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				}
 			}
 			if bill.Id != nil {
-				if validID(bill.GetId()) != nil || ids[bill.GetId()] || bill.Index == nil || int(bill.GetIndex()) != i {
+				if validID(bill.GetId()) != nil || ids[bill.GetId()] {
 					return contract("invalid bill identity")
 				}
 				ids[bill.GetId()] = true

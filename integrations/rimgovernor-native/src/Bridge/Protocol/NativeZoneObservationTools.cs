@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
                 var plants = visible.Select(c => c.GetPlant(map)).Where(p => p != null && p.def == crop).ToList();
                 var product = crop.plant.harvestedThingDef;
                 var edible = product != null && humanFood(product);
-                row.Farm = new Obs.FarmFacts { ZoneId = row.Id, Crop = crop.defName,
+                row.Farm = new Obs.FarmFacts { Zone = NativeRef.Of(row.Id), Crop = crop.defName,
                     UsableCells = (uint)visible.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
                     PlantedCells = (uint)plants.Count, GrowingCells = (uint)plants.Count(p => p.GrowthRateFactor_Temperature > 0 && p.GrowthRateFactor_Fertility > 0),
                     EdibleCrop = edible, NutritionPerHarvestCell = edible ? crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition) : 0 };

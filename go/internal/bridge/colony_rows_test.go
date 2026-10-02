@@ -125,7 +125,7 @@ func TestColonyRowKeys(t *testing.T) {
 	rows := SplitColonyFacts(v)
 	want := map[string]string{
 		"colony.resources":   "resources[" + v.Resources[0].GetDefName() + "]",
-		"colony.farms":       "farms[" + v.Farms[0].GetZoneId() + "]",
+		"colony.farms":       "farms[" + v.Farms[0].GetZone().GetId() + "]",
 		"colony.environment": "environment[" + v.Environment[0].GetId() + "]",
 		ColonySection:        "food_climate",
 	}

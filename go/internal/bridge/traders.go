@@ -106,7 +106,7 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 		if row == nil || row.Trader == nil || validID(row.Trader.GetId()) != nil {
 			return TradersRead{}, contract("invalid trader row")
 		}
-		if !diagnostic(row.Kind) || !diagnostic(row.FactionId) || !diagnostic(row.Reason) || row.CanTrade == nil || row.Travelling == nil {
+		if !diagnostic(row.Kind) || !optionalRef(row.Faction) || !diagnostic(row.Reason) || row.CanTrade == nil || row.Travelling == nil {
 			return TradersRead{}, contract("invalid trader row text")
 		}
 		if row.GetOrbital() {
@@ -120,7 +120,7 @@ func decodeTraders(snapshot *o.TradersSnapshot, identity *c.Identity) (TradersRe
 			return TradersRead{}, contract("duplicate trader")
 		}
 		seen[row.Trader.GetId()] = true
-		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.Trader.Snapshot.GetToken(), Kind: row.GetKind(), Faction: row.GetFactionId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
+		out.Traders = append(out.Traders, TraderRead{ID: row.Trader.GetId(), Token: row.Trader.Snapshot.GetToken(), Kind: row.GetKind(), Faction: row.GetFaction().GetId(), CanTrade: row.GetCanTrade(), Travelling: row.GetTravelling(), Reason: row.GetReason(), GoodsStacks: row.GetGoodsStacks(), X: cell.GetX(), Z: cell.GetZ()})
 	}
 	for _, row := range snapshot.Negotiators {
 		if row == nil || validID(row.GetId()) != nil {

@@ -33,13 +33,13 @@ func colonyAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns) domain.Fact[[]p
 		}
 		storage := make([]policy.AnimalFeedStorage, 0, len(a.ReachableStorage))
 		for _, zone := range a.ReachableStorage {
-			storage = append(storage, policy.AnimalFeedStorage{Zone: zone.GetZoneId(), Accepts: append([]string{}, zone.Accepts...)})
+			storage = append(storage, policy.AnimalFeedStorage{Zone: zone.GetZone().GetId(), Accepts: append([]string{}, zone.Accepts...)})
 		}
 		candidates := make([]domain.Cell, 0, len(a.StorageCandidates))
 		for _, cell := range a.StorageCandidates {
 			candidates = append(candidates, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
 		}
-		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(pawn.Pawn.GetId()), Label: pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePenId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(pawn), Training: training, ReachableBenches: append([]string{}, a.ReachableBenchIds...), ReachableStorage: storage, StorageCandidates: candidates})
+		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(pawn.Pawn.GetId()), Label: pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePen().GetId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(pawn), Training: training, ReachableBenches: bridge.RefIDs(a.ReachableBenches), ReachableStorage: storage, StorageCandidates: candidates})
 		last := &rows[len(rows)-1]
 		last.Care, last.Bonded = careName(state.MedicalCare), optional(state.Bonded)
 		if state.Conditions != nil {

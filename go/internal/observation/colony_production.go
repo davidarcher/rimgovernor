@@ -4,6 +4,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
@@ -44,7 +45,7 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition) do
 	}
 	rows := []policy.FoodField{}
 	for _, farm := range farms {
-		if farm.ZoneId == nil || farm.GrowingCells == nil {
+		if farm.Zone == nil || farm.GrowingCells == nil {
 			return domain.Unknown[[]policy.FoodField]()
 		}
 		crop := policy.CropChoice{Name: farm.GetCrop(), Edible: optional(farm.EdibleCrop)}
@@ -60,7 +61,7 @@ func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition) do
 				}
 			}
 		}
-		rows = append(rows, policy.FoodField{ID: farm.GetZoneId(),
+		rows = append(rows, policy.FoodField{ID: farm.GetZone().GetId(),
 			Plan:              policy.FieldPlan{Crop: crop, Sites: policy.FarmSitePlan{Cells: int(farm.GetGrowingCells())}},
 			RemainingGrowDays: optional(farm.HarvestLowerBoundDays), WorkPerDay: work, Open: domain.Known(false)})
 	}
@@ -132,8 +133,8 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 		return domain.Unknown[[]policy.ProductionBench]()
 	}
 	var rows []policy.ProductionBench
-	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *string) {
-		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optional(room)}
+	add := func(entity *o.EntityRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *c.Ref) {
+		row := policy.ProductionBench{ID: entity.GetId(), Definition: entity.GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optionalRef(room)}
 		if entity.Snapshot != nil {
 			row.Token = optional(entity.Snapshot.Token)
 		}
@@ -156,15 +157,15 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{DefaultIngredients: optional(b.DefaultIngredients), UnrestrictedWorker: optional(b.UnrestrictedWorker), Worker: optional(b.WorkerId), RepeatMode: repeatMode(b.RepeatMode), Ingredients: billIngredients(b), ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: butcher && len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{DefaultIngredients: optional(b.DefaultIngredients), UnrestrictedWorker: optional(b.UnrestrictedWorker), Worker: domain.Known(b.GetWorker().GetId()), RepeatMode: repeatMode(b.RepeatMode), Ingredients: billIngredients(b), ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: butcher && len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
 		}
 		rows = append(rows, row)
 	}
 	for _, b := range v.Cooking {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false, b.RoomId)
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, b.Production, false, b.Room)
 	}
 	for _, b := range v.Butchering {
-		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true, b.RoomId)
+		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true, b.Room)
 		row := &rows[len(rows)-1]
 		row.HumanCorpseNutrition = optional(b.HumanCorpseNutrition)
 		row.HumanStorageReady = optional(b.HumanStorageReady)

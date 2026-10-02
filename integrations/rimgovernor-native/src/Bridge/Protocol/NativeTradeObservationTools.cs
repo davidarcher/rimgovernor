@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.Trader
                 {
                     Trader_ = PawnRef(pawn, context),
-                    Kind = tracker.traderKind.defName, FactionId = pawn.Faction != null ? pawn.Faction.GetUniqueLoadID() : "",
+                    Kind = tracker.traderKind.defName, Faction = NativeRef.Of(pawn.Faction),
                     CanTrade = canTrade && !dismissed && !travelling, Travelling = travelling, Orbital = false, GoodsStacks = (uint)SafeInt(() => tracker.Goods.Count()),
                 };
                 if (!canTrade) row.Reason = "CanTradeNow is false (downed, in a mental state, asleep, hostile or out of stock).";

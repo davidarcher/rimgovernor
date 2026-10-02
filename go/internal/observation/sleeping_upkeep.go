@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -20,7 +21,7 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 		return rows
 	}
 	person := func(p *o.UpkeepPerson) policy.SleepingPerson {
-		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.GetId()), OwnedBed: optional(p.OwnedBedId), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(p.PartnerIds), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
+		return policy.SleepingPerson{ID: policy.PawnID(p.Pawn.GetId()), OwnedBed: domain.Known(p.GetOwnedBed().GetId()), ComfortableMin: optional(p.ComfortableMinC), ComfortableMax: optional(p.ComfortableMaxC), Partners: ids(bridge.RefIDs(p.Partners)), BedSharingAllowed: optional(p.BedSharingAllowed), Title: royalTitle(p.Title)}
 	}
 	for _, p := range u.People {
 		r.People = append(r.People, person(p))
@@ -29,7 +30,7 @@ func colonySleeping(v *o.ColonyFactsSnapshot) domain.Fact[policy.SleepingObserva
 		r.Slaves = append(r.Slaves, person(p))
 	}
 	for _, b := range u.Beds {
-		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(b.Owners), Users: ids(b.Users), AccessibleTo: ids(b.AccessibleTo), Room: optional(b.RoomId), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
+		r.Beds = append(r.Beds, policy.SleepingBed{ID: b.Bed.GetId(), Definition: policy.Resource(b.Bed.GetDefName()), Humanlike: optional(b.Humanlike), Medical: optional(b.Medical), Prisoners: optional(b.Prisoners), Slaves: b.GetForSlaves(), Roofed: optional(b.Roofed), RestEffectiveness: optional(b.RestEffectiveness), Temperature: optional(b.TemperatureC), Owners: ids(bridge.RefIDs(b.Owners)), Users: ids(bridge.RefIDs(b.Users)), AccessibleTo: ids(bridge.RefIDs(b.AccessibleTo)), Room: optionalRef(b.Room), Quality: optional(b.Quality), Stuff: optional(b.Stuff), Cell: domain.Cell{X: b.Bed.GetPosition().GetX(), Z: b.Bed.GetPosition().GetZ()}})
 	}
 	return domain.Known(r)
 }

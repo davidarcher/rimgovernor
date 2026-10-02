@@ -69,8 +69,8 @@ namespace HomeBridge.BridgeTools {
   // An item, or a piece of art (a sculpture): vanilla makes it packed (#1195).
   internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
   internal static Obs.BillState BillRow(Bill bill,int index){
-   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
-   row.WorkerId=bill.PawnRestriction?.GetUniqueLoadID()??"";
+   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
+   row.Worker=NativeRef.Of(bill.PawnRestriction);
    // MakeNewBill consumes a native bill id; census defaults must stay detached.
    // The parameterless Bill constructor leaves ingredientFilter null.
    var fresh=new Bill_Production { recipe=bill.recipe, ingredientFilter=new ThingFilter() };
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools {
    if(!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
    var map=ProtoBoundary.LoadedMap(context);var t=target;
    var bench=map.listerThings.AllThings.FirstOrDefault(x=>x.GetUniqueLoadID()==intent!.BenchId);var giver=bench as IBillGiver;
-   var replaced=intent!.HasReplaceOwnedBillId&&bench!=null?NativeProductionTracking.ReplaceableBill(intent.ReplaceOwnedBillId,bench,intent.RecipeDef):null;
+   var replaced=intent!.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill(intent.ReplaceOwnedBill.Id,bench,intent.RecipeDef):null;
    if(giver!=null&&replaced==null&&NativeProductionBills.Matching(giver,null,intent)){t.Bench=bench!;t.Giver=giver;t.Standing=giver.BillStack.Bills.First(b=>NativeProductionBills.Matches(b,intent));return null;}
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
@@ -166,7 +166,7 @@ namespace HomeBridge.BridgeTools {
     .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
     .Require(()=>NativeProductionBills.UsableForNewBill(bench!),"bench is not usable for bills")
-    .Require(()=>!intent.HasReplaceOwnedBillId||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
+    .Require(()=>intent.ReplaceOwnedBill==null||replaced!=null,"replacement must be the same recipe on this bench or an ordinary meal tier on this map")
     .Require(()=>giver!.BillStack.Count<15||replaced?.billStack==giver.BillStack,"bill stack is full")
     .Require(()=>replaced!=null&&replaced.recipe.defName==intent.RecipeDef||!NativeProductionBills.Matching(giver!,replaced,intent),"bench already carries a matching "+intent.RecipeDef+" bill")
     .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+intent.RecipeDef+" is not available on the bench")
@@ -206,7 +206,7 @@ namespace HomeBridge.BridgeTools {
     t.Giver.BillStack.AddBill(bill);record.Capture();
     standing=bill;
    }
-   return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},BillId=standing.GetUniqueLoadID(),RecipeDef=standing.recipe.defName}};
+   return new Receipts.EffectEvidence{Bill=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=t.Bench.GetUniqueLoadID()},Bill=NativeRef.Of(standing.GetUniqueLoadID()),RecipeDef=standing.recipe.defName}};
   }
  }
 }

@@ -36,11 +36,11 @@ namespace HomeBridge.BridgeTools
             var v = ReadProtocol(map);
             return new {
                 people = v.People.ToList(),
-                surfaces = v.Surfaces.Select(s => new { id = s.Id, roomId = s.HasRoomId ? s.RoomId : null,
+                surfaces = v.Surfaces.Select(s => new { id = s.Id, roomId = s.Room?.Id,
                     adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
-                dining = v.Dining.Select(f => new { id = f.Id, roomId = f.HasRoomId ? f.RoomId : null,
+                dining = v.Dining.Select(f => new { id = f.Id, roomId = f.Room?.Id,
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
-                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind, roomId = f.HasRoomId ? f.RoomId : null,
+                recreation = v.Recreation.Select(f => new { id = f.Id, kind = f.Kind, roomId = f.Room?.Id,
                     accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList()
             };
         }
@@ -75,29 +75,29 @@ namespace HomeBridge.BridgeTools
                     .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
                     .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
                 var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string surfaceRoom) row.RoomId = surfaceRoom;
+                if (HostRoom(b) is string surfaceRoom) row.Room = NativeRef.Of(surfaceRoom);
                 row.Adjacent.Add(adjacent.Select(Cell)); result.Surfaces.Add(row);
             }
             foreach (var b in seats) {
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string seatRoom) row.RoomId = seatRoom;
-                row.AccessibleTo.Add(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID())));
-                row.Users.Add(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
-                    .Select(p => Id(p.GetUniqueLoadID())));
+                if (HostRoom(b) is string seatRoom) row.Room = NativeRef.Of(seatRoom);
+                row.AccessibleTo.Add(NativeRef.All(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID()))));
+                row.Users.Add(NativeRef.All(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
+                    .Select(p => Id(p.GetUniqueLoadID()))));
                 result.Dining.Add(row);
             }
             foreach (var b in play) {
                 var watchCells = UsesWatchCells(b.def)
                     ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).ToList() : null;
                 var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
-                if (HostRoom(b) is string playRoom) row.RoomId = playRoom;
-                row.AccessibleTo.Add(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
+                if (HostRoom(b) is string playRoom) row.Room = NativeRef.Of(playRoom);
+                row.AccessibleTo.Add(NativeRef.All(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
                     && p.CanReach(b, PathEndMode.Touch, Danger.None)
                     && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
-                    .Select(p => Id(p.GetUniqueLoadID())));
-                row.Users.Add(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
-                    .Select(p => Id(p.GetUniqueLoadID())));
+                    .Select(p => Id(p.GetUniqueLoadID()))));
+                row.Users.Add(NativeRef.All(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
+                    .Select(p => Id(p.GetUniqueLoadID()))));
                 result.Recreation.Add(row);
             }
             result.Joy = ReadJoy(people, play);

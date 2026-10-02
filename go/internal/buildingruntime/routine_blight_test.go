@@ -46,7 +46,7 @@ func (n *routineBlightNative) ReadEmergency(ctx context.Context, identity *c.Ide
 func blightedRow(v *o.ColonyFactsSnapshot, id string, x, z int32, designated bool) *o.BlightedPlant {
 	return &o.BlightedPlant{Plant: &o.EntityRef{Id: proto.String(id), DefName: proto.String("Plant_Rice"), MapId: proto.Int32(v.Context.Identity.GetMapId()),
 		Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, Snapshot: &o.SnapshotRef{EntityId: proto.String(id), Token: proto.String("cut-" + id), Context: proto.Clone(v.Context).(*c.ObservationContext)}},
-		Designated: proto.Bool(designated), ZoneId: proto.String("7")}
+		Designated: proto.Bool(designated), Zone: &c.Ref{Id: proto.String("7")}}
 }
 
 func TestRoutineBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {

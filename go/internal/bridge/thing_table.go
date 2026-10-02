@@ -61,7 +61,7 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 	if row.Perishable != nil && !row.GetPerishable() && row.RotTicks != nil {
 		return contract("durable thing has a rot deadline")
 	}
-	if row.RoomId != nil && validID(row.GetRoomId()) != nil {
+	if !optionalRef(row.Room) {
 		return contract("invalid thing room")
 	}
 	if row.GetCorpse() {

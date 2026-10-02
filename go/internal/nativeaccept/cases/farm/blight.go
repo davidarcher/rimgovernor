@@ -375,7 +375,7 @@ func readBlightCensus(ctx context.Context, h *na.Harness, identity map[string]an
 		if id == "" {
 			return blightSummary{}, fmt.Errorf("%s: blighted plant row without a thing id: %#v", label, row)
 		}
-		s.rows[id] = blightRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, zone: na.AsString(row["zoneId"]), designated: designated}
+		s.rows[id] = blightRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, zone: na.RefID(row["zone"]), designated: designated}
 	}
 	return s, nil
 }

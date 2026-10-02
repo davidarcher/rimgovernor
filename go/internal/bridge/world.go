@@ -99,9 +99,9 @@ func worldSelected(v *o.WorldSnapshot, identity *c.Identity) (WorldRead, error) 
 		fact := SettlementFact{
 			ID: row.GetId(), Label: row.GetLabel(), Tile: row.GetTile(), Player: row.GetPlayer(), SnapshotToken: row.Snapshot.GetToken(),
 		}
-		if row.FactionId != nil {
-			fact.FactionID, fact.FactionDefName, fact.Relation = row.GetFactionId(), row.GetFactionDefName(), row.GetRelation()
-			if row.FactionSnapshot == nil || row.FactionSnapshot.GetEntityId() != row.GetFactionId() || validID(row.FactionSnapshot.GetToken()) != nil {
+		if row.Faction != nil {
+			fact.FactionID, fact.FactionDefName, fact.Relation = row.GetFaction().GetId(), row.GetFactionDefName(), row.GetRelation()
+			if row.FactionSnapshot == nil || row.FactionSnapshot.GetEntityId() != row.GetFaction().GetId() || validID(row.FactionSnapshot.GetToken()) != nil {
 				return WorldRead{}, contract("world settlement faction CAS token unavailable")
 			}
 			fact.FactionSnapshotToken = row.FactionSnapshot.GetToken()

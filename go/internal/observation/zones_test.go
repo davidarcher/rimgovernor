@@ -1,13 +1,15 @@
 package observation
 
 import (
+	"os"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"os"
-	"testing"
 )
 
 func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
@@ -31,9 +33,9 @@ func TestPoliciesUseZonesNotAggregateZoneFields(t *testing.T) {
 	if storageKnown || growingKnown || len(p.Farms) > 0 {
 		t.Fatal("aggregate supplied zone policy facts")
 	}
-	farm := &o.FarmFacts{ZoneId: proto.String("Zone_1"), Crop: proto.String("Rice"), UsableCells: proto.Uint32(20), GrowingCells: proto.Uint32(10), EdibleCrop: proto.Bool(true)}
+	farm := &o.FarmFacts{Zone: &commonpb.Ref{Id: proto.String("Zone_1")}, Crop: proto.String("Rice"), UsableCells: proto.Uint32(20), GrowingCells: proto.Uint32(10), EdibleCrop: proto.Bool(true)}
 	p.Definitions = []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}}
-	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.ZoneId, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}})
+	applyZones(&p, bridge.ZonesRead{Rows: []*o.ZoneState{{Id: farm.Zone.Id, Farm: farm, FoodStorage: proto.Bool(false)}, {Id: proto.String("Zone_2"), FoodStorage: proto.Bool(true)}}})
 	if p.Facts.FoodStorage != domain.Known(true) || p.Facts.GrowingCells != domain.Known(int64(10)) || len(p.Farms) != 1 || p.Farms[0].ID != "Zone_1" {
 		t.Fatal(p)
 	}

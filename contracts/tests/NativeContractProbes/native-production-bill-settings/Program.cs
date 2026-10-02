@@ -57,11 +57,11 @@ internal static class NativeProductionBillSettingsProbe
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher bill without a corpse class accepted");
         butcher.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
         Check(NativeProductionBillSettings.Valid(butcher), "animal butcher bill rejected" );
-        butcher.ReplaceOwnedBillId = "foreign-bill";
+        butcher.ReplaceOwnedBill = new RimGovernor.Protocol.Common.Ref { Id = "foreign-bill" };
         Check(NativeProductionBillSettings.Valid(butcher), "butcher takeover rejected" );
         var cremate = butcher.Clone();
         cremate.RecipeDef = "CremateCorpse";
-        cremate.ClearReplaceOwnedBillId();
+        cremate.ReplaceOwnedBill = null;
         foreach (var of in new[] { RimGovernor.Protocol.Common.CorpseClass.Colonist, RimGovernor.Protocol.Common.CorpseClass.Stranger, RimGovernor.Protocol.Common.CorpseClass.Animal }) {
             cremate.Settings.CorpseClass = of;
             Check(NativeProductionBillSettings.Valid(cremate), "cremation rejected for " + of);
