@@ -74,7 +74,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 				return encodeErr
 			}
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,zone_payload) VALUES(?,?,?,'deconstruction',?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, ground)
+		// stuff 'swap_wall' is the door-to-wall swap (#1245), NULL without it.
+		var swap any
+		if cut.ReplacesWithWall() {
+			swap = "swap_wall"
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,zone_payload,stuff) VALUES(?,?,?,'deconstruction',?,?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, ground, swap)
 	} else if move, _, ok := a.Relocation(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,rotation) VALUES(?,?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), move.Thing(), move.Definition(), move.Cell().X, move.Cell().Z, move.Rotation())
 	} else if cut, ok := a.CutPlant(); ok {
@@ -625,7 +630,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewFloorRemovalAction(id, f)
 		return a, ordinal, err
 	}
-	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "swap_wall") && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		c, err := domain.NewDeconstruction(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
@@ -638,6 +643,9 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			if c, err = c.WithClearedGround(rects); err != nil {
 				return domain.Action{}, 0, err
 			}
+		}
+		if stuff.Valid {
+			c = c.WithWallReplacement()
 		}
 		a, err := domain.NewDeconstructionAction(id, c)
 		return a, ordinal, err

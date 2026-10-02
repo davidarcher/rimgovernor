@@ -13,7 +13,16 @@ type Deconstruction struct {
 	target, definition string
 	cell               Cell
 	ground             string // canonical JSON []GroundRect, empty without cleared ground
+	wall               bool   // swap the door for a wall (#1245)
 }
+
+// WithWallReplacement returns the deconstruction swapping its door for a
+// wall of the door's stuff (#1245): native places the wall blueprint and
+// orders a builder through both jobs.
+func (c Deconstruction) WithWallReplacement() Deconstruction { c.wall = true; return c }
+
+// ReplacesWithWall reports a door-to-wall swap.
+func (c Deconstruction) ReplacesWithWall() bool { return c.wall }
 
 // GroundRect is one rectangle of cleared ground (#1366): Width x Height
 // cells from Origin.
@@ -67,6 +76,9 @@ func NewDeconstructionAction(id ActionID, cut Deconstruction) (Action, error) {
 	base, err := NewDeconstruction(cut.target, cut.definition, cut.cell)
 	if err != nil {
 		return Action{}, err
+	}
+	if cut.wall {
+		base = base.WithWallReplacement()
 	}
 	if canonical, err := base.WithClearedGround(cut.ClearedGround()); err != nil || canonical != cut {
 		return Action{}, errors.New("invalid deconstruction cleared ground")

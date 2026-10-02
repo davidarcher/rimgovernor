@@ -127,7 +127,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		target := selection.Targets[0]
 		prefix = fmt.Sprintf("deconstruct-%s-", target.EntityID)
 		actions, err = groundActions(id, policy.GroundStep{Phase: policy.GroundFurniture, Targets: []policy.ClearanceTarget{target}}, nil)
-	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, colonyRooms(colony.Projection)); ok {
+	} else if step, ok := policy.PlannedGroundStep(player, census.Floors, ground, plannedDoors(colony.Projection), colonyRooms(colony.Projection)); ok {
 		prefix, actions, err = groundStepMethod(id, step, ground)
 	} else {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
@@ -176,6 +176,13 @@ func plannedGround(colony observation.ColonyProjection) []policy.Rectangle {
 	return policy.PlannedGround(plan, rooms)
 }
 
+// plannedDoors is the recorded plan's door cells; none while it is unknown
+// (then there is no planned ground either).
+func plannedDoors(colony observation.ColonyProjection) map[domain.Cell]bool {
+	plan, _ := colony.LayoutPlan.Value()
+	return policy.PlannedDoors(plan)
+}
+
 func colonyRooms(colony observation.ColonyProjection) policy.RoomObservation {
 	rooms, _ := colony.Rooms.Value()
 	return rooms
@@ -192,6 +199,12 @@ func groundStepMethod(id domain.PlanID, step policy.GroundStep, ground []policy.
 		step.Targets = step.Targets[:1]
 		actions, err := groundActions(id, step, nil)
 		return fmt.Sprintf("deconstruct-%s-", step.Targets[0].EntityID), actions, err
+	case policy.GroundDoors:
+		// One door per method, swapped in place: no cleared ground, so the
+		// native enclosure and roof-wait rules see a door that stays a wall.
+		step.Targets = step.Targets[:1]
+		actions, err := groundActions(id, step, nil)
+		return fmt.Sprintf("swap-door-%s-", step.Targets[0].EntityID), actions, err
 	case policy.GroundWalls:
 		actions, err := groundActions(id, step, policy.GroundRects(ground))
 		return fmt.Sprintf("ground-walls-%d-%d-", step.Ground.X, step.Ground.Z), actions, err
@@ -227,6 +240,9 @@ func groundActions(id domain.PlanID, step policy.GroundStep, cleared []domain.Gr
 		}
 		if value, err = value.WithClearedGround(cleared); err != nil {
 			return nil, err
+		}
+		if step.Phase == policy.GroundDoors {
+			value = value.WithWallReplacement()
 		}
 		action, err := domain.NewDeconstructionAction(next(), value)
 		if err != nil {

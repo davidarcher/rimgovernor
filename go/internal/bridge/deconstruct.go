@@ -24,5 +24,8 @@ func deconstructAction(action domain.Action) (*o.Action, error) {
 	for _, r := range v.ClearedGround() {
 		intent.ClearedGround = append(intent.ClearedGround, &o.Rectangle{Origin: &c.Cell{X: proto.Int32(r.Origin.X), Z: proto.Int32(r.Origin.Z)}, Width: proto.Int32(r.Width), Height: proto.Int32(r.Height)})
 	}
+	if v.ReplacesWithWall() {
+		intent.ReplaceWithWall = proto.Bool(true)
+	}
 	return &o.Action{Intent: &o.Action_Deconstruct{Deconstruct: intent}}, nil
 }

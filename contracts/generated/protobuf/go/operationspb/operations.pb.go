@@ -5660,12 +5660,17 @@ func (x *DesignateIntent) GetDesignation() ThingDesignation {
 // reaching outside stays refused); while those rooms keep any roof the
 // designation stands but pawns wait (DeconstructEffect.waiting_for_roof),
 // so clearance issues remove_roof over them first.
+// replace_with_wall (#1245) swaps a player door for a Wall of the door's own
+// stuff: native places the wall blueprint over the door when the game
+// accepts it there, else once the door is gone, and orders the nearest
+// capable builder to deconstruct and then build it (player-forced work).
 type DeconstructIntent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TargetId      *string                `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"`
-	ClearedGround []*Rectangle           `protobuf:"bytes,2,rep,name=cleared_ground,json=clearedGround,proto3" json:"cleared_ground,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TargetId        *string                `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3,oneof" json:"target_id,omitempty"`
+	ClearedGround   []*Rectangle           `protobuf:"bytes,2,rep,name=cleared_ground,json=clearedGround,proto3" json:"cleared_ground,omitempty"`
+	ReplaceWithWall *bool                  `protobuf:"varint,3,opt,name=replace_with_wall,json=replaceWithWall,proto3,oneof" json:"replace_with_wall,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeconstructIntent) Reset() {
@@ -5710,6 +5715,13 @@ func (x *DeconstructIntent) GetClearedGround() []*Rectangle {
 		return x.ClearedGround
 	}
 	return nil
+}
+
+func (x *DeconstructIntent) GetReplaceWithWall() bool {
+	if x != nil && x.ReplaceWithWall != nil {
+		return *x.ReplaceWithWall
+	}
+	return false
 }
 
 // Designate one rock cell for ordinary pawn mining as part of a staged
@@ -7940,12 +7952,14 @@ const file_operations_proto_rawDesc = "" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x88\x01\x01\x12R\n" +
 	"\vdesignation\x18\x02 \x01(\x0e2+.rimgovernor.operations.v1.ThingDesignationH\x01R\vdesignation\x88\x01\x01B\v\n" +
 	"\t_thing_idB\x0e\n" +
-	"\f_designation\"\x90\x01\n" +
+	"\f_designation\"\xd7\x01\n" +
 	"\x11DeconstructIntent\x12 \n" +
 	"\ttarget_id\x18\x01 \x01(\tH\x00R\btargetId\x88\x01\x01\x12K\n" +
-	"\x0ecleared_ground\x18\x02 \x03(\v2$.rimgovernor.operations.v1.RectangleR\rclearedGroundB\f\n" +
+	"\x0ecleared_ground\x18\x02 \x03(\v2$.rimgovernor.operations.v1.RectangleR\rclearedGround\x12/\n" +
+	"\x11replace_with_wall\x18\x03 \x01(\bH\x01R\x0freplaceWithWall\x88\x01\x01B\f\n" +
 	"\n" +
-	"_target_id\"\xff\x01\n" +
+	"_target_idB\x14\n" +
+	"\x12_replace_with_wall\"\xff\x01\n" +
 	"\x0eRelocateIntent\x12\x1e\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x88\x01\x01\x12=\n" +
 	"\vdestination\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\vdestination\x12C\n" +

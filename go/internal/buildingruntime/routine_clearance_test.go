@@ -298,7 +298,8 @@ func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
 
 // TestGroundStepMethodOrdersRoofBeforeWalls pins the planned-ground intents
 // (#1245): a room's walls go behind remove_roof on the whole cleared ground,
-// furniture one building per method, floors as floor removals.
+// furniture one building per method, a ring door as a wall swap, floors as
+// floor removals.
 func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 	ground := []policy.Rectangle{{X: 9, Z: 9, Width: 5, Height: 5}}
 	wall := policy.ClearanceTarget{EntityID: "Wall1", DefName: "Wall", Minimum: domain.Cell{X: 11, Z: 11}, Maximum: domain.Cell{X: 11, Z: 11}, Player: true, EnclosesRoom: true}
@@ -321,6 +322,15 @@ func TestGroundStepMethodOrdersRoofBeforeWalls(t *testing.T) {
 	}
 	if cut, ok := actions[0].Deconstruction(); !ok || cut.ClearedGround() != nil {
 		t.Fatalf("furniture is a plain deconstruction: %+v", cut)
+	}
+
+	door := policy.ClearanceTarget{EntityID: "Door1", DefName: "Door", Minimum: domain.Cell{X: 9, Z: 10}, Maximum: domain.Cell{X: 9, Z: 10}, Player: true, EnclosesRoom: true}
+	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundDoors, Targets: []policy.ClearanceTarget{door}}, ground)
+	if err != nil || prefix != "swap-door-Door1-" || len(actions) != 1 {
+		t.Fatal(prefix, actions, err)
+	}
+	if cut, ok := actions[0].Deconstruction(); !ok || !cut.ReplacesWithWall() || cut.ClearedGround() != nil {
+		t.Fatalf("ring door is a wall swap without cleared ground: %+v", cut)
 	}
 
 	prefix, actions, err = groundStepMethod("plan", policy.GroundStep{Ground: ground[0], Phase: policy.GroundFloors, Floors: []policy.ClearanceFloor{{Cell: domain.Cell{X: 10, Z: 10}, DefName: "WoodPlankFloor"}}}, ground)

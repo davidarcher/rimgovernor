@@ -277,6 +277,17 @@ those rooms keep any roof the designation stands with pawns held
 vanilla NoRoof area) over the rooms first; roof support is checked once the
 roof is gone.
 
+With `replace_with_wall` (#1245, no cleared ground) a 1x1 player door is
+swapped for a Wall of the door's own stuff, so the enclosure holds: a door
+standing on a planned room's wall ring where the plan has no door. When the
+game's `GenConstruct.CanPlaceBlueprintAt` accepts the wall blueprint over the
+door, native places it and the construct work giver removes the door as its
+blocker (one build). Otherwise the door is designated, the nearest capable
+builder is ordered to deconstruct it, and once the door is gone the wall
+blueprint is placed and the build job is queued first for that builder. Both
+orders are player-forced (Prioritize). `DeconstructEffect.replacement_id`
+names the wall blueprint once placed.
+
 The intent adopts a standing designation rather than placing a second one,
 and a target the controller already owns applies again. Applied evidence is
 a `DeconstructEffect` naming the target and designation; applied means

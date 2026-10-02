@@ -508,7 +508,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			others, player := policy.SplitGroundRows(census.Targets)
 			reading.Projection.Facts.Upkeep.Clearance = domain.Known(others)
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
-			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground))
+			reading.Projection.Facts.Upkeep.Ground = domain.Known(policy.PlannedGroundWork(player, census.Floors, ground, plannedDoors(reading.Projection)))
 		}
 	}
 	if r.methodEnabled(policy.ClearAncientShrine) {

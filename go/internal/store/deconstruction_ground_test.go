@@ -7,7 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A deconstruction persists its cleared ground (#1366); one without keeps none.
+// A deconstruction persists its cleared ground (#1366) and door-to-wall
+// swap (#1245); one without keeps none.
 func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -28,7 +29,12 @@ func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("deconstruct-plan", 1, []domain.Action{a0, a1})
+	swap := cleared.WithWallReplacement()
+	a2, err := domain.NewDeconstructionAction("swap", swap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("deconstruct-plan", 1, []domain.Action{a0, a1, a2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,12 +48,13 @@ func TestDeconstructionClearedGroundRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatal(got)
 	}
 	v0, _ := got[0].Deconstruction()
 	v1, _ := got[1].Deconstruction()
-	if v0 != base || v1 != cleared || len(v1.ClearedGround()) != 2 {
+	v2, _ := got[2].Deconstruction()
+	if v0 != base || v1 != cleared || len(v1.ClearedGround()) != 2 || v1.ReplacesWithWall() || v2 != swap || !v2.ReplacesWithWall() {
 		t.Fatal(v0, v1)
 	}
 }

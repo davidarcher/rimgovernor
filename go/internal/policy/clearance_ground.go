@@ -11,8 +11,10 @@ import (
 // Planned-ground clearance (#1245, epic #1249): when a planned room needs
 // ground, every building and constructed floor on that ground the plan does
 // not hold is cleared, the colony's own included. Per room the order is
-// furniture and other non-wall buildings, then the roof and the walls and
-// doors holding it, then the floors once the cells are clear.
+// furniture and other non-wall buildings, then each door standing on the
+// room's wall ring where the plan has none (swapped for a wall in place, so
+// the enclosure holds), then the roof and the walls and doors holding it,
+// then the floors once the cells are clear.
 
 // ClearanceFloor is one constructed floor cell on planned ground (#1365).
 type ClearanceFloor struct {
@@ -26,6 +28,7 @@ type GroundPhase string
 
 const (
 	GroundFurniture GroundPhase = "furniture"
+	GroundDoors     GroundPhase = "doors"
 	GroundWalls     GroundPhase = "walls"
 	GroundFloors    GroundPhase = "floors"
 )
@@ -51,6 +54,20 @@ func PlannedGround(plan LayoutPlan, rooms RoomObservation) []Rectangle {
 			g.Height, g.Z = g.Height+g.Z, 0
 		}
 		out = append(out, g)
+	}
+	return out
+}
+
+// PlannedDoors is every door cell the plan holds: each room's door and its
+// link door. A door standing on planned ground's wall ring anywhere else is
+// swapped for a wall.
+func PlannedDoors(plan LayoutPlan) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, r := range plan.AllRooms() {
+		out[r.Door] = true
+		if r.Link != nil {
+			out[*r.Link] = true
+		}
 	}
 	return out
 }
@@ -92,8 +109,9 @@ func GroundRects(ground []Rectangle) []domain.GroundRect {
 // left and its earliest phase. Rows are the census's player rows on the
 // ground (SplitGroundRows); a building the plan holds (groundPlanned) is no
 // target. Walls wait for the room's furniture, floors for every building on
-// it. ok is false when the ground is clear.
-func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, rooms RoomObservation) (GroundStep, bool) {
+// it. A door on the ring where the plan has none (doors) is a swap target
+// after the furniture. ok is false when the ground is clear.
+func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, doors map[domain.Cell]bool, rooms RoomObservation) (GroundStep, bool) {
 	ordered := append([]ClearanceTarget(nil), rows...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].EntityID < ordered[j].EntityID })
 	cells := append([]ClearanceFloor(nil), floors...)
@@ -104,13 +122,15 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 	claimed := map[string]bool{}
 	claimedFloor := map[domain.Cell]bool{}
 	for _, g := range ground {
-		var furniture, walls []ClearanceTarget
+		var furniture, swaps, walls []ClearanceTarget
 		for _, row := range ordered {
-			if claimed[row.EntityID] || !row.Player || !overlaps(row, g) || groundPlanned(row, g) {
+			if claimed[row.EntityID] || !row.Player || !overlaps(row, g) || groundPlanned(row, g) && !ringDoorSwap(row, g, doors) {
 				continue
 			}
 			claimed[row.EntityID] = true
-			if row.EnclosesRoom {
+			if ringDoorSwap(row, g, doors) {
+				swaps = append(swaps, row)
+			} else if row.EnclosesRoom {
 				walls = append(walls, row)
 			} else {
 				furniture = append(furniture, row)
@@ -119,6 +139,8 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 		switch {
 		case len(furniture) > 0:
 			return GroundStep{Ground: g, Phase: GroundFurniture, Targets: furniture}, true
+		case len(swaps) > 0:
+			return GroundStep{Ground: g, Phase: GroundDoors, Targets: swaps}, true
 		case len(walls) > 0:
 			return GroundStep{Ground: g, Phase: GroundWalls, Targets: walls, Roof: enclosedRoof(walls, ground, rooms)}, true
 		}
@@ -138,11 +160,11 @@ func PlannedGroundStep(rows []ClearanceTarget, floors []ClearanceFloor, ground [
 
 // PlannedGroundWork is the clearance deficit planned ground owes: every
 // target building and every floor cell no player building covers, stable.
-func PlannedGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle) []string {
+func PlannedGroundWork(rows []ClearanceTarget, floors []ClearanceFloor, ground []Rectangle, doors map[domain.Cell]bool) []string {
 	var out []string
 	for _, row := range rows {
 		for _, g := range ground {
-			if row.Player && overlaps(row, g) && !groundPlanned(row, g) {
+			if row.Player && overlaps(row, g) && (!groundPlanned(row, g) || ringDoorSwap(row, g, doors)) {
 				out = append(out, row.EntityID)
 				break
 			}
@@ -182,6 +204,13 @@ func groundPlanned(row ClearanceTarget, g Rectangle) bool {
 		}
 	}
 	return true
+}
+
+// ringDoorSwap is a player door the planned room's wall ring keeps standing
+// where the plan has no door: it is swapped for a wall (#1245).
+func ringDoorSwap(row ClearanceTarget, g Rectangle, doors map[domain.Cell]bool) bool {
+	return row.Class == "ancient_wall_door" && strings.Contains(row.DefName, "Door") && row.Minimum == row.Maximum &&
+		onRing(row.Minimum, g) && !doors[row.Minimum]
 }
 
 // groundCovered reports a cell under a building the step left standing (a

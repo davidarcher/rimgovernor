@@ -24,8 +24,12 @@ namespace HomeBridge.BridgeTools
         internal bool Complete, Released;
         internal readonly HashSet<string> Workers = new HashSet<string>();
         internal readonly HashSet<IntVec3>? Ground;
-        internal NativeDeconstructionRecord(Building target, HashSet<IntVec3>? ground, Common.ObservationContext context)
-        { Target = target; Map = target.Map; Cell = target.Position; Rotation = target.Rotation; Ground = ground; Before = NativeBuildingObservationTools.Token(target, context).Token; }
+        // A door-to-wall swap (#1245): the wall's stuff, and the wall
+        // blueprint once placed.
+        internal readonly ThingDef? WallStuff;
+        internal Thing? Replacement;
+        internal NativeDeconstructionRecord(Building target, HashSet<IntVec3>? ground, ThingDef? wallStuff, Common.ObservationContext context)
+        { Target = target; Map = target.Map; Cell = target.Position; Rotation = target.Rotation; Ground = ground; WallStuff = wallStuff; Before = NativeBuildingObservationTools.Token(target, context).Token; }
 
         // After explicit admission, never adopt a replacement designation on
         // the same target. Reference identity is scoped to the loaded game.
@@ -43,6 +47,7 @@ namespace HomeBridge.BridgeTools
         {
             var effect = new Receipts.DeconstructEffect { TargetId = Target.GetUniqueLoadID(), DesignationId = Id,
                 DemolitionObserved = Complete, WaitingForRoof = !Complete && NativeDeconstructionOperations.RoofWait(Target, Ground) != null, Site = new Receipts.SnapshotEvidence { EntityId = Target.GetUniqueLoadID(), BeforeToken = Before } };
+            if (Replacement != null) effect.ReplacementId = Replacement.GetUniqueLoadID();
             effect.WorkerIds.AddRange(Workers.OrderBy(id => id, StringComparer.Ordinal));
             if (Target.Spawned && Target.Map == Map) effect.Site.AfterToken = NativeBuildingObservationTools.Token(Target, context).Token;
             return new Receipts.EffectEvidence { Deconstruct = effect };
@@ -94,13 +99,57 @@ namespace HomeBridge.BridgeTools
             __state.Workers.Add(__instance.pawn.GetUniqueLoadID());
             return true;
         }
-        private static Exception? AfterRemoval(NativeDeconstructionRecord? __state, Exception? __exception)
+        private static Exception? AfterRemoval(JobDriver_Deconstruct __instance, NativeDeconstructionRecord? __state, Exception? __exception)
         {
             // Disappearance alone is never completion: this callback brackets
             // the native deconstruction job's FinishedRemoving method.
-            if (__state != null && __exception == null && __state.Target.Destroyed) __state.Complete = true;
+            if (__state != null && __exception == null && __state.Target.Destroyed)
+            {
+                __state.Complete = true;
+                if (__state.WallStuff != null)
+                    try { PlaceWall(__state, __instance.pawn, queued: true); }
+                    catch (Exception e) { Log.Warning("[RimGovernor] door-to-wall swap: " + e.Message); }
+            }
             return __exception;
         }
+
+        // Door-to-wall swap (#1245). The wall blueprint goes on the door's
+        // cell under the game's own placement rule; the builder is ordered to
+        // build it (delivering the stuff first) as player-forced work. queued
+        // runs inside the builder's finishing deconstruct job, so the build
+        // job waits at the head of its queue.
+        private static void PlaceWall(NativeDeconstructionRecord record, Pawn? builder, bool queued)
+        {
+            var stuff = record.WallStuff!;
+            if (!GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, record.Cell, Rot4.North, record.Map, false, null, null, stuff).Accepted) return;
+            record.Replacement = GenConstruct.PlaceBlueprintForBuild(ThingDefOf.Wall, record.Cell, record.Map, Rot4.North, Faction.OfPlayer, stuff);
+            OrderBuild(record.Replacement, builder, queued);
+        }
+        private static bool BuildGiver(WorkGiverDef def) => def.giverClass != null
+            && (typeof(WorkGiver_ConstructDeliverResourcesToBlueprints).IsAssignableFrom(def.giverClass)
+                || typeof(WorkGiver_ConstructFinishFrames).IsAssignableFrom(def.giverClass));
+        private static bool DeconstructGiver(WorkGiverDef def) => def.giverClass != null && typeof(WorkGiver_Deconstruct).IsAssignableFrom(def.giverClass);
+        // The capable builders nearest the cell first: undrafted, able, no
+        // tending needed, Construction enabled.
+        private static IEnumerable<Pawn> Builders(Map map, IntVec3 cell) => map.mapPawns.FreeColonistsSpawned
+            .Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
+                && !p.health.HasHediffsNeedingTend())
+            .OrderBy(p => p.Position.DistanceToSquared(cell));
+        private static Pawn? Order(Thing target, Pawn? preferred, Func<WorkGiverDef, bool> giver, bool queued)
+        {
+            foreach (var pawn in (preferred != null ? new[] { preferred } : Enumerable.Empty<Pawn>()).Concat(Builders(target.Map, target.Position)))
+            {
+                var result = WorkGiverDispatch.TryJob(pawn, target, giver, out _);
+                if (result == null) continue;
+                result.Job.playerForced = true;
+                if (queued) { pawn.jobs.jobQueue.EnqueueFirst(result.Job, JobTag.Misc); return pawn; }
+                if (pawn.jobs.TryTakeOrderedJobPrioritizedWork(result.Job, result.Scanner, target.Position)) return pawn;
+            }
+            return null;
+        }
+        private static void OrderBuild(Thing blueprint, Pawn? builder, bool queued) => Order(blueprint, builder, BuildGiver, queued);
+        private static ThingDef? WallStuff(Building target) => target.def.IsDoor && target.Faction == Faction.OfPlayer && target.def.size == IntVec2.One
+            && target.Stuff != null && GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(target.Stuff) ? target.Stuff : null;
 
         // Cleared ground (#1366): the cells of DeconstructIntent.cleared_ground,
         // null when the intent carries none.
@@ -183,6 +232,11 @@ namespace HomeBridge.BridgeTools
             var map = ProtoBoundary.ResolveMap(context);
             target = RefIndex.Thing<Building>(map, intent.TargetId);
             if (target == null) { code = Common.FailureCode.NotFound; return "Exact deconstruction target is absent."; }
+            if (intent.ReplaceWithWall)
+            {
+                if (ground != null) return "A door-to-wall swap carries no cleared ground.";
+                if (WallStuff(target) == null) return "Only a 1x1 player door of a wall stuff swaps for a wall.";
+            }
             var blocker = Safety(target, ground);
             if (blocker != null) return blocker;
             if (Claim(target) != null) return null;
@@ -207,16 +261,38 @@ namespace HomeBridge.BridgeTools
             if (refusal != null) throw new InvalidOperationException("Deconstruction prerequisites changed before apply: " + refusal);
             var owned = Claim(target!);
             if (owned != null) return owned.Evidence(context);
-            var record = new NativeDeconstructionRecord(target!, ground, context);
+            var record = new NativeDeconstructionRecord(target!, ground, intent.ReplaceWithWall ? WallStuff(target!) : null, context);
+            // A swap whose wall blueprint already stands applies again.
+            if (record.WallStuff != null && record.Cell.GetThingList(record.Map).FirstOrDefault(t => t is Blueprint_Build b && b.def.entityDefToBuild == ThingDefOf.Wall) is Thing standing)
+            {
+                record.Replacement = standing;
+                return record.Evidence(context);
+            }
+            // A swap the game lets the wall blueprint replace in place is one
+            // build: vanilla's construct work giver deconstructs the door as
+            // the blueprint's blocker (#1245).
+            if (record.WallStuff != null && GenConstruct.CanPlaceBlueprintAt(ThingDefOf.Wall, record.Cell, Rot4.North, record.Map, false, null, null, record.WallStuff).Accepted)
+            {
+                PlaceWall(record, null, queued: false);
+                return record.Evidence(context);
+            }
             if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
                 new Designator_Deconstruct().DesignateThing(target);
             // Vanilla removes a zero-work target (a sleeping spot, a
             // campfire) or any target in god mode at once instead of
             // designating it: that is the observed demolition.
-            if (target!.Destroyed) { record.Complete = true; return record.Evidence(context); }
+            if (target!.Destroyed)
+            {
+                record.Complete = true;
+                if (record.WallStuff != null) PlaceWall(record, null, queued: false);
+                return record.Evidence(context);
+            }
             record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
             if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
             records.Add(record);
+            // Swap: the nearest capable builder takes the deconstruction now;
+            // the wall follows it (AfterRemoval).
+            if (record.WallStuff != null) Order(target, null, DeconstructGiver, queued: false);
             return record.Evidence(context);
         }
         internal static int ReleaseAll()
