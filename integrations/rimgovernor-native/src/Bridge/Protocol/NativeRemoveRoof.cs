@@ -12,8 +12,8 @@ namespace HomeBridge.BridgeTools
 {
     // RemoveRoofIntent on Actions/Apply (#1366): vanilla remove roof, the
     // NoRoof area (Designator_AreaNoRoof, which also clears BuildRoof), over
-    // cells. A cell already unroofed or already in the NoRoof area
-    // applies again; a fogged or out-of-bounds cell or a thick roof refuses
+    // cells, unroofed ones included so nothing roofs them afterwards. A
+    // cell already in the NoRoof area applies again; a fogged or out-of-bounds cell or a thick roof refuses
     // the whole intent. Applied means designated: pawns remove the roof.
     internal static class NativeRemoveRoof
     {
@@ -70,13 +70,16 @@ namespace HomeBridge.BridgeTools
             var designator = new Designator_AreaNoRoof();
             foreach (var cell in cells)
             {
-                if (map.roofGrid.RoofAt(cell) == null) { effect.Unroofed++; continue; }
-                if (noRoof[cell]) { effect.Adopted++; continue; }
+                var unroofed = map.roofGrid.RoofAt(cell) == null;
+                if (noRoof[cell]) { if (unroofed) effect.Unroofed++; else effect.Adopted++; continue; }
+                // An unroofed cell joins the NoRoof area too: left out, it
+                // stays in the BuildRoof area auto-roof gave it (a room's
+                // walls) and pawns roof it after the intent applied.
                 var accepted = designator.CanDesignateCell(cell);
                 if (!accepted.Accepted) throw new InvalidOperationException($"Native remove-roof (NoRoof area) is not accepted at {cell}: {accepted.Reason}");
                 designator.DesignateSingleCell(cell);
                 if (!noRoof[cell]) throw new InvalidOperationException($"NoRoof area was not observed at {cell}.");
-                effect.Designated++;
+                if (unroofed) effect.Unroofed++; else effect.Designated++;
             }
             return new Receipts.EffectEvidence { RemoveRoof = effect };
         }
