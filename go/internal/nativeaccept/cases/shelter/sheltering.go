@@ -26,6 +26,9 @@ import (
 const (
 	shelteringFamilies = "recovery,sheltering"
 	shelterWait        = 4 * time.Minute
+	// shelterWalkTicks is the game-time budget for the walk from the
+	// staging row (ten cells from the hut) into it.
+	shelterWalkTicks = 6000
 )
 
 func init() {
@@ -93,8 +96,17 @@ func runSheltering(ctx context.Context, s cases.Session, withAnimal bool) error 
 	if err != nil {
 		return err
 	}
-	sheltered, err := stage(ctx, h, "status")
-	if err != nil {
+	// The journal settles when the area writes complete; the walk into the
+	// hut takes game time the stopped service no longer runs.
+	var sheltered map[string]any
+	if _, err := na.RunUntil(ctx, h, "shelter-walk", shelterWalkTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		got, err := stage(ctx, h, "status")
+		if err != nil {
+			return "", false, err
+		}
+		sheltered = got
+		return fmt.Sprint(got["pawns"]), checkPawns(got, expected, true) == nil, nil
+	}); err != nil {
 		return err
 	}
 	report["sheltered"] = sheltered
