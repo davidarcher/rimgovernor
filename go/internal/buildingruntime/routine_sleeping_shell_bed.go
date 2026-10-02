@@ -71,13 +71,18 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 	}
 	plan, _ := facts.LayoutPlan.Value()
 	shell := policy.ShellBedIDs(plan, rooms)
-	var vacant []policy.SleepingBed
+	var vacant []policy.SleepingBed // empty beds first, then an owner's
 	for _, b := range obs.Beds {
-		if shell[b.ID] && b.Definition == bed && len(b.Owners) == 0 {
+		if shell[b.ID] && b.Definition == bed {
 			vacant = append(vacant, b)
 		}
 	}
-	sort.Slice(vacant, func(i, j int) bool { return vacant[i].ID < vacant[j].ID })
+	sort.Slice(vacant, func(i, j int) bool {
+		if (len(vacant[i].Owners) == 0) != (len(vacant[j].Owners) == 0) {
+			return len(vacant[i].Owners) == 0
+		}
+		return vacant[i].ID < vacant[j].ID
+	})
 	for _, b := range vacant {
 		digest := sha256.Sum256([]byte(b.ID))
 		method := domain.MethodID(fmt.Sprintf("bedroom-shell-pack-%x", digest[:8]))
@@ -99,7 +104,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		clockSchedulerLog("%s: bedroom: pack vacant shell bed %s to carry it over", goal.Goal.ID, b.ID)
+		clockSchedulerLog("%s: bedroom: pack shell bed %s to carry it over", goal.Goal.ID, b.ID)
 		return r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
 	}
 	return RoutineBuildingResult{}, false, nil
