@@ -24,10 +24,13 @@ func productionFixture(t *testing.T) *o.ColonyFactsSnapshot {
 }
 
 func TestColonyProductionBoundary(t *testing.T) {
-	for _, change := range []string{"valid", "duplicate-farm", "count", "nan", "duplicate-recipe", "unreviewed-bill", "conflict"} {
+	for _, change := range []string{"valid", "worked-bill", "duplicate-farm", "count", "nan", "duplicate-recipe", "unreviewed-bill", "conflict"} {
 		t.Run(change, func(t *testing.T) {
 			v := productionFixture(t)
 			switch change {
+			case "worked-bill":
+				// A worker on the bill reports the ingredients it promised (#1354).
+				v.Cooking[0].Bills[0].Reservations = []*o.IngredientReservation{{PawnId: proto.String("pawn"), Items: []*o.Quantity{{DefName: proto.String("RawRice"), Units: proto.Int64(10)}}}}
 			case "duplicate-farm":
 				v.Farms = append(v.Farms, proto.Clone(v.Farms[0]).(*o.FarmFacts))
 			case "count":
@@ -42,7 +45,7 @@ func TestColonyProductionBoundary(t *testing.T) {
 				v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("farms"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}})
 			}
 			err := ValidateColonyFacts(v, v.Context.Identity)
-			if (err == nil) != (change == "valid") {
+			if (err == nil) != (change == "valid" || change == "worked-bill") {
 				t.Fatal(change, err)
 			}
 		})

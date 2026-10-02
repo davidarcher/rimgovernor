@@ -89,7 +89,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		ids := map[string]bool{}
 		for _, bill := range bench.Bills {
-			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{DefaultIngredients: bill.DefaultIngredients, UnrestrictedWorker: bill.UnrestrictedWorker, ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, Worker: bill.Worker, IngredientFilter: bill.IngredientFilter}) {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{DefaultIngredients: bill.DefaultIngredients, UnrestrictedWorker: bill.UnrestrictedWorker, ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, Reservations: bill.Reservations, Worker: bill.Worker, IngredientFilter: bill.IngredientFilter}) {
 				return contract("invalid production bill")
 			}
 			if !optionalRef(bill.Worker) {
