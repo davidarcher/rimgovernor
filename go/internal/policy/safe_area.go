@@ -14,13 +14,16 @@ const SafeAreaKey = "Safe"
 
 // SafeAreaCells is the union of the enclosed, fully roofed rooms (every
 // role: workshops keep sheltered pawns working) minus the killbox cells;
-// a room with an enemy-facing door is left out. Sorted, deduplicated.
+// a room with an enemy-facing door is left out unless every roofed room
+// has one: a roof with a door toward the killbox still shelters from
+// fallout, weather and a pack better than no Safe area at all.
+// Sorted, deduplicated.
 func SafeAreaCells(rooms RoomObservation, killbox []domain.Cell) []domain.Cell {
 	excluded := map[domain.Cell]bool{}
 	for _, c := range killbox {
 		excluded[c] = true
 	}
-	set := map[domain.Cell]bool{}
+	inner, exposed := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, room := range rooms.Rooms {
 		if enclosed, known := room.Enclosed.Value(); !known || !enclosed {
 			continue
@@ -28,12 +31,11 @@ func SafeAreaCells(rooms RoomObservation, killbox []domain.Cell) []domain.Cell {
 		if roofed, known := room.Roofed.Value(); !known || !roofed {
 			continue
 		}
-		enemy := false
+		set := inner
 		for _, d := range room.Doors {
-			enemy = enemy || d.EnemyFacing
-		}
-		if enemy {
-			continue
+			if d.EnemyFacing {
+				set = exposed
+			}
 		}
 		for _, c := range room.Cells {
 			if !excluded[c] {
@@ -41,7 +43,10 @@ func SafeAreaCells(rooms RoomObservation, killbox []domain.Cell) []domain.Cell {
 			}
 		}
 	}
-	return sortedCells(set)
+	if len(inner) == 0 {
+		return sortedCells(exposed)
+	}
+	return sortedCells(inner)
 }
 
 // PlanSafeArea returns the AreaIntent edits that bring the Safe area from

@@ -88,3 +88,16 @@ func TestPlanSafeAreaResetThenDiffs(t *testing.T) {
 		t.Fatal(ops, err)
 	}
 }
+
+// The lab hut is the only roofed room and its door faces the killbox: the
+// Safe area keeps it rather than end empty, which sheltered no one (#1560).
+func TestSafeAreaCellsKeepsExposedRoomWhenNoOther(t *testing.T) {
+	rooms := RoomObservation{Rooms: []Room{safeRoom("hut", 0, 0, 2, 1, true, RoomDoor{EnemyFacing: true})}}
+	if got := SafeAreaCells(rooms, nil); len(got) != 2 {
+		t.Fatal(got)
+	}
+	rooms.Rooms = append(rooms.Rooms, safeRoom("inner", 10, 0, 1, 1, true))
+	if got := SafeAreaCells(rooms, nil); len(got) != 1 || got[0] != (domain.Cell{X: 10, Z: 0}) {
+		t.Fatal(got)
+	}
+}
