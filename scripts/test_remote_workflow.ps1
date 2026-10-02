@@ -13,7 +13,7 @@ $baseline = @{
     GITHUB_ACTOR='maintainer';GITHUB_TRIGGERING_ACTOR='maintainer'
 }
 foreach ($key in $baseline.Keys) { [Environment]::SetEnvironmentVariable($key,$baseline[$key],'Process') }
-foreach ($event in @('workflow_dispatch','schedule')) {
+foreach ($event in @('workflow_dispatch','schedule','push')) {
     $env:GITHUB_EVENT_NAME=$event
     & "$PSScriptRoot/remote_workflow.ps1" -Phase authorize
 }
@@ -102,9 +102,12 @@ $env:GITHUB_EVENT_NAME='schedule'
 $source = Resolve-Source ([pscustomobject]@{})
 if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne $source.head -or $source.tier -cne 'nightly' -or $source.shards -ne 32) { throw 'Nightly source changed' }
 $env:GITHUB_EVENT_NAME='push'
+$source = Resolve-Source ([pscustomobject]@{before=('a'*40)})
+if ($source.head -cne $env:GITHUB_SHA -or $source.base -cne ('a'*40) -or $source.tier -cne 'land') { throw 'Push source changed' }
+$env:GITHUB_EVENT_NAME='pull_request_target'
 $rejected=$false
 try { Assert-Gate } catch { $rejected=$true }
-if (-not $rejected) { throw 'Automatic push was accepted' }
+if (-not $rejected) { throw 'Untrusted event was accepted' }
 'Remote workflow source selection passed'
 
 # A real native stderr/exit pair survives plan upload and verdict collection.

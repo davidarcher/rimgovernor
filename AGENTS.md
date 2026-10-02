@@ -93,7 +93,8 @@ any time too, so every agent:
 Remote agents additionally:
 
 1. Run no acceptance; say `Unverified: no acceptance run
-   (remote agent)` in the commit body and let the nightly verify it.
+   (remote agent)` in the commit body; the land-tier run on every push to
+   `main` verifies it and files an issue per failing case.
 2. Compile-check a C# change with `scripts/build_native_ref.sh`
    (fixture switches pass through, e.g. `-p:UpkeepFixture=true`): it builds
    against public NuGet reference assemblies, never the game. It needs

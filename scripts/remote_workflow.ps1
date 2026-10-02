@@ -75,6 +75,10 @@ function Resolve-Source($Event) {
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
         if (-not $base -and $tier -ne 'land') { $base = $head }
+    } elseif ($env:GITHUB_EVENT_NAME -eq 'push') {
+        # Every push to main runs the land tier against the pushed range (#1375).
+        $tier = 'land'; $shards = 4; $base = [string]$Event.before
+        if ($base -cnotmatch '^[0-9a-f]{40}$' -or $base -eq ('0'*40)) { $base = $head }
     }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
         $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full','cases') -or
@@ -94,7 +98,7 @@ function Assert-Gate {
         $env:GITHUB_REPOSITORY -cne 'davidarcher/rimgovernor' -or
         $env:GITHUB_REF -cne 'refs/heads/main' -or
         $env:GITHUB_REF_PROTECTED -cne 'true' -or
-        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','schedule') -or
+        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','schedule','push') -or
         $env:GITHUB_WORKFLOW_SHA -cnotmatch '^[0-9a-f]{40}$' -or
         $env:GITHUB_SHA -cne $env:GITHUB_WORKFLOW_SHA) {
         throw 'Remote acceptance requires activation, protected main and its exact trusted workflow revision'
