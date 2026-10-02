@@ -491,7 +491,7 @@ func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, ma
 	}
 	suppliesReply, err := h.Wire(ctx, label+"-forbidden", "observations_list_supplies", map[string]any{
 		"scope":  map[string]any{"expectedIdentity": identity},
-		"filter": map[string]any{"defNames": defNames, "ownership": "all"},
+		"filter": map[string]any{"defNames": defNames, "ownership": "STOCK_OWNERSHIP_ALL"},
 	})
 	if err != nil {
 		return state, nil, err
