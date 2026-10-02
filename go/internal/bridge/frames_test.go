@@ -441,3 +441,16 @@ func TestFramesServeSubscribedDefinitions(t *testing.T) {
 		t.Fatalf("%d native family reads, want 0", n)
 	}
 }
+
+// The built census keeps the open intents: without them a placed blueprint
+// reads as gone and its plan retires before any pawn builds it.
+func TestBuiltBuildingsKeepsOpenIntents(t *testing.T) {
+	v := &o.BuildingsSnapshot{
+		Buildings: []*o.BuildingState{{Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum()}, {Status: o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum()}},
+		Intents:   []*o.ConstructionIntent{{Key: proto.String("plan-0/1"), Stage: o.BuildingStatus_BUILDING_STATUS_BLUEPRINT.Enum()}},
+	}
+	got := builtBuildings(v)
+	if len(got.Buildings) != 1 || len(got.Intents) != 1 || got.Intents[0].GetKey() != "plan-0/1" {
+		t.Fatalf("builtBuildings = %v", got)
+	}
+}
