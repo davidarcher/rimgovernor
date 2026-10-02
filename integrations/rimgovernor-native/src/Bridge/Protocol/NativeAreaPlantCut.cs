@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     if (!Standing(plant)) continue;
                     snapshot.Plants.Add(new Obs.PlantCutTarget
                     {
-                        Plant = new Obs.EntityRef { Id = plant.GetUniqueLoadID(), DefName = plant.def.defName, Label = plant.LabelCap.ToString(), Position = new Common.Cell { X = cell.x, Z = cell.z } },
+                        Plant = NativeRef.Thing(plant), Cell = new Common.Cell { X = cell.x, Z = cell.z },
                         ChopWood = ChopWood(plant),
                     });
                 }

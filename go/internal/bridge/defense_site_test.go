@@ -239,7 +239,7 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 
 func TestCombatPawnsGearRangeAndLord(t *testing.T) {
 	snapshot := combatPawnsFixture()
-	rifle := &o.GearItem{Thing: &o.EntityRef{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
+	rifle := &o.GearItem{Thing: &c.Ref{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
 	snapshot.Pawns[0].Equipment.Equipped = append(snapshot.Pawns[0].Equipment.Equipped, rifle)
 	snapshot.Pawns[0].LordJobClass, snapshot.Pawns[0].LordToilClass = proto.String("LordJob_AssaultColony"), proto.String("LordToil_AssaultColonySappers")
 	identity := pbIdentity()
@@ -259,7 +259,7 @@ func TestCombatPawnsGearRangeAndLord(t *testing.T) {
 		"blank lord job": func() { snapshot.Pawns[0].LordJobClass = proto.String(" ") },
 	} {
 		snapshot = combatPawnsFixture()
-		rifle = &o.GearItem{Thing: &o.EntityRef{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
+		rifle = &o.GearItem{Thing: &c.Ref{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
 		snapshot.Pawns[0].Equipment.Equipped = append(snapshot.Pawns[0].Equipment.Equipped, rifle)
 		edit()
 		if _, _, err := serve().ReadCombatPawns(context.Background(), identity, []string{"pawn-1", "missing"}); !errors.Is(err, ErrContract) {

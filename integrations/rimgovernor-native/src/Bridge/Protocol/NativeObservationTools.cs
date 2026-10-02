@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
             foreach (var building in HostileBuildings(map, player)) {
                 var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
                     HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };
-                row.Building.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = NativeWasteOperations.Token(context.Identity, building) };
+                row.BuildingSnapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = NativeWasteOperations.Token(context.Identity, building) };
                 if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
                 var rect = building.OccupiedRect();
                 row.Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) };

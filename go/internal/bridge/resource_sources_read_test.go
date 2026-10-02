@@ -17,7 +17,7 @@ func resourceSourcesContext() *c.ObservationContext {
 
 func validResourceStorage() *o.StorageCapacity {
 	storage := &o.StorageCapacity{Resource: proto.String("Steel"), Capacity: proto.Int64(50), Stored: proto.Int64(10), StackLimit: proto.Int32(75)}
-	storage.Haulers = []*o.EntityRef{{Id: proto.String("pawn1")}}
+	storage.Haulers = []*c.Ref{{Id: proto.String("pawn1")}}
 	storage.Candidates = []*c.Cell{{X: proto.Int32(11), Z: proto.Int32(12)}, {X: proto.Int32(13), Z: proto.Int32(14)}}
 	return storage
 }
@@ -28,11 +28,9 @@ func TestReadResourceSourcesDecodesAndOrdersByDistance(t *testing.T) {
 		Resource: proto.String("Steel"),
 		Storage:  validResourceStorage(),
 		Sources: []*o.ResourceSource{
-			{Source: &o.EntityRef{Id: proto.String("rock2"), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)},
-				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok2")}}, Method: proto.String("mine"), Yield: proto.Float64(20),
+			{Source: &c.Ref{Id: proto.String("rock2")}, Cell: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}, SourceSnapshot: &o.SnapshotRef{Token: proto.String("mine-tok2")}, Method: proto.String("mine"), Yield: proto.Float64(20),
 				Distance: proto.Float64(9), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface"), Buried: proto.Bool(true)},
-			{Source: &o.EntityRef{Id: proto.String("rock1"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)},
-				Snapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}}, Method: proto.String("mine"), Yield: proto.Float64(15),
+			{Source: &c.Ref{Id: proto.String("rock1")}, Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, SourceSnapshot: &o.SnapshotRef{Token: proto.String("mine-tok1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},
@@ -76,7 +74,7 @@ func TestReadResourceSourcesRejectsMineSourceMissingSnapshot(t *testing.T) {
 		Resource: proto.String("Steel"),
 		Storage:  validResourceStorage(),
 		Sources: []*o.ResourceSource{
-			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
+			{Source: &c.Ref{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},
@@ -95,7 +93,7 @@ func TestReadResourceSourcesRejectsFractionalYield(t *testing.T) {
 		Resource: proto.String("Steel"),
 		Storage:  validResourceStorage(),
 		Sources: []*o.ResourceSource{
-			{Source: &o.EntityRef{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15.5),
+			{Source: &c.Ref{Id: proto.String("rock1")}, Method: proto.String("mine"), Yield: proto.Float64(15.5),
 				Distance: proto.Float64(3), Designated: proto.Bool(false), Taken: proto.Bool(false), Safety: proto.String("open_surface")},
 		},
 		Completeness: &o.Completeness{},

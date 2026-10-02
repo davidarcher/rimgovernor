@@ -83,9 +83,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			if item.Apparel == nil || item.Weapon == nil || item.GetApparel() == item.GetWeapon() {
 				return contract("unknown gear candidate kind")
 			}
-			if item.Thing == nil || validID(item.Thing.GetDefName()) != nil || item.Thing.Position == nil || !colonyCell(item.Thing.Position, size) {
-				return contract("gear candidate outside map")
-			}
 			candidates = append(candidates, item)
 		}
 		if err := combatDetails(&o.PawnState{Equipment: &o.PawnEquipment{Equipped: candidates}}, ctx); err != nil {

@@ -56,7 +56,7 @@ func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) 
 // planner reads a fresh census of its own immediately before proposing a
 // method, the same way RoutineEquipPlanner rereads combat pawns and loose
 // weapons rather than reusing the review's cached facts.
-func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
+func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables) policy.GearObservation {
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: observation.GearStorageFacts(gear)}
 	for _, p := range gear.GetPawns() {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.GetPawn().GetId()), Loadout: p.GetSnapshot().GetToken(), Blocked: p.Blocker != nil, Deficit: optionalBool(p.Deficit)}
@@ -64,9 +64,9 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 		for _, need := range p.GetReplacementNeeds() {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(need.GetDefName()), Stuff: policy.Resource(need.GetStuff()), Reason: need.GetReason()})
 		}
-		row.Candidates = domain.Known(observation.GearCandidateFacts(p))
+		row.Candidates = observation.GearCandidateFacts(p, tables)
 		row.Replacements = domain.Known(needs)
-		row.Apparel = observation.GearApparelFacts(p.GetEquipment())
+		row.Apparel = observation.GearApparelFacts(p.GetEquipment(), tables)
 		row.Policy = observation.ApparelPolicyFacts(p)
 		row.Climate = observation.GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
@@ -248,7 +248,11 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
 	outfits := observation.OutfitIDs(observation.ColonyPolicies(observed.Policies))
-	observation := gearObservationFacts(gear)
+	things, err := frameThings(call, r.native, identity)
+	if err != nil {
+		return RoutineGearResult{}, err
+	}
+	observation := gearObservationFacts(gear, bridge.Tables{Things: things})
 	for i := range observation.Pawns {
 		pawn := &observation.Pawns[i]
 		pawn.Blocked = pawn.Blocked || busy[domain.PawnID(pawn.Pawn)]
@@ -474,4 +478,25 @@ func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// frameThingsSource serves the newest frame's things table (#1342).
+type frameThingsSource interface {
+	FrameThings(context.Context, *c.Identity) (bridge.Things, error)
+}
+
+// frameThings is native's newest things table, empty when native serves
+// none: every gear reference then stays unresolved.
+func frameThings(ctx context.Context, native any, identity *c.Identity) (bridge.Things, error) {
+	if source, ok := native.(frameThingsSource); ok {
+		return source.FrameThings(ctx, identity)
+	}
+	return bridge.Things{}, nil
+}
+
+// gearDef is a gear reference's definition from its things table row, ""
+// when the table does not hold it yet.
+func gearDef(things bridge.Things, ref bridge.Reference) string {
+	row, _ := things.Row(ref)
+	return row.GetThing().GetDefName()
 }

@@ -32,10 +32,9 @@ func areaPlantCutAction(action domain.Action) (*op.Action, error) {
 // PlantCutStanding is one undesignated non-crop plant the census reports:
 // what an AreaPlantCutIntent over its cell would designate.
 type PlantCutStanding struct {
-	Plant      string
-	Definition string
-	Cell       domain.Cell
-	ChopWood   bool // a harvestable tree: chop-wood, not CutPlant
+	Plant    string
+	Cell     domain.Cell
+	ChopWood bool // a harvestable tree: chop-wood, not CutPlant
 }
 
 type PlantCutCensus struct {
@@ -96,11 +95,11 @@ func plantCutCensus(snapshot *o.PlantCutCensusSnapshot, identity *c.Identity, ce
 	out := PlantCutCensus{Context: proto.Clone(snapshot.Context).(*c.ObservationContext), Plants: []PlantCutStanding{}}
 	for _, row := range snapshot.Plants {
 		plant := row.GetPlant()
-		position := plant.GetPosition()
-		if validID(plant.GetId()) != nil || validID(plant.GetDefName()) != nil || position == nil || position.X == nil || position.Z == nil || !requested[domain.Cell{X: position.GetX(), Z: position.GetZ()}] {
+		position := row.GetCell()
+		if !validRef(plant) || position == nil || position.X == nil || position.Z == nil || !requested[domain.Cell{X: position.GetX(), Z: position.GetZ()}] {
 			return PlantCutCensus{}, contract("plant cut census row invalid")
 		}
-		out.Plants = append(out.Plants, PlantCutStanding{Plant: plant.GetId(), Definition: plant.GetDefName(), Cell: domain.Cell{X: position.GetX(), Z: position.GetZ()}, ChopWood: row.GetChopWood()})
+		out.Plants = append(out.Plants, PlantCutStanding{Plant: plant.GetId(), Cell: domain.Cell{X: position.GetX(), Z: position.GetZ()}, ChopWood: row.GetChopWood()})
 	}
 	return out, nil
 }

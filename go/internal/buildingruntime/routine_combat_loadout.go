@@ -36,6 +36,7 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 	for _, p := range view.Pawns {
 		live[p.ID] = p
 	}
+	things, _ := frameThings(call, r.native, boundary.Identity(state.Snapshot))
 	var defenders []policy.LoadoutDefender
 	beltless := false
 	for _, pawn := range pawns {
@@ -43,7 +44,7 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 		if row == nil || row.Pawn == nil {
 			continue
 		}
-		d := policy.LoadoutDefender{EquipCandidatePawn: equipCandidatePawnFacts(row), Primary: primaryDef(row)}
+		d := policy.LoadoutDefender{EquipCandidatePawn: equipCandidatePawnFacts(row), Primary: primaryDef(row, things)}
 		if p, ok := live[pawn]; ok {
 			d.ShieldBelt = p.ShieldBelt
 			if p.Weapon != "" {
@@ -112,17 +113,22 @@ func (r *RoutineDefensePlanner) loadoutBelts(call context.Context, source colony
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
 		return nil, fmt.Errorf("%w: loadoutBelts: context", ErrControl)
 	}
+	things, err := frameThings(call, source, identity)
+	if err != nil {
+		return nil, err
+	}
 	seen := map[string]bool{}
 	var out []policy.LoadoutApparel
 	for _, pawn := range observed.GetPlanning().GetObserved().GetGear().GetPawns() {
 		for _, candidate := range pawn.GetCandidates() {
 			thing := candidate.GetItem().GetThing()
-			if !candidate.GetItem().GetApparel() || thing.GetDefName() != shieldBeltDef || thing.GetId() == "" || seen[thing.GetId()] {
+			row, _ := things.Row(thing)
+			if !candidate.GetItem().GetApparel() || row.GetThing().GetDefName() != shieldBeltDef || thing.GetId() == "" || seen[thing.GetId()] {
 				continue
 			}
 			seen[thing.GetId()] = true
-			item := policy.LoadoutApparel{Thing: thing.GetId(), Definition: thing.GetDefName()}
-			if at := thing.GetPosition(); at != nil {
+			item := policy.LoadoutApparel{Thing: thing.GetId(), Definition: shieldBeltDef}
+			if at := row.GetThing().GetPosition(); at != nil {
 				item.Cell = domain.Cell{X: at.GetX(), Z: at.GetZ()}
 			}
 			out = append(out, item)
@@ -133,11 +139,11 @@ func (r *RoutineDefensePlanner) loadoutBelts(call context.Context, source colony
 }
 
 // primaryDef is a detail row's equipped primary def, "" unarmed.
-func primaryDef(row *n.PawnState) string {
+func primaryDef(row *n.PawnState, things bridge.Things) string {
 	equipment := row.GetEquipment()
 	for _, item := range equipment.GetEquipped() {
 		if id := equipment.GetPrimaryId(); id != "" && item.GetThing().GetId() == id {
-			return item.GetThing().GetDefName()
+			return gearDef(things, item.GetThing())
 		}
 	}
 	return ""

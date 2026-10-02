@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -61,7 +62,11 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
 		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
 	}
-	observation := gearObservationFacts(gear)
+	things, err := frameThings(call, r.native, identity)
+	if err != nil {
+		return RoutineArmoryResult{}, err
+	}
+	observation := gearObservationFacts(gear, bridge.Tables{Things: things})
 	for i := range observation.Pawns {
 		candidates, _ := observation.Pawns[i].Candidates.Value()
 		available := []policy.GearCandidate{}
@@ -164,6 +169,10 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	}
 	identity := boundary.Identity(state.Snapshot)
 	ids := []string{}
+	things, err := frameThings(ctx, r.native, identity)
+	if err != nil {
+		return nil, 0, err
+	}
 	for _, p := range gear.Pawns {
 		ids = append(ids, p.GetPawn().GetId())
 	}
@@ -193,7 +202,7 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	primaries := map[domain.PawnID]policy.ArmoryPrimary{}
 	for _, p := range observed.Pawns {
 		pawns = append(pawns, equipCandidatePawnFacts(p))
-		if primary, ok := armoryPrimary(p); ok {
+		if primary, ok := armoryPrimary(p, things); ok {
 			primaries[domain.PawnID(p.Pawn.GetId())] = primary
 		}
 	}
@@ -228,21 +237,21 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 
 // armoryPrimary is the pawn's equipped primary weapon; an unobserved
 // quality reads as normal.
-func armoryPrimary(row *o.PawnState) (policy.ArmoryPrimary, bool) {
+func armoryPrimary(row *o.PawnState, things bridge.Things) (policy.ArmoryPrimary, bool) {
 	equipment := row.GetEquipment()
 	id := equipment.GetPrimaryId()
 	if id == "" {
 		return policy.ArmoryPrimary{}, false
 	}
 	for _, item := range equipment.GetEquipped() {
-		if item.GetThing().GetId() != id || item.GetThing().GetDefName() == "" {
+		if item.GetThing().GetId() != id || gearDef(things, item.GetThing()) == "" {
 			continue
 		}
 		quality := 2 // QualityCategory.Normal
 		if q := item.GetQuality(); q != o.Quality_QUALITY_UNSPECIFIED {
 			quality = int(q) - 1
 		}
-		return policy.ArmoryPrimary{Definition: item.GetThing().GetDefName(), Ranged: item.GetRanged(), Quality: quality}, true
+		return policy.ArmoryPrimary{Definition: gearDef(things, item.GetThing()), Ranged: item.GetRanged(), Quality: quality}, true
 	}
 	return policy.ArmoryPrimary{}, false
 }

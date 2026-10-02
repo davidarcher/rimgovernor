@@ -59,11 +59,11 @@ func (client *Client) ReadPackedItems(ctx context.Context, identity *c.Identity,
 			return nil, raw, contract("invalid packed items row")
 		}
 		for _, item := range row.Items {
-			if validID(item.GetId()) != nil || validID(item.GetInnerId()) != nil || validID(item.GetInnerDefName()) != nil ||
+			if !validRef(item.GetItem()) || !validRef(item.GetInner()) || validID(item.GetInnerDefName()) != nil ||
 				item.Quality != nil && !validQuality(item.GetQuality()) || math.IsNaN(item.GetMarketValue()) || math.IsInf(item.GetMarketValue(), 0) || item.GetMarketValue() < 0 {
 				return nil, raw, contract("invalid packed item")
 			}
-			out = append(out, PackedItem{ID: item.GetId(), Inner: item.GetInnerId(), InnerDef: item.GetInnerDefName(),
+			out = append(out, PackedItem{ID: item.GetItem().GetId(), Inner: item.GetInner().GetId(), InnerDef: item.GetInnerDefName(),
 				Quality: item.GetQuality(), QualityKnown: item.Quality != nil, MarketValue: item.GetMarketValue()})
 		}
 	}

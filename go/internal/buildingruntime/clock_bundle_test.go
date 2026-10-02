@@ -133,8 +133,8 @@ func emergencySnapshot(context *c.ObservationContext, facts policy.EmergencyFact
 			row.Downed = proto.Bool(true)
 			threats.Pawns = append(threats.Pawns, row)
 		case policy.HostileBuilding:
-			building := &o.ThreatBuilding{Building: &o.EntityRef{Id: proto.String(string(threat.ID)), DefName: proto.String(threat.Definition),
-				Snapshot: &o.SnapshotRef{Context: proto.Clone(context).(*c.ObservationContext), EntityId: proto.String(string(threat.ID)), Token: proto.String(threat.SnapshotToken)}}}
+			building := &o.ThreatBuilding{Building: &o.EntityRef{Id: proto.String(string(threat.ID)), DefName: proto.String(threat.Definition)},
+				BuildingSnapshot: &o.SnapshotRef{Context: proto.Clone(context).(*c.ObservationContext), EntityId: proto.String(string(threat.ID)), Token: proto.String(threat.SnapshotToken)}}
 			building.Occupied = bridge.WireRect(threat.Cells)
 			if distance, ok := threat.Distance.Value(); ok {
 				building.NearestColonistDistance = proto.Int32(int32(distance))

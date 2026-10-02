@@ -29,7 +29,7 @@ func (n *shrineTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, i
 		ranged := i%2 == 0
 		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
 			Job: &o.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}, Health: &o.PawnHealth{NeedsTend: proto.Bool(false), SummaryFraction: proto.Float64(1)}, Biography: &o.PawnBiography{},
-			Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("w" + id), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String("w" + id)}, Ranged: proto.Bool(ranged), Range: proto.Float64(25.9)}}},
+			Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("w" + id), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("w" + id)}, Ranged: proto.Bool(ranged), Range: proto.Float64(25.9)}}},
 			Issues:    []*o.ReadIssue{missing("mental_state")}}
 		rows = append(rows, row)
 	}

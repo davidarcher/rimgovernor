@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -15,7 +16,7 @@ import (
 // lanceUsers are the colonists in rows able to use a worn lance now:
 // alive, standing, out of a mental state, capable of violence, wearing a
 // policy.LanceDefs item. Native checks charges and the target at apply.
-func lanceUsers(rows []*n.PawnState) []policy.LanceUser {
+func lanceUsers(rows []*n.PawnState, things bridge.Things) []policy.LanceUser {
 	var out []policy.LanceUser
 	for _, row := range rows {
 		facts := squadDefenderFacts(row, nil)
@@ -27,7 +28,7 @@ func lanceUsers(rows []*n.PawnState) []policy.LanceUser {
 			continue
 		}
 		for _, item := range row.GetEquipment().GetApparel() {
-			if policy.LanceDefs[policy.Resource(item.GetThing().GetDefName())] && item.GetThing().GetId() != "" {
+			if policy.LanceDefs[policy.Resource(gearDef(things, item.GetThing()))] && item.GetThing().GetId() != "" {
 				out = append(out, policy.LanceUser{Pawn: domain.PawnID(row.Pawn.GetId()), Item: item.GetThing().GetId()})
 				break
 			}
@@ -78,7 +79,11 @@ func (r *RoutinePopulationCustodyPlanner) stepLance(call, epoch context.Context,
 			return RoutinePopulationCustodyResult{}, false, fmt.Errorf("%w: stepLance: row == nil || row.Pawn == nil", ErrControl)
 		}
 	}
-	choice, ok := policy.SelectLanceUse(target, lanceUsers(observed.Pawns))
+	things, err := frameThings(call, r.native, identityCtx)
+	if err != nil {
+		return RoutinePopulationCustodyResult{}, false, err
+	}
+	choice, ok := policy.SelectLanceUse(target, lanceUsers(observed.Pawns, things))
 	if !ok || !arbiter.tryClaim([]domain.PawnID{choice.User, choice.Target}) {
 		return RoutinePopulationCustodyResult{}, false, nil
 	}

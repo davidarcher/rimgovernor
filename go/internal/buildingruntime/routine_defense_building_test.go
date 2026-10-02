@@ -12,7 +12,7 @@ import (
 )
 
 func shooterRow(id string, x, z int32, reach float64) *o.PawnState {
-	equipment := &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String(id + "-gun"), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String(id + "-gun")}, Ranged: proto.Bool(true), Range: proto.Float64(reach)}}}
+	equipment := &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String(id + "-gun"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String(id + "-gun")}, Ranged: proto.Bool(true), Range: proto.Float64(reach)}}}
 	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}, Equipment: equipment}
 }
 
@@ -28,7 +28,7 @@ func TestBuildingLinesOfFire(t *testing.T) {
 		"rifle":   shooterRow("rifle", 10, 20, 37),
 		"bow":     shooterRow("bow", 10, 21, 8),
 		"blocked": shooterRow("blocked", 30, 20, 37),
-		"club":    {Pawn: &o.EntityRef{Id: proto.String("club"), Position: &c.Cell{X: proto.Int32(19), Z: proto.Int32(20)}}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club-club"), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String("club-club")}, Ranged: proto.Bool(false)}}}},
+		"club":    {Pawn: &o.EntityRef{Id: proto.String("club"), Position: &c.Cell{X: proto.Int32(19), Z: proto.Int32(20)}}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club-club"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("club-club")}, Ranged: proto.Bool(false)}}}},
 	}
 	defenders := []policy.SquadDefenderFacts{
 		{ID: "rifle", RangedEquipped: domain.Known(true)},

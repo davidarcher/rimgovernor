@@ -32,7 +32,7 @@ func (n *raidTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 	reply, r, err := n.equipTestNative.ReadCombatPawns(ctx, id, ids)
 	observed := reply.GetObserved()
 	for _, row := range observed.GetPawns() {
-		rifle := &o.EntityRef{Id: proto.String("rifle-" + row.Pawn.GetId())}
+		rifle := &c.Ref{Id: proto.String("rifle-" + row.Pawn.GetId())}
 		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: rifle.Id, Equipped: []*o.GearItem{{Thing: rifle, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Range: proto.Float64(30)}}}
 		row.Health = &o.PawnHealth{NeedsTend: proto.Bool(false), SummaryFraction: proto.Float64(1)}
 		row.Job = &o.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}

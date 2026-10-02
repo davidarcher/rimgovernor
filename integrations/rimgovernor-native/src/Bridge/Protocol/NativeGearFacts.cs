@@ -215,7 +215,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = Gear(thing);
             var snapshot = NativeSupplyAllow.Snapshot(thing, context);
-            if (snapshot != null) row.Thing.Snapshot = snapshot;
+            if (snapshot != null) row.ThingSnapshot = snapshot;
             return row;
         }
 
@@ -251,7 +251,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.GearItem Gear(Thing thing)
         {
-            var row = new Obs.GearItem { Thing = Entity(thing), Weapon = thing.def.IsWeapon, Apparel = thing.def.IsApparel,
+            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing), Weapon = thing.def.IsWeapon, Apparel = thing.def.IsApparel,
                 Ranged = thing.def.IsRangedWeapon, Melee = thing.def.IsMeleeWeapon,
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };

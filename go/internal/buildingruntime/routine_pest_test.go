@@ -278,7 +278,7 @@ func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
 		t.Fatal("an unarmed roster must not be handed a hunt", result, err)
 	}
-	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String("bow"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Ranged: proto.Bool(true)}}}
+	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("bow")}, Ranged: proto.Bool(true)}}}
 	reviewer.census.invalidate()
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)

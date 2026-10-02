@@ -50,7 +50,7 @@ func TestAreaPlantCutRefusesBadCells(t *testing.T) {
 }
 
 func plantCutRow(id, def string, x, z int32, chop bool) *o.PlantCutTarget {
-	return &o.PlantCutTarget{Plant: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), Position: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}}, ChopWood: proto.Bool(chop)}
+	return &o.PlantCutTarget{Plant: &c.Ref{Id: proto.String(id)}, Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)}, ChopWood: proto.Bool(chop)}
 }
 
 func readPlantCutCensus(t *testing.T, reply *o.PlantCutCensusReply, cells []domain.Cell) (PlantCutCensus, error) {
@@ -78,7 +78,7 @@ func TestReadPlantCutCensusMapsRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []PlantCutStanding{{"Plant_Grass1", "Plant_Grass", domain.Cell{X: 3, Z: 4}, false}, {"Plant_TreeOak2", "Plant_TreeOak", domain.Cell{X: 5, Z: 6}, true}}
+	want := []PlantCutStanding{{"Plant_Grass1", domain.Cell{X: 3, Z: 4}, false}, {"Plant_TreeOak2", domain.Cell{X: 5, Z: 6}, true}}
 	if len(census.Plants) != 2 || census.Plants[0] != want[0] || census.Plants[1] != want[1] || census.Context.GetTick() != 7 {
 		t.Fatal(census)
 	}

@@ -6,8 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,7 +52,7 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 			Deficit:         proto.Bool(false),
 			ComfortableMinC: proto.Float64(16),
 			ComfortableMaxC: proto.Float64(26),
-			Equipment:       &o.PawnEquipment{Apparel: []*o.GearItem{{Thing: &o.EntityRef{DefName: proto.String("Apparel_TribalA")}, BodyPartGroups: []string{"Torso", "Legs"}, ConditionFraction: proto.Float64(1)}}},
+			Equipment:       &o.PawnEquipment{Apparel: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("tribal-" + id)}, BodyPartGroups: []string{"Torso", "Legs"}, ConditionFraction: proto.Float64(1)}}},
 			ApparelPolicy:   &o.ApparelPolicyState{Token: proto.String("policy-" + id), Drafted: proto.Bool(drafted), Definitions: definitions},
 			LoadoutModel:    &o.GearLoadoutModel{Female: proto.Bool(female), Worn: []*o.GearLoadoutOption{worn}, Options: catalog()},
 		}
@@ -65,7 +67,7 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 // the marine helmet for its unfinished research, and the grower is planned
 // no armour.
 func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
-	gear := colonyGear(gearModelCensus())
+	gear := colonyGear(gearModelCensus(), gearModelTables())
 	v, known := gear.Value()
 	if !known {
 		t.Fatal("census unknown")
@@ -133,7 +135,7 @@ func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
 func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
 	v := gearModelCensus()
 	v.OutdoorTemperatureC = nil
-	if gear, _ := colonyGear(v).Value(); func() bool { _, k := gear.Pawns[0].LoadoutModel.Value(); return k }() {
+	if gear, _ := colonyGear(v, gearModelTables()).Value(); func() bool { _, k := gear.Pawns[0].LoadoutModel.Value(); return k }() {
 		t.Fatal("model known without the outdoor temperature")
 	}
 	for name, change := range map[string]func(*o.GearSnapshot){
@@ -149,7 +151,7 @@ func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			v := gearModelCensus()
 			change(v.GetPlanning().GetObserved().GetGear())
-			gear, _ := colonyGear(v).Value()
+			gear, _ := colonyGear(v, gearModelTables()).Value()
 			if _, known := gear.Pawns[0].LoadoutModel.Value(); known {
 				t.Fatal("model known")
 			}
@@ -163,4 +165,13 @@ func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
 func isKnown[T any](f domain.Fact[T]) bool {
 	_, known := f.Value()
 	return known
+}
+
+// gearModelTables holds the worn tribal wear gearModelCensus references.
+func gearModelTables() bridge.Tables {
+	things := bridge.Things{}
+	for _, id := range []string{"soldier-a", "soldier-b", "grower"} {
+		things["tribal-"+id] = &o.Thing{Thing: &o.EntityRef{Id: proto.String("tribal-" + id), DefName: proto.String("Apparel_TribalA")}}
+	}
+	return bridge.Tables{Things: things}
 }

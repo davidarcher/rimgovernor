@@ -134,8 +134,8 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 				if g == nil {
 					return contract("missing gear")
 				}
-				if err := pawnsEntity(g.Thing, ctx); err != nil {
-					return err
+				if !validRef(g.Thing) {
+					return contract("invalid gear reference")
 				}
 				if seen[g.Thing.GetId()] {
 					return contract("duplicate gear")

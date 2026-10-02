@@ -170,7 +170,7 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 				t.Fatal(err)
 			}
 			n.editPawn = func(row *o.PawnState) {
-				item := &o.GearItem{Thing: &o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog")}, Melee: proto.Bool(true), Biocoded: proto.Bool(tc.coded)}
+				item := &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog")}), Melee: proto.Bool(true), Biocoded: proto.Bool(tc.coded)}
 				if tc.owner != "" {
 					item.BiocodedTo = proto.String(tc.owner)
 				}

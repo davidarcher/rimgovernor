@@ -139,8 +139,7 @@ namespace HomeBridge.BridgeTools
                     && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
             var result = new Obs.StorageCapacity { Resource = def.defName, Capacity = capacity, Stored = stored, StackLimit = def.stackLimit };
-            result.Haulers.AddRange(haulers.Select(p => new Obs.EntityRef { Id = p.GetUniqueLoadID(), DefName = p.def.defName,
-                MapId = map.uniqueID, Position = new Common.Cell { X = p.Position.x, Z = p.Position.z } }));
+            result.Haulers.AddRange(NativeRef.All(haulers));
             result.Candidates.AddRange(candidates.Select(c => new Common.Cell { X = c.x, Z = c.z }));
             return result;
         }
@@ -177,15 +176,9 @@ namespace HomeBridge.BridgeTools
         private static Obs.ResourceSource Project(Thing thing, Map map, double distance, Common.ObservationContext context, bool buried, HashSet<Thing>? reserved)
         {
             var mineable = thing is Mineable;
-            var entity = new Obs.EntityRef { Id = thing.GetUniqueLoadID(), DefName = thing.def.defName, MapId = map.uniqueID,
-                Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
-            // Only mine sources carry a snapshot token (the routine reads it as
-            // the source row's identity); harvest/hunt sources come from the
-            // AcquisitionFacts census, which carries its own.
-            if (thing is Mineable rock) entity.Snapshot = NativeMineAcquisition.Snapshot(rock, context);
             var row = new Obs.ResourceSource
             {
-                Source = entity,
+                Source = NativeRef.Thing(thing),
                 Method = mineable ? "mine" : thing.def.plant.IsTree ? "cut" : "harvest",
                 Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
                 Reachable = !buried,
@@ -194,6 +187,10 @@ namespace HomeBridge.BridgeTools
                 Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
                 Distance = distance,
             };
+            // Only mine sources carry a snapshot token (the routine reads it as
+            // the source row's identity); harvest/hunt sources come from the
+            // AcquisitionFacts census, which carries its own.
+            if (thing is Mineable rock) { row.SourceSnapshot = NativeMineAcquisition.Snapshot(rock, context); row.Cell = new RimGovernor.Protocol.Common.Cell { X = rock.Position.x, Z = rock.Position.z }; }
             if (mineable)
             {
                 row.Taken = ResourceAcquisitionTools.Taken(thing, reserved);

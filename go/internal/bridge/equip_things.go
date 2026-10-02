@@ -76,23 +76,24 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 			return EquipRead{}, contract("incomplete equip biocodes")
 		}
 		for _, item := range stock.Items {
-			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() < minimum.X || item.Position.GetX() > maximum.X || item.Position.GetZ() < minimum.Z || item.Position.GetZ() > maximum.Z || item.GetDefName() != stock.GetDefinition().GetDefName() {
+			id, at := item.GetItem().GetId(), item.GetCell()
+			if !validRef(item.GetItem()) || seen[id] || at == nil || at.X == nil || at.Z == nil || at.GetX() < minimum.X || at.GetX() > maximum.X || at.GetZ() < minimum.Z || at.GetZ() > maximum.Z {
 				return EquipRead{}, contract("equip entity mismatch")
 			}
-			weapon := owners[item.GetId()]
-			if len(owners) != 0 && (weapon == nil || weapon.GetThing().GetDefName() != item.GetDefName() || weapon.GetThing().GetMapId() != item.GetMapId() || !proto.Equal(weapon.GetThing().Position, item.Position)) {
+			weapon := owners[id]
+			if len(owners) != 0 && weapon == nil {
 				return EquipRead{}, contract("equip biocode identity mismatch")
 			}
-			seen[item.GetId()] = true
+			seen[id] = true
 			// Native issues distinguish ineligible items from an incomplete census.
 			if item.Snapshot == nil {
 				continue
 			}
-			if item.Snapshot.GetEntityId() != item.GetId() || !proto.Equal(item.Snapshot.Context, v.Context) || validID(item.Snapshot.GetToken()) != nil {
+			if !refSnapshot(item.Snapshot, item.GetItem(), v.Context) {
 				return EquipRead{}, contract("equip CAS scope mismatch")
 			}
-			cell := domain.Cell{X: item.Position.GetX(), Z: item.Position.GetZ()}
-			out.Targets = append(out.Targets, EquipCandidate{Thing: item.GetId(), Definition: item.GetDefName(), Cell: cell, Token: item.Snapshot.GetToken(), ByTrade: stock.GetWeaponByTrade(), Ranged: stock.GetRanged(), Melee: stock.GetMelee(), BiocodedTo: domain.PawnID(weapon.GetBiocodedTo()), Biocoded: weapon.GetBiocoded()})
+			cell := domain.Cell{X: at.GetX(), Z: at.GetZ()}
+			out.Targets = append(out.Targets, EquipCandidate{Thing: id, Definition: stock.GetDefinition().GetDefName(), Cell: cell, Token: item.Snapshot.GetToken(), ByTrade: stock.GetWeaponByTrade(), Ranged: stock.GetRanged(), Melee: stock.GetMelee(), BiocodedTo: domain.PawnID(weapon.GetBiocodedTo()), Biocoded: weapon.GetBiocoded()})
 		}
 	}
 	return out, nil

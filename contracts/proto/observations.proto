@@ -300,7 +300,7 @@ message SurgeryOperation {
 // Quality is the vanilla QualityCategory.
 enum Quality { QUALITY_UNSPECIFIED = 0; QUALITY_AWFUL = 1; QUALITY_POOR = 2; QUALITY_NORMAL = 3; QUALITY_GOOD = 4; QUALITY_EXCELLENT = 5; QUALITY_MASTERWORK = 6; QUALITY_LEGENDARY = 7; }
 message GearItem {
-  EntityRef thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
+  rimgovernor.common.v1.Ref thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
   optional double condition_fraction = 6; repeated string apparel_layers = 7; repeated string body_part_groups = 8;
   optional bool weapon = 9; optional bool apparel = 10; optional bool ranged = 11; optional bool melee = 12;
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
@@ -308,6 +308,8 @@ message GearItem {
   optional double range = 19; // Ranged primary verb range in cells; absent for melee or unknown.
   optional string biocoded_to = 20; // Native pawn ID, only when the coded owner still exists.
   optional bool biocoded = 21; // True also when the coded owner reference was lost; absent on older producers.
+  // A loose candidate's supply CAS token (#1342).
+  SnapshotRef thing_snapshot = 22;
 }
 message PawnEquipment {
   optional string primary_id = 1; repeated GearItem equipped = 2; repeated GearItem apparel = 3;
@@ -497,14 +499,24 @@ enum RotStage { ROT_STAGE_UNSPECIFIED = 0; ROT_STAGE_FRESH = 1; ROT_STAGE_ROTTIN
 enum WasteKind { WASTE_KIND_UNSPECIFIED = 0; WASTE_KIND_CORPSE = 1; WASTE_KIND_SPOILED = 2; WASTE_KIND_UNWANTED = 3; }
 // BenchUnusableReason is why a bench takes no bills.
 enum BenchUnusableReason { BENCH_UNUSABLE_REASON_UNSPECIFIED = 0; BENCH_UNUSABLE_REASON_NOT_PLAYER_OWNED = 1; BENCH_UNUSABLE_REASON_FORBIDDEN = 2; BENCH_UNUSABLE_REASON_BURNING = 3; BENCH_UNUSABLE_REASON_NOT_USABLE_FOR_BILLS = 4; BENCH_UNUSABLE_REASON_OTHER = 5; }
-message HeldStock { EntityRef holder = 1; optional HolderKind holder_kind = 2; optional int64 units = 3; }
+// One stack a stock row counts (#1342): the thing, the cell its units are
+// at (its holder's when held), its supply CAS token when it is allowable,
+// and for a packed (minified) item the building inside it, for a
+// RelocateIntent install, with that building's quality (QualityCategory
+// ordinal, 0 Awful .. 6 Legendary; absent without one) and the packed
+// item's market value (#1194).
+message StockItem {
+  rimgovernor.common.v1.Ref item = 1; rimgovernor.common.v1.Cell cell = 2; SnapshotRef snapshot = 3;
+  rimgovernor.common.v1.Ref inner = 4; optional string inner_def_name = 5; optional int32 quality = 6; optional double market_value = 7;
+}
+message HeldStock { rimgovernor.common.v1.Ref holder = 1; optional HolderKind holder_kind = 2; optional int64 units = 3; }
 message CorpseState { rimgovernor.common.v1.Ref corpse = 1; rimgovernor.common.v1.Ref inner_pawn = 2; optional string race = 3; optional bool humanlike = 4; optional bool was_colonist = 5; optional RotStage rot_stage = 6; }
 message ResourceStock {
   DefinitionRef definition = 1; optional int64 units = 2; optional int64 stacks = 3; optional int64 spawned = 4;
   optional int64 carried = 5; optional int64 in_container = 6; optional int64 ours = 7; optional int64 ours_unforbidden = 8;
   optional int64 forbidden = 9; optional int64 player_faction = 10; optional int64 other_faction = 11;
   optional int64 trader_stock = 12; optional int64 fogged = 13; optional int64 reserved = 14;
-  optional int64 in_stockpile = 15; optional int64 in_home_area = 16; repeated EntityRef items = 17;
+  optional int64 in_stockpile = 15; optional int64 in_home_area = 16; reserved 17; repeated StockItem items = 29;
   repeated HeldStock holders = 18; repeated CorpseState corpses = 19; reserved 20;
   reserved 21; reserved 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24;
@@ -771,7 +783,7 @@ message LinesOfFireSnapshot { rimgovernor.common.v1.ObservationContext context =
 message LinesOfFireRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell firing_cells = 2; repeated rimgovernor.common.v1.Cell approach_cells = 3; }
 message LinesOfFireReply { oneof outcome { LinesOfFireSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RoofSupportCell { rimgovernor.common.v1.Cell cell = 1; optional string roof_def_name = 2; optional bool supported_without_target = 3; optional string blocker = 4; }
-message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; EntityRef target = 2; repeated RoofSupportCell roofs = 3; reserved 4; }
+message RoofSupportSnapshot { rimgovernor.common.v1.ObservationContext context = 1; rimgovernor.common.v1.Ref target = 2; repeated RoofSupportCell roofs = 3; reserved 4; }
 message RoofSupportRequest { ReadScope scope = 1; optional string target_id = 2; }
 message RoofSupportReply { oneof outcome { RoofSupportSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // Excavation reads certify a requested set of rock cells for staged room/corridor
@@ -797,7 +809,7 @@ message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 
 // designate. chop_wood marks a harvestable tree (chop-wood). Fogged and
 // out-of-bounds cells report nothing.
 message PlantCutCensusRequest { ReadScope scope = 1; repeated rimgovernor.common.v1.Cell cells = 2; }
-message PlantCutTarget { EntityRef plant = 1; optional bool chop_wood = 2; }
+message PlantCutTarget { rimgovernor.common.v1.Ref plant = 1; optional bool chop_wood = 2; rimgovernor.common.v1.Cell cell = 3; }
 message PlantCutCensusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PlantCutTarget plants = 2; }
 message PlantCutCensusReply { oneof outcome { PlantCutCensusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // One material a stuffed definition may be built from, with the native cost
@@ -821,14 +833,16 @@ message WallUpgradeSnapshot { rimgovernor.common.v1.ObservationContext context =
 message WallUpgradeSitesRequest { ReadScope scope = 1; optional string target_id = 2; reserved 3; }
 message WallUpgradeSitesReply { oneof outcome { WallUpgradeSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ResourceSource {
-  EntityRef source = 1; optional string method = 2; optional double yield = 3; optional bool reachable = 4;
+  rimgovernor.common.v1.Ref source = 1; optional string method = 2; optional double yield = 3; optional bool reachable = 4;
   optional bool designated = 5; optional string risk = 6; optional string safety = 7; optional string blocker = 8;
   optional double distance = 9; optional bool depleted = 10; optional int64 remaining = 11; optional int64 pending_yield = 12;
   optional int64 designated_tick = 13; optional bool taken = 14;
   // buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first (#1072).
   optional bool buried = 15;
+  // A mine source's CAS token and cell (#1342): rocks are in no frame's things table.
+  SnapshotRef source_snapshot = 16; rimgovernor.common.v1.Cell cell = 17;
 }
-message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated EntityRef haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
+message StorageCapacity { optional string resource = 1; optional int64 capacity = 2; optional int64 stored = 3; optional int32 stack_limit = 4; repeated rimgovernor.common.v1.Ref haulers = 5; repeated string blockers = 6; repeated ReadIssue issues = 7; repeated rimgovernor.common.v1.Cell candidates = 8; }
 message ExtractionWorkType { DefinitionRef definition = 1; repeated DefinitionRef work_givers = 2; }
 message ExtractionSite { SnapshotRef snapshot = 1; optional string def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional rimgovernor.placement.v1.Rotation rotation = 4; optional string resource = 5; optional bool eligible = 6; optional double power_w = 7; optional double spare_power_w = 8; repeated ExtractionWorkType work_types = 9; }
 message OwnedDrill { SnapshotRef snapshot = 1; optional string def_name = 2; optional string thing_id = 3; optional string pending_id = 4; rimgovernor.common.v1.Cell cell = 5; optional string resource = 6; optional int64 recovered = 7; optional int64 stock_target = 8; optional bool missing = 9; optional bool depleted = 10; }
@@ -1414,7 +1428,9 @@ message ThreatPawn { reserved 1, 5, 8; reserved "ignored_reason", "hostile_reaso
 // occupied is the building's occupied rect (inclusive), the cells a
 // ranged defender needs a line of fire to.
 // mortar (#1148) is a turret whose verb fires mortar shells.
-message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; reserved 6; reserved "occupied_cells"; optional bool passive = 7; optional bool mortar = 8; Rectangle occupied = 9; }
+// A hostile building's row: building is its head (no table holds hostile
+// buildings) and building_snapshot its CAS token (#1342).
+message ThreatBuilding { EntityRef building = 1; SnapshotRef building_snapshot = 10; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; reserved 6; reserved "occupied_cells"; optional bool passive = 7; optional bool mortar = 8; Rectangle occupied = 9; }
 message ThreatsSnapshot { reserved 1 to 6; reserved "hostiles", "hunting_predators", "ignored_hunters", "wild_predators_near", "downed_near"; repeated ThreatPawn pawns = 8; repeated ThreatBuilding hostile_buildings = 7; }
 // colonists references every spawned free colonist's pawn table row
 // (#1343), complete unless issues name "colonists".

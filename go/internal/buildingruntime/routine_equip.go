@@ -112,6 +112,10 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if len(observed.Pawns) != len(ids) {
 		return RoutineEquipResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
+	things, err := frameThings(call, r.native, identity)
+	if err != nil {
+		return RoutineEquipResult{}, err
+	}
 	var pawns []policy.EquipCandidatePawn
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -123,7 +127,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if current := row.GetEquipment().GetPrimaryId(); current != "" && ownedWeapons[facts.Pawn] == current {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {
-					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: item.GetThing().GetDefName(), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded()}
+					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: gearDef(things, item.GetThing()), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded()}
 					facts.AutomationOwned = true
 				}
 			}

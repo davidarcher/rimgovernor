@@ -14,7 +14,7 @@ import (
 // ResourceSourceRow is one native ResourceSource row exactly as
 // policy.SelectResourceSources needs it. A "mine" row now carries its exact
 // Cell and a CAS snapshot Token (NativeResourceSourcesTool.Project populates
-// EntityRef.Snapshot for Mineable rows only, via NativeMineAcquisition),
+// ResourceSource.source_snapshot for Mineable rows only, via NativeMineAcquisition),
 // since an AcquireIntent can designate a mined source
 // (NativeAcquire on Actions/Apply). Harvest/hunt rows still carry neither --
 // they remain reachable only through the AcquisitionFacts census path. A
@@ -108,8 +108,8 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 			if validID(row.GetSafety()) != nil {
 				return nil, policy.ResourceStorage{}, raw, contract("mine source safety unavailable")
 			}
-			position := row.Source.GetPosition()
-			snapshotToken := row.Source.GetSnapshot().GetToken()
+			position := row.GetCell()
+			snapshotToken := row.GetSourceSnapshot().GetToken()
 			if position == nil || position.X == nil || position.Z == nil || position.GetX() < 0 || position.GetZ() < 0 || validID(snapshotToken) != nil {
 				return nil, policy.ResourceStorage{}, raw, contract("mine source snapshot unavailable")
 			}

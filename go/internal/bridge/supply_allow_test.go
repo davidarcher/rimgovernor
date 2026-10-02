@@ -17,8 +17,8 @@ func supplyTestTarget() SupplyTarget {
 }
 func supplyTestRead() *o.ListSuppliesReply {
 	ctx := buildingAdmission().AdmittedContext
-	item := &o.EntityRef{Id: proto.String("steel"), DefName: proto.String("Steel"), MapId: pbIdentity().MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("steel"), Token: proto.String("snapshot")}}
-	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(1), Stocks: []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String("Steel")}, Units: proto.Int64(20), Forbidden: proto.Int64(20), Items: []*o.EntityRef{item}}}}}}
+	item := &o.StockItem{Item: &c.Ref{Id: proto.String("steel")}, Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("steel"), Token: proto.String("snapshot")}}
+	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(1), Stocks: []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String("Steel")}, Units: proto.Int64(20), Forbidden: proto.Int64(20), Items: []*o.StockItem{item}}}}}}
 }
 
 func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
@@ -26,8 +26,7 @@ func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
 		v := supplyTestRead()
 		stock := v.GetObserved().Stocks[0]
 		stock.Definition.DefName = proto.String("Pemmican")
-		stock.Items[0].DefName = proto.String("Pemmican")
-		stock.Items[0].Position.X = proto.Int32(17)
+		stock.Items[0].Cell.X = proto.Int32(17)
 		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*callResult, error) {
 			if arg.Tool != "rimgovernor/observations_list_supplies" {
 				t.Fatal(arg.Tool)
@@ -39,19 +38,15 @@ func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
 		if err != nil || len(read.Targets) != 1 || read.Targets[0].Supply.Cell().X != 17 || read.Targets[0].Supply.Forbidden() != forbid {
 			t.Fatal(read, err)
 		}
-		v.GetObserved().Stocks[0].Items[0].MapId = proto.Int32(pbIdentity().GetMapId() + 1)
-		if _, err := decodeSupplyAccessAt(v, pbIdentity(), nil, forbid); err == nil {
-			t.Fatal("foreign reserve accepted")
-		}
 	}
 }
 func TestSupplyCensusRequiresCompleteExactScopedItems(t *testing.T) {
 	for name, edit := range map[string]func(*o.SuppliesSnapshot){
 		"allowed": func(v *o.SuppliesSnapshot) { v.Stocks[0].Forbidden = proto.Int64(19) },
 		"duplicate": func(v *o.SuppliesSnapshot) {
-			v.Stocks[0].Items = append(v.Stocks[0].Items, proto.Clone(v.Stocks[0].Items[0]).(*o.EntityRef))
+			v.Stocks[0].Items = append(v.Stocks[0].Items, proto.Clone(v.Stocks[0].Items[0]).(*o.StockItem))
 		},
-		"cell":     func(v *o.SuppliesSnapshot) { v.Stocks[0].Items[0].Position.X = proto.Int32(3) },
+		"cell":     func(v *o.SuppliesSnapshot) { v.Stocks[0].Items[0].Cell.X = proto.Int32(3) },
 		"snapshot": func(v *o.SuppliesSnapshot) { v.Stocks[0].Items[0].Snapshot.EntityId = proto.String("foreign") },
 		"snapshot world": func(v *o.SuppliesSnapshot) {
 			v.Stocks[0].Items[0].Snapshot.Context.Identity.LoadToken = proto.String("other")

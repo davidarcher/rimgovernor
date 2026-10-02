@@ -83,28 +83,30 @@ func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *
 		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() {
 			return SupplyRead{}, contract("invalid forbidden supply stock")
 		}
+		def := stock.GetDefinition().GetDefName()
 		for _, item := range stock.Items {
-			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() < 0 || item.Position.GetZ() < 0 || item.GetDefName() != stock.GetDefinition().GetDefName() {
+			id, pos := item.GetItem().GetId(), item.GetCell()
+			if !validRef(item.GetItem()) || seen[id] || pos == nil || pos.X == nil || pos.Z == nil || pos.GetX() < 0 || pos.GetZ() < 0 {
 				return SupplyRead{}, contract("supply entity mismatch")
 			}
-			cell := domain.Cell{X: item.Position.GetX(), Z: item.Position.GetZ()}
+			cell := domain.Cell{X: pos.GetX(), Z: pos.GetZ()}
 			if at != nil && cell != *at {
 				return SupplyRead{}, contract("supply cell mismatch")
 			}
-			seen[item.GetId()] = true
+			seen[id] = true
 			// Native issues distinguish ineligible items from an incomplete census.
 			if item.Snapshot == nil {
 				continue
 			}
-			if item.Snapshot.GetEntityId() != item.GetId() || !proto.Equal(item.Snapshot.Context, v.Context) || validID(item.Snapshot.GetToken()) != nil {
+			if !refSnapshot(item.Snapshot, item.GetItem(), v.Context) {
 				return SupplyRead{}, contract("supply CAS scope mismatch")
 			}
-			supply, err := domain.NewSupplyAllow(item.GetId(), item.GetDefName(), cell)
+			supply, err := domain.NewSupplyAllow(id, def, cell)
 			if err != nil {
 				return SupplyRead{}, err
 			}
 			if forbid {
-				supply, err = domain.NewSupplyForbid(item.GetId(), item.GetDefName(), cell)
+				supply, err = domain.NewSupplyForbid(id, def, cell)
 				if err != nil {
 					return SupplyRead{}, err
 				}

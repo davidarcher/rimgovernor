@@ -220,13 +220,13 @@ namespace HomeBridge.BridgeTools
                     if (entry.InStockpile) row.InStockpile += units;
                     if (entry.Ours && reserved.Contains(entry.Thing)) row.Reserved += units;
                 }
-                row.Items.Add(Entity(entry.Thing, entry.Position));
+                row.Items.Add(Item(entry.Thing, entry.Position));
                 if (entry.Thing.def.IsWeapon) {
-                    var weapon = new Obs.GearItem { Thing = Entity(entry.Thing, entry.Position) };
+                    var weapon = new Obs.GearItem { Thing = NativeRef.Thing(entry.Thing) };
                     NativeGearFacts.Biocode(entry.Thing, weapon);
                     row.WeaponItems.Add(weapon);
                 }
-                if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = Entity(entry.Holder, entry.Position), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units });
+                if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = NativeRef.Thing(entry.Holder), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units });
                 if (entry.Thing is Corpse corpse)
                 {
                     var pawn = corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.");
@@ -252,14 +252,12 @@ namespace HomeBridge.BridgeTools
                 w.Write(entry.Position.x); w.Write(entry.Position.z);
             });
 
-        private static Obs.EntityRef Entity(Thing thing, IntVec3 position)
+        private static Obs.StockItem Item(Thing thing, IntVec3 position)
         {
-            var entity = new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()),
-                DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap),
-                MapId = thing.MapHeld?.uniqueID ?? throw new InvalidOperationException("Stock map unavailable."), Position = new Common.Cell { X = position.x, Z = position.z } };
+            var entity = new Obs.StockItem { Item = new Common.Ref { Id = Id(thing.GetUniqueLoadID()) }, Cell = new Common.Cell { X = position.x, Z = position.z } };
             if (thing is MinifiedThing mini && mini.InnerThing != null)
             {
-                entity.InnerId = Id(mini.InnerThing.GetUniqueLoadID());
+                entity.Inner = new Common.Ref { Id = Id(mini.InnerThing.GetUniqueLoadID()) };
                 entity.InnerDefName = Id(mini.InnerThing.def.defName);
                 // Art stock (#1194): the trade selector keeps the best pieces.
                 if (mini.InnerThing.TryGetQuality(out var quality)) entity.Quality = (int)quality;

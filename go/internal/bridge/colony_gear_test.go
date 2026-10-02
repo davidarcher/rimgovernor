@@ -13,7 +13,7 @@ import (
 func gearColonyFixture(t *testing.T) *o.ColonyFactsSnapshot {
 	v := colonyFixture(t).GetObserved()
 	ctx := v.Context
-	p := &o.GearLoadout{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Parka"), Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}}, Apparel: proto.Bool(true), Weapon: proto.Bool(false)}}}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
+	p := &o.GearLoadout{Pawn: &o.EntityRef{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Apparel: proto.Bool(true), Weapon: proto.Bool(false)}}}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
 	p.LoadoutModel = &o.GearLoadoutModel{Options: []*o.GearLoadoutOption{{Id: proto.String("bill:Apparel_FlakVest/"), DefName: proto.String("Apparel_FlakVest"), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), ArmorSharp: proto.Float64(1), MoveSpeed: proto.Float64(-.12), Research: []string{"FlakArmor"}, Ingredients: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(60)}}}}}
 	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}, FinishedResearch: []string{"FlakArmor"}}
 	return v
@@ -31,7 +31,6 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		"other pawn token":   func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
 		"blocked eligible":   func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
 		"nan gain":           func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
-		"outside map":        func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Thing.Position.X = proto.Int32(4096) },
 		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
 		"blank research":     func(g *o.GearSnapshot) { g.FinishedResearch = []string{" "} },
 		"model source": func(g *o.GearSnapshot) {

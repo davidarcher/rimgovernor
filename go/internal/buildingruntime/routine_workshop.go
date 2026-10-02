@@ -125,7 +125,11 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		if gear == nil {
 			return nil, BuildingMethodUnknown, nil
 		}
-		facts := gearObservationFacts(gear)
+		things, err := frameThings(call, r.native, identity)
+		if err != nil {
+			return nil, "", err
+		}
+		facts := gearObservationFacts(gear, bridge.Tables{Things: things})
 		for _, pawn := range facts.Pawns {
 			if candidates, known := pawn.Candidates.Value(); !known || len(candidates) > 0 {
 				return nil, BuildingMethodExistingWork, nil

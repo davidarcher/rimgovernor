@@ -50,7 +50,7 @@ func TestDefenseCellFactsLeaveFogUnknown(t *testing.T) {
 func TestDefenderRangeUsesPrimaryRangedWeaponOnly(t *testing.T) {
 	t.Parallel()
 	gear := func(id string, ranged bool, r float64) *o.GearItem {
-		return &o.GearItem{Thing: &o.EntityRef{Id: proto.String(id)}, Weapon: proto.Bool(true), Ranged: proto.Bool(ranged), Melee: proto.Bool(!ranged), Range: proto.Float64(r)}
+		return &o.GearItem{Thing: &c.Ref{Id: proto.String(id)}, Weapon: proto.Bool(true), Ranged: proto.Bool(ranged), Melee: proto.Bool(!ranged), Range: proto.Float64(r)}
 	}
 	rows := []*o.PawnState{
 		{Pawn: &o.EntityRef{Id: proto.String("a")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("rifle"), Equipped: []*o.GearItem{gear("rifle", true, 30.9)}}},

@@ -14,11 +14,11 @@ import (
 func TestArmoryPrimary(t *testing.T) {
 	id, def, q := "r1", "Gun_Revolver", o.Quality_QUALITY_GOOD
 	ranged := true
-	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: &id, DefName: &def}, Quality: &q, Ranged: &ranged}}}}
-	if got, ok := armoryPrimary(row); !ok || got != (policy.ArmoryPrimary{Definition: def, Ranged: true, Quality: 3}) {
+	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &c.Ref{Id: &id}, Quality: &q, Ranged: &ranged}}}}
+	if got, ok := armoryPrimary(row, bridge.Things{id: {Thing: &o.EntityRef{Id: &id, DefName: &def}}}); !ok || got != (policy.ArmoryPrimary{Definition: def, Ranged: true, Quality: 3}) {
 		t.Fatal(got, ok)
 	}
-	if _, ok := armoryPrimary(&o.PawnState{}); ok {
+	if _, ok := armoryPrimary(&o.PawnState{}, nil); ok {
 		t.Fatal("unarmed pawn has a primary")
 	}
 }

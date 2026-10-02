@@ -54,7 +54,7 @@ func newBreakNative(base *routineNative) *breakNative {
 			p.Downed = proto.Bool(b.downed)
 		}
 		p.Pawn.Position = &c.Cell{X: proto.Int32(x), Z: proto.Int32(10)}
-		p.Equipment = &n.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("weapon-" + p.Pawn.GetId()), Equipped: []*n.GearItem{{Thing: &n.EntityRef{Id: proto.String("weapon-" + p.Pawn.GetId())}, Weapon: proto.Bool(true), Melee: proto.Bool(true), Ranged: proto.Bool(false)}}}
+		p.Equipment = &n.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("weapon-" + p.Pawn.GetId()), Equipped: []*n.GearItem{{Thing: &c.Ref{Id: proto.String("weapon-" + p.Pawn.GetId())}, Weapon: proto.Bool(true), Melee: proto.Bool(true), Ranged: proto.Bool(false)}}}
 	}
 	return b
 }

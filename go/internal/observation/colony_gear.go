@@ -3,12 +3,13 @@ package observation
 import (
 	"slices"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
+func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fact[policy.GearObservation] {
 	gear := v.GetPlanning().GetObserved().GetGear()
 	if gear == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
 		return domain.Unknown[policy.GearObservation]()
@@ -20,9 +21,9 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		for _, n := range p.ReplacementNeeds {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(n.GetDefName()), Stuff: policy.Resource(n.GetStuff()), Reason: n.GetReason()})
 		}
-		row.Candidates = domain.Known(GearCandidateFacts(p))
+		row.Candidates = GearCandidateFacts(p, tables)
 		row.Replacements = domain.Known(needs)
-		row.Apparel = GearApparelFacts(p.Equipment)
+		row.Apparel = GearApparelFacts(p.Equipment, tables)
 		row.Policy = ApparelPolicyFacts(p)
 		row.Climate = GearClimateFacts(gear)
 		row.LoadoutModel = GearLoadoutModelFacts(gear, v.OutdoorTemperatureC, p, row.Policy)
@@ -143,16 +144,22 @@ func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
 // is skipped: the wear operation looks its target up among loose apparel
 // only, so a plan proposing one was refused on every attempt and held its
 // development slot for the run (#339).
-func GearCandidateFacts(p *o.GearLoadout) []policy.GearCandidate {
+// A candidate whose things table row the frame lacks leaves them unknown
+// (#1342).
+func GearCandidateFacts(p *o.GearLoadout, tables bridge.Tables) domain.Fact[[]policy.GearCandidate] {
 	candidates := []policy.GearCandidate{}
 	for _, c := range p.GetCandidates() {
 		item := c.GetItem()
 		if !item.GetApparel() {
 			continue
 		}
-		candidates = append(candidates, policy.GearCandidate{Target: item.GetThing().GetId(), Gain: c.GetGain(), Definition: policy.Resource(item.GetThing().GetDefName())})
+		head := tables.Entity(item.GetThing())
+		if head == nil {
+			return domain.Unknown[[]policy.GearCandidate]()
+		}
+		candidates = append(candidates, policy.GearCandidate{Target: item.GetThing().GetId(), Gain: c.GetGain(), Definition: policy.Resource(head.GetDefName())})
 	}
-	return candidates
+	return domain.Known(candidates)
 }
 
 // GearApparelFacts decodes one pawn's worn apparel from the loadout's
@@ -160,8 +167,8 @@ func GearCandidateFacts(p *o.GearLoadout) []policy.GearCandidate {
 // (the equipment carries an "apparel" issue), otherwise each garment's
 // definition, condition fraction (1 without hit points) and body-part
 // groups.
-func GearApparelFacts(equipment *o.PawnEquipment) domain.Fact[[]policy.GearApparel] {
-	if equipment == nil {
+func GearApparelFacts(equipment *o.PawnEquipment, tables bridge.Tables) domain.Fact[[]policy.GearApparel] {
+	if equipment == nil || !headed(tables, equipment.GetApparel(), (*o.GearItem).GetThing) {
 		return domain.Unknown[[]policy.GearApparel]()
 	}
 	for _, issue := range equipment.GetIssues() {
@@ -171,7 +178,7 @@ func GearApparelFacts(equipment *o.PawnEquipment) domain.Fact[[]policy.GearAppar
 	}
 	apparel := []policy.GearApparel{}
 	for _, item := range equipment.GetApparel() {
-		row := policy.GearApparel{Definition: policy.Resource(item.GetThing().GetDefName()), Condition: 1, Groups: append([]string{}, item.GetBodyPartGroups()...)}
+		row := policy.GearApparel{Definition: policy.Resource(tables.Entity(item.GetThing()).GetDefName()), Condition: 1, Groups: append([]string{}, item.GetBodyPartGroups()...)}
 		if item.ConditionFraction != nil {
 			row.Condition = item.GetConditionFraction()
 		}
