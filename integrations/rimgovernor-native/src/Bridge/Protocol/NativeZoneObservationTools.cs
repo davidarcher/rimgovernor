@@ -83,9 +83,10 @@ namespace HomeBridge.BridgeTools
             Func<ThingDef, bool> humanFood = d => d != null && d.IsNutritionGivingIngestible && !d.IsDrug
                 && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
                 && people.All(p => p.WillEat(d));
+            // A food stockpile is food storage wherever it stands: a perishable the
+            // colonists eat is allowed in it. Roofing it is a later upgrade.
             row.FoodStorage = zone is Zone_Stockpile storage && storage.GetStoreSettings()?.filter != null
-                && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && storage.GetStoreSettings().filter.Allows(d))
-                && map.AllCells.Count(c => map.zoneManager.ZoneAt(c) == zone && c.Roofed(map) && CellTracking.Indoors(c.GetRoom(map))) >= 9;
+                && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && d.GetCompProperties<CompProperties_Rottable>() != null && storage.GetStoreSettings().filter.Allows(d));
 
             var ordered = cells.OrderBy(c => c.x).ThenBy(c => c.z).ToArray();
             var gridCells = map.AllCells.Where(c => map.zoneManager.ZoneAt(c) == zone).ToArray();
