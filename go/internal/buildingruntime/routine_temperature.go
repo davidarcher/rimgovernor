@@ -30,8 +30,9 @@ func (r *RoutineReviewer) temperatureEnabled() bool {
 // cleaning plans need each room's measured cleanliness.
 func (r *RoutineReviewer) roomsEnabled() bool {
 	// MaintainHousing: suite claims and the plan's suite wing read the
-	// census's standing bedrooms (#1221).
-	return r.temperatureEnabled() || r.methodEnabled(policy.MaintainHousing) || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting) || r.methodEnabled(policy.MaintainFlooring) || r.methodEnabled(policy.MaintainRoutes) || r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainStockpiles)
+	// census's standing bedrooms (#1221). MaintainShelter: the Safe area
+	// covers the census's enclosed roofed rooms (#1325).
+	return r.temperatureEnabled() || r.methodEnabled(policy.MaintainShelter) || r.methodEnabled(policy.MaintainHousing) || r.methodEnabled(policy.EnsureComfort) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainCleanFacilities) || r.methodEnabled(policy.MaintainLighting) || r.methodEnabled(policy.MaintainFlooring) || r.methodEnabled(policy.MaintainRoutes) || r.methodEnabled(policy.MaintainWaste) || r.methodEnabled(policy.MaintainStockpiles)
 }
 
 func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {
