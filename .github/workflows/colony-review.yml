@@ -158,6 +158,7 @@ jobs:
         run: |
           $result = Get-ChildItem C:\rg -Recurse -File -Force -Filter result.json -ErrorAction SilentlyContinue |
             Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).case -eq 'review/colony-week' } |
+            Sort-Object { -not (Test-Path (Join-Path $_.DirectoryName 'review')) } |
             Select-Object -First 1
           if (-not $result) { throw "The case left no result.json (play step: $env:PLAYED); see its log" }
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')

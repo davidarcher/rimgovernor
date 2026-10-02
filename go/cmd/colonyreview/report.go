@@ -51,6 +51,7 @@ type Row struct {
 	Census     Census
 	Goals      []Goal
 	Changes    []string // goal need transitions since the previous row
+	Sampled    string   // label of the timeline sample shown, when not this hour's
 	ColonyShot string
 	MapShot    string
 	Flags      []Flag
@@ -135,21 +136,32 @@ func Load(dir string) ([]Row, result, error) {
 		rows = append(rows, r)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Tick < rows[j].Tick })
-	// Each shot goes to the last sample at or before its tick.
-	for kind, byTick := range shots {
-		for tick, name := range byTick {
-			i := sort.Search(len(rows), func(i int) bool { return rows[i].Tick > tick }) - 1
-			if i < 0 {
-				i = 0
+	// The screenshots set the report's hours: the timeline samples when the
+	// harness gets an answer, which a fast game outruns, so each hourly shot
+	// is a row carrying the last sample at or before it.
+	if len(shots["colony"]) > 0 && len(rows) > 0 {
+		ticks := make([]int, 0, len(shots["colony"]))
+		for tick := range shots["colony"] {
+			ticks = append(ticks, tick)
+		}
+		sort.Ints(ticks)
+		var hourly []Row
+		for _, tick := range ticks {
+			r := rows[max(sort.Search(len(rows), func(i int) bool { return rows[i].Tick > tick })-1, 0)]
+			if r.Tick != tick {
+				r.Sampled = r.Label
 			}
-			if i >= len(rows) {
-				continue
-			}
-			if kind == "colony" && rows[i].ColonyShot == "" {
-				rows[i].ColonyShot = name
-			} else if kind == "map" && rows[i].MapShot == "" {
-				rows[i].MapShot = name
-			}
+			r.Tick, r.Day, r.Hour, r.Anchor = tick, tick/60000+1, tick%60000/2500, fmt.Sprintf("t%d", tick)
+			r.Label = fmt.Sprintf("Day %d, %02dh", r.Day, r.Hour)
+			r.ColonyShot = shots["colony"][tick]
+			hourly = append(hourly, r)
+		}
+		rows = hourly
+	}
+	for tick, name := range shots["map"] {
+		i := max(sort.Search(len(rows), func(i int) bool { return rows[i].Tick > tick })-1, 0)
+		if i < len(rows) && rows[i].MapShot == "" {
+			rows[i].MapShot = name
 		}
 	}
 	return rows, res, nil

@@ -92,7 +92,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <div class="hours" id="hours">{{range .Rows}}
 <section class="hour{{if hasBad .Flags}} hasbad{{end}}" id="{{.Anchor}}" data-flags="{{len .Flags}}{{len .Changes}}">
 {{if .ColonyShot}}<a href="review/{{.ColonyShot}}"><img loading="lazy" src="review/{{.ColonyShot}}" alt="Colony {{.Label}}"></a>{{end}}
-<div class="body"><b>{{.Label}}</b> <span class="muted">tick {{.Tick}}</span><br>
+<div class="body"><b>{{.Label}}</b> <span class="muted">tick {{.Tick}}{{if .Sampled}} · facts from {{.Sampled}}{{end}}</span><br>
 {{with .Census}}<span class="muted">food runway {{if .FoodRunwayDays}}{{f1 (deref .FoodRunwayDays)}}d{{end}} · wealth {{if .WealthTotal}}{{f0 (deref .WealthTotal)}}{{end}}{{if .BuildTier}} · {{deref .BuildTier}}{{end}}</span>
 <table>{{range .Pawns}}<tr><td>{{.Label}}</td><td>mood {{pct .Mood}}</td><td>food {{pct .Food}}</td><td>{{if .Downed}}{{if deref .Downed}}<span class="bad">downed</span>{{end}}{{end}}</td></tr>{{end}}</table>{{end}}
 {{if .Flags}}<ul>{{range .Flags}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>{{end}}

@@ -86,3 +86,22 @@ func TestDeriveSummary(t *testing.T) {
 		t.Fatalf("hour 3 shot %q", rows[3].ColonyShot)
 	}
 }
+
+// A fast game outruns the timeline: every hourly shot still gets a row,
+// carrying the last sample before it.
+func TestSparseSamplesKeepEveryHour(t *testing.T) {
+	dir := caseOutput(t, 8)
+	data, _ := os.ReadFile(filepath.Join(dir, "result.json"))
+	var res map[string]any
+	json.Unmarshal(data, &res)
+	res["timeline"] = res["timeline"].([]any)[:1]
+	data, _ = json.Marshal(res)
+	os.WriteFile(filepath.Join(dir, "result.json"), data, 0644)
+	rows, _, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 8 || rows[5].ColonyShot != "colony-00012510.jpg" || rows[5].Sampled != "Day 1, 00h" || rows[5].Census.Colonists == nil {
+		t.Fatalf("rows %d, hour 5 %+v", len(rows), rows[5])
+	}
+}
