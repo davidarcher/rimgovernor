@@ -26,17 +26,18 @@ func (caller *Client) GovernorState(ctx context.Context) (map[string]string, err
 }
 
 // PutGovernorState replaces the blob under key; an empty blob deletes it.
-// It returns every blob after the put.
-func (caller *Client) PutGovernorState(ctx context.Context, key, blob string) (map[string]string, error) {
+// The reply carries no blobs (#1362): a put no longer returns the map.
+func (caller *Client) PutGovernorState(ctx context.Context, key, blob string) error {
 	if key == "" || !asciiString(key) || !asciiString(blob) {
-		return nil, contract("governor state key must be non-empty ASCII and blob ASCII")
+		return contract("governor state key must be non-empty ASCII and blob ASCII")
 	}
 	reply := &l.GovernorStateReply{}
 	raw, err := caller.protoCall(ctx, putGovernorStateMethod, &l.PutGovernorStateRequest{Key: proto.String(key), Blob: proto.String(blob)}, reply)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return governorStateBlobs(reply, raw)
+	_, err = governorStateBlobs(reply, raw)
+	return err
 }
 
 func governorStateBlobs(reply *l.GovernorStateReply, raw Result) (map[string]string, error) {

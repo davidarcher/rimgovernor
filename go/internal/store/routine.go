@@ -370,6 +370,7 @@ func (s *Store) ReviewRoutine(ctx context.Context, request RoutineReviewRequest)
 		return RoutineReviewResult{}, err
 	}
 	s.floors.raise(settled)
+	s.notifyGoalsWritten()
 	return result, nil
 }
 

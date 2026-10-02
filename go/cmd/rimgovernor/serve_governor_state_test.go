@@ -27,14 +27,14 @@ func (f *fakeGovernorState) GovernorState(context.Context) (map[string]string, e
 	return f.blobs, nil
 }
 
-func (f *fakeGovernorState) PutGovernorState(_ context.Context, key, blob string) (map[string]string, error) {
+func (f *fakeGovernorState) PutGovernorState(_ context.Context, key, blob string) error {
 	f.puts++
 	if blob == "" {
 		delete(f.blobs, key)
 	} else {
 		f.blobs[key] = blob
 	}
-	return f.blobs, nil
+	return nil
 }
 
 func TestShadowGovernorStatePutsChanges(t *testing.T) {

@@ -131,6 +131,7 @@ func (s *Store) SubmitGoalCreate(ctx context.Context, q GoalCreateSubmissionRequ
 	if err = tx.Commit(); err != nil {
 		return GoalCreateSubmission{}, false, err
 	}
+	s.notifyGoalsWritten()
 	result := GoalCreateSubmission{Request: q, Goal: state.Goal.ID, State: state}
 	if s.submissions.entries == nil {
 		s.submissions.entries = map[string]GoalCreateSubmission{}

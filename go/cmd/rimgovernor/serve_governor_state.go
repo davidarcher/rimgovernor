@@ -23,11 +23,13 @@ import (
 // governorStateNative is the save's governor state component (#882).
 type governorStateNative interface {
 	GovernorState(context.Context) (map[string]string, error)
-	PutGovernorState(context.Context, string, string) (map[string]string, error)
+	PutGovernorState(context.Context, string, string) error
 }
 
 // shadowGovernorState mirrors goals and family records into the save each
 // refresh (#974): only changed keys are put, a vanished key is deleted.
+// A commit that may create a goal wakes it early (#1362), so a restart
+// right after creation does not rebuild the goal away.
 // The first successful read in each world (#994: a new world or native
 // generation re-reads the save) rebuilds the store's goals from the save
 // (#998) and logs family drift; the store stays authoritative for
@@ -48,6 +50,7 @@ func shadowGovernorState(ctx context.Context, native governorStateNative, world 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+		case <-database.GoalsWritten():
 		}
 	}
 }
@@ -248,7 +251,7 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 		if (*written)[key] == blob {
 			continue
 		}
-		if _, err := native.PutGovernorState(ctx, key, blob); err != nil {
+		if err := native.PutGovernorState(ctx, key, blob); err != nil {
 			return fmt.Errorf("put %s: %w", key, err)
 		}
 		(*written)[key] = blob
@@ -257,7 +260,7 @@ func shadowGovernorStateOnce(ctx context.Context, native governorStateNative, da
 		if _, ok := blobs[key]; ok {
 			continue
 		}
-		if _, err := native.PutGovernorState(ctx, key, ""); err != nil {
+		if err := native.PutGovernorState(ctx, key, ""); err != nil {
 			return fmt.Errorf("delete %s: %w", key, err)
 		}
 		delete(*written, key)

@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/lifecycle_put_governor_state", Title = "Put governor state",
-            Description = "Replace one opaque ASCII governor-state blob; an empty blob deletes it. Durable once the game next saves (#882).")]
+            Description = "Replace one opaque ASCII governor-state blob; an empty blob deletes it. Durable once the game next saves (#882). The reply carries no blobs (#1362).")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.GovernorStateReply.", Always = true)]
         public async Task<object> Put(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official lifecycle PutGovernorStateRequest ProtoJSON string.")] object? request = null)
@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 var blobs = GovernorState.For(Current.Game).Blobs;
                 if (parsed.Blob.Length == 0) blobs.Remove(parsed.Key);
                 else blobs[parsed.Key] = parsed.Blob;
-                return Reply();
+                return new Lifecycle.GovernorStateReply { Loaded = new Lifecycle.GovernorStateBlobs() };
             }, cancellationToken).ConfigureAwait(false);
         }
 

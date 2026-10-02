@@ -65,7 +65,11 @@ func (s *Store) CreateGoal(ctx context.Context, g domain.Goal) error {
 	if err = createGoal(ctx, tx, g); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.notifyGoalsWritten()
+	return nil
 }
 
 func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {

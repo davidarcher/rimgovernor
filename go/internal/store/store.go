@@ -45,6 +45,20 @@ type Store struct {
 	floors *retirementFloors
 	// submissions is the session-only goal-create replay cache (#1011).
 	submissions goalCreateSubmissions
+	// goalsWritten wakes the governor-state mirror after a commit that may
+	// have created a goal (#1362), so a restart does not lose it.
+	goalsWritten chan struct{}
+}
+
+// GoalsWritten fires (coalesced) after a commit that may have created a
+// goal; the governor-state mirror puts it without waiting for its tick.
+func (s *Store) GoalsWritten() <-chan struct{} { return s.goalsWritten }
+
+func (s *Store) notifyGoalsWritten() {
+	select {
+	case s.goalsWritten <- struct{}{}:
+	default:
+	}
 }
 
 // ControllerSessionID identifies one persistent controller execution namespace.
@@ -116,7 +130,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("journal mode %q, want %s", journal, want)
 	}
-	s := &Store{db: db, floors: floorsFor(path)}
+	s := &Store{db: db, floors: floorsFor(path), goalsWritten: make(chan struct{}, 1)}
 	if err = s.initialize(ctx); err != nil {
 		_ = db.Close()
 		return nil, err
