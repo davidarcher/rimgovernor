@@ -316,3 +316,28 @@ func TestFieldBlockHayClaimsItsOwnBlock(t *testing.T) {
 		t.Fatalf("hay should grow its own zone: %+v %v", edit, ok)
 	}
 }
+
+// A block is laid as a clean rectangle where free soil holds one, not grown
+// around notches (a hole beside the anchor must not shape the block).
+func TestConnectedPickPrefersACleanRectangle(t *testing.T) {
+	t.Parallel()
+	free := map[domain.Cell]bool{}
+	for z := int32(0); z < 8; z++ {
+		for x := int32(0); x < 8; x++ {
+			free[domain.Cell{X: x, Z: z}] = true
+		}
+	}
+	delete(free, domain.Cell{X: 1, Z: 1})
+	delete(free, domain.Cell{X: 2, Z: 3})
+	got := connectedPick(free, nil, nil, domain.Cell{X: 1, Z: 1}, 12)
+	if len(got) != 12 {
+		t.Fatalf("picked %d cells, want 12", len(got))
+	}
+	minX, maxX, minZ, maxZ := got[0].X, got[0].X, got[0].Z, got[0].Z
+	for _, c := range got {
+		minX, maxX, minZ, maxZ = min(minX, c.X), max(maxX, c.X), min(minZ, c.Z), max(maxZ, c.Z)
+	}
+	if area := (maxX - minX + 1) * (maxZ - minZ + 1); area > 16 {
+		t.Errorf("block spans a %dx%d box for 12 cells: %v", maxX-minX+1, maxZ-minZ+1, got)
+	}
+}

@@ -297,6 +297,9 @@ func connectedPick(free, occupied, rich map[domain.Cell]bool, anchor domain.Cell
 	if len(best) == 0 {
 		return nil
 	}
+	if cells := cleanRectangle(best, occupied, rich, anchor, want); len(cells) > 0 {
+		return cells
+	}
 	var seed domain.Cell
 	near, touching, seedRich := int64(-1), false, false
 	for _, c := range sortedCells(best) {
@@ -386,4 +389,57 @@ func freeFieldSoil(c policy.SiteCell, floor float64) bool {
 	roof, rk := c.Roofed.Value()
 	soil, fk := c.Fertility.Value()
 	return wk && walk && ok && !occupied && zk && !zone && rk && !roof && fk && soil > 0 && soil >= floor
+}
+
+// cleanRectangle is want cells of free laid as a w x h rectangle with a
+// partial last row, every cell free: no notches, so a crop's sowers and
+// harvesters work one compact block. Among the placements it takes the one
+// touching a standing block, then holding the most rich soil, then nearest
+// anchor; nil when no such rectangle fits and the caller falls back to the
+// grown shape. Both orientations are tried.
+func cleanRectangle(free, occupied, rich map[domain.Cell]bool, anchor domain.Cell, want int) []domain.Cell {
+	w := int32(1)
+	for int(w*w) < want {
+		w++
+	}
+	h := int32((want + int(w) - 1) / int(w))
+	var best []domain.Cell
+	bestTouch, bestRich, bestDist := false, -1, int64(-1)
+	for _, dims := range [][2]int32{{w, h}, {h, w}} {
+		cols, rows := dims[0], dims[1]
+		for _, origin := range sortedCells(free) {
+			cells := make([]domain.Cell, 0, want)
+			ok := true
+			for i := 0; i < want && ok; i++ {
+				c := domain.Cell{X: origin.X + int32(i)%cols, Z: origin.Z + int32(i)/cols}
+				ok = free[c]
+				cells = append(cells, c)
+			}
+			if !ok || int32((want+int(cols)-1)/int(cols)) > rows {
+				continue
+			}
+			touch, richCells := false, 0
+			var cx, cz int64
+			for _, c := range cells {
+				touch = touch || occupied[domain.Cell{X: c.X, Z: c.Z - 1}] || occupied[domain.Cell{X: c.X - 1, Z: c.Z}] || occupied[domain.Cell{X: c.X + 1, Z: c.Z}] || occupied[domain.Cell{X: c.X, Z: c.Z + 1}]
+				if rich[c] {
+					richCells++
+				}
+				cx, cz = cx+int64(c.X), cz+int64(c.Z)
+			}
+			d := cellDist(domain.Cell{X: int32(cx / int64(want)), Z: int32(cz / int64(want))}, anchor)
+			if best == nil || touch != bestTouch && touch || touch == bestTouch && (richCells > bestRich || richCells == bestRich && d < bestDist) {
+				best, bestTouch, bestRich, bestDist = cells, touch, richCells, d
+			}
+		}
+	}
+	return sortedCells(cellSet(best))
+}
+
+func cellSet(cells []domain.Cell) map[domain.Cell]bool {
+	out := make(map[domain.Cell]bool, len(cells))
+	for _, c := range cells {
+		out[c] = true
+	}
+	return out
 }
