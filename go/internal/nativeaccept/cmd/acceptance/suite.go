@@ -715,6 +715,9 @@ func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerR
 		row["error"] = "no result.json: " + err.Error()
 	}
 	fmt.Fprintf(stderr, "[worker %d] %s exit=%v passed=%v %s\n", worker, label, row["exit"], row["passed"], time.Since(started).Round(time.Second))
+	if row["passed"] != true && row["error"] != nil {
+		fmt.Fprintf(stderr, "[worker %d] %s error: %v\n", worker, label, row["error"])
+	}
 	return row
 }
 
