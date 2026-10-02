@@ -75,3 +75,25 @@ func TestDecodeRoutineFrameChecksSectionIdentity(t *testing.T) {
 		t.Fatal("frame without a context accepted")
 	}
 }
+
+// The routine frame a stream serves carries the frame's things table: a
+// food stock's reference resolves against it, so a frame without it leaves
+// the review's food supply unknown (#1571).
+func TestRoutineFrameServesThingsTable(t *testing.T) {
+	t.Parallel()
+	frame := bundleTestSnapshot()
+	frame.Things = &o.ThingsSnapshot{Context: authorityTestContext(7), Things: []*o.Thing{{Thing: &o.EntityRef{Id: proto.String("Thing_Pemmican1")}}}}
+	var served *o.BundleSnapshot
+	frameReplies(frame, EmergencyObservation{}, func(method string, _, reply proto.Message) {
+		if method == routineFrameMethod {
+			served = reply.(*o.BundleSnapshot)
+		}
+	})
+	out, err := DecodeRoutineFrame(served, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := out.Tables.Things.Row(&c.Ref{Id: proto.String("Thing_Pemmican1")}); !ok {
+		t.Fatalf("things table %v", out.Tables.Things)
+	}
+}

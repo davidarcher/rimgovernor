@@ -350,7 +350,7 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	}
 	seed(combatFrameMethod, nil, combatFrame(v))
 	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-		Pawns: v.Pawns, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
+		Pawns: v.Pawns, Things: v.Things, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
 		Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
 }
 
