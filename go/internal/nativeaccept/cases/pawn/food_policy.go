@@ -19,7 +19,7 @@ func init() {
 		Name: "pawn/food-policy",
 		Scope: "A cannibal and a vegetarian each get the food policy labelled with their short name through a " +
 			"FoodPolicyIntent and PawnSettingsIntent.food_policy (#1541): the cannibal's allows human meat, the " +
-			"vegetarian's no meat, and they differ. Native contract: the policy write, the assignment, the policy " +
+			"vegetarian's no meat, and they differ; neither allows the travel reserve (Pemmican, #1542). Native contract: the policy write, the assignment, the policy " +
 			"facts' food kinds and allowed definitions, and the Ideology precept read; the diets themselves are " +
 			"policy/food_policy_test.go.",
 		Start:      cases.Fixture{On: cases.LabStart(), Op: "test/cannibal_and_vegetarian"},
@@ -98,12 +98,15 @@ func foodPolicy(ctx context.Context, s cases.Session) error {
 		kinds[f.GetDefName()] = f.GetKind()
 	}
 	held := map[string]map[o.FoodKind]bool{}
-	policy := map[string]string{}
+	policy, reserve := map[string]string{}, map[string]string{}
 	for _, p := range facts.Food {
 		for _, pawn := range p.PawnIds {
 			held[pawn] = map[o.FoodKind]bool{}
 			for _, d := range p.AllowedDefs {
 				held[pawn][kinds[d]] = true
+				if d == "Pemmican" || d == "MealSurvivalPack" {
+					reserve[pawn] = d
+				}
 			}
 			policy[pawn] = p.GetId()
 			s.Report()["policy_"+pawn] = p.GetLabel()
@@ -112,6 +115,9 @@ func foodPolicy(ctx context.Context, s cases.Session) error {
 	s.Report()["cannibal_foods"], s.Report()["vegetarian_foods"] = fmt.Sprint(held[cannibal]), fmt.Sprint(held[vegetarian])
 	if policy[cannibal] == "" || policy[cannibal] == policy[vegetarian] {
 		return fmt.Errorf("cannibal and vegetarian share food policy %q", policy[cannibal])
+	}
+	if len(reserve) > 0 {
+		return fmt.Errorf("home food policies allow the travel reserve: %v", reserve)
 	}
 	if !held[cannibal][o.FoodKind_FOOD_KIND_HUMAN_MEAT] {
 		return fmt.Errorf("cannibal's food policy allows %v, want human meat", held[cannibal])

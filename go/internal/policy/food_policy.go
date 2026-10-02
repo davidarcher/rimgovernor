@@ -78,6 +78,28 @@ type Diet struct {
 	// Fungal: fungus preferred; NoFungus: fungus despised.
 	Fungal, NoFungus  bool
 	Ascetic, Gourmand bool
+	// FineMeals: the mood tier (#1542) allows fine and lavish meals, for a
+	// pawn near its mental break threshold or with high expectations.
+	FineMeals bool
+}
+
+// moodTierMargin is how far above the minor break threshold a pawn's mood
+// still counts as near a break (#1542).
+const moodTierMargin = 0.1
+
+// travelReserve are the foods kept for caravans: never eaten at home
+// (#1542).
+var travelReserve = []string{"Pemmican", "MealSurvivalPack"}
+
+// fineMeals is the mood tier: near the minor break threshold or under high
+// expectations; unknown mood reads count as content.
+func fineMeals(pawn WorkPawn) bool {
+	if high, ok := pawn.HighExpectations.Value(); ok && high {
+		return true
+	}
+	mood, mk := pawn.Mood.Value()
+	threshold, tk := pawn.BreakThreshold.Value()
+	return mk && tk && mood < threshold+moodTierMargin
 }
 
 var (
@@ -121,6 +143,7 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 			d.NoFungus = true
 		}
 	}
+	d.FineMeals = fineMeals(pawn)
 	return d, true
 }
 
@@ -129,10 +152,14 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 // a cannibal; insect meat only where it is loved; a vegetarian no meat
 // and no meat-only meal; a carnivore no vegetable, no meat-free meal and
 // no fungus unless fungus is preferred; fungus never where it is
-// despised; an ascetic (not also a gourmand) no fine or lavish meal, whose
-// mood it does not feel. A gourmand keeps every tier.
+// despised; fine and lavish meals only in the mood tier (#1542), and never
+// for an ascetic (not also a gourmand), whose mood it does not feel; the
+// travel reserve (pemmican, packaged survival meals) never.
 func DietFoods(d Diet, foods []Food) []string {
 	allowed := func(f Food) bool {
+		if slices.Contains(travelReserve, f.Def) {
+			return false
+		}
 		switch f.Kind {
 		case FoodKindHumanMeat:
 			return d.Cannibal && !d.Vegetarian
@@ -145,7 +172,7 @@ func DietFoods(d Diet, foods []Food) []string {
 		case FoodKindFungus:
 			return !d.NoFungus && (d.Fungal || !d.Carnivore)
 		case FoodKindMealFine, FoodKindMealLavish:
-			if d.Ascetic && !d.Gourmand {
+			if !d.FineMeals || d.Ascetic && !d.Gourmand {
 				return false
 			}
 		}

@@ -61,6 +61,11 @@ type WorkPawn struct {
 	// Rest, Joy and Mood are need levels from the pawn needs block; unknown
 	// when the read carried no readable needs (#1312).
 	Rest, Joy, Mood domain.Fact[float64]
+	// BreakThreshold is the minor mental break threshold from the needs
+	// block; HighExpectations the social block's expectations pressure
+	// (#1542 mood tier).
+	BreakThreshold   domain.Fact[float64]
+	HighExpectations domain.Fact[bool]
 	// Psyfocus and PsyfocusTarget (0-1) and PsylinkLevel (#1313): known
 	// only for a psycaster; unknown without Royalty, a psylink or needs.
 	Psyfocus, PsyfocusTarget domain.Fact[float64]

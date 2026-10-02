@@ -147,6 +147,10 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 	}
 	if n := row.Needs; n != nil && !hasIssue(row.Issues, "needs") {
 		w.Rest, w.Joy, w.Mood = optional(n.Rest), optional(n.Joy), optional(n.Mood)
+		w.BreakThreshold = optional(n.BreakThresholdMinor)
+	}
+	if s := row.Social; s != nil && !hasIssue(row.Issues, "social") {
+		w.HighExpectations = optional(s.HighExpectations)
 	}
 	if n := row.Needs; n != nil && n.Psyfocus != nil && n.PsyfocusTarget != nil && n.PsylinkLevel != nil {
 		w.Psyfocus, w.PsyfocusTarget, w.PsylinkLevel = domain.Known(n.GetPsyfocus()), domain.Known(n.GetPsyfocusTarget()), domain.Known(int(n.GetPsylinkLevel()))

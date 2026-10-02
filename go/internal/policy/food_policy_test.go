@@ -21,6 +21,7 @@ var testFoods = []Food{
 	{"RawFungus", FoodKindFungus, ""},
 	{"Milk", FoodKindAnimalProduct, ""},
 	{"Pemmican", FoodKindOther, ""},
+	{"MealSurvivalPack", FoodKindMealFine, MealAnyIngredients},
 }
 
 func eater(id string, traits []string, precepts ...string) WorkPawn {
@@ -33,13 +34,15 @@ func eater(id string, traits []string, precepts ...string) WorkPawn {
 		Traits:          domain.Known(rows),
 		PolicyInputs:    domain.Known(PawnPolicyInputs{Precepts: precepts}),
 		FoodRestriction: domain.Known(FoodRestriction{PolicyID: "FoodPolicy_1"}),
+		// Diet tests run in the mood tier; TestDietMoodTier covers it.
+		HighExpectations: domain.Known(true),
 	}
 }
 
 func without(defs ...string) []string {
 	var out []string
 	for _, f := range testFoods {
-		if !slices.Contains(defs, f.Def) {
+		if !slices.Contains(defs, f.Def) && !slices.Contains(travelReserve, f.Def) {
 			out = append(out, f.Def)
 		}
 	}
@@ -104,5 +107,35 @@ func TestDietPolicyChanges(t *testing.T) {
 	got = DietPolicyChanges(pawns[2:3], names, policies, testFoods)
 	if len(got) != 1 || got[0].Write == nil || got[0].Assign != nil {
 		t.Fatalf("drift: %+v", got)
+	}
+}
+
+// The mood tier (#1542): a pawn near its break threshold or under high
+// expectations gets fine and lavish meals, a content pawn simple meals and
+// paste; the travel reserve is never allowed.
+func TestDietMoodTier(t *testing.T) {
+	fine := []string{"MealFine", "MealFine_Meat", "MealFine_Veg", "MealLavish"}
+	pawn := func(mood float64, high bool) WorkPawn {
+		p := eater("A", nil)
+		p.Mood, p.BreakThreshold, p.HighExpectations = domain.Known(mood), domain.Known(0.35), domain.Known(high)
+		return p
+	}
+	for _, tc := range []struct {
+		name string
+		pawn WorkPawn
+		want []string
+	}{
+		{"near break", pawn(0.4, false), without("Meat_Human", "Meat_Megaspider")},
+		{"high expectations", pawn(0.9, true), without("Meat_Human", "Meat_Megaspider")},
+		{"content", pawn(0.7, false), without(append(fine, "Meat_Human", "Meat_Megaspider")...)},
+	} {
+		diet, _ := PawnDiet(tc.pawn)
+		got := DietFoods(diet, testFoods)
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
+		}
+		if slices.Contains(got, "Pemmican") || slices.Contains(got, "MealSurvivalPack") {
+			t.Errorf("%s: travel reserve allowed", tc.name)
+		}
 	}
 }
