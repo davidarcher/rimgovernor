@@ -371,3 +371,37 @@ func TestRemotePlanRouteRejectsMissingRun(t *testing.T) {
 		t.Fatalf("%s %s", out.String(), err.String())
 	}
 }
+
+func TestRemotePlanRequestedCases(t *testing.T) {
+	r := examplePlanRun(t)
+	r.Tier = "cases"
+	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil {
+		t.Fatal("cases tier without a list planned")
+	}
+	r.Cases = []string{"smoke/identity", "light", "smoke/identity"}
+	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, c := range p.Cases {
+		if !reflect.DeepEqual(c.Reasons, []string{"requested"}) && !reflect.DeepEqual(c.Reasons, []string{"requested", "smoke"}) {
+			t.Fatal(c)
+		}
+		names = append(names, c.Name)
+		if !strings.HasPrefix(c.Name, "light/") && c.Name != "smoke/identity" {
+			t.Fatal(c.Name)
+		}
+	}
+	if !slices.Contains(names, "smoke/identity") || !slices.Contains(names, "light/dark") {
+		t.Fatal(names)
+	}
+	r.Cases = []string{"no/such"}
+	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "no/such") {
+		t.Fatal(err)
+	}
+	r.Tier, r.Cases = "smoke", []string{"light"}
+	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil {
+		t.Fatal("smoke tier accepted a case list")
+	}
+}

@@ -11,7 +11,12 @@ The gate resolves the source once to a full SHA shared by native, race and proto
 `base_commit` is required for land; smoke/full default it to the resolved source SHA. The nightly
 07:23 UTC schedule selects full against its immutable main commit. Both scheduled
 and manually dispatched full tiers also run the Go race, protobuf generation drift
-and protobuf proof checks. Reruns need
+and protobuf proof checks.
+The `cases` tier runs only the `cases` input: comma-separated registry names or bare
+areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
+it to offload targeted runs, for example
+`gh workflow run remote-acceptance.yml --ref main -f tier=cases -f cases=power,food/reserve -f shards=2 -f reviewed_commit=true`.
+Reruns need
 **Re-run all jobs**: an attempt cannot borrow a previous attempt's plan/artifacts.
 
 Activation remains closed until a maintainer publishes the workflow and encrypted

@@ -59,13 +59,15 @@ function Input-Value($Inputs, $Name) {
     return [string]$property.Value
 }
 function Resolve-Source($Event) {
-    $head = $env:GITHUB_SHA; $base = $head; $tier = 'nightly'; $shards = 32
+    $head = $env:GITHUB_SHA; $base = $head; $tier = 'nightly'; $shards = 32; $cases = @()
     if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
         if ((Input-Value $Event.inputs 'reviewed_commit') -cne 'true') { throw 'Dispatch must attest review of the tested source' }
         $head = Input-Value $Event.inputs 'tested_commit'
         $base = Input-Value $Event.inputs 'base_commit'
         $tier = Input-Value $Event.inputs 'tier'
         $shards = [int](Input-Value $Event.inputs 'shards')
+        $cases = @((Input-Value $Event.inputs 'cases') -split '[,\s]+' | Where-Object { $_ })
+        if (($tier -eq 'cases') -ne ($cases.Count -gt 0)) { throw 'The cases tier, and only it, takes a nonempty cases input' }
         if (-not $head) {
             $ref = Input-Value $Event.inputs 'tested_ref'
             if (-not $ref) { $ref = 'main' }
@@ -75,9 +77,9 @@ function Resolve-Source($Event) {
         if (-not $base -and $tier -ne 'land') { $base = $head }
     }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
-        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full') -or
+        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','nightly','full','cases') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit; land requires an explicit ancestor base SHA' }
-    return @{head=$head; base=$base; tier=$tier; shards=$shards}
+    return @{head=$head; base=$base; tier=$tier; shards=$shards; cases=$cases}
 }
 function Invoke-API($Path) {
     $value = & gh api $Path
@@ -122,7 +124,7 @@ switch ($Phase) {
         Assert-Gate
         $event = Read-JSON $env:GITHUB_EVENT_PATH
         $source = Resolve-Source $event
-        $head = $source.head; $base = $source.base; $tier = $source.tier; $shards = $source.shards
+        $head = $source.head; $base = $source.base; $tier = $source.tier; $shards = $source.shards; $cases = $source.cases
         # Resolve immutable objects through the same repository, never a caller URL/ref.
         foreach ($oid in @($head,$base)) { if ((Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$oid").sha -cne $oid) { throw 'Commit unavailable in source repository' } }
         [IO.Directory]::CreateDirectory($Evidence) | Out-Null
@@ -140,6 +142,7 @@ switch ($Phase) {
             repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier
             trigger=@{event=$env:GITHUB_EVENT_NAME; actor=$env:GITHUB_ACTOR; published_ref=$env:GITHUB_REF; actions_run_id=[long]$env:GITHUB_RUN_ID; actions_run_attempt=[int]$env:GITHUB_RUN_ATTEMPT}
             bundle=(File-Reference 'bundle.json')
+            cases=$cases
             limits=@{runner_label='windows-2022';shards=$shards;max_parallel=20;workers_per_shard=1;job_timeout_minutes=360;suite_timeout_minutes=345;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=$artifactBytes;paid_usage_authorized=$false}
         }
         "head=$head" >> $env:GITHUB_OUTPUT

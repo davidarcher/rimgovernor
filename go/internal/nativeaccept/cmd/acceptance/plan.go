@@ -54,6 +54,7 @@ type planRun struct {
 	Head     string        `json:"tested_commit"`
 	Base     string        `json:"base_commit"`
 	Tier     string        `json:"tier"`
+	Cases    []string      `json:"cases,omitempty"`
 	Bundle   planReference `json:"bundle"`
 	Limits   planLimits    `json:"limits"`
 }
@@ -104,8 +105,11 @@ func (r planRun) validate() error {
 	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Base) || !planOID.MatchString(r.Workflow) || r.Base == strings.Repeat("0", 40) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
 		return fmt.Errorf("run requires schema_version 1 and nonzero full commit identities")
 	}
-	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" && r.Tier != "nightly" {
+	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" && r.Tier != "nightly" && r.Tier != "cases" {
 		return fmt.Errorf("unsupported remote tier %q", r.Tier)
+	}
+	if (r.Tier == "cases") != (len(r.Cases) > 0) {
+		return fmt.Errorf("the cases tier, and only it, takes a nonempty case list")
 	}
 	if r.Tier == "land" && r.Base == r.Head {
 		return fmt.Errorf("land requires distinct base and tested commits")
@@ -282,6 +286,12 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		}
 		selected = set.Cases
 	}
+	if r.Tier == "cases" {
+		selected, err = requestedCases(all, r.Cases)
+		if err != nil {
+			return p, err
+		}
+	}
 	if r.Tier == "land" {
 		selected, err = landCases(all, sel)
 		if err != nil {
@@ -339,6 +349,9 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		area, _, _ := strings.Cut(c.Name, "/")
 		if r.Tier == "full" || r.Tier == "nightly" {
 			row.Reasons = append(row.Reasons, r.Tier)
+		}
+		if r.Tier == "cases" {
+			row.Reasons = append(row.Reasons, "requested")
 		}
 		if r.Tier == "land" {
 			if slices.Contains(sel.Sampled, area) && !sel.AllHarnesses {
@@ -415,4 +428,31 @@ func plan(args []string, stdout, stderr io.Writer) int {
 		return fail(err)
 	}
 	return 0
+}
+
+// requestedCases resolves an on-demand dispatch list. Each entry is an exact
+// registry name or a bare area naming every case in it; an entry that matches
+// nothing refuses the plan rather than quietly running less.
+func requestedCases(all []cases.Case, want []string) ([]cases.Case, error) {
+	seen := map[string]bool{}
+	var out []cases.Case
+	for _, w := range want {
+		w = strings.TrimSpace(w)
+		hit := false
+		for _, c := range all {
+			area, _, _ := strings.Cut(c.Name, "/")
+			if c.Name != w && area != w {
+				continue
+			}
+			hit = true
+			if !seen[c.Name] {
+				seen[c.Name] = true
+				out = append(out, c)
+			}
+		}
+		if !hit {
+			return nil, fmt.Errorf("requested case %q matches no registered case or area", w)
+		}
+	}
+	return out, nil
 }
