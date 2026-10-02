@@ -26,7 +26,7 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 0 {
-		return fmt.Errorf("usage: remoteaccept aggregate|import [flags]")
+		return fmt.Errorf("usage: remoteaccept aggregate|import|export|soak [flags]")
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	root := f.String("root", "", "evidence root for aggregation")
@@ -38,6 +38,8 @@ func run(args []string) error {
 	attempt := f.Int("attempt", 1, "GitHub Actions run attempt")
 	shard := f.String("shard", "", "planned shard ID for export")
 	jobsFile := f.String("jobs", "", "JSON array of role/output/bootstrap paths for export")
+	soak := f.String("soak", "", "soak repetition root (r<k>/<shard>/attempts.json) for soak")
+	repeat := f.Int("repeat", 1, "soak repetitions, including the verdict run")
 	if err := f.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -103,6 +105,15 @@ func run(args []string) error {
 			return fmt.Errorf("%s: %s", e.Aggregate.Status, *e.Aggregate.Error)
 		}
 		fmt.Printf("%d cases passed; aggregate.json and result.json written (import required before landing)\n", len(e.Aggregate.Cases))
+		return nil
+	case "soak":
+		rates, err := remoteaccept.SoakRates(*root, *soak, *repeat)
+		if err != nil {
+			return err
+		}
+		for _, r := range rates {
+			fmt.Println(r)
+		}
 		return nil
 	case "import":
 		if *output == "" {

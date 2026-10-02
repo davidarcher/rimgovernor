@@ -53,6 +53,15 @@ function Stop-Progress($Observer) {
     } catch { Write-Warning 'Live progress did not finish; verdict will sweep it' }
     finally { $Observer.Dispose() }
 }
+# Soak repetitions (#1377): repetition 1 is the verdict run; the rest only feed
+# the per-case pass rate. Only the cases tier repeats.
+function Repeat-Value($Event) {
+    $text = Input-Value $Event.inputs 'repeat'
+    if (-not $text) { return 1 }
+    $n = [int]$text
+    if ($n -lt 1 -or $n -gt 50 -or ($n -gt 1 -and (Input-Value $Event.inputs 'tier') -ne 'cases')) { throw 'repeat is 1 through 50, and above 1 only for the cases tier' }
+    return $n
+}
 function Input-Value($Inputs, $Name) {
     $property = $Inputs.PSObject.Properties[$Name]
     if ($null -eq $property) { return '' }
@@ -67,6 +76,7 @@ function Resolve-Source($Event) {
         $tier = Input-Value $Event.inputs 'tier'
         $shards = [int](Input-Value $Event.inputs 'shards')
         $cases = @((Input-Value $Event.inputs 'cases') -split '[,\s]+' | Where-Object { $_ })
+        $repeat = Repeat-Value $Event
         if (($tier -eq 'cases') -ne ($cases.Count -gt 0)) { throw 'The cases tier, and only it, takes a nonempty cases input' }
         if (-not $head) {
             $ref = Input-Value $Event.inputs 'tested_ref'
@@ -165,8 +175,13 @@ switch ($Phase) {
             [IO.File]::WriteAllText((Join-Path $Evidence 'selection.json'), ($selection -join "`n") + "`n")
         } finally { Pop-Location }
         $selection = Read-JSON (Join-Path $Evidence 'selection.json')
-        $matrix = @{include=@($selection.shards | ForEach-Object { @{shard=$_.id} })} | ConvertTo-Json -Compress -Depth 5
+        $repeat = 1
+        if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $repeat = Repeat-Value (Read-JSON $env:GITHUB_EVENT_PATH) }
+        if ($selection.shards.Count * $repeat -gt 256) { throw 'shards times repeat exceeds the 256-job matrix limit' }
+        $include = foreach ($rep in 1..$repeat) { foreach ($sh in $selection.shards) { @{shard=$sh.id;rep=$rep} } }
+        $matrix = @{include=@($include)} | ConvertTo-Json -Compress -Depth 5
         "matrix=$matrix" >> $env:GITHUB_OUTPUT
+        "repeat=$repeat" >> $env:GITHUB_OUTPUT
         "Planned $($selection.cases.Count) cases in $($selection.shards.Count) shards; tier $($run.tier)." >> $env:GITHUB_STEP_SUMMARY
     }
     'execute' {

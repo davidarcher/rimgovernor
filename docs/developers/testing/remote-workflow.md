@@ -16,6 +16,9 @@ The `cases` tier runs only the `cases` input: comma-separated registry names or 
 areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
 it to offload targeted runs, for example
 `gh workflow run remote-acceptance.yml --ref main -f tier=cases -f cases=power,food/reserve -f shards=2 -f reviewed_commit=true`.
+To tell an intermittent case from a regression, add `-f repeat=N` (cases tier, 1-50): every
+shard runs N times and the verdict summary lists `case: passed/N passed`. Run 1 alone is the
+verdict and landing evidence; repetitions 2..N upload `soak-*` artifacts that feed only the rate.
 Reruns need
 **Re-run all jobs**: an attempt cannot borrow a previous attempt's plan/artifacts.
 

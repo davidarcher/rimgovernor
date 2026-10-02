@@ -27,6 +27,10 @@ on:
         description: Nonempty shards, 1 through 32 (at most 20 active)
         type: number
         default: 2
+      repeat:
+        description: For tier cases, run each shard this many times (1-50) and report a per-case pass rate; run 1 is the verdict
+        type: number
+        default: 1
       reviewed_commit:
         description: I reviewed and trust the exact tested commit to access licensed game inputs
         required: true
@@ -70,6 +74,7 @@ jobs:
     outputs:
       head: ${{ steps.gate.outputs.head }}
       matrix: ${{ steps.plan.outputs.matrix }}
+      repeat: ${{ steps.plan.outputs.repeat }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -163,7 +168,9 @@ jobs:
     permissions:
       contents: read
       checks: write
-    name: acceptance-${{ matrix.shard }}
+    # Soak repetitions (rep > 1) get distinct names and artifacts, so collect
+    # and the verdict see only repetition 1.
+    name: acceptance-${{ matrix.shard }}${{ matrix.rep > 1 && format('-r{0}', matrix.rep) || '' }}
     runs-on: windows-2022
     timeout-minutes: 360
     environment: remote-acceptance
@@ -228,6 +235,7 @@ jobs:
         if: always() && steps.gate.outcome == 'success'
         env:
           SHARD: ${{ matrix.shard }}
+          PUBLIC: ${{ matrix.rep > 1 && format('C:\rg\public\r{0}', matrix.rep) || 'C:\rg\public' }}
         run: |
           New-Item -ItemType Directory -Force "C:\rg\evidence\$env:SHARD" | Out-Null
           $code = 1
@@ -238,8 +246,8 @@ jobs:
             }
           } finally {
             if ($code) { '{"passed":false,"error":"Shard export incomplete; inspect Actions job logs"}' | Set-Content "C:\rg\evidence\$env:SHARD\incomplete.json" }
-            New-Item -ItemType Directory -Force C:\rg\public | Out-Null
-            Copy-Item -LiteralPath "C:\rg\evidence\$env:SHARD" -Destination "C:\rg\public\$env:SHARD" -Recurse
+            New-Item -ItemType Directory -Force $env:PUBLIC | Out-Null
+            Copy-Item -LiteralPath "C:\rg\evidence\$env:SHARD" -Destination "$env:PUBLIC\$env:SHARD" -Recurse
           }
           exit $code
       - name: Upload shard diagnostics
@@ -247,7 +255,7 @@ jobs:
         if: always() && steps.gate.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
+          name: ${{ matrix.rep > 1 && 'soak' || 'acceptance' }}-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}${{ matrix.rep > 1 && format('-r{0}', matrix.rep) || '' }}
           path: C:\rg\public
           if-no-files-found: error
           retention-days: 7
@@ -303,6 +311,22 @@ jobs:
         working-directory: trusted/go
         run: |
           go run ./cmd/remoteaccept aggregate -root C:\rg\evidence -shards shards.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: always() && needs.plan.outputs.repeat > 1
+        with:
+          pattern: soak-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: C:\rg\soak
+          merge-multiple: true
+      - name: Summarize soak pass rate per case
+        if: always() && needs.plan.outputs.repeat > 1
+        continue-on-error: true
+        working-directory: trusted/go
+        env:
+          REPEAT: ${{ needs.plan.outputs.repeat }}
+        run: |
+          "Soak: $env:REPEAT runs per case" >> $env:GITHUB_STEP_SUMMARY
+          go run ./cmd/remoteaccept soak -root C:\rg\evidence -soak C:\rg\soak -repeat $env:REPEAT | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Upload complete verdict and diagnostics
         id: upload
