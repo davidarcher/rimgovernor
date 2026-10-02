@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "wall/deconstruct", Scope: "DeconstructIntent designates colony targets, adopts player designations and applies again on owned work; revoking authority releases only owned work; a native pawn demolishes an adopted target.",
+	cases.Register(cases.Case{Name: "wall/deconstruct", Scope: "DECONSTRUCT Designate designates colony targets, adopts player designations and applies again on owned work; revoking authority releases only owned work; a native pawn demolishes an adopted target.",
 		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: 3 * time.Minute, Run: runDeconstruct})
 }
 

@@ -7,10 +7,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// excavateAction is the ExcavateIntent of one rock cell. Native checks the
-// rock, roof support and the game designator live when it applies, adopting
-// a standing Mine designation; applied means designated, and the site read
-// decides when the cell is cleared.
+// excavateAction is the MINE Designate of one rock cell under the
+// mine_safety guard (#1350). Native checks the rock, roof support and the
+// game designator live when it applies, adopting a standing Mine
+// designation; applied means designated, and the site read decides when the
+// cell is cleared.
 func excavateAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.Excavation()
 	if !ok {
@@ -20,5 +21,6 @@ func excavateAction(action domain.Action) (*o.Action, error) {
 		return nil, err
 	}
 	cell := v.Cell()
-	return &o.Action{Intent: &o.Action_Excavate{Excavate: &o.ExcavateIntent{Cell: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}, ExpectedMineableDefName: proto.String(v.Definition())}}}, nil
+	return designate(&o.DesignateIntent{Designation: o.ThingDesignation_THING_DESIGNATION_MINE.Enum(), Cell: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)},
+		ExpectedDef: proto.String(v.Definition()), Guard: o.DesignationGuard_DESIGNATION_GUARD_MINE_SAFETY.Enum()}), nil
 }

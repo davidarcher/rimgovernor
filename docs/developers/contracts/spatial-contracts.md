@@ -470,7 +470,7 @@ trail cell inside its census region as the crossing, and the policy snaps it
 to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
 
-Clearance is the `cover_clearance` action (`CoverIntent` on Actions/Apply):
+Clearance is the `cover_clearance` action (a Designate on the thing, #1350; `Mine` under `mine_safety`, `Deconstruct` under `enclosure`):
 one exact thing by identity and cell with the designation its kind takes (`CutPlant`,
 `Haul`, `Mine`, and `Deconstruct` on an unowned building such as a ruin wall;
 player-owned cover is held as `structure`).

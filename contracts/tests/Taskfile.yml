@@ -29,6 +29,7 @@ tasks:
     deps: [build]
     cmds:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-roof-support'
+      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-designation-guards'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-home-coverage'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-traffic-counts'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-production-bill-settings'

@@ -87,7 +87,7 @@ flag, miner availability and reachability of the access cell (a standing cell be
 it that a mobile colonist can path to; a walled-off mouth is unreachable even when
 the pocket behind it is walkable). A fogged cell is
 unknown, never eligible and never a support witness, so support is reported unknown
-until the pawns have opened enough rock to see. `ExcavateIntent` on Actions/Apply (#940) checks the
+until the pawns have opened enough rock to see. A `MINE` Designate on the cell under the `mine_safety` guard (#940, #1350) checks the
 rock live when it applies, rejects any pending collapse or an unsupported single-cell removal,
 adopts an existing Mine designation idempotently (reported as adopted), adopts a cell
 the pawns already cleared as done (applied with cleared evidence and no designation),

@@ -13,7 +13,7 @@ func init() {
 	cases.Register(cases.Case{
 		Name: "wall/door-swap",
 		Scope: "Planned-ground door swap (#1245, epic #1249): a player door on a walled, roofed room's ring, " +
-			"given DeconstructIntent.replace_with_wall, ends a Wall of the door's stuff on the same cell while the " +
+			"given DECONSTRUCT Designate.replace_with_wall, ends a Wall of the door's stuff on the same cell while the " +
 			"room keeps its roof, built by force-ordered pawns under normal game rules. Reports which path vanilla " +
 			"took (wall blueprint over the door in one apply, or deconstruct then place). A Go snapshot test cannot " +
 			"see GenConstruct's placement rule, the ordered jobs or the built wall.",

@@ -7,7 +7,7 @@ import (
 
 const DeconstructionAction ActionKind = "deconstruction"
 
-// Deconstruction designates one observed building (a DeconstructIntent).
+// Deconstruction designates one observed building (a DECONSTRUCT Designate).
 // Native safety and identity are checked at apply; applied means designated.
 type Deconstruction struct {
 	target, definition string

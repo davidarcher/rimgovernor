@@ -41,7 +41,7 @@ func suiteGrowthMethod(g policy.SuiteGrowth, key string) domain.MethodID {
 }
 
 // growSuite admits one growth step: the ring through shellRoom, the old
-// wall as one DeconstructIntent per wall, the furniture as one Reinstall
+// wall as one DECONSTRUCT Designate per wall, the furniture as one Reinstall
 // batch.
 func (r *RoutineSleepingUpkeepPlanner) growSuite(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, g policy.SuiteGrowth) (RoutineBuildingResult, error) {
 	switch g.Kind {

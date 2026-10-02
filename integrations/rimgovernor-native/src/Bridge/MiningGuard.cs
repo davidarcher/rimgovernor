@@ -35,17 +35,11 @@ namespace HomeBridge.BridgeTools
             if (des.def != DesignationDefOf.Mine || Current.Game == null) return;
             foreach (var record in State().Records.Where(r => r.MapId == __instance.map.uniqueID
                 && r.X == des.target.Cell.x && r.Z == des.target.Cell.z && r.Finished < 0)) record.Cancelled = true;
-            foreach (var record in State().Excavations.Where(r => r.MapId == __instance.map.uniqueID
-                && r.X == des.target.Cell.x && r.Z == des.target.Cell.z && r.Finished < 0)) record.Cancelled = true;
         }
-        internal static ExcavationRecord OpenExcavation(Map map, IntVec3 cell) => State().Excavations
-            .FirstOrDefault(r => r.MapId == map.uniqueID && r.X == cell.x && r.Z == cell.z && r.Finished < 0 && !r.Cancelled);
         private sealed class Sample
         {
-            internal Sample(Map map, ExcavationRecord excavation) { Map = map; Excavation = excavation; }
             internal Sample(Map map, MiningRecord record, int stock) { Map = map; Record = record; Stock = stock; }
             internal readonly MiningRecord? Record;
-            internal readonly ExcavationRecord? Excavation;
             internal readonly Map Map;
             internal readonly int Stock;
         }
@@ -55,29 +49,6 @@ namespace HomeBridge.BridgeTools
         {
             __state = null;
             if (target?.Map == null) return true;
-            var excavation = OpenExcavation(target.Map, target.Position);
-            if (excavation != null)
-            {
-                // Staged excavation: roofed cells are expected; recheck the
-                // cell rule and counterfactual support for this one removal.
-                excavation.Blocker = ExcavationTools.CellBlocker(target.Position, target.Map);
-                if (excavation.Blocker == null && ExcavationSafety.Check(target.Map, new[] { target.Position }, out _, out var support) != ExcavationSafety.Support.Supported)
-                    excavation.Blocker = support;
-                if (excavation.Blocker != null)
-                {
-                    // The pick is refused for good: drop the designation so
-                    // pawns stop retrying it and the controller's next
-                    // observation reads the blocker as an unsuccessful action
-                    // instead of a pending one.
-                    var designation = target.Map.designationManager.DesignationAt(target.Position, DesignationDefOf.Mine);
-                    if (designation != null) target.Map.designationManager.RemoveDesignation(designation);
-                    excavation.Cancelled = true;
-                    __instance.EndJobWith(JobCondition.Incompletable);
-                    return false;
-                }
-                __state = new Sample(target.Map, excavation);
-                return true;
-            }
             var record = State().Records.FirstOrDefault(r => r.MapId == target.Map.uniqueID && r.ThingId == target.ThingID && r.Finished < 0 && !r.Cancelled);
             if (record == null) return true;
             record.Blocker = ResourceAcquisitionTools.MiningBlocker(target, target.Map);
@@ -92,7 +63,6 @@ namespace HomeBridge.BridgeTools
         private static void After(Thing target, Sample? __state)
         {
             if (__state == null || !target.Destroyed) return;
-            if (__state.Excavation != null) { __state.Excavation.Finished = Find.TickManager.TicksGame; return; }
             var record = __state.Record;
             if (record == null) return;
             record.Finished = Find.TickManager.TicksGame;

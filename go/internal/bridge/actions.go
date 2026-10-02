@@ -120,8 +120,8 @@ func foundationRemovalAction(action domain.Action) (*o.Action, error) {
 	if err := validID(f.Definition()); err != nil {
 		return nil, err
 	}
-	return &o.Action{Intent: &o.Action_RemoveFoundation{RemoveFoundation: &o.RemoveFoundationIntent{
-		Cell: &c.Cell{X: proto.Int32(f.Cell().X), Z: proto.Int32(f.Cell().Z)}, DefName: proto.String(f.Definition())}}}, nil
+	return designate(&o.DesignateIntent{Designation: o.ThingDesignation_THING_DESIGNATION_REMOVE_FOUNDATION.Enum(),
+		Cell: &c.Cell{X: proto.Int32(f.Cell().X), Z: proto.Int32(f.Cell().Z)}, ExpectedDef: proto.String(f.Definition())}), nil
 }
 
 // floorRemovalAction is the Actions/Apply remove_floor arm of one

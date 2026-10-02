@@ -273,7 +273,7 @@ can remove deconstruction salvage: native diagonal access to a wall does not gra
 the same access to loose items. The enclosed interior and its construction approach
 remain available; stonecutter placement preserves that approach.
 
-`DeconstructIntent { target_id }` on Actions/Apply clears one exact building
+A `DECONSTRUCT` Designate on the building's `target` under the `enclosure` guard clears one exact building
 through native `Designator_Deconstruct` (#940). Native checks player
 deconstructibility, visible geometry, safe remaining roof support and a
 pending wall upgrade live when it applies. Enclosing colony walls require

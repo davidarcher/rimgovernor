@@ -119,13 +119,15 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var intent = action.Designate;
+            if (NativeDesignate.Generic(intent)) return NativeDesignate.Validate(intent!, context);
             if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.CutPlant) return NativeCutPlant.Validate(intent, context);
             if (intent != null && intent.HasDesignation && intent.Designation == Operations.ThingDesignation.Strip) return NativeStrip.Validate(intent, context);
             if (NativeSupplyAllow.Wants(intent)) return NativeSupplyAllow.Validate(intent!, context);
             return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Designate supports only CutPlant, Strip, Allow and Forbid.");
         }
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
-            action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context)
+            NativeDesignate.Generic(action.Designate) ? NativeDesignate.Apply(action.Designate, context)
+            : action.Designate.Designation == Operations.ThingDesignation.CutPlant ? NativeCutPlant.Apply(action.Designate, context)
             : action.Designate.Designation == Operations.ThingDesignation.Strip ? NativeStrip.Apply(action.Designate, context)
             : NativeSupplyAllow.Apply(action.Designate, context);
     }

@@ -111,6 +111,10 @@ enum ThingDesignation {
   // Strip on one exact spawned pawn or corpse wearing or carrying
   // strippable gear (#1117); colonists strip it through Hauling work.
   THING_DESIGNATION_STRIP = 7;
+  // Removal designations (#1350), on DesignateIntent target or cell.
+  THING_DESIGNATION_MINE = 8;
+  THING_DESIGNATION_HAUL = 9;
+  THING_DESIGNATION_REMOVE_FOUNDATION = 10;
 }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
 // HostilityResponse is vanilla HostilityResponseMode.
@@ -192,10 +196,6 @@ message ZoneIntent {
   FishingSettings fishing = 9;
   optional bool require_covered_empty = 10;
 }
-// Designate the foundation laid on one cell (def_name, a Bridge) for
-// removal (#954). A cell without that foundation, or one already
-// designated, applies again; ordinary construction work lifts it.
-message RemoveFoundationIntent { rimgovernor.common.v1.Cell cell = 1; optional string def_name = 2; }
 // Vanilla's RemoveFloor designation on one cell whose constructed floor is
 // def_name (epic #1249). A cell already designated, or without that floor,
 // applies again.
@@ -271,7 +271,7 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
-  reserved 14, 26, 27, 28, 29, 31, 41, 42, 43; reserved "melee", "home", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item";
+  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 41, 42, 43; reserved "melee", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -290,11 +290,7 @@ message Action {
     HusbandryIntent husbandry = 25;
     // Applied evidence names the zone (or the storage building's settings).
     ZoneIntent zone = 58;
-    RemoveFoundationIntent remove_foundation = 30;
-    CoverIntent cover = 32;
     DesignateIntent designate = 33;
-    DeconstructIntent deconstruct = 34;
-    ExcavateIntent excavate = 35;
     WasteIntent waste = 36;
     RecoverIntent recover = 37;
     RelocateIntent relocate = 38;
@@ -466,34 +462,49 @@ message GiveJobIntent {
   optional int32 count = 5;
   GiveJobOptions options = 6;
 }
-// Place the one designation (Mine, CutPlant, Haul or Deconstruct) that
-// removes the raider cover thing_id standing at cell. Native checks the
-// thing, its kind, the kind's safety rule, the game designator and a
-// reachable worker live; the designation already standing applies again.
-message CoverIntent { optional string thing_id = 1; optional string designation_def = 2; rimgovernor.common.v1.Cell cell = 3; }
-// Allow or forbid one exact colony supply item, or order one exact blighted
-// plant cut (CUT_PLANT). Native checks the thing's eligibility live when it
-// applies; a thing already in the wanted state applies again.
-message DesignateIntent { optional string thing_id = 1; optional ThingDesignation designation = 2; }
-// Designate one exact building for deconstruction, adopting a player
-// designation already on it. Native checks the target's safety (roof
-// support, enclosing colony walls, a pending wall upgrade) and the game
-// designator live when it applies; a target this controller already owns
-// applies again. Revoking authority releases every owned designation.
-// cleared_ground (#1366) is the ground clearance is emptying: a player wall
-// or door whose every enclosed room lies inside it is allowed (a room
-// reaching outside stays refused); while those rooms keep any roof the
-// designation stands but pawns wait (DeconstructEffect.waiting_for_roof),
-// so clearance issues remove_roof over them first.
-// replace_with_wall (#1245) swaps a player door for a Wall of the door's own
-// stuff: native places the wall blueprint over the door when the game
-// accepts it there, else once the door is gone, and orders the nearest
-// capable builder to deconstruct and then build it (player-forced work).
-message DeconstructIntent { optional string target_id = 1; repeated Rectangle cleared_ground = 2; optional bool replace_with_wall = 3; }
-// Designate one rock cell for ordinary pawn mining as part of a staged
-// room/corridor, adopting a Mine designation already there. Native checks
-// the rock, roof support and the game designator live when it applies; a
-// cell the pawns already cleared applies as cleared.
+// Place one designation (#1350). With thing_id: allow or forbid one exact
+// colony supply item, cut one exact blighted plant (CUT_PLANT) or strip one
+// pawn (STRIP). With target or cell: the removal designations DECONSTRUCT,
+// MINE, CUT_PLANT (chop-wood on a harvestable tree), HAUL and
+// REMOVE_FOUNDATION, through the game's own designator, held by the named
+// guard. target is the thing (cell, when also set, is where it must stand);
+// cell alone names a MINE rock cell or a REMOVE_FOUNDATION cell, whose
+// expected_def is the rock or foundation definition. Native checks the target,
+// the designator and the guard live; the designation already standing (a
+// player one is adopted) or a cell already cleared applies again. Evidence:
+// DeconstructEffect for DECONSTRUCT, ExcavationEffect for MINE, otherwise
+// DesignationEffect. Revoking authority releases every guarded designation.
+message DesignateIntent {
+  optional string thing_id = 1;
+  optional ThingDesignation designation = 2;
+  rimgovernor.common.v1.Ref target = 3;
+  rimgovernor.common.v1.Cell cell = 4;
+  optional DesignationGuard guard = 5;
+  optional string expected_def = 6;
+  // The enclosure guard's cleared ground (#1366): a player wall or door whose
+  // every enclosed room lies inside it is allowed (a room reaching outside
+  // stays refused); while those rooms keep any roof the designation stands
+  // but pawns wait (DeconstructEffect.waiting_for_roof).
+  repeated Rectangle cleared_ground = 7;
+  // DECONSTRUCT only (#1245): swap a 1x1 player door for a Wall of its own
+  // stuff, ordering the nearest capable builder (player-forced work).
+  optional bool replace_with_wall = 8;
+}
+// The tick-level safety a guarded designation keeps (#1350). Native checks
+// the guard at admission and re-checks it before the job's work lands until
+// the job finishes: a failed check cancels the job and drops the designation.
+enum DesignationGuard {
+  DESIGNATION_GUARD_UNSPECIFIED = 0;
+  // Building removal (DECONSTRUCT): player deconstructible, visible, not
+  // forbidden or burning, no enclosing colony wall (cleared_ground aside),
+  // no pending wall upgrade and proven roof support. Rooms of cleared ground
+  // still roofed hold the job without cancelling it.
+  DESIGNATION_GUARD_ENCLOSURE = 1;
+  // Rock removal (MINE): no pending roof collapse, an unowned visible rock
+  // with no structure on the cell, away from the map edge, and counterfactual
+  // roof support for the cell.
+  DESIGNATION_GUARD_MINE_SAFETY = 2;
+}
 // Order one undrafted colonist to haul one exposed waste item (spoiled, a
 // rotting corpse, or one the caller declares unwanted) to a separated dirty
 // outdoor stockpile or an empty grave, with the game's own Hauling
@@ -542,7 +553,6 @@ message RemoveRoofIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
 // out-of-bounds or repeated cell; a fogged cell, a cell with nothing to cut
 // and a plant already designated are no-ops.
 message AreaPlantCutIntent { repeated rimgovernor.common.v1.Cell cells = 1; }
-message ExcavateIntent { rimgovernor.common.v1.Cell cell = 1; optional string expected_mineable_def_name = 2; }
 // Activate one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree): window_id plus the exact observed option index
 // and label stand in for an entity precondition, and native refuses on any drift.

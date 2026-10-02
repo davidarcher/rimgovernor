@@ -7,11 +7,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// deconstructAction is the DeconstructIntent of one exact building. Native
-// checks the target's safety and the game designator live when it applies;
-// a target the controller already owns applies again. Revoking authority
-// releases every owned designation natively. Cleared ground (#1366) rides
-// along for the native enclosure and roof-wait rule.
+// designate wraps one DesignateIntent as an Actions/Apply action (#1350).
+func designate(intent *o.DesignateIntent) *o.Action {
+	return &o.Action{Intent: &o.Action_Designate{Designate: intent}}
+}
+
+// deconstructAction is the DECONSTRUCT Designate of one exact building under
+// the enclosure guard (#1350). Native checks the target's safety and the game
+// designator live when it applies; a designation already standing applies
+// again, and revoking authority releases every guarded designation natively.
+// Cleared ground (#1366) rides along for the enclosure guard's roof-wait rule.
 func deconstructAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.Deconstruction()
 	if !ok {
@@ -20,12 +25,13 @@ func deconstructAction(action domain.Action) (*o.Action, error) {
 	if validID(v.Target()) != nil {
 		return nil, contract("deconstruction target invalid")
 	}
-	intent := &o.DeconstructIntent{TargetId: proto.String(v.Target())}
+	intent := &o.DesignateIntent{Designation: o.ThingDesignation_THING_DESIGNATION_DECONSTRUCT.Enum(), Target: NewRef(v.Target()),
+		Guard: o.DesignationGuard_DESIGNATION_GUARD_ENCLOSURE.Enum()}
 	for _, r := range v.ClearedGround() {
 		intent.ClearedGround = append(intent.ClearedGround, &o.Rectangle{Origin: &c.Cell{X: proto.Int32(r.Origin.X), Z: proto.Int32(r.Origin.Z)}, Width: proto.Int32(r.Width), Height: proto.Int32(r.Height)})
 	}
 	if v.ReplacesWithWall() {
 		intent.ReplaceWithWall = proto.Bool(true)
 	}
-	return &o.Action{Intent: &o.Action_Deconstruct{Deconstruct: intent}}, nil
+	return designate(intent), nil
 }

@@ -6,7 +6,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // a suite's grown interior (growSuitesOutward), the sleeping planner walks
 // it there in order: the new ring goes up around the extension, and only
 // once the extension stands enclosed and roofed as a room of its own does
-// the old outer wall come down (a plain DeconstructIntent); then the
+// the old outer wall come down (a plain DECONSTRUCT Designate); then the
 // furniture is re-sited onto the grown room's interior plan. The owner
 // keeps the bed throughout. Nothing is stored: each step reads from the
 // census how far the growth has got.

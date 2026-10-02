@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: a DeconstructIntent adopts a player designation with applied evidence; revoking authority removes adopted work and preserves unadopted player work.",
+	cases.Register(cases.Case{Name: "wall/adoption", Scope: "Smoke: a DECONSTRUCT Designate adopts a player designation with applied evidence; revoking authority removes adopted work and preserves unadopted player work.",
 		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.LabStart()}, Budget: time.Minute, Run: runAdoption})
 }
 
@@ -57,7 +57,7 @@ func runAdoption(ctx context.Context, s cases.Session) error {
 	return nil
 }
 
-// applyDeconstruct sends one DeconstructIntent under key and returns its
+// applyDeconstruct sends one DECONSTRUCT Designate under key and returns its
 // ActionResult; a refusal or failure is an error.
 func applyDeconstruct(ctx context.Context, s cases.Session, key string, target any) (map[string]any, error) {
 	reply, err := s.Harness().Wire(ctx, key, "operations_apply", map[string]any{"identity": s.Identity(),

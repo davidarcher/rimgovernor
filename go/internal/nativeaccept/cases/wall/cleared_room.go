@@ -15,7 +15,7 @@ func init() {
 		Name: "wall/cleared-room",
 		Scope: "Cleared-ground deconstruction (#1366, epic #1249): a small walled, roofed player room inside the " +
 			"cleared ground ends unroofed with its walls and door gone, through a remove_roof intent and " +
-			"DeconstructIntent.cleared_ground whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
+			"DECONSTRUCT Designate.cleared_ground whose walls wait (designated, waitingForRoof) until pawns remove the roof; " +
 			"a wall of a room straddling the ground's edge is refused. A Go snapshot test cannot see vanilla room " +
 			"geometry, the NoRoof area work or the native job guard.",
 		Start:       cases.LabStart(),

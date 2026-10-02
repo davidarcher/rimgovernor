@@ -24,6 +24,7 @@ internal static class NativeContractProbesDispatcher
                 // ---- Category 1/2: in-process fake-Verse compile / pure logic (no args) ----
                 case "native-production-bill-settings": NativeProductionBillSettingsProbe.Invoke(); return 0;
                 case "native-roof-support": NativeRoofSupportProbe.Invoke(); return 0;
+                case "native-designation-guards": NativeDesignationGuardsProbe.Invoke(); return 0;
                 case "native-home-coverage": NativeHomeCoverageProbe.Invoke(); return 0;
                 case "native-traffic-counts": NativeTrafficCountsProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
@@ -90,7 +91,7 @@ internal static class NativeContractProbesDispatcher
         foreach (var name in new[]
         {
             "native-authority", "native-authority-control", "native-authority-status", "native-clock",
-            "native-attempt-ledger", "native-construction-causality", "native-ref-index", "native-observation-work",
+            "native-attempt-ledger", "native-construction-causality", "native-designation-guards", "native-ref-index", "native-observation-work",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
             "native-proto-boundary",
             "native-movement-operations",
