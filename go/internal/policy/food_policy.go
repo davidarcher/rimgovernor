@@ -83,14 +83,18 @@ type Diet struct {
 	// FineMeals: the mood tier (#1542) allows fine and lavish meals, for a
 	// pawn near its mental break threshold or with high expectations.
 	FineMeals bool
+	// Reserve: the colony has no other food to eat, so the travel reserve
+	// (pemmican, packaged survival meals) is allowed at home too.
+	Reserve bool
 }
 
 // moodTierMargin is how far above the minor break threshold a pawn's mood
 // still counts as near a break (#1542).
 const moodTierMargin = 0.1
 
-// travelReserve are the foods kept for caravans: never eaten at home
-// (#1542).
+// travelReserve are the foods kept for caravans: not eaten at home while
+// the colony has other food (#1542); when it is short of food (Diet.Reserve)
+// they are the food.
 var travelReserve = []string{"Pemmican", "MealSurvivalPack"}
 
 // fineMeals is the mood tier: near the minor break threshold or under high
@@ -166,11 +170,12 @@ func DietOf(traits, precepts []string) Diet {
 // no fungus unless fungus is preferred; fungus never where it is
 // despised; fine and lavish meals only in the mood tier (#1542), and never
 // for an ascetic (not also a gourmand), whose mood it does not feel; the
-// travel reserve (pemmican, packaged survival meals) never.
+// travel reserve (pemmican, packaged survival meals) only while the colony
+// is short of other food (Diet.Reserve).
 func DietFoods(d Diet, foods []Food) []string {
 	allowed := func(f Food) bool {
 		if slices.Contains(travelReserve, f.Def) {
-			return false
+			return d.Reserve
 		}
 		switch f.Kind {
 		case FoodKindHumanMeat:
@@ -251,7 +256,7 @@ func AnimalFoods(edible []string, foods []Food) []string {
 // slave or prisoner and AnimalFoods for a tame animal. A pawn whose short
 // name another owned pawn shares (#1310 renames it) or that several
 // policies carry waits.
-func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food) []FoodPolicyChange {
+func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food, reserveFood bool) []FoodPolicyChange {
 	type owed struct {
 		id   PawnID
 		want []string
@@ -268,6 +273,7 @@ func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, 
 		if in, _ := pawn.PolicyInputs.Value(); in.GuestStatus == "Slave" || in.GuestStatus == "Prisoner" {
 			rows = append(rows, owed{pawn.ID, CaptiveFoods(diet, foods)})
 		} else {
+			diet.Reserve = reserveFood
 			rows = append(rows, owed{pawn.ID, DietFoods(diet, foods)})
 		}
 	}

@@ -48,6 +48,9 @@ type FoodReserveReview struct {
 	ByDefinition                                      map[Resource]float64
 	Hold, Release                                     []string
 	Emergency                                         bool
+	// Short: the runway without reserve food is under the seasonal minimum,
+	// so the reserve is food to eat, not insurance to keep.
+	Short bool
 }
 
 // ReviewFoodReserve counts roofed shared reserve foods at observed nutrition.
@@ -85,6 +88,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 		}
 		arriving = arriving || lead < days
 	}
+	r.Short = known && days < minimumDays
 	r.Emergency = known && complete && days < minimumDays && !arriving
 	sort.Slice(supply.Stocks, func(i, j int) bool {
 		a, b := supply.Stocks[i], supply.Stocks[j]

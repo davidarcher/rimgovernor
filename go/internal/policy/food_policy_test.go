@@ -88,7 +88,7 @@ func TestDietPolicyChanges(t *testing.T) {
 	pawns[5].FoodRestriction = domain.Unknown[FoodRestriction]()
 	names := []OwnedName{{"A", "Ann", 1}, {"B", "Bo", 2}, {"C", "Cy", 3}, {"D", "Dup", 4}, {"E", "dup", 5}, {"F", "Fay", 6}}
 	policies := []FoodPolicyEntry{{ID: "FoodPolicy_3", Label: "Cy", Pawns: []PawnID{"C"}, Allowed: without("Meat_Human", "Meat_Megaspider")}}
-	got := DietPolicyChanges(pawns, nil, names, policies, testFoods)
+	got := DietPolicyChanges(pawns, nil, names, policies, testFoods, false)
 	if len(got) != 2 {
 		t.Fatalf("got %d changes: %+v", len(got), got)
 	}
@@ -104,7 +104,7 @@ func TestDietPolicyChanges(t *testing.T) {
 	}
 	// Held but drifted contents are rewritten without a reassignment.
 	policies[0].Allowed = []string{"MealSimple"}
-	got = DietPolicyChanges(pawns[2:3], nil, names, policies, testFoods)
+	got = DietPolicyChanges(pawns[2:3], nil, names, policies, testFoods, false)
 	if len(got) != 1 || got[0].Write == nil || got[0].Assign != nil {
 		t.Fatalf("drift: %+v", got)
 	}
@@ -123,7 +123,7 @@ func TestDietPolicyChangesNonColonists(t *testing.T) {
 	}
 	names := []OwnedName{{"S", "Sal", 1}, {"P", "Pip", 2}, {"H", "Hoof", 3}, {"W", "Wolf", 4}}
 	got := map[string][]string{}
-	for _, c := range DietPolicyChanges([]WorkPawn{slave}, eaters, names, nil, foods) {
+	for _, c := range DietPolicyChanges([]WorkPawn{slave}, eaters, names, nil, foods, false) {
 		if c.Write == nil || c.Assign == nil {
 			t.Fatalf("change %+v", c)
 		}
@@ -168,5 +168,17 @@ func TestDietMoodTier(t *testing.T) {
 		if slices.Contains(got, "Pemmican") || slices.Contains(got, "MealSurvivalPack") {
 			t.Errorf("%s: travel reserve allowed", tc.name)
 		}
+	}
+}
+
+// A colony short of other food eats the travel reserve (a fresh start has
+// nothing else); otherwise it is kept for caravans.
+func TestDietFoodsAllowsTheReserveWhenShort(t *testing.T) {
+	got := DietFoods(Diet{Reserve: true}, testFoods)
+	if !slices.Contains(got, "Pemmican") || !slices.Contains(got, "MealSurvivalPack") {
+		t.Fatalf("reserve withheld while short: %v", got)
+	}
+	if got := DietFoods(Diet{}, testFoods); slices.Contains(got, "Pemmican") {
+		t.Fatalf("reserve allowed with food in hand: %v", got)
 	}
 }
