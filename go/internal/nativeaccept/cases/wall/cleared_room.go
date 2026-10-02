@@ -146,8 +146,11 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 			report["first_wall"] = applied
 		}
 	}
+	// Vanilla roofs the walls too (auto-roof), so clearance unroofs the
+	// room's whole footprint.
+	aFootprint := append(append([]cell{}, aWalls...), aInterior...)
 	var roofCells []any
-	for _, c := range aInterior {
+	for _, c := range aFootprint {
 		roofCells = append(roofCells, map[string]any{"x": c.x, "z": c.z})
 	}
 	roof, err := apply("roof-a", map[string]any{"key": "roof-a", "removeRoof": map[string]any{"cells": roofCells}})
@@ -163,7 +166,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 		if _, err := s.Advance(ctx, 300); err != nil {
 			return err
 		}
-		n, err := roofed(fmt.Sprintf("roof-read-%d", advanced), aInterior, false)
+		n, err := roofed(fmt.Sprintf("roof-read-%d", advanced), aFootprint, false)
 		if err != nil {
 			return err
 		}
@@ -182,7 +185,7 @@ func runClearedRoom(ctx context.Context, s cases.Session) error {
 		}
 		// The walls hold the roof: none may come down while it stands.
 		if n > 0 && standing < len(aIDs) {
-			return fmt.Errorf("a wall came down at +%d ticks while %d interior cells were still roofed", advanced+300, n)
+			return fmt.Errorf("a wall came down at +%d ticks while %d room cells were still roofed", advanced+300, n)
 		}
 		if n == 0 && standing == 0 {
 			report["unroofed_after_ticks"] = unroofedAt

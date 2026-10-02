@@ -60,8 +60,11 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	roofed := func(label string, set bool) (int, error) {
-		reply, err := h.Call(ctx, label, "test/roof_cells", map[string]any{"cells": cellList(interior), "set": set})
+	// Vanilla roofs the walls too (auto-roof), so clearance unroofs and
+	// reads the room's whole footprint; the fixture roofs its interior.
+	footprint := append(append([]cell{}, walls...), interior...)
+	roofed := func(label string, cells []cell, set bool) (int, error) {
+		reply, err := h.Call(ctx, label, "test/roof_cells", map[string]any{"cells": cellList(cells), "set": set})
 		if err != nil {
 			return 0, err
 		}
@@ -70,7 +73,7 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 		}
 		return int(na.AsNumber(reply["roofed"])), nil
 	}
-	if n, err := roofed("roof", true); err != nil || n != len(interior) {
+	if n, err := roofed("roof", interior, true); err != nil || n != len(interior) {
 		return fmt.Errorf("roof the room: %d roofed, %v", n, err)
 	}
 	if _, err := na.GrantAuto(ctx, h.WireFunc(), "clear-authority", identity); err != nil {
@@ -111,7 +114,7 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 		}
 	}
 	var roofCells []any
-	for _, c := range interior {
+	for _, c := range footprint {
 		roofCells = append(roofCells, map[string]any{"x": c.x, "z": c.z})
 	}
 	if err := apply("roof", map[string]any{"removeRoof": map[string]any{"cells": roofCells}}); err != nil {
@@ -123,7 +126,7 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 			return err
 		}
 		tag := fmt.Sprint(advanced)
-		roof, err := roofed("roof-read-"+tag, false)
+		roof, err := roofed("roof-read-"+tag, footprint, false)
 		if err != nil {
 			return err
 		}
@@ -136,7 +139,7 @@ func runClearedFloor(ctx context.Context, s cases.Session) error {
 			if p {
 				standing++
 			} else if i > 0 && roof > 0 {
-				return fmt.Errorf("a wall came down at +%d ticks while %d interior cells were still roofed", advanced+300, roof)
+				return fmt.Errorf("a wall came down at +%d ticks while %d room cells were still roofed", advanced+300, roof)
 			}
 		}
 		if standing == 0 && roof == 0 && !floorsIssued {

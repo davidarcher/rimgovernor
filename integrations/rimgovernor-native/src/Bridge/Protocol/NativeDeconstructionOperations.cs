@@ -187,13 +187,21 @@ namespace HomeBridge.BridgeTools
                 .Where(r => r.ProperRoom && !r.TouchesMapEdge && !r.IsDoorway).Distinct().ToList();
             return rooms.All(r => r.Cells.All(ground.Contains)) ? rooms : null;
         }
+        // A room's roof includes the roof vanilla builds over its walls
+        // (auto-roof covers the roof holders around the room, corners too).
+        private static IEnumerable<IntVec3> Footprint(Room room, Map map) => room.Cells
+            .SelectMany(c => GenAdj.AdjacentCellsAndInside.Select(d => c + d)).Where(c => c.InBounds(map)).Distinct();
+        private static bool Roofed(List<Room> rooms, Map map) => rooms.Any(r => Footprint(r, map).Any(c => c.Roofed(map)));
         // A cleared-ground wall or door waits (designated, pawns held) while
-        // any room it bounds still has roof; clearance removes it first.
+        // any room it bounds still has roof over its cells or walls;
+        // clearance removes it first. Roof left over a wall cell would
+        // otherwise hang on the last wall standing, whose removal the
+        // support check then refuses for good.
         internal static string? RoofWait(Building target, HashSet<IntVec3>? ground)
         {
             if (!target.Spawned) return null;
             var rooms = ClearedRooms(target, ground);
-            return rooms != null && rooms.Any(r => r.Cells.Any(c => c.Roofed(target.Map))) ? "Waiting for the enclosed rooms' roof removal." : null;
+            return rooms != null && Roofed(rooms, target.Map) ? "Waiting for the enclosed rooms' roof removal." : null;
         }
         internal static string? Safety(Building target, HashSet<IntVec3>? ground = null)
         {
@@ -220,7 +228,7 @@ namespace HomeBridge.BridgeTools
             if (!target.def.holdsRoof) return null;
             // The roof the cleared rooms still carry comes off first (RoofWait);
             // support is checked once it is gone.
-            if (cleared != null && cleared.Any(r => r.Cells.Any(c => c.Roofed(target.Map)))) return null;
+            if (cleared != null && Roofed(cleared, target.Map)) return null;
             var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
             if (shrineStructure != null)
                 return RoofSupportSafety.Blocker(target, null, out _, shrineStructure);
