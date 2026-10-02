@@ -33,8 +33,10 @@ namespace HomeBridge.BridgeTools
         internal const int Slots = 8;
         internal const int SlotBytes = 16 << 20;
         internal const int HeaderBytes = 64, SlotHeaderBytes = 40;
-        /// Replies below this many proto bytes stay inline proto-gzip; the
-        /// threshold awaits a call_ms measurement on Windows.
+        /// Replies below this many proto bytes stay inline proto-gzip. Measured on
+        /// Windows (#1344): the slot saves 15-20% of call_ms from 0.5 MB up
+        /// and only a few ms near this size, so a lower threshold buys little
+        /// and puts more replies through the 8-slot ring.
         internal const int InlineBytes = 256 << 10;
         private const uint Magic = 0x52524752; // "RGRR"
         private const uint Version = 1;
