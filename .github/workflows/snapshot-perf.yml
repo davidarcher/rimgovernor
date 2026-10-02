@@ -1,0 +1,138 @@
+name: Snapshot perf
+
+# Nightly SnapshotFrames.Capture timings (#1378): profile-capture on the
+# fixture factory's newest sustained/colony bundle (#1376), recorded as
+# snapshot-perf-<commit> and compared with the median p90 of the last
+# seven successful runs; a regressed family opens or updates one issue.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tested_ref:
+        description: Same-repository branch or tag to profile (resolved once at startup)
+        default: main
+        type: string
+      reviewed_commit:
+        description: I reviewed and trust the exact tested commit to access licensed game inputs
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 9 * * *'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  REMOTE_ACCEPTANCE_ENABLED: ${{ vars.REMOTE_ACCEPTANCE_ENABLED }}
+  REMOTE_ACCEPTANCE_MAINTAINERS: ${{ vars.REMOTE_ACCEPTANCE_MAINTAINERS }}
+  REMOTE_BUNDLE_ASSET: ${{ vars.REMOTE_BUNDLE_ASSET }}
+  REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
+  REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
+  REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
+  # The gate's source resolution takes a pinned case list; profile runs none.
+  FACTORY_CASES: sustained/colony
+  GOTOOLCHAIN: local
+  GOWORK: 'off'
+  CGO_ENABLED: '0'
+
+jobs:
+  profile:
+    if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 90
+    environment: remote-acceptance
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      head: ${{ steps.gate.outputs.head }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Authorize before selected code, bundle cache or identity access
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase gate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.gate.outputs.head }}
+          path: tested
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - name: Fetch the newest factory bundle
+        id: fixture
+        working-directory: trusted/go
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $bundle = go run ./internal/nativeaccept/cmd/acceptance fetch-fixture -root C:\rg\ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "bundle=$(@($bundle)[-1])" >> $env:GITHUB_OUTPUT
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - name: Bootstrap and profile SnapshotFrames.Capture
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+          BUNDLE: ${{ steps.fixture.outputs.bundle }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase profile -Bundle $env:BUNDLE -Count 50
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: perf-capture-${{ github.run_id }}
+          path: C:\rg\evidence\profile.json
+          if-no-files-found: error
+          retention-days: 7
+
+  compare:
+    needs: profile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go/.go-version
+          cache: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: perf-capture-${{ github.run_id }}
+          path: ${{ runner.temp }}/capture
+      - name: Record and compare with the rolling baseline
+        working-directory: go
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ needs.profile.outputs.head }}
+        run: |
+          go run ./internal/nativeaccept/cmd/acceptance profile-compare \
+            -current "$RUNNER_TEMP/capture/profile.json" -commit "$HEAD_SHA" -run "$GITHUB_RUN_ID" \
+            -out "$RUNNER_TEMP/record/record.json" -history "$RUNNER_TEMP/history" -fetch -window 7 \
+            -threshold 0.3 -summary "$GITHUB_STEP_SUMMARY" -issue
+      # 30 days holds the seven-run window several times over.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snapshot-perf-${{ needs.profile.outputs.head }}
+          path: ${{ runner.temp }}/record/record.json
+          if-no-files-found: error
+          retention-days: 30

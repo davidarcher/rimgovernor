@@ -206,6 +206,11 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 		return 2
 	}
 	o := p.fixture
+	// With -json stdout carries only the stats object.
+	info := stdout
+	if o.JSON {
+		info = stderr
+	}
 	if o.Save == "" {
 		bundle, err := profileBundle(o.Root, p.Case, p.From)
 		if err == nil {
@@ -219,11 +224,11 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 		if info, err := os.Stat(filepath.Join(bundle, na.CheckpointSaveName(p.Case)+".rws")); err == nil {
 			age = time.Since(info.ModTime()).Round(time.Minute).String()
 		}
-		fmt.Fprintf(stdout, "profile-capture: %s from %s (saved %s ago)\n", p.Case, bundle, age)
+		fmt.Fprintf(info, "profile-capture: %s from %s (saved %s ago)\n", p.Case, bundle, age)
 		o.Save = profileSave
 	}
 	opts := cases.Options{Root: o.Root, Output: o.Output, GameID: o.GameID, Headless: o.Headless, NoHeal: p.NoHeal}
-	if _, ok := preflight(ctx, []cases.Case{{Start: cases.Fixture{Op: profileOp}}}, opts, stdout); !ok {
+	if _, ok := preflight(ctx, []cases.Case{{Start: cases.Fixture{Op: profileOp}}}, opts, info); !ok {
 		return 2
 	}
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
@@ -235,12 +240,12 @@ func profileCapture(ctx context.Context, args []string, stdout, stderr io.Writer
 		result.Error = err.Error()
 	}
 	if result.Error != "" || !result.Success {
-		printFixture(stdout, false, result)
+		printFixture(info, false, result)
 		return 1
 	}
 	profile, err := summarizeProfile(result.Response)
 	if err != nil {
-		fmt.Fprintln(stdout, err)
+		fmt.Fprintln(info, err)
 		return 1
 	}
 	if o.JSON {

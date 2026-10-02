@@ -117,7 +117,7 @@ func ciBundle(root, caseName string) (string, error) {
 
 const fetchFixtureUsage = `
   acceptance fetch-fixture -root <dir> [-case <area/case>]
-    downloads the newest successful fixture-factory run's checkpoint ring (once per run) and prints its directory`
+    downloads the newest successful fixture-factory run's checkpoint ring (once per run) and prints its newest bundle directory`
 
 func fetchFixture(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("fetch-fixture", flag.ContinueOnError)
@@ -136,7 +136,12 @@ func fetchFixture(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	fmt.Fprintf(stderr, "fetch-fixture: run %d at %s\n", run.ID, strings.TrimSpace(run.HeadSHA))
-	fmt.Fprintln(stdout, dir)
+	ring, err := na.ReadRing(dir)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	fmt.Fprintf(stderr, "fetch-fixture: run %d at %s, ring %s\n", run.ID, strings.TrimSpace(run.HeadSHA), dir)
+	fmt.Fprintln(stdout, newestInRing(ring))
 	return 0
 }

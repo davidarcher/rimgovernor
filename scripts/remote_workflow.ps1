@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect')][string]$Phase,
+    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile')][string]$Phase,
     [string]$Evidence = 'C:\rg\evidence',
     [string]$Repo = "$env:GITHUB_WORKSPACE\tested",
-    [string]$Shard = ''
+    [string]$Shard = '',
+    [string]$Bundle = '',
+    [int]$Count = 50
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -237,6 +239,39 @@ switch ($Phase) {
             foreach ($role in $roles) { & "$PSScriptRoot/cleanup_remote.ps1" -Work "C:\rg\$role" }
         }
         if ($bad) { throw 'One or more native cases failed; export retains their diagnostics' }
+    }
+    'profile' {
+        # snapshot-perf.yml (#1378): time SnapshotFrames.Capture on a fetched
+        # fixture-factory bundle on a fixture-role layout.
+        $run = Read-JSON (Join-Path $Evidence 'run.json')
+        if ($run.workflow_commit -cne $env:GITHUB_WORKFLOW_SHA -or $run.bundle.sha256 -cne $env:REMOTE_BUNDLE_SHA256 -or
+            -not (Test-Path -LiteralPath $Bundle -PathType Container)) { throw 'Wrong run or bundle input' }
+        $trust = 'C:\rg\trust.json'
+        Write-JSON $trust @{repository=$run.repository;tested_commit=$run.tested_commit;workflow_commit=$run.workflow_commit;event=$run.trigger.event}
+        $identity = 'C:\rg\identity.txt'
+        [IO.File]::WriteAllText($identity,$env:REMOTE_BUNDLE_IDENTITY)
+        Remove-Item Env:REMOTE_BUNDLE_IDENTITY
+        $work = 'C:\rg\fixture'
+        try {
+            & "$PSScriptRoot/bootstrap_remote.ps1" -Repo $Repo -Work $work -Cache C:\rg\ciphertext `
+                -Manifest (Join-Path $Evidence 'bundle.json') -ManifestSHA256 $run.bundle.sha256 `
+                -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -Role fixture
+            Remove-Item -LiteralPath $identity
+            Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY' | ForEach-Object {
+                [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
+                Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
+            }
+            $boot = Read-JSON "$work\job\bootstrap.json"
+            Push-Location (Join-Path $Repo 'go')
+            try {
+                $out = & $boot.acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
+                if ($LASTEXITCODE) { throw "profile-capture failed: $out" }
+            } finally { Pop-Location }
+            [IO.File]::WriteAllText((Join-Path $Evidence 'profile.json'), ($out -join "`n") + "`n")
+        } finally {
+            if (Test-Path -LiteralPath $identity) { Remove-Item -LiteralPath $identity }
+            & "$PSScriptRoot/cleanup_remote.ps1" -Work $work
+        }
     }
     'collect' {
         if (-not (Test-Path -LiteralPath (Join-Path $Evidence 'selection.json'))) {

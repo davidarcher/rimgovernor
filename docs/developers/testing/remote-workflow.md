@@ -118,9 +118,19 @@ diagnostics this deliberately publishes generated saves; they carry def
 references, never licensed file contents. Retention is 90 days, so the newest
 bundle outlives the weekly cadence. A fresh clone consumes it with
 `acceptance profile-capture -root <dir> -from latest-ci`, or `acceptance
-fetch-fixture -root <dir>` to print the downloaded ring directory for snapshot
+fetch-fixture -root <dir>` to print the newest downloaded bundle directory for snapshot
 tests; both `gh run download` the newest successful run once into
 `<root>/ci-fixtures/<run id>`.
+
+`.github/workflows/snapshot-perf.yml` runs nightly: it fetches that bundle,
+bootstraps a fixture-role layout (`remote_workflow.ps1 -Phase profile`) and
+runs `profile-capture -n 50 -json`; a Linux job then runs `acceptance
+profile-compare`, which uploads `snapshot-perf-<commit>` (`record.json`, 30
+days) and compares each family's and the total's p90 with the median p90 of
+the last seven successful runs' records. A span more than 30% and 0.5 ms over
+its baseline (at least three samples) opens, or comments on, the issue
+"Snapshot capture regression (nightly snapshot-perf)" with the commit range.
+Tune `-threshold`/`-min-ms` in the workflow for runner noise.
 
 ## Validation and activation evidence
 
