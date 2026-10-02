@@ -278,7 +278,13 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 				}
 			}
 		}
-		killbox, _ := openingAt(x)
+		killbox, at := openingAt(x)
+		// The killbox keeps its full width across the opening: a box the
+		// enclosure clips sideways leaves the opening off its centre, and
+		// no funnel reads from it (LayoutKillbox).
+		if mouth := rectOf(at(perimeterThick, -killboxHalf), at(perimeterThick, killboxHalf)); clipRect(mouth, killbox) != mouth {
+			return false
+		}
 		for _, c := range rectCells(killbox) {
 			if !enc.inside(c) || strict && fields[c] {
 				return false

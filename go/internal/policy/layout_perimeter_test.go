@@ -51,6 +51,11 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 	if len(kb) != 1 || len(reserved(p, ReserveKillboxApproach)) != 2 {
 		t.Fatal("killbox", kb)
 	}
+	// The approach leads into the killbox, so the defense layout reads a
+	// funnel from it.
+	if _, _, _, ok := LayoutKillbox(p, Bounds{Width: 200, Height: 200}); !ok {
+		t.Fatal("approach does not lead into the killbox", kb, reserved(p, ReserveKillboxApproach))
+	}
 	if len(reserved(p, ReserveCoverClear)) == 0 {
 		t.Fatal("no cover band")
 	}
@@ -717,5 +722,21 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	}
 	if lim := pad(rooms, 2*perimeterGap+perimeterThick+perimeterStep); ring.Width == 0 || unionRect(lim, ring) != lim {
 		t.Fatal("ring", ring, "runs far past the rooms", rooms)
+	}
+}
+
+// A mouth at the valley's corner draws the opening to the ring's corner;
+// the killbox stays whole across its opening there, not clipped sideways
+// off the approach.
+func TestPerimeterKillboxWholeAtACorner(t *testing.T) {
+	for _, mouth := range []int32{0, 2, 4, 6, 8, 10, 14} {
+		p := perimeterPlan(t, func(x, z int32) SurveyCell {
+			open := x >= 30 && x < 170 && z >= 40 && z < 170 || x >= 30+mouth && x <= 36+mouth && z < 40
+			if open {
+				return SurveyCell{Walkable: true, Fertility: 1}
+			}
+			return SurveyCell{Rock: true}
+		})
+		checkPerimeter(t, p)
 	}
 }
