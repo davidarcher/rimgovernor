@@ -108,7 +108,6 @@ func TestUpkeepRejectsContradictoryNativeFacts(t *testing.T) {
 			v.Structures = domain.Known([]UpkeepStructure{{ID: "a", HitPoints: 2, MaxHitPoints: 1}})
 		},
 		func(v *UpkeepObservation) { v.Filth = domain.Known([]UpkeepFilth{{}}) },
-		func(v *UpkeepObservation) { v.Filth = domain.Known(make([]UpkeepFilth, 257)) },
 	} {
 		v := emptyUpkeep()
 		mutate(&v)

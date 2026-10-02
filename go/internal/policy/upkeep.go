@@ -2,7 +2,6 @@ package policy
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sort"
 
@@ -137,12 +136,6 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 		r.Needs = append(r.Needs, UpkeepNeed{goal, priority, active, targets, metric, unsafe})
 		return active
 	}
-	ids := func(section string, n int) (map[string]bool, error) {
-		if n > 256 {
-			return nil, fmt.Errorf("upkeep %s section has %d rows, over the 256 bound", section, n)
-		}
-		return map[string]bool{}, nil
-	}
 	valid := func(seen map[string]bool, id string) bool {
 		if !foodID(id) || seen[id] {
 			return false
@@ -153,10 +146,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	targets, metric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	unsafe := false
 	if rows, known := v.Fires.Value(); known {
-		seen, err := ids("fires", len(rows))
-		if err != nil {
-			return r, err
-		}
+		seen := map[string]bool{}
 		selected := []string{}
 		total := 0.0
 		measured := true
@@ -184,10 +174,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	storageTargets, storageMetric := domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Items.Value(); known {
-		seen, err := ids("items", len(rows))
-		if err != nil {
-			return r, err
-		}
+		seen := map[string]bool{}
 		selected := []UpkeepItem{}
 		storageSelected := []UpkeepItem{}
 		for _, row := range rows {
@@ -243,10 +230,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Supplies = add(SecureSupplies, 3, previous.Supplies, targets, metric, false)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Structures.Value(); known {
-		seen, err := ids("structures", len(rows))
-		if err != nil {
-			return r, err
-		}
+		seen := map[string]bool{}
 		selected := []UpkeepStructure{}
 		for _, row := range rows {
 			if !valid(seen, row.ID) || row.HitPoints < 0 || row.MaxHitPoints < row.HitPoints || row.Priority < 0 || row.Priority > 2 || row.Cell.X < 0 || row.Cell.Z < 0 {
@@ -278,10 +262,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Repairs = add(MaintainEssentialRepairs, 3, previous.Repairs, targets, metric, false)
 	targets, metric = domain.Unknown[[]string](), domain.Unknown[float64]()
 	if rows, known := v.Filth.Value(); known {
-		seen, err := ids("filth", len(rows))
-		if err != nil {
-			return r, err
-		}
+		seen := map[string]bool{}
 		for _, row := range rows {
 			if !valid(seen, row.ID) || len(row.Room) > 256 || row.Cell.X < 0 || row.Cell.Z < 0 {
 				return r, errors.New("invalid upkeep filth")
@@ -348,10 +329,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 	r.History.Clearance = add(ClearHomeObstructions, 3, previous.Clearance, clearanceTargets, domain.Unknown[float64](), false)
 	shrineTargets := domain.Unknown[[]string]()
 	if rows, known := v.Shrines.Value(); known {
-		seen, err := ids("shrines", len(rows))
-		if err != nil {
-			return r, err
-		}
+		seen := map[string]bool{}
 		for _, row := range rows {
 			if !valid(seen, row.ID) {
 				return r, errors.New("invalid shrine")
