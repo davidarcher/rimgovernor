@@ -17,13 +17,21 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 		if f == nil {
 			return contract("incomplete policy facts")
 		}
-		for _, rows := range [][]*o.PolicyEntry{f.Outfit, f.Drug, f.Food, f.Reading} {
+		for i, rows := range [][]*o.PolicyEntry{f.Outfit, f.Drug, f.Food, f.Reading} {
 			ids, pawns, defaults := map[string]bool{}, map[string]bool{}, 0
 			for _, row := range rows {
 				if row == nil || validID(row.GetId()) != nil || ids[row.GetId()] || row.Label == nil || !diagnostic(row.Label) || row.Default == nil {
 					return contract("invalid policy entry")
 				}
 				ids[row.GetId()] = true
+				if i != 3 && len(row.AllowedDefs) > 0 {
+					return contract("allowed definitions on a non-reading policy")
+				}
+				for _, d := range row.AllowedDefs {
+					if validID(d) != nil {
+						return contract("invalid reading policy definition")
+					}
+				}
 				if row.GetDefault() {
 					defaults++
 				}
@@ -34,6 +42,13 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 			if defaults > 1 {
 				return contract("several default policies")
 			}
+		}
+		books := map[string]bool{}
+		for _, b := range f.Books {
+			if b == nil || validID(b.GetDefName()) != nil || books[b.GetDefName()] || b.GetKind() == o.BookKind_BOOK_KIND_UNSPECIFIED || o.BookKind_name[int32(b.GetKind())] == "" {
+				return contract("invalid book definition")
+			}
+			books[b.GetDefName()] = true
 		}
 		ids, pawns := map[string]bool{}, map[string]bool{}
 		for _, row := range f.AllowedAreas {

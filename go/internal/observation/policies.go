@@ -8,11 +8,13 @@ import (
 
 // PolicyEntry is one row of a native policy database (#1297): the policy's
 // load id, label, the player pawns currently holding it and whether it is
-// the database default.
+// the database default. Allowed is a reading policy's allowed book
+// definitions (#1306).
 type PolicyEntry struct {
 	ID, Label string
 	Pawns     []policy.PawnID
 	Default   bool
+	Allowed   []string
 }
 
 // AllowedArea is one Area_Allowed on the colony map and the pawns
@@ -27,6 +29,15 @@ type AllowedArea struct {
 type Policies struct {
 	Outfit, Drug, Food, Reading []PolicyEntry
 	AllowedAreas                []AllowedArea
+	// Books is every book definition and its kind (#1306).
+	Books []policy.Book
+}
+
+var bookKinds = map[o.BookKind]policy.BookKind{
+	o.BookKind_BOOK_KIND_TEXTBOOK:  policy.Textbook,
+	o.BookKind_BOOK_KIND_NOVEL:     policy.Novel,
+	o.BookKind_BOOK_KIND_SCHEMATIC: policy.Schematic,
+	o.BookKind_BOOK_KIND_TOME:      policy.Tome,
 }
 
 func pawnIDs(ids []string) []policy.PawnID {
@@ -45,11 +56,14 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	entries := func(rows []*o.PolicyEntry) []PolicyEntry {
 		r := make([]PolicyEntry, 0, len(rows))
 		for _, row := range rows {
-			r = append(r, PolicyEntry{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds), Default: row.GetDefault()})
+			r = append(r, PolicyEntry{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds), Default: row.GetDefault(), Allowed: row.AllowedDefs})
 		}
 		return r
 	}
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading)}
+	for _, b := range f.Books {
+		r.Books = append(r.Books, policy.Book{Def: b.GetDefName(), Kind: bookKinds[b.GetKind()]})
+	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})
 	}

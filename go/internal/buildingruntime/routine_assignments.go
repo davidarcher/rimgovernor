@@ -10,6 +10,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -240,6 +241,22 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		care = care[:8]
 	}
 	settings = append(settings, care...)
+	// Per-pawn reading policies (#1306): the contents first, then the
+	// assignment, at most eight pawns per plan.
+	var reading []domain.ReadingPolicy
+	if changes := routineReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns); len(changes) > 0 {
+		if len(changes) > 8 {
+			changes = changes[:8]
+		}
+		for _, c := range changes {
+			if c.Write != nil {
+				reading = append(reading, *c.Write)
+			}
+			if c.Assign != nil {
+				settings = append(settings, *c.Assign)
+			}
+		}
+	}
 	for _, plan := range open {
 		if err := cancelStaleWorkActions(call, p.journal, plan, work, settings); err != nil {
 			return RoutineWorkResult{}, err
@@ -251,7 +268,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	if len(work) == 0 && len(settings) == 0 {
+	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
@@ -280,7 +297,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, s := range settings {
 		carry, _ := s.MedicineCarry()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), len(goal.Methods))
+		book, _ := s.ReadingPolicy()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, len(goal.Methods))
+	}
+	for _, r := range reading {
+		fmt.Fprintf(hash, "reading/%q/%q/%d\n", r.Name(), r.Definitions(), len(goal.Methods))
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -292,6 +313,13 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	var actions []domain.Action
 	for i, w := range work {
 		action, err := domain.NewWorkAssignmentAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), w)
+		if err != nil {
+			return RoutineWorkResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	for _, r := range reading {
+		action, err := domain.NewReadingPolicyAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), r)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
@@ -419,4 +447,19 @@ func hostilityPawns(pawns domain.Fact[[]policy.WorkPawn]) domain.Fact[[]policy.H
 		return domain.Unknown[[]policy.HostilityPawn]()
 	}
 	return domain.Known(hostilityRows(rows))
+}
+
+// routineReadingChanges is the reading policy planner's input lift (#1306);
+// none while the policy databases or the owned-pawn names are unknown.
+func routineReadingChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn) []policy.ReadingPolicyChange {
+	p, ok := policies.Value()
+	owned, named := names.Value()
+	if !ok || !named || len(p.Books) == 0 {
+		return nil
+	}
+	entries := make([]policy.ReadingPolicyEntry, 0, len(p.Reading))
+	for _, e := range p.Reading {
+		entries = append(entries, policy.ReadingPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Allowed: e.Allowed})
+	}
+	return policy.ReadingPolicyChanges(pawns, owned, entries, p.Books)
 }

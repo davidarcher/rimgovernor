@@ -301,6 +301,7 @@ message Action {
     PolicyPruneIntent policy_prune = 51;
     RemoveFloorIntent remove_floor = 52;
     RemoveRoofIntent remove_roof = 53;
+    ReadingPolicyIntent reading_policy = 54;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -315,8 +316,10 @@ message Action {
 // unchanged once the pawn no longer holds that name. medicine_carry
 // (#1307) is the pawn's Medicine inventory-stock count (0-3); native stocks
 // the best medicine the pawn's own medical care allows and refuses a
-// positive count when it allows none. reading_policy is reserved for its
-// epic issue and refused natively until it lands. medical_care (#1301) is
+// positive count when it allows none. reading_policy (#1306) is the label
+// of the ReadingPolicy the pawn should hold (its short name; a
+// ReadingPolicyIntent writes the contents), refused when no policy or
+// several carry it. medical_care (#1301) is
 // the pawn's MedicalCareCategory, any of the five tiers, on a living
 // colonist, slave, prisoner, guest or tame animal of the colony that has
 // medical care settings.
@@ -363,6 +366,14 @@ message AreaIntent { optional AreaOperation operation = 1; optional string key =
 // already gone applies again. Evidence is the PolicyPruneEffect.
 enum PolicyDatabase { POLICY_DATABASE_UNSPECIFIED = 0; POLICY_DATABASE_OUTFIT = 1; POLICY_DATABASE_DRUG = 2; POLICY_DATABASE_FOOD = 3; POLICY_DATABASE_READING = 4; POLICY_DATABASE_ALLOWED_AREA = 5; }
 message PolicyPruneIntent { optional PolicyDatabase database = 1; repeated string delete_ids = 2; }
+// Write one reading policy's contents (#1306): the ReadingPolicy labelled
+// name (made when missing) allows exactly allowed_defs, book ThingDefs
+// (CompProperties_Book), and every book effect. Empty allowed_defs allows
+// no book. Native refuses a name several policies carry. A policy that
+// already matches applies again. PawnSettingsIntent.reading_policy assigns
+// it. Evidence is a SettingsEffect on the policy's load id with the
+// READING_POLICY field.
+message ReadingPolicyIntent { optional string name = 1; repeated string allowed_defs = 2; }
 // Set the game's home-area auto-expand (Find.PlaySettings.autoHomeArea, a
 // save-level setting; #1322). Evidence is a SettingsEffect with the
 // AUTO_HOME_AREA field: APPLIED when it changed, UNCHANGED when it already

@@ -22,8 +22,9 @@ namespace HomeBridge.BridgeTools
     // pawn holds. medicine_carry (#1307) is the Medicine inventory-stock
     // count (ResolveCarry). medical_care (#1301) is playerSettings.medCare,
     // any of the five tiers, on a living pawn of the colony or hosted by it
-    // (colonist, slave, prisoner, guest, tame animal). The other arms are
-    // refused until their epic issues land.
+    // (colonist, slave, prisoner, guest, tame animal). reading_policy
+    // (#1306) assigns the one ReadingPolicy carrying that label to a spawned
+    // pawn of the colony with a reading tracker.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -67,8 +68,10 @@ namespace HomeBridge.BridgeTools
             }
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
                 return ResolveCarry(intent, context, out pawn, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ReadingPolicy)
+                return ResolveReading(intent, context, out pawn, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only the hostility_response, self_tend, nickname, medicine_carry and medical_care settings are supported.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
             {
                 if (NativeEnums.Hostility(intent.HostilityResponse) is not HostilityResponseMode parsed)
@@ -103,6 +106,8 @@ namespace HomeBridge.BridgeTools
             }
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicineCarry)
                 return ApplyCarry(intent, context);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ReadingPolicy)
+                return ApplyReading(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -160,6 +165,38 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // reading_policy (#1306): the one ReadingPolicy labelled with the
+        // intent's name, on a spawned pawn of the colony that reads.
+        private static Common.Failure? ResolveReading(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ReadingPolicy? policy)
+        {
+            pawn = null; policy = null;
+            var name = intent.ReadingPolicy;
+            if (!ProtoBoundary.IsIdentifier(name))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Reading policy names the policy label.");
+            var matches = Current.Game.readingPolicyDatabase.AllReadingPolicies.Where(p => p.label == name).ToList();
+            if (matches.Count != 1)
+                return ProtoBoundary.Fail(matches.Count == 0 ? Common.FailureCode.NotFound : Common.FailureCode.InvalidRequest, "Exactly one reading policy must carry this label.");
+            policy = matches[0];
+            var id = intent.PawnId;
+            var player = Faction.OfPlayerSilentFail;
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == id);
+            return pawn == null || pawn.Dead || pawn.reading == null || player == null || pawn.Faction != player && pawn.HostFaction != player
+                ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living pawn of the colony with a reading policy is not spawned on this map.") : null;
+        }
+
+        private static Receipts.EffectEvidence ApplyReading(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveReading(intent, context, out var pawn, out var policy);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            var unchanged = pawn!.reading.CurrentPolicy == policy;
+            pawn.reading.CurrentPolicy = policy;
+            if (pawn.reading.CurrentPolicy != policy) throw new InvalidOperationException("Native reading policy requires readback.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.ReadingPolicy,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 

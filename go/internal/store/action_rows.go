@@ -169,6 +169,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'policy_prune',?,?)", a.ID(), plan, ordinal, string(prune.Database()), data)
+	} else if reading, ok := a.ReadingPolicy(); ok {
+		data, _ := json.Marshal(reading.Definitions())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,zone_payload) VALUES(?,?,?,'reading_policy',?,?)", a.ID(), plan, ordinal, reading.Name(), data)
 	} else if surgery, ok := a.Surgery(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,x,stuff,target) VALUES(?,?,?,'surgery',?,?,?,?,NULLIF(?,''))", a.ID(), plan, ordinal, string(surgery.Pawn()), surgery.Recipe(), surgery.Part(), strconv.FormatBool(surgery.AcknowledgeViolation()), string(surgery.Surgeon()))
 	} else if refuel, ok := a.AutoRefuel(); ok {
@@ -357,6 +360,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewPolicyPruneAction(id, prune)
+		return a, ordinal, err
+	}
+	if kind == "reading_policy" && def.Valid && !target.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+		var defs []string
+		if json.Unmarshal(zone, &defs) != nil {
+			return domain.Action{}, 0, errors.New("invalid reading policy payload")
+		}
+		reading, err := domain.NewReadingPolicy(def.String, defs)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewReadingPolicyAction(id, reading)
 		return a, ordinal, err
 	}
 	if kind == "area" && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
@@ -1100,7 +1115,8 @@ func legacyZoneFilter(payload zonePayload) (domain.StockpileFilter, error) {
 
 // pawnSettingDefinition is a pawn_settings row's definition column: the
 // hostility mode, "self_tend:<bool>" (#1305), "nickname:<name>" (#1310) or a
-// MedicalCareCategory name (#1301); the names never overlap.
+// MedicalCareCategory name (#1301) or "reading_policy:<name>" (#1306); the
+// names never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
@@ -1113,6 +1129,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	}
 	if s.Kind() == domain.SettingMedicalCare {
 		return string(s.MedicalCare())
+	}
+	if name, ok := s.ReadingPolicy(); ok {
+		return "reading_policy:" + name
 	}
 	return string(s.Hostility())
 }
@@ -1131,6 +1150,9 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 	}
 	if leave, ok := strings.CutPrefix(def, "nickname:"); ok {
 		return domain.NewNicknameSetting(pawn, leave)
+	}
+	if name, ok := strings.CutPrefix(def, "reading_policy:"); ok {
+		return domain.NewReadingPolicySetting(pawn, name)
 	}
 	if care := domain.MedicalCare(def); care.Valid() {
 		return domain.NewMedicalCareSetting(pawn, care)

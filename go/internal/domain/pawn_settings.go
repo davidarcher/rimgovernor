@@ -8,8 +8,8 @@ import (
 // PawnSettingsAction sets one per-pawn Assign-tab setting on one colony pawn
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
 // per intent: hostility response (#1299), self-tend (#1305), nickname
-// (#1310), medicine carry (#1307) and the medical care cap (#1301); reading
-// policy lands with its epic issue. Native treats a setting that
+// (#1310), medicine carry (#1307), the medical care cap (#1301) and the
+// reading policy (#1306). Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -40,6 +40,9 @@ const (
 	SettingNickname SettingKind = "nickname"
 	// SettingMedicalCare caps the medicine a doctor may use (#1301).
 	SettingMedicalCare SettingKind = "medical_care"
+	// SettingReadingPolicy assigns the reading policy labelled with the
+	// pawn's short name (#1306).
+	SettingReadingPolicy SettingKind = "reading_policy"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -92,7 +95,19 @@ type PawnSettings struct {
 	carry     int
 	leaveName string
 	care      MedicalCare
+	reading   string
 }
+
+// NewReadingPolicySetting assigns the reading policy labelled name (#1306).
+func NewReadingPolicySetting(pawn PawnID, name string) (PawnSettings, error) {
+	if !validID(string(pawn)) || !validID(name) || len(name) > 80 {
+		return PawnSettings{}, errors.New("a reading policy setting requires a pawn and a policy name")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingReadingPolicy, reading: name}, nil
+}
+
+// ReadingPolicy is the policy label, and whether this is the reading arm.
+func (s PawnSettings) ReadingPolicy() (string, bool) { return s.reading, s.kind == SettingReadingPolicy }
 
 // NewMedicineCarrySetting is the pawn's Medicine inventory-stock count
 // (#1307), 0 to MaxMedicineCarry.
@@ -159,6 +174,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewNicknameSetting(s.pawn, s.leaveName)
 	case SettingMedicalCare:
 		return NewMedicalCareSetting(s.pawn, s.care)
+	case SettingReadingPolicy:
+		return NewReadingPolicySetting(s.pawn, s.reading)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

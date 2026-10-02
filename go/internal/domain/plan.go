@@ -128,6 +128,7 @@ type Action struct {
 	pawnSettings        PawnSettings
 	policyPrune         PolicyPrune
 	removeRoof          RemoveRoof
+	readingPolicy       ReadingPolicy
 	autoHomeArea        bool
 	zoneDelete          ZoneDelete
 	zoneCellEdit        ZoneCellEdit
@@ -266,6 +267,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRemoveRoofAction(a.id, a.removeRoof)
 		case PolicyPruneAction:
 			canonical, err = NewPolicyPruneAction(a.id, a.policyPrune)
+		case ReadingPolicyAction:
+			canonical, err = NewReadingPolicyAction(a.id, a.readingPolicy)
 		case SurgeryAction:
 			canonical, err = NewSurgeryAction(a.id, a.surgery)
 		case PawnSettingsAction:

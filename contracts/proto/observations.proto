@@ -1300,14 +1300,22 @@ message ColonyFactsSnapshot {
 // One policy database row: Policy.GetUniqueLoadID(), label, the player
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
 // transporter) whose current policy it is, and whether it is the
-// database default (index 0).
-message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; }
+// database default (index 0). allowed_defs is a reading policy's allowed
+// book ThingDefs (#1306); empty for the other databases.
+message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5; }
+// A book ThingDef and what reading it does (#1306), from its
+// CompProperties_Book outcome doers: skill experience (textbook), research
+// (schematic), Anomaly research or a mental break (tome), otherwise a
+// novel.
+enum BookKind { BOOK_KIND_UNSPECIFIED = 0; BOOK_KIND_TEXTBOOK = 1; BOOK_KIND_NOVEL = 2; BOOK_KIND_SCHEMATIC = 3; BOOK_KIND_TOME = 4; }
+message BookDefinition { optional string def_name = 1; optional BookKind kind = 2; }
 // Area_Allowed on the colony map: Area.GetUniqueLoadID(), label and the
 // pawns restricted to it there.
 message AllowedAreaEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; }
 message PolicyFacts {
   repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
   repeated AllowedAreaEntry allowed_areas = 5;
+  repeated BookDefinition books = 6;
 }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.

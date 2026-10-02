@@ -45,6 +45,12 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("unknown medical care %q", v.MedicalCare())
 		}
 		intent.Setting = &o.PawnSettingsIntent_MedicalCare{MedicalCare: care}
+	case domain.SettingReadingPolicy:
+		name, _ := v.ReadingPolicy()
+		if _, err := domain.NewReadingPolicySetting(v.Pawn(), name); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_ReadingPolicy{ReadingPolicy: name}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

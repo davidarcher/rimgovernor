@@ -52,7 +52,31 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry})
+	readingValue, err := domain.NewReadingPolicySetting("Human7", "Bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reading, err := domain.NewPawnSettingsAction("reading", readingValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents, err := domain.NewReadingPolicy("Bob", []string{"Novel", "Book_Schematic"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	write, err := domain.NewReadingPolicyAction("reading-write", contents)
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, err := domain.NewReadingPolicy("Tim", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	none, err := domain.NewReadingPolicyAction("reading-none", empty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +90,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 5 {
+	if len(got) != 8 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
@@ -83,5 +107,14 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	}
 	if v, ok := got[3].PawnSettings(); !ok || v != care {
 		t.Fatal(v, care)
+	}
+	if v, ok := got[5].ReadingPolicy(); !ok || v != contents {
+		t.Fatal(v, contents)
+	}
+	if v, ok := got[6].ReadingPolicy(); !ok || v != empty {
+		t.Fatal(v, empty)
+	}
+	if v, ok := got[7].PawnSettings(); !ok || v != readingValue {
+		t.Fatal(v, readingValue)
 	}
 }

@@ -42,6 +42,10 @@ namespace HomeBridge.BridgeTools
                 Add(facts.Drug, game.drugPolicyDatabase.AllPolicies, pawns, p => p.drugs?.CurrentPolicy);
                 Add(facts.Food, game.foodRestrictionDatabase.AllFoodRestrictions, pawns, p => p.foodRestriction?.CurrentFoodPolicy);
                 Add(facts.Reading, game.readingPolicyDatabase.AllReadingPolicies, pawns, p => p.reading?.CurrentPolicy);
+                for (var i = 0; i < facts.Reading.Count; i++)
+                    facts.Reading[i].AllowedDefs.Add(NativeReadingPolicy.Allowed(game.readingPolicyDatabase.AllReadingPolicies[i]).Select(d => Id(d)));
+                foreach (var book in NativeReadingPolicy.Books())
+                    facts.Books.Add(new Obs.BookDefinition { DefName = Id(book.defName), Kind = NativeReadingPolicy.Kind(book) });
                 foreach (var area in map.areaManager.AllAreas.OfType<Area_Allowed>()) {
                     var row = new Obs.AllowedAreaEntry { Id = Id(area.GetUniqueLoadID()), Label = Text(area.Label ?? "") };
                     row.PawnIds.Add(pawns.Where(p => p.MapHeld == map && p.playerSettings?.AreaRestrictionInPawnCurrentMap == area)

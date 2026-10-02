@@ -81,6 +81,28 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, pawn = pawn.GetUniqueLoadID() };
             }, cancellationToken);
         }
+        [Tool("test/reader_and_child", Description = "UNSAFE FOR MODEL EXECUTION. Keep two paused disposable colonists: a researcher (manual priorities, Research 1) and a child aged eight (#1306).")]
+        public async Task<object> ReaderAndChild(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var research = DefDatabase<WorkTypeDef>.GetNamed("Research");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.workSettings != null && p.reading != null)
+                    .OrderBy(p => p.thingIDNumber).ToList();
+                var researcher = pawns.First(p => !p.WorkTypeIsDisabled(research));
+                var child = pawns.First(p => p != researcher);
+                foreach (var other in map.mapPawns.FreeColonistsSpawned.Where(p => p != researcher && p != child).ToList())
+                    other.Destroy(DestroyMode.Vanish);
+                researcher.workSettings.EnableAndInitialize();
+                researcher.workSettings.SetPriority(research, 1);
+                child.ageTracker.AgeBiologicalTicks = 8L * GenDate.TicksPerYear;
+                if (child.ageTracker.AgeBiologicalYearsFloat >= 13f)
+                    throw new InvalidOperationException("The child is not a child.");
+                return new { success = true, researcher = researcher.GetUniqueLoadID(), child = child.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/duplicate_nickname", Description = "UNSAFE FOR MODEL EXECUTION. Give the newest of two paused disposable colonists the oldest one's nickname (#1310).")]
         public async Task<object> DuplicateNickname(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
