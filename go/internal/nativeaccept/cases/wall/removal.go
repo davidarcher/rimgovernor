@@ -465,12 +465,14 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	}
 	cleanupTarget, _ := na.AsMap(cleanupRow["target"])
 	replacement, _ := na.AsMap(cleanupRow["replacement"])
-	replacementBuilding, _ := na.AsMap(replacement["building"])
 	firstBackup := na.AsString(cleanupTarget["id"])
-	if !contains(backups, firstBackup) || na.AsString(replacementBuilding["id"]) != permanent[0] || len(na.AsSlice(cleanupRow["completedBackups"])) != 3 {
+	if !contains(backups, firstBackup) || na.AsString(replacement["id"]) != permanent[0] || len(na.AsSlice(cleanupRow["completedBackups"])) != 3 {
 		return fmt.Errorf("cleanup-census: expected a backup target and the permanent replacement, got %#v", cleanupRow)
 	}
-	backupPosition, _ := na.AsMap(cleanupTarget["position"])
+	backupPosition, err := wallPosition(ctx, h, scope, firstBackup)
+	if err != nil {
+		return err
+	}
 	backupCell := map[string]any{"x": int(na.AsNumber(backupPosition["x"])), "z": int(na.AsNumber(backupPosition["z"]))}
 	if _, err := execute("apply-cleanup", "wall-cleanup", firstBackup, backupCell); err != nil {
 		return err
