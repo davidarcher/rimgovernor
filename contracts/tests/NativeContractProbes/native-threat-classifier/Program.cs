@@ -74,9 +74,9 @@ internal static class NativeThreatClassifierProbe
 
         Check(Ids(t.Pawns) == "raider,wolf,hostileDowned,ourHunter,wildOnDeer,wildOnCorpse,wildNoPrey,neutralDowned,downedPredator,edgePredator", "rows in scan order: " + Ids(t.Pawns));
         var raider = Row(t, "raider");
-        Check(raider.FactionHostile && raider.FactionId == "Faction_9" && raider.NearestColonistDistance == 40 && !raider.HasMentalState && !raider.HasPassive, "faction hostile facts");
+        Check(raider.FactionHostile && raider.Faction?.Id == "Faction_9" && raider.NearestColonistDistance == 40 && !raider.HasMentalState && !raider.HasPassive, "faction hostile facts");
         var wolf = Row(t, "wolf");
-        Check(wolf.MentalState == "ManhunterPermanent" && wolf.Predator && !wolf.FactionHostile && !wolf.HasFactionId && wolf.NearestColonistDistance == 100, "manhunter facts");
+        Check(wolf.MentalState == "ManhunterPermanent" && wolf.Predator && !wolf.FactionHostile && wolf.Faction == null && wolf.NearestColonistDistance == 100, "manhunter facts");
         var hd = Row(t, "hostileDowned");
         Check(hd.FactionHostile && hd.Downed && hd.Predator && hd.PredatorHunt && hd.Prey == null && !hd.HasPreyIsOurs, "every fact rides together");
         var ourHunter = Row(t, "ourHunter");
