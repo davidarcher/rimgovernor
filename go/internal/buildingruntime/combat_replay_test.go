@@ -376,14 +376,12 @@ func TestCombatReplayLabOpen(t *testing.T) {
 // lab-choke (#854, #890): two longsword blockers and a reserve at the gap
 // of a walled room, two riflemen behind, six club raiders, served with
 // the fixture's defense layout. The hold forms at once with its blocker
-// and reserve duties, later stops send orders (fire mode, a retreat on a
-// serious injury), and the raid_phase re-formation with raiders in melee
-// at the choke keeps the hold (#905).
+// and reserve duties, later stops send orders (fire mode), and the
+// raid_phase re-formation with raiders in melee at the choke keeps the hold (#905). A serious
+// injury retreating is staged in policy (TestDecideCombatSwapsHurtBlocker),
+// not asserted here: a recording holds one only by luck (#1196).
 func TestCombatReplayLabChoke(t *testing.T) {
 	t.Parallel()
-	retreat := func(s combatReplayStop) bool {
-		return slices.ContainsFunc(s.Orders, func(o policy.CombatOrder) bool { return o.Reason == policy.ReasonRetreat })
-	}
 	checkCombat(t, "testdata/combat/lab-choke.json.gz",
 		formsTactic(firstStop, policy.TacticHold),
 		formsTactic(func(s combatReplayStop) bool { return s.Stop.Kind == policy.StopRaidPhase }, policy.TacticHold),
@@ -424,7 +422,6 @@ func TestCombatReplayLabChoke(t *testing.T) {
 			return nil
 		}},
 		combatAssertion{name: "a stop sends orders", at: withOrders, check: func(combatReplayStop) error { return nil }},
-		combatAssertion{name: "a serious injury retreats", at: retreat, check: func(combatReplayStop) error { return nil }},
 	)
 }
 

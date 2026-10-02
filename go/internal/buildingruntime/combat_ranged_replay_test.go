@@ -50,6 +50,9 @@ func noColonistInLine(s combatReplayStop, orders []policy.CombatOrder) error {
 // line, four rifle raiders 25 cells north, served with the fixture's
 // layout (recorded on 71e1045c1). The hold forms at once on the layout's
 // firing cells, the game's cover scores ranking them; the raiders flee.
+// A serious injury retreating is staged in policy
+// (TestDecideCombatPullsBackHurtDefender), not asserted here: a recording
+// holds one only by luck (#1196).
 func TestCombatReplayLabRanged(t *testing.T) {
 	t.Parallel()
 	stops := checkCombat(t, "testdata/combat/lab-ranged.json.gz",
@@ -60,12 +63,6 @@ func TestCombatReplayLabRanged(t *testing.T) {
 		noAimInterrupt(),
 		combatAssertion{name: "no attack through a colonist", check: func(s combatReplayStop) error {
 			return noColonistInLine(s, s.Orders)
-		}},
-		combatAssertion{name: "a serious injury retreats", at: withOrders, check: func(s combatReplayStop) error {
-			if !slices.ContainsFunc(s.Orders, func(o policy.CombatOrder) bool { return o.Reason == policy.ReasonRetreat }) {
-				return fmt.Errorf("orders %+v", s.Orders)
-			}
-			return nil
 		}},
 	)
 	first := stops[0]
