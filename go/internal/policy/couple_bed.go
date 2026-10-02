@@ -159,6 +159,22 @@ func BedSpot(room TidyRoom, def Resource) (domain.Cell, domain.Rotation, bool) {
 	return bedSpot(room, def)
 }
 
+// CoupleBedRooms is TidyFurnitureRooms for the couple bed lever. Packing
+// the couple's beds leaves their room bedless, and native then reads it as
+// RoomRoleNone, which has no interior template; such an empty room is read
+// as a bedroom so the install step still finds it by its packed cell.
+func CoupleBedRooms(rooms RoomObservation, census CurrentConstruction, cells []SiteCell) []TidyRoom {
+	read := rooms
+	read.Rooms = make([]Room, len(rooms.Rooms))
+	for i, room := range rooms.Rooms {
+		if role, known := room.Role.Value(); known && role == RoomRoleNone && len(room.Beds) == 0 {
+			room.Role = domain.Known(RoomRoleBedroom)
+		}
+		read.Rooms[i] = room
+	}
+	return TidyFurnitureRooms(read, census, cells)
+}
+
 func cellInRect(r Rectangle, c domain.Cell) bool {
 	return c.X >= r.X && c.Z >= r.Z && c.X < r.X+r.Width && c.Z < r.Z+r.Height
 }

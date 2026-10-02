@@ -82,3 +82,25 @@ func TestCoupleBedIgnoresSinglesAndOthersBeds(t *testing.T) {
 		t.Fatalf("pack = %+v %v", s, ok)
 	}
 }
+
+// Packing the couple's beds empties their room, which native then reads as
+// RoomRoleNone; the install step still finds it from the packed cell
+// (#1557: the couple stayed unhoused and the DoubleBed was never placed).
+func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
+	interior := Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
+	door := domain.Cell{X: 0, Z: -1}
+	rooms := RoomObservation{Rooms: []Room{{ID: "Room_1", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: rectCells(interior)}}}
+	census := CurrentConstruction{Colony: true}
+	cells := []SiteCell{{Cell: door, Doorway: domain.Known(true)}}
+	if got := TidyFurnitureRooms(rooms, census, cells); len(got) != 0 {
+		t.Fatalf("tidy rooms %+v: a roleless room has no template", got)
+	}
+	person := func(id, partner PawnID) SleepingPerson {
+		return SleepingPerson{ID: id, OwnedBed: domain.Known(""), Partners: []PawnID{partner}, BedSharingAllowed: domain.Known(true)}
+	}
+	obs := SleepingObservation{Colonists: 2, People: []SleepingPerson{person("a", "b"), person("b", "a")}}
+	install, ok := NextCoupleBed(obs, CoupleBedRooms(rooms, census, cells), []domain.Cell{{X: 1, Z: 1}}, true)
+	if !ok || install.Kind != CoupleInstall || install.Room != "Room_1" {
+		t.Fatalf("install = %+v %v", install, ok)
+	}
+}

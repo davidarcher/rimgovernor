@@ -92,7 +92,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 		return RoutineBuildingResult{}, false, err
 	}
 	buildable, _ := facts.DefinitionAvailable(policy.SleepingCoupleBedDefinition).Value()
-	step, due := policy.NextCoupleBed(obs, policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, buildable)
+	step, due := policy.NextCoupleBed(obs, policy.CoupleBedRooms(rooms, census, facts.Cells), packed, buildable)
 	if !due {
 		return RoutineBuildingResult{}, false, nil
 	}
