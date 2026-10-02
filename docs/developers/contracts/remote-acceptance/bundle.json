@@ -3,7 +3,7 @@
   "game": {
     "version": "fixture-only",
     "platform": "windows-x64",
-    "core_only": true
+    "core_only": false
   },
   "components": [
     {

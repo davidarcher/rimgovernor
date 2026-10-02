@@ -210,7 +210,7 @@ func readManifest(filename, expected string, published bool) (Manifest, error) {
 }
 
 func (m Manifest) Validate(published bool) error {
-	if m.SchemaVersion != 1 || m.Game.Version == "" || m.Game.Platform != "windows-x64" || !m.Game.CoreOnly {
+	if m.SchemaVersion != 1 || m.Game.Version == "" || m.Game.Platform != "windows-x64" {
 		return fmt.Errorf("bundle requires schema 1, exact game version and Core-only windows-x64")
 	}
 	if !repositoryPattern.MatchString(m.Origin.Repository) || m.Origin.ReleaseID <= 0 {

@@ -23,9 +23,10 @@ type PackOptions struct {
 	HarmonyMod                                   string
 }
 
-// CorePaths is the conservative inclusion list. No Core/Unity media is removed.
-// Expansions, user profiles, workshop trees and unrelated mods are excluded.
-var CorePaths = []string{"RimWorldWin64.exe", "UnityPlayer.dll", "UnityCrashHandler64.exe", "WinPixEventRuntime.dll", "Version.txt", "EULA.txt", "Licenses.txt", "Data/Core", "RimWorldWin64_Data", "MonoBleedingEdge"}
+// GamePaths is the conservative inclusion list. No Core/Unity media is removed.
+// Every official expansion ships: the baseline save records them all (#1260).
+// User profiles, workshop trees and unrelated mods are excluded.
+var GamePaths = []string{"RimWorldWin64.exe", "UnityPlayer.dll", "UnityCrashHandler64.exe", "WinPixEventRuntime.dll", "Version.txt", "EULA.txt", "Licenses.txt", "Data/Core", "Data/Royalty", "Data/Ideology", "Data/Biotech", "Data/Anomaly", "Data/Odyssey", "RimWorldWin64_Data", "MonoBleedingEdge"}
 
 type Starts struct {
 	SchemaVersion      int    `json:"schema_version"`
@@ -38,7 +39,7 @@ type Starts struct {
 }
 
 func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
-	m := Manifest{SchemaVersion: 1, Game: Game{o.GameVersion, "windows-x64", true}, Origin: o.Origin, Encryption: Encryption{"age-v1", o.KeyID}, Inventory: Reference{Path: "inventory.json"}}
+	m := Manifest{SchemaVersion: 1, Game: Game{o.GameVersion, "windows-x64", false}, Origin: o.Origin, Encryption: Encryption{"age-v1", o.KeyID}, Inventory: Reference{Path: "inventory.json"}}
 	if o.Recipient == "" || o.KeyID == "" || o.GameVersion == "" || o.HarmonyVersion == "" || o.BridgeVersion == "" {
 		return m, fmt.Errorf("recipient, key ID and exact dependency versions are required")
 	}
@@ -53,7 +54,7 @@ func Pack(ctx context.Context, o PackOptions) (Manifest, error) {
 		return m, err
 	}
 	defer os.RemoveAll(tree)
-	for _, p := range CorePaths {
+	for _, p := range GamePaths {
 		src := filepath.Join(o.GameDir, filepath.FromSlash(p))
 		if _, err := os.Stat(src); os.IsNotExist(err) && (p == "UnityCrashHandler64.exe" || p == "WinPixEventRuntime.dll") {
 			continue

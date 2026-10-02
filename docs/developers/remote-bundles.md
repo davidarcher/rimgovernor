@@ -31,13 +31,13 @@ go run ./cmd/remotebundle pack -repo C:\rg\src `
   -7z C:\tools\7zr.exe -age C:\tools\age.exe -out C:\rg\bundle
 ```
 
-The destination must be new. `CorePaths` in `internal/remotebundle/pack.go` is
-the game inclusion list: executable, Unity/Mono runtime, Core data, version and
+The destination must be new. `GamePaths` in `internal/remotebundle/pack.go` is
+the game inclusion list: executable, Unity/Mono runtime, Core and every official
+expansion's data (the baseline save records all six, #1260), version and
 license notices. All Core/Unity media is retained; the media removal allowlist
 is empty. Rendered cases therefore retain their textures/shaders but still need
 a suitable display/graphics environment; headless extraction does not prove
-rendered-case support. Expansions, other mods, profiles and player saves are not
-selected. Harmony and the bridge runtime/SDK are separate inventoried
+rendered-case support. Other mods, profiles and player saves are not selected. Harmony and the bridge runtime/SDK are separate inventoried
 components. Source junctions are materialized into regular files. Packaging
 never writes to the source install or copies branch-built RimGovernor binaries.
 
@@ -85,7 +85,8 @@ It contains schema version 1, exact `game_version`, `native_source_sha256`,
 `{path, bytes, sha256}`. The dependency digest hashes sorted inventory lines
 `path\tbytes\tsha256\n` for all non-start components. The native digest is the
 existing native source-tree hash. Only named `RimGovernor-debug-*.rws` files are
-copied; their hashes and Core-only mod metadata must validate. Unrelated files
+copied; their hashes and mod metadata (Core, official expansions and the
+RimGovernor stack only) must validate. Unrelated files
 in the input directory are never copied.
 
 Packaging rejects incompatible supplied starts. Bootstrap verifies the bundled

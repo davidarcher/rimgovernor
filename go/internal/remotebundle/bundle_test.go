@@ -244,8 +244,12 @@ func TestGeneratedStartCompatibilityAndStaging(t *testing.T) {
 		t.Fatal("unrelated save accepted")
 	}
 	os.WriteFile(filepath.Join(starts, name), []byte(`<savegame><meta><modIds><li>ludeon.rimworld</li><li>ludeon.rimworld.royalty</li></modIds></meta></savegame>`), 0600)
+	if err := coreSave(filepath.Join(starts, name)); err != nil {
+		t.Fatalf("DLC save refused: %v", err)
+	}
+	os.WriteFile(filepath.Join(starts, name), []byte(`<savegame><meta><modIds><li>ludeon.rimworld</li><li>someone.othermod</li></modIds></meta></savegame>`), 0600)
 	if coreSave(filepath.Join(starts, name)) == nil {
-		t.Fatal("DLC save accepted")
+		t.Fatal("unrelated mod accepted")
 	}
 }
 

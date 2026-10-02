@@ -68,7 +68,8 @@ func coreSave(filename string) error {
 			switch id {
 			case "ludeon.rimworld":
 				core = true
-			case "brrainz.harmony", "brrainz.rimbridgeserver", "davidarcher.rimgovernor.native":
+			case "ludeon.rimworld.royalty", "ludeon.rimworld.ideology", "ludeon.rimworld.biotech", "ludeon.rimworld.anomaly", "ludeon.rimworld.odyssey",
+				"brrainz.harmony", "brrainz.rimbridgeserver", "davidarcher.rimgovernor.native":
 			default:
 				return fmt.Errorf("cached start %s has unsupported mod %s", filepath.Base(filename), id)
 			}
