@@ -100,7 +100,8 @@ func addictionFades(catalog *DefinitionCatalog, chemical string) (bool, error) {
 
 // immunityOf is what a drug does against disease: the hediffs its
 // ingestion gives that make the taker immune (HediffStage.makeImmuneTo) and
-// the days the hediff lasts (its disappearance time); nil for a drug that
+// the days the hediff lasts (its disappearance time, or the given severity
+// over its per-day decay); nil for a drug that
 // makes none immune.
 func immunityOf(catalog *DefinitionCatalog, name string, def *d.ThingDef) (*policy.Prevention, error) {
 	var diseases []string
@@ -121,9 +122,21 @@ func immunityOf(catalog *DefinitionCatalog, name string, def *d.ThingDef) (*poli
 		if len(immune) == 0 {
 			continue
 		}
+		severity := give.GetSeverity()
+		if severity <= 0 {
+			severity = hediff.GetInitialSeverity()
+		}
+		if most := hediff.GetMaxSeverity(); most > 0 && severity > most {
+			severity = most
+		}
+		ticks = 0
 		for _, comp := range hediff.GetComps() {
 			if gone := comp.GetValue().GetHediffCompProperties_Disappears(); gone != nil {
 				ticks = gone.GetDisappearsAfterTicks().GetMin()
+			}
+			// Penoxycyline wears off by severity decay, not a disappear comp.
+			if perDay := comp.GetValue().GetHediffCompProperties_SeverityPerDay(); perDay != nil && perDay.GetSeverityPerDay() < 0 && severity > 0 {
+				ticks = int32(float64(severity) / -float64(perDay.GetSeverityPerDay()) * float64(domain.TicksPerDay))
 			}
 		}
 		if ticks <= 0 {

@@ -25,7 +25,7 @@ func itemTestCatalog() *o.DefinitionCatalog {
 		drugRow("Yayo", "Psychite", d.DrugCategory_DRUG_CATEGORY_HARD, 40, true),
 		drugRow("PsychiteTea", "Psychite", d.DrugCategory_DRUG_CATEGORY_SOCIAL, 30, false),
 		drugRow("Luciferium", "Luciferium", d.DrugCategory_DRUG_CATEGORY_HARD, 60, false),
-		{DefName: "Penoxycyline", Comps: comps(&d.CompProperties_Drug{}), Ingestible: &d.IngestibleProperties{OutcomeDoers: []*d.Opt_IngestionOutcomeDoerAny{{Value: &d.IngestionOutcomeDoerAny{Value: &d.IngestionOutcomeDoerAny_IngestionOutcomeDoer_GiveHediff{IngestionOutcomeDoer_GiveHediff: &d.IngestionOutcomeDoer_GiveHediff{HediffDef: "PenoxycylineHigh"}}}}}}},
+		{DefName: "Penoxycyline", Comps: comps(&d.CompProperties_Drug{}), Ingestible: &d.IngestibleProperties{OutcomeDoers: []*d.Opt_IngestionOutcomeDoerAny{{Value: &d.IngestionOutcomeDoerAny{Value: &d.IngestionOutcomeDoerAny_IngestionOutcomeDoer_GiveHediff{IngestionOutcomeDoer_GiveHediff: &d.IngestionOutcomeDoer_GiveHediff{HediffDef: "PenoxycylineHigh", Severity: 1}}}}}}},
 	}
 	v.Defs = &d.DefSets{
 		StatDefs: v.Defs.GetStatDefs(),
@@ -40,7 +40,7 @@ func itemTestCatalog() *o.DefinitionCatalog {
 			{DefName: "AlcoholAddiction", Comps: fadingComp(-0.01)}, {DefName: "GoJuiceAddiction", Comps: fadingComp(-0.02)},
 			{DefName: "PsychiteAddiction", Comps: fadingComp(-0.01)}, {DefName: "LuciferiumAddiction"},
 			{DefName: "PenoxycylineHigh", Stages: []*d.Opt_HediffStage{{Value: &d.HediffStage{MakeImmuneTo: []string{"Plague", "Malaria"}}}},
-				Comps: []*d.Opt_HediffCompPropertiesAny{{Value: &d.HediffCompPropertiesAny{Value: &d.HediffCompPropertiesAny_HediffCompProperties_Disappears{HediffCompProperties_Disappears: &d.HediffCompProperties_Disappears{DisappearsAfterTicks: &d.IntRange{Min: 300000, Max: 300000}}}}}}},
+				Comps: fadingComp(-0.25)},
 		},
 	}
 	v.StatValues = &o.DefStatTable{
@@ -97,7 +97,7 @@ func TestDefinitionCatalogDrugFacts(t *testing.T) {
 	if !items.Chemicals["Alcohol"].Weanable || items.Chemicals["Luciferium"].Weanable {
 		t.Fatalf("addictions that fade: %+v", items.Chemicals)
 	}
-	if p := items.Prevention; p == nil || p.Drug != "Penoxycyline" || p.Days != 5 || !slices.Equal(p.Diseases, []string{"Malaria", "Plague"}) {
+	if p := items.Prevention; p == nil || p.Drug != "Penoxycyline" || p.Days != 4 || !slices.Equal(p.Diseases, []string{"Malaria", "Plague"}) {
 		t.Fatalf("prevention %+v", p)
 	}
 	if items.Currency != "Silver" {
