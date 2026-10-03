@@ -9,13 +9,8 @@ namespace HomeBridge.BridgeTools {
   // Butchering a corpse for its flesh: the recipe the game gives the
   // butcher-animals worker counter (the one that counts the butchered pawn).
   internal static bool ButcherFlesh(RecipeDef? recipe)=>recipe?.WorkerCounter is RecipeWorkerCounter_ButcherAnimals;
-  // Destroying corpses: a recipe that consumes corpses and yields nothing,
-  // special products included, and is neither mech resurrection nor a
-  // gestation recipe.
-  internal static bool Cremation(RecipeDef? recipe)=>recipe!=null
-   &&recipe.products.Count==0&&recipe.specialProducts==null&&!recipe.mechResurrection&&recipe.gestationCycles==0
-   &&recipe.ingredients.Any(i=>i.filter.AllowedThingDefs.Any(d=>d.IsCorpse));
-  internal static bool Corpse(RecipeDef? recipe)=>ButcherFlesh(recipe)||Cremation(recipe);
+  // The recipes a corpse bill filter applies to: butchering flesh.
+  internal static bool Corpse(RecipeDef? recipe)=>ButcherFlesh(recipe);
   // The same roles for the recipe a wire command names; an unknown recipe has none.
   internal static RecipeDef? Named(string name)=>DefDatabase<RecipeDef>.GetNamedSilentFail(name);
   // The prepared survival meal and the brewing wort the game names by constant.

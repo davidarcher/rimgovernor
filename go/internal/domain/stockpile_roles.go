@@ -114,9 +114,8 @@ func WornDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons")}, nil))
 }
 
-// RottenDumpFilter takes rotten food and rotten non-human corpses only. It
-// is the crematorium's feed (#1812): the planner sites it beside the
-// crematorium, whose bill cremates rotting and desiccated animal corpses.
+// RottenDumpFilter takes rotten food and rotten non-human corpses only. The
+// incinerator (#1814) takes the same things off it.
 func RottenDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing,
 		[]FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
@@ -124,22 +123,24 @@ func RottenDumpFilter() StockpileFilter {
 }
 
 // IncineratorFilter is what the incinerator burns (#1814): the rotten dump's
-// rotten food and animal corpses and the worn dump's apparel and weapons.
+// rotten food and animal corpses, the worn dump's apparel and weapons and
+// rotten stranger corpses (#1822); fresh ones wait for the butcher (#1811) and
+// colonists and slaves keep the tomb.
 // The worn half is bounded to items below the gear hit-point floor, because
 // the zone outranks the Low general store and an unbounded weapon or apparel
 // filter would haul serviceable gear in to burn.
 func IncineratorFilter() StockpileFilter {
 	f := mustFilter(NewStockpileFilter(BaseNothing,
-		[]FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
-		[]FilterSelector{SpecialFilter("AllowFresh")}))
+		[]FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("CorpsesHumanlike"), CategoryDef("Foods")},
+		[]FilterSelector{SpecialFilter("AllowFresh"), SpecialFilter("AllowCorpsesColonist"), SpecialFilter("AllowCorpsesSlave")}))
 	return mustFilter(f.WithHitPoints(0, GearHitPointFloor))
 }
 
 // CorpseDumpFilter takes humanlike corpses only, the ones with no better
-// home yet: strangers wait for the butcher or the crematorium and colonists
+// home yet: strangers wait for the butcher or the incinerator and colonists
 // for the tomb, so none lie in a room colonists sleep or eat in. Animal and
 // insect corpses are not here (#1812): fresh ones belong on the freezer
-// shelf, and a rotting one goes to the rotten dump, the crematorium's feed.
+// shelf, and a rotting one goes to the rotten dump.
 func CorpseDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil))
 }

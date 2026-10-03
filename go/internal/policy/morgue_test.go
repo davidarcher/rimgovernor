@@ -19,7 +19,7 @@ func TestMorgueShelledForAFreshStrangerOnlyWhileButcheryIsOpen(t *testing.T) {
 		t.Fatalf("fresh stranger: %+v %v", got, owed)
 	}
 	if _, owed := MorgueRoomOwed(plan, RoomObservation{Shapes: testShapes}, fresh, false); owed {
-		t.Fatal("butchery closed: the stranger is cremated, not kept")
+		t.Fatal("butchery closed: the stranger is burned, not kept")
 	}
 	rotten := []WasteItem{{ID: "Corpse_2", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger, RotStage: domain.RotRotting}}
 	colonist := []WasteItem{{ID: "Corpse_3", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist, RotStage: domain.RotFresh}}

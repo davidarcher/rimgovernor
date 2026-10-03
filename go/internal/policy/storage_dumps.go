@@ -19,28 +19,9 @@ type DumpStore struct {
 	Rooms []Room
 	// Anchor sites the dumps when no general store stands.
 	Anchor domain.Cell
-	// Anchors sites a dump role's patches nearest its own cell instead of the
-	// general store: the rotten dump, the crematorium's feed, sits beside the
-	// crematorium (#1812), and the incinerator's dump will beside its room.
-	Anchors map[string]domain.Cell
 	// Incinerator is the planned incinerator room once its walls and door
 	// stand (#1814); nil before.
 	Incinerator *LayoutRoom
-}
-
-// CrematoriumFeedAnchor is a built crematorium's first cell, the lowest ID
-// when several stand; false while none is built.
-func CrematoriumFeedAnchor(built []CurrentBuilding) (domain.Cell, bool) {
-	var best *CurrentBuilding
-	for i := range built {
-		if built[i].Building.Definition() == CrematoriumDefinition && len(built[i].Cells) > 0 && (best == nil || built[i].ID < best.ID) {
-			best = &built[i]
-		}
-	}
-	if best == nil {
-		return domain.Cell{}, false
-	}
-	return stockpileSorted(best.Cells)[0], true
 }
 
 // DumpNeeds counts the things waiting for each dump (#724): poor stored
@@ -82,13 +63,9 @@ func DumpNeeds(facts RoutineFacts) map[string]int {
 	return needs
 }
 
-// dumpAnchor is the cell a dump role's patches are sited nearest: its own
-// anchor when it has one, else the first general store cell, else the
-// colony anchor.
-func (r StorageRequest) dumpAnchor(role string) domain.Cell {
-	if at, near := r.Dumps.Anchors[role]; near {
-		return at
-	}
+// dumpAnchor is the cell the dump patches are sited nearest: the first general
+// store cell, else the colony anchor.
+func (r StorageRequest) dumpAnchor() domain.Cell {
 	var store []domain.Cell
 	for _, z := range r.Zones {
 		if z.Role == domain.GeneralRole {
@@ -135,7 +112,7 @@ func (r StorageRequest) dumpSites() []StockpileSite {
 		if d.Needs[spec.Role] <= 0 {
 			continue
 		}
-		at := r.dumpAnchor(spec.Role)
+		at := r.dumpAnchor()
 		site := StockpileSite{Role: spec.Role, Room: room, Filter: spec.Filter, Priority: spec.Priority, Keyed: true}
 		for _, p := range patchesNear(at) {
 			site.Candidates = append(site.Candidates, stockpileSorted(rectCells(p)))

@@ -53,19 +53,11 @@ namespace HomeBridge.BridgeTools {
    var stranger=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowCorpsesStranger");
    return stranger!=null&&bill.ingredientFilter.Allows(stranger)?Common.CorpseClass.Stranger:Common.CorpseClass.Colonist;
   }
-  // The minimum rot stage a corpse bill takes (#1810): Rotting when the
-  // AllowFresh special filter is cleared, else unspecified (any).
-  internal static Common.RotStage MinRotStage(Bill bill){
-   var fresh=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
-   return fresh!=null&&!bill.ingredientFilter.Allows(fresh)?Common.RotStage.Rotting:Common.RotStage.Unspecified;
-  }
   // The one corpse filter path: corpse defs by humanlike status within the
-  // recipe's own filters, then the CorpsesHumanlike special filters, then
-  // the minimum rot stage (a bill that excludes fresh corpses leaves them
-  // to the butcher).
-  private static void ConfigureCorpses(Bill_Production bill,RecipeDef recipe,Common.CorpseClass of,Common.RotStage minRot){
+  // recipe's own filters, then the CorpsesHumanlike special filters.
+  private static void ConfigureCorpses(Bill_Production bill,RecipeDef recipe,Common.CorpseClass of){
    var fresh=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
-   if(fresh!=null)bill.ingredientFilter.SetAllow(fresh,minRot!=Common.RotStage.Rotting);
+   if(fresh!=null)bill.ingredientFilter.SetAllow(fresh,true);
    bool human=of!=Common.CorpseClass.Animal;
    foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse))
     bill.ingredientFilter.SetAllow(def,HumanlikeCorpse(def)==human&&(recipe.fixedIngredientFilter==null||recipe.fixedIngredientFilter.Allows(def))&&recipe.ingredients.Any(i=>i.filter.Allows(def)));
@@ -87,7 +79,7 @@ namespace HomeBridge.BridgeTools {
    fresh.ingredientFilter.CopyAllowancesFrom(bill.recipe.defaultIngredientFilter ?? bill.recipe.fixedIngredientFilter);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
     var defaults=new Operations.BillSettings();
-    if(NativeRecipeRoles.Corpse(bill.recipe)){defaults.CorpseClass=CorpseClass(bill);defaults.MinRotStage=MinRotStage(bill);}
+    if(NativeRecipeRoles.Corpse(bill.recipe)){defaults.CorpseClass=CorpseClass(bill);}
     ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
     row.DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter);
     row.UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly;
@@ -125,7 +117,7 @@ namespace HomeBridge.BridgeTools {
       bill.ingredientFilter.SetDisallowAll();
       foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
      }
-     if(NativeRecipeRoles.Corpse(recipe))ConfigureCorpses(bill,recipe,s.CorpseClass,s.MinRotStage);
+     if(NativeRecipeRoles.Corpse(recipe))ConfigureCorpses(bill,recipe,s.CorpseClass);
      else{
       // Shared colonist cooking never creates human-meat meals. Dedicated
       // destination bills must supply their own explicit routing contract.
@@ -141,7 +133,7 @@ namespace HomeBridge.BridgeTools {
   // replanned intent finds standing.
   internal static bool Matching(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent)=>giver.BillStack.Bills.Any(b=>b!=except && Matches(b,intent));
   // A finished "do X times" bill is spent, not standing: the next batch is a new bill (#1195).
-  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && !BillCommon.IsFinished(b as Bill_Production) &&(!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass&&MinRotStage(b)==(intent.Settings.HasMinRotStage?intent.Settings.MinRotStage:Common.RotStage.Unspecified)) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
+  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent)=>b.recipe.defName==intent.RecipeDef && !BillCommon.IsFinished(b as Bill_Production) &&(!CorpseRecipe(intent.RecipeDef) || CorpseClass(b)==intent.Settings.CorpseClass) && (intent.Settings.Worker==null || b.PawnRestriction?.GetUniqueLoadID()==intent.Settings.Worker.EntityId);
   internal static bool Skilled(Pawn p,Thing bench,RecipeDef recipe,WorkTypeDef work)=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!bench.IsForbidden(p)&&p.Position.DistanceTo(bench.Position)<=40&&p.CanReach(bench,PathEndMode.InteractionCell,Danger.None)&&(recipe.skillRequirements==null||recipe.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel));
   // Each reason names the condition that failed: the production ladder's
   // bill rung reads only this message back (#155 M4 run 9 stalled on the

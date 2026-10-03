@@ -60,7 +60,6 @@ var templatePieces = []struct {
 	{SarcophagusDefinition, "", false},
 	{KitchenStoveDefinition, RoomRoleKitchen, true},
 	{workshopBenchDef, RoomRoleWorkshop, true},
-	{CrematoriumDefinition, "", true},
 	{ResearchBenchDefinition, RoomRoleLaboratory, true},
 }
 

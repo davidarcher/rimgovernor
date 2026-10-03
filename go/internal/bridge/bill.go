@@ -34,13 +34,10 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 	if bill.Corpses() != "" {
 		settings.CorpseClass = CorpseClass(bill.Corpses()).Enum()
 	}
-	if bill.MinRot() != "" {
-		settings.MinRotStage = RotStage(bill.MinRot()).Enum()
-	}
 	if bill.Worker() != "" {
 		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
 	}
-	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever || bill.Mode() == domain.CremateForever {
+	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_FOREVER.Enum()
 	} else if bill.Mode() == domain.GearBatch {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_COUNT.Enum()

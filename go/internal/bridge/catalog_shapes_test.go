@@ -19,7 +19,7 @@ func TestPieceShapesFamilyIsTheRoomRoleTheRowsGive(t *testing.T) {
 	for def, want := range map[string]policy.RoomRole{
 		"FueledStove": policy.RoomRoleKitchen, "TableStonecutter": policy.RoomRoleWorkshop, "SimpleResearchBench": policy.RoomRoleLaboratory,
 		"Bed": policy.RoomRoleBedroom, "RoyalBed": policy.RoomRoleBedroom, "HospitalBed": policy.RoomRoleHospital,
-		"TableButcher": "", "ElectricCrematorium": "", "Pot": "",
+		"TableButcher": "", "Pot": "",
 	} {
 		if got := shapes[def].Family; got != want {
 			t.Errorf("%s family %q, want %q", def, got, want)
@@ -50,7 +50,6 @@ func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
 		"no end table":     {without("EndTable"), "EndTable"},
 		"no stove":         {without("FueledStove"), "FueledStove"},
 		"stove not a role": {append(without("FueledStove"), FixtureDef{Name: "FueledStove", Width: 3, Height: 1, Bench: true}), "family"},
-		"bench no cell":    {append(without("ElectricCrematorium"), FixtureDef{Name: "ElectricCrematorium", Width: 3, Height: 2}), "interaction cell"},
 	} {
 		_, err := FixtureCatalog("load", test.defs...).PieceShapes()
 		if err == nil || !strings.Contains(err.Error(), test.want) {

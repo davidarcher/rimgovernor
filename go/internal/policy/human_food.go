@@ -123,18 +123,18 @@ func HumanButcherEligible(traits domain.Fact[[]PawnTrait], preceptAcceptable, ca
 type StrangerRoute string
 
 const (
-	StrangerButcher StrangerRoute = "butcher"
-	StrangerCremate StrangerRoute = "cremate"
+	StrangerButcher    StrangerRoute = "butcher"
+	StrangerIncinerate StrangerRoute = "incinerate"
 )
 
 // RouteStranger butchers a corpse that is still fresh while butchery is
-// open and cremates every other: a rotting or desiccated one is never
-// hauled to the butchery. An unread rot stage is not spoiled.
+// open and burns every other in the incinerator (#1822): a rotting or desiccated
+// one is never hauled to the butchery. An unread rot stage is not spoiled.
 func RouteStranger(rot domain.RotStage, butcheryOpen bool) StrangerRoute {
 	if butcheryOpen && !rot.Spoiled() {
 		return StrangerButcher
 	}
-	return StrangerCremate
+	return StrangerIncinerate
 }
 
 // HumanButcheryOpen is whether the existing human-butcher gate would take a

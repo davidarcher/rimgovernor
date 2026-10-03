@@ -3,7 +3,7 @@ package domain
 import "testing"
 
 // The corpse dump keeps humanlike corpses only; animal and insect corpses
-// go to the freezer while fresh and to the rotten dump, the crematorium's
+// go to the freezer while fresh and to the rotten dump, the incinerator's
 // feed, once rotting (#1812).
 func TestDumpFiltersSplitCorpsesByKind(t *testing.T) {
 	has := func(f StockpileFilter, def string) bool {

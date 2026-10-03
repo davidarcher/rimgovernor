@@ -40,7 +40,7 @@ message Cell {
 // (colonists and slaves), any other humanlike, or an animal.
 enum CorpseClass { CORPSE_CLASS_UNSPECIFIED = 0; CORPSE_CLASS_COLONIST = 1; CORPSE_CLASS_STRANGER = 2; CORPSE_CLASS_ANIMAL = 3; }
 
-// A rotting thing's stage (Verse RotStage); a corpse bill's minimum (#1810).
+// A rotting thing's stage (Verse RotStage).
 enum RotStage { ROT_STAGE_UNSPECIFIED = 0; ROT_STAGE_FRESH = 1; ROT_STAGE_ROTTING = 2; ROT_STAGE_DESSICATED = 3; }
 
 enum FailureCode {

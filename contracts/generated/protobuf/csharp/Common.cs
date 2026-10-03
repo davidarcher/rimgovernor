@@ -100,7 +100,7 @@ namespace RimGovernor.Protocol.Common {
   }
 
   /// <summary>
-  /// A rotting thing's stage (Verse RotStage); a corpse bill's minimum (#1810).
+  /// A rotting thing's stage (Verse RotStage).
   /// </summary>
   public enum RotStage {
     [pbr::OriginalName("ROT_STAGE_UNSPECIFIED")] Unspecified = 0,

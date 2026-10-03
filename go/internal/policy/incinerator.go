@@ -82,7 +82,7 @@ func (r StorageRequest) incineratorOwed() IncineratorSite {
 	if d == nil || r.Layout == nil || !IncineratorWanted(d.Needs) || len(r.Layout.IncineratorRooms()) > 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return IncineratorSite{}
 	}
-	anchor := r.dumpAnchor(domain.RottenDumpRole)
+	anchor := r.dumpAnchor()
 	toward := anchor
 	for _, z := range r.Zones {
 		if (z.Role == domain.RottenDumpRole || z.Role == domain.WornDumpRole) && len(z.Cells) > 0 {

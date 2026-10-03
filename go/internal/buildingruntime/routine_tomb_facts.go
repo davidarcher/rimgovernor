@@ -8,7 +8,7 @@ import (
 
 // wasteDefinitions are the definitions the waste steps read availability
 // and stuff for.
-var wasteDefinitions = []string{"Wall", "Door", policy.SarcophagusDefinition, policy.GraveDefinition, policy.CrematoriumDefinition}
+var wasteDefinitions = []string{"Wall", "Door", policy.SarcophagusDefinition, policy.GraveDefinition}
 
 // tombStep is the projection's next tomb step (#832, #857); none while a
 // fact is unknown.
@@ -56,27 +56,10 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	return policy.NextTombStep(plan, policy.RoomObservation{}, waste, built.Buildings, true).Kind == policy.TombFull
 }
 
-// cremationStep is the projection's next cremation step (#833); none
-// while the crematorium is unavailable or a fact is unknown.
-func cremationStep(facts observation.ColonyProjection) policy.CremationStep {
-	if owed, known := cremationOwed(facts).Value(); !known || !owed {
-		return policy.CremationStep{}
-	}
-	plan, _ := facts.LayoutPlan.Value()
-	rooms, _ := facts.Rooms.Value()
-	waste, _ := facts.Facts.Waste.Value()
-	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextCremationStep(plan, rooms, waste, built.Buildings, strangerButchery(facts))
-}
-
 // strangerButchery is whether the human butchery would take a fresh stranger
 // corpse now (#1811); unread benches mean no.
 func strangerButchery(facts observation.ColonyProjection) bool {
 	return policy.HumanButcheryOpen(facts.ProductionBenches, facts.Facts.Ideology)
-}
-
-func cremationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	return policy.CremationOwed(facts.DefinitionAvailable(policy.CrematoriumDefinition), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction, strangerButchery(facts))
 }
 
 // plannedMorgue is the planned morgue a waiting fresh stranger corpse owes
@@ -92,15 +75,14 @@ func plannedMorgue(facts observation.ColonyProjection) (policy.LayoutRoom, bool)
 }
 
 // corpsesOwed is the review's CorpsesOwed fact: the tomb, the morgue or the
-// crematorium is owed.
+// incinerator is owed.
 func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	tomb, tk := tombOwed(facts).Value()
-	cremation, ck := cremationOwed(facts).Value()
 	burn, known := incineratorOwed(facts).Value()
-	if _, morgue := plannedMorgue(facts); morgue || known && burn || tk && tomb || ck && cremation {
+	if _, morgue := plannedMorgue(facts); morgue || known && burn || tk && tomb {
 		return domain.Known(true)
 	}
-	if tk && ck {
+	if tk {
 		return domain.Known(false)
 	}
 	return domain.Unknown[bool]()

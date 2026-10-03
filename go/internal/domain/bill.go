@@ -14,9 +14,6 @@ const (
 	FoodTarget          BillMode = "food_target"
 	ButcherForever      BillMode = "butcher_forever"
 	HumanButcherForever BillMode = "human_butcher_forever"
-	// CremateForever is a forever bill of the cremation recipe with a corpse
-	// filter (#833); the recipe is the one the catalog gives the cremation role.
-	CremateForever BillMode = "cremate_forever"
 	// StockTarget is the generic "keep at least Target units of this recipe's
 	// output in stock" bill, the same pause-when-satisfied/unpause-below-half
 	// shape FoodTarget uses, reused as-is by GearProduce, MaintainResource-*
@@ -37,7 +34,6 @@ type ProductionBill struct {
 	worker        string
 	replace       string
 	corpses       CorpseOf
-	minRot        RotStage
 }
 
 func NewProductionBill(bench, recipe string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
@@ -86,25 +82,8 @@ func (b ProductionBill) PinWorker(worker string) (ProductionBill, error) {
 	return b, nil
 }
 
-// NewCremationBill is a forever cremation bill (#833): the bench's cremation
-// recipe plus an ingredient filter by whose corpse it is. Cremation takes any
-// class; which class to cremate is policy's choice. Butchering animals is the
-// plain ButcherForever bill and humanlike butchering (strangers, pinned
-// worker) is NewHumanButcherBill. An animal cremation bill must name minRot
-// RotRotting so fresh animal corpses stay for the butcher (#1810); a stranger
-// bill may too, while butchery is open (#1811); no other bill takes a minimum.
-func NewCremationBill(bench, recipe string, corpses CorpseOf, minRot RotStage) (ProductionBill, error) {
-	if !validID(recipe) || !corpses.Valid() || !validID(bench) || minRot != "" && minRot != RotRotting || corpses == CorpseAnimal && minRot != RotRotting {
-		return ProductionBill{}, errors.New("invalid corpse bill")
-	}
-	return ProductionBill{bench: bench, recipe: recipe, mode: CremateForever, corpses: corpses, minRot: minRot}, nil
-}
-
 // Corpses is a corpse bill's ingredient filter; empty for other bills.
 func (b ProductionBill) Corpses() CorpseOf { return b.corpses }
-
-// MinRot is a corpse bill's minimum rot stage; empty takes any.
-func (b ProductionBill) MinRot() RotStage { return b.minRot }
 
 func (b ProductionBill) Worker() string { return b.worker }
 
@@ -113,9 +92,6 @@ func (b ProductionBill) Worker() string { return b.worker }
 func (b ProductionBill) ClaimRecipe() string {
 	if b.mode == HumanButcherForever {
 		return b.recipe + "/humanlike"
-	}
-	if b.mode == CremateForever {
-		return b.recipe + "/" + string(b.corpses)
 	}
 	if b.mode == GearBatch && b.worker != "" {
 		return b.recipe + "/" + b.worker
@@ -149,8 +125,6 @@ func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 	canonical, err := NewProductionBill(b.bench, b.recipe, b.mode, b.target, b.Ingredients()...)
 	if b.mode == HumanButcherForever {
 		canonical, err = NewHumanButcherBill(b.bench, b.recipe, b.worker)
-	} else if b.mode == CremateForever {
-		canonical, err = NewCremationBill(b.bench, b.recipe, b.corpses, b.minRot)
 	} else if err == nil && b.worker != "" {
 		canonical, err = canonical.PinWorker(b.worker)
 	}

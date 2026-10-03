@@ -221,7 +221,6 @@ func CoreFurnitureFixtures() []FixtureDef {
 		{Name: "HandTailoringBench", Width: 3, Height: 1, WorkTableRole: "Workshop"},
 		{Name: "FabricationBench", Width: 5, Height: 2, WorkTableRole: "Workshop"},
 		{Name: "TableButcher", Width: 3, Height: 1, Bench: true},
-		{Name: "ElectricCrematorium", Width: 3, Height: 2, Bench: true},
 		{Name: "SimpleResearchBench", Width: 3, Height: 2, WorkTableRole: "Laboratory"},
 		{Name: "HiTechResearchBench", Width: 5, Height: 2, WorkTableRole: "Laboratory"},
 	}

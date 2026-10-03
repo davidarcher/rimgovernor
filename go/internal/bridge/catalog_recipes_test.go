@@ -85,14 +85,12 @@ func recipeFixture() *DefinitionCatalog {
 }
 
 // TestRecipeRolesComeFromTheRows (#1721): the butcher recipe is the one with
-// the butcher counter, cremation is the corpse-consuming recipe that makes
-// nothing (burning apparel is not), a sculpture makes an art building and an
+// the butcher counter, a sculpture makes an art building and an
 // ordinary meal is a perishable meal; a meal that never rots is a reserve.
 func TestRecipeRolesComeFromTheRows(t *testing.T) {
 	catalog := recipeFixture()
 	for recipe, want := range map[string]domain.RecipeRole{
 		"ButcherCorpseFlesh":  domain.RoleButcherFlesh,
-		"CremateCorpse":       domain.RoleCremation,
 		"BurnApparel":         domain.RoleNone,
 		"CookMealSimple":      domain.RoleOrdinaryMeal,
 		"CookMealSurvival":    domain.RoleNone,
@@ -109,13 +107,6 @@ func TestRecipeRolesComeFromTheRows(t *testing.T) {
 	}
 	if role, err := (*DefinitionCatalog)(nil).RecipeRole("anything"); err != nil || role != domain.RoleNone {
 		t.Errorf("nil catalog: %q %v", role, err)
-	}
-	name, ok, err := catalog.RecipeWithRole(domain.RoleCremation, []string{"BurnApparel", "CremateCorpse"})
-	if err != nil || !ok || name != "CremateCorpse" {
-		t.Errorf("RecipeWithRole = %q %v %v", name, ok, err)
-	}
-	if _, ok, err := catalog.RecipeWithRole(domain.RoleCremation, []string{"BurnApparel"}); ok || err != nil {
-		t.Errorf("no cremation recipe on the bench: %v %v", ok, err)
 	}
 }
 

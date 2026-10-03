@@ -75,7 +75,7 @@ func (CorpseClass) EnumDescriptor() ([]byte, []int) {
 	return file_common_proto_rawDescGZIP(), []int{0}
 }
 
-// A rotting thing's stage (Verse RotStage); a corpse bill's minimum (#1810).
+// A rotting thing's stage (Verse RotStage).
 type RotStage int32
 
 const (

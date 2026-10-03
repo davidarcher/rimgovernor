@@ -41,7 +41,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 			clockSchedulerLog("%s: morgue shell for a waiting stranger corpse", goal.Goal.ID)
 			result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, morgue, plannedRoomMethod(morgue), "")
 			// A shell already tried this epoch, or refused, leaves the
-			// cremation to go on.
+			// burn to go on.
 			if err != nil || !result.Verdict.skipsToPlacement() {
 				return RoutineWasteResult{Verdict: result.Verdict}, true, err
 			}
@@ -57,7 +57,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, tombMethod(step))
 	case policy.TombFull:
 		// The layout review grows another tomb; a grave only once a
-		// replan found no room for one; cremation goes on meanwhile.
+		// replan found no room for one; the burn goes on meanwhile.
 		if !r.reviewer.tombGrowthRefused(reading.Projection.Identity.Tick) {
 			return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
 		}
@@ -93,8 +93,8 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 	return result, nil
 }
 
-// placePiece previews and admits one interior piece: a sarcophagus (#832)
-// or the crematorium (#833).
+// placePiece previews and admits one interior piece: an interior piece (a
+// sarcophagus, bed, throne...).
 func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.RoutineReading, piece policy.InteriorPiece, method domain.MethodID) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection

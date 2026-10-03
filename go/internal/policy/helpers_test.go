@@ -47,7 +47,6 @@ var testShapes = func() PieceShapes {
 	}
 	add("FabricationBench", 5, 2, RoomRoleWorkshop, front)
 	add("TableButcher", 3, 1, "", front)
-	add(CrematoriumDefinition, 3, 2, "", front)
 	add(ResearchBenchDefinition, 3, 2, RoomRoleLaboratory, front)
 	add("HiTechResearchBench", 5, 2, RoomRoleLaboratory, front)
 	return out

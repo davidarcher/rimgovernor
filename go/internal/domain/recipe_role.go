@@ -10,8 +10,6 @@ const (
 	// RoleButcherFlesh butchers corpses for their meat (the recipe whose worker
 	// counter is RecipeWorkerCounter_ButcherAnimals).
 	RoleButcherFlesh RecipeRole = "butcher_flesh"
-	// RoleCremation destroys corpses: it consumes corpses and makes nothing.
-	RoleCremation RecipeRole = "cremation"
 	// RoleOrdinaryMeal cooks a perishable meal of the simple, fine or lavish
 	// kind; a meal that never rots is a reserve, not part of the tier family.
 	RoleOrdinaryMeal RecipeRole = "ordinary_meal"
@@ -22,7 +20,7 @@ const (
 // Valid reports whether r is a role the catalog derives or none.
 func (r RecipeRole) Valid() bool {
 	switch r {
-	case RoleNone, RoleButcherFlesh, RoleCremation, RoleOrdinaryMeal, RoleSculpture:
+	case RoleNone, RoleButcherFlesh, RoleOrdinaryMeal, RoleSculpture:
 		return true
 	}
 	return false

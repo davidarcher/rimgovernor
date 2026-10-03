@@ -17,7 +17,7 @@ const ClassBed = "RimWorld.Building_Bed"
 //     RoomRoleWorker_Workshop and _Laboratory count exactly the buildings
 //     whose workTableRoomRole is their role, and the kitchen role the
 //     stoves): a stove is Kitchen, a bench Workshop, a research bench
-//     Laboratory. A butcher table, a crafting spot and a crematorium state
+//     Laboratory. A butcher table and a crafting spot state
 //     no role and so are in no family;
 //   - a humanlike bed (a Building_Bed with bed_humanlike) counted for
 //     bedrooms and barracks is Bedroom, one that is medical by default is

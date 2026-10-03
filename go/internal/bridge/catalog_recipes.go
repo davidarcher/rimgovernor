@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"slices"
-	"strings"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,25 +12,19 @@ import (
 
 // Recipe rows (#1721). What a recipe does is read from its RecipeDef row, never
 // from its defName: the butcher recipe is the one whose worker counter is the
-// game's butcher counter, a cremation consumes corpses and makes nothing, a
-// sculpture makes an art building, an ordinary meal makes a perishable meal.
+// game's butcher counter, a sculpture makes an art building, an ordinary meal makes a perishable meal.
 // A recipe the catalog has no row for, or a row the rules cannot classify (a
 // filter field the evaluator does not model), is a named error.
 
 // The game classes the recipe roles are read by.
 const (
 	classButcherCounter = "Verse.RecipeWorkerCounter_ButcherAnimals"
-	classCorpse         = "Verse.Corpse"
 )
 
 // recipeCache holds the derived recipe facts of one catalog.
 type recipeCache struct {
-	mu     sync.Mutex
-	roles  map[string]domain.RecipeRole
-	corpse sync.Once
-	// corpseDefs are the defs whose thing class is a Corpse.
-	corpseDefs []*d.ThingDef
-	corpseErr  error
+	mu    sync.Mutex
+	roles map[string]domain.RecipeRole
 	// bulk is the set of bulk recipes, built once.
 	bulkOnce sync.Once
 	bulk     map[string]bool
@@ -113,13 +106,6 @@ func (catalog *DefinitionCatalog) deriveRecipeRole(row *d.RecipeDef) (domain.Rec
 			return domain.RoleButcherFlesh, nil
 		}
 	}
-	cremation, err := catalog.consumesCorpsesOnly(row)
-	if err != nil {
-		return domain.RoleNone, err
-	}
-	if cremation {
-		return domain.RoleCremation, nil
-	}
 	if len(row.GetProducts()) == 1 && len(row.GetSpecialProducts()) == 0 {
 		product := row.GetProducts()[0].GetValue().GetThingDef()
 		def, err := catalog.thingRow(product)
@@ -138,24 +124,6 @@ func (catalog *DefinitionCatalog) deriveRecipeRole(row *d.RecipeDef) (domain.Rec
 		return domain.RoleOrdinaryMeal, nil
 	}
 	return domain.RoleNone, nil
-}
-
-// consumesCorpsesOnly is the cremation shape: no products of any kind, no mech
-// resurrection or gestation, and an ingredient slot that accepts a corpse.
-func (catalog *DefinitionCatalog) consumesCorpsesOnly(row *d.RecipeDef) (bool, error) {
-	if len(row.GetProducts()) > 0 || len(row.GetSpecialProducts()) > 0 || row.GetMechResurrection() || row.GetGestationCycles() != 0 {
-		return false, nil
-	}
-	for _, slot := range row.GetIngredients() {
-		accepts, err := catalog.filterAcceptsCorpse(slot.GetValue().GetFilter())
-		if err != nil {
-			return false, contract("recipe %s: %v", row.GetDefName(), err)
-		}
-		if accepts {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // makesOrdinaryMeal is whether every product is a perishable meal of the
@@ -188,45 +156,6 @@ func (catalog *DefinitionCatalog) makesOrdinaryMeal(row *d.RecipeDef) (bool, err
 		}
 	}
 	return true, nil
-}
-
-// corpseThingDefs are the defs whose thing class is the game's Corpse.
-func (catalog *DefinitionCatalog) corpseThingDefs() ([]*d.ThingDef, error) {
-	catalog.recipes.corpse.Do(func() {
-		for _, row := range catalog.ThingDefs {
-			class := row.GetThingClass()
-			if class == "" {
-				continue
-			}
-			corpse, err := catalog.ClassIsA(class, classCorpse)
-			if err != nil {
-				catalog.recipes.corpseErr = err
-				return
-			}
-			if corpse {
-				catalog.recipes.corpseDefs = append(catalog.recipes.corpseDefs, row)
-			}
-		}
-		slices.SortFunc(catalog.recipes.corpseDefs, func(a, b *d.ThingDef) int { return strings.Compare(a.GetDefName(), b.GetDefName()) })
-	})
-	return catalog.recipes.corpseDefs, catalog.recipes.corpseErr
-}
-
-func (catalog *DefinitionCatalog) filterAcceptsCorpse(filter *d.ThingFilter) (bool, error) {
-	corpses, err := catalog.corpseThingDefs()
-	if err != nil {
-		return false, err
-	}
-	for _, corpse := range corpses {
-		accepts, err := catalog.FilterAccepts(filter, corpse.GetDefName())
-		if err != nil {
-			return false, err
-		}
-		if accepts {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // FilterAccepts is whether a ThingFilter allows the def, by the game's own
