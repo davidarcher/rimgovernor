@@ -295,7 +295,13 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 }
 
 // frameReplies hands seed every section of v as the (method, request,
-// reply) its dedicated read would have produced.
+// reply) its dedicated read would have produced. The keyed tables are
+// views of the hold's persistent tables (#1578): a delta frame updates
+// them in place. The readers that still walk full copies are the replies
+// seeded below, each marshaling its table whole once per frame (the pawn,
+// thing and building table reads, the routine and combat frames, the
+// dedicated list reads); they are what remains of the full-table path.
+// Combat rows (CombatPawns) are not keyed and native sends them whole.
 func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func(method string, request, reply proto.Message)) {
 	seed("rimgovernor/lifecycle_read_tick", &l.TickRequest{}, &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: v.Context, Paused: v.Paused}}})
 	identity := v.Context.Identity

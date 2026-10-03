@@ -120,6 +120,44 @@ func TestKeyedDeltaMergesPawnsAndThings(t *testing.T) {
 	}
 }
 
+// TestRowTableUpdatesInPlace (#1578): a delta frame touches only its
+// changed rows. The held table's slots are updated in place, an unchanged
+// row keeps its pointer, a delta without removals shares the table's slice
+// instead of copying it, and a removal re-added in the same delta moves to
+// the end.
+func TestRowTableUpdatesInPlace(t *testing.T) {
+	var h sectionHold
+	rows := make([]*o.BuildingState, 1000)
+	for i := range rows {
+		rows[i] = rowBuilding(fmt.Sprintf("b%d", i), 1)
+	}
+	h.fill(rowFrame(1, &o.BuildingsSnapshot{Buildings: rows}, "buildings", 1, false, 0))
+	for seq := uint64(2); seq < 12; seq++ {
+		v := rowFrame(int64(seq), &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("b7", int32(seq))}}, "buildings", seq, true, seq-1)
+		h.fill(v)
+		got := v.Buildings.Buildings
+		if len(got) != 1000 || got[7].GetHitPoints() != int32(seq) || got[0] != rows[0] {
+			t.Fatalf("seq %d: rows %d b7 %d", seq, len(got), got[7].GetHitPoints())
+		}
+	}
+	if rows[7].GetHitPoints() != 1 {
+		t.Fatal("the keyframe's own rows were touched")
+	}
+	v := rowFrame(20, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("b1", 5)}, Removed: []string{"b1", "b2"}}, "buildings", 12, true, 11)
+	h.fill(v)
+	got := v.Buildings.Buildings
+	if len(got) != 999 || got[len(got)-1].GetBuilding().GetId() != "b1" || got[1].GetBuilding().GetId() != "b3" {
+		t.Fatalf("remove and re-add: %d rows, first ids %s %s", len(got), got[0].GetBuilding().GetId(), got[1].GetBuilding().GetId())
+	}
+	table := h.tables["buildings"].(*buildingTable).rows
+	if allocs := testing.AllocsPerRun(100, func() {
+		table.apply([]*o.BuildingState{rows[3]}, nil)
+		table.list()
+	}); allocs != 0 {
+		t.Fatalf("a one-row delta allocated %v times", allocs)
+	}
+}
+
 // TestKeyedDeltaIsSmaller reports a synthetic steady colony: a 600-row
 // building table of which 20 rows change per frame (no recorded frames
 // exist to measure; native sizes are unmeasured).
