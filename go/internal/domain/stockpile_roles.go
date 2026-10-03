@@ -13,6 +13,7 @@ const (
 	CorpsesRolePrefix     = "corpses:"
 	PerishablesRolePrefix = "perishables:"
 	TombRolePrefix        = "tomb:"
+	YardRole              = "yard" // the materials yard (#1771): unroofed, Low priority
 	MedicineRolePrefix    = "medicine:"
 	ApparelRole           = "apparel"
 	WeaponsRole           = "weapons"

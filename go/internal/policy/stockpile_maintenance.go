@@ -279,7 +279,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	}
 	for _, z := range zones {
 		if !touched[z.ID] {
-			take(stockpileGrowEdit(open, z))
+			take(stockpileGrowEdit(open.within(r.Sited, z), z))
 		}
 	}
 	for _, e := range stockpileMergeEdits(zones, touched) {
@@ -515,6 +515,24 @@ type stockpileOpen struct {
 	// taken holds the cells an earlier grow of this cycle added.
 	taken  map[domain.Cell]bool
 	bounds Bounds
+	// only, when set, limits the cells to a site's room.
+	only map[domain.Cell]bool
+}
+
+// within limits a grow of z to the room of the site serving it, so a
+// room-bound zone never grows out of its room; a zone no site serves is
+// unlimited.
+func (s stockpileOpen) within(sites []StockpileSite, z StockpileZone) stockpileOpen {
+	prefix := stockpileRolePrefix(z.Role)
+	for _, site := range sites {
+		if z.Role != "" && stockpileRolePrefix(site.Role) == prefix {
+			if room := cellSet(site.Room); stockpileTouches(z.Cells, room) {
+				s.only = room
+				break
+			}
+		}
+	}
+	return s
 }
 
 func newStockpileOpen(r StockpileRequest) stockpileOpen {
@@ -530,7 +548,7 @@ func newStockpileOpen(r StockpileRequest) stockpileOpen {
 
 func (s stockpileOpen) ok(p domain.Cell) bool {
 	c, ok := s.cells[p]
-	if !ok || s.protected[p] || s.taken[p] || p.X < 0 || p.Z < 0 || p.X >= s.bounds.Width || p.Z >= s.bounds.Height {
+	if !ok || s.protected[p] || s.taken[p] || s.only != nil && !s.only[p] || p.X < 0 || p.Z < 0 || p.X >= s.bounds.Width || p.Z >= s.bounds.Height {
 		return false
 	}
 	walkable, wk := c.Walkable.Value()

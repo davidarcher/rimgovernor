@@ -60,6 +60,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	}
 	plan.Sites = append(plan.Sites, r.freezerSites()...)
 	plan.Sites = append(plan.Sites, r.tombSites()...)
+	plan.Sites = append(plan.Sites, r.yardSites()...)
 	return plan
 }
 

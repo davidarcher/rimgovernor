@@ -188,6 +188,9 @@ func GeneralFilter() StockpileFilter {
 	return f
 }
 
+// YardFilter is the items safe outside, the native outdoor_safe preset.
+func YardFilter() StockpileFilter { return StockpileFilter{base: BaseOutdoorSafe} }
+
 // CorpseLarderFilter holds fresh animal and insect corpses only.
 func CorpseLarderFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), SpecialFilter("AllowFresh")}, []FilterSelector{SpecialFilter("AllowRotten")})

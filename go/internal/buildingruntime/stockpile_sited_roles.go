@@ -57,6 +57,7 @@ func init() {
 		}
 		return policy.StockpileRoleState{Filter: spot.filter, Priority: domain.CriticalPriority, Fixed: true}, true
 	})
+	RegisterStockpileRole(domain.YardRole, fixedStockpileRole(domain.YardFilter(), domain.LowPriority))
 	RegisterStockpileRole("rawfood", func(StockpileRoleInput, string) (policy.StockpileRoleState, bool) { return rawFood, true })
 }
 
