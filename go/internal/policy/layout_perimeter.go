@@ -8,9 +8,9 @@ import (
 
 // Perimeter, gates and killbox from terrain (#781, A5). The wall is a
 // 3-thick ring traced around the core and the whole field patches beside
-// it (#1286, layout_perimeter_enclosure.go), never across a patch; a
-// stretch where rock or deep water already fills the whole thickness is
-// left to the terrain. Soft ground a raider wades through (marsh, mud,
+// it (#1286, layout_perimeter_enclosure.go), never across a patch; rock and
+// deep water already close their cells, so only the open cells of a stretch
+// are walled (#1592). Soft ground a raider wades through (marsh, mud,
 // shallow and moving water) is closed too (#949): the wall follows the
 // shore inside the ring when that costs at most perimeterDetour times the
 // straight stretch, and otherwise crosses it, a wooden wall on light
@@ -448,13 +448,39 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// only a pitch clear of every other, so a staircase is gated about as
 	// often as a straight side (#1287).
 	var gates, stepGates []Rectangle
+	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for k, sd := range sides {
+		// Raiders neither mine nor attack natural rock (#1592): a run is
+		// walled only on its open cells, and not behind a rock row that spans
+		// the column and both neighbours, which no raider can reach round.
+		sealed := func(p, t int32) bool {
+			for u := int32(0); u < t; u++ {
+				if impassable(sd.cell(p-1, u)) && impassable(sd.cell(p, u)) && impassable(sd.cell(p+1, u)) {
+					return true
+				}
+			}
+			return false
+		}
+		openColumn := func(p int32) bool {
+			for t := int32(0); t < perimeterThick; t++ {
+				if impassable(sd.cell(p, t)) {
+					return false
+				}
+			}
+			return true
+		}
 		start := int32(-1)
 		flush := func(end int32) {
 			if start < 0 {
 				return
 			}
-			add(ReservePerimeter, rectOf(sd.base(start), sd.cell(end, perimeterThick-1)))
+			for p := start; p <= end; p++ {
+				for t := int32(0); t < perimeterThick; t++ {
+					if c := sd.cell(p, t); !impassable(c) && !sealed(p, t) {
+						walls[c] = true
+					}
+				}
+			}
 			n := end - start + 1
 			if n >= 5 {
 				// The pitch runs from a hallway's axis when one meets
@@ -467,6 +493,9 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 					}
 				}
 				for p := first; p <= end; p += perimeterGatePitch {
+					if !openColumn(p) {
+						continue
+					}
 					g := rectOf(sd.base(p), sd.cell(p, perimeterThick-1))
 					if n < perimeterGatePitch {
 						stepGates = append(stepGates, g)
@@ -504,7 +533,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		add(ReserveGate, g)
 	}
 	// Soft stretches: a detour's wall, else the ring crossing them.
-	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for c := range detour {
 		if k, p := sideOf(c); k < 0 || wet[crossing{k, p}] {
 			walls[c] = true
