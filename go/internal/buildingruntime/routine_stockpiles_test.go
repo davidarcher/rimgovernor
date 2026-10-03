@@ -184,7 +184,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
 		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
 		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
-		{"covered:WoodLog", false, false, domain.StockpileFilter{}, ""},
+		// A zone left by the removed covered fallback retires (#1778).
+		{"covered:WoodLog", true, true, domain.StockpileFilter{}, ""},
 		{domain.ApparelRole, true, false, domain.ApparelFilter(), domain.PreferredPriority},
 		{domain.WeaponsRole, true, false, domain.WeaponsFilter(), domain.PreferredPriority},
 		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
