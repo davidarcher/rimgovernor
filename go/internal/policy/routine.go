@@ -290,6 +290,10 @@ type RoutineFacts struct {
 	// plant or an undesignated wooden ruin (FirebreakOwed, #1548); it holds
 	// MaintainFirebreak open. Unknown unless the method is composed.
 	FirebreakOwed domain.Fact[bool]
+	// PsylinkOwed: a willing colonist has no psylink and a psylink
+	// neuroformer is held (PsylinkOwed, #1609); it holds MaintainPsylink
+	// open. Unknown unless the method is composed.
+	PsylinkOwed domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering, #1326).
 	ShelterArea domain.Fact[string]
@@ -1340,6 +1344,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainFirebreak, 3, measured(f.FirebreakOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.FirebreakOwed.Value(); known && owed {
 		addGoal(MaintainFirebreak, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainPsylink (#1609): a held neuroformer waits for a willing
+	// colonist. Ranked with the upkeep projects; unknown raises nothing.
+	addAssessment(MaintainPsylink, 3, measured(f.PsylinkOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.PsylinkOwed.Value(); known && owed {
+		addGoal(MaintainPsylink, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	animalContainment := domain.Unknown[bool]()

@@ -19,7 +19,7 @@ func assessment(t *testing.T, r RoutineNeeds, id GoalID) domain.NeedState {
 
 func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	r := needs(t, RoutineFacts{}, RoutineLatches{})
-	if len(r.All()) != 49 {
+	if len(r.All()) != 50 {
 		t.Fatal(r)
 	}
 	for _, n := range r.All() {

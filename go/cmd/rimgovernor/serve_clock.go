@@ -625,6 +625,15 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.routinePsylinkPlans {
+			psylinkNative, ok := reads.(buildingruntime.RoutinePsylinkSource)
+			if !ok {
+				return nil, errors.New("psylink plans require the typed neuroformer item read")
+			}
+			if config.Psylink, err = buildingruntime.NewRoutinePsylinkPlanner(reviewer, psylinkNative); err != nil {
+				return nil, err
+			}
+		}
 		if sc.routineShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
@@ -979,6 +988,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineFirebreakPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFirebreak)
+	}
+	if sc.routinePsylinkPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainPsylink)
 	}
 	if sc.routineStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)

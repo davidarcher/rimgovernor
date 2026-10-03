@@ -133,6 +133,7 @@ type ClockSchedulerConfig struct {
 	HomeCoverage        *RoutineHomeCoveragePlanner
 	MaintainShelter     *MaintainShelterPlanner
 	Firebreak           *RoutineFirebreakPlanner
+	Psylink             *RoutinePsylinkPlanner
 	StoneShell          *RoutineStoneShellPlanner
 	Tidy                *RoutineTidyPlanner
 	Stockpiles          *RoutineStockpilePlanner
@@ -212,6 +213,7 @@ type ClockSchedulerResult struct {
 	HomeCoverage                 *RoutineHomeCoverageResult
 	MaintainShelter              *MaintainShelterResult
 	Firebreak                    *RoutineFirebreakResult
+	Psylink                      *RoutinePsylinkResult
 	StoneShell                   *RoutineStoneShellResult
 	Tidy                         *RoutineTidyResult
 	Stockpiles                   *RoutineStockpileResult
@@ -564,6 +566,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Firebreak != nil && (config.Routine == nil || config.Firebreak.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Firebreak != nil && (config.Routine == nil || config.Firebreak.reviewer != config.Routine)", ErrControl)
+	}
+	if config.Psylink != nil && (config.Routine == nil || config.Psylink.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Psylink != nil && (config.Routine == nil || config.Psylink.reviewer != config.Routine)", ErrControl)
 	}
 	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine)", ErrControl)

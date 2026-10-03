@@ -804,6 +804,16 @@ var plannerCatalog = []plannerEntry{
 			out.Firebreak = &method
 			return method.Reason, nil
 		}},
+	{name: "psylink", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.UseItemAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Psylink != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Psylink.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Psylink = &method
+			return method.Reason, nil
+		}},
 	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

@@ -47,6 +47,9 @@ type RoutineReviewer struct {
 	// firebreak is MaintainFirebreak's review memory (#1548), set when its
 	// planner is composed.
 	firebreak *firebreakMemory
+	// psylink is MaintainPsylink's review memory (#1609), set when its
+	// planner is composed.
+	psylink *psylinkMemory
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any
@@ -378,6 +381,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			return store.RoutineReviewResult{}, err
 		}
 	}
+	var psylinkCandidates domain.Fact[[]policy.PawnID]
+	if r.psylink != nil {
+		psylinkCandidates, reading.Projection.Facts.PsylinkOwed = r.psylink.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection)
+	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}
@@ -440,6 +447,8 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.ResourceNeeds = policy.MedicineResourceNeeds(reading.Projection.Facts.ResourceNeeds, r.policy.MedicineReserveTarget(reading.Projection.Facts.Colonists, medicine.Active))
 	// A prisoner surgery blocked only by the herbal care limit (#1239).
 	reading.Projection.Facts.ResourceNeeds = policy.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, policy.RoutineSilverShort(reading.Projection.Facts, r.policy, medicine.Active))
+	// A willing colonist's psylink neuroformer, bought or made by the resource ladder (#1609).
+	reading.Projection.Facts.ResourceNeeds = policy.NeuroformerNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Royalty, psylinkCandidates)
 	resourceTargets, err := r.policy.EffectiveResourceTargets(reading.Projection.Facts.Resources, reading.Projection.Facts.ResourceNeeds)
 	if err != nil {
 		return store.RoutineReviewResult{}, err

@@ -250,6 +250,17 @@ stock: the psylink neuroformer and each psycast neurotrainer with `held`
 pending bestowing ceremonies (observations.md, Royalty facts). Absent scalars are unknown, never zero. The
 pawn row keeps only the constantly refreshed psylink level and Psyfocus.
 
+`MaintainPsylink` (#1609, `policy.PsylinkCandidates`) gives a psylink to each
+available colonist whose pawn row carries a needs block but no psylink level.
+The psylink neuroformer (`PsychicAmplifier`) is acquired by MaintainResource:
+the review adds a stock floor of one (`policy.NeuroformerNeeds`) while a
+candidate waits, none is held and the royalty read marks it `craftable` or
+`tradeable`, so the resource ladder bills or buys it. With one held (a live
+`observations_list_supplies` read names the item ids; the royalty count lags
+it) the planner orders `UseItem` with the colonist as its own target, at most
+twice per colonist per goal epoch. Psyfocus is kept at target by the
+meditation schedule, not by this goal.
+
 ### Environmental disruption
 
 `rimgovernor/observations_read_colony_facts` `environment` reports current-map native condition

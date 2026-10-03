@@ -23,7 +23,7 @@ var plannerGoals = map[string]policy.GoalID{
 	"shrine": policy.ClearAncientShrine, "clean": policy.MaintainCleanFacilities, "blight": policy.RemoveBlight,
 	"waste": policy.MaintainWaste, "haul": policy.MaintainStorage, "foodStorageUpkeep": policy.MaintainFoodStorage,
 	"animalContainment": policy.MaintainAnimalContainment, "research": policy.EnsureResearch, "animalFeed": policy.MaintainAnimalFeed,
-	"homeCoverage": policy.MaintainHomeCoverage, "maintainShelter": policy.MaintainShelter, "firebreak": policy.MaintainFirebreak, "stoneShell": policy.MaintainStoneShell, "stockpiles": policy.MaintainStockpiles,
+	"homeCoverage": policy.MaintainHomeCoverage, "maintainShelter": policy.MaintainShelter, "firebreak": policy.MaintainFirebreak, "psylink": policy.MaintainPsylink, "stoneShell": policy.MaintainStoneShell, "stockpiles": policy.MaintainStockpiles,
 	"defenseLayout": policy.EnsureDefensiveLayout, "work": policy.EnsureWorkAssignments, "medical": policy.MaintainMedicalReserves,
 	"surgery": policy.MaintainSurgery,
 }

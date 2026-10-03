@@ -34,7 +34,7 @@ type RoyaltyNative interface {
 func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) {
 	projection := &reading.Projection
 	native, ok := r.native.(RoyaltyNative)
-	if !ok || !r.methodEnabled(policy.MaintainHousing) {
+	if !ok || !r.methodEnabled(policy.MaintainHousing) && !r.methodEnabled(policy.MaintainPsylink) {
 		return
 	}
 	facts, err := native.RoyaltyFacts(ctx, controlIdentity(snapshot), int64(projection.Identity.Tick))
