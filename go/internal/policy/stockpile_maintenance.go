@@ -137,6 +137,9 @@ type StockpileRequest struct {
 	Rooms domain.Fact[[]Room]
 	// Anchor sites the gear stockpiles when no general store stands.
 	Anchor domain.Cell
+	// StorageRoom is the planned storage room's interior (zero: none): the
+	// opening general store is sited inside it.
+	StorageRoom Rectangle
 	// Prisons are the planned prisons' cells (#1081): a weapons stockpile
 	// never stands near one.
 	Prisons []domain.Cell
