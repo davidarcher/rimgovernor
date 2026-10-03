@@ -632,7 +632,13 @@ waiting, a `Refusal` with a closed `Kind` (refusals: `collapse_pending`, `no_wor
 `sleeping_use_needed`, `butcher_separation_pending`, `dialog_not_interactive`,
 `waiting_on_claim`, `waiting_for_native_temperature`, `existing_facility_access_blocked`), a subject and optional detail. A refusal or wait without a kind panics at
 construction and is rejected when filed; there is no catch-all kind, and routines branch on the
-outcome or kind, never on text. `Verdict.String` is the machine token
+outcome or kind, never on text. The subject names the real missing thing: the census
+a `field_unavailable` exit could not read (`acquisition_sources`, `colonists`), the plan,
+capacity, bench or source an `awaiting_plan` exit waits on (`food_plan:cooking-capacity`,
+`cooking_bench`, `resource_source:Steel`, `development_slot:<goal>` for a low-priority
+goal the development ranking has not selected), the placement a `no_space` exit failed to
+site (`ingredient_stockpile`, `pen_enclosure`), and the claim a `waiting_on_claim` exit lost
+(`bench`). `Verdict.String` is the machine token
 (`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` (the dashboard timeline
 parses it) and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and
 kind, filed on `GoalProgress.Planner` for the status strip and the journal. A planner's catalog

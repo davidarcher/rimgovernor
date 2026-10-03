@@ -196,7 +196,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if !foodReview.Active {
-		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -230,12 +230,11 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		// "haul stock of definition X into covered storage" generically.
 		// Dispatching Relocate is therefore a follow-on slice needing new
 		// native hauling-to-covered-storage wiring; this slice only acts on
-		// the Produce fallback below, mirroring how routine_medical.go only
-		// acts on MedicineProduce and reports every other outcome as used.
-		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+		// the Produce fallback below.
+		return RoutineFoodStorageUpkeepResult{Verdict: awaitingPlan("stock_relocation", "not_automated")}, nil
 	}
 	if choice.Kind != policy.FoodStorageProduce {
-		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: foodStorageChoiceVerdict(choice.Kind)}, nil
 	}
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
@@ -273,14 +272,14 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if medChoice.Kind != policy.MedicineProduce {
-		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: medicineChoiceVerdict(medChoice.Kind, choice.Resource)}, nil
 	}
 	_, ok := tokens[medChoice.Bench]
 	if !ok {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
-		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: claimHeld("bench")}, nil
 	}
 	id := domain.MintPlanID()
 	target := int32(medChoice.Target)
@@ -310,4 +309,18 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// foodStorageChoiceVerdict is the verdict of a food-storage method choice that
+// is neither a relocation nor a production: the deficit recovered, the spare
+// capacity of a storage site is unread, or the production method was already
+// tried.
+func foodStorageChoiceVerdict(kind policy.FoodStorageMethodKind) Verdict {
+	switch kind {
+	case policy.FoodStorageRecovered:
+		return BuildingReasonNoDeficit
+	case policy.FoodStorageUnknown:
+		return fieldUnavailable("food_storage_capacity")
+	}
+	return BuildingReasonUsed
 }

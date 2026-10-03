@@ -151,7 +151,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		sites = sites[:maxFoodStorageSites]
 	}
 	if len(sites) == 0 {
-		return RoutineFoodStorageResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineFoodStorageResult{Verdict: noSpace("food_stockpile")}, nil
 	}
 	// The census cannot see everything native refuses (a pawn or a stack
 	// that landed after the read), so each candidate is previewed in turn
@@ -206,7 +206,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		break
 	}
 	if !accepted {
-		return RoutineFoodStorageResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineFoodStorageResult{Verdict: noSpace("food_stockpile")}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineFoodStorageResult{}, err

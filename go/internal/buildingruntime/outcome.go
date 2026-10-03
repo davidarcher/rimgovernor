@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // Outcome is what a planner's step came to: the closed set every routine
@@ -166,6 +167,12 @@ func awaitingPlan(subject, detail string) Verdict {
 // awaitingSlot is the refusal of a goal this review's arbitration did not
 // select: the bounded concurrent-project capacity went to other goals.
 func awaitingSlot(goal string) Verdict { return awaitingPlan("development_slot", goal) }
+
+// claimHeld is the wait of a step whose claim another planner already holds
+// this step (a bench, an animal); the subject names the claim.
+func claimHeld(subject string) Verdict {
+	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: WaitClaim, Subject: subject}})
+}
 
 // awaitingMethod is the refusal for a policy method that names what the
 // goal waits on (a power or temperature wait, a cooler's power).
@@ -339,9 +346,24 @@ func (v Verdict) kindText() string {
 	return ""
 }
 
-// words turns an identifier into words: "verified_space" reads "verified space".
+// words turns an identifier into words: "verified_space" reads "verified
+// space" and "EnsureFoodSupply" reads "Ensure food supply".
 func words(identifier string) string {
-	return strings.NewReplacer("_", " ", "-", " ").Replace(identifier)
+	var b strings.Builder
+	var previous rune
+	for _, r := range identifier {
+		switch {
+		case r == '_' || r == '-':
+			b.WriteRune(' ')
+		case unicode.IsUpper(r) && (unicode.IsLower(previous) || unicode.IsDigit(previous)):
+			b.WriteRune(' ')
+			b.WriteRune(unicode.ToLower(r))
+		default:
+			b.WriteRune(r)
+		}
+		previous = r
+	}
+	return b.String()
 }
 
 // skipsToPlacement reports a shell attempt that leaves the usual placement to

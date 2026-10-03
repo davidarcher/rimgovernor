@@ -83,7 +83,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		selected = selected || row.Goal == policy.MaintainResource && row.Selected
 	}
 	if !selected {
-		return RoutineIngredientStorageResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineIngredientStorageResult{Verdict: awaitingSlot(string(policy.MaintainResource))}, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -122,7 +122,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	}
 	bench, recipe, allow, known := ingredientStorageAllowList(resource, benches)
 	if !known {
-		return RoutineIngredientStorageResult{Verdict: fieldUnavailable("ingredient_allow_list")}, nil
+		return RoutineIngredientStorageResult{Verdict: fieldUnavailable("bench_recipes")}, nil
 	}
 	if recipe == "" {
 		// No standing bench hosts the recipe yet: the workshop rung owns the
@@ -196,7 +196,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if len(sites) == 0 {
-		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineIngredientStorageResult{Verdict: noSpace("ingredient_stockpile")}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = id
@@ -244,7 +244,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		break
 	}
 	if !accepted {
-		return RoutineIngredientStorageResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineIngredientStorageResult{Verdict: noSpace("ingredient_stockpile")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {

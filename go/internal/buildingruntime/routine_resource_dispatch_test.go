@@ -194,11 +194,11 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 	identity := boundary.Identity(state.Snapshot)
 	stock := resourceStockFacts(v)
 	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
-	if err != nil || result.Verdict != BuildingReasonRefused || result.NativeWorkTicks != stockWaitTicks {
+	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") || result.NativeWorkTicks != stockWaitTicks {
 		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
-	if err != nil || result.Verdict != BuildingReasonRefused {
+	if err != nil || result.Verdict != awaitingPlan("feed_bench", "within_reach_of_animals") {
 		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())

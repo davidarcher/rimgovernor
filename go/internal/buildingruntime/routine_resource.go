@@ -107,6 +107,24 @@ func resourceStockFacts(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Amount] {
 	return domain.Known(rows)
 }
 
+// resourceSourceSubject names the awaiting_plan subject of a resource with no
+// source this vertical can dispatch (a deposit to mine, a bench to produce at).
+const resourceSourceSubject = "resource_source"
+
+// noResourceSource is the refusal of a deficit whose resource has no source
+// this planner can dispatch.
+func noResourceSource(resource policy.Resource) Verdict {
+	return awaitingPlan(resourceSourceSubject, string(resource))
+}
+
+// undispatched reports a target the step found nothing to dispatch for: the
+// method was already used, a rival planner holds the claim, or no source
+// stands. The next demanded resource then gets its turn.
+func (r RoutineResourceResult) undispatched() bool {
+	v := r.Verdict
+	return v.Is(WaitMethodUsed) || v.Is(WaitClaim) || v.Is(RefusalAwaitingPlan) && v.Refusal.Subject == resourceSourceSubject
+}
+
 func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -194,7 +212,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		if result.Verdict != BuildingReasonUsed || result.Plan != "" || result.NativeWorkTicks != 0 {
+		if !result.undispatched() || result.Plan != "" || result.NativeWorkTicks != 0 {
 			return result, nil
 		}
 		if first == nil {
@@ -202,7 +220,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if first == nil {
-		return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	return *first, nil
 }
@@ -229,7 +247,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{}, err
 		}
 		if blocked {
-			return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, nil
+			return RoutineResourceResult{Verdict: noSpace("gear_spares_storage")}, nil
 		}
 		if needed {
 			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage")
@@ -266,7 +284,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		// only piles it up out of reach (#237). Lend a window so a bench
 		// built or an area widened meanwhile is seen next step.
 		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Goal.ID, resource, len(census))
-		return RoutineResourceResult{Verdict: BuildingReasonRefused, NativeWorkTicks: stockWaitTicks}, nil
+		return RoutineResourceResult{Verdict: awaitingPlan("feed_bench", "within_reach_of_animals"), NativeWorkTicks: stockWaitTicks}, nil
 	}
 	names := recipeIngredientNames(census, resource)
 	var supply []policy.Stock
@@ -305,7 +323,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 			if !ok {
 				r.reviewer.bids.bid(state.Snapshot, resource, bidResource, 0, "", reviewTick)
-				return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
+				return RoutineResourceResult{Verdict: noResourceSource(resource)}, nil
 			}
 			pre = &sel
 			selected, sourceStorage := sel.selected, sel.storage
@@ -317,7 +335,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 				return RoutineResourceResult{}, err
 			}
 			if r.outbid(goal, state, resource, ranked, reviewTick) {
-				return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
+				return RoutineResourceResult{Verdict: claimHeld(string(resource))}, nil
 			}
 		}
 		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, pre)
@@ -349,7 +367,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{}, err
 		}
 		if r.outbid(goal, state, resource, ranked, reviewTick) {
-			return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineResourceResult{Verdict: claimHeld(string(resource))}, nil
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
 			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
@@ -449,7 +467,7 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 		}
 		sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		if !ok {
-			return RoutineResourceResult{Verdict: BuildingReasonUsed}, false, nil
+			return RoutineResourceResult{Verdict: noResourceSource(resource)}, false, nil
 		}
 		pre = &sel
 	}
@@ -482,7 +500,7 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 	if pre.designated {
 		return RoutineResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil
 	}
-	return RoutineResourceResult{Verdict: BuildingReasonUsed, Sources: selected}, false, nil
+	return RoutineResourceResult{Verdict: noResourceSource(resource), Sources: selected}, false, nil
 }
 
 // sourcesForDeficit reads the resource's fresh native mine/harvest sources
@@ -602,7 +620,7 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 		return RoutineResourceResult{}, false, err
 	}
 	if blocked {
-		return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, true, nil
+		return RoutineResourceResult{Verdict: noSpace("material_storage")}, true, nil
 	}
 	if !needed {
 		if zone, needed, err = policy.SelectFullStorageZone(deficit, storage); err != nil || !needed {
@@ -660,7 +678,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 		}
 	}
 	if len(cells) == 0 {
-		return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineResourceResult{Verdict: noSpace("stockpile_zone")}, nil
 	}
 	value, err := allowListZone(domain.ImportantPriority, []string{string(resource)}, cells)
 	if err != nil {
@@ -720,7 +738,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	}
 	v := reply.GetEvaluated()
 	if v == nil || !v.GetAccepted() {
-		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineResourceResult{Verdict: noSpace("stockpile_zone")}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
 		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)

@@ -22,16 +22,20 @@ var _ artBenchSource = (*bridge.Client)(nil)
 // artSelection is the next artist's pinned sculpture bill: the art benches
 // from ReadGearBenches, the qualifying artists from the pawn profiles, one
 // SelectProductionBill per artist lacking a bill; the first is admitted.
-// state is the art benches' sculpture bills.
-func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection, medicineActive bool) (selected policy.BillSelection, known bool, art artBenchState, err error) {
+// state is the art benches' sculpture bills. A zero verdict means a bill was
+// selected; otherwise the verdict says what is missing.
+func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlState, projection observation.ColonyProjection, medicineActive bool) (selected policy.BillSelection, verdict Verdict, art artBenchState, err error) {
 	native, ok := r.native.(artBenchSource)
+	if !ok {
+		return policy.BillSelection{}, fieldUnavailable("art_benches"), art, nil
+	}
 	pawns, pk := projection.WorkPawns.Value()
-	if !ok || !pk {
-		return policy.BillSelection{}, false, art, nil
+	if !pk {
+		return policy.BillSelection{}, fieldUnavailable("work_pawns"), art, nil
 	}
 	reads, _, err := native.ReadGearBenches(call, boundary.Identity(state.Snapshot))
 	if err != nil {
-		return policy.BillSelection{}, false, art, err
+		return policy.BillSelection{}, Verdict{}, art, err
 	}
 	profiles := policy.Profiles(pawns)
 	list := artBenches(reads)
@@ -42,10 +46,15 @@ func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlSta
 	demand := artDemand(projection, profiles)
 	demand.Sale = policy.RoutineArtForSale(projection.Facts, r.reviewer.policy, medicineActive)
 	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
-	if len(bills) == 0 {
-		return policy.BillSelection{}, false, art, nil
+	switch {
+	case len(bills) > 0:
+		return bills[0], Verdict{}, art, nil
+	case len(list) == 0:
+		return policy.BillSelection{}, awaitingPlan("art_bench", ""), art, nil
+	case len(policy.Artists(profiles)) == 0:
+		return policy.BillSelection{}, noWorker("artist"), art, nil
 	}
-	return bills[0], true, art, nil
+	return policy.BillSelection{}, BuildingReasonNoDeficit, art, nil
 }
 
 // artBenchState is the art benches' sculpture bills (#1195): sculpting

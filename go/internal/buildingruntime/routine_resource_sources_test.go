@@ -101,7 +101,7 @@ func TestMaterialStorageZoneFallbackBlockedWithoutHaulers(t *testing.T) {
 	selected := []policy.ResourceSource{{ThingID: "rock1", Yield: 40, Method: policy.ResourceSourceMine}}
 	storage := policy.ResourceStorage{Capacity: 1000, StackLimit: 75, Haulers: 0}
 	result, handled, err := planner.materialStorageZoneFallback(context.Background(), context.Background(), ControlState{}, store.GoalState{}, 0, "Steel", selected, storage, 0, time.Time{})
-	if err != nil || !handled || result.Verdict != BuildingReasonNoSpace {
+	if err != nil || !handled || result.Verdict != noSpace("material_storage") {
 		t.Fatalf("got result=%v handled=%v err=%v", result, handled, err)
 	}
 }

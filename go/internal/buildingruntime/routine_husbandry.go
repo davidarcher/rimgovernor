@@ -117,9 +117,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
-		return RoutineHusbandryResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: wait}, nil
 	case policy.HusbandryUnknown:
-		return RoutineHusbandryResult{Verdict: fieldUnavailable("husbandry")}, nil
+		return RoutineHusbandryResult{Verdict: fieldUnavailable("husbandry_census")}, nil
 	}
 	// Keyed by animal, method and attempt count, not trainable: a fresh
 	// attempt after an interrupted or failed try re-selects whichever
@@ -133,7 +133,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
-		return RoutineHusbandryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineHusbandryResult{Verdict: claimHeld("animal")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	argument := choice.TrainableDef

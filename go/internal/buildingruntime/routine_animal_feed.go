@@ -148,9 +148,12 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	case policy.AnimalFeedSelected:
 	case policy.AnimalFeedNoDeficit:
 		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
+	case policy.AnimalFeedNoFeed:
+		return RoutineResourceResult{Verdict: awaitingPlan("animal_feed", "no_source")}, nil
+	case policy.AnimalFeedExceedsBound:
+		return RoutineResourceResult{Verdict: awaitingPlan("animal_feed", "requirement_exceeds_planning_limit")}, nil
 	default:
-		// AnimalFeedNoFeed and AnimalFeedExceedsBound refuse for the window.
-		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineResourceResult{}, fmt.Errorf("%w: step: animal feed reason %q", ErrControl, choice.Reason)
 	}
 	// Feed is only feed where the animal can eat it: the bill lands on a
 	// bench inside every covered animal's reachable area (#237) or, with no
@@ -167,7 +170,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		case len(choice.StorageCells) > 0:
 			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Goal.ID, choice.Resource, len(choice.StorageCells))
 			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
-			if err == nil && (result.Verdict == BuildingReasonRefused || result.Verdict == BuildingReasonNoSpace) {
+			if err == nil && (result.Verdict.Is(RefusalSharedAdmission) || result.Verdict.Is(RefusalNoSpace)) {
 				// The footprint native offered was refused at preview (the
 				// roof or the ground changed): lend the same window the
 				// no-bench refusal does rather than parking on no_work.
@@ -192,7 +195,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	// iteration is what completed the action, the rest needs colonists to
 	// keep cooking. With the deficit still open and no new method, ask for
 	// game time instead of leaving the clock refused as no_work.
-	if result.Verdict == BuildingReasonUsed && standingBill {
+	if result.undispatched() && standingBill {
 		result.NativeWorkTicks = animalFeedBillWorkTicks
 	}
 	return result, nil

@@ -63,7 +63,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			selected = selected || row.Goal == r.need && row.Selected
 		}
 		if !selected {
-			return RoutineAcquisitionResult{Verdict: BuildingReasonRefused}, nil
+			return RoutineAcquisitionResult{Verdict: awaitingSlot(string(r.need))}, nil
 		}
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
@@ -252,9 +252,11 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	// a ranged primary, never a Brawler) finding nobody, the hunting budget
 	// is zero and only gathering is proposed, instead of a designation
 	// native's hunt preview would refuse for want of a free ranged hunter.
+	noHunter := false
 	if pawns, known := projection.WorkPawns.Value(); known {
 		if _, ok := policy.HunterFor(policy.Profiles(pawns)); !ok {
 			slots = domain.Known(0)
+			noHunter = true
 		}
 	}
 	var selected []policy.AcquisitionSource
@@ -280,13 +282,13 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Goal.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
 	}
 	if err != nil {
-		return RoutineAcquisitionResult{Verdict: fieldUnavailable("acquisition_selection")}, nil
+		return RoutineAcquisitionResult{Verdict: fieldUnavailable(unreadAcquisitionFact(projection.Acquisition, deficit, pending, pest || stockGoal))}, nil
 	}
 	if len(selected) == 0 && existing {
 		return RoutineAcquisitionResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	if len(selected) == 0 {
-		return RoutineAcquisitionResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineAcquisitionResult{Verdict: noAcquisition(r.need, noHunter, deficit, pending)}, nil
 	}
 	hash := sha256.New()
 	for _, row := range selected {
@@ -566,4 +568,41 @@ func acquisitionReason(food, pest bool, runway domain.Fact[float64], selected []
 		return ""
 	}
 	return selected[0].Resource + " low"
+}
+
+// noAcquisition says why the selection chose no source although the goal is
+// owed: a pest hunt waits for a ranged hunter or has every pest already
+// hunted, food in flight already covers the deficit, or no source stands.
+func noAcquisition(need policy.GoalID, noHunter bool, deficit, pending domain.Fact[float64]) Verdict {
+	if need == policy.ClearPests {
+		if noHunter {
+			return noWorker("hunter")
+		}
+		return BuildingReasonNoDeficit
+	}
+	owed, owedKnown := deficit.Value()
+	inFlight, inFlightKnown := pending.Value()
+	if owedKnown && inFlightKnown && inFlight >= owed {
+		return BuildingReasonExistingWork
+	}
+	return awaitingPlan("acquisition_source", string(need))
+}
+
+// unreadAcquisitionFact names what the source selection lacked when it could
+// not choose: the source census, then (for goals sized by a deficit) the
+// deficit and the pending yield. A census that is read but holds an unusable
+// row reads as the census.
+func unreadAcquisitionFact(sources domain.Fact[[]policy.AcquisitionSource], deficit, pending domain.Fact[float64], withoutDeficit bool) string {
+	if _, known := sources.Value(); !known {
+		return "acquisition_sources"
+	}
+	if !withoutDeficit {
+		if _, known := deficit.Value(); !known {
+			return "acquisition_deficit"
+		}
+		if _, known := pending.Value(); !known {
+			return "pending_acquisition"
+		}
+	}
+	return "acquisition_sources"
 }

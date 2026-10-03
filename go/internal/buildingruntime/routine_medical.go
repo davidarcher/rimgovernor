@@ -162,7 +162,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if !medicalReview.Active {
-		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -191,17 +191,17 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if choice.Kind == policy.MedicineBlocked {
-		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, stalledSources, started)
+		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, facts, stalledSources, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
-		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineMedicalResult{Verdict: medicineChoiceVerdict(choice.Kind, medicineResourceDefinition)}, nil
 	}
 	_, ok := tokens[choice.Bench]
 	if !ok {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
-		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineMedicalResult{Verdict: claimHeld("bench")}, nil
 	}
 	id := domain.MintPlanID()
 	target := int32(choice.Target)
@@ -240,11 +240,11 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 // already designated. The same executor and native designation path
 // EnsureFoodSupply's berry harvest uses carry it out; recovery is still
 // only the observed reserve.
-func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, tables bridge.Tables, medicalReview policy.MedicalReserveReview, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, tables bridge.Tables, medicalReview policy.MedicalReserveReview, facts policy.MedicalReserveObservation, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	replenish, known := medicalReview.Replenish.Value()
 	if !known {
-		return RoutineMedicalResult{Verdict: fieldUnavailable("medical_replenish")}, nil
+		return RoutineMedicalResult{Verdict: fieldUnavailable(unreadMedicalFact(facts))}, nil
 	}
 	if replenish <= 0 {
 		return RoutineMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
@@ -252,7 +252,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	sources := observation.ColonyAcquisition(observed, tables)
 	rows, known := sources.Value()
 	if !known {
-		return RoutineMedicalResult{Verdict: fieldUnavailable("medicine_acquisition")}, nil
+		return RoutineMedicalResult{Verdict: fieldUnavailable("acquisition_sources")}, nil
 	}
 	// A designation this step cancelled as stalled (#291) is still on the
 	// plant; counting its yield as pending would leave nothing to replenish.
@@ -276,10 +276,14 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	}
 	selected, err := policy.SelectResourceAcquisition(sources, domain.Known(float64(replenish)), domain.Known(pending), medicineResourceDefinition, held)
 	if err != nil {
-		return RoutineMedicalResult{Verdict: fieldUnavailable("medicine_acquisition")}, nil
+		// The census was read; a row in it is unusable.
+		return RoutineMedicalResult{Verdict: fieldUnavailable("acquisition_sources")}, nil
 	}
 	if len(selected) == 0 {
-		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
+		if pending >= float64(replenish) {
+			return RoutineMedicalResult{Verdict: BuildingReasonExistingWork}, nil
+		}
+		return RoutineMedicalResult{Verdict: awaitingPlan("medicine_source", "")}, nil
 	}
 	hash := sha256.New()
 	for _, row := range selected {
@@ -319,6 +323,35 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 		return RoutineMedicalResult{}, err
 	}
 	return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// unreadMedicalFact names the census the reserve review lacks: the review
+// reads no replenishment until the colonist count, the medicine stacks and the
+// usable stock are all read.
+func unreadMedicalFact(facts policy.MedicalReserveObservation) string {
+	if _, known := facts.Colonists.Value(); !known {
+		return "colonists"
+	}
+	if _, known := facts.Items.Value(); !known {
+		return "medicine_items"
+	}
+	return "medicine_stock"
+}
+
+// medicineChoiceVerdict is the verdict of a bench method choice that is
+// neither a produce nor the plant-cutting fallback: the reserve recovered, a
+// bench or recipe fact is unread, a bill already stands, or no bench can fund
+// the product.
+func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resource) Verdict {
+	switch kind {
+	case policy.MedicineRecovered:
+		return BuildingReasonNoDeficit
+	case policy.MedicineUnknown:
+		return fieldUnavailable("bench_recipes")
+	case policy.MedicineBlocked:
+		return awaitingPlan("production_bench", string(resource))
+	}
+	return BuildingReasonUsed
 }
 
 // planAmputation is CriticalMedical's life-saving amputation (#1166): while

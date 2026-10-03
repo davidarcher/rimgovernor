@@ -122,7 +122,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 		t.Fatal(plan.Progress[0])
 	}
 	// The pack's only animal has its hunt: nothing more to plan.
-	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonUsed {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(next, err)
 	}
 	// A second animal is planned beside the open hunt, not behind it:
@@ -143,7 +143,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	if acquisition, ok := plan.Progress[0].Action().Acquisition(); !ok || acquisition.Thing() != "beaver-2" {
 		t.Fatal(plan.Progress[0])
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonUsed {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(next, err)
 	}
 }
@@ -177,7 +177,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(result, err)
 	}
 	for _, id := range []domain.PlanID{first.Plan, second.Plan} {
@@ -224,7 +224,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 		if _, err = reviewer.Step(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
+		if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonNoDeficit {
 			t.Fatal(result, err)
 		}
 		plan, err = db.LoadPlan(ctx, first.Plan)
@@ -275,7 +275,7 @@ func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != noWorker("hunter") {
 		t.Fatal("an unarmed roster must not be handed a hunt", result, err)
 	}
 	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("bow")}, Ranged: proto.Bool(true)}}}

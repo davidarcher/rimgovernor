@@ -50,6 +50,10 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{BuildingReasonSeparation, "butcher_separation_pending", "waiting for the butcher spot to be built apart"},
 		{BuildingReasonNotInteractive, "dialog_not_interactive", "waiting for the choice dialog to accept an answer"},
 		{BuildingReasonWaiting, "waiting_on_claim", "waiting on a claim held by a higher-ranked proposal"},
+		{awaitingSlot("EnsureFoodSupply"), "awaiting_plan:development_slot:EnsureFoodSupply", "waiting on development slot (Ensure food supply)"},
+		{claimHeld("bench"), "waiting_on_claim:bench", "waiting on a claim held by a higher-ranked proposal (bench)"},
+		{awaitingPlan("feed_bench", "within_reach_of_animals"), "awaiting_plan:feed_bench:within_reach_of_animals", "waiting on feed bench (within reach of animals)"},
+		{fieldUnavailable("acquisition_sources"), "field_unavailable:acquisition_sources", "the game did not report acquisition sources"},
 	} {
 		if err := test.verdict.Validate(); err != nil {
 			t.Fatalf("%v: %v", test.want, err)

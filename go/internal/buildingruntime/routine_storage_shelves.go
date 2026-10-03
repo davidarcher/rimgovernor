@@ -157,7 +157,15 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		}
 		return r.build(call, epoch, state, review, goals[z.Goal], selected[z.Goal], reading, step, next[z.ID])
 	}
-	return RoutineStorageShelvesResult{Verdict: BuildingReasonUsed}, nil
+	for _, shelf := range request.Shelves {
+		if shelf.Open {
+			return RoutineStorageShelvesResult{Verdict: BuildingReasonExistingWork}, nil
+		}
+	}
+	if !request.Available {
+		return RoutineStorageShelvesResult{Verdict: awaitingPlan("shelf", "unbuildable")}, nil
+	}
+	return RoutineStorageShelvesResult{Verdict: BuildingReasonNoDeficit}, nil
 }
 
 // zoneShelves reads back the zone's shelf plans in index order: the
@@ -300,5 +308,5 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		}
 		return RoutineStorageShelvesResult{Verdict: BuildingReasonAdmitted, Plan: snapshot.Plan}, nil
 	}
-	return RoutineStorageShelvesResult{Verdict: BuildingReasonNoSpace}, nil
+	return RoutineStorageShelvesResult{Verdict: noSpace("storage_shelf")}, nil
 }

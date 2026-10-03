@@ -165,6 +165,24 @@ func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) 
 // a shell stands, its PenMarker is the step that makes it a working pen, so
 // a development row refusing Construction labor (the ring's own bottleneck)
 // never strands a finished fence ring without a marker.
+// containmentWait is the refusal of a containment step that waits on the
+// handler, the native pen or the shell it needs.
+func containmentWait(reason policy.AnimalContainmentReason) Verdict {
+	switch reason {
+	case policy.ContainmentWaitingHandler:
+		return noWorker("animal_handler")
+	case policy.ContainmentWaitingNativePen:
+		return awaitingPlan("native_pen", "delivery")
+	case policy.ContainmentMarkerExhausted:
+		return awaitingPlan("native_pen", "marker_placed")
+	case policy.ContainmentExceedsBound:
+		return awaitingPlan("pen", "herd_exceeds_planning_limit")
+	case policy.ContainmentAwaitingShell:
+		return awaitingPlan("pen_shell", "completion")
+	}
+	return awaitingPlan("pen", string(reason))
+}
+
 func animalContainmentDevelopmentGated(priority int, selected bool, reason policy.AnimalContainmentReason) bool {
 	return priority >= 3 && !selected && reason == policy.ContainmentBuildShell
 }
@@ -251,7 +269,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if animalContainmentDevelopmentGated(goal.Goal.Priority, selected, choice.Reason) {
-		return RoutineAnimalContainmentResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineAnimalContainmentResult{Verdict: awaitingSlot(string(policy.MaintainAnimalContainment))}, nil
 	}
 	if choice.Reason == policy.ContainmentNoDeficit {
 		// The pen stands (or no animal needs one): the barn and vet room.
@@ -260,7 +278,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	switch choice.Reason {
 	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
 		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
-		return RoutineAnimalContainmentResult{Verdict: awaitingMethod(choice.Reason)}, nil
+		return RoutineAnimalContainmentResult{Verdict: containmentWait(choice.Reason)}, nil
 	case policy.ContainmentBuildShell:
 	case policy.ContainmentPlaceMarker:
 		if !haveShellRoom {
@@ -297,8 +315,11 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	}
 	favail, fak := fenceDef.Available.Value()
 	gavail, gak := gateDef.Available.Value()
-	if !fak || !gak || !favail || !gavail {
+	if !fak || !gak {
 		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("fence_availability")}, nil
+	}
+	if !favail || !gavail {
+		return RoutineAnimalContainmentResult{Verdict: awaitingPlan("fence", "unbuildable")}, nil
 	}
 	stuff, known := animalContainmentStuff(fenceDef, gateDef)
 	if !known {
@@ -454,7 +475,7 @@ func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, 
 		}
 		return out, nil
 	}
-	return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoSpace}, nil
+	return RoutineAnimalContainmentResult{Verdict: noSpace("pen_enclosure")}, nil
 }
 
 // previewPenShell previews one candidate room's full 6x6 perimeter (one
@@ -491,7 +512,7 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			return nil, nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+			return nil, nil, policy.StockObservation{}, noSpace("pen_enclosure"), nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
 			return nil, nil, policy.StockObservation{}, Verdict{}, err
@@ -511,8 +532,11 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_definition")}, nil
 	}
 	avail, ak := markerDef.Available.Value()
-	if !ak || !avail {
+	if !ak {
 		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_availability")}, nil
+	}
+	if !avail {
+		return RoutineAnimalContainmentResult{Verdict: awaitingPlan("pen_marker", "unbuildable")}, nil
 	}
 	stuff := ""
 	if s, sk := markerDef.Stuff.Value(); sk {
@@ -575,7 +599,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 		// interior refused one instead of idling silently.
 		slog.Default().Warn("pen marker found no legal interior cell", telemetry.ComponentKey, "animal-containment",
 			"shell", fmt.Sprintf("%d,%d %dx%d", room.X, room.Z, room.Width, room.Height), "interior_cells", len(cells), "candidates", len(search.Candidates()))
-		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineAnimalContainmentResult{Verdict: noSpace("pen_marker")}, nil
 	}
 	plan, err := domain.NewPlan(planID, 1, []domain.Action{chosen.Action})
 	if err != nil {

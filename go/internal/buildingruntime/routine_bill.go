@@ -88,7 +88,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			selected = selected || row.Goal == r.need && row.Selected
 		}
 		if !selected {
-			return RoutineBillResult{Verdict: BuildingReasonRefused}, nil
+			return RoutineBillResult{Verdict: awaitingSlot(string(r.need))}, nil
 		}
 	}
 	for _, method := range goal.Methods {
@@ -143,16 +143,16 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	projection := read.Projection
 	recordStepRead("bill", r.need, state.Snapshot, projection)
 	if r.purpose == policy.ArtBill {
-		selected, known, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
+		selected, missing, art, err := r.artSelection(call, state, projection, review.Latches.MedicalReserve)
 		// A placed sculpture bill is no work to the clock, but the
 		// sculpture takes days of game time (#1195).
 		var ticks uint32
 		if art.sculpting {
 			ticks = artNativeWorkTicks
 		}
-		clockSchedulerLog("art bill: selected=%+v known=%v art=%+v err=%v", selected, known, art, err)
-		if err != nil || !known {
-			return RoutineBillResult{Verdict: fieldUnavailable("art_bill"), NativeWorkTicks: ticks}, err
+		clockSchedulerLog("art bill: selected=%+v missing=%v art=%+v err=%v", selected, missing, art, err)
+		if err != nil || !missing.IsZero() {
+			return RoutineBillResult{Verdict: missing, NativeWorkTicks: ticks}, err
 		}
 		result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, art.finished[selected.Worker])
 		result.NativeWorkTicks = max(result.NativeWorkTicks, ticks)
@@ -201,7 +201,10 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// colonist would serialise spot, bill and hunt behind the equip family.
 		days, dk := projection.Facts.FoodDays.Value()
 		if (!dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays) && !policy.HumanFoodPending(projection.Facts.FoodPlan) {
-			return RoutineBillResult{Verdict: fieldUnavailable("food_days")}, nil
+			if !dk {
+				return RoutineBillResult{Verdict: fieldUnavailable("food_days")}, nil
+			}
+			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}
 		// A butcher bench that shares a cooking room feeds the colony but keeps
 		// the kitchen dirty (issue #6 slice 2). While every bench is co-located
@@ -285,7 +288,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 					if !ready {
 						native, ok := r.native.(RoutineResourceSource)
 						if !ok || len(bench.HumanStorageCells) == 0 {
-							return RoutineBillResult{Verdict: BuildingReasonNoSpace}, nil
+							return RoutineBillResult{Verdict: noSpace("human_corpse_storage")}, nil
 						}
 						core := RoutineResourcePlanner{reviewer: r.reviewer, native: native}
 						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage")
@@ -297,10 +300,33 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if !known {
-		return r.lendReserveWork(RoutineBillResult{Verdict: fieldUnavailable("bill_bench")}, reserveRunning), nil
+		return r.lendReserveWork(RoutineBillResult{Verdict: r.noBill(benches, projection.Facts.Colonists)}, reserveRunning), nil
 	}
 	result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	return r.lendReserveWork(result, reserveRunning), err
+}
+
+// noBill says why the food-bill selection chose nothing: a census it needs is
+// unread, no usable bench of the purpose's kind stands, or the bills already
+// standing cover what is owed.
+func (r *RoutineBillPlanner) noBill(benches domain.Fact[[]policy.ProductionBench], colonists domain.Fact[int64]) Verdict {
+	rows, known := benches.Value()
+	if !known {
+		return fieldUnavailable("production_benches")
+	}
+	if _, known := colonists.Value(); !known {
+		return fieldUnavailable("colonists")
+	}
+	butcher := r.purpose == policy.ButcherFood
+	for _, bench := range rows {
+		if usable, known := bench.Usable.Value(); known && usable && bench.Butcher == butcher {
+			return BuildingReasonNoDeficit
+		}
+	}
+	if butcher {
+		return awaitingPlan("butcher_bench", "")
+	}
+	return awaitingPlan("cooking_bench", "")
 }
 
 // lendReserveWork asks for game time while a reserve bill runs and no new
@@ -338,7 +364,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	// bench token; the second bill on a bench would hold forever on the
 	// first's write (#408). One bill per bench per step.
 	if arbiter != nil && !arbiter.tryClaim(nil, "bench:"+selected.Bench) {
-		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBillResult{Verdict: claimHeld("bench")}, nil
 	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)

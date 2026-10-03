@@ -148,8 +148,8 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 	if !r.methodEnabled(policy.MaintainStockpiles) {
 		return nil
 	}
-	request, known, err := r.stockpileRequest(ctx, snapshot, projection)
-	if err != nil || !known {
+	request, missing, err := r.stockpileRequest(ctx, snapshot, projection)
+	if err != nil || missing != "" {
 		return err
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
@@ -161,19 +161,24 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 	return nil
 }
 
-func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (policy.StockpileRequest, bool, error) {
+// stockpileRequest assembles the maintenance request; the string names the
+// fact still unread (empty when the request is whole).
+func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (policy.StockpileRequest, string, error) {
 	tick := projection.Identity.Tick
 	claims, err := r.player.journal.ZoneClaims(ctx, snapshot, tick)
 	if err != nil {
-		return policy.StockpileRequest{}, false, err
+		return policy.StockpileRequest{}, "", err
 	}
 	owned, ok := claims.Value()
-	if !ok || len(projection.Cells) == 0 {
-		return policy.StockpileRequest{}, false, nil
+	if !ok {
+		return policy.StockpileRequest{}, "zone_claims", nil
+	}
+	if len(projection.Cells) == 0 {
+		return policy.StockpileRequest{}, "site_cells", nil
 	}
 	patches, err := r.player.journal.StockpilePatches(ctx, snapshot, tick)
 	if err != nil {
-		return policy.StockpileRequest{}, false, err
+		return policy.StockpileRequest{}, "", err
 	}
 	benches := domain.Unknown[map[string]bool]()
 	roles := map[string]bool{}
@@ -181,7 +186,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 		roles[z.Role] = true
 		if _, read := benches.Value(); strings.HasPrefix(z.Role, domain.IngredientsPrefix) && !read {
 			if benches, err = r.standingBenches(ctx, snapshot, projection.Identity); err != nil {
-				return policy.StockpileRequest{}, false, err
+				return policy.StockpileRequest{}, "", err
 			}
 		}
 	}
@@ -200,7 +205,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 		if !windowHolds(request.Cells, map[domain.Cell]bool{core: true}) {
 			held, err := source.PlanningWindow(ctx, boundary.Identity(snapshot), box)
 			if err != nil {
-				return policy.StockpileRequest{}, false, err
+				return policy.StockpileRequest{}, "", err
 			}
 			if held.Complete {
 				seen := map[domain.Cell]bool{}
@@ -219,7 +224,7 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	for _, z := range request.Zones {
 		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
-			return policy.StockpileRequest{}, false, err
+			return policy.StockpileRequest{}, "", err
 		}
 		for _, s := range shelves {
 			if s.Building == "" || s.Open {
@@ -235,11 +240,11 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	weapons := 0
 	if !roles[domain.WeaponsRole] {
 		if weapons, err = r.looseWeapons(ctx, snapshot, projection.Bounds); err != nil {
-			return policy.StockpileRequest{}, false, err
+			return policy.StockpileRequest{}, "", err
 		}
 	}
 	request.Needs = stockpileNeeds(projection.Facts, weapons)
-	return request, true, nil
+	return request, "", nil
 }
 
 // stockpileNeeds counts the things waiting for each fixed role (#724):
@@ -426,12 +431,12 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{}, err
 	}
 	projection := read.Projection
-	request, known, err := r.reviewer.stockpileRequest(call, state.Snapshot, &projection)
+	request, missing, err := r.reviewer.stockpileRequest(call, state.Snapshot, &projection)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
-	if !known {
-		return RoutineStockpileResult{Verdict: fieldUnavailable("stockpile_zones")}, nil
+	if missing != "" {
+		return RoutineStockpileResult{Verdict: fieldUnavailable(missing)}, nil
 	}
 	r.reviewer.stockpiles.fill(stockpileWorld(state.Snapshot), request.Zones)
 	proposal := policy.PlanStockpileMaintenance(request)
@@ -474,7 +479,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return r.create(call, epoch, state, goal, projection, read.StartedAt, creates)
 	}
 	if len(actions) == 0 {
-		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineStockpileResult{Verdict: fieldUnavailable("stockpile_edit_targets")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -565,7 +570,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		admitted = append(admitted, e)
 	}
 	if len(actions) == 0 {
-		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineStockpileResult{Verdict: noSpace("stockpile_zone")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
