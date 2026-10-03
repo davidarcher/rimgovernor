@@ -75,6 +75,59 @@ func (CorpseClass) EnumDescriptor() ([]byte, []int) {
 	return file_common_proto_rawDescGZIP(), []int{0}
 }
 
+// A rotting thing's stage (Verse RotStage); a corpse bill's minimum (#1810).
+type RotStage int32
+
+const (
+	RotStage_ROT_STAGE_UNSPECIFIED RotStage = 0
+	RotStage_ROT_STAGE_FRESH       RotStage = 1
+	RotStage_ROT_STAGE_ROTTING     RotStage = 2
+	RotStage_ROT_STAGE_DESSICATED  RotStage = 3
+)
+
+// Enum value maps for RotStage.
+var (
+	RotStage_name = map[int32]string{
+		0: "ROT_STAGE_UNSPECIFIED",
+		1: "ROT_STAGE_FRESH",
+		2: "ROT_STAGE_ROTTING",
+		3: "ROT_STAGE_DESSICATED",
+	}
+	RotStage_value = map[string]int32{
+		"ROT_STAGE_UNSPECIFIED": 0,
+		"ROT_STAGE_FRESH":       1,
+		"ROT_STAGE_ROTTING":     2,
+		"ROT_STAGE_DESSICATED":  3,
+	}
+)
+
+func (x RotStage) Enum() *RotStage {
+	p := new(RotStage)
+	*p = x
+	return p
+}
+
+func (x RotStage) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RotStage) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_proto_enumTypes[1].Descriptor()
+}
+
+func (RotStage) Type() protoreflect.EnumType {
+	return &file_common_proto_enumTypes[1]
+}
+
+func (x RotStage) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RotStage.Descriptor instead.
+func (RotStage) EnumDescriptor() ([]byte, []int) {
+	return file_common_proto_rawDescGZIP(), []int{1}
+}
+
 type FailureCode int32
 
 const (
@@ -144,11 +197,11 @@ func (x FailureCode) String() string {
 }
 
 func (FailureCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[1].Descriptor()
+	return file_common_proto_enumTypes[2].Descriptor()
 }
 
 func (FailureCode) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[1]
+	return &file_common_proto_enumTypes[2]
 }
 
 func (x FailureCode) Number() protoreflect.EnumNumber {
@@ -157,7 +210,7 @@ func (x FailureCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FailureCode.Descriptor instead.
 func (FailureCode) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{1}
+	return file_common_proto_rawDescGZIP(), []int{2}
 }
 
 type UnavailableReason int32
@@ -217,11 +270,11 @@ func (x UnavailableReason) String() string {
 }
 
 func (UnavailableReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_common_proto_enumTypes[2].Descriptor()
+	return file_common_proto_enumTypes[3].Descriptor()
 }
 
 func (UnavailableReason) Type() protoreflect.EnumType {
-	return &file_common_proto_enumTypes[2]
+	return &file_common_proto_enumTypes[3]
 }
 
 func (x UnavailableReason) Number() protoreflect.EnumNumber {
@@ -230,7 +283,7 @@ func (x UnavailableReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UnavailableReason.Descriptor instead.
 func (UnavailableReason) EnumDescriptor() ([]byte, []int) {
-	return file_common_proto_rawDescGZIP(), []int{2}
+	return file_common_proto_rawDescGZIP(), []int{3}
 }
 
 // Presence is significant: map zero and tick zero are valid observations.
@@ -681,7 +734,12 @@ const file_common_proto_rawDesc = "" +
 	"\x18CORPSE_CLASS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15CORPSE_CLASS_COLONIST\x10\x01\x12\x19\n" +
 	"\x15CORPSE_CLASS_STRANGER\x10\x02\x12\x17\n" +
-	"\x13CORPSE_CLASS_ANIMAL\x10\x03*\xf8\x03\n" +
+	"\x13CORPSE_CLASS_ANIMAL\x10\x03*k\n" +
+	"\bRotStage\x12\x19\n" +
+	"\x15ROT_STAGE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fROT_STAGE_FRESH\x10\x01\x12\x15\n" +
+	"\x11ROT_STAGE_ROTTING\x10\x02\x12\x18\n" +
+	"\x14ROT_STAGE_DESSICATED\x10\x03*\xf8\x03\n" +
 	"\vFailureCode\x12\x1c\n" +
 	"\x18FAILURE_CODE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cFAILURE_CODE_INVALID_REQUEST\x10\x01\x12\x1c\n" +
@@ -725,25 +783,26 @@ func file_common_proto_rawDescGZIP() []byte {
 	return file_common_proto_rawDescData
 }
 
-var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_common_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_common_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_common_proto_goTypes = []any{
 	(CorpseClass)(0),           // 0: rimgovernor.common.v1.CorpseClass
-	(FailureCode)(0),           // 1: rimgovernor.common.v1.FailureCode
-	(UnavailableReason)(0),     // 2: rimgovernor.common.v1.UnavailableReason
-	(*Identity)(nil),           // 3: rimgovernor.common.v1.Identity
-	(*ObservationContext)(nil), // 4: rimgovernor.common.v1.ObservationContext
-	(*AttemptKey)(nil),         // 5: rimgovernor.common.v1.AttemptKey
-	(*Ref)(nil),                // 6: rimgovernor.common.v1.Ref
-	(*Cell)(nil),               // 7: rimgovernor.common.v1.Cell
-	(*Failure)(nil),            // 8: rimgovernor.common.v1.Failure
-	(*Unavailable)(nil),        // 9: rimgovernor.common.v1.Unavailable
+	(RotStage)(0),              // 1: rimgovernor.common.v1.RotStage
+	(FailureCode)(0),           // 2: rimgovernor.common.v1.FailureCode
+	(UnavailableReason)(0),     // 3: rimgovernor.common.v1.UnavailableReason
+	(*Identity)(nil),           // 4: rimgovernor.common.v1.Identity
+	(*ObservationContext)(nil), // 5: rimgovernor.common.v1.ObservationContext
+	(*AttemptKey)(nil),         // 6: rimgovernor.common.v1.AttemptKey
+	(*Ref)(nil),                // 7: rimgovernor.common.v1.Ref
+	(*Cell)(nil),               // 8: rimgovernor.common.v1.Cell
+	(*Failure)(nil),            // 9: rimgovernor.common.v1.Failure
+	(*Unavailable)(nil),        // 10: rimgovernor.common.v1.Unavailable
 }
 var file_common_proto_depIdxs = []int32{
-	3, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
-	1, // 1: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
-	4, // 2: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
-	2, // 3: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
+	4, // 0: rimgovernor.common.v1.ObservationContext.identity:type_name -> rimgovernor.common.v1.Identity
+	2, // 1: rimgovernor.common.v1.Failure.code:type_name -> rimgovernor.common.v1.FailureCode
+	5, // 2: rimgovernor.common.v1.Failure.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	3, // 3: rimgovernor.common.v1.Unavailable.reason:type_name -> rimgovernor.common.v1.UnavailableReason
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -768,7 +827,7 @@ func file_common_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_rawDesc), len(file_common_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,

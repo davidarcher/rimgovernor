@@ -24,7 +24,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces(), storedCorpses(b)})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces(), storedCorpses(b), b.MinRot()})
 		if err != nil {
 			return err
 		}
@@ -329,7 +329,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			if payload.Mode != domain.ButcherForever || payload.Target != 0 || len(payload.Ingredients) > 0 {
 				return domain.Action{}, 0, errors.New("invalid corpse bill payload")
 			}
-			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Corpses)
+			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Corpses, payload.MinRot)
 		}
 		if payload.Mode != domain.HumanButcherForever && payload.Mode != domain.GearBatch && payload.Worker != "" {
 			return domain.Action{}, 0, errors.New("worker on ordinary bill")
@@ -1197,6 +1197,7 @@ type billPayload struct {
 	Worker        string          `json:",omitempty"`
 	Replace       string          `json:",omitempty"`
 	Corpses       domain.CorpseOf `json:",omitempty"`
+	MinRot        domain.RotStage `json:",omitempty"`
 }
 
 // storedCorpses is the bill row's corpse filter: only a cremation bill

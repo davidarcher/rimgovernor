@@ -13,13 +13,23 @@ func TestBillIntentCarriesTheCorpseClass(t *testing.T) {
 	forever := func(class c.CorpseClass) *op.BillSettings {
 		return &op.BillSettings{RepeatMode: op.RepeatMode_REPEAT_MODE_FOREVER.Enum(), Suspended: proto.Bool(false), IngredientSearchRadius: proto.Float32(40), Store: &op.BillStore{Destination: &op.BillStore_Mode{Mode: op.StoreMode_STORE_MODE_DROP_ON_FLOOR}}, CorpseClass: class.Enum()}
 	}
-	cremate, err := domain.NewCorpseBill("crematorium", domain.CremateRecipe, domain.CorpseStranger)
+	cremate, err := domain.NewCorpseBill("crematorium", domain.CremateRecipe, domain.CorpseStranger, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	add := billIntent(cremate)
 	if add.GetRecipeDef() != "CremateCorpse" || !proto.Equal(add.GetSettings(), forever(c.CorpseClass_CORPSE_CLASS_STRANGER)) {
 		t.Fatalf("cremation settings: %v", add)
+	}
+	// An animal cremation bill excludes fresh corpses (#1810).
+	spoiled, _ := domain.NewCorpseBill("crematorium", domain.CremateRecipe, domain.CorpseAnimal, domain.RotRotting)
+	want := forever(c.CorpseClass_CORPSE_CLASS_ANIMAL)
+	want.MinRotStage = c.RotStage_ROT_STAGE_ROTTING.Enum()
+	if s := billIntent(spoiled).GetSettings(); !proto.Equal(s, want) {
+		t.Fatalf("animal cremation settings: %v", s)
+	}
+	if s := billIntent(cremate).GetSettings(); s.MinRotStage != nil {
+		t.Fatalf("stranger cremation gained a minimum: %v", s)
 	}
 	// Every butcher bill names its class: animal, or stranger when pinned.
 	butcher, _ := domain.NewProductionBill("table", domain.ButcherRecipe, domain.ButcherForever, 0)

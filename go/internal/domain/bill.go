@@ -34,6 +34,7 @@ type ProductionBill struct {
 	worker        string
 	replace       string
 	corpses       CorpseOf
+	minRot        RotStage
 }
 
 func NewProductionBill(bench, recipe string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
@@ -92,19 +93,24 @@ const (
 // plus an ingredient filter by whose corpse it is. Butchering animals is the
 // plain ButcherForever bill; humanlike butchering (strangers, pinned
 // worker) stays NewHumanButcherBill. Cremation takes any class; which
-// class to cremate is policy's choice.
-func NewCorpseBill(bench, recipe string, corpses CorpseOf) (ProductionBill, error) {
-	if recipe == ButcherRecipe && corpses == CorpseAnimal {
+// class to cremate is policy's choice. An animal cremation bill must name
+// minRot RotRotting so fresh animal corpses stay for the butcher (#1810);
+// no other bill takes a minimum.
+func NewCorpseBill(bench, recipe string, corpses CorpseOf, minRot RotStage) (ProductionBill, error) {
+	if recipe == ButcherRecipe && corpses == CorpseAnimal && minRot == "" {
 		return NewProductionBill(bench, recipe, ButcherForever, 0)
 	}
-	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) {
+	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) || minRot != "" && corpses != CorpseAnimal || corpses == CorpseAnimal && minRot != RotRotting {
 		return ProductionBill{}, errors.New("invalid corpse bill")
 	}
-	return ProductionBill{bench: bench, recipe: recipe, mode: ButcherForever, corpses: corpses}, nil
+	return ProductionBill{bench: bench, recipe: recipe, mode: ButcherForever, corpses: corpses, minRot: minRot}, nil
 }
 
 // Corpses is a corpse bill's ingredient filter; empty for other bills.
 func (b ProductionBill) Corpses() CorpseOf { return b.corpses }
+
+// MinRot is a corpse bill's minimum rot stage; empty takes any.
+func (b ProductionBill) MinRot() RotStage { return b.minRot }
 
 func (b ProductionBill) Worker() string { return b.worker }
 
@@ -150,7 +156,7 @@ func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 	if b.mode == HumanButcherForever {
 		canonical, err = NewHumanButcherBill(b.bench, b.worker)
 	} else if b.recipe == CremateRecipe {
-		canonical, err = NewCorpseBill(b.bench, b.recipe, b.corpses)
+		canonical, err = NewCorpseBill(b.bench, b.recipe, b.corpses, b.minRot)
 	} else if err == nil && b.worker != "" {
 		canonical, err = canonical.PinWorker(b.worker)
 	}

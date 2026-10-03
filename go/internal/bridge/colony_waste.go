@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -28,7 +29,7 @@ func validateColonyWaste(v *o.WasteReply, size *o.MapSize, mapID int32) error {
 		for _, row := range snapshot.Items {
 			if row == nil || !uniqueRef(row.Thing, seen) || row.Count != nil && row.GetCount() < 0 ||
 				!optionalRef(row.Zone) || !optionalRef(row.Grave) ||
-				row.RotStage != nil && o.RotStage_name[int32(row.GetRotStage())] == "" || row.Kind != nil && WasteKindName(row.GetKind()) == "" ||
+				row.RotStage != nil && c.RotStage_name[int32(row.GetRotStage())] == "" || row.Kind != nil && WasteKindName(row.GetKind()) == "" ||
 				row.ProtectedReason != nil && validID(row.GetProtectedReason()) != nil ||
 				row.CorpseClass != nil && !CorpseOf(row.GetCorpseClass()).Valid() {
 				return contract("invalid waste item")

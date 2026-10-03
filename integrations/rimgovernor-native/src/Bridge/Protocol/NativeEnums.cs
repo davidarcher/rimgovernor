@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using RimWorld;
+using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
 using Receipts = RimGovernor.Protocol.Receipts;
@@ -67,12 +68,12 @@ namespace HomeBridge.BridgeTools
             _ => throw new InvalidOperationException("EntityContainmentMode " + mode + " has no wire value.")
         };
 
-        internal static Obs.RotStage Rot(RotStage stage) => stage switch
+        internal static Common.RotStage Rot(RotStage stage) => stage switch
         {
-            RotStage.Fresh => Obs.RotStage.Fresh,
-            RotStage.Rotting => Obs.RotStage.Rotting,
-            RotStage.Dessicated => Obs.RotStage.Dessicated,
-            _ => Obs.RotStage.Unspecified
+            RotStage.Fresh => Common.RotStage.Fresh,
+            RotStage.Rotting => Common.RotStage.Rotting,
+            RotStage.Dessicated => Common.RotStage.Dessicated,
+            _ => Common.RotStage.Unspecified
         };
 
         // Holder is the read's holder kind ("container", "corpse",

@@ -34,6 +34,9 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 	if bill.Corpses() != "" {
 		settings.CorpseClass = CorpseClass(bill.Corpses()).Enum()
 	}
+	if bill.MinRot() != "" {
+		settings.MinRotStage = RotStage(bill.MinRot()).Enum()
+	}
 	if bill.Worker() != "" {
 		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
 	}

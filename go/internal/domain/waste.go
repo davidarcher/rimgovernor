@@ -52,3 +52,22 @@ const (
 func (c CorpseOf) Valid() bool {
 	return c == CorpseColonist || c == CorpseStranger || c == CorpseAnimal
 }
+
+// RotStage is a thing's rot stage, as the waste census reports it and a
+// corpse bill's minimum names it (#1810). Empty is unknown (or, on a bill,
+// any stage).
+type RotStage string
+
+const (
+	RotFresh      RotStage = "fresh"
+	RotRotting    RotStage = "rotting"
+	RotDessicated RotStage = "dessicated"
+)
+
+// Valid reports one of the three stages.
+func (r RotStage) Valid() bool {
+	return r == RotFresh || r == RotRotting || r == RotDessicated
+}
+
+// Spoiled reports a corpse past fresh: rotting or desiccated.
+func (r RotStage) Spoiled() bool { return r == RotRotting || r == RotDessicated }

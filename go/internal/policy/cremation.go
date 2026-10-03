@@ -6,7 +6,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // hit and a rot source; once the crematorium is available, MaintainWaste
 // places one in a free workshop slot and gives it a forever CremateCorpse
 // bill that takes stranger corpses only. Colonists go to the tomb (#832)
-// and are never cremated; animals stay with the butcher.
+// and are never cremated. Animal corpses that are rotting or desiccated
+// get a second bill (#1810); fresh ones stay with the butcher.
 
 // CrematoriumDefinition is the crematorium the waste routine places.
 const CrematoriumDefinition = "ElectricCrematorium"
@@ -31,6 +32,8 @@ type CremationStep struct {
 	Piece     InteriorPiece
 	Bench     string
 	Strangers int
+	// Animals counts unburied animal corpses past fresh (#1810).
+	Animals int
 }
 
 // NextCremationStep picks the next cremation step from the plan, the room
@@ -40,11 +43,17 @@ type CremationStep struct {
 func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding) CremationStep {
 	step := CremationStep{}
 	for _, item := range waste {
-		if item.CorpseOf == domain.CorpseStranger && item.State != WasteBuried {
+		if item.State == WasteBuried {
+			continue
+		}
+		switch {
+		case item.CorpseOf == domain.CorpseStranger:
 			step.Strangers++
+		case item.CorpseOf == domain.CorpseAnimal && item.RotStage.Spoiled():
+			step.Animals++
 		}
 	}
-	if step.Strangers == 0 {
+	if step.Strangers+step.Animals == 0 {
 		return CremationStep{}
 	}
 	taken := map[domain.Cell]bool{}
@@ -94,7 +103,7 @@ func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem
 // CremationOwed is the review's cremation deficit: known true while a
 // cremation step is due, false while the crematorium is unavailable,
 // unknown while a fact the step reads is. A built crematorium keeps it
-// owed until the stranger corpses are gone: the bill step reads the
+// owed until the stranger and spoiled animal corpses are gone: the bill step reads the
 // bench's bills and falls through to the haul once the bill stands.
 func CremationOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
 	a, ak := available.Value()

@@ -161,6 +161,10 @@ message BillSettings {
   // (ButcherCorpseFlesh, CremateCorpse) takes. Required on corpse recipes,
   // refused on others; a butcher bill with a pinned worker is humanlike.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
+  // Corpse bill minimum rot stage (#1810): ROTTING leaves fresh corpses to the
+  // butcher (native clears the AllowFresh special filter); unset takes any.
+  // Refused on non-corpse recipes and on a butcher bill.
+  optional rimgovernor.common.v1.RotStage min_rot_stage = 15;
 }
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }

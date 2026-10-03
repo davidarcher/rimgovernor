@@ -16,7 +16,9 @@ import (
 // Cremating raiders (#833): MaintainWaste places a crematorium in a free
 // workshop slot while stranger corpses lie unburied, then gives it a
 // forever CremateCorpse bill that takes stranger corpses only
-// (policy.NextCremationStep). Colonists are never cremated.
+// (policy.NextCremationStep). Rotting and desiccated animal corpses get a
+// second forever bill that excludes fresh ones (#1810). Colonists are never
+// cremated.
 
 // cremationBills reads bench bills and previews one; a source without it
 // never cremates.
@@ -27,7 +29,7 @@ type cremationBills interface {
 // cremationMethod names a cremation step's method, once per goal epoch.
 func cremationMethod(step policy.CremationStep) domain.MethodID {
 	if step.Kind == policy.CremationBill {
-		return domain.MethodID("cremate-bill-" + step.Bench)
+		return cremationBillMethod(step.Bench, domain.CorpseStranger)
 	}
 	return domain.MethodID(fmt.Sprintf("cremate-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
 }
@@ -51,11 +53,37 @@ func (r *RoutineWastePlanner) stageCremation(call, epoch context.Context, state 
 	return RoutineWasteResult{}, false, nil
 }
 
-// cremationBill commits the crematorium's stranger-corpse bill unless the
-// bench already carries a CremateCorpse bill.
+// cremationBillMethod names one corpse class's bill method on a bench.
+func cremationBillMethod(bench string, of domain.CorpseOf) domain.MethodID {
+	if of == domain.CorpseAnimal {
+		return domain.MethodID("cremate-bill-" + bench + "-animal")
+	}
+	return domain.MethodID("cremate-bill-" + bench)
+}
+
+// cremationBill commits each due class's CremateCorpse bill once per goal
+// epoch (native applies a bill it already carries again as a no-op).
 func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state ControlState, goal store.GoalState, bills cremationBills, step policy.CremationStep) (RoutineWasteResult, bool, error) {
 	p := r.reviewer.player
-	method := cremationMethod(step)
+	var of domain.CorpseOf
+	switch {
+	case step.Strangers > 0:
+		of = domain.CorpseStranger
+	case step.Animals > 0:
+		of = domain.CorpseAnimal
+	}
+	if of == domain.CorpseStranger {
+		if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, cremationBillMethod(step.Bench, of)); err == nil {
+			of = ""
+			if step.Animals > 0 {
+				of = domain.CorpseAnimal
+			}
+		}
+	}
+	method := cremationBillMethod(step.Bench, of)
+	if of == "" {
+		return RoutineWasteResult{}, false, nil
+	}
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineWasteResult{}, false, nil
 	}
@@ -69,21 +97,19 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		if row.Bench.ID != step.Bench {
 			continue
 		}
-		existing, known := row.Bench.Bills.Value()
-		if !known {
+		if _, known := row.Bench.Bills.Value(); !known {
 			return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bills")}, true, nil
-		}
-		for _, b := range existing {
-			if b.Recipe == domain.CremateRecipe {
-				return RoutineWasteResult{}, false, nil
-			}
 		}
 		token = row.Token
 	}
 	if token == "" {
 		return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bench")}, true, nil
 	}
-	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, domain.CorpseStranger)
+	minRot := domain.RotStage("")
+	if of == domain.CorpseAnimal {
+		minRot = domain.RotRotting
+	}
+	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, of, minRot)
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}

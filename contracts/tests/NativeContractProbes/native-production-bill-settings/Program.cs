@@ -62,10 +62,18 @@ internal static class NativeProductionBillSettingsProbe
         var cremate = butcher.Clone();
         cremate.RecipeDef = "CremateCorpse";
         cremate.ReplaceOwnedBill = null;
-        foreach (var of in new[] { RimGovernor.Protocol.Common.CorpseClass.Colonist, RimGovernor.Protocol.Common.CorpseClass.Stranger, RimGovernor.Protocol.Common.CorpseClass.Animal }) {
+        foreach (var of in new[] { RimGovernor.Protocol.Common.CorpseClass.Colonist, RimGovernor.Protocol.Common.CorpseClass.Stranger }) {
             cremate.Settings.CorpseClass = of;
             Check(NativeProductionBillSettings.Valid(cremate), "cremation rejected for " + of);
         }
+        // Animal cremation must exclude fresh corpses (#1810); nothing else takes a minimum.
+        cremate.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Animal;
+        Check(!NativeProductionBillSettings.Valid(cremate), "animal cremation without a minimum rot stage accepted");
+        cremate.Settings.MinRotStage = RimGovernor.Protocol.Common.RotStage.Rotting;
+        Check(NativeProductionBillSettings.Valid(cremate), "animal cremation excluding fresh rejected");
+        cremate.Settings.CorpseClass = RimGovernor.Protocol.Common.CorpseClass.Stranger;
+        Check(!NativeProductionBillSettings.Valid(cremate), "minimum rot stage accepted on a stranger cremation");
+        cremate.Settings.ClearMinRotStage();
         cremate.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
         Check(!NativeProductionBillSettings.Valid(cremate), "pinned cremation accepted");
         var classedMeal = bill.Clone();

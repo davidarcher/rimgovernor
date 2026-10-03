@@ -19,6 +19,33 @@ func CorpseOf(v c.CorpseClass) domain.CorpseOf {
 	return ""
 }
 
+// RotStage is the wire stage of a domain RotStage.
+func RotStage(v domain.RotStage) c.RotStage {
+	switch v {
+	case domain.RotFresh:
+		return c.RotStage_ROT_STAGE_FRESH
+	case domain.RotRotting:
+		return c.RotStage_ROT_STAGE_ROTTING
+	case domain.RotDessicated:
+		return c.RotStage_ROT_STAGE_DESSICATED
+	}
+	return c.RotStage_ROT_STAGE_UNSPECIFIED
+}
+
+// RotOf is the domain stage of a wire RotStage; empty for UNSPECIFIED or an
+// unknown value.
+func RotOf(v c.RotStage) domain.RotStage {
+	switch v {
+	case c.RotStage_ROT_STAGE_FRESH:
+		return domain.RotFresh
+	case c.RotStage_ROT_STAGE_ROTTING:
+		return domain.RotRotting
+	case c.RotStage_ROT_STAGE_DESSICATED:
+		return domain.RotDessicated
+	}
+	return ""
+}
+
 // CorpseClass is the wire class of a domain CorpseOf.
 func CorpseClass(v domain.CorpseOf) c.CorpseClass {
 	switch v {

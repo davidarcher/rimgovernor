@@ -36,6 +36,9 @@ type WasteItem struct {
 	Cell     domain.Cell
 	// CorpseOf is a corpse's inner pawn class; empty for anything else.
 	CorpseOf domain.CorpseOf
+	// RotStage is the item's rot stage; empty when it does not rot or the
+	// census did not say.
+	RotStage domain.RotStage
 	// Grave is the holding grave's ID for a buried corpse.
 	Grave string
 }

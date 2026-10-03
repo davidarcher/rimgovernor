@@ -27,6 +27,31 @@ func TestCremationPlacesInAWorkshopThenBills(t *testing.T) {
 	}
 }
 
+func TestCremationTakesSpoiledAnimalsButNotFreshOnes(t *testing.T) {
+	room := LayoutRoom{Role: ModuleWorkshop, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 19}, DoorRot: domain.North}
+	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
+	rooms := tombStanding(room)
+	cases := []struct {
+		name   string
+		item   WasteItem
+		owed   int
+		places bool
+	}{
+		{"rotting", WasteItem{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseAnimal, RotStage: domain.RotRotting}, 1, true},
+		{"desiccated", WasteItem{ID: "Corpse_2", Kind: "corpse", State: WasteRelocated, CorpseOf: domain.CorpseAnimal, RotStage: domain.RotDessicated}, 1, true},
+		{"fresh", WasteItem{ID: "Corpse_3", State: WasteExposed, CorpseOf: domain.CorpseAnimal, RotStage: domain.RotFresh}, 0, false},
+		{"stage unknown", WasteItem{ID: "Corpse_4", State: WasteExposed, CorpseOf: domain.CorpseAnimal}, 0, false},
+		{"buried", WasteItem{ID: "Corpse_5", Kind: "corpse", State: WasteBuried, CorpseOf: domain.CorpseAnimal, RotStage: domain.RotRotting}, 0, false},
+		{"colonist", WasteItem{ID: "Corpse_6", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist, RotStage: domain.RotRotting}, 0, false},
+	}
+	for _, tc := range cases {
+		step := NextCremationStep(plan, rooms, []WasteItem{tc.item}, nil)
+		if step.Animals != tc.owed || (step.Kind == CremationPlace) != tc.places {
+			t.Errorf("%s: %+v", tc.name, step)
+		}
+	}
+}
+
 func TestCremationNeverTakesColonistsOrAnimals(t *testing.T) {
 	room := LayoutRoom{Role: ModuleWorkshop, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 19}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []LayoutRoom{room}}

@@ -17,7 +17,13 @@ namespace HomeBridge.BridgeTools {
     if(!s.HasCorpseClass||!Enum.IsDefined(typeof(Common.CorpseClass),s.CorpseClass)||s.CorpseClass==Common.CorpseClass.Unspecified)return false;
     var pinned=NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named(command.RecipeDef))&&s.CorpseClass!=Common.CorpseClass.Animal;
     if(pinned!=(s.Worker!=null)||s.Worker!=null&&(s.Worker.ValueCase!=Operations.Assignment.ValueOneofCase.EntityId||!ProtoBoundary.IsIdentifier(s.Worker.EntityId)))return false;
-    return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone(),CorpseClass=s.CorpseClass});
+    // Only an animal cremation bill names a minimum, and it must: ROTTING
+    // excludes fresh corpses so the butcher keeps them (#1810).
+    var spoiledOnly=NativeRecipeRoles.Cremation(NativeRecipeRoles.Named(command.RecipeDef))&&s.CorpseClass==Common.CorpseClass.Animal;
+    if(spoiledOnly!=s.HasMinRotStage||spoiledOnly&&s.MinRotStage!=Common.RotStage.Rotting)return false;
+    var corpse=new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone(),CorpseClass=s.CorpseClass};
+    if(spoiledOnly)corpse.MinRotStage=Common.RotStage.Rotting;
+    return s.Equals(corpse);
    }
    // A finite batch (gear, sculpture): repeat a count of times, no target.
    // It may pin one worker (#1190: an art bill per artist).
