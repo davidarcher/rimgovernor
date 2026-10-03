@@ -67,6 +67,15 @@ const (
 	pumpRadiusSq = 47
 )
 
+// openPreference is how picky a killbox opening is about its ground.
+type openPreference int
+
+const (
+	openOffFields   openPreference = iota // no rock, no field cell
+	openClearOfRock                       // no rock
+	openAnywhere
+)
+
 // PlanPerimeter adds the wall, gates, killbox, approach,
 // cover-clear band and mortar spot to plan (which needs its core rooms),
 // replacing any it held. A plan without rooms comes back unchanged.
@@ -240,7 +249,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			}
 		}
 	}
-	opens := func(x crossing, strict bool) bool {
+	opens := func(x crossing, preference openPreference) bool {
 		sd := sides[x.side]
 		if x.pos < sd.lo+1 || x.pos > sd.hi-1 {
 			return false
@@ -263,7 +272,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 			return false
 		}
 		for _, c := range rectCells(killbox) {
-			if !enc.inside(c) || strict && fields[c] {
+			if !enc.inside(c) || preference != openAnywhere && impassable(c) || preference == openOffFields && fields[c] {
 				return false
 			}
 		}
@@ -286,18 +295,20 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		return true
 	}
 	// snap moves a crossing to the nearest position on its side that
-	// opens: off the fields within half a killbox, else the nearest at all,
-	// on a patch rather than no opening.
+	// opens: clear of rock and off the fields within half a killbox, else
+	// clear of rock anywhere on the side, else the nearest at all, on a
+	// patch or a mountain's foot rather than no opening. A killbox over
+	// rock leaves the funnel no corridor to lay (#1588).
 	snap := func(x crossing) (crossing, bool) {
 		sd := sides[x.side]
-		for _, strict := range []bool{true, false} {
+		for _, preference := range []openPreference{openOffFields, openClearOfRock, openAnywhere} {
 			reach := sd.hi - sd.lo
-			if strict {
+			if preference == openOffFields {
 				reach = min(reach, killboxHalf)
 			}
 			for d := int32(0); d <= reach; d++ {
 				for _, p := range []int32{x.pos - d, x.pos + d} {
-					if y := (crossing{x.side, p}); opens(y, strict) {
+					if y := (crossing{x.side, p}); opens(y, preference) {
 						return y, true
 					}
 				}
@@ -384,7 +395,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		}
 		for k, sd := range sides {
 			for p := sd.lo; p <= sd.hi && !opened; p++ {
-				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}, false) {
+				if kb, _ := openingAt(crossing{k, p}); kb == r.Area && opens(crossing{k, p}, openAnywhere) {
 					open, opened = crossing{k, p}, true
 				}
 			}

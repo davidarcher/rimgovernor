@@ -564,6 +564,28 @@ func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	}
 }
 
+// A rock outcrop beside the base once took the killbox: the planned corridor
+// then crossed rock and the defense layout never proposed (#1588). The
+// opening moves to ground the funnel can lay a corridor across.
+func TestPerimeterKillboxAvoidsRock(t *testing.T) {
+	for _, outcrop := range []Rectangle{{X: 60, Z: 60, Width: 40, Height: 40}, {X: 100, Z: 20, Width: 30, Height: 70}, {X: 110, Z: 100, Width: 60, Height: 25}, {X: 20, Z: 90, Width: 50, Height: 30}} {
+		s := zoningSurvey(200, func(x, z int32) SurveyCell {
+			if x >= outcrop.X && x < outcrop.X+outcrop.Width && z >= outcrop.Z && z < outcrop.Z+outcrop.Height {
+				return SurveyCell{Rock: true}
+			}
+			return SurveyCell{Walkable: true, Fertility: 1}
+		})
+		p := PlanPerimeter(PlanCore(Zone(s), 3, BuildTierCamp), s)
+		for _, kb := range reserved(p, ReserveKillbox) {
+			for _, c := range rectCells(kb) {
+				if contains(outcrop, c) {
+					t.Fatalf("killbox %+v over the rock outcrop %+v", kb, outcrop)
+				}
+			}
+		}
+	}
+}
+
 // A mouth at the valley's corner draws the opening to the ring's corner;
 // the killbox stays whole across its opening there, not clipped sideways
 // off the approach.
