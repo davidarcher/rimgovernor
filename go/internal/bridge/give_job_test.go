@@ -38,6 +38,29 @@ func TestUseItemIntentWire(t *testing.T) {
 	}
 }
 
+func TestUseItemSelfUseWire(t *testing.T) {
+	use, err := domain.NewUseItem("Human1", "PsychicAmplifier7", "Human1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewUseItemAction("amp-0", use)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := IntentAction("key-1", action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := refIDs(wire.GetGiveJob())
+	if len(ids) != 2 || ids[0] != "PsychicAmplifier7" || ids[1] != "Human1" || wire.GetGiveJob().GetPawn().GetId() != "Human1" {
+		t.Fatalf("wire = %v", wire)
+	}
+	// Only UseItem targets its user: every other job still refuses it.
+	if _, err := giveJob("Human1", JobRepair, "Human1"); err == nil {
+		t.Fatal("Repair accepted its own pawn as target")
+	}
+}
+
 func TestGiveJobRefusesMalformed(t *testing.T) {
 	for _, c := range [][]string{{"", "Repair", "t"}, {"p", "", "t"}, {"p", "Repair"}, {"p", "Repair", "p"}, {"p", "Repair", ""}} {
 		if _, err := giveJob(domain.PawnID(c[0]), c[1], c[2:]...); err == nil {

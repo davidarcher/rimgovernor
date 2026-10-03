@@ -23,10 +23,17 @@ func TestUseItemIntentAndClosedVariant(t *testing.T) {
 	if _, err := NewUseItemAction("", use); err == nil {
 		t.Fatal("invalid action id accepted")
 	}
-	for _, bad := range [][3]string{{"a", "i", "a"}, {"a", "a", "b"}, {"a", "b", "b"}, {"", "i", "b"}, {"a", "", "b"}, {"a", "i", ""}} {
+	for _, bad := range [][3]string{{"a", "a", "b"}, {"a", "b", "b"}, {"", "i", "b"}, {"a", "", "b"}, {"a", "i", ""}} {
 		if _, err := NewUseItem(PawnID(bad[0]), bad[1], PawnID(bad[2])); err == nil {
 			t.Fatal("invalid use item accepted", bad)
 		}
+	}
+	self, err := NewUseItem("colonist", "Neuroformer1", "colonist")
+	if err != nil || !self.SelfUse() || use.SelfUse() {
+		t.Fatal("self use refused", self, err)
+	}
+	if _, err := NewUseItemAction("amp", self); err != nil {
+		t.Fatal(err)
 	}
 	plan, err := NewPlan("plan", 1, []Action{action})
 	if err != nil || len(plan.Actions()) != 1 || plan.Actions()[0] != action {

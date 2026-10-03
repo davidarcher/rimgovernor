@@ -29,11 +29,17 @@ const (
 // in job target order. Native checks the game rules live and builds the
 // game's own job; a pawn already running it on the targets applies again.
 func giveJob(pawn domain.PawnID, job string, targets ...string) (*o.Action, error) {
+	return giveJobTo(pawn, job, false, targets...)
+}
+
+// giveJobTo is giveJob; self admits the pawn among the targets, for the one
+// job that may target its own user (UseItem, #1609).
+func giveJobTo(pawn domain.PawnID, job string, self bool, targets ...string) (*o.Action, error) {
 	if validID(string(pawn)) != nil || validID(job) != nil || len(targets) == 0 {
 		return nil, contract("give job intent requires a pawn, a job and a target")
 	}
 	for _, t := range targets {
-		if validID(t) != nil || t == string(pawn) {
+		if validID(t) != nil || t == string(pawn) && !self {
 			return nil, contract("give job intent requires valid targets distinct from the pawn")
 		}
 	}
@@ -154,8 +160,9 @@ func wearAction(action domain.Action) (*o.Action, error) {
 }
 
 // useItemAction (#1038): one colonist uses one targetable item (a worn
-// lance's verb, a CompTargetable item) on one pawn; native validates the
-// verb or use comp against the target live.
+// lance's verb, a CompTargetable item) on one pawn, or its own CompUsable
+// item on itself (#1609, a neuroformer: the target is the colonist); native
+// validates the verb or use comp against the target live.
 func useItemAction(action domain.Action) (*o.Action, error) {
 	v, ok := action.UseItem()
 	if !ok {
@@ -164,7 +171,7 @@ func useItemAction(action domain.Action) (*o.Action, error) {
 	if v.Item() == string(v.Target()) {
 		return nil, contract("use item intent requires a distinct item and target")
 	}
-	return giveJob(v.Pawn(), JobUseItem, v.Item(), string(v.Target()))
+	return giveJobTo(v.Pawn(), JobUseItem, v.SelfUse(), v.Item(), string(v.Target()))
 }
 
 // moodReliefAction offers the pawn the job its own need giver issues for

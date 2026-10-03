@@ -55,7 +55,9 @@ namespace HomeBridge.BridgeTools
             var pawn = Id(intent?.Pawn);
             if (intent == null || pawn == null) { refusal = "Give job requires a pawn."; return Arm.Invalid; }
             var targets = intent.Targets.Select(Id).ToList();
-            if (targets.Any(t => t == null || t == pawn)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
+            // UseItem alone may target its own user: [item, pawn] is the self-use of a usable item (#1609).
+            var selfOk = intent.Job == UseItem;
+            if (targets.Any(t => t == null || t == pawn && !selfOk)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
             var options = intent.Options;
             if (options != null && options.HasRelieveNeed)
             {
@@ -66,7 +68,7 @@ namespace HomeBridge.BridgeTools
             if (!intent.HasJob || !ProtoBoundary.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
             if (intent.Job == UseItem)
             {
-                if (targets.Count != 2 || targets[0] == targets[1]) { refusal = "UseItem requires targets [item, target pawn]."; return Arm.Invalid; }
+                if (targets.Count != 2 || targets[0] == targets[1] || targets[0] == pawn) { refusal = "UseItem requires targets [item, target pawn]."; return Arm.Invalid; }
                 return Arm.Use;
             }
             if (Kinds.TryGetValue(intent.Job, out var kind))

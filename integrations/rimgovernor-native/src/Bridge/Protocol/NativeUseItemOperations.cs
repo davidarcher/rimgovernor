@@ -12,14 +12,16 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent UseItem (#1038, #1352): one player-controlled
-    // colonist uses one targetable item on one spawned pawn. Two native
-    // shapes are generic here:
+    // colonist uses one item. Three native shapes are generic here:
     //  - an item the pawn wears or equips whose verb is a
     //    Verb_CastTargetEffect (the psychic shock and insanity lances): the
     //    verb's own Available/ValidateTarget checks, then its
     //    OrderForceTarget, which is exactly the worn gizmo's order;
     //  - a CompTargetable item with CompUsable: CanBeUsedBy and the comp's
     //    own target check, then the use job the float menu starts.
+    //  - the pawn as its own target (#1609): a CompUsable item without a
+    //    CompTargetable (a neuroformer, a psycast neurotrainer): CanBeUsedBy,
+    //    then the comp's use job on the item alone, as the float menu does.
     // A pawn already running the job on that target with that item applies
     // again. Applied means ordered; the target's hediff is the next census.
     internal static class NativeUseItemOperations
@@ -54,20 +56,21 @@ namespace HomeBridge.BridgeTools
         }
 
         // The verb's job targets the pawn (targetA); CompUsable's use job
-        // targets the item (targetA) and the extra target (targetB).
+        // targets the item (targetA) and the extra target (targetB), none for
+        // a self use.
         private static bool Running(Pawn pawn, Thing item, Pawn target, Verb? verb)
         {
             var job = pawn.CurJob;
             if (job == null) return false;
             return verb != null ? job.verbToUse == verb && job.targetA.Thing == target
-                : job.targetA.Thing == item && job.targetB.Thing == target && job.def == (item as ThingWithComps)?.TryGetComp<CompUsable>()?.Props.useJob;
+                : job.targetA.Thing == item && (pawn == target || job.targetB.Thing == target) && job.def == (item as ThingWithComps)?.TryGetComp<CompUsable>()?.Props.useJob;
         }
 
         private static Common.Failure? Resolve(string pawnId, string itemId, string targetId, Common.ObservationContext context, out Pawn? pawn, out Thing? item, out Pawn? target, out Verb? verb, out CompUsable? usable)
         {
             pawn = null; item = null; target = null; verb = null; usable = null;
-            if (!ProtoBoundary.IsIdentifier(pawnId) || !ProtoBoundary.IsIdentifier(itemId) || !ProtoBoundary.IsIdentifier(targetId) || pawnId == targetId)
-                return Fail(Common.FailureCode.InvalidRequest, "Use item requires distinct pawn, item and target ids.");
+            if (!ProtoBoundary.IsIdentifier(pawnId) || !ProtoBoundary.IsIdentifier(itemId) || !ProtoBoundary.IsIdentifier(targetId) || itemId == pawnId || itemId == targetId)
+                return Fail(Common.FailureCode.InvalidRequest, "Use item requires pawn, item and target ids, the item distinct from both.");
             var map = ProtoBoundary.LoadedMap(context);
             pawn = map.mapPawns.FreeColonistsSpawned.ById(pawnId);
             if (pawn == null) return Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
@@ -76,7 +79,8 @@ namespace HomeBridge.BridgeTools
             target = map.mapPawns.AllPawnsSpawned.ById(targetId);
             if (target == null) return Fail(Common.FailureCode.NotFound, "Exact target pawn is not spawned on this map.");
             if (target.Dead) return Fail(Common.FailureCode.InvalidRequest, "Target is dead.");
-            verb = HeldVerb(pawn, itemId, out item);
+            var self = pawn == target;
+            verb = self ? null : HeldVerb(pawn, itemId, out item);
             if (verb != null)
             {
                 if (Running(pawn, item!, target, verb)) return null;
@@ -94,20 +98,21 @@ namespace HomeBridge.BridgeTools
             var targetable = (thing as ThingWithComps)?.GetComps<CompTargetable>().FirstOrDefault();
             usable = (thing as ThingWithComps)?.TryGetComp<CompUsable>();
             if (thing == null) return Fail(Common.FailureCode.NotFound, "Exact item is not held by the colonist nor on this map.");
-            if (targetable == null || usable == null) return Fail(Common.FailureCode.InvalidRequest, "Item has no target verb and no targetable use.");
+            if (self ? targetable != null || usable == null : targetable == null || usable == null)
+                return Fail(Common.FailureCode.InvalidRequest, self ? "Self use needs a usable item without a target comp." : "Item has no target verb and no targetable use.");
             if (Running(pawn, thing, target, null)) return null;
             var report = usable.CanBeUsedBy(pawn, usable.Props.ignoreOtherReservations);
             if (!report.Accepted) return Fail(Common.FailureCode.InvalidRequest, "Colonist cannot use the item: " + (report.Reason ?? ""));
-            if (!targetable.CanHitTarget(target)) return Fail(Common.FailureCode.InvalidRequest, "Item refuses this target.");
+            if (!self && !targetable!.CanHitTarget(target)) return Fail(Common.FailureCode.InvalidRequest, "Item refuses this target.");
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Pawn pawn, Pawn target, Job job, bool issued) => new Receipts.EffectEvidence
+        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing targetA, Job job, bool issued) => new Receipts.EffectEvidence
         {
             Job = new Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobId = job.loadID, JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { ThingId = target.GetUniqueLoadID() },
+                TargetA = new Receipts.JobTarget { ThingId = targetA.GetUniqueLoadID() },
                 CanTry = true, Issued = issued, Verified = true, Drafted = pawn.Drafted,
             }
         };
@@ -118,15 +123,18 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(pawnId, itemId, targetId, context, out var pawn, out var item, out var target, out var verb, out var usable);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            if (Running(pawn!, item!, target!, verb)) return Evidence(pawn!, target!, pawn!.CurJob, false);
+            // The job's targetA: the pawn for a verb, the item for a use job.
+            Thing TargetA() => verb != null ? target! : item!;
+            if (Running(pawn!, item!, target!, verb)) return Evidence(pawn!, TargetA(), pawn!.CurJob, false);
             if (verb != null) verb.OrderForceTarget(target);
+            else if (pawn == target) usable!.TryStartUseJob(pawn!, LocalTargetInfo.Invalid, usable.Props.ignoreOtherReservations);
             else
             {
                 SelectedTarget((CompTargetable)((ThingWithComps)item!).GetComps<CompTargetable>().First()) = target!;
                 usable!.TryStartUseJob(pawn!, target, usable.Props.ignoreOtherReservations);
             }
             if (!Running(pawn!, item!, target!, verb)) throw new InvalidOperationException("The colonist did not take the use job.");
-            return Evidence(pawn!, target!, pawn!.CurJob, true);
+            return Evidence(pawn!, TargetA(), pawn!.CurJob, true);
         }
     }
 }

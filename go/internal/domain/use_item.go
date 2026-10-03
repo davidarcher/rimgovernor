@@ -2,19 +2,24 @@ package domain
 
 import "errors"
 
-// UseItem orders one colonist to use one targetable item on one pawn
-// (#1038): a worn or equipped item's target verb (the psychic shock and
-// insanity lances' Verb_CastTargetEffect) or a CompTargetable item's use
-// job. Native validates the user, the item's verb or use comp and the
-// target live when the GiveJobIntent UseItem applies.
+// UseItem orders one colonist to use one item (#1038): a worn or equipped
+// item's target verb on a pawn (the psychic shock and insanity lances'
+// Verb_CastTargetEffect), a CompTargetable item's use job on a pawn, or,
+// when the pawn is its own target (#1609), the use job of a CompUsable item
+// without a target comp (a neuroformer). Native validates the user, the
+// item's verb or use comp and the target live when the GiveJobIntent
+// UseItem applies.
 type UseItem struct {
 	pawn, target PawnID
 	item         string
 }
 
+// SelfUse reports the colonist using the item on itself.
+func (u UseItem) SelfUse() bool { return u.pawn == u.target }
+
 func NewUseItem(pawn PawnID, item string, target PawnID) (UseItem, error) {
-	if !validID(string(pawn)) || !validID(item) || !validID(string(target)) || pawn == target || item == string(pawn) || item == string(target) {
-		return UseItem{}, errors.New("use item requires distinct valid pawn, item and target identities")
+	if !validID(string(pawn)) || !validID(item) || !validID(string(target)) || item == string(pawn) || item == string(target) {
+		return UseItem{}, errors.New("use item requires valid pawn, item and target identities, the item distinct from both")
 	}
 	return UseItem{pawn: pawn, item: item, target: target}, nil
 }

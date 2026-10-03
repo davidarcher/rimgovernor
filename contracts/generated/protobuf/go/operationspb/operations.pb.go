@@ -5006,7 +5006,9 @@ func (x *DraftIntent) GetDrafted() bool {
 //	downed or out of the break; drafted combat is CombatOrders.
 //	UseItem: targets [item, target pawn]; the target verb of an item the
 //	pawn wears or equips (Verb_CastTargetEffect) or the use job of a
-//	CompTargetable item, each with its own target checks.
+//	CompTargetable item, each with its own target checks. The pawn as its
+//	own target (#1609) uses a CompUsable item without a target comp (a
+//	neuroformer) through CanBeUsedBy and its use job.
 //	FixBrokenDownBuilding, Refuel: targets [colony building]; an undrafted
 //	colonist services it with the game's own WorkGiver job (the turret
 //	rearm giver included for Refuel), refused once it is fixed or holds a

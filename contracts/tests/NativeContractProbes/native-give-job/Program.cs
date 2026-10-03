@@ -49,6 +49,7 @@ internal static class NativeGiveJobProbe
         var classify = giveJob.GetMethod("Classify", Flags)!;
         string Arm(string json) => classify.Invoke(null, new object?[] { Wire("Operations.GiveJobIntent", json), null, null })!.ToString();
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"t\"}]}") == "Use", "UseItem arm");
+        Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"p\"}]}") == "Use", "UseItem self-use arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}") == "Order", "Repair arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Arrest\",\"targets\":[{\"id\":\"t\"},{\"id\":\"b\"}]}") == "Order", "Arrest arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"options\":{\"relieveNeed\":\"NEED_FOOD\"}}") == "Need", "need relief arm");
@@ -65,6 +66,8 @@ internal static class NativeGiveJobProbe
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"Repair\",\"targets\":[{\"id\":\"p\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"Arrest\",\"targets\":[{\"id\":\"t\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"}]}",
+            "{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"p\"},{\"id\":\"t\"}]}",
+            "{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"i\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"FinishFrame\",\"targets\":[{\"id\":\"f\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"Ingest\",\"options\":{\"relieveNeed\":\"NEED_FOOD\"}}",
         })
