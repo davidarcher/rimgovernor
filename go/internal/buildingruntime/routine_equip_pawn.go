@@ -16,9 +16,13 @@ import (
 // equipCandidatePawnFacts is the pawn read the equip, gear and combat
 // loadout planners share. It lives apart from routine_equip.go so equip
 // code that uses medical_retry does not widen into the defense family.
-func equipCandidatePawnFacts(row *n.PawnState, downsides policy.CreepJoinerDownsides) policy.EquipCandidatePawn {
+func equipCandidatePawnFacts(row *n.PawnState, catalog *bridge.DefinitionCatalog) (policy.EquipCandidatePawn, error) {
 	facts := policy.EquipCandidatePawn{Pawn: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	facts.Profile = policy.BuildProfile(observation.WorkPawnRow(row))
+	work, err := observation.WorkPawnRow(row, catalog)
+	if err != nil {
+		return policy.EquipCandidatePawn{}, err
+	}
+	facts.Profile = policy.BuildProfile(work)
 	if row.RaidArmor != nil && !boundary.IssueField(row.Issues, "raid_armor") {
 		facts.RaidArmor = domain.Known(row.GetRaidArmor())
 	}
@@ -38,8 +42,8 @@ func equipCandidatePawnFacts(row *n.PawnState, downsides policy.CreepJoinerDowns
 	if equipment := row.Equipment; equipment != nil && equipment.Armed != nil && !boundary.IssueField(equipment.Issues, "armed") {
 		facts.Armed = domain.Known(equipment.GetArmed())
 	}
-	facts.NoArms = downsides.ArmsHold(bridge.CreepJoinerPawn(row))
-	return facts
+	facts.NoArms = catalog.CreepJoinerDownsides().ArmsHold(bridge.CreepJoinerPawn(row))
+	return facts, nil
 }
 
 // definitionCatalogSource is a native source that serves the definition
@@ -74,16 +78,13 @@ func recreationDefinitions(ctx context.Context, native any, identity *c.Identity
 	return furniture, joy, nil
 }
 
-// creepJoinerDownsides is the catalog's creepjoiner downside defs. A source
-// that serves no catalog (a test double) gives none, which holds every
-// creepjoiner back: nothing can show its downside.
-func creepJoinerDownsides(ctx context.Context, native any, identity *c.Identity) (policy.CreepJoinerDownsides, error) {
+// pawnCatalog is the catalog the pawn rows resolve their traits and creepjoiner
+// downsides against. A source that serves no catalog (a test double) gives
+// nil: no downside def, which holds every creepjoiner back, and no trait
+// resolves.
+func pawnCatalog(ctx context.Context, native any, identity *c.Identity) (*bridge.DefinitionCatalog, error) {
 	if source, ok := native.(definitionCatalogSource); ok {
-		catalog, err := source.DefinitionCatalog(ctx, identity)
-		if err != nil {
-			return policy.CreepJoinerDownsides{}, err
-		}
-		return catalog.CreepJoinerDownsides(), nil
+		return source.DefinitionCatalog(ctx, identity)
 	}
-	return policy.CreepJoinerDownsides{}, nil
+	return nil, nil
 }

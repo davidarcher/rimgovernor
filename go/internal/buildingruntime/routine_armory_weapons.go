@@ -208,10 +208,6 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	if len(observed.Pawns) != len(ids) {
 		return nil, 0, fmt.Errorf("%w: weaponDemand: len(observed.Pawns) != len(ids)", ErrControl)
 	}
-	downsides, err := creepJoinerDownsides(ctx, r.native, identity)
-	if err != nil {
-		return nil, 0, err
-	}
 	pawns := []policy.EquipCandidatePawn{}
 	primaries := map[domain.PawnID]policy.ArmoryPrimary{}
 	catalog, err := source.DefinitionCatalog(ctx, identity)
@@ -219,7 +215,11 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 		return nil, 0, err
 	}
 	for _, p := range observed.Pawns {
-		pawns = append(pawns, equipCandidatePawnFacts(p, downsides))
+		facts, err := equipCandidatePawnFacts(p, catalog)
+		if err != nil {
+			return nil, 0, err
+		}
+		pawns = append(pawns, facts)
 		if primary, ok := armoryPrimary(p, things); ok {
 			if primary.Facts, err = catalog.WeaponOf(primary.Definition); err != nil {
 				return nil, 0, err

@@ -7120,7 +7120,9 @@
     {
      "Age": 33.714698791503906,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true
      },
      "ID": "Thing_Human229",
@@ -7199,6 +7201,12 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       },
       {
@@ -7293,6 +7301,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Ascetic": true
+       },
        "Name": "Ascetic"
       }
      ]
@@ -7369,6 +7380,9 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "WorkSpeed": 0.35
+       },
        "Name": "Industriousness"
       }
      ]
@@ -9314,7 +9328,9 @@
     {
      "Age": 33.714698791503906,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true
      },
      "ID": "Thing_Human229",
@@ -9393,6 +9409,12 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       },
       {
@@ -9487,6 +9509,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Ascetic": true
+       },
        "Name": "Ascetic"
       }
      ]
@@ -9563,6 +9588,9 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "WorkSpeed": 0.35
+       },
        "Name": "Industriousness"
       }
      ]

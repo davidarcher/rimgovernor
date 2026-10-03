@@ -508,7 +508,7 @@ func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
 }
 
 func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
-	pyro := policy.BuildProfile(policy.WorkPawn{ID: "b", Traits: domain.Known([]policy.PawnTrait{{Name: "Pyromaniac"}, {Name: "Abrasive"}, {Name: "FastLearner"}}),
+	pyro := policy.BuildProfile(policy.WorkPawn{ID: "b", Traits: domain.Known([]policy.PawnTrait{{Name: "Pyromaniac", Effects: policy.TraitEffects{DisabledWork: []policy.WorkType{policy.WorkFirefighter}, Pyromaniac: true}}, {Name: "Abrasive", Effects: policy.TraitEffects{Sociable: -1}}, {Name: "FastLearner", Effects: policy.TraitEffects{LearnRate: 0.75}}}),
 		Skills: domain.Known([]policy.WorkSkill{{Name: "Mining", Level: 12, Stored: 12, Passion: "Major"}, {Name: "Medicine", Level: 3}}), Incapable: domain.Known([]policy.WorkType{policy.WorkHauling}), Age: domain.Known(30.5), Ranged: domain.Known(true)})
 	plain := policy.BuildProfile(policy.WorkPawn{ID: "a", Skills: domain.Known([]policy.WorkSkill{{Name: "Cooking", Disabled: true}})})
 	report := policy.WorkRosterReport{Tick: 500, Coverage: []policy.WorkCoverage{{Work: policy.WorkMining, Demand: 1, Owners: 1, Capable: 1}, {Work: policy.WorkDoctor, Demand: 1, Owners: 0, Capable: 0}},
@@ -541,7 +541,7 @@ func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	if len(a.Skills) != 1 || !a.Skills[0].Disabled || a.Skills[0].LearnFactor != 0 || len(a.Traits) != 0 || len(a.Effects.Flags) != 0 || len(a.Forbidden) != 0 || len(a.Incapable) != 0 {
 		t.Fatalf("plain profile: %s", body)
 	}
-	if b.Age != 30.5 || b.Child || !b.Ranged || len(b.Traits) != 3 || b.Effects.LearnRate != 0.75 || b.Effects.Sociable != -1 || strings.Join(b.Effects.Flags, ",") != "NoFirefighting,Pyromaniac" {
+	if b.Age != 30.5 || b.Child || !b.Ranged || len(b.Traits) != 3 || b.Effects.LearnRate != 0.75 || b.Effects.Sociable != -1 || strings.Join(b.Effects.Flags, ",") != "Pyromaniac,NoFirefighter" {
 		t.Fatalf("trait effects: %s", body)
 	}
 	if strings.Join(workTypes(b.Forbidden), ",") != "Firefighter,Warden" || strings.Join(workTypes(b.Incapable), ",") != "Hauling" {

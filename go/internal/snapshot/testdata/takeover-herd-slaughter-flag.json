@@ -35901,6 +35901,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -35909,6 +35912,9 @@
       },
       {
        "Degree": -1,
+       "Effects": {
+        "MoveSpeed": -0.2
+       },
        "Name": "SpeedOffset"
       }
      ]
@@ -37611,6 +37617,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -37619,6 +37628,9 @@
       },
       {
        "Degree": -1,
+       "Effects": {
+        "MoveSpeed": -0.2
+       },
        "Name": "SpeedOffset"
       }
      ]

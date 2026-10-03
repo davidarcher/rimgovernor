@@ -16,7 +16,7 @@ func genePawn(id string, effects GeneEffects) WorkPawn {
 // TestGeneStatEffectsFoldIntoProfile (#1689): gene offsets add to the trait
 // offsets and gene factors scale the sum, for work speed and learning.
 func TestGeneStatEffectsFoldIntoProfile(t *testing.T) {
-	p := testWorkPawn(PawnID("a"), true, false, nil, PawnTrait{Name: "Industrious", Degree: 0})
+	p := testWorkPawn(PawnID("a"), true, false, nil, testTrait("Industrious", 0))
 	base := BuildProfile(p).Effects.WorkSpeed
 	p.Biotech = domain.Known(PawnBiotech{Effects: domain.Known(GeneEffects{Stats: map[string]StatModifier{
 		"WorkSpeedGlobal":      {Offset: .1, Factor: 1.2},

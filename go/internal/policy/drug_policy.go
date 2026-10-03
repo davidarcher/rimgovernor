@@ -78,7 +78,7 @@ func DrugEntries(pawn WorkPawn, items ItemFacts, diseaseBiome bool) ([]domain.Dr
 	entries := []domain.DrugPolicyEntry{}
 	interest := 0
 	for _, t := range traits {
-		interest += TraitEffect(t).ChemicalInterest
+		interest += t.Effects.ChemicalInterest
 	}
 	if age >= childAge && interest == 0 {
 		entries = joyEntries(inputs, items)
@@ -156,7 +156,7 @@ func CarryEntries(pawn WorkPawn, items ItemFacts, drug Drug) ([]domain.DrugPolic
 	inputs, _ := pawn.PolicyInputs.Value()
 	interest := 0
 	for _, t := range traits {
-		interest += TraitEffect(t).ChemicalInterest
+		interest += t.Effects.ChemicalInterest
 	}
 	if age < childAge || interest != 0 || chemicalRisky(inputs, drug.Chemical) {
 		return nil, true

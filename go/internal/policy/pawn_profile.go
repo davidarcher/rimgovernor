@@ -12,13 +12,16 @@ import (
 type PawnTrait struct {
 	Name   string
 	Degree int
+	// Effects are the trait's typed effects, resolved from the definition
+	// catalog when the pawn is read (DefinitionCatalog.TraitEffects).
+	Effects TraitEffects
 }
 
 // TraitEffects is what the planner and the other pawn-facing goals read from a
-// pawn's traits, typed so no policy matches trait names itself. Values are the
-// Core TraitDef stat offsets (WorkSpeedGlobal, GlobalLearningFactor,
-// MoveSpeed) or the hard preferences the wiki documents; every trait the
-// table does not know (mod traits, DLC traits) contributes nothing.
+// pawn's traits, typed so no policy matches trait names itself. A trait's
+// effects are derived from its catalog row when the pawn is read
+// (DefinitionCatalog.TraitEffects: stat offsets, disabled work, needs and
+// ingestion thoughts), plus the few flags the game applies in code (TraitFlags).
 type TraitEffects struct {
 	// WorkSpeed is the summed WorkSpeedGlobal offset (Industrious +0.35,
 	// Slothful -0.35, Very neurotic +0.40).
@@ -38,9 +41,11 @@ type TraitEffects struct {
 	// role; FrontLine (Tough, Nimble, Brawler) prefers the melee line and
 	// RearRanged (careful shooter, trigger-happy) the ranged line.
 	MeleeOnly, FrontLine, RearRanged bool
-	// NoFirefighting (Pyromaniac) forbids Firefighter; Pyromaniac also orders
-	// break containment away from flammable stores.
-	NoFirefighting, Pyromaniac bool
+	// DisabledWork is the work types the trait's disabled work tags and
+	// disabled work types take away (Pyromaniac: Firefighter); Pyromaniac
+	// also orders break containment away from flammable stores.
+	DisabledWork []WorkType
+	Pyromaniac   bool
 	// Sociable orders warden, recruiter and trader candidates: Kind +1,
 	// Abrasive -1 (never warden or trader while another candidate exists).
 	Sociable int
@@ -58,7 +63,8 @@ type TraitEffects struct {
 	Undergrounder, Greedy, Jealous bool
 }
 
-func (e TraitEffects) add(o TraitEffects) TraitEffects {
+// Add combines two effect sets: offsets and counts sum, flags join.
+func (e TraitEffects) Add(o TraitEffects) TraitEffects {
 	e.WorkSpeed += o.WorkSpeed
 	e.LearnRate += o.LearnRate
 	e.MoveSpeed += o.MoveSpeed
@@ -68,7 +74,6 @@ func (e TraitEffects) add(o TraitEffects) TraitEffects {
 	e.MeleeOnly = e.MeleeOnly || o.MeleeOnly
 	e.FrontLine = e.FrontLine || o.FrontLine
 	e.RearRanged = e.RearRanged || o.RearRanged
-	e.NoFirefighting = e.NoFirefighting || o.NoFirefighting
 	e.Pyromaniac = e.Pyromaniac || o.Pyromaniac
 	e.Sociable += o.Sociable
 	e.Execution = e.Execution || o.Execution
@@ -81,54 +86,47 @@ func (e TraitEffects) add(o TraitEffects) TraitEffects {
 	e.Undergrounder = e.Undergrounder || o.Undergrounder
 	e.Greedy = e.Greedy || o.Greedy
 	e.Jealous = e.Jealous || o.Jealous
+	e.DisabledWork = slices.Compact(slices.Sorted(slices.Values(slices.Concat(e.DisabledWork, o.DisabledWork))))
 	return e
 }
 
-// traitTable maps Core TraitDef name and degree to typed effects. Singular
-// traits carry degree 0. Numbers come from Core/Defs/TraitDefs; verify
-// against the def when a game update changes them.
-var traitTable = map[PawnTrait]TraitEffects{
-	{"Industriousness", 2}:   {WorkSpeed: 0.35},
-	{"Industriousness", 1}:   {WorkSpeed: 0.20},
-	{"Industriousness", -1}:  {WorkSpeed: -0.20},
-	{"Industriousness", -2}:  {WorkSpeed: -0.35},
-	{"Neurotic", 1}:          {WorkSpeed: 0.20},
-	{"Neurotic", 2}:          {WorkSpeed: 0.40},
-	{"FastLearner", 0}:       {LearnRate: 0.75},
-	{"SlowLearner", 0}:       {LearnRate: -0.75},
-	{"TooSmart", 0}:          {LearnRate: 0.75},
+// traitKey names one trait degree in traitFlags.
+type traitKey struct {
+	Name   string
+	Degree int
+}
+
+// traitFlags are the typed preferences the game applies to a trait in code,
+// where no row of the TraitDef or a ThoughtDef states them; every other
+// effect is derived from the catalog rows (DefinitionCatalog.TraitEffects).
+// A trait absent here contributes no flag.
+var traitFlags = map[traitKey]TraitEffects{
 	{"GreatMemory", 0}:       {GreatMemory: true},
-	{"SpeedOffset", 2}:       {MoveSpeed: 0.4},
-	{"SpeedOffset", 1}:       {MoveSpeed: 0.2},
-	{"SpeedOffset", -1}:      {MoveSpeed: -0.2},
-	{"QuickSleeper", 0}:      {QuickSleeper: true},
 	{"NightOwl", 0}:          {NightShift: true},
 	{"Brawler", 0}:           {MeleeOnly: true, FrontLine: true},
 	{"Tough", 0}:             {FrontLine: true},
 	{"Nimble", 0}:            {FrontLine: true},
 	{"ShootingAccuracy", 1}:  {RearRanged: true},
 	{"ShootingAccuracy", -1}: {RearRanged: true},
-	{"Pyromaniac", 0}:        {NoFirefighting: true, Pyromaniac: true},
+	{"Pyromaniac", 0}:        {Pyromaniac: true},
 	{"Kind", 0}:              {Sociable: 1},
 	{"Abrasive", 0}:          {Sociable: -1},
 	{"Psychopath", 0}:        {Execution: true, SurgeonSafe: true},
 	{"Bloodlust", 0}:         {Execution: true},
 	{"Nudist", 0}:            {Nudist: true},
 	{"Ascetic", 0}:           {Ascetic: true},
-	{"Cannibal", 0}:          {Cannibal: true},
 	{"Gourmand", 0}:          {Gourmand: true},
 	{"DrugDesire", 2}:        {ChemicalInterest: 2},
 	{"DrugDesire", 1}:        {ChemicalInterest: 1},
 	{"DrugDesire", -1}:       {ChemicalInterest: -1},
-	{"Undergrounder", 0}:     {Undergrounder: true},
 	{"Greedy", 0}:            {Greedy: true},
 	{"Jealous", 0}:           {Jealous: true},
 }
 
-// TraitEffect is the table row for one trait; an unknown trait is the zero
-// value.
-func TraitEffect(trait PawnTrait) TraitEffects {
-	return traitTable[trait]
+// TraitFlags is the code-applied part of a trait's effects; a trait it does
+// not list is the zero value.
+func TraitFlags(name string, degree int) TraitEffects {
+	return traitFlags[traitKey{name, degree}]
 }
 
 // ProfileSkill is one skill as the planner scores it: the effective level
@@ -217,9 +215,10 @@ func (p PawnProfile) Forbidden(work WorkType) bool {
 	if min, ok := p.WorkMinAge[work]; ok && p.Age < float64(min) {
 		return true
 	}
+	if slices.Contains(p.Effects.DisabledWork, work) {
+		return true
+	}
 	switch work {
-	case WorkFirefighter:
-		return p.Effects.NoFirefighting
 	case WorkHunting:
 		return p.Effects.MeleeOnly
 	case WorkWarden:
@@ -243,6 +242,11 @@ func (p PawnProfile) ForbiddenWork() []WorkType {
 			young = append(young, work)
 		}
 	}
+	for _, work := range p.Effects.DisabledWork {
+		if !slices.Contains(out, work) && !slices.Contains(young, work) {
+			young = append(young, work)
+		}
+	}
 	slices.Sort(young)
 	return append(out, young...)
 }
@@ -260,7 +264,7 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 	if traits, ok := pawn.Traits.Value(); ok {
 		profile.Traits = append([]PawnTrait(nil), traits...)
 		for _, t := range traits {
-			profile.Effects = profile.Effects.add(TraitEffect(t))
+			profile.Effects = profile.Effects.Add(t.Effects)
 		}
 	}
 	if incapable, ok := pawn.Incapable.Value(); ok {

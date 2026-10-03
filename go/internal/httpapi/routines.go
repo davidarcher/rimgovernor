@@ -353,10 +353,13 @@ func routineRosterPawn(p policy.PawnProfile) routineRosterPawnDTO {
 	for _, flag := range []struct {
 		name string
 		set  bool
-	}{{"GreatMemory", e.GreatMemory}, {"QuickSleeper", e.QuickSleeper}, {"NightShift", e.NightShift}, {"MeleeOnly", e.MeleeOnly}, {"FrontLine", e.FrontLine}, {"RearRanged", e.RearRanged}, {"NoFirefighting", e.NoFirefighting}, {"Pyromaniac", e.Pyromaniac}, {"Execution", e.Execution}, {"SurgeonSafe", e.SurgeonSafe}, {"Nudist", e.Nudist}, {"Ascetic", e.Ascetic}, {"Cannibal", e.Cannibal}, {"Gourmand", e.Gourmand}, {"Undergrounder", e.Undergrounder}, {"Greedy", e.Greedy}, {"Jealous", e.Jealous}} {
+	}{{"GreatMemory", e.GreatMemory}, {"QuickSleeper", e.QuickSleeper}, {"NightShift", e.NightShift}, {"MeleeOnly", e.MeleeOnly}, {"FrontLine", e.FrontLine}, {"RearRanged", e.RearRanged}, {"Pyromaniac", e.Pyromaniac}, {"Execution", e.Execution}, {"SurgeonSafe", e.SurgeonSafe}, {"Nudist", e.Nudist}, {"Ascetic", e.Ascetic}, {"Cannibal", e.Cannibal}, {"Gourmand", e.Gourmand}, {"Undergrounder", e.Undergrounder}, {"Greedy", e.Greedy}, {"Jealous", e.Jealous}} {
 		if flag.set {
 			dto.Effects.Flags = append(dto.Effects.Flags, flag.name)
 		}
+	}
+	for _, work := range e.DisabledWork {
+		dto.Effects.Flags = append(dto.Effects.Flags, "No"+string(work))
 	}
 	return dto
 }

@@ -329,6 +329,22 @@ type combatInputs struct {
 	// weapons are the def rows' facts (#1723) of every weapon the frame's
 	// combat pawns hold.
 	weapons map[string]policy.WeaponDef
+	// profiles are the census colonists' profiles, traits resolved against
+	// the catalog (resolveProfiles).
+	profiles map[domain.PawnID]policy.PawnProfile
+}
+
+// resolveProfiles builds every census colonist's profile from its detail row.
+func (in *combatInputs) resolveProfiles(colonists []policy.EmergencyPawn, catalog *bridge.DefinitionCatalog) error {
+	in.profiles = map[domain.PawnID]policy.PawnProfile{}
+	for _, pawn := range colonists {
+		work, err := observation.WorkPawnRow(in.rows[string(pawn.ID)], catalog)
+		if err != nil {
+			return err
+		}
+		in.profiles[domain.PawnID(pawn.ID)] = policy.BuildProfile(work)
+	}
+	return nil
 }
 
 // combatFrameInputs is the fight's inputs from the frame; a reason means
@@ -367,6 +383,9 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 			// The frame's detail misses a pawn its census lists.
 			return combatInputs{}, Verdict{}, fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
 		}
+	}
+	if err := in.resolveProfiles(facts.Colonists, combat.Catalog); err != nil {
+		return combatInputs{}, Verdict{}, err
 	}
 	in.weapons = map[string]policy.WeaponDef{}
 	for _, pawn := range combat.Pawns {
@@ -418,7 +437,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 			d.DraftOwned = domain.Known(false)
 		}
 		defenders = append(defenders, d)
-		profile := policy.BuildProfile(observation.WorkPawnRow(row))
+		profile := in.profiles[domain.PawnID(pawn.ID)]
 		d.Warden = profile.Capable(policy.WorkWarden, 0)
 		profiles = append(profiles, profile)
 	}

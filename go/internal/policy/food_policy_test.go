@@ -45,7 +45,7 @@ func eater(id string, traits []string, precepts ...string) WorkPawn {
 	}
 	rows := []PawnTrait{}
 	for _, t := range traits {
-		rows = append(rows, PawnTrait{Name: t})
+		rows = append(rows, testTrait(t, 0))
 	}
 	return WorkPawn{
 		ID:              PawnID(id),

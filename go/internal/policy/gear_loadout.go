@@ -220,7 +220,7 @@ func GearGapThreshold(role GearRole) float64 {
 func gearMelee(p GearLoadoutInput) bool {
 	traits, _ := p.Role.Work.Traits.Value()
 	for _, t := range traits {
-		if TraitEffect(t).MeleeOnly {
+		if t.Effects.MeleeOnly {
 			return true
 		}
 	}
@@ -503,7 +503,7 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 	}
 	traits, _ := p.Role.Work.Traits.Value()
 	for _, t := range traits {
-		p.Nudist = p.Nudist || TraitEffect(t).Nudist
+		p.Nudist = p.Nudist || t.Effects.Nudist
 		p.Bloodlust = p.Bloodlust || t.Name == "Bloodlust"
 		p.Inhuman = p.Inhuman || t.Name == "Inhuman"
 	}

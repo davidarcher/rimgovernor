@@ -139,6 +139,10 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
+	catalog, err := pawnCatalog(call, r.native, identityCtx)
+	if err != nil {
+		return RoutinePopulationCustodyResult{}, err
+	}
 	var squad []policy.ShrineDefenderFacts
 	var performers []policy.RescuerFacts
 	var profiles []policy.PawnProfile
@@ -156,7 +160,11 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		}
 		squad = append(squad, policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row, needed)})
 		performers = append(performers, rescue.NewRescuerFacts(pawn, row, ""))
-		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
+		work, err := observation.WorkPawnRow(row, catalog)
+		if err != nil {
+			return RoutinePopulationCustodyResult{}, err
+		}
+		profiles = append(profiles, policy.BuildProfile(work))
 	}
 	if patient == nil {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: patient == nil", ErrControl)

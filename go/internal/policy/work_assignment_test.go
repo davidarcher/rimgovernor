@@ -191,10 +191,10 @@ func TestWorkAssignmentGrowthSecondary(t *testing.T) {
 // one, and Industrious outranks a slightly higher Slothful level.
 func TestWorkAssignmentTraits(t *testing.T) {
 	team := []WorkPawn{
-		testWorkPawn("pyro", true, true, []WorkSkill{{Name: "Shooting", Level: 8}, {Name: "Social", Level: 6}, {Name: "Mining", Level: 9}}, PawnTrait{Name: "Pyromaniac"}, PawnTrait{Name: "Industriousness", Degree: -2}),
-		testWorkPawn("brawler", true, true, []WorkSkill{{Name: "Shooting", Level: 12}, {Name: "Social", Level: 6}, {Name: "Mining", Level: 8}}, PawnTrait{Name: "Brawler"}, PawnTrait{Name: "Industriousness", Degree: 2}),
-		testWorkPawn("abrasive", true, false, []WorkSkill{{Name: "Social", Level: 12}, {Name: "Mining", Level: 2}}, PawnTrait{Name: "Abrasive"}),
-		testWorkPawn("kind", true, false, []WorkSkill{{Name: "Social", Level: 6}, {Name: "Mining", Level: 2}}, PawnTrait{Name: "Kind"}, PawnTrait{Name: "Unknown_ModTrait", Degree: 3}),
+		testWorkPawn("pyro", true, true, []WorkSkill{{Name: "Shooting", Level: 8}, {Name: "Social", Level: 6}, {Name: "Mining", Level: 9}}, testTrait("Pyromaniac", 0), testTrait("Industriousness", -2)),
+		testWorkPawn("brawler", true, true, []WorkSkill{{Name: "Shooting", Level: 12}, {Name: "Social", Level: 6}, {Name: "Mining", Level: 8}}, testTrait("Brawler", 0), testTrait("Industriousness", 2)),
+		testWorkPawn("abrasive", true, false, []WorkSkill{{Name: "Social", Level: 12}, {Name: "Mining", Level: 2}}, testTrait("Abrasive", 0)),
+		testWorkPawn("kind", true, false, []WorkSkill{{Name: "Social", Level: 6}, {Name: "Mining", Level: 2}}, testTrait("Kind", 0), testTrait("Unknown_ModTrait", 3)),
 	}
 	d, err := PlanWork(team, nil, WorkDemand{Prisoners: 1})
 	if err != nil {

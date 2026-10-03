@@ -182,22 +182,6 @@ func MoodProvisionOwners(def string) []GoalID {
 	return append([]GoalID(nil), moodProvisionOwners[def]...)
 }
 
-// KnownTraits lists the trait rows the table knows, for documentation and
-// the dossier.
-func KnownTraits() []PawnTrait {
-	out := make([]PawnTrait, 0, len(traitTable))
-	for t := range traitTable {
-		out = append(out, t)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Degree < out[j].Degree
-	})
-	return out
-}
-
 // WoodProposals: each designatable tree is one cut.
 func WoodProposals(goal GoalID, method domain.MethodID, definition string, trees []string, eligible domain.Fact[bool]) []ReadyProposal {
 	var out []ReadyProposal
@@ -307,3 +291,25 @@ const (
 )
 
 var testImpressiveness = ImpressivenessLevels{Dull: ImpressivenessDull, Mediocre: ImpressivenessMediocre, Decent: ImpressivenessDecent, SlightlyImpressive: ImpressivenessSlightlyImpressive}
+
+// testTraitRows are the catalog-derived effects of the traits the planner
+// tests use (DefinitionCatalog.TraitEffects, compared with the full game
+// recording in the bridge tests); the code-applied flags come from traitFlags.
+var testTraitRows = map[traitKey]TraitEffects{
+	{"Industriousness", 2}:  {WorkSpeed: 0.35},
+	{"Industriousness", -2}: {WorkSpeed: -0.35},
+	{"FastLearner", 0}:      {LearnRate: 0.75},
+	{"TooSmart", 0}:         {LearnRate: 0.75},
+	{"SpeedOffset", 2}:      {MoveSpeed: 0.4},
+	{"QuickSleeper", 0}:     {QuickSleeper: true},
+	{"Pyromaniac", 0}:       {DisabledWork: []WorkType{WorkFirefighter}},
+	{"Cannibal", 0}:         {Cannibal: true},
+	{"Undergrounder", 0}:    {Undergrounder: true},
+}
+
+// testTrait is a pawn trait with its effects resolved the way the pawn read
+// resolves them from the catalog.
+func testTrait(name string, degree int) PawnTrait {
+	key := traitKey{name, degree}
+	return PawnTrait{Name: name, Degree: degree, Effects: testTraitRows[key].Add(traitFlags[key])}
+}

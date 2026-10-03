@@ -134,10 +134,6 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
-	downsides, err := creepJoinerDownsides(call, r.native, identity)
-	if err != nil {
-		return RoutineEquipResult{}, err
-	}
 	catalog, err := r.native.DefinitionCatalog(call, identity)
 	if err != nil {
 		return RoutineEquipResult{}, err
@@ -149,7 +145,10 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineEquipResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
-		facts := equipCandidatePawnFacts(row, downsides)
+		facts, err := equipCandidatePawnFacts(row, catalog)
+		if err != nil {
+			return RoutineEquipResult{}, err
+		}
 		if current := row.GetEquipment().GetPrimaryId(); current != "" {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {

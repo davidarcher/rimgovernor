@@ -7485,6 +7485,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -7492,6 +7495,9 @@
       },
       {
        "Degree": 1,
+       "Effects": {
+        "ChemicalInterest": 1
+       },
        "Name": "DrugDesire"
       }
      ]
@@ -7578,6 +7584,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -7585,7 +7594,9 @@
     {
      "Age": 67.64382934570312,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true,
       "QuickSleeper": true
      },
@@ -7666,6 +7677,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "QuickSleeper": true
+       },
        "Name": "QuickSleeper"
       },
       {
@@ -7673,6 +7687,12 @@
        "Name": "NaturalMood"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -7762,10 +7782,16 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Industriousness"
       }
      ]
@@ -7852,9 +7878,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
+       "Effects": {
+        "Execution": true
+       },
        "Name": "Bloodlust"
       }
      ]
@@ -7942,9 +7974,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Gourmand": true
+       },
        "Name": "Gourmand"
       },
       {
+       "Effects": {
+        "FrontLine": true
+       },
        "Name": "Nimble"
       },
       {
@@ -9624,6 +9662,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -9631,6 +9672,9 @@
       },
       {
        "Degree": 1,
+       "Effects": {
+        "ChemicalInterest": 1
+       },
        "Name": "DrugDesire"
       }
      ]
@@ -9717,6 +9761,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -9724,7 +9771,9 @@
     {
      "Age": 67.64382934570312,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true,
       "QuickSleeper": true
      },
@@ -9805,6 +9854,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "QuickSleeper": true
+       },
        "Name": "QuickSleeper"
       },
       {
@@ -9812,6 +9864,12 @@
        "Name": "NaturalMood"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -9901,10 +9959,16 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Industriousness"
       }
      ]
@@ -9991,9 +10055,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
+       "Effects": {
+        "Execution": true
+       },
        "Name": "Bloodlust"
       }
      ]
@@ -10081,9 +10151,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Gourmand": true
+       },
        "Name": "Gourmand"
       },
       {
+       "Effects": {
+        "FrontLine": true
+       },
        "Name": "Nimble"
       },
       {

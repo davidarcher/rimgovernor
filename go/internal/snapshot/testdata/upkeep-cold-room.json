@@ -17741,9 +17741,15 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       },
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       },
       {
@@ -17825,6 +17831,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Execution": true
+       },
        "Name": "Bloodlust"
       }
      ]
@@ -17907,6 +17916,9 @@
      "Traits": [
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Neurotic"
       }
      ]
@@ -17995,6 +18007,9 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       }
      ]
@@ -18164,6 +18179,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
@@ -18174,9 +18192,11 @@
     {
      "Age": 38.68943405151367,
      "Effects": {
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "GreatMemory": true,
       "MoveSpeed": 0.4,
-      "NoFirefighting": true,
       "Pyromaniac": true
      },
      "ID": "Thing_Human743",
@@ -18258,12 +18278,24 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       },
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -18349,6 +18381,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Nudist": true
+       },
        "Name": "Nudist"
       },
       {
@@ -20143,9 +20178,15 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       },
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       },
       {
@@ -20227,6 +20268,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Execution": true
+       },
        "Name": "Bloodlust"
       }
      ]
@@ -20309,6 +20353,9 @@
      "Traits": [
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Neurotic"
       }
      ]
@@ -20397,6 +20444,9 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       }
      ]
@@ -20566,6 +20616,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
@@ -20576,9 +20629,11 @@
     {
      "Age": 38.68943405151367,
      "Effects": {
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "GreatMemory": true,
       "MoveSpeed": 0.4,
-      "NoFirefighting": true,
       "Pyromaniac": true
      },
      "ID": "Thing_Human743",
@@ -20660,12 +20715,24 @@
      "Traits": [
       {
        "Degree": 2,
+       "Effects": {
+        "MoveSpeed": 0.4
+       },
        "Name": "SpeedOffset"
       },
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -20751,6 +20818,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Nudist": true
+       },
        "Name": "Nudist"
       },
       {

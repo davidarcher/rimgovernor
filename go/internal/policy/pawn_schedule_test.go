@@ -88,7 +88,7 @@ func TestPlanSchedulesStaggerJoy(t *testing.T) {
 }
 
 func TestPlanSchedules(t *testing.T) {
-	owl := testWorkPawn("owl", true, false, nil, PawnTrait{Name: "NightOwl"})
+	owl := testWorkPawn("owl", true, false, nil, testTrait("NightOwl", 0))
 	owl.Schedule = domain.Known(nativeDefaultSchedule())
 	plain := testWorkPawn("plain", true, false, nil)
 	plain.Schedule = domain.Known(scheduleTemplate(TraitEffects{}))
@@ -160,7 +160,7 @@ func TestPlanSchedulesNeedBands(t *testing.T) {
 	} {
 		var traits []PawnTrait
 		if c.owl {
-			traits = []PawnTrait{{Name: "NightOwl"}}
+			traits = []PawnTrait{testTrait("NightOwl", 0)}
 		}
 		pawn := testWorkPawn("p", true, false, nil, traits...)
 		pawn.Schedule, pawn.Rest, pawn.Joy = domain.Known(c.current), c.rest, c.joy

@@ -269,6 +269,13 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 			catalog.ThingDefs[row.DefName] = row
 		}
 	}
+	recorded, err := fullCatalogRows()
+	if err != nil {
+		return nil, err
+	}
+	for class, rows := range recorded {
+		catalog.Defs[class] = rows
+	}
 	if len(n.recipes) > 0 {
 		rows := map[string]proto.Message{}
 		for _, r := range n.recipes {

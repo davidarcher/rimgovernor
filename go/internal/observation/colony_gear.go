@@ -69,7 +69,11 @@ func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoad
 	in := policy.GearLoadoutInput{Role: role.Role, Female: p.GetGender() == d.Gender_GENDER_FEMALE, Research: slices.Sorted(maps.Keys(finished)), Ambient: *outdoor, ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
 	traits := []policy.PawnTrait{}
 	for _, t := range m.GetTraits() {
-		traits = append(traits, policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())})
+		trait := policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())}
+		if err := resolveTrait(defs.Catalog, &trait); err != nil {
+			return unknown, err
+		}
+		traits = append(traits, trait)
 	}
 	in.Role.Work.Traits = domain.Known(traits)
 	var allowed map[string]bool

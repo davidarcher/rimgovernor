@@ -35,7 +35,7 @@ func TestDrugEntriesPerInput(t *testing.T) {
 		t.Fatal("child", got)
 	}
 	for _, degree := range []int{-1, 1, 2} {
-		if got := joyDrugs(t, drugPawn("trait", 30, []PawnTrait{{Name: "DrugDesire", Degree: degree}})); len(got) != 0 {
+		if got := joyDrugs(t, drugPawn("trait", 30, []PawnTrait{testTrait("DrugDesire", degree)})); len(got) != 0 {
 			t.Fatal("DrugDesire", degree, got)
 		}
 	}
@@ -100,7 +100,7 @@ func TestDrugEntriesPreventivesAndDependency(t *testing.T) {
 	if !DiseaseBiome(CoreItemFacts(), []string{"Flu", "Malaria"}) || DiseaseBiome(CoreItemFacts(), []string{"Flu"}) {
 		t.Fatal("disease biome")
 	}
-	for _, p := range []WorkPawn{drugPawn("adult", 30, nil), drugPawn("child", 9, nil), drugPawn("tee", 30, []PawnTrait{{Name: "DrugDesire", Degree: -1}})} {
+	for _, p := range []WorkPawn{drugPawn("adult", 30, nil), drugPawn("child", 9, nil), drugPawn("tee", 30, []PawnTrait{testTrait("DrugDesire", -1)})} {
 		e, _ := DrugEntries(p, CoreItemFacts(), true)
 		if s := scheduled(e); len(s) != 1 || s["Penoxycyline"] != 5 {
 			t.Fatal("penoxycyline", p.ID, s)

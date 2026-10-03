@@ -37,12 +37,6 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 		live[p.ID] = p
 	}
 	things, _ := frameThings(call, r.native, boundary.Identity(state.Snapshot))
-	// A failed catalog read leaves no downside def: every creepjoiner is then
-	// held back from arms, the safe side.
-	downsides, err := creepJoinerDownsides(call, r.native, boundary.Identity(state.Snapshot))
-	if err != nil {
-		slog.Default().InfoContext(call, "fight loadout creepjoiner downsides: "+err.Error(), telemetry.ComponentKey, "routine-defense")
-	}
 	var defenders []policy.LoadoutDefender
 	beltless := false
 	for _, pawn := range pawns {
@@ -50,7 +44,12 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 		if row == nil || row.Pawn == nil {
 			continue
 		}
-		d := policy.LoadoutDefender{EquipCandidatePawn: equipCandidatePawnFacts(row, downsides), Primary: primaryDef(row, things)}
+		facts, err := equipCandidatePawnFacts(row, catalog)
+		if err != nil {
+			slog.Default().InfoContext(call, "fight loadout pawn: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			return nil
+		}
+		d := policy.LoadoutDefender{EquipCandidatePawn: facts, Primary: primaryDef(row, things)}
 		if p, ok := live[pawn]; ok {
 			d.ShieldBelt = p.ShieldBelt
 			if p.Weapon != "" {
@@ -59,7 +58,6 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 		}
 		// The primary's def rows (#1723): a def the catalog cannot state
 		// leaves the loadout out, as any failed read does.
-		var err error
 		if d.PrimaryFacts, err = catalog.WeaponOf(d.Primary); err != nil {
 			slog.Default().InfoContext(call, "fight loadout primary: "+err.Error(), telemetry.ComponentKey, "routine-defense")
 			return nil

@@ -22,7 +22,7 @@ func TestWorkPawnInspiration(t *testing.T) {
 		{"inspired", proto.String("Inspired_Creativity"), "Inspired_Creativity", true},
 	} {
 		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("Human1")}, Inspiration: tc.field}
-		profile := policy.BuildProfile(WorkPawnRow(row))
+		profile := policy.BuildProfile(workRow(t, row))
 		got, known := profile.Inspiration.Value()
 		if known != tc.known || got != tc.want {
 			t.Fatalf("%s: got %q known=%v, want %q known=%v", tc.name, got, known, tc.want, tc.known)

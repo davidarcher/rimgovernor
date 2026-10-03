@@ -43,7 +43,15 @@ func inspiration(ctx context.Context, s cases.Session) error {
 	if len(rows) != 1 || rows[0].GetPawn().GetId() != pawnID {
 		return fmt.Errorf("fixture pawn missing from pawn read")
 	}
-	got, known := policy.BuildProfile(observation.WorkPawnRow(rows[0])).Inspiration.Value()
+	catalog, err := s.Harness().Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return err
+	}
+	work, err := observation.WorkPawnRow(rows[0], catalog)
+	if err != nil {
+		return err
+	}
+	got, known := policy.BuildProfile(work).Inspiration.Value()
 	if !known || got != "Inspired_Creativity" {
 		return fmt.Errorf("inspiration readback: known=%v got=%q", known, got)
 	}

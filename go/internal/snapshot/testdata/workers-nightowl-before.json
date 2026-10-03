@@ -355,6 +355,9 @@
   "Traits": {
    "v": [
     {
+     "Effects": {
+      "NightShift": true
+     },
      "Name": "NightOwl"
     }
    ]
@@ -803,6 +806,9 @@
   "Traits": {
    "v": [
     {
+     "Effects": {
+      "QuickSleeper": true
+     },
      "Name": "QuickSleeper"
     }
    ]

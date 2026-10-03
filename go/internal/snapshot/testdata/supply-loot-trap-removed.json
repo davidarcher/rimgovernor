@@ -7413,6 +7413,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -7420,6 +7423,9 @@
       },
       {
        "Degree": 1,
+       "Effects": {
+        "ChemicalInterest": 1
+       },
        "Name": "DrugDesire"
       }
      ]
@@ -7506,6 +7512,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -7513,7 +7522,9 @@
     {
      "Age": 67.64382934570312,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true,
       "QuickSleeper": true
      },
@@ -7594,6 +7605,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "QuickSleeper": true
+       },
        "Name": "QuickSleeper"
       },
       {
@@ -7601,6 +7615,12 @@
        "Name": "NaturalMood"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -7697,10 +7717,16 @@
       },
       {
        "Degree": 2,
+       "Effects": {
+        "WorkSpeed": 0.35
+       },
        "Name": "Industriousness"
       },
       {
        "Degree": 1,
+       "Effects": {
+        "MoveSpeed": 0.2
+       },
        "Name": "SpeedOffset"
       }
      ]
@@ -7791,6 +7817,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       },
       {
@@ -9498,6 +9527,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Undergrounder": true
+       },
        "Name": "Undergrounder"
       },
       {
@@ -9505,6 +9537,9 @@
       },
       {
        "Degree": 1,
+       "Effects": {
+        "ChemicalInterest": 1
+       },
        "Name": "DrugDesire"
       }
      ]
@@ -9591,6 +9626,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -9598,7 +9636,9 @@
     {
      "Age": 67.64382934570312,
      "Effects": {
-      "NoFirefighting": true,
+      "DisabledWork": [
+       "Firefighter"
+      ],
       "Pyromaniac": true,
       "QuickSleeper": true
      },
@@ -9679,6 +9719,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "QuickSleeper": true
+       },
        "Name": "QuickSleeper"
       },
       {
@@ -9686,6 +9729,12 @@
        "Name": "NaturalMood"
       },
       {
+       "Effects": {
+        "DisabledWork": [
+         "Firefighter"
+        ],
+        "Pyromaniac": true
+       },
        "Name": "Pyromaniac"
       }
      ]
@@ -9782,10 +9831,16 @@
       },
       {
        "Degree": 2,
+       "Effects": {
+        "WorkSpeed": 0.35
+       },
        "Name": "Industriousness"
       },
       {
        "Degree": 1,
+       "Effects": {
+        "MoveSpeed": 0.2
+       },
        "Name": "SpeedOffset"
       }
      ]
@@ -9876,6 +9931,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       },
       {

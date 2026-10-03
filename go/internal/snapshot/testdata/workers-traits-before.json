@@ -357,12 +357,25 @@
   "Traits": {
    "v": [
     {
+     "Effects": {
+      "DisabledWork": [
+       "Firefighter"
+      ],
+      "Pyromaniac": true
+     },
      "Name": "Pyromaniac"
     },
     {
+     "Effects": {
+      "FrontLine": true,
+      "MeleeOnly": true
+     },
      "Name": "Brawler"
     },
     {
+     "Effects": {
+      "Sociable": -1
+     },
      "Name": "Abrasive"
     }
    ]
@@ -812,6 +825,9 @@
    "v": [
     {
      "Degree": 2,
+     "Effects": {
+      "WorkSpeed": 0.35
+     },
      "Name": "Industriousness"
     }
    ]

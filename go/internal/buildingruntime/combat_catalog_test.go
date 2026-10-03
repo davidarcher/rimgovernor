@@ -54,6 +54,13 @@ func decodeCombatWithCatalog(frame *o.BundleSnapshot) (bridge.Combat, error) {
 		}
 	}
 	combat.Catalog = bridge.FixtureCatalog("load", defs...)
+	recorded, err := fullCatalogRows()
+	if err != nil {
+		return combat, err
+	}
+	for class, rows := range recorded {
+		combat.Catalog.Defs[class] = rows
+	}
 	combat.Shells, err = combat.Catalog.MortarShells(policy.MortarSafeRadius)
 	return combat, err
 }

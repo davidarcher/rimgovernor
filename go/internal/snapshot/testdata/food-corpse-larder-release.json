@@ -19815,6 +19815,9 @@
        "Name": "PsychicSensitivity"
       },
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -19901,9 +19904,16 @@
      "Traits": [
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Industriousness"
       },
       {
+       "Effects": {
+        "FrontLine": true,
+        "MeleeOnly": true
+       },
        "Name": "Brawler"
       }
      ]
@@ -19983,6 +19993,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       }
      ]
@@ -21842,6 +21855,9 @@
        "Name": "PsychicSensitivity"
       },
       {
+       "Effects": {
+        "GreatMemory": true
+       },
        "Name": "GreatMemory"
       }
      ]
@@ -21928,9 +21944,16 @@
      "Traits": [
       {
        "Degree": 1,
+       "Effects": {
+        "WorkSpeed": 0.2
+       },
        "Name": "Industriousness"
       },
       {
+       "Effects": {
+        "FrontLine": true,
+        "MeleeOnly": true
+       },
        "Name": "Brawler"
       }
      ]
@@ -22010,6 +22033,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Sociable": 1
+       },
        "Name": "Kind"
       }
      ]

@@ -19,23 +19,27 @@ degree; the backstory-incapable work types; biological age (`Child` under 13).
 Unknown traits, incapable rows or age leave those parts empty and the planner
 skill-only for that pawn; they never make the review unknown.
 
-Traits map to typed effects through one table (`traitTable`, keyed by TraitDef
-name and degree, Core values):
+Trait effects are read from the TraitDef rows of the catalog at observation
+time (`DefinitionCatalog.TraitEffects`, #1724) and carried on each
+`PawnTrait.Effects`; a trait or degree the catalog lacks fails the read with a
+named error. The rows give:
 
-| Effect | Traits |
+| Effect | Derived from |
 | --- | --- |
-| `WorkSpeed` | Industriousness ±0.20/±0.35, Neurotic +0.20/+0.40 |
-| `LearnRate` | FastLearner +0.75, TooSmart +0.75, SlowLearner −0.75 |
-| `MoveSpeed` | SpeedOffset −0.2/+0.2/+0.4 |
-| `GreatMemory`, `QuickSleeper`, `NightShift` | GreatMemory, QuickSleeper, NightOwl |
-| `MeleeOnly`, `FrontLine`, `RearRanged` | Brawler; Brawler, Tough, Nimble; ShootingAccuracy ±1 |
-| `NoFirefighting`, `Pyromaniac` | Pyromaniac |
-| `Sociable` | Kind +1, Abrasive −1 |
-| `Execution`, `SurgeonSafe` | Psychopath, Bloodlust; Psychopath |
-| `Nudist`, `Ascetic`, `Cannibal`, `Gourmand`, `ChemicalInterest`, `Undergrounder`, `Greedy`, `Jealous` | the trait of that name (DrugDesire −1/1/2) |
+| `WorkSpeed`, `LearnRate`, `MoveSpeed` | the summed WorkSpeedGlobal, GlobalLearningFactor and MoveSpeed stat offsets of the degree |
+| `DisabledWork` | the work types whose work tags meet the trait's disabledWorkTags, plus its disabledWorkTypes (Pyromaniac: Firefighter) |
+| `QuickSleeper` | a RestRateMultiplier offset above zero |
+| `Undergrounder` | the Outdoors need among disablesNeeds |
+| `Cannibal` | the human-meat ingestion thoughts among disallowedThoughtsFromIngestion |
 
-A trait the table does not know (mod, DLC, or a mood/nerves spectrum native
-already folds into break thresholds) contributes nothing. The gear
+The remaining flags (`GreatMemory`, `NightShift`, `MeleeOnly`, `FrontLine`,
+`RearRanged`, `Pyromaniac`, `Sociable`, `Execution`, `SurgeonSafe`, `Nudist`,
+`Ascetic`, `Gourmand`, `ChemicalInterest`, `Greedy`, `Jealous`) are policy
+decisions with no rule over the rows; they stay in the small `traitFlags` table
+in `pawn_profile.go`, keyed by TraitDef name and degree, and are merged onto the
+derived effects. A trait with neither rows nor flags (a mod trait the catalog
+does not carry fails the read; a mood/nerves spectrum native already folds into
+break thresholds) contributes nothing beyond its rows. The gear
 ([equipment upkeep](equipment-upkeep.md)), drug and room goals read their flags
 from `PawnProfile.Effects`; mood control keeps its native thresholds.
 
@@ -270,7 +274,7 @@ time.
 ## Acceptance
 
 Planner behaviour is table-driven in `work_assignment_test.go`,
-`pawn_profile_test.go` and `pawn_schedule_test.go` (trait table, floors,
+`pawn_profile_test.go` and `pawn_schedule_test.go` (trait flags, floors,
 growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
 stability, timetable templates) and `construction_helpers_test.go` (helper
 restrictions, risky and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start

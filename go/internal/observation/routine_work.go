@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -9,13 +11,17 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, biotech *bridge.BiotechCatalog) (domain.Fact[[]policy.WorkPawn], error) {
+func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.WorkPawn], error) {
 	if colony == nil || colony.ColonistCount == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(snapshot.Pawns) != len(emergency.Colonists) {
 		return domain.Unknown[[]policy.WorkPawn](), nil
 	}
 	byID := map[string]*o.PawnState{}
 	for _, row := range snapshot.Pawns {
 		byID[row.Pawn.GetId()] = row
+	}
+	var biotech *bridge.BiotechCatalog
+	if catalog != nil {
+		biotech = catalog.Biotech
 	}
 	rows := make([]policy.WorkPawn, 0, len(snapshot.Pawns))
 	for _, p := range emergency.Colonists {
@@ -25,7 +31,10 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		if row == nil || !dk || !nk || row.Dead == nil || row.Downed == nil || row.GetDead() != dead || row.GetDowned() != downed || row.Colonist == nil || !row.GetColonist() {
 			return domain.Unknown[[]policy.WorkPawn](), nil
 		}
-		w := WorkPawnRow(row)
+		w, err := WorkPawnRow(row, catalog)
+		if err != nil {
+			return domain.Unknown[[]policy.WorkPawn](), err
+		}
 		if bt, ok := w.Biotech.Value(); ok {
 			if child, known := bt.IsChild(); known && child {
 				ages, err := biotech.WorkMinAges(row.Pawn.GetDefName())
@@ -54,7 +63,35 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 // priorities from the settings block, skills, traits, incapable work types
 // and age from the biography, and whether the primary weapon is ranged. A
 // missing or issued block leaves its facts unknown.
-func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
+//
+// The pawn's traits are resolved against the catalog (DefinitionCatalog.TraitEffects);
+// a trait the catalog lacks is an error, and a pawn with traits needs a catalog.
+func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog) (policy.WorkPawn, error) {
+	w := workPawnRow(row)
+	if traits, ok := w.Traits.Value(); ok {
+		for i := range traits {
+			if err := resolveTrait(catalog, &traits[i]); err != nil {
+				return policy.WorkPawn{}, err
+			}
+		}
+	}
+	return w, nil
+}
+
+// resolveTrait sets the trait's Effects from the catalog.
+func resolveTrait(catalog *bridge.DefinitionCatalog, trait *policy.PawnTrait) error {
+	if catalog == nil {
+		return fmt.Errorf("trait %s has no definition catalog to resolve against", trait.Name)
+	}
+	effects, err := catalog.TraitEffects(trait.Name, trait.Degree)
+	if err != nil {
+		return err
+	}
+	trait.Effects = effects
+	return nil
+}
+
+func workPawnRow(row *o.PawnState) policy.WorkPawn {
 	w := policy.WorkPawn{ID: policy.PawnID(row.Pawn.GetId())}
 	mental, mk := nativePresence(row.MentalState, row.Issues, "mental_state").Value()
 	if row.GetDead() || row.GetDowned() || row.GetDrafted() || mk && mental {

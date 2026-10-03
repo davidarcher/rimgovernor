@@ -6605,6 +6605,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "NightShift": true
+       },
        "Name": "NightOwl"
       }
      ]
@@ -6690,6 +6693,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
@@ -6782,9 +6788,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Ascetic": true
+       },
        "Name": "Ascetic"
       },
       {
+       "Effects": {
+        "LearnRate": 0.75
+       },
        "Name": "FastLearner"
       },
       {
@@ -8416,6 +8428,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "NightShift": true
+       },
        "Name": "NightOwl"
       }
      ]
@@ -8501,6 +8516,9 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Greedy": true
+       },
        "Name": "Greedy"
       },
       {
@@ -8593,9 +8611,15 @@
      },
      "Traits": [
       {
+       "Effects": {
+        "Ascetic": true
+       },
        "Name": "Ascetic"
       },
       {
+       "Effects": {
+        "LearnRate": 0.75
+       },
        "Name": "FastLearner"
       },
       {

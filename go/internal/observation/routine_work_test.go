@@ -116,7 +116,7 @@ func TestWorkPawnRowJob(t *testing.T) {
 		{row(&o.JobEvidence{}), domain.Unknown[policy.PawnJob]()},
 	}
 	for i, c := range cases {
-		if got := WorkPawnRow(c.row).Job; !reflect.DeepEqual(got, c.want) {
+		if got := workRow(t, c.row).Job; !reflect.DeepEqual(got, c.want) {
 			t.Fatal(i, got, c.want)
 		}
 	}
@@ -125,14 +125,14 @@ func TestWorkPawnRowJob(t *testing.T) {
 // TestWorkPawnRowPsyfocus: a psycaster's needs carry psyfocus (#1313); a
 // pawn without a psylink (or without Royalty) leaves all three unknown.
 func TestWorkPawnRowPsyfocus(t *testing.T) {
-	caster := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Needs: &o.PawnNeeds{Psyfocus: proto.Float64(.4), PsyfocusTarget: proto.Float64(.7), PsylinkLevel: proto.Int32(2)}})
+	caster := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Needs: &o.PawnNeeds{Psyfocus: proto.Float64(.4), PsyfocusTarget: proto.Float64(.7), PsylinkLevel: proto.Int32(2)}})
 	focus, fk := caster.Psyfocus.Value()
 	target, tk := caster.PsyfocusTarget.Value()
 	level, lk := caster.PsylinkLevel.Value()
 	if !fk || !tk || !lk || focus != .4 || target != .7 || level != 2 {
 		t.Fatalf("psycaster = %v %v %v", caster.Psyfocus, caster.PsyfocusTarget, caster.PsylinkLevel)
 	}
-	plain := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}, Needs: &o.PawnNeeds{Mood: proto.Float64(.5)}})
+	plain := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}, Needs: &o.PawnNeeds{Mood: proto.Float64(.5)}})
 	if _, known := plain.Psyfocus.Value(); known {
 		t.Fatal("psyfocus known without a psylink")
 	}
@@ -160,7 +160,7 @@ func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
 func TestWorkPawnRowBiotech(t *testing.T) {
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Child"), LifeStage: proto.String("HumanlikeChild"),
 		Genes: []*o.PawnGene{{DefName: proto.String("Robust"), Xenogene: proto.Bool(false), Active: proto.Bool(true)}}, XenotypeName: proto.String("Baseliner")}}
-	w := WorkPawnRow(row)
+	w := workRow(t, row)
 	bt, known := w.Biotech.Value()
 	if stage, _ := bt.LifeStage.Value(); !known || stage != "HumanlikeChild" {
 		t.Fatal("biotech block not lifted", bt)
@@ -168,7 +168,7 @@ func TestWorkPawnRowBiotech(t *testing.T) {
 	if !policy.BuildProfile(w).Child {
 		t.Fatal("a Child developmental stage must make the profile a child")
 	}
-	if _, known := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("core")}}).Biotech.Value(); known {
+	if _, known := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("core")}}).Biotech.Value(); known {
 		t.Fatal("Core-only row has biotech facts")
 	}
 }
@@ -180,10 +180,20 @@ func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
 		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("sang")}, Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
 			Biotech: &o.PawnBiotech{Deathrest: &o.PawnDeathrest{Deathresting: proto.Bool(resting)}}}
 	}
-	if avail, ok := WorkPawnRow(row(true)).Available.Value(); !ok || avail {
+	if avail, ok := workRow(t, row(true)).Available.Value(); !ok || avail {
 		t.Fatal("deathresting pawn is available for work")
 	}
-	if avail, ok := WorkPawnRow(row(false)).Available.Value(); ok && !avail {
+	if avail, ok := workRow(t, row(false)).Available.Value(); ok && !avail {
 		t.Fatal("awake deathrester is known unavailable")
 	}
+}
+
+// workRow is WorkPawnRow over a pawn row whose traits need no catalog.
+func workRow(t *testing.T, row *o.PawnState) policy.WorkPawn {
+	t.Helper()
+	w, err := WorkPawnRow(row, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w
 }

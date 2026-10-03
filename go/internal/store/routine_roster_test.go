@@ -22,7 +22,7 @@ func TestRoutineRosterRecordedAndKept(t *testing.T) {
 	if none.Review.Roster != nil {
 		t.Fatal("roster recorded without a census")
 	}
-	profile := policy.BuildProfile(policy.WorkPawn{ID: "p1", Traits: domain.Known([]policy.PawnTrait{{Name: "Brawler"}}), Skills: domain.Known([]policy.WorkSkill{{Name: "Melee", Level: 14, Stored: 14, Passion: "Minor"}}), Incapable: domain.Known([]policy.WorkType{policy.WorkResearch}), Age: domain.Known(41.25)})
+	profile := policy.BuildProfile(policy.WorkPawn{ID: "p1", Traits: domain.Known([]policy.PawnTrait{{Name: "Brawler", Effects: policy.TraitEffects{MeleeOnly: true, FrontLine: true}}}), Skills: domain.Known([]policy.WorkSkill{{Name: "Melee", Level: 14, Stored: 14, Passion: "Minor"}}), Incapable: domain.Known([]policy.WorkType{policy.WorkResearch}), Age: domain.Known(41.25)})
 	r.Facts.WorkRoster = domain.Known([]policy.WorkCoverage{{Work: policy.WorkHunting, Demand: 1, Owners: 0, Capable: 0}})
 	r.Facts.WorkDecaying = domain.Known([]policy.DecayingSkill{{Pawn: "p1", Skill: "Melee", Level: 14}})
 	r.Facts.WorkProfiles = domain.Known([]policy.PawnProfile{profile})

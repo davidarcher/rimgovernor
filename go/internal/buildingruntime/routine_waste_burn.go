@@ -113,7 +113,7 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}
-	downsides, err := creepJoinerDownsides(call, r.native, identity)
+	catalog, err := pawnCatalog(call, r.native, identity)
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}
@@ -123,7 +123,11 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 			return RoutineWasteResult{}, true, fmt.Errorf("%w: burnRoom: row == nil || row.Pawn == nil", ErrControl)
 		}
 		pawn := domain.PawnID(row.Pawn.GetId())
-		request.Pawns = append(request.Pawns, policy.BurnCandidate{Arm: equipCandidatePawnFacts(row, downsides), Fire: fireSafetyPawnFacts(pawn, row), Holds: primaryDef(row, things) == policy.MolotovDef})
+		arm, err := equipCandidatePawnFacts(row, catalog)
+		if err != nil {
+			return RoutineWasteResult{}, true, err
+		}
+		request.Pawns = append(request.Pawns, policy.BurnCandidate{Arm: arm, Fire: fireSafetyPawnFacts(pawn, row), Holds: primaryDef(row, things) == policy.MolotovDef})
 	}
 	if source, ok := r.native.(loadoutWeaponSource); ok {
 		bounds, _, err := source.ReadMapBounds(call, identity, domain.Cell{})
