@@ -11,11 +11,10 @@ import (
 // CheckRoutes at draw time, never persisted).
 
 var zoneOverlay = map[ZoneKind]overlayStyle{
-	ZoneField:   {planGreen, "field"},
-	ZonePasture: {planTan, "pasture"},
-	ZoneMining:  {planBrown, "mining"},
-	ZoneWood:    {planLightBlue, "wood lot"},
-	ZoneNoGo:    {planDarkPurple, "no-go"},
+	ZoneField:  {planGreen, "field"},
+	ZoneMining: {planBrown, "mining"},
+	ZoneWood:   {planLightBlue, "wood lot"},
+	ZoneNoGo:   {planDarkPurple, "no-go"},
 }
 
 var roomOverlay = map[ModuleRole]overlayStyle{
