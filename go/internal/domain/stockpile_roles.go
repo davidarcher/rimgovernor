@@ -106,7 +106,7 @@ func WardrobeFilter(armor []string) (StockpileFilter, error) {
 
 // WornDumpFilter takes every apparel and weapon; at Low priority it only
 // keeps what the gear stockpiles refuse (tainted, worn, poor, biocoded)
-// for burning or smelting.
+// to disintegrate in the weather on the unroofed dump site (#1813).
 func WornDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons")}, nil))
 }

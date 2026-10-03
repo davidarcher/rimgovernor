@@ -79,3 +79,44 @@ func TestOutdoorDumpSitesAvoidLivingRooms(t *testing.T) {
 		t.Fatal("site on an unknown cell", sites[0])
 	}
 }
+
+// The worn dump (#1813) is sited like the other dumps: every candidate patch
+// is unroofed and clear of living rooms, and the roofed ground beside the
+// anchor (a freezer, a shed) is never offered, however near.
+func TestWornDumpSiteIsUnroofedAndClearOfRooms(t *testing.T) {
+	roofed := func(c domain.Cell) bool { return c.X >= 8 && c.X < 16 && c.Z >= 8 && c.Z < 16 }
+	var bedroom []domain.Cell
+	for x := int32(30); x < 33; x++ {
+		for z := int32(10); z < 13; z++ {
+			bedroom = append(bedroom, domain.Cell{X: x, Z: z})
+		}
+	}
+	rooms := []Room{{ID: "Room_1", Role: domain.Known(RoomRoleBedroom), Cells: bedroom}}
+	plan := PlanStorage(StorageRequest{
+		Bounds: Bounds{Width: 40, Height: 30}, Cells: dumpCensus(40, 30, roofed),
+		Dumps: &DumpStore{Needs: map[string]int{domain.WornDumpRole: 3}, Rooms: rooms, Anchor: domain.Cell{X: 11, Z: 11}},
+	})
+	var found bool
+	for _, s := range plan.Sites {
+		if s.Role != domain.WornDumpRole {
+			continue
+		}
+		found = true
+		if len(s.Candidates) == 0 {
+			t.Fatal("worn dump has no candidates")
+		}
+		for _, cand := range s.Candidates {
+			for _, c := range cand {
+				if roofed(c) {
+					t.Fatal("roofed candidate", cand)
+				}
+				if c.X > 24 && c.X < 38 && c.Z > 4 && c.Z < 18 {
+					t.Fatal("candidate within bedroom clearance", cand)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("no worn dump site: %+v", plan.Sites)
+	}
+}
