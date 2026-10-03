@@ -57,6 +57,7 @@ namespace HomeBridge.BridgeTools
                 catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Ideology = NativeIdeologyObservation.Catalog();
+            catalog.Odyssey = NativeOdysseyFacts.Catalog();
             return catalog;
         }
     }

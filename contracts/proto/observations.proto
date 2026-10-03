@@ -659,6 +659,8 @@ message BuildingState {
   reserved 21;
   // The building's occupied rect, inclusive (#1346).
   Rectangle occupied = 22;
+  // Odyssey hack and portal facts (#1708); absent on a building with neither.
+  OdysseyBuilding odyssey = 23;
 }
 message PowerNetwork {
   optional string id = 1; optional uint32 producers = 2; optional uint32 consumers = 3; optional uint32 batteries = 4;
@@ -1472,6 +1474,9 @@ message ColonyFactsSnapshot {
   PolicySection policies = 49;
   // Biotech pollution sources, wastepacks, gestators, chargers and baby care (#1679); absent without Biotech.
   BiotechSection biotech = 50;
+  // TileMutatorDef defNames of the colony map's world tile (Tile.Mutators;
+  // #1708), e.g. caves or ancient vents. Empty without Odyssey or with none.
+  repeated string tile_mutators = 51;
 }
 // One policy database row: Policy.GetUniqueLoadID(), label, the player
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
@@ -1778,6 +1783,8 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   BiotechCatalog biotech = 4;
   // The Ideology definitions (#1654); absent without Ideology.
   IdeologyCatalog ideology = 5;
+  // The Odyssey defs (#1708); absent without Odyssey.
+  OdysseyCatalog odyssey = 6;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a
@@ -1928,6 +1935,80 @@ message BiotechCatalog {
   repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
   repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;
 }
+// The static Odyssey definitions (#1708), each read natively from the game
+// defs, sorted by name, fixed for a load: biomes with the hazards and wild
+// animals they carry, tile mutators (the cave, vent and stockpile features a
+// world tile can have), hackable thing defs, map portals and the stockpile
+// types. A def name is the key every other Odyssey message refers by; the
+// animal races themselves are AnimalRaceCatalog's.
+message OdysseyCatalog {
+  repeated BiomeRow biomes = 1; repeated TileMutatorRow tile_mutators = 2; repeated HackableRow hackables = 3;
+  repeated PortalRow portals = 4; repeated StockpileTypeRow stockpile_types = 5;
+}
+// A wild animal kind in a biome and its commonality there.
+message BiomeAnimal { optional string kind = 1; optional double commonality = 2; }
+// A disease incident of a biome and its commonality there.
+message BiomeDisease { optional string incident = 1; optional double commonality = 2; }
+// BiomeDef: the flags and densities that make a biome hazardous or barren,
+// the game conditions it holds on its map (biome_map_conditions) and the
+// animal kinds and diseases with a nonzero commonality, split by the
+// inland, pollution and coastal tables. constant_outdoor_temperature_c is
+// set only when the biome fixes its outdoor temperature.
+message BiomeRow {
+  optional string def_name = 1; optional string label = 2;
+  optional bool generates_naturally = 3; optional bool can_build_base = 4; optional bool impassable = 5; optional bool extreme = 6;
+  optional bool water = 7; optional bool in_vacuum = 8; optional bool has_bedrock = 9; optional bool allow_pollution = 10;
+  optional bool wild_plants_are_cave_plants = 11;
+  optional double animal_density = 12; optional double plant_density = 13; optional double disease_mtb_days = 14; optional double forageability = 15;
+  optional double movement_difficulty = 16; optional double geyser_count_factor = 17; optional double wild_animal_scaria_chance = 18;
+  optional double pollution_offset = 19; optional double constant_outdoor_temperature_c = 20;
+  repeated string map_conditions = 21;
+  repeated BiomeAnimal wild_animals = 22; repeated BiomeAnimal pollution_wild_animals = 23; repeated BiomeAnimal coastal_wild_animals = 24;
+  repeated BiomeDisease diseases = 25;
+}
+// TileMutatorDef: a feature of a world tile. additional_game_conditions are
+// the GameConditionDefs it adds to the tile's map; the factors scale the
+// biome's densities; cave marks a cave mutator (TileMutatorDef.IsCave);
+// worker is the mutator worker's class name; biome_whitelist and
+// biome_blacklist are BiomeDef names.
+message TileMutatorRow {
+  optional string def_name = 1; optional string label = 2; optional string worker = 3; optional bool cave = 4;
+  repeated string categories = 5; repeated string additional_game_conditions = 6;
+  optional double animal_density_factor = 7; optional double plant_density_factor = 8; optional double geyser_count_factor = 9;
+  optional double fish_population_factor = 10; optional bool prevents_landmarks = 11;
+  repeated string biome_whitelist = 12; repeated string biome_blacklist = 13;
+}
+// A ThingDef with a CompProperties_Hackable: defence is the hack work
+// required; intellectual_skill_prerequisite the skill a hacker needs;
+// lockout_hours_min and lockout_hours_max the lockout after a failed
+// attempt (lockout_permanently: it never reopens); completed_quest the
+// QuestScriptDef a finished hack starts; comp the properties' class name.
+message HackableRow {
+  optional string def_name = 1; optional string label = 2; optional string comp = 3; optional double defence = 4;
+  optional int32 intellectual_skill_prerequisite = 5; optional bool only_remotely_hackable = 6; optional bool lockout_permanently = 7;
+  optional int32 lockout_hours_min = 8; optional int32 lockout_hours_max = 9; optional bool glow_if_hacked = 10;
+  optional string completed_quest = 11;
+}
+// A ThingDef with MapPortalProperties: the pocket map generator it enters,
+// the exit def and pocket map size, and the generator's tile mutators.
+message PortalRow {
+  optional string def_name = 1; optional string label = 2; optional string pocket_map_generator = 3; optional string exit_def = 4;
+  optional int32 pocket_map_size = 5; repeated string pocket_tile_mutators = 6;
+}
+// One value of the stockpile type enum an ancient hatch carries;
+// generatable: the world generator may place it.
+message StockpileTypeRow { optional string name = 1; optional bool generatable = 2; }
+// Odyssey facts of one building row (#1708). hackable: a building with
+// CompHackable; portal: a MapPortal (hatch, pit gate, cave exit). An absent
+// scalar is unknown; a failed sub-read leaves its block absent and adds a
+// ReadIssue named hackable or portal.
+message OdysseyBuilding { HackableState hackable = 1; PortalState portal = 2; repeated ReadIssue issues = 3; }
+// CompHackable: progress_percent is 0..1, defence the hack work required.
+message HackableState { optional double progress_percent = 1; optional double defence = 2; optional bool hacked = 3; optional bool locked_out = 4; optional bool autohack = 5; }
+// MapPortal: pocket_map_exists and the pocket map's id once it exists;
+// an ancient hatch adds its stockpile type (StockpileTypeRow.name) and
+// layout (LayoutDef name).
+message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket_map_id = 2; optional string stockpile_type = 3; optional string layout = 4; }
 message DefinitionCatalogRequest { ReadScope scope = 1; }
 message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message SnapshotStreamOpened {

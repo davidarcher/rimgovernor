@@ -29,6 +29,8 @@ type DefinitionCatalog struct {
 	Research map[string]policy.ResearchProjectFacts
 	// Biotech is the Biotech defs (#1678); nil without Biotech.
 	Biotech *BiotechCatalog
+	// Odyssey is the Odyssey defs (#1708); nil without Odyssey.
+	Odyssey *OdysseyCatalog
 	// Ideology is the Ideology defs (#1654); nil without Ideology.
 	Ideology *policy.IdeologyDefs
 }
@@ -95,6 +97,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Definitions: make(map[string]*o.PlanningDefinition, len(v.Definitions)), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
 	var err error
 	if out.Biotech, err = DecodeBiotechCatalog(v.Biotech); err != nil {
+		return nil, err
+	}
+	if out.Odyssey, err = DecodeOdysseyCatalog(v.Odyssey); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Definitions {

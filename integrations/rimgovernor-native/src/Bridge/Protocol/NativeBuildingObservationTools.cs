@@ -193,6 +193,7 @@ namespace HomeBridge.BridgeTools
             foreach (var field in new[] { "thermal_sides", "bills" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Typed fact or exact CAS snapshot producer is not implemented."));
             row.Issues.Add(Issue("inspect_text", Common.UnavailableReason.NotRequested, "Inspect strings are not requested."));
+            row.Odyssey = NativeOdysseyFacts.Building(thing);
             return row;
         }
 

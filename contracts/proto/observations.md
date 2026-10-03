@@ -265,6 +265,36 @@ profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
 Child) when it is known and the age rule otherwise. Both are derived state held
 in Go memory (persistence-contracts.md); they add no store.
 
+## Odyssey defs and facts
+
+Odyssey (ground only, #1707) follows the shared wire pattern (#1333): static
+defs ride the definition catalog and per-thing facts ride the canonical
+building row. There is no separate read tool and no Odyssey intent. All of it
+is absent without Odyssey (`ModsConfig.OdysseyActive`).
+
+`DefinitionCatalog.odyssey` (#1708) holds, each sorted by name and read from the
+game defs (never Go name lists): `BiomeDef` rows (hazard flags, densities,
+`biomeMapConditions`, and the animal kinds and disease incidents with a nonzero
+commonality in the inland, pollution and coastal tables; the races are
+`AnimalRaceCatalog`'s, so a new animal needs no row of its own);
+`TileMutatorDef` rows (the cave, vent and stockpile features of a world tile,
+with the game conditions they add); `CompProperties_Hackable` thing defs
+(defence, skill prerequisite, lockout, the quest a finished hack starts);
+`MapPortalProperties` thing defs (pocket map generator, exit, size, tile
+mutators); and the stockpile type enum with whether the world generator places
+each value. `bridge.DecodeOdysseyCatalog` indexes them by name and refuses
+duplicates, unknown cross references and nonfinite numbers.
+
+`BuildingState.odyssey` carries a building's hack progress, defence, hacked,
+locked-out and autohack state (`CompHackable`) and a portal's pocket map
+existence and id, plus an ancient hatch's stockpile type and layout. An absent
+scalar is unknown; a failed sub-read leaves its block absent and adds a
+`ReadIssue` named `hackable` or `portal`. `ColonyFactsSnapshot.tile_mutators`
+lists the colony map tile's mutators next to `biome`. Go lifts the blocks into
+`policy.Hack` and `policy.Portal` (`bridge.BuildingHack`, `BuildingPortal`);
+all of it is derived state held in Go memory (persistence-contracts.md) and
+adds no store.
+
 ## Biotech colony section
 
 `ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide
