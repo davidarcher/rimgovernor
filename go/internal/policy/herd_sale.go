@@ -10,7 +10,9 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // (HerdMasterChoice gives the animals the colony works). Founders and companions have no ceiling, so
 // none is listed. An unread census or any unknown designation, bond or
 // master sells nothing. Animals already designated for slaughter or release are not
-// listed: the cull owns them.
+// listed: the cull owns them. An animal the ideo
+// bars from slaughter (venerated or an AnimalSlaughter precept) is never sold;
+// an unread precept sells nothing.
 func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[PawnID]bool {
 	rows, known := animals.Value()
 	if !known {
@@ -23,6 +25,11 @@ func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[P
 	var out map[PawnID]bool
 	for _, r := range removals {
 		a := r.animal
+		if barred, bk := a.Herd.SlaughterBarred.Value(); !bk {
+			return nil
+		} else if barred {
+			continue
+		}
 		master, mk := a.Master.Value()
 		if bonded, ok := a.Bonded.Value(); !ok || bonded || !mk || master != "" && !herd.Retired[a.Definition] {
 			continue

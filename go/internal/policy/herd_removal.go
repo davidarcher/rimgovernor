@@ -112,6 +112,11 @@ func PrioritizeSlaughterChoice(animals domain.Fact[[]UpkeepAnimal], profiles dom
 		if !sk || !rk || !slaughter || release {
 			continue
 		}
+		if barred, bk := a.Herd.SlaughterBarred.Value(); !bk {
+			return HusbandryChoice{Reason: HusbandryUnknown}
+		} else if barred {
+			continue
+		}
 		if !ok {
 			break
 		}

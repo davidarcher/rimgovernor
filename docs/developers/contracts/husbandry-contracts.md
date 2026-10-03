@@ -82,7 +82,8 @@ other required native read, and the herd plan never runs without it.
 - **Sale (#1632).** `HerdSaleAnimals` lists the animals over a race's ceiling
   (all of a retired race) that are known unbonded and, outside a retired race,
   not trained for work; founders have no ceiling and never sell, and any
-  unknown designation or bond sells nothing. While `SilverShort` holds
+  unknown designation or bond sells nothing. A race the player ideo bars from
+  slaughter (see Removal) is never sold. While `SilverShort` holds
   (`AnimalSaleNeed` sets `TradeNeed.SurplusAnimals`, which opens a caravan),
   `SelectTrade` sells each listed animal through its own pawn trade row
   (`TradeSheetRowFact.PawnID`, line count -1) after the resource and art
@@ -105,7 +106,10 @@ other required native read, and the herd plan never runs without it.
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideo neither venerates the race nor has an
   `AnimalSlaughter` precept; otherwise by `release` when `SafeToRelease`
-  allows it (same exclusions). Cull order: old (past 80% of
+  allows it (same exclusions). The same bar excludes the race from food
+  slaughter and from the Prioritize order. `AnimalState.slaughter_barred` is
+  read natively every census (`false` without Ideology); an unread value
+  fails the removal, sale, food and Prioritize choices (no fallback). Cull order: old (past 80% of
   `lifeExpectancy`) or sick; males beyond one per five females; untrained
   adults by highest grazing demand per meat; adults that learned Haul, Rescue
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties

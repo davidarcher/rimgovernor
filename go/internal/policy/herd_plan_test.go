@@ -25,7 +25,7 @@ func raceCatalog(races ...AnimalRace) AnimalRaceCatalog {
 
 func planAnimal(id string, def Resource, gender string) UpkeepAnimal {
 	return UpkeepAnimal{ID: PawnID(id), Definition: def, Gender: gender, Release: domain.Known(false), Slaughter: domain.Known(false),
-		SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(false)}
+		SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(false), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}
 }
 
 func juvenile(a UpkeepAnimal) UpkeepAnimal {

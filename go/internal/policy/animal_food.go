@@ -93,7 +93,7 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 		}
 	}
 	for _, a := range observed {
-		if release, known := a.Release.Value(); pending[a.ID] && known && !release && counts[a.Definition] > floors[a.Definition] {
+		if release, known := a.Release.Value(); pending[a.ID] && known && !release && counts[a.Definition] > floors[a.Definition] && !a.Herd.barredOrUnknown() {
 			safe[a.ID] = true
 		}
 	}

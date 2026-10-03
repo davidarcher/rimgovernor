@@ -49,9 +49,9 @@ func TestReconcileHerdRemoval(t *testing.T) {
 
 // cows is a herd of one bull and n cows, none designated.
 func cows(n int) []UpkeepAnimal {
-	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true)}}
+	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}}
 	for i := range n {
-		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true)})
+		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}})
 	}
 	return rows
 }
@@ -122,6 +122,7 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 	v := animalFixture(0)
 	rows, _ := v.Animals.Value()
 	rows[0].Release, rows[0].Slaughter = domain.Known(false), domain.Known(true)
+	rows[0].Herd.SlaughterBarred = domain.Known(false)
 	animals := domain.Known(rows)
 	two := domain.Known([]PawnProfile{handler("a", 4, false), handler("b", 9, false), handler("c", 15, true)})
 	got := PrioritizeSlaughterChoice(animals, two)
@@ -138,5 +139,38 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 	rows[0].Slaughter, rows[0].Release = domain.Known(true), domain.Known(true)
 	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
 		t.Fatal("a release-marked animal got an order", got)
+	}
+}
+
+// A venerated or precept-barred race is never slaughtered, ordered, sold or
+// offered as food; an unread precept plans none of them.
+func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
+	rows := cows(3)
+	for i := range rows {
+		rows[i].Herd.SlaughterBarred = domain.Known(true)
+		rows[i].Herd.Venerated = domain.Known(true)
+	}
+	rows[1].Slaughter, rows[1].SafeToSlaughter = domain.Known(true), domain.Known(false)
+	animals := domain.Known(rows)
+	handler := domain.Known([]PawnProfile{{ID: "h", Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 9}}}})
+	if got := PrioritizeSlaughterChoice(animals, handler); got.Method != "" {
+		t.Fatal("prioritized a barred slaughter", got)
+	}
+	herd := HerdPolicy{PopulationMax: map[Resource]int64{"Cow": 0}}
+	if got := HerdSaleAnimals(animals, herd); len(got) != 0 {
+		t.Fatal("sold a barred race", got)
+	}
+	food := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
+	if got := SlaughterFoodChannels(food, animals, HerdPolicy{}); len(got) != 0 {
+		t.Fatal("barred race offered as food", got)
+	}
+	unread := cows(3)
+	unread[1].Herd.SlaughterBarred = domain.Unknown[bool]()
+	unread[1].Slaughter = domain.Known(true)
+	if got := HerdSaleAnimals(domain.Known(unread), herd); len(got) != 0 {
+		t.Fatal("sold with an unread precept", got)
+	}
+	if got := PrioritizeSlaughterChoice(domain.Known(unread), handler); got.Reason != HusbandryUnknown {
+		t.Fatal("unread precept must fail", got)
 	}
 }

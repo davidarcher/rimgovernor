@@ -25,8 +25,10 @@ func herdFertile(a UpkeepAnimal) bool {
 // HerdFacts are the per-animal facts MaintainHerd sizes and culls by
 // (#875). The census fills age, life expectancy, sickness, adulthood,
 // precepts and tame danger natively; MeatNutrition, FeedPerDay and Product
-// merge in from the colony food channels by animal ID. Unknown facts rank an
-// animal as ordinary (not old, not sick, adult) and never bar a removal.
+// merge in from the colony food channels by animal ID. Unknown age or sickness
+// ranks an animal as ordinary (not old, not sick, adult); an unknown
+// SlaughterBarred (the precept read) leaves removal, sale and slaughter
+// unplanned.
 type HerdFacts struct {
 	AgeYears, LifeExpectancy, ManhunterOnTameFail, MeatNutrition, FeedPerDay domain.Fact[float64]
 	Sick, Adult, SlaughterBarred, Venerated                                  domain.Fact[bool]
@@ -125,7 +127,11 @@ func herdRemovalMethod(a UpkeepAnimal) (domain.HusbandryMethod, bool) {
 	if !sk {
 		return "", false
 	}
-	if barred, _ := a.Herd.SlaughterBarred.Value(); slaughter && !barred {
+	barred, bk := a.Herd.SlaughterBarred.Value()
+	if !bk {
+		return "", false
+	}
+	if slaughter && !barred {
 		return domain.HusbandrySlaughter, true
 	}
 	release, rk := a.SafeToRelease.Value()
@@ -269,4 +275,11 @@ func herdFoodLimits(rows []UpkeepAnimal, herd HerdPolicy) map[Resource]int64 {
 		}
 	}
 	return limits
+}
+
+// barredOrUnknown reports whether slaughter is barred by the player ideo or
+// the precept read is missing.
+func (h HerdFacts) barredOrUnknown() bool {
+	barred, known := h.SlaughterBarred.Value()
+	return barred || !known
 }
