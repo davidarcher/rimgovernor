@@ -721,6 +721,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	} else {
 		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)
+		if err == nil && r.routes != nil && reason == BuildingReasonNoSpace {
+			if result, handled, digErr := r.digBreach(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); digErr != nil || handled {
+				return result, digErr
+			}
+		}
 	}
 	if err != nil || !reason.IsZero() {
 		return RoutineBuildingResult{Verdict: reason}, err
