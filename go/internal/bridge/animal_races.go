@@ -111,6 +111,14 @@ func DecodeAnimalRaceCatalog(v *o.AnimalRaceCatalog, identity *c.Identity) (*Ani
 			}
 			race.Products = append(race.Products, policy.RaceProduct{Kind: product.GetKind(), Def: policy.Resource(product.GetDefName()), Amount: amount, IntervalDays: interval})
 		}
+		for _, item := range row.FeedItems {
+			nutrition := item.GetNutritionPerItem()
+			if validID(item.GetDefName()) != nil || item.NutritionPerItem == nil || !(nutrition > 0) || math.IsInf(nutrition, 0) {
+				return nil, contract("invalid animal race %s feed item", def)
+			}
+			race.FeedItems = append(race.FeedItems, policy.RaceFeedItem{Def: policy.Resource(item.GetDefName()), Nutrition: nutrition})
+		}
+		sort.Slice(race.FeedItems, func(i, j int) bool { return race.FeedItems[i].Def < race.FeedItems[j].Def })
 		out.Races[race.Def] = race
 	}
 	return out, nil

@@ -138,7 +138,7 @@ func SupplyHaulProposals(goal GoalID, method domain.MethodID, definition string,
 func AnimalFeedProposals(goal GoalID, m AnimalFeedMethod, ingredients domain.Fact[bool], hay []domain.Cell) []ReadyProposal {
 	group := string(goal) + "/feed"
 	var out []ReadyProposal
-	if m.Resource == AnimalFeedFallbackResource {
+	if m.Produced {
 		for _, b := range m.Benches {
 			out = append(out, ReadyProposal{Goal: goal, Method: "kibble", Stage: "bill:Make_Kibble", Work: WorkCooking, Claims: []ReadyClaim{{"bench", b}}, Alternative: group, Eligible: ingredients, Parallelism: 1})
 		}

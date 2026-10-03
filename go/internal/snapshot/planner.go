@@ -151,6 +151,7 @@ type AnimalFeedCall struct {
 	Targets []policy.AnimalFeedTarget
 	Stocks  []policy.FoodStock
 	Have    map[policy.Resource]int64
+	Races   policy.AnimalRaceCatalog
 }
 
 // SecureSuppliesCall is one policy.SelectSecureSupplies call's inputs.

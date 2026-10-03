@@ -171,7 +171,7 @@ func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 }
 
 func TestReadyWorkFeedAlternativesAndSharedHaulsDeduplicate(t *testing.T) {
-	m := AnimalFeedMethod{Resource: AnimalFeedFallbackResource, Benches: []string{"b1", "b2"}}
+	m := AnimalFeedMethod{Resource: "Kibble", Produced: true, Benches: []string{"b1", "b2"}}
 	props := AnimalFeedProposals(MaintainAnimalFeed, m, domain.Known(true), []domain.Cell{{X: 5, Z: 5}})
 	props = append(props, SupplyHaulProposals("GoalA", "haul", "Steel", []string{"s1", "s2"}, domain.Known(true))...)
 	props = append(props, SupplyHaulProposals("GoalB", "haul", "Steel", []string{"s2"}, domain.Known(true))...)

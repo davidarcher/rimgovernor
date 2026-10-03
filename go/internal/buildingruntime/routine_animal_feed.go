@@ -139,8 +139,8 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	for _, row := range rows {
 		have[row.Resource] = row.Count
 	}
-	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have})
-	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have)
+	snap.NoteAnimalFeed(call, snap.AnimalFeedCall{Targets: targets, Stocks: supply.Stocks, Have: have, Races: upkeep.AnimalRaces})
+	choice, err := policy.SelectAnimalFeedMethod(targets, supply.Stocks, have, upkeep.AnimalRaces)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -149,6 +149,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	case policy.AnimalFeedNoDeficit:
 		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
 	default:
+		// AnimalFeedNoFeed and AnimalFeedExceedsBound refuse for the window.
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
 	// Feed is only feed where the animal can eat it: the bill lands on a
@@ -178,7 +179,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		}
 	}
 	var ingredients []string
-	if choice.Resource == policy.AnimalFeedFallbackResource {
+	if choice.Produced {
 		if combined, ok := read.Projection.CombinedFoodSupply.Value(); ok {
 			ingredients = policy.HumanCookingIngredients(combined, nil, read.Projection.Facts.FoodPlan, policy.HumanMeatFeed)
 		}

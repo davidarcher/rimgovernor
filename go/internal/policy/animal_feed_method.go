@@ -15,6 +15,9 @@ const (
 	AnimalFeedNoDeficit    AnimalFeedReason = "no_animal_feed_deficit"
 	AnimalFeedExceedsBound AnimalFeedReason = "feed_requirement_exceeds_bounded_stock_planning_limit"
 	AnimalFeedSelected     AnimalFeedReason = "feed_resource_selected"
+	// AnimalFeedNoFeed: no stock covers the herd and no recipe produces
+	// anything its race can eat.
+	AnimalFeedNoFeed AnimalFeedReason = "no_feed"
 )
 
 // AnimalFeedMethod is MaintainAnimalFeed's resource + absolute stock-floor
@@ -25,6 +28,8 @@ const (
 type AnimalFeedMethod struct {
 	Reason   AnimalFeedReason
 	Resource Resource
+	// Produced reports Resource is made on a bench (no stock covers the herd).
+	Produced bool
 	Target   int64
 	// Benches names the work tables every covered animal can reach inside
 	// its allowed area (sorted): the only benches a production bill may
@@ -45,14 +50,6 @@ type AnimalFeedMethod struct {
 
 const maxAnimalFeedTarget = 10000
 
-// AnimalFeedFallbackResource is produced when no shared stock covers the
-// deficit animals; animalFeedFallbackNutrition is RimWorld's per-item
-// nutrition for it (Kibble: 0.05).
-const (
-	AnimalFeedFallbackResource  Resource = "Kibble"
-	animalFeedFallbackNutrition          = 0.05
-)
-
 // SelectAnimalFeedMethod picks the feed stock for a deficit herd: among the
 // worst-affected deficit race's animals (AnimalFeedTarget is already sorted
 // worst-runway-first by ReviewAnimalUpkeep), pick the shared (unheld),
@@ -62,9 +59,10 @@ const (
 // stock census -- idempotent, content-addressed dispatch like every other
 // RoutineXPlanner. Only the animals presently below
 // threshold are covered, since AnimalFeedTarget carries only deficit rows.
-// When no shared stock covers them at all, the method is kibble production
-// (AnimalFeedFallbackResource) sized by the same missing nutrition.
-func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64) (AnimalFeedMethod, error) {
+// When no shared stock covers them at all, the method is producing the
+// race's lowest-nutrition producible feed item (the cheapest grade) sized by
+// the same missing nutrition; with none, the reason is AnimalFeedNoFeed.
+func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64, races AnimalRaceCatalog) (AnimalFeedMethod, error) {
 	if len(targets) == 0 {
 		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
 	}
@@ -133,13 +131,27 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 			bestResource, bestID, bestNutritionPerItem, found = s.DefName, s.ID, nutrition/float64(count), true
 		}
 	}
+	produced := false
 	if !found {
-		// Nothing the animals can reach: fall back to producing kibble, the
-		// one feed every animal eats and any butcher spot makes from meat and
-		// hay. The bench's output lands where it is made, so a confined
-		// animal is fed by a bench inside its area rather than by stock it
-		// cannot walk to.
-		bestResource, bestNutritionPerItem = AnimalFeedFallbackResource, animalFeedFallbackNutrition
+		// Nothing the animals can reach: produce the cheapest feed item a
+		// recipe makes that the race can eat. The bench's output lands where
+		// it is made, so a confined animal is fed by a bench inside its area
+		// rather than by stock it cannot walk to.
+		catalog, known := races.Race(race)
+		if !known {
+			return AnimalFeedMethod{}, errors.New("animal race missing from catalog")
+		}
+		for _, item := range catalog.FeedItems {
+			if !validResource(item.Def) || !foodNumber(item.Nutrition) || item.Nutrition <= 0 {
+				return AnimalFeedMethod{}, errors.New("invalid animal race feed item")
+			}
+			if !produced || item.Nutrition < bestNutritionPerItem || (item.Nutrition == bestNutritionPerItem && item.Def < bestResource) {
+				bestResource, bestNutritionPerItem, produced = item.Def, item.Nutrition, true
+			}
+		}
+		if !produced {
+			return AnimalFeedMethod{Reason: AnimalFeedNoFeed}, nil
+		}
 	}
 	items := math.Ceil(missing / bestNutritionPerItem)
 	if !foodNumber(items) {
@@ -149,7 +161,7 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	if target <= 0 || target > maxAnimalFeedTarget {
 		return AnimalFeedMethod{Reason: AnimalFeedExceedsBound}, nil
 	}
-	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Target: target, Benches: benches, Delivered: storageDelivers(storage, bestResource), StorageCells: connectedCells(cells)}, nil
+	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Produced: produced, Target: target, Benches: benches, Delivered: storageDelivers(storage, bestResource), StorageCells: connectedCells(cells)}, nil
 }
 
 // validAnimalFeedStorage bounds and checks one animal's reachable storage

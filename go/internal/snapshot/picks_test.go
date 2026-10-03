@@ -31,7 +31,7 @@ func animalFeed(t *testing.T, path string) policy.AnimalFeedMethod {
 		t.Fatalf("%s: %d feed selections recorded", path, len(p.AnimalFeed))
 	}
 	c := p.AnimalFeed[0]
-	m, err := policy.SelectAnimalFeedMethod(c.Targets, c.Stocks, c.Have)
+	m, err := policy.SelectAnimalFeedMethod(c.Targets, c.Stocks, c.Have, kibbleRaces(c.Targets))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,4 +201,14 @@ func TestPickSalvageHoldAndResume(t *testing.T) {
 			t.Errorf("%s: selected %q hold %q, want %q %q", step.file, selected, hold, step.selected, step.hold)
 		}
 	}
+}
+
+// kibbleRaces is the catalog the recordings predate: every target race eats
+// kibble, which a bench makes.
+func kibbleRaces(targets []policy.AnimalFeedTarget) policy.AnimalRaceCatalog {
+	races := map[policy.Resource]policy.AnimalRace{}
+	for _, t := range targets {
+		races[t.Definition] = policy.AnimalRace{Def: t.Definition, FeedItems: []policy.RaceFeedItem{{Def: "Kibble", Nutrition: 0.05}}}
+	}
+	return policy.AnimalRaceCatalog{Races: races}
 }

@@ -70,8 +70,30 @@ namespace HomeBridge.BridgeTools
             AddWool(row, def);
             AddEggs(row, def);
             AddSpawner(row, def);
+            AddFeed(row, race);
             return row;
         }
+
+        // Feed a bench can make for the race: every ingestible some recipe
+        // produces that the race can ever eat, with its nutrition per item.
+        private static void AddFeed(Obs.AnimalRaceFacts row, RaceProperties race)
+        {
+            foreach (var item in ProducedIngestibles.Value.Where(t => ProtoBoundary.IsIdentifier(t.defName) && race.CanEverEat(t)))
+            {
+                var nutrition = item.GetStatValueAbstract(StatDefOf.Nutrition);
+                if (float.IsNaN(nutrition) || float.IsInfinity(nutrition) || nutrition <= 0) continue;
+                row.FeedItems.Add(new Obs.AnimalFeedItem { DefName = item.defName, NutritionPerItem = nutrition });
+            }
+        }
+
+        private static readonly Lazy<ThingDef[]> ProducedIngestibles = new Lazy<ThingDef[]>(() =>
+            DefDatabase<RecipeDef>.AllDefsListForReading
+                .Where(r => r.products != null)
+                .SelectMany(r => r.products.Select(p => p.thingDef))
+                .Where(t => t != null && t.IsIngestible)
+                .Distinct()
+                .OrderBy(t => t.defName, StringComparer.Ordinal)
+                .ToArray());
 
         // Trainable mirrors Pawn_TrainingTracker.CanAssignToTrain's race
         // rules: trainability rank, minimum body size and the tag lists.

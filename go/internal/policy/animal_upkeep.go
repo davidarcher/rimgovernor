@@ -401,6 +401,15 @@ type AnimalRace struct {
 	// Trainables are the training the race can ever learn (sorted).
 	Trainables []string
 	Products   []RaceProduct
+	// FeedItems are the items the race can eat that a recipe produces (sorted
+	// by definition name): the feed a bench can make for it.
+	FeedItems []RaceFeedItem
+}
+
+// RaceFeedItem is one producible feed item and its nutrition per item.
+type RaceFeedItem struct {
+	Def       Resource
+	Nutrition float64
 }
 
 // AnimalRaceCatalog is every race the game knows, by definition name.
