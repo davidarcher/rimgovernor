@@ -14,7 +14,7 @@ const ModuleMealCloset ModuleRole = "meal_closet"
 // the cook steps straight to the shelf, and the dining room beside the
 // freezer (#936), so the meal stockpile sits in the cold one door from the
 // table.
-var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer}
+var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer}
 
 // beside places role against its neighbour's side wall (besideRoles), on
 // the hallway side the neighbour stands on: its hallway door takes the

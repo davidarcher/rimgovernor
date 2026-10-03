@@ -67,6 +67,10 @@ const (
 	ModulePrison   ModuleRole = "prison"
 	ModuleKitchen  ModuleRole = "kitchen"
 	ModuleFreezer  ModuleRole = "freezer"
+	// ModuleButchery is the butcher room (butchering is filthy, so it is
+	// kept out of the kitchen): beside the freezer behind a Link door when
+	// a side is free, else on the hallway.
+	ModuleButchery ModuleRole = "butchery"
 	ModuleStorage  ModuleRole = "storage"
 	ModuleWorkshop ModuleRole = "workshop"
 	// ModuleReserve is sound ground held for growth.

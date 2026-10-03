@@ -545,12 +545,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
 				return result, err
 			}
-			if module == policy.ModuleKitchen {
+			if module == policy.ModuleKitchen || module == policy.ModuleButchery {
 				kitchen := *r
 				kitchen.cells, kitchen.environment = plannedRoomInterior(room), policy.PlacementAnywhere
 				r = &kitchen
 			}
-		} else if module == policy.ModuleKitchen {
+		} else if module == policy.ModuleKitchen || module == policy.ModuleButchery {
 			if cells := plannedRoomCells(facts, module); cells != nil {
 				kitchen := *r
 				kitchen.cells = cells
@@ -1430,7 +1430,7 @@ func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
 	var cells []domain.Cell
 	for _, room := range plan.AllRooms() {
 		switch room.Role {
-		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset:
+		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset, policy.ModuleButchery:
 		default:
 			continue
 		}

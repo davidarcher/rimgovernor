@@ -66,6 +66,7 @@ var roomDistricts = map[ModuleRole]District{
 	ModuleDining:     DistrictPlaza,
 	ModuleRec:        DistrictPlaza,
 	ModuleMealCloset: DistrictPlaza,
+	ModuleButchery:   DistrictProduction,
 	ModuleTomb:       DistrictHousing,
 }
 

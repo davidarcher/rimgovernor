@@ -29,6 +29,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 	ModuleBarracks: {7, 5},
 	ModuleKitchen:  {6, 5},
 	ModuleFreezer:  {5, 5},
+	ModuleButchery: {4, 4},
 	ModuleDining:   {9, 7},
 	ModuleRec:      {9, 7},
 	ModuleHospital: {7, 5},
@@ -44,7 +45,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 // so order is centrality: dining lands near the centre and the tomb (and
 // the battery room PlanUtilities adds after) at the fringe (#1535).
 var coreBaseRooms = []ModuleRole{
-	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleRec,
+	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleButchery, ModuleRec,
 	ModuleWorkshop, ModuleStorage, ModuleHospital, ModulePrison, ModuleLab,
 	ModuleTomb,
 }
