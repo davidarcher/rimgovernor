@@ -23,6 +23,31 @@ func TestColonyGearExactRoutineCensus(t *testing.T) {
 	}
 }
 
+// The held share lands on each modelled pawn's input without mutating the
+// census it was copied from; a pawn with no held share is gated (#1842).
+func TestStampGearSharesGatesEachModelledPawn(t *testing.T) {
+	census := policy.GearObservation{Pawns: []policy.GearPawn{
+		{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
+		{Pawn: "b", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
+		{Pawn: "c"},
+	}}
+	p := ColonyProjection{PersonalShares: policy.PersonalShares(domain.Known(1000.0), []policy.ShareMember{{Profile: policy.PawnProfile{ID: "a"}, Free: true, Spent: domain.Known(0.0)}})}
+	p.Facts.Gear = domain.Known(census)
+	stampGearShares(&p)
+	gear, _ := p.Facts.Gear.Value()
+	a, _ := gear.Pawns[0].LoadoutModel.Value()
+	b, _ := gear.Pawns[1].LoadoutModel.Value()
+	if !a.Share.Allows(200) || a.Share.Allows(201) || b.Share.Allows(1) || !b.Share.Allows(0) {
+		t.Fatal("shares not stamped", a.Share, b.Share)
+	}
+	if _, ok := gear.Pawns[2].LoadoutModel.Value(); ok {
+		t.Fatal("an unmodelled pawn gained a model")
+	}
+	if m, _ := census.Pawns[0].LoadoutModel.Value(); !m.Share.Allows(1e9) {
+		t.Fatal("the source census was mutated")
+	}
+}
+
 // A frame that cannot ground the census (a partial roster, no gear, no
 // outdoor temperature, unknown finished research) leaves it unknown.
 func TestColonyGearUnknownWithoutFrameInputs(t *testing.T) {

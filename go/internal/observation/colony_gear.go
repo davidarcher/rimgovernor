@@ -274,3 +274,22 @@ func OutfitIDs(f domain.Fact[Policies]) domain.Fact[[]string] {
 	}
 	return domain.Known(ids)
 }
+
+// stampGearShares puts each pawn's personal share on its loadout model input
+// (#1842), so PlanGearLoadout drops an upgrade the colonist cannot afford. It
+// runs after personalShares, which reads the same models' worn gear; the held
+// census is copied, never mutated in place.
+func stampGearShares(p *ColonyProjection) {
+	gear, ok := p.Facts.Gear.Value()
+	if !ok {
+		return
+	}
+	gear.Pawns = slices.Clone(gear.Pawns)
+	for i, g := range gear.Pawns {
+		if model, ok := g.LoadoutModel.Value(); ok {
+			model.Share = p.PersonalShareOf(g.Pawn)
+			gear.Pawns[i].LoadoutModel = domain.Known(model)
+		}
+	}
+	p.Facts.Gear = domain.Known(gear)
+}

@@ -169,6 +169,19 @@ allocates each physical supply once. `GearProductionDemand` sums only actionable
 bill gaps by definition and stuff; quality does not split demand. These are
 product quantities, not ingredient reservations or promises of crafted quality.
 
+Personal share gate (#1842): `GearLoadoutInput.Share` is the colonist's
+`policy.PersonalShare`, stamped per pawn from `PersonalShareOf` after the
+routine reading's shares are held (`stampGearShares`); the zero value is
+ungated. `PlanGearLoadout` drops, at gap-build time, an upgrade gap whose
+market-value delta (`ItemMarketValue` of the wanted item less the worn items it
+replaces; a bill's garment is new) exceeds the remaining share, so every
+threshold reader sees the same gaps and an unaffordable upgrade holds neither
+`MaintainEquipment` nor bill demand open. Necessities are never charged: the
+slot is empty, a replaced garment is tattered, or the gap supplies legs (or a
+woman's torso) coverage the alternative lacks. An unpriceable upgrade, an
+unknown share and a slave's share pass necessities only. Primary-slot weapons
+and the armory's armor ladder are exempt.
+
 `ReviewGear` exposes targets and demand when every pawn has a complete model.
 The existing method planner projects those gaps into replacement or demand-sized
 production methods. Loose/stored targets must still occur in the native eligible

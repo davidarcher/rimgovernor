@@ -169,7 +169,11 @@ type GearLoadoutInput struct {
 	// unbudgeted.
 	Budget []Amount
 	// PsychicDrone is whether a psychic-drone letter has been seen.
-	PsychicDrone                            bool
+	PsychicDrone bool
+	// Share is the colonist's personal wealth share (#1842): an upgrade gap
+	// whose market-value delta it does not cover is dropped from the plan.
+	// The zero value is ungated; necessities are never charged.
+	Share                                   PersonalShare
 	Ambient, ComfortableMin, ComfortableMax float64
 	Worn                                    []GearOption
 	// Options have passed outfit/body/stage and resource-policy eligibility.
@@ -372,17 +376,25 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 	return score
 }
 
+// gearCoverage is whether the items cover the legs and the torso.
+func gearCoverage(items []GearOption) (legs, chest bool) {
+	for _, o := range items {
+		for _, g := range o.Groups {
+			legs = legs || g == "Legs"
+			chest = chest || g == "Torso"
+		}
+	}
+	return legs, chest
+}
+
 func gearEnsembleScore(p GearLoadoutInput, items []GearOption) float64 {
 	score, tainted := 0.0, 0
-	legs, chest, dressed := false, false, false
+	dressed := false
+	legs, chest := gearCoverage(items)
 	for _, o := range items {
 		score += gearItemScore(p, o)
 		if o.Tainted {
 			tainted++
-		}
-		for _, g := range o.Groups {
-			legs = legs || g == "Legs"
-			chest = chest || g == "Torso"
 		}
 		dressed = dressed || o.Slot != GearBelt && o.Slot != GearHeadgear && o.Slot != GearPrimary
 	}
@@ -612,6 +624,9 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 					alternative = append(alternative, worn)
 				}
 			}
+			if !gearGapAffordable(p, o, alternative, best) {
+				continue
+			}
 			out.Gaps = append(out.Gaps, GearGap{Slot: o.Slot, Wanted: o, Source: o.Source, Gain: bestScore - gearEnsembleScore(p, alternative)})
 		}
 	}
@@ -622,6 +637,57 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 		return out.Gaps[i].Slot < out.Gaps[j].Slot
 	})
 	return out, nil
+}
+
+// gearGapAffordable is whether the colonist's remaining share covers the gap
+// (#1842), decided once at gap-build time so every GearGapThreshold reader
+// agrees and an unaffordable upgrade holds nothing open. Necessities are never
+// charged: the slot is empty (no worn item conflicts), a replaced item is
+// tattered, or the gap supplies the legs (or a woman's chest) coverage the
+// alternative lacks. Anything else is an upgrade priced as the wanted item's
+// market value less the worn items it replaces (quality and condition priced
+// by ItemMarketValue); an unpriceable upgrade is refused under a gated share.
+// Weapons (the primary slot) are exempt: the armory drives them.
+func gearGapAffordable(p GearLoadoutInput, wanted GearOption, alternative, best []GearOption) bool {
+	if wanted.Slot == GearPrimary {
+		return true
+	}
+	replaced := []GearOption{}
+	for _, w := range p.Worn {
+		if GearConflicts(w, wanted) {
+			if w.Condition <= GearTatteredCondition {
+				return true
+			}
+			replaced = append(replaced, w)
+		}
+	}
+	if len(replaced) == 0 {
+		return true
+	}
+	if !p.Nudist {
+		legs, chest := gearCoverage(alternative)
+		bestLegs, bestChest := gearCoverage(best)
+		if !legs && bestLegs || p.Female && !chest && bestChest {
+			return true
+		}
+	}
+	price := func(o GearOption) (float64, bool) {
+		item := PersonalItemOf(o)
+		if o.Source == GearBillSource {
+			item.Condition = 1 // a crafted garment is new
+		}
+		return ItemMarketValue(o.Cost, item.Quality, item.Condition).Value()
+	}
+	delta, ok := price(wanted)
+	for _, w := range replaced {
+		v, vok := price(w)
+		delta, ok = delta-v, ok && vok
+	}
+	if !ok {
+		// Allows(+Inf) is false under any gated share and true when ungated.
+		return p.Share.Allows(math.Inf(1))
+	}
+	return p.Share.Allows(delta)
 }
 
 func gearPurchases(items []GearOption) int {

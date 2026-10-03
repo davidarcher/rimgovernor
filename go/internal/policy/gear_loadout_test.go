@@ -386,3 +386,68 @@ func TestGearWornOutAndCoverageAffectRecovery(t *testing.T) {
 		t.Fatal("coverage must precede wear", r.Loadouts)
 	}
 }
+
+// gearShare is a gated share with the given remaining headroom for pawn "p".
+func gearShare(remaining float64) PersonalShare {
+	m := ShareMember{Profile: PawnProfile{ID: "p"}, Free: true, Spent: domain.Known(0.0)}
+	return PersonalShares(domain.Known(remaining/PersonalShareFraction), []ShareMember{m})["p"]
+}
+
+// A cold colonist wears pants and a shirt; a bill offers a warmer shirt worth
+// 250 more (#1842).
+func shareGearInput(shirtCondition float64, share PersonalShare) GearLoadoutInput {
+	pants := loadoutOption("pants", GearSkinLegs)
+	pants.Source, pants.Cost = GearWorn, 40
+	shirt := loadoutOption("shirt", GearSkinTorso)
+	shirt.Source, shirt.Cost, shirt.Condition, shirt.Cold = GearWorn, 50, shirtCondition, 1
+	warm := loadoutOption("warm", GearSkinTorso)
+	warm.Cost, warm.Cold = 300, 9
+	return GearLoadoutInput{Ambient: 0, ComfortableMin: 20, ComfortableMax: 30, Worn: []GearOption{pants, shirt}, Options: []GearOption{warm}, Share: share}
+}
+
+func TestGearShareGatesUpgradesNotNecessities(t *testing.T) {
+	gaps := func(in GearLoadoutInput) int {
+		l, err := PlanGearLoadout(in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(l.Gaps)
+	}
+	if gaps(shareGearInput(1, PersonalShare{})) != 1 {
+		t.Fatal("zero-value share must stay ungated")
+	}
+	if gaps(shareGearInput(1, gearShare(100))) != 0 {
+		t.Fatal("a poor colonist keeps the upgrade")
+	}
+	if gaps(shareGearInput(1, gearShare(250))) != 1 {
+		t.Fatal("a rich colonist skips the upgrade")
+	}
+	if gaps(shareGearInput(1, UnknownPersonalShare())) != 0 {
+		t.Fatal("an unknown share is necessities only")
+	}
+	if gaps(shareGearInput(.4, gearShare(0))) != 1 {
+		t.Fatal("a tattered shirt is a necessity")
+	}
+	// An empty slot is a necessity: drop the worn shirt.
+	in := shareGearInput(1, gearShare(0))
+	in.Worn = in.Worn[:1]
+	if gaps(in) != 1 {
+		t.Fatal("an empty slot is a necessity")
+	}
+}
+
+func TestGearShareUnaffordableUpgradeRecovers(t *testing.T) {
+	row := func(in GearLoadoutInput) GearPawn {
+		return GearPawn{Pawn: "p", Loadout: "snapshot", Deficit: domain.Known(false), Candidates: domain.Known([]GearCandidate{}), Apparel: domain.Known([]GearApparel{{Definition: "pants", Condition: 1, Groups: []string{"Legs"}}, {Definition: "shirt", Condition: 1, Groups: []string{"Torso"}}}), LoadoutModel: domain.Known(in)}
+	}
+	r, err := ReviewGear(domain.Known(GearObservation{Pawns: []GearPawn{row(shareGearInput(1, gearShare(100)))}}))
+	demand, _ := r.Demand.Value()
+	if err != nil || len(r.Loadouts[0].Gaps) != 0 || len(demand) != 0 || r.Recovered != domain.Known(true) {
+		t.Fatal(r, err)
+	}
+	r, err = ReviewGear(domain.Known(GearObservation{Pawns: []GearPawn{row(shareGearInput(1, gearShare(1000)))}}))
+	demand, _ = r.Demand.Value()
+	if err != nil || len(demand) != 1 || r.Recovered != domain.Known(false) {
+		t.Fatal(r, err)
+	}
+}
