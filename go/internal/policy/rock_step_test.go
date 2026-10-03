@@ -65,3 +65,15 @@ func TestRockStep(t *testing.T) {
 		}
 	})
 }
+
+func TestRockAccessPicksFirstOpenNeighbour(t *testing.T) {
+	foot := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}
+	cells := []SiteCell{openSite(5, 5), openSite(2, 2), openSite(0, 1), rockSite(1, 0)}
+	got, ok := RockAccess(foot, cells)
+	if !ok || got != (domain.Cell{X: 0, Z: 1}) {
+		t.Fatal(got, ok)
+	}
+	if _, ok := RockAccess(foot, cells[:1]); ok {
+		t.Fatal("walled-in footprint reported access")
+	}
+}

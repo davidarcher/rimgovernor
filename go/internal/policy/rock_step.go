@@ -97,3 +97,33 @@ func MergeRockDigs(digs ...[]domain.Cell) []domain.Cell {
 	})
 	return out
 }
+
+// RockAccess is the walkable cell a miner reaches a footprint's rock from:
+// the first listed cell outside footprint, in Z then X order, that is open
+// ground (not occupied, walkable) and shares an edge with a footprint cell.
+// False when the footprint is walled in by rock or unseen ground, so the
+// caller says the rock cannot be reached instead of guessing a cell.
+func RockAccess(footprint []domain.Cell, cells []SiteCell) (domain.Cell, bool) {
+	inside := make(map[domain.Cell]bool, len(footprint))
+	for _, c := range footprint {
+		inside[c] = true
+	}
+	var open []domain.Cell
+	for _, c := range cells {
+		occupied, ok := c.Occupied.Value()
+		walkable, wk := c.Walkable.Value()
+		if inside[c.Cell] || !ok || occupied || !wk || !walkable {
+			continue
+		}
+		for _, d := range [4]domain.Cell{{X: 1}, {X: -1}, {Z: 1}, {Z: -1}} {
+			if inside[domain.Cell{X: c.Cell.X + d.X, Z: c.Cell.Z + d.Z}] {
+				open = append(open, c.Cell)
+				break
+			}
+		}
+	}
+	if len(open) == 0 {
+		return domain.Cell{}, false
+	}
+	return MergeRockDigs(open)[0], true
+}
