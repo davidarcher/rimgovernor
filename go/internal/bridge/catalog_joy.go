@@ -27,15 +27,34 @@ func (catalog *DefinitionCatalog) JoyBuildings() ([]policy.JoyBuildingMethod, er
 	if catalog == nil {
 		return nil, nil
 	}
+	found, err := catalog.rankedJoyBuildings()
+	if err != nil {
+		return nil, err
+	}
+	methods := make([]policy.JoyBuildingMethod, len(found))
+	for i, r := range found {
+		methods[i] = r.method
+	}
+	return methods, nil
+}
+
+type rankedJoyBuilding struct {
+	method    policy.JoyBuildingMethod
+	row       *d.ThingDef
+	joy, cost float64
+}
+
+// rankedJoyBuildings is JoyBuildings with the rows the rules over them read,
+// in the order of the joy a session gives.
+func (catalog *DefinitionCatalog) rankedJoyBuildings() ([]rankedJoyBuilding, error) {
+	if catalog == nil {
+		return nil, nil
+	}
 	sessions, err := catalog.joyPerSession()
 	if err != nil {
 		return nil, err
 	}
-	type ranked struct {
-		method    policy.JoyBuildingMethod
-		joy, cost float64
-	}
-	var found []ranked
+	var found []rankedJoyBuilding
 	for name, planning := range catalog.Definitions {
 		row := catalog.ThingDefs[name]
 		if row == nil {
@@ -56,16 +75,70 @@ func (catalog *DefinitionCatalog) JoyBuildings() ([]policy.JoyBuildingMethod, er
 		if err != nil {
 			return nil, err
 		}
-		found = append(found, ranked{policy.JoyBuildingMethod{Definition: name, Kind: kind, PowerW: math.Max(0, planning.GetPowerW())}, joy, cost})
+		found = append(found, rankedJoyBuilding{policy.JoyBuildingMethod{Definition: name, Kind: kind, PowerW: math.Max(0, planning.GetPowerW())}, row, joy, cost})
 	}
-	slices.SortFunc(found, func(a, b ranked) int {
+	slices.SortFunc(found, func(a, b rankedJoyBuilding) int {
 		return cmp.Or(cmp.Compare(b.joy, a.joy), cmp.Compare(a.cost, b.cost), cmp.Compare(a.method.Definition, b.method.Definition))
 	})
-	methods := make([]policy.JoyBuildingMethod, len(found))
-	for i, r := range found {
-		methods[i] = r.method
+	return found, nil
+}
+
+// RecreationFoothold is the joy building the colony's first recreation
+// facility is: the cheapest joy building that draws no power and needs no
+// research (the one a colony can build before anything else), ties to the
+// joy one session gives, then the name. A catalog with none is an error.
+func (catalog *DefinitionCatalog) RecreationFoothold() (string, error) {
+	found, err := catalog.rankedJoyBuildings()
+	if err != nil {
+		return "", err
 	}
-	return methods, nil
+	var best *rankedJoyBuilding
+	for i := range found {
+		r := &found[i]
+		if r.method.PowerW > 0 || len(r.row.GetResearchPrerequisites()) > 0 {
+			continue
+		}
+		if best == nil || r.cost < best.cost {
+			best = r
+		}
+	}
+	if best == nil {
+		return "", contract("catalog has no joy building that draws no power and needs no research")
+	}
+	return best.method.Definition, nil
+}
+
+// watchGiverClass is the JoyGiverDef class whose buildings are used from
+// watch cells around them (WatchBuildingUtility).
+const watchGiverClass = "RimWorld.JoyGiver_WatchBuilding"
+
+// WatchBuildings are the building defs a JoyGiverDef of the watch-building
+// class offers: the ones whose placement preview reports whether every
+// colonist can reach a watch cell. Sorted by name.
+func (catalog *DefinitionCatalog) WatchBuildings() ([]string, error) {
+	if catalog == nil {
+		return nil, contract("no definition catalog")
+	}
+	var names []string
+	for _, giver := range catalog.Defs[(&d.JoyGiverDef{}).ProtoReflect().Descriptor().FullName()] {
+		row, _ := giver.(*d.JoyGiverDef)
+		if row.GetGiverClass() == "" {
+			continue
+		}
+		watch, err := catalog.ClassIsA(row.GetGiverClass(), watchGiverClass)
+		if err != nil {
+			return nil, err
+		}
+		if watch {
+			for _, building := range row.GetThingDefs() {
+				if !slices.Contains(names, building) {
+					names = append(names, building)
+				}
+			}
+		}
+	}
+	slices.Sort(names)
+	return names, nil
 }
 
 // joyPerSession is the joy one session of each building gives, by building

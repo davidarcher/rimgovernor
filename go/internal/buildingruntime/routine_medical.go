@@ -159,7 +159,10 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineMedicalResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
-	facts := observation.ColonyMedicalReserve(observed, tables)
+	facts, err := observation.ColonyMedicalReserve(observed, tables)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
 	facts.Catalog = items
 	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {

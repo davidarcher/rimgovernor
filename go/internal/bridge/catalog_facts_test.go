@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -180,5 +181,57 @@ func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
 	var none *DefinitionCatalog
 	if methods, err := none.JoyBuildings(); err != nil || methods != nil {
 		t.Fatal(methods, err)
+	}
+}
+
+// TestCatalogRecreationFootholdAndWatchBuildings (#1796): the foothold is the
+// cheapest joy building drawing no power and needing no research, and the
+// watch buildings are those a watch-building giver offers; neither is named.
+func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {
+	build := func(mutate func(*o.DefinitionCatalog)) *DefinitionCatalog {
+		v := factsReply()
+		v.ClassChains = []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.JoyGiver_Other", Bases: []string{"RimWorld.JoyGiver"}}}
+		for _, giver := range v.Defs.JoyGiverDefs {
+			switch giver.DefName {
+			case "PlayPin", "WatchTelevision":
+				giver.GiverClass = "RimWorld.JoyGiver_WatchBuilding"
+			case "PlayChess":
+				giver.GiverClass = "RimWorld.JoyGiver_Other"
+			}
+		}
+		if mutate != nil {
+			mutate(v)
+		}
+		catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return catalog
+	}
+	catalog := build(nil)
+	if got, err := catalog.RecreationFoothold(); err != nil || got != "Pin" {
+		t.Fatal(got, err)
+	}
+	if got, err := catalog.WatchBuildings(); err != nil || !slices.Equal(got, []string{"Pin", "Television"}) {
+		t.Fatal(got, err)
+	}
+	researched := func(names ...string) func(*o.DefinitionCatalog) {
+		return func(v *o.DefinitionCatalog) {
+			for _, row := range v.ThingDefs {
+				if slices.Contains(names, row.DefName) {
+					row.ResearchPrerequisites = []string{"Research"}
+				}
+			}
+		}
+	}
+	if got, err := build(researched("Pin")).RecreationFoothold(); err != nil || got != "Chess" {
+		t.Fatal("research did not rule the pin out", got, err)
+	}
+	if _, err := build(researched("Pin", "Chess")).RecreationFoothold(); err == nil {
+		t.Fatal("a catalog with no foothold answered")
+	}
+	unknownClass := build(func(v *o.DefinitionCatalog) { v.Defs.JoyGiverDefs[0].GiverClass = "Mod.JoyGiver_Unknown" })
+	if _, err := unknownClass.WatchBuildings(); err == nil {
+		t.Fatal("a giver class without a chain answered")
 	}
 }

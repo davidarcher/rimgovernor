@@ -419,6 +419,10 @@ holds remain authoritative.
 Supplies require both roofing and valid storage. The native base deterioration rate
 identifies vulnerable items even when their current rate becomes zero under a roof.
 Current deterioration and rot deadlines remain separate observations.
+The item census, the flooring census and the medical-reserve census read each
+def's rows from the catalog; a def or terrain the catalog has no row or stat for
+fails the colony read with an error naming the census and the def, never an
+unknown census.
 
 Guarded hauling returns a native quantity-tracking ID. The saved `hauling` section
 follows the entire source stack through native splits and merges. Mixing other
@@ -819,10 +823,14 @@ colonists request it immediately; a lone colonist requests it when native boredo
 is set for the only accessible kind. Two kinds cap construction even if both are
 bored. Duplicate buildings of the same JoyKindDef do not provide variety, and an
 inaccessible second kind blocks duplicate construction. Native research and
-builder availability gate selection: TubeTelevision with spare power at an indoor
-site within connector reach of a running generator, then BilliardsTable, then
-ChessTable or HorseshoesPin of a distinct kind. TV placement also requires native
-watch-cell access. Ordinary construction, materials and placement guards apply.
+builder availability gate selection: the catalog's joy buildings in order
+(`DefinitionCatalog.JoyBuildings`), a powered one only at an indoor site within
+connector reach of a running generator, of a distinct kind. The first recreation
+facility is the recreation foothold, `DefinitionCatalog.RecreationFoothold`: the
+cheapest joy building that draws no power and needs no research. Placing a
+watch building (a def a `JoyGiver_WatchBuilding` giver offers,
+`DefinitionCatalog.WatchBuildings`) also requires native watch-cell access.
+Ordinary construction, materials and placement guards apply.
 
 The optional comfort joy census carries distinct usable building-backed kinds,
 and per-colonist tolerance and native boredom vectors indexed by that kind list.

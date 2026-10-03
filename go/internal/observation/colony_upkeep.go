@@ -24,12 +24,15 @@ func upkeepItemDef(tables bridge.Tables, item bridge.Reference, def string) (det
 	return float64(rate), medicine, err
 }
 
-func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepObservation {
+// colonyUpkeep decodes the upkeep censuses. A census whose frame lacks a field
+// is unknown; one that needs a def the catalog cannot answer for is an error
+// naming the census and the def, never an unknown.
+func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.UpkeepObservation, error) {
 	buildings := tables.Buildings
 	r := policy.UpkeepObservation{}
 	u := v.GetUpkeep().GetObserved()
 	if u == nil {
-		return r
+		return r, nil
 	}
 	if !hasIssue(u.Issues, "items") && headed(tables, u.Items, (*o.UpkeepItem).GetItem) {
 		rows := []policy.UpkeepItem{}
@@ -42,12 +45,10 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepO
 			head := tables.Entity(item.Item)
 			// What the item's def says about it, and the game's base
 			// deterioration of the def made of the item's stuff, are the
-			// catalog's (#1733); a def the catalog cannot answer for leaves
-			// the census unknown.
+			// catalog's (#1733).
 			deterioration, medicine, err := upkeepItemDef(tables, item.Item, head.GetDefName())
 			if err != nil {
-				known = false
-				break
+				return r, fmt.Errorf("upkeep items census: %w", err)
 			}
 			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: deterioration, Medicine: medicine, Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
 		}
@@ -113,18 +114,22 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepO
 		if hasIssue(u.Issues, "routes") {
 			routes = &o.RoutesSection{}
 		}
-		r.Flooring = colonyFlooring(u.Flooring, routes, tables.Catalog)
+		flooring, err := colonyFlooring(u.Flooring, routes, tables.Catalog)
+		if err != nil {
+			return r, fmt.Errorf("flooring census: %w", err)
+		}
+		r.Flooring = flooring
 	}
-	return r
+	return r, nil
 }
 
-// colonyFlooring decodes the flooring section; a terrain the catalog has no
-// stat or def row for, or a cell missing its terrain, leaves the whole census unknown so
-// MaintainFlooring keeps its previous latch.
-func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog *bridge.DefinitionCatalog) domain.Fact[policy.FlooringObservation] {
+// colonyFlooring decodes the flooring section; a cell missing its terrain
+// leaves the whole census unknown so MaintainFlooring keeps its previous
+// latch, and a terrain the catalog has no stat or def row for is an error.
+func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.FlooringObservation], error) {
 	f := section.GetObserved()
 	if f == nil {
-		return domain.Fact[policy.FlooringObservation]{}
+		return domain.Fact[policy.FlooringObservation]{}, nil
 	}
 	r := policy.FlooringObservation{Rooms: []policy.FloorRoom{}, Terrains: map[string]policy.FloorTerrain{}}
 	// The traffic tier reads the routes census's observed travel; an
@@ -134,7 +139,7 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 	if routes != nil {
 		t, known := colonyRoutes(routes).Value()
 		if !known {
-			return domain.Fact[policy.FlooringObservation]{}
+			return domain.Fact[policy.FlooringObservation]{}, nil
 		}
 		r.TrafficSamples = t.TrafficSamples
 		r.Traffic = t.Traffic
@@ -142,7 +147,7 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 	for _, row := range f.Terrains {
 		terrain, err := catalog.FloorTerrain(row.GetDefName())
 		if err != nil {
-			return domain.Fact[policy.FlooringObservation]{}
+			return domain.Fact[policy.FlooringObservation]{}, err
 		}
 		r.Terrains[row.GetDefName()] = terrain
 	}
@@ -162,13 +167,13 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 		}
 		for _, cell := range room.Cells {
 			if cell.Terrain == nil {
-				return domain.Fact[policy.FlooringObservation]{}
+				return domain.Fact[policy.FlooringObservation]{}, nil
 			}
 			out.Cells = append(out.Cells, policy.FloorCell{Cell: domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}, Terrain: cell.GetTerrain(), Pending: cell.GetPending()})
 		}
 		r.Rooms = append(r.Rooms, out)
 	}
-	return domain.Known(r)
+	return domain.Known(r), nil
 }
 
 // colonyRoutes decodes the routes section; a travel row missing its

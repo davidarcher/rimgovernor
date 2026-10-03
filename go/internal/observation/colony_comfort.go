@@ -1,16 +1,21 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) domain.Fact[policy.ComfortObservation] {
+// colonyComfort decodes the comfort census. The joy buildings, the recreation
+// foothold and the watch-cell buildings are rules over the catalog rows; a
+// catalog that cannot answer is an error, never an unknown census.
+func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.ComfortObservation], error) {
 	value := v.GetUpkeep().GetObserved().GetComfort().GetObserved()
 	if value == nil {
-		return domain.Unknown[policy.ComfortObservation]()
+		return domain.Unknown[policy.ComfortObservation](), nil
 	}
 	ids := func(values []string) []policy.PawnID {
 		rows := make([]policy.PawnID, 0, len(values))
@@ -34,10 +39,19 @@ func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) 
 		}
 		methods, err := catalog.JoyBuildings()
 		if err != nil {
-			return domain.Unknown[policy.ComfortObservation]()
+			return domain.Unknown[policy.ComfortObservation](), fmt.Errorf("comfort census: %w", err)
 		}
 		r.Joy.Methods = methods
 	}
+	foothold, err := catalog.RecreationFoothold()
+	if err != nil {
+		return domain.Unknown[policy.ComfortObservation](), fmt.Errorf("comfort census: %w", err)
+	}
+	watch, err := catalog.WatchBuildings()
+	if err != nil {
+		return domain.Unknown[policy.ComfortObservation](), fmt.Errorf("comfort census: %w", err)
+	}
+	r.RecreationFoothold, r.WatchBuildings = foothold, watch
 	for _, s := range value.Surfaces {
 		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoom().GetId()}
 		for _, c := range s.Adjacent {
@@ -45,5 +59,5 @@ func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) 
 		}
 		r.Surfaces = append(r.Surfaces, row)
 	}
-	return domain.Known(r)
+	return domain.Known(r), nil
 }

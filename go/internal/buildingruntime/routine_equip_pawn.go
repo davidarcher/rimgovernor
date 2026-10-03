@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -47,27 +48,30 @@ type definitionCatalogSource interface {
 	DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 }
 
-// joyBuildingDefinitions are the catalog's joy buildings in preference order
-// (DefinitionCatalog.JoyBuildings). A source that serves no catalog (a test
-// double) gives none.
-func joyBuildingDefinitions(ctx context.Context, native any, identity *c.Identity) ([]string, error) {
+// recreationDefinitions are the recreation foothold the catalog rows name
+// (DefinitionCatalog.RecreationFoothold) and the catalog's joy buildings in
+// preference order (DefinitionCatalog.JoyBuildings). A source that serves no
+// catalog cannot name the foothold: an error.
+func recreationDefinitions(ctx context.Context, native any, identity *c.Identity) (foothold string, joy []string, err error) {
 	source, ok := native.(definitionCatalogSource)
 	if !ok {
-		return nil, nil
+		return "", nil, errors.New("native serves no definition catalog for the recreation foothold")
 	}
 	catalog, err := source.DefinitionCatalog(ctx, identity)
 	if err != nil {
-		return nil, err
+		return "", nil, err
+	}
+	if foothold, err = catalog.RecreationFoothold(); err != nil {
+		return "", nil, err
 	}
 	methods, err := catalog.JoyBuildings()
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	names := make([]string, len(methods))
-	for i, m := range methods {
-		names[i] = m.Definition
+	for _, m := range methods {
+		joy = append(joy, m.Definition)
 	}
-	return names, nil
+	return foothold, joy, nil
 }
 
 // creepJoinerDownsides is the catalog's creepjoiner downside defs. A source

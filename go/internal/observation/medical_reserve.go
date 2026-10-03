@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -8,7 +10,9 @@ import (
 )
 
 // ColonyMedicalReserve decodes the medicine-reserve facts of one colony read.
-func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.MedicalReserveObservation {
+// A stocked def the catalog has no row for is an error naming the def, never
+// an unknown census.
+func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.MedicalReserveObservation, error) {
 	r := policy.MedicalReserveObservation{Colonists: countFact(v.ColonistCount)}
 	if !hasIssue(v.Issues, "resources") {
 		rows := []policy.Amount{}
@@ -26,24 +30,23 @@ func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy
 	}
 	u := v.GetUpkeep().GetObserved()
 	if u == nil || hasIssue(u.Issues, "items") || !headed(tables, u.Items, (*o.UpkeepItem).GetItem) {
-		return r
+		return r, nil
 	}
 	rows := []policy.MedicineStack{}
 	for _, item := range u.Items {
-		// Whether the def is medicine is the catalog's (#1733); a def it has
-		// no row for leaves the stock unknown.
+		// Whether the def is medicine is the catalog's (#1733).
 		medicine, err := tables.Catalog.Medicine(tables.Entity(item.Item).GetDefName())
 		if err != nil {
-			return r
+			return r, fmt.Errorf("medical reserve census: %w", err)
 		}
 		if !medicine {
 			continue
 		}
 		if item.Count == nil || item.Forbidden == nil {
-			return r
+			return r, nil
 		}
 		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(tables.Entity(item.Item).GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: domain.Known(item.RotTicks != nil), RotTicks: optional(item.RotTicks)})
 	}
 	r.Items = domain.Known(rows)
-	return r
+	return r, nil
 }

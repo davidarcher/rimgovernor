@@ -224,13 +224,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureCooking {
 		definitions = []string{"Campfire", "NutrientPasteDispenser", "Hopper"}
 	}
+	var foothold string
 	if r.phase == policy.ComfortRanked && !r.shelter || r.phase == policy.ComfortBasic {
-		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
-	}
-	if r.phase == policy.ComfortBasic {
-		joy, err := joyBuildingDefinitions(call, r.native, boundary.Identity(state.Snapshot))
-		if err != nil {
+		var joy []string
+		var err error
+		if foothold, joy, err = recreationDefinitions(call, r.native, boundary.Identity(state.Snapshot)); err != nil {
 			return RoutineBuildingResult{}, err
+		}
+		definitions = comfortDefinitions(foothold)
+		if r.phase != policy.ComfortBasic {
+			joy = nil
 		}
 		for _, name := range joy {
 			if !slices.Contains(definitions, name) {
@@ -415,7 +418,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				} else if r.goal == policy.EnsureBasicPower {
 					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else {
-					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, foothold)
 				}
 				if err != nil {
 					return RoutineBuildingResult{}, err
@@ -1008,6 +1011,8 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	var selected []policy.Preview
 	unknownWatch := false
+	comfort, _ := facts.Facts.Comfort.Value()
+	watchBuildings := comfort.WatchBuildings
 	usedCells := map[domain.Cell]bool{}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	// A workshop bench has an interaction spot on one side, so a small room
@@ -1050,7 +1055,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			return placementChoice{}, false, Verdict{}, err
 		}
 		made, known := preview.Preview.MadeFromStuff.Value()
-		if (r.phase == policy.ComfortRanked || r.phase == policy.ComfortBasic) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
+		if (r.phase == policy.ComfortRanked || r.phase == policy.ComfortBasic) && slices.Contains(watchBuildings, r.definition) {
 			accessible, known := preview.Preview.WatchCellsAccessible.Value()
 			unknownWatch = unknownWatch || !known
 			if !known || !accessible {

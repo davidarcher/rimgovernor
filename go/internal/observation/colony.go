@@ -442,7 +442,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.ButcheringBenches = domain.Known(benches)
 	}
 	colonyDisaster(v, &r.Facts, buildings)
-	r.Facts.Comfort = colonyComfort(v, tables.Catalog)
+	var comfortErr error
+	if r.Facts.Comfort, comfortErr = colonyComfort(v, tables.Catalog); comfortErr != nil {
+		return ColonyProjection{}, comfortErr
+	}
 	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v, buildings)
@@ -452,8 +455,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.Waste = colonyWaste(v, tables)
 	r.Facts.Blight = colonyBlight(v, tables)
 	r.Facts.Pollution = colonyPollution(r.Biotech)
-	r.Facts.Upkeep = colonyUpkeep(v, tables)
-	r.Facts.MedicalReserve = ColonyMedicalReserve(v, tables)
+	var upkeepErr, medicalErr error
+	if r.Facts.Upkeep, upkeepErr = colonyUpkeep(v, tables); upkeepErr != nil {
+		return ColonyProjection{}, upkeepErr
+	}
+	if r.Facts.MedicalReserve, medicalErr = ColonyMedicalReserve(v, tables); medicalErr != nil {
+		return ColonyProjection{}, medicalErr
+	}
 	// The dialog section is present exactly while a force-pausing choice
 	// dialog is open (#156); native omits it otherwise.
 	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)

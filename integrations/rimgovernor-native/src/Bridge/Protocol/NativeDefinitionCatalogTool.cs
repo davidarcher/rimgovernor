@@ -118,7 +118,8 @@ namespace HomeBridge.BridgeTools
         // The game's own GetStatValueAbstract(stat, stuff) (#1759) for every
         // ThingDef: once per allowed stuff when the def is made from stuff, once
         // with no stuff otherwise. A stat the game does not show for the def
-        // (StatWorker.ShouldShowFor) is left out of its row. A stat that fails to
+        // (StatWorker.ShouldShowFor) is left out of its row, except the planner
+        // stats of a ThingDef (PlannerStats), emitted whether shown or not. A stat that fails to
         // compute, or computes a non-finite value, fails the read naming def,
         // stuff and stat; nothing is skipped or defaulted.
         private static Obs.DefStatTable StatValues()
@@ -138,6 +139,12 @@ namespace HomeBridge.BridgeTools
             return table;
         }
 
+        // Stats a planner reads of every ThingDef whether or not the game shows
+        // them: DeteriorationRate is showIfUndefined false, so the game hides it
+        // for any def that does not set it, where its value is the default base
+        // value (0). Go reads it as bridge.StatDeteriorationRate.
+        private static readonly HashSet<string> PlannerStats = new HashSet<string>(StringComparer.Ordinal) { "DeteriorationRate" };
+
         private static Obs.DefStatRow StatRow(BuildableDef def, ThingDef? stuff, System.Collections.Generic.List<StatDef> stats)
         {
             var row = new Obs.DefStatRow { DefName = def.defName, StuffName = stuff?.defName ?? "" };
@@ -146,7 +153,7 @@ namespace HomeBridge.BridgeTools
                 var stat = stats[i];
                 try
                 {
-                    if (!stat.Worker.ShouldShowFor(StatRequest.For(def, stuff))) continue;
+                    if (!stat.Worker.ShouldShowFor(StatRequest.For(def, stuff)) && !(def is ThingDef && PlannerStats.Contains(stat.defName))) continue;
                     var value = def.GetStatValueAbstract(stat, stuff);
                     if (float.IsNaN(value) || float.IsInfinity(value)) throw new InvalidOperationException($"the value is {value}");
                     row.Stat.Add(i);

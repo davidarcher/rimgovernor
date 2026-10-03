@@ -498,7 +498,10 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	medicalFacts := observation.ColonyMedicalReserve(observed, tables)
+	medicalFacts, err := observation.ColonyMedicalReserve(observed, tables)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
 	medicalFacts.Catalog = items
 	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {

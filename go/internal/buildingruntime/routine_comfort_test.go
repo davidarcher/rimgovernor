@@ -31,7 +31,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 				p.Preview.WatchCellsAccessible = test.access[native.previews-1]
 			}
-			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
+			facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}}
 			for _, c := range []domain.Cell{{X: 2, Z: 2}, {X: 3, Z: 2}} {
 				facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
 			}
@@ -53,7 +53,9 @@ func TestRoutineBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	t.Parallel()
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "HiddenConduit"} {
 		t.Run(definition, func(t *testing.T) {
-			budget := comfortNativeWorkTicks
+			budget := func(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
+				return comfortNativeWorkTicks(plan, current, tick, "HorseshoesPin")
+			}
 			if definition == "WoodFiredGenerator" || definition == "HiddenConduit" {
 				budget = powerNativeWorkTicks
 			}
@@ -165,7 +167,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	t.Parallel()
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked}
 	people := []policy.PawnID{"pawn"}
-	census := policy.ComfortObservation{People: people}
+	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin"}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}
 	selected, reason, err := planner.selectComfort(facts, policy.ComfortHistory{})
 	if err != nil || !reason.IsZero() || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {
@@ -222,7 +224,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 				b, _ := p.Preview.Action.Building()
 				p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 			}
-			facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
+			facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(policy.ComfortObservation{WatchBuildings: []string{"HorseshoesPin"}})}, Bounds: policy.Bounds{Width: 10, Height: 10}, Center: domain.Cell{X: 2, Z: 2}, Identity: observation.Identity{Tick: domain.Tick(native.reply.GetObserved().Context.GetTick())}, Cells: site(barracks, hosting), Rooms: test.rooms}
 			selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts, nil, 1, func() error { return nil })
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)

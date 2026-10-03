@@ -287,7 +287,9 @@ numbers that StatDef parts compute in code, once per load. For every
 with an empty `stuff_name`. A row holds `GetStatValueAbstract(stat, stuff)` of
 every StatDef the game shows for that def and stuff
 (`StatWorker.ShouldShowFor(StatRequest.For(def, stuff))`; a stat the game hides
-is absent, not zero) and `costs`, the game's `ThingDef.CostListAdjusted(stuff)`
+is absent, not zero; except `DeteriorationRate`, which a planner reads of
+every `ThingDef` and the game hides (`showIfUndefined` false) for a def that
+does not set it, so native emits it whether shown or not) and `costs`, the game's `ThingDef.CostListAdjusted(stuff)`
 (stuff volume and difficulty adjustments applied). Stat names are the shared
 `stats` table; a row's parallel `stat` (index) and `value` arrays are the
 compact form, chosen over repeated name strings per row. A stat or cost list

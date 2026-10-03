@@ -10,7 +10,7 @@ import (
 
 func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	people := []policy.PawnID{"a", "b"}
-	v := policy.ComfortObservation{People: people, Dining: []policy.ComfortFacility{{ID: "chair", AccessibleTo: people}}, Recreation: []policy.ComfortFacility{{ID: "pin", Kind: "Dexterity", AccessibleTo: people}}, Joy: &policy.RecreationCensus{Kinds: []string{"Dexterity"}, Methods: []policy.JoyBuildingMethod{{Definition: "TubeTelevision", Kind: "Television", PowerW: 100}, {Definition: "BilliardsTable", Kind: "Dexterity"}, {Definition: "ChessTable", Kind: "Cerebral"}}}}
+	v := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin", Dining: []policy.ComfortFacility{{ID: "chair", AccessibleTo: people}}, Recreation: []policy.ComfortFacility{{ID: "pin", Kind: "Dexterity", AccessibleTo: people}}, Joy: &policy.RecreationCensus{Kinds: []string{"Dexterity"}, Methods: []policy.JoyBuildingMethod{{Definition: "TubeTelevision", Kind: "Television", PowerW: 100}, {Definition: "BilliardsTable", Kind: "Dexterity"}, {Definition: "ChessTable", Kind: "Cerebral"}}}}
 	for _, id := range people {
 		v.Joy.Pawns = append(v.Joy.Pawns, policy.JoyTolerance{Pawn: id, Tolerance: []float64{0}, Bored: []bool{false}})
 	}
@@ -59,7 +59,7 @@ func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	t.Parallel()
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
 	people := []policy.PawnID{"pawn"}
-	census := policy.ComfortObservation{People: people}
+	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin"}
 	// The hosted census is empty (the hut is a barracks); the foothold goal
 	// reads the unfiltered one.
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(policy.ComfortObservation{People: people}), BasicComfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}

@@ -113,7 +113,7 @@ func SelectBasicComfortMethod(v ComfortObservation, r BasicComfortReview) (Comfo
 		if len(v.Recreation) > 0 {
 			return ComfortAccessBlocked, nil
 		}
-		return ComfortBuildRecreation, nil
+		return v.footholdMethod()
 	}
 	return ComfortNoMethod, nil
 }

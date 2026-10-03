@@ -22,6 +22,26 @@ type ComfortObservation struct {
 	Surfaces           []DiningSurface
 	Dining, Recreation []ComfortFacility
 	Joy                *RecreationCensus
+	// RecreationFoothold is the joy building the first recreation facility
+	// is (DefinitionCatalog.RecreationFoothold); WatchBuildings are the defs
+	// whose placement needs watch cells every colonist can reach
+	// (DefinitionCatalog.WatchBuildings). Both come from the catalog rows.
+	RecreationFoothold string
+	WatchBuildings     []string
+}
+
+// IsFoothold reports whether method builds the recreation foothold.
+func (v ComfortObservation) IsFoothold(method ComfortMethod) bool {
+	return v.RecreationFoothold != "" && string(method) == v.RecreationFoothold
+}
+
+// footholdMethod is the method that builds the recreation foothold; a census
+// without one cannot name the build.
+func (v ComfortObservation) footholdMethod() (ComfortMethod, error) {
+	if v.RecreationFoothold == "" {
+		return "", errors.New("comfort census names no recreation foothold")
+	}
+	return ComfortMethod(v.RecreationFoothold), nil
 }
 type ComfortUse struct {
 	Facility string
@@ -181,7 +201,6 @@ const (
 	ComfortAccessBlocked   ComfortMethod = "preserve_existing_facility_access"
 	ComfortBuildTable      ComfortMethod = "Table1x2c"
 	ComfortBuildChair      ComfortMethod = "DiningChair"
-	ComfortBuildRecreation ComfortMethod = "HorseshoesPin"
 )
 
 func SelectComfortMethod(v ComfortObservation, r ComfortReview) (ComfortMethod, error) {
@@ -204,7 +223,7 @@ func SelectComfortMethod(v ComfortObservation, r ComfortReview) (ComfortMethod, 
 		if len(v.Recreation) > 0 {
 			return ComfortAccessBlocked, nil
 		}
-		return ComfortBuildRecreation, nil
+		return v.footholdMethod()
 	}
 	if r.Dining == ComfortUseNeeded || r.Recreation == ComfortUseNeeded {
 		return ComfortWait, nil

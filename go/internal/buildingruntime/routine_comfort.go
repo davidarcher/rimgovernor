@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,9 +15,9 @@ import (
 
 // Completed methods leave the active catalog but retain their bounded use budget.
 // Look up only this goal epoch's known comfort methods; old epochs cannot lend time.
-func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
+func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick, foothold string) (uint32, error) {
 	var ticks uint32
-	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin"} {
+	for _, definition := range comfortDefinitions(foothold) {
 		method, err := journal.LoadGoalMethod(ctx, goal.ID, goal.Epoch, domain.MethodID("comfort-"+definition))
 		if errors.Is(err, store.ErrNotFound) {
 			continue
@@ -28,9 +29,15 @@ func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.
 		if err != nil {
 			return 0, err
 		}
-		ticks = max(ticks, comfortNativeWorkTicks(plan, current, tick))
+		ticks = max(ticks, comfortNativeWorkTicks(plan, current, tick, foothold))
 	}
 	return ticks, nil
+}
+
+// comfortDefinitions are the furniture the comfort goals build: the table,
+// the chair and the recreation foothold the catalog rows name.
+func comfortDefinitions(foothold string) []string {
+	return []string{"Table1x2c", "DiningChair", foothold}
 }
 
 // NewRoutineComfortPlanner furnishes a room whose native role can host
@@ -126,7 +133,7 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 	resolved.definition = string(method)
 	resolved.environment = policy.PlacementIndoors
 	role := policy.RoomRoleDiningRoom
-	if method == policy.ComfortBuildRecreation {
+	if v.IsFoothold(method) {
 		role = policy.RoomRoleRecRoom
 	}
 	facility, err := policy.Facility(role)
@@ -151,13 +158,13 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 
 // Allow a finite interval for ordinary dining/recreation after this direction
 // completed a comfort facility. Repeated observations cannot renew the budget.
-func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
+func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick, foothold string) uint32 {
 	if len(plan.Progress) != 1 {
 		return 0
 	}
 	p := plan.Progress[0]
 	b, ok := p.Action().Building()
-	if !ok || b.Definition() != "Table1x2c" && b.Definition() != "DiningChair" && b.Definition() != "HorseshoesPin" {
+	if !ok || !slices.Contains(comfortDefinitions(foothold), b.Definition()) {
 		return 0
 	}
 	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
@@ -298,7 +305,7 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 		}
 	}
 	resolved.environment = policy.PlacementIndoors
-	if method == policy.ComfortBuildRecreation {
+	if v.IsFoothold(method) {
 		resolved.environment = policy.PlacementAnywhere
 	}
 	if method == policy.ComfortBuildChair {

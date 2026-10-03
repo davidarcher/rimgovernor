@@ -20,7 +20,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type routineNative struct {
@@ -74,7 +73,15 @@ type itemDef struct {
 func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)},
-		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}},
+		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}},
+		// The one joy building every fake colony can build: a watch-building
+		// pin that draws no power and needs no research, the recreation
+		// foothold.
+		Definitions: []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("HorseshoesPin")}, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}},
+		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}},
+		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}},
+			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
+			JoyGiverDefs: []*d.JoyGiverDef{{DefName: "Play_Horseshoes", GiverClass: "RimWorld.JoyGiver_WatchBuilding", ThingDefs: []string{"HorseshoesPin"}, JobDef: "Play_Horseshoes"}}},
 		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
 		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, CurrencyDef: "Silver"}}
 	seen := map[string]bool{}
@@ -88,6 +95,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: row.DefName, Medicine: item.medicine})
 		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: row.DefName, Stat: []int32{0}, Value: []float32{item.deterioration}})
 	}
+	add(&d.ThingDef{DefName: "HorseshoesPin", Building: &d.BuildingProperties{JoyKind: "Gaming_Dexterity"}})
 	add(&d.ThingDef{DefName: "Silver"})
 	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
 	plain := func(name string) {
@@ -163,16 +171,23 @@ func (n *routineNative) finishedResearch() []string { return n.finished }
 
 // DefinitionCatalog serves the fake's catalog rows under the asked load.
 func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
-	catalog := testCatalog(id, n.catalog...)
+	// The decoded frame catalog (the joy foothold and its giver, the stat
+	// table) under the fake's planning rows.
+	catalog := n.thingCatalog().FixtureItemFacts(policy.CoreItemFacts())
+	catalog.LoadToken = id.GetLoadToken()
+	for _, row := range n.catalog {
+		catalog.Definitions[row.GetDefinition().GetDefName()] = row
+	}
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
-	catalog.ThingDefs = map[string]*d.ThingDef{"Apparel_BasicShirt": {DefName: "Apparel_BasicShirt", Apparel: shirt}, "Apparel_Parka": {DefName: "Apparel_Parka", Apparel: shirt},
-		"Bow_Short": {DefName: "Bow_Short"}, "WoodLog": {DefName: "WoodLog"}}
+	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {
+		catalog.ThingDefs[row.DefName] = row
+	}
 	if len(n.recipes) > 0 {
 		rows := map[string]proto.Message{}
 		for _, r := range n.recipes {
 			rows[r.DefName] = r
 		}
-		catalog.Defs = map[protoreflect.FullName]map[string]proto.Message{(&d.RecipeDef{}).ProtoReflect().Descriptor().FullName(): rows}
+		catalog.Defs[(&d.RecipeDef{}).ProtoReflect().Descriptor().FullName()] = rows
 	}
 	return catalog, nil
 }
