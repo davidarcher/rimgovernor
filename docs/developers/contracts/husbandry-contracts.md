@@ -157,8 +157,13 @@ learned Obedience), when marked for release or slaughter, when its race is
 retiring or has no war or haul job, or when any of these facts is unread. A
 master who still fits the job is kept; the master is rewritten only when empty
 or not fitting, then each follow flag that differs, one write per cycle.
-Companions stay unmastered until `AnimalState` carries the bonded colonist's id
-(#1635). The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
+A companion (a bonded animal on a race with no work job) is mastered by its
+bonded colonist: `AnimalState.bonded_pawn_ids` lists the living humanlike pawns
+the animal has a Bond relation with (colonist, prisoner, slave, guest or a pawn
+who left), and the planner keeps those on the colony roster, the first by id
+(a roster partner already mastering is kept), with both follow flags false; no
+partner on the roster leaves it unmastered. Native reports `master_id` and
+`bonded_pawn_ids` as `GetUniqueLoadID()`, the same id as the pawn rows. The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
 mastered animal outside a retired race.
 
 Selection order each cycle is train, then tame, then surplus removal, then

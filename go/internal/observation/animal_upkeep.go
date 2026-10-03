@@ -41,7 +41,7 @@ func colonyAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns) domain.Fact[[]p
 		}
 		rows = append(rows, policy.UpkeepAnimal{SupportsAreas: optional(state.SupportsAllowedAreas), AllowedArea: area, ID: policy.PawnID(pawn.Pawn.GetId()), Label: pawn.Pawn.GetLabel(), Gender: state.GetGender(), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePen().GetId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Herd: herdFacts(pawn), Training: training, ReachableBenches: bridge.RefIDs(a.ReachableBenches), ReachableStorage: storage, StorageCandidates: candidates})
 		last := &rows[len(rows)-1]
-		last.Care, last.Bonded = careName(state.MedicalCare), optional(state.Bonded)
+		last.Care, last.Bonded, last.BondedPawns = careName(state.MedicalCare), optional(state.Bonded), state.GetBondedPawnIds()
 		last.Master, last.FollowDrafted, last.FollowFieldwork, last.Obedient = optional(state.MasterId), optional(state.FollowDrafted), optional(state.FollowFieldwork), optional(state.Obedient)
 		if state.Conditions != nil {
 			last.Conditions, last.LifeThreatening = bridge.CareConditions(state.Conditions)

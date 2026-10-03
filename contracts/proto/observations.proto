@@ -401,6 +401,9 @@ message AnimalState {
   // MedicalCareCategory name, a Bond relation to any living pawn, and the
   // same conditions block PopulationPerson.conditions carries.
   optional rimgovernor.operations.v1.MedicalCare medical_care = 33; optional bool bonded = 34; PawnHealth conditions = 35;
+  // Ids of the living humanlike pawns this animal has a Bond relation with
+  // (any faction or status; the planner keeps those on the colony roster).
+  repeated string bonded_pawn_ids = 36;
 }
 message PawnState {
   EntityRef pawn = 1; optional string kind_def_name = 2; rimgovernor.common.v1.Ref faction = 3;

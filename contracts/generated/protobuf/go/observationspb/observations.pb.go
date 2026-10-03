@@ -6288,9 +6288,12 @@ type AnimalState struct {
 	// Medical care cap inputs (#1301), for a player animal: its
 	// MedicalCareCategory name, a Bond relation to any living pawn, and the
 	// same conditions block PopulationPerson.conditions carries.
-	MedicalCare   *operationspb.MedicalCare `protobuf:"varint,33,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
-	Bonded        *bool                     `protobuf:"varint,34,opt,name=bonded,proto3,oneof" json:"bonded,omitempty"`
-	Conditions    *PawnHealth               `protobuf:"bytes,35,opt,name=conditions,proto3" json:"conditions,omitempty"`
+	MedicalCare *operationspb.MedicalCare `protobuf:"varint,33,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
+	Bonded      *bool                     `protobuf:"varint,34,opt,name=bonded,proto3,oneof" json:"bonded,omitempty"`
+	Conditions  *PawnHealth               `protobuf:"bytes,35,opt,name=conditions,proto3" json:"conditions,omitempty"`
+	// Ids of the living humanlike pawns this animal has a Bond relation with
+	// (any faction or status; the planner keeps those on the colony roster).
+	BondedPawnIds []string `protobuf:"bytes,36,rep,name=bonded_pawn_ids,json=bondedPawnIds,proto3" json:"bonded_pawn_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6566,6 +6569,13 @@ func (x *AnimalState) GetBonded() bool {
 func (x *AnimalState) GetConditions() *PawnHealth {
 	if x != nil {
 		return x.Conditions
+	}
+	return nil
+}
+
+func (x *AnimalState) GetBondedPawnIds() []string {
+	if x != nil {
+		return x.BondedPawnIds
 	}
 	return nil
 }
@@ -37807,7 +37817,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xe1\x0f\n" +
+	"\a_reason\"\x89\x10\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -37848,7 +37858,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x06bonded\x18\" \x01(\bH\x1eR\x06bonded\x88\x01\x01\x12G\n" +
 	"\n" +
 	"conditions\x18# \x01(\v2'.rimgovernor.observations.v1.PawnHealthR\n" +
-	"conditionsB\t\n" +
+	"conditions\x12&\n" +
+	"\x0fbonded_pawn_ids\x18$ \x03(\tR\rbondedPawnIdsB\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
 	"_age_yearsB\x10\n" +

@@ -18,8 +18,10 @@ import (
 // agreement lets Auto override a player's choice). One write per call:
 // master first, then follow_drafted, then follow_fieldwork.
 //
-// Companions are left unmastered: their master is the bonded colonist, and
-// AnimalState carries no bond partner id yet (#1635).
+// A companion (a bonded animal on a race with no work job) is mastered by its
+// bonded colonist: the first by id among its bond partners who are on the
+// roster, kept when already set; no partner on the roster leaves it
+// unmastered. Both follow flags are written off.
 func HerdMasterChoice(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, profiles domain.Fact[[]PawnProfile]) HusbandryChoice {
 	none := HusbandryChoice{Reason: HusbandryNoDeficit}
 	rows, known := animals.Value()
@@ -32,7 +34,8 @@ func HerdMasterChoice(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, prof
 	front, _ := FrontLine(roster)
 	for _, a := range rows {
 		role := herd.Roles[a.Definition]
-		if role.Retiring || role.Job != HerdJobWar && role.Job != HerdJobHaul {
+		job := role.Job
+		if role.Retiring || job != HerdJobWar && job != HerdJobHaul && job != HerdJobCompanion {
 			continue
 		}
 		obedient, ok := a.Obedient.Value()
@@ -44,10 +47,19 @@ func HerdMasterChoice(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, prof
 		if !ok || !obedient || !rk || !sk || release || slaughter || !mk || !dk || !fk {
 			continue
 		}
-		wantDrafted, wantFieldwork := role.Job == HerdJobWar, role.Job == HerdJobHaul
-		fit := herdMasters(roster, front, role.Job)
+		wantDrafted, wantFieldwork := job == HerdJobWar, job == HerdJobHaul
+		var fit map[PawnID]bool
+		var best PawnID
+		var found bool
+		if job == HerdJobCompanion {
+			fit, best, found = companionMaster(roster, a.BondedPawns)
+		} else {
+			fit = herdMasters(roster, front, job)
+			if !fit[PawnID(master)] {
+				best, found = herdBestMaster(roster, fit)
+			}
+		}
 		if !fit[PawnID(master)] {
-			best, found := herdBestMaster(roster, fit)
 			if !found {
 				continue
 			}
@@ -91,4 +103,24 @@ func herdBestMaster(roster []PawnProfile, fit map[PawnID]bool) (PawnID, bool) {
 		}
 	}
 	return bestRole(candidates)
+}
+
+// companionMaster is the set of an animal's bond partners on the roster and
+// the first of them by id.
+func companionMaster(roster []PawnProfile, bonded []string) (map[PawnID]bool, PawnID, bool) {
+	onRoster := map[PawnID]bool{}
+	for _, p := range roster {
+		onRoster[p.ID] = true
+	}
+	fit := map[PawnID]bool{}
+	var first PawnID
+	for _, id := range bonded {
+		if pid := PawnID(id); onRoster[pid] {
+			fit[pid] = true
+			if first == "" || pid < first {
+				first = pid
+			}
+		}
+	}
+	return fit, first, first != ""
 }

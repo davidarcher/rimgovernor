@@ -56,6 +56,9 @@ type UpkeepAnimal struct {
 	// living pawn, conditions and life threat.
 	Care   domain.Fact[string]
 	Bonded domain.Fact[bool]
+	// BondedPawns are the living humanlike pawns the animal has a Bond
+	// relation with (any status); a companion's master is one on the roster.
+	BondedPawns []string
 	// Master is the colonist id mastering the animal ("" unassigned);
 	// Obedient is learned Obedience, which native requires to master or
 	// follow (#1635).

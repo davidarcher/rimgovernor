@@ -540,7 +540,9 @@ namespace HomeBridge.BridgeTools
                 row.SafeToSlaughter=eligible && NativeHusbandryOperations.SafeToSlaughter(pawn);
                 // Medical care cap inputs (#1301).
                 if(pawn.playerSettings!=null) row.MedicalCare=NativeEnums.Care(pawn.playerSettings.medCare);
+                var bondPartners=pawn.relations?.DirectRelations.Where(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead && r.otherPawn.RaceProps.Humanlike).Select(r => r.otherPawn.GetUniqueLoadID()).OrderBy(i => i,System.StringComparer.Ordinal).ToList();
                 row.Bonded=pawn.relations?.DirectRelations.Any(r => r.def==PawnRelationDefOf.Bond && r.otherPawn!=null && !r.otherPawn.Dead)==true;
+                if(bondPartners!=null) row.BondedPawnIds.AddRange(bondPartners);
                 row.Conditions=Conditions(pawn);
                 if(AnimalPenUtility.NeedsToBeManagedByRope(pawn)) {
                     var pen=AnimalPenUtility.GetCurrentPenOf(pawn,false);

@@ -126,6 +126,42 @@ func TestHerdMasterChoiceRetiringRaceAndUnknownRosterSelectNothing(t *testing.T)
 	}
 }
 
+func companionAnimal(id, master string, drafted, fieldwork bool, bonded ...string) UpkeepAnimal {
+	a := workAnimal(id, "Husky", master, drafted, fieldwork)
+	a.BondedPawns = bonded
+	return a
+}
+
+func TestHerdMasterChoiceCompanionGetsBondedColonist(t *testing.T) {
+	// Bond partners off the roster (a prisoner, a pawn who left) are ignored;
+	// of those on it the first by id masters.
+	got := masterChoice(companionAnimal("h1", "", false, false, "prisoner", "sniper", "hauler"))
+	want := HusbandryChoice{Animal: "h1", Method: domain.HusbandryMaster, Argument: "hauler"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+	// A master who is a bond partner on the roster stays, follow flags go off.
+	got = masterChoice(companionAnimal("h1", "sniper", true, true, "hauler", "sniper"))
+	if got.Method != domain.HusbandryFollowDrafted || got.Argument != "false" {
+		t.Fatalf("got %+v", got)
+	}
+	if got := masterChoice(companionAnimal("h1", "sniper", false, false, "hauler", "sniper")); got.Method != "" {
+		t.Fatalf("settled companion chose %+v", got)
+	}
+	// A master who is not a bond partner is replaced.
+	if got := masterChoice(companionAnimal("h1", "fighter", false, false, "hauler")); got.Argument != "hauler" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestHerdMasterChoiceCompanionWithoutRosterPartnerStaysUnmastered(t *testing.T) {
+	for _, bonded := range [][]string{nil, {"prisoner", "ghost"}} {
+		if got := masterChoice(companionAnimal("h1", "", false, false, bonded...)); got.Method != "" {
+			t.Fatalf("bonded %v chose %+v", bonded, got)
+		}
+	}
+}
+
 func TestHerdSaleAnimalsUnknownMasterSellsNothing(t *testing.T) {
 	goats := []UpkeepAnimal{bondedAs(planAnimal("g1", "Goat", "Male"), false)}
 	rows, plan := retiredGoatsPlan(goats)

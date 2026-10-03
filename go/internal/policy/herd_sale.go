@@ -5,8 +5,9 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // HerdSaleAnimals are the colony animals the herd plan lets a trader take
 // (#1632): the animals herdSurplusCandidates lists over each race's ceiling
 // (every animal of a retired race, young ones included), less any that is
-// bonded or, outside a retired race, has a master (HerdMasterChoice gives
-// the animals the colony works). Founders and companions have no ceiling, so
+// bonded (any living Bond relation, whether or not HerdMasterChoice found the
+// partner on the roster to master it) or, outside a retired race, has a master
+// (HerdMasterChoice gives the animals the colony works). Founders and companions have no ceiling, so
 // none is listed. An unread census or any unknown designation, bond or
 // master sells nothing. Animals already designated for slaughter or release are not
 // listed: the cull owns them.
