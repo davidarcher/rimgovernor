@@ -26,48 +26,29 @@ type stockpileMemory struct {
 	mu    sync.Mutex
 	world string
 	low   map[string]domain.Tick
-	// gear is the storage planner's latest gear-room demand for gearWorld;
-	// layout reads it to add the armory and wardrobe (#1773).
-	gear      policy.GearRoomDemand
-	gearWorld string
-	// incinerator is the latest site the dump planner found for layout to
-	// reserve (#1814), for incineratorWorld.
-	incinerator      policy.IncineratorSite
-	incineratorWorld string
+	// gear and incinerator are the storage planner's latest layout demands
+	// for demandWorld: layout reads them to add the armory and wardrobe
+	// (#1773) and to reserve the incinerator (#1814).
+	gear        policy.GearRoomDemand
+	incinerator policy.IncineratorSite
+	demandWorld string
 }
 
-// setIncinerator records the incinerator site the planner wants reserved.
-func (m *stockpileMemory) setIncinerator(world string, site policy.IncineratorSite) {
+// setDemand records the planner's layout demands for world.
+func (m *stockpileMemory) setDemand(world string, gear policy.GearRoomDemand, incinerator policy.IncineratorSite) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.incinerator, m.incineratorWorld = site, world
+	m.gear, m.incinerator, m.demandWorld = gear, incinerator, world
 }
 
-// incineratorSite is the recorded site; none for another world.
-func (m *stockpileMemory) incineratorSite(world string) policy.IncineratorSite {
+// layoutDemand is the recorded layout demands; none for another world.
+func (m *stockpileMemory) layoutDemand(world string) (policy.GearRoomDemand, policy.IncineratorSite) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.incineratorWorld != world {
-		return policy.IncineratorSite{}
+	if m.demandWorld != world {
+		return policy.GearRoomDemand{}, policy.IncineratorSite{}
 	}
-	return m.incinerator
-}
-
-// setGear records the planner's gear-room demand for world.
-func (m *stockpileMemory) setGear(world string, demand policy.GearRoomDemand) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.gear, m.gearWorld = demand, world
-}
-
-// gearDemand is the recorded gear-room demand; none for another world.
-func (m *stockpileMemory) gearDemand(world string) policy.GearRoomDemand {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.gearWorld != world {
-		return policy.GearRoomDemand{}
-	}
-	return m.gear
+	return m.gear, m.incinerator
 }
 
 func stockpileWorld(s domain.GenerationSnapshot) string {
@@ -189,8 +170,7 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 		return err
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
-	r.stockpiles.setGear(stockpileWorld(snapshot), request.Gear)
-	r.stockpiles.setIncinerator(stockpileWorld(snapshot), request.Incinerator)
+	r.stockpiles.setDemand(stockpileWorld(snapshot), request.Gear, request.Incinerator)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {

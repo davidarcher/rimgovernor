@@ -109,7 +109,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			growth.ThroneMin = need.MinArea
 		}
 	}
-	demand := r.stockpiles.gearDemand(stockpileWorld(snapshot))
+	demand, incineratorSite := r.stockpiles.layoutDemand(stockpileWorld(snapshot))
 	throne := growth.ThroneArea > 0 && hourly
 	// A baby, toddler or child owed a nursery, playroom or classroom the
 	// plan lacks (#1680): grow it, sized to its furniture.
@@ -142,7 +142,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	// Rotten food or worn gear waits for a dump and the plan has no
 	// incinerator (#1814): reserve the site the storage planner found.
 	if haveLayout {
-		growth.Incinerator = r.stockpiles.incineratorSite(stockpileWorld(snapshot))
+		growth.Incinerator = incineratorSite
 	}
 	incinerator := growth.Incinerator != (policy.IncineratorSite{}) && hourly
 	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite || throne || children || gear || incinerator) {
