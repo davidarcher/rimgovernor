@@ -212,7 +212,16 @@ func stockpileSites(projection *observation.ColonyProjection, protected []domain
 	}
 	if layout, planned, known := plannedLayout(*projection); known {
 		if room, sites, err := rawFoodStockSites(layout, planned, projection.Bounds, projection.Cells, protected); err == nil && room.ID != "" {
-			out = append(out, policy.StockpileSite{Role: domain.RawFoodRolePrefix + room.ID, Room: room.Cells, Filter: domain.RawFoodFilter(), Priority: domain.CriticalPriority, Candidates: sites})
+			// Dedicated 2x2 shelves nearest the kitchen door, then one lower
+			// priority zone over the rest of the freezer taking every perishable.
+			for _, shelf := range []struct {
+				prefix string
+				filter domain.StockpileFilter
+			}{{domain.RawMeatRolePrefix, domain.RawMeatFilter()}, {domain.RawVegRolePrefix, domain.RawVegFilter()}, {domain.CorpsesRolePrefix, domain.CorpseLarderFilter()}} {
+				out = append(out, policy.StockpileSite{Role: shelf.prefix + room.ID, Room: room.Cells, Filter: shelf.filter, Priority: domain.CriticalPriority, Candidates: sites})
+			}
+			out = append(out, policy.StockpileSite{Role: domain.PerishablesRolePrefix + room.ID, Room: room.Cells, Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority, Remainder: true,
+				Candidates: [][]domain.Cell{roomPool(room.Cells, projection.Cells, protected)}})
 		}
 	}
 	return out
@@ -353,4 +362,31 @@ func stockpileGearRooms(projection *observation.ColonyProjection) map[string][]d
 		weapons = storage
 	}
 	return map[string][]domain.Cell{domain.ApparelRole: storage, domain.WeaponsRole: weapons}
+}
+
+// roomPool is the free roofed walkable cells inside room, never on avoid:
+// what the freezer's catch-all zone may cover.
+func roomPool(room []domain.Cell, cells []policy.SiteCell, avoid []domain.Cell) []domain.Cell {
+	inside := make(map[domain.Cell]bool, len(room))
+	for _, c := range room {
+		inside[c] = true
+	}
+	skip := make(map[domain.Cell]bool, len(avoid))
+	for _, c := range avoid {
+		skip[c] = true
+	}
+	var out []domain.Cell
+	for _, c := range cells {
+		if !inside[c.Cell] || skip[c.Cell] {
+			continue
+		}
+		walkable, _ := c.Walkable.Value()
+		roofed, _ := c.Roofed.Value()
+		empty, _ := c.StorageEmpty.Value()
+		occupied, ok := c.Occupied.Value()
+		if walkable && roofed && empty && ok && !occupied {
+			out = append(out, c.Cell)
+		}
+	}
+	return out
 }

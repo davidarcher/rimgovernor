@@ -3,16 +3,20 @@ package domain
 // Stockpile role keys (#724). A planner claims the zones it creates by role;
 // parameterized roles append ":<key>".
 const (
-	GeneralRole       = "general"
-	CoveredRolePrefix = "covered:"
-	IngredientsPrefix = "ingredients:"
-	MealsRolePrefix   = "meals:"
-	RawFoodRolePrefix = "rawfood:"
-	ApparelRole       = "apparel"
-	WeaponsRole       = "weapons"
-	WornDumpRole      = "dump:worn"
-	RottenDumpRole    = "dump:rotten"
-	CorpseDumpRole    = "dump:corpses"
+	GeneralRole           = "general"
+	CoveredRolePrefix     = "covered:"
+	IngredientsPrefix     = "ingredients:"
+	MealsRolePrefix       = "meals:"
+	RawFoodRolePrefix     = "rawfood:"
+	RawMeatRolePrefix     = "rawmeat:"
+	RawVegRolePrefix      = "rawveg:"
+	CorpsesRolePrefix     = "corpses:"
+	PerishablesRolePrefix = "perishables:"
+	ApparelRole           = "apparel"
+	WeaponsRole           = "weapons"
+	WornDumpRole          = "dump:worn"
+	RottenDumpRole        = "dump:rotten"
+	CorpseDumpRole        = "dump:corpses"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
 	// zone above it draws the food in once one stands.
 	FoodRole = "food"

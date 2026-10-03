@@ -105,6 +105,10 @@ type StockpileSite struct {
 	Priority   domain.StockpilePriority
 	Size       int
 	Candidates [][]domain.Cell
+	// Remainder makes the site a catch-all: Candidates[0] is the pool of cells it
+	// may take, and the zone created is every pool cell still open once the
+	// sites ahead of it have taken theirs.
+	Remainder bool
 }
 
 // stockpileSiteMoves deletes the zones of a site's prefix standing outside
@@ -194,6 +198,25 @@ func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit 
 	var out []StockpileEdit
 	for _, site := range r.Sited {
 		if stockpileSiteServed(r.Zones, site) {
+			continue
+		}
+		if site.Remainder {
+			var cells []domain.Cell
+			if len(site.Candidates) > 0 {
+				for _, c := range site.Candidates[0] {
+					if open.ok(c) {
+						cells = append(cells, c)
+					}
+				}
+			}
+			if len(cells) == 0 {
+				continue
+			}
+			for _, c := range cells {
+				open.taken[c] = true
+			}
+			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: site.Role, Cells: stockpileSorted(cells), Filter: site.Filter, Priority: site.Priority, Hauls: len(cells),
+				Explanation: fmt.Sprintf("stockpile role %s: no zone in its room, create the remaining %d cells", site.Role, len(cells))})
 			continue
 		}
 		for _, cells := range site.Candidates {

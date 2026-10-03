@@ -200,6 +200,25 @@ func RawFoodFilter() StockpileFilter {
 	return f
 }
 
+// RawMeatFilter holds raw meat, never rotten: the freezer's meat shelf.
+func RawMeatFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("MeatRaw")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	return f
+}
+
+// RawVegFilter holds raw plant food, never rotten: the freezer's produce shelf.
+func RawVegFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("PlantFoodRaw")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	return f
+}
+
+// PerishablesFilter holds every food and fresh animal corpse that is not yet
+// rotten: the freezer's catch-all under its dedicated shelves.
+func PerishablesFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Foods"), CategoryDef("CorpsesAnimal")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	return f
+}
+
 // AllowOnlyFilter disallows everything except the named thing definitions
 // (1..32 of them).
 func AllowOnlyFilter(definitions []string) (StockpileFilter, error) {

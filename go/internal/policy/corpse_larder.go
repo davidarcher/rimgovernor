@@ -136,8 +136,6 @@ func SelectCorpseLarder(v FoodStorageObservation) (CorpseLarderMethod, error) {
 			}
 		} else if row.FrozenDestination && row.Hauler != "" {
 			return CorpseLarderMethod{Kind: "haul", Stock: s, Handling: row}, nil
-		} else if len(larder.ColdSites) > 0 {
-			return CorpseLarderMethod{Kind: "zone", Cell: larder.ColdSites[0]}, nil
 		}
 	}
 	return none, nil

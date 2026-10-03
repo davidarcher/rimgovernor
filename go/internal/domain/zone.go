@@ -213,6 +213,12 @@ func stockpileLabel(f StockpileFilter, priority StockpilePriority) string {
 		return "General store"
 	case f == RawFoodFilter():
 		return "Raw food"
+	case f == RawMeatFilter():
+		return "Raw meat"
+	case f == RawVegFilter():
+		return "Raw vegetables"
+	case f == PerishablesFilter():
+		return "Perishables"
 	case f == ApparelFilter():
 		return "Apparel"
 	case f == WeaponsFilter():

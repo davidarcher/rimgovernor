@@ -39,7 +39,7 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 		switch {
 		case z.Role == domain.GeneralRole || z.Filter.Base() == domain.BaseNonperishables:
 			general = true
-		case z.Role == domain.FoodRole || z.Filter.Base() == domain.BaseFood || prefix == domain.MealsRolePrefix || prefix == domain.RawFoodRolePrefix:
+		case z.Role == domain.FoodRole || z.Filter.Base() == domain.BaseFood || prefix == domain.MealsRolePrefix || prefix == domain.RawFoodRolePrefix || prefix == domain.RawMeatRolePrefix || prefix == domain.RawVegRolePrefix || prefix == domain.PerishablesRolePrefix:
 			food = true
 		case z.Role == domain.CorpseDumpRole:
 			dump = true
