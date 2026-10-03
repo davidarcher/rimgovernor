@@ -23,7 +23,14 @@ func royaltyRead() *o.RoyaltyFacts {
 		Pawns: []*o.PawnRoyalty{{Pawn: &c.Ref{Id: proto.String("Human12")}, Holdings: []*o.PawnRoyalHolding{
 			{FactionDef: proto.String("Empire"), Title: proto.String("Knight"), Favor: proto.Int32(3), PermitPoints: proto.Int32(0), Permits: []string{"CallLaborerPack"}},
 			{FactionDef: proto.String("Other")},
+		}, Psycasts: []*o.PawnPsycast{
+			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900)},
+			{DefName: proto.String("Burden")},
 		}}},
+		Neuroformers: []*o.NeuroformerStock{
+			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
+			{DefName: proto.String("Neurotrainer_Skip"), TeachesPsycast: proto.String("Skip")},
+		},
 	}
 }
 
@@ -76,10 +83,37 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if _, ok := holdings[1].Favor.Value(); ok {
 		t.Fatal("absent favor read as known")
 	}
+	casts := facts.Psycasts[policy.PawnID("Human12")]
+	if len(casts) != 2 || casts[0].Target != policy.PsycastTargetCell {
+		t.Fatalf("psycasts %+v", casts)
+	}
+	if n, ok := casts[0].CooldownTicks.Value(); !ok || n != 900 {
+		t.Fatalf("cooldown %v %v", n, ok)
+	}
+	if _, ok := casts[1].PsyfocusCost.Value(); ok || casts[1].Target != "" {
+		t.Fatalf("absent psycast facts read as known: %+v", casts[1])
+	}
+	amp := facts.Neuroformers["PsychicAmplifier"]
+	if held, ok := amp.Held.Value(); !ok || held != 2 {
+		t.Fatalf("held %v %v", held, ok)
+	}
+	if tradeable, ok := amp.Tradeable.Value(); !ok || !tradeable {
+		t.Fatalf("tradeable %v %v", tradeable, ok)
+	}
+	if craftable, ok := amp.Craftable.Value(); !ok || craftable {
+		t.Fatalf("craftable %v %v", craftable, ok)
+	}
+	trainer := facts.Neuroformers["Neurotrainer_Skip"]
+	if trainer.TeachesPsycast != "Skip" {
+		t.Fatalf("trainer %+v", trainer)
+	}
+	if _, ok := trainer.Held.Value(); ok {
+		t.Fatal("absent held read as known")
+	}
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit"} {
+	for _, change := range []string{"world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
@@ -103,6 +137,16 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Pawns[0].Holdings[0].FactionDef = proto.String("")
 			case "holding-permit":
 				v.Pawns[0].Holdings[0].Permits = []string{""}
+			case "psycast-duplicate":
+				v.Pawns[0].Psycasts = append(v.Pawns[0].Psycasts, v.Pawns[0].Psycasts[0])
+			case "psycast-cost":
+				v.Pawns[0].Psycasts[0].PsyfocusCost = proto.Float64(1.5)
+			case "psycast-target":
+				v.Pawns[0].Psycasts[0].TargetKind = o.PsycastTargetKind(99)
+			case "neuroformer-duplicate":
+				v.Neuroformers = append(v.Neuroformers, v.Neuroformers[0])
+			case "neuroformer-held":
+				v.Neuroformers[0].Held = proto.Int32(-1)
 			}
 			if _, err := DecodeRoyaltyFacts(v, pbIdentity()); err == nil {
 				t.Fatal("malformed royalty facts accepted")

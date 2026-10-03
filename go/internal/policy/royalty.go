@@ -11,6 +11,44 @@ type RoyaltyFacts struct {
 	Permits map[string]RoyalPermit
 	// Holders maps a colonist to its holdings, one per faction.
 	Holders map[PawnID][]RoyalHolding
+	// Psycasts maps a psycaster to its known psycasts (#1600).
+	Psycasts map[PawnID][]Psycast
+	// Neuroformers is the colony's neuroformer stock by def (#1600).
+	Neuroformers map[string]Neuroformer
+}
+
+// PsycastTarget is what a psycast aims at.
+type PsycastTarget string
+
+const (
+	PsycastTargetSelf  PsycastTarget = "self"
+	PsycastTargetPawn  PsycastTarget = "pawn"
+	PsycastTargetThing PsycastTarget = "thing"
+	PsycastTargetCell  PsycastTarget = "cell"
+)
+
+// Psycast is one known psycast: Level is the psylink level that unlocks it,
+// PsyfocusCost the 0-1 Psyfocus it spends, Entropy the neural heat it adds and
+// Target is empty when native did not classify it.
+type Psycast struct {
+	Def           string
+	Level         domain.Fact[int]
+	PsyfocusCost  domain.Fact[float64]
+	Entropy       domain.Fact[float64]
+	Target        PsycastTarget
+	CooldownTicks domain.Fact[int]
+}
+
+// Neuroformer is the stock of one neuroformer def: the psylink neuroformer or
+// a psycast neurotrainer (TeachesPsycast names its ability). Held counts
+// unforbidden stacks on the home maps; Craftable is an available recipe;
+// Tradeable is a trader selling it.
+type Neuroformer struct {
+	Def            string
+	TeachesPsycast string
+	Held           domain.Fact[int]
+	Craftable      domain.Fact[bool]
+	Tradeable      domain.Fact[bool]
 }
 
 // RoyalRung is one title on the ladder; FavorNeeded is the favor that earns it.

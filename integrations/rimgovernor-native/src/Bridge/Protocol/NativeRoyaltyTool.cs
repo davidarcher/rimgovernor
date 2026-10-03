@@ -94,9 +94,50 @@ namespace HomeBridge.BridgeTools
                         .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
                     row.Holdings.Add(holding);
                 }
-                if (row.Holdings.Count > 0) facts.Pawns.Add(row);
+                if (pawn.abilities != null)
+                    foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
+                        .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
+                        row.Psycasts.Add(Psycast(ability.def));
+                if (row.Holdings.Count > 0 || row.Psycasts.Count > 0) facts.Pawns.Add(row);
             }
+            ReadNeuroformers(facts);
             return facts;
+        }
+
+        private static Obs.PawnPsycast Psycast(AbilityDef def)
+        {
+            var cast = new Obs.PawnPsycast { DefName = def.defName, Level = def.level, PsyfocusCost = def.PsyfocusCost, Entropy = def.EntropyGain, CooldownTicks = def.cooldownTicksRange.max };
+            var target = def.verbProperties?.targetParams;
+            if (target == null) return cast;
+            cast.TargetKind = target.canTargetSelf && !target.canTargetPawns && !target.canTargetLocations && !target.canTargetBuildings && !target.canTargetItems ? Obs.PsycastTargetKind.Self
+                : target.canTargetPawns ? Obs.PsycastTargetKind.Pawn
+                : target.canTargetBuildings || target.canTargetItems ? Obs.PsycastTargetKind.Thing
+                : target.canTargetLocations ? Obs.PsycastTargetKind.Cell
+                : Obs.PsycastTargetKind.Unspecified;
+            return cast;
+        }
+
+        // The psylink neuroformer and every psycast neurotrainer. held counts
+        // unforbidden spawned stacks on the player's home maps.
+        private static void ReadNeuroformers(Obs.RoyaltyFacts facts)
+        {
+            var defs = DefDatabase<ThingDef>.AllDefsListForReading
+                .Where(d => ProtoBoundary.IsIdentifier(d.defName) && (d == ThingDefOf.PsychicAmplifier || d.thingCategories?.Contains(ThingCategoryDefOf.NeurotrainersPsycast) == true))
+                .OrderBy(d => d.defName, StringComparer.Ordinal);
+            var maps = Find.Maps.Where(m => m.IsPlayerHome).ToList();
+            foreach (var def in defs)
+            {
+                var row = new Obs.NeuroformerStock
+                {
+                    DefName = def.defName,
+                    Held = maps.Sum(m => m.listerThings.ThingsOfDef(def).Where(t => !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount)),
+                    Craftable = DefDatabase<RecipeDef>.AllDefsListForReading.Any(r => r.AvailableNow && r.products.Any(p => p.thingDef == def)),
+                    Tradeable = def.tradeability.TraderCanSell()
+                };
+                var teaches = def.comps?.OfType<CompProperties_UseEffect_GainAbility>().FirstOrDefault()?.ability;
+                if (teaches != null && ProtoBoundary.IsIdentifier(teaches.defName)) row.TeachesPsycast = teaches.defName;
+                facts.Neuroformers.Add(row);
+            }
         }
     }
 }

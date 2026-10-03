@@ -69,7 +69,8 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return nil, contract("invalid royalty context")
 	}
-	out := &policy.RoyaltyFacts{Permits: map[string]policy.RoyalPermit{}, Holders: map[policy.PawnID][]policy.RoyalHolding{}}
+	out := &policy.RoyaltyFacts{Permits: map[string]policy.RoyalPermit{}, Holders: map[policy.PawnID][]policy.RoyalHolding{},
+		Psycasts: map[policy.PawnID][]policy.Psycast{}, Neuroformers: map[string]policy.Neuroformer{}}
 	titles := map[string]bool{}
 	for _, row := range v.Ladder {
 		if validID(row.GetDefName()) != nil || titles[row.GetDefName()] {
@@ -117,8 +118,43 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 			holdings = append(holdings, policy.RoyalHolding{FactionDef: h.GetFactionDef(), Title: h.GetTitle(), Favor: optionalFact(intPtr(h.Favor)), PermitPoints: optionalFact(intPtr(h.PermitPoints)), Permits: append([]string{}, h.Permits...)})
 		}
 		out.Holders[policy.PawnID(id)] = holdings
+		casts := []policy.Psycast{}
+		known := map[string]bool{}
+		for _, cast := range row.Psycasts {
+			name := cast.GetDefName()
+			if validID(name) != nil || known[name] || cast.GetPsyfocusCost() < 0 || cast.GetPsyfocusCost() > 1 || cast.GetEntropy() < 0 || cast.GetCooldownTicks() < 0 || cast.GetLevel() < 0 {
+				return nil, contract("invalid royalty psycast")
+			}
+			known[name] = true
+			target, ok := psycastTargets[cast.GetTargetKind()]
+			if !ok {
+				return nil, contract("invalid royalty psycast target")
+			}
+			casts = append(casts, policy.Psycast{Def: name, Level: optionalFact(intPtr(cast.Level)), PsyfocusCost: optionalFact(cast.PsyfocusCost), Entropy: optionalFact(cast.Entropy),
+				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks))})
+		}
+		out.Psycasts[policy.PawnID(id)] = casts
+	}
+	for _, row := range v.Neuroformers {
+		name := row.GetDefName()
+		if validID(name) != nil || row.TeachesPsycast != nil && validID(row.GetTeachesPsycast()) != nil || row.GetHeld() < 0 {
+			return nil, contract("invalid royalty neuroformer")
+		}
+		if _, exists := out.Neuroformers[name]; exists {
+			return nil, contract("duplicate royalty neuroformer %s", name)
+		}
+		out.Neuroformers[name] = policy.Neuroformer{Def: name, TeachesPsycast: row.GetTeachesPsycast(), Held: optionalFact(intPtr(row.Held)),
+			Craftable: optionalFact(row.Craftable), Tradeable: optionalFact(row.Tradeable)}
 	}
 	return out, nil
+}
+
+var psycastTargets = map[o.PsycastTargetKind]policy.PsycastTarget{
+	o.PsycastTargetKind_PSYCAST_TARGET_KIND_UNSPECIFIED: "",
+	o.PsycastTargetKind_PSYCAST_TARGET_KIND_SELF:        policy.PsycastTargetSelf,
+	o.PsycastTargetKind_PSYCAST_TARGET_KIND_PAWN:        policy.PsycastTargetPawn,
+	o.PsycastTargetKind_PSYCAST_TARGET_KIND_THING:       policy.PsycastTargetThing,
+	o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL:        policy.PsycastTargetCell,
 }
 
 func intPtr(p *int32) *int {

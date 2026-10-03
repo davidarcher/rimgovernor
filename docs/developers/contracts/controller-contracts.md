@@ -237,6 +237,18 @@ priority for a work type it sets. Assignments the fresh decision still agrees
 with stay open; the method identity carries the before-token, so the same
 settings against a moved pawn are a fresh method rather than a retired one.
 
+### Royalty read
+
+`rimgovernor/observations_read_royalty_facts` is a slow-refresh read (the client
+reuses it for `RoyaltyRefreshTicks`) and is `NOT_APPLICABLE` without Royalty. It
+carries the title ladder, the permit catalog, each colonist's holdings and, per
+psycaster, its known psycasts (def, unlocking psylink level, Psyfocus cost,
+neural heat, target kind, longest cooldown), plus the colony's neuroformer
+stock: the psylink neuroformer and each psycast neurotrainer with `held`
+(unforbidden stacks on home maps), `craftable` (a recipe available now) and
+`tradeable` (a trader sells it). Absent scalars are unknown, never zero. The
+pawn row keeps only the constantly refreshed psylink level and Psyfocus.
+
 ### Environmental disruption
 
 `rimgovernor/observations_read_colony_facts` `environment` reports current-map native condition
