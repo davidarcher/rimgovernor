@@ -20,9 +20,10 @@ const (
 	// squad walks into range, shoots three animals, and the corpses are hauled
 	// to the butcher spot and butchered. Fast speed keeps it minute-scale.
 	huntTicks = 12000
-	// huntDoorLeadTicks is how long the hunt runs before the manhunter is
-	// staged: long enough for the squad to draft and form.
-	huntDoorLeadTicks = 900
+	// huntDoorLeadStep and huntDoorLeadMax bound the lead: the hunt runs in
+	// steps until the squad is drafted, then the manhunter is staged.
+	huntDoorLeadStep = 300
+	huntDoorLeadMax  = 6000
 	// huntDoorTicks bounds the door fight after the manhunter appears.
 	huntDoorTicks = 6000
 	huntBudget    = 8 * time.Minute
@@ -241,24 +242,27 @@ func runHuntDoor(ctx context.Context, s cases.Session) error {
 	if err := neverPause(ctx, s.Harness()); err != nil {
 		return err
 	}
-	h, err := servedWindow(ctx, s, huntDoorLeadTicks, false)
-	if err != nil {
-		return err
-	}
-	first, err := rawRead(ctx, h, map[string]any{"action": "read"})
-	if err != nil {
-		return err
-	}
+	var h *na.Harness
 	drafted := 0
-	for _, raw := range na.AsSlice(first["pawns"]) {
-		row, _ := na.AsMap(raw)
-		if on, _ := na.AsBool(row["drafted"]); on && na.AsString(row["side"]) == Colonist {
-			drafted++
+	for lead := 0; drafted < 3 && lead < huntDoorLeadMax; lead += huntDoorLeadStep {
+		if h, err = servedWindow(ctx, s, huntDoorLeadStep, lead > 0); err != nil {
+			return err
+		}
+		first, err := rawRead(ctx, h, map[string]any{"action": "read"})
+		if err != nil {
+			return err
+		}
+		drafted = 0
+		for _, raw := range na.AsSlice(first["pawns"]) {
+			row, _ := na.AsMap(raw)
+			if on, _ := na.AsBool(row["drafted"]); on && na.AsString(row["side"]) == Colonist {
+				drafted++
+			}
 		}
 	}
 	s.Report()["draftedBeforeBear"] = drafted
 	if drafted < 3 {
-		return fmt.Errorf("%d colonists drafted after %d ticks, want the hunt's squad of 3 or 4", drafted, huntDoorLeadTicks)
+		return fmt.Errorf("%d colonists drafted after %d ticks, want the hunt's squad of 3 or 4", drafted, huntDoorLeadMax)
 	}
 	// The bear charges from 25 cells beyond the prey; the squad is mid-hunt.
 	spec := fmt.Sprintf(`{"pawns":[{"side":"manhunter","kind":"Bear_Grizzly","x":%d,"z":%d}]}`, cx, cz+25)

@@ -1082,7 +1082,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if status.GetStopping() != nil || s.config.Routine == nil || !sel.planners {
 			clockSchedulerLog("clock already running under our own epoch -> no planners due")
 			out.Waiting = sel.waiting
-			return out, nil
+			return out, s.pauseForHunt(call, state.Snapshot, status, &out)
 		}
 		// The window runs on; plan against the bundle's snapshot (one
 		// main-thread hop, so its sections describe one tick) and let the
@@ -1104,7 +1104,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if sel.pick == nil {
 			s.lastFull = s.clock.Now()
 		}
-		return out, nil
+		return out, s.pauseForHunt(call, state.Snapshot, status, &out)
 	}
 	if obligations {
 		// The window this step still owes is already stopped: settle it
@@ -1985,6 +1985,23 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		work = true
 	}
 	return work, items, nil
+}
+
+// pauseForHunt ends a running colony window once a hunt fight is open: prey
+// are not hostile, so the native watcher never stops the window, and only a
+// combat window re-decides the fight. The next step admits that window with
+// the prey watched.
+func (s *ClockScheduler) pauseForHunt(call context.Context, snapshot domain.GenerationSnapshot, status *k.Status, out *ClockSchedulerResult) error {
+	if status.GetRunning() == nil || out.Combat {
+		return nil
+	}
+	_, fightOpen, prey, err := clockSchedulerCombatPlan(call, s.player.journal, snapshot)
+	if err != nil || !fightOpen || len(prey) == 0 {
+		return err
+	}
+	clockSchedulerLog("hunt fight open under a colony window -> pausing it for a combat window")
+	out.Cleaned = true
+	return s.session.CleanupClock(call)
 }
 
 // clockSchedulerCombatPlan reports whether the current routine review binds an
