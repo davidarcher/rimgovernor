@@ -338,7 +338,11 @@ type RoutineFacts struct {
 	// quest row (rimgovernor/observations_read_world_progression), read per
 	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
-	QuestOffers   domain.Fact[[]JoinerOffer]
+	QuestOffers domain.Fact[[]JoinerOffer]
+	// Royalty is the slow-refresh royalty read (#1599), read by a
+	// RoutineSource offering RoutineRoyaltySource; unknown when the source
+	// has none, the read failed or Royalty is not applicable.
+	Royalty       domain.Fact[RoyaltyFacts]
 	JoinerLetters domain.Fact[[]JoinerLetterOffer]
 	RaidPoints    domain.Fact[float64]
 	// ShellsShort is the armory shell review (#1207): a built mortar's shell
@@ -1356,9 +1360,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
+	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers).Value()
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, letterKnown && letterDeficit:
+	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, letterKnown && letterDeficit:
 		populationRecovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		populationRecovered = domain.Known(!prisonerDeficit)

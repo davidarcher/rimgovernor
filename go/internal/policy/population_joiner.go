@@ -20,6 +20,20 @@ type JoinerOffer struct {
 	CanAccept        bool
 	RequiresAccepter bool
 	ChoiceCount      int32
+	// FactionID is the quest's first non-player faction ("" when none);
+	// FactionHostile is that faction's FactionState.hostile, unknown when the
+	// census carries no row for it. OnMap is true when the quest's map is
+	// the colony's identity map. Favor is each reward choice's royal favor.
+	FactionID      string
+	FactionHostile domain.Fact[bool]
+	OnMap          bool
+	Favor          []QuestFavor
+}
+
+// QuestFavor is the royal favor one QuestAccept reward choice grants.
+type QuestFavor struct {
+	Choice int32
+	Favor  int32
 }
 
 // JoinerPlanReason names why RoutinePopulationJoinerPlanner did or did not
@@ -188,6 +202,73 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 		return choice
 	}
 	return JoinerChoice{Reason: JoinerNoOffer}
+}
+
+// EmpireNoOffer is the reason SelectEmpireQuestMethod found nothing to accept.
+const EmpireNoOffer JoinerPlanReason = "no_empire_offer"
+
+// empireFavor is the most royal favor any one reward choice of the offer
+// grants, with that choice's index (the lowest on a tie).
+func empireFavor(offer JoinerOffer) (choice, favor int32) {
+	for _, row := range offer.Favor {
+		if row.Favor > favor || (row.Favor == favor && favor > 0 && row.Choice < choice) {
+			choice, favor = row.Choice, row.Favor
+		}
+	}
+	return choice, favor
+}
+
+// empireAnswerable reports whether an offer is an Empire quest worth
+// accepting for favor: not yet accepted, not a joiner offer, native-
+// acceptable (CanAcceptQuest includes every requirements-to-accept check, so
+// an unaffordable quest reads can_accept=false), needing no accepter, from a
+// faction known not to be hostile, on the colony's map, with a reward choice
+// granting favor. Disclosed narrowing: favor granted outside a reward-choice
+// part is not in the census, so such a quest is not chosen.
+func empireAnswerable(offer JoinerOffer) bool {
+	hostile, known := offer.FactionHostile.Value()
+	_, favor := empireFavor(offer)
+	return offer.State == "NotYetAccepted" && !IsJoinerOffer(offer.ScriptDef) && offer.CanAccept && !offer.RequiresAccepter &&
+		offer.FactionID != "" && known && !hostile && offer.OnMap && favor > 0
+}
+
+// EmpireDeficit reports whether an answerable Empire quest is waiting; an
+// unknown census leaves it unknown.
+func EmpireDeficit(offers domain.Fact[[]JoinerOffer]) domain.Fact[bool] {
+	rows, known := offers.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	for _, offer := range rows {
+		if empireAnswerable(offer) {
+			return domain.Known(true)
+		}
+	}
+	return domain.Known(false)
+}
+
+// SelectEmpireQuestMethod picks the answerable Empire quest granting the most
+// favor (lowest quest ID on a tie) and the reward choice that grants it, to
+// accept through the existing QuestAccept write.
+func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer]) JoinerChoice {
+	rows, known := offers.Value()
+	if !known {
+		return JoinerChoice{Reason: JoinerCensusUnknown}
+	}
+	best, bestChoice, bestFavor := JoinerOffer{}, int32(0), int32(0)
+	for _, offer := range rows {
+		if !empireAnswerable(offer) {
+			continue
+		}
+		choice, favor := empireFavor(offer)
+		if favor > bestFavor || (favor == bestFavor && offer.Quest < best.Quest) {
+			best, bestChoice, bestFavor = offer, choice, favor
+		}
+	}
+	if bestFavor == 0 {
+		return JoinerChoice{Reason: EmpireNoOffer}
+	}
+	return JoinerChoice{Quest: best.Quest, RewardChoice: bestChoice}
 }
 
 // JoinerCapacity is the slice of a review's facts JoinerCapacity measures:

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"math"
+	"sort"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -101,6 +102,29 @@ type QuestOffer struct {
 	TradeRequests   []QuestTradeRequestFact
 	EligiblePawnIDs []string
 	SnapshotToken   string
+	// FactionID is the first non-player faction the quest involves ("" when
+	// none), the id FactionState rows carry. MapID is the map the quest's
+	// look targets sit on; MapKnown is false for a quest anchored only to a
+	// world object. Favor is the Empire favor each reward choice grants,
+	// ascending by choice, omitting choices that grant none.
+	FactionID string
+	MapID     int32
+	MapKnown  bool
+	Favor     []QuestFavorFact
+}
+
+// QuestFavorFact is the royal favor one reward choice grants in total.
+type QuestFavorFact struct {
+	Choice int32
+	Favor  int32
+}
+
+// FactionFact is the validated subset of one WorldProgressionSnapshot.factions
+// row the quest planners join to a quest's faction_id.
+type FactionFact struct {
+	ID      string
+	Player  bool
+	Hostile bool
 }
 
 // QuestTradeRequestFact is one native settlement trade objective row
@@ -145,6 +169,7 @@ type WorldProgressionRead struct {
 	Maps     []WorldMap
 	Caravans []CaravanJourney
 	Quests   []QuestOffer
+	Factions []FactionFact
 }
 
 // worldProgressionRequest is the census read, shared with the bundle's
@@ -291,11 +316,15 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			return WorldProgressionRead{}, contract("world progression quest CAS token unavailable")
 		}
 		choices := map[uint32]bool{}
+		favor := map[uint32]int32{}
 		for _, reward := range row.Rewards {
-			if reward == nil {
+			if reward == nil || reward.GetFavor() < 0 {
 				return WorldProgressionRead{}, contract("invalid world progression quest reward")
 			}
 			choices[reward.GetChoiceIndex()] = true
+			if reward.GetFavor() > 0 {
+				favor[reward.GetChoiceIndex()] += reward.GetFavor()
+			}
 		}
 		pawnIDs := make([]string, len(row.EligiblePawns))
 		seenPawns := map[string]bool{}
@@ -310,6 +339,12 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: QuestStatusName(row.GetState()), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
+		quest.FactionID, quest.MapKnown = row.GetFactionId(), row.MapId != nil
+		quest.MapID = row.GetMapId()
+		for choice, amount := range favor {
+			quest.Favor = append(quest.Favor, QuestFavorFact{Choice: int32(choice), Favor: amount})
+		}
+		sort.Slice(quest.Favor, func(a, b int) bool { return quest.Favor[a].Choice < quest.Favor[b].Choice })
 		requests := make([]QuestTradeRequestFact, len(row.TradeRequests))
 		for k, request := range row.TradeRequests {
 			// A missing resource, count or destination on one
@@ -323,5 +358,12 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		quest.TradeRequests = requests
 		quests[i] = quest
 	}
-	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests}, nil
+	factions := make([]FactionFact, 0, len(v.Factions))
+	for _, row := range v.Factions {
+		if row == nil || validID(row.GetId()) != nil {
+			return WorldProgressionRead{}, contract("invalid world progression faction")
+		}
+		factions = append(factions, FactionFact{ID: row.GetId(), Player: row.GetPlayer(), Hostile: row.GetHostile()})
+	}
+	return WorldProgressionRead{Context: v.Context, Maps: maps, Caravans: rows, Quests: quests, Factions: factions}, nil
 }

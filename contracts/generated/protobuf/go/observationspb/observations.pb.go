@@ -19037,6 +19037,7 @@ type QuestReward struct {
 	Kind          *string                `protobuf:"bytes,2,opt,name=kind,proto3,oneof" json:"kind,omitempty"`
 	Label         *string                `protobuf:"bytes,3,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	Items         []*Quantity            `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
+	Favor         *int32                 `protobuf:"varint,5,opt,name=favor,proto3,oneof" json:"favor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -19099,6 +19100,13 @@ func (x *QuestReward) GetItems() []*Quantity {
 	return nil
 }
 
+func (x *QuestReward) GetFavor() int32 {
+	if x != nil && x.Favor != nil {
+		return *x.Favor
+	}
+	return 0
+}
+
 type QuestState struct {
 	state            protoimpl.MessageState  `protogen:"open.v1"`
 	Id               *string                 `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -19115,6 +19123,8 @@ type QuestState struct {
 	Issues           []*ReadIssue            `protobuf:"bytes,12,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot         *SnapshotRef            `protobuf:"bytes,13,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	ScriptDef        *string                 `protobuf:"bytes,14,opt,name=script_def,json=scriptDef,proto3,oneof" json:"script_def,omitempty"`
+	FactionId        *string                 `protobuf:"bytes,15,opt,name=faction_id,json=factionId,proto3,oneof" json:"faction_id,omitempty"`
+	MapId            *int32                  `protobuf:"varint,16,opt,name=map_id,json=mapId,proto3,oneof" json:"map_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -19245,6 +19255,20 @@ func (x *QuestState) GetScriptDef() string {
 		return *x.ScriptDef
 	}
 	return ""
+}
+
+func (x *QuestState) GetFactionId() string {
+	if x != nil && x.FactionId != nil {
+		return *x.FactionId
+	}
+	return ""
+}
+
+func (x *QuestState) GetMapId() int32 {
+	if x != nil && x.MapId != nil {
+		return *x.MapId
+	}
+	return 0
 }
 
 type FactionState struct {
@@ -38847,15 +38871,17 @@ const file_observations_proto_rawDesc = "" +
 	"\vdestination\x18\x03 \x01(\x05H\x02R\vdestination\x88\x01\x01B\v\n" +
 	"\t_resourceB\b\n" +
 	"\x06_countB\x0e\n" +
-	"\f_destination\"\xca\x01\n" +
+	"\f_destination\"\xef\x01\n" +
 	"\vQuestReward\x12&\n" +
 	"\fchoice_index\x18\x01 \x01(\rH\x00R\vchoiceIndex\x88\x01\x01\x12\x17\n" +
 	"\x04kind\x18\x02 \x01(\tH\x01R\x04kind\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01\x12;\n" +
-	"\x05items\x18\x04 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05itemsB\x0f\n" +
+	"\x05items\x18\x04 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05items\x12\x19\n" +
+	"\x05favor\x18\x05 \x01(\x05H\x03R\x05favor\x88\x01\x01B\x0f\n" +
 	"\r_choice_indexB\a\n" +
 	"\x05_kindB\b\n" +
-	"\x06_label\"\xe1\x06\n" +
+	"\x06_labelB\b\n" +
+	"\x06_favor\"\xbb\a\n" +
 	"\n" +
 	"QuestState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
@@ -38874,7 +38900,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x06issues\x18\f \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
 	"\bsnapshot\x18\r \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\"\n" +
 	"\n" +
-	"script_def\x18\x0e \x01(\tH\bR\tscriptDef\x88\x01\x01B\x05\n" +
+	"script_def\x18\x0e \x01(\tH\bR\tscriptDef\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"faction_id\x18\x0f \x01(\tH\tR\tfactionId\x88\x01\x01\x12\x1a\n" +
+	"\x06map_id\x18\x10 \x01(\x05H\n" +
+	"R\x05mapId\x88\x01\x01B\x05\n" +
 	"\x03_idB\b\n" +
 	"\x06_labelB\x0e\n" +
 	"\f_descriptionB\b\n" +
@@ -38883,7 +38913,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_expires_in_ticksB\x14\n" +
 	"\x12_requires_accepterB\r\n" +
 	"\v_can_acceptB\r\n" +
-	"\v_script_def\"\xc4\x02\n" +
+	"\v_script_defB\r\n" +
+	"\v_faction_idB\t\n" +
+	"\a_map_id\"\xc4\x02\n" +
 	"\fFactionState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1b\n" +

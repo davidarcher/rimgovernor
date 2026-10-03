@@ -206,6 +206,18 @@ Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
 returns as no facts. Reads are derived state (persistence-contracts.md); the
 read adds no store.
 
+## Quest census Empire fields
+
+`QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`
+(the id `FactionState` rows use) and `QuestState.map_id` the map of the first
+`QuestLookTargets` entry on a map; both are absent when native has none (a
+quest anchored only to a world object has no `map_id`). `QuestReward.favor` is
+the royal favor a `Reward_RoyalFavor` grants; summed per `choice_index`, it is
+what the Empire quest planner (#1604) maximises. The Go read carries
+`FactionState` id and hostile beside the quests, and a quest with no
+`map_id` or one off the identity map is off-map. Favor granted outside a
+reward-choice part is not read.
+
 ## Obtainable operation preconditions
 
 References are `Ref {id}` (#1342); an `EntityRef` is only a row head (id,

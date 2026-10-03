@@ -20,6 +20,13 @@ type RoutineSource interface {
 	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
 }
 
+// RoutineRoyaltySource is the optional royalty read of a RoutineSource
+// (bridge.Client.RoyaltyFacts, cached between slow refreshes); a nil result
+// means Royalty is not applicable.
+type RoutineRoyaltySource interface {
+	RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error)
+}
+
 type RoutineReading struct {
 	ColonyReading
 	Emergency policy.EmergencyFacts
@@ -127,7 +134,15 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.Facts.Research = frameResearch(frame.Research)
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
-	p.Facts.QuestOffers = frameQuests(frame.Quests)
+	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map)
+	// A failed or inapplicable royalty read leaves the fact unknown; it must
+	// not fail the routine reading the whole review stands on.
+	p.Facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()
+	if royalty, ok := source.(RoutineRoyaltySource); ok {
+		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil {
+			p.Facts.Royalty = domain.Known(*facts)
+		}
+	}
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}
 	p.Facts.OwnedNames = domain.Fact[[]policy.OwnedName]{}
 	p.Facts.Guests = domain.Fact[[]policy.CarePatient]{}
@@ -213,13 +228,25 @@ func (f frameColony) ReadResearch(context.Context, *c.Identity) (bridge.Research
 
 // frameQuests is the visible quest census; unknown when the frame carries
 // none.
-func frameQuests(read *bridge.WorldProgressionRead) domain.Fact[[]policy.JoinerOffer] {
+func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID) domain.Fact[[]policy.JoinerOffer] {
 	if read == nil {
 		return domain.Unknown[[]policy.JoinerOffer]()
 	}
+	hostile := map[string]bool{}
+	for _, faction := range read.Factions {
+		hostile[faction.ID] = faction.Hostile
+	}
 	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
 	for _, quest := range read.Quests {
-		offers = append(offers, policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount})
+		offer := policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount,
+			FactionID: quest.FactionID, FactionHostile: domain.Unknown[bool](), OnMap: quest.MapKnown && domain.MapID(quest.MapID) == home}
+		if value, found := hostile[quest.FactionID]; found && quest.FactionID != "" {
+			offer.FactionHostile = domain.Known(value)
+		}
+		for _, favor := range quest.Favor {
+			offer.Favor = append(offer.Favor, policy.QuestFavor{Choice: favor.Choice, Favor: favor.Favor})
+		}
+		offers = append(offers, offer)
 	}
 	return domain.Known(offers)
 }

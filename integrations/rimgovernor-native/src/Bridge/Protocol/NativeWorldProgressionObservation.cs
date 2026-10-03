@@ -141,6 +141,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index, Kind = reward.GetType().Name };
                         row.Label = BridgeCommon.SafeString(() => reward.GetDescription(default(RewardsGeneratorParams))) ?? "";
+                        if (reward is Reward_RoyalFavor favor) row.Favor = favor.amount;
                         if (reward is Reward_Items items)
                             row.Items.Add(items.items.Select(t => new Obs.Quantity { DefName = t.def.defName, Units = t.stackCount }));
                         rows.Add(row);
@@ -170,6 +171,18 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
+        // First map any look target of the quest sits on (a map parent's own
+        // map counts); absent for a quest anchored only to a world object.
+        private static int? QuestMapId(Quest quest)
+        {
+            foreach (var target in quest.QuestLookTargets)
+            {
+                var map = target.Map ?? (target.HasWorldObject ? (target.WorldObject as MapParent)?.Map : null);
+                if (map != null) return map.uniqueID;
+            }
+            return null;
+        }
+
         private static List<Obs.QuestState> Quests(Common.ObservationContext context)
         {
             var rows = new List<Obs.QuestState>();
@@ -184,6 +197,10 @@ namespace HomeBridge.BridgeTools
                     // The quest row's identity-and-state token.
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = q.GetUniqueLoadID(), Token = NativeQuestOperations.Token(q) },
                 };
+                var faction = q.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer);
+                if (faction != null) row.FactionId = faction.GetUniqueLoadID();
+                var mapId = QuestMapId(q);
+                if (mapId.HasValue) row.MapId = mapId.Value;
                 row.EligiblePawns.Add(Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned)
                     .Where(p => QuestUtility.CanPawnAcceptQuest(p, q)).Select(NativeRef.Thing));
                 row.TradeRequests.Add(TradeRequests(q));

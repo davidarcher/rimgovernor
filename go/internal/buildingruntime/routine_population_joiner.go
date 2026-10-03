@@ -82,6 +82,12 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}
 	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
+	prefix := "joiner"
+	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
+		if empire := policy.SelectEmpireQuestMethod(facts.QuestOffers); empire.Reason == "" {
+			choice, prefix = empire, "empire"
+		}
+	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity:
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodUsed}, nil
@@ -91,7 +97,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	// Keyed by quest and attempt count, mirroring
 	// RoutinePrisonerInteractionPlanner's method key: a fresh attempt after
 	// an interrupted or failed try re-selects whichever offer is current.
-	prefix := fmt.Sprintf("joiner-%s-", choice.Quest)
+	prefix = fmt.Sprintf("%s-%s-", prefix, choice.Quest)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil

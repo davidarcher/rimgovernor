@@ -33,7 +33,8 @@ func worldProgressionFixture() *o.WorldProgressionSnapshot {
 			Id: proto.String("quest-1"), State: rp.QuestStatus_QUEST_STATUS_NOT_YET_ACCEPTED.Enum(),
 			RequiresAccepter: proto.Bool(true), CanAccept: proto.Bool(true),
 			EligiblePawns: []*c.Ref{{Id: proto.String("pawn-1")}},
-			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}},
+			Rewards:       []*o.QuestReward{{ChoiceIndex: proto.Uint32(0)}, {ChoiceIndex: proto.Uint32(1), Favor: proto.Int32(4)}, {ChoiceIndex: proto.Uint32(1), Favor: proto.Int32(2)}},
+			FactionId:     proto.String("Faction_5"), MapId: proto.Int32(2),
 			TradeRequests: []*o.QuestTradeRequest{{Resource: proto.String("Steel"), Count: proto.Int64(40), Destination: proto.Int32(7)}},
 			Snapshot:      &o.SnapshotRef{Context: pbContext(), EntityId: proto.String("quest-1"), Token: proto.String("quest-cas")},
 		}},
@@ -92,7 +93,8 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 	}
 	quest := out.Quests[0]
 	if quest.ID != "quest-1" || quest.State != "NotYetAccepted" || !quest.RequiresAccepter || !quest.CanAccept ||
-		quest.ChoiceCount != 1 || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
+		quest.ChoiceCount != 2 || quest.FactionID != "Faction_5" || !quest.MapKnown || quest.MapID != 2 ||
+		len(quest.Favor) != 1 || quest.Favor[0] != (QuestFavorFact{Choice: 1, Favor: 6}) || len(quest.EligiblePawnIDs) != 1 || quest.EligiblePawnIDs[0] != "pawn-1" ||
 		quest.SnapshotToken != "quest-cas" || len(quest.TradeRequests) != 1 || quest.TradeRequests[0].DestinationTile != 7 {
 		t.Fatal(quest)
 	}
