@@ -226,6 +226,16 @@ guards and admission; the colony snapshots in `internal/snapshot`
 `draft/idle-hostile` cases) replay the peaceful RestoreWorkers and the
 threatened ActiveCombat review.
 
+A squad hunt is the `ActiveCombat` incident's hunt origin: while no hostile
+stands and the food plan opens a squad `Hunt` channel (a group of three or
+more wild animals, or any animal a lone hunter must not designate, with
+three ranged colonists able to form the squad), the review asserts the
+deficit with the channel's prey as the occurrence's payload
+(`store.HuntPrey`). The fight then runs through `admitFight` with
+`CombatView.Hunt` set and the prey as its threats; the frame's detail rows
+cover the open hunt census rows. A hostile in the frame, or the plan no
+longer opening the hunt, ends the origin.
+
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open
