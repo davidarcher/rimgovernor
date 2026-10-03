@@ -182,9 +182,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	}
 	var food *o.TradeFoodFacts
 	if f := v.Food; f != nil {
-		if math.IsNaN(f.Nutrition) || math.IsInf(f.Nutrition, 0) || f.Nutrition <= 0 ||
-			f.IngredientClass < o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_MEAT || f.IngredientClass > o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANY ||
-			f.Crop && (f.Prepared || f.IngredientClass != o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_VEGETABLE) || v.GetPawn() || v.GetCurrency() {
+		if math.IsNaN(f.Nutrition) || math.IsInf(f.Nutrition, 0) || f.Nutrition <= 0 || v.GetPawn() || v.GetCurrency() {
 			return TradeSheetRow{}, contract("invalid trade food classification")
 		}
 		food = proto.CloneOf(f)

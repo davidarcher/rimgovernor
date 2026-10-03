@@ -622,13 +622,6 @@ message RecipeState {
   DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3;
   reserved 4 to 18;
 }
-enum FoodIngredientClass {
-  FOOD_INGREDIENT_CLASS_UNSPECIFIED = 0;
-  FOOD_INGREDIENT_CLASS_MEAT = 1;
-  FOOD_INGREDIENT_CLASS_VEGETABLE = 2;
-  FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT = 3;
-  FOOD_INGREDIENT_CLASS_ANY = 4;
-}
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;
@@ -2395,7 +2388,7 @@ service Observations {
 }
 
 // Native definition classification for bounded food purchases and crop exports.
-message TradeFoodFacts { double nutrition = 1; FoodIngredientClass ingredient_class = 2; bool prepared = 3; bool non_perishable = 4; bool crop = 5; }
+message TradeFoodFacts { double nutrition = 1; reserved 2 to 5; }
 
 // The pawn's current food policy: its load id and allowed definitions.
 message FoodRestriction {

@@ -190,8 +190,8 @@ facts cannot authorize a bridge. A zero-lead hunt suppresses the purchase.
 
 Desired recipe ingredient slots use the meal policy's alternatives. Above the
 food target, missing meat/animal-product slots create ingredient purchases.
-`TradeFoodGood` supplies native nutrition, ingredient class, preparation,
-perishability and crop classification to trade selection. Purchases rank durable
+`TradeFoodGood` takes the native nutrition stat and reads ingredient class, preparation,
+perishability and crop classification from the definition catalog rows for trade selection. Purchases rank durable
 food, then prepared meals, then raw food, sharing a nutrition budget across
 available definitions. Existing silver and price limits still apply.
 

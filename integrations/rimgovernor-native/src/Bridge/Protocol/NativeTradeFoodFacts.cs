@@ -6,6 +6,8 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools {
     internal static class NativeTradeFoodFacts {
+        // The nutrition stat of an edible trade item; what kind of food it is
+        // (raw class, meal, crop, rot) is read from the definition catalog.
         internal static Obs.TradeFoodFacts? Read(ThingDef? def) {
             if (def == null || def.category != ThingCategory.Item || def.ingestible == null
                 || !def.ingestible.HumanEdible || !NativeFoodPolicy.IsFood(def)
@@ -13,36 +15,7 @@ namespace HomeBridge.BridgeTools {
                 || (def.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) != 0) return null;
             var nutrition = def.GetStatValueAbstract(StatDefOf.Nutrition);
             if (float.IsNaN(nutrition) || float.IsInfinity(nutrition) || nutrition <= 0) return null;
-            var kind = RawClass(def);
-            if (kind == Obs.FoodIngredientClass.Unspecified && (def.ingestible.foodType & FoodTypeFlags.Meal) != 0) kind = Obs.FoodIngredientClass.Any;
-            if (kind == Obs.FoodIngredientClass.Unspecified) return null;
-            // Human meat is not a routine ingredient purchase.
-            if (kind == Obs.FoodIngredientClass.Meat && def.ingestible.sourceDef?.race?.Humanlike == true) return null;
-            return new Obs.TradeFoodFacts {
-                Nutrition = nutrition, IngredientClass = kind,
-                Prepared = kind == Obs.FoodIngredientClass.Any,
-                NonPerishable = def.GetCompProperties<CompProperties_Rottable>() == null,
-                Crop = kind == Obs.FoodIngredientClass.Vegetable,
-            };
-        }
-
-        internal static bool Protein(ThingDef? def) {
-            var food = Read(def);
-            return food != null && !food.Prepared
-                && (food.IngredientClass == Obs.FoodIngredientClass.Meat || food.IngredientClass == Obs.FoodIngredientClass.AnimalProduct);
-        }
-
-        internal static bool Crop(ThingDef? def) => Read(def)?.Crop == true;
-
-        // The raw-ingredient filter category of def (Unspecified when none).
-        private static Obs.FoodIngredientClass RawClass(ThingDef def)
-            => InCategory(def, "MeatRaw") ? Obs.FoodIngredientClass.Meat
-            : InCategory(def, "PlantFoodRaw") ? Obs.FoodIngredientClass.Vegetable
-            : InCategory(def, "AnimalProductRaw") ? Obs.FoodIngredientClass.AnimalProduct
-            : Obs.FoodIngredientClass.Unspecified;
-        private static bool InCategory(ThingDef def, string name) {
-            var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(name);
-            return category != null && def.IsWithinCategory(category);
+            return new Obs.TradeFoodFacts { Nutrition = nutrition };
         }
     }
 }

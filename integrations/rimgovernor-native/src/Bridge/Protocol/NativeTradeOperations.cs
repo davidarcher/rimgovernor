@@ -488,15 +488,15 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!floors.ContainsKey("Silver") || SafeBool(() => TradeSession.giftMode))
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic policy requires a silver reserve and an ordinary trade."); return false; }
-                var proteinPurchase = deal.AllTradeables.Any(t => SafeInt(() => t.CountToTransfer) > 0
-                    && !IsPawnRow(t) && NativeTradeFoodFacts.Protein(SafeDef(t)));
                 foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) < 0 || SafeBool(() => t.IsCurrency)))
                 {
                     var def = SafeDef(row);
                     if (def == null || !floors.TryGetValue(def.defName, out var floor)
                         || SafeInt(() => row.thingsColony.Where(t => !t.Destroyed).Sum(t => t.stackCount)) + SafeInt(() => row.CountToTransfer) < floor)
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic stock reserve would be violated."); return false; }
-                    var cropSurplus = floor > 0 && proteinPurchase && NativeTradeFoodFacts.Crop(def);
+                    // A positive floor is Go's authorisation to sell a surplus of this
+                    // food (the crop/protein rule lives in policy, from the def rows).
+                    var cropSurplus = floor > 0;
                     if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row)))
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic export is protected."); return false; }
                 }

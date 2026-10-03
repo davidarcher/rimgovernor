@@ -551,7 +551,13 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	// Surplus animals sell while the silver runway is short (#1632); the
 	// race catalog is the herd plan's, the catalog's race rows the projection
 	// decoded.
-	rows := tradeSheetRowFacts(sheet.Rows)
+	if tables.Catalog == nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: no definition catalog", ErrControl)
+	}
+	rows, err := tradeSheetRowFacts(sheet.Rows, tables.Catalog)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
 	// The plan counts the animals this trader offers as obtainable, so its
 	// wants (bought below, #1636) and its surplus (sold) agree.
 	planInput := projection.Facts.HerdPlanInput()
@@ -622,31 +628,29 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	return RoutineTradeResult{Verdict: BuildingReasonAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
 }
 
-func tradeFoodFact(food *o.TradeFoodFacts) domain.Fact[policy.TradeFoodGood] {
+// tradeFoodFact classifies a food line from the catalog's rows (#1721); native
+// supplies only the nutrition stat.
+func tradeFoodFact(food *o.TradeFoodFacts, def string, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.TradeFoodGood], error) {
 	if food == nil {
-		return domain.Unknown[policy.TradeFoodGood]()
+		return domain.Unknown[policy.TradeFoodGood](), nil
 	}
-	var class policy.FoodIngredientClass
-	switch food.IngredientClass {
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_MEAT:
-		class = policy.IngredientMeat
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_VEGETABLE:
-		class = policy.IngredientVegetable
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT:
-		class = policy.IngredientAnimalProduct
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANY:
-		class = policy.IngredientAny
-	default:
-		return domain.Unknown[policy.TradeFoodGood]()
+	good, ok, err := catalog.TradeFood(def)
+	if err != nil || !ok {
+		return domain.Unknown[policy.TradeFoodGood](), err
 	}
-	return domain.Known(policy.TradeFoodGood{Nutrition: food.Nutrition, Class: class, Prepared: food.Prepared, NonPerishable: food.NonPerishable, Crop: food.Crop})
+	good.Nutrition = food.Nutrition
+	return domain.Known(good), nil
 }
 
-func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact {
+func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionCatalog) ([]policy.TradeSheetRowFact, error) {
 	out := make([]policy.TradeSheetRowFact, 0, len(rows))
 	for _, row := range rows {
+		food, err := tradeFoodFact(row.Food, row.DefName, catalog)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, policy.TradeSheetRowFact{
-			Food:   tradeFoodFact(row.Food),
+			Food:   food,
 			LineID: row.LineID, DefName: row.DefName, ColonyCount: row.ColonyCount, TraderCount: row.TraderCount,
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
@@ -655,7 +659,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact 
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
 	}
-	return out
+	return out, nil
 }
 
 func tradePawnSkills(skills []bridge.TradeSheetSkill) []policy.ProfileSkill {

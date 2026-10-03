@@ -146,6 +146,44 @@ func (catalog *DefinitionCatalog) RawFoodClass(name string) (policy.FoodIngredie
 	return "", nil
 }
 
+// TradeFood is what a food def's rows say about buying it as a routine
+// ingredient (#1721): the raw class by thing category, a meal food type as
+// the prepared "any" class, whether it never rots, and whether it is a raw
+// crop (the vegetable class). ok is false for a def that is neither raw
+// ingredient nor meal, and for human meat. Nutrition is the caller's (a stat).
+func (catalog *DefinitionCatalog) TradeFood(name string) (good policy.TradeFoodGood, ok bool, err error) {
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return policy.TradeFoodGood{}, false, err
+	}
+	class, err := catalog.RawFoodClass(name)
+	if err != nil {
+		return policy.TradeFoodGood{}, false, err
+	}
+	if class == "" && row.GetIngestible().GetFoodType()&d.FoodTypeFlags_FOOD_TYPE_FLAGS_MEAL != 0 {
+		class = policy.IngredientAny
+	}
+	if class == "" {
+		return policy.TradeFoodGood{}, false, nil
+	}
+	if class == policy.IngredientMeat {
+		if source := row.GetIngestible().GetSourceDef(); source != "" {
+			race, err := catalog.thingRow(source)
+			if err != nil {
+				return policy.TradeFoodGood{}, false, err
+			}
+			if race.GetRace().GetIntelligence() >= d.Intelligence_INTELLIGENCE_HUMANLIKE {
+				return policy.TradeFoodGood{}, false, nil
+			}
+		}
+	}
+	_, perishable, err := catalog.RotDays(name)
+	if err != nil {
+		return policy.TradeFoodGood{}, false, err
+	}
+	return policy.TradeFoodGood{Class: class, Prepared: class == policy.IngredientAny, NonPerishable: !perishable, Crop: class == policy.IngredientVegetable}, true, nil
+}
+
 // categoriesWithin is every ThingCategoryDef the def sits within: its own
 // thing categories and all their parents.
 func (catalog *DefinitionCatalog) categoriesWithin(name string, row *d.ThingDef) (map[string]bool, error) {
