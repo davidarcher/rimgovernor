@@ -165,7 +165,12 @@ contract.
 
 Training requests use native `CanAssignToTrain` and `SetWantedRecursive`; native
 `learned` and step counts track progress separately from settings receipts.
-Removal-designated animals receive no training changes.
+Removal-designated animals receive no training changes. Training follows the
+animal's herd-plan job: a hauler learns Obedience then Haul, a war animal
+Obedience, attack (`Release`) and Rescue as the race allows, any other job
+Obedience, and a retiring or job-less race nothing. A learned skill that decays reads as
+unlearned and is requested again; the native read exposes only the learned
+flag, not the step count or time to decay.
 
 Handling joins shared deterministic work allocation with the observed native minimum
 skill. Player work overrides remain authoritative. The herd observation retains safe

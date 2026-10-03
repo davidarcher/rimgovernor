@@ -15,7 +15,7 @@ func TestReconcileHerdRemoval(t *testing.T) {
 			rows[0].Release = domain.Known(method == domain.HusbandryCancelRelease)
 			rows[0].Slaughter = domain.Known(method == domain.HusbandryCancelSlaughter)
 			v.Animals = domain.Known(rows)
-			herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 1}, PopulationMax: map[Resource]int64{"Muffalo": 1}}
+			herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 1}, PopulationMax: map[Resource]int64{"Muffalo": 1}, Roles: jobHerd.Roles}
 			// Reconstructed native facts, including after restart/save-load, must
 			// choose cancellation without needing an earlier controller action.
 			for range 2 {

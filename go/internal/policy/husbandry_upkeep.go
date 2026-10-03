@@ -31,8 +31,39 @@ type HerdPolicy struct {
 	Retired   map[Resource]bool
 	FeedShort bool
 	// Roles is the herd plan's role per race: taming ranks candidates by it
-	// (herdTameLess). Absent for a policy not built by PlanHerd.
+	// (herdTameLess) and training follows its job (herdTrainOrder). Absent
+	// for a policy not built by PlanHerd.
 	Roles map[Resource]HerdRole
+}
+
+// herdTrainOrder is the trainables a race's job wants, in order. A hauler
+// learns Obedience then Haul, a war animal Obedience, attack (Release) and
+// Rescue as the race allows, any other job Obedience; a retiring or job-less
+// race learns nothing.
+func herdTrainOrder(herd HerdPolicy, race Resource) []string {
+	role := herd.Roles[race]
+	switch job := role.Job; {
+	case role.Retiring || job == "" || job == HerdJobNone:
+		return nil
+	case job == HerdJobHaul:
+		return []string{"Obedience", herdHaulTraining}
+	case job == HerdJobWar:
+		return []string{"Obedience", herdWarTraining, "Rescue"}
+	}
+	return []string{"Obedience"}
+}
+
+// herdTrainQueue is the animal's trainables the job wants, in training order.
+func herdTrainQueue(herd HerdPolicy, a UpkeepAnimal) []HusbandryTrainable {
+	var wanted []HusbandryTrainable
+	for _, def := range herdTrainOrder(herd, a.Definition) {
+		for _, t := range a.Training {
+			if t.Def == def {
+				wanted = append(wanted, t)
+			}
+		}
+	}
+	return wanted
 }
 
 // HusbandryPlanReason names why RoutineHusbandryPlanner did or did not
@@ -83,7 +114,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 		if release || slaughter {
 			continue
 		}
-		for _, t := range a.Training {
+		for _, t := range herdTrainQueue(herd, a) {
 			avail, ak := t.Available.Value()
 			if !ak {
 				return domain.Unknown[bool]()
@@ -276,9 +307,7 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 		if slaughter, sk := a.Slaughter.Value(); sk && slaughter {
 			continue
 		}
-		trainables := append([]HusbandryTrainable{}, a.Training...)
-		sort.Slice(trainables, func(i, j int) bool { return trainables[i].Def < trainables[j].Def })
-		for _, t := range trainables {
+		for _, t := range herdTrainQueue(herd, a) {
 			avail, ak := t.Available.Value()
 			learned, lk := t.Learned.Value()
 			if ak && avail && lk && !learned {

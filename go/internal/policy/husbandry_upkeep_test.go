@@ -15,6 +15,9 @@ var noWild = domain.Known([]UpkeepAnimal{})
 // feedFine is the tame gate open: the herd feed forecast reports no shortfall.
 var feedFine = domain.Known(false)
 
+// jobHerd gives every Muffalo the companion job: Obedience only.
+var jobHerd = HerdPolicy{Roles: map[Resource]HerdRole{"Muffalo": {Job: HerdJobCompanion}}}
+
 func herd(populationMax map[Resource]int64) HerdPolicy {
 	return HerdPolicy{PopulationMax: populationMax}
 }
@@ -42,34 +45,34 @@ func TestAnimalHerdDeficitEmptyHerdRecovered(t *testing.T) {
 
 func TestAnimalHerdDeficitDetectsUntrainedAvailableTrainable(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{
-		{ID: "muffalo-1", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "muffalo-1", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	if v, known := AnimalHerdDeficit(animals, noWild, feedFine, herd(nil)).Value(); !known || !v {
+	if v, known := AnimalHerdDeficit(animals, noWild, feedFine, jobHerd).Value(); !known || !v {
 		t.Fatal("untrained available trainable must be a deficit")
 	}
 }
 
 func TestAnimalHerdDeficitIgnoresLearnedUnavailableReleasedOrSlaughtered(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{
-		{ID: "learned", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, true)}},
-		{ID: "unavailable", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", false, false)}},
-		{ID: "released", Release: domain.Known(true), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
-		{ID: "slaughter-marked", Release: domain.Known(false), Slaughter: domain.Known(true), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "learned", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, true)}},
+		{ID: "unavailable", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", false, false)}},
+		{ID: "released", Definition: "Muffalo", Release: domain.Known(true), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "slaughter-marked", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(true), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	if v, known := AnimalHerdDeficit(animals, noWild, feedFine, herd(nil)).Value(); !known || v {
+	if v, known := AnimalHerdDeficit(animals, noWild, feedFine, jobHerd).Value(); !known || v {
 		t.Fatal("no animal should register a deficit", v, known)
 	}
 }
 
 func TestAnimalHerdDeficitUnknownFactsStayUnknown(t *testing.T) {
 	cases := []UpkeepAnimal{
-		{ID: "a", Release: domain.Unknown[bool](), Slaughter: domain.Known(false)},
-		{ID: "a", Release: domain.Known(false), Slaughter: domain.Unknown[bool]()},
-		{ID: "a", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{{Def: "x", Available: domain.Unknown[bool](), Learned: domain.Known(false)}}},
-		{ID: "a", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{{Def: "x", Available: domain.Known(true), Learned: domain.Unknown[bool]()}}},
+		{ID: "a", Definition: "Muffalo", Release: domain.Unknown[bool](), Slaughter: domain.Known(false)},
+		{ID: "a", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Unknown[bool]()},
+		{ID: "a", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{{Def: "Obedience", Available: domain.Unknown[bool](), Learned: domain.Known(false)}}},
+		{ID: "a", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{{Def: "Obedience", Available: domain.Known(true), Learned: domain.Unknown[bool]()}}},
 	}
 	for i, animal := range cases {
-		if _, known := AnimalHerdDeficit(domain.Known([]UpkeepAnimal{animal}), noWild, feedFine, herd(nil)).Value(); known {
+		if _, known := AnimalHerdDeficit(domain.Known([]UpkeepAnimal{animal}), noWild, feedFine, jobHerd).Value(); known {
 			t.Fatalf("case %d: incomplete facts must stay unknown", i)
 		}
 	}
@@ -93,10 +96,10 @@ func TestSelectHusbandryMethodNoDeficit(t *testing.T) {
 
 func TestSelectHusbandryMethodPicksLowestAnimalThenTrainable(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{
-		{ID: "muffalo-2", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Release", true, false), trainable("Obedience", true, false)}},
-		{ID: "muffalo-1", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "muffalo-2", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Release", true, false), trainable("Obedience", true, false)}},
+		{ID: "muffalo-1", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(nil), anyTamer)
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, jobHerd, anyTamer)
 	if choice.Reason != "" || choice.Animal != "muffalo-1" || choice.Method != domain.HusbandryTrain || choice.TrainableDef != "Obedience" {
 		t.Fatal(choice)
 	}
@@ -104,11 +107,11 @@ func TestSelectHusbandryMethodPicksLowestAnimalThenTrainable(t *testing.T) {
 
 func TestSelectHusbandryMethodSkipsReleasedAndSlaughteredAnimals(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{
-		{ID: "muffalo-1", Release: domain.Known(true), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
-		{ID: "muffalo-2", Release: domain.Known(false), Slaughter: domain.Known(true), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
-		{ID: "muffalo-3", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "muffalo-1", Definition: "Muffalo", Release: domain.Known(true), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "muffalo-2", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(true), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
+		{ID: "muffalo-3", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(nil), anyTamer)
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, jobHerd, anyTamer)
 	if choice.Animal != "muffalo-3" {
 		t.Fatal(choice)
 	}
@@ -164,7 +167,7 @@ func TestSelectHusbandryMethodTameUnknownWildCensus(t *testing.T) {
 func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{playerAnimal("muffalo-1", "Muffalo", true)})
 	wild := domain.Known([]UpkeepAnimal{wildAnimal("wild-1", "Muffalo", true, false)})
-	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
+	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}, Roles: jobHerd.Roles}
 	short := domain.Known(true)
 	if choice := SelectHusbandryMethod(animals, wild, short, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("a herd short of feed never takes on another mouth", choice)
@@ -181,7 +184,7 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	}
 	// A training candidate is unaffected by the feed gate.
 	untrained := playerAnimal("muffalo-1", "Muffalo", true)
-	untrained.Training = []HusbandryTrainable{trainable("Tameness", true, false)}
+	untrained.Training = []HusbandryTrainable{trainable("Obedience", true, false)}
 	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{untrained}), wild, unknown, herd, anyTamer); choice.Method != domain.HusbandryTrain {
 		t.Fatal("training precedes the feed-gated tame fallback", choice)
 	}
