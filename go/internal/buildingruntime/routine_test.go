@@ -50,31 +50,58 @@ type routineNative struct {
 	buildings bridge.Buildings
 	pawns     bridge.Pawns
 	things    bridge.Things
+	// itemDefs are the defs whose catalog facts a test sets (thingCatalog).
+	itemDefs map[string]itemDef
 }
 
 func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
 	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things, Catalog: n.thingCatalog()}, nil
 }
 
-// thingCatalog is a catalog with a plain def row for every def the frame's
-// things table holds (a corpse's source race is a humanlike "Human"): the def
-// rows a food stock joins to (#1733).
+// itemDef is what a test says about a def beyond the plain one: its base
+// deterioration and whether the game calls it medicine.
+type itemDef struct {
+	deterioration float32
+	medicine      bool
+}
+
+// thingCatalog is a decoded catalog with a plain def row for every def the
+// frame's things and buildings tables hold (a corpse's source race is a
+// humanlike "Human"), each with its game-computed flags and a base
+// deterioration from n.itemDefs: the def rows and stat values a food stock
+// and an upkeep item join to (#1733). A building def is a powered one too, so
+// a power row of any building resolves.
 func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
-	catalog := &bridge.DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
-		"Human": {DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
-	}}
-	// A def is a powered one too, so a power row of any building resolves.
-	add := func(name string) {
-		if name != "" && catalog.ThingDefs[name] == nil {
-			catalog.ThingDefs[name] = &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
-				Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}}
+	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
+	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)},
+		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}},
+		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
+		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3}}
+	seen := map[string]bool{}
+	add := func(row *d.ThingDef) {
+		if row.DefName == "" || seen[row.DefName] {
+			return
 		}
+		seen[row.DefName] = true
+		item := n.itemDefs[row.DefName]
+		v.ThingDefs = append(v.ThingDefs, row)
+		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: row.DefName, Medicine: item.medicine})
+		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: row.DefName, Stat: []int32{0}, Value: []float32{item.deterioration}})
+	}
+	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
+	plain := func(name string) {
+		add(&d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
+			Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}})
 	}
 	for row := range n.things.Values() {
-		add(row.GetThing().GetDefName())
+		plain(row.GetThing().GetDefName())
 	}
 	for row := range n.buildings.Values() {
-		add(row.GetBuilding().GetDefName())
+		plain(row.GetBuilding().GetDefName())
+	}
+	catalog, err := bridge.DecodeDefinitionCatalog(v, id)
+	if err != nil {
+		panic(err)
 	}
 	return catalog
 }

@@ -1,11 +1,28 @@
 package observation
 
 import (
+	"fmt"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
+
+// upkeepItemDef is the game's base DeteriorationRate of def made of the stuff
+// of the item's thing row, and whether def is medicine, from the catalog.
+func upkeepItemDef(tables bridge.Tables, item bridge.Reference, def string) (deterioration float64, medicine bool, err error) {
+	row, ok := tables.Things.Row(item)
+	if !ok {
+		return 0, false, fmt.Errorf("upkeep item %s has no thing row", item.GetId())
+	}
+	rate, err := tables.Catalog.StatValue(def, row.GetStuff(), bridge.StatDeteriorationRate)
+	if err != nil {
+		return 0, false, err
+	}
+	medicine, err = tables.Catalog.Medicine(def)
+	return float64(rate), medicine, err
+}
 
 func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepObservation {
 	buildings := tables.Buildings
@@ -18,12 +35,21 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepO
 		rows := []policy.UpkeepItem{}
 		known := true
 		for _, item := range u.Items {
-			if item.Roofed == nil || item.InStorage == nil || item.Forbidden == nil || item.BaseDeteriorationRate == nil || item.Medicine == nil || item.Count == nil {
+			if item.Roofed == nil || item.InStorage == nil || item.Forbidden == nil || item.Count == nil {
 				known = false
 				break
 			}
 			head := tables.Entity(item.Item)
-			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: item.GetBaseDeteriorationRate(), Medicine: item.GetMedicine(), Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
+			// What the item's def says about it, and the game's base
+			// deterioration of the def made of the item's stuff, are the
+			// catalog's (#1733); a def the catalog cannot answer for leaves
+			// the census unknown.
+			deterioration, medicine, err := upkeepItemDef(tables, item.Item, head.GetDefName())
+			if err != nil {
+				known = false
+				break
+			}
+			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: deterioration, Medicine: medicine, Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
 		}
 		if known {
 			r.Items = domain.Known(rows)
@@ -87,15 +113,15 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy.UpkeepO
 		if hasIssue(u.Issues, "routes") {
 			routes = &o.RoutesSection{}
 		}
-		r.Flooring = colonyFlooring(u.Flooring, routes)
+		r.Flooring = colonyFlooring(u.Flooring, routes, tables.Catalog)
 	}
 	return r
 }
 
-// colonyFlooring decodes the flooring section; a terrain row missing any
-// stat or a cell missing its terrain leaves the whole census unknown so
+// colonyFlooring decodes the flooring section; a terrain the catalog has no
+// stat or def row for, or a cell missing its terrain, leaves the whole census unknown so
 // MaintainFlooring keeps its previous latch.
-func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection) domain.Fact[policy.FlooringObservation] {
+func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog *bridge.DefinitionCatalog) domain.Fact[policy.FlooringObservation] {
 	f := section.GetObserved()
 	if f == nil {
 		return domain.Fact[policy.FlooringObservation]{}
@@ -114,10 +140,11 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection) domain.
 		r.Traffic = t.Traffic
 	}
 	for _, row := range f.Terrains {
-		if row.Cleanliness == nil || row.Beauty == nil || row.Flammability == nil || row.PathCost == nil || row.Natural == nil {
+		terrain, err := catalog.FloorTerrain(row.GetDefName())
+		if err != nil {
 			return domain.Fact[policy.FlooringObservation]{}
 		}
-		r.Terrains[row.GetDefName()] = policy.FloorTerrain{Cleanliness: row.GetCleanliness(), Beauty: row.GetBeauty(), Flammability: row.GetFlammability(), PathCost: row.GetPathCost(), Natural: row.GetNatural()}
+		r.Terrains[row.GetDefName()] = terrain
 	}
 	if len(r.Traffic) > 0 {
 		kept := r.Traffic[:0]

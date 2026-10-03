@@ -320,6 +320,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Policies = ColonyPolicies(v.Policies)
 	if policies, known := r.Policies.Value(); known {
 		policies.Books = tables.Catalog.Books()
+		policies.Foods = tables.Catalog.Foods()
 		r.Policies = domain.Known(policies)
 	}
 	r.Biotech = colonyBiotech(v.Biotech)

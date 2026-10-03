@@ -85,8 +85,7 @@ namespace HomeBridge.BridgeTools
                     var value = new Obs.UpkeepItem {
                         Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
                         DeteriorationRate = Number(t.GetStatValue(StatDefOf.DeteriorationRate)),
-                        BaseDeteriorationRate = Number(t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff)),
-                        Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), Medicine = t.def.IsMedicine
+                        Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                     };
                     if (rot != null && rot.Active) value.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
                     return value;
@@ -234,9 +233,7 @@ namespace HomeBridge.BridgeTools
                             terrains[terrain.defName] = terrain;
                         }
                 foreach (var terrain in terrains.Values)
-                    facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName), Natural = terrain.natural, PathCost = terrain.pathCost,
-                        Cleanliness = Number(terrain.GetStatValueAbstract(StatDefOf.Cleanliness)), Beauty = Number(terrain.GetStatValueAbstract(StatDefOf.Beauty)),
-                        Flammability = Number(terrain.GetStatValueAbstract(StatDefOf.Flammability)) });
+                    facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName) });
                 result.Flooring = new Obs.FlooringSection { Observed = facts };
             });
             Read("routes", result, () => {

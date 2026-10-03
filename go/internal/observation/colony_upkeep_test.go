@@ -66,19 +66,19 @@ func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
 
 func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-	terrain := func(name string, cleanliness float64, natural bool) *o.FloorTerrain {
-		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
-	}
+	terrain := func(name string) *o.FloorTerrain { return &o.FloorTerrain{DefName: proto.String(name)} }
+	// Cleanliness, beauty and flammability are the catalog's terrain stats.
+	tables := bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}, "WoodPlankFloor": {0, -3, 0}})}
 	flooring := &o.FlooringFacts{
 		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}, {Room: &c.Ref{Id: proto.String("8")}, Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
-		Terrains: []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
+		Terrains: []*o.FloorTerrain{terrain("Soil"), terrain("WoodPlankFloor")},
 	}
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value()
+	f, known := colonyUpkeep(v, tables).Flooring.Value()
 	if !known || len(f.Rooms) != 2 || len(f.Terrains) != 2 {
 		t.Fatal(f, known)
 	}
@@ -92,17 +92,18 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	if f.Terrains["Soil"] != (policy.FloorTerrain{Cleanliness: -1, Beauty: -3, PathCost: 2, Natural: true}) || f.Terrains["WoodPlankFloor"].Natural {
 		t.Fatal(f.Terrains)
 	}
-	flooring.Terrains[0].Natural = nil
-	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
-		t.Fatal("unmeasured terrain became known")
+	if _, known := colonyUpkeep(v, bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}})}).Flooring.Value(); known {
+		t.Fatal("a terrain the catalog has no stats for became known")
 	}
-	flooring.Terrains[0].Natural = proto.Bool(true)
-	flooring.Rooms[0].Cells[0].Terrain = nil
 	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
+		t.Fatal("flooring became known without a catalog")
+	}
+	flooring.Rooms[0].Cells[0].Terrain = nil
+	if _, known := colonyUpkeep(v, tables).Flooring.Value(); known {
 		t.Fatal("unmeasured cell became known")
 	}
 	u.Flooring = nil
-	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, tables).Flooring.Value(); known {
 		t.Fatal("absent section became known")
 	}
 	u.Flooring = &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{}}}
@@ -226,12 +227,13 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	flooring := &o.FlooringFacts{
 		Rooms:    []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
-		Terrains: []*o.FloorTerrain{{DefName: proto.String("Soil"), Cleanliness: proto.Float64(-1), PathCost: proto.Int32(2), Beauty: proto.Float64(-3), Flammability: proto.Float64(0), Natural: proto.Bool(true)}},
+		Terrains: []*o.FloorTerrain{{DefName: proto.String("Soil")}},
 	}
+	tables := bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}})}
 	routes := routesWireFacts()
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}, Routes: &o.RoutesSection{Outcome: &o.RoutesSection_Observed{Observed: routes}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value()
+	f, known := colonyUpkeep(v, tables).Flooring.Value()
 	// The traffic cell on a terrain the table does not name is left out.
 	if !known || f.TrafficSamples != 200 || len(f.Traffic) != 1 || f.Traffic[0].Cell != (domain.Cell{X: 5, Z: 5}) {
 		t.Fatal(f, known)
@@ -239,18 +241,39 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	// An unmeasured routes census leaves flooring unknown too, as does a
 	// routes read issue.
 	routes.Traffic[0].Samples = nil
-	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, tables).Flooring.Value(); known {
 		t.Fatal("flooring known without its traffic evidence")
 	}
 	routes.Traffic[0].Samples = proto.Uint32(30)
 	u.Issues = []*o.ReadIssue{{Field: proto.String("routes")}}
 	u.Routes = nil
-	if _, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); known {
+	if _, known := colonyUpkeep(v, tables).Flooring.Value(); known {
 		t.Fatal("flooring known under a routes issue")
 	}
 	// A native without the routes section (older mod) still measures floors.
 	u.Issues = nil
-	if f, known := colonyUpkeep(v, bridge.Tables{}).Flooring.Value(); !known || len(f.Traffic) != 0 {
+	if f, known := colonyUpkeep(v, tables).Flooring.Value(); !known || len(f.Traffic) != 0 {
 		t.Fatal(f, known)
+	}
+}
+
+// TestUpkeepItemsReadDefFactsFromCatalog (#1733): an item's base
+// deterioration and medicine flag are the catalog's, not the frame's; a def the
+// catalog cannot answer for leaves the census unknown.
+func TestUpkeepItemsReadDefFactsFromCatalog(t *testing.T) {
+	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("herb"), Count: proto.Int64(5), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false)}}}
+	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
+	tables := heads(&o.EntityRef{Id: proto.String("herb"), DefName: proto.String("MedicineHerbal")})
+	tables.Catalog = itemCatalog(t, map[string]itemFact{"MedicineHerbal": {deterioration: 2.5, medicine: true}}, nil)
+	items, known := colonyUpkeep(v, tables).Items.Value()
+	if !known || len(items) != 1 || items[0].Deterioration != 2.5 || !items[0].Medicine {
+		t.Fatal(items, known)
+	}
+	tables.Catalog = itemCatalog(t, map[string]itemFact{"Steel": {}}, nil)
+	if _, known := colonyUpkeep(v, tables).Items.Value(); known {
+		t.Fatal("an item whose def the catalog lacks became known")
+	}
+	if _, known := colonyUpkeep(v, heads(&o.EntityRef{Id: proto.String("herb"), DefName: proto.String("MedicineHerbal")})).Items.Value(); known {
+		t.Fatal("items became known without a catalog")
 	}
 }

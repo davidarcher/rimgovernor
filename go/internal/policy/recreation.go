@@ -26,15 +26,13 @@ type JoyBuildingMethod struct {
 	PowerW           float64
 }
 
-var RecreationDefinitions = []string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"}
-
 func (v ComfortObservation) validateJoy() error {
 	j := v.Joy
 	if j == nil {
 		return nil
 	}
 	bad := func() error { return errors.New("invalid recreation kind census") }
-	if len(j.Kinds) > 16 || len(j.Methods) > 4 {
+	if len(j.Kinds) > 16 {
 		return bad()
 	}
 	kinds := map[string]bool{}
@@ -68,7 +66,7 @@ func (v ComfortObservation) validateJoy() error {
 	}
 	methods := map[string]bool{}
 	for _, m := range j.Methods {
-		if !slices.Contains(RecreationDefinitions, m.Definition) || methods[m.Definition] || !foodID(m.Kind) || math.IsNaN(m.PowerW) || math.IsInf(m.PowerW, 0) || m.PowerW < 0 {
+		if !foodID(m.Definition) || methods[m.Definition] || !foodID(m.Kind) || math.IsNaN(m.PowerW) || math.IsInf(m.PowerW, 0) || m.PowerW < 0 {
 			return bad()
 		}
 		methods[m.Definition] = true
@@ -114,11 +112,10 @@ func SelectRecreationVariety(v ComfortObservation, available func(JoyBuildingMet
 	if len(v.Joy.Kinds) >= 2 {
 		return ComfortAccessBlocked
 	}
-	for _, definition := range RecreationDefinitions {
-		for _, m := range v.Joy.Methods {
-			if m.Definition == definition && !slices.Contains(v.Joy.Kinds, m.Kind) && available(m) {
-				return ComfortMethod(m.Definition)
-			}
+	// Methods are in the catalog's preference order (JoyBuildings).
+	for _, m := range v.Joy.Methods {
+		if !slices.Contains(v.Joy.Kinds, m.Kind) && available(m) {
+			return ComfortMethod(m.Definition)
 		}
 	}
 	return ComfortAccessBlocked

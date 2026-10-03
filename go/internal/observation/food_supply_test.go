@@ -35,22 +35,28 @@ func foodFixture(t *testing.T) (*o.FoodSupplyFacts, bridge.Things) {
 
 // foodCatalog holds the defs the food fixtures name: raw rice is a vegetable
 // whose source race (as a corpse def it stands for) is no humanlike.
-func foodCatalog() *bridge.DefinitionCatalog {
+func foodCatalog(t *testing.T) *bridge.DefinitionCatalog {
+	t.Helper()
 	food := func(name string, flags d.FoodTypeFlags) *d.ThingDef {
 		return &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{FoodType: flags, SourceDef: "Muffalo"}}
 	}
-	return &bridge.DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
-		"RawRice":  food("RawRice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
-		"Rice":     food("Rice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
-		"Pemmican": food("Pemmican", d.FoodTypeFlags_FOOD_TYPE_FLAGS_MEAL),
-		"Muffalo":  {DefName: "Muffalo", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_ANIMAL}},
-		"Human":    {DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
-	}}
+	things := []*d.ThingDef{
+		food("RawRice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
+		food("Rice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
+		food("Pemmican", d.FoodTypeFlags_FOOD_TYPE_FLAGS_MEAL),
+		{DefName: "Muffalo", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_ANIMAL}},
+		{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
+	}
+	v := &o.DefinitionCatalog{ThingDefs: things}
+	for _, thing := range things {
+		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: thing.DefName})
+	}
+	return decodeCatalog(t, v)
 }
 
 func decodeFood(t *testing.T, wire *o.FoodSupplyFacts, things bridge.Things) (policy.FoodSupply, error) {
 	t.Helper()
-	supply, known, err := DecodeFoodSupply(wire, things, foodCatalog())
+	supply, known, err := DecodeFoodSupply(wire, things, foodCatalog(t))
 	if err == nil && !known {
 		t.Fatal("fixture stock unresolved")
 	}
@@ -81,7 +87,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	}
 	things.At("rice").RotTicks = proto.Int64(60000)
 	wire.Stocks[1].Eaters = append(wire.Stocks[1].Eaters, bridge.NewRef("b"))
-	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog(t)); err == nil {
 		t.Fatal("shared private inventory accepted")
 	}
 }
@@ -90,7 +96,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
 	wire, things := foodFixture(t)
 	things = things.Without("rice")
-	if _, known, err := DecodeFoodSupply(wire, things, foodCatalog()); err != nil || known {
+	if _, known, err := DecodeFoodSupply(wire, things, foodCatalog(t)); err != nil || known {
 		t.Fatal("an unresolved stock was decided", known, err)
 	}
 }

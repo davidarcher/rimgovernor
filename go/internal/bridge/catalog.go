@@ -55,7 +55,9 @@ type DefinitionCatalog struct {
 	Constants *o.CatalogConstants
 	// statValues are the game's own stat values per (def, stuff) (#1759); nil
 	// in a reply that carries none.
-	statValues map[defStuff]*statRow
+	statValues *statTable
+	// thingFacts are the game-computed flags of every ThingDef (#1733) by name.
+	thingFacts map[string]*o.ThingDefFacts
 	// items is the planner-facing item facts, built once on first use.
 	itemsOnce sync.Once
 	items     policy.ItemFacts
@@ -85,7 +87,7 @@ func (catalog *DefinitionCatalog) ShownStatValue(def, stuff, stat string) (value
 	if catalog == nil || catalog.statValues == nil {
 		return 0, false, contract("definition catalog carries no stat values")
 	}
-	row, ok := catalog.statValues[defStuff{def, stuff}]
+	row, ok := catalog.statValues.things[defStuff{def, stuff}]
 	if !ok {
 		return 0, false, contract("no stat values for def %s with stuff %q", def, stuff)
 	}
@@ -345,7 +347,10 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if out.Constants, err = validateConstants(v.Constants); err != nil {
 		return nil, err
 	}
-	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs); err != nil {
+	if out.thingFacts, err = decodeThingFacts(v.ThingFacts, out.ThingDefs); err != nil {
+		return nil, err
+	}
+	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs, out.TerrainDefs); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Definitions {

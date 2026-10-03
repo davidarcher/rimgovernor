@@ -36,32 +36,11 @@ type Policies struct {
 	Books []policy.Book
 	// BiomeDiseases is the colony map biome's disease hediffs (#1539).
 	BiomeDiseases []string
-	// Foods is every food definition and its kind (#1541).
+	// Foods is every food definition and its kind (#1541), read from the
+	// definition catalog by DecodeColony (#1733); empty without one.
 	Foods []policy.Food
 	// FoodEaters are the prisoners and tame animals holding food policies (#1543).
 	FoodEaters []policy.FoodEater
-}
-
-var foodKinds = map[o.FoodKind]policy.FoodKind{
-	o.FoodKind_FOOD_KIND_MEAL_AWFUL:     policy.FoodKindMealAwful,
-	o.FoodKind_FOOD_KIND_MEAL_SIMPLE:    policy.FoodKindMealSimple,
-	o.FoodKind_FOOD_KIND_MEAL_FINE:      policy.FoodKindMealFine,
-	o.FoodKind_FOOD_KIND_MEAL_LAVISH:    policy.FoodKindMealLavish,
-	o.FoodKind_FOOD_KIND_RAW_MEAT:       policy.FoodKindRawMeat,
-	o.FoodKind_FOOD_KIND_HUMAN_MEAT:     policy.FoodKindHumanMeat,
-	o.FoodKind_FOOD_KIND_INSECT_MEAT:    policy.FoodKindInsectMeat,
-	o.FoodKind_FOOD_KIND_VEGETABLE:      policy.FoodKindVegetable,
-	o.FoodKind_FOOD_KIND_FUNGUS:         policy.FoodKindFungus,
-	o.FoodKind_FOOD_KIND_ANIMAL_PRODUCT: policy.FoodKindAnimalProduct,
-	o.FoodKind_FOOD_KIND_OTHER:          policy.FoodKindOther,
-	o.FoodKind_FOOD_KIND_KIBBLE:         policy.FoodKindKibble,
-	o.FoodKind_FOOD_KIND_HAY:            policy.FoodKindHay,
-}
-
-var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
-	o.MealIngredients_MEAL_INGREDIENTS_ANY:      policy.MealAnyIngredients,
-	o.MealIngredients_MEAL_INGREDIENTS_MEAT:     policy.MealMeatOnly,
-	o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT: policy.MealNonMeat,
 }
 
 func pawnIDs(ids []string) []policy.PawnID {
@@ -90,9 +69,6 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 		return r
 	}
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
-	for _, d := range f.Foods {
-		r.Foods = append(r.Foods, policy.Food{Def: d.GetDefName(), Kind: foodKinds[d.GetKind()], Ingredients: mealIngredients[d.GetIngredients()]})
-	}
 	for _, e := range f.FoodEaters {
 		r.FoodEaters = append(r.FoodEaters, policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL,
 			Traits: e.Traits, Precepts: e.Precepts, Edible: e.EdibleDefs})

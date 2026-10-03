@@ -48,11 +48,6 @@ namespace HomeBridge.BridgeTools
                     facts.Reading[i].AllowedDefs.Add(NativeReadingPolicy.Allowed(game.readingPolicyDatabase.AllReadingPolicies[i]).Select(d => Id(d)));
                 for (var i = 0; i < facts.Food.Count; i++)
                     facts.Food[i].AllowedDefs.Add(NativeFoodPolicy.Allowed(game.foodRestrictionDatabase.AllFoodRestrictions[i]).Select(d => Id(d)));
-                foreach (var food in NativeFoodPolicy.Foods()) {
-                    var row = NativeFoodPolicy.Definition(food);
-                    row.DefName = Id(food.defName);
-                    facts.Foods.Add(row);
-                }
                 foreach (var p in pawns.Where(p => p.MapHeld == map && !p.Dead && p.foodRestriction != null && p.needs?.food != null
                     && (p.IsPrisonerOfColony || p.RaceProps.Animal))) {
                     var row = new Obs.FoodEater { PawnId = Id(p.GetUniqueLoadID()) };

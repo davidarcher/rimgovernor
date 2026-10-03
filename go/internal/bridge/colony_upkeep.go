@@ -30,8 +30,8 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	number := func(p *float64) bool { return p == nil || !math.IsNaN(*p) && !math.IsInf(*p, 0) && *p >= 0 }
 	seen := map[string]bool{}
 	for _, row := range v.Items {
-		if row == nil || !uniqueRef(row.Item, seen) || !number(row.DeteriorationRate) || !number(row.BaseDeteriorationRate) || row.Count != nil && row.GetCount() < 0 || row.RotTicks != nil && row.GetRotTicks() < 0 ||
-			!proto.Equal(row, &o.UpkeepItem{Item: row.Item, Count: row.Count, Roofed: row.Roofed, InStorage: row.InStorage, DeteriorationRate: row.DeteriorationRate, BaseDeteriorationRate: row.BaseDeteriorationRate, RotTicks: row.RotTicks, Forbidden: row.Forbidden, Medicine: row.Medicine}) {
+		if row == nil || !uniqueRef(row.Item, seen) || !number(row.DeteriorationRate) || row.Count != nil && row.GetCount() < 0 || row.RotTicks != nil && row.GetRotTicks() < 0 ||
+			!proto.Equal(row, &o.UpkeepItem{Item: row.Item, Count: row.Count, Roofed: row.Roofed, InStorage: row.InStorage, DeteriorationRate: row.DeteriorationRate, RotTicks: row.RotTicks, Forbidden: row.Forbidden}) {
 			return contract("invalid upkeep item")
 		}
 	}
@@ -275,18 +275,10 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	}
 	terrains := map[string]bool{}
 	for _, row := range f.Terrains {
-		if row == nil || validID(row.GetDefName()) != nil || terrains[row.GetDefName()] || !proto.Equal(row, &o.FloorTerrain{DefName: row.DefName, Cleanliness: row.Cleanliness, PathCost: row.PathCost, Beauty: row.Beauty, Flammability: row.Flammability, Natural: row.Natural}) {
+		if row == nil || validID(row.GetDefName()) != nil || terrains[row.GetDefName()] || !proto.Equal(row, &o.FloorTerrain{DefName: row.DefName}) {
 			return contract("invalid flooring terrain")
 		}
 		terrains[row.GetDefName()] = true
-		for _, value := range []*float64{row.Cleanliness, row.Beauty, row.Flammability} {
-			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e6) {
-				return contract("invalid flooring terrain stat")
-			}
-		}
-		if row.PathCost != nil && (row.GetPathCost() < 0 || row.GetPathCost() > 10000) {
-			return contract("invalid flooring path cost")
-		}
 	}
 	rooms := map[string]bool{}
 	cells := map[[2]int32]bool{}

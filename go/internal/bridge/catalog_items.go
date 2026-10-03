@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // Item facts the generated def rows state (#1733). A frame carries what
@@ -14,6 +15,10 @@ import (
 
 // StatNutrition is the StatDef whose abstract value is a food's nutrition.
 const StatNutrition = "Nutrition"
+
+// StatDeteriorationRate is the StatDef whose abstract value is how fast a
+// def left outside deteriorates.
+const StatDeteriorationRate = "DeteriorationRate"
 
 // thingRow is name's ThingDef row.
 func (catalog *DefinitionCatalog) thingRow(name string) (*d.ThingDef, error) {
@@ -183,12 +188,89 @@ func (catalog *DefinitionCatalog) RainVulnerable(name string) (bool, error) {
 	return false, contract("def %s has no power comp", name)
 }
 
-// JoyKind is the JoyKindDef a building gives (BuildingProperties.joyKind), ""
-// for a def that is no joy building.
-func (catalog *DefinitionCatalog) JoyKind(name string) (string, error) {
-	row, err := catalog.thingRow(name)
-	if err != nil {
-		return "", err
+var foodKinds = map[o.FoodKind]policy.FoodKind{
+	o.FoodKind_FOOD_KIND_MEAL_AWFUL:     policy.FoodKindMealAwful,
+	o.FoodKind_FOOD_KIND_MEAL_SIMPLE:    policy.FoodKindMealSimple,
+	o.FoodKind_FOOD_KIND_MEAL_FINE:      policy.FoodKindMealFine,
+	o.FoodKind_FOOD_KIND_MEAL_LAVISH:    policy.FoodKindMealLavish,
+	o.FoodKind_FOOD_KIND_RAW_MEAT:       policy.FoodKindRawMeat,
+	o.FoodKind_FOOD_KIND_HUMAN_MEAT:     policy.FoodKindHumanMeat,
+	o.FoodKind_FOOD_KIND_INSECT_MEAT:    policy.FoodKindInsectMeat,
+	o.FoodKind_FOOD_KIND_VEGETABLE:      policy.FoodKindVegetable,
+	o.FoodKind_FOOD_KIND_FUNGUS:         policy.FoodKindFungus,
+	o.FoodKind_FOOD_KIND_ANIMAL_PRODUCT: policy.FoodKindAnimalProduct,
+	o.FoodKind_FOOD_KIND_OTHER:          policy.FoodKindOther,
+	o.FoodKind_FOOD_KIND_KIBBLE:         policy.FoodKindKibble,
+	o.FoodKind_FOOD_KIND_HAY:            policy.FoodKindHay,
+}
+
+var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
+	o.MealIngredients_MEAL_INGREDIENTS_ANY:      policy.MealAnyIngredients,
+	o.MealIngredients_MEAL_INGREDIENTS_MEAT:     policy.MealMeatOnly,
+	o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT: policy.MealNonMeat,
+}
+
+// decodeThingFacts indexes the game-computed ThingDef flags (#1733): a row
+// names a known ThingDef once, a food kind and meal ingredients are known
+// enum values, and the ingredients are set on meals only. An absent list
+// stays nil.
+func decodeThingFacts(rows []*o.ThingDefFacts, things map[string]*d.ThingDef) (map[string]*o.ThingDefFacts, error) {
+	if rows == nil {
+		return nil, nil
 	}
-	return row.GetBuilding().GetJoyKind(), nil
+	out := make(map[string]*o.ThingDefFacts, len(rows))
+	for _, row := range rows {
+		name := row.GetDefName()
+		if things[name] == nil || out[name] != nil {
+			return nil, contract("catalog thing facts for unknown or repeated def %q", name)
+		}
+		kind := row.GetFoodKind()
+		meal := kind >= o.FoodKind_FOOD_KIND_MEAL_AWFUL && kind <= o.FoodKind_FOOD_KIND_MEAL_LAVISH
+		if row.FoodKind != nil && foodKinds[kind] == "" || row.MealIngredients != nil && (!meal || mealIngredients[row.GetMealIngredients()] == "") || row.FoodKind != nil && meal && row.MealIngredients == nil {
+			return nil, contract("catalog thing facts of %s carry an invalid food kind %v or ingredients %v", name, kind, row.GetMealIngredients())
+		}
+		out[name] = row
+	}
+	return out, nil
+}
+
+// thingFactsRow is name's game-computed flags row.
+func (catalog *DefinitionCatalog) thingFactsRow(name string) (*o.ThingDefFacts, error) {
+	if catalog == nil || catalog.thingFacts == nil {
+		return nil, contract("definition catalog carries no thing facts")
+	}
+	row := catalog.thingFacts[name]
+	if row == nil {
+		return nil, contract("catalog has no thing facts for %s", name)
+	}
+	return row, nil
+}
+
+// Foods is every food a policy can allow (a nutrition-giving ingestible that
+// is no drug and no corpse) with the kind the game's own classification gives
+// it and, for a meal, its ingredients, sorted by name.
+func (catalog *DefinitionCatalog) Foods() []policy.Food {
+	if catalog == nil {
+		return nil
+	}
+	var foods []policy.Food
+	for name, row := range catalog.thingFacts {
+		if row.FoodKind != nil {
+			foods = append(foods, policy.Food{Def: name, Kind: foodKinds[row.GetFoodKind()], Ingredients: mealIngredients[row.GetMealIngredients()]})
+		}
+	}
+	slices.SortFunc(foods, func(a, b policy.Food) int { return strings.Compare(a.Def, b.Def) })
+	return foods
+}
+
+// RawMeat is ThingDef.IsMeat of the def.
+func (catalog *DefinitionCatalog) RawMeat(name string) (bool, error) {
+	row, err := catalog.thingFactsRow(name)
+	return row.GetRawMeat(), err
+}
+
+// Medicine is ThingDef.IsMedicine of the def.
+func (catalog *DefinitionCatalog) Medicine(name string) (bool, error) {
+	row, err := catalog.thingFactsRow(name)
+	return row.GetMedicine(), err
 }

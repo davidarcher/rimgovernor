@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // Food policies (#1541): the food catalog PolicyFacts.foods classifies,
+    // Food policies (#1541): the food kinds the definition catalog classifies (#1733),
     // FoodPolicyIntent on Actions/Apply (the FoodPolicy labelled name, made
     // when missing, allows exactly the given foods; special filters keep
     // their values; corpses are always disallowed, #1543) and the pawn's current policy read. PawnSettingsIntent
@@ -46,11 +46,17 @@ namespace HomeBridge.BridgeTools
             return Obs.FoodKind.Other;
         }
 
-        internal static Obs.FoodDefinition Definition(ThingDef d)
+        // The game's own classification of one ThingDef, computed once per load
+        // for the definition catalog (#1733): the food kind and meal ingredients
+        // of a food a policy can allow, ThingDef.IsMeat and ThingDef.IsMedicine.
+        internal static Obs.ThingDefFacts Facts(ThingDef d)
         {
-            var row = new Obs.FoodDefinition { DefName = d.defName, Kind = Kind(d) };
-            if (row.Kind >= Obs.FoodKind.MealAwful && row.Kind <= Obs.FoodKind.MealLavish)
-                row.Ingredients = FoodUtility.GetFoodKind(d) switch {
+            var row = new Obs.ThingDefFacts { DefName = d.defName, RawMeat = d.IsMeat, Medicine = d.IsMedicine };
+            if (!IsFood(d)) return row;
+            var kind = Kind(d);
+            row.FoodKind = kind;
+            if (kind >= Obs.FoodKind.MealAwful && kind <= Obs.FoodKind.MealLavish)
+                row.MealIngredients = FoodUtility.GetFoodKind(d) switch {
                     FoodKind.Meat => Obs.MealIngredients.Meat,
                     FoodKind.NonMeat => Obs.MealIngredients.NonMeat,
                     _ => Obs.MealIngredients.Any,

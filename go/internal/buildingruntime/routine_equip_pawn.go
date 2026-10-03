@@ -47,6 +47,29 @@ type definitionCatalogSource interface {
 	DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 }
 
+// joyBuildingDefinitions are the catalog's joy buildings in preference order
+// (DefinitionCatalog.JoyBuildings). A source that serves no catalog (a test
+// double) gives none.
+func joyBuildingDefinitions(ctx context.Context, native any, identity *c.Identity) ([]string, error) {
+	source, ok := native.(definitionCatalogSource)
+	if !ok {
+		return nil, nil
+	}
+	catalog, err := source.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	methods, err := catalog.JoyBuildings()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, len(methods))
+	for i, m := range methods {
+		names[i] = m.Definition
+	}
+	return names, nil
+}
+
 // creepJoinerDownsides is the catalog's creepjoiner downside defs. A source
 // that serves no catalog (a test double) gives none, which holds every
 // creepjoiner back: nothing can show its downside.

@@ -30,10 +30,13 @@ func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy
 	}
 	rows := []policy.MedicineStack{}
 	for _, item := range u.Items {
-		if item.Medicine == nil {
+		// Whether the def is medicine is the catalog's (#1733); a def it has
+		// no row for leaves the stock unknown.
+		medicine, err := tables.Catalog.Medicine(tables.Entity(item.Item).GetDefName())
+		if err != nil {
 			return r
 		}
-		if !item.GetMedicine() {
+		if !medicine {
 			continue
 		}
 		if item.Count == nil || item.Forbidden == nil {

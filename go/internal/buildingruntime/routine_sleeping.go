@@ -228,7 +228,15 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
 	if r.phase == policy.ComfortBasic {
-		definitions = append(definitions, "TubeTelevision", "BilliardsTable", "ChessTable")
+		joy, err := joyBuildingDefinitions(call, r.native, boundary.Identity(state.Snapshot))
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		for _, name := range joy {
+			if !slices.Contains(definitions, name) {
+				definitions = append(definitions, name)
+			}
+		}
 	}
 	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) && !r.shelter {
 		definitions = r.workshop.candidates

@@ -15,7 +15,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 		v.Joy.Pawns = append(v.Joy.Pawns, policy.JoyTolerance{Pawn: id, Tolerance: []float64{0}, Bored: []bool{false}})
 	}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known[int64](2), BasicComfort: domain.Known(v)}, WorkPawns: domain.Known([]policy.WorkPawn{{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}})}})}
-	for _, name := range policy.RecreationDefinitions {
+	for _, name := range []string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"} {
 		f.Definitions = append(f.Definitions, observation.PlanningDefinition{Name: name, Available: domain.Known(true), ConstructionSkill: domain.Known[int32](0), Stuff: domain.Known("WoodLog")})
 	}
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}

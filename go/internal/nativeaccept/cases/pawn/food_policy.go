@@ -10,7 +10,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pol "github.com/davidarcher/RimGovernor/go/internal/policy"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -93,41 +93,45 @@ func foodPolicy(ctx context.Context, s cases.Session) error {
 	if facts == nil {
 		return fmt.Errorf("colony read carried no policy facts")
 	}
-	kinds := map[string]o.FoodKind{}
-	for _, f := range facts.Foods {
-		kinds[f.GetDefName()] = f.GetKind()
+	catalog, err := h.Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return err
 	}
-	held := map[string]map[o.FoodKind]bool{}
-	policy, reserve := map[string]string{}, map[string]string{}
+	kinds := map[string]pol.FoodKind{}
+	for _, f := range catalog.Foods() {
+		kinds[f.Def] = f.Kind
+	}
+	held := map[string]map[pol.FoodKind]bool{}
+	policyOf, reserve := map[string]string{}, map[string]string{}
 	for _, p := range facts.Food {
 		for _, pawn := range p.PawnIds {
-			held[pawn] = map[o.FoodKind]bool{}
+			held[pawn] = map[pol.FoodKind]bool{}
 			for _, d := range p.AllowedDefs {
 				held[pawn][kinds[d]] = true
 				if d == "Pemmican" || d == "MealSurvivalPack" {
 					reserve[pawn] = d
 				}
 			}
-			policy[pawn] = p.GetId()
+			policyOf[pawn] = p.GetId()
 			s.Report()["policy_"+pawn] = p.GetLabel()
 		}
 	}
 	s.Report()["cannibal_foods"], s.Report()["vegetarian_foods"] = fmt.Sprint(held[cannibal]), fmt.Sprint(held[vegetarian])
-	if policy[cannibal] == "" || policy[cannibal] == policy[vegetarian] {
-		return fmt.Errorf("cannibal and vegetarian share food policy %q", policy[cannibal])
+	if policyOf[cannibal] == "" || policyOf[cannibal] == policyOf[vegetarian] {
+		return fmt.Errorf("cannibal and vegetarian share food policy %q", policyOf[cannibal])
 	}
 	if len(reserve) > 0 {
 		return fmt.Errorf("home food policies allow the travel reserve: %v", reserve)
 	}
-	if !held[cannibal][o.FoodKind_FOOD_KIND_HUMAN_MEAT] {
+	if !held[cannibal][pol.FoodKindHumanMeat] {
 		return fmt.Errorf("cannibal's food policy allows %v, want human meat", held[cannibal])
 	}
-	for _, k := range []o.FoodKind{o.FoodKind_FOOD_KIND_HUMAN_MEAT, o.FoodKind_FOOD_KIND_RAW_MEAT, o.FoodKind_FOOD_KIND_INSECT_MEAT} {
+	for _, k := range []pol.FoodKind{pol.FoodKindHumanMeat, pol.FoodKindRawMeat, pol.FoodKindInsectMeat} {
 		if held[vegetarian][k] {
 			return fmt.Errorf("vegetarian's food policy allows %v, want no meat", held[vegetarian])
 		}
 	}
-	if !held[vegetarian][o.FoodKind_FOOD_KIND_MEAL_SIMPLE] {
+	if !held[vegetarian][pol.FoodKindMealSimple] {
 		return fmt.Errorf("vegetarian's food policy allows %v, want simple meals", held[vegetarian])
 	}
 	return nil

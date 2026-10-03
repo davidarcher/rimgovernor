@@ -10,7 +10,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	pol "github.com/davidarcher/RimGovernor/go/internal/policy"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -87,11 +87,15 @@ func animalFoodPolicy(ctx context.Context, s cases.Session) error {
 	if facts == nil {
 		return fmt.Errorf("colony read carried no policy facts")
 	}
-	kinds := map[string]o.FoodKind{}
-	for _, f := range facts.Foods {
-		kinds[f.GetDefName()] = f.GetKind()
+	catalog, err := h.Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return err
 	}
-	held := map[o.FoodKind]bool{}
+	kinds := map[string]pol.FoodKind{}
+	for _, f := range catalog.Foods() {
+		kinds[f.Def] = f.Kind
+	}
+	held := map[pol.FoodKind]bool{}
 	for _, p := range facts.Food {
 		for _, pawn := range p.PawnIds {
 			if pawn != dog {
@@ -104,10 +108,10 @@ func animalFoodPolicy(ctx context.Context, s cases.Session) error {
 		}
 	}
 	s.Report()["foods"] = fmt.Sprint(held)
-	if !held[o.FoodKind_FOOD_KIND_KIBBLE] {
+	if !held[pol.FoodKindKibble] {
 		return fmt.Errorf("animal's food policy allows %v, want kibble", held)
 	}
-	for _, k := range []o.FoodKind{o.FoodKind_FOOD_KIND_MEAL_AWFUL, o.FoodKind_FOOD_KIND_MEAL_SIMPLE, o.FoodKind_FOOD_KIND_MEAL_FINE, o.FoodKind_FOOD_KIND_MEAL_LAVISH} {
+	for _, k := range []pol.FoodKind{pol.FoodKindMealAwful, pol.FoodKindMealSimple, pol.FoodKindMealFine, pol.FoodKindMealLavish} {
 		if held[k] {
 			return fmt.Errorf("animal's food policy allows %v, want no meal", held)
 		}

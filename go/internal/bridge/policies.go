@@ -58,15 +58,6 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 				return contract("invalid biome disease")
 			}
 		}
-		foods := map[string]bool{}
-		for _, d := range f.Foods {
-			meal := d.GetKind() >= o.FoodKind_FOOD_KIND_MEAL_AWFUL && d.GetKind() <= o.FoodKind_FOOD_KIND_MEAL_LAVISH
-			if d == nil || validID(d.GetDefName()) != nil || foods[d.GetDefName()] || d.GetKind() == o.FoodKind_FOOD_KIND_UNSPECIFIED || o.FoodKind_name[int32(d.GetKind())] == "" ||
-				meal != (d.Ingredients != nil) || meal && (d.GetIngredients() == o.MealIngredients_MEAL_INGREDIENTS_UNSPECIFIED || o.MealIngredients_name[int32(d.GetIngredients())] == "") {
-				return contract("invalid food definition")
-			}
-			foods[d.GetDefName()] = true
-		}
 		ids, pawns := map[string]bool{}, map[string]bool{}
 		for _, row := range f.AllowedAreas {
 			if row == nil || validID(row.GetId()) != nil || ids[row.GetId()] || row.Label == nil || !diagnostic(row.Label) {

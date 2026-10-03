@@ -76,6 +76,8 @@ namespace HomeBridge.BridgeTools
             }
             catalog.Constants = Constants();
             catalog.StatValues = StatValues();
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
+                catalog.ThingFacts.Add(NativeFoodPolicy.Facts(def));
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Ideology = NativeIdeologyObservation.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
@@ -130,10 +132,13 @@ namespace HomeBridge.BridgeTools
                 foreach (var stuff in GenStuff.AllowedStuffsFor(def).OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
                     table.Rows.Add(StatRow(def, stuff, stats));
             }
+            // Every TerrainDef the same way, with no stuff and no cost list.
+            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
+                table.TerrainRows.Add(StatRow(def, null, stats));
             return table;
         }
 
-        private static Obs.DefStatRow StatRow(ThingDef def, ThingDef? stuff, System.Collections.Generic.List<StatDef> stats)
+        private static Obs.DefStatRow StatRow(BuildableDef def, ThingDef? stuff, System.Collections.Generic.List<StatDef> stats)
         {
             var row = new Obs.DefStatRow { DefName = def.defName, StuffName = stuff?.defName ?? "" };
             for (var i = 0; i < stats.Count; i++)
@@ -152,6 +157,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException($"Stat {stat.defName} of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
                 }
             }
+            if (def is not ThingDef) return row;
             try
             {
                 foreach (var cost in def.CostListAdjusted(stuff, false))

@@ -61,12 +61,13 @@ func haulPairFixture(t *testing.T) (*RoutineReviewer, *routineNative) {
 	reviewer, _, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(3), proto.Uint32(3)
-	item := func(id, def string, deterioration float64) *o.UpkeepItem {
+	native.itemDefs = map[string]itemDef{"MealSimple": {deterioration: 2}}
+	item := func(id, def string) *o.UpkeepItem {
 		return &o.UpkeepItem{Item: native.entity(&o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}}),
-			Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), BaseDeteriorationRate: proto.Float64(deterioration), Medicine: proto.Bool(false), Count: proto.Int64(10)}
+			Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Count: proto.Int64(10)}
 	}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
-		Items:   []*o.UpkeepItem{item("supply-1", "MealSimple", 2), item("stack-1", "Steel", 0)},
+		Items:   []*o.UpkeepItem{item("supply-1", "MealSimple"), item("stack-1", "Steel")},
 		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}},
 	}}}
 	missing := func(field string) *o.ReadIssue {

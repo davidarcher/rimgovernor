@@ -839,7 +839,7 @@ Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainHousing`.
 Dining uses native eating surfaces with adjacent sittable furniture, an enclosed
 roofed room and safe colonist access. Seat placement is restricted to the observed
-surface's adjacent cells. Recreation reuses native joy buildings with safe access
+surface's adjacent cells. Recreation reuses native joy buildings (chosen from the catalog rows by joy a session gives, then cost: `DefinitionCatalog.JoyBuildings`) with safe access
 and current power where required. Existing inaccessible furniture remains a blocker
 instead of causing duplicate construction or player-area changes.
 

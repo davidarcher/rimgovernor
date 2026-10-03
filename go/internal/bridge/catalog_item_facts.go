@@ -35,7 +35,7 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 		StuffBeauty: map[policy.Resource]float64{}, StuffCategories: map[policy.Resource][]string{}, AcceptedStuff: map[policy.Resource][]string{}, Categories: map[policy.Resource][]string{}}
 	for name, def := range catalog.ThingDefs {
 		resource := policy.Resource(name)
-		if row, ok := catalog.statValues[defStuff{name, ""}]; ok {
+		if row, ok := catalog.statValues.things[defStuff{name, ""}]; ok {
 			if v, shown := row.values[statMarketValue]; shown {
 				items.Market[resource] = float64(v)
 			}

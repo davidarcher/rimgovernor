@@ -91,9 +91,6 @@ func TestCatalogItemFactsReadDefRows(t *testing.T) {
 	if rain, err := catalog.RainVulnerable("Cell"); err != nil || rain {
 		t.Fatal(rain, err)
 	}
-	if kind, err := catalog.JoyKind("Chess"); err != nil || kind != "Gaming_Cerebral" {
-		t.Fatal(kind, err)
-	}
 }
 
 func TestRawFoodClassWalksCategoryParents(t *testing.T) {

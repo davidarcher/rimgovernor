@@ -29,6 +29,7 @@ func DecodeFoodSupply(v *o.FoodSupplyFacts, things bridge.Things, catalog *bridg
 // includes vegetable or fruit, and for a corpse whether its race is humanlike.
 type foodDef struct {
 	class     policy.FoodIngredientClass
+	rawMeat   bool
 	vegetable bool
 	humanlike bool
 }
@@ -37,6 +38,9 @@ func foodDefFacts(catalog *bridge.DefinitionCatalog, def string, corpse bool) (f
 	var facts foodDef
 	var err error
 	if facts.class, err = catalog.RawFoodClass(def); err != nil {
+		return facts, err
+	}
+	if facts.rawMeat, err = catalog.RawMeat(def); err != nil {
 		return facts, err
 	}
 	if facts.vegetable, err = catalog.Vegetable(def); err != nil {
@@ -71,7 +75,7 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 			return policy.FoodSupply{}, err
 		}
 		// A thing rots exactly while it has a rot deadline.
-		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: defFacts.class == policy.IngredientMeat, IsHumanlike: defFacts.humanlike, Vegetable: defFacts.vegetable, RawClass: domain.Known(defFacts.class), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: domain.Known(row.RotTicks != nil), RotTicks: optional(row.RotTicks), DefName: policy.Resource(def), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
+		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: defFacts.rawMeat, IsHumanlike: defFacts.humanlike, Vegetable: defFacts.vegetable, RawClass: domain.Known(defFacts.class), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: domain.Known(row.RotTicks != nil), RotTicks: optional(row.RotTicks), DefName: policy.Resource(def), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
 		if row.StackCount != nil {
 			stock.Count = domain.Known(row.GetStackCount())
 		}

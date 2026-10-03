@@ -11,7 +11,7 @@ import (
 
 func upkeepWire() *o.UpkeepFacts {
 	entity := NewRef
-	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false), Medicine: proto.Bool(false), BaseDeteriorationRate: proto.Float64(1)}}, Structures: []*o.UpkeepStructure{{Building: NewRef("wall"), Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}}}}
+	return &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: entity("item"), Count: proto.Int64(2), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false)}}, Structures: []*o.UpkeepStructure{{Building: NewRef("wall"), Home: proto.Bool(true), RepairPriority: proto.Int32(1)}}, Fires: []*o.FireState{{Fire: entity("fire"), Home: proto.Bool(true), Size: proto.Float64(.5)}}, Filth: []*o.FilthState{{Filth: entity("filth"), Home: proto.Bool(true), Thickness: proto.Uint32(1), RoomRole: proto.String("Kitchen"), Room: &c.Ref{Id: proto.String("7")}}}}
 }
 func TestDirectUpkeepBoundary(t *testing.T) {
 	size := &o.MapSize{Width: proto.Uint32(50), Height: proto.Uint32(50)}
@@ -47,15 +47,13 @@ func lightingWire() *o.LightingSection {
 
 func flooringWire() *o.FlooringSection {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-	terrain := func(name string, cleanliness float64, natural bool) *o.FloorTerrain {
-		return &o.FloorTerrain{DefName: proto.String(name), Cleanliness: proto.Float64(cleanliness), PathCost: proto.Int32(0), Beauty: proto.Float64(0), Flammability: proto.Float64(0), Natural: proto.Bool(natural)}
-	}
+	terrain := func(name string) *o.FloorTerrain { return &o.FloorTerrain{DefName: proto.String(name)} }
 	return &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{
 		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
-		Terrains: []*o.FloorTerrain{terrain("Soil", -1, true), terrain("WoodPlankFloor", 0, false)},
+		Terrains: []*o.FloorTerrain{terrain("Soil"), terrain("WoodPlankFloor")},
 	}}}
 }
 
@@ -76,9 +74,6 @@ func TestDirectUpkeepFlooringBoundary(t *testing.T) {
 		func(f *o.FlooringFacts) { f.Rooms[0].Room = &c.Ref{Id: proto.String("")} },
 		func(f *o.FlooringFacts) { f.Rooms[0].Role = proto.String("") },
 		func(f *o.FlooringFacts) { f.Terrains = append(f.Terrains, f.Terrains[0]) },
-		func(f *o.FlooringFacts) { f.Terrains[0].Cleanliness = proto.Float64(math.NaN()) },
-		func(f *o.FlooringFacts) { f.Terrains[0].Beauty = proto.Float64(math.Inf(1)) },
-		func(f *o.FlooringFacts) { f.Terrains[0].PathCost = proto.Int32(-1) },
 		func(f *o.FlooringFacts) { f.Terrains[0].DefName = nil },
 	} {
 		v := upkeepWire()

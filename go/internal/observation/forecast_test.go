@@ -29,7 +29,7 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity, bridge.Tables
 	combined.Stocks[0].Eaters = append(combined.Stocks[0].Eaters, bridge.NewRef("animal"))
 	r.GetObserved().FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: human}}
 	r.GetObserved().Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: combined, AnimalIds: []string{"animal"}, Patients: []*o.PatientForecast{{PawnId: proto.String("a")}, {PawnId: proto.String("b")}}}}}
-	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}, bridge.Tables{Things: things, Catalog: foodCatalog()}
+	return r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}, bridge.Tables{Things: things, Catalog: foodCatalog(t)}
 }
 func TestCombinedFoodForecastReachesRoutineFacts(t *testing.T) {
 	r, identity, tables := forecastFixture(t)

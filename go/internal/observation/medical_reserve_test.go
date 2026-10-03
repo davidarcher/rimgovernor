@@ -10,8 +10,9 @@ import (
 )
 
 func TestMedicalReserveProjectionPreservesIndependentUnknowns(t *testing.T) {
-	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("med"), Count: proto.Int64(5), Medicine: proto.Bool(true), Forbidden: proto.Bool(false)}}}
+	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("med"), Count: proto.Int64(5), Forbidden: proto.Bool(false)}}}
 	tables := heads(&o.EntityRef{Id: proto.String("med"), DefName: proto.String("MedicineHerbal")})
+	tables.Catalog = itemCatalog(t, map[string]itemFact{"MedicineHerbal": {medicine: true}}, nil)
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), Resources: []*o.Quantity{{DefName: proto.String("MedicineHerbal"), Units: proto.Int64(5)}}, Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	f := ColonyMedicalReserve(v, tables)
 	f.Catalog = policy.CoreItemFacts()
@@ -22,12 +23,12 @@ func TestMedicalReserveProjectionPreservesIndependentUnknowns(t *testing.T) {
 	if n, k := r.Replenish.Value(); !k || n != 4 {
 		t.Fatal(r)
 	}
-	u.Items[0].Medicine = nil
-	f = ColonyMedicalReserve(v, tables)
+	unclassified := tables
+	unclassified.Catalog = itemCatalog(t, map[string]itemFact{"Steel": {}}, nil)
+	f = ColonyMedicalReserve(v, unclassified)
 	if _, known := f.Items.Value(); known {
-		t.Fatal("missing medicine classification became empty census")
+		t.Fatal("a def the catalog has no facts for became an empty census")
 	}
-	u.Items[0].Medicine = proto.Bool(true)
 	v.Resources[0].Units = nil
 	f = ColonyMedicalReserve(v, tables)
 	if _, known := f.Resources.Value(); known {

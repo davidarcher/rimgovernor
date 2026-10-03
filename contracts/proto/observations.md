@@ -290,6 +290,12 @@ compact form, chosen over repeated name strings per row. A stat or cost list
 that fails, or a non-finite value, fails the whole read naming def, stuff and
 stat. A def, stuff or stat whose name is not a valid identifier fails the read,
 as in the def rows. Go does not port StatWorker or type any stat constant.
+`terrain_rows` holds the same rows for every `TerrainDef` (stuffless, no
+costs; kept apart from `rows` because a terrain defName may also name a
+ThingDef); `DefinitionCatalog.TerrainStatValue` reads them and
+`FloorTerrain(name)` joins cleanliness, beauty and flammability with the def
+row's `pathCost` and `natural`, so a frame's `FloorTerrain` names the terrain
+only (#1733).
 
 `DefinitionCatalog.StatValue(def, stuff, stat)` and `AdjustedCosts(def, stuff)`
 look the values up in the per-load-token cache; an absent table, a missing
@@ -300,6 +306,34 @@ cost. Go applies quality and condition itself. Size: a synthesized table of
 13700 rows (450 stuffed defs x 25 stuffs plus 2450 plain defs, 40 stats and 3
 costs each, 270 stats) is 3.9 MB; native timing and the real size are
 unmeasured.
+
+### Game-computed ThingDef flags
+
+`DefinitionCatalog.thing_facts` (`ThingDefFacts`, #1733) is one row for every
+ThingDef: what the game's own code says about the def, computed natively once
+per load and read by Go, never ported. `food_kind` is set for a food a policy
+can allow (a nutrition-giving ingestible that is no drug and no corpse): meal
+tier by `FoodPreferability`, then kibble, hay, meat by
+`FoodUtility.GetMeatSourceCategory`, `IsFungus`, `IsAnimalProduct`, a
+vegetable or fruit food type, else other; `meal_ingredients` is set on meals
+only (`FoodUtility.GetFoodKind`). `raw_meat` is `ThingDef.IsMeat` and
+`medicine` is `ThingDef.IsMedicine`. `DefinitionCatalog.Foods`, `RawMeat` and
+`Medicine` read them; a def without a row, a row for an unknown or repeated
+def, an unknown kind or ingredients value, and ingredients off a meal (or a
+meal without them) are contract errors. A frame carries no copy: the food
+stock, upkeep item and policy facts name only the thing and its instance data.
+
+### Joy buildings
+
+`DefinitionCatalog.JoyBuildings` chooses the joy buildings for recreation
+variety by a rule over catalog rows, never by name: a buildable planning
+definition whose ThingDef gives a `BuildingProperties.joyKind`, with the power
+its planning row draws. They are ordered by the joy one session gives (the
+`JobDef` `joyGainRate` times `joyDuration` of the `JoyGiverDef` that offers
+the building, the best giver when several do), then by the market value of
+its adjusted costs at the planning row's stuff (cheaper first), then by name.
+A joy building no `JoyGiverDef` offers, a giver whose job row is missing and a
+cost the stat table cannot value are contract errors.
 
 ## Royalty facts
 
