@@ -52,7 +52,7 @@ func gearModelDefs(t *testing.T) GearDefinitions {
 		g := gearGarments[name]
 		row := &d.ThingDef{DefName: name, Apparel: &d.ApparelProperties{Layers: g.layers, BodyPartGroups: g.groups, DefaultOutfitTags: g.tags, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}}
 		if g.speed != 0 {
-			row.EquippedStatOffsets = []*d.StatModifier{{Stat: statMoveSpeed, Value: g.speed}}
+			row.EquippedStatOffsets = []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: statMoveSpeed, Value: g.speed}}}
 		}
 		v.ThingDefs = append(v.ThingDefs, row)
 		// A stat the game does not show for a def is absent from its row:

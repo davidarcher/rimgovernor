@@ -122,8 +122,8 @@ func distinct(values []string) []string {
 // statOffset is the sum of a def's equipped stat offsets for stat.
 func statOffset(row *d.ThingDef, stat string) float32 {
 	var sum float32
-	for _, m := range row.GetEquippedStatOffsets() {
-		if m.GetStat() == stat {
+	for _, entry := range row.GetEquippedStatOffsets() {
+		if m := entry.GetValue(); m.GetStat() == stat {
 			sum += m.GetValue()
 		}
 	}
@@ -132,7 +132,7 @@ func statOffset(row *d.ThingDef, stat string) float32 {
 
 // hasShield reports a def with the shield comp.
 func hasShield(row *d.ThingDef) bool {
-	return slices.ContainsFunc(row.GetComps(), func(c *d.CompPropertiesAny) bool { return c.GetCompProperties_Shield() != nil })
+	return slices.ContainsFunc(row.GetComps(), func(c *d.Opt_CompPropertiesAny) bool { return c.GetValue().GetCompProperties_Shield() != nil })
 }
 
 // optionStat is one stat of the option's (def, stuff) at Normal quality

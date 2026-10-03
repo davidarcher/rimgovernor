@@ -207,11 +207,14 @@ over the generated descriptors, with no per-class code: a message mirrors the
 CLR class its `clr_type` option names, a field is read by its name, a def
 reference is its `defName`, a `System.Type` its full name, an enum its number,
 a `Nullable<T>` an optional field, a `Dictionary` repeated `entry` messages
-and a nested collection a `list` message. A class with subclasses is a
-`<Class>Any` oneof whose arm is chosen by the value's exact type. A value the
+a nested collection a `list` message, and a class element of a list an
+`Opt_` message whose `value` is unset for a null element (the game reads null
+entries positionally, `ThoughtDef.stages`: Go checks `entry.GetValue()` for
+nil and keeps the index). A null dictionary value is the entry's unset `value`.
+A class with subclasses is a `<Class>Any` oneof whose arm is chosen by the value's exact type. A value the
 messages cannot hold fails the whole read naming `Class.field`, with no skip
-and no fallback: a missing CLR field, a null collection element, or a type
-with no arm. A mod subclass of a mirrored polymorphic class (a mod's
+and no fallback: a missing CLR field, a null string, def or `Type` element (or a null
+dictionary key or scalar value), or a type with no arm. A mod subclass of a mirrored polymorphic class (a mod's
 `CompProperties`) is such a type, so the catalog read fails on a modded game;
 the supported configuration is vanilla plus the DLCs the generator saw.
 

@@ -20,10 +20,11 @@ namespace HomeBridge.BridgeTools
     //     its XML text;
     //   * a List, array or HashSet is a repeated field, a Dictionary repeated
     //     "entry" messages (key, value), a nested collection a "list" message
-    //     (items);
+    //     (items), and a class element an "optional" message (value) that stays
+    //     unset for a null element, because the game uses null entries positionally;
     //   * a class with subclasses is a "<Class>Any" message whose oneof arm is
     //     chosen by the value's exact type.
-    // A value the mirror cannot hold (a null collection element, a type without
+    // A value the mirror cannot hold (a null string, def or Type element, a null dictionary key or scalar value, a type without
     // an arm such as a mod's CompProperties subclass, a missing CLR field) throws
     // naming Class.field; nothing is skipped. A null reference leaves its field
     // unset. One instance serves one read on one thread: it caches per descriptor.
@@ -125,27 +126,25 @@ namespace HomeBridge.BridgeTools
                 var valueField = fd.MessageType.FindFieldByNumber(2);
                 foreach (DictionaryEntry pair in dictionary)
                 {
-                    if (pair.Key == null || pair.Value == null) throw Fail(owner, field, "a dictionary entry has a null key or value");
+                    if (pair.Key == null) throw Fail(owner, field, "a dictionary entry has a null key");
                     var item = Create(fd.MessageType);
                     keyField.Accessor.SetValue(item, Value(keyField, pair.Key, owner, field));
-                    valueField.Accessor.SetValue(item, Value(valueField, pair.Value, owner, field));
+                    // A null message value is the entry's unset value field.
+                    if (pair.Value != null) valueField.Accessor.SetValue(item, Value(valueField, pair.Value, owner, field));
+                    else if (valueField.FieldType != FieldType.Message) throw Fail(owner, field, "a dictionary entry has a null scalar value");
                     target.Add(item);
                 }
                 return;
             }
             if (entry || collection is string || !(collection is IEnumerable items))
                 throw Fail(owner, field, $"{collection.GetType().FullName} is not a collection of the repeated field");
+            var optional = fd.FieldType == FieldType.Message && Synthetic(fd.MessageType) == "optional";
             foreach (var item in items)
             {
-                // A null message element holds its index (ThoughtDef.stages leaves a
-                // null for a stage no thought uses), so it mirrors as an empty message.
-                if (item == null)
-                {
-                    if (fd.FieldType != FieldType.Message) throw Fail(owner, field, "a collection element is null");
-                    target.Add(Create(fd.MessageType));
-                    continue;
-                }
-                target.Add(Value(fd, item, owner, field));
+                if (item == null && !optional) throw Fail(owner, field, "a collection element is null");
+                // A null class element keeps its index (ThoughtDef.stages leaves a null
+                // for a stage no thought uses): its wrapper's value stays unset.
+                target.Add(item == null ? Create(fd.MessageType) : Value(fd, item, owner, field));
             }
         }
 
@@ -184,6 +183,13 @@ namespace HomeBridge.BridgeTools
                 var wrapper = Create(descriptor);
                 var items = descriptor.FindFieldByName("items");
                 AddAll((IList)items.Accessor.GetValue(wrapper), items, value, owner, field);
+                return wrapper;
+            }
+            if (synthetic == "optional")
+            {
+                var wrapper = Create(descriptor);
+                var slot = descriptor.FindFieldByName("value");
+                slot.Accessor.SetValue(wrapper, Value(slot, value, owner, field));
                 return wrapper;
             }
             if (synthetic != null) throw Fail(owner, field, $"synthetic {synthetic} message {descriptor.Name} outside a dictionary");

@@ -82,7 +82,15 @@ Mapping, with no allow-list and no name lists:
 - `Nullable<T>` is a proto3 `optional` field; `List`, `HashSet` and arrays are
   `repeated`; a `Dictionary` is `repeated` `Entry_<Key>_<Value>` messages; a
   collection nested in a collection is a `List_<Element>` message with one
-  repeated `items` field. Both synthetic shapes carry the `clr_synthetic` option.
+  repeated `items` field. A repeated element that is a reference type mirrored as a
+  message (a class, a `<Class>Any` wrapper, a nested collection) is wrapped in an
+  `Opt_<Element>` message with one message-typed `value` field, unset for a null
+  element: the game uses null list entries positionally (`ThoughtDef.stages`), so
+  skipping or defaulting one would shift the states. Structs, enums and
+  string-mapped elements (def references, `System.Type`) are not wrapped, and a
+  null one fails the read. A `Dictionary` value is a message field of its entry,
+  unset for a null message value. The three synthetic shapes carry the
+  `clr_synthetic` option (`entry`, `list`, `optional`).
 - A field whose class has subclasses is a `<Class>Any` oneof over the class and
   each concrete subclass. `Def.modExtensions` is a repeated empty
   `DefModExtension` message: vanilla defines no subclass; the abstract class

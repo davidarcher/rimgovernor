@@ -12,6 +12,26 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// TestDefRowKeepsAbsentListEntryPosition (#1781): the game uses a null list
+// entry positionally (ThoughtDef.stages), so the wrapped entry stays in place
+// through the wire and reads as nil.
+func TestDefRowKeepsAbsentListEntryPosition(t *testing.T) {
+	row := &d.ThoughtDef{DefName: "Mood", Stages: []*d.Opt_ThoughtStage{
+		{Value: &d.ThoughtStage{Label: "low"}}, {}, {Value: &d.ThoughtStage{Label: "high"}}}}
+	raw, err := proto.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got d.ThoughtDef
+	if err := proto.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	stages := got.GetStages()
+	if len(stages) != 3 || stages[0].GetValue().GetLabel() != "low" || stages[1].GetValue() != nil || stages[2].GetValue().GetLabel() != "high" {
+		t.Fatalf("stages = %v, want low, absent, high in place", stages)
+	}
+}
+
 func catalogConstants() *o.CatalogConstants {
 	return &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3}
 }
@@ -23,7 +43,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	context := authorityTestContext(7)
 	build := func() *o.DefinitionCatalog {
 		v := catalogReply(context).GetObserved()
-		v.ThingDefs = []*d.ThingDef{{DefName: "Wall", Label: "wall", StackLimit: 1, Comps: []*d.CompPropertiesAny{{Value: &d.CompPropertiesAny_CompProperties{CompProperties: &d.CompProperties{CompClass: "Verse.CompForbiddable"}}}}}, {DefName: "Bed"}}
+		v.ThingDefs = []*d.ThingDef{{DefName: "Wall", Label: "wall", StackLimit: 1, Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties{CompProperties: &d.CompProperties{CompClass: "Verse.CompForbiddable"}}}}}}, {DefName: "Bed"}}
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "Wall", Label: "floor"}}
 		v.Constants = catalogConstants()
 		v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "Wall", Label: "stat"}}, RecipeDefs: []*d.RecipeDef{{DefName: "Wall"}, {DefName: "Bed"}}}
@@ -33,7 +53,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row := catalog.ThingDef("Wall"); row == nil || row.StackLimit != 1 || row.Comps[0].GetCompProperties().CompClass != "Verse.CompForbiddable" {
+	if row := catalog.ThingDef("Wall"); row == nil || row.StackLimit != 1 || row.Comps[0].GetValue().GetCompProperties().CompClass != "Verse.CompForbiddable" {
 		t.Fatalf("thing row %+v", row)
 	}
 	if row := catalog.TerrainDef("Wall"); row == nil || row.Label != "floor" {

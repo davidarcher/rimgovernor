@@ -20,6 +20,12 @@
 //     repeated fields; a Dictionary becomes repeated key/value entry messages; a
 //     collection nested in a collection becomes a synthetic wrapper message with
 //     one repeated "items" field. Synthetic messages carry the clr_synthetic option.
+//   * A repeated element that is a reference type mirrored as a message (a class,
+//     a "<Class>Any" wrapper, a nested collection) is wrapped in an "Opt_<Element>"
+//     message with one optional "value" field, unset for a null element, because the
+//     game uses null list entries positionally. Structs, enums and string-mapped
+//     elements (defName, Type) are not wrapped. A dictionary value is a message
+//     field of its entry, unset for null.
 //   * A field whose class has subclasses becomes a oneof wrapper ("<Class>Any")
 //     over the class and each concrete subclass. An abstract class with no fields
 //     and no concrete subclass (DefModExtension in vanilla) becomes an empty
@@ -102,7 +108,7 @@ internal sealed class Unsupported : Exception
 // A message the generator invents for a shape protobuf lacks: a dictionary
 // entry (Key, Value) or a wrapper around a collection nested in a collection
 // (Value is the repeated element).
-internal sealed record Synth(bool Entry, Ref? Key, Ref Value);
+internal sealed record Synth(bool Entry, Ref? Key, Ref Value, bool Optional = false);
 
 // How a field's element appears on the wire.
 internal sealed record Ref(string? Scalar, Type? Clr, bool IsEnum, bool IsAny, Synth? Synthetic = null);
@@ -409,11 +415,22 @@ internal sealed class Generator
         if (t.IsArray)
         {
             if (t.GetArrayRank() != 1) throw new Unsupported($"{t} is a multidimensional array");
-            return ResolveElement(t.GetElementType()!);
+            return Slot(ResolveElement(t.GetElementType()!));
         }
         var args = t.GetGenericArguments();
         if (args.Length == 2) return Synthetic(new Synth(true, ResolveElement(args[0]), ResolveElement(args[1])));
-        return ResolveElement(args[0]);
+        return Slot(ResolveElement(args[0]));
+    }
+
+    // A repeated field cannot hold an absent element, and the game uses null list
+    // entries positionally, so an element that is a reference type mirrored as a
+    // message (a class, a "<Class>Any" wrapper, a nested collection) is wrapped in
+    // an Opt_ message whose message-typed value is unset for null. Structs, enums
+    // and the scalar mappings (string, defName, Type) are not wrapped.
+    private Ref Slot(Ref element)
+    {
+        var message = element.Synthetic is { Entry: false, Optional: false } || (element.Clr is { IsValueType: false } && !element.IsEnum);
+        return message ? Synthetic(new Synth(false, null, element, true)) : element;
     }
 
     // An item of a collection or a Nullable payload: protobuf cannot nest
@@ -463,7 +480,7 @@ internal sealed class Generator
         r.Synthetic != null ? SynthName(r.Synthetic) : r.Scalar ?? names[r.Clr!] + (r.IsAny ? "Any" : "");
 
     private string SynthName(Synth s) =>
-        s.Entry ? "Entry_" + Part(s.Key!) + "_" + Part(s.Value) : "List_" + Part(s.Value);
+        s.Entry ? "Entry_" + Part(s.Key!) + "_" + Part(s.Value) : (s.Optional ? "Opt_" : "List_") + Part(s.Value);
 
     // ---- emit ----
 
@@ -495,7 +512,10 @@ internal sealed class Generator
         L("// Public instance fields only, minus [Unsaved] fields. Def references are the");
         L("// defName, System.Type is its full name, Nullable<T> is optional, a Dictionary is");
         L("// repeated Entry_ messages (key, value), a collection nested in a collection is a");
-        L("// List_ message (items). Both carry the clr_synthetic option.");
+        L("// List_ message (items). A repeated element that is a class mirrored as a message is an");
+        L("// Opt_ message (value, unset for a null element: the game uses null entries positionally);");
+        L("// structs, enums and string-mapped elements (defName, Type) are not wrapped. All three");
+        L("// carry the clr_synthetic option.");
         L("//");
         L("// Abstract classes without fields or concrete subclass (empty messages):");
         foreach (var t in emptyAbstract.OrderBy(t => t.FullName, StringComparer.Ordinal)) L("//   " + t.FullName);
@@ -517,7 +537,7 @@ internal sealed class Generator
         L("extend google.protobuf.MessageOptions {");
         L("  // The CLR class a message mirrors; native instantiates it by this name.");
         L("  string clr_type = 50100;");
-        L("  // \"entry\" (a Dictionary entry: key, value) or \"list\" (a nested collection: items).");
+        L("  // \"entry\" (a Dictionary entry: key, value), \"list\" (a nested collection: items)\n  // or \"optional\" (a possibly null repeated element: value).");
         L("  string clr_synthetic = 50101;");
         L("}");
 
@@ -570,6 +590,11 @@ internal sealed class Generator
                 L("  option (clr_synthetic) = \"entry\";");
                 L($"  {TypeName(s.Key!)} key = 1;");
                 L($"  {TypeName(s.Value)} value = 2;");
+            }
+            else if (s.Optional)
+            {
+                L("  option (clr_synthetic) = \"optional\";");
+                L($"  {TypeName(s.Value)} value = 1;");
             }
             else
             {
