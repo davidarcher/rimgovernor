@@ -138,7 +138,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if _, err = boundary.Context(combat.Context, state.Snapshot); err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick) {
 		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
-	in, reason, err := combatFrameInputs(combat)
+	in, reason, err := combatFrameInputs(combat, store.HuntPrey(incident.Incident))
 	if err != nil || reason != "" {
 		return RoutineDefenseResult{Reason: reason}, err
 	}
@@ -292,13 +292,16 @@ type combatInputs struct {
 	hunting    map[string]bool
 	buildings  []policy.EmergencyThreat
 	rows       map[string]*n.PawnState
+	// prey are a hunt origin's live squad prey (#1617), read only while no
+	// hostile stands: wild animals the threat census does not call hostile.
+	prey []string
 	// needed is plannedDrafts, set by the planner (#939).
 	needed map[domain.PawnID]bool
 }
 
 // combatFrameInputs is the fight's inputs from the frame; a reason means
 // there is no fight to decide (an incomplete census, no threat).
-func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReason, error) {
+func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatInputs, RoutineBuildingReason, error) {
 	facts := combat.Emergency.Facts
 	colonistsComplete, ck := facts.ColonistsComplete.Value()
 	if !ck || !colonistsComplete {
@@ -306,16 +309,25 @@ func combatFrameInputs(combat bridge.Combat) (combatInputs, RoutineBuildingReaso
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
+	// A hunt origin (#1617) is a fight with no hostile: its prey are the
+	// targets while the frame shows none.
+	if len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
+		for _, id := range huntPrey {
+			if row := combat.Detail[string(id)]; row != nil && boundary.FactBool(row.Dead) != domain.Known(true) {
+				in.prey = append(in.prey, string(id))
+			}
+		}
+	}
 	// Raiders still in their pods (#908) are a fight with no hostile yet:
 	// the pods tactic drafts the nearest armed before the open (#891).
-	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
+	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings)+len(in.prey) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
 		return combatInputs{}, BuildingMethodUsed, nil
 	}
 	in.rows = map[string]*n.PawnState{}
 	for _, pawn := range facts.Colonists {
 		in.rows[string(pawn.ID)] = combat.Detail[string(pawn.ID)]
 	}
-	for _, id := range in.hostileIDs {
+	for _, id := range append(slices.Clone(in.hostileIDs), in.prey...) {
 		in.rows[id] = combat.Detail[id]
 	}
 	for _, row := range in.rows {
@@ -387,6 +399,10 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 		threats = append(threats, facts)
 		positional = append(positional, defensiveThreatFacts(row))
 	}
+	// A hunt origin's prey are threats the squad answers (#1617).
+	for _, id := range in.prey {
+		threats = append(threats, squadThreatFacts(in.rows[id]))
+	}
 	lines := buildingLinesOfFire(combat.Lines, in.buildings, defenders, in.rows)
 	for _, building := range in.buildings {
 		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
@@ -401,8 +417,29 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Tick: domain.Tick(combat.Context.GetTick()), Pawns: combatPawnStates(combat, in.rows), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
+	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows), in), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
 		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
+}
+
+// preyStates adds the hunt origin's prey the combat mirror does not list
+// (it carries wild animals only beside a hostile) from their detail rows.
+func preyStates(states []policy.CombatPawnState, in combatInputs) []policy.CombatPawnState {
+	listed := map[domain.PawnID]bool{}
+	for _, s := range states {
+		listed[s.ID] = true
+	}
+	for _, id := range in.prey {
+		row := in.rows[id]
+		if listed[domain.PawnID(id)] {
+			continue
+		}
+		s := policy.CombatPawnState{ID: domain.PawnID(id), Downed: row.GetDowned(), Dead: row.GetDead(), Wild: true}
+		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
+			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
+		}
+		states = append(states, threatFacts(s, row))
+	}
+	return states
 }
 
 // podArrival is the frame's newest drop-pod arrival row (#870), for the

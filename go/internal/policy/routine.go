@@ -633,6 +633,19 @@ type RoutineAssessment struct {
 	// resume, which parked a power enclosure build behind an unfought
 	// short-circuit fire (#435).
 	MethodUnavailable bool
+	// Hunt is the squad prey of an ActiveCombat deficit raised by the food
+	// plan with no hostile standing (#1617): the incident's hunt origin.
+	Hunt []domain.PawnID `json:",omitempty"`
+}
+
+// combatCleared is whether ActiveCombat has nothing to answer: no hostile
+// stands and the food plan opens no squad hunt.
+func combatCleared(f RoutineFacts) domain.Fact[bool] {
+	cleared := measured(f.Hostiles, func(n int64) bool { return n == 0 })
+	if positive(cleared) && len(HuntRequest(f.FoodPlan)) > 0 {
+		return domain.Known(false)
+	}
+	return cleared
 }
 
 func positive(v domain.Fact[bool]) bool { b, k := v.Value(); return k && b }
@@ -828,7 +841,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if positive(f.ChoiceDialog) {
 		addGoal(AnswerDialog, 0)
 	}
-	if !positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) {
+	if !positive(combatCleared(f)) {
 		addGoal(ActiveCombat, 0)
 	}
 	medicalPriority := criticalMedicinePriority(f)
@@ -955,7 +968,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
 	addAssessment(AnswerDialog, 0, not(f.ChoiceDialog))
-	addAssessment(ActiveCombat, 0, measured(f.Hostiles, func(n int64) bool { return n == 0 }))
+	addAssessment(ActiveCombat, 0, combatCleared(f))
+	if cleared := measured(f.Hostiles, func(n int64) bool { return n == 0 }); positive(cleared) {
+		r.Assessments[len(r.Assessments)-1].Hunt = HuntRequest(f.FoodPlan)
+	}
 	addAssessment(CriticalMedicine, medicalPriority, medicalMet)
 	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
 	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))

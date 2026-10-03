@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -20,6 +21,22 @@ type RoutineIncident struct {
 	Subject  domain.PawnID `json:",omitempty"`
 	Incident domain.IncidentID
 	Need     domain.NeedState
+}
+
+// huntPayload is the payload of an ActiveCombat occurrence the food plan
+// raised (#1617): the squad prey it opens on.
+type huntPayload struct {
+	Prey []domain.PawnID `json:"prey"`
+}
+
+// HuntPrey is the squad prey of an occurrence's latest assessment: non-empty
+// while the food plan raises it with no hostile standing (its hunt origin).
+func HuntPrey(i domain.Incident) []domain.PawnID {
+	var p huntPayload
+	if len(i.Payload) == 0 || json.Unmarshal(i.Payload, &p) != nil {
+		return nil
+	}
+	return p.Prey
 }
 
 // Incident is the review's binding for kind's colony-wide occurrence.
@@ -104,7 +121,15 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 				continue
 			}
 		}
-		state, err := openIncident(ctx, tx, IncidentAssessment{Kind: n.ID, Subject: n.Subject, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick})
+		assessment := IncidentAssessment{Kind: n.ID, Subject: n.Subject, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick}
+		if len(n.Hunt) > 0 && n.Need == domain.NeedDeficit {
+			// The food plan raised this occurrence: its hunt origin (#1617).
+			if assessment.Payload, err = json.Marshal(huntPayload{Prey: n.Hunt}); err != nil {
+				return nil, nil, err
+			}
+			assessment.Trigger = fmt.Sprintf("%s hunt", n.ID)
+		}
+		state, err := openIncident(ctx, tx, assessment)
 		if err != nil {
 			return nil, nil, err
 		}

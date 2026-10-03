@@ -27,7 +27,7 @@ func TestCombatFrameSparesFleeingBleeder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	in, _, err := combatFrameInputs(combat)
+	in, _, err := combatFrameInputs(combat, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

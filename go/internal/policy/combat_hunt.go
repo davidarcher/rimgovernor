@@ -33,9 +33,11 @@ func huntFormation(view CombatView) []CombatRole {
 			gunners = append(gunners, d)
 		}
 	}
-	if len(gunners) == 0 || len(prey) == 0 {
+	if len(gunners) < SquadHuntMinGunners || len(prey) == 0 {
 		return nil
 	}
+	// A larger roster keeps its other members working.
+	gunners = gunners[:min(len(gunners), SquadHuntMaxGunners)]
 	top := prey[0].ID
 	var sum domain.Cell
 	known := int32(0)

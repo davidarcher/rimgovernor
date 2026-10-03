@@ -56,6 +56,8 @@ type FoodChannel struct {
 	// DistanceSquared is the nearest source cell to the colony centre;
 	// fishing regions of equal lead rank nearest-first on it.
 	DistanceSquared domain.Fact[float64]
+	// Prey is a squad hunt's animals (SquadHunts), sorted.
+	Prey []string
 }
 
 type FoodPlanRequest struct {
@@ -188,6 +190,8 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 		}
 		c.Risk = append([]FoodRisk(nil), c.Risk...)
 		c.Terms = append([]FoodPlanTerm(nil), c.Terms...)
+		c.Prey = append([]string(nil), c.Prey...)
+		c.Prey = append([]string(nil), c.Prey...)
 		e := FoodPlanEntry{Channel: c, Decision: FoodPlanHold, Terms: append([]FoodPlanTerm(nil), c.Terms...)}
 		if len(missing) > 0 {
 			e.Reason = "unknown: " + strings.Join(missing, ", ")

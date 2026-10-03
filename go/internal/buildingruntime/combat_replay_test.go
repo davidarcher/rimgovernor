@@ -56,7 +56,7 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 		if err != nil {
 			return nil, fmt.Errorf("stop %d (tick %d): %w", i, s.Tick, err)
 		}
-		in, reason, err := combatFrameInputs(combat)
+		in, reason, err := combatFrameInputs(combat, nil)
 		if err != nil || reason != "" {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame holds no fight (%s %v)", i, s.Tick, reason, err)
 		}

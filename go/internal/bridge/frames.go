@@ -766,6 +766,12 @@ func censusPawns(v *o.BundleSnapshot) *o.PawnSnapshot {
 			ids[row.GetPawn().GetId()] = true
 		}
 	}
+	// A squad hunt's prey (#1617): the open hunt rows of the colony census.
+	for _, row := range v.GetColonyFacts().GetAcquisition() {
+		if row.GetHunt() && !row.GetDesignated() && !row.GetTaken() {
+			ids[row.GetSource().GetId()] = true
+		}
+	}
 	out := &o.PawnSnapshot{Context: v.Pawns.Context, Completeness: v.Pawns.Completeness, MeditateAssignmentAvailable: v.Pawns.MeditateAssignmentAvailable}
 	for _, row := range v.Pawns.Pawns {
 		if ids[row.GetPawn().GetId()] {

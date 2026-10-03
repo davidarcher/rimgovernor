@@ -55,7 +55,13 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	if human, hk := p.FoodSupply.Value(); hk {
 		forecast = forecast.GateOnColonists(foodConsumerIDs(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays)
 	}
-	channels := append(policy.ForageChannels(sources), policy.HuntChannels(sources)...)
+	var gunners int
+	if pawns, known := p.WorkPawns.Value(); known {
+		gunners = policy.SquadGunners(policy.Profiles(pawns))
+	}
+	squads, lone := policy.SquadHunts(sources, gunners)
+	channels := append(policy.ForageChannels(sources), policy.HuntChannels(lone)...)
+	channels = append(channels, squads...)
 	if benches, bk := p.ProductionBenches.Value(); bk {
 		if human, hk := p.FoodSupply.Value(); hk {
 			var ids []policy.PawnID
