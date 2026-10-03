@@ -341,8 +341,13 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 	}
 	sites := policy.PlannedPowerSites(plan, r.definition)
 	if len(sites) == 0 {
+		clockSchedulerLog("%s: the plan reserves no %s site", r.goal, r.definition)
 		return nil, stock, false, nil
 	}
+	// refused names why each planned site was passed over, logged once when
+	// fewer than missing sites fit (#1585: a reserved turbine that is never
+	// built left no trace).
+	var refused []string
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {
 		blocked[c] = true
@@ -389,10 +394,12 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 		safe, sk := v.SafeToPlace.Value()
 		made, mk := v.MadeFromStuff.Value()
 		if !fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !sameCells(footprint, policy.RectangleCells(area)) {
+			refused = append(refused, fmt.Sprintf("%s@%v: known=%v/%v/%v/%v canPlace=%v safe=%v madeFromStuff=%v footprintMatches=%v blockers=%v", name, c, fk, ck, sk, mk, can, safe, made, sameCells(footprint, policy.RectangleCells(area)), v.Blockers))
 			return policy.Preview{}, false, nil
 		}
 		if name == policy.WindTurbineDefinition {
 			if w, known := v.WindBlockedCells.Value(); !known || w > 0 {
+				refused = append(refused, fmt.Sprintf("%s@%v: WindBlockedCells=%d known=%v", name, c, w, known))
 				return policy.Preview{}, false, nil
 			}
 		}
@@ -414,6 +421,7 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 			free = free && !blocked[c] && !built[c] && (r.definition != policy.BatteryDefinition || roofed[c])
 		}
 		if !free {
+			refused = append(refused, fmt.Sprintf("%s@%v: site cells blocked, built or (battery) unroofed", r.definition, s.Cell))
 			continue
 		}
 		v, ok, err := preview(r.definition, s.Cell, s.Rotation, r.stuff, s.Area)
@@ -439,6 +447,7 @@ func (r *RoutineBuildingPlanner) previewPlannedPower(ctx context.Context, snapsh
 		}
 	}
 	if placed < missing {
+		clockSchedulerLog("%s: planned %s sites fit %d of %d missing: %v", r.goal, r.definition, placed, missing, refused)
 		return nil, stock, false, nil
 	}
 	return selected, stock, true, nil
