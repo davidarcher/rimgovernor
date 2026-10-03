@@ -204,54 +204,34 @@ func (g coreGrid) scoreSite(p LayoutPlan) int {
 	return score
 }
 
-// siteEdgeClear is how far from the map edge a room stands before the
-// edge stops costing it: the ring cannot be built in the edge margin, so
-// scoreWall would otherwise read a core pressed against the edge as a
-// cheap one, and raiders arrive at the edge.
+// siteEdgeClear is how far a raider must walk from an open map edge cell
+// before the edge stops costing a room: the ring cannot be built in the
+// edge margin, so scoreWall would otherwise read a core pressed against the
+// edge as a cheap one, and raiders arrive at the edge.
 const (
 	siteEdgeClear  = 50
 	siteEdgeWeight = 3
 )
 
-// siteEdgeCost charges every room cell siteEdgeWeight per cell it stands
-// closer to the map edge than siteEdgeClear, or a fifth of the map's
-// short side on a small map. A cell whose nearest edge cell is rock costs
-// nothing: raiders spawn only on open edge cells, so a core tucked into a
-// mountain that runs to the edge is shielded by it, not exposed.
+// siteEdgeCost charges every room cell siteEdgeWeight per step of walking
+// distance (siteGround.walk) it stands closer to an open map edge cell than
+// siteEdgeClear, or a fifth of the map's short side on a small map. Rock
+// and other blocked cells lengthen the path, so a core tucked into a
+// mountain is as far as a raider must walk around it; a cell no raider can
+// reach costs nothing.
 func siteEdgeCost(p LayoutPlan, b Bounds, ground siteGround) int {
 	clear := min(siteEdgeClear, int(min(b.Width, b.Height))/5)
 	cost := 0
 	for _, r := range p.AllRooms() {
 		for _, c := range rectCells(r.Interior) {
-			d, edge := nearestEdge(c, b)
-			if int(d) >= clear || ground.rockAt(edge) {
+			d := ground.walkDist(c)
+			if d < 0 || d >= clear {
 				continue
 			}
-			cost += siteEdgeWeight * (clear - int(d))
+			cost += siteEdgeWeight * (clear - d)
 		}
 	}
 	return cost
-}
-
-// nearestEdge is c's distance to the nearest map edge and the edge cell
-// straight out from c in that direction.
-func nearestEdge(c domain.Cell, b Bounds) (int32, domain.Cell) {
-	d, edge := c.X, domain.Cell{X: 0, Z: c.Z}
-	if v := b.Width - 1 - c.X; v < d {
-		d, edge = v, domain.Cell{X: b.Width - 1, Z: c.Z}
-	}
-	if c.Z < d {
-		d, edge = c.Z, domain.Cell{X: c.X, Z: 0}
-	}
-	if v := b.Height - 1 - c.Z; v < d {
-		d, edge = v, domain.Cell{X: c.X, Z: b.Height - 1}
-	}
-	return d, edge
-}
-
-// rockAt reports whether c is rock or otherwise blocked ground.
-func (g siteGround) rockAt(c domain.Cell) bool {
-	return c.X >= 0 && c.X < g.w && c.Z >= 0 && c.Z < g.h && g.blocked[c.Z*g.w+c.X]
 }
 
 // siteWallCandidates is K, how many of the best sites by core score are
@@ -266,11 +246,13 @@ const siteWallCandidates = 8
 // mountain-side site is cheaper than an open one by its saved cells.
 const siteWallWeight = 10
 
-// siteGround is the map's size and its impassable cells, shared by every
-// candidate's wall score.
+// siteGround is the map's size, its impassable cells and every cell's
+// walking distance from the nearest open edge cell, shared by every
+// candidate's wall and edge score.
 type siteGround struct {
 	w, h    int32
 	blocked []bool
+	walk    []int32 // steps from an open edge cell; -1 when unreachable
 }
 
 func newSiteGround(s MapSurvey) siteGround {
@@ -281,7 +263,53 @@ func newSiteGround(s MapSurvey) siteGround {
 			b[c.Cell.Z*w+c.Cell.X] = true
 		}
 	}
-	return siteGround{w: w, h: h, blocked: b}
+	g := siteGround{w: w, h: h, blocked: b}
+	g.walk = g.edgeWalk()
+	return g
+}
+
+// edgeWalk is one multi-source BFS over unblocked cells (8-connected, as a
+// pawn walks) from every open cell on the map's outermost ring: raiders
+// spawn only on open edge cells.
+func (g siteGround) edgeWalk() []int32 {
+	walk := make([]int32, len(g.blocked))
+	var queue []int32
+	for i := range walk {
+		walk[i] = -1
+		x, z := int32(i)%g.w, int32(i)/g.w
+		if !g.blocked[i] && (x == 0 || z == 0 || x == g.w-1 || z == g.h-1) {
+			walk[i] = 0
+			queue = append(queue, int32(i))
+		}
+	}
+	for head := 0; head < len(queue); head++ {
+		i := queue[head]
+		x, z := i%g.w, i/g.w
+		for dz := int32(-1); dz <= 1; dz++ {
+			for dx := int32(-1); dx <= 1; dx++ {
+				nx, nz := x+dx, z+dz
+				if nx < 0 || nz < 0 || nx >= g.w || nz >= g.h {
+					continue
+				}
+				n := nz*g.w + nx
+				if g.blocked[n] || walk[n] >= 0 {
+					continue
+				}
+				walk[n] = walk[i] + 1
+				queue = append(queue, n)
+			}
+		}
+	}
+	return walk
+}
+
+// walkDist is c's walking distance from the nearest open edge cell, or -1
+// when c is off the map or no raider can reach it.
+func (g siteGround) walkDist(c domain.Cell) int {
+	if c.X < 0 || c.X >= g.w || c.Z < 0 || c.Z >= g.h {
+		return -1
+	}
+	return int(g.walk[c.Z*g.w+c.X])
 }
 
 // scoreWall scores p's wall (p as PlanPerimeter returns it): each built

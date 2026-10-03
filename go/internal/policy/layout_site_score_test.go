@@ -146,21 +146,46 @@ func TestSiteCoreAndGrowAvoidProps(t *testing.T) {
 	}
 }
 
-// A room whose nearest map edge is rock costs nothing: raiders cannot arrive
-// there, so a core tucked into an edge-to-edge mountain is not penalized.
-func TestSiteEdgeCostSparesRockEdge(t *testing.T) {
+// Edge cost is walking distance from an open edge cell: a room walled off
+// behind rock costs less than one the same straight-line distance from the
+// edge with an open path, and a room no raider can reach costs nothing.
+func TestSiteEdgeCostIsWalkingDistance(t *testing.T) {
 	b := Bounds{Width: 200, Height: 200}
-	plan := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: 20, Z: 100, Width: 3, Height: 3}}}}
+	room := func(x int32) LayoutPlan {
+		return LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: x, Z: 100, Width: 3, Height: 3}}}}
+	}
+	// A rock band at x=10..15 spanning the whole west side except a gap at
+	// the top and bottom of the map, so the walk from the west edge is long.
+	var rock []SurveyCell
+	for x := int32(0); x < 16; x++ {
+		for z := int32(0); z < 200; z++ {
+			if x >= 10 || x == 0 {
+				rock = append(rock, SurveyCell{Cell: domain.Cell{X: x, Z: z}, Rock: true})
+			}
+		}
+	}
+	// Open west edge for the first plan; the rock survey leaves the same
+	// straight-line distance but the nearest open edge cell is far away.
 	open := newSiteGround(MapSurvey{Bounds: b})
-	if siteEdgeCost(plan, b, open) == 0 {
+	walled := newSiteGround(MapSurvey{Bounds: b, Cells: rock})
+	near := siteEdgeCost(room(20), b, open)
+	if near == 0 {
 		t.Fatal("open edge not charged")
 	}
-	rock := make([]SurveyCell, 0, 200)
-	for z := int32(0); z < 200; z++ {
-		rock = append(rock, SurveyCell{Cell: domain.Cell{X: 0, Z: z}, Rock: true})
+	if got := siteEdgeCost(room(20), b, walled); got >= near {
+		t.Fatalf("walled-off room cost %d, want less than open %d", got, near)
 	}
-	if got := siteEdgeCost(plan, b, newSiteGround(MapSurvey{Bounds: b, Cells: rock})); got != 0 {
-		t.Fatalf("rock edge charged %d", got)
+	// Fully enclosed by rock: unreachable, free.
+	var box []SurveyCell
+	for x := int32(0); x < 200; x++ {
+		for z := int32(0); z < 200; z++ {
+			if x == 0 || z == 0 || x == 199 || z == 199 {
+				box = append(box, SurveyCell{Cell: domain.Cell{X: x, Z: z}, Rock: true})
+			}
+		}
+	}
+	if got := siteEdgeCost(room(20), b, newSiteGround(MapSurvey{Bounds: b, Cells: box})); got != 0 {
+		t.Fatalf("unreachable room charged %d", got)
 	}
 }
 
