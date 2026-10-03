@@ -74,8 +74,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 
 	// Registered case areas.
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/anomaly"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/animals"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/anomaly"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/apply"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
@@ -108,6 +108,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/naming"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/needs"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/odyssey"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/power"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation"
