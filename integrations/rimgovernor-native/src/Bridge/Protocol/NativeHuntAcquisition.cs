@@ -129,7 +129,9 @@ namespace HomeBridge.BridgeTools
             var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 100 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber));
-            foreach (var prey in candidates)
+            var offered = candidates.ToList();
+            LogWhyNoPrey(map, center, offered.Count);
+            foreach (var prey in offered)
             {
                 var designated = Designated(prey);
                 var row = new Obs.AcquisitionFacts {
@@ -147,6 +149,19 @@ namespace HomeBridge.BridgeTools
                 result.Acquisition.Add(row);
             }
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
+        }
+        private static int lastWhyTick = int.MinValue;
+        // With no hunt row offered, names once per game hour why each wild
+        // animal species near the colony was left out, so "animals around but
+        // no hunting" shows its rule in the game log.
+        private static void LogWhyNoPrey(Map map, IntVec3 center, int offered)
+        {
+            if (offered > 0 || Find.TickManager.TicksGame - lastWhyTick < 2500) return;
+            var wild = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Faction == null && p.RaceProps.Animal && !p.Dead && p.Position.DistanceTo(center) <= 100).ToList();
+            if (wild.Count == 0) return;
+            lastWhyTick = Find.TickManager.TicksGame;
+            var lines = wild.GroupBy(p => p.def.defName + ": " + (Ineligible(p) ?? "eligible")).Take(8).Select(g => g.Key + " x" + g.Count());
+            Log.Message("[RimGovernor] no hunt rows with " + wild.Count + " wild animals near the colony: " + string.Join(" | ", lines));
         }
         internal const string Kind = "Hunt";
         // Prepare is the apply-time precondition list for hunt
