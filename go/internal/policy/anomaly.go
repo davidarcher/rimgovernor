@@ -28,6 +28,11 @@ type PawnAnomaly struct {
 	MinContainmentStrength domain.Fact[float64]
 	Held                   domain.Fact[*EntityHeld]
 	Study                  domain.Fact[*StudyState]
+	// Threat facts for defense tactics (#1739): HiddenFromPlayer is a pawn
+	// the player cannot see or target (an unrevealed sightstealer),
+	// PsychicRitualInvoker the caster of its lord's psychic ritual, and
+	// MeleeOnly a pawn whose attack is melee with no offensive ability.
+	HiddenFromPlayer, PsychicRitualInvoker, MeleeOnly domain.Fact[bool]
 }
 
 // EntityHeld is a holding-platform target's state: whether it is held now,

@@ -43926,7 +43926,13 @@ func (x *AnomalyIncidentRow) GetCodexEntry() string {
 // min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
 // held is set for a pawn with a CompHoldingPlatformTarget, study for one with
 // a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
-// block absent and adds a ReadIssue named entity, held or study.
+// block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
+// Threat facts for defense tactics (#1739), the combat group: hidden_from_player
+// is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
+// pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
+// is the ritual def's invoker role (the caster); melee_only is a pawn whose
+// CurrentEffectiveVerb is a melee attack and who has no ability its def marks
+// ai_IsOffensive.
 type PawnAnomaly struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	Entity                 *bool                  `protobuf:"varint,1,opt,name=entity,proto3,oneof" json:"entity,omitempty"`
@@ -43936,6 +43942,9 @@ type PawnAnomaly struct {
 	Held                   *HeldState             `protobuf:"bytes,5,opt,name=held,proto3" json:"held,omitempty"`
 	Study                  *StudyState            `protobuf:"bytes,6,opt,name=study,proto3" json:"study,omitempty"`
 	Issues                 []*ReadIssue           `protobuf:"bytes,7,rep,name=issues,proto3" json:"issues,omitempty"`
+	HiddenFromPlayer       *bool                  `protobuf:"varint,8,opt,name=hidden_from_player,json=hiddenFromPlayer,proto3,oneof" json:"hidden_from_player,omitempty"`
+	PsychicRitualInvoker   *bool                  `protobuf:"varint,9,opt,name=psychic_ritual_invoker,json=psychicRitualInvoker,proto3,oneof" json:"psychic_ritual_invoker,omitempty"`
+	MeleeOnly              *bool                  `protobuf:"varint,10,opt,name=melee_only,json=meleeOnly,proto3,oneof" json:"melee_only,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -44017,6 +44026,27 @@ func (x *PawnAnomaly) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *PawnAnomaly) GetHiddenFromPlayer() bool {
+	if x != nil && x.HiddenFromPlayer != nil {
+		return *x.HiddenFromPlayer
+	}
+	return false
+}
+
+func (x *PawnAnomaly) GetPsychicRitualInvoker() bool {
+	if x != nil && x.PsychicRitualInvoker != nil {
+		return *x.PsychicRitualInvoker
+	}
+	return false
+}
+
+func (x *PawnAnomaly) GetMeleeOnly() bool {
+	if x != nil && x.MeleeOnly != nil {
+		return *x.MeleeOnly
+	}
+	return false
 }
 
 // CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
@@ -51018,7 +51048,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_points_scaleableB\x14\n" +
 	"\x12_min_threat_pointsB\x1b\n" +
 	"\x19_min_anomaly_threat_levelB\x0e\n" +
-	"\f_codex_entry\"\xa2\x03\n" +
+	"\f_codex_entry\"\xf5\x04\n" +
 	"\vPawnAnomaly\x12\x1b\n" +
 	"\x06entity\x18\x01 \x01(\bH\x00R\x06entity\x88\x01\x01\x12\x1b\n" +
 	"\x06mutant\x18\x02 \x01(\bH\x01R\x06mutant\x88\x01\x01\x12\x1f\n" +
@@ -51026,11 +51056,19 @@ const file_observations_proto_rawDesc = "" +
 	"\x18min_containment_strength\x18\x04 \x01(\x01H\x03R\x16minContainmentStrength\x88\x01\x01\x12:\n" +
 	"\x04held\x18\x05 \x01(\v2&.rimgovernor.observations.v1.HeldStateR\x04held\x12=\n" +
 	"\x05study\x18\x06 \x01(\v2'.rimgovernor.observations.v1.StudyStateR\x05study\x12>\n" +
-	"\x06issues\x18\a \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\t\n" +
+	"\x06issues\x18\a \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x121\n" +
+	"\x12hidden_from_player\x18\b \x01(\bH\x04R\x10hiddenFromPlayer\x88\x01\x01\x129\n" +
+	"\x16psychic_ritual_invoker\x18\t \x01(\bH\x05R\x14psychicRitualInvoker\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"melee_only\x18\n" +
+	" \x01(\bH\x06R\tmeleeOnly\x88\x01\x01B\t\n" +
 	"\a_entityB\t\n" +
 	"\a_mutantB\v\n" +
 	"\t_shamblerB\x1b\n" +
-	"\x19_min_containment_strength\"\xf9\x02\n" +
+	"\x19_min_containment_strengthB\x15\n" +
+	"\x13_hidden_from_playerB\x19\n" +
+	"\x17_psychic_ritual_invokerB\r\n" +
+	"\v_melee_only\"\xf9\x02\n" +
 	"\tHeldState\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\bH\x00R\x04held\x88\x01\x01\x126\n" +
 	"\bplatform\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bplatform\x12O\n" +

@@ -61,10 +61,12 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 	if row.Animal != nil {
 		facts.Animal = domain.Known(row.GetAnimal())
 	}
+	facts.Anomaly = bridge.PawnAnomaly(row.Anomaly)
 	facts.RangedEquipped = rangedWeaponEquipped(row.Equipment)
 	// A wild animal has no equipment tracker (the equipped field reads as a
-	// missing native component); it carries no ranged weapon either way.
-	if _, known := facts.RangedEquipped.Value(); !known && facts.Animal == domain.Known(true) {
+	// missing native component); it carries no ranged weapon either way, and
+	// neither does an entity whose attack native read as melee only (#1739).
+	if _, known := facts.RangedEquipped.Value(); !known && (facts.Animal == domain.Known(true) || policy.MeleeEntity(facts)) {
 		facts.RangedEquipped = domain.Known(false)
 	}
 	facts.Manhunter = manhunterFact(row.MentalState, row.Issues)

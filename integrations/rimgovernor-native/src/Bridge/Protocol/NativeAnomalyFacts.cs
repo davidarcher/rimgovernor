@@ -5,6 +5,7 @@ using System.Linq;
 using HarmonyLib;
 using RimWorld;
 using Verse;
+using Verse.AI.Group;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 
@@ -168,6 +169,23 @@ namespace HomeBridge.BridgeTools
                 if (entity && Finite(minimum)) row.MinContainmentStrength = minimum;
             }
             catch (Exception ex) { row.Issues.Add(Failed("entity", ex)); }
+            try { row.HiddenFromPlayer = InvisibilityUtility.IsHiddenFromPlayer(pawn); }
+            catch (Exception ex) { row.Issues.Add(Failed("hidden_from_player", ex)); }
+            // The invoker is the pawn whose role in its lord's psychic ritual
+            // is the ritual def's invoker role.
+            try
+            {
+                row.PsychicRitualInvoker = pawn.GetLord()?.LordJob is LordJob_PsychicRitual ritual
+                    && ritual.def is PsychicRitualDef_InvocationCircle circle
+                    && ritual.assignments.RoleForPawn(pawn, true) == circle.InvokerRole;
+            }
+            catch (Exception ex) { row.Issues.Add(Failed("psychic_ritual_invoker", ex)); }
+            try
+            {
+                row.MeleeOnly = pawn.CurrentEffectiveVerb is Verb verb && verb.IsMeleeAttack
+                    && !(pawn.abilities?.AllAbilitiesForReading.Any(a => a.def.ai_IsOffensive) ?? false);
+            }
+            catch (Exception ex) { row.Issues.Add(Failed("melee_only", ex)); }
             try
             {
                 if (pawn.GetComp<CompHoldingPlatformTarget>() is CompHoldingPlatformTarget target)

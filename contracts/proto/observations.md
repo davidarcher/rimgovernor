@@ -346,13 +346,22 @@ entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
 (held on a platform and which, the ordered `EntityContainmentMode`, escaping,
 bioferrite extraction, whether it can be captured) and its `CompStudiable`
 state (enabled, completed, progress, points, knowledge gained, the knowledge
-category and amount the game resolves). Hostility stays `PawnState.hostile`.
+category and amount the game resolves). Three threat facts (#1739) feed the
+defense tactics: `hidden_from_player` (`InvisibilityUtility.IsHiddenFromPlayer`:
+the player cannot see or target the pawn, so no attack order names it),
+`psychic_ritual_invoker` (the pawn's role in its lord's psychic ritual is the
+ritual def's invoker role: the caster, who is focus-fired and shelled) and
+`melee_only` (its `CurrentEffectiveVerb` is a melee attack and none of its
+abilities is `ai_IsOffensive`; an entity or mutant that is melee only fights
+as a charging pack, so squad defense and the manhunter tactic apply). Each is
+read alone: a failed read is absent with a `ReadIssue` named for it.
+Hostility stays `PawnState.hostile`.
 `BuildingState.anomaly` carries a holding platform's `CompEntityHolder` state
 (the containment strength its room provides now, whether it is available, the
 pawn it holds) and a studiable building's `CompStudiable` state. An absent
 scalar is unknown;
 a failed sub-read leaves its block absent and adds a `ReadIssue` named
-`entity`, `held`, `holder` or `study`. Go lifts the blocks into
+`entity`, `held`, `holder`, `study` or a threat fact's name. Go lifts the blocks into
 `policy.PawnAnomaly` and `policy.BuildingAnomaly` (`bridge.PawnAnomaly`,
 `BuildingAnomaly`); all of it is derived state held in Go memory
 (persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry

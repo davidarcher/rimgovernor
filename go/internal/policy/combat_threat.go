@@ -9,7 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Threat tiers (#863), most urgent first: rocketeers and grenadiers, then
+// Threat tiers (#863), most urgent first: the caster of a psychic ritual
+// (#1739, ritualCaster), rocketeers and grenadiers, then
 // anything in melee with a colonist, then sappers (a breaching termite
 // among them), then the other mechs (inferno-cannon centipede > scyther >
 // termite > the rest; a termite strips our cover, #927), then everyone
@@ -20,7 +21,8 @@ import (
 // thrower, whose volley hits hard at short range; both come after sappers
 // and ahead of the mechs they never raid with.
 const (
-	threatExplosive = iota
+	threatRitualCaster = iota
+	threatExplosive
 	threatMeleeColonist
 	threatSapper
 	threatGoJuice
@@ -116,7 +118,8 @@ func PostFightNext(worn domain.Fact[bool], strip StripState) PostFightStep {
 }
 
 // rankThreats is the live hostile pawns (not buildings) by threat score,
-// ties by id: the order gunners focus fire in.
+// ties by id: the order gunners focus fire in. A pawn hidden from the player
+// is not one a gunner can be ordered at (#1739).
 func rankThreats(view CombatView) []CombatPawnState {
 	state := map[domain.PawnID]CombatPawnState{}
 	for _, p := range view.Pawns {
@@ -134,10 +137,13 @@ func rankThreats(view CombatView) []CombatPawnState {
 		if !seen {
 			s = CombatPawnState{ID: id}
 		}
-		if t.Building || positive(t.Dead) || positive(t.Downed) || s.Dead || s.Downed {
+		if t.Building || positive(t.Dead) || positive(t.Downed) || s.Dead || s.Downed || hiddenFromPlayer(t) {
 			continue
 		}
 		tier[id] = threatTier(s, colonists)
+		if ritualCaster(t) {
+			tier[id] = threatRitualCaster
+		}
 		out = append(out, s)
 	}
 	sort.SliceStable(out, func(i, j int) bool {

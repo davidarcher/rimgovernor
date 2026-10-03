@@ -2195,10 +2195,17 @@ enum EntityContainmentModeKind {
 // min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
 // held is set for a pawn with a CompHoldingPlatformTarget, study for one with
 // a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
-// block absent and adds a ReadIssue named entity, held or study.
+// block absent and adds a ReadIssue named entity, held or study; a failed threat fact is absent with a ReadIssue named for it.
+// Threat facts for defense tactics (#1739), the combat group: hidden_from_player
+// is InvisibilityUtility.IsHiddenFromPlayer (the player cannot see or target the
+// pawn); psychic_ritual_invoker is a pawn whose role in its lord's psychic ritual
+// is the ritual def's invoker role (the caster); melee_only is a pawn whose
+// CurrentEffectiveVerb is a melee attack and who has no ability its def marks
+// ai_IsOffensive.
 message PawnAnomaly {
   optional bool entity = 1; optional bool mutant = 2; optional bool shambler = 3; optional double min_containment_strength = 4;
   HeldState held = 5; StudyState study = 6; repeated ReadIssue issues = 7;
+  optional bool hidden_from_player = 8; optional bool psychic_ritual_invoker = 9; optional bool melee_only = 10;
 }
 // CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
 // Building_HoldingPlatform holding the pawn; mode the ordered containment

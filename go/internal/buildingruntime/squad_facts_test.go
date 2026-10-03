@@ -35,6 +35,29 @@ func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 	}
 }
 
+// TestSquadThreatFactsMeleeEntity (#1739): a melee-only entity carries its
+// Anomaly facts and reads as not ranged-equipped, as an animal does; one
+// whose attack native did not read as melee keeps its equipment unknown.
+func TestSquadThreatFactsMeleeEntity(t *testing.T) {
+	row := &o.PawnState{
+		Pawn:      &o.EntityRef{Id: proto.String("beast")},
+		Animal:    proto.Bool(false),
+		Humanlike: proto.Bool(false),
+		Anomaly:   &o.PawnAnomaly{Entity: proto.Bool(true), Mutant: proto.Bool(false), MeleeOnly: proto.Bool(true), HiddenFromPlayer: proto.Bool(true)},
+	}
+	facts := squadThreatFacts(row)
+	if ranged, ok := facts.RangedEquipped.Value(); !ok || ranged {
+		t.Fatal("a melee-only entity must read as not ranged-equipped", facts.RangedEquipped)
+	}
+	if a, ok := facts.Anomaly.Value(); !ok || !positiveFact(a.HiddenFromPlayer) {
+		t.Fatal("the row's Anomaly facts were not lifted", facts.Anomaly)
+	}
+	row.Anomaly.MeleeOnly = nil
+	if _, ok := squadThreatFacts(row).RangedEquipped.Value(); ok {
+		t.Fatal("an unread attack must keep the equipment unknown")
+	}
+}
+
 func TestSquadThreatFactsNonManhunterMentalStateKnownFalse(t *testing.T) {
 	row := &o.PawnState{
 		Pawn:        &o.EntityRef{Id: proto.String("berserk-colonist")},

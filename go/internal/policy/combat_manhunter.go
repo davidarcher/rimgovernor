@@ -42,7 +42,8 @@ func classifyAnimal(s CombatPawnState) AnimalClass {
 }
 
 // ManhunterPack reports a fight whose live hostile pawns (at least one) are
-// all known manhunter animals.
+// all known manhunter animals or melee-only entities and mutants (#1739): a
+// pack that charges in is fought alike whatever it is.
 func ManhunterPack(view CombatView) bool {
 	down := downPawns(view)
 	n := 0
@@ -50,7 +51,7 @@ func ManhunterPack(view CombatView) bool {
 		if t.Building || positive(t.Dead) || positive(t.Downed) || down[domain.PawnID(t.ID)] {
 			continue
 		}
-		if !positive(t.Animal) || !positive(t.Manhunter) {
+		if !(positive(t.Animal) && positive(t.Manhunter)) && !MeleeEntity(t) {
 			return false
 		}
 		n++

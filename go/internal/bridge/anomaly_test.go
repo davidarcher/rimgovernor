@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -174,6 +175,42 @@ func TestPawnAnomalyRow(t *testing.T) {
 		if validatePawnAnomaly(r.Anomaly) == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+}
+
+// TestPawnAnomalyThreatFacts (#1739): the threat facts lift as read, a failed
+// read leaves only its own fact unknown, and a fact both known and issued is
+// refused.
+func TestPawnAnomalyThreatFacts(t *testing.T) {
+	read := &o.PawnAnomaly{Entity: proto.Bool(true), HiddenFromPlayer: proto.Bool(true), PsychicRitualInvoker: proto.Bool(false), MeleeOnly: proto.Bool(true)}
+	if err := validatePawnAnomaly(read); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := PawnAnomaly(read).Value()
+	for name, want := range map[string]bool{"hidden": true, "invoker": false, "melee": true} {
+		got := map[string]domain.Fact[bool]{"hidden": a.HiddenFromPlayer, "invoker": a.PsychicRitualInvoker, "melee": a.MeleeOnly}[name]
+		if v, ok := got.Value(); !ok || v != want {
+			t.Fatalf("%s = %v, %v; want %v", name, v, ok, want)
+		}
+	}
+	failed := &o.PawnAnomaly{MeleeOnly: proto.Bool(true),
+		Issues: []*o.ReadIssue{{Field: proto.String("hidden_from_player"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}}
+	if err := validatePawnAnomaly(failed); err != nil {
+		t.Fatal(err)
+	}
+	a, _ = PawnAnomaly(failed).Value()
+	if _, ok := a.HiddenFromPlayer.Value(); ok {
+		t.Fatal("a failed hidden read must stay unknown")
+	}
+	if _, ok := a.PsychicRitualInvoker.Value(); ok {
+		t.Fatal("an unread invoker flag must stay unknown")
+	}
+	if v, ok := a.MeleeOnly.Value(); !ok || !v {
+		t.Fatal("a failed hidden read must not hide melee_only")
+	}
+	both := &o.PawnAnomaly{MeleeOnly: proto.Bool(true), Issues: []*o.ReadIssue{{Field: proto.String("melee_only")}}}
+	if validatePawnAnomaly(both) == nil {
+		t.Fatal("a fact both known and issued was accepted")
 	}
 }
 

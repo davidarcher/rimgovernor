@@ -70,7 +70,8 @@ func humanoidRaid(view CombatView, m CombatMemory) bool {
 		if t.Building || positive(t.Dead) || positive(t.Downed) || down[domain.PawnID(t.ID)] {
 			continue
 		}
-		if !positive(t.Humanlike) {
+		// A shambler is humanlike but fights as a pack of its own (#1739).
+		if !positive(t.Humanlike) || anomalous(t) {
 			return false
 		}
 		n++

@@ -253,7 +253,8 @@ func PawnAnomaly(a *o.PawnAnomaly) domain.Fact[policy.PawnAnomaly] {
 	}
 	failed := failedFields(a.Issues)
 	r := policy.PawnAnomaly{Entity: optionalFact(a.Entity), Mutant: optionalFact(a.Mutant), Shambler: optionalFact(a.Shambler),
-		MinContainmentStrength: optionalFact(a.MinContainmentStrength), Held: domain.Unknown[*policy.EntityHeld](), Study: domain.Unknown[*policy.StudyState]()}
+		MinContainmentStrength: optionalFact(a.MinContainmentStrength),
+		HiddenFromPlayer:       optionalFact(a.HiddenFromPlayer), PsychicRitualInvoker: optionalFact(a.PsychicRitualInvoker), MeleeOnly: optionalFact(a.MeleeOnly), Held: domain.Unknown[*policy.EntityHeld](), Study: domain.Unknown[*policy.StudyState]()}
 	if !failed["held"] {
 		var held *policy.EntityHeld
 		if h := a.Held; h != nil {

@@ -27,6 +27,9 @@ type SquadThreatFacts struct {
 	// native ranged predicates need the target in range now; #327); every
 	// other defender walks to it in melee.
 	Building bool
+	// Anomaly is the pawn row's Anomaly facts (#1739); unknown without
+	// Anomaly.
+	Anomaly domain.Fact[PawnAnomaly]
 	// Mech is a Mech_ pawn kind (#970), marked from the combat view.
 	Mech        bool
 	LinesOfFire map[domain.PawnID]bool
@@ -176,7 +179,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		if !hk || !ak {
 			return false
 		}
-		if humanlike {
+		if humanlike || MeleeEntity(t) {
 			return true
 		}
 		if !animal {

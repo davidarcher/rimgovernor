@@ -195,7 +195,8 @@ func standDown(stood []mortarStand, orders []CombatOrder, orderable map[domain.P
 }
 
 // mortarAim is the cell mortar fires at and the shell: EMP on the nearest
-// enemy mortar in its range, else HE on the camp clump, else HE on the
+// enemy mortar in its range, else HE on a psychic ritual's caster (#1739),
+// else HE on the camp clump, else HE on the
 // nearest centipede, else HE on the nearest other non-hive structure.
 func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool) {
 	inRange := func(c domain.Cell) bool {
@@ -223,6 +224,9 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool)
 	}
 	if c, ok := nearest(enemy); ok {
 		return c, ShellEMP, true
+	}
+	if c, ok := nearest(ritualCasterCells(view)); ok {
+		return c, ShellHE, true
 	}
 	if c, ok := campClump(view, inRange); ok {
 		if mechAt(view, c) {
