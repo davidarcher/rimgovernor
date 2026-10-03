@@ -149,23 +149,6 @@ func TestPickSecureSuppliesHauler(t *testing.T) {
 	}
 }
 
-// upkeep/storage-missing, tick 34692: with no storage accepting the
-// medicine, the covered storage fallback sites one 2x2 stockpile at
-// 102,137.
-func TestPickCoveredStorageFallbackSite(t *testing.T) {
-	p := planner(t, "testdata/planner-secure-supplies-covered-storage.json.gz")
-	if len(p.CoveredStorage) != 1 {
-		t.Fatalf("%d covered storage searches", len(p.CoveredStorage))
-	}
-	sites, err := policy.CoveredStorageSites(p.CoveredStorage[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := []policy.Rectangle{{X: 102, Z: 137, Width: 2, Height: 2}}; !reflect.DeepEqual(sites, want) {
-		t.Errorf("sites %v, want %v", sites, want)
-	}
-}
-
 // clearance/salvage-hold-resume, tick 26: the review selects the remote
 // battery ruin, holds it threat_present while a raider stands beside it
 // (no salvage target, so nothing is designated), and selects it again once

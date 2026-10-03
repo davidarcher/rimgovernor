@@ -2,10 +2,8 @@ package buildingruntime
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -17,25 +15,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
 // The warehouse keeps the indoor-only filter at Low priority so the
 // workstation stockpiles draw items first; the opening outdoor store keeps
-// the non-perishables at Normal until the warehouse replaces it; a
-// covered:<def> fallback zone keeps its one definition at Important.
+// the non-perishables at Normal until the warehouse replaces it.
 func init() {
 	RegisterStockpileRole(domain.GeneralRole, fixedStockpileRole(domain.GeneralFilter(), domain.LowPriority))
 	RegisterStockpileRole(domain.OpeningGeneralRole, fixedStockpileRole(domain.OpeningStoreFilter(), domain.NormalPriority))
 	RegisterStockpileRole(domain.FoodRole, fixedStockpileRole(domain.FoodFilter(), domain.PreferredPriority))
-	RegisterStockpileRole(strings.TrimSuffix(domain.CoveredRolePrefix, ":"), func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
-		_, definition, _ := strings.Cut(role, ":")
-		filter, err := domain.AllowOnlyFilter([]string{definition})
-		if definition == "" || err != nil {
-			return policy.StockpileRoleState{}, false
-		}
-		return policy.StockpileRoleState{Filter: filter, Priority: domain.ImportantPriority}, true
-	})
 }
 
 // RoutineSecureSuppliesSource reuses the generic colony read for the vulnerable
@@ -47,18 +35,8 @@ type RoutineSecureSuppliesSource interface {
 	observation.ColonySource
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadTendPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
-	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
-
-// maxSecureSuppliesZoneMethods bounds SecureSupplies' covered-storage fallback
-// to a handful of new zones per goal episode: a three-item cap across
-// covered_storage and supply_storeroom.
-// Once reached, ordinary haul attempts remain the only route until a new
-// episode begins.
-const maxSecureSuppliesZoneMethods = 3
-
-const secureSuppliesZonePrefix = "secure-supplies-zone-"
 
 type RoutineSecureSuppliesPlanner struct {
 	reviewer *RoutineReviewer
@@ -80,16 +58,16 @@ func NewRoutineSecureSuppliesPlanner(reviewer *RoutineReviewer, native RoutineSe
 }
 
 // maxSecureSuppliesHaulAttempts bounds direct hauls of one item per goal
-// episode before SecureSupplies tries its covered-storage fallbacks. Two is
+// episode before SecureSupplies requests the storage room. Two is
 // enough: a haul native refuses (no storage accepts the item) fails its
 // method, and a second identical refusal means the map, not the hauler, is
 // the problem.
 const maxSecureSuppliesHaulAttempts = 2
 
 // propose plans one SecureSupplies method without committing it: a direct
-// haul while the item's haul budget lasts, then the covered-storage and
-// supply-room fallbacks. Every read runs here; the returned proposal's
-// commit runs the admission path the step used to run inline (#622).
+// haul while the item's haul budget lasts, then the storage room request.
+// Every read runs here; the returned proposal's commit runs the admission
+// path the step used to run inline (#622).
 func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (PlanResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -231,27 +209,16 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	if err != nil {
 		return PlanResult{}, err
 	}
-	zonesCompleted, err := completedSecureSuppliesZones(call, p.journal, goal)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if attempt >= secureSuppliesHaulBudget(zonesCompleted) {
-		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started)
+	if attempt >= maxSecureSuppliesHaulAttempts {
+		fallback, err := r.supplyRoomFallback(call, epoch, state, goal, review, reading, started)
 		if err != nil {
 			return PlanResult{}, err
 		}
 		if fallback.Kind != "" {
 			return fallback, nil
 		}
-		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, review, reading, item, started)
-		if err != nil {
-			return PlanResult{}, err
-		}
-		if fallback.Kind != "" {
-			return fallback, nil
-		}
-		// Every route for this item is spent: the direct-haul budget, the
-		// covered-storage zones and the supply room.
+		// Every route for this item is spent: the direct-haul budget and the
+		// storage room request. The zones are the storage planner's.
 		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
@@ -336,283 +303,10 @@ func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, stat
 	}
 }
 
-// secureSuppliesHaulBudget is how many direct hauls of one item the goal
-// episode may issue: the base bound, plus another round for every
-// covered-storage zone the fallback has completed. Before the zone exists
-// native refuses the haul ("no empty, accessible spot"); the zone is what
-// makes a retry worth spending, so each completed zone earns one.
-func secureSuppliesHaulBudget(zonesCompleted int) int {
-	if zonesCompleted < 0 {
-		zonesCompleted = 0
-	}
-	return maxSecureSuppliesHaulAttempts * (1 + zonesCompleted)
-}
-
-// completedSecureSuppliesZones counts the goal episode's covered-storage zone
-// methods whose every action completed. Pending, cancelled or unsuccessful
-// zones earn no haul retries.
-func completedSecureSuppliesZones(ctx context.Context, journal *store.Store, goal store.GoalState) (int, error) {
-	history, err := journal.LoadGoalMethods(ctx, goal.Goal.ID, goal.Goal.Epoch)
-	if err != nil {
-		return 0, err
-	}
-	count := 0
-	for _, m := range history {
-		if m.Epoch != goal.Goal.Epoch || !strings.HasPrefix(string(m.Method), secureSuppliesZonePrefix) {
-			continue
-		}
-		plan, err := journal.LoadPlan(ctx, m.Plan)
-		if err != nil {
-			return 0, err
-		}
-		done := len(plan.Progress) > 0
-		for _, progress := range plan.Progress {
-			if progress.View().Stage != domain.Completed {
-				done = false
-			}
-		}
-		if done {
-			count++
-		}
-	}
-	return count, nil
-}
-
-// maxSecureSuppliesZoneSites bounds how many census-legal 2x2 patches one
-// covered_storage step previews before giving the site search up for this
-// step: native refuses a patch the census misjudged (a thing the census does
-// not count, a roof that fell since the read), and the next nearest patch is
-// the answer, not the same one again next step (#216, #223).
-const maxSecureSuppliesZoneSites = 4
-
-// coveredStorageFallback is the covered_storage step: once
-// ordinary hauling for the selected vulnerable item has been retried to its
-// bound, propose a small allow-listed stockpile zone (native preset='nothing'
-// with an explicit definition allow-list) on the nearest legal roofed 2x2
-// patch instead. It is bounded to maxSecureSuppliesZoneMethods zones per goal
-// episode. A zero-value, empty-Reason result means the fallback did not apply
-// this step (no zone budget left, no legal site, every previewed site refused
-// natively, or a stale read) and the caller should try supplyRoomFallback
-// next.
-func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
-	p := r.reviewer.player
-	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if zoneAttempts >= maxSecureSuppliesZoneMethods {
-		return PlanResult{}, nil
-	}
-	if general, err := r.generalStore(call, epoch, state, goal, projection, started); err != nil || general.Kind != "" {
-		return general, err
-	}
-	held, err := p.journal.BuildingReservations(call, state.Snapshot)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	var protected []domain.Cell
-	for _, h := range held {
-		protected = append(protected, h.Footprint...)
-	}
-	storage := policy.CoveredStorageRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: protected}
-	snap.NoteCoveredStorage(call, storage)
-	sites, err := policy.CoveredStorageSites(storage)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if len(sites) == 0 {
-		return PlanResult{}, nil
-	}
-	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
-	id := domain.MintPlanID()
-	snapshot := state.Snapshot
-	snapshot.Plan = id
-	snapshot.Revision = 1
-	value, cells, v, err := previewCoveredStorageSites(call, r.native, boundary.Identity(snapshot), item.Definition, sites, goal.Goal.ID)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if v == nil {
-		return PlanResult{}, nil
-	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
-		return PlanResult{}, fmt.Errorf("%w: coveredStorageFallback: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
-	}
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return PlanResult{}, err
-	}
-	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
-	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
-}
-
-// generalStoreMethod zones a completed storeroom shell's interior as the
-// colony's Normal-priority general store (#720). It shares the zone prefix,
-// so it spends one of the episode's zone methods.
-const generalStoreMethod = domain.MethodID(secureSuppliesZonePrefix + "general")
-
-// generalStore proposes the general store once this episode's storeroom
-// shell has completed: vanilla then hauls the vulnerable item (and every
-// other non-perishable) indoors, and the Important working stockpiles at the
-// benches and kitchen pull from it. A zero result means it does not apply
-// (no completed shell, already proposed, or native refused the interior)
-// and the 2x2 covered-storage search runs instead.
-func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (PlanResult, error) {
-	p := r.reviewer.player
-	var cells []domain.Cell
-	for _, method := range goal.Methods {
-		if method.Method == generalStoreMethod {
-			return PlanResult{}, nil
-		}
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return PlanResult{}, err
-		}
-		if !secureSuppliesRoomShellPlan(plan.Spec) || len(plan.Progress) == 0 {
-			continue
-		}
-		done := true
-		for _, progress := range plan.Progress {
-			done = done && progress.View().Stage == domain.Completed
-		}
-		if done {
-			cells = shellInterior(plan.Spec)
-		}
-	}
-	if len(cells) == 0 {
-		return PlanResult{}, nil
-	}
-	value, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.LowPriority, cells)
-	if err == nil {
-		value, err = value.WithRole(domain.GeneralRole)
-	}
-	if err != nil {
-		return PlanResult{}, nil
-	}
-	if value, err = value.WithRole("general"); err != nil {
-		return PlanResult{}, err
-	}
-	id := domain.MintPlanID()
-	snapshot := state.Snapshot
-	snapshot.Plan = id
-	snapshot.Revision = 1
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) {
-		clockSchedulerLog("%s: general store refused code=%v detail=%q", goal.Goal.ID, refused.Value.GetCode(), refused.Value.GetDetail())
-		return PlanResult{}, nil
-	}
-	if err != nil {
-		return PlanResult{}, err
-	}
-	v := reply.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
-		return PlanResult{}, nil
-	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
-		return PlanResult{}, fmt.Errorf("%w: generalStore: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
-	}
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return PlanResult{}, err
-	}
-	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
-	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: generalStoreMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
-}
-
-// shellInterior is the cells strictly inside a room shell's Wall/Door
-// perimeter: the bounding box of its building cells less its border.
-func shellInterior(spec domain.PlanSpec) []domain.Cell {
-	first := true
-	var lo, hi domain.Cell
-	for _, action := range spec.Actions() {
-		b, ok := action.Building()
-		if !ok || b.Definition() != "Wall" && b.Definition() != "Door" {
-			continue
-		}
-		c := b.Cell()
-		if first {
-			lo, hi, first = c, c, false
-		}
-		lo.X, lo.Z = min(lo.X, c.X), min(lo.Z, c.Z)
-		hi.X, hi.Z = max(hi.X, c.X), max(hi.Z, c.Z)
-	}
-	var cells []domain.Cell
-	for x := lo.X + 1; x < hi.X; x++ {
-		for z := lo.Z + 1; z < hi.Z; z++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
-		}
-	}
-	return cells
-}
-
-// zonePreviewer is the one native read previewCoveredStorageSites needs.
-type zonePreviewer interface {
-	PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
-}
-
-// previewCoveredStorageSites previews the census-legal patches nearest the
-// colony in order, at most maxSecureSuppliesZoneSites of them, and returns
-// the first allow-list stockpile zone native accepts with its cells and
-// evaluation. A native refusal of one patch (bridge.NativeFailure) is that
-// patch's verdict at this tick, not a failed read: it is logged and the next
-// patch is tried. A nil evaluation with a nil error means every previewed
-// patch was refused; any other error is the read's own failure.
-func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.ZonePreview, error) {
-	for i, site := range sites {
-		if i >= maxSecureSuppliesZoneSites {
-			break
-		}
-		cells := make([]domain.Cell, 0, int(site.Width*site.Height))
-		for x := site.X; x < site.X+site.Width; x++ {
-			for z := site.Z; z < site.Z+site.Height; z++ {
-				cells = append(cells, domain.Cell{X: x, Z: z})
-			}
-		}
-		value, err := allowListZone(domain.ImportantPriority, []string{definition}, cells)
-		if err == nil {
-			value, err = value.WithRole(domain.CoveredRolePrefix + definition)
-		}
-		if err != nil {
-			return domain.ZoneCreate{}, nil, nil, err
-		}
-		reply, _, err := native.PreviewZone(ctx, identity, value)
-		var refused *bridge.NativeFailure
-		if errors.As(err, &refused) {
-			clockSchedulerLog("%s: covered storage site (%d,%d) refused code=%v detail=%q", goal, site.X, site.Z, refused.Value.GetCode(), refused.Value.GetDetail())
-			continue
-		}
-		if err != nil {
-			return domain.ZoneCreate{}, nil, nil, err
-		}
-		v := reply.GetEvaluated()
-		if v != nil && v.GetAccepted() {
-			return value, cells, v, nil
-		}
-		// Native evaluates refused ground as Accepted false (#223).
-		clockSchedulerLog("%s: covered storage site (%d,%d) refused by the native evaluation", goal, site.X, site.Z)
-	}
-	return domain.ZoneCreate{}, nil, nil, nil
-}
-
-// supplyRoomShellMethod names SecureSupplies' whole-room fallback method:
-// the layout plan's storage room, raised only after coveredStorageFallback
-// finds no reusable roofed patch and no shell stands on the slot. It never places a stockpile zone itself — once the
-// shell is complete and its interior has been reported roofed by the
-// ordinary cell census, coveredStorageFallback's own site search naturally
-// selects a patch inside it on a later step, reusing the finished room.
+// supplyRoomShellMethod names SecureSupplies' room request: the layout
+// plan's storage room, raised when no shell stands on the slot. It never
+// places a stockpile zone: once the room stands the storage planner sites
+// the warehouse in it (policy.PlanStorage).
 const supplyRoomShellMethod domain.MethodID = "supply-room-shell"
 
 // secureSuppliesRoomShellPlan reports whether a plan spec already places the
@@ -632,35 +326,25 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 	return false
 }
 
-// supplyRoomFallback is the supply_storeroom step, run once covered_storage
-// finds no reusable roofed patch. SecureSupplies never raises an ad-hoc
-// shed (#1186); it stores in the layout plan's storage room. When the
-// starter shell already stands on that slot (#1177) it zones a covered
-// patch inside the shell beside the bunks; as the bunks move out, later
-// episodes zone the cells they free. Otherwise it raises the storage room
-// itself, its exact ring and its door onto the spine, at most once per goal
-// episode. A zero-value, empty-Reason result means the step did not apply,
-// and the caller reports its own exhaustion reason instead.
-func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, reading observation.ColonyReading, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
+// supplyRoomFallback requests the room an unstored item needs, once its
+// direct hauls are spent. SecureSupplies never raises an ad-hoc shed
+// (#1186); it stores in the layout plan's storage room. When a shell
+// already stands on that slot (#1177) the warehouse is the storage
+// planner's to site and grow, and the step does not apply. Otherwise it
+// raises the storage room itself, its exact ring and its door onto the
+// spine, at most once per goal episode. A zero-value, empty-Reason result
+// means the step did not apply, and the caller reports its own exhaustion
+// reason instead.
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, reading observation.ColonyReading, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
 	projection := reading.Projection
-	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	if zoneAttempts >= maxSecureSuppliesZoneMethods {
-		return PlanResult{}, nil
-	}
 	storage, planned := plannedStorageRoom(projection)
 	if !planned {
 		return PlanResult{Kind: PlanWaiting, Dependency: "layout plan storage room", Verdict: fieldUnavailable("storage_room_plan")}, nil
 	}
-	stockpile, perimeter := storageRoomStep(storage, projection.Cells)
+	perimeter := storageRoomRing(storage, projection.Cells)
 	if perimeter == nil {
-		if len(stockpile) == 0 {
-			return PlanResult{}, nil
-		}
-		return r.shellStockpile(call, epoch, state, goal, projection, item, stockpile, domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts)), started)
+		return PlanResult{}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -775,6 +459,33 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
+// storageRoomRing is the planned storage room's own ring to raise, door
+// first, or nil when a player wall or door stands on every cell of it.
+func storageRoomRing(room domain.RoomFootprint, cells []policy.SiteCell) []domain.Cell {
+	at := make(map[domain.Cell]policy.SiteCell, len(cells))
+	for _, c := range cells {
+		at[c.Cell] = c
+	}
+	door := room.Door()
+	stands := true
+	for _, w := range room.Walls() {
+		c := at[w]
+		edifice, ek := c.PlayerEdifice.Value()
+		doorway, dk := c.Doorway.Value()
+		stands = stands && (ek && edifice != "" || dk && doorway)
+	}
+	if stands {
+		return nil
+	}
+	ring := []domain.Cell{door}
+	for _, w := range room.Walls() {
+		if w != door {
+			ring = append(ring, w)
+		}
+	}
+	return ring
+}
+
 // supplyRoomRoleCells is the storage room's cells by what rock on them
 // means: the interior and the door need floor, the other ring cells are
 // walls, which natural rock already is.
@@ -806,98 +517,11 @@ func plannedStorageRoom(projection observation.ColonyProjection) (domain.RoomFoo
 	// A further storage room (#1772) is raised before the first one is
 	// zoned again.
 	for _, shell := range shells {
-		if _, perimeter := storageRoomStep(shell, projection.Cells); perimeter != nil {
+		if storageRoomRing(shell, projection.Cells) != nil {
 			return shell, true
 		}
 	}
 	return shells[0], true
-}
-
-// storageRoomStep is the supply_storeroom step's pure choice for the
-// planned storage room. When a player wall or door stands on every cell of
-// its ring, stockpile is the interior a covered patch may take: roofed,
-// unoccupied (the bunks keep theirs), unzoned, and off the door aisle
-// (every cell within one step of the door). Otherwise perimeter is the
-// room's own ring to raise, door first.
-func storageRoomStep(room domain.RoomFootprint, cells []policy.SiteCell) (stockpile, perimeter []domain.Cell) {
-	at := make(map[domain.Cell]policy.SiteCell, len(cells))
-	for _, c := range cells {
-		at[c.Cell] = c
-	}
-	door := room.Door()
-	stands := true
-	for _, w := range room.Walls() {
-		c := at[w]
-		edifice, ek := c.PlayerEdifice.Value()
-		doorway, dk := c.Doorway.Value()
-		stands = stands && (ek && edifice != "" || dk && doorway)
-	}
-	if !stands {
-		perimeter = []domain.Cell{door}
-		for _, w := range room.Walls() {
-			if w != door {
-				perimeter = append(perimeter, w)
-			}
-		}
-		return nil, perimeter
-	}
-	for _, cell := range room.Interior() {
-		if max(cell.X-door.X, door.X-cell.X, cell.Z-door.Z, door.Z-cell.Z) <= 1 {
-			continue
-		}
-		c := at[cell]
-		roofed, rk := c.Roofed.Value()
-		occupied, ok := c.Occupied.Value()
-		zoned, zk := c.Zone.Value()
-		if rk && roofed && ok && !occupied && zk && !zoned {
-			stockpile = append(stockpile, cell)
-		}
-	}
-	return stockpile, nil
-}
-
-// shellStockpile proposes the item's allow-list stockpile on cells inside
-// the standing storage shell.
-func (r *RoutineSecureSuppliesPlanner) shellStockpile(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, cells []domain.Cell, method domain.MethodID, started time.Time) (PlanResult, error) {
-	value, err := allowListZone(domain.ImportantPriority, []string{item.Definition}, cells)
-	if err == nil {
-		value, err = value.WithRole(domain.CoveredRolePrefix + item.Definition)
-	}
-	if err != nil {
-		return PlanResult{}, err
-	}
-	id := domain.MintPlanID()
-	snapshot := state.Snapshot
-	snapshot.Plan = id
-	snapshot.Revision = 1
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), value)
-	var refused *bridge.NativeFailure
-	if errors.As(err, &refused) {
-		clockSchedulerLog("%s: storage shell stockpile refused code=%v detail=%q", goal.Goal.ID, refused.Value.GetCode(), refused.Value.GetDetail())
-		return PlanResult{}, nil
-	}
-	if err != nil {
-		return PlanResult{}, err
-	}
-	v := reply.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
-		return PlanResult{}, nil
-	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
-		return PlanResult{}, fmt.Errorf("%w: shellStockpile: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
-	}
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return PlanResult{}, err
-	}
-	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return PlanResult{}, err
-	}
-	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
-	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // previewSupplyRoomShell previews the storage room's ring, perimeter door

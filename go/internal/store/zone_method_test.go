@@ -94,7 +94,7 @@ func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "secure-supplies-zone-0", plan); err != nil {
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "zone-method-0", plan); err != nil {
 		t.Fatal(err)
 	}
 }

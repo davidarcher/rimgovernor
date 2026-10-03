@@ -121,7 +121,7 @@ variable set, each step writes `planner-<goal>-<tick>-<seq>.json`
 (`snapshot.Planner`) holding the policy inputs it noted: shelter starter
 searches, dig search, native excavation site reads by purpose and
 dig-or-shell choices; chunk dump sites; animal feed method inputs;
-secure-supplies items, hauler candidates and covered storage searches;
+secure-supplies items and hauler candidates;
 shrine defender squads and breach readiness requests; the resource
 step's bill selections, the workshop bench censuses, the gear step's
 method requests and the research step's census with its needs (#894).

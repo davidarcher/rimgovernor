@@ -184,7 +184,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
 		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
 		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
-		{"covered:WoodLog", true, false, mustAllowOnly(t, "WoodLog"), domain.ImportantPriority},
+		{"covered:WoodLog", false, false, domain.StockpileFilter{}, ""},
 		{domain.ApparelRole, true, false, domain.ApparelFilter(), domain.PreferredPriority},
 		{domain.WeaponsRole, true, false, domain.WeaponsFilter(), domain.PreferredPriority},
 		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
@@ -206,14 +206,6 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 			t.Errorf("%s published over an unknown census", role)
 		}
 	}
-}
-
-func mustAllowOnly(t *testing.T, def string) domain.StockpileFilter {
-	f, err := domain.AllowOnlyFilter([]string{def})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return f
 }
 
 // Needs count serviceable stored apparel for the apparel role, poor stored

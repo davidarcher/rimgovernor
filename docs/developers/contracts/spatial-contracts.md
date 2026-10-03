@@ -203,7 +203,7 @@ role-less legacy claim is resized and merged, never retargeted or deleted.
 The desired state per role comes from the role's owning planner through
 `buildingruntime.RegisterStockpileRole(prefix, source)`; a role no source
 claims keeps its settings, and a source answers nothing while the fact it
-judges by is unknown. The owners: `general` and `covered:<def>` (secure
+judges by is unknown. The owners: `general` and `opening_general` (secure
 supplies, fixed settings), `ingredients:<benchID>`, the workstation stockpile
 `policy.PlanStorage` sites per bench (retired once the bench census no longer
 lists the bench), `medicine:<roomID>` (retired once the

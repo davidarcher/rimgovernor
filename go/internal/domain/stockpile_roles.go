@@ -8,7 +8,6 @@ const (
 	// OpeningGeneralRole is the opening outdoor general store, deleted once
 	// the warehouse stands.
 	OpeningGeneralRole    = "opening_general"
-	CoveredRolePrefix     = "covered:"
 	IngredientsPrefix     = "ingredients:"
 	MealsRolePrefix       = "meals:"
 	RawFoodRolePrefix     = "rawfood:"

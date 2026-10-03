@@ -599,7 +599,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 // "mine" source is checked against the same read's StorageCapacity payload
 // (NativeResourceSourcesTool.Storage) to see whether hauling that source's
 // yield needs a new covered stockpile zone (policy.SelectResourceStorageZone).
-// It mirrors coveredStorageFallback's exact zone-build shape
+// It builds the zone
 // (allowListZone/PreviewZone/AdmitBuildingMethod, not
 // CommitGoalMethod, since a zone carries footprint like a building), but the
 // candidate cells come directly from native's own hauler-reachable, roofed,

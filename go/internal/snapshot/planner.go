@@ -38,8 +38,6 @@ type Planner struct {
 	// SecureSupplies is every policy.SelectSecureSupplies call: the exposed
 	// items and the hauler candidates.
 	SecureSupplies []SecureSuppliesCall
-	// CoveredStorage is every policy.CoveredStorageSites request.
-	CoveredStorage []policy.CoveredStorageRequest
 	// ShrineSquads is every shrine defender read, in order.
 	ShrineSquads [][]policy.ShrineDefenderFacts
 	// ShrineReadiness is every policy.ShrineBreachReadiness request.
@@ -97,7 +95,7 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+len(p.CoveredStorage)+
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -173,11 +171,6 @@ func NoteAnimalFeed(ctx context.Context, c AnimalFeedCall) {
 // NoteSecureSupplies records a secure-supplies hauler selection's inputs.
 func NoteSecureSupplies(ctx context.Context, c SecureSuppliesCall) {
 	recorder(ctx).add(func(p *Planner) { p.SecureSupplies = append(p.SecureSupplies, c) })
-}
-
-// NoteCoveredStorage records a covered storage site search.
-func NoteCoveredStorage(ctx context.Context, r policy.CoveredStorageRequest) {
-	recorder(ctx).add(func(p *Planner) { p.CoveredStorage = append(p.CoveredStorage, r) })
 }
 
 // NoteShrineSquad records a shrine defender read.
