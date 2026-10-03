@@ -27,7 +27,7 @@ type DumpStore struct {
 // DumpNeeds counts the things waiting for each dump (#724): poor stored
 // apparel and the worn-out garments pawns will shed for the worn dump,
 // spoiled items and rotting animal corpses for the rotten dump, humanlike
-// corpses for the corpse dump. An unknown census counts nothing.
+// corpses for the corpse dump, exposed fresh animal corpses for the fresh dump. An unknown census counts nothing.
 func DumpNeeds(facts RoutineFacts) map[string]int {
 	needs := map[string]int{}
 	if gear, ok := facts.Gear.Value(); ok {
@@ -55,6 +55,8 @@ func DumpNeeds(facts RoutineFacts) map[string]int {
 			switch {
 			case item.Kind == "spoiled", item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal && item.RotStage != domain.RotFresh:
 				needs[domain.RottenDumpRole]++
+			case item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal && item.RotStage == domain.RotFresh && item.State == WasteExposed:
+				needs[domain.FreshDumpRole]++
 			case item.Kind == "corpse" && (item.CorpseOf == domain.CorpseColonist || item.CorpseOf == domain.CorpseStranger):
 				needs[domain.CorpseDumpRole]++
 			}
@@ -78,10 +80,11 @@ func (r StorageRequest) dumpAnchor() domain.Cell {
 	return r.Dumps.Anchor
 }
 
-// dumpSites is one keyed site per dump role with things waiting. Candidates are the nearest free 2x2 patches
+// dumpSites is one keyed site per dump role with things waiting, but no fresh
+// dump while the freezer's corpse shelf (shelved) stands. Candidates are the nearest free 2x2 patches
 // (OutdoorDumpSites); the site room is every outdoor walkable cell clear of
 // living rooms, taken or not.
-func (r StorageRequest) dumpSites() []StockpileSite {
+func (r StorageRequest) dumpSites(shelved bool) []StockpileSite {
 	d := r.Dumps
 	if d == nil || len(d.Needs) == 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return nil
@@ -109,7 +112,7 @@ func (r StorageRequest) dumpSites() []StockpileSite {
 	}
 	var out []StockpileSite
 	for _, spec := range domain.DumpRoles() {
-		if d.Needs[spec.Role] <= 0 {
+		if d.Needs[spec.Role] <= 0 || shelved && spec.Role == domain.FreshDumpRole {
 			continue
 		}
 		at := r.dumpAnchor()

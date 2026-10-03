@@ -194,6 +194,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
 		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
 		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
+		{domain.FreshDumpRole, true, false, domain.CorpseLarderFilter(), domain.LowPriority},
 		{"dump:other", false, false, domain.StockpileFilter{}, ""},
 		// No dining table and no cold spot: the meal stockpile retires (#936).
 		{"meals:Room_1", true, true, domain.StockpileFilter{}, ""},

@@ -247,7 +247,8 @@ shelf cell.
 The fixed dump roles (#724) are created when the colony has things for one
 and no zone of it: poor stored apparel and worn-out garments on pawns
 (`dump:worn`, Low), spoiled items and rotting animal corpses (`dump:rotten`,
-Low), unburied humanlike corpses (`dump:corpses`, Low). A dump takes the
+Low), unburied humanlike corpses (`dump:corpses`, Low), exposed fresh animal
+corpses while no freezer corpse shelf stands (`dump:fresh`, Low). A dump takes the
 nearest free outdoor 2x2 patch six cells clear of any living room
 (`policy.OutdoorDumpSites`), never while the room census is unknown. A create
 ranks after retargets and before grows; its hauls are the things waiting for

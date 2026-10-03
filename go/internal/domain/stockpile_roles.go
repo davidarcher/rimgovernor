@@ -29,6 +29,9 @@ const (
 	WornDumpRole   = "dump:worn"
 	RottenDumpRole = "dump:rotten"
 	CorpseDumpRole = "dump:corpses"
+	// FreshDumpRole holds fresh animal and insect corpses for the butcher
+	// while no freezer corpse shelf stands.
+	FreshDumpRole = "dump:fresh"
 	// IncineratorRole is the walled incinerator's zone (#1814).
 	IncineratorRole = "incinerator"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
@@ -140,7 +143,7 @@ func IncineratorFilter() StockpileFilter {
 // home yet: strangers wait for the butcher or the incinerator and colonists
 // for the tomb, so none lie in a room colonists sleep or eat in. Animal and
 // insect corpses are not here (#1812): fresh ones belong on the freezer
-// shelf, and a rotting one goes to the rotten dump.
+// shelf or the fresh dump, and a rotting one goes to the rotten dump.
 func CorpseDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil))
 }
@@ -160,5 +163,6 @@ func DumpRoles() []StockpileRoleSpec {
 		{WornDumpRole, WornDumpFilter(), LowPriority},
 		{RottenDumpRole, RottenDumpFilter(), LowPriority},
 		{CorpseDumpRole, CorpseDumpFilter(), LowPriority},
+		{FreshDumpRole, CorpseLarderFilter(), LowPriority},
 	}
 }

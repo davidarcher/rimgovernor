@@ -27,7 +27,7 @@ when it needs another room.
 | Food store | `food` | Beside the kitchen | Preferred | Food, until a roofed food store stands |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | The storage room (apparel) and barracks (weapons) | Preferred | Clothing and armor, weapons |
-| Dumps | `dump:worn`, `dump:rotten`, `dump:corpses` | A free outdoor 2x2 patch clear of living rooms, nearest the warehouse; sited only while something waits for it (worn-out apparel, spoiled items and animal carcasses, human corpses) | Low | Worn gear, rotten items, corpses |
+| Dumps | `dump:worn`, `dump:rotten`, `dump:corpses`, `dump:fresh` | A free outdoor 2x2 patch clear of living rooms, nearest the warehouse; sited only while something waits for it (worn-out apparel, spoiled items and rotting animal carcasses, human corpses, fresh animal carcasses while no freezer shelf stands) | Low | Worn gear, rotten items, corpses, fresh animal corpses |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation, medicine and food stockpiles draw their items first, and

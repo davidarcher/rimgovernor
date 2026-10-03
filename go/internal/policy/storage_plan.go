@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The storage planner (#1765, #1769): one deterministic function from the
 // colony view to the full desired set of room-bound storage sites. Planner
@@ -94,8 +98,13 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	}
 	plan.Sites = append(plan.Sites, r.benchInputSites()...)
 	plan.Sites = append(plan.Sites, r.medicineSites()...)
+	shelved := false
 	if r.Layout != nil && r.Rooms != nil {
-		plan.Sites = append(plan.Sites, r.freezerSites()...)
+		freezer := r.freezerSites()
+		for _, site := range freezer {
+			shelved = shelved || strings.HasPrefix(site.Role, domain.CorpsesRolePrefix)
+		}
+		plan.Sites = append(plan.Sites, freezer...)
 		plan.Sites = append(plan.Sites, r.tombSites()...)
 		plan.Sites = append(plan.Sites, r.morgueSites()...)
 		plan.Sites = append(plan.Sites, r.warehouseSites()...)
@@ -103,7 +112,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 		plan.Sites = append(plan.Sites, r.gearSites()...)
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
-	plan.Sites = append(plan.Sites, r.dumpSites()...)
+	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)
 	plan.Sites = append(plan.Sites, r.incineratorSites()...)
 	plan.Incinerator = r.incineratorOwed()
 	return plan
