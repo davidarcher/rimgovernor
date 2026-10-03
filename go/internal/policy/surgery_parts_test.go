@@ -42,7 +42,7 @@ func TestSurgeryParts(t *testing.T) {
 	if len(demand) != 2 || demand[0].Key.Def != "BionicLeg" || demand[0].Count != 1 || demand[0].Priority != 84 {
 		t.Fatalf("demand %+v", demand)
 	}
-	noDoctor := SurgeryParts([]SurgeryWant{{Reason: SurgeryNoDoctor, Options: []string{"InstallPegLeg"}}})
+	noDoctor := SurgeryParts([]SurgeryWant{{Reason: SurgeryNoDoctor, Options: []string{"InstallPegLeg"}, Items: []Resource{"PegLeg"}}})
 	if len(noDoctor) != 0 {
 		t.Fatalf("a doctor want is not part demand: %+v", noDoctor)
 	}

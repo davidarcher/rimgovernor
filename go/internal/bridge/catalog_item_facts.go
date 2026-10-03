@@ -81,7 +81,12 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 	if catalog.ThingDefs[catalog.Constants.CurrencyDef] == nil {
 		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Constants.CurrencyDef)
 	}
+	items.Wort = policy.Resource(catalog.Constants.WortDef)
 	if err := buildDrugFacts(catalog, &items); err != nil {
+		return policy.ItemFacts{}, err
+	}
+	var err error
+	if items.Sculptures, err = catalog.sculptures(); err != nil {
 		return policy.ItemFacts{}, err
 	}
 	return items, nil

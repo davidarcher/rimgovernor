@@ -294,7 +294,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
 	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}, {DefName: statRangedCooldown, DefaultBaseValue: 1}, {DefName: statRangedDamageMult, DefaultBaseValue: 1}, {DefName: statRangedPenMult, DefaultBaseValue: 1}, {DefName: statMeleeCooldown, DefaultBaseValue: 1}, {DefName: statMeleeDamageMult, DefaultBaseValue: 1}}, RoomStatDefs: FixtureRoomStats()}
-	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}
+	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}

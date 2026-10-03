@@ -45,7 +45,7 @@ func (r *RoutineBillPlanner) artSelection(call context.Context, state ControlSta
 	// Sale sculptures (#1193) are asked for while no room is owed.
 	demand := artDemand(projection, profiles)
 	demand.Sale = policy.RoutineArtForSale(projection.Facts, r.reviewer.policy, medicineActive)
-	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles)), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
+	bills := append(policy.SelectInspiredArtBills(benches, policy.InspiredArtists(profiles), projection.Facts.Items), policy.SelectArtBills(benches, projection.Facts.Colonists, policy.Artists(profiles), demand)...)
 	switch {
 	case len(bills) > 0:
 		return bills[0], Verdict{}, art, nil
@@ -71,7 +71,7 @@ func artBills(benches []policy.ProductionBench) artBenchState {
 	for _, bench := range benches {
 		for _, bill := range bench.Bills {
 			active, known := bill.Active.Value()
-			if !known || !policy.IsSculptureRecipe(bill.Recipe) {
+			if !known || bill.Role != domain.RoleSculpture {
 				continue
 			}
 			if active {
@@ -112,12 +112,12 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 		}
 		bench := policy.ProductionBench{ID: read.Bench.ID, Token: domain.Known(read.Token), Usable: domain.Known(true)}
 		for _, recipe := range recipes {
-			if !policy.IsSculptureRecipe(recipe.Definition) {
+			if recipe.Role != domain.RoleSculpture {
 				continue
 			}
 			available, ak := recipe.Available.Value()
 			on, ok := recipe.AvailableOn.Value()
-			bench.Recipes = append(bench.Recipes, policy.ProductionRecipe{Name: recipe.Definition, Available: domain.Fact[bool]{}})
+			bench.Recipes = append(bench.Recipes, policy.ProductionRecipe{Name: recipe.Definition, Role: recipe.Role, Available: domain.Fact[bool]{}})
 			if ak && ok {
 				bench.Recipes[len(bench.Recipes)-1].Available = domain.Known(available && on)
 			}
@@ -126,7 +126,7 @@ func artBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 			continue
 		}
 		for _, bill := range bills {
-			bench.Bills = append(bench.Bills, policy.ExistingProductionBill{ID: bill.ID, Recipe: bill.Recipe, Worker: bill.Worker, Active: bill.Active})
+			bench.Bills = append(bench.Bills, policy.ExistingProductionBill{ID: bill.ID, Recipe: bill.Recipe, Role: bill.Role, Worker: bill.Worker, Active: bill.Active})
 		}
 		out = append(out, bench)
 	}

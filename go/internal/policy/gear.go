@@ -313,13 +313,17 @@ type GearMethod struct {
 }
 type GearBill struct {
 	ID, Recipe string
-	Active     domain.Fact[bool]
+	// Role is the recipe's role by its catalog row (#1721).
+	Role   domain.RecipeRole
+	Active domain.Fact[bool]
 	// Worker is the pinned pawn, known "" when unrestricted (#1190).
 	Worker   domain.Fact[string]
 	Products []Resource
 }
 type GearRecipe struct {
-	Definition             string
+	Definition string
+	// Role is what the recipe does by its catalog row (#1721).
+	Role                   domain.RecipeRole
 	Products               []Resource
 	Available, AvailableOn domain.Fact[bool]
 	Ingredients            domain.Fact[[][]Amount]

@@ -23,8 +23,19 @@ func tierRequest() MealTierRequest {
 	}
 }
 
+// tierKind is the food kind a meal of that mood is (the game's own tiers).
+func tierKind(mood float64) FoodKind {
+	switch {
+	case mood >= 12:
+		return FoodKindMealLavish
+	case mood >= 5:
+		return FoodKindMealFine
+	}
+	return FoodKindMealSimple
+}
+
 func tierRecipe(name string, mood, efficiency, work float64, floor int32, slots ...FoodIngredientSlot) ProductionRecipe {
-	return ProductionRecipe{Name: name, Available: domain.Known(true), Mood: domain.Known(mood), NutrientEfficiency: domain.Known(efficiency), WorkPerNutrition: domain.Known(work), CookSkillFloor: domain.Known(floor), NeedsPower: domain.Known(false), IngredientClasses: domain.Known(slots), Products: []ProductionProduct{{Name: name, Nutrition: domain.Known(0.9), Edible: domain.Known(true)}}}
+	return ProductionRecipe{Name: name, Available: domain.Known(true), Mood: domain.Known(mood), NutrientEfficiency: domain.Known(efficiency), WorkPerNutrition: domain.Known(work), CookSkillFloor: domain.Known(floor), NeedsPower: domain.Known(false), IngredientClasses: domain.Known(slots), Role: domain.RoleOrdinaryMeal, Products: []ProductionProduct{{Name: name, Kind: tierKind(mood), Perishable: domain.Known(true), Nutrition: domain.Known(0.9), Edible: domain.Known(true)}}}
 }
 
 func tierBenches() domain.Fact[[]ProductionBench] {

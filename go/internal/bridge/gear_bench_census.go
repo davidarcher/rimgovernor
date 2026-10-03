@@ -55,6 +55,10 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
 		return nil, raw, contract("invalid bills context")
 	}
+	catalog, err := client.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return nil, raw, err
+	}
 	seen := map[string]bool{}
 	out := make([]GearBenchRead, 0, len(snapshot.Benches))
 	for _, stack := range snapshot.Benches {
@@ -65,11 +69,11 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 			return nil, raw, contract("invalid gear bench token")
 		}
 		seen[stack.Bench.GetId()] = true
-		recipes, err := client.readGearRecipes(ctx, identity, stack.Bench.GetId())
+		recipes, err := client.readGearRecipes(ctx, identity, stack.Bench.GetId(), catalog)
 		if err != nil {
 			return nil, raw, err
 		}
-		bills, err := gearBillsFromStack(stack, recipes)
+		bills, err := gearBillsFromStack(stack, recipes, catalog)
 		if err != nil {
 			return nil, raw, err
 		}
@@ -80,7 +84,7 @@ func (client *Client) ReadGearBenches(ctx context.Context, identity *c.Identity)
 	return out, raw, nil
 }
 
-func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity, bench string) ([]policy.GearRecipe, error) {
+func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity, bench string, catalog *DefinitionCatalog) ([]policy.GearRecipe, error) {
 	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, BenchId: proto.String(bench)}
 	reply := &o.RecipesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_recipes", request, reply)
@@ -115,6 +119,9 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		}
 		names[row.Recipe.GetDefName()] = true
 		recipe := policy.GearRecipe{Definition: row.Recipe.GetDefName()}
+		if recipe.Role, err = catalog.RecipeRole(recipe.Definition); err != nil {
+			return nil, err
+		}
 		if row.AvailableNow != nil {
 			recipe.Available = domain.Known(row.GetAvailableNow())
 		}
@@ -252,7 +259,7 @@ func gearRecipeWork(row *o.RecipeState) domain.Fact[[]policy.WorkRequirement] {
 	return domain.Known([]policy.WorkRequirement{{Work: policy.WorkType(row.GetWorkType()), Skill: skill, Minimum: minimum}})
 }
 
-func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe) ([]policy.GearBill, error) {
+func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe, catalog *DefinitionCatalog) ([]policy.GearBill, error) {
 	if len(stack.Bills) > 15 {
 		return nil, contract("bill stack exceeds bound")
 	}
@@ -266,6 +273,11 @@ func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe) ([]poli
 			return nil, contract("invalid gear bill identity")
 		}
 		row := policy.GearBill{ID: bill.GetId(), Recipe: bill.Recipe.GetDefName()}
+		role, err := catalog.RecipeRole(row.Recipe)
+		if err != nil {
+			return nil, err
+		}
+		row.Role = role
 		if bill.Suspended != nil && bill.Finished != nil {
 			row.Active = domain.Known(!bill.GetSuspended() && !bill.GetFinished())
 		}

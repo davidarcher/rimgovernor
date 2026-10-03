@@ -44,7 +44,7 @@ func TestMealReplacementRetiresOlderTierBills(t *testing.T) {
 	r.Paste = domain.Unknown[Infrastructure]()
 	for _, managed := range []bool{false, true} {
 		benches, _ := tierBenches().Value()
-		benches[0].Bills = []ExistingProductionBill{{ID: "fine-owned", Recipe: "CookMealFine", Managed: domain.Known(managed)}}
+		benches[0].Bills = []ExistingProductionBill{{ID: "fine-owned", Role: domain.RoleOrdinaryMeal, Recipe: "CookMealFine", Managed: domain.Known(managed)}}
 		selected, ok := SelectProductionBill(CookFood, domain.Known(benches), domain.Known(int64(2)), r.RawRunwayDays, domain.Unknown[float64](), r.TargetDays, ProductionBillContext{Meals: &r})
 		if !ok || selected.Recipe != "CookMealSimple" || selected.Replace != "fine-owned" {
 			t.Fatal(managed, selected, ok)

@@ -6,6 +6,18 @@ internal static class NativeProductionBillSettingsProbe
 {
     public static void Invoke()
     {
+        // The game's two corpse recipes as rows: the butcher counter, and a corpse-consuming
+        // recipe that makes nothing (NativeRecipeRoles reads these, never a defName).
+        var corpse = new Verse.ThingDef { defName = "Corpse_Human", IsCorpse = true };
+        var corpseIngredient = new RimWorld.IngredientCount();
+        corpseIngredient.filter.AllowedThingDefs.Add(corpse);
+        var butcherRecipe = new RimWorld.RecipeDef { defName = "ButcherCorpseFlesh", WorkerCounter = new RimWorld.RecipeWorkerCounter_ButcherAnimals(),
+            specialProducts = new System.Collections.Generic.List<RimWorld.SpecialProductType> { RimWorld.SpecialProductType.Butchery } };
+        butcherRecipe.ingredients.Add(corpseIngredient);
+        var cremateRecipe = new RimWorld.RecipeDef { defName = "CremateCorpse" };
+        cremateRecipe.ingredients.Add(corpseIngredient);
+        Verse.DefDatabase<RimWorld.RecipeDef>.Named[butcherRecipe.defName] = butcherRecipe;
+        Verse.DefDatabase<RimWorld.RecipeDef>.Named[cremateRecipe.defName] = cremateRecipe;
         var bill = new Operations.ProductionBillIntent {
             BenchId = "tailor",
             RecipeDef = "Make_Apparel_BasicShirt",

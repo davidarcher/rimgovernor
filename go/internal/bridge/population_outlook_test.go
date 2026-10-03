@@ -11,7 +11,7 @@ func TestDecodePopulationOutlook(t *testing.T) {
 	present, err := decodePopulation(&o.PopulationSnapshot{
 		PopulationIntent: proto.Float64(1.5), AdjustedPopulation: proto.Float64(4),
 		DeathOnDownedChance: proto.Float64(0), UnrecruitableChance: proto.Float64(0.115),
-	}, Pawns{})
+	}, Pawns{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestDecodePopulationOutlook(t *testing.T) {
 		}
 	}
 
-	absent, err := decodePopulation(&o.PopulationSnapshot{}, Pawns{})
+	absent, err := decodePopulation(&o.PopulationSnapshot{}, Pawns{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

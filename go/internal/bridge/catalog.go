@@ -57,6 +57,8 @@ type DefinitionCatalog struct {
 	// thingFacts are the game-computed flags of every ThingDef (#1733) by name.
 	thingFacts map[string]*o.ThingDefFacts
 	// items is the planner-facing item facts, built once on first use.
+	// recipes are the recipe facts derived from the rows on first use (#1721).
+	recipes   recipeCache
 	itemsOnce sync.Once
 	items     policy.ItemFacts
 	itemsErr  error
@@ -299,6 +301,9 @@ func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 	}
 	if v.CurrencyDef == "" {
 		return nil, contract("catalog constant currency_def is empty")
+	}
+	if v.WortDef == "" {
+		return nil, contract("catalog constant wort_def is empty")
 	}
 	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
 		return nil, contract("catalog constant lit_glow_threshold is %v", g)

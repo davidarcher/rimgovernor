@@ -42,7 +42,7 @@ func TestProductionBillAction(t *testing.T) {
 }
 
 func TestBillIntentSettingsByMode(t *testing.T) {
-	human, err := domain.NewHumanButcherBill("bench", "cook")
+	human, err := domain.NewHumanButcherBill("bench", "ButcherCorpseFlesh", "cook")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -164,7 +164,14 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		if observed.GetFermentingBarrels() == 0 {
 			return &workshopSelection{barrel: true, resource: resource, candidates: []string{"FermentingBarrel"}}, Verdict{}, nil
 		}
-		resource = "Wort"
+		items, err := r.reviewer.itemFacts(call, state.Snapshot)
+		if err != nil {
+			return nil, Verdict{}, err
+		}
+		if items.Wort == "" {
+			return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: the catalog names no wort def", ErrControl)
+		}
+		resource = items.Wort
 	}
 	if err != nil {
 		return nil, Verdict{}, err

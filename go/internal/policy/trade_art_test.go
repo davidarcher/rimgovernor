@@ -17,15 +17,15 @@ func TestSaleSculpturesReserveTheBest(t *testing.T) {
 		{ID: "Thing_B", Def: SculptureDefinition, Quality: 5, MarketValue: 900},
 		{ID: "Thing_C", Def: SculptureDefinition, Quality: -1},
 	}
-	sale := SaleSculptures(obs, targets, rooms, packed)
+	sale := SaleSculptures(obs, targets, rooms, packed, CoreItemFacts())
 	if want := map[string]bool{"Thing_A": true, "Thing_C": true}; !reflect.DeepEqual(sale, want) {
 		t.Fatalf("sale = %v, want %v", sale, want)
 	}
-	if s, ok := NextSculpture(obs, targets, rooms, packed); !ok || s.Packed != "Thing_B" {
+	if s, ok := NextSculpture(obs, targets, rooms, packed, CoreItemFacts()); !ok || s.Packed != "Thing_B" {
 		t.Fatalf("install = %+v %v", s, ok)
 	}
 	// No owed room: everything sells.
-	if sale := SaleSculptures(obs, nil, rooms, packed); len(sale) != 3 {
+	if sale := SaleSculptures(obs, nil, rooms, packed, CoreItemFacts()); len(sale) != 3 {
 		t.Fatalf("no owed room sale = %v", sale)
 	}
 }

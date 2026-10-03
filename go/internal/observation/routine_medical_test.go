@@ -9,6 +9,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// medicalPawns is routineMedical over a catalog with no recipe rows: no
+// operation names a part item.
+func medicalPawns(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot) domain.Fact[[]policy.CarePawn] {
+	facts, err := routineMedical(colony, emergency, snapshot, nil)
+	if err != nil {
+		panic(err)
+	}
+	return facts
+}
+
 func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
 	for _, test := range []struct {
 		name      string
@@ -59,7 +69,7 @@ func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
 			if test.change != nil {
 				test.change(v, &e, p)
 			}
-			observed := routineMedical(v, e, p)
+			observed := medicalPawns(v, e, p)
 			_, known := observed.Value()
 			if known != test.known {
 				t.Fatal(observed)
@@ -88,7 +98,7 @@ func TestRoutineMedicalConditionFacts(t *testing.T) {
 		colony := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1)}
 		emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "p", Dead: domain.Known(false), Downed: domain.Known(false)}}}
 		snapshot := &o.PawnSnapshot{Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Health: health}}}
-		rows, ok := routineMedical(colony, emergency, snapshot).Value()
+		rows, ok := medicalPawns(colony, emergency, snapshot).Value()
 		if !ok {
 			t.Fatal("missing census")
 		}
@@ -116,7 +126,7 @@ func TestRoutineMedicalConditionFacts(t *testing.T) {
 			t.Fatal(got)
 		}
 		health.HediffCompleteness = nil
-		rows, _ = routineMedical(colony, emergency, snapshot).Value()
+		rows, _ = medicalPawns(colony, emergency, snapshot).Value()
 		if _, known := rows[0].Conditions.Value(); known {
 			t.Fatal("incomplete condition list claimed complete")
 		}

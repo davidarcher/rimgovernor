@@ -3,7 +3,6 @@ package policy
 import (
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -27,13 +26,6 @@ type SurgeryPart struct {
 	Priority int
 }
 
-// SurgeryPartItem is the part item a vanilla install recipe consumes:
-// InstallBionicArm installs BionicArm.
-func SurgeryPartItem(recipe string) (Resource, bool) {
-	item, ok := strings.CutPrefix(recipe, "Install")
-	return Resource(item), ok && validResource(Resource(item))
-}
-
 // SurgeryParts turns the part-short wants into part demand, highest
 // priority first. Priority scales the want's value (the best part's tier
 // times the body part's weight, at most 1.5) onto ResourceDemand's 1..100.
@@ -44,8 +36,8 @@ func SurgeryParts(wants []SurgeryWant) []SurgeryPart {
 			continue
 		}
 		part := SurgeryPart{Pawn: want.Pawn, Part: want.Part, Priority: min(100, max(1, int(math.Ceil(want.Value/1.5*100))))}
-		for _, recipe := range want.Options {
-			if item, ok := SurgeryPartItem(recipe); ok {
+		for _, item := range want.Items {
+			if validResource(item) {
 				part.Items = append(part.Items, item)
 			}
 		}

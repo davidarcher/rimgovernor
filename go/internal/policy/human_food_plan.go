@@ -86,7 +86,7 @@ func HumanFoodChannel(benches []ProductionBench, supply FoodSupply, humans []Paw
 				continue
 			}
 			for _, p := range r.Products {
-				survival = survival || p.Name == "MealSurvivalPack"
+				survival = survival || p.SurvivalMeal()
 			}
 		}
 	}
@@ -218,7 +218,7 @@ func SelectHumanSurvivalBill(benches domain.Fact[[]ProductionBench], supply Food
 		}
 		for _, r := range b.Recipes {
 			available, _ := r.Available.Value()
-			if !available || len(r.Products) != 1 || r.Products[0].Name != "MealSurvivalPack" {
+			if !available || len(r.Products) != 1 || !r.Products[0].SurvivalMeal() {
 				continue
 			}
 			exists := false

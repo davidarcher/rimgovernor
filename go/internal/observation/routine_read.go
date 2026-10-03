@@ -117,6 +117,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			return RoutineReading{}, err
 		}
 		p.Facts.MedicalReserve.Catalog = p.Facts.Items
+		if p.Facts.Recipes, err = frame.Catalog.RecipeFacts(); err != nil {
+			return RoutineReading{}, err
+		}
 	}
 	p.Containment = containmentPlanning(frame, p.Definitions)
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
@@ -151,7 +154,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			return RoutineReading{}, err
 		}
 		p.MeditateAvailable = optional(pawns.MeditateAssignmentAvailable)
-		p.Facts.MedicalPawns = routineMedical(colony, emergency, pawns)
+		if p.Facts.MedicalPawns, err = routineMedical(colony, emergency, pawns, frame.Catalog); err != nil {
+			return RoutineReading{}, err
+		}
 		p.Facts.MoodPawns = routineMood(colony, emergency, pawns)
 	} else if complete, known := emergency.ColonistsComplete.Value(); known && complete && len(emergency.Colonists) == 0 && colony.ColonistCount != nil && colony.GetColonistCount() == 0 {
 		p.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})

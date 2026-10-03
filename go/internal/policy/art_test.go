@@ -6,9 +6,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// The small sculpture and the inspired artist's large one, as Core names them.
+const (
+	SculptureDefinition = "SculptureSmall"
+	SculptureRecipe     = "Make_SculptureSmall"
+	InspiredArtRecipe   = "Make_SculptureLarge"
+)
+
 func artBench(bills ...ExistingProductionBill) ProductionBench {
 	return ProductionBench{ID: "TableSculpting_1", Token: domain.Known("tok"), Usable: domain.Known(true),
-		Recipes: []ProductionRecipe{{Name: SculptureRecipe, Available: domain.Known(true)}}, Bills: bills}
+		Recipes: []ProductionRecipe{{Name: SculptureRecipe, Role: domain.RoleSculpture, Available: domain.Known(true)}}, Bills: bills}
 }
 
 func artProfile(id PawnID, level int, passion string) PawnProfile {
@@ -29,11 +36,11 @@ func TestSelectArtBills(t *testing.T) {
 	}{
 		{"two artists get two restricted bills", artists, artBench(), []string{"a", "b"}},
 		{"no qualifier gets no bill", Artists([]PawnProfile{artProfile("c", 6, "")}), artBench(), nil},
-		{"an active pinned bill stands", artists, artBench(ExistingProductionBill{ID: "Bill_1", Recipe: SculptureRecipe, Worker: domain.Known("a"), Active: domain.Known(true)}), []string{"b"}},
-		{"a finished pinned bill is renewed", artists, artBench(ExistingProductionBill{ID: "Bill_1", Recipe: SculptureRecipe, Worker: domain.Known("a"), Active: domain.Known(false)}), []string{"a", "b"}},
-		{"an unrestricted bill pins no one", artists, artBench(ExistingProductionBill{ID: "Bill_1", Recipe: SculptureRecipe, Worker: domain.Known(""), Active: domain.Known(true)}), []string{"a", "b"}},
+		{"an active pinned bill stands", artists, artBench(ExistingProductionBill{ID: "Bill_1", Role: domain.RoleSculpture, Recipe: SculptureRecipe, Worker: domain.Known("a"), Active: domain.Known(true)}), []string{"b"}},
+		{"a finished pinned bill is renewed", artists, artBench(ExistingProductionBill{ID: "Bill_1", Role: domain.RoleSculpture, Recipe: SculptureRecipe, Worker: domain.Known("a"), Active: domain.Known(false)}), []string{"a", "b"}},
+		{"an unrestricted bill pins no one", artists, artBench(ExistingProductionBill{ID: "Bill_1", Role: domain.RoleSculpture, Recipe: SculptureRecipe, Worker: domain.Known(""), Active: domain.Known(true)}), []string{"a", "b"}},
 	} {
-		got := SelectArtBills(domain.Known([]ProductionBench{tc.bench}), colonists, tc.artists, ArtDemand{})
+		got := SelectArtBills(domain.Known([]ProductionBench{tc.bench}), colonists, tc.artists, ArtDemand{Items: CoreItemFacts()})
 		if len(got) != len(tc.want) {
 			t.Fatalf("%s: %+v", tc.name, got)
 		}
@@ -44,7 +51,7 @@ func TestSelectArtBills(t *testing.T) {
 		}
 	}
 	// No art bench: no bill.
-	if got := SelectArtBills(domain.Known([]ProductionBench{}), colonists, artists, ArtDemand{}); len(got) != 0 {
+	if got := SelectArtBills(domain.Known([]ProductionBench{}), colonists, artists, ArtDemand{Items: CoreItemFacts()}); len(got) != 0 {
 		t.Fatalf("no bench: %+v", got)
 	}
 }
@@ -69,7 +76,7 @@ func TestMaintainArtNeedsARoomAndAnArtist(t *testing.T) {
 func sizedArtBench() ProductionBench {
 	b := artBench()
 	for _, r := range []string{"Make_SculptureLarge", "Make_SculptureGrand"} {
-		b.Recipes = append(b.Recipes, ProductionRecipe{Name: r, Available: domain.Known(true)})
+		b.Recipes = append(b.Recipes, ProductionRecipe{Name: r, Role: domain.RoleSculpture, Available: domain.Known(true)})
 	}
 	return b
 }
@@ -85,7 +92,7 @@ func TestArtBillSizeAndStuff(t *testing.T) {
 		recipe, stuff string
 	}{
 		{"big gap, space, stock and skill: grand in marble", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureGrand", "BlocksMarble"},
-		{"no 3x3 spot: large", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 2, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
+		{"no 2x2 spot: large", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 1, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
 		{"modest gap: large", ArtDemand{Items: CoreItemFacts(), Gap: 15, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
 		{"mid skill: large at most", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 7}}, "Make_SculptureLarge", "BlocksMarble"},
 		{"passion without skill: small", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 3}}, SculptureRecipe, "Silver"},
@@ -103,8 +110,8 @@ func TestArtBillSizeAndStuff(t *testing.T) {
 	}
 	// A pinned large sculpture bill counts as the artist's bill.
 	b := sizedArtBench()
-	b.Bills = []ExistingProductionBill{{ID: "Bill_1", Recipe: "Make_SculptureLarge", Worker: domain.Known("a"), Active: domain.Known(true)}}
-	if got := SelectArtBills(domain.Known([]ProductionBench{b}), domain.Known[int64](2), []PawnID{"a"}, ArtDemand{}); len(got) != 0 {
+	b.Bills = []ExistingProductionBill{{ID: "Bill_1", Role: domain.RoleSculpture, Recipe: "Make_SculptureLarge", Worker: domain.Known("a"), Active: domain.Known(true)}}
+	if got := SelectArtBills(domain.Known([]ProductionBench{b}), domain.Known[int64](2), []PawnID{"a"}, ArtDemand{Items: CoreItemFacts()}); len(got) != 0 {
 		t.Fatalf("pinned large: %+v", got)
 	}
 }
@@ -124,7 +131,7 @@ func TestNewArtDemand(t *testing.T) {
 
 func TestInspiredArtistGetsPriorityBill(t *testing.T) {
 	bench := artBench()
-	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: InspiredArtRecipe, Available: domain.Known(true)})
+	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: InspiredArtRecipe, Role: domain.RoleSculpture, Available: domain.Known(true)})
 	inspired := artProfile("b", 8, "")
 	inspired.Inspiration = domain.Known(InspiredCreativity)
 	plain := artProfile("a", 8, "")
@@ -133,13 +140,13 @@ func TestInspiredArtistGetsPriorityBill(t *testing.T) {
 	notArtist.Inspiration = domain.Known(InspiredCreativity)
 	profiles := []PawnProfile{plain, inspired, notArtist}
 	benches := domain.Known([]ProductionBench{bench})
-	got := SelectInspiredArtBills(benches, InspiredArtists(profiles))
+	got := SelectInspiredArtBills(benches, InspiredArtists(profiles), CoreItemFacts())
 	if len(got) != 1 || got[0].Worker != "b" || got[0].Recipe != InspiredArtRecipe || got[0].Target != 1 || got[0].Mode != domain.GearBatch {
 		t.Fatalf("inspired: %+v", got)
 	}
 	// An active large bill pinned to the artist stands.
-	bench.Bills = []ExistingProductionBill{{ID: "Bill_1", Recipe: InspiredArtRecipe, Worker: domain.Known("b"), Active: domain.Known(true)}}
-	if got := SelectInspiredArtBills(domain.Known([]ProductionBench{bench}), InspiredArtists(profiles)); len(got) != 0 {
+	bench.Bills = []ExistingProductionBill{{ID: "Bill_1", Role: domain.RoleSculpture, Recipe: InspiredArtRecipe, Worker: domain.Known("b"), Active: domain.Known(true)}}
+	if got := SelectInspiredArtBills(domain.Known([]ProductionBench{bench}), InspiredArtists(profiles), CoreItemFacts()); len(got) != 0 {
 		t.Fatalf("active: %+v", got)
 	}
 	// An uninspired colony is unchanged.

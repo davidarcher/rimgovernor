@@ -238,6 +238,9 @@ type RoutineFacts struct {
 	// Items are the catalog's item numbers (market value, nutrition,
 	// medical potency, stuff factors); the zero value without a catalog.
 	Items ItemFacts `json:",omitzero"`
+	// Recipes are the recipe rows' derived facts (#1721): the stuff-made part
+	// installs peg-leg cycling plans around.
+	Recipes RecipeFacts `json:",omitzero"`
 	// VetRoom is the layout's vet room; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
 	VetRoom     VetRoom

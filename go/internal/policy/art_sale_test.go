@@ -32,7 +32,7 @@ func TestArtSaleWanted(t *testing.T) {
 
 func TestSaleArtBills(t *testing.T) {
 	bench := artBench()
-	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: "Make_SculptureLarge", Available: domain.Known(true)}, ProductionRecipe{Name: "Make_SculptureGrand", Available: domain.Known(true)})
+	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: "Make_SculptureLarge", Role: domain.RoleSculpture, Available: domain.Known(true)}, ProductionRecipe{Name: "Make_SculptureGrand", Role: domain.RoleSculpture, Available: domain.Known(true)})
 	benches := domain.Known([]ProductionBench{bench})
 	artists := Artists([]PawnProfile{artProfile("a", 8, ""), artProfile("b", 2, "Minor")})
 	demand := ArtDemand{Sale: true, Items: CoreItemFacts(), Stock: map[Resource]int64{"Gold": 200, "Steel": 1000}, Skill: map[PawnID]int{"a": 8, "b": 2}}

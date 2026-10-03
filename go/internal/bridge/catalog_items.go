@@ -279,6 +279,16 @@ func (catalog *DefinitionCatalog) Foods() []policy.Food {
 	return foods
 }
 
+// FoodKindOf is the kind the game's own classification gives the def; empty
+// for a def that is no food.
+func (catalog *DefinitionCatalog) FoodKindOf(name string) (policy.FoodKind, error) {
+	row, err := catalog.thingFactsRow(name)
+	if err != nil || row.FoodKind == nil {
+		return "", err
+	}
+	return foodKinds[row.GetFoodKind()], nil
+}
+
 // RawMeat is ThingDef.IsMeat of the def.
 func (catalog *DefinitionCatalog) RawMeat(name string) (bool, error) {
 	row, err := catalog.thingFactsRow(name)

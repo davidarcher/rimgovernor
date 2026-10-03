@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -72,7 +73,49 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 		rooms.Shapes = recordedPower.shapes
 		r.Projection.Rooms = domain.Known(rooms)
 	}
+	recordedRecipeRows(t, &r)
 	return r
+}
+
+// recordedRecipeRows fills the recipe-derived fields (#1721) a recording
+// predates. The recorded catalog carries neither the recipe rows nor the meal
+// thing facts, so the food kind, role and bulk sibling are the recorded
+// names, which only this fixture may spell.
+func recordedRecipeRows(t *testing.T, r *snapshot.Routine) {
+	t.Helper()
+	benches, known := r.Projection.ProductionBenches.Value()
+	if !known {
+		return
+	}
+	benches = slices.Clone(benches)
+	for i := range benches {
+		benches[i].Recipes = slices.Clone(benches[i].Recipes)
+		for j := range benches[i].Recipes {
+			rec := &benches[i].Recipes[j]
+			rec.Products = slices.Clone(rec.Products)
+			for k := range rec.Products {
+				switch name := rec.Products[k].Name; {
+				case strings.HasPrefix(name, "MealSimple"), strings.HasPrefix(name, "MealSurvival"):
+					rec.Products[k].Kind = policy.FoodKindMealSimple
+				case strings.HasPrefix(name, "MealFine"):
+					rec.Products[k].Kind = policy.FoodKindMealFine
+				case strings.HasPrefix(name, "MealLavish"):
+					rec.Products[k].Kind = policy.FoodKindMealLavish
+				}
+			}
+			rec.Bulk = strings.HasSuffix(rec.Name, "Bulk")
+			if strings.HasPrefix(rec.Name, "CookMeal") {
+				rec.Role = domain.RoleOrdinaryMeal
+			}
+		}
+		benches[i].Bills = slices.Clone(benches[i].Bills)
+		for j := range benches[i].Bills {
+			if strings.HasPrefix(benches[i].Bills[j].Recipe, "CookMeal") {
+				benches[i].Bills[j].Role = domain.RoleOrdinaryMeal
+			}
+		}
+	}
+	r.Projection.ProductionBenches = domain.Known(benches)
 }
 
 var recordedPower struct {

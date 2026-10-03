@@ -190,15 +190,15 @@ func TestRoutineDeficitWorkCoversStandingBenchesBeforeAnyBill(t *testing.T) {
 		{Bench: policy.GearBench{ID: "fire", Recipes: domain.Known([]policy.GearRecipe{cooking})}},
 		{Bench: policy.GearBench{ID: "unread"}},
 	}
-	work, known := routineDeficitWork(targets, census).Value()
+	work, known := routineDeficitWork(targets, census, "Wort").Value()
 	if !known || !reflect.DeepEqual(work, []policy.WorkRequirement{crafting}) {
 		t.Fatal("only the producing, available recipe counts", work, known)
 	}
-	if work, known := routineDeficitWork(targets, nil).Value(); !known || len(work) != 0 {
+	if work, known := routineDeficitWork(targets, nil, "Wort").Value(); !known || len(work) != 0 {
 		t.Fatal("no bench requires nothing", work, known)
 	}
 	unread := policy.GearRecipe{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, AvailableOn: domain.Known(true)}
-	if _, known := routineDeficitWork(targets, []bridge.GearBenchRead{{Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{unread})}}}).Value(); known {
+	if _, known := routineDeficitWork(targets, []bridge.GearBenchRead{{Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{unread})}}}, "Wort").Value(); known {
 		t.Fatal("a producing recipe with unobserved work is unknown")
 	}
 }

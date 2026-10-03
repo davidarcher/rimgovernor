@@ -40,7 +40,7 @@ func billIntent(bill domain.ProductionBill) *op.ProductionBillIntent {
 	if bill.Worker() != "" {
 		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
 	}
-	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever {
+	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever || bill.Mode() == domain.CremateForever {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_FOREVER.Enum()
 	} else if bill.Mode() == domain.GearBatch {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_COUNT.Enum()

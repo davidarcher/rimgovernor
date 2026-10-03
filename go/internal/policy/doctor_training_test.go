@@ -18,6 +18,14 @@ func pegOp(kind SurgeryKind, recipe, body string, index int, added string, medic
 	return op
 }
 
+// woodFacts are Core's wooden part installs as the recipe rows give them
+// (Hediffs_BodyParts_Medieval.xml): a log each, WoodLog's value 1.2.
+var woodFacts = RecipeFacts{MaterialInstalls: []MaterialInstall{
+	{Recipe: "InstallPegLeg", Bodies: []string{"Leg"}, Part: "PegLeg", Work: 1500, Material: "WoodLog", Value: 1.2},
+	{Recipe: "InstallWoodenHand", Bodies: []string{"Hand"}, Part: "WoodenHand", Work: 1500, Material: "WoodLog", Value: 1.2},
+	{Recipe: "InstallWoodenFoot", Bodies: []string{"Foot"}, Part: "WoodenFoot", Work: 1000, Material: "WoodLog", Value: 1.2},
+}}
+
 var (
 	installPeg  = pegOp(SurgeryRestore, "InstallPegLeg", "Leg", 30, "", 20)
 	removePeg   = pegOp(SurgeryAmputate, "RemoveBodyPart", "Leg", 30, "PegLeg", 10)
@@ -60,7 +68,7 @@ func TestPegTrainingNamesSurgeon(t *testing.T) {
 	} {
 		op := installPeg
 		op.DoctorChances = c.chances
-		got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{pegPrisoner("p", 0, []MissingPart{missingLeg}, op)}), domain.Known(colony), pegFood, pegPolicy, nil, nil)
+		got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{pegPrisoner("p", 0, []MissingPart{missingLeg}, op)}), domain.Known(colony), pegFood, pegPolicy, nil, woodFacts, nil)
 		if !ok || got.Step != PegTraining || got.Surgeon != c.want {
 			t.Fatalf("%s: ok %v %+v", c.name, ok, got)
 		}
@@ -70,7 +78,7 @@ func TestPegTrainingNamesSurgeon(t *testing.T) {
 	op.DoctorChances = map[domain.PawnID]float64{"d1": 0.9}
 	row := pegPrisoner("p", 0, []MissingPart{missingLeg}, op)
 	row.Withdrawal = domain.Known(true)
-	if got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{row}), domain.Known(doctors(4, 12, 3)), pegFood, pegPolicy, nil, nil); !ok || got.Step != PegControl || got.Surgeon != "" {
+	if got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{row}), domain.Known(doctors(4, 12, 3)), pegFood, pegPolicy, nil, woodFacts, nil); !ok || got.Step != PegControl || got.Surgeon != "" {
 		t.Fatalf("control: ok %v %+v", ok, got)
 	}
 }
@@ -90,12 +98,12 @@ func TestTrainingValue(t *testing.T) {
 		{"floor met but a restore waits on a doctor", doctors(4, 12), noDoctor, trainingCapXPValue, maxSlotCycles},
 		{"no doctor at all", doctors(4), noDoctor, 0, 0},
 	} {
-		perXP, cycles := TrainingValue(c.colony, c.wants)
+		perXP, cycles := TrainingValue(c.colony, c.wants, woodFacts)
 		if perXP != c.perXP || cycles != c.cycles {
 			t.Fatalf("%s: %v x %v", c.name, perXP, cycles)
 		}
 	}
-	if got := cycleXP("InstallPegLeg"); got != 5600 {
+	if got := cycleXP(1500); got != 5600 {
 		t.Fatalf("peg-leg cycle XP %v, want vanilla's 5600", got)
 	}
 }
@@ -149,7 +157,7 @@ func TestSelectPegCycle(t *testing.T) {
 			wants = []SurgeryWant{{Pawn: "c", Reason: SurgeryNoDoctor}}
 			c.step, c.recipe, c.gain, c.cost = PegTraining, "InstallPegLeg", 112, 44
 		}
-		got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{c.row}), domain.Known(c.colony), pegFood, pegPolicy, wants, nil)
+		got, ok := SelectPegCycle(domain.Known([]PrisonerFacts{c.row}), domain.Known(c.colony), pegFood, pegPolicy, wants, woodFacts, nil)
 		if ok != (c.step != 0) {
 			t.Fatalf("%s: ok %v %+v", c.name, ok, got)
 		}

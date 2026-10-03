@@ -564,7 +564,7 @@ func decodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog, tables 
 		}
 	}
 	if v.Population != nil {
-		population, err := decodePopulation(v.Population, pawns)
+		population, err := decodePopulation(v.Population, pawns, catalog)
 		if err != nil {
 			return RoutineFrame{}, err
 		}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -52,6 +53,14 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 			t.Fatal(err)
 		}
 		switch arg.Tool {
+		case methodDefinitionCatalog:
+			reply := catalogReply(gearBenchContext())
+			v := reply.GetObserved()
+			v.ThingDefs = []*d.ThingDef{{DefName: "Parka", ThingClass: "Verse.ThingWithComps"}}
+			v.ThingFacts = []*o.ThingDefFacts{{DefName: "Parka"}}
+			v.ClassChains = []*o.ClassChain{{Name: "Verse.ThingWithComps"}}
+			v.Defs.RecipeDefs = []*d.RecipeDef{{DefName: "MakeParka", Products: []*d.Opt_ThingDefCountClass{{Value: &d.ThingDefCountClass{ThingDef: "Parka", Count: 1}}}}}
+			return pbResult(reply), nil
 		case "rimgovernor/observations_read_bills":
 			return pbResult(bills), nil
 		case "rimgovernor/observations_read_recipes":

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // ItemFacts are the game's item numbers from the definition catalog (#1734),
@@ -33,6 +35,9 @@ type ItemFacts struct {
 	// Currency is the coin every price is in and the census counts: the
 	// def Tradeable.IsCurrency tests (ThingDefOf.Silver).
 	Currency Resource
+	// Wort is what the fermenting barrel takes in and turns into beer
+	// (ThingDefOf.Wort): the intermediate the beer reserve produces (#1721).
+	Wort Resource
 	// Drugs are the catalog's drug defs (a CompProperties_Drug with a
 	// chemical) in preference order: social drugs before hard ones, then the
 	// game's listOrder, then name.
@@ -43,6 +48,18 @@ type ItemFacts struct {
 	// Prevention is the drug that makes its taker immune to diseases, nil
 	// when the game has none.
 	Prevention *Prevention
+	// Sculptures are the art recipes (RoleSculpture), smallest first (#1721).
+	Sculptures []Sculpture
+}
+
+// Sculpture is one art recipe: the building it makes, the building's
+// footprint, the stuff it takes and its work (the recipe's workAmount, else
+// the product's WorkToMake).
+type Sculpture struct {
+	Recipe, Def string
+	Size        domain.Cell
+	Cost        int64
+	Work        float64
 }
 
 // Drug is one drug def: the chemical it builds addiction to, whether the

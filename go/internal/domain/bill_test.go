@@ -6,10 +6,10 @@ import (
 )
 
 func TestHumanButcherRequiresPinnedWorker(t *testing.T) {
-	if _, err := NewHumanButcherBill("bench", ""); err == nil {
+	if _, err := NewHumanButcherBill("bench", "ButcherCorpseFlesh", ""); err == nil {
 		t.Fatal("unassigned human bill accepted")
 	}
-	b, err := NewHumanButcherBill("bench", "cook")
+	b, err := NewHumanButcherBill("bench", "ButcherCorpseFlesh", "cook")
 	if err != nil {
 		t.Fatal(err)
 	}

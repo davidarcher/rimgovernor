@@ -9,8 +9,10 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-func billIngredients(b *o.BillState) domain.Fact[[]string] {
-	if b.IngredientFilter == nil || b.Recipe.GetDefName() == "ButcherCorpseFlesh" {
+// billIngredients is the bill's allowed defs; a butcher bill's filter is the
+// corpse selection, not an ingredient list, so it stays unknown.
+func billIngredients(b *o.BillState, role domain.RecipeRole) domain.Fact[[]string] {
+	if b.IngredientFilter == nil || role == domain.RoleButcherFlesh {
 		return domain.Unknown[[]string]()
 	}
 	return domain.Known(append([]string(nil), b.IngredientFilter.AllowedDefNames...))
@@ -152,6 +154,9 @@ func productionProduct(product *o.FoodProduct, catalog *bridge.DefinitionCatalog
 		return row, err
 	}
 	row.BabyEdible = domain.Known(baby)
+	if row.Kind, err = catalog.FoodKindOf(name); err != nil {
+		return row, err
+	}
 	if nutrition, err := catalog.StatValue(name, "", bridge.StatNutrition); err == nil {
 		row.Nutrition = domain.Known(float64(nutrition))
 	}
@@ -171,6 +176,16 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 		}
 		for _, r := range recipes {
 			recipe := policy.ProductionRecipe{Name: r.Recipe.GetDefName()}
+			role, err := catalog.RecipeRole(recipe.Name)
+			if failed == nil {
+				failed = err
+			}
+			recipe.Role = role
+			bulk, err := catalog.RecipeBulk(recipe.Name)
+			if failed == nil {
+				failed = err
+			}
+			recipe.Bulk = bulk
 			mealRecipeFacts(r, &recipe)
 			if r.AvailableNow != nil && r.AvailableOnBench != nil {
 				recipe.Available = domain.Known(r.GetAvailableNow() && r.GetAvailableOnBench())
@@ -192,7 +207,11 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{DefaultIngredients: optional(b.DefaultIngredients), UnrestrictedWorker: optional(b.UnrestrictedWorker), Worker: domain.Known(b.GetWorker().GetId()), RepeatMode: repeatMode(b.RepeatMode), Ingredients: billIngredients(b), ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: butcher && len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
+			role, err := catalog.RecipeRole(b.Recipe.GetDefName())
+			if failed == nil {
+				failed = err
+			}
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{Role: role, DefaultIngredients: optional(b.DefaultIngredients), UnrestrictedWorker: optional(b.UnrestrictedWorker), Worker: domain.Known(b.GetWorker().GetId()), RepeatMode: repeatMode(b.RepeatMode), Ingredients: billIngredients(b, role), ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: butcher && len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
 		}
 		rows = append(rows, row)
 	}

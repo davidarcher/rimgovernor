@@ -152,7 +152,7 @@ func TestGestationPrefersBulkRecipe(t *testing.T) {
 	bench := gestBench()
 	bench.Recipes = []ProductionRecipe{
 		{Name: "MakeLifter", MechKind: "Lifter", Available: domain.Known(true)},
-		{Name: "MakeLifterBulk", MechKind: "Lifter", Available: domain.Known(true)},
+		{Name: "MakeLifterBulk", Bulk: true, MechKind: "Lifter", Available: domain.Known(true)},
 	}
 	g := gestation(gestMechanitor(4, 0, 0), shortHauling)
 	if sel, ok, _ := SelectMechGestationBill([]ProductionBench{bench}, g); !ok || sel.Recipe != "MakeLifterBulk" {

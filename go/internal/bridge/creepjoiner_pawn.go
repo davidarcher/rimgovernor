@@ -77,7 +77,8 @@ func CreepJoinerHand(row *o.PawnState) policy.CreepJoinerHand {
 	hand := policy.CreepJoinerHand{Pawn: policy.PawnID(row.GetPawn().GetId()), Facts: CreepJoinerPawn(row), Available: domain.Unknown[bool](), Weapon: domain.Unknown[string](),
 		Operations: domain.Unknown[[]policy.SurgeryOperation](), QueuedSurgeries: domain.Unknown[int]()}
 	if h := row.Health; h != nil && !failedFields(row.Issues)["health"] {
-		_, hand.Operations = SurgeryFacts(h)
+		// The weapon drop and inspections read recipe names only, no part items.
+		_, hand.Operations, _ = SurgeryFacts(h, nil)
 		hand.QueuedSurgeries = QueuedSurgeries(h)
 		hand.QueuedRecipes = QueuedSurgeryRecipes(h)
 	}

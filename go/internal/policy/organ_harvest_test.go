@@ -145,6 +145,7 @@ func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
 	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3))
 	pawn := surgeryPawn("a", 1, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))
 	pawn.QueuedRecipes = []string{"InstallNaturalKidney"}
+	pawn.QueuedItems = []Resource{"Kidney"}
 	got, _ := ReserveSurgeryStock(sale, domain.Known([]CarePawn{pawn})).Value()
 	if len(got.Surplus) != 0 || got.Retained["Kidney"] != 1 {
 		t.Fatalf("queued install keeps its kidney: %+v", got)

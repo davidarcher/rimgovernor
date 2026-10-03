@@ -344,7 +344,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	p := r.reviewer.player
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Mode, selected.Target, selected.Ingredients...)
 	if selected.Mode == domain.HumanButcherForever {
-		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Worker)
+		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Recipe, selected.Worker)
 	} else if err == nil && selected.Worker != "" {
 		value, err = value.PinWorker(selected.Worker)
 	}

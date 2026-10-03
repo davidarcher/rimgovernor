@@ -90,7 +90,10 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 	if err != nil {
 		return PrisonerCensus{}, raw, err
 	}
-	out, err := decodePopulation(reply.GetObserved(), pawns)
+	// This standalone read serves the chat facts, which never plan surgery: no
+	// catalog, so no operation names a part item. The routine frame decodes the
+	// population with its catalog.
+	out, err := decodePopulation(reply.GetObserved(), pawns, nil)
 	return out, raw, err
 }
 
@@ -98,7 +101,7 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 // each person joined to its pawn table row (#1343). A person the table
 // does not hold leaves the person facts (prisoners, custody, colony,
 // guests) unknown until a later frame.
-func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCensus, error) {
+func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *DefinitionCatalog) (PrisonerCensus, error) {
 	if observed == nil {
 		return PrisonerCensus{}, ErrUnavailable
 	}
@@ -196,7 +199,10 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCens
 		}
 		f.Ideo, f.WildMan, f.Prospect = person.GetIdeoId(), person.GetWildMan(), prisonerProspect(person)
 		if h := person.GetSurgery(); h != nil {
-			f.MissingParts, f.Operations = SurgeryFacts(h)
+			var err error
+			if f.MissingParts, f.Operations, err = SurgeryFacts(h, catalog); err != nil {
+				return PrisonerCensus{}, err
+			}
 			f.QueuedSurgeries = QueuedSurgeries(h)
 			f.QueuedRecipes = QueuedSurgeryRecipes(h)
 		}

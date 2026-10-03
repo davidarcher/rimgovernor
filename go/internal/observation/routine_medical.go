@@ -7,16 +7,16 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot) domain.Fact[[]policy.CarePawn] {
+func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.CarePawn], error) {
 	unknown := domain.Unknown[[]policy.CarePawn]()
 	complete, known := emergency.ColonistsComplete.Value()
 	if !known || !complete || colony == nil || colony.ColonistCount == nil || snapshot == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(snapshot.Pawns) != len(emergency.Colonists) {
-		return unknown
+		return unknown, nil
 	}
 	byID := map[string]*o.PawnState{}
 	for _, row := range snapshot.Pawns {
 		if row == nil || row.Pawn == nil || byID[row.Pawn.GetId()] != nil {
-			return unknown
+			return unknown, nil
 		}
 		byID[row.Pawn.GetId()] = row
 	}
@@ -26,16 +26,22 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 		dead, dk := pawn.Dead.Value()
 		downed, nk := pawn.Downed.Value()
 		if row == nil || !dk || !nk || row.Dead == nil || row.Downed == nil || row.GetDead() != dead || row.GetDowned() != downed || row.Colonist == nil || !row.GetColonist() {
-			return unknown
+			return unknown, nil
 		}
 		p := policy.CarePawn{ID: pawn.ID, Dead: domain.Known(dead)}
 		if settings := row.Settings; settings != nil {
 			p.Care = careName(settings.MedicalCare)
 		}
 		if h := row.Health; h != nil && !hasIssue(row.Issues, "health") {
-			p.MissingParts, p.Operations = bridge.SurgeryFacts(h)
+			var err error
+			if p.MissingParts, p.Operations, err = bridge.SurgeryFacts(h, catalog); err != nil {
+				return unknown, err
+			}
 			p.QueuedSurgeries = bridge.QueuedSurgeries(h)
 			p.QueuedRecipes = bridge.QueuedSurgeryRecipes(h)
+			if p.QueuedItems, err = bridge.QueuedSurgeryItems(p.QueuedRecipes, catalog); err != nil {
+				return unknown, err
+			}
 			p.Conditions, p.LifeThreatening = bridge.CareConditions(h)
 			p.NeedsRest, p.NeedsTend = optional(h.ShouldSeekMedicalRest), optional(h.NeedsTend)
 			c := h.HediffCompleteness
@@ -57,5 +63,5 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 		}
 		rows = append(rows, p)
 	}
-	return domain.Known(rows)
+	return domain.Known(rows), nil
 }

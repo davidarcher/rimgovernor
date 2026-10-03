@@ -46,7 +46,36 @@ namespace Verse
         public static string SaveDataFolderPath = Path.Combine(Environment.CurrentDirectory, ".rimgovernor", "clock-tests-" + Guid.NewGuid().ToString("N"));
     }
 }
-namespace RimWorld { }
+namespace Verse
+{
+    // The recipe shapes NativeRecipeRoles reads (#1721): products, special products, ingredient
+    // filters over corpse defs, and the worker counter.
+    public class ThingDef { public string defName; public bool IsCorpse; }
+    public class ThingDefCountClass { public ThingDef thingDef; }
+    public class ThingFilter { public List<ThingDef> AllowedThingDefs = new List<ThingDef>(); }
+    public static class DefDatabase<T> where T : class
+    {
+        public static readonly Dictionary<string, T> Named = new Dictionary<string, T>();
+        public static T GetNamedSilentFail(string name) => Named.TryGetValue(name, out var def) ? def : null;
+    }
+}
+namespace RimWorld
+{
+    public class RecipeWorkerCounter { }
+    public class RecipeWorkerCounter_ButcherAnimals : RecipeWorkerCounter { }
+    public enum SpecialProductType { None, Butchery, Smelted }
+    public class IngredientCount { public Verse.ThingFilter filter = new Verse.ThingFilter(); }
+    public class RecipeDef
+    {
+        public string defName;
+        public RecipeWorkerCounter WorkerCounter;
+        public List<Verse.ThingDefCountClass> products = new List<Verse.ThingDefCountClass>();
+        public List<SpecialProductType> specialProducts;
+        public bool mechResurrection;
+        public int gestationCycles;
+        public List<IngredientCount> ingredients = new List<IngredientCount>();
+    }
+}
 namespace HomeBridge.BridgeTools
 {
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }

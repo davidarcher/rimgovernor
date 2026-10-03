@@ -136,7 +136,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !harvesting {
 		// Peg-leg cycling (#1236): training, control or a reinstall.
 		facts := read.Projection.Facts
-		harvest, harvesting = policy.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, r.reviewer.policy.Prisoners(), selection.Wants, inFlight)
+		harvest, harvesting = policy.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, r.reviewer.policy.Prisoners(), selection.Wants, facts.Recipes, inFlight)
 	}
 	harvesting = harvesting && arbiter.tryClaim([]domain.PawnID{harvest.Prisoner})
 	result.Harvest = harvesting

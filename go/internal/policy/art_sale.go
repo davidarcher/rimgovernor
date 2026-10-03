@@ -126,10 +126,8 @@ func RoutineArtForSale(f RoutineFacts, p RoutinePolicy, medicineActive bool) boo
 	return hk && finite(h) && h > 0 && positive(RoutineSilverShort(f, p, medicineActive))
 }
 
-// Sculpture WorkToMake (vanilla Buildings_Art.xml) and the market value a
-// work tick adds (StatWorker_MarketValue, 0.0036 silver per tick).
-var sculptureWork = map[string]float64{"Make_SculptureGrand": 105000, "Make_SculptureLarge": 30000, SculptureRecipe: 18000}
-
+// valuePerWorkTick is the market value a work tick adds
+// (StatWorker_MarketValue, 0.0036 silver per tick).
 const valuePerWorkTick = 0.0036
 
 // selectSaleSculpture picks the sale sculpture for an artist: among the
@@ -139,9 +137,10 @@ const valuePerWorkTick = 0.0036
 func selectSaleSculpture(available map[string][]BillSelection, artist PawnID, demand ArtDemand) (BillSelection, bool) {
 	var best BillSelection
 	bestScore := 0.0
-	for _, size := range sculptureSizes {
+	for rank := len(demand.Items.Sculptures) - 1; rank >= 0; rank-- {
+		size := demand.Items.Sculptures[rank]
 		options := available[size.Recipe]
-		if len(options) == 0 || demand.Skill[artist] < size.MinSkill {
+		if len(options) == 0 || demand.Skill[artist] < sculptureGate(rank).MinSkill {
 			continue
 		}
 		for _, stuff := range demand.Items.StuffsFor(Resource(size.Def)) {
@@ -149,7 +148,7 @@ func selectSaleSculpture(available map[string][]BillSelection, artist PawnID, de
 			if err != nil || demand.Stock[stuff] < size.Cost {
 				continue
 			}
-			work := sculptureWork[size.Recipe]
+			work := size.Work
 			score := (float64(size.Cost)*value + work*valuePerWorkTick) / work
 			if score > bestScore || score == bestScore && best.Recipe == size.Recipe && Resource(best.Ingredients[0]) > stuff {
 				best, bestScore = options[0], score

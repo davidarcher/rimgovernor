@@ -27,12 +27,12 @@ func TestHumanButcherGate(t *testing.T) {
 }
 
 func TestHumanBillCoexistsWithAnimalBill(t *testing.T) {
-	b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: []HumanButcherCandidate{{ID: "z", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}, {ID: "a", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}}, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}, Bills: []ExistingProductionBill{{Recipe: "ButcherCorpseFlesh"}}}
+	b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: []HumanButcherCandidate{{ID: "z", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}, {ID: "a", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}}, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}, Bills: []ExistingProductionBill{{Role: domain.RoleButcherFlesh, Recipe: "ButcherCorpseFlesh"}}}
 	got, ok := SelectHumanButcher(domain.Known([]ProductionBench{b}), domain.Unknown[Ideoligion]())
 	if !ok || got.Worker != "a" || got.Mode != domain.HumanButcherForever {
 		t.Fatal(got, ok)
 	}
-	b.Bills = append(b.Bills, ExistingProductionBill{Recipe: "ButcherCorpseFlesh", Humanlike: true})
+	b.Bills = append(b.Bills, ExistingProductionBill{Role: domain.RoleButcherFlesh, Recipe: "ButcherCorpseFlesh", Humanlike: true})
 	if _, ok = SelectHumanButcher(domain.Known([]ProductionBench{b}), domain.Unknown[Ideoligion]()); ok {
 		t.Fatal("duplicate human bill")
 	}
@@ -49,7 +49,7 @@ func TestHumanBillCoexistsWithAnimalBill(t *testing.T) {
 // ideoligion keeps today's choice.
 func TestHumanButcherRespectsPrecepts(t *testing.T) {
 	bench := func(workers ...HumanButcherCandidate) domain.Fact[[]ProductionBench] {
-		return domain.Known([]ProductionBench{{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: workers, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}})
+		return domain.Known([]ProductionBench{{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: workers, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}}})
 	}
 	worker := func(id string, trait string) HumanButcherCandidate {
 		return HumanButcherCandidate{ID: PawnID(id), Traits: domain.Known([]PawnTrait{{Name: trait}}), PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}
@@ -198,10 +198,10 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 			{ID: "psycho", Traits: domain.Known([]PawnTrait{{Name: "Psychopath"}}), PreceptAcceptable: domain.Known(false), CanWork: domain.Known(true)},
 		},
 		HumanCorpseNutrition: domain.Known(30.),
-		Recipes:              []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}},
-		Bills:                []ExistingProductionBill{{Recipe: "ButcherCorpseFlesh"}}}
+		Recipes:              []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}},
+		Bills:                []ExistingProductionBill{{Role: domain.RoleButcherFlesh, Recipe: "ButcherCorpseFlesh"}}}
 	stove := ProductionBench{ID: "stove", Usable: domain.Known(true), Token: domain.Known("st"), Recipes: []ProductionRecipe{
-		{Name: "CookMealSurvival", Available: domain.Known(true), NutrientEfficiency: domain.Known(1.), Products: []ProductionProduct{{Name: "MealSurvivalPack", Nutrition: domain.Known(.9), Edible: domain.Known(true)}}},
+		{Name: "CookMealSurvival", Available: domain.Known(true), NutrientEfficiency: domain.Known(1.), Products: []ProductionProduct{{Name: "MealSurvivalPack", Kind: FoodKindMealSimple, Perishable: domain.Known(false), Nutrition: domain.Known(.9), Edible: domain.Known(true)}}},
 	}}
 	benches := domain.Known([]ProductionBench{butcher, stove})
 	pick, ok := SelectHumanButcher(benches, domain.Unknown[Ideoligion]())

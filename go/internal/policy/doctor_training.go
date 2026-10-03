@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -56,18 +57,39 @@ const (
 	prisonerControlValue   = 200.0
 	withdrawalControlValue = 400.0
 	wardenFeedCost         = 25.0
-	woodLogValue           = 1.2
 	maxSlotCycles          = 10.0
 	laborTicksPerHour      = domain.TicksPerHour
 )
 
-// woodInstall maps a body part a wood part serves to its install recipe,
-// and woodInstallWork each recipe's workAmount.
-var (
-	woodInstall     = map[string]string{"Leg": "InstallPegLeg", "Hand": "InstallWoodenHand", "Foot": "InstallWoodenFoot"}
-	woodInstallWork = map[string]float64{"InstallPegLeg": 1500, "InstallWoodenHand": 1500, "InstallWoodenFoot": 1000}
-	woodParts       = map[string]bool{"PegLeg": true, "WoodenHand": true, "WoodenFoot": true}
-)
+// The wood parts are the catalog's material installs (RecipeFacts): the
+// install recipe of a part made straight from a stuff, its work and the stuff's
+// value. A leg part is one a body part group "Leg" serves.
+func legInstall(facts RecipeFacts) (MaterialInstall, bool) {
+	return facts.MaterialInstallFor("Leg")
+}
+
+func isMaterialPart(facts RecipeFacts, hediff string) bool {
+	_, ok := facts.MaterialInstallOfPart(hediff)
+	return ok
+}
+
+func hasMaterialInstall(facts RecipeFacts, body string) bool {
+	_, ok := facts.MaterialInstallFor(body)
+	return ok
+}
+
+// materialInstallRecipe reports whether recipe is the material install that
+// serves the body part.
+func materialInstallRecipe(facts RecipeFacts, body, recipe string) bool {
+	m, ok := facts.MaterialInstallFor(body)
+	return ok && m.Recipe == recipe
+}
+
+// legPart reports whether the hediff is a material part serving a leg.
+func legPart(facts RecipeFacts, hediff string) bool {
+	m, ok := facts.MaterialInstallOfPart(hediff)
+	return ok && slices.Contains(m.Bodies, "Leg")
+}
 
 // DoctorsWanted is how many doctors should reach DoctorTrainingFloor: one,
 // two from eight colonists.
@@ -88,16 +110,21 @@ func medicineXPToFloor(level int) float64 {
 	return xp
 }
 
-// cycleXP is one install and removal cycle's XP for an install recipe.
-func cycleXP(install string) float64 {
-	return surgeryXPPerWork * (woodInstallWork[install] + woodRemovalWork)
+// cycleXP is one install and removal cycle's XP for an install recipe of the
+// given work.
+func cycleXP(installWork float64) float64 {
+	return surgeryXPPerWork * (installWork + woodRemovalWork)
 }
 
 // TrainingValue is what one Medicine XP is worth and how many cycles a
 // newly opened slot is expected to support: below the floor, until the
 // best doctor under it reaches it; above it, while a restore waits on a
 // doctor (surgery_no_doctor), maxSlotCycles.
-func TrainingValue(c PrisonerColony, wants []SurgeryWant) (perXP, cycles float64) {
+func TrainingValue(c PrisonerColony, wants []SurgeryWant, facts RecipeFacts) (perXP, cycles float64) {
+	leg, ok := legInstall(facts)
+	if !ok {
+		return 0, 0
+	}
 	at, below := 0, -1
 	for _, level := range c.Medicine {
 		if level >= DoctorTrainingFloor {
@@ -107,7 +134,7 @@ func TrainingValue(c PrisonerColony, wants []SurgeryWant) (perXP, cycles float64
 		}
 	}
 	if at < DoctorsWanted(c.Colonists) && below >= 0 {
-		return trainingXPValue, min(maxSlotCycles, math.Ceil(medicineXPToFloor(below)/cycleXP("InstallPegLeg")))
+		return trainingXPValue, min(maxSlotCycles, math.Ceil(medicineXPToFloor(below)/cycleXP(leg.Work)))
 	}
 	for _, want := range wants {
 		if want.Reason == SurgeryNoDoctor && len(c.Medicine) > 0 {
@@ -131,17 +158,17 @@ const (
 // in-flight rule, ranked by betterHarvest: a reinstall first, then control,
 // then training; then the best gain less cost, then prisoner id. Unknown
 // facts refuse.
-func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], food domain.Fact[float64], p PrisonerPolicy, wants []SurgeryWant, inFlight map[PawnID]bool) (OrganHarvest, bool) {
+func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[PrisonerColony], food domain.Fact[float64], p PrisonerPolicy, wants []SurgeryWant, facts RecipeFacts, inFlight map[PawnID]bool) (OrganHarvest, bool) {
 	rows, rk := prisoners.Value()
 	c, ck := colony.Value()
 	if !rk || !ck || surgeryInFlight(rows, inFlight) {
 		return OrganHarvest{}, false
 	}
-	perXP, cycles := TrainingValue(c, wants)
+	perXP, cycles := TrainingValue(c, wants, facts)
 	var best OrganHarvest
 	found := false
 	for _, row := range rows {
-		for _, step := range pegCycleSteps(row, c, food, p, perXP, cycles) {
+		for _, step := range pegCycleSteps(row, c, food, p, perXP, cycles, facts) {
 			if !found || betterHarvest(step, best) {
 				best, found = step, true
 			}
@@ -153,7 +180,7 @@ func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[P
 // PegCycleWanted reports whether a peg-leg step would be queued now;
 // DetectRoutine holds MaintainSurgery open on it (#1236).
 func PegCycleWanted(f RoutineFacts, p PrisonerPolicy) bool {
-	_, ok := SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants, nil)
+	_, ok := SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants, f.Recipes, nil)
 	return ok
 }
 
@@ -175,7 +202,7 @@ func countMissing(missing []MissingPart, part string) int {
 
 // pegCycleSteps are the row's acceptable steps: a reinstall, a control
 // removal and a training step, each only when it applies and pays off.
-func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64], p PrisonerPolicy, perXP, cycles float64) []OrganHarvest {
+func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64], p PrisonerPolicy, perXP, cycles float64, facts RecipeFacts) []OrganHarvest {
 	intent, unknown := prisonerIntent(row, c, food, p)
 	dead, dk := row.Dead.Value()
 	ops, ok := row.Operations.Value()
@@ -210,14 +237,14 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 			continue
 		}
 		switch {
-		case op.Kind == SurgeryAmputate && ak && woodParts[added]:
+		case op.Kind == SurgeryAmputate && ak && isMaterialPart(facts, added):
 			removals = append(removals, op)
-			if added == "PegLeg" {
+			if legPart(facts, added) {
 				pegLegs++
 			}
-		case op.Kind == SurgeryRestore && woodInstall[body] == recipe && sk && stocked:
+		case op.Kind == SurgeryRestore && materialInstallRecipe(facts, body, recipe) && sk && stocked:
 			installs = append(installs, op)
-		case (op.Kind == SurgeryHarvest || op.Kind == SurgeryAmputate) && !ak && woodInstall[body] != "" && !(body == "Leg" && legsMissing > 0):
+		case (op.Kind == SurgeryHarvest || op.Kind == SurgeryAmputate) && !ak && hasMaterialInstall(facts, body) && !(body == "Leg" && legsMissing > 0):
 			// #1232's rule: never a second leg.
 			cuts = append(cuts, op)
 		}
@@ -247,12 +274,13 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 			value = withdrawalControlValue
 		}
 		for _, op := range removals {
-			if added, _ := op.AddedPart.Value(); added != "PegLeg" {
+			if added, _ := op.AddedPart.Value(); !legPart(facts, added) {
 				continue
 			}
 			unit := medicineUnit(op, false)
 			removal := unit + goodwillCost + laborCost(woodRemovalWork)
-			reinstall := 2*unit + woodLogValue + laborCost(woodInstallWork["InstallPegLeg"])
+			leg, _ := legInstall(facts)
+			reinstall := 2*unit + leg.Value + laborCost(leg.Work)
 			cost := float64(pegLegs)*removal + wardenFeedCost + 2*reinstall
 			if value > cost {
 				step(PegControl, op, value, cost)
@@ -263,15 +291,16 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 	if !trainable || perXP <= 0 {
 		return out
 	}
-	cycleCost := func(install string, unit float64) (gain, cost float64) {
-		work := woodInstallWork[install] + woodRemovalWork
-		return perXP * cycleXP(install), 3*unit + laborCost(work) + goodwillCost
+	cycleCost := func(installWork, unit float64) (gain, cost float64) {
+		work := installWork + woodRemovalWork
+		return perXP * cycleXP(installWork), 3*unit + laborCost(work) + goodwillCost
 	}
 	switch {
 	case len(removals) > 0:
 		op := removals[0]
 		added, _ := op.AddedPart.Value()
-		if gain, cost := cycleCost("Install"+added, medicineUnit(op, false)); gain > cost {
+		install, _ := facts.MaterialInstallOfPart(added)
+		if gain, cost := cycleCost(install.Work, medicineUnit(op, false)); gain > cost {
 			step(PegTraining, op, gain, cost)
 		}
 	case len(installs) > 0:
@@ -279,12 +308,11 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 		pickWork := -1.0
 		for _, op := range installs {
 			recipe, _ := op.Recipe.Value()
-			if woodInstallWork[recipe] > pickWork {
-				pick, pickWork = op, woodInstallWork[recipe]
+			if install, _ := facts.MaterialInstallByRecipe(recipe); install.Work > pickWork {
+				pick, pickWork = op, install.Work
 			}
 		}
-		recipe, _ := pick.Recipe.Value()
-		if gain, cost := cycleCost(recipe, medicineUnit(pick, true)); gain > cost {
+		if gain, cost := cycleCost(pickWork, medicineUnit(pick, true)); gain > cost {
 			step(PegTraining, pick, gain, cost)
 		}
 	default:
@@ -296,7 +324,8 @@ func pegCycleSteps(row PrisonerFacts, c PrisonerColony, food domain.Fact[float64
 			if !ok || cycles <= 0 {
 				continue
 			}
-			gain, cost := cycleCost(woodInstall[body], medicineUnit(op, false))
+			install, _ := facts.MaterialInstallFor(body)
+			gain, cost := cycleCost(install.Work, medicineUnit(op, false))
 			cost += (harvest + medicineUnit(op, false) + laborCost(woodRemovalWork)) / cycles
 			if gain > cost {
 				step(PegTraining, op, gain, cost)

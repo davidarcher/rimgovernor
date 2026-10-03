@@ -53,8 +53,10 @@ const (
 type SurgeryChoice struct {
 	Pawn   PawnID
 	Recipe string
-	Part   int
-	Kind   SurgeryKind
+	// Item is the part item the recipe installs ("" when it installs none).
+	Item Resource
+	Part int
+	Kind SurgeryKind
 	// Elective: an upgrade on a healthy part (#1167).
 	Elective bool
 	Value    float64
@@ -70,7 +72,9 @@ type SurgeryWant struct {
 	// Options are every candidate recipe for the part, best first; Value
 	// is the best one's rank, the same scale as SurgeryChoice.Value.
 	Options []string
-	Value   float64
+	// Items are the part items of the options that install one, in order.
+	Items []Resource
+	Value float64
 }
 
 // SurgerySelection is one review's queue (at most one per patient, best
@@ -346,6 +350,9 @@ func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOpera
 	for _, op := range ops {
 		recipe, _ := op.Recipe.Value()
 		want.Options = append(want.Options, recipe)
+		if op.Item != "" {
+			want.Items = append(want.Items, op.Item)
+		}
 	}
 	failureCap, natural := RestoreFailureCap, 0.0
 	if elective {
@@ -365,7 +372,7 @@ func selectPartSurgery(pawn PawnID, part int, weight float64, ops []SurgeryOpera
 			continue
 		}
 		recipe, _ := op.Recipe.Value()
-		return &SurgeryChoice{Pawn: pawn, Recipe: recipe, Part: part, Kind: op.Kind, Elective: elective, Value: (opTier(op) - natural) * weight}, want
+		return &SurgeryChoice{Pawn: pawn, Recipe: recipe, Item: op.Item, Part: part, Kind: op.Kind, Elective: elective, Value: (opTier(op) - natural) * weight}, want
 	}
 	return nil, want
 }

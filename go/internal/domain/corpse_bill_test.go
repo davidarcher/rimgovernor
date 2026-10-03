@@ -4,51 +4,47 @@ import "testing"
 
 func TestCorpseBillIsRecipePlusCorpseFilter(t *testing.T) {
 	// Butchering animals is the plain butcher bill; cremation takes any class.
-	butcher, err := NewCorpseBill("Table_1", ButcherRecipe, CorpseAnimal, "")
-	plain, _ := NewProductionBill("Table_1", ButcherRecipe, ButcherForever, 0)
-	if err != nil || butcher != plain || butcher.Corpses() != CorpseAnimal || butcher.ClaimRecipe() != ButcherRecipe {
+	butcher, err := NewProductionBill("Table_1", "Butcher", ButcherForever, 0)
+	if err != nil || butcher.Corpses() != CorpseAnimal || butcher.ClaimRecipe() != "Butcher" {
 		t.Fatalf("animal butcher: %+v %v", butcher, err)
 	}
-	cremate, err := NewCorpseBill("Crem_1", CremateRecipe, CorpseStranger, "")
-	if err != nil || cremate.Mode() != ButcherForever || cremate.Corpses() != CorpseStranger || cremate.ClaimRecipe() != "CremateCorpse/stranger" {
+	cremate, err := NewCremationBill("Crem_1", "Cremate", CorpseStranger, "")
+	if err != nil || cremate.Mode() != CremateForever || cremate.Corpses() != CorpseStranger || cremate.ClaimRecipe() != "Cremate/stranger" {
 		t.Fatalf("stranger cremation: %+v %v", cremate, err)
 	}
-	if _, err := NewCorpseBill("Crem_1", CremateRecipe, CorpseColonist, ""); err != nil {
+	if _, err := NewCremationBill("Crem_1", "Cremate", CorpseColonist, ""); err != nil {
 		t.Errorf("colonist cremation refused: %v", err)
 	}
-	if human, _ := NewHumanButcherBill("Table_1", "cook"); human.Corpses() != CorpseStranger || human.ClaimRecipe() != "ButcherCorpseFlesh/humanlike" {
+	if human, _ := NewHumanButcherBill("Table_1", "Butcher", "cook"); human.Corpses() != CorpseStranger || human.ClaimRecipe() != "Butcher/humanlike" {
 		t.Errorf("human butcher: %+v", human)
 	}
 	if _, err := NewProductionBillAction("a-0", cremate); err != nil {
 		t.Fatalf("cremation action: %v", err)
 	}
-	for _, bad := range []struct {
-		recipe string
-		of     CorpseOf
-	}{{CremateRecipe, "raider"}, {ButcherRecipe, CorpseStranger}, {"Make_Pemmican", CorpseStranger}} {
-		if _, err := NewCorpseBill("Crem_1", bad.recipe, bad.of, ""); err == nil {
-			t.Errorf("%s/%s accepted", bad.recipe, bad.of)
-		}
+	if _, err := NewCremationBill("Crem_1", "Cremate", "raider", ""); err == nil {
+		t.Error("an unknown corpse class accepted")
+	}
+	if _, err := NewCremationBill("Crem_1", "", CorpseStranger, ""); err == nil {
+		t.Error("a cremation bill without a recipe accepted")
 	}
 	// Animal cremation names its minimum so fresh corpses stay for the butcher.
-	animal, err := NewCorpseBill("Crem_1", CremateRecipe, CorpseAnimal, RotRotting)
-	if err != nil || animal.MinRot() != RotRotting || animal.ClaimRecipe() != "CremateCorpse/animal" {
+	animal, err := NewCremationBill("Crem_1", "Cremate", CorpseAnimal, RotRotting)
+	if err != nil || animal.MinRot() != RotRotting || animal.ClaimRecipe() != "Cremate/animal" {
 		t.Fatalf("animal cremation: %+v %v", animal, err)
 	}
 	if _, err := NewProductionBillAction("a-1", animal); err != nil {
 		t.Fatalf("animal cremation action: %v", err)
 	}
 	for _, bad := range []struct {
-		recipe string
-		of     CorpseOf
-		rot    RotStage
-	}{{CremateRecipe, CorpseAnimal, ""}, {CremateRecipe, CorpseAnimal, RotFresh}, {CremateRecipe, CorpseStranger, RotFresh}, {ButcherRecipe, CorpseAnimal, RotRotting}} {
-		if _, err := NewCorpseBill("Crem_1", bad.recipe, bad.of, bad.rot); err == nil {
-			t.Errorf("%s/%s/%s accepted", bad.recipe, bad.of, bad.rot)
+		of  CorpseOf
+		rot RotStage
+	}{{CorpseAnimal, ""}, {CorpseAnimal, RotFresh}, {CorpseStranger, RotFresh}} {
+		if _, err := NewCremationBill("Crem_1", "Cremate", bad.of, bad.rot); err == nil {
+			t.Errorf("%s/%s accepted", bad.of, bad.rot)
 		}
 	}
-	// A plain cremation bill without a corpse filter is not a bill.
-	if _, err := NewProductionBill("Crem_1", CremateRecipe, ButcherForever, 0); err == nil {
+	// A plain bill mode cannot carry a cremation corpse filter.
+	if _, err := NewProductionBill("Crem_1", "Cremate", CremateForever, 0); err == nil {
 		t.Error("unfiltered cremation accepted")
 	}
 }

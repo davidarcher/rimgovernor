@@ -213,6 +213,8 @@ namespace HomeBridge.BridgeTools
             LitGlowThreshold = LitGlowThreshold(),
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
             CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
+            // Building_FermentingBarrel adds ThingDefOf.Wort and takes out ThingDefOf.Beer.
+            WortDef = ThingDefOf.Wort?.defName ?? throw new InvalidOperationException("ThingDefOf.Wort is not loaded."),
             FullRotRateC = FullRotRateC(),
             RoofMaxSupportDistance = RoofMaxSupportDistance(),
         };

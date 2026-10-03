@@ -57,12 +57,12 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	if err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	packed := packedSculptures(items)
+	packed := packedSculptures(items, facts.Facts.Items)
 	inner := map[string]bridge.PackedItem{}
 	for _, item := range items {
 		inner[item.ID] = item
 	}
-	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
+	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items)
 	if !due {
 		if len(packed) > 0 {
 			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts))
@@ -103,10 +103,10 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 }
 
 // packedSculptures is the policy view of packed sculpture stock.
-func packedSculptures(items []bridge.PackedItem) []policy.PackedSculpture {
+func packedSculptures(items []bridge.PackedItem, facts policy.ItemFacts) []policy.PackedSculpture {
 	out := make([]policy.PackedSculpture, 0, len(items))
 	for _, item := range items {
-		if _, ok := policy.SculptureSize(item.InnerDef); !ok {
+		if _, ok := facts.SculptureSize(item.InnerDef); !ok {
 			continue
 		}
 		quality := -1
@@ -159,9 +159,9 @@ func saleSculptures(call context.Context, native sculptureSource, identity *c.Id
 	if err != nil {
 		return nil, err
 	}
-	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items))
+	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items, facts.Facts.Items))
 	tier, _ := facts.BuildTier.Value()
-	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
+	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items, facts.Facts.Items), facts.Facts.Items), nil
 }
 
 // reviewSaleArt is the review's shed_art input (#1247): the unreserved

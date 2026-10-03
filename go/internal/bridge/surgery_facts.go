@@ -18,7 +18,10 @@ var surgeryKinds = map[o.SurgeryKind]policy.SurgeryKind{
 // SurgeryFacts maps the native surgery facts (#1161) as observed, for a
 // colonist's care read and a prisoner's population row (#1169). A list
 // carrying a read issue is unknown; values are never recomputed here.
-func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fact[[]policy.SurgeryOperation]) {
+//
+// Each operation carries the part item its recipe installs, read from the
+// catalog's recipe rows (#1721); a recipe the catalog has no row for is an error.
+func SurgeryFacts(h *o.PawnHealth, catalog *DefinitionCatalog) (domain.Fact[[]policy.MissingPart], domain.Fact[[]policy.SurgeryOperation], error) {
 	parts, ops := domain.Unknown[[]policy.MissingPart](), domain.Unknown[[]policy.SurgeryOperation]()
 	if !surgeryIssue(h.Issues, "missing_parts") {
 		rows := make([]policy.MissingPart, 0, len(h.MissingParts))
@@ -47,6 +50,13 @@ func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fa
 			}
 			if op.Recipe != nil {
 				row.Recipe = surgeryFact(op.Recipe.DefName)
+				if op.Recipe.DefName != nil {
+					item, err := catalog.InstallItem(op.Recipe.GetDefName())
+					if err != nil {
+						return parts, ops, err
+					}
+					row.Item = item
+				}
 			}
 			if op.EligibleDoctors != nil {
 				row.EligibleDoctors = domain.Known(int(op.GetEligibleDoctors()))
@@ -61,7 +71,23 @@ func SurgeryFacts(h *o.PawnHealth) (domain.Fact[[]policy.MissingPart], domain.Fa
 		}
 		ops = domain.Known(rows)
 	}
-	return parts, ops
+	return parts, ops, nil
+}
+
+// QueuedSurgeryItems lists the part item each queued medical bill installs
+// (#1261), by the catalog's recipe rows; a bill that installs no item adds none.
+func QueuedSurgeryItems(recipes []string, catalog *DefinitionCatalog) ([]policy.Resource, error) {
+	var items []policy.Resource
+	for _, recipe := range recipes {
+		item, err := catalog.InstallItem(recipe)
+		if err != nil {
+			return nil, err
+		}
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	return items, nil
 }
 
 // QueuedSurgeries counts the medical bills on the patient; unknown when the

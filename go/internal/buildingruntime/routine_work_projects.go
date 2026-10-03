@@ -173,7 +173,7 @@ func routineProjectWork(names []string, definitions []observation.PlanningDefini
 // whose recipes are unread is skipped (it cannot host a bill yet either),
 // but a producing recipe with unobserved work makes the whole requirement
 // Unknown so the planner waits rather than assigning against a guess.
-func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearBenchRead) domain.Fact[[]policy.WorkRequirement] {
+func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearBenchRead, wort policy.Resource) domain.Fact[[]policy.WorkRequirement] {
 	var out []policy.WorkRequirement
 	for _, row := range census {
 		recipes, known := row.Bench.Recipes.Value()
@@ -186,7 +186,7 @@ func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearB
 			}
 			produces := false
 			for _, product := range recipe.Products {
-				if product == "Wort" && targets["Beer"] > 0 {
+				if product == wort && targets["Beer"] > 0 {
 					produces = true
 				}
 				if _, wanted := targets[product]; wanted {
@@ -238,7 +238,7 @@ func routineDeficitTargets(resources map[policy.Resource]int64, resourceDeficit 
 // could produce it (routineDeficitWork). One census read serves both; no
 // bill and no deficit reads nothing. The review needs the same rows so
 // EnsureWorkAssignments assesses a deficit the planner will then cover.
-func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snapshot domain.GenerationSnapshot, plans []store.PlanState, player map[domain.PlanID]uint64, targets map[policy.Resource]int64, deficit bool) (domain.Fact[[]policy.WorkRequirement], error) {
+func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snapshot domain.GenerationSnapshot, plans []store.PlanState, player map[domain.PlanID]uint64, targets map[policy.Resource]int64, deficit bool, wort policy.Resource) (domain.Fact[[]policy.WorkRequirement], error) {
 	none := domain.Known([]policy.WorkRequirement{})
 	if benches == nil {
 		return none, nil
@@ -257,7 +257,7 @@ func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snaps
 		return domain.Unknown[[]policy.WorkRequirement](), nil
 	}
 	if deficit {
-		work, known := routineDeficitWork(targets, census).Value()
+		work, known := routineDeficitWork(targets, census, wort).Value()
 		if !known {
 			return domain.Unknown[[]policy.WorkRequirement](), nil
 		}

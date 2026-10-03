@@ -1,13 +1,14 @@
 package policy
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func restoreOp(recipe, part string, index int, chance float64, doctors int, stocked bool) SurgeryOperation {
-	return SurgeryOperation{Recipe: domain.Known(recipe), PartDefName: domain.Known(part), PartIndex: domain.Known(index), Kind: SurgeryRestore,
+	return SurgeryOperation{Recipe: domain.Known(recipe), Item: Resource(strings.TrimPrefix(strings.TrimPrefix(recipe, "Install"), "Natural")), PartDefName: domain.Known(part), PartIndex: domain.Known(index), Kind: SurgeryRestore,
 		SuccessChance: domain.Known(chance), EligibleDoctors: domain.Known(doctors), IngredientsOnMap: domain.Known(stocked),
 		Violation: domain.Known(false), Lethal: domain.Known(false)}
 }

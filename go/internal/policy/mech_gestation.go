@@ -249,6 +249,7 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 		return BillSelection{}, false, err
 	}
 	var options []BillSelection
+	bulk := map[string]bool{}
 	for _, bench := range benches {
 		if !usableBench(bench) || len(bench.Bills) >= 15 {
 			continue
@@ -257,6 +258,7 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 		for _, recipe := range bench.Recipes {
 			if ok, known := recipe.Available.Value(); known && ok && recipe.MechKind == choice.Kind {
 				options = append(options, BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.GearBatch, Target: 1})
+				bulk[recipe.Name] = recipe.Bulk
 			}
 		}
 	}
@@ -265,8 +267,8 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
-		if bulk := BulkRecipe(a.Recipe); bulk != BulkRecipe(b.Recipe) {
-			return bulk
+		if bulk[a.Recipe] != bulk[b.Recipe] {
+			return bulk[a.Recipe]
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe

@@ -3,7 +3,6 @@ package policy
 import (
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -30,12 +29,19 @@ type ProductionProduct struct {
 	Edible, Perishable         domain.Fact[bool]
 	// BabyEdible is whether a baby can eat the product (Biotech).
 	BabyEdible domain.Fact[bool]
+	// Kind is the food kind the game gives the product (#1721).
+	Kind FoodKind
 	// Storable is the count of the product protected, reachable storage
 	// accepting it can hold: stored stock plus empty stack slots.
 	Storable domain.Fact[int64]
 }
 type ProductionRecipe struct {
 	Name string
+	// Role is what the recipe does by its catalog row (#1721).
+	Role domain.RecipeRole
+	// Bulk is whether the recipe is the bulk sibling of another recipe: the same
+	// ingredients and products in larger counts (#1721).
+	Bulk bool
 	// MechKind is the PawnKindDef a gestation recipe makes (#1686), "" otherwise.
 	MechKind                                   string
 	Available                                  domain.Fact[bool]
@@ -50,6 +56,8 @@ type ProductionRecipe struct {
 // configured target, not how much of it is already produced: a TargetCount
 // bill reserves that nutrition toward its buffer even while still filling it.
 type ExistingProductionBill struct {
+	// Role is the bill recipe's role by its catalog row (#1721).
+	Role               domain.RecipeRole
 	DefaultIngredients domain.Fact[bool]
 	Ingredients        domain.Fact[[]string]
 	UnrestrictedWorker domain.Fact[bool]
@@ -150,20 +158,36 @@ func billAdequate(bill ExistingProductionBill, selection BillSelection) bool {
 	return !tk || target >= selection.Target
 }
 
-// BulkRecipe reports a native bulk recipe (Make_PemmicanBulk,
-// CookMealSimpleBulk, ...). Every bill selector prefers the bulk recipe over
-// its single-item sibling: singles are for the odd item cranked out by hand.
-func BulkRecipe(name string) bool { return strings.HasSuffix(name, "Bulk") }
+// Meal reports a product the game classes as a meal.
+func (p ProductionProduct) Meal() bool {
+	switch p.Kind {
+	case FoodKindMealAwful, FoodKindMealSimple, FoodKindMealFine, FoodKindMealLavish:
+		return true
+	}
+	return false
+}
 
-// baseRecipe is a recipe's single-item name: the sibling a bulk recipe repeats.
-func baseRecipe(name string) string { return strings.TrimSuffix(name, "Bulk") }
+// SurvivalMeal is a meal that never rots: the packaged survival meal, a
+// reserve that is no part of the perishable meal tiers.
+func (p ProductionProduct) SurvivalMeal() bool {
+	perishable, known := p.Perishable.Value()
+	return p.Meal() && known && !perishable
+}
 
-// OrdinaryMealRecipe is a bill recipe native lets a meal bill replace: the
-// game's CookMeal* recipes short of the survival pack, the tier family the
-// meal review chooses among. Reserve (pemmican) and butcher bills are never
-// replaced through this path.
-func OrdinaryMealRecipe(name string) bool {
-	return strings.HasPrefix(name, "CookMeal") && name != "CookMealSurvival"
+// SimpleMeal is the perishable simple-tier meal, the cheapest the cooks make.
+func (p ProductionProduct) SimpleMeal() bool {
+	perishable, known := p.Perishable.Value()
+	return p.Kind == FoodKindMealSimple && known && perishable
+}
+
+// SimpleMealRecipe is whether every product of the recipe is a simple meal.
+func (r ProductionRecipe) SimpleMealRecipe() bool {
+	for _, p := range r.Products {
+		if !p.SimpleMeal() {
+			return false
+		}
+	}
+	return len(r.Products) > 0
 }
 
 // An existing bill of the selected recipe stands when it already does the
@@ -238,6 +262,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		}
 	}
 	var options []BillSelection
+	bulk, simple := map[string]bool{}, map[string]bool{}
 	seen := map[string]bool{}
 	for _, bench := range rows {
 		if !foodID(bench.ID) || seen[bench.ID] || len(bench.Bills) > 15 {
@@ -264,7 +289,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 				selection.Ingredients = context[0].Ingredients
 			}
 			if purpose == ButcherFood {
-				if recipe.Name != "ButcherCorpseFlesh" {
+				if recipe.Role != domain.RoleButcherFlesh {
 					continue
 				}
 				selection.Mode = domain.ButcherForever
@@ -306,6 +331,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 			if len(bench.Bills) >= 15 && selection.Replace == "" {
 				continue
 			}
+			bulk[recipe.Name], simple[recipe.Name] = recipe.Bulk, recipe.SimpleMealRecipe()
 			options = append(options, selection)
 		}
 	}
@@ -320,14 +346,14 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
-		if simple := baseRecipe(a.Recipe) == "CookMealSimple"; (purpose == CookFood || purpose == CookAheadFood) && simple != (baseRecipe(b.Recipe) == "CookMealSimple") {
-			return simple
+		if first := simple[a.Recipe]; (purpose == CookFood || purpose == CookAheadFood) && first != simple[b.Recipe] {
+			return first
 		}
 		if separated[a.Bench] != separated[b.Bench] {
 			return separated[a.Bench]
 		}
-		if bulk := BulkRecipe(a.Recipe); bulk != BulkRecipe(b.Recipe) {
-			return bulk
+		if bulk[a.Recipe] != bulk[b.Recipe] {
+			return bulk[a.Recipe]
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe

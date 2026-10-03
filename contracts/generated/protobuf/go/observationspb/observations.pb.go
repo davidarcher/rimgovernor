@@ -38246,8 +38246,12 @@ type CatalogConstants struct {
 	// assembly, not inlined): how far a roofed cell may lie from a roof holder
 	// before the game collapses it.
 	RoofMaxSupportDistance float32 `protobuf:"fixed32,9,opt,name=roof_max_support_distance,json=roofMaxSupportDistance,proto3" json:"roof_max_support_distance,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// The defName of ThingDefOf.Wort: what Building_FermentingBarrel takes in
+	// and turns into ThingDefOf.Beer (#1721), so the beer reserve names the
+	// intermediate without typing it.
+	WortDef       string `protobuf:"bytes,10,opt,name=wort_def,json=wortDef,proto3" json:"wort_def,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CatalogConstants) Reset() {
@@ -38341,6 +38345,13 @@ func (x *CatalogConstants) GetRoofMaxSupportDistance() float32 {
 		return x.RoofMaxSupportDistance
 	}
 	return 0
+}
+
+func (x *CatalogConstants) GetWortDef() string {
+	if x != nil {
+		return x.WortDef
+	}
+	return ""
 }
 
 // The static Ideology definitions (#1654), each a game def read natively,
@@ -49699,7 +49710,7 @@ const file_observations_proto_rawDesc = "" +
 	"stuff_name\x18\x02 \x01(\tR\tstuffName\x12\x12\n" +
 	"\x04stat\x18\x03 \x03(\x05R\x04stat\x12\x14\n" +
 	"\x05value\x18\x04 \x03(\x02R\x05value\x12;\n" +
-	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x81\x03\n" +
+	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x9c\x03\n" +
 	"\x10CatalogConstants\x12$\n" +
 	"\x0eticks_per_hour\x18\x01 \x01(\x05R\fticksPerHour\x12\"\n" +
 	"\rticks_per_day\x18\x02 \x01(\x05R\vticksPerDay\x12\"\n" +
@@ -49709,7 +49720,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x12lit_glow_threshold\x18\x06 \x01(\x02R\x10litGlowThreshold\x12!\n" +
 	"\fcurrency_def\x18\a \x01(\tR\vcurrencyDef\x12%\n" +
 	"\x0ffull_rot_rate_c\x18\b \x01(\x02R\ffullRotRateC\x129\n" +
-	"\x19roof_max_support_distance\x18\t \x01(\x02R\x16roofMaxSupportDistance\"\xac\x02\n" +
+	"\x19roof_max_support_distance\x18\t \x01(\x02R\x16roofMaxSupportDistance\x12\x19\n" +
+	"\bwort_def\x18\n" +
+	" \x01(\tR\awortDef\"\xac\x02\n" +
 	"\x0fIdeologyCatalog\x12A\n" +
 	"\x05memes\x18\x01 \x03(\v2+.rimgovernor.observations.v1.MemeDefinitionR\x05memes\x12J\n" +
 	"\bprecepts\x18\x02 \x03(\v2..rimgovernor.observations.v1.PreceptDefinitionR\bprecepts\x12A\n" +

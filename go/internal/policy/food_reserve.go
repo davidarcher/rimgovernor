@@ -199,7 +199,7 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 		target: func(def Resource, nutrition float64) float64 {
 			return (reserve.TargetNutrition - reserve.StockNutrition + reserve.ByDefinition[def]) / nutrition
 		},
-		firstIf: func(def Resource) bool { return def == "MealSurvivalPack" },
+		firstIf: ProductionProduct.SurvivalMeal,
 	})
 }
 
@@ -210,7 +210,7 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 type targetBillSpec struct {
 	family  func(ProductionProduct) bool
 	target  func(def Resource, nutrition float64) float64
-	firstIf func(def Resource) bool
+	firstIf func(ProductionProduct) bool
 }
 
 // selectTargetBill picks the recipe, bench and target for a standing
@@ -221,7 +221,7 @@ type targetBillSpec struct {
 // (#1359); matching bills are corrected, unrelated recipes retained.
 func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelection, bool) {
 	var options []BillSelection
-	products := map[string]Resource{}
+	first, bulk := map[string]bool{}, map[string]bool{}
 	produces := map[string]Resource{}
 	for _, bench := range rows {
 		for _, recipe := range bench.Recipes {
@@ -279,21 +279,21 @@ func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelectio
 			if exists && selected.Replace == "" || len(bench.Bills) == 15 && selected.Replace == "" {
 				continue
 			}
+			first[recipe.Name], bulk[recipe.Name] = spec.firstIf != nil && spec.firstIf(product), recipe.Bulk
 			options = append(options, selected)
-			products[recipe.Name] = def
 		}
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
 		if spec.firstIf != nil {
-			if first := spec.firstIf(products[a.Recipe]); first != spec.firstIf(products[b.Recipe]) {
-				return first
+			if first[a.Recipe] != first[b.Recipe] {
+				return first[a.Recipe]
 			}
 		}
 		// The bulk recipe wins over its single-item sibling: singles are for
 		// the odd one or two items a player cranks out by hand.
-		if bulk := BulkRecipe(a.Recipe); bulk != BulkRecipe(b.Recipe) {
-			return bulk
+		if bulk[a.Recipe] != bulk[b.Recipe] {
+			return bulk[a.Recipe]
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe

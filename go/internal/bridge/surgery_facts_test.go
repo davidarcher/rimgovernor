@@ -36,7 +36,10 @@ func TestRoutineSurgeryFactsMapping(t *testing.T) {
 			domain.Unknown[[]policy.MissingPart](), domain.Unknown[[]policy.SurgeryOperation]()},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			parts, ops := SurgeryFacts(test.h)
+			parts, ops, err := SurgeryFacts(test.h, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if !reflect.DeepEqual(parts, test.parts) || !reflect.DeepEqual(ops, test.ops) {
 				t.Fatalf("parts %+v ops %+v", parts, ops)
 			}

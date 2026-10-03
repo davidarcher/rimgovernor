@@ -255,7 +255,14 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	beer := resource == "Beer"
 	if beer {
-		resource = "Wort"
+		items, err := r.reviewer.itemFacts(call, state.Snapshot)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if items.Wort == "" {
+			return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: the catalog names no wort def", ErrControl)
+		}
+		resource = items.Wort
 	}
 	p := r.reviewer.player
 	seen := make([]domain.MethodID, 0, len(goal.Methods))

@@ -56,7 +56,7 @@ func gearModelDefsShowing(t *testing.T, shown []int32) GearDefinitions {
 	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)},
 		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}, RoomStatDefs: bridge.FixtureRoomStats()}, StatValues: &o.DefStatTable{Stats: []string{statArmorSharp, statArmorBlunt, statInsulationCold, statInsulationHeat, statMarketValue}},
-		Constants: &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}}
+		Constants: &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}}
 	for _, name := range slices.Sorted(maps.Keys(gearGarments)) {
 		g := gearGarments[name]
 		row := &d.ThingDef{DefName: name, Apparel: &d.ApparelProperties{Layers: g.layers, BodyPartGroups: g.groups, DefaultOutfitTags: g.tags, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}}

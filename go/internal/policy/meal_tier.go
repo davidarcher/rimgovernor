@@ -39,7 +39,9 @@ type MealTierRequest struct {
 }
 
 type MealRecipeChoice struct {
-	Bench, Recipe                              string
+	Bench, Recipe string
+	// Bulk is whether the recipe is a bulk sibling (#1721).
+	Bulk                                       bool
 	Mood, NutrientEfficiency, WorkPerNutrition float64
 }
 
@@ -151,8 +153,8 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 		}
 		// A bulk recipe cooks four meals per trip to the bench: with equal work
 		// per nutrition it wins, so one campfire keeps up with a big colony.
-		if ab, bb := BulkRecipe(a.Recipe), BulkRecipe(b.Recipe); ab != bb {
-			return ab
+		if a.Bulk != b.Bulk {
+			return a.Bulk
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe
@@ -216,7 +218,7 @@ func mealIngredientSources(p FoodPlan) (map[FoodIngredientClass]bool, bool, bool
 }
 
 func mealRecipeChoice(bench string, r ProductionRecipe, skill int32, sources map[FoodIngredientClass]bool) (MealRecipeChoice, MealTier, bool) {
-	choice := MealRecipeChoice{Bench: bench, Recipe: r.Name}
+	choice := MealRecipeChoice{Bench: bench, Recipe: r.Name, Bulk: r.Bulk}
 	floor, fk := r.CookSkillFloor.Value()
 	mood, mk := r.Mood.Value()
 	efficiency, ek := r.NutrientEfficiency.Value()
@@ -370,7 +372,7 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 		if selected.Replace == "" {
 			for _, existingBench := range rows {
 				for _, old := range existingBench.Bills {
-					if old.ID != "" && old.Recipe != selected.Recipe && OrdinaryMealRecipe(old.Recipe) && (selected.Replace == "" || old.ID < selected.Replace) {
+					if old.ID != "" && old.Recipe != selected.Recipe && old.Role == domain.RoleOrdinaryMeal && (selected.Replace == "" || old.ID < selected.Replace) {
 						selected.Replace = old.ID
 					}
 				}

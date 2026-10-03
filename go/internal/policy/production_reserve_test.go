@@ -81,7 +81,7 @@ func TestReservedFoodNutritionSumsAcrossBenches(t *testing.T) {
 
 func TestSelectProductionBillPrefersSeparatedButcherBench(t *testing.T) {
 	butcher := func(id, room string) ProductionBench {
-		bench := ProductionBench{ID: id, Definition: "ButcherSpot", Token: domain.Known("t-" + id), Usable: domain.Known(true), Butcher: true, Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}
+		bench := ProductionBench{ID: id, Definition: "ButcherSpot", Token: domain.Known("t-" + id), Usable: domain.Known(true), Butcher: true, Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}}
 		if room != "" {
 			bench.Room = domain.Known(room)
 		}
@@ -133,7 +133,7 @@ func TestAllButchersColocated(t *testing.T) {
 // stove; both offer CookMealSimple at 0.9 nutrition a meal.
 func cookAheadBenches(existingTarget int32) domain.Fact[[]ProductionBench] {
 	meal := ProductionRecipe{Name: "CookMealSimple", Available: domain.Known(true),
-		Products: []ProductionProduct{{Name: "MealSimple", Nutrition: domain.Known(0.9), Edible: domain.Known(true), Perishable: domain.Known(true), RotDays: domain.Known(4.0), Demand: domain.Known(2.0)}}}
+		Products: []ProductionProduct{{Name: "MealSimple", Kind: FoodKindMealSimple, Nutrition: domain.Known(0.9), Edible: domain.Known(true), Perishable: domain.Known(true), RotDays: domain.Known(4.0), Demand: domain.Known(2.0)}}}
 	fuelled := ProductionBench{ID: "bench-fuelled", Usable: domain.Known(true), Token: domain.Known("tok-fuelled"), Recipes: []ProductionRecipe{meal}}
 	if existingTarget > 0 {
 		fuelled.Bills = []ExistingProductionBill{{Recipe: "CookMealSimple", TargetCount: domain.Known(existingTarget), Forever: domain.Known(false)}}
@@ -172,7 +172,7 @@ func TestSelectProductionBillPrefersBulkRecipe(t *testing.T) {
 	rows, _ := cookAheadBenches(0).Value()
 	meal := func(name string) ProductionRecipe {
 		r := rows[1].Recipes[0]
-		r.Name = name
+		r.Name, r.Bulk = name, name == "CookMealSimpleBulk"
 		return r
 	}
 	rows[1].Recipes = []ProductionRecipe{meal("CookMealSimple"), meal("CookMealSimpleBulk")}

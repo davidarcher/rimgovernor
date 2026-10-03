@@ -181,7 +181,7 @@ func TestReserveBillSkipsSiblingRecipeOfSameProduct(t *testing.T) {
 		t.Fatal(err)
 	}
 	recipe := func(name string) ProductionRecipe {
-		return ProductionRecipe{Name: name, Available: domain.Known(true), Products: []ProductionProduct{{Name: "Pemmican", Nutrition: domain.Known(.05), Edible: domain.Known(true)}}}
+		return ProductionRecipe{Name: name, Bulk: name == "MakePemmicanBulk", Available: domain.Known(true), Products: []ProductionProduct{{Name: "Pemmican", Nutrition: domain.Known(.05), Edible: domain.Known(true)}}}
 	}
 	bench := ProductionBench{ID: "stove", Token: domain.Known("token"), Usable: domain.Known(true), Recipes: []ProductionRecipe{recipe("MakePemmican"), recipe("MakePemmicanBulk")}}
 	b, ok := SelectReserveBill(domain.Known([]ProductionBench{bench}), r)

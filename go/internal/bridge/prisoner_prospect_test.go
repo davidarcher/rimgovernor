@@ -19,7 +19,7 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner.PolicyInputs = &o.PawnPolicyInputs{DrugPolicyId: proto.String("DrugPolicy_2"), GuestStatus: proto.String("Prisoner"),
 		Chemicals: []*o.ChemicalState{{Chemical: proto.String("Alcohol"), Addiction: proto.Float64(0.4), Withdrawal: proto.Bool(false)}}}
 	snapshot := populationReply(prisoner, prisonerPerson("q", "")).GetObserved()
-	census, err := decodePopulation(snapshot, populationPawns(snapshot))
+	census, err := decodePopulation(snapshot, populationPawns(snapshot), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	reply := populationReply(prisoner, colonist)
 	snapshot := reply.GetObserved()
 	snapshot.IdeologyActive, snapshot.ColonyIdeoId = proto.Bool(true), proto.String("Ideo_1")
-	census, err := decodePopulation(snapshot, populationPawns(snapshot))
+	census, err := decodePopulation(snapshot, populationPawns(snapshot), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 	}
 	// A producer without the biography leaves the prospect unknown.
 	q := populationReply(prisonerPerson("q", "")).GetObserved()
-	census, _ = decodePopulation(q, populationPawns(q))
+	census, _ = decodePopulation(q, populationPawns(q), nil)
 	rows, _ = census.Prisoners.Value()
 	if _, known := rows[0].Prospect.Value(); known {
 		t.Fatal("prospect should be unknown")

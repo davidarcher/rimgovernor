@@ -533,7 +533,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			if err != nil {
 				return store.RoutineReviewResult{}, err
 			}
-			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, targets, len(targets) > 0)
+			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, targets, len(targets) > 0, reading.Projection.Facts.Items.Wort)
 			if err != nil {
 				clockSchedulerLog("routine.step: bench work err=%v", err)
 			}

@@ -1,5 +1,7 @@
 package policy
 
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
+
 // CoreItemFacts is a small slice of Core's item numbers shaped like the
 // catalog's ItemFacts, for tests and fixtures that stand in for a loaded
 // catalog; planners never read it.
@@ -24,7 +26,13 @@ func CoreItemFacts() ItemFacts {
 		AcceptedStuff: map[Resource][]string{},
 		Categories: map[Resource][]string{"RawRice": {"PlantFoodRaw"},
 			"BlocksSandstone": {"StoneBlocks"}, "BlocksGranite": {"StoneBlocks"}, "BlocksLimestone": {"StoneBlocks"}, "BlocksSlate": {"StoneBlocks"}, "BlocksMarble": {"StoneBlocks"}},
-		Currency: "Silver",
+		Currency: "Silver", Wort: "Wort",
+		// Sculptures are Core's (Buildings_Art.xml), smallest first.
+		Sculptures: []Sculpture{
+			{Recipe: "Make_SculptureSmall", Def: "SculptureSmall", Size: domain.Cell{X: 1, Z: 1}, Cost: 50, Work: 18000},
+			{Recipe: "Make_SculptureLarge", Def: "SculptureLarge", Size: domain.Cell{X: 1, Z: 1}, Cost: 100, Work: 30000},
+			{Recipe: "Make_SculptureGrand", Def: "SculptureGrand", Size: domain.Cell{X: 2, Z: 2}, Cost: 400, Work: 105000},
+		},
 		// Drugs are Core's, in the catalog's preference order.
 		Drugs: []Drug{
 			{Def: "Beer", Chemical: "Alcohol", Social: true}, {Def: "SmokeleafJoint", Chemical: "Smokeleaf", Social: true}, {Def: "PsychiteTea", Chemical: "Psychite", Social: true},

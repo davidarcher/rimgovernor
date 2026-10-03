@@ -52,19 +52,21 @@ func SelectHumanButcher(benches domain.Fact[[]ProductionBench], ideology domain.
 		}
 		exists := false
 		for _, bill := range b.Bills {
-			exists = exists || bill.Recipe == "ButcherCorpseFlesh" && bill.Humanlike
-			animalBill[b.ID] = animalBill[b.ID] || bill.Recipe == "ButcherCorpseFlesh" && !bill.Humanlike
+			exists = exists || bill.Role == domain.RoleButcherFlesh && bill.Humanlike
+			animalBill[b.ID] = animalBill[b.ID] || bill.Role == domain.RoleButcherFlesh && !bill.Humanlike
 		}
-		available := false
+		butcher := ""
 		for _, recipe := range b.Recipes {
 			v, k := recipe.Available.Value()
-			available = available || recipe.Name == "ButcherCorpseFlesh" && k && v
+			if recipe.Role == domain.RoleButcherFlesh && k && v {
+				butcher = recipe.Name
+			}
 		}
-		if exists || !available {
+		if exists || butcher == "" {
 			continue
 		}
 		if worker, ok := QualifyingHumanButcher(b.HumanButchers, ideology); ok {
-			choices = append(choices, BillSelection{Bench: b.ID, Recipe: "ButcherCorpseFlesh", Token: token, Mode: domain.HumanButcherForever, Worker: string(worker)})
+			choices = append(choices, BillSelection{Bench: b.ID, Recipe: butcher, Token: token, Mode: domain.HumanButcherForever, Worker: string(worker)})
 		}
 	}
 	sort.Slice(choices, func(i, j int) bool {
@@ -154,7 +156,7 @@ func HumanButcheryOpen(benches domain.Fact[[]ProductionBench], ideology domain.F
 		available := false
 		for _, recipe := range b.Recipes {
 			v, k := recipe.Available.Value()
-			available = available || recipe.Name == "ButcherCorpseFlesh" && k && v
+			available = available || recipe.Role == domain.RoleButcherFlesh && k && v
 		}
 		if _, ok := QualifyingHumanButcher(b.HumanButchers, ideology); ok && available {
 			return true

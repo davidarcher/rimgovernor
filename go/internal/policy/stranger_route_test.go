@@ -13,7 +13,7 @@ func TestStrangerCorpseRouting(t *testing.T) {
 	rooms := tombStanding(room)
 	for _, worker := range []bool{true, false} {
 		for _, space := range []string{"ready", "cells", "full"} {
-			b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("t"), HumanCorpseNutrition: domain.Known(10.), HumanStorageReady: domain.Known(space == "ready"), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}
+			b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("t"), HumanCorpseNutrition: domain.Known(10.), HumanStorageReady: domain.Known(space == "ready"), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}}
 			if space == "cells" {
 				b.HumanStorageCells = []domain.Cell{{X: 1, Z: 1}}
 			}

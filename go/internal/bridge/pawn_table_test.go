@@ -71,7 +71,7 @@ func TestRoutinePawnsFromTable(t *testing.T) {
 func TestPopulationUnresolvedPersonIsUnknown(t *testing.T) {
 	v := populationReply(prisonerPerson("p", "")).GetObserved()
 	v.OwnedNames = []*o.OwnedName{{PawnId: proto.String("p"), ShortName: proto.String("P"), ThingId: proto.Int32(1)}}
-	census, err := decodePopulation(v, Pawns{})
+	census, err := decodePopulation(v, Pawns{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestPopulationUnresolvedPersonIsUnknown(t *testing.T) {
 	if names, known := census.Names.Value(); !known || len(names) != 1 {
 		t.Fatal("owned names lost", names)
 	}
-	census, err = decodePopulation(v, populationPawns(v))
+	census, err = decodePopulation(v, populationPawns(v), nil)
 	if rows, known := census.Prisoners.Value(); err != nil || !known || len(rows) != 1 {
 		t.Fatal(rows, err)
 	}

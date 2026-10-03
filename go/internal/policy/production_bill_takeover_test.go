@@ -13,8 +13,9 @@ func TestProductionBillTakeoverDrift(t *testing.T) {
 				recipe := "CookMealSimple"
 				product := "MealSimple"
 				forever := purpose == ButcherFood
+				role := domain.RoleNone
 				if forever {
-					recipe = "ButcherCorpseFlesh"
+					recipe, role = "ButcherCorpseFlesh", domain.RoleButcherFlesh
 				}
 				if purpose == PreserveFood {
 					recipe, product = "MakePemmican", "Pemmican"
@@ -23,7 +24,7 @@ func TestProductionBillTakeoverDrift(t *testing.T) {
 				if forever {
 					mode = "Forever"
 				}
-				bill := ExistingProductionBill{ID: "foreign", Recipe: recipe, Managed: domain.Known(false), Active: domain.Known(true), Forever: domain.Known(forever), RepeatMode: domain.Known(mode), TargetCount: domain.Known(int32(6)), DefaultIngredients: domain.Known(true), UnrestrictedWorker: domain.Known(true), Worker: domain.Known("")}
+				bill := ExistingProductionBill{ID: "foreign", Role: role, Recipe: recipe, Managed: domain.Known(false), Active: domain.Known(true), Forever: domain.Known(forever), RepeatMode: domain.Known(mode), TargetCount: domain.Known(int32(6)), DefaultIngredients: domain.Known(true), UnrestrictedWorker: domain.Known(true), Worker: domain.Known("")}
 				switch drift {
 				case "suspended":
 					bill.Active = domain.Known(false)
@@ -47,7 +48,7 @@ func TestProductionBillTakeoverDrift(t *testing.T) {
 					bill.Forever = domain.Unknown[bool]()
 					bill.TargetCount = domain.Unknown[int32]()
 				}
-				bench := ProductionBench{ID: "bench", Token: domain.Known("token"), Usable: domain.Known(true), Butcher: forever, Recipes: []ProductionRecipe{{Name: recipe, Available: domain.Known(true), Products: []ProductionProduct{{Name: product, Edible: domain.Known(true), Nutrition: domain.Known(1.0)}}}}, Bills: []ExistingProductionBill{bill}}
+				bench := ProductionBench{ID: "bench", Token: domain.Known("token"), Usable: domain.Known(true), Butcher: forever, Recipes: []ProductionRecipe{{Name: recipe, Role: role, Available: domain.Known(true), Products: []ProductionProduct{{Name: product, Edible: domain.Known(true), Nutrition: domain.Known(1.0)}}}}, Bills: []ExistingProductionBill{bill}}
 				// A full stack must still permit a replacement, and unrelated recipes survive.
 				for len(bench.Bills) < 15 {
 					bench.Bills = append(bench.Bills, ExistingProductionBill{ID: "unrelated", Recipe: "OtherRecipe"})

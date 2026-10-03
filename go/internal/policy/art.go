@@ -59,9 +59,15 @@ func SelectArtBills(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 // (#1192); their next art piece gets a quality boost.
 const InspiredCreativity = "Inspired_Creativity"
 
-// InspiredArtRecipe is the priority bill an inspired artist gets: a large
-// sculpture. Grand sculptures wait for the stuff choice (#1191).
-const InspiredArtRecipe = "Make_SculptureLarge"
+// inspiredSculpture is the priority bill an inspired artist gets: the
+// second-smallest sculpture, the large one (#1721: read from the catalog's
+// sculpture rows by rank). Grand sculptures wait for the stuff choice (#1191).
+func inspiredSculpture(items ItemFacts) (Sculpture, bool) {
+	if len(items.Sculptures) < 2 {
+		return Sculpture{}, false
+	}
+	return items.Sculptures[1], true
+}
 
 // InspiredArtists lists the qualifying artists with Inspired_Creativity, in
 // ID order.
@@ -79,9 +85,10 @@ func InspiredArtists(profiles []PawnProfile) []PawnID {
 // SelectInspiredArtBills returns one large sculpture bill pinned to every
 // inspired artist lacking an active one (#1192). The caller orders these
 // ahead of SelectArtBills so the inspiration is spent before it expires.
-func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []PawnID) []BillSelection {
+func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []PawnID, items ItemFacts) []BillSelection {
 	rows, known := benches.Value()
-	if !known {
+	large, lk := inspiredSculpture(items)
+	if !known || !lk {
 		return nil
 	}
 	var out []BillSelection
@@ -89,7 +96,7 @@ func SelectInspiredArtBills(benches domain.Fact[[]ProductionBench], inspired []P
 		if !foodID(string(artist)) {
 			continue
 		}
-		if s, ok := selectPinnedSculpture(rows, artist, InspiredArtRecipe); ok {
+		if s, ok := selectPinnedSculpture(rows, artist, large.Recipe); ok {
 			out = append(out, s)
 		}
 	}
@@ -107,13 +114,15 @@ func selectArtBill(benches []ProductionBench, artist PawnID, demand ArtDemand) (
 	if demand.Sale && demand.Fits == 0 {
 		return selectSaleSculpture(available, artist, demand)
 	}
-	for _, size := range sculptureSizes {
+	for rank := len(demand.Items.Sculptures) - 1; rank >= 0; rank-- {
+		size := demand.Items.Sculptures[rank]
 		options := available[size.Recipe]
 		if len(options) == 0 {
 			continue
 		}
 		stuff, ok := demand.stuff(size)
-		if size.Recipe != SculptureRecipe && (!ok || demand.Gap < size.MinGap || demand.Fits < size.Size.X || demand.Skill[artist] < size.MinSkill) {
+		gate := sculptureGate(rank)
+		if rank > 0 && (!ok || demand.Gap < gate.MinGap || demand.Fits < size.Side() || demand.Skill[artist] < gate.MinSkill) {
 			continue
 		}
 		if ok {
@@ -147,7 +156,7 @@ func pinnedSculptureOptions(benches []ProductionBench, artist PawnID) (map[strin
 		for _, bill := range bench.Bills {
 			worker, wk := bill.Worker.Value()
 			active, ak := bill.Active.Value()
-			if IsSculptureRecipe(bill.Recipe) && wk && worker == string(artist) && (!ak || active) {
+			if bill.Role == domain.RoleSculpture && wk && worker == string(artist) && (!ak || active) {
 				pinned[bill.Recipe] = true
 			}
 		}
@@ -157,7 +166,7 @@ func pinnedSculptureOptions(benches []ProductionBench, artist PawnID) (map[strin
 			continue
 		}
 		for _, recipe := range bench.Recipes {
-			if ok, ak := recipe.Available.Value(); IsSculptureRecipe(recipe.Name) && ak && ok {
+			if ok, ak := recipe.Available.Value(); recipe.Role == domain.RoleSculpture && ak && ok {
 				available[recipe.Name] = append(available[recipe.Name], BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.GearBatch, Target: 1, Worker: string(artist)})
 			}
 		}
@@ -168,41 +177,35 @@ func pinnedSculptureOptions(benches []ProductionBench, artist PawnID) (map[strin
 	return available, pinned
 }
 
-// Sculpture sizes (#1191), largest first: the recipe, the built
-// definition, its footprint and stuff cost (vanilla
-// ThingDefs_Buildings/Buildings_Art.xml), and when an art bill may choose
-// it: the owed room's impressiveness gap, a free square the size of the
+// sculptureGate is when an art bill may choose the sculpture of a rank
+// (#1191), rank 0 the smallest in the catalog's rows (ItemFacts.Sculptures):
+// the owed room's impressiveness gap, a free square the size of the
 // footprint, stock for it, and an artist skill that expects at least a
-// Normal (Large) or Good (Grand) piece. The small sculpture is always
-// allowed, in the best stocked stuff when there is one.
-type sculptureSize struct {
-	Recipe, Def string
-	Size        domain.Cell
-	Cost        int64
-	MinGap      float64
-	MinSkill    int
+// Normal (rank 1) or Good (rank 2 and up) piece. The smallest sculpture is
+// always allowed, in the best stocked stuff when there is one. The gates are
+// planner policy by rank, not game numbers.
+type sculptureRankGate struct {
+	MinGap   float64
+	MinSkill int
 }
 
-var sculptureSizes = []sculptureSize{
-	{Recipe: "Make_SculptureGrand", Def: "SculptureGrand", Size: domain.Cell{X: 3, Z: 3}, Cost: 400, MinGap: 25, MinSkill: 10},
-	{Recipe: "Make_SculptureLarge", Def: "SculptureLarge", Size: domain.Cell{X: 2, Z: 2}, Cost: 150, MinGap: 10, MinSkill: 6},
-	{Recipe: SculptureRecipe, Def: SculptureDefinition, Size: domain.Cell{X: 1, Z: 1}, Cost: 50},
-}
-
-// IsSculptureRecipe reports whether recipe is one of the art bill's
-// sculpture recipes.
-func IsSculptureRecipe(recipe string) bool {
-	for _, s := range sculptureSizes {
-		if s.Recipe == recipe {
-			return true
-		}
+func sculptureGate(rank int) sculptureRankGate {
+	switch {
+	case rank <= 0:
+		return sculptureRankGate{}
+	case rank == 1:
+		return sculptureRankGate{MinGap: 10, MinSkill: 6}
 	}
-	return false
+	return sculptureRankGate{MinGap: 25, MinSkill: 10}
 }
 
-// SculptureSize is the North footprint of a sculpture definition.
-func SculptureSize(def string) (domain.Cell, bool) {
-	for _, s := range sculptureSizes {
+// Side is the larger side of the sculpture's footprint.
+func (s Sculpture) Side() int32 { return max(s.Size.X, s.Size.Z) }
+
+// SculptureSize is the North footprint of a sculpture definition, false when
+// the catalog has no sculpture recipe making it.
+func (i ItemFacts) SculptureSize(def string) (domain.Cell, bool) {
+	for _, s := range i.Sculptures {
 		if s.Def == def {
 			return s.Size, true
 		}
@@ -226,7 +229,7 @@ type ArtDemand struct {
 
 // stuff is the best stocked stuff (beauty factor times market value, as
 // beds choose) with enough for one sculpture of size, false when none.
-func (d ArtDemand) stuff(size sculptureSize) (Resource, bool) {
+func (d ArtDemand) stuff(size Sculpture) (Resource, bool) {
 	return BedMaterials{Stock: d.Stock, Cost: map[Resource]int64{Resource(size.Def): size.Cost}, Items: d.Items}.bestStuff(Resource(size.Def), 0, true)
 }
 
@@ -246,7 +249,11 @@ func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomT
 		return d
 	}
 	d.Gap, d.Fits = due[0].Gap, 1
-	for side := int32(3); side > 1; side-- {
+	biggest := int32(1)
+	for _, s := range items.Sculptures {
+		biggest = max(biggest, s.Side())
+	}
+	for side := biggest; side > 1; side-- {
 		if _, _, ok := freeSpotFacing(due[0].Room, domain.Cell{X: side, Z: side}, domain.North); ok {
 			d.Fits = side
 			break

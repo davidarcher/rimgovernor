@@ -2,7 +2,6 @@ package policy
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -53,8 +52,7 @@ const (
 // without the Ideology DLC, which has no precepts to read. With Ideology the
 // precepts' own thoughts price it (HarvestMood).
 const (
-	classicKnowHarvestMood   = 5
-	harvestInstallRecipePref = "InstallNatural"
+	classicKnowHarvestMood = 5
 )
 
 // The history events a harvest raises: the organ taken, and the organ sold.
@@ -137,9 +135,10 @@ func OrganNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant, silverShort 
 		best := OrganNeed{}
 		for _, op := range ops {
 			part, pk := op.PartIndex.Value()
-			recipe, _ := op.Recipe.Value()
 			organ, _ := op.PartDefName.Value()
-			if !pk || part != want.Part || !harvestOrgan(organ) || recipe != harvestInstallRecipePref+organ || stock[Resource(organ)] > 0 {
+			// The natural install of the organ is the recipe that consumes the
+			// organ itself.
+			if !pk || part != want.Part || !harvestOrgan(organ) || op.Item != Resource(organ) || stock[Resource(organ)] > 0 {
 				continue
 			}
 			if weight, _ := servedSurgery(pawn, op); weight*SilverPerCapacity > best.Gain {
@@ -360,9 +359,8 @@ func PartRecoveryNeeds(pawns domain.Fact[[]CarePawn], wants []SurgeryWant) []Org
 		ops, _ := pawn.Operations.Value()
 		for _, op := range ops {
 			part, pk := op.PartIndex.Value()
-			recipe, _ := op.Recipe.Value()
-			item, ik := SurgeryPartItem(recipe)
-			if !pk || part != want.Part || !ik || harvestOrgan(string(item)) {
+			item := op.Item
+			if !pk || part != want.Part || item == "" || !validResource(item) || harvestOrgan(string(item)) {
 				continue
 			}
 			if weight, _ := servedSurgery(pawn, op); weight > 0 {
@@ -475,20 +473,20 @@ func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePa
 		return need
 	}
 	s := SelectSurgery(pawns, nil, SurgeryContext{})
-	options := make([][]string, 0, len(s.Wants)+len(s.Queue))
+	options := make([][]Resource, 0, len(s.Wants)+len(s.Queue))
 	for _, want := range s.Wants {
-		options = append(options, want.Options)
+		options = append(options, want.Items)
 	}
 	for _, choice := range s.Queue {
-		options = append(options, []string{choice.Recipe})
+		options = append(options, []Resource{choice.Item})
 	}
 	rows, _ := pawns.Value()
 	for _, pawn := range rows {
 		if dead, _ := pawn.Dead.Value(); dead {
 			continue
 		}
-		for _, recipe := range pawn.QueuedRecipes {
-			options = append(options, []string{recipe}) // queued bill (#1261)
+		for _, item := range pawn.QueuedItems {
+			options = append(options, []Resource{item}) // queued bill (#1261)
 		}
 	}
 	surplus := append([]Amount(nil), n.Surplus...)
@@ -497,14 +495,10 @@ func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePa
 		retained[resource] = count
 	}
 	reserved := false
-	for _, recipes := range options {
-	recipe:
-		for _, recipe := range recipes {
-			item, ok := SurgeryPartItem(recipe)
-			if organ, natural := strings.CutPrefix(recipe, harvestInstallRecipePref); natural {
-				item = Resource(organ) // InstallNaturalKidney consumes Kidney
-			}
-			if !ok {
+	for _, items := range options {
+	item:
+		for _, item := range items {
+			if !validResource(item) {
 				continue
 			}
 			for i := range surplus {
@@ -512,7 +506,7 @@ func ReserveSurgeryStock(need domain.Fact[TradeNeed], pawns domain.Fact[[]CarePa
 					surplus[i].Count--
 					retained[item]++
 					reserved = true
-					break recipe
+					break item
 				}
 			}
 		}

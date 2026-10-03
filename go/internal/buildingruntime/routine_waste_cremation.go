@@ -15,7 +15,7 @@ import (
 
 // Cremating raiders (#833): MaintainWaste places a crematorium in a free
 // workshop slot while stranger corpses lie unburied, then gives it a
-// forever CremateCorpse bill that takes stranger corpses only
+// forever cremation bill that takes stranger corpses only
 // (policy.NextCremationStep). Rotting and desiccated animal corpses get a
 // second forever bill that excludes fresh ones (#1810). Colonists are never
 // cremated.
@@ -64,7 +64,7 @@ func cremationBillMethod(bench string, of domain.CorpseOf, spoiledOnly bool) dom
 	return domain.MethodID("cremate-bill-" + bench)
 }
 
-// cremationBill commits each due class's CremateCorpse bill once per goal
+// cremationBill commits each due class's cremation bill once per goal
 // epoch (native applies a bill it already carries again as a no-op).
 func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state ControlState, goal store.GoalState, bills cremationBills, step policy.CremationStep) (RoutineWasteResult, bool, error) {
 	p := r.reviewer.player
@@ -95,7 +95,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}
-	token := ""
+	token, recipe := "", ""
 	for _, row := range census {
 		if row.Bench.ID != step.Bench {
 			continue
@@ -103,16 +103,28 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		if _, known := row.Bench.Bills.Value(); !known {
 			return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bills")}, true, nil
 		}
+		recipes, known := row.Bench.Recipes.Value()
+		if !known {
+			return RoutineWasteResult{Verdict: fieldUnavailable("cremation_recipes")}, true, nil
+		}
+		for _, r := range recipes {
+			if r.Role == domain.RoleCremation {
+				recipe = r.Definition
+			}
+		}
 		token = row.Token
 	}
 	if token == "" {
 		return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bench")}, true, nil
 	}
+	if recipe == "" {
+		return RoutineWasteResult{Verdict: fieldUnavailable("cremation_recipe")}, true, nil
+	}
 	minRot := domain.RotStage("")
 	if of == domain.CorpseAnimal || of == domain.CorpseStranger && step.StrangerSpoiledOnly {
 		minRot = domain.RotRotting
 	}
-	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, of, minRot)
+	bill, err := domain.NewCremationBill(step.Bench, recipe, of, minRot)
 	if err != nil {
 		return RoutineWasteResult{}, true, err
 	}

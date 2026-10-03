@@ -322,14 +322,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, errors.New("noncanonical bill payload")
 		}
 		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Mode, payload.Target, payload.Ingredients...)
-		if payload.Mode == domain.HumanButcherForever && payload.Recipe == "ButcherCorpseFlesh" && payload.Target == 0 && len(payload.Ingredients) == 0 {
-			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Worker)
+		if payload.Mode == domain.HumanButcherForever && payload.Target == 0 && len(payload.Ingredients) == 0 {
+			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Recipe, payload.Worker)
 		}
 		if payload.Corpses != "" {
-			if payload.Mode != domain.ButcherForever || payload.Target != 0 || len(payload.Ingredients) > 0 {
+			if payload.Mode != domain.CremateForever || payload.Target != 0 || len(payload.Ingredients) > 0 {
 				return domain.Action{}, 0, errors.New("invalid corpse bill payload")
 			}
-			value, err = domain.NewCorpseBill(payload.Bench, payload.Recipe, payload.Corpses, payload.MinRot)
+			value, err = domain.NewCremationBill(payload.Bench, payload.Recipe, payload.Corpses, payload.MinRot)
 		}
 		if payload.Mode != domain.HumanButcherForever && payload.Mode != domain.GearBatch && payload.Worker != "" {
 			return domain.Action{}, 0, errors.New("worker on ordinary bill")
@@ -1204,7 +1204,7 @@ type billPayload struct {
 // records one. A butcher row implies animal (stranger with a worker), so
 // rows written before #833 load unchanged.
 func storedCorpses(b domain.ProductionBill) domain.CorpseOf {
-	if b.Recipe() == domain.CremateRecipe {
+	if b.Mode() == domain.CremateForever {
 		return b.Corpses()
 	}
 	return ""

@@ -20,7 +20,7 @@ func babyFoodBench(bills ...ExistingProductionBill) domain.Fact[[]ProductionBenc
 		Recipes: []ProductionRecipe{
 			{Name: "MakeMeal", Available: domain.Known(true), Products: []ProductionProduct{product("MealSimple", false)}},
 			{Name: "MakeBabyFood", Available: domain.Known(true), Products: []ProductionProduct{product("BabyFood", true)}},
-			{Name: "MakeBabyFoodBulk", Available: domain.Known(true), Products: []ProductionProduct{product("BabyFood", true)}},
+			{Name: "MakeBabyFoodBulk", Bulk: true, Available: domain.Known(true), Products: []ProductionProduct{product("BabyFood", true)}},
 		}, Bills: bills}})
 }
 
