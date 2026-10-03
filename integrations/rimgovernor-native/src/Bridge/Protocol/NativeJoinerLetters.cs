@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
             .OfType<QuestPart_PawnsArrive>().SelectMany(p => p.pawns).Distinct().SingleOrDefault();
 
         private static IEnumerable<ChoiceLetter_AcceptJoiner> Pending() => Find.LetterStack.LettersListForReading
-            .OfType<ChoiceLetter_AcceptJoiner>().Where(l => l.quest?.root?.defName == "WandererJoins"
+            .OfType<ChoiceLetter_AcceptJoiner>().Where(l => l.quest?.root?.root is RimWorld.QuestGen.QuestNode_Root_WandererJoin_WalkIn
                 && l.CanShowInLetterStack && !l.TimeoutPassed && l.MapToUse == Find.CurrentMap);
 
         private static string Token(ChoiceLetter_AcceptJoiner letter, Pawn pawn)

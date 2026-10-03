@@ -272,10 +272,9 @@ namespace HomeBridge.BridgeTools
                     row["startTicks"] = BridgeCommon.Try(() => r.startTicks, 0);
                     direct.Add(row);
 
-                    var defName = row["defName"] as string;
-                    if (defName == "Spouse" || defName == "Lover" || defName == "Fiance")
+                    if (LovePartnerRelationUtility.IsLovePartnerRelation(r.def))
                         partners.Add(row);
-                    if (defName == "Bond")
+                    if (r.def == PawnRelationDefOf.Bond)
                         bonded.Add(row);
                 }
             }

@@ -518,7 +518,7 @@ namespace HomeBridge.BridgeTools
         private static void SleepingRelations(Pawn p, Obs.UpkeepPerson row)
         {
             var partners = (p.relations?.DirectRelations ?? new List<DirectPawnRelation>())
-                .Where(r => (r.def == PawnRelationDefOf.Lover || r.def == PawnRelationDefOf.Spouse || r.def == PawnRelationDefOf.Fiance)
+                .Where(r => LovePartnerRelationUtility.IsLovePartnerRelation(r.def)
                     && r.otherPawn != null && !r.otherPawn.Dead && r.otherPawn.Spawned && r.otherPawn.Map == p.Map)
                 .Select(r => r.otherPawn).Distinct().OrderBy(o => o.thingIDNumber).ToList();
             row.Partners.AddRange(NativeRef.All(partners.Select(o => Id(o.GetUniqueLoadID()))));
