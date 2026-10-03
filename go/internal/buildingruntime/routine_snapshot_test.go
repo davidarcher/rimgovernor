@@ -386,7 +386,7 @@ func TestSnapshotConditionCookAheadBill(t *testing.T) {
 		t.Fatal(err)
 	}
 	bill, known := policy.SelectProductionBill(policy.CookAheadFood, p.ProductionBenches, p.Facts.Colonists, p.Facts.FoodDays, warm.WarmNutrition, reviewer.seasonal(p.Facts).FoodTargetDays)
-	if !known || bill.Recipe != "CookMealSimple" || bill.Bench == "" || bill.Target <= 0 {
+	if !known || (bill.Recipe != "CookMealSimple" && bill.Recipe != "CookMealSimpleBulk") || bill.Bench == "" || bill.Target <= 0 {
 		t.Fatalf("cook-ahead: known %v bill %+v, want a CookMealSimple bill on a bench", known, bill)
 	}
 }

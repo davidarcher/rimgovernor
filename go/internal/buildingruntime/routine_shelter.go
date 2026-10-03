@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -13,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -86,14 +88,22 @@ func (r *RoutineBuildingPlanner) plannedRooms(facts observation.ColonyProjection
 	if !known || !ok {
 		return nil, nil
 	}
+	// The initial shelter falls back to the storage room when no barracks can
+	// stand, so a blocked barracks never holds the colony at Foothold.
+	roles := []policy.ModuleRole{want}
+	if r.shelter && r.phase == policy.HousingShelter {
+		roles = append(roles, policy.ModuleStorage)
+	}
 	var rooms []policy.LayoutRoom
 	var shells []domain.RoomFootprint
-	for _, room := range plan.AllRooms() {
-		if room.Role != want {
-			continue
-		}
-		if shell, err := room.Footprint(); err == nil {
-			rooms, shells = append(rooms, room), append(shells, shell)
+	for _, role := range roles {
+		for _, room := range plan.AllRooms() {
+			if room.Role != role {
+				continue
+			}
+			if shell, err := room.Footprint(); err == nil {
+				rooms, shells = append(rooms, room), append(shells, shell)
+			}
 		}
 	}
 	return rooms, shells
@@ -115,7 +125,7 @@ func (r *RoutineBuildingPlanner) plannedShell(call context.Context, facts observ
 	rooms, shells := r.plannedRooms(facts)
 	if len(shells) == 0 {
 		_, known := facts.LayoutPlan.Value()
-		clockSchedulerLog("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.goal, r.plannedRole(), known)
+		slog.Info(fmt.Sprintf("%s: no planned %s room in the layout plan (plan known=%v); the shell waits for one", r.goal, r.plannedRole(), known), telemetry.ComponentKey, "routine")
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, nil
 	}
 	cells, err := r.shellRuinHolds(call, facts, shellSiteCells(facts, free), check)
@@ -128,7 +138,7 @@ func (r *RoutineBuildingPlanner) plannedShell(call context.Context, facts observ
 	if err != nil || !ok {
 		if err == nil {
 			b := shells[0].Bounds()
-			clockSchedulerLog("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells))
+			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells)), telemetry.ComponentKey, "routine")
 		}
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
 	}
