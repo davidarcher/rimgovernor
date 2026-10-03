@@ -44,6 +44,43 @@ func defenseFixture() DefenseRequest {
 	return r
 }
 
+// Fog inside the mass between the corridor's legs is unseen mountain, not
+// an unbuildable wall cell: the layout leaves it rather than refusing (#1588).
+func TestDefenseLayoutLeavesUnseenMountainBesideTheLane(t *testing.T) {
+	r := defenseFixture()
+	whole, err := DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fogged domain.Cell
+	for _, tier := range whole.Tiers {
+		for _, b := range tier.Buildings {
+			if b.Definition() == "Wall" && b.Cell().Z > r.Killbox.Entry.Z+3 {
+				fogged = b.Cell()
+			}
+		}
+	}
+	if fogged == (domain.Cell{}) {
+		t.Fatal("no corridor wall in the fixture")
+	}
+	for i := range r.Cells {
+		if r.Cells[i].Cell == fogged {
+			r.Cells[i] = DefenseCell{Cell: fogged}
+		}
+	}
+	layout, err := DefenseLayouts(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tier := range layout.Tiers {
+		for _, b := range tier.Buildings {
+			if b.Cell() == fogged {
+				t.Fatalf("%s builds on unseen mountain %v", tier.Name, fogged)
+			}
+		}
+	}
+}
+
 // Rock across the corridor is dug, not routed around (#1588, #1701): the
 // killbox's role cells through the shared rock step list the rock on the
 // lane and the defenders' ground, the layout waits on it, and proceeds once
@@ -59,7 +96,7 @@ func TestDefenseDigListsRockOnTheCorridor(t *testing.T) {
 		for _, c := range r.Cells {
 			cell := SiteCell{Cell: c.Cell, Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
 			if rock(c.Cell) {
-				cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+				cell.Occupied, cell.Walkable, cell.Roof, cell.NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
 			}
 			site = append(site, cell)
 		}

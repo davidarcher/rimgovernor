@@ -92,7 +92,7 @@ func buriedOreFixture(t *testing.T) (*RoutineResourcePlanner, *store.Store, *bur
 			}
 			native.rock[domain.Cell{X: x, Z: z}] = def
 			cell := openCell(x, z)
-			cell.Roofed, cell.Roof, cell.Walkable, cell.Occupied, cell.SupportsLight = domain.Known(true), domain.Known("RoofRockThick"), domain.Known(false), domain.Known(true), domain.Known(false)
+			cell.Roofed, cell.Roof, cell.Walkable, cell.Occupied, cell.SupportsLight, cell.NaturalRock = domain.Known(true), domain.Known("RoofRockThick"), domain.Known(false), domain.Known(true), domain.Known(false), domain.Known(true)
 			sleeping.cells.Cells = append(sleeping.cells.Cells, cell)
 		}
 	}

@@ -52,7 +52,7 @@ func siteCellsOver(cells []DefenseCell) []SiteCell {
 	for _, c := range cells {
 		site := SiteCell{Cell: c.Cell, Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
 		if positive(c.NaturalRock) {
-			site.Occupied, site.Walkable, site.Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+			site.Occupied, site.Walkable, site.Roof, site.NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
 		}
 		out = append(out, site)
 	}

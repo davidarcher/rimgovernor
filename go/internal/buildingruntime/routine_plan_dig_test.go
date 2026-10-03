@@ -118,7 +118,7 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	rockOnly := []policy.RoleCell{{Cell: shaft, Role: policy.RockNeedsFloor}}
 	for i, c := range s.facts.Cells {
 		if c.Cell == shaft {
-			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
 		}
 	}
 	if _, _, err := p.admitRockStep(ctx, ctx, s, rockOnly, cold, "plan-dig-refused", []domain.Building{open}, func() error { return nil }); err == nil {
@@ -127,7 +127,7 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	n.refuse, n.overRock, n.overCells = false, 0, nil
 	for i, c := range s.facts.Cells {
 		if c.Cell == site.Cell || c.Cell == shaft {
-			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof, s.facts.Cells[i].NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
 		}
 	}
 	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, method, []domain.Building{coolerBuilding}, func() error { return nil })

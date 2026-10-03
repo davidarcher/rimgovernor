@@ -16,7 +16,7 @@ func mountainSite() ExcavationSiteRequest {
 			if x < 10 {
 				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Roofed: domain.Known(false)})
 			} else {
-				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick")})
+				cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(false), Occupied: domain.Known(true), Roofed: domain.Known(true), Roof: domain.Known("RoofRockThick"), NaturalRock: domain.Known(true)})
 			}
 		}
 	}

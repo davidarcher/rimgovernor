@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 
@@ -322,6 +323,14 @@ func (s defenseSite) blocking(c domain.Cell) bool {
 	return ok && known && !v
 }
 
+// unseen is a cell inside the site whose passability the census does not
+// know: fogged mountain.
+func (s defenseSite) unseen(c domain.Cell) bool {
+	row, ok := s.cells[c]
+	_, known := row.Passable.Value()
+	return ok && !known
+}
+
 // enclosed reports every one of c's eight neighbours observed blocking or
 // planned closed.
 func (s defenseSite) enclosed(c domain.Cell, closed func(domain.Cell) bool) bool {
@@ -540,7 +549,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	}
 	build := func(into *[]domain.Building, definition, stuff string, c domain.Cell, what string) error {
 		if !s.free(c) {
-			return errors.New(what + " cell is not buildable")
+			return fmt.Errorf("%s cell %v is not buildable", what, c)
 		}
 		b, err := domain.NewBuilding(definition, c, domain.North, stuff)
 		if err != nil {
@@ -573,9 +582,12 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			}
 		}
 	}
+	// A wall-role cell on observed rock stays rock, and so does one in
+	// unseen mountain (RockStep leaves it too): the lane cells beside it
+	// are observed, so fog here is mass between the legs, not an opening.
 	candidates := map[domain.Cell]bool{}
 	for _, c := range cellsToWall {
-		if !lane[c] && !costs.closed[c] && !s.blocking(c) {
+		if !lane[c] && !costs.closed[c] && !s.blocking(c) && !s.unseen(c) {
 			candidates[c] = true
 		}
 	}

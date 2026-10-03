@@ -28,7 +28,7 @@ func penMountain(t *testing.T, fogged bool) (*RoutineAnimalContainmentPlanner, e
 				if fogged {
 					continue
 				}
-				site.Occupied, site.Walkable, site.Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+				site.Occupied, site.Walkable, site.Roof, site.NaturalRock = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick"), domain.Known(true)
 			}
 			s.facts.Cells = append(s.facts.Cells, site)
 		}

@@ -122,12 +122,14 @@ func excavationSupported(cells []domain.Cell) bool {
 	return true
 }
 
-// rockCell is a visible natural rock cell: solid, impassable, under a rock roof.
+// rockCell is a visible natural rock cell: solid, impassable natural rock,
+// roofed or not (the rim of a mountain carries no roof, and a miner reaches
+// the rock behind it only by mining it).
 func rockCell(c SiteCell) bool {
 	occupied, ok := c.Occupied.Value()
 	walkable, wk := c.Walkable.Value()
-	roof, rk := c.Roof.Value()
-	return ok && occupied && wk && !walkable && rk && rockRoofs[roof]
+	rock, rk := c.NaturalRock.Value()
+	return ok && occupied && wk && !walkable && rk && rock
 }
 
 // excavatedCell is open ground still under a natural rock roof that is not

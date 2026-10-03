@@ -161,7 +161,7 @@ func TestSecureSuppliesRoomShellPlanIgnoresHaulAndZoneActions(t *testing.T) {
 }
 
 func rockSiteCell(cell domain.Cell) policy.SiteCell {
-	return policy.SiteCell{Cell: cell, Occupied: domain.Known(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick")}
+	return policy.SiteCell{Cell: cell, Occupied: domain.Known(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick"), NaturalRock: domain.Known(true)}
 }
 
 // #1754: a storage room planned into rock digs its interior and door

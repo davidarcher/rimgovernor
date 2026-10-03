@@ -9,7 +9,7 @@ import (
 
 func rockSite(x, z int32) SiteCell {
 	return SiteCell{Cell: domain.Cell{X: x, Z: z},
-		Occupied: domain.Known(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick")}
+		Occupied: domain.Known(true), Walkable: domain.Known(false), Roof: domain.Known("RoofRockThick"), NaturalRock: domain.Known(true)}
 }
 
 func openSite(x, z int32) SiteCell {
@@ -64,6 +64,18 @@ func TestRockStep(t *testing.T) {
 			t.Fatalf("got %v", got)
 		}
 	})
+}
+
+// The rim of a mountain is natural rock with no roof over it; a dig that
+// read it as open ground would leave the rock behind it unreachable.
+func TestRockStepDigsUnroofedRimRock(t *testing.T) {
+	rim := rockSite(1, 0)
+	rim.Roof, rim.Roofed = domain.Known(""), domain.Known(false)
+	cell := func(x, z int32) domain.Cell { return domain.Cell{X: x, Z: z} }
+	got := RockStep([]RoleCell{{cell(1, 0), RockNeedsFloor}, {cell(2, 0), RockBlocks}}, []SiteCell{rim, rockSite(2, 0)})
+	if !reflect.DeepEqual(got.Dig, []domain.Cell{cell(1, 0)}) || !reflect.DeepEqual(got.Left, []domain.Cell{cell(2, 0)}) {
+		t.Fatalf("got %+v", got)
+	}
 }
 
 func TestRockSiteView(t *testing.T) {
