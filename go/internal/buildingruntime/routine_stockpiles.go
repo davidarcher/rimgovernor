@@ -26,6 +26,27 @@ type stockpileMemory struct {
 	mu    sync.Mutex
 	world string
 	low   map[string]domain.Tick
+	// gear is the storage planner's latest gear-room demand for gearWorld;
+	// layout reads it to add the armory and wardrobe (#1773).
+	gear      policy.GearRoomDemand
+	gearWorld string
+}
+
+// setGear records the planner's gear-room demand for world.
+func (m *stockpileMemory) setGear(world string, demand policy.GearRoomDemand) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.gear, m.gearWorld = demand, world
+}
+
+// gearDemand is the recorded gear-room demand; none for another world.
+func (m *stockpileMemory) gearDemand(world string) policy.GearRoomDemand {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.gearWorld != world {
+		return policy.GearRoomDemand{}
+	}
+	return m.gear
 }
 
 func stockpileWorld(s domain.GenerationSnapshot) string {
@@ -102,7 +123,6 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
-	request.Sited = policy.PlanStorage(storageRequest(projection, request.Protected)).Sites
 	request.GearRooms = stockpileGearRooms(projection)
 	if plan, known := projection.LayoutPlan.Value(); known {
 		request.Prisons = policy.PrisonCells(plan)
@@ -128,6 +148,10 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		}
 		request.Zones = append(request.Zones, zone)
 	}
+	storage := storageRequest(projection, request.Protected)
+	storage.Zones = request.Zones
+	plan := policy.PlanStorage(storage)
+	request.Sited, request.Gear = plan.Sites, plan.Gear
 	return request
 }
 
@@ -144,6 +168,7 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 		return err
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
+	r.stockpiles.setGear(stockpileWorld(snapshot), request.Gear)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {

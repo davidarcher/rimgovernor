@@ -51,11 +51,12 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
-// room of at least ThroneArea cells (#1601; 0 asks for none) and the Child
-// rooms (#1680) the plan lacks.
+// room of at least ThroneArea cells (#1601; 0 asks for none), the Child
+// rooms (#1680) the plan lacks and the gear rooms Gear asks for (#1773).
 type RoomGrowth struct {
 	ThroneArea int
 	Child      []ChildRoomShape
+	Gear       GearRoomDemand
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
@@ -97,6 +98,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 		next, grown = growChildRoom(next, shape)
 		dropped = dropped || grown
 	}
+	next, gear := growGearRooms(next, growth.Gear)
+	dropped = dropped || gear
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))

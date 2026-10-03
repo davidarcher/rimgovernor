@@ -148,6 +148,9 @@ type StockpileRequest struct {
 	Shelves []StockpileShelf
 	// Sited are the room-bound roles (#917) created while absent.
 	Sited []StockpileSite
+	// Gear is the planner's gear-room demand for layout (#1773); the review
+	// itself does not read it.
+	Gear GearRoomDemand
 	// GearRooms are the cells of the standing planned room each gear role
 	// belongs in (apparel: storage; weapons: the barracks, else storage); a
 	// gear zone is sited there before anywhere else.

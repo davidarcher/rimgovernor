@@ -13,8 +13,13 @@ const ModuleMealCloset ModuleRole = "meal_closet"
 // Link door in the shared wall: the freezer beside the kitchen (#819), so
 // the cook steps straight to the shelf, and the dining room beside the
 // freezer (#936), so the meal stockpile sits in the cold one door from the
-// table.
-var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer}
+// table, the armory beside the barracks and the wardrobe beside the workshop
+// (#1773).
+var besideRoles = map[ModuleRole]ModuleRole{ModuleFreezer: ModuleKitchen, ModuleDining: ModuleFreezer, ModuleButchery: ModuleFreezer, ModuleArmory: ModuleBarracks, ModuleWardrobe: ModuleWorkshop}
+
+// unlinkedBeside are the besideRoles rooms that share only the wall: the
+// armory has no door into the barracks, so haulers never cross the bunks.
+var unlinkedBeside = map[ModuleRole]bool{ModuleArmory: true}
 
 // beside places role against its neighbour's side wall (besideRoles), on
 // the hallway side the neighbour stands on: its hallway door takes the
@@ -41,7 +46,7 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	z0 := seg.From.Z
 	if role == ModuleButchery {
-		if room, ok := g.behind(seg, rooms, k); ok {
+		if room, ok := g.behind(seg, rooms, k, role); ok {
 			return room, true
 		}
 	}
@@ -58,11 +63,16 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 		if lo >= hi {
 			continue
 		}
-		room.Link = &domain.Cell{X: wall, Z: (lo + hi - 1) / 2}
+		if !unlinkedBeside[role] {
+			room.Link = &domain.Cell{X: wall, Z: (lo + hi - 1) / 2}
+		}
 		room.Dug = g.dug(room)
 		seg.From.X = min(seg.From.X, room.Interior.X-1)
 		seg.To.X = max(seg.To.X, room.Interior.X+room.Interior.Width)
 		return room, true
+	}
+	if role == ModuleArmory || role == ModuleWardrobe {
+		return g.behind(seg, rooms, k, role)
 	}
 	return LayoutRoom{}, false
 }
@@ -184,18 +194,23 @@ func overlapsRooms(r LayoutRoom, rooms []LayoutRoom) bool {
 	return false
 }
 
-// behind places the butchery against the freezer's back wall, the one
-// opposite the hallway, entered only through a Link door in that wall: the
-// butcher walks through the freezer, and carcasses stay in the cold. The
-// room's own Door is the Link. False when the ground behind the freezer
-// does not fit, and the butchery then takes a side wall or the hallway.
-func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle) (LayoutRoom, bool) {
-	role := ModuleButchery
+// behind places role against its neighbour's back wall, the one opposite the
+// hallway, entered only through a Link door in that wall. The butchery sits
+// behind the freezer: the butcher walks through the freezer, and carcasses
+// stay in the cold. A gear room (#1773) takes the back wall when the side
+// walls are taken. The room's own Door is the Link. False when the ground
+// behind the neighbour does not fit; the caller then takes the hallway.
+func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle, role ModuleRole) (LayoutRoom, bool) {
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	north := k.Z > seg.From.Z
 	// The freezer's cooler takes the middle of that wall and vents straight
-	// out behind it, so the butchery overlaps only its east or west end cell.
-	for _, ix := range []int32{k.X + k.Width - 1, k.X - w + 1} {
+	// out behind it, so the butchery overlaps only its east or west end cell;
+	// a gear room lines up with an edge of its neighbour.
+	columns := []int32{k.X, k.X + k.Width - w}
+	if role == ModuleButchery {
+		columns = []int32{k.X + k.Width - 1, k.X - w + 1}
+	}
+	for _, ix := range columns {
 		room := LayoutRoom{Role: role, Interior: Rectangle{X: ix, Z: k.Z - 1 - d, Width: w, Height: d}, DoorRot: domain.North}
 		wall := k.Z - 1
 		if north {
@@ -204,12 +219,11 @@ func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle) (La
 		if !g.fits(room, *seg) || overlapsRooms(room, rooms) {
 			continue
 		}
-		link := domain.Cell{Z: wall}
-		if ix > k.X {
-			link.X = k.X + k.Width - 1
-		} else {
-			link.X = k.X
+		lo, hi := max(ix, k.X), min(ix+w, k.X+k.Width)
+		if lo >= hi {
+			continue
 		}
+		link := domain.Cell{X: (lo + hi - 1) / 2, Z: wall}
 		room.Door, room.Link = link, &link
 		room.Dug = g.dug(room)
 		return room, true

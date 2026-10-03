@@ -113,7 +113,13 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		growth.Child = policy.ChildRoomsOwed(layout.Plan, childRoomNeeds(*projection), furnitureDefinitions(*projection))
 	}
 	children := len(growth.Child) > 0 && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite || throne || children) {
+	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
+	// the armory or wardrobe the plan lacks, at most once an hour.
+	if demand := r.stockpiles.gearDemand(stockpileWorld(snapshot)); haveLayout && len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 {
+		growth.Gear = demand
+	}
+	gear := growth.Gear != (policy.GearRoomDemand{}) && hourly
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite || throne || children || gear) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
@@ -126,7 +132,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			} else {
 				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, growth, animals), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children})
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne, "children": children, "gear": gear})
 					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, growth, animals, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)

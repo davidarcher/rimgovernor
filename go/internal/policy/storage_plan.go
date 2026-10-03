@@ -42,19 +42,29 @@ type StorageRequest struct {
 	// Food is nil when the colony's food storage stands or its fact is
 	// known to be met; see FoodStore.
 	Food *FoodStore
+	// Zones are the standing stockpile zones, read for the gear demand.
+	Zones []StockpileZone
+}
+
+// GearRoomDemand is the planner's signal to layout that stored gear outgrew
+// its zone (#1773): the armory for weapons, the wardrobe for apparel. The
+// planner never plans the rooms; layout adds them (GearRoomsOwed).
+type GearRoomDemand struct {
+	Armory, Wardrobe bool
 }
 
 // StoragePlan is the desired storage, most important site first.
 type StoragePlan struct {
 	Sites []StockpileSite
+	Gear  GearRoomDemand
 }
 
-// PlanStorage returns the desired storage sites: the meal store, the
+// PlanStorage returns the gear demand and the desired storage sites: the meal store, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
 // catch-all, the tomb's corpse store, and the food stockpile beside the
 // kitchen.
 func PlanStorage(r StorageRequest) StoragePlan {
-	var plan StoragePlan
+	plan := StoragePlan{Gear: r.gearDemand()}
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
@@ -66,6 +76,23 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	return plan
+}
+
+// gearDemand reads a gear zone with every cell holding something as stored
+// gear outgrowing it. Apparel cannot yet be told armor from clothing, so
+// the apparel zone asks for the wardrobe only.
+func (r StorageRequest) gearDemand() GearRoomDemand {
+	var d GearRoomDemand
+	for _, z := range r.Zones {
+		full := len(z.Cells) > 0 && z.Used() >= len(z.Cells)
+		switch z.Role {
+		case domain.WeaponsRole:
+			d.Armory = d.Armory || full
+		case domain.ApparelRole:
+			d.Wardrobe = d.Wardrobe || full
+		}
+	}
+	return d
 }
 
 func (r StorageRequest) mealSite(meals MealStore) StockpileSite {

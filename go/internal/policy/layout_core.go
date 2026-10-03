@@ -38,6 +38,9 @@ var coreRoomSize = map[ModuleRole][2]int32{
 	ModuleStorage:  {9, 7},
 	ModuleLab:      {6, 5},
 	ModuleTomb:     {5, 5},
+	// The gear rooms (layout_gear.go) are added on demand, not in coreBaseRooms.
+	ModuleArmory:   {7, 5},
+	ModuleWardrobe: {7, 5},
 }
 
 // coreBaseRooms is every colony's fixed set, in placement order: pairs
