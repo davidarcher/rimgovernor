@@ -135,7 +135,23 @@ of 1 (taming it, then the usual training, raises the Animals skill). Once a
 handler clears the wanted race, or no easy wild animal exists, the plan carries
 no leveling race. The easy animal has no retirement rule yet.
 
-Selection order each cycle is train, then tame, then surplus removal; one write
+**Master assignment (#1635).** After removal, `HerdMasterChoice` reads the plan's
+job for each animal's race. A war animal is mastered by the best front-line
+handler (`FrontLine`, handling-capable, highest Animals) with `follow_drafted`
+true and `follow_fieldwork` false; a haul animal by the best hauling-capable
+handler with `follow_fieldwork` true and `follow_drafted` false. The census
+carries `master_id`, the follow flags and `obedient` on `UpkeepAnimal`. An
+animal is skipped unless obedient (native refuses master and follow without
+learned Obedience), when marked for release or slaughter, when its race is
+retiring or has no war or haul job, or when any of these facts is unread. A
+master who still fits the job is kept; the master is rewritten only when empty
+or not fitting, then each follow flag that differs, one write per cycle.
+Companions stay unmastered until `AnimalState` carries the bonded colonist's id
+(#1635). The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
+mastered animal outside a retired race.
+
+Selection order each cycle is train, then tame, then surplus removal, then
+master assignment; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
 Auto safety facts: a roofed refuge during roof hazards, otherwise unrestricted
 food/work access. It skips pen-managed animals and unknown area/safety facts.

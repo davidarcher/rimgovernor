@@ -5,10 +5,10 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // HerdSaleAnimals are the colony animals the herd plan lets a trader take
 // (#1632): the animals herdSurplusCandidates lists over each race's ceiling
 // (every animal of a retired race, young ones included), less any that is
-// bonded or, outside a retired race, trained for work the colony still
-// needs. Founders and companions have no ceiling, so none is listed. An
-// unread census or any unknown designation, or an unknown bond, sells
-// nothing. Animals already designated for slaughter or release are not
+// bonded or, outside a retired race, has a master (HerdMasterChoice gives
+// the animals the colony works). Founders and companions have no ceiling, so
+// none is listed. An unread census or any unknown designation, bond or
+// master sells nothing. Animals already designated for slaughter or release are not
 // listed: the cull owns them.
 func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[PawnID]bool {
 	rows, known := animals.Value()
@@ -22,7 +22,8 @@ func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[P
 	var out map[PawnID]bool
 	for _, r := range removals {
 		a := r.animal
-		if bonded, ok := a.Bonded.Value(); !ok || bonded || herdTrained(a) && !herd.Retired[a.Definition] {
+		master, mk := a.Master.Value()
+		if bonded, ok := a.Bonded.Value(); !ok || bonded || !mk || master != "" && !herd.Retired[a.Definition] {
 			continue
 		}
 		if out == nil {

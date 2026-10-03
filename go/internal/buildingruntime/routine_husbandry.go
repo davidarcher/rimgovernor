@@ -107,6 +107,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.PrioritizeSlaughterChoice(animals, handlers)
 	}
+	if choice.Reason == policy.HusbandryNoDeficit {
+		choice = policy.HerdMasterChoice(animals, herd, handlers)
+	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil
@@ -131,6 +134,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	argument := choice.TrainableDef
 	if choice.Method == domain.HusbandryPrioritizeSlaughter {
 		argument = string(choice.Handler)
+	}
+	if choice.Argument != "" {
+		argument = choice.Argument
 	}
 	husbandry, err := domain.NewHusbandry(domain.PawnID(choice.Animal), choice.Method, argument)
 	if err != nil {

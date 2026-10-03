@@ -88,6 +88,9 @@ type HusbandryChoice struct {
 	// Handler is the colonist ordered to slaughter, for
 	// HusbandryPrioritizeSlaughter only.
 	Handler PawnID
+	// Argument is the master id or follow flag ("true"/"false") of
+	// HusbandryMaster and the follow methods (HerdMasterChoice).
+	Argument string
 }
 
 // AnimalHerdDeficit reports whether any observed animal still has an

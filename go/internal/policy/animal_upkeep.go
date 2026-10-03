@@ -54,10 +54,15 @@ type UpkeepAnimal struct {
 	StorageCandidates []domain.Cell
 	// Care cap inputs (#1301): MedicalCareCategory name, a bond to a
 	// living pawn, conditions and life threat.
-	Care            domain.Fact[string]
-	Bonded          domain.Fact[bool]
-	Conditions      domain.Fact[[]CareCondition]
-	LifeThreatening domain.Fact[bool]
+	Care   domain.Fact[string]
+	Bonded domain.Fact[bool]
+	// Master is the colonist id mastering the animal ("" unassigned);
+	// Obedient is learned Obedience, which native requires to master or
+	// follow (#1635).
+	Master                                   domain.Fact[string]
+	FollowDrafted, FollowFieldwork, Obedient domain.Fact[bool]
+	Conditions                               domain.Fact[[]CareCondition]
+	LifeThreatening                          domain.Fact[bool]
 }
 
 // AnimalFeedStorage is one stockpile zone an animal can reach and the

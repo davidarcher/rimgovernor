@@ -9,6 +9,14 @@ import (
 
 func bondedAs(a UpkeepAnimal, bonded bool) UpkeepAnimal {
 	a.Bonded = domain.Known(bonded)
+	if _, known := a.Master.Value(); !known {
+		a.Master = domain.Known("")
+	}
+	return a
+}
+
+func masteredBy(a UpkeepAnimal, master PawnID) UpkeepAnimal {
+	a.Master = domain.Known(string(master))
 	return a
 }
 
@@ -59,20 +67,20 @@ func TestHerdSaleAnimalsFoundersAndTrainedNeededStay(t *testing.T) {
 	if got := HerdSaleAnimals(domain.Known(owned), plan.Policy); got["c1"] {
 		t.Fatal("founder sold", got)
 	}
-	// Over the ceiling, a trained animal of a kept race is needed.
+	// Over the ceiling, a mastered animal of a kept race is needed.
 	policy := HerdPolicy{PopulationMax: map[Resource]int64{"Goat": 3}}
 	rows := []UpkeepAnimal{
 		bondedAs(planAnimal("g1", "Goat", "Male"), false), bondedAs(planAnimal("g2", "Goat", "Female"), false),
-		bondedAs(planAnimal("g3", "Goat", "Female"), false), bondedAs(hauler(planAnimal("g4", "Goat", "Female")), false),
+		bondedAs(planAnimal("g3", "Goat", "Female"), false), bondedAs(masteredBy(hauler(planAnimal("g4", "Goat", "Female")), "p1"), false),
 	}
 	if got := HerdSaleAnimals(domain.Known(rows), policy); !reflect.DeepEqual(got, map[PawnID]bool{"g2": true}) {
 		t.Fatalf("one over the ceiling sells one untrained goat: %v", got)
 	}
 	// Both untrained females go before the hauler is considered; with only
-	// bonded or trained animals left to cut, nothing sells.
+	// bonded or mastered animals left to cut, nothing sells.
 	rows[1], rows[2] = bondedAs(rows[1], true), bondedAs(rows[2], true)
 	if got := HerdSaleAnimals(domain.Known(rows), policy); len(got) != 0 {
-		t.Fatalf("bonded or trained animal sold: %v", got)
+		t.Fatalf("bonded or mastered animal sold: %v", got)
 	}
 }
 
