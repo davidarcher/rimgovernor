@@ -3,7 +3,10 @@ package remoteaccept
 // Export is the public-artifact boundary. Only suite diagnostics are copied;
 // worker layouts, profiles, saves and bootstrap inputs never enter the tree.
 import (
+	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"image/png"
@@ -55,6 +58,76 @@ func (e *exporter) clean(s string) string {
 // snapshot streams into (docs/developers/testing/colony-snapshots.md).
 const SnapshotDir = "snapshots"
 
+var restrictedMarkers = []string{"AGE-SECRET-KEY-", "-----BEGIN PRIVATE KEY", "-----BEGIN OPENSSH PRIVATE KEY", "<savegame", "<savedgame", "UnityFS"}
+
+func publicExt(p string) error {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".json", ".jsonl", ".log", ".txt", ".md":
+		return nil
+	}
+	return fmt.Errorf("non-diagnostic file %s", p)
+}
+
+// publicText scans a text diagnostic in fixed chunks, so a multi-GB stream is
+// checked without being held in memory. Markers spanning chunks are caught by
+// carrying over the longest marker's tail.
+func publicText(p string, r io.Reader) error {
+	const overlap = 32
+	buf := make([]byte, 1<<20)
+	carry := 0
+	for {
+		n, err := r.Read(buf[carry:])
+		if n > 0 {
+			chunk := buf[:carry+n]
+			if bytes.IndexByte(chunk[carry:], 0) >= 0 {
+				return fmt.Errorf("binary diagnostic %s", p)
+			}
+			lower := bytes.ToLower(chunk)
+			for _, marker := range restrictedMarkers {
+				if bytes.Contains(lower, bytes.ToLower([]byte(marker))) {
+					return fmt.Errorf("restricted content in %s", p)
+				}
+			}
+			carry = min(overlap, len(chunk))
+			copy(buf, chunk[len(chunk)-carry:])
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func hashFile(p string) (string, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// capWriter fails a copy that would exceed the remaining allowance instead of
+// truncating it.
+type capWriter struct {
+	w         io.Writer
+	remaining *int64
+}
+
+func (c *capWriter) Write(b []byte) (int, error) {
+	if int64(len(b)) > *c.remaining {
+		return 0, fmt.Errorf("artifact allowance exhausted; required evidence is incomplete")
+	}
+	*c.remaining -= int64(len(b))
+	return c.w.Write(b)
+}
+
 func publicDiagnostic(p string, b []byte) error {
 	ext := strings.ToLower(filepath.Ext(p))
 	if ext == ".png" {
@@ -65,18 +138,10 @@ func publicDiagnostic(p string, b []byte) error {
 		_, err = png.Decode(bytes.NewReader(b))
 		return err
 	}
-	if ext != ".json" && ext != ".jsonl" && ext != ".log" && ext != ".txt" && ext != ".md" {
-		return fmt.Errorf("non-diagnostic file %s", p)
+	if err := publicExt(p); err != nil {
+		return err
 	}
-	if bytes.IndexByte(b, 0) >= 0 {
-		return fmt.Errorf("binary diagnostic %s", p)
-	}
-	for _, marker := range []string{"AGE-SECRET-KEY-", "-----BEGIN PRIVATE KEY", "-----BEGIN OPENSSH PRIVATE KEY", "<savegame", "<savedgame", "UnityFS"} {
-		if bytes.Contains(bytes.ToLower(b), bytes.ToLower([]byte(marker))) {
-			return fmt.Errorf("restricted content in %s", p)
-		}
-	}
-	return nil
+	return publicText(p, bytes.NewReader(b))
 }
 
 func (e *exporter) write(p string, b []byte) error {
@@ -119,11 +184,11 @@ func (e *exporter) value(v any) (any, error) {
 			if !ok {
 				return nil, fmt.Errorf("invalid diagnostic digest")
 			}
-			b, err := os.ReadFile(filepath.Join(e.source, p))
+			got, err := hashFile(filepath.Join(e.source, p))
 			if err != nil {
 				return nil, err
 			}
-			if hash(b) != d {
+			if got != d {
 				return nil, fmt.Errorf("source diagnostic digest mismatch: %s", p)
 			}
 			ref, err := e.copy(p)
@@ -164,44 +229,16 @@ func (e *exporter) copy(p string) (Ref, error) {
 	if info.Size() > *e.remaining {
 		return Ref{}, fmt.Errorf("artifact allowance exhausted at %s", p)
 	}
-	b, err := os.ReadFile(filepath.Join(e.source, p))
-	if err != nil {
-		return Ref{}, err
-	}
-	if err = publicDiagnostic(p, b); err != nil {
-		return Ref{}, err
-	}
-	if strings.EqualFold(filepath.Ext(p), ".json") || strings.EqualFold(filepath.Ext(p), ".jsonl") {
-		check := json.NewDecoder(bytes.NewReader(b))
-		for {
-			if err := unique(check); err == io.EOF {
-				break
-			} else if err != nil {
-				return Ref{}, err
-			}
+	src := filepath.Join(e.source, p)
+	ext := strings.ToLower(filepath.Ext(p))
+	if ext == ".png" {
+		b, err := os.ReadFile(src)
+		if err != nil {
+			return Ref{}, err
 		}
-		d := json.NewDecoder(bytes.NewReader(b))
-		d.UseNumber()
-		var out bytes.Buffer
-		for {
-			var v any
-			err = d.Decode(&v)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return Ref{}, err
-			}
-			v, err = e.value(v)
-			if err != nil {
-				return Ref{}, err
-			}
-			if err = json.NewEncoder(&out).Encode(v); err != nil {
-				return Ref{}, err
-			}
+		if err = publicDiagnostic(p, b); err != nil {
+			return Ref{}, err
 		}
-		b = out.Bytes()
-	} else if strings.EqualFold(filepath.Ext(p), ".png") {
 		// Re-encode generated frames to strip metadata and trailing payloads.
 		frame, err := png.Decode(bytes.NewReader(b))
 		if err != nil {
@@ -211,11 +248,91 @@ func (e *exporter) copy(p string) (Ref, error) {
 		if err := png.Encode(&out, frame); err != nil {
 			return Ref{}, err
 		}
-		b = out.Bytes()
-	} else {
-		b = []byte(e.clean(string(b)))
+		if err = e.write(target, out.Bytes()); err != nil {
+			return Ref{}, err
+		}
+		return FileRef(e.dest, target)
 	}
-	if err = e.write(target, b); err != nil {
+	// Text diagnostics stream: a multi-GB recording is scanned, rewritten and
+	// hashed without being held in memory, and exhausting the allowance fails
+	// the copy instead of dropping or truncating the file.
+	if err = publicExt(p); err != nil {
+		return Ref{}, err
+	}
+	f, err := os.Open(src)
+	if err != nil {
+		return Ref{}, err
+	}
+	defer f.Close()
+	if err = publicText(p, f); err != nil {
+		return Ref{}, err
+	}
+	dst := filepath.Join(e.dest, target)
+	if err = os.MkdirAll(filepath.Dir(dst), 0700); err != nil {
+		return Ref{}, err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".export-*")
+	if err != nil {
+		return Ref{}, err
+	}
+	defer os.Remove(tmp.Name())
+	out := bufio.NewWriterSize(&capWriter{w: tmp, remaining: e.remaining}, 1<<20)
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		return Ref{}, err
+	}
+	if ext == ".json" || ext == ".jsonl" {
+		check := json.NewDecoder(bufio.NewReaderSize(f, 1<<20))
+		for {
+			if err := unique(check); err == io.EOF {
+				break
+			} else if err != nil {
+				return Ref{}, err
+			}
+		}
+		if _, err = f.Seek(0, io.SeekStart); err != nil {
+			return Ref{}, err
+		}
+		d := json.NewDecoder(bufio.NewReaderSize(f, 1<<20))
+		d.UseNumber()
+		enc := json.NewEncoder(out)
+		for {
+			var v any
+			err = d.Decode(&v)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return Ref{}, err
+			}
+			if v, err = e.value(v); err != nil {
+				return Ref{}, err
+			}
+			if err = enc.Encode(v); err != nil {
+				return Ref{}, err
+			}
+		}
+	} else {
+		in := bufio.NewReaderSize(f, 1<<20)
+		for {
+			line, rerr := in.ReadString('\n')
+			if _, err = out.WriteString(e.clean(line)); err != nil {
+				return Ref{}, err
+			}
+			if rerr == io.EOF {
+				break
+			}
+			if rerr != nil {
+				return Ref{}, rerr
+			}
+		}
+	}
+	if err = out.Flush(); err != nil {
+		return Ref{}, err
+	}
+	if err = tmp.Close(); err != nil {
+		return Ref{}, err
+	}
+	if err = os.Rename(tmp.Name(), dst); err != nil {
 		return Ref{}, err
 	}
 	return FileRef(e.dest, target)

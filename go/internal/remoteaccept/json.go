@@ -232,11 +232,11 @@ func FileRef(root, p string) (Ref, error) {
 	if !validPath(p) {
 		return Ref{}, fmt.Errorf("unsafe path %q", p)
 	}
-	b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(p)))
+	d, err := hashFile(filepath.Join(root, filepath.FromSlash(p)))
 	if err != nil {
 		return Ref{}, err
 	}
-	return Ref{p, hash(b)}, nil
+	return Ref{p, d}, nil
 }
 func WriteJSON(root, p string, v any) (Ref, error) {
 	if !validPath(p) {

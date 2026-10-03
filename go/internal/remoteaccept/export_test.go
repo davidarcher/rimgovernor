@@ -296,6 +296,19 @@ func TestScheduledFullEvidence(t *testing.T) {
 	}
 }
 
+func TestPublicTextScansAcrossChunks(t *testing.T) {
+	pad := bytes.Repeat([]byte("x"), 1<<20-5)
+	if err := publicText("a.log", bytes.NewReader(append(append([]byte{}, pad...), "tail\n"...))); err != nil {
+		t.Fatal(err)
+	}
+	if err := publicText("a.log", bytes.NewReader(append(append([]byte{}, pad...), "<SaveGame>"...))); err == nil {
+		t.Fatal("marker spanning the chunk boundary was missed")
+	}
+	if err := publicText("a.log", bytes.NewReader(append(append([]byte{}, pad...), 0))); err == nil {
+		t.Fatal("binary byte past the first chunk was missed")
+	}
+}
+
 func TestExportSnapshotStreamsYieldToCap(t *testing.T) {
 	write := func(t *testing.T, dir, rel string, b []byte) {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, rel)), 0700); err != nil {
