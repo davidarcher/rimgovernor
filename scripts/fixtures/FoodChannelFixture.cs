@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
                 }
                 var things = AllThings(map).Where(t => !t.Destroyed).ToList();
                 return new { success = true, reserveEaten,
-                    pemmican = things.Where(t => t.def.defName == "Pemmican").Select(t => new { id = t.GetUniqueLoadID(), units = t.stackCount, forbidden = t.Spawned && t.IsForbidden(Faction.OfPlayer), roofed = t.Spawned && t.Position.Roofed(map) }).ToList(),
+                    pemmican = things.Where(t => t.def.defName == "Pemmican").Select(t => new { id = t.GetUniqueLoadID(), units = t.stackCount, forbidden = t.Spawned && t.IsForbidden(Faction.OfPlayer), roofed = t.Spawned && t.Position.Roofed(map), stored = t.Spawned && t.IsInAnyStorage(), x = t.Position.x, z = t.Position.z }).ToList(),
                     otherFood = things.Where(t => !(t is Pawn) && t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible && t.def.defName != "Pemmican").Sum(t => t.stackCount),
                     hungriest = map.mapPawns.FreeColonistsSpawned.Min(p => p.needs.food.CurLevelPercentage),
                     bills = map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Select(b => new { id = b.GetUniqueLoadID(), recipe = b.recipe.defName, target = b.targetCount, repeat = b.repeatMode.defName, suspended = b.suspended, paused = b.paused, shouldDo = b.ShouldDoNow(), count = b.recipe.WorkerCounter.CountProducts(b), fuel = (b.billStack.billGiver as Thing)?.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList(),
