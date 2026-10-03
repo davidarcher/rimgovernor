@@ -34,10 +34,10 @@ type BillPlannerNative interface{}
 // NewRoutineBillPlanner composes one bill purpose: cooking serves
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
-// pinned sculpture bills MaintainArt (#1190), and the part bills
-// MaintainSurgery (#1168).
+// pinned sculpture bills MaintainArt (#1190), the part bills
+// MaintainSurgery (#1168), and the baby food bill MaintainBabyFeeding (#1681).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill) {
 		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -52,6 +52,8 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 		need = policy.MaintainArt
 	case policy.SurgeryPartBill:
 		need = policy.MaintainSurgery
+	case policy.BabyFoodBill:
+		need = policy.MaintainBabyFeeding
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -160,6 +162,17 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineBillResult{}, err
 		}
 		selected, known := policy.SelectProductionBill(r.purpose, domain.Known(benches), projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{Parts: parts})
+		if !known {
+			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
+		}
+		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
+	}
+	if r.purpose == policy.BabyFoodBill {
+		babies, known := projection.Facts.BabyFeeding.Value()
+		if !known {
+			return RoutineBillResult{Verdict: fieldUnavailable("baby_feeding")}, nil
+		}
+		selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{BabyFeeding: &babies})
 		if !known {
 			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}

@@ -307,6 +307,10 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if err != nil {
 				return nil, err
 			}
+			config.BabyFoodBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.BabyFoodBill)
+			if err != nil {
+				return nil, err
+			}
 			config.PreservationBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.PreserveFood)
 			if err != nil {
 				return nil, err
@@ -924,7 +928,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
 	if sc.routineBillPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
 	if sc.routineFoodStoragePlans || sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)

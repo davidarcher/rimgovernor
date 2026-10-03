@@ -237,9 +237,12 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 type RoutineFacts struct {
 	// VetRoom is the layout's vet room; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
-	VetRoom              VetRoom
-	FoodPlan             domain.Fact[FoodPlan]
-	FoodReserve          domain.Fact[FoodReserveReview]
+	VetRoom     VetRoom
+	FoodPlan    domain.Fact[FoodPlan]
+	FoodReserve domain.Fact[FoodReserveReview]
+	// BabyFeeding is the babies' food review (#1681); unknown without
+	// Biotech baby care or consumer facts.
+	BabyFeeding          domain.Fact[BabyFeeding]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
 	PenGrazing           domain.Fact[[]PenGrazing]
 	RecoverySafety       domain.Fact[RecoverySafety]
@@ -1213,6 +1216,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)
 	if !positive(surgeryRecovered) {
 		addGoal(MaintainSurgery, surgeryPriority)
+	}
+	// MaintainBabyFeeding (#1681): owed while babies have no breastfeeder and
+	// too little baby-edible food; unknown raises nothing.
+	babyRecovered := measured(f.BabyFeeding, func(b BabyFeeding) bool { return !b.Short })
+	addAssessment(MaintainBabyFeeding, babyFeedingPriority, babyRecovered)
+	if recovered, known := babyRecovered.Value(); known && !recovered {
+		addGoal(MaintainBabyFeeding, babyFeedingPriority)
 	}
 	reserve, reserveKnown := f.FoodReserve.Value()
 	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)

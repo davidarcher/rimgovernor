@@ -366,6 +366,16 @@ var plannerCatalog = []plannerEntry{
 			out.ArtBills = &method
 			return method.Verdict, nil
 		}},
+	{name: "babyFoodBills", goal: policy.MaintainBabyFeeding, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.BabyFoodBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.BabyFoodBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.BabyFoodBills = &method
+			return method.Verdict, nil
+		}},
 	{name: "surgeryPartBills", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SurgeryPartBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

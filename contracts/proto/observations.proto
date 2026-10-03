@@ -1295,7 +1295,10 @@ message PlanningFacts { reserved 1; reserved "definitions"; reserved 2; reserved
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7;
   // storable is the product count roofed, reachable storage accepting it can
   // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
-  optional int64 storable = 8; }
+  optional int64 storable = 8;
+  // baby_edible is IngestibleProperties.babiesCanIngest of the product def: a
+  // baby can eat it (baby food, milk, insect jelly). Biotech only.
+  optional bool baby_edible = 9; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; rimgovernor.common.v1.Ref room = 6;
   // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).

@@ -270,6 +270,7 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
+		r.reviewBabyFeeding(&reading.Projection)
 	}
 	return reading, err
 }
@@ -327,6 +328,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
+		r.reviewBabyFeeding(&reading.Projection)
 	}
 	return reading, err
 }
@@ -354,6 +356,7 @@ func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 		r.reviewMeals(&reading.Projection)
 		r.reviewReserve(&reading.Projection)
+		r.reviewBabyFeeding(&reading.Projection)
 	}
 	return reading, err
 }

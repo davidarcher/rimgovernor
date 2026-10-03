@@ -28833,7 +28833,10 @@ type FoodProduct struct {
 	Perishable            *bool                  `protobuf:"varint,7,opt,name=perishable,proto3,oneof" json:"perishable,omitempty"`
 	// storable is the product count roofed, reachable storage accepting it can
 	// hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
-	Storable      *int64 `protobuf:"varint,8,opt,name=storable,proto3,oneof" json:"storable,omitempty"`
+	Storable *int64 `protobuf:"varint,8,opt,name=storable,proto3,oneof" json:"storable,omitempty"`
+	// baby_edible is IngestibleProperties.babiesCanIngest of the product def: a
+	// baby can eat it (baby food, milk, insect jelly). Biotech only.
+	BabyEdible    *bool `protobuf:"varint,9,opt,name=baby_edible,json=babyEdible,proto3,oneof" json:"baby_edible,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -28922,6 +28925,13 @@ func (x *FoodProduct) GetStorable() int64 {
 		return *x.Storable
 	}
 	return 0
+}
+
+func (x *FoodProduct) GetBabyEdible() bool {
+	if x != nil && x.BabyEdible != nil {
+		return *x.BabyEdible
+	}
+	return false
 }
 
 type FoodProduction struct {
@@ -48980,7 +48990,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x04gear\x18\x03 \x01(\v2).rimgovernor.observations.v1.GearSnapshotR\x04gear\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12T\n" +
 	"\venvironment\x18\a \x01(\v22.rimgovernor.observations.v1.ControlledEnvironmentR\venvironment\x12=\n" +
-	"\x05crops\x18\b \x03(\v2'.rimgovernor.observations.v1.EdibleCropR\x05cropsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x06\x10\aR\vdefinitionsR\x05cellsR\x11zone_map_snapshot\"\xa2\x03\n" +
+	"\x05crops\x18\b \x03(\v2'.rimgovernor.observations.v1.EdibleCropR\x05cropsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x06\x10\aR\vdefinitionsR\x05cellsR\x11zone_map_snapshot\"\xd8\x03\n" +
 	"\vFoodProduct\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x01R\x05count\x88\x01\x01\x12\x1b\n" +
@@ -48991,7 +49001,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"perishable\x18\a \x01(\bH\x06R\n" +
 	"perishable\x88\x01\x01\x12\x1f\n" +
-	"\bstorable\x18\b \x01(\x03H\aR\bstorable\x88\x01\x01B\v\n" +
+	"\bstorable\x18\b \x01(\x03H\aR\bstorable\x88\x01\x01\x12$\n" +
+	"\vbaby_edible\x18\t \x01(\bH\bR\n" +
+	"babyEdible\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_countB\t\n" +
 	"\a_edibleB\f\n" +
@@ -49000,7 +49012,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x19_nutrition_demand_per_dayB\v\n" +
 	"\t_rot_daysB\r\n" +
 	"\v_perishableB\v\n" +
-	"\t_storable\"\xaf\x01\n" +
+	"\t_storableB\x0e\n" +
+	"\f_baby_edible\"\xaf\x01\n" +
 	"\x0eFoodProduction\x12\x1b\n" +
 	"\x06recipe\x18\x01 \x01(\tH\x00R\x06recipe\x88\x01\x01\x12!\n" +
 	"\tavailable\x18\x02 \x01(\bH\x01R\tavailable\x88\x01\x01\x12D\n" +

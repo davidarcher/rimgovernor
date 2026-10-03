@@ -336,7 +336,7 @@ namespace HomeBridge.BridgeTools
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
                     foreach(var product in recipe.products){
                         var rot=product.thingDef.GetCompProperties<CompProperties_Rottable>();
-                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),Nutrition=product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),NutritionDemandPerDay=result.NutritionPerDay,Perishable=rot!=null};
+                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),Nutrition=product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),NutritionDemandPerDay=result.NutritionPerDay,Perishable=rot!=null,BabyEdible=product.thingDef.ingestible?.babiesCanIngest??false};
                         if(rot!=null)food.RotDays=rot.daysToRotStart;
                         food.Storable=NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored;
                         production.Products.Add(food);

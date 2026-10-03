@@ -128,7 +128,25 @@ capacity beyond the casket allows.
    catalog's; a role whose required furniture is unavailable or has no known
    size is passed over, and any available definition of the role answers an
    unresearched one.
-3. Using the rooms (feeding, play, lessons) belongs to the next children.
+3. Feeding is `MaintainBabyFeeding` (below); play and lessons belong to the
+   next children.
+
+### Baby feeding (Biotech)
+
+The game feeds babies itself: a lactating pawn breastfeeds any baby, and a
+colonist on Childcare work (pinned for every pawn) bottle-feeds food a baby
+can eat, which is baby food, milk or insect jelly
+([Baby, Food](https://rimworldwiki.com/wiki/Baby); the def flag is
+`IngestibleProperties.babiesCanIngest`, carried as `FoodProduct.baby_edible`).
+The mother is Urgent and every other pawn Childcare by default. No write
+beyond the existing production bill is owed. `MaintainBabyFeeding`
+(priority 2, Food domain) is raised while babies live, no colonist can
+breastfeed and the shared stock a baby eats (stocks whose eaters include a
+baby) is under the game's low-baby-food alert level per baby
+(`policy.BabyFoodAlertNutrition`, `Alert_LowBabyFood`). It places one
+standing target-count bill for the baby-edible recipe (bulk first) through
+`ProductionBillIntent`, sized to the babies' native nutrition per day over
+the seasonal food target days, less other baby foods in stock.
 
 ### Polluting-machine siting (Biotech)
 

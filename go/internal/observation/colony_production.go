@@ -150,7 +150,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 						recipe.Available = domain.Known(p.GetAvailable() && r.GetAvailableNow() && r.GetAvailableOnBench())
 					}
 					for _, product := range p.Products {
-						recipe.Products = append(recipe.Products, policy.ProductionProduct{Name: product.GetDefName(), Nutrition: optional(product.Nutrition), Demand: optional(product.NutritionDemandPerDay), RotDays: optional(product.RotDays), Edible: optional(product.Edible), Perishable: optional(product.Perishable), Storable: optional(product.Storable)})
+						recipe.Products = append(recipe.Products, policy.ProductionProduct{Name: product.GetDefName(), Nutrition: optional(product.Nutrition), Demand: optional(product.NutritionDemandPerDay), RotDays: optional(product.RotDays), Edible: optional(product.Edible), Perishable: optional(product.Perishable), Storable: optional(product.Storable), BabyEdible: optional(product.BabyEdible)})
 					}
 				}
 			}

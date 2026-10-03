@@ -28,6 +28,8 @@ type ProductionProduct struct {
 	Name                       string
 	Nutrition, Demand, RotDays domain.Fact[float64]
 	Edible, Perishable         domain.Fact[bool]
+	// BabyEdible is whether a baby can eat the product (Biotech).
+	BabyEdible domain.Fact[bool]
 	// Storable is the count of the product protected, reachable storage
 	// accepting it can hold: stored stock plus empty stack slots.
 	Storable domain.Fact[int64]
@@ -88,6 +90,8 @@ type BillSelection struct {
 type ProductionBillContext struct {
 	Ingredients []string
 	Reserve     *FoodReserveReview
+	// BabyFeeding sizes the BabyFoodBill selection (#1681).
+	BabyFeeding *BabyFeeding
 	Meals       *MealTierRequest
 	// Artists is the one artist an ArtBill selection pins (#1190).
 	Artists []PawnID
@@ -173,11 +177,17 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if !known || !ck || count <= 0 || count > 256 || !fieldPositive(targetDays) || targetDays > 60 {
 		return BillSelection{}, false
 	}
-	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood && purpose != ArtBill && purpose != SurgeryPartBill {
+	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood && purpose != ArtBill && purpose != SurgeryPartBill && purpose != BabyFoodBill {
 		return BillSelection{}, false
 	}
 	if len(context) > 1 {
 		return BillSelection{}, false
+	}
+	if purpose == BabyFoodBill {
+		if len(context) != 1 || context[0].BabyFeeding == nil {
+			return BillSelection{}, false
+		}
+		return SelectBabyFoodBill(benches, *context[0].BabyFeeding)
 	}
 	if purpose == SurgeryPartBill {
 		if len(context) != 1 || len(context[0].Parts) == 0 {

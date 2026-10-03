@@ -184,14 +184,38 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 	if !known || reserve.Emergency || reserve.Short || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
 		return BillSelection{}, false
 	}
+	return selectTargetBill(rows, targetBillSpec{
+		family: func(p ProductionProduct) bool { return ReserveFoodDefinition(Resource(p.Name)) },
+		target: func(def Resource, nutrition float64) float64 {
+			return (reserve.TargetNutrition - reserve.StockNutrition + reserve.ByDefinition[def]) / nutrition
+		},
+		firstIf: func(def Resource) bool { return def == "MealSurvivalPack" },
+	})
+}
+
+// targetBillSpec is what one standing target-count food bill wants: the
+// products of its family, the product count that satisfies it (native counts
+// the product's stock toward the bill), and optionally one product ranked
+// ahead of the rest.
+type targetBillSpec struct {
+	family  func(ProductionProduct) bool
+	target  func(def Resource, nutrition float64) float64
+	firstIf func(def Resource) bool
+}
+
+// selectTargetBill picks the recipe, bench and target for a standing
+// target-count bill of a product family. A recipe whose product another
+// recipe's bill already makes needs no bill of its own (Make_Pemmican and
+// Make_PemmicanBulk are one reserve); the bulk recipe wins over its
+// single-item sibling. The target never exceeds the product's storable count
+// (#1359); matching bills are corrected, unrelated recipes retained.
+func selectTargetBill(rows []ProductionBench, spec targetBillSpec) (BillSelection, bool) {
 	var options []BillSelection
 	products := map[string]Resource{}
-	// A recipe whose product is already made by another recipe's bill needs
-	// no bill of its own: Make_Pemmican and Make_PemmicanBulk are one reserve.
 	produces := map[string]Resource{}
 	for _, bench := range rows {
 		for _, recipe := range bench.Recipes {
-			if len(recipe.Products) == 1 && ReserveFoodDefinition(Resource(recipe.Products[0].Name)) {
+			if len(recipe.Products) == 1 && spec.family(recipe.Products[0]) {
 				produces[recipe.Name] = Resource(recipe.Products[0].Name)
 			}
 		}
@@ -211,11 +235,10 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 			def := Resource(product.Name)
 			nutrition, nk := product.Nutrition.Value()
 			edible, ek := product.Edible.Value()
-			if !ReserveFoodDefinition(def) || !nk || !fieldPositive(nutrition) || !ek || !edible {
+			if !spec.family(product) || !nk || !fieldPositive(nutrition) || !ek || !edible {
 				continue
 			}
-
-			target := math.Ceil((reserve.TargetNutrition - reserve.StockNutrition + reserve.ByDefinition[def]) / nutrition)
+			target := math.Ceil(spec.target(def, nutrition))
 			// Native cannot finish a bill whose product has nowhere to go:
 			// cap the target at what storage accepting it can hold (#1359).
 			if storable, sk := product.Storable.Value(); sk && target > float64(storable) {
@@ -252,8 +275,10 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
-		if products[a.Recipe] != products[b.Recipe] {
-			return products[a.Recipe] == "MealSurvivalPack"
+		if spec.firstIf != nil {
+			if first := spec.firstIf(products[a.Recipe]); first != spec.firstIf(products[b.Recipe]) {
+				return first
+			}
 		}
 		// The bulk recipe wins over its single-item sibling: singles are for
 		// the odd one or two items a player cranks out by hand.

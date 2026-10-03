@@ -24,6 +24,7 @@ var goalDomains = map[GoalID]Domain{
 	EnsureCooking:             DomainFood,
 	MaintainButcherSpot:       DomainFood,
 	MaintainFoodStorage:       DomainFood,
+	MaintainBabyFeeding:       DomainFood,
 	MaintainRefrigeration:     DomainFood,
 	MaintainHerd:              DomainPeople,
 	MaintainAnimalFeed:        DomainPeople,
