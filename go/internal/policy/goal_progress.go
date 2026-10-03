@@ -41,6 +41,10 @@ type GoalProgress struct {
 	// A record with no method reads it as BlockedPlanner, so "no_method"
 	// only means no planner has said why.
 	Planner string `json:",omitempty"`
+	// PlannerWaiting: Planner is a wait (the goal waits on something that is
+	// not a failure) rather than a refusal; a record with no method reads it
+	// as BlockedWaiting. Meaningless while Planner is empty.
+	PlannerWaiting bool `json:",omitempty"`
 	// Open: the goal has a method with unsettled work in flight, the
 	// evidence a prerequisite is being worked rather than merely owed.
 	Open bool `json:",omitempty"`
@@ -67,6 +71,7 @@ const (
 	BlockedNoMethod     BlockedReason = "no_method"
 	blockedPrerequisite string        = "prerequisite:"
 	blockedPlanner      string        = "planner:"
+	blockedWaiting      string        = "waiting:"
 	blockedHeld         string        = "held:"
 	// Held reasons: the goal is intentionally not worked (HoldProgress).
 	HeldStage       BlockedReason = "held:stage"
@@ -81,6 +86,49 @@ func BlockedPlanner(reason string) BlockedReason {
 	return BlockedReason(blockedPlanner + reason)
 }
 
+// BlockedWaiting is the goal's planner waiting on what the text says: not a
+// failure, but shown so the goal says what it waits on.
+func BlockedWaiting(text string) BlockedReason {
+	return BlockedReason(blockedWaiting + text)
+}
+
+// Waiting reports a planner wait.
+func (r BlockedReason) Waiting() bool {
+	return strings.HasPrefix(string(r), blockedWaiting)
+}
+
+// PlannerNote is a planner's latest standing on a goal as it files on the
+// goal's progress record: the zero note clears it (the planner admitted or
+// found no deficit), Text is the plain-English refusal or wait, and Waiting
+// marks a wait.
+type PlannerNote struct {
+	Text    string
+	Waiting bool
+}
+
+// Blocked is the reason a record with no method reads the note as: nothing
+// to do while cleared, a wait, or a planner refusal.
+func (n PlannerNote) Blocked() BlockedReason {
+	switch {
+	case n.Text == "":
+		return BlockedNoMethod
+	case n.Waiting:
+		return BlockedWaiting(n.Text)
+	}
+	return BlockedPlanner(n.Text)
+}
+
+// Planner is the record's filed planner note.
+func (p GoalProgress) PlannerNote() PlannerNote {
+	return PlannerNote{Text: p.Planner, Waiting: p.PlannerWaiting}
+}
+
+// Unmethoded reports a record whose blocked reason only the planner's note
+// can improve: no method, or a refusal or wait already filed from it.
+func (r BlockedReason) Unmethoded() bool {
+	return r == BlockedNoMethod || strings.HasPrefix(string(r), blockedPlanner) || r.Waiting()
+}
+
 // HeldLabor holds a goal whose work type is withheld or unavailable.
 func HeldLabor(w WorkType) BlockedReason {
 	return BlockedReason(blockedHeld + "labor:" + string(w))
@@ -93,18 +141,19 @@ func (r BlockedReason) Held() bool {
 }
 
 // Actionable reports a blocked goal someone should look at: blocked and
-// not held.
+// not held and not merely waiting.
 func (r BlockedReason) Actionable() bool {
-	return r != "" && !r.Held()
+	return r != "" && !r.Held() && !r.Waiting()
 }
 
-// printableReason bounds a free-text reason suffix to short printable ASCII.
+// printableReason bounds a free-text reason suffix to short printable ASCII
+// (spaces allowed: planner reasons are sentences).
 func printableReason(s string) bool {
 	if s == "" || len(s) > 96 {
 		return false
 	}
 	for i := 0; i < len(s); i++ {
-		if s[i] < 0x21 || s[i] > 0x7e {
+		if s[i] < 0x20 || s[i] > 0x7e {
 			return false
 		}
 	}
@@ -129,7 +178,7 @@ func (r BlockedReason) valid() bool {
 	case "", BlockedNoWorker, BlockedNativeIneligible, BlockedReconciling, BlockedCooldown, BlockedNoMethod:
 		return true
 	}
-	for _, prefix := range []string{blockedPlanner, blockedHeld} {
+	for _, prefix := range []string{blockedPlanner, blockedWaiting, blockedHeld} {
 		if strings.HasPrefix(string(r), prefix) {
 			return printableReason(strings.TrimPrefix(string(r), prefix))
 		}
@@ -249,7 +298,7 @@ func ReviewGoalProgress(previous GoalProgress, goal GoalID, c ProgressContract, 
 	}
 	p.Blocked = blockedReason(e)
 	if p.Blocked == BlockedNoMethod && p.Planner != "" {
-		p.Blocked = BlockedPlanner(p.Planner)
+		p.Blocked = p.PlannerNote().Blocked()
 	}
 	p.Open = e.Open
 	p.NextReview = 0
@@ -365,7 +414,7 @@ func AddProgressCooldown(p GoalProgress, key string, until, now domain.Tick) Goa
 
 // ValidateGoalProgress checks a persisted record against the review tick.
 func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
-	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) {
+	if !validResource(Resource(p.Goal)) || len(p.Method) > 64 || p.LastProgress < 0 || p.LastProgress > tick || p.NextReview < 0 || !p.Blocked.valid() || p.Planner != "" && !printableReason(p.Planner) || p.Planner == "" && p.PlannerWaiting {
 		return errors.New("invalid goal progress")
 	}
 	if p.Observed != nil && (*p.Observed < 0 || *p.Observed > 1) {
@@ -466,7 +515,7 @@ func HoldProgress(progress []GoalProgress, rows []DevelopmentRow, withheld Labor
 	out := append([]GoalProgress(nil), progress...)
 	for i := range out {
 		p := &out[i]
-		if p.Blocked != BlockedNoMethod && !strings.HasPrefix(string(p.Blocked), blockedPlanner) {
+		if !p.Blocked.Unmethoded() {
 			continue
 		}
 		if held := heldReason(*p, byGoal, withheld, unavailable); held != "" {

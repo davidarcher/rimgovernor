@@ -623,15 +623,25 @@ census is retired by any typed-event invalidation (`routineCensusStore`
 generation) so a same-tick reuse never serves facts an event made stale.
 
 Every routine result embeds one `Verdict` (`buildingruntime/outcome.go`): an
-`Outcome` (`admitted`, `nothing_to_do`, `in_progress`, `refused`) and, when refused, a
-`Refusal` with a closed `Kind` (`collapse_pending`, `no_worker`, `awaiting_plan`,
-`field_unavailable`, `no_space`, `shared_admission_refused`), a subject and optional detail.
-A refusal without a kind panics at construction and is rejected when filed; there is no
-catch-all kind. `Verdict.String` is the one rendering (`kind[:subject[:detail]]`) for the
-service log, the dashboard timeline and `GoalProgress.Planner`, which the status strip shows;
-nothing parses it. A planner's catalog entry names the one goal it serves (`plannerEntry.goal`),
-and the wave files its verdict there: an admitted, nothing-to-do or in-progress verdict clears
-the goal's refusal.
+`Outcome` (`admitted`, `nothing_to_do`, `disabled`, `no_current_review`, `expired`,
+`in_progress`, `combat_orders`, `hold_fallback`, `waiting`, `refused`) and, when refused or
+waiting, a `Refusal` with a closed `Kind` (refusals: `collapse_pending`, `no_worker`,
+`awaiting_plan`, `field_unavailable`, `no_space`, `shared_admission_refused`; waits:
+`method_already_used`, `shelter_bunks_open`, `breach_held`, `waiting_for_native_comfort_use`,
+`existing_facility_needs_bill_or_upkeep`, `hospital_bed_convert_pending`,
+`sleeping_use_needed`, `butcher_separation_pending`, `dialog_not_interactive`,
+`waiting_on_claim`), a subject and optional detail. A refusal or wait without a kind panics at
+construction and is rejected when filed; there is no catch-all kind, and routines branch on the
+outcome or kind, never on text. `Verdict.String` is the machine token
+(`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` (the dashboard timeline
+parses it) and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and
+kind, filed on `GoalProgress.Planner` for the status strip and the journal. A planner's catalog
+entry names the one goal it serves (`plannerEntry.goal`), and the wave files its verdict there:
+a refusal files as a block (`planner:` reason), a wait files as a wait (`waiting:` reason,
+`GoalProgress.PlannerWaiting`; shown without a warning), a disabled planner files the opt-out
+hold, and an admitted, nothing-to-do or in-progress verdict clears the goal's refusal or wait.
+A verdict that says nothing about the goal (no review, a stale proposal) files nothing.
+Siblings on one goal keep the strongest note: refusal, then wait, then clear, then opt-out.
 
 No window watches attempts: the `watched_attempts` policy field is retired
 (#856), since a building intent settles on its Apply receipt and the census

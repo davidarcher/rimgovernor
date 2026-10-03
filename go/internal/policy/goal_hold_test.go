@@ -1,13 +1,16 @@
 package policy
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 	rows := StatusRows(StatusInput{Progress: []GoalProgress{
 		{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage},
 		{Goal: EnsureResearch, Method: "assess", Blocked: BlockedNoMethod},
 		{Goal: MaintainResource, Method: "mine"},
-		{Goal: EnsureBasicPower, Method: "assess", Planner: "no_space:verified_space", Blocked: BlockedPlanner("no_space:verified_space")},
+		{Goal: EnsureBasicPower, Method: "assess", Planner: "no space found for it (verified space)", Blocked: BlockedPlanner("no space found for it (verified space)")},
 		{Goal: EnsureFoodSupply, Method: "cook", Blocked: BlockedPrerequisite(EnsureCooking)},
 		{Goal: MaintainLighting, Method: "assess", Blocked: HeldLabor(WorkConstruction)},
 	}})
@@ -27,7 +30,7 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 		"held EnsureComfort, MaintainLighting",
 		"Industry",
 		"Project EnsureResearch - nothing to do right now",
-		"Project EnsureBasicPower - can't plan yet: no space: verified space",
+		"Project EnsureBasicPower - no space found for it (verified space)",
 		"Standard MaintainResource: mine",
 	}
 	if len(got) != len(want) {
@@ -55,8 +58,36 @@ func TestPlannerRefusalNamesTheBlock(t *testing.T) {
 	if p.Blocked != BlockedPlanner("insufficient_verified_space") || !p.Blocked.Actionable() || ValidateGoalProgress(p, 10) != nil {
 		t.Fatalf("%+v", p)
 	}
-	if bad := (GoalProgress{Goal: EnsureBasicPower, Planner: "has space"}); ValidateGoalProgress(bad, 10) == nil {
+	if bad := (GoalProgress{Goal: EnsureBasicPower, Planner: "bell\a"}); ValidateGoalProgress(bad, 10) == nil {
 		t.Fatal("unprintable planner reason accepted")
+	}
+	if bad := (GoalProgress{Goal: EnsureBasicPower, PlannerWaiting: true}); ValidateGoalProgress(bad, 10) == nil {
+		t.Fatal("a wait with no text accepted")
+	}
+}
+
+// A waiting goal reads as a wait, not a block: the strip says what it waits
+// on without a warning, in the headline and in its domain section, and a
+// review that recomputes the record keeps the wait.
+func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
+	const text = "waiting for work it already started"
+	c := GoalProgressContract("", DefaultRoutinePolicy())
+	p := ReviewGoalProgress(GoalProgress{Goal: EnsureComfort, Method: "assess", Planner: text, PlannerWaiting: true}, EnsureComfort, c, ProgressEvidence{}, 10)
+	if p.Blocked != BlockedWaiting(text) || p.Blocked.Actionable() || p.Blocked.Held() || !p.Blocked.Waiting() || ValidateGoalProgress(p, 10) != nil {
+		t.Fatalf("%+v", p)
+	}
+	rows := StatusRows(StatusInput{Progress: []GoalProgress{p}})
+	if rows[0].Text != "goal EnsureComfort - "+text || rows[0].Severity != StatusInfo {
+		t.Fatalf("headline %+v", rows[0])
+	}
+	var detail StatusRow
+	for _, r := range rows {
+		if r.Key == "goal.EnsureComfort" {
+			detail = r
+		}
+	}
+	if detail.Text == "" || detail.Severity != StatusInfo || !strings.HasSuffix(detail.Text, " - "+text) {
+		t.Fatalf("detail %+v", detail)
 	}
 }
 

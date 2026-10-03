@@ -213,12 +213,12 @@ func (r RoutineReview) GoalProgress(need domain.GoalID) (policy.GoalProgress, bo
 }
 
 // RecordPlannerReasons files each goal's latest planner refusal on its
-// progress record (GoalProgress.Planner); "" clears it (the planner
-// admitted or found work). A record with no method, or one already naming
-// a planner refusal, is relabelled at once so the strip names the reason
+// progress record (GoalProgress.Planner); the zero note clears it (the
+// planner admitted or found work). A record with no method, or one already
+// naming a planner refusal or wait, is relabelled at once so the strip names the reason
 // before the next review; held records keep their hold. Goals without a
 // record are skipped. It reports whether anything changed.
-func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.GoalID]string) (bool, error) {
+func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.GoalID]policy.PlannerNote) (bool, error) {
 	if len(reasons) == 0 {
 		return false, nil
 	}
@@ -234,19 +234,16 @@ func (s *Store) RecordPlannerReasons(ctx context.Context, reasons map[domain.Goa
 	changed := false
 	for i := range review.Progress {
 		p := &review.Progress[i]
-		reason, ok := reasons[p.Goal]
-		if !ok || p.Planner == reason {
+		note, ok := reasons[p.Goal]
+		if !ok || p.PlannerNote() == note {
 			continue
 		}
-		p.Planner = reason
-		if p.Blocked == policy.BlockedNoMethod || strings.HasPrefix(string(p.Blocked), "planner:") {
-			switch reason {
-			case "":
-				p.Blocked = policy.BlockedNoMethod
-			case policy.PlannerOptOut:
+		p.Planner, p.PlannerWaiting = note.Text, note.Waiting
+		if p.Blocked.Unmethoded() {
+			if note.Text == policy.PlannerOptOut {
 				p.Blocked = policy.HeldOptIn
-			default:
-				p.Blocked = policy.BlockedPlanner(reason)
+			} else {
+				p.Blocked = note.Blocked()
 			}
 		}
 		if err = policy.ValidateGoalProgress(*p, review.Tick); err != nil {

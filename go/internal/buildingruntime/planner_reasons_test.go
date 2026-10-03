@@ -27,7 +27,11 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		"naming":   BuildingReasonRefused,
 	}
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
-	want := map[policy.GoalID]string{policy.EnsureBasicPower: "no_space:verified_space", policy.MaintainEquipment: "shared_admission_refused:retry_bound:exhausted", policy.EnsureResearch: "", policy.MaintainCleanFacilities: ""}
+	want := map[policy.GoalID]policy.PlannerNote{
+		policy.EnsureBasicPower:        {Text: "no space found for it (verified space)"},
+		policy.MaintainEquipment:       {Text: "the shared admission check turned the plan down (retry bound: exhausted)"},
+		policy.MaintainCleanFacilities: {},
+	}
 	if len(got) != len(want) {
 		t.Fatalf("%v", got)
 	}
@@ -37,7 +41,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 		}
 	}
 	var log plannerReasonLog
-	if len(log.changed(got)) != 4 || len(log.changed(got)) != 0 {
+	if len(log.changed(got)) != 3 || len(log.changed(got)) != 0 {
 		t.Fatal("log not rate-limited on change")
 	}
 }
@@ -46,15 +50,69 @@ func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
 	goals := map[string]policy.GoalID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
 	verdicts := map[string]Verdict{"expansion": BuildingReasonNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
 	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, filingOf(goals, verdicts))
-	if got[policy.MaintainHousing] != "no_space:sleeping_bed" {
+	if got[policy.MaintainHousing].Text != "no space found for it (sleeping bed)" || got[policy.MaintainHousing].Waiting {
 		t.Fatalf("%v", got)
+	}
+}
+
+// A wait is filed as a wait with its sentence, loses to a sibling's refusal,
+// beats a sibling's idle clear, and clears when the planner admits or finds no
+// deficit.
+func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
+	goals := map[string]policy.GoalID{"shelter": policy.MaintainShelter, "housing": policy.MaintainHousing, "sibling": policy.MaintainHousing, "comfort": policy.EnsureComfort, "off": policy.MaintainFireSafety, "on": policy.MaintainFireSafety}
+	verdicts := map[string]Verdict{
+		"shelter": BuildingBunksOpen,
+		"housing": BuildingSleepingUseNeeded, "sibling": BuildingReasonNoDeficit,
+		"comfort": BuildingComfortWait,
+		"off":     BuildingReasonDisabled, "on": BuildingReasonNoDeficit,
+	}
+	names := []string{"shelter", "housing", "sibling", "comfort", "off", "on"}
+	got := wavePlannerReasons(names, filingOf(goals, verdicts))
+	want := map[policy.GoalID]policy.PlannerNote{
+		policy.MaintainShelter:    {Text: "waiting on the shelter's open bunks", Waiting: true},
+		policy.MaintainHousing:    {Text: "waiting for colonists to use the beds provided", Waiting: true},
+		policy.EnsureComfort:      {Text: "waiting for colonists to use the comfort already provided", Waiting: true},
+		policy.MaintainFireSafety: {},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("%v", got)
+	}
+	for g, r := range want {
+		if got[g] != r {
+			t.Fatalf("%s: %v, want %v", g, got[g], r)
+		}
+	}
+	verdicts["shelter"], verdicts["housing"] = BuildingReasonAdmitted, BuildingReasonNoDeficit
+	cleared := wavePlannerReasons(names, filingOf(goals, verdicts))
+	if cleared[policy.MaintainShelter] != (policy.PlannerNote{}) || cleared[policy.MaintainHousing] != (policy.PlannerNote{}) {
+		t.Fatalf("waits not cleared: %v", cleared)
+	}
+	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, BuildingReasonNoSpace
+	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Waiting || refused[policy.MaintainHousing].Text == "" {
+		t.Fatalf("a refusal lost to a wait: %v", refused)
+	}
+}
+
+// A switched-off planner files the opt-out hold; a planner with no review or
+// a stale proposal says nothing about its goal and files nothing.
+func TestPlannerRecordReasonOptOutAndSilentOutcomes(t *testing.T) {
+	if note, ok := plannerRecordReason(BuildingReasonDisabled); !ok || note.Text != policy.PlannerOptOut || note.Waiting {
+		t.Fatalf("disabled filed %+v %v", note, ok)
+	}
+	for _, v := range []Verdict{BuildingReasonNoReview, BuildingReasonExpired} {
+		if _, ok := plannerRecordReason(v); ok {
+			t.Fatalf("%s was filed", v)
+		}
 	}
 }
 
 func TestPlannerRecordReasonRejectsAnInvalidVerdict(t *testing.T) {
 	bad := Verdict{Outcome: OutcomeRefused}
-	if text, ok := plannerRecordReason(bad); ok || text != "" {
-		t.Fatalf("a refusal with no kind was filed: %q %v", text, ok)
+	if note, ok := plannerRecordReason(bad); ok || note != (policy.PlannerNote{}) {
+		t.Fatalf("a refusal with no kind was filed: %+v %v", note, ok)
+	}
+	if _, ok := plannerRecordReason(Verdict{Outcome: OutcomeWaiting}); ok {
+		t.Fatal("a wait with no kind was filed")
 	}
 	if _, ok := plannerRecordReason(Verdict{}); ok {
 		t.Fatal("no verdict was filed")

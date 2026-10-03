@@ -2,28 +2,47 @@ package buildingruntime
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
 // Outcome is what a planner's step came to: the closed set every routine
-// result reports.
+// result reports. Routines branch on it (and, for a wait or a refusal, on the
+// Refusal's kind); no outcome hides a second meaning.
 type Outcome string
 
 const (
 	// OutcomeAdmitted: the step admitted a plan.
 	OutcomeAdmitted Outcome = "admitted"
-	// OutcomeNothingToDo: no deficit, or the planner is switched off.
+	// OutcomeNothingToDo: the goal has no active deficit.
 	OutcomeNothingToDo Outcome = "nothing_to_do"
-	// OutcomeInProgress: earlier work stands and the goal waits on it.
+	// OutcomeDisabled: the planner is switched off in this runtime.
+	OutcomeDisabled Outcome = "disabled"
+	// OutcomeNoReview: there is no current routine review to judge.
+	OutcomeNoReview Outcome = "no_current_review"
+	// OutcomeExpired: the proposal went stale before it could be admitted.
+	OutcomeExpired Outcome = "expired"
+	// OutcomeInProgress: earlier work stands and the goal moves with it.
 	OutcomeInProgress Outcome = "in_progress"
+	// OutcomeOrdersSent: the fight's stop sent changed orders (#852),
+	// recorded as its plan's evidence.
+	OutcomeOrdersSent Outcome = "combat_orders"
+	// OutcomeHoldFallback: the fight's hold-the-line formation was re-formed
+	// as squad defense because the raid crossed the line (#118).
+	OutcomeHoldFallback Outcome = "hold_fallback"
+	// OutcomeWaiting: the goal waits on something that is not a failure; the
+	// Refusal names what with a wait kind.
+	OutcomeWaiting Outcome = "waiting"
 	// OutcomeRefused: the step could not proceed; the Refusal says why.
 	OutcomeRefused Outcome = "refused"
 )
 
-// RefusalKind is the closed set of reasons a step refuses. A refusal always
-// has one; there is no catch-all.
+// RefusalKind is the closed set of reasons a step refuses or waits. An
+// OutcomeRefused verdict carries one of the refusal kinds and an
+// OutcomeWaiting verdict one of the wait kinds; there is no catch-all.
 type RefusalKind string
 
+// Refusal kinds.
 const (
 	// RefusalCollapsePending: a roof or tunnel collapse must clear first.
 	RefusalCollapsePending RefusalKind = "collapse_pending"
@@ -41,35 +60,69 @@ const (
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
 )
 
-var refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission}
+// Wait kinds: what an OutcomeWaiting goal waits on.
+const (
+	// WaitMethodUsed: the method already did its part and the goal waits for
+	// that work to finish.
+	WaitMethodUsed RefusalKind = "method_already_used"
+	// WaitBunksOpen: the initial shelter's indoor furnishing waits on its open
+	// bunk rungs, which do not hold the ring itself (#641).
+	WaitBunksOpen RefusalKind = "shelter_bunks_open"
+	// WaitBreachHeld: the shrine planner holds while every target shrine holds;
+	// RoutineShrineResult.Hold carries the reason.
+	WaitBreachHeld RefusalKind = "breach_held"
+	// WaitComfortUse: native comfort use has to happen first.
+	WaitComfortUse RefusalKind = "waiting_for_native_comfort_use"
+	// WaitFacility: an existing facility needs a bill or upkeep, not a build.
+	WaitFacility RefusalKind = "existing_facility_needs_bill_or_upkeep"
+	// WaitHospitalConvert: a bed is being converted to a hospital bed.
+	WaitHospitalConvert RefusalKind = "hospital_bed_convert_pending"
+	// WaitSleepingUse: the beds provided have to be used before more are built.
+	WaitSleepingUse RefusalKind = "sleeping_use_needed"
+	// WaitSeparation defers a butcher bill while the separated butcher spot
+	// build still owns the food-supply goal.
+	WaitSeparation RefusalKind = "butcher_separation_pending"
+	// WaitDialog: the choice dialog's own interactivity delay has not elapsed;
+	// the next review re-reads it.
+	WaitDialog RefusalKind = "dialog_not_interactive"
+	// WaitClaim: the coordinator gave a claim the planner needs to a
+	// higher-ranked proposal; the step row's proposal outcome names the claim.
+	WaitClaim RefusalKind = "waiting_on_claim"
+)
 
-// Refusal says why an OutcomeRefused step stopped: a kind, the thing it
-// concerns and optional detail.
+var (
+	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission}
+	waitKinds    = []RefusalKind{WaitMethodUsed, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
+)
+
+// Refusal says why an OutcomeRefused step stopped or what an OutcomeWaiting
+// goal waits on: a kind, the thing it concerns and optional detail.
 type Refusal struct {
 	Kind    RefusalKind
 	Subject string
 	Detail  string
 }
 
-// Cause names which standing situation an OutcomeNothingToDo or
-// OutcomeInProgress verdict reports; it keeps those verdicts distinguishable
-// for the routines that branch on them. Admitted and refused verdicts carry
-// none.
-type Cause string
-
 // Verdict is the pair every routine result embeds: its Outcome and, when
-// refused, the Refusal. The zero Verdict means the step reached no verdict
-// (the caller keeps going).
+// refused or waiting, the Refusal. The zero Verdict means the step reached no
+// verdict (the caller keeps going).
 type Verdict struct {
 	Outcome Outcome
-	Cause   Cause
 	Refusal Refusal
 }
 
 // refuse is a refused Verdict. A kind outside the closed set is a
 // programming error and panics.
 func refuse(kind RefusalKind, subject, detail string) Verdict {
-	v := Verdict{Outcome: OutcomeRefused, Refusal: Refusal{Kind: kind, Subject: subject, Detail: detail}}
+	return mustValid(Verdict{Outcome: OutcomeRefused, Refusal: Refusal{Kind: kind, Subject: subject, Detail: detail}})
+}
+
+// waitOn is a waiting Verdict; a kind outside the wait kinds panics.
+func waitOn(kind RefusalKind) Verdict {
+	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: kind}})
+}
+
+func mustValid(v Verdict) Verdict {
 	if err := v.Validate(); err != nil {
 		panic(err)
 	}
@@ -95,32 +148,29 @@ func awaitingMethod[M ~string](method M) Verdict { return awaitingPlan(string(me
 // there (#230).
 func researchWait(project string) Verdict { return awaitingPlan("research", project) }
 
+// awaitingFoodPlan is the refusal of a method the food plan does not yet
+// support: capacity names what the plan has to provide.
+func awaitingFoodPlan(capacity string) Verdict { return awaitingPlan("food_plan", capacity) }
+
 // Validate reports a verdict that is not one of the closed forms: an unknown
-// outcome, a refusal without a kind from the closed set, or a refusal or
-// cause on an outcome that carries none.
+// outcome, a refusal or wait without a kind from its closed set, or a
+// refusal on an outcome that carries none.
 func (v Verdict) Validate() error {
 	switch v.Outcome {
 	case "":
 		if v != (Verdict{}) {
 			return fmt.Errorf("verdict without an outcome: %+v", v)
 		}
-	case OutcomeAdmitted:
-		if v.Cause != "" || v.Refusal != (Refusal{}) {
-			return fmt.Errorf("admitted verdict carries %+v", v)
-		}
-	case OutcomeNothingToDo, OutcomeInProgress:
+	case OutcomeAdmitted, OutcomeNothingToDo, OutcomeDisabled, OutcomeNoReview, OutcomeExpired, OutcomeInProgress, OutcomeOrdersSent, OutcomeHoldFallback:
 		if v.Refusal != (Refusal{}) {
 			return fmt.Errorf("%s verdict carries a refusal: %+v", v.Outcome, v.Refusal)
 		}
+	case OutcomeWaiting:
+		if !slices.Contains(waitKinds, v.Refusal.Kind) {
+			return fmt.Errorf("wait without a known kind: %+v", v.Refusal)
+		}
 	case OutcomeRefused:
-		if v.Cause != "" {
-			return fmt.Errorf("refused verdict carries a cause: %+v", v)
-		}
-		known := false
-		for _, kind := range refusalKinds {
-			known = known || v.Refusal.Kind == kind
-		}
-		if !known {
+		if !slices.Contains(refusalKinds, v.Refusal.Kind) {
 			return fmt.Errorf("refusal without a known kind: %+v", v.Refusal)
 		}
 	default:
@@ -132,34 +182,123 @@ func (v Verdict) Validate() error {
 // IsZero reports a step that reached no verdict.
 func (v Verdict) IsZero() bool { return v == Verdict{} }
 
-// Is reports a refusal of kind.
+// Is reports a refusal or wait of kind.
 func (v Verdict) Is(kind RefusalKind) bool {
-	return v.Outcome == OutcomeRefused && v.Refusal.Kind == kind
+	return (v.Outcome == OutcomeRefused || v.Outcome == OutcomeWaiting) && v.Refusal.Kind == kind
 }
 
-// String is the one rendering of a verdict, for the service log, the dashboard
-// timeline and the status strip: a refusal reads "kind", "kind:subject" or
-// "kind:subject:detail"; any other verdict reads its cause, or its outcome.
+// String is the machine rendering of a verdict for the service log, the
+// dashboard timeline's reason= field and snapshot names, one token without
+// spaces: a refusal or wait reads "kind", "kind:subject" or
+// "kind:subject:detail"; any other verdict reads its outcome.
 func (v Verdict) String() string {
-	switch {
-	case v.Outcome == OutcomeRefused:
-		parts := []string{string(v.Refusal.Kind)}
-		if v.Refusal.Subject != "" {
-			parts = append(parts, v.Refusal.Subject)
-			if v.Refusal.Detail != "" {
-				parts = append(parts, v.Refusal.Detail)
-			}
-		}
-		return strings.Join(parts, ":")
-	case v.Cause != "":
-		return string(v.Cause)
+	if v.Outcome != OutcomeRefused && v.Outcome != OutcomeWaiting {
+		return string(v.Outcome)
 	}
-	return string(v.Outcome)
+	parts := []string{string(v.Refusal.Kind)}
+	if v.Refusal.Subject != "" {
+		parts = append(parts, v.Refusal.Subject)
+		if v.Refusal.Detail != "" {
+			parts = append(parts, v.Refusal.Detail)
+		}
+	}
+	return strings.Join(parts, ":")
 }
 
-// awaitingFoodPlan is the refusal of a method the food plan does not yet
-// support: capacity names what the plan has to provide.
-func awaitingFoodPlan(capacity string) Verdict { return awaitingPlan("food_plan", capacity) }
+// Text is the one plain-English rendering of a verdict, for the status strip
+// and the journal: each outcome and kind has a sentence template and the
+// subject and detail fill it in.
+func (v Verdict) Text() string {
+	switch v.Outcome {
+	case OutcomeAdmitted:
+		return "plan admitted"
+	case OutcomeNothingToDo:
+		return "nothing to do right now"
+	case OutcomeDisabled:
+		return "this planner is switched off"
+	case OutcomeNoReview:
+		return "no current review to judge"
+	case OutcomeExpired:
+		return "the proposal went stale"
+	case OutcomeInProgress:
+		return "earlier work is still under way"
+	case OutcomeOrdersSent:
+		return "combat orders sent"
+	case OutcomeHoldFallback:
+		return "the hold line was re-formed as squad defense"
+	case OutcomeWaiting, OutcomeRefused:
+		return v.kindText()
+	}
+	return ""
+}
+
+// kindText is the sentence of a refusal or wait kind.
+func (v Verdict) kindText() string {
+	subject, detail := words(v.Refusal.Subject), words(v.Refusal.Detail)
+	// aside puts the subject (and detail) in parentheses after the sentence.
+	aside := func(sentence string) string {
+		switch {
+		case subject != "" && detail != "":
+			return sentence + " (" + subject + ": " + detail + ")"
+		case subject != "":
+			return sentence + " (" + subject + ")"
+		}
+		return sentence
+	}
+	switch v.Refusal.Kind {
+	case RefusalCollapsePending:
+		if subject != "" {
+			return "a collapse is pending at the " + subject
+		}
+		return "a collapse is pending"
+	case RefusalNoWorker:
+		return aside("no colonist free to do it")
+	case RefusalAwaitingPlan:
+		text := "waiting on an earlier plan"
+		if subject != "" {
+			text = "waiting on " + subject
+		}
+		if detail != "" {
+			text += " (" + detail + ")"
+		}
+		return text
+	case RefusalFieldUnavailable:
+		if subject == "" {
+			return "the game did not report a fact it needs"
+		}
+		return "the game did not report " + subject
+	case RefusalNoSpace:
+		return aside("no space found for it")
+	case RefusalSharedAdmission:
+		return aside("the shared admission check turned the plan down")
+	case WaitMethodUsed:
+		return aside("waiting for work it already started")
+	case WaitBunksOpen:
+		return aside("waiting on the shelter's open bunks")
+	case WaitBreachHeld:
+		return aside("holding off on the ancient shrine breach")
+	case WaitComfortUse:
+		return aside("waiting for colonists to use the comfort already provided")
+	case WaitFacility:
+		return aside("an existing facility needs a bill or upkeep first")
+	case WaitHospitalConvert:
+		return aside("waiting for a bed to become a hospital bed")
+	case WaitSleepingUse:
+		return aside("waiting for colonists to use the beds provided")
+	case WaitSeparation:
+		return aside("waiting for the butcher spot to be built apart")
+	case WaitDialog:
+		return aside("waiting for the choice dialog to accept an answer")
+	case WaitClaim:
+		return aside("waiting on a claim held by a higher-ranked proposal")
+	}
+	return ""
+}
+
+// words turns an identifier into words: "verified_space" reads "verified space".
+func words(identifier string) string {
+	return strings.NewReplacer("_", " ", "-", " ").Replace(identifier)
+}
 
 // skipsToPlacement reports a shell attempt that leaves the usual placement to
 // go on: its method already used, no verified space, or a fact it needs unknown.
@@ -167,45 +306,38 @@ func (v Verdict) skipsToPlacement() bool {
 	return v == BuildingReasonUsed || v == BuildingReasonNoSpace || v.Is(RefusalFieldUnavailable)
 }
 
-// standing is a nothing-to-do or in-progress verdict named by cause.
-func standing(outcome Outcome, cause Cause) Verdict { return Verdict{Outcome: outcome, Cause: cause} }
-
 // The shared verdicts. Exits that need a more specific refusal build one
 // with refuse and its helpers; none may be a catch-all.
 var (
 	BuildingReasonAdmitted     = Verdict{Outcome: OutcomeAdmitted}
-	BuildingReasonDisabled     = standing(OutcomeNothingToDo, "disabled")
-	BuildingReasonNoReview     = standing(OutcomeNothingToDo, "no_current_review")
-	BuildingReasonNoDeficit    = standing(OutcomeNothingToDo, "no_active_deficit")
-	BuildingReasonExpired      = standing(OutcomeNothingToDo, "expired")
-	BuildingReasonExistingWork = standing(OutcomeInProgress, "existing_work")
-	BuildingReasonUsed         = standing(OutcomeInProgress, "method_already_used")
+	BuildingReasonDisabled     = Verdict{Outcome: OutcomeDisabled}
+	BuildingReasonNoReview     = Verdict{Outcome: OutcomeNoReview}
+	BuildingReasonNoDeficit    = Verdict{Outcome: OutcomeNothingToDo}
+	BuildingReasonExpired      = Verdict{Outcome: OutcomeExpired}
+	BuildingReasonExistingWork = Verdict{Outcome: OutcomeInProgress}
+	BuildingReasonUsed         = waitOn(WaitMethodUsed)
 	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
 	// its open bunk rungs, which do not hold the ring itself (#641).
-	BuildingBunksOpen = standing(OutcomeInProgress, "shelter_bunks_open")
-	// BuildingReasonHoldFallback: the fight's hold-the-line formation was
-	// re-formed as squad defense because the raid crossed the line (#118).
-	BuildingReasonHoldFallback = standing(OutcomeInProgress, "hold_fallback")
-	// BuildingReasonCombatOrders: the fight's stop sent changed orders
-	// (#852), recorded as its plan's evidence.
-	BuildingReasonCombatOrders = standing(OutcomeInProgress, "combat_orders")
+	BuildingBunksOpen          = waitOn(WaitBunksOpen)
+	BuildingReasonHoldFallback = Verdict{Outcome: OutcomeHoldFallback}
+	BuildingReasonCombatOrders = Verdict{Outcome: OutcomeOrdersSent}
 	// BuildingReasonSeparation defers a butcher bill while the separated
 	// butcher spot build still owns the food-supply goal.
-	BuildingReasonSeparation = standing(OutcomeInProgress, "butcher_separation_pending")
+	BuildingReasonSeparation = waitOn(WaitSeparation)
 	// BuildingReasonNotInteractive: the choice dialog's own interactivity
 	// delay has not elapsed; the next review re-reads it.
-	BuildingReasonNotInteractive = standing(OutcomeInProgress, "dialog_not_interactive")
+	BuildingReasonNotInteractive = waitOn(WaitDialog)
 	// BuildingReasonWaiting is a migrated planner's result when the
 	// coordinator gave a claim it needs to a higher-ranked proposal; the step
 	// row's proposal outcome names the claim.
-	BuildingReasonWaiting = standing(OutcomeInProgress, "waiting_on_claim")
+	BuildingReasonWaiting = waitOn(WaitClaim)
 	// BuildingReasonHeld is the shrine planner's answer while every target
 	// shrine holds; RoutineShrineResult.Hold carries the reason.
-	BuildingReasonHeld               = standing(OutcomeInProgress, "breach_held")
-	BuildingComfortWait              = standing(OutcomeInProgress, "waiting_for_native_comfort_use")
-	BuildingExistingFacility         = standing(OutcomeInProgress, "existing_facility_needs_bill_or_upkeep")
-	BuildingHospitalConvert          = standing(OutcomeInProgress, "hospital_bed_convert_pending")
-	BuildingSleepingUseNeeded        = standing(OutcomeInProgress, "sleeping_use_needed")
+	BuildingReasonHeld               = waitOn(WaitBreachHeld)
+	BuildingComfortWait              = waitOn(WaitComfortUse)
+	BuildingExistingFacility         = waitOn(WaitFacility)
+	BuildingHospitalConvert          = waitOn(WaitHospitalConvert)
+	BuildingSleepingUseNeeded        = waitOn(WaitSleepingUse)
 	BuildingReasonNoSpace            = noSpace("verified_space")
 	BuildingReasonRefused            = refuse(RefusalSharedAdmission, "", "")
 	BuildingReasonExhausted          = refuse(RefusalSharedAdmission, "retry_bound", "exhausted")

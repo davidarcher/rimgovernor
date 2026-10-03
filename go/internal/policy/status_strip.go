@@ -252,6 +252,8 @@ func detailRows(in StatusInput) []StatusRow {
 				if actionable {
 					text += " - " + statusReason(g.Blocked)
 					severity = StatusWarning
+				} else if g.Blocked.Waiting() {
+					text += " - " + statusReason(g.Blocked)
 				}
 				body = append(body, StatusRow{Key: "goal." + string(g.Goal), Text: text, Severity: severity, Target: goalCell(in.GoalCells, g.Goal), Detail: true})
 			}
@@ -291,7 +293,7 @@ func statusMethod(g GoalProgress) string {
 }
 
 // statusReason words a blocked reason for the player: the raw codes
-// ("no_method", "planner:no_space:verified_space") mean nothing on screen.
+// ("no_method", "held:opt-in") mean nothing on screen.
 func statusReason(b BlockedReason) string {
 	switch b {
 	case BlockedNoMethod:
@@ -308,7 +310,14 @@ func statusReason(b BlockedReason) string {
 		return "waiting on the colony's earlier needs first"
 	}
 	raw := string(b)
-	for prefix, lead := range map[string]string{blockedPlanner: "can't plan yet: ", blockedPrerequisite: "waiting on ", blockedHeld: "on hold: "} {
+	// A planner refusal or wait is already the plain-English sentence its
+	// verdict rendered; only the codes below are worded here.
+	for _, prefix := range []string{blockedPlanner, blockedWaiting} {
+		if rest, ok := strings.CutPrefix(raw, prefix); ok {
+			return rest
+		}
+	}
+	for prefix, lead := range map[string]string{blockedPrerequisite: "waiting on ", blockedHeld: "on hold: "} {
 		if rest, ok := strings.CutPrefix(raw, prefix); ok {
 			return lead + strings.ReplaceAll(strings.ReplaceAll(rest, "_", " "), ":", ": ")
 		}
