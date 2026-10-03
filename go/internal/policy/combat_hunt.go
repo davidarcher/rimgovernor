@@ -116,7 +116,8 @@ func huntFormation(view CombatView) []CombatRole {
 }
 
 // reformHunt is the hunt's re-formation row: a role's target is down, or the
-// prey turned into a manhunter pack.
+// prey turned into a manhunter pack, or some prey turned on the squad and
+// the hunt has no potshot door yet (#1618).
 func reformHunt(view CombatView, m CombatMemory) bool {
-	return squadTargetDown(view, m) || ManhunterPack(view)
+	return squadTargetDown(view, m) || ManhunterPack(view) || m.PotshotDoor == nil && provokedPrey(view)
 }

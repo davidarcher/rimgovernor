@@ -24,9 +24,9 @@ const OrderRepair CombatOrderKind = "repair"
 const ReasonRepair CombatOrderReason = "repair"
 
 // doorPotshot is the hit-and-run from a perimeter door, for a manhunter
-// pack (#900), a humanoid raid on squad defense (#1059) and a hunt of prey
-// the squad cannot win a melee against (#1619); a killbox hold fights from
-// its firing line instead.
+// pack (#900), a humanoid raid on squad defense (#1059) and a hunt once
+// its prey turns manhunter or hunts a colonist (#1618; the door stays once
+// chosen); a killbox hold fights from its firing line instead.
 // On a formation without blockers, the planned-room door nearest the hostiles
 // becomes the potshot door: the doorGunners gunners nearest it take the
 // cells just inside it and the door is held open. Every stop after, a
@@ -34,7 +34,7 @@ const ReasonRepair CombatOrderReason = "repair"
 // hold their cells without a target; the nearest hostile back beyond
 // doorOpenRange opens it again.
 func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
-	if m.Tactic != TacticManhunter && m.Tactic != TacticSquad && !(m.Tactic == TacticHunt && dangerousPrey(view)) {
+	if m.Tactic != TacticManhunter && m.Tactic != TacticSquad && !(m.Tactic == TacticHunt && (m.PotshotDoor != nil || provokedPrey(view))) {
 		m.PotshotDoor = nil
 		return
 	}
@@ -69,21 +69,15 @@ func doorPotshot(view CombatView, formed bool, m *CombatMemory) {
 	}
 }
 
-// dangerousPrey is a live prey whose known melee power beats the squad's
-// summed melee power, a thrumbo or a rhino against riflemen (#1619).
-func dangerousPrey(view CombatView) bool {
-	squad := 0.0
-	for _, d := range view.Defenders {
-		if p, ok := d.MeleePower.Value(); ok {
-			squad += p
-		}
-	}
+// provokedPrey is a live prey that turned manhunter or is hunting a
+// colonist: the hunt falls back to the door loop (#1618).
+func provokedPrey(view CombatView) bool {
 	live := map[domain.PawnID]bool{}
 	for _, p := range rankThreats(view) {
 		live[p.ID] = true
 	}
 	for _, t := range view.Threats {
-		if p, ok := t.MeleePower.Value(); ok && live[domain.PawnID(t.ID)] && p > squad {
+		if live[domain.PawnID(t.ID)] && (positive(t.Manhunter) || positive(t.Hunting)) {
 			return true
 		}
 	}
