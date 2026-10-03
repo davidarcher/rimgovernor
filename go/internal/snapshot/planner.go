@@ -53,28 +53,6 @@ type Planner struct {
 	GearMethods []policy.GearPlanningRequest
 	// Research is every research selection's fresh census.
 	Research []ResearchCall
-	// Replans is every policy.ReplanLayoutWithRooms call: the stored plan,
-	// the map survey and the room growth it reconciled (#1826).
-	Replans []ReplanCall
-}
-
-// ReplanCall is one policy.ReplanLayoutWithRooms call's inputs.
-type ReplanCall struct {
-	Plan    policy.LayoutPlan
-	Survey  policy.MapSurvey
-	Growth  policy.RoomGrowth
-	Animals int
-	Pawns   int
-	Tombs   int
-	Tier    policy.BuildTier
-	Geysers []policy.PowerGeyser
-	Emptied map[domain.Cell]bool
-	Suites  []float64
-}
-
-// Run replays the call.
-func (c ReplanCall) Run() (policy.LayoutPlan, bool) {
-	return policy.ReplanLayoutWithRooms(c.Plan, c.Survey, c.Growth, c.Animals, c.Pawns, c.Tombs, c.Tier, c.Geysers, c.Emptied, c.Suites...)
 }
 
 // ResearchCall is one research selection's inputs: the staged policy
@@ -118,7 +96,7 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		defer rec.mu.Unlock()
 		p := rec.p
 		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
-			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research)+len(p.Replans) == 0 {
+			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
 		p.Snapshot, p.Tick = current, tick
