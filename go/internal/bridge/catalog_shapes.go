@@ -29,14 +29,14 @@ const ClassBed = "RimWorld.Building_Bed"
 // either is an error.
 func (catalog *DefinitionCatalog) PieceShapes() (policy.PieceShapes, error) {
 	if catalog == nil {
-		return nil, contract("no definition catalog")
+		return policy.PieceShapes{}, contract("no definition catalog")
 	}
 	catalog.shapesOnce.Do(func() { catalog.shapes, catalog.shapesErr = catalog.buildPieceShapes() })
 	return catalog.shapes, catalog.shapesErr
 }
 
 func (catalog *DefinitionCatalog) buildPieceShapes() (policy.PieceShapes, error) {
-	out := policy.PieceShapes{}
+	defs := map[string]policy.InteriorPieceDef{}
 	for name, row := range catalog.ThingDefs {
 		if !Buildable(row) || row.GetSize() == nil {
 			continue
@@ -48,13 +48,18 @@ func (catalog *DefinitionCatalog) buildPieceShapes() (policy.PieceShapes, error)
 		}
 		family, err := catalog.pieceFamily(row)
 		if err != nil {
-			return nil, err
+			return policy.PieceShapes{}, err
 		}
 		shape.Family = family
-		out[name] = shape
+		defs[name] = shape
 	}
+	furniture, err := catalog.RoomFurniture(defs)
+	if err != nil {
+		return policy.PieceShapes{}, err
+	}
+	out := policy.PieceShapes{Defs: defs, Furniture: furniture}
 	if err := out.Validate(); err != nil {
-		return nil, contract("%v", err)
+		return policy.PieceShapes{}, contract("%v", err)
 	}
 	return out, nil
 }

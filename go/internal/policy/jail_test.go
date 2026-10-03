@@ -22,7 +22,7 @@ func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
 		t.Fatalf("plain bed in the jail: %+v", s)
 	}
 	s := NextJailStep(plan, rooms, 1, nil, nil)
-	if s.Kind != JailPlace || s.Piece.Def != JailBedDefinition {
+	if s.Kind != JailPlace || s.Piece.Def != testPrimaryBed {
 		t.Fatalf("empty jail: %+v", s)
 	}
 	marked := plain
@@ -44,7 +44,7 @@ func mustJailPieces(t *testing.T, r LayoutRoom) []InteriorPiece {
 	if !ok {
 		t.Fatal("jail room")
 	}
-	plan, ok := PlanInterior(in, testShapes[JailBedDefinition])
+	plan, ok := PlanInterior(in, testShapes.Defs[testPrimaryBed])
 	if !ok || len(plan.Pieces) == 0 {
 		t.Fatal("jail template placed no bed")
 	}

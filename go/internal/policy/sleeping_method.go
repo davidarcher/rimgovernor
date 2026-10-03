@@ -34,12 +34,6 @@ const (
 	SleepingUnavailable SleepingMethod = "unavailable"
 )
 
-// SleepingBedDefinitions lists, in preference order, the bed definitions the
-// sleeping planner may stage (#1181): a bed, a bedroll once its stuff is on
-// hand, else a sleeping spot (bedroom furnishing only, #1182). A bedroll is
-// suitable only while Bed is unavailable, a spot never (ReviewSleeping).
-var SleepingBedDefinitions = []string{"Bed", SleepingBedrollDefinition, SleepingSpotDefinition}
-
 // SleepingCoupleBedDefinition is staged first when a waiting colonist has a
 // couple partner (#812).
 const SleepingCoupleBedDefinition = "DoubleBed"
@@ -53,27 +47,18 @@ const (
 // sleepingBedrolls are the definitions staged only with their stuff on hand.
 var sleepingBedrolls = map[string]bool{SleepingBedrollDefinition: true, SleepingCoupleBedrollDefinition: true}
 
-// SleepingLadder is the definitions a bed step may stage, in preference
-// order; a couple's double of each rung comes first.
-func SleepingLadder(couple bool) []string {
-	if couple {
-		return []string{SleepingCoupleBedDefinition, "Bed", SleepingCoupleBedrollDefinition, SleepingBedrollDefinition, SleepingSpotDefinition}
-	}
-	return append([]string(nil), SleepingBedDefinitions...)
-}
-
 // SleepingDefinition is the best buildable rung of the ladder: the first
 // available definition, a bedroll only when Stocked names it. Unknown is
 // returned when an unknown row precedes it and nothing is buildable. A
 // sleeping spot is never a suitable bed (#1182), so only spot true, a
 // bedroom furnished to move a spot owner in, walks down to it.
-func SleepingDefinition(definitions []BenchDefinition, stocked map[string]bool, couple, spot bool) (string, SleepingMethod) {
+func SleepingDefinition(furniture RoomFurniture, definitions []BenchDefinition, stocked map[string]bool, couple, spot bool) (string, SleepingMethod) {
 	byName := map[string]BenchDefinition{}
 	for _, d := range definitions {
 		byName[d.Name] = d
 	}
 	unknown := false
-	for _, name := range SleepingLadder(couple) {
+	for _, name := range furniture.SleepingLadder(couple) {
 		if name == SleepingSpotDefinition && !spot {
 			continue
 		}
@@ -98,6 +83,8 @@ type SleepingRequest struct {
 	Sleeping    domain.Fact[SleepingObservation]
 	Rooms       domain.Fact[RoomObservation]
 	Definitions []BenchDefinition
+	// Furniture orders the beds the planner may stage (RoomFurniture).
+	Furniture RoomFurniture
 	// Stocked names the bedroll definitions whose stuff is on hand.
 	Stocked map[string]bool
 	// RoomTargets (RoomQualityTargets, keyed by room) and Traits order the
@@ -278,7 +265,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 		choice.Cells = append(choice.Cells, room.Cells...)
 	}
-	choice.Definition, choice.Method = SleepingDefinition(r.Definitions, r.Stocked, couple, false)
+	choice.Definition, choice.Method = SleepingDefinition(r.Furniture, r.Definitions, r.Stocked, couple, false)
 	if choice.Method == SleepingUnknown {
 		choice.Missing = "bed_definitions"
 	}

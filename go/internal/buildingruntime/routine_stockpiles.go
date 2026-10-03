@@ -471,7 +471,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	// The medicine store reads the medical beds, so the census carries them.
 	// The gear rooms are shelled from the same reading, so the census carries
 	// the wall and door definitions.
-	read, err := observe(call, r.reviewer.native, expected, claims, append([]string{policy.ShellWallDefinition, policy.ShellDoorDefinition}, policy.HospitalBedDefinitions...)...)
+	read, err := observe(call, r.reviewer.native, expected, claims, policy.ShellWallDefinition, policy.ShellDoorDefinition)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}

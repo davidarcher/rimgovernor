@@ -50,11 +50,6 @@ type ResearchProjectFacts struct {
 // SelectResearch refuses the project while it holds.
 const ResearchLockBench = "research_building_or_facilities"
 
-// ResearchBenchDefinition is the bench EnsureResearch stages when a rung is
-// selectable but for the bench: the Core simple research bench, which every
-// tribal-tier rung accepts and which needs no power.
-const ResearchBenchDefinition = "SimpleResearchBench"
-
 // ResearchBenchNeeded reports whether the bench lock is the only thing
 // keeping the project from starting: its prerequisites are done and no
 // other native requirement holds, so building the bench is what unlocks the

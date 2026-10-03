@@ -266,6 +266,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	// A bed another colonist owns cannot be reassigned, so a Bed is staged
 	// in the barracks; the sleeping spot definition is never a fallback.
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
+	planner.reviewer.census.invalidate()
 	native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
@@ -340,9 +341,10 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	// fixture colony has no known stage prerequisites for a new shell.
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
+	planner.reviewer.census.invalidate()
 	result, err := planner.Step(ctx)
 	if err != nil || (result.Verdict != BuildingShellBlocked && !result.Verdict.Is(RefusalFieldUnavailable) && result.Verdict != awaitingPlan("Wall", "unavailable")) || native.previews != 0 {
-		t.Fatal(result, err, native.previews)
+		t.Fatalf("%+v %v %d", result, err, native.previews)
 	}
 }
 

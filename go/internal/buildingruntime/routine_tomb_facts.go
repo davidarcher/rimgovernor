@@ -8,7 +8,7 @@ import (
 
 // wasteDefinitions are the definitions the waste steps read availability
 // and stuff for.
-var wasteDefinitions = []string{"Wall", "Door", policy.SarcophagusDefinition, policy.GraveDefinition}
+var wasteDefinitions = []string{"Wall", "Door", policy.GraveDefinition}
 
 // tombStep is the projection's next tomb step (#832, #857); none while a
 // fact is unknown.
@@ -21,19 +21,19 @@ func tombStep(facts observation.ColonyProjection) policy.TombStep {
 	rooms, _ := facts.Rooms.Value()
 	waste, _ := facts.Facts.Waste.Value()
 	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextTombStep(plan, rooms, waste, built.Buildings, available)
+	return policy.NextTombStep(plan, rooms, waste, built.Buildings, facts.Shapes, available)
 }
 
 // tombOwed is the review's TombOwed fact for the projection.
 func tombOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	return policy.TombOwed(sarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+	return policy.TombOwed(facts.Shapes, sarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
 }
 
 // sarcophagusAvailable is the sarcophagus's availability, false when
 // native reports no stuff to make one from (#857).
 func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] {
 	for _, d := range facts.Definitions {
-		if d.Name != policy.SarcophagusDefinition {
+		if d.Name != facts.Shapes.Furniture.Sarcophagus {
 			continue
 		}
 		if d.Stuffed && len(d.StuffOptions) == 0 {
@@ -53,7 +53,7 @@ func tombsFull(plan policy.LayoutPlan, facts observation.ColonyProjection) bool 
 	if !ak || !available || !wk || !bk || !built.Colony {
 		return false
 	}
-	return policy.NextTombStep(plan, policy.RoomObservation{}, waste, built.Buildings, true).Kind == policy.TombFull
+	return policy.NextTombStep(plan, policy.RoomObservation{}, waste, built.Buildings, facts.Shapes, true).Kind == policy.TombFull
 }
 
 // strangerButchery is whether the human butchery would take a fresh stranger
@@ -114,5 +114,5 @@ func mealClosetOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 // warmTombs is the review's TombsWarm fact (#840): warm tombs holding a
 // colonist, once the colony can build coolers.
 func warmTombs(facts observation.ColonyProjection) domain.Fact[[]string] {
-	return policy.WarmTombs(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+	return policy.WarmTombs(facts.Shapes, facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
 }

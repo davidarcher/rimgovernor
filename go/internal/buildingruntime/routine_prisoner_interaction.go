@@ -141,7 +141,7 @@ func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Contex
 	if r.building == nil {
 		return RoutinePrisonerInteractionResult{}, false, nil
 	}
-	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim](), "Wall", "Door", policy.JailBedDefinition)
+	reading, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim](), "Wall", "Door")
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, false, err
 	}

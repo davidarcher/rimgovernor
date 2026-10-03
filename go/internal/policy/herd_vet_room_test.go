@@ -13,7 +13,7 @@ func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 	if !ok {
 		t.Fatal("no vet layout")
 	}
-	bed := bedAt(t, AnimalBedDefinition, layout.Pieces[0])
+	bed := bedAt(t, testAnimalBed, layout.Pieces[0])
 	census := func(medical domain.Fact[bool]) []SleepingBed {
 		return []SleepingBed{{ID: bed.ID, Medical: medical}}
 	}
@@ -33,7 +33,7 @@ func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 		{"no bed built", standing(vet), nil, nil, domain.Known(false)},
 	}
 	for _, c := range cases {
-		got := VetRoomReady(plan, c.rooms, c.built, c.beds)
+		got := VetRoomReady(plan, c.rooms, c.built, c.beds, testAnimalBed)
 		gv, gk := got.Value()
 		wv, wk := c.want.Value()
 		if gk != wk || gv != wv {

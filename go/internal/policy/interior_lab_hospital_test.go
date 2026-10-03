@@ -19,7 +19,7 @@ func TestLaboratoryLayoutRepeatsAndFacesTheFloor(t *testing.T) {
 			}
 		}
 		for _, p := range plan.Pieces {
-			if p.Def != ResearchBenchDefinition {
+			if p.Def != testResearch {
 				t.Errorf("%v: %s is %s", size, p.Slot, p.Def)
 			}
 			c, ok := p.Interaction()
@@ -38,7 +38,7 @@ func TestHospitalBedsShareAdjacentMonitors(t *testing.T) {
 		plan := assertInteriorRepeatable(t, RoomRoleHospital, size[0], size[1], size[2])
 		var beds, monitors []InteriorPiece
 		for _, p := range plan.Pieces {
-			if p.Def == vitalsMonitorDefinition {
+			if p.Def == testFurniture.Monitor.Def {
 				monitors = append(monitors, p)
 			} else {
 				beds = append(beds, p)
@@ -49,7 +49,7 @@ func TestHospitalBedsShareAdjacentMonitors(t *testing.T) {
 		}
 		for _, b := range plan.Canonical {
 			// A bed's head is its anchor (BedUtility.GetSlotPos): on the back wall.
-			if b.Def != vitalsMonitorDefinition && (b.Rot != domain.South || b.Anchor().Z != plan.Frame.Depth-1) {
+			if b.Def != testFurniture.Monitor.Def && (b.Rot != domain.South || b.Anchor().Z != plan.Frame.Depth-1) {
 				t.Errorf("%v: %s head %v at %s, want South on the back wall", size, b.Slot, b.Anchor(), b.Rot)
 			}
 		}

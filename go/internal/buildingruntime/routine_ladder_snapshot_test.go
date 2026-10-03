@@ -113,8 +113,8 @@ func TestSnapshotResearchLadderBenchThenNextRung(t *testing.T) {
 	}
 	step := loadStep(t, "research-ladder-step-bench", policy.EnsureResearch)
 	bench, reason, err := (&RoutineBuildingPlanner{goal: policy.EnsureResearch}).selectResearchBench(step.Projection)
-	if err != nil || bench == nil || bench.definition != policy.ResearchBenchDefinition || bench.environment != policy.PlacementIndoors {
-		t.Fatalf("bench: %+v reason %q err %v, want an indoor %s", bench, reason, err, policy.ResearchBenchDefinition)
+	if err != nil || bench == nil || bench.definition != "SimpleResearchBench" || bench.environment != policy.PlacementIndoors {
+		t.Fatalf("bench: %+v reason %q err %v, want an indoor %s", bench, reason, err, "SimpleResearchBench")
 	}
 	in.Read.Finished = append(append([]string(nil), in.Read.Finished...), "Stonecutting")
 	if next, reason = researchNext(in); next != "Electricity" || !reason.IsZero() {

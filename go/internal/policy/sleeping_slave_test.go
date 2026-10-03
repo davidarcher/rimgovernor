@@ -24,7 +24,7 @@ func TestSleepingSlaveNeedsSlaveBed(t *testing.T) {
 	if err != nil || !known || len(rows) != 1 || rows[0].Pawn != "slave" || len(rows[0].Available) != 0 {
 		t.Fatalf("a colonist bed is no slave bed: %+v %v", rows, err)
 	}
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: r.Targets, Sleeping: domain.Known(v)})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: r.Targets, Sleeping: domain.Known(v)})
 	if err != nil || choice.Method != SleepingMarkSlaves || choice.Pawn != "slave" || choice.Bed != "spare" {
 		t.Fatalf("choice %+v %v", choice, err)
 	}
@@ -59,7 +59,7 @@ func TestSleepingSlaveWithoutSpareBedBuilds(t *testing.T) {
 	r, _ := ReviewSleeping(domain.Known(v), SleepingHistory{}, 1)
 	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{sleepingRoom("warm", RoomRoleBedroom, 20)}})
 	defs := []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}}
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: r.Targets, Sleeping: domain.Known(v), Rooms: rooms, Definitions: defs})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: r.Targets, Sleeping: domain.Known(v), Rooms: rooms, Definitions: defs})
 	if err != nil || choice.Method != SleepingBuild || choice.Unhoused != 1 {
 		t.Fatalf("choice %+v %v", choice, err)
 	}

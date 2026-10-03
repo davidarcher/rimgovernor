@@ -68,12 +68,30 @@ type FixtureDef struct {
 	WorkTableRole string
 	Bench         bool
 	Bed, Medical  bool
+	// Animal makes the def a bed for animals (a Building_Bed that is not
+	// humanlike); both kinds of bed take any body size and state Comfort as
+	// their Comfort stat. Sarcophagus makes it a Building_Sarcophagus.
+	Animal, Sarcophagus bool
+	// Facility makes the def a facility (CompProperties_Facility); Links lists
+	// the facilities its CompProperties_AffectedByFacilities may link.
+	Facility *FixtureFacility
+	Links    []string
 	// Weapon makes the def a weapon with the verb, projectile and tools it
 	// states (#1723).
 	Weapon *FixtureWeapon
 	// Race makes the def a pawn race with the RaceProperties it states and
 	// the game-computed race facts (#1722).
 	Race *FixtureRace
+}
+
+// FixtureFacility is a fixture def's CompProperties_Facility: the stat it
+// offsets on what it links, and the link rules.
+type FixtureFacility struct {
+	Offsets         map[string]float32
+	MaxDistance     float32
+	MaxSimultaneous int32
+	// Adjacent is mustBePlacedAdjacent, CardinalToHead the bed-head variant.
+	Adjacent, CardinalToHead bool
 }
 
 // FixtureRace is a fixture race: its RaceProperties and the facts the game's
@@ -176,8 +194,9 @@ func CoreWeaponFixtures() []FixtureDef {
 
 // WithCoreFurniture is defs plus the Core furniture rows (CoreFurnitureFixtures)
 // a fixture catalog needs for PieceShapes: a def the caller already states
-// keeps its own costs and research and takes the core row's size, role and
-// bed flags.
+// keeps its own costs and research and takes the core row's size, role, bed
+// flags, comfort and facility links; a caller's def that states no cost takes
+// the core row's too (a def with none is free, which ranks a bed last).
 func WithCoreFurniture(defs []FixtureDef) []FixtureDef {
 	out := slices.Clone(defs)
 	at := map[string]int{}
@@ -192,37 +211,57 @@ func WithCoreFurniture(defs []FixtureDef) []FixtureDef {
 		}
 		out[i].Width, out[i].Height = core.Width, core.Height
 		out[i].WorkTableRole, out[i].Bench, out[i].Bed, out[i].Medical = core.WorkTableRole, core.Bench, core.Bed, core.Medical
+		out[i].Animal, out[i].Sarcophagus, out[i].Comfort, out[i].Facility, out[i].Links = core.Animal, core.Sarcophagus, core.Comfort, core.Facility, core.Links
+		if len(out[i].Costs) == 0 && len(out[i].Stuffs) == 0 && !out[i].Stuffed {
+			out[i].Costs = core.Costs
+		}
+		out[i].Stuffs = slices.Clone(out[i].Stuffs)
+		for j := range out[i].Stuffs {
+			if len(out[i].Stuffs[j].Costs) == 0 {
+				out[i].Stuffs[j].Costs = core.Costs
+			}
+		}
 	}
 	return out
 }
 
 // CoreFurnitureFixtures are the Core furniture the interior templates plan,
 // stated the way the game's rows carry it (size, work table room role, bed
-// flags, the interaction cell in front of a bench): the shapes a fixture
-// catalog needs for PieceShapes to validate.
+// flags and comfort, cost, facility links and the interaction cell in front
+// of a bench): the rows a fixture catalog needs for PieceShapes to choose the
+// room furniture (DefinitionCatalog.RoomFurniture) and validate. The costs
+// and comforts are round numbers that rank the beds and benches as Core's do.
 func CoreFurnitureFixtures() []FixtureDef {
+	wood := func(n int64) []policy.Amount { return []policy.Amount{{Resource: "WoodLog", Count: n}} }
+	links := []string{"EndTable", "Dresser"}
+	benchLinks := []string{"ToolCabinet"}
 	return []FixtureDef{
-		{Name: "Bed", Width: 1, Height: 2, Bed: true},
-		{Name: "SleepingSpot", Width: 1, Height: 2, Bed: true},
-		{Name: "DoubleBed", Width: 2, Height: 2, Bed: true},
-		{Name: "RoyalBed", Width: 2, Height: 2, Bed: true},
-		{Name: "HospitalBed", Width: 1, Height: 2, Bed: true, Medical: true},
-		{Name: "EndTable", Width: 1, Height: 1},
-		{Name: "Dresser", Width: 2, Height: 1},
-		{Name: "StandingLamp", Width: 1, Height: 1},
-		{Name: "ToolCabinet", Width: 2, Height: 1},
-		{Name: "ShelfSmall", Width: 1, Height: 1},
-		{Name: "VitalsMonitor", Width: 1, Height: 1},
-		{Name: "Sarcophagus", Width: 1, Height: 2},
-		{Name: "FueledStove", Width: 3, Height: 1, WorkTableRole: "Kitchen"},
-		{Name: "ElectricStove", Width: 3, Height: 1, WorkTableRole: "Kitchen"},
-		{Name: "TableStonecutter", Width: 3, Height: 1, WorkTableRole: "Workshop"},
-		{Name: "ElectricSmithy", Width: 3, Height: 1, WorkTableRole: "Workshop"},
-		{Name: "HandTailoringBench", Width: 3, Height: 1, WorkTableRole: "Workshop"},
-		{Name: "FabricationBench", Width: 5, Height: 2, WorkTableRole: "Workshop"},
-		{Name: "TableButcher", Width: 3, Height: 1, Bench: true},
-		{Name: "SimpleResearchBench", Width: 3, Height: 2, WorkTableRole: "Laboratory"},
-		{Name: "HiTechResearchBench", Width: 5, Height: 2, WorkTableRole: "Laboratory"},
+		{Name: "Bed", Width: 1, Height: 2, Bed: true, Comfort: .75, Costs: wood(40), Links: links},
+		{Name: "Bedroll", Width: 1, Height: 2, Bed: true, Comfort: .5, Costs: wood(40)},
+		{Name: "SleepingSpot", Width: 1, Height: 2, Bed: true, Comfort: .3},
+		{Name: "DoubleBed", Width: 2, Height: 2, Bed: true, Comfort: .75, Costs: wood(80), Links: links},
+		{Name: "BedrollDouble", Width: 2, Height: 2, Bed: true, Comfort: .5, Costs: wood(80)},
+		{Name: "RoyalBed", Width: 2, Height: 2, Bed: true, Comfort: .9, Costs: wood(150), Links: links},
+		{Name: "DoubleSleepingSpot", Width: 2, Height: 2, Bed: true, Comfort: .3},
+		{Name: "HospitalBed", Width: 1, Height: 2, Bed: true, Medical: true, Comfort: .8, Costs: wood(60), Links: []string{"VitalsMonitor", "EndTable", "Dresser"}},
+		{Name: "AnimalSleepingSpot", Animal: true, Comfort: .3},
+		{Name: "AnimalBed", Animal: true, Comfort: .7, Costs: wood(30)},
+		{Name: "EndTable", Width: 1, Height: 1, Costs: wood(30), Facility: &FixtureFacility{Offsets: map[string]float32{StatComfort: .03}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true}},
+		{Name: "Dresser", Width: 2, Height: 1, Costs: wood(50), Facility: &FixtureFacility{Offsets: map[string]float32{StatComfort: .02}, MaxDistance: 6, MaxSimultaneous: 1}},
+		{Name: "StandingLamp", Width: 1, Height: 1, Costs: wood(20)},
+		{Name: "ToolCabinet", Width: 2, Height: 1, Costs: wood(40), Facility: &FixtureFacility{Offsets: map[string]float32{StatWorkTableWorkSpeedFactor: .06}, MaxDistance: 8, MaxSimultaneous: 2}},
+		{Name: "ShelfSmall", Width: 1, Height: 1, Costs: wood(20)},
+		{Name: "VitalsMonitor", Width: 1, Height: 1, Costs: wood(100), Facility: &FixtureFacility{Offsets: map[string]float32{StatMedicalTendQualityOffset: .06}, MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true}},
+		{Name: "Sarcophagus", Width: 1, Height: 2, Sarcophagus: true, Costs: wood(100)},
+		{Name: "FueledStove", Width: 3, Height: 1, WorkTableRole: "Kitchen", Costs: wood(80)},
+		{Name: "ElectricStove", Width: 3, Height: 1, WorkTableRole: "Kitchen", Costs: wood(100)},
+		{Name: "TableStonecutter", Width: 3, Height: 1, WorkTableRole: "Workshop", Costs: wood(40), Links: benchLinks},
+		{Name: "ElectricSmithy", Width: 3, Height: 1, WorkTableRole: "Workshop", Costs: wood(200), Links: benchLinks},
+		{Name: "HandTailoringBench", Width: 3, Height: 1, WorkTableRole: "Workshop", Costs: wood(50), Links: benchLinks},
+		{Name: "FabricationBench", Width: 5, Height: 2, WorkTableRole: "Workshop", Costs: wood(400), Links: benchLinks},
+		{Name: "TableButcher", Width: 3, Height: 1, Bench: true, Costs: wood(50)},
+		{Name: "SimpleResearchBench", Width: 3, Height: 2, WorkTableRole: "Laboratory", Costs: wood(50)},
+		{Name: "HiTechResearchBench", Width: 5, Height: 2, WorkTableRole: "Laboratory", Costs: wood(300)},
 	}
 }
 
@@ -272,6 +311,9 @@ type FixtureFloor struct {
 const (
 	fixtureThingClass   = "Verse.ThingWithComps"
 	fixtureChargerClass = "Test.Building_TestCharger"
+	// fixtureBedBodySize is the body size limit every fixture bed states,
+	// the game's "any pawn" (9999 on Core).
+	fixtureBedBodySize = 9999
 )
 
 // FixtureCatalog is a decoded definition catalog laid out from fixture defs,
@@ -297,7 +339,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}
-	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}} {
+	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}} {
 		class, _ := proto.GetExtension(message.ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 		chains[class] = nil
 	}
@@ -382,18 +424,38 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			t.Building.WorkTableRoomRole = def.WorkTableRole
 			t.HasInteractionCell, t.InteractionCellOffset = true, &d.IntVec3{Z: -1}
 		}
-		if def.Bed {
+		if def.Bed || def.Animal {
 			if t.Building == nil {
 				t.Building = &d.BuildingProperties{}
 			}
 			t.ThingClass = ClassBed
 			chains[ClassBed] = nil
-			t.Building.BedHumanlike, t.Building.BedCountsForBedroomOrBarracks, t.Building.BedDefaultMedical = true, !def.Medical, def.Medical
+			t.Building.BedMaxBodySize = fixtureBedBodySize
+			if def.Bed {
+				t.Building.BedHumanlike, t.Building.BedCountsForBedroomOrBarracks, t.Building.BedDefaultMedical = true, !def.Medical, def.Medical
+			}
+			if def.Comfort != 0 {
+				apparelStats[index(StatComfort)] = def.Comfort
+			}
+		}
+		if def.Sarcophagus {
+			t.ThingClass = ClassSarcophagus
+			chains[ClassSarcophagus] = nil
 		}
 		if def.EatSurface {
 			t.SurfaceType = d.SurfaceType_SURFACE_TYPE_EAT
 		}
 		comp := func(value *d.CompPropertiesAny) { t.Comps = append(t.Comps, &d.Opt_CompPropertiesAny{Value: value}) }
+		if f := def.Facility; f != nil {
+			facility := &d.CompProperties_Facility{MaxDistance: f.MaxDistance, MaxSimultaneous: f.MaxSimultaneous, MustBePlacedAdjacent: f.Adjacent, MustBePlacedAdjacentCardinalToBedHead: f.CardinalToHead}
+			for _, stat := range slices.Sorted(maps.Keys(f.Offsets)) {
+				facility.StatOffsets = append(facility.StatOffsets, &d.Opt_StatModifier{Value: &d.StatModifier{Stat: stat, Value: f.Offsets[stat]}})
+			}
+			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Facility{CompProperties_Facility: facility}})
+		}
+		if len(def.Links) > 0 {
+			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_AffectedByFacilities{CompProperties_AffectedByFacilities: &d.CompProperties_AffectedByFacilities{LinkableFacilities: def.Links}}})
+		}
 		if def.PowerW != nil {
 			comp(&d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: float32(*def.PowerW)}}})
 		}

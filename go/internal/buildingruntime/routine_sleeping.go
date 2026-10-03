@@ -244,14 +244,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) && !r.shelter {
 		definitions = r.workshop.candidates
 	}
-	if r.goal == policy.MaintainMedicalReserves && !r.shelter {
-		definitions = policy.HospitalBedDefinitions
-	}
-	if r.phase == policy.HousingSleeping && !r.shelter {
-		definitions = policy.SleepingLadder(true)
-	}
-	if r.goal == policy.EnsureResearch && !r.shelter {
-		definitions = []string{policy.ResearchBenchDefinition}
+	if (r.goal == policy.MaintainMedicalReserves || r.phase == policy.HousingSleeping || r.goal == policy.EnsureResearch) && !r.shelter {
+		// The beds and the research bench are the furniture rules', read
+		// with every catalog (observation.ColonyProjection.Shapes).
+		definitions = nil
 	}
 	var pendingConsumers []string
 	if r.goal == policy.EnsureBasicPower {

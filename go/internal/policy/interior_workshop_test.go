@@ -20,9 +20,9 @@ func TestWorkshopCabinetsServeTwoBenchesAndShelvesKeepTheRole(t *testing.T) {
 	var benches, cabinets, shelves []InteriorPiece
 	for _, p := range plan.Canonical {
 		switch p.Def {
-		case workshopBenchDef:
+		case testWorkshop:
 			benches = append(benches, p)
-		case workshopCabinetDef:
+		case testFurniture.Cabinet.Def:
 			cabinets = append(cabinets, p)
 		case workshopShelfDef:
 			shelves = append(shelves, p)

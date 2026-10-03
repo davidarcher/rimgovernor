@@ -41,16 +41,16 @@ func TestSelectHospitalBedNoDemandAndExisting(t *testing.T) {
 	// A bad condition that needs no medical rest (a scar) keeps
 	// MaintainMedicalReserves's deficit but asks for no ward.
 	healthy := domain.Known([]CarePawn{{ID: "a", Dead: domain.Known(false), NeedsRest: domain.Known(false), NeedsTend: domain.Known(false), BadConditions: domain.Known(true)}})
-	choice, err := SelectHospitalBed(HospitalRequest{Patients: healthy})
+	choice, err := SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: healthy})
 	if err != nil || choice.Method != HospitalNoDemand {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", true)}}), Rooms: hospitalRooms(RoomRoleBarracks, "bed1")})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", true)}}), Rooms: hospitalRooms(RoomRoleBarracks, "bed1")})
 	if err != nil || choice.Method != HospitalExisting || choice.Needed != 1 {
 		t.Fatal(choice, err)
 	}
 	// A medical bed outside every hosting room does not count.
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", true)}}), Rooms: hospitalRooms(RoomRoleKitchen, "bed1"), Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}}})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", true)}}), Rooms: hospitalRooms(RoomRoleKitchen, "bed1"), Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}}})
 	if err != nil || choice.Method != HospitalBuild || choice.Definition != "Bed" {
 		t.Fatal(choice, err)
 	}
@@ -59,26 +59,26 @@ func TestSelectHospitalBedNoDemandAndExisting(t *testing.T) {
 func TestSelectHospitalBedConvertPrefersSpareThenPatientOwned(t *testing.T) {
 	beds := domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed3", false, "b"), hospitalBed("bed2", false), hospitalBed("bed1", false, "a")}})
 	rooms := hospitalRooms(RoomRoleBarracks, "bed1", "bed2", "bed3")
-	choice, err := SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
+	choice, err := SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
 	if err != nil || choice.Method != HospitalConvert || choice.Bed != "bed2" {
 		t.Fatal(choice, err)
 	}
 	beds = domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed3", false, "b"), hospitalBed("bed1", false, "a")}})
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
 	if err != nil || choice.Method != HospitalConvert || choice.Bed != "bed1" {
 		t.Fatal(choice, err)
 	}
 	// Only a healthy colonist's bed remains: build rather than evict.
 	beds = domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed3", false, "b")}})
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms, Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(true)}}})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms, Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(true)}}})
 	if err != nil || choice.Method != HospitalBuild || choice.Definition != "SleepingSpot" {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms, Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(false)}}})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms, Definitions: []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(false)}}})
 	if err != nil || choice.Method != HospitalUnavailable {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: rooms})
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)
 	}
@@ -95,7 +95,7 @@ func TestSelectHospitalBedRefusesConversionAtShelterCapacity(t *testing.T) {
 	}
 	beds := domain.Known(SleepingObservation{Colonists: 5, Beds: rows})
 	spot := []BenchDefinition{{Name: "Bed", Available: domain.Known(false)}, {Name: "SleepingSpot", Available: domain.Known(true)}}
-	req := HospitalRequest{Patients: hospitalPatients("a"), Sleeping: beds, Rooms: hospitalRooms(RoomRoleBarracks, ids...), Definitions: spot,
+	req := HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: beds, Rooms: hospitalRooms(RoomRoleBarracks, ids...), Definitions: spot,
 		Colonists: domain.Known[int64](5), HousingTarget: domain.Known[int64](5), BedCapacity: domain.Known[int64](5), IndoorCapacity: domain.Known[int64](5), Doctors: domain.Known(1)}
 	choice, err := SelectHospitalBed(req)
 	if err != nil || choice.Method != HospitalBuild || choice.Definition != "SleepingSpot" {
@@ -123,12 +123,12 @@ func TestSelectHospitalBedUnknownFacts(t *testing.T) {
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{})})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{})})
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)
 	}
 	unknownRole := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "room", Beds: []string{"bed1"}}}})
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", false)}}), Rooms: unknownRole})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", false)}}), Rooms: unknownRole})
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)
 	}

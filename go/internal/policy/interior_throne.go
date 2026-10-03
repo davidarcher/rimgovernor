@@ -61,8 +61,8 @@ func planThrone(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool)
 		pieces = append(pieces, p)
 		return true
 	}
-	try(NewInteriorPiece("end_table", endTableDef, fs.EndTable.Size, domain.South, domain.Cell{X: x - 1, Z: back}))
-	try(NewInteriorPiece("dresser", dresserDef, fs.Dresser.Size, domain.South, domain.Cell{X: x + span, Z: back}))
+	try(NewInteriorPiece("end_table", fs.EndTable.Def, fs.EndTable.Size, domain.South, domain.Cell{X: x - 1, Z: back}))
+	try(NewInteriorPiece("dresser", fs.Dresser.Def, fs.Dresser.Size, domain.South, domain.Cell{X: x + span, Z: back}))
 	for _, u := range []int32{f.Width - 1, 0} {
 		if try(NewInteriorPiece("lamp", standingLampDef, fs.Lamp.Size, domain.South, domain.Cell{X: u, Z: back})) {
 			break

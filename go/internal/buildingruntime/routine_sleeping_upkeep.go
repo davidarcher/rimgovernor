@@ -55,7 +55,7 @@ func sleepingRequest(facts observation.ColonyProjection, review store.RoutineRev
 	for _, name := range []string{policy.SleepingBedrollDefinition, policy.SleepingCoupleBedrollDefinition} {
 		_, _, stocked[name] = facts.StockedStuff(name)
 	}
-	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Stocked: stocked, Traits: sleepingTraits(facts)}
+	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Furniture: facts.Shapes.Furniture, Stocked: stocked, Traits: sleepingTraits(facts)}
 	if obs, known := facts.Facts.Sleeping.Value(); known {
 		tier, _ := facts.BuildTier.Value()
 		request.RoomTargets = policy.RoomQualityTargets(obs, request.Traits, tier, facts.Impressiveness)
@@ -119,7 +119,7 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 			step = migrateStep(facts)
 		}
 		if step.Kind == policy.BedroomFurnish {
-			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false, true)
+			definition, method := policy.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true)
 			if method == policy.SleepingUnknown {
 				return nil, fieldUnavailable("bed_definitions"), nil
 			}
@@ -279,7 +279,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), append(r.reviewer.rememberedThrones(), r.reviewer.census.rememberedWorship()...)...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.RoomBeautyDefinitions()...), r.reviewer.rememberedThrones()...), r.reviewer.census.rememberedWorship()...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

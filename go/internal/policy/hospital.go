@@ -29,15 +29,16 @@ const (
 	HospitalUnavailable HospitalMethod = "unavailable"
 )
 
-// HospitalBedDefinitions lists, in preference order, the bed definitions the
-// hospital planner may stage; a sleeping spot is the free fallback.
-var HospitalBedDefinitions = []string{"Bed", "SleepingSpot"}
-
+// HospitalRequest asks for a hospital bed; the planner stages
+// RoomFurniture.HospitalBeds in preference order, a sleeping spot (the free
+// bed) last.
 type HospitalRequest struct {
 	Patients    domain.Fact[[]CarePawn]
 	Sleeping    domain.Fact[SleepingObservation]
 	Rooms       domain.Fact[RoomObservation]
 	Definitions []BenchDefinition
+	// Furniture orders the beds the planner may stage (RoomFurniture).
+	Furniture RoomFurniture
 	// Colonists, HousingTarget, BedCapacity and IndoorCapacity are the
 	// routine counts a conversion must not drop below: the native indoor
 	// sleeping capacity excludes medical beds, so converting a needed
@@ -179,8 +180,8 @@ func SelectHospitalBed(r HospitalRequest) (HospitalChoice, error) {
 		byName[d.Name] = d
 	}
 	unknown := false
-	for _, name := range HospitalBedDefinitions {
-		if surgical && name == "SleepingSpot" {
+	for _, name := range r.Furniture.HospitalBeds() {
+		if surgical && name == SleepingSpotDefinition {
 			continue
 		}
 		d, exists := byName[name]

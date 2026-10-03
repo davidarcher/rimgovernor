@@ -13,9 +13,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // the spine) and get the back row. Butchering never comes
 // here: SeparationProtectedCells keeps butcher placement out of kitchens.
 
-// KitchenStoveDefinition is the stove the template plans.
-const KitchenStoveDefinition = "FueledStove"
-
 // kitchenMaxStoves bounds the row; two stoves feed a mid-sized colony.
 const kitchenMaxStoves = 2
 
@@ -24,7 +21,7 @@ func init() {
 }
 
 func planKitchen(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	stove, ok := BenchRowDef(f, piece, RoomRoleKitchen, KitchenStoveDefinition)
+	stove, ok := BenchRowDef(f, piece, RoomRoleKitchen)
 	if !ok || !frontInteraction(stove) {
 		return nil, false
 	}

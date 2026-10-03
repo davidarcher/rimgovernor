@@ -32,15 +32,6 @@ const (
 	RoomRoleVetRoom RoomRole = "VetRoom"
 )
 
-// Animal furniture definitions, as vanilla RimWorld names them (the animal
-// sleeping spot and the animal bed). Nothing here assumes they exist: the
-// native glue reads both from the live catalog and fails when one is
-// missing (buildingruntime.herdFurniture).
-const (
-	AnimalSleepingSpotDefinition = "AnimalSleepingSpot"
-	AnimalBedDefinition          = "AnimalBed"
-)
-
 // herdBarnMinBeds is the fewest animals a barn is sized for.
 const herdBarnMinBeds = 8
 
@@ -192,7 +183,7 @@ func (p LayoutPlan) herdTarget(role ModuleRole) (x, z float64, ok bool) {
 func (p LayoutPlan) herdCapacity(role ModuleRole) int {
 	n := 0
 	for _, room := range p.HerdRooms(role) {
-		n += herdRoomBeds(room, nil, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
+		n += herdRoomBeds(room, PieceShapes{}, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
 	}
 	return n
 }

@@ -60,7 +60,7 @@ func planBedroom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 			return planBedroomWith(f, d.Def, d.Size)
 		}
 	}
-	bed, ok := f.Shapes.Get("Bed")
+	bed, ok := f.Shapes.Get(f.Shapes.Furniture.PrimaryBed())
 	if !ok {
 		return nil, false
 	}
@@ -121,11 +121,11 @@ func planBedroomWith(f InteriorFrame, bedDef string, size domain.Cell) ([]Interi
 	if !tableLeft {
 		tableU, dresserU = right, x-fs.Dresser.Size.X
 	}
-	try(NewInteriorPiece("end_table", endTableDef, fs.EndTable.Size, domain.South, domain.Cell{X: tableU, Z: back}))
+	try(NewInteriorPiece("end_table", fs.EndTable.Def, fs.EndTable.Size, domain.South, domain.Cell{X: tableU, Z: back}))
 	if f.Width*f.Depth < bedroomFullSetTiles {
 		return pieces, true
 	}
-	try(NewInteriorPiece("dresser", dresserDef, fs.Dresser.Size, domain.South, domain.Cell{X: dresserU, Z: back}))
+	try(NewInteriorPiece("dresser", fs.Dresser.Def, fs.Dresser.Size, domain.South, domain.Cell{X: dresserU, Z: back}))
 	for _, u := range []int32{f.Width - 1, 0} {
 		if try(NewInteriorPiece("lamp", standingLampDef, fs.Lamp.Size, domain.South, domain.Cell{X: u, Z: back})) {
 			break

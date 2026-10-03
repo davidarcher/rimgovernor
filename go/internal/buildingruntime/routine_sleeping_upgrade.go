@@ -94,14 +94,14 @@ func companionBed(facts observation.ColonyProjection) (policy.RoomUpgrade, bool)
 	if !sk || !rk || !ck || !ak || !census.Colony {
 		return policy.RoomUpgrade{}, false
 	}
-	d, found := animalContainmentDefinition(facts.Definitions, policy.AnimalSleepingSpotDefinition)
+	d, found := animalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot)
 	size, sizeKnown := d.Size.Value()
 	available, availableKnown := d.Available.Value()
 	if !found || !sizeKnown || !availableKnown || size.Width < 1 || size.Height < 1 {
 		return policy.RoomUpgrade{}, false
 	}
 	spot := policy.InteriorPieceDef{Def: d.Name, Size: domain.Cell{X: size.Width, Z: size.Height}}
-	return policy.NextCompanionBed(obs, animals, policy.TidyFurnitureRooms(rooms, census, facts.Cells), spot, available)
+	return policy.NextCompanionBed(obs, animals, policy.TidyFurnitureRooms(rooms, census, facts.Cells), facts.Shapes.Furniture, spot, available)
 }
 
 // beautyUpgrade is the next beauty lever (#830): a plant pot or a

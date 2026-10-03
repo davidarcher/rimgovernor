@@ -108,7 +108,11 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		if err != nil {
 			return RoutineReading{}, err
 		}
-		if p.Definitions, err = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, append(slices.Clone(definitions), roleRows...)); err != nil {
+		if p.Shapes, err = frame.Catalog.PieceShapes(); err != nil {
+			return RoutineReading{}, err
+		}
+		names := slices.Concat(definitions, roleRows, p.Shapes.Furniture.Definitions())
+		if p.Definitions, err = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, names); err != nil {
 			return RoutineReading{}, err
 		}
 	}
@@ -123,7 +127,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	p.Containment = containmentPlanning(frame, p.Definitions)
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
-		sleeping.BedBuildable = p.DefinitionAvailable(policy.SleepingBedDefinitions[0])
+		sleeping.BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed())
 		p.Facts.Sleeping = domain.Known(sleeping)
 	}
 	p.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
@@ -216,9 +220,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 				if planned.Dining, err = frame.Catalog.DiningFurniture(); err != nil {
 					return RoutineReading{}, err
 				}
-				if planned.Shapes, err = frame.Catalog.PieceShapes(); err != nil {
-					return RoutineReading{}, err
-				}
+				planned.Shapes = p.Shapes
 				temperature = domain.Known(planned)
 			}
 		}

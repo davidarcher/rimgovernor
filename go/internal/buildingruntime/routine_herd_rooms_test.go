@@ -14,9 +14,9 @@ func herdDefinition(name string, available bool, size domain.Fact[policy.Bounds]
 
 func TestHerdFurnitureFailsLoudlyWhenTheCatalogLacksADefinition(t *testing.T) {
 	one := domain.Known(policy.Bounds{Width: 1, Height: 1})
-	spot, bed := policy.AnimalSleepingSpotDefinition, policy.AnimalBedDefinition
+	spot, bed := "AnimalSleepingSpot", "AnimalBed"
 	project := func(defs ...observation.PlanningDefinition) observation.ColonyProjection {
-		return observation.ColonyProjection{Definitions: defs}
+		return observation.ColonyProjection{Definitions: defs, Shapes: policy.PieceShapes{Furniture: policy.RoomFurniture{AnimalSpot: spot, AnimalBed: bed}}}
 	}
 	if _, _, err := herdFurniture(project(herdDefinition(spot, true, one))); err == nil {
 		t.Fatal("a definition never read is an error")

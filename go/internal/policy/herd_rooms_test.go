@@ -8,8 +8,8 @@ import (
 )
 
 var testHerdFurniture = HerdFurniture{
-	Spot: InteriorPieceDef{Def: AnimalSleepingSpotDefinition, Size: domain.Cell{X: 1, Z: 1}},
-	Bed:  InteriorPieceDef{Def: AnimalBedDefinition, Size: domain.Cell{X: 1, Z: 1}},
+	Spot: InteriorPieceDef{Def: testAnimalSpot, Size: domain.Cell{X: 1, Z: 1}},
+	Bed:  InteriorPieceDef{Def: testAnimalBed, Size: domain.Cell{X: 1, Z: 1}},
 }
 
 func herdTestPlan(t *testing.T, animals int) LayoutPlan {
@@ -73,7 +73,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	rooms := standing(barn)
 	for i := 0; i < animals; i++ {
 		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != ModuleBarn || step.Piece.Def != AnimalSleepingSpotDefinition || !rectInside(barn.Interior, step.Piece.Rect) {
+		if step.Kind != HerdPlace || step.Role != ModuleBarn || step.Piece.Def != testAnimalSpot || !rectInside(barn.Interior, step.Piece.Rect) {
 			t.Fatal("barn sleeping spot", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
@@ -85,7 +85,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	rooms = standing(barn, vet)
 	for i := 0; i < VetBeds(animals); i++ {
 		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
-		if step.Kind != HerdPlace || step.Role != ModuleVetRoom || step.Piece.Def != AnimalBedDefinition || !rectInside(vet.Interior, step.Piece.Rect) {
+		if step.Kind != HerdPlace || step.Role != ModuleVetRoom || step.Piece.Def != testAnimalBed || !rectInside(vet.Interior, step.Piece.Rect) {
 			t.Fatal("vet animal bed", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
@@ -109,7 +109,7 @@ func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
 	if !ok {
 		t.Fatal("no vet layout")
 	}
-	bed := bedAt(t, AnimalBedDefinition, layout.Pieces[0])
+	bed := bedAt(t, testAnimalBed, layout.Pieces[0])
 	census := func(medical domain.Fact[bool]) []SleepingBed {
 		return []SleepingBed{{ID: bed.ID, Medical: medical}}
 	}

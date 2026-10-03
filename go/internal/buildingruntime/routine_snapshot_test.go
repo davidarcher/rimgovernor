@@ -57,6 +57,7 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 	// the recorded planning catalog.
 	var dining policy.DiningFurniture
 	r.Projection.PowerSources, r.Projection.PowerBattery, dining = recordedPowerRows(t)
+	r.Projection.Shapes = recordedPower.shapes
 	// The dining furniture is catalog-derived too: a recording's comfort
 	// censuses and room census take it from the recorded catalog.
 	furnish := func(f *domain.Fact[policy.ComfortObservation]) {
@@ -204,6 +205,8 @@ func loadStep(t *testing.T, name string, goal policy.GoalID) snapshot.Step {
 	if s.Goal != goal {
 		t.Fatalf("%s: recorded %s's step, want %s", name, s.Goal, goal)
 	}
+	recordedPowerRows(t)
+	s.Projection.Shapes = recordedPower.shapes
 	return s
 }
 

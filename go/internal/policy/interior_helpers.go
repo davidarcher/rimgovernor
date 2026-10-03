@@ -75,15 +75,13 @@ func NewInteriorPiece(slot, def string, size domain.Cell, rot domain.Rotation, c
 	return InteriorPiece{Slot: slot, Def: def, Size: size, Rot: rot, Rect: Rectangle{X: corner.X, Z: corner.Z, Width: w, Height: h}}
 }
 
-// The furnishing levers beside a bed or throne (#802): an end table and a
-// dresser (the bed's facilities) and a standing lamp.
-const (
-	endTableDef     = "EndTable"
-	dresserDef      = "Dresser"
-	standingLampDef = "StandingLamp"
-)
+// standingLampDef is the lamp beside a bed or throne (#802). It is no
+// facility (no row links it), so the catalog has no rule that names it.
+const standingLampDef = "StandingLamp"
 
-// furnishings are the shapes of the furnishing levers.
+// furnishings are the shapes of the furnishing levers beside a bed or
+// throne (#802): an end table and a dresser, the bed's facilities
+// (RoomFurniture), and a standing lamp.
 type furnishings struct{ EndTable, Dresser, Lamp InteriorPieceDef }
 
 // furnishings reads the levers from the frame's shapes; false when the
@@ -91,19 +89,20 @@ type furnishings struct{ EndTable, Dresser, Lamp InteriorPieceDef }
 func (f InteriorFrame) furnishings() (furnishings, bool) {
 	var fs furnishings
 	var a, b, c bool
-	fs.EndTable, a = f.Shapes.Get(endTableDef)
-	fs.Dresser, b = f.Shapes.Get(dresserDef)
+	fs.EndTable, a = f.Shapes.Get(f.Shapes.Furniture.EndTable.Def)
+	fs.Dresser, b = f.Shapes.Get(f.Shapes.Furniture.Dresser.Def)
 	fs.Lamp, c = f.Shapes.Get(standingLampDef)
 	return fs, a && b && c
 }
 
 // BenchRowDef is the definition a family's template plans: the piece being
-// placed when the family holds it, else the family's default.
-func BenchRowDef(f InteriorFrame, piece InteriorPieceDef, family RoomRole, fallback string) (InteriorPieceDef, bool) {
+// placed when the family holds it, else the family's default bench
+// (RoomFurniture.Bench).
+func BenchRowDef(f InteriorFrame, piece InteriorPieceDef, family RoomRole) (InteriorPieceDef, bool) {
 	if piece.Family == family {
 		return piece, true
 	}
-	return f.Shapes.Get(fallback)
+	return f.Shapes.Get(f.Shapes.Furniture.BenchFor(family))
 }
 
 // frontInteraction reports whether a bench's interaction cell is the open

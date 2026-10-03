@@ -36,7 +36,7 @@ func TestKitchenStovesBesideTheFreezerDoor(t *testing.T) {
 		}
 		assertInteriorRegular(t, plan)
 		for _, p := range plan.Pieces {
-			if p.Def != KitchenStoveDefinition || p.Rot != c.rot || !c.wall(p.Rect) {
+			if p.Def != testStove || p.Rot != c.rot || !c.wall(p.Rect) {
 				t.Errorf("freezer door %v: %s %+v %s", c.freezer, p.Slot, p.Rect, p.Rot)
 			}
 			if i, ok := p.Interaction(); !ok || !rectContains(room, i) {

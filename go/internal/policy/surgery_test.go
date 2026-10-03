@@ -266,11 +266,11 @@ func TestSurgeryBedShort(t *testing.T) {
 	patient := domain.Known([]CarePawn{{ID: "a", Dead: domain.Known(false), NeedsRest: domain.Known(false)}})
 	spot := domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("spot", true)}})
 	defs := []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}, {Name: "SleepingSpot", Available: domain.Known(true)}}
-	choice, err := SelectHospitalBed(HospitalRequest{Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs, Surgical: surgical})
+	choice, err := SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs, Surgical: surgical})
 	if err != nil || choice.Method != HospitalBuild || choice.Definition != "Bed" || choice.Needed != 1 {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectHospitalBed(HospitalRequest{Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs})
+	choice, err = SelectHospitalBed(HospitalRequest{Furniture: testFurniture, Patients: patient, Sleeping: spot, Rooms: hospitalRooms(RoomRoleBarracks, "spot"), Definitions: defs})
 	if err != nil || choice.Method != HospitalNoDemand {
 		t.Fatal(choice, err)
 	}

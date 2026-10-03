@@ -46,7 +46,7 @@ type TombStep struct {
 
 // tombCensus counts the dead, the empty graves and the plain graves, and
 // returns the cells graves stand on.
-func tombCensus(waste []WasteItem, built []CurrentBuilding) (TombStep, map[domain.Cell]bool) {
+func tombCensus(waste []WasteItem, built []CurrentBuilding, sarcophagus string) (TombStep, map[domain.Cell]bool) {
 	step := TombStep{}
 	filled := map[string]bool{}
 	for _, item := range waste {
@@ -62,7 +62,7 @@ func tombCensus(waste []WasteItem, built []CurrentBuilding) (TombStep, map[domai
 	taken := map[domain.Cell]bool{}
 	for _, b := range built {
 		def := b.Building.Definition()
-		if def != SarcophagusDefinition && def != GraveDefinition {
+		if def != sarcophagus && def != GraveDefinition {
 			continue
 		}
 		if def == GraveDefinition {
@@ -84,7 +84,7 @@ func tombSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (Int
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	sarcophagus, ok := in.Piece(SarcophagusDefinition)
+	sarcophagus, ok := in.Piece(shapes.Furniture.Sarcophagus)
 	if !ok {
 		return InteriorPiece{}, false
 	}
@@ -107,8 +107,8 @@ pieces:
 // NextTombStep picks the next tomb step from the plan, the room census,
 // the waste census and the colony's built buildings. sarcophagus is false
 // when none can be had (unresearched, no stuff), which leaves a grave.
-func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding, sarcophagus bool) TombStep {
-	step, taken := tombCensus(waste, built)
+func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding, shapes PieceShapes, sarcophagus bool) TombStep {
+	step, taken := tombCensus(waste, built, shapes.Furniture.Sarcophagus)
 	if step.Dead == 0 || step.Empty >= step.Dead {
 		return TombStep{}
 	}
@@ -120,7 +120,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 		if r.Role != ModuleTomb {
 			continue
 		}
-		piece, ok := tombSlot(r, rooms.Shapes, taken)
+		piece, ok := tombSlot(r, shapes, taken)
 		if !ok {
 			continue
 		}
@@ -149,7 +149,7 @@ func (p LayoutPlan) TombRooms() int {
 
 // TombOwed is the review's tomb deficit: known true while a tomb step is
 // due, unknown while a fact the step reads is.
-func TombOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
+func TombOwed(shapes PieceShapes, available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
 	a, ak := available.Value()
 	p, pk := plan.Value()
 	r, rk := rooms.Value()
@@ -159,10 +159,10 @@ func TombOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms d
 		return domain.Unknown[bool]()
 	}
 	if ak && !a {
-		return domain.Known(NextTombStep(LayoutPlan{}, RoomObservation{}, w, b.Buildings, false).Kind != TombNone)
+		return domain.Known(NextTombStep(LayoutPlan{}, RoomObservation{}, w, b.Buildings, shapes, false).Kind != TombNone)
 	}
 	if !ak || !pk || !rk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextTombStep(p, r, w, b.Buildings, true).Kind != TombNone)
+	return domain.Known(NextTombStep(p, r, w, b.Buildings, shapes, true).Kind != TombNone)
 }

@@ -73,9 +73,10 @@ func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearch
 // research bench, placed indoors in a Laboratory-hosting room, when the
 // planning census lists it buildable.
 func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
+	bench := facts.Shapes.Furniture.BenchFor(policy.RoomRoleLaboratory)
 	var definition *observation.PlanningDefinition
 	for i := range facts.Definitions {
-		if facts.Definitions[i].Name == policy.ResearchBenchDefinition {
+		if facts.Definitions[i].Name == bench {
 			definition = &facts.Definitions[i]
 		}
 	}
@@ -94,10 +95,10 @@ func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyPro
 		return nil, Verdict{}, err
 	}
 	resolved := *r
-	resolved.definition = policy.ResearchBenchDefinition
+	resolved.definition = bench
 	resolved.environment = policy.PlacementIndoors
 	resolved.facility = &facility
-	resolved.stuff = facts.BuildStuff(policy.ResearchBenchDefinition)
+	resolved.stuff = facts.BuildStuff(bench)
 	return &resolved, Verdict{}, nil
 }
 

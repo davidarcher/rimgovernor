@@ -14,7 +14,7 @@ func TestTombSarcophagiLineBothSidesOfTheAisle(t *testing.T) {
 		}
 		aisle := plan.Frame.Entrance
 		for _, p := range plan.Canonical {
-			if p.Def != SarcophagusDefinition || p.Rect.Width != 2 || p.Rect.Height != 1 {
+			if p.Def != testSarcophagus || p.Rect.Width != 2 || p.Rect.Height != 1 {
 				t.Errorf("%v: %s is %s at %+v, not a sarcophagus across the aisle", size, p.Slot, p.Def, p.Rect)
 			}
 			west := p.Rect.X+p.Rect.Width == aisle && p.Rot == domain.West

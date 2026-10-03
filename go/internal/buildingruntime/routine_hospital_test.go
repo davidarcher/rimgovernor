@@ -200,8 +200,8 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 		{"no demand", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: domain.Known([]policy.CarePawn{})}}, BuildingReasonNoDeficit, ""},
 		{"existing", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: bed(true)}, Rooms: rooms}, BuildingExistingFacility, ""},
 		{"convert", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: bed(false)}, Rooms: rooms}, BuildingHospitalConvert, ""},
-		{"build", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", true)}}, Verdict{}, "SleepingSpot"},
-		{"unavailable", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", false)}}, BuildingHospitalUnavailable, ""},
+		{"build", observation.ColonyProjection{Shapes: testPieceShapes, Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", true)}}, Verdict{}, "SleepingSpot"},
+		{"unavailable", observation.ColonyProjection{Shapes: testPieceShapes, Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", false)}}, BuildingHospitalUnavailable, ""},
 	} {
 		selected, reason, err := ladder.selectHospital(test.facts)
 		if err != nil || reason != test.reason {

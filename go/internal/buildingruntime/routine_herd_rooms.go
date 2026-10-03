@@ -19,7 +19,7 @@ import (
 
 // herdDefinitions are the definitions the herd steps read availability,
 // stuff and size for.
-var herdDefinitions = []string{"Wall", "Door", policy.AnimalSleepingSpotDefinition, policy.AnimalBedDefinition}
+var herdDefinitions = []string{"Wall", "Door"}
 
 // herdFurniture reads the two animal bed shapes from the live catalog. A
 // definition the catalog lacks (a wrong defName, or a game without it) is an
@@ -28,7 +28,7 @@ var herdDefinitions = []string{"Wall", "Door", policy.AnimalSleepingSpotDefiniti
 func herdFurniture(facts observation.ColonyProjection) (policy.HerdFurniture, bool, error) {
 	var out policy.HerdFurniture
 	usable := true
-	for _, name := range []string{policy.AnimalSleepingSpotDefinition, policy.AnimalBedDefinition} {
+	for _, name := range []string{facts.Shapes.Furniture.AnimalSpot, facts.Shapes.Furniture.AnimalBed} {
 		d, found := animalContainmentDefinition(facts.Definitions, name)
 		if !found {
 			return out, false, fmt.Errorf("%w: herdFurniture: %s was not read from the native catalog", ErrControl, name)
@@ -43,7 +43,7 @@ func herdFurniture(facts observation.ColonyProjection) (policy.HerdFurniture, bo
 			continue
 		}
 		def := policy.InteriorPieceDef{Def: name, Size: domain.Cell{X: size.Width, Z: size.Height}}
-		if name == policy.AnimalSleepingSpotDefinition {
+		if name == facts.Shapes.Furniture.AnimalSpot {
 			out.Spot = def
 		} else {
 			out.Bed = def
@@ -84,7 +84,7 @@ func vetRoomReady(facts observation.ColonyProjection) domain.Fact[bool] {
 	if !pk || !rk || !ck || !sk || !census.Colony {
 		return domain.Unknown[bool]()
 	}
-	return policy.VetRoomReady(plan, rooms, census.Buildings, sleeping.Beds)
+	return policy.VetRoomReady(plan, rooms, census.Buildings, sleeping.Beds, facts.Shapes.Furniture.AnimalBed)
 }
 
 // herdRoomsOwed is the review's HerdRoomsOwed fact: known true while a barn

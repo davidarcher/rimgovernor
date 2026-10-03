@@ -28,14 +28,14 @@ func (p LayoutPlan) VetRoomCells() []domain.Cell {
 // none stands, or none of its standing beds is flagged. Unknown when a
 // standing bed has no census row or an unread medical flag and no other bed
 // proves the room ready.
-func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, beds []SleepingBed) domain.Fact[bool] {
+func VetRoomReady(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, beds []SleepingBed, animalBed string) domain.Fact[bool] {
 	unread := false
 	for _, room := range plan.HerdRooms(ModuleVetRoom) {
 		if _, standing := PlannedRoomStanding(room, rooms); !standing {
 			continue
 		}
 		for _, b := range built {
-			if b.Building.Definition() != AnimalBedDefinition || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
+			if b.Building.Definition() != animalBed || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
 				continue
 			}
 			read := false

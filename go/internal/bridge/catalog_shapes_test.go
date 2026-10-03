@@ -21,23 +21,23 @@ func TestPieceShapesFamilyIsTheRoomRoleTheRowsGive(t *testing.T) {
 		"Bed": policy.RoomRoleBedroom, "RoyalBed": policy.RoomRoleBedroom, "HospitalBed": policy.RoomRoleHospital,
 		"TableButcher": "", "Pot": "",
 	} {
-		if got := shapes[def].Family; got != want {
+		if got := shapes.Defs[def].Family; got != want {
 			t.Errorf("%s family %q, want %q", def, got, want)
 		}
 	}
-	if s := shapes["FabricationBench"]; s.Size.X != 5 || s.Size.Z != 2 || s.Interaction == nil || s.Interaction.Z != -1 {
+	if s := shapes.Defs["FabricationBench"]; s.Size.X != 5 || s.Size.Z != 2 || s.Interaction == nil || s.Interaction.Z != -1 {
 		t.Errorf("fabrication bench shape %+v", s)
 	}
-	if s := shapes["Bed"]; s.Interaction != nil {
+	if s := shapes.Defs["Bed"]; s.Interaction != nil {
 		t.Errorf("a bed has no interaction cell: %+v", s)
 	}
 }
 
 func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
-	without := func(name string) []FixtureDef {
+	without := func(names ...string) []FixtureDef {
 		var out []FixtureDef
 		for _, def := range CoreFurnitureFixtures() {
-			if def.Name != name {
+			if !slices.Contains(names, def.Name) {
 				out = append(out, def)
 			}
 		}
@@ -47,9 +47,15 @@ func TestPieceShapesRefuseACatalogTheTemplatesCannotUse(t *testing.T) {
 		defs []FixtureDef
 		want string
 	}{
-		"no end table":     {without("EndTable"), "EndTable"},
-		"no stove":         {without("FueledStove"), "FueledStove"},
-		"stove not a role": {append(without("FueledStove"), FixtureDef{Name: "FueledStove", Width: 3, Height: 1, Bench: true}), "family"},
+		"no end table":    {without("EndTable"), "end table"},
+		"no dresser":      {without("Dresser"), "dresser"},
+		"no cabinet":      {without("ToolCabinet"), "tool cabinet"},
+		"no monitor":      {without("VitalsMonitor"), "vitals monitor"},
+		"no sarcophagus":  {without("Sarcophagus"), "Sarcophagus"},
+		"no stove":        {without("FueledStove", "ElectricStove"), "Kitchen"},
+		"no animal bed":   {without("AnimalBed"), "animal"},
+		"no double bed":   {without("DoubleBed", "RoyalBed", "BedrollDouble"), "double bed"},
+		"stoves not role": {append(without("FueledStove", "ElectricStove"), FixtureDef{Name: "FueledStove", Width: 3, Height: 1, Bench: true}), "Kitchen"},
 	} {
 		_, err := FixtureCatalog("load", test.defs...).PieceShapes()
 		if err == nil || !strings.Contains(err.Error(), test.want) {

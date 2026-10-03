@@ -32,7 +32,7 @@ func CompanionMaster(a UpkeepAnimal, people []SleepingPerson) (PawnID, bool) {
 // NextCompanionBed returns the first companion bed due, false when none.
 // rooms are the furniture rooms (TidyFurnitureRooms); spot is the animal
 // sleeping spot's shape and available reports that it can be built now.
-func NextCompanionBed(obs SleepingObservation, animals []UpkeepAnimal, rooms []TidyRoom, spot InteriorPieceDef, available bool) (RoomUpgrade, bool) {
+func NextCompanionBed(obs SleepingObservation, animals []UpkeepAnimal, rooms []TidyRoom, beds RoomFurniture, spot InteriorPieceDef, available bool) (RoomUpgrade, bool) {
 	if !available || spot.Def == "" {
 		return RoomUpgrade{}, false
 	}
@@ -57,7 +57,7 @@ func NextCompanionBed(obs SleepingObservation, animals []UpkeepAnimal, rooms []T
 		}
 		have := 0
 		for _, p := range room.Pieces {
-			if p.Def == AnimalSleepingSpotDefinition || p.Def == AnimalBedDefinition {
+			if p.Def == beds.AnimalSpot || p.Def == beds.AnimalBed {
 				have++
 			}
 		}

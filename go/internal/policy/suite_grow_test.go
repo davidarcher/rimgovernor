@@ -61,7 +61,7 @@ func TestSuiteGrowthRelocatesFurnitureOntoTheGrownPlan(t *testing.T) {
 	full := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: rectCells(grownRoom.Interior)}}}
 	room := TidyRoom{ID: "home", Room: InteriorRoom{Role: RoomRoleBedroom, Interior: grownRoom.Interior, Doors: []domain.Cell{grownRoom.Door}, Standing: []string{"Bed"}, Shapes: testShapes}}
 	// The bed still against the old back wall (x 5..6).
-	room.Pieces = []TidyPiece{{Thing: "bed", Def: "Bed", Size: testShapes["Bed"].Size, Rot: domain.West, Rect: Rectangle{X: 5, Z: 11, Width: 2, Height: 1}}}
+	room.Pieces = []TidyPiece{{Thing: "bed", Def: "Bed", Size: testShapes.Defs["Bed"].Size, Rot: domain.West, Rect: Rectangle{X: 5, Z: 11, Width: 2, Height: 1}}}
 	g, ok := NextSuiteGrowth(plan, full, CurrentConstruction{Colony: true}, []TidyRoom{room})
 	if !ok || g.Kind != SuiteGrowthRelocate || len(g.Moves) != 1 || g.Moves[0].Thing != "bed" || g.Moves[0].To == room.Pieces[0].Rect {
 		t.Fatalf("grown room = %+v %v, want the bed re-sited", g, ok)

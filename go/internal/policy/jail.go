@@ -20,7 +20,7 @@ func init() {
 // planJail lays beds the tomb's way (#831): a 1-cell aisle straight in
 // from the door, beds on both sides, heads to the side walls.
 func planJail(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	bed, ok := f.Shapes.Get(JailBedDefinition)
+	bed, ok := f.Shapes.Get(f.Shapes.Furniture.PrimaryBed())
 	if !ok {
 		return nil, false
 	}
@@ -33,21 +33,18 @@ func planJail(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 			continue
 		}
 		if aisle >= reach {
-			p := NewInteriorPiece(fmt.Sprintf("bed.w%d", v+1), JailBedDefinition, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
+			p := NewInteriorPiece(fmt.Sprintf("bed.w%d", v+1), bed.Def, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
 			p.Row = "beds.west"
 			out = append(out, p)
 		}
 		if aisle+1+reach <= f.Width {
-			p := NewInteriorPiece(fmt.Sprintf("bed.e%d", v+1), JailBedDefinition, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
+			p := NewInteriorPiece(fmt.Sprintf("bed.e%d", v+1), bed.Def, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
 			p.Row = "beds.east"
 			out = append(out, p)
 		}
 	}
 	return out, len(out) > 0
 }
-
-// JailBedDefinition is the bed a jail places.
-const JailBedDefinition = "Bed"
 
 // JailStepKind is the next jail step.
 type JailStepKind string
@@ -125,7 +122,7 @@ func jailSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (Int
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	bed, ok := in.Piece(JailBedDefinition)
+	bed, ok := in.Piece(shapes.Furniture.PrimaryBed())
 	if !ok {
 		return InteriorPiece{}, false
 	}

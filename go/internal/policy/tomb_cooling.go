@@ -22,7 +22,7 @@ const TombMaxC = 0.0
 // hold a buried colonist, and of the standing meal closet (#936) and morgue (#1820), that
 // measure warmer than TombMaxC, sorted. Known
 // empty while coolers are unavailable; unknown while a fact it reads is.
-func WarmTombs(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[[]string] {
+func WarmTombs(shapes PieceShapes, coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[[]string] {
 	available, ak := coolers.Value()
 	if ak && !available {
 		return domain.Known[[]string](nil)
@@ -59,7 +59,7 @@ func WarmTombs(coolers domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms do
 			inside[c] = true
 		}
 		for _, s := range b.Buildings {
-			if s.Building.Definition() != SarcophagusDefinition || !filled[s.ID] || len(s.Cells) == 0 {
+			if s.Building.Definition() != shapes.Furniture.Sarcophagus || !filled[s.ID] || len(s.Cells) == 0 {
 				continue
 			}
 			occupied = occupied || inside[s.Cells[0]]

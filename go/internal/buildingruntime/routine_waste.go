@@ -42,7 +42,7 @@ func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource
 	}
 	r := &RoutineWastePlanner{reviewer: reviewer, native: native}
 	if source, ok := native.(RoutineBuildingSource); ok {
-		r.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainWaste, definition: policy.SarcophagusDefinition}
+		r.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainWaste}
 	}
 	return r, nil
 }

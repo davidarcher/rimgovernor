@@ -9,7 +9,7 @@ import (
 )
 
 func TestSarcophagusWithoutStuffFallsBackToAGrave(t *testing.T) {
-	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: policy.SarcophagusDefinition, Available: domain.Known(true), Stuffed: true}}}
+	facts := observation.ColonyProjection{Shapes: policy.PieceShapes{Furniture: policy.RoomFurniture{Sarcophagus: "Sarcophagus"}}, Definitions: []observation.PlanningDefinition{{Name: "Sarcophagus", Available: domain.Known(true), Stuffed: true}}}
 	if v, known := sarcophagusAvailable(facts).Value(); !known || v {
 		t.Fatalf("no stuff: %v %v", v, known)
 	}

@@ -303,15 +303,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		readDefinitions = append(append([]string(nil), definitions...), "NutrientPasteDispenser", "Hopper")
 	}
 	if r.roomsEnabled() {
-		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomUpgradeDefinitions...)
+		readDefinitions = append(append([]string(nil), readDefinitions...), policy.RoomBeautyDefinitions()...)
 	}
 	if r.methodEnabled(policy.MaintainFlooring) {
 		// The traffic tier prices its floor in the review (#950).
 		readDefinitions = append(append([]string(nil), readDefinitions...), r.policy.Flooring.Floors...)
-	}
-	if r.methodEnabled(policy.MaintainHousing) {
-		// Bed's availability decides which beds are suitable (#1181).
-		readDefinitions = append(append([]string(nil), readDefinitions...), policy.SleepingBedDefinitions[0])
 	}
 	if r.methodEnabled(policy.MaintainAnimalContainment) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), herdDefinitions...)
@@ -320,8 +316,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
 	if r.methodEnabled(policy.EnsureCooking) || r.methodEnabled(policy.MaintainRefrigeration) || r.methodEnabled(policy.MaintainPopulation) {
-		// The planned kitchen, freezer and jail shells (#835) and jail beds (#880).
-		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door", policy.JailBedDefinition)
+		// The planned kitchen, freezer and jail shells (#835); the jail bed is
+		// a furniture rule's, read with every catalog (#880).
+		readDefinitions = append(append([]string(nil), readDefinitions...), "Wall", "Door")
 	}
 	claims, err := p.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {

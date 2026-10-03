@@ -40,11 +40,11 @@ func TestMorgueIsCooledOnceStanding(t *testing.T) {
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
 	built := domain.Known(CurrentConstruction{Colony: true})
 	none := domain.Known([]WasteItem{})
-	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
+	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
 		t.Fatalf("a standing warm morgue owes cooling: %v %v", got, known)
 	}
 	rooms.Rooms[0].Temperature = domain.Known(-6.0)
-	if got, _ := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); len(got) != 0 {
+	if got, _ := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); len(got) != 0 {
 		t.Fatalf("a frozen morgue is done: %v", got)
 	}
 }

@@ -58,7 +58,7 @@ func hospitalRequest(facts observation.ColonyProjection) policy.HospitalRequest 
 	if census, known := f.Labor.Value(); known {
 		doctors = domain.Known(census[policy.WorkDoctor])
 	}
-	return policy.HospitalRequest{Patients: f.MedicalPawns, Sleeping: f.Sleeping, Rooms: facts.Rooms, Definitions: definitions,
+	return policy.HospitalRequest{Patients: f.MedicalPawns, Sleeping: f.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Furniture: facts.Shapes.Furniture,
 		Colonists: f.Colonists, HousingTarget: f.HousingTarget, BedCapacity: f.BedCapacity, IndoorCapacity: f.IndoorCapacity, Doctors: doctors,
 		Surgical: policy.SurgeryBedShortPatients(f.MedicalPawns)}
 }
@@ -139,7 +139,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), policy.HospitalBedDefinitions...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

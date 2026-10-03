@@ -94,6 +94,14 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 			if projection.Definitions, err = facts.appendDefinitions(projection.Definitions, dining.Definitions()); err != nil {
 				return result, err
 			}
+			// The furniture the room planners place is the catalog's rules too
+			// (DefinitionCatalog.RoomFurniture).
+			if projection.Shapes, err = facts.catalog.PieceShapes(); err != nil {
+				return result, err
+			}
+			if projection.Definitions, err = facts.appendDefinitions(projection.Definitions, projection.Shapes.Furniture.Definitions()); err != nil {
+				return result, err
+			}
 			projection.Facts.Gear = GearFacts(reply.GetObserved(), tables, GearDefinitions{Catalog: facts.catalog, Finished: facts.finished})
 		}
 	}

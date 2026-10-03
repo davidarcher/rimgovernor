@@ -14,7 +14,7 @@ func init() {
 }
 
 func planLaboratory(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	def, ok := BenchRowDef(f, piece, RoomRoleLaboratory, ResearchBenchDefinition)
+	def, ok := BenchRowDef(f, piece, RoomRoleLaboratory)
 	if !ok {
 		return nil, false
 	}

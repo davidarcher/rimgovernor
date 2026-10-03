@@ -186,17 +186,17 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	t.Parallel()
 	ladder := &RoutineBuildingPlanner{goal: policy.EnsureResearch, definition: "Wall", shelter: true}
 	definition := func(available domain.Fact[bool]) []observation.PlanningDefinition {
-		return []observation.PlanningDefinition{{Name: policy.ResearchBenchDefinition, Available: available, NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}
+		return []observation.PlanningDefinition{{Name: "SimpleResearchBench", Available: available, NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}
 	}
 	for _, test := range []struct {
 		name   string
 		facts  observation.ColonyProjection
 		reason Verdict
 	}{
-		{"undescribed", observation.ColonyProjection{}, fieldUnavailable("research_bench_definition")},
-		{"unknown", observation.ColonyProjection{Definitions: definition(domain.Unknown[bool]())}, fieldUnavailable("research_bench_availability")},
-		{"unavailable", observation.ColonyProjection{Definitions: definition(domain.Known(false))}, BuildingResearchBenchUnavailable},
-		{"build", observation.ColonyProjection{Definitions: definition(domain.Known(true))}, Verdict{}},
+		{"undescribed", observation.ColonyProjection{Shapes: testPieceShapes}, fieldUnavailable("research_bench_definition")},
+		{"unknown", observation.ColonyProjection{Shapes: testPieceShapes, Definitions: definition(domain.Unknown[bool]())}, fieldUnavailable("research_bench_availability")},
+		{"unavailable", observation.ColonyProjection{Shapes: testPieceShapes, Definitions: definition(domain.Known(false))}, BuildingResearchBenchUnavailable},
+		{"build", observation.ColonyProjection{Shapes: testPieceShapes, Definitions: definition(domain.Known(true))}, Verdict{}},
 	} {
 		selected, reason, err := ladder.selectResearchBench(test.facts)
 		if err != nil || reason != test.reason {
@@ -208,7 +208,7 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 			}
 			continue
 		}
-		if selected.definition != policy.ResearchBenchDefinition || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleLaboratory || !selected.facility.Hosts(policy.RoomRoleBarracks) {
+		if selected.definition != "SimpleResearchBench" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleLaboratory || !selected.facility.Hosts(policy.RoomRoleBarracks) {
 			t.Fatal(test.name, selected)
 		}
 		if ladder.definition != "Wall" || ladder.facility != nil {
@@ -222,7 +222,7 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "laboratory-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
-	bench := &RoutineBuildingPlanner{goal: policy.EnsureResearch, definition: policy.ResearchBenchDefinition}
+	bench := &RoutineBuildingPlanner{goal: policy.EnsureResearch, definition: "SimpleResearchBench"}
 	if missing, method, reason := bench.selection(facts); missing != 1 || method != "laboratory-SimpleResearchBench" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}

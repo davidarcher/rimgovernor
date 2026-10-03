@@ -40,7 +40,7 @@ func TestSleepingCoupleSharesDoubleBed(t *testing.T) {
 	if len(rows) != 2 || rows[0].Kind != SleepingShare || rows[0].Partner != "b" || len(rows[0].Available) != 1 || rows[0].Available[0] != "d" {
 		t.Fatal(rows)
 	}
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: domain.Known(rows)})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known(rows)})
 	if err != nil || choice.Method != SleepingAssign || choice.Pawn != "a" || choice.Bed != "d" || choice.PreviousBed != "s1" {
 		t.Fatal(choice, err)
 	}
@@ -91,7 +91,7 @@ func TestSleepingCoupleBuildsDoubleBed(t *testing.T) {
 	}
 	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{Role: domain.Known(RoomRoleBedroom), Temperature: domain.Known(20.0), Cells: []domain.Cell{{X: 1, Z: 1}}}}}
 	defs := []BenchDefinition{{Name: "DoubleBed", Available: domain.Known(true)}, {Name: "Bed", Available: domain.Known(true)}}
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: domain.Known(rows), Sleeping: domain.Known(v), Rooms: domain.Known(rooms), Definitions: defs})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known(rows), Sleeping: domain.Known(v), Rooms: domain.Known(rooms), Definitions: defs})
 	if err != nil || choice.Method != SleepingBuild || choice.Definition != "DoubleBed" {
 		t.Fatal(choice, err)
 	}

@@ -27,7 +27,7 @@ func TestRecordedCatalogPieceShapes(t *testing.T) {
 		"HospitalBed": {policy.RoomRoleHospital, 1, 2, false}, "AnimalSleepingSpot": {"", 1, 1, false}, "DeathrestCasket": {"", 1, 2, false},
 		"Dresser": {"", 2, 1, false}, "ToolCabinet": {"", 2, 1, false}, "Sarcophagus": {"", 1, 2, false},
 	} {
-		got, ok := shapes[def]
+		got, ok := shapes.Get(def)
 		if !ok || got.Family != want.family || got.Size.X != want.w || got.Size.Z != want.h || (got.Interaction != nil) != want.front {
 			t.Errorf("%s shape %+v, want family %q %dx%d front %v", def, got, want.family, want.w, want.h, want.front)
 		}

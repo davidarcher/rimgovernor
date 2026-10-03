@@ -7,8 +7,8 @@ import (
 )
 
 func TestInteriorSlotAcceptsFamily(t *testing.T) {
-	stove := InteriorPiece{Def: KitchenStoveDefinition}
-	bench := InteriorPiece{Def: workshopBenchDef}
+	stove := InteriorPiece{Def: testStove}
+	bench := InteriorPiece{Def: testWorkshop}
 	cases := []struct {
 		slot InteriorPiece
 		def  string
@@ -23,7 +23,7 @@ func TestInteriorSlotAcceptsFamily(t *testing.T) {
 		{bench, "ElectricStove", false},
 		{bench, "TableButcher", false},
 		{bench, "FabricationBench", false},
-		{InteriorPiece{Def: ResearchBenchDefinition}, "HiTechResearchBench", false},
+		{InteriorPiece{Def: testResearch}, "HiTechResearchBench", false},
 		{InteriorPiece{Def: "Bed"}, "DoubleBed", false},
 	}
 	for _, c := range cases {
@@ -39,7 +39,7 @@ func TestWideBenchesGetSlots(t *testing.T) {
 		role RoomRole
 		def  string
 	}{{RoomRoleWorkshop, "FabricationBench"}, {RoomRoleLaboratory, "HiTechResearchBench"}} {
-		piece := testShapes[c.def]
+		piece := testShapes.Defs[c.def]
 		rooms := interiorRoomsAround(c.role, 11, 5, 1)
 		first, ok := PlanInterior(rooms[0], piece)
 		if !ok {
@@ -70,9 +70,9 @@ func TestWideBenchesGetSlots(t *testing.T) {
 // centred in the same slots, so the row stays one line with even spacing.
 func TestMixedBenchWidthsShareOneRow(t *testing.T) {
 	room := interiorRoomsAround(RoomRoleWorkshop, 11, 5, 1)[0]
-	wide, _ := PlanInterior(room, testShapes["FabricationBench"])
+	wide, _ := PlanInterior(room, testShapes.Defs["FabricationBench"])
 	room.Standing = []string{"FabricationBench"}
-	narrow, ok := PlanInterior(room, testShapes["ElectricSmithy"])
+	narrow, ok := PlanInterior(room, testShapes.Defs["ElectricSmithy"])
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -171,7 +171,7 @@ func TestKitchenStoreroomDoorIsTheFreezerDoor(t *testing.T) {
 		t.Fatal("no plan")
 	}
 	for _, p := range plan.Pieces {
-		if p.Def != KitchenStoveDefinition || p.Rot != domain.East || p.Rect.X+p.Rect.Width != 6 {
+		if p.Def != testStove || p.Rot != domain.East || p.Rect.X+p.Rect.Width != 6 {
 			t.Errorf("%s %+v %s not on the storeroom wall", p.Slot, p.Rect, p.Rot)
 		}
 	}

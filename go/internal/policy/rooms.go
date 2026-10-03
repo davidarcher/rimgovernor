@@ -205,37 +205,37 @@ func FacilityCatalog() []FacilityRequirement {
 		// A bedroom is a hosted colonist bed: MaintainHousing stages one in
 		// any room that already sleeps colonists or in a generic room, then
 		// assigns it; the game scores the room Bedroom or Barracks by count.
-		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: SleepingBedDefinitions},
+		{Role: RoomRoleBedroom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		{Role: RoomRoleBarracks, Status: FacilityPending},
 		// A jail is its own planned room (#880): MaintainPopulation shells it
 		// while a prisoner is held and keeps a prisoner bed per prisoner.
-		{Role: RoomRolePrisonCell, Status: FacilityImplemented, Furniture: []string{JailBedDefinition}},
+		{Role: RoomRolePrisonCell, Status: FacilityImplemented, FurnitureFromGame: true},
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
 		// A hospital is a hosted medical bed, not a dedicated room: the game
 		// scores a room holding any ordinary bed a Bedroom or Barracks, and a
 		// bed flagged medical inside it still draws patients, doctors and the
 		// room's cleanliness into tending (issue #4 M3). Doctor coverage is
 		// AssignWork's standing requirement; medicine is MaintainMedicalReserves.
-		{Role: RoomRoleHospital, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBedroom, RoomRoleBarracks}, generic...), Furniture: HospitalBedDefinitions},
+		{Role: RoomRoleHospital, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBedroom, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		// A laboratory is a hosted research bench: EnsureResearch stages the
 		// simple bench in the starter shell (a Workshop or Barracks once the
 		// spots and benches move in) when a ladder rung waits on it (#254).
-		{Role: RoomRoleLaboratory, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleWorkshop, RoomRoleBarracks}, generic...), Furniture: []string{ResearchBenchDefinition}},
+		{Role: RoomRoleLaboratory, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleWorkshop, RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		// A workshop shares the starter shell: the ladder furnishes the first
 		// enclosed room rather than siting a second ring (routine_sleeping.go),
 		// and once the sleeping spots move indoors the game scores that room a
 		// Barracks while the bench keeps working (issue #4 M2 runs 24-25).
-		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), Furniture: []string{"CraftingSpot", "TableStonecutter"}},
+		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleBarracks}, generic...), FurnitureFromGame: true},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
 		// A kitchen is its own planned room (#835): EnsureCooking shells it
 		// at Masonry and above and holds the stove to its interior.
-		{Role: RoomRoleKitchen, Status: FacilityImplemented, Furniture: []string{"Campfire", KitchenStoveDefinition, "ElectricStove"}},
+		{Role: RoomRoleKitchen, Status: FacilityImplemented, FurnitureFromGame: true},
 		// A tomb is its own planned room (#832): MaintainWaste shells it and
 		// places a sarcophagus while a dead colonist has none waiting.
-		{Role: RoomRoleTomb, Status: FacilityImplemented, Furniture: []string{SarcophagusDefinition}},
+		{Role: RoomRoleTomb, Status: FacilityImplemented, FurnitureFromGame: true},
 		// A barn is a planned room beside the pen (#1633): the animal planner
 		// shells it and places an animal sleeping spot per kept animal.
-		{Role: RoomRoleBarn, Status: FacilityImplemented, Furniture: []string{AnimalSleepingSpotDefinition}},
+		{Role: RoomRoleBarn, Status: FacilityImplemented, FurnitureFromGame: true},
 		// A throne room is its own planned room (#1601): MaintainHousing shells
 		// it sized to the next title's area, places a throne and furnishes it to
 		// the title's impressiveness; assigning the throne awaits an action kind.

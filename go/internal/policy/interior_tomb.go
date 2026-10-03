@@ -20,11 +20,8 @@ func init() {
 	RegisterInteriorTemplate(RoomRoleTomb, InteriorTemplate{Name: "tomb", Plan: planTomb})
 }
 
-// SarcophagusDefinition is Core's sarcophagus (ComplexFurniture).
-const SarcophagusDefinition = "Sarcophagus"
-
 func planTomb(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	sarcophagus, ok := f.Shapes.Get(SarcophagusDefinition)
+	sarcophagus, ok := f.Shapes.Get(f.Shapes.Furniture.Sarcophagus)
 	if !ok {
 		return nil, false
 	}
@@ -38,12 +35,12 @@ func planTomb(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 			continue
 		}
 		if aisle >= reach {
-			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.w%d", v+1), SarcophagusDefinition, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
+			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.w%d", v+1), sarcophagus.Def, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
 			p.Row = "sarcophagi.west"
 			out = append(out, p)
 		}
 		if aisle+1+reach <= f.Width {
-			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.e%d", v+1), SarcophagusDefinition, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
+			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.e%d", v+1), sarcophagus.Def, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
 			p.Row = "sarcophagi.east"
 			out = append(out, p)
 		}

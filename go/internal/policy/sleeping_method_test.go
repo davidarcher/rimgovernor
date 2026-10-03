@@ -38,12 +38,12 @@ func TestSelectSleepingMethodUnknownAndNoDemand(t *testing.T) {
 	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: domain.Known([]SleepingTarget{})})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known([]SleepingTarget{})})
 	if err != nil || choice.Method != SleepingNoDemand || choice.Waiting != 0 {
 		t.Fatal(choice, err)
 	}
 	// Everyone waiting owns a suitable bed: only observed use completes it.
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUseNeeded, PreviousBed: "bed-1"}}), Sleeping: domain.Known(SleepingObservation{})})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUseNeeded, PreviousBed: "bed-1"}}), Sleeping: domain.Known(SleepingObservation{})})
 	if err != nil || choice.Method != SleepingNoDemand || choice.Waiting != 1 || choice.Unhoused != 0 {
 		t.Fatal(choice, err)
 	}
@@ -55,13 +55,13 @@ func TestSelectSleepingMethodAssignsLowestPawnAndBed(t *testing.T) {
 		{Pawn: "p1", Kind: SleepingUpgrade, PreviousBed: "spot-1", Available: []string{"bed-7", "bed-5"}},
 		{Pawn: "p0", Kind: SleepingUpgrade, PreviousBed: "spot-0"},
 	}
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: domain.Known(targets)})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known(targets)})
 	// Available is the review's preference order, taken as given.
 	if err != nil || choice.Method != SleepingAssign || choice.Pawn != "p1" || choice.Bed != "bed-7" || choice.PreviousBed != "spot-1" || choice.Waiting != 3 {
 		t.Fatal(choice, err)
 	}
 	// A bed the pawn already owns is never reassigned to itself.
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade, PreviousBed: "bed-1", Available: []string{"bed-1", "bed-2"}}})})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade, PreviousBed: "bed-1", Available: []string{"bed-1", "bed-2"}}})})
 	if err != nil || choice.Method != SleepingAssign || choice.Bed != "bed-2" {
 		t.Fatal(choice, err)
 	}
@@ -80,7 +80,7 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 		sleepingRoom("warm", RoomRoleBedroom, 20, warm),
 		sleepingRoom("kitchen", RoomRoleKitchen, 21, domain.Cell{X: 9, Z: 9}),
 	}})
-	choice, err := SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
+	choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
 	if err != nil || choice.Method != SleepingBuild || choice.Definition != "Bed" || choice.Waiting != 3 || choice.Unhoused != 2 {
 		t.Fatal(choice, err)
 	}
@@ -89,23 +89,23 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 	}
 	// No room in band: the build has no site, but the method is still Build.
 	rooms = domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{sleepingRoom("cold", RoomRoleBarracks, 12)}})
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
 	if err != nil || choice.Method != SleepingBuild || len(choice.Cells) != 0 {
 		t.Fatal(choice, err)
 	}
 	// Bed not buildable and the ladder's lower rungs unread: unknown;
 	// no definitions at all: unknown.
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(false)})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(false)})
 	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
 	}
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: targets, Sleeping: sleeping, Rooms: rooms})
 	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
 	}
 	// An unhoused pawn without a known comfort band blocks the choice.
 	unknownBand := domain.Known(SleepingObservation{People: []SleepingPerson{sleepingPerson("p1", 10, 30)}})
-	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: unknownBand, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
+	choice, err = SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: targets, Sleeping: unknownBand, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
 	if err != nil || choice.Method != SleepingUnknown {
 		t.Fatal(choice, err)
 	}
@@ -141,7 +141,7 @@ func TestSelectSleepingMethodBedLadder(t *testing.T) {
 		if c.couple {
 			tg = domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade, Partner: "p2"}})
 		}
-		choice, err := SelectSleepingMethod(SleepingRequest{Targets: tg, Sleeping: sleeping, Rooms: rooms, Definitions: ladder(c.bed), Stocked: c.stocked})
+		choice, err := SelectSleepingMethod(SleepingRequest{Furniture: testFurniture, Targets: tg, Sleeping: sleeping, Rooms: rooms, Definitions: ladder(c.bed), Stocked: c.stocked})
 		if want := map[bool]SleepingMethod{true: SleepingBuild, false: SleepingUnavailable}[c.want != ""]; err != nil || choice.Method != want || choice.Definition != c.want {
 			t.Fatal(c.name, choice, err)
 		}

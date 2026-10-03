@@ -17,13 +17,44 @@ var testDining = DiningFurniture{
 	Lane:  6,
 }
 
+// The Core furniture the room furniture rules choose (testFurniture), named
+// once for the tests that expect them.
+const (
+	testSarcophagus  = "Sarcophagus"
+	testStove        = "FueledStove"
+	testWorkshop     = "TableStonecutter"
+	testResearch     = "SimpleResearchBench"
+	testAnimalSpot   = "AnimalSleepingSpot"
+	testAnimalBed    = "AnimalBed"
+	testCoupleBed    = "DoubleBed"
+	testPrimaryBed   = "Bed"
+	testBedroll      = SleepingBedrollDefinition
+	testSleepingSpot = SleepingSpotDefinition
+)
+
+// testFurniture is the furniture the catalog rules choose on Core, as the
+// recorded catalog gives it (observation.TestRecordedCatalogFurniture).
+var testFurniture = RoomFurniture{
+	Beds: []FurnitureBed{
+		{testPrimaryBed, 1, false}, {testBedroll, 1, false}, {testSleepingSpot, 1, true},
+		{testCoupleBed, 2, false}, {SleepingCoupleBedrollDefinition, 2, false}, {"RoyalBed", 2, false}, {"DoubleSleepingSpot", 2, true},
+	},
+	Sarcophagus: testSarcophagus, AnimalSpot: testAnimalSpot, AnimalBed: testAnimalBed,
+	Bench:    map[RoomRole]string{RoomRoleKitchen: testStove, RoomRoleWorkshop: testWorkshop, RoomRoleLaboratory: testResearch},
+	EndTable: FacilityLink{Def: "EndTable", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true, CardinalToHead: true},
+	Dresser:  FacilityLink{Def: "Dresser", MaxDistance: 6, MaxSimultaneous: 1},
+	Cabinet:  FacilityLink{Def: "ToolCabinet", MaxDistance: 8, MaxSimultaneous: 2},
+	Monitor:  FacilityLink{Def: "VitalsMonitor", MaxDistance: 8, MaxSimultaneous: 1, Adjacent: true},
+}
+
 // testShapes are the Core furniture shapes the interior templates lay out, as
-// the catalog rows give them.
+// the catalog rows give them, with testFurniture.
 var testShapes = func() PieceShapes {
 	front := &domain.Cell{X: 0, Z: -1}
-	out := PieceShapes{}
+	defs := map[string]InteriorPieceDef{}
+	out := PieceShapes{Defs: defs, Furniture: testFurniture}
 	add := func(def string, w, h int32, family RoomRole, interaction *domain.Cell) {
-		out[def] = InteriorPieceDef{Def: def, Size: domain.Cell{X: w, Z: h}, Family: family, Interaction: interaction}
+		defs[def] = InteriorPieceDef{Def: def, Size: domain.Cell{X: w, Z: h}, Family: family, Interaction: interaction}
 	}
 	for _, def := range []string{"Bed", "SleepingSpot", "Bedroll", "SlabBed"} {
 		add(def, 1, 2, RoomRoleBedroom, nil)
@@ -38,16 +69,18 @@ var testShapes = func() PieceShapes {
 	add("ToolCabinet", 2, 1, "", nil)
 	add("ShelfSmall", 1, 1, "", nil)
 	add("VitalsMonitor", 1, 1, "", nil)
-	add(SarcophagusDefinition, 1, 2, "", nil)
-	for _, def := range []string{KitchenStoveDefinition, "ElectricStove"} {
+	add(testSarcophagus, 1, 2, "", nil)
+	for _, def := range []string{testStove, "ElectricStove"} {
 		add(def, 3, 1, RoomRoleKitchen, front)
 	}
-	for _, def := range []string{workshopBenchDef, "TableStonecutter", "ElectricSmithy", "HandTailoringBench"} {
+	for _, def := range []string{testWorkshop, "TableStonecutter", "ElectricSmithy", "HandTailoringBench"} {
 		add(def, 3, 1, RoomRoleWorkshop, front)
 	}
 	add("FabricationBench", 5, 2, RoomRoleWorkshop, front)
 	add("TableButcher", 3, 1, "", front)
-	add(ResearchBenchDefinition, 3, 2, RoomRoleLaboratory, front)
+	add(testResearch, 3, 2, RoomRoleLaboratory, front)
+	add("AnimalSleepingSpot", 1, 1, "", nil)
+	add("AnimalBed", 1, 1, "", nil)
 	add("HiTechResearchBench", 5, 2, RoomRoleLaboratory, front)
 	return out
 }()

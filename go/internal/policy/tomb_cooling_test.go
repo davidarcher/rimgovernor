@@ -12,26 +12,26 @@ func TestWarmTombsOnlyWhileAColonistLiesThere(t *testing.T) {
 	rooms := tombStanding(room)
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
 	in, _ := InteriorRoomFromLayout(room, testShapes)
-	interior, _ := PlanInterior(in, testShapes[SarcophagusDefinition])
+	interior, _ := PlanInterior(in, testShapes.Defs[testSarcophagus])
 	built := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{sarcophagus(t, "Sarcophagus_1", interior.Pieces[0])}})
 	buried := domain.Known([]WasteItem{{ID: "Corpse_1", State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: "Sarcophagus_1"}})
 	none := domain.Known([]WasteItem{})
 
-	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || len(got) != 0 {
+	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || len(got) != 0 {
 		t.Fatalf("an empty tomb is left warm: %v %v", got, known)
 	}
-	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
+	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || !reflect.DeepEqual(got, []string{"r1"}) {
 		t.Fatalf("a colonist's tomb owes cooling: %v %v", got, known)
 	}
-	if got, known := WarmTombs(domain.Known(false), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || len(got) != 0 {
+	if got, known := WarmTombs(testShapes, domain.Known(false), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || len(got) != 0 {
 		t.Fatalf("no cooler research, no cooling: %v %v", got, known)
 	}
 	rooms.Rooms[0].Temperature = domain.Known(-6.0)
-	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || len(got) != 0 {
+	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); !known || len(got) != 0 {
 		t.Fatalf("a frozen tomb is done: %v %v", got, known)
 	}
 	rooms.Rooms[0].Temperature = domain.Unknown[float64]()
-	if _, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); known {
+	if _, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), buried, built).Value(); known {
 		t.Fatal("an unmeasured tomb is unknown")
 	}
 }
@@ -57,7 +57,7 @@ func TestMealClosetOwedThenCooled(t *testing.T) {
 	}
 	built := domain.Known(CurrentConstruction{Colony: true})
 	none := domain.Known([]WasteItem{})
-	if got, known := WarmTombs(domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r2"}) {
+	if got, known := WarmTombs(testShapes, domain.Known(true), domain.Known(plan), domain.Known(rooms), none, built).Value(); !known || !reflect.DeepEqual(got, []string{"r2"}) {
 		t.Fatalf("warm closet not cooled: %v %v", got, known)
 	}
 }

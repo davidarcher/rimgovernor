@@ -54,7 +54,7 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 		t.Fatalf("install = %+v %v (pack slot %v %v)", install, ok, step.Anchor, step.Rot)
 	}
 	// The slot is the bedroom template's DoubleBed bed slot.
-	plan, _ := PlanInterior(rooms[0].Room, testShapes["DoubleBed"])
+	plan, _ := PlanInterior(rooms[0].Room, testShapes.Defs["DoubleBed"])
 	if plan.Pieces[0].Slot != "bed" || plan.Pieces[0].Def != "DoubleBed" || plan.Pieces[0].Anchor() != install.Anchor {
 		t.Fatalf("slot %+v, install %+v", plan.Pieces[0], install)
 	}

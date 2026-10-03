@@ -19,11 +19,9 @@ func init() {
 	RegisterInteriorTemplate(RoomRoleHospital, InteriorTemplate{Name: "hospital", Plan: planHospital})
 }
 
-const vitalsMonitorDefinition = "VitalsMonitor"
-
 func planHospital(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	bedShape, bok := f.Shapes.Get(HospitalBedDefinitions[0])
-	monitor, mok := f.Shapes.Get(vitalsMonitorDefinition)
+	bedShape, bok := f.Shapes.Get(f.Shapes.Furniture.PrimaryBed())
+	monitor, mok := f.Shapes.Get(f.Shapes.Furniture.Monitor.Def)
 	// Bed (its rows) and at least the entrance row in front of it.
 	if !bok || !mok || f.Depth < bedShape.Size.Z+1 {
 		return nil, false
@@ -42,7 +40,7 @@ func planHospital(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
 			bed.Row = "beds"
 			out = append(out, bed)
 			if side == 0 {
-				m := NewInteriorPiece(fmt.Sprintf("monitor.%d", p+1), vitalsMonitorDefinition, monitor.Size, domain.North, domain.Cell{X: start + bedShape.Size.X, Z: f.Depth - monitor.Size.Z})
+				m := NewInteriorPiece(fmt.Sprintf("monitor.%d", p+1), monitor.Def, monitor.Size, domain.North, domain.Cell{X: start + bedShape.Size.X, Z: f.Depth - monitor.Size.Z})
 				m.Row = "monitors"
 				out = append(out, m)
 			}

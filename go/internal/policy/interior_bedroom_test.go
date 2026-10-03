@@ -101,7 +101,7 @@ func TestBedroomDoubleBedLayout(t *testing.T) {
 func TestBedroomPlansTheRequestedBed(t *testing.T) {
 	for _, def := range []string{"DoubleBed", "RoyalBed"} {
 		for _, room := range interiorRoomsAround(RoomRoleBedroom, 6, 5, 1) {
-			plan, ok := PlanInterior(room, testShapes[def])
+			plan, ok := PlanInterior(room, testShapes.Defs[def])
 			if !ok {
 				t.Fatalf("%s %+v: no plan", def, room)
 			}
