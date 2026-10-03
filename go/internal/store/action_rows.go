@@ -132,6 +132,9 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), argument)
 	} else if interaction, ok := a.PrisonerInteraction(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
+	} else if ritual, ok := a.Ritual(); ok {
+		// definition is the ritual, stuff the verb (#1639).
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,stuff) VALUES(?,?,?,'ritual',?,?,?)", a.ID(), plan, ordinal, ritual.Pawn(), string(ritual.Ritual()), string(ritual.Verb()))
 	} else if accept, ok := a.QuestAccept(); ok {
 		var accepter sql.NullString
 		if accept.AccepterPawn() != "" {
@@ -994,6 +997,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewPrisonerInteractionAction(id, interaction)
+		return a, ordinal, err
+	}
+	if kind == "ritual" && pawn.Valid && def.Valid && stuff.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+		ritual, err := domain.NewRitual(domain.PawnID(pawn.String), domain.RitualKind(def.String), domain.RitualVerb(stuff.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewRitualAction(id, ritual)
 		return a, ordinal, err
 	}
 	if kind == "quest_accept" && target.Valid && def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {

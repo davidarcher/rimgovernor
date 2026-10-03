@@ -134,11 +134,13 @@ An offered quest is how a title is claimed: when `NextTitleClaim` says claim
 (favor, the next rung's bedroom and throne room met), the review lists the
 quest in `RoutineFacts.TitleClaimQuests` and MaintainPopulation's
 `SelectEmpireQuestMethod` accepts it through the existing QuestAccept (quest
-identified by the read's quest id, not its script def). The ritual itself
-starts only on the player's command (the bestower's Wait toil gizmo); no
-action kind carries that command, so the controller never starts it and no
-draft avoidance beyond combat's own rules is applied (a raid outranks a
-ceremony).
+identified by the read's quest id, not its script def). The ritual starts
+only on the player's command (the bestower's Wait toil gizmo): once the
+bestower waits and the ritual is known not to have started
+(`CeremonyStart`), the same MaintainPopulation planner issues the generic
+`Ritual` action (`bestowing`/`start`, #1639) and native runs the gizmo's
+action. No draft avoidance beyond combat's own rules is applied (a raid
+outranks a ceremony).
 
 Content-gated rows are pursued only when their definitions exist in the
 planning census. The table is the catalog's own rows; `go test ./internal/policy`

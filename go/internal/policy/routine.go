@@ -1393,8 +1393,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
 	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers, f.TitleClaimQuests...).Value()
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
+	_, ceremonyStarts := CeremonyStartOf(f.Royalty)
 	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, letterKnown && letterDeficit:
+	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, letterKnown && letterDeficit, ceremonyStarts:
 		populationRecovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		populationRecovered = domain.Known(!prisonerDeficit)

@@ -65,6 +65,7 @@ message EffectEvidence {
     PolicyPruneEffect policy_prune = 29;
     RemoveRoofEffect remove_roof = 30;
     AreaPlantCutEffect area_plant_cut = 31;
+    RitualEffect ritual = 40;
   }
 }
 message SnapshotEvidence {
@@ -199,6 +200,10 @@ message RemoveRoofEffect { optional int32 designated = 1; optional int32 adopted
 // designation already stood. Applied means designated; the plant cut census
 // decides when pawns finished.
 message AreaPlantCutEffect { optional int32 cut = 1; optional int32 chopped = 2; optional int32 adopted = 3; }
+// One RitualIntent's result (#1639): the ritual and verb applied to the pawn
+// and whether the ritual is started afterwards (the bestowing lord job's
+// ceremonyStarted flag).
+message RitualEffect { optional string pawn_id = 1; optional string ritual = 2; optional string verb = 3; optional bool started = 4; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {

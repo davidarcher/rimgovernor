@@ -689,7 +689,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationCustody = &method
 			return method.Reason, nil
 		}},
-	{name: "populationJoiner", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.DialogAnswerAction}, sections: sectionsMedical,
+	{name: "populationJoiner", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.RitualAction, domain.DialogAnswerAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationJoiner != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.PopulationJoiner.step(ctx, epoch, arbiter)

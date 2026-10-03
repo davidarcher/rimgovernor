@@ -78,6 +78,9 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return RoutinePopulationJoinerResult{}, err
 	}
 	facts := read.Projection.Facts
+	if ceremony, ok := policy.CeremonyStartOf(facts.Royalty); ok {
+		return r.admitCeremonyStart(call, epoch, state, goal, ceremony, started)
+	}
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}
@@ -122,6 +125,43 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	elapsed := r.reviewer.clock.Now().Sub(started)
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// admitCeremonyStart commands the bestowing ritual of a ceremony whose
+// bestower waits (policy.CeremonyStart, #1639) through the generic Ritual
+// write; native refuses while the game offers no start command.
+func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.Context, state ControlState, goal store.GoalState, ceremony policy.BestowingCeremony, started time.Time) (RoutinePopulationJoinerResult, error) {
+	p := r.reviewer.player
+	prefix := fmt.Sprintf("ritual-start-%s-", ceremony.Pawn)
+	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
+	if attempt >= maxMedicalAttemptsPerPatient {
+		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	ritual, err := domain.NewRitual(domain.PawnID(ceremony.Pawn), domain.RitualBestowing, domain.RitualStart)
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	id := domain.MintPlanID()
+	action, err := domain.NewRitualAction(domain.ActionID(fmt.Sprintf("%s-0", id)), ritual)
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitCeremonyStart: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err

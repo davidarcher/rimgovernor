@@ -299,6 +299,7 @@ message Action {
     DrugPolicyIntent drug_policy = 55;
     AreaPlantCutIntent area_plant_cut = 56;
     FoodPolicyIntent food_policy = 57;
+    RitualIntent ritual = 63;
   }
 }
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
@@ -642,6 +643,17 @@ message AcceptQuestIntent {
   optional string quest_id = 1;
   optional string accepter_pawn_id = 2;
   optional int32 reward_choice = 3;
+}
+// Command one ritual of one colonist (#1639, epic #1598): verb "start" begins
+// a ritual whose lord waits for the player. ritual "bestowing" is the Empire
+// bestowing ceremony of pawn_id (the colonist being bestowed): native finds
+// the waiting bestower and runs the action of its Command_BestowerCeremony
+// gizmo, refusing unless the bestower stands waiting and the game offers the
+// gizmo (the throne room stands). A ritual already started applies again.
+message RitualIntent {
+  optional string pawn_id = 1;
+  optional string ritual = 2;
+  optional string verb = 3;
 }
 // Order one alive, spawned, drafted pawn to walk to one standable,
 // reachable cell. Applied means the order was given, or already matched (the

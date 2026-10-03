@@ -13,9 +13,9 @@ import (
 // While one is pending the colony keeps the throne room of the title being
 // bestowed (CeremonyThroneNeed outranks the favor-driven NextThroneNeed)
 // and holds the colonist and the attendees off the Sleep timetable
-// (CeremonyHold, PlanSchedulesHeld). Starting the ritual is a seam: no
-// action kind carries the player's command (the bestower's Wait toil
-// gizmo), so nothing here starts it.
+// (CeremonyHold, PlanSchedulesHeld). Once the bestower waits for the
+// player's command (his Wait toil gizmo) CeremonyStart picks the ceremony the
+// colony starts through the generic Ritual action (#1639).
 
 // BestowingCeremony is one pending bestowing-ceremony quest, decoded from
 // the royalty read. Quest is the quest census id. Pawn is the colonist to
@@ -44,6 +44,31 @@ func PendingCeremonies(f RoyaltyFacts) []BestowingCeremony {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Pawn < out[j].Pawn })
 	return out
+}
+
+// CeremonyStart is the ceremony to start now: accepted, its bestower
+// standing on the map waiting for the command and the ritual known not to
+// have started (an unknown flag emits nothing); the lowest colonist breaks a
+// tie. The throne room is native's refusal, not a gate here: the bestower
+// waits at the throne only once it stands and native refuses the command
+// while the game offers none.
+func CeremonyStart(f RoyaltyFacts) (BestowingCeremony, bool) {
+	for _, c := range PendingCeremonies(f) {
+		waiting, wok := c.BestowerWaiting.Value()
+		started, sok := c.Started.Value()
+		if wok && waiting && sok && !started {
+			return c, true
+		}
+	}
+	return BestowingCeremony{}, false
+}
+
+// CeremonyStartOf is CeremonyStart of a royalty read that may be unknown.
+func CeremonyStartOf(royalty domain.Fact[RoyaltyFacts]) (BestowingCeremony, bool) {
+	if f, ok := royalty.Value(); ok {
+		return CeremonyStart(f)
+	}
+	return BestowingCeremony{}, false
 }
 
 // CeremonyThroneNeed is the throne room the first pending ceremony needs:
