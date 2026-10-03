@@ -62,10 +62,10 @@ func TestArmoryWeaponDemandLadder(t *testing.T) {
 		{"fabrication", ArmoryTierFabrication, recipes, nil, unarmed, "Gun_ChargeRifle"},
 		{"research missing", ArmoryTierMachining, []GearRecipe{armoryRecipe("Bow_Great", true), armoryRecipe("Gun_AssaultRifle", false)}, nil, unarmed, "Bow_Great"},
 		{"revolver to rifle at machining", ArmoryTierMachining, recipes, revolver, armed, "Gun_AssaultRifle"},
-		{"revolver kept below machining", ArmoryTierSmithing, recipes, revolver, armed, ""},
+		{"revolver upgraded to the best smithing weapon that scores higher", ArmoryTierSmithing, recipes, revolver, armed, "Bow_Great"},
 		{"armed at unknown tier", ArmoryTierUnknown, recipes, revolver, armed, ""},
 		{"rifle unresearched", ArmoryTierMachining, []GearRecipe{armoryRecipe("Gun_Revolver", true), armoryRecipe("Gun_AssaultRifle", false)}, revolver, armed, ""},
-		{"legendary revolver kept", ArmoryTierMachining, recipes, map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 6}}, armed, ""},
+		{"legendary revolver still loses to a strictly higher score", ArmoryTierMachining, recipes, map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 6}}, armed, "Gun_AssaultRifle"},
 		{"primary unobserved", ArmoryTierMachining, recipes, nil, armed, ""},
 	} {
 		var want []Amount

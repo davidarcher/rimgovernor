@@ -17,7 +17,6 @@ const (
 	WeaponRoleHunter       WeaponRole = "hunter"
 	WeaponRoleSoldier      WeaponRole = "soldier"
 	WeaponRoleNonCombatant WeaponRole = "non-combatant"
-	WeaponSwapGain                    = .2 // Require a twenty percent improvement over an owned primary.
 )
 
 // WeaponProfile contains nominal damage throughput, penetration and effective
@@ -171,7 +170,7 @@ func equipAvailable(p EquipCandidatePawn) bool {
 		}
 	}
 	armed, known := p.Armed.Value()
-	return known && (!armed || p.AutomationOwned && p.Current != nil)
+	return known && (!armed || p.Current != nil)
 }
 
 // AssignEquip greedily assigns all pairs in descending score order, using
@@ -196,7 +195,7 @@ func AssignEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) []E
 				continue
 			}
 			score := ScoreWeapon(p, w)
-			if score <= 0 || current > 0 && score <= current*(1+WeaponSwapGain) {
+			if score <= 0 || current > 0 && score <= current {
 				continue
 			}
 			pairs = append(pairs, pair{EquipAssignment{p.Pawn, w, score}, distanceSquared(p.Position, w.Cell)})

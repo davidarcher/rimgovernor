@@ -150,7 +150,7 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 			if threat == LoadoutPods {
 				fits = func(w EquipCandidateWeapon) bool {
 					p := ProfileWeapon(w)
-					return w.Class == WeaponRanged && !p.ForcedMiss && p.Range <= loadoutPodsRange && p.DPS > current.DPS*(1+WeaponSwapGain)
+					return w.Class == WeaponRanged && !p.ForcedMiss && p.Range <= loadoutPodsRange && p.DPS > current.DPS
 				}
 			} else {
 				if d.Primary != "" && current.Range >= loadoutTribalRange {

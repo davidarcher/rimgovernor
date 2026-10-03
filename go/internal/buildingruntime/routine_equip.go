@@ -81,7 +81,6 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineEquipResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	attemptsByPawn := map[domain.PawnID]int{}
-	ownedWeapons := map[domain.PawnID]string{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -94,9 +93,6 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 			if equip, ok := progress.Action().Equip(); ok {
 				if method.Epoch == goal.Goal.Epoch {
 					attemptsByPawn[equip.Pawn()]++
-				}
-				if progress.View().Stage == domain.Completed {
-					ownedWeapons[equip.Pawn()] = equip.Thing()
 				}
 			}
 		}
@@ -144,11 +140,10 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		seen[row.Pawn.GetId()] = true
 		facts := equipCandidatePawnFacts(row)
-		if current := row.GetEquipment().GetPrimaryId(); current != "" && ownedWeapons[facts.Pawn] == current {
+		if current := row.GetEquipment().GetPrimaryId(); current != "" {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {
 					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: gearDef(things, item.GetThing()), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded()}
-					facts.AutomationOwned = true
 				}
 			}
 		}

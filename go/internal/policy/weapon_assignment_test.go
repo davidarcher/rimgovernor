@@ -66,7 +66,6 @@ func TestWeaponBiocodeAndAreaFire(t *testing.T) {
 	}
 	b.Current = &w
 	b.Armed = domain.Known(true)
-	b.AutomationOwned = true
 	if pairs = AssignEquip([]EquipCandidatePawn{b}, []EquipCandidateWeapon{{Thing: "other", Definition: "Gun_SniperRifle", Class: WeaponRanged}}); len(pairs) != 0 {
 		t.Fatal("displaced biocode", pairs)
 	}
@@ -90,17 +89,12 @@ func TestWeaponUpgradeThresholdAndArmor(t *testing.T) {
 	old := EquipCandidateWeapon{Thing: "old", Definition: "Bow_Short", Class: WeaponRanged}
 	p.Current = &old
 	p.Armed = domain.Known(true)
-	p.AutomationOwned = true
 	weapons := []EquipCandidateWeapon{{Thing: "same", Definition: "Bow_Short", Class: WeaponRanged}, {Thing: "upgrade", Definition: "Gun_BoltActionRifle", Class: WeaponRanged}}
 	if got := AssignEquip([]EquipCandidatePawn{p}, weapons); len(got) != 1 || got[0].Weapon.Thing != "upgrade" {
 		t.Fatal(got)
 	}
 	if got := AssignEquip([]EquipCandidatePawn{p}, weapons[:1]); len(got) != 0 {
 		t.Fatal("churn", got)
-	}
-	p.AutomationOwned = false
-	if got := AssignEquip([]EquipCandidatePawn{p}, weapons); len(got) != 0 {
-		t.Fatal("player weapon", got)
 	}
 	w := weapons[1]
 	base := ScoreWeapon(p, w)

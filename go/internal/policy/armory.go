@@ -192,7 +192,7 @@ type ArmoryPrimary struct {
 // unarmed colonist the loose weapons cannot arm wants one (an unknown tier
 // arms at neolithic: arming the unarmed is never held on a guess); an armed
 // colonist wants one only at a known tier, only when it beats the
-// quality-scaled primary by WeaponSwapGain, and only when no loose weapon of
+// quality-scaled primary, and only when no loose weapon of
 // that definition is left for it. The gear planner's GearReplace wears the
 // upgrade once it is made.
 func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe) []Amount {
@@ -220,7 +220,7 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 			if current.Ranged {
 				class = WeaponRanged
 			}
-			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class}) * WeaponQualityMultiplier(current.Quality) * (1 + WeaponSwapGain)
+			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class}) * WeaponQualityMultiplier(current.Quality)
 		} else if reach == ArmoryTierUnknown {
 			reach = ArmoryTierNeolithic
 		}

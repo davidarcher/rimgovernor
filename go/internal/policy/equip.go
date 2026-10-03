@@ -17,9 +17,8 @@ type EquipCandidatePawn struct {
 	// LoneFighter must be explicitly known before assigning area-fire weapons.
 	LoneFighter bool
 	RaidArmor   domain.Fact[float64]
-	// Current is scored only when automation owns the exact equipped identity.
-	Current         *EquipCandidateWeapon
-	AutomationOwned bool
+	// Current is the equipped primary: the bot owns every equipment decision.
+	Current *EquipCandidateWeapon
 }
 
 // EquipCandidateWeapon describes one already-observed loose weapon.
