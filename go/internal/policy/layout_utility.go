@@ -48,7 +48,7 @@ const (
 // coolingRoles are the rooms that need a cooler, most important first;
 // the tomb keeps colonist corpses frozen (#840), the meal closet the
 // dining room's meals (#936).
-var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMealCloset}
+var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMorgue, ModuleMealCloset}
 
 // penCellsPerAnimal sizes the animal pen: cells per penned animal (#1593).
 const penCellsPerAnimal = 10

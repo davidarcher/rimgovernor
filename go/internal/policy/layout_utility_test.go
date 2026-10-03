@@ -228,7 +228,7 @@ func TestPlanUtilities(t *testing.T) {
 			lanes = append(lanes, r)
 		}
 	}
-	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 2 {
+	if count[ReserveTurbine] != 4 || count[ReserveTurbineLane] != 6 || count[ReserveSolar] != 2 || count[ReserveGeothermal] != 1 || count[ReserveExhaust] != 3 {
 		t.Fatal(count)
 	}
 	// Battery room: 5 wide off the spine, door on the walkway, no lane.

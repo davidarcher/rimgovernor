@@ -229,9 +229,18 @@ func PerishablesFilter() StockpileFilter {
 }
 
 // TombCorpsesFilter holds human corpses, fresh or not: the tomb room's stock
-// until they are buried, entombed or butchered.
+// until they are buried, entombed or butchered. Strangers belong to the
+// morgue (#1820), so a tie at Critical never draws them in.
 func TombCorpsesFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil)
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, []FilterSelector{SpecialFilter("AllowCorpsesStranger")})
+	return f
+}
+
+// MorgueCorpsesFilter holds fresh stranger corpses only (#1820): humanlike,
+// not rotting, never a colonist or slave, who keep the tomb. Strangers kept
+// cold stay butcherable.
+func MorgueCorpsesFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, []FilterSelector{SpecialFilter("AllowRotten"), SpecialFilter("AllowCorpsesColonist"), SpecialFilter("AllowCorpsesSlave")})
 	return f
 }
 

@@ -16,6 +16,7 @@ const (
 	CorpsesRolePrefix     = "corpses:"
 	PerishablesRolePrefix = "perishables:"
 	TombRolePrefix        = "tomb:"
+	MorgueRolePrefix      = "morgue:"
 	YardRole              = "yard" // the materials yard (#1771): unroofed, Low priority
 	MedicineRolePrefix    = "medicine:"
 	ArmoryRolePrefix      = "armory:"   // the armory (#1774): weapons and armor, filling its room

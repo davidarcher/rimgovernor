@@ -37,6 +37,15 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	}
 	step := tombStep(reading.Projection)
 	if step.Kind == policy.TombNone {
+		if morgue, owed := plannedMorgue(reading.Projection); owed {
+			clockSchedulerLog("%s: morgue shell for a waiting stranger corpse", goal.Goal.ID)
+			result, err := r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, morgue, plannedRoomMethod(morgue), "")
+			// A shell already tried this epoch, or refused, leaves the
+			// cremation to go on.
+			if err != nil || !result.Verdict.skipsToPlacement() {
+				return RoutineWasteResult{Verdict: result.Verdict}, true, err
+			}
+		}
 		return r.stageDisposal(call, epoch, state, review, goal, reading)
 	}
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)

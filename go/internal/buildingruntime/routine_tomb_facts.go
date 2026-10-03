@@ -79,12 +79,25 @@ func cremationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	return policy.CremationOwed(facts.DefinitionAvailable(policy.CrematoriumDefinition), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction, strangerButchery(facts))
 }
 
-// corpsesOwed is the review's CorpsesOwed fact: the tomb or the
+// plannedMorgue is the planned morgue a waiting fresh stranger corpse owes
+// a shell (#1820); false while the plan, rooms or waste census is unread.
+func plannedMorgue(facts observation.ColonyProjection) (policy.LayoutRoom, bool) {
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	waste, wk := facts.Facts.Waste.Value()
+	if !pk || !rk || !wk {
+		return policy.LayoutRoom{}, false
+	}
+	return policy.MorgueRoomOwed(plan, rooms, waste, strangerButchery(facts))
+}
+
+// corpsesOwed is the review's CorpsesOwed fact: the tomb, the morgue or the
 // crematorium is owed.
 func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	tomb, tk := tombOwed(facts).Value()
 	cremation, ck := cremationOwed(facts).Value()
-	if burn, known := incineratorOwed(facts).Value(); known && burn || tk && tomb || ck && cremation {
+	burn, known := incineratorOwed(facts).Value()
+	if _, morgue := plannedMorgue(facts); morgue || known && burn || tk && tomb || ck && cremation {
 		return domain.Known(true)
 	}
 	if tk && ck {

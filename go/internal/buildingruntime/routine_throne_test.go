@@ -121,7 +121,7 @@ func TestThroneTargetsJoinTheRoomQualityTargets(t *testing.T) {
 func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
-	survey := openSurvey(120)
+	survey := openSurvey(140)
 	reads := 0
 	r := &RoutineReviewer{player: s.player, native: countingSurvey{survey: survey, reads: &reads}}
 	snapshot := s.player.session.State().Snapshot

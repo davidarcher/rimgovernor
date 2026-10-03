@@ -80,7 +80,7 @@ func TestTombOwedFallsBackToAGrave(t *testing.T) {
 }
 
 func TestCoreGrowPlansATomb(t *testing.T) {
-	if coreRoomSize[ModuleTomb] != [2]int32{5, 5} || coreBaseRooms[len(coreBaseRooms)-1] != ModuleTomb {
+	if coreRoomSize[ModuleTomb] != [2]int32{5, 5} || !containsRole(coreBaseRooms, ModuleTomb) {
 		t.Fatal("the tomb is not a base room")
 	}
 	if role, ok := LayoutModule(RoomRoleTomb); !ok || role != ModuleTomb {

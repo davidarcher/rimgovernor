@@ -38,6 +38,7 @@ var roomOverlay = map[ModuleRole]overlayStyle{
 	ModuleWorkshop:         {planBrown, "workshop"},
 	ModuleReserve:          {planGray, "reserve"},
 	ModuleTomb:             {planGray, "tomb"},
+	ModuleMorgue:           {planCyan, "morgue"},
 	ModuleThrone:           {planAmber, "throne room"},
 	ModuleNursery:          {planGreen, "nursery"},
 	ModulePlayroom:         {planYellow, "playroom"},

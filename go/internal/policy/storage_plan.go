@@ -90,6 +90,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	if r.Layout != nil && r.Rooms != nil {
 		plan.Sites = append(plan.Sites, r.freezerSites()...)
 		plan.Sites = append(plan.Sites, r.tombSites()...)
+		plan.Sites = append(plan.Sites, r.morgueSites()...)
 		plan.Sites = append(plan.Sites, r.warehouseSites()...)
 		plan.Sites = append(plan.Sites, r.yardSites()...)
 		plan.Sites = append(plan.Sites, r.gearSites()...)
@@ -139,6 +140,23 @@ func (r StorageRequest) freezerSites() []StockpileSite {
 	}
 	return append(out, StockpileSite{Role: domain.PerishablesRolePrefix + room.ID, Room: room.Cells, Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority, Remainder: true,
 		Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}})
+}
+
+// morgueSites are the first standing morgue's fresh stranger corpse store,
+// the whole room (#1820). Critical, so a fresh stranger hauls here ahead of
+// the Low corpse dump; a corpse that rots in it falls out of the filter and
+// goes to the dump.
+func (r StorageRequest) morgueSites() []StockpileSite {
+	for _, morgue := range r.Layout.AllRooms() {
+		if morgue.Role != ModuleMorgue {
+			continue
+		}
+		if room, ok := PlannedRoomStanding(morgue, *r.Rooms); ok && len(room.Cells) > 0 {
+			return []StockpileSite{{Role: domain.MorgueRolePrefix + room.ID, Room: room.Cells, Filter: domain.MorgueCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
+				Candidates: [][]domain.Cell{roomPool(room.Cells, r.Cells, r.Protected)}}}
+		}
+	}
+	return nil
 }
 
 // tombSites are the first standing tomb's corpse store, the whole room.

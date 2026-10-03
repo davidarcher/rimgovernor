@@ -21,6 +21,10 @@ const (
 	// ModuleTomb is the sarcophagus room (#832), shelled only once a
 	// colonist lies dead.
 	ModuleTomb ModuleRole = "tomb"
+	// ModuleMorgue is the cold room for fresh stranger corpses (#1820),
+	// beside the tomb and shelled only once a butcherable stranger corpse
+	// lies waiting.
+	ModuleMorgue ModuleRole = "morgue"
 )
 
 // coreRoomSize is a role's interior: width along the spine, depth away
@@ -38,6 +42,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 	ModuleStorage:  {9, 7},
 	ModuleLab:      {6, 5},
 	ModuleTomb:     {5, 5},
+	ModuleMorgue:   {5, 4},
 	// The gear rooms (layout_gear.go) are added on demand, not in coreBaseRooms.
 	ModuleArmory:   {7, 5},
 	ModuleWardrobe: {7, 5},
@@ -50,7 +55,7 @@ var coreRoomSize = map[ModuleRole][2]int32{
 var coreBaseRooms = []ModuleRole{
 	ModuleBarracks, ModuleKitchen, ModuleFreezer, ModuleDining, ModuleButchery, ModuleRec,
 	ModuleWorkshop, ModuleStorage, ModuleHospital, ModulePrison, ModuleLab,
-	ModuleTomb,
+	ModuleTomb, ModuleMorgue,
 }
 
 // coreMaxDepth is the deepest interior, which bounds the core's cross-section.
