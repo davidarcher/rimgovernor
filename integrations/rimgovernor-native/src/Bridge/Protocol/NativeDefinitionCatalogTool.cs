@@ -84,26 +84,34 @@ namespace HomeBridge.BridgeTools
         private static Defs.DefSets DefSets(DefMirrorFill mirror)
         {
             var types = GenDefDatabase.AllDefTypesWithDatabases().Where(t => !t.IsAbstract).ToDictionary(t => t.FullName ?? t.Name, StringComparer.Ordinal);
+            // A def class below another concrete def class has no database of
+            // its own (AllDefTypesWithDatabases): its defs sit in the root
+            // class's database, so every database is read once and the defs are
+            // grouped by their exact class.
+            var byClass = new Dictionary<Type, List<Def>>();
+            foreach (var root in types.Values)
+                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(root))
+                {
+                    if (!byClass.TryGetValue(def.GetType(), out var group)) byClass[def.GetType()] = group = new List<Def>();
+                    group.Add(def);
+                }
             var mirrored = new HashSet<Type> { typeof(ThingDef), typeof(TerrainDef) };
             var sets = new Defs.DefSets();
             foreach (var field in Defs.DefSets.Descriptor.Fields.InFieldNumberOrder())
             {
                 var clr = mirror.ClrName(field.MessageType) ?? throw new InvalidOperationException($"DefSets.{field.Name} has no clr_type option.");
-                if (!types.TryGetValue(clr, out var type))
-                {
-                    // A def class of an expansion that is not loaded has no def
-                    // database: its set is empty. A class the game does not
-                    // have at all is a stale mapping and fails the read.
-                    var known = GenTypes.GetTypeInAnyAssembly(clr);
-                    if (known == null || !typeof(Def).IsAssignableFrom(known)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
-                    continue;
-                }
+                // A class the game does not have at all is a stale mapping and
+                // fails the read; a def class of an expansion that is not loaded
+                // has no defs: its set is empty.
+                var type = GenTypes.GetTypeInAnyAssembly(clr);
+                if (type == null || !typeof(Def).IsAssignableFrom(type)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
                 mirrored.Add(type);
+                if (!byClass.TryGetValue(type, out var defs)) continue;
                 var list = (IList)field.Accessor.GetValue(sets);
-                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(type).Where(d => d.GetType() == type).OrderBy(d => Named(d.defName, type.Name), StringComparer.Ordinal))
+                foreach (var def in defs.OrderBy(d => Named(d.defName, type.Name), StringComparer.Ordinal))
                     list.Add(mirror.Build(field.MessageType, def));
             }
-            var missing = types.Values.Where(t => !mirrored.Contains(t)).Select(t => t.FullName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+            var missing = types.Values.Concat(byClass.Keys).Distinct().Where(t => !mirrored.Contains(t)).Select(t => t.FullName).OrderBy(n => n, StringComparer.Ordinal).ToList();
             if (missing.Count > 0) throw new InvalidOperationException("Def classes the mirror has no field for: " + string.Join(", ", missing));
             return sets;
         }
