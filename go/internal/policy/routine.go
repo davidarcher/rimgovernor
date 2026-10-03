@@ -300,6 +300,9 @@ type RoutineFacts struct {
 	// neuroformer is held (PsylinkOwed, #1609); it holds MaintainPsylink
 	// open. Unknown unless the method is composed.
 	PsylinkOwed domain.Fact[bool]
+	// RolesOwed: an active ideoligion role has a free place and a fitting
+	// believer (RolesOwed, #1661); it holds MaintainIdeoRoles open.
+	RolesOwed domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering, #1326).
 	ShelterArea domain.Fact[string]
@@ -1364,6 +1367,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainPsylink, 3, measured(f.PsylinkOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.PsylinkOwed.Value(); known && owed {
 		addGoal(MaintainPsylink, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainIdeoRoles (#1661): a role place and a fitting believer.
+	addAssessment(MaintainIdeoRoles, 3, measured(f.RolesOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.RolesOwed.Value(); known && owed {
+		addGoal(MaintainIdeoRoles, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	// MaintainPermits (#1606): a colonist holds permit points for a permit

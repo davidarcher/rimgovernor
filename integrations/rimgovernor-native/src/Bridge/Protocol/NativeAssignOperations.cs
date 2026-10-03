@@ -114,11 +114,16 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Assign, context, out _, out _, out _);
+        // The ideology role the intent targets, when its thing id names one (#1661).
+        private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find(intent!.ThingId) : null;
+
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
+            RoleTarget(action.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Assign, context, role) : Resolve(action.Assign, context, out _, out _, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var intent = action.Assign;
+            if (RoleTarget(intent) is Precept_Role role) return IdeoRoleAssignment.Apply(intent, context, role);
             var failure = Resolve(intent, context, out var pawn, out var thing, out var assignable);
             if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + failure.Detail);
             if (assignable != null && thing is Building_Bed bed && intent.HasSwap && intent.Swap)

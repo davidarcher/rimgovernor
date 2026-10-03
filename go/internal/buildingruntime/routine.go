@@ -394,6 +394,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.psylink != nil {
 		psylinkCandidates, reading.Projection.Facts.PsylinkOwed = r.psylink.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection)
 	}
+	if r.methodEnabled(policy.MaintainIdeoRoles) {
+		reading.Projection.Facts.RolesOwed = policy.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns)
+	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}

@@ -819,6 +819,16 @@ var plannerCatalog = []plannerEntry{
 			out.Psylink = &method
 			return method.Verdict, nil
 		}},
+	{name: "ideoRoles", goal: policy.MaintainIdeoRoles, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AssignAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.IdeoRoles != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.IdeoRoles.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.IdeoRoles = &method
+			return method.Verdict, nil
+		}},
 	{name: "permits", goal: policy.MaintainPermits, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RoyaltyAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Permits != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

@@ -288,6 +288,10 @@ fire target cell); `Focus`, `Invisibility`, `Overshield`-class self buffs
 (social targets the mood and prisoner planners do not measure); `Resurrect`
 (an irreversible spend on a corpse choice); and every combat psycast (#1611).
 
+`MaintainIdeoRoles` (#1661, `policy.RoleAssignments`) fills the ideoligion's
+active role precepts with the best-fitting believers through the shared
+Assign intent; see [ideology contracts](ideology-contracts.md#role-assignment).
+
 `MaintainPermits` (#1606, `policy.NextPermit`) spends permit points. Each
 review ranks every untaken permit of every titled colonist's holding
 (`policy.RankPermits`): acting permits by the royalty read's permit worker

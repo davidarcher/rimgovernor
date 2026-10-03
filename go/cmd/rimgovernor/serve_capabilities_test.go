@@ -34,6 +34,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"firebreak", policy.MaintainFirebreak},
 		{"psylink", policy.MaintainPsylink},
 		{"permits", policy.MaintainPermits},
+		{"ideo-roles", policy.MaintainIdeoRoles},
 		{"equip", policy.EnsureBasicDefense},
 		{"gear", policy.MaintainEquipment},
 	}

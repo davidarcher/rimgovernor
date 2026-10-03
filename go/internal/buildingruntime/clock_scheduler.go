@@ -135,6 +135,7 @@ type ClockSchedulerConfig struct {
 	Firebreak           *RoutineFirebreakPlanner
 	Psylink             *RoutinePsylinkPlanner
 	Permits             *RoutinePermitsPlanner
+	IdeoRoles           *RoutineIdeoRolesPlanner
 	StoneShell          *RoutineStoneShellPlanner
 	Tidy                *RoutineTidyPlanner
 	Stockpiles          *RoutineStockpilePlanner
@@ -216,6 +217,7 @@ type ClockSchedulerResult struct {
 	Firebreak                    *RoutineFirebreakResult
 	Psylink                      *RoutinePsylinkResult
 	Permits                      *RoutinePermitsResult
+	IdeoRoles                    *RoutineIdeoRolesResult
 	StoneShell                   *RoutineStoneShellResult
 	Tidy                         *RoutineTidyResult
 	Stockpiles                   *RoutineStockpileResult
@@ -571,6 +573,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Psylink != nil && (config.Routine == nil || config.Psylink.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Psylink != nil && (config.Routine == nil || config.Psylink.reviewer != config.Routine)", ErrControl)
+	}
+	if config.IdeoRoles != nil && (config.Routine == nil || config.IdeoRoles.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.IdeoRoles != nil && (config.Routine == nil || config.IdeoRoles.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Permits != nil && (config.Routine == nil || config.Permits.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Permits != nil && (config.Routine == nil || config.Permits.reviewer != config.Routine)", ErrControl)

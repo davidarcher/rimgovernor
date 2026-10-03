@@ -640,6 +640,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.routineIdeoRolePlans {
+			// MaintainIdeoRoles (#1661) plans from the review's ideology section and pawn rows.
+			if config.IdeoRoles, err = buildingruntime.NewRoutineIdeoRolesPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if sc.routineShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
@@ -1000,6 +1006,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routinePermitPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPermits)
+	}
+	if sc.routineIdeoRolePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainIdeoRoles)
 	}
 	if sc.routineStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)

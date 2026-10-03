@@ -88,10 +88,24 @@ Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker th
 disposition still gates the worker. The game raises no history event for burying, entombing or
 burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
 
+## Role assignment
+
+`MaintainIdeoRoles` (#1661, `policy.RoleAssignments`) keeps the role precepts
+filled. Each review gives every active role with fewer holders than its def's
+`maxCount` to the available believer (same `ideo_id`, no role yet, skills
+read) who best fits it: a pawn must meet, for every role requirement that
+lists skills, one listed skill at its minimum level and enabled; the score is
+the sum of the best matching skill levels, ties go to higher certainty, then
+the lower pawn id. Requirements without skills are the game's to judge at
+apply. A pawn that holds a role is never moved. The planner commits one Assign
+whose `thing_id` is the role precept id and whose expected previous is none;
+the write is the shared Assign intent ([action contracts](action-contracts.md)),
+postcondition: the pawn holds the role. At most `maxMedicalAttemptsPerPatient`
+tries per pawn and role per goal epoch. Composed by the `ideo-roles` routine family.
+
 ## Not here
 
-Role
-assignment (#1661) and ritual intents (#1659) consume these facts; writes
-reuse the shared Assign and Ritual shapes. Building and room planning (#1658)
+Ritual intents (#1659) consume these facts; writes reuse the shared Assign
+and Ritual shapes. Building and room planning (#1658)
 consumes `RequiredBuildings`:
 [worship room](../architecture/facilities.md#worship-room-ideology).
