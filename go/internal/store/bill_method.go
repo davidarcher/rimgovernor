@@ -30,9 +30,9 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
 	// a standing bench (#233), and the refrigeration goal whose solar-flare
 	// answer is a cook-ahead bill (#408), and the art goal's pinned sculpture
-	// bills (#1190), and the baby feeding goal's baby food bill (#1681), and the mech goal's gestation bills (#1686).
+	// bills (#1190), and the baby feeding goal's baby food bill (#1681), and the mech goal's gestation bills (#1686), and the surgery goal's part bills (#1168, #1755).
 	need, bound := owner.ownerNeed(review)
-	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainAnimalFeed || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt || need == policy.MaintainBabyFeeding || need == policy.MaintainMechs)
+	bound = bound && (need == policy.EnsureCooking || need == policy.EnsureFoodSupply || need == policy.MaintainFoodStorage || need == policy.MaintainResource || need == policy.MaintainAnimalFeed || need == policy.MaintainEquipment || need == policy.MaintainRefrigeration || need == policy.MaintainArt || need == policy.MaintainBabyFeeding || need == policy.MaintainMechs || need == policy.MaintainSurgery)
 	if !bound {
 		return fmt.Errorf("%w: %s does not admit production bills", ErrConflict, owner.ownerLabel())
 	}
