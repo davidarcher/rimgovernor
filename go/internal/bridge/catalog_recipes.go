@@ -100,7 +100,11 @@ func (catalog *DefinitionCatalog) deriveRecipeRole(row *d.RecipeDef) (domain.Rec
 		if err != nil {
 			return domain.RoleNone, err
 		}
-		if compOf(def, (*d.CompPropertiesAny).GetCompProperties_Art) != nil {
+		// A sculpture is a minifiable building with an art comp made of a
+		// stuff; a weapon or apparel can carry CompArt too (Make_Gun_BeamRepeater)
+		// and a ritual sculpture costs fixed items (VoidSculpture), neither is one.
+		if def.GetCategory() == d.ThingCategory_THING_CATEGORY_BUILDING && def.GetMinifiedDef() != "" && def.GetCostStuffCount() > 0 &&
+			compOf(def, (*d.CompPropertiesAny).GetCompProperties_Art) != nil {
 			return domain.RoleSculpture, nil
 		}
 	}

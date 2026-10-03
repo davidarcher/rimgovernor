@@ -22,7 +22,7 @@ func TestSculpturesComeFromTheRows(t *testing.T) {
 	catalog.ThingDefs["SculptureSmall"].CostStuffCount = 50
 	catalog.ThingDefs["SculptureSmall"].StatBases = []*d.Opt_StatModifier{stat("WorkToMake", 18000)}
 	catalog.ThingDefs["SculptureGrand"] = &d.ThingDef{DefName: "SculptureGrand", ThingClass: "Verse.ThingWithComps", CostStuffCount: 400,
-		Size: &d.IntVec2{X: 2, Z: 2}, Comps: []*d.Opt_CompPropertiesAny{artComp()}}
+		Size: &d.IntVec2{X: 2, Z: 2}, Category: d.ThingCategory_THING_CATEGORY_BUILDING, MinifiedDef: "MinifiedThing", Comps: []*d.Opt_CompPropertiesAny{artComp()}}
 	got, err := catalog.sculptures()
 	if err != nil {
 		t.Fatal(err)
@@ -33,5 +33,24 @@ func TestSculpturesComeFromTheRows(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("sculptures %+v, want %+v", got, want)
+	}
+}
+
+// TestSculpturesOnTheFullRecording: a weapon carrying CompArt (Odyssey's
+// Make_Gun_BeamRepeater) is not a sculpture, and every real sculpture has the
+// work and stuff cost the planner needs.
+func TestSculpturesOnTheFullRecording(t *testing.T) {
+	catalog := fullCatalog(t)
+	got, err := catalog.sculptures()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("no sculptures on the full recording")
+	}
+	for _, s := range got {
+		if s.Recipe == "Make_Gun_BeamRepeater" {
+			t.Fatalf("a weapon is a sculpture: %+v", s)
+		}
 	}
 }

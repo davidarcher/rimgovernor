@@ -39,6 +39,7 @@ func recipeFixture() *DefinitionCatalog {
 		{DefName: "CookMealSimple", Products: []*d.Opt_ThingDefCountClass{product("MealSimple", 1)}, Ingredients: []*d.Opt_IngredientCount{slot(&d.ThingFilter{Categories: []string{"FoodRaw"}}, 0.5)}},
 		{DefName: "CookMealSurvival", Products: []*d.Opt_ThingDefCountClass{product("MealSurvivalPack", 1)}},
 		{DefName: "Make_SculptureSmall", Products: []*d.Opt_ThingDefCountClass{product("SculptureSmall", 1)}},
+		{DefName: "Make_Gun_Art", Products: []*d.Opt_ThingDefCountClass{product("Gun_Art", 1)}},
 		{DefName: "Make_Steel", Products: []*d.Opt_ThingDefCountClass{product("Steel", 1)}},
 		{DefName: "Make_Stool", Products: []*d.Opt_ThingDefCountClass{product("Stool", 1)}},
 	}
@@ -59,7 +60,8 @@ func recipeFixture() *DefinitionCatalog {
 		"Apparel_Parka":    {DefName: "Apparel_Parka", ThingClass: "RimWorld.Apparel", ThingCategories: []string{"Apparel"}},
 		"MealSimple":       {DefName: "MealSimple", ThingClass: thing, Comps: []*d.Opt_CompPropertiesAny{rottable()}},
 		"MealSurvivalPack": {DefName: "MealSurvivalPack", ThingClass: thing},
-		"SculptureSmall":   {DefName: "SculptureSmall", ThingClass: thing, Comps: []*d.Opt_CompPropertiesAny{artComp()}},
+		"SculptureSmall":   {DefName: "SculptureSmall", ThingClass: thing, Category: d.ThingCategory_THING_CATEGORY_BUILDING, MinifiedDef: "MinifiedThing", CostStuffCount: 50, Comps: []*d.Opt_CompPropertiesAny{artComp()}},
+		"Gun_Art":          {DefName: "Gun_Art", ThingClass: thing, Category: d.ThingCategory_THING_CATEGORY_ITEM, Comps: []*d.Opt_CompPropertiesAny{artComp()}},
 		"Steel":            {DefName: "Steel", ThingClass: thing},
 		"Stool":            {DefName: "Stool", ThingClass: thing},
 	}
@@ -67,6 +69,7 @@ func recipeFixture() *DefinitionCatalog {
 		"MealSimple":       {DefName: "MealSimple", FoodKind: o.FoodKind_FOOD_KIND_MEAL_SIMPLE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_ANY.Enum()},
 		"MealSurvivalPack": {DefName: "MealSurvivalPack", FoodKind: o.FoodKind_FOOD_KIND_MEAL_SIMPLE.Enum(), MealIngredients: o.MealIngredients_MEAL_INGREDIENTS_ANY.Enum()},
 		"SculptureSmall":   {DefName: "SculptureSmall"},
+		"Gun_Art":          {DefName: "Gun_Art"},
 		"Steel":            {DefName: "Steel"},
 		"Stool":            {DefName: "Stool"},
 	}
@@ -95,6 +98,7 @@ func TestRecipeRolesComeFromTheRows(t *testing.T) {
 		"CookMealSimple":      domain.RoleOrdinaryMeal,
 		"CookMealSurvival":    domain.RoleNone,
 		"Make_SculptureSmall": domain.RoleSculpture,
+		"Make_Gun_Art":        domain.RoleNone, // a weapon with CompArt is not a sculpture
 		"Make_Steel":          domain.RoleNone,
 	} {
 		got, err := catalog.RecipeRole(recipe)
