@@ -369,6 +369,8 @@ namespace HomeBridge.BridgeTools
                 Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) }, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
+            // The stuff a thing is made of keys its catalog stat row (def, stuff).
+            if (thing.Stuff != null) row.Stuff = Identifier(thing.Stuff.defName);
             // A plant's growth marks the cell sown (#1567).
             if (thing is Plant plant) { row.Growth = Finite(plant.Growth); row.HarvestableNow = plant.HarvestableNow; }
             if (thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible)) FoodFacts(thing, row);
