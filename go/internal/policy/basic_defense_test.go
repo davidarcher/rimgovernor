@@ -35,7 +35,7 @@ func TestUnarmedFightersAndWeaponRecipes(t *testing.T) {
 	if n := UnarmedFighters(pawns, nil); n != 1 {
 		t.Fatal(n)
 	}
-	club := []EquipCandidateWeapon{{Thing: "club", Definition: "MeleeWeapon_Club", Class: WeaponMelee}}
+	club := []EquipCandidateWeapon{{Thing: "club", Definition: "MeleeWeapon_Club", Class: WeaponMelee, Facts: coreFacts("MeleeWeapon_Club")}}
 	if n := UnarmedFighters(pawns, club); n != 0 {
 		t.Fatal("a loose club still left a fighter to craft for", n)
 	}

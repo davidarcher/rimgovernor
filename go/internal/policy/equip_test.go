@@ -13,8 +13,8 @@ func TestSelectEquipPairsNearestWeaponToLowestPawnID(t *testing.T) {
 		{Pawn: "a-unarmed", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), IncapableOfViolence: domain.Known(false), Armed: domain.Known(false), Position: domain.Cell{X: 5, Z: 5}},
 	}
 	weapons := []EquipCandidateWeapon{
-		{Thing: "far", Definition: "Gun_Revolver", Cell: domain.Cell{X: 50, Z: 50}, Class: WeaponRanged},
-		{Thing: "near", Definition: "Gun_Revolver", Cell: domain.Cell{X: 6, Z: 5}, Class: WeaponRanged},
+		{Thing: "far", Definition: "Gun_Revolver", Cell: domain.Cell{X: 50, Z: 50}, Class: WeaponRanged, Facts: coreFacts("Gun_Revolver")},
+		{Thing: "near", Definition: "Gun_Revolver", Cell: domain.Cell{X: 6, Z: 5}, Class: WeaponRanged, Facts: coreFacts("Gun_Revolver")},
 	}
 	pawn, weapon, ok := SelectEquip(pawns, weapons)
 	if !ok || pawn != "a-unarmed" || weapon.Thing != "near" {
@@ -45,9 +45,9 @@ func TestSelectEquipPrefersRealWeaponsOverMakeshift(t *testing.T) {
 	pawns := []EquipCandidatePawn{{Pawn: "a", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), IncapableOfViolence: domain.Known(false), Armed: domain.Known(false), Position: domain.Cell{X: 5, Z: 5}}}
 	weapons := []EquipCandidateWeapon{
 		{Thing: "log", Definition: "WoodLog", Cell: domain.Cell{X: 5, Z: 6}},
-		{Thing: "club", Definition: "MeleeWeapon_Club", Cell: domain.Cell{X: 6, Z: 6}, Class: WeaponMelee},
-		{Thing: "bow-far", Definition: "Modded_Sling", Cell: domain.Cell{X: 20, Z: 5}, Class: WeaponRanged},
-		{Thing: "bow-near", Definition: "Modded_Sling", Cell: domain.Cell{X: 9, Z: 5}, Class: WeaponRanged},
+		{Thing: "club", Definition: "MeleeWeapon_Club", Cell: domain.Cell{X: 6, Z: 6}, Class: WeaponMelee, Facts: coreFacts("MeleeWeapon_Club")},
+		{Thing: "bow-far", Definition: "Modded_Sling", Cell: domain.Cell{X: 20, Z: 5}, Class: WeaponRanged, Facts: coreFacts("Modded_Sling")},
+		{Thing: "bow-near", Definition: "Modded_Sling", Cell: domain.Cell{X: 9, Z: 5}, Class: WeaponRanged, Facts: coreFacts("Modded_Sling")},
 	}
 	_, weapon, ok := SelectEquip(pawns, weapons)
 	if !ok || weapon.Thing != "bow-near" {

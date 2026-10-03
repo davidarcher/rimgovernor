@@ -30,21 +30,46 @@ type CombatMortar struct {
 	Loaded string `json:",omitempty"`
 }
 
-// The vanilla mortar shells the counter-battery fires (#1051).
+// ShellKind is what a mortar shell does when it lands, the kinds the
+// counter-battery fires (#1051): blast, burn or stun.
+type ShellKind int
+
 const (
-	ShellHE         = "Shell_HighExplosive"
-	ShellIncendiary = "Shell_Incendiary"
-	ShellEMP        = "Shell_EMP"
+	ShellHE ShellKind = iota + 1
+	ShellIncendiary
+	ShellEMP
 )
+
+// MortarShells are the shell defs of the load that do each kind of damage
+// (#1723), classified from their projectile's damage def rows
+// (bridge.DefinitionCatalog.MortarShells says how). A kind the load has no
+// shell for, or states ambiguously, is "": the counter-battery fires what
+// the mortar holds instead and the armory stocks none.
+type MortarShells struct {
+	HE, Incendiary, EMP string
+}
+
+// Def is the shell def of kind, "" when the load has none.
+func (s MortarShells) Def(kind ShellKind) string {
+	switch kind {
+	case ShellHE:
+		return s.HE
+	case ShellIncendiary:
+		return s.Incendiary
+	case ShellEMP:
+		return s.EMP
+	}
+	return ""
+}
 
 // campClumpRadius is how far, in cells, besiegers count into one camp
 // clump around a besieger the mortar aims at.
 const campClumpRadius = 5.0
 
-// mortarSafeRadius is the friendly danger radius (#1051, #1208): a target
+// MortarSafeRadius is the friendly danger radius (#1051, #1208): a target
 // with a colonist this close has arrived, and a mortar's scatter would
 // land on our own.
-const mortarSafeRadius = 10.0
+const MortarSafeRadius = 10.0
 
 // HostileStructure is a standing hostile building in the census (#930,
 // #931): a crashed ship part, a mech-cluster piece, a siege or mech
@@ -119,16 +144,16 @@ func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []morta
 	shelled := map[domain.Cell]bool{} // camp aims HE already falls on
 	var stood []mortarStand
 	for _, mortar := range mortars {
-		aim, shell, ok := mortarAim(view, mortar)
+		aim, kind, ok := mortarAim(view, mortar)
 		if !ok {
 			if crew, was := crewed[mortar.Cell]; was {
 				stood = append(stood, mortarStand{Cell: mortar.Cell, Crew: crew})
 			}
 			continue
 		}
-		if shell == ShellHE && campAim(view, aim) {
+		if kind == ShellHE && campAim(view, aim) {
 			if shelled[aim] {
-				shell = ShellIncendiary
+				kind = ShellIncendiary
 			}
 		}
 		free := func(id domain.PawnID) bool {
@@ -152,11 +177,13 @@ func counterBattery(view CombatView, prev []CombatRole, m *CombatMemory) []morta
 			continue
 		}
 		busy[crew] = true
-		if shell == ShellHE && campAim(view, aim) {
+		if kind == ShellHE && campAim(view, aim) {
 			shelled[aim] = true
 		}
-		if slices.Contains(m.NoShells, shell) {
-			// Refused for want of it: fire what is loaded (#1051).
+		// A kind the load has no shell for, or one refused for want of it,
+		// fires what is loaded (#1051).
+		shell := view.Shells.Def(kind)
+		if shell == "" || slices.Contains(m.NoShells, shell) {
 			shell = mortar.Loaded
 		}
 		cell, target := mortar.Cell, aim
@@ -198,7 +225,7 @@ func standDown(stood []mortarStand, orders []CombatOrder, orderable map[domain.P
 // enemy mortar in its range, else HE on a psychic ritual's caster (#1739),
 // else HE on the camp clump, else HE on the
 // nearest centipede, else HE on the nearest other non-hive structure.
-func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool) {
+func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, ShellKind, bool) {
 	inRange := func(c domain.Cell) bool {
 		d := dist(c, mortar.Cell)
 		return d >= mortar.MinRange && d <= mortar.MaxRange
@@ -240,13 +267,13 @@ func mortarAim(view CombatView, mortar CombatMortar) (domain.Cell, string, bool)
 	if c, ok := nearest(other); ok {
 		return c, ShellHE, true
 	}
-	return domain.Cell{}, "", false
+	return domain.Cell{}, 0, false
 }
 
 // besiegerCells are the cells of the live besiegers camped at the siege
 // (#776, #1208): a siege still travelling in is a moving raid the mortar
 // leaves alone, and one that breaks camp to assault drops out, so the
-// crew stops. A besieger within mortarSafeRadius of a colonist is never
+// crew stops. A besieger within MortarSafeRadius of a colonist is never
 // aimed at.
 func besiegerCells(view CombatView) []domain.Cell {
 	besiegers := liveBesiegers(view)
@@ -325,9 +352,9 @@ func colonistCells(view CombatView) []domain.Cell {
 	return ours
 }
 
-// nearAny reports a cell within mortarSafeRadius of one of ours.
+// nearAny reports a cell within MortarSafeRadius of one of ours.
 func nearAny(ours []domain.Cell, c domain.Cell) bool {
-	return slices.ContainsFunc(ours, func(o domain.Cell) bool { return dist(o, c) <= mortarSafeRadius })
+	return slices.ContainsFunc(ours, func(o domain.Cell) bool { return dist(o, c) <= MortarSafeRadius })
 }
 
 // mechAt reports a mechanoid standing on c (#1208): EMP, not HE, on a

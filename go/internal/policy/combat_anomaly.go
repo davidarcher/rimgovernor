@@ -41,7 +41,7 @@ func hiddenFromPlayer(t SquadThreatFacts) bool {
 }
 
 // ritualCasterCells are the live ritual casters' known cells, not within
-// mortarSafeRadius of a colonist: shelled while they cast, before a
+// MortarSafeRadius of a colonist: shelled while they cast, before a
 // colonist is near enough for the scatter to land on it (#1739).
 func ritualCasterCells(view CombatView) []domain.Cell {
 	caster := map[domain.PawnID]bool{}

@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -53,7 +54,8 @@ func decodeCombatWithCatalog(frame *o.BundleSnapshot) (bridge.Combat, error) {
 		}
 	}
 	combat.Catalog = bridge.FixtureCatalog("load", defs...)
-	return combat, nil
+	combat.Shells, err = combat.Catalog.MortarShells(policy.MortarSafeRadius)
+	return combat, err
 }
 
 // recordedRaces are the race rows the recorded fights' animals had before the

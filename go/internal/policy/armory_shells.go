@@ -18,8 +18,9 @@ const (
 )
 
 // MortarShellTargets is the shell stock the armory keeps for the built
-// mortars under assessment a: none without a mortar or an observed threat.
-func MortarShellTargets(mortars int, a ArmoryAssessment) []Amount {
+// mortars under assessment a: none without a mortar or an observed threat,
+// and none of a kind the load's shells (#1723) have no def for.
+func MortarShellTargets(mortars int, a ArmoryAssessment, shells MortarShells) []Amount {
 	if mortars <= 0 || a.Threat == ArmoryTierUnknown {
 		return nil
 	}
@@ -27,9 +28,16 @@ func MortarShellTargets(mortars int, a ArmoryAssessment) []Amount {
 	if a.Tier >= ArmoryTierFabrication {
 		scale *= 2
 	}
-	targets := []Amount{{Resource: Resource(ShellHE), Count: shellHEPerMortar * scale}, {Resource: Resource(ShellIncendiary), Count: shellIncendiaryPerMortar * scale}}
+	var targets []Amount
+	add := func(kind ShellKind, perMortar int64) {
+		if def := shells.Def(kind); def != "" {
+			targets = append(targets, Amount{Resource: Resource(def), Count: perMortar * scale})
+		}
+	}
+	add(ShellHE, shellHEPerMortar)
+	add(ShellIncendiary, shellIncendiaryPerMortar)
 	if a.Threat >= ArmoryTierFabrication {
-		targets = append(targets, Amount{Resource: Resource(ShellEMP), Count: shellEMPPerMortar * scale})
+		add(ShellEMP, shellEMPPerMortar)
 	}
 	return targets
 }

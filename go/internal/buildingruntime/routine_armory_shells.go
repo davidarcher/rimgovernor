@@ -25,13 +25,31 @@ func mortarsBuilt(ctx context.Context, journal *store.Store, snapshot domain.Gen
 	return len(tier.Buildings), nil
 }
 
+// loadMortarShells is the load's mortar shells by kind (#1723); a source that
+// serves no definitions has none, so the armory stocks no shells.
+func loadMortarShells(ctx context.Context, native any, snapshot domain.GenerationSnapshot) (policy.MortarShells, error) {
+	source, ok := native.(observation.DefinitionSource)
+	if !ok {
+		return policy.MortarShells{}, nil
+	}
+	catalog, err := source.DefinitionCatalog(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return policy.MortarShells{}, err
+	}
+	return catalog.MortarShells(policy.MortarSafeRadius)
+}
+
 // shellTargets is the armory's shell stock for the projection's colony.
-func shellTargets(ctx context.Context, journal *store.Store, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.Amount, error) {
+func shellTargets(ctx context.Context, native any, journal *store.Store, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.Amount, error) {
 	mortars, err := mortarsBuilt(ctx, journal, snapshot)
 	if err != nil {
 		return nil, err
 	}
-	return policy.MortarShellTargets(mortars, policy.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research)), nil
+	shells, err := loadMortarShells(ctx, native, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	return policy.MortarShellTargets(mortars, policy.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research), shells), nil
 }
 
 // stockShells admits one stock-target shell bill under MaintainEquipment
@@ -39,7 +57,7 @@ func shellTargets(ctx context.Context, journal *store.Store, snapshot domain.Gen
 // stock from then on; the planner only adds missing bills.
 func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state ControlState, review store.RoutineReview, projection observation.ColonyProjection, holds []policy.Amount) (RoutineArmoryResult, error) {
 	p := r.reviewer.player
-	targets, err := shellTargets(call, p.journal, state.Snapshot, projection)
+	targets, err := shellTargets(call, r.native, p.journal, state.Snapshot, projection)
 	if err != nil || len(targets) == 0 {
 		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, err
 	}

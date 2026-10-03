@@ -338,6 +338,8 @@ type CombatView struct {
 	// census's standing hostile buildings (#930).
 	Mortars    []CombatMortar     `json:",omitempty"`
 	Structures []HostileStructure `json:",omitempty"`
+	// Shells are the load's mortar shell defs by kind (#1723).
+	Shells MortarShells `json:",omitempty"`
 	// Population is the colony's colonist count; below
 	// domain.PopulationTarget the fight spares contained bleeders (#1035).
 	Population domain.Fact[int]

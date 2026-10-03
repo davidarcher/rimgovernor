@@ -854,6 +854,8 @@ type Combat struct {
 	// Catalog is the load's definition catalog: the mech kinds (#1736), the
 	// weapons' def rows (#1723) and the race rows (#1722) resolve against it.
 	Catalog *DefinitionCatalog
+	// Shells are the load's mortar shells by kind (#1723), read off Catalog.
+	Shells policy.MortarShells
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -883,6 +885,9 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	// An unbuildable race table fails the read here, so the fight's race
 	// lookups (which reuse the built table) never see the error.
 	if _, err = combat.Catalog.AnimalRaces(); err != nil {
+		return Combat{}, err
+	}
+	if combat.Shells, err = combat.Catalog.MortarShells(policy.MortarSafeRadius); err != nil {
 		return Combat{}, err
 	}
 	return combat, nil

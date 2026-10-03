@@ -19,6 +19,8 @@ import (
 // table and thing facts the planning views read.
 type FixtureDef struct {
 	Name string
+	// Shell makes the def a mortar shell (projectileWhenLoaded) (#1723).
+	Shell *FixtureShell
 	// Terrain makes the def a TerrainDef (buildable); the floor stats apply.
 	Terrain  bool
 	Research []string
@@ -84,8 +86,42 @@ type FixtureWeapon struct {
 	Range, ForcedMissRadius, ExplosionRadius float32
 	DamageDef                                string
 	Incendiary                               bool
-	// Capacities is the capacity of each of a melee weapon's tools.
+	// Capacities is the capacity of each of a melee weapon's tools: one
+	// stateless tool each (no power).
 	Capacities []string
+	// Tools are a melee weapon's tools as the game's XML states them.
+	Tools []FixtureTool
+	// Warmup is the verb's warmupTime; Cooldown the RangedWeapon_Cooldown stat;
+	// Burst the burstShotCount (0 is 1) and BurstGap the ticksBetweenBurstShots.
+	Warmup, Cooldown float32
+	Burst, BurstGap  int32
+	// Damage is the projectile's damageAmountBase (0 leaves it to the damage
+	// def, as the game's -1 does); AP its armorPenetrationBase (nil is the
+	// game's unstated -1).
+	Damage float32
+	AP     *float32
+	// Accuracy are the AccuracyTouch, Short, Medium and Long stats; all zero
+	// states none.
+	Accuracy [4]float32
+}
+
+// FixtureShell is a mortar shell's projectile (named Name+"_Projectile"):
+// the damage def it explodes with, its explosionRadius and whether it is
+// incendiary.
+type FixtureShell struct {
+	DamageDef       string
+	ExplosionRadius float32
+	Incendiary      bool
+}
+
+// FixtureTool is a melee tool: its capacities, power, cooldownTime,
+// armorPenetration (nil is the game's unstated -1) and chanceFactor (0 is 1).
+type FixtureTool struct {
+	Capacities   []string
+	Power        float32
+	Cooldown     float32
+	AP           *float32
+	ChanceFactor float32
 }
 
 // CoreWeaponFixtures are the Core weapons the planning tests name, stated the
@@ -93,27 +129,45 @@ type FixtureWeapon struct {
 func CoreWeaponFixtures() []FixtureDef {
 	shoot, oneUse, thrown := "Verse.Verb_Shoot", "RimWorld.Verb_ShootOneUse", "Verse.Verb_LaunchProjectile"
 	return []FixtureDef{
-		{Name: "Weapon_GrenadeFrag", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.9, DamageDef: "Bomb"}},
-		{Name: "Weapon_GrenadeMolotov", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true}},
-		{Name: "Weapon_GrenadeEMP", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 3.5, DamageDef: "EMP"}},
-		{Name: "Gun_EmpLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "EMP"}},
-		{Name: "Gun_IncendiaryLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true}},
-		{Name: "Gun_SmokeLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 2.4, DamageDef: "Smoke"}},
-		{Name: "Gun_TripleRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 2.9, ExplosionRadius: 3.9, DamageDef: "Bomb"}},
-		{Name: "Gun_DoomsdayRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 1.9, ExplosionRadius: 7.8, DamageDef: "Bomb"}},
-		{Name: "Gun_AssaultRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet"}},
-		{Name: "Gun_Minigun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet"}},
-		{Name: "Gun_PumpShotgun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 18.9, DamageDef: "Bullet"}},
-		{Name: "Gun_SniperRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 44.9, DamageDef: "Bullet"}},
-		{Name: "Bow_Short", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 22.9, DamageDef: "Arrow"}},
-		{Name: "MeleeWeapon_Club", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
-		{Name: "MeleeWeapon_Mace", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
+		{Name: "Weapon_GrenadeFrag", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.9, DamageDef: "Bomb", Warmup: 1.5, Cooldown: 2.66}},
+		{Name: "Weapon_GrenadeMolotov", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true, Warmup: 1.5, Cooldown: 2.66}},
+		{Name: "Weapon_GrenadeEMP", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 3.5, DamageDef: "EMP", Warmup: 1.5, Cooldown: 2.66}},
+		{Name: "Gun_EmpLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "EMP", Warmup: 3.5, Cooldown: 3.5}},
+		{Name: "Gun_IncendiaryLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true, Warmup: 3.5, Cooldown: 3.5}},
+		{Name: "Gun_SmokeLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 2.4, DamageDef: "Smoke", Warmup: 3.5, Cooldown: 4.5}},
+		{Name: "Gun_TripleRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 2.9, ExplosionRadius: 3.9, DamageDef: "Bomb", Warmup: 4.5, Cooldown: 4.5, Burst: 3, BurstGap: 20}},
+		{Name: "Gun_DoomsdayRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 1.9, ExplosionRadius: 7.8, DamageDef: "Bomb", Warmup: 4.5, Cooldown: 4.5}},
+		{Name: "Gun_AssaultRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet", Warmup: 1, Cooldown: 1.7, Burst: 3, BurstGap: 10, Damage: 11, Accuracy: [4]float32{.6, .7, .65, .55}}},
+		{Name: "Gun_Minigun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet", Warmup: 2.5, Cooldown: 1.5, Burst: 25, BurstGap: 5, Damage: 10, Accuracy: [4]float32{.2, .25, .25, .18}}},
+		{Name: "Gun_LMG", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 25.9, DamageDef: "Bullet", Warmup: 1.8, Cooldown: 1.6, Burst: 6, BurstGap: 7, Damage: 12, Accuracy: [4]float32{.4, .48, .35, .26}}},
+		{Name: "Gun_PumpShotgun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 15.9, DamageDef: "Bullet", Warmup: .9, Cooldown: 1.25, Damage: 18, AP: ptr(float32(.14)), Accuracy: [4]float32{.8, .87, .77, .64}}},
+		{Name: "Gun_SniperRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 44.9, DamageDef: "Bullet", Warmup: 3.5, Cooldown: 1.5, Damage: 25, Accuracy: [4]float32{.5, .7, .88, .9}}},
+		{Name: "Gun_BoltActionRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 36.9, DamageDef: "Bullet", Warmup: 1.7, Cooldown: 1.5, Damage: 18, Accuracy: [4]float32{.65, .8, .9, .8}}},
+		{Name: "Gun_Revolver", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 25.9, DamageDef: "Bullet", Warmup: .3, Cooldown: 1.6, Damage: 12, Accuracy: [4]float32{.8, .75, .55, .4}}},
+		{Name: "Gun_ChargeRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 27.9, DamageDef: "Bullet", Warmup: 1, Cooldown: 2, Burst: 3, BurstGap: 12, Damage: 16, AP: ptr(float32(.35)), Accuracy: [4]float32{.55, .64, .55, .45}}},
+		{Name: "Bow_Short", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 22.9, DamageDef: "Arrow", Warmup: 1.35, Cooldown: 1.65, Damage: 11, Accuracy: [4]float32{.75, .65, .45, .25}}},
+		{Name: "MeleeWeapon_Club", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Poke"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Blunt"}, Power: 14, Cooldown: 2}}}},
+		{Name: "MeleeWeapon_Mace", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Poke"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Blunt"}, Power: 15.7, Cooldown: 2}}}},
 		{Name: "MeleeWeapon_Warhammer", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
-		{Name: "MeleeWeapon_Knife", Weapon: &FixtureWeapon{Capacities: []string{"Cut", "Stab"}}},
-		{Name: "MeleeWeapon_Spear", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Stab"}}},
-		{Name: "MeleeWeapon_LongSword", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Cut", "Stab"}}},
+		{Name: "MeleeWeapon_Knife", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Cut"}, Power: 12, Cooldown: 1.5}, {Capacities: []string{"Stab"}, Power: 13, Cooldown: 2}}}},
+		{Name: "MeleeWeapon_Spear", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt", "Poke"}, Power: 13, Cooldown: 2.6}, {Capacities: []string{"Stab"}, Power: 23, Cooldown: 2.6, AP: ptr(float32(.5))}}}},
+		{Name: "MeleeWeapon_LongSword", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Stab"}, Power: 23, Cooldown: 2.6}, {Capacities: []string{"Cut"}, Power: 23, Cooldown: 2.6}}}},
+		{Name: "WoodLog", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 10, Cooldown: 2}}}},
+		// The mortar shells of Core, Biotech and Anomaly (every def with a
+		// projectileWhenLoaded), by their projectile's damage def and radius.
+		{Name: "Shell_HighExplosive", Shell: &FixtureShell{DamageDef: "Bomb", ExplosionRadius: 2.9}},
+		{Name: "Shell_Incendiary", Shell: &FixtureShell{DamageDef: "Flame", ExplosionRadius: 2.9, Incendiary: true}},
+		{Name: "Shell_EMP", Shell: &FixtureShell{DamageDef: "EMP", ExplosionRadius: 8.9}},
+		{Name: "Shell_Smoke", Shell: &FixtureShell{DamageDef: "Smoke", ExplosionRadius: 7.2}},
+		{Name: "Shell_Firefoam", Shell: &FixtureShell{DamageDef: "Extinguish", ExplosionRadius: 5}},
+		{Name: "Shell_AntigrainWarhead", Shell: &FixtureShell{DamageDef: "BombSuper", ExplosionRadius: 14.9}},
+		{Name: "Shell_Toxic", Shell: &FixtureShell{DamageDef: "ToxGas", ExplosionRadius: 4}},
+		{Name: "Shell_Deadlife", Shell: &FixtureShell{DamageDef: "DeadlifeDust", ExplosionRadius: 0.1}},
 	}
 }
+
+// ptr is a pointer to v, for the optional fixture fields.
+func ptr[T any](v T) *T { return &v }
 
 // FixtureApparel is a garment's layers, covered body part groups, outfit tags
 // and armor ratings (every stuff of the def shares them).
@@ -178,7 +232,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat", StatComfort}
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
-	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}, RoomStatDefs: FixtureRoomStats()}
+	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}, {DefName: statRangedCooldown, DefaultBaseValue: 1}, {DefName: statRangedDamageMult, DefaultBaseValue: 1}, {DefName: statRangedPenMult, DefaultBaseValue: 1}, {DefName: statMeleeCooldown, DefaultBaseValue: 1}, {DefName: statMeleeDamageMult, DefaultBaseValue: 1}}, RoomStatDefs: FixtureRoomStats()}
 	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
@@ -304,11 +358,39 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		if len(def.Stuffs) > 0 || def.Stuffed {
 			t.StuffCategories = []string{"Fixture"}
 		}
+		if s := def.Shell; s != nil {
+			projectile := def.Name + "_Projectile"
+			t.ProjectileWhenLoaded = projectile
+			wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: projectile, ThingClass: fixtureThingClass, Projectile: &d.ProjectileProperties{DamageDef: s.DamageDef, DamageAmountBase: -1, ArmorPenetrationBase: -1, ExplosionRadius: s.ExplosionRadius, Ai_IsIncendiary: s.Incendiary}})
+			wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: projectile})
+			row(projectile, "", nil, nil)
+		}
 		if w := def.Weapon; w != nil {
 			if w.VerbClass != "" {
 				projectile := def.Name + "_Projectile"
-				t.Verbs = append(t.Verbs, &d.Opt_VerbProperties{Value: &d.VerbProperties{VerbClass: w.VerbClass, Range: w.Range, ForcedMissRadius: w.ForcedMissRadius, DefaultProjectile: projectile}})
-				wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: projectile, ThingClass: fixtureThingClass, Projectile: &d.ProjectileProperties{DamageDef: w.DamageDef, ExplosionRadius: w.ExplosionRadius, Ai_IsIncendiary: w.Incendiary}})
+				burst := w.Burst
+				if burst == 0 {
+					burst = 1
+				}
+				t.Verbs = append(t.Verbs, &d.Opt_VerbProperties{Value: &d.VerbProperties{VerbClass: w.VerbClass, Range: w.Range, ForcedMissRadius: w.ForcedMissRadius, DefaultProjectile: projectile, WarmupTime: w.Warmup, BurstShotCount: burst, TicksBetweenBurstShots: w.BurstGap}})
+				stat := func(name string, value float32) {
+					t.StatBases = append(t.StatBases, &d.Opt_StatModifier{Value: &d.StatModifier{Stat: name, Value: value}})
+				}
+				stat(statRangedCooldown, w.Cooldown)
+				if w.Accuracy != [4]float32{} {
+					stat("AccuracyTouch", w.Accuracy[0])
+					stat(statAccuracyShort, w.Accuracy[1])
+					stat(statAccuracyMedium, w.Accuracy[2])
+					stat(statAccuracyLong, w.Accuracy[3])
+				}
+				damage, ap := float32(-1), float32(-1)
+				if w.Damage != 0 {
+					damage = w.Damage
+				}
+				if w.AP != nil {
+					ap = *w.AP
+				}
+				wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: projectile, ThingClass: fixtureThingClass, Projectile: &d.ProjectileProperties{DamageDef: w.DamageDef, DamageAmountBase: int32(damage), ArmorPenetrationBase: ap, ExplosionRadius: w.ExplosionRadius, Ai_IsIncendiary: w.Incendiary}})
 				wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: projectile})
 				row(projectile, "", nil, nil)
 				chains["Verse.Verb"] = nil
@@ -318,7 +400,17 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 				chains["RimWorld.Verb_MeleeAttack"] = []string{"Verse.Verb"}
 			}
 			for _, capacity := range w.Capacities {
-				t.Tools = append(t.Tools, &d.Opt_Tool{Value: &d.Tool{Capacities: []string{capacity}}})
+				t.Tools = append(t.Tools, &d.Opt_Tool{Value: &d.Tool{Capacities: []string{capacity}, Power: 10, CooldownTime: 2, ArmorPenetration: -1, ChanceFactor: 1}})
+			}
+			for _, tool := range w.Tools {
+				ap, chance := float32(-1), float32(1)
+				if tool.AP != nil {
+					ap = *tool.AP
+				}
+				if tool.ChanceFactor != 0 {
+					chance = tool.ChanceFactor
+				}
+				t.Tools = append(t.Tools, &d.Opt_Tool{Value: &d.Tool{Capacities: tool.Capacities, Power: tool.Power, CooldownTime: tool.Cooldown, ArmorPenetration: ap, ChanceFactor: chance}})
 			}
 		}
 		if r := def.Race; r != nil {
@@ -328,6 +420,10 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		wire.ThingFacts = append(wire.ThingFacts, facts)
 		if len(t.StuffCategories) == 0 {
 			values := maps.Clone(apparelStats)
+			if _, priced := values[index(StatMarketValue)]; def.Weapon != nil && !priced {
+				// A weapon is an item too (WoodLog is both a club and a stuff).
+				values[index(StatMarketValue)] = 1
+			}
 			if def.WorkToBuild != nil {
 				values[index(StatWorkToBuild)] = *def.WorkToBuild
 			}
@@ -402,16 +498,18 @@ func FixtureEnvironmentDefs(v *o.DefinitionCatalog) {
 // fixtureDamageDefs adds the Core damage defs a weapon's projectile or melee
 // maneuver names, and a maneuver for each melee tool capacity (#1723).
 func fixtureDamageDefs(v *o.DefinitionCatalog) {
-	for _, def := range []*d.DamageDef{
-		{DefName: "Bomb", HarmsHealth: true}, {DefName: "Flame", HarmsHealth: true}, {DefName: "Bullet", HarmsHealth: true}, {DefName: "Arrow", HarmsHealth: true},
-		{DefName: "Smoke"}, {DefName: "EMP", CauseStun: true, ExternalViolenceForMechanoids: true},
+	v.Defs.DamageDefs = append(v.Defs.DamageDefs, []*d.DamageDef{
+		{DefName: "Bomb", HarmsHealth: true, IsExplosive: true, DefaultDamage: 50, DefaultArmorPenetration: 0.1, ArmorCategory: "Sharp"},
+		{DefName: "BombSuper", HarmsHealth: true, IsExplosive: true, DefaultDamage: 550, DefaultArmorPenetration: 0.1, ArmorCategory: "Sharp"},
+		{DefName: "Extinguish"}, {DefName: "ToxGas"}, {DefName: "DeadlifeDust"},
+		{DefName: "Flame", HarmsHealth: true, DefaultDamage: 10, ArmorCategory: "Heat"},
+		{DefName: "Bullet", HarmsHealth: true, ArmorCategory: "Sharp"}, {DefName: "Arrow", HarmsHealth: true, ArmorCategory: "Sharp"},
+		{DefName: "Smoke"}, {DefName: "EMP", CauseStun: true, ExternalViolenceForMechanoids: true, DefaultDamage: 50},
 		{DefName: "Cut", HarmsHealth: true, ArmorCategory: "Sharp"}, {DefName: "Stab", HarmsHealth: true, ArmorCategory: "Sharp"},
 		{DefName: "Blunt", HarmsHealth: true, ArmorCategory: "Blunt"}, {DefName: "Poke", HarmsHealth: true, ArmorCategory: "Blunt"},
-	} {
-		v.Defs.DamageDefs = append(v.Defs.DamageDefs, def)
-	}
+	}...)
 	for _, capacity := range []string{"Cut", "Stab", "Blunt", "Poke"} {
-		v.Defs.ManeuverDefs = append(v.Defs.ManeuverDefs, &d.ManeuverDef{DefName: capacity + "Maneuver", RequiredCapacity: capacity, Verb: &d.VerbProperties{MeleeDamageDef: capacity}})
+		v.Defs.ManeuverDefs = append(v.Defs.ManeuverDefs, &d.ManeuverDef{DefName: capacity + "Maneuver", RequiredCapacity: capacity, Verb: &d.VerbProperties{MeleeDamageDef: capacity, Commonality: 1, AccuracyTouch: 1, BurstShotCount: 1}})
 	}
 }
 

@@ -27,6 +27,16 @@ type WeaponDef struct {
 	Incendiary bool
 	// Blunt is a melee weapon every tool of which deals blunt-armored damage.
 	Blunt bool
+	// DPS is the weapon's nominal damage per second and AP its armor
+	// penetration, read from the verb, tool, projectile and damage rows
+	// (bridge.DefinitionCatalog.WeaponOf says how). A planning estimate, not
+	// a prediction of native combat damage; 0 for a def that states none.
+	DPS, AP float64
+	// Precision is an accuracy curve that peaks at medium range or beyond.
+	Precision bool
+	// ForcedMiss is a verb that scatters its shots (forcedMissRadius > 0):
+	// area fire a lone fighter alone may carry.
+	ForcedMiss bool
 }
 
 // Burner is an incendiary weapon a carrier aims at the ground: the burn-out's

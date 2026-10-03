@@ -126,21 +126,18 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 			out = append(out, LoadoutOrder{Pawn: d.Pawn, Thing: w.Thing, Definition: w.Definition, Cell: w.Cell})
 		}
 	}
-	byDPS := func(a, b EquipCandidateWeapon) bool { return ProfileWeapon(a).DPS > ProfileWeapon(b).DPS }
+	byDPS := func(a, b EquipCandidateWeapon) bool { return a.Facts.DPS > b.Facts.DPS }
 	switch threat {
 	case LoadoutPods, LoadoutTribal:
 		for _, d := range defenders {
 			if !loadoutReady(d) || loadoutMelee(d) {
 				continue
 			}
-			current := ProfileWeapon(EquipCandidateWeapon{Definition: d.Primary, Class: WeaponRanged})
-			if d.Primary == "" {
-				current = WeaponProfile{}
-			}
+			current := d.PrimaryFacts
 			var fits func(EquipCandidateWeapon) bool
 			if threat == LoadoutPods {
 				fits = func(w EquipCandidateWeapon) bool {
-					p := ProfileWeapon(w)
+					p := w.Facts
 					return w.Class == WeaponRanged && !p.ForcedMiss && p.Range <= loadoutPodsRange && p.DPS > current.DPS
 				}
 			} else {
@@ -148,7 +145,7 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 					continue
 				}
 				fits = func(w EquipCandidateWeapon) bool {
-					p := ProfileWeapon(w)
+					p := w.Facts
 					return w.Class == WeaponRanged && !p.ForcedMiss && p.Range >= loadoutTribalRange
 				}
 			}
@@ -232,4 +229,3 @@ func loadoutMelee(d LoadoutDefender) bool {
 }
 
 func shooting(d LoadoutDefender) int { return d.Profile.Skills["Shooting"].Level }
-

@@ -19,63 +19,6 @@ const (
 	WeaponRoleNonCombatant WeaponRole = "non-combatant"
 )
 
-// WeaponProfile contains nominal damage throughput, penetration and effective
-// range. These are planning estimates, not a prediction of native combat damage.
-type WeaponProfile struct {
-	DPS, AP, Range        float64
-	Precision, ForcedMiss bool
-}
-
-// Core weapon families; unknown definitions use conservative class defaults.
-// Area fire is opt-in even when no role census has been supplied.
-var weaponProfiles = map[string]WeaponProfile{
-	"MeleeWeapon_Club":       {DPS: 6, AP: .18, Range: 1},
-	"MeleeWeapon_Knife":      {DPS: 6, AP: .18, Range: 1},
-	"MeleeWeapon_Gladius":    {DPS: 7, AP: .24, Range: 1},
-	"MeleeWeapon_Longsword":  {DPS: 9, AP: .3, Range: 1},
-	"MeleeWeapon_LongSword":  {DPS: 9, AP: .3, Range: 1},
-	"MeleeWeapon_Spear":      {DPS: 8, AP: .33, Range: 1},
-	"Gun_Autopistol":         {DPS: 5, AP: .12, Range: 24},
-	"Gun_ChargeRifle":        {DPS: 11, AP: .35, Range: 27},
-	"Gun_ChargeLance":        {DPS: 9, AP: .45, Range: 30, Precision: true},
-	"MeleeWeapon_Mace":       {DPS: 8, AP: .3, Range: 1},
-	"Gun_BoltActionRifle":    {DPS: 4, AP: .27, Range: 37, Precision: true},
-	"Gun_SniperRifle":        {DPS: 4, AP: .38, Range: 45, Precision: true},
-	"Gun_PumpShotgun":        {DPS: 8, AP: .14, Range: 16},
-	"Gun_ChainShotgun":       {DPS: 12, AP: .14, Range: 13},
-	"Gun_HeavySMG":           {DPS: 9, AP: .18, Range: 23},
-	"Gun_MachinePistol":      {DPS: 7, AP: .09, Range: 20},
-	"Gun_AssaultRifle":       {DPS: 8, AP: .16, Range: 31},
-	"Gun_Revolver":           {DPS: 5, AP: .18, Range: 26},
-	"Bow_Short":              {DPS: 3, AP: .11, Range: 23},
-	"Bow_Recurve":            {DPS: 4, AP: .14, Range: 26},
-	"Bow_Great":              {DPS: 5, AP: .2, Range: 30},
-	"Gun_Minigun":            {DPS: 30, Range: 31, ForcedMiss: true},
-	"Gun_LMG":                {DPS: 12, Range: 26, ForcedMiss: true},
-	"Gun_IncendiaryLauncher": {DPS: 8, Range: 23, ForcedMiss: true},
-	"Gun_SmokeLauncher":      {Range: 23, ForcedMiss: true},
-	"Gun_EmpLauncher":        {Range: 23, ForcedMiss: true},
-	"Gun_TripleRocket":       {DPS: 50, Range: 40, ForcedMiss: true},
-	"Gun_DoomsdayRocket":     {DPS: 50, Range: 40, ForcedMiss: true},
-	"Weapon_GrenadeFrag":     {DPS: 20, Range: 13, ForcedMiss: true},
-	"Weapon_GrenadeEMP":      {Range: 13, ForcedMiss: true},
-	"Weapon_GrenadeMolotov":  {DPS: 8, Range: 13, ForcedMiss: true},
-}
-
-func ProfileWeapon(w EquipCandidateWeapon) WeaponProfile {
-	if profile, ok := weaponProfiles[w.Definition]; ok {
-		return profile
-	}
-	switch w.Class {
-	case WeaponRanged:
-		return WeaponProfile{DPS: 4, AP: .1, Range: 20}
-	case WeaponMelee:
-		return WeaponProfile{DPS: 6, AP: .2, Range: 1}
-	default:
-		return WeaponProfile{DPS: 1, Range: 1}
-	}
-}
-
 // ScoreWeapon scores skill at an accuracy-weighted engagement range, then
 // applies role fit and the known armor census. Unknown roles/armor are neutral.
 func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
@@ -88,7 +31,9 @@ func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
 	if incapable, known := p.IncapableOfViolence.Value(); !known || incapable {
 		return 0
 	}
-	profile := ProfileWeapon(w)
+	// The weapon's def rows (#1723): a weapon the producer gave none (zero
+	// Facts) has no damage and scores nothing.
+	profile := w.Facts
 	if p.Role == WeaponRoleHunter && (w.Class != WeaponRanged || profile.Range < 25) {
 		return 0
 	}
@@ -147,10 +92,11 @@ func UnarmedFighters(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon)
 	return n
 }
 
-// WeaponRecipe reports whether a bench recipe makes a modelled weapon.
+// WeaponRecipe reports whether a bench recipe makes a weapon the armory
+// ladder places on a rung.
 func WeaponRecipe(recipe GearRecipe) bool {
 	for _, def := range recipe.Products {
-		if _, known := weaponProfiles[string(def)]; known {
+		if _, known := ArmoryWeaponTier(def); known {
 			return true
 		}
 	}

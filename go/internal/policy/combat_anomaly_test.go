@@ -114,7 +114,7 @@ func TestMortarShellsTheRitualCaster(t *testing.T) {
 	mortar := CombatMortar{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}
 	aim, shell, ok := mortarAim(view, mortar)
 	if !ok || aim != (domain.Cell{X: 12, Z: -40}) || shell != ShellHE {
-		t.Fatalf("aim %+v %s %v", aim, shell, ok)
+		t.Fatalf("aim %+v %d %v", aim, shell, ok)
 	}
 	near := withAnimals(holdView(), anomalyThreat("c1", true, PawnAnomaly{PsychicRitualInvoker: flag(true)}, domain.Cell{X: 3, Z: 27}))
 	if _, _, ok := mortarAim(near, mortar); ok {

@@ -256,6 +256,12 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 			defs = append(defs, g)
 		}
 	}
+	// The Core weapons every weapon score reads its rows from (#1723).
+	for _, w := range bridge.CoreWeaponFixtures() {
+		if !named[w.Name] {
+			defs = append(defs, w)
+		}
+	}
 	catalog := testCatalog(id, append(defs, n.catalog...)...)
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
 	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {

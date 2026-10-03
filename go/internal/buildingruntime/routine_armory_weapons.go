@@ -214,9 +214,16 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	}
 	pawns := []policy.EquipCandidatePawn{}
 	primaries := map[domain.PawnID]policy.ArmoryPrimary{}
+	catalog, err := source.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return nil, 0, err
+	}
 	for _, p := range observed.Pawns {
 		pawns = append(pawns, equipCandidatePawnFacts(p, downsides))
 		if primary, ok := armoryPrimary(p, things); ok {
+			if primary.Facts, err = catalog.WeaponOf(primary.Definition); err != nil {
+				return nil, 0, err
+			}
 			primaries[domain.PawnID(p.Pawn.GetId())] = primary
 		}
 	}
@@ -236,17 +243,33 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 	}
 	candidates := []policy.EquipCandidateWeapon{}
 	for _, w := range weapons.Targets {
-		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded})
+		candidate, err := equipCandidateWeapon(catalog, w)
+		if err != nil {
+			return nil, 0, err
+		}
+		candidates = append(candidates, candidate)
 	}
 	recipes := []policy.GearRecipe{}
+	// The def rows of each ladder weapon a recipe makes (#1723).
+	products := map[policy.Resource]policy.WeaponDef{}
 	for _, b := range benches {
 		rows, known := b.Recipes.Value()
 		if !known {
 			return nil, 0, fmt.Errorf("%w: weaponDemand: !known", ErrControl)
 		}
 		recipes = append(recipes, rows...)
+		for _, recipe := range rows {
+			for _, def := range recipe.Products {
+				if _, tiered := policy.ArmoryWeaponTier(def); !tiered {
+					continue
+				}
+				if products[def], err = catalog.WeaponOf(string(def)); err != nil {
+					return nil, 0, err
+				}
+			}
+		}
 	}
-	return policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes), policy.UnarmedFighters(pawns, candidates), nil
+	return policy.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products), policy.UnarmedFighters(pawns, candidates), nil
 }
 
 // armoryPrimary is the pawn's equipped primary weapon; an unobserved

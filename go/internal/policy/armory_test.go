@@ -46,7 +46,11 @@ func TestArmoryWeaponDemandLadder(t *testing.T) {
 	armed := weaponPawn("a", 10)
 	armed.Profile.Skills["Melee"] = ProfileSkill{}
 	armed.Armed = domain.Known(true)
-	revolver := map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 2}}
+	revolver := map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 2, Facts: coreFacts("Gun_Revolver")}}
+	products := map[Resource]WeaponDef{}
+	for _, r := range recipes {
+		products[r.Products[0]] = coreFacts(string(r.Products[0]))
+	}
 	for _, tc := range []struct {
 		name      string
 		tier      ArmoryTier
@@ -65,33 +69,25 @@ func TestArmoryWeaponDemandLadder(t *testing.T) {
 		{"revolver upgraded to the best smithing weapon that scores higher", ArmoryTierSmithing, recipes, revolver, armed, "Bow_Great"},
 		{"armed at unknown tier", ArmoryTierUnknown, recipes, revolver, armed, ""},
 		{"rifle unresearched", ArmoryTierMachining, []GearRecipe{armoryRecipe("Gun_Revolver", true), armoryRecipe("Gun_AssaultRifle", false)}, revolver, armed, ""},
-		{"legendary revolver still loses to a strictly higher score", ArmoryTierMachining, recipes, map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 6}}, armed, "Gun_AssaultRifle"},
+		{"legendary revolver still loses to a strictly higher score", ArmoryTierMachining, recipes, map[domain.PawnID]ArmoryPrimary{"a": {Definition: "Gun_Revolver", Ranged: true, Quality: 6, Facts: coreFacts("Gun_Revolver")}}, armed, "Gun_AssaultRifle"},
 		{"primary unobserved", ArmoryTierMachining, recipes, nil, armed, ""},
 	} {
 		var want []Amount
 		if tc.want != "" {
 			want = []Amount{{Resource: tc.want, Count: 1}}
 		}
-		got := ArmoryWeaponDemand(tc.tier, []EquipCandidatePawn{tc.pawn}, tc.primaries, nil, tc.recipes)
+		got := ArmoryWeaponDemand(tc.tier, []EquipCandidatePawn{tc.pawn}, tc.primaries, nil, tc.recipes, products)
 		if len(got) != len(want) || len(got) == 1 && got[0] != want[0] {
 			t.Errorf("%s: got %v want %v", tc.name, got, want)
 		}
 	}
 	// A loose rifle is gear's to wear; the armory bills none.
-	loose := []EquipCandidateWeapon{{Thing: "r", Definition: "Gun_AssaultRifle", Class: WeaponRanged}}
-	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{armed}, revolver, loose, recipes); len(got) != 0 {
+	loose := []EquipCandidateWeapon{{Thing: "r", Definition: "Gun_AssaultRifle", Class: WeaponRanged, Facts: coreFacts("Gun_AssaultRifle")}}
+	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{armed}, revolver, loose, recipes, products); len(got) != 0 {
 		t.Error("billed over a loose upgrade", got)
 	}
 	// Loose weapons arm the unarmed first.
-	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{unarmed}, nil, loose, recipes); len(got) != 0 {
+	if got := ArmoryWeaponDemand(ArmoryTierMachining, []EquipCandidatePawn{unarmed}, nil, loose, recipes, products); len(got) != 0 {
 		t.Error("billed for an armable colonist", got)
-	}
-}
-
-func TestArmoryWeaponTiersModelled(t *testing.T) {
-	for def := range armoryWeaponTiers {
-		if _, ok := weaponProfiles[def]; !ok {
-			t.Error("tiered weapon without a profile", def)
-		}
 	}
 }

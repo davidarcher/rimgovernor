@@ -21,7 +21,20 @@ type RoutineEquipSource interface {
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
 	ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error)
 	ReadEquipWeapons(context.Context, *c.Identity, domain.Cell, domain.Cell) (bridge.EquipRead, bridge.Result, error)
+	// DefinitionCatalog is the def rows every weapon is scored from (#1723).
+	DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 }
+
+// equipCandidateWeapon is a loose weapon with its def rows (#1723): a def
+// the catalog cannot state is an error, never a default weapon.
+func equipCandidateWeapon(catalog *bridge.DefinitionCatalog, w bridge.EquipCandidate) (policy.EquipCandidateWeapon, error) {
+	facts, err := catalog.WeaponOf(w.Definition)
+	if err != nil {
+		return policy.EquipCandidateWeapon{}, err
+	}
+	return policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded, Facts: facts}, nil
+}
+
 type RoutineEquipPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineEquipSource
@@ -125,6 +138,10 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
+	catalog, err := r.native.DefinitionCatalog(call, identity)
+	if err != nil {
+		return RoutineEquipResult{}, err
+	}
 	var pawns []policy.EquipCandidatePawn
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -136,7 +153,12 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if current := row.GetEquipment().GetPrimaryId(); current != "" {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {
-					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: gearDef(things, item.GetThing()), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded()}
+					def := gearDef(things, item.GetThing())
+					rows, err := catalog.WeaponOf(def)
+					if err != nil {
+						return RoutineEquipResult{}, err
+					}
+					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: def, Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded(), Facts: rows}
 				}
 			}
 		}
@@ -158,7 +180,11 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var candidates []policy.EquipCandidateWeapon
 	for _, w := range weapons.Targets {
-		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded})
+		candidate, err := equipCandidateWeapon(catalog, w)
+		if err != nil {
+			return RoutineEquipResult{}, err
+		}
+		candidates = append(candidates, candidate)
 	}
 	// Exclude unavailable pawns before matching so they cannot consume a weapon
 	// another colonist could use. The arbiter lock spans selection and claims.

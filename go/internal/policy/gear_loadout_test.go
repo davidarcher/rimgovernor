@@ -30,9 +30,9 @@ func TestGearQualityMultipliers(t *testing.T) {
 func TestGearPrimaryWeaponScore(t *testing.T) {
 	p := GearLoadoutInput{}
 	revolver := loadoutOption("Gun_Revolver", GearPrimary)
-	revolver.Ranged, revolver.Source = true, GearWorn
+	revolver.Ranged, revolver.Source, revolver.Weapon = true, GearWorn, coreFacts("Gun_Revolver")
 	rifle := loadoutOption("Gun_AssaultRifle", GearPrimary)
-	rifle.Ranged = true
+	rifle.Ranged, rifle.Weapon = true, coreFacts("Gun_AssaultRifle")
 	if gearItemScore(p, rifle) <= gearItemScore(p, revolver) {
 		t.Fatal("rifle does not beat revolver")
 	}

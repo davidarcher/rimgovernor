@@ -37,6 +37,7 @@ func TestWeaponOfReadsTheDefRows(t *testing.T) {
 			t.Fatalf("%s: got %+v, want %+v", c.def, got, c.want)
 		}
 		got.Range, got.Blast, c.want.Range, c.want.Blast = 0, 0, 0, 0
+		got.DPS, got.AP, got.Precision, got.ForcedMiss = 0, 0, false, false
 		if got != c.want {
 			t.Fatalf("%s: got %+v, want %+v", c.def, got, c.want)
 		}
@@ -47,5 +48,36 @@ func TestWeaponOfReadsTheDefRows(t *testing.T) {
 	var none *DefinitionCatalog
 	if _, err := none.WeaponOf("Gun_AssaultRifle"); err == nil {
 		t.Fatal("no catalog was accepted")
+	}
+}
+
+// TestWeaponOfThroughput (#1723): DPS, AP, Precision and ForcedMiss come from
+// the verb, tool, projectile and stat rows. Before the rows, a table stated
+// Minigun 30/0 (area fire), sniper 4/.38, club 6/.18, charge rifle 11/.35.
+func TestWeaponOfThroughput(t *testing.T) {
+	catalog := FixtureCatalog("load", CoreWeaponFixtures()...)
+	near := func(got, want float64) bool { return got > want-0.001 && got < want+0.001 }
+	for _, c := range []struct {
+		def        string
+		dps, ap    float64
+		precision  bool
+		forcedMiss bool
+	}{
+		{"Gun_Minigun", 41.667, .15, true, false},
+		{"Gun_SniperRifle", 5, .375, true, false},
+		{"Gun_ChargeRifle", 14.118, .35, false, false},
+		{"Gun_AssaultRifle", 10.879, .165, false, false},
+		{"MeleeWeapon_Club", 7.487, .188, false, false},
+		{"MeleeWeapon_Spear", 10.426, .381, false, false},
+		{"Weapon_GrenadeFrag", 12.019, .1, false, true},
+		{"Gun_SmokeLauncher", 0, 0, false, true},
+	} {
+		got, err := catalog.WeaponOf(c.def)
+		if err != nil {
+			t.Fatalf("%s: %v", c.def, err)
+		}
+		if !near(got.DPS, c.dps) || !near(got.AP, c.ap) || got.Precision != c.precision || got.ForcedMiss != c.forcedMiss {
+			t.Errorf("%s: got dps %.3f ap %.3f precision %v forcedMiss %v, want %+v", c.def, got.DPS, got.AP, got.Precision, got.ForcedMiss, c)
+		}
 	}
 }

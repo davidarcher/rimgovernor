@@ -144,7 +144,7 @@ func TestHeldBackColonistIsNeverArmed(t *testing.T) {
 	held := weaponPawn("joiner", 12)
 	held.NoArms = "it is a creepjoiner whose downside is not revealed yet, so it is not armed"
 	free := weaponPawn("free", 6)
-	weapons := []EquipCandidateWeapon{{Thing: "rifle", Definition: "Gun_BoltActionRifle", Class: WeaponRanged}}
+	weapons := []EquipCandidateWeapon{{Thing: "rifle", Definition: "Gun_BoltActionRifle", Class: WeaponRanged, Facts: coreFacts("Gun_BoltActionRifle")}}
 	pairs := AssignEquip([]EquipCandidatePawn{held, free}, weapons)
 	if len(pairs) != 1 || pairs[0].Pawn != "free" {
 		t.Fatal("the held-back colonist was assigned", pairs)
@@ -167,7 +167,7 @@ func TestHeldBackColonistIsNeverArmed(t *testing.T) {
 	// A held-back colonist already holding a weapon is not swapped to a better
 	// one either: dropping it is the goal's work.
 	armed := held
-	armed.Armed, armed.Current = domain.Known(true), &EquipCandidateWeapon{Thing: "club", Definition: "MeleeWeapon_Club", Class: WeaponMelee}
+	armed.Armed, armed.Current = domain.Known(true), &EquipCandidateWeapon{Thing: "club", Definition: "MeleeWeapon_Club", Class: WeaponMelee, Facts: coreFacts("MeleeWeapon_Club")}
 	if got := AssignEquip([]EquipCandidatePawn{armed}, weapons); len(got) != 0 {
 		t.Fatal(got)
 	}

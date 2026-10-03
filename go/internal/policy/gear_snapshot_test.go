@@ -35,6 +35,21 @@ func TestGearSoldierWeaponFitBySkill(t *testing.T) {
 			p.Downed = domain.Known(false)
 		}
 	}
+	// The recording predates the weapon def rows (#1723): state the three
+	// defs it holds as the Core XML derives them.
+	facts := map[string]policy.WeaponDef{
+		"Gun_BoltActionRifle": {Ranged: true, Range: 36.9, DPS: 5.625, AP: .27, Precision: true},
+		"Gun_PumpShotgun":     {Ranged: true, Range: 15.9, DPS: 8.372, AP: .14},
+		"WoodLog":             {Melee: true, Blunt: true, DPS: 5.75, AP: .15},
+	}
+	for i := range in.Weapons {
+		in.Weapons[i].Facts = facts[in.Weapons[i].Definition]
+	}
+	for i := range in.Pawns {
+		if cur := in.Pawns[i].Current; cur != nil {
+			cur.Facts = facts[cur.Definition]
+		}
+	}
 	held := map[domain.PawnID]string{}
 	for _, a := range policy.AssignEquip(in.Pawns, in.Weapons) {
 		held[a.Pawn] = a.Weapon.Definition

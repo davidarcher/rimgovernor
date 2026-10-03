@@ -148,6 +148,8 @@ type GearOption struct {
 	// Psychic marks a psychic foil helmet, Smokepop a smokepop belt: utility
 	// gear the model plans only on evidence (a psychic-drone letter) or never.
 	Psychic, Smokepop bool
+	// Weapon is a primary option's def rows (#1723).
+	Weapon WeaponDef
 	// Research names the ResearchProjectDefs the option's recipe requires;
 	// Ingredients its materials for a bill source (the armor ladder's steel,
 	// plasteel and components), judged against the input Budget.
@@ -347,11 +349,7 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 		// A primary is worth its quality-scaled damage (#1204), so the
 		// armory's crafted upgrade outscores the worn weapon and GearReplace
 		// swaps it in.
-		class := WeaponMelee
-		if o.Ranged {
-			class = WeaponRanged
-		}
-		score += ProfileWeapon(EquipCandidateWeapon{Definition: string(o.Definition), Class: class}).DPS * WeaponQualityMultiplier(o.Quality) * o.Condition
+		score += o.Weapon.DPS * WeaponQualityMultiplier(o.Quality) * o.Condition
 	}
 	switch role {
 	case GearSoldier:

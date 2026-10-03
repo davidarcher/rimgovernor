@@ -11,6 +11,7 @@ import (
 // (9,30) and an enemy mortar at the camp, 50 cells south.
 func mortarView() CombatView {
 	view := sortieView()
+	view.Shells = testShells
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}}
 	view.Structures = []HostileStructure{
 		{ID: "Thing_ShipPart2", Def: "DefoliatorShipPart", Cell: domain.Cell{X: 9, Z: -10}},
@@ -35,12 +36,12 @@ func mortarOrders(orders []CombatOrder) []CombatOrder {
 func TestDecideCombatCounterBatteryCrewsTheMortar(t *testing.T) {
 	view := mortarView()
 	orders, m := decideStop(t, view, StopEvent{}, CombatMemory{})
-	want := CombatOrder{Pawn: "m", Kind: OrderManMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Shell: ShellEMP, Reason: ReasonCounterBattery}
+	want := CombatOrder{Pawn: "m", Kind: OrderManMortar, Cell: domain.Cell{X: 5, Z: 30}, Aim: domain.Cell{X: 9, Z: -20}, Shell: testShellEMP, Reason: ReasonCounterBattery}
 	if got := mortarOrders(orders); len(got) != 1 || got[0] != want {
 		t.Fatalf("%+v", got)
 	}
 	// The pawnless aim (#1202) leads its crew order.
-	fire := CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: ShellEMP, Reason: ReasonCounterBattery}
+	fire := CombatOrder{Kind: OrderMortarFire, Cell: want.Cell, Aim: want.Aim, Shell: testShellEMP, Reason: ReasonCounterBattery}
 	if i := slices.Index(orders, fire); i < 0 || i+1 >= len(orders) || orders[i+1] != want {
 		t.Fatalf("no mortar_fire before the crew: %+v", orders)
 	}
@@ -111,7 +112,7 @@ func TestDecideCombatMortarShellsTheShipPart(t *testing.T) {
 		view.Positional[i].LordJobClass = domain.Known("LordJob_AssaultColony")
 	}
 	orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{})
-	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -10}) || got[0].Shell != ShellHE {
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -10}) || got[0].Shell != testShellHE {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -156,7 +157,7 @@ func TestDecideCombatShipPartIsDestroyedFromRange(t *testing.T) {
 func TestMortarCounterBattery(t *testing.T) {
 	two := func() CombatView {
 		view := withBrawlers(mortarView(), combatBrawler("n", 0.5))
-		view.Mortars = append(view.Mortars, CombatMortar{ID: "Thing_Turret_Mortar2", Cell: domain.Cell{X: 12, Z: 30}, MinRange: 29.9, MaxRange: 500, Loaded: ShellIncendiary})
+		view.Mortars = append(view.Mortars, CombatMortar{ID: "Thing_Turret_Mortar2", Cell: domain.Cell{X: 12, Z: 30}, MinRange: 29.9, MaxRange: 500, Loaded: testShellIncendiary})
 		view.Structures = view.Structures[1:]
 		view.Structures[0].Cell = domain.Cell{X: 30, Z: -20}
 		return view
@@ -171,17 +172,17 @@ func TestMortarCounterBattery(t *testing.T) {
 	m1, m2, camp := domain.Cell{X: 5, Z: 30}, domain.Cell{X: 12, Z: 30}, domain.Cell{X: 9, Z: -20}
 	orders, _ := decideStop(t, two(), StopEvent{}, CombatMemory{})
 	got := shells(orders)
-	if got[m1] != [2]any{domain.Cell{X: 30, Z: -20}, ShellEMP} || got[m2] != [2]any{domain.Cell{X: 30, Z: -20}, ShellEMP} {
+	if got[m1] != [2]any{domain.Cell{X: 30, Z: -20}, testShellEMP} || got[m2] != [2]any{domain.Cell{X: 30, Z: -20}, testShellEMP} {
 		t.Fatalf("enemy mortar: %+v", got)
 	}
 	view := two()
 	view.Structures = nil
 	orders, _ = decideStop(t, view, StopEvent{}, CombatMemory{})
-	if got := shells(orders); got[m1] != [2]any{camp, ShellHE} || got[m2] != [2]any{camp, ShellIncendiary} {
+	if got := shells(orders); got[m1] != [2]any{camp, testShellHE} || got[m2] != [2]any{camp, testShellIncendiary} {
 		t.Fatalf("camp: %+v", got)
 	}
-	orders, _ = decideStop(t, view, StopEvent{}, CombatMemory{NoShells: []string{ShellHE}})
-	if got := shells(orders); got[m1] != [2]any{camp, ""} || got[m2] != [2]any{camp, ShellIncendiary} {
+	orders, _ = decideStop(t, view, StopEvent{}, CombatMemory{NoShells: []string{testShellHE}})
+	if got := shells(orders); got[m1] != [2]any{camp, ""} || got[m2] != [2]any{camp, testShellIncendiary} {
 		t.Fatalf("no HE: %+v", got)
 	}
 }
@@ -194,11 +195,11 @@ func TestMortarSiegeFire(t *testing.T) {
 	camp := domain.Cell{X: 9, Z: -20}
 	view := func(toil string) CombatView {
 		v := withBrawlers(siegeView(toil), combatBrawler("m", 0.5))
-		v.Mortars = mortarView().Mortars
+		v.Mortars, v.Shells = mortarView().Mortars, testShells
 		return v
 	}
 	orders, _ := decideStop(t, view(siegeCampToil), StopEvent{}, CombatMemory{})
-	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != camp || got[0].Shell != ShellHE {
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != camp || got[0].Shell != testShellHE {
 		t.Fatalf("camped: %+v", got)
 	}
 	if orders, _ := decideStop(t, view(siegeTravel), StopEvent{}, CombatMemory{}); len(mortarOrders(orders)) != 0 {
@@ -220,7 +221,7 @@ func TestMortarSiegeFire(t *testing.T) {
 		}
 	}
 	orders, _ = decideStop(t, mechs, StopEvent{}, CombatMemory{})
-	if got := mortarOrders(orders); len(got) != 1 || got[0].Shell != ShellEMP {
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Shell != testShellEMP {
 		t.Fatalf("mechs: %+v", got)
 	}
 }
@@ -232,9 +233,10 @@ func TestMortarHECentipede(t *testing.T) {
 	view := holdView()
 	view = withBrawlers(view, combatBrawler("m", 0.5))
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}}
+	view.Shells = testShells
 	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: -20}), Kind: "Mech_Centipede", Mech: true})
 	orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{})
-	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -20}) || got[0].Shell != ShellHE {
+	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -20}) || got[0].Shell != testShellHE {
 		t.Fatalf("%+v", got)
 	}
 	view.Pawns[len(view.Pawns)-1].Cell = domain.Known(domain.Cell{X: 5, Z: -1})

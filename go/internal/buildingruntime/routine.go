@@ -378,7 +378,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
 	reading.Projection.Facts.TemperatureOwed = temperatureOwed(reading.Projection)
-	if targets, err := shellTargets(ctx, p.journal, state.Snapshot, reading.Projection); err != nil {
+	if targets, err := shellTargets(ctx, r.native, p.journal, state.Snapshot, reading.Projection); err != nil {
 		return store.RoutineReviewResult{}, err
 	} else {
 		reading.Projection.Facts.ShellsShort = policy.ShellsShort(targets, reading.Projection.Resources)

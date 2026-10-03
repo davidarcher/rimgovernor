@@ -15,7 +15,7 @@ func TestWeaponAssignmentSkillTable(t *testing.T) {
 	for _, rifle := range []string{"Gun_BoltActionRifle", "Gun_SniperRifle"} {
 		t.Run(rifle, func(t *testing.T) {
 			pawns := []EquipCandidatePawn{weaponPawn("novice", 2), weaponPawn("expert", 18)}
-			weapons := []EquipCandidateWeapon{{Thing: "rifle", Definition: rifle, Class: WeaponRanged}, {Thing: "shotgun", Definition: "Gun_PumpShotgun", Class: WeaponRanged}}
+			weapons := []EquipCandidateWeapon{{Thing: "rifle", Definition: rifle, Class: WeaponRanged, Facts: coreFacts(rifle)}, {Thing: "shotgun", Definition: "Gun_PumpShotgun", Class: WeaponRanged, Facts: coreFacts("Gun_PumpShotgun")}}
 			pairs := AssignEquip(pawns, weapons)
 			if len(pairs) != 2 || pairs[0].Pawn != "expert" || pairs[0].Weapon.Thing != "rifle" || pairs[1].Pawn != "novice" || pairs[1].Weapon.Thing != "shotgun" {
 				t.Fatal(pairs)
@@ -45,7 +45,7 @@ func TestWeaponAssignmentRestrictions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := weaponPawn("pawn", 20)
 			tc.change(&p)
-			pairs := AssignEquip([]EquipCandidatePawn{p}, []EquipCandidateWeapon{{Thing: "gun", Definition: "Gun_SniperRifle", Class: WeaponRanged}, {Thing: "club", Class: WeaponMelee}})
+			pairs := AssignEquip([]EquipCandidatePawn{p}, []EquipCandidateWeapon{{Thing: "gun", Definition: "Gun_SniperRifle", Class: WeaponRanged, Facts: coreFacts("Gun_SniperRifle")}, {Thing: "club", Class: WeaponMelee, Facts: coreFacts("MeleeWeapon_Club")}})
 			if tc.want == "" {
 				if len(pairs) != 0 {
 					t.Fatal(pairs)
@@ -59,37 +59,32 @@ func TestWeaponAssignmentRestrictions(t *testing.T) {
 
 func TestWeaponBiocodeAndAreaFire(t *testing.T) {
 	a, b := weaponPawn("a", 20), weaponPawn("b", 5)
-	w := EquipCandidateWeapon{Thing: "coded", Definition: "Gun_BoltActionRifle", Class: WeaponRanged, BiocodedTo: "b"}
+	w := EquipCandidateWeapon{Thing: "coded", Definition: "Gun_BoltActionRifle", Class: WeaponRanged, Facts: coreFacts("Gun_BoltActionRifle"), BiocodedTo: "b"}
 	pairs := AssignEquip([]EquipCandidatePawn{a, b}, []EquipCandidateWeapon{w})
 	if len(pairs) != 1 || pairs[0].Pawn != "b" {
 		t.Fatal(pairs)
 	}
 	b.Current = &w
 	b.Armed = domain.Known(true)
-	if pairs = AssignEquip([]EquipCandidatePawn{b}, []EquipCandidateWeapon{{Thing: "other", Definition: "Gun_SniperRifle", Class: WeaponRanged}}); len(pairs) != 0 {
+	if pairs = AssignEquip([]EquipCandidatePawn{b}, []EquipCandidateWeapon{{Thing: "other", Definition: "Gun_SniperRifle", Class: WeaponRanged, Facts: coreFacts("Gun_SniperRifle")}}); len(pairs) != 0 {
 		t.Fatal("displaced biocode", pairs)
 	}
-	for def, profile := range weaponProfiles {
-		if !profile.ForcedMiss {
-			continue
-		}
-		w = EquipCandidateWeapon{Thing: "area", Definition: def, Class: WeaponRanged}
-		if ScoreWeapon(a, w) != 0 {
-			t.Fatal("unsafe area fire", def)
-		}
+	grenade := EquipCandidateWeapon{Thing: "area", Definition: "Weapon_GrenadeFrag", Class: WeaponRanged, Facts: coreFacts("Weapon_GrenadeFrag")}
+	if ScoreWeapon(a, grenade) != 0 {
+		t.Fatal("unsafe area fire")
 	}
 	a.LoneFighter = true
-	if ScoreWeapon(a, EquipCandidateWeapon{Definition: "Gun_Minigun", Class: WeaponRanged}) <= 0 {
+	if ScoreWeapon(a, EquipCandidateWeapon{Definition: "Weapon_GrenadeFrag", Class: WeaponRanged, Facts: coreFacts("Weapon_GrenadeFrag")}) <= 0 {
 		t.Fatal("explicit lone fighter rejected")
 	}
 }
 
 func TestWeaponUpgradeThresholdAndArmor(t *testing.T) {
 	p := weaponPawn("pawn", 18)
-	old := EquipCandidateWeapon{Thing: "old", Definition: "Bow_Short", Class: WeaponRanged}
+	old := EquipCandidateWeapon{Thing: "old", Definition: "Bow_Short", Class: WeaponRanged, Facts: coreFacts("Bow_Short")}
 	p.Current = &old
 	p.Armed = domain.Known(true)
-	weapons := []EquipCandidateWeapon{{Thing: "same", Definition: "Bow_Short", Class: WeaponRanged}, {Thing: "upgrade", Definition: "Gun_BoltActionRifle", Class: WeaponRanged}}
+	weapons := []EquipCandidateWeapon{{Thing: "same", Definition: "Bow_Short", Class: WeaponRanged, Facts: coreFacts("Bow_Short")}, {Thing: "upgrade", Definition: "Gun_BoltActionRifle", Class: WeaponRanged, Facts: coreFacts("Gun_BoltActionRifle")}}
 	if got := AssignEquip([]EquipCandidatePawn{p}, weapons); len(got) != 1 || got[0].Weapon.Thing != "upgrade" {
 		t.Fatal(got)
 	}

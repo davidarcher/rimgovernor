@@ -185,6 +185,8 @@ type ArmoryPrimary struct {
 	Definition string
 	Ranged     bool
 	Quality    int
+	// Facts is the primary's def rows (#1723).
+	Facts WeaponDef
 }
 
 // ArmoryWeaponDemand is the armory's bill target (#1204): per colonist, the
@@ -195,7 +197,7 @@ type ArmoryPrimary struct {
 // quality-scaled primary, and only when no loose weapon of
 // that definition is left for it. The gear planner's GearReplace wears the
 // upgrade once it is made.
-func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe) []Amount {
+func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries map[domain.PawnID]ArmoryPrimary, weapons []EquipCandidateWeapon, recipes []GearRecipe, products map[Resource]WeaponDef) []Amount {
 	assigned := map[domain.PawnID]bool{}
 	for _, pair := range AssignEquip(pawns, weapons) {
 		assigned[pair.Pawn] = true
@@ -220,11 +222,11 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 			if current.Ranged {
 				class = WeaponRanged
 			}
-			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class}) * WeaponQualityMultiplier(current.Quality)
+			floor = ScoreWeapon(p, EquipCandidateWeapon{Definition: current.Definition, Class: class, Facts: current.Facts}) * WeaponQualityMultiplier(current.Quality)
 		} else if reach == ArmoryTierUnknown {
 			reach = ArmoryTierNeolithic
 		}
-		best, score := armoryBestWeapon(p, reach, recipes)
+		best, score := armoryBestWeapon(p, reach, recipes, products)
 		if best == "" || score <= floor {
 			continue
 		}
@@ -255,7 +257,7 @@ func armoryFighter(p EquipCandidatePawn) bool {
 	return true
 }
 
-func armoryBestWeapon(p EquipCandidatePawn, reach ArmoryTier, recipes []GearRecipe) (Resource, float64) {
+func armoryBestWeapon(p EquipCandidatePawn, reach ArmoryTier, recipes []GearRecipe, products map[Resource]WeaponDef) (Resource, float64) {
 	var best Resource
 	bestScore := 0.0
 	for _, recipe := range recipes {
@@ -264,15 +266,15 @@ func armoryBestWeapon(p EquipCandidatePawn, reach ArmoryTier, recipes []GearReci
 		}
 		for _, def := range recipe.Products {
 			rung, modelled := ArmoryWeaponTier(def)
-			profile, known := weaponProfiles[string(def)]
-			if !modelled || rung > reach || !known || profile.ForcedMiss {
+			facts, known := products[def]
+			if !modelled || rung > reach || !known || facts.ForcedMiss {
 				continue
 			}
 			class := WeaponRanged
-			if profile.Range <= 1 {
+			if !facts.Ranged {
 				class = WeaponMelee
 			}
-			score := ScoreWeapon(p, EquipCandidateWeapon{Definition: string(def), Class: class})
+			score := ScoreWeapon(p, EquipCandidateWeapon{Definition: string(def), Class: class, Facts: facts})
 			if score > bestScore || score > 0 && score == bestScore && def < best {
 				best, bestScore = def, score
 			}

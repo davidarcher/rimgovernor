@@ -107,11 +107,11 @@ func loadoutWeapons(call context.Context, source loadoutWeaponSource, identity *
 	}
 	out := make([]policy.EquipCandidateWeapon, 0, len(read.Targets))
 	for _, w := range read.Targets {
-		facts, err := catalog.WeaponOf(w.Definition)
+		candidate, err := equipCandidateWeapon(catalog, w)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded, Facts: facts})
+		out = append(out, candidate)
 	}
 	return out, nil
 }
