@@ -147,12 +147,12 @@ namespace HomeBridge.BridgeTools
                 if (intent.Designation != Operations.ThingDesignation.Mine && intent.Designation != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
                 if (!intent.HasExpectedDef || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
                 plan.Cell = new IntVec3(intent.Cell!.X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
-                if (!plan.Cell.InBounds(map) || plan.Cell.Fogged(map)) return "the cell is off the map or fogged";
+                if (!plan.Cell.InBounds(map)) return "the cell is off the map";
                 if (intent.Designation == Operations.ThingDesignation.Mine)
                 {
                     var rock = ExcavationTools.RockAt(plan.Cell, map);
                     if (rock == null && plan.Cell.Walkable(map)) { plan.Cleared = true; return null; }
-                    if (rock == null || rock.def.defName != intent.ExpectedDef) return "the expected rock is not visible at the cell";
+                    if (rock == null || rock.def.defName != intent.ExpectedDef) return "the expected rock is not at the cell";
                     plan.Target = rock;
                 }
                 else if (map.terrainGrid.FoundationAt(plan.Cell)?.defName != intent.ExpectedDef) { plan.Cleared = true; return null; }
