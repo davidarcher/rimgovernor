@@ -73,14 +73,20 @@ func (d CreepJoinerDownsides) ArmsHold(p CreepJoinerPawn) string {
 	return ""
 }
 
-// CreepJoinerHand is one colonist's facts for the weapon drop: the downside
-// check's facts, whether the colonist can take an order now, and the thing id
-// of the weapon in its hands (known "" for none).
+// CreepJoinerHand is one colonist's facts for the weapon drop and the
+// inspection: the downside check's facts, whether the colonist can take an
+// order now, the thing id of the weapon in its hands (known "" for none), its
+// available surgical operations and its queued surgery bills.
 type CreepJoinerHand struct {
 	Pawn      PawnID
 	Facts     CreepJoinerPawn
 	Available domain.Fact[bool]
 	Weapon    domain.Fact[string]
+	// Operations, QueuedSurgeries and QueuedRecipes are the colonist's
+	// native surgery facts (CarePawn's); QueuedRecipes is nil when unread.
+	Operations      domain.Fact[[]SurgeryOperation]
+	QueuedSurgeries domain.Fact[int]
+	QueuedRecipes   []string
 }
 
 // WeaponDrop is one colonist ordered to drop the weapon it holds.

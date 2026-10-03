@@ -40,7 +40,14 @@ type Goal struct {
 	Status           GoalStatus
 	Need             NeedState
 	RecoveryObserved bool
+	// Record is the goal's own durable intent, JSON the goal's planner
+	// writes and reads (empty for most goals): what the world cannot show,
+	// saved with the goal in the GovernorState blob.
+	Record string `json:",omitempty"`
 }
+
+// MaxGoalRecord bounds Goal.Record in bytes.
+const MaxGoalRecord = 4096
 
 func NewGoal(id GoalID, source GoalSource, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
 	g := Goal{ID: id, Source: source, Priority: priority, Snapshot: snapshot, Tick: tick, Status: GoalActive, Need: NeedUnknown}
@@ -49,6 +56,9 @@ func NewGoal(id GoalID, source GoalSource, priority int, snapshot GenerationSnap
 func (g Goal) Validate() error {
 	if !validID(string(g.ID)) || g.Priority < 0 || g.Priority > 4 || g.Tick < 0 || g.Snapshot.Validate() != nil {
 		return errors.New("invalid maintained goal")
+	}
+	if len(g.Record) > MaxGoalRecord {
+		return errors.New("goal record exceeds bound")
 	}
 	switch g.Source {
 	case AutopilotGoal, PlayerGoal:

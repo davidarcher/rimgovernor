@@ -72,9 +72,15 @@ func CreepJoinerPawn(row *o.PawnState) policy.CreepJoinerPawn {
 // CreepJoinerHand lifts a combat-detail pawn row into the weapon drop's
 // facts (#1740): the downside check's facts, whether the colonist can take an
 // order (alive, standing, undrafted, out of a mental state) and the weapon in
-// its hands.
+// its hands, its surgery operations and bills.
 func CreepJoinerHand(row *o.PawnState) policy.CreepJoinerHand {
-	hand := policy.CreepJoinerHand{Pawn: policy.PawnID(row.GetPawn().GetId()), Facts: CreepJoinerPawn(row), Available: domain.Unknown[bool](), Weapon: domain.Unknown[string]()}
+	hand := policy.CreepJoinerHand{Pawn: policy.PawnID(row.GetPawn().GetId()), Facts: CreepJoinerPawn(row), Available: domain.Unknown[bool](), Weapon: domain.Unknown[string](),
+		Operations: domain.Unknown[[]policy.SurgeryOperation](), QueuedSurgeries: domain.Unknown[int]()}
+	if h := row.Health; h != nil && !failedFields(row.Issues)["health"] {
+		_, hand.Operations = SurgeryFacts(h)
+		hand.QueuedSurgeries = QueuedSurgeries(h)
+		hand.QueuedRecipes = QueuedSurgeryRecipes(h)
+	}
 	mental := CellPresence(row.MentalState, row.Issues, "mental_state", false)
 	if row.GetDead() || row.GetDowned() || row.GetDrafted() {
 		hand.Available = domain.Known(false)

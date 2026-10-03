@@ -403,7 +403,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		psylinkCandidates, reading.Projection.Facts.PsylinkOwed = r.psylink.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection)
 	}
 	if r.creepJoiners != nil {
-		reading.Projection.Facts.CreepJoinerOwed = r.creepJoiners.review(state.Snapshot, reading.Projection.Identity.Tick, reading.Frame)
+		record, err := creepJoinerRecord(ctx, p.journal)
+		if err != nil {
+			return store.RoutineReviewResult{}, err
+		}
+		reading.Projection.Facts.CreepJoinerOwed = r.creepJoiners.review(state.Snapshot, reading.Projection.Identity.Tick, reading.Frame, record)
 	}
 	if r.methodEnabled(policy.MaintainIdeoRoles) {
 		reading.Projection.Facts.RolesOwed = policy.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns)

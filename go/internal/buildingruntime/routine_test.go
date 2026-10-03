@@ -20,6 +20,7 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type routineNative struct {
@@ -43,6 +44,8 @@ type routineNative struct {
 	// set, is the frame's finished research.
 	catalog  []*o.PlanningDefinition
 	finished []string
+	// recipes are the def mirror's RecipeDef rows.
+	recipes []*d.RecipeDef
 	// buildings, pawns and things are the frame's keyed tables (#1343).
 	buildings bridge.Buildings
 	pawns     bridge.Pawns
@@ -136,6 +139,13 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
 	catalog.ThingDefs = map[string]*d.ThingDef{"Apparel_BasicShirt": {DefName: "Apparel_BasicShirt", Apparel: shirt}, "Apparel_Parka": {DefName: "Apparel_Parka", Apparel: shirt},
 		"Bow_Short": {DefName: "Bow_Short"}, "WoodLog": {DefName: "WoodLog"}}
+	if len(n.recipes) > 0 {
+		rows := map[string]proto.Message{}
+		for _, r := range n.recipes {
+			rows[r.DefName] = r
+		}
+		catalog.Defs = map[protoreflect.FullName]map[string]proto.Message{(&d.RecipeDef{}).ProtoReflect().Descriptor().FullName(): rows}
+	}
 	return catalog, nil
 }
 

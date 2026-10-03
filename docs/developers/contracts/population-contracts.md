@@ -111,13 +111,32 @@ Anomaly block is no creepjoiner.
   `EquipCandidatePawn.NoArms` from the same check
   ([weapon planner](weapon-planner.md)); the basic-defense unarmed count skips
   the colonist so `EnsureBasicDefense` does not stay open for it.
+- **Surgical inspection** (David 2026-10-03; the wiki's
+  [Doctoring, Surgical inspection](https://rimworldwiki.com/wiki/Doctoring#Surgical_inspection)):
+  an inspection reveals crumbling mind, organ decay and psychic agony early
+  (their hediffs become visible) and nothing else, and the game keeps no
+  "inspected" flag on the pawn: a clean one leaves a letter, an Anesthetic
+  hediff (60000 ticks) and a small surgical cut. A creepjoiner whose downside
+  is unrevealed and who has no entry in the colony's own record is queued the
+  inspection through the existing medical `ProductionBillIntent` (patient,
+  recipe, `part_index`) by the same goal: the recipe is the def mirror's
+  `RecipeDef` whose `workerClass` is `Recipe_SurgicalInspection` (no def name
+  in Go), on the operation the pawn's native surgery read offers (lowest part
+  index) with an eligible doctor and its ingredients on the map; a creepjoiner
+  that cannot be ordered one stays unordered and the reason is logged. The
+  record is `policy.CreepJoinerRecord` in the goal's `Record` (the
+  `GovernorState` goal blob, [persistence](persistence-contracts.md)): `ordered`
+  when the bill is queued with the plan (one transaction), `done` once the pawn
+  has no inspection bill queued. A bill the player removes also reads as done:
+  the colony cannot tell a finished bill from a removed one. Pawns that left the
+  colony drop out of the record. An inspection that reveals nothing leaves the
+  downside unrevealed.
 
-Open (waiting on the room catalog and recipe rows, #1720): the isolation room
-role, surgical inspection and the prosthetic trick (dentures and wooden hands,
-then removal); valuable apparel has no expressible rule yet. A downside trait
-or hediff that the colonist's benefit or form also grants counts as shown (the
-catalog rows do not tell the two apart): unverified in game, as the drop job's
-build and admission are (no acceptance run).
+Open: the isolation room role and the prosthetic trick (dentures and wooden
+hands, then removal); valuable apparel has no expressible rule yet. A downside
+trait or hediff that the colonist's benefit or form also grants counts as shown
+(the catalog rows do not tell the two apart): unverified in game, as the drop
+job's and the inspection's build and admission are (no acceptance run).
 
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,
