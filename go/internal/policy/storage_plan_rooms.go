@@ -85,8 +85,9 @@ func StorageRoomsOwed(plan LayoutPlan, demand GearRoomDemand) int {
 
 // growStorageRooms adds the storage room demand asks for and plan lacks, on
 // the nearest core slot like any other core room, after the rooms already
-// planned so the first storage room stays the core. It reports whether a
-// room was added.
+// planned so the first storage room stays the core. A room is only ever
+// retired by the reconcile steps in layout_retire.go; none moves or resizes.
+// It reports whether a room was added.
 func growStorageRooms(plan LayoutPlan, demand GearRoomDemand) (LayoutPlan, bool) {
 	if len(plan.Spine) == 0 || StorageRoomsOwed(plan, demand) == 0 {
 		return plan, false

@@ -120,8 +120,9 @@ func frameDims(r LayoutRoom) (width, depth int32) {
 }
 
 // growChildRoom adds a room holding the shape to plan unless it has one, at
-// the nearest core slot. Existing rooms never move or shrink. It reports
-// whether a room was added.
+// the nearest core slot. A room is only ever retired by the reconcile steps
+// in layout_retire.go; none moves or resizes. It reports whether a room was
+// added.
 func growChildRoom(plan LayoutPlan, s ChildRoomShape) (LayoutPlan, bool) {
 	if len(s.Pieces) == 0 || len(plan.Spine) == 0 {
 		return plan, false

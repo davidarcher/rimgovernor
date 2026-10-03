@@ -195,3 +195,32 @@ func kibbleRaces(targets []policy.AnimalFeedTarget) policy.AnimalRaceCatalog {
 	}
 	return policy.AnimalRaceCatalog{Races: races}
 }
+
+// layout replan, hand-built (#1826): a plan carrying three worship rooms
+// replans to one, the smallest, and nothing else leaves the plan.
+func TestPickReplanRetiresDuplicateWorshipRooms(t *testing.T) {
+	p := planner(t, "testdata/planner-replan-duplicate-worship.json.gz")
+	if len(p.Replans) != 1 {
+		t.Fatalf("%d replans", len(p.Replans))
+	}
+	call := p.Replans[0]
+	worship := func(plan policy.LayoutPlan) (out []policy.LayoutRoom) {
+		for _, r := range plan.AllRooms() {
+			if r.Role == policy.ModuleWorship {
+				out = append(out, r)
+			}
+		}
+		return out
+	}
+	if got := len(worship(call.Plan)); got != 3 {
+		t.Fatalf("recorded plan holds %d worship rooms, want 3", got)
+	}
+	next, changed := call.Run()
+	got := worship(next)
+	if !changed || len(got) != 1 || len(next.AllRooms()) != len(call.Plan.AllRooms())-2 {
+		t.Fatalf("changed=%v worship=%d rooms %d -> %d", changed, len(got), len(call.Plan.AllRooms()), len(next.AllRooms()))
+	}
+	if want := (policy.Rectangle{X: 14, Z: 14, Width: 3, Height: 3}); got[0].Interior != want {
+		t.Errorf("kept %+v, want the smallest %+v", got[0].Interior, want)
+	}
+}

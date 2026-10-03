@@ -55,8 +55,9 @@ func (p LayoutPlan) ThroneRoomFor(area int) (LayoutRoom, bool) {
 
 // growThroneRoom adds a throne room of at least area cells to plan unless
 // it holds one, at the nearest core slot like any other core room. Existing
-// rooms never move or shrink: a room a later title outgrows stays and a
-// larger one is added. It reports whether a room was added; a plan with no
+// rooms are only retired by the reconcile steps in layout_retire.go and none
+// moves or resizes: a room a later title outgrows stays until a larger one
+// supersedes it. It reports whether a room was added; a plan with no
 // core ground or no slot for any shape is left as it is.
 func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool) {
 	if area <= 0 || len(plan.Spine) == 0 {
