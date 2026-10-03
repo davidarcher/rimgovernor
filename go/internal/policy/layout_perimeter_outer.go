@@ -17,6 +17,10 @@ const (
 	// one (a whole valley floor) would wall the map and is left outside
 	// (#1582).
 	perimeterPatchMax = 2500
+	// perimeterPatchMin is the smallest rich patch worth walling: a lone
+	// fertile tile or two would stretch the ring (and its extra walls) across
+	// open ground for nothing.
+	perimeterPatchMin = 30
 	// perimeterOuterGap is the free cells between the core ring (and the
 	// killbox approach) and the outer ring.
 	perimeterOuterGap int32 = 1
@@ -67,7 +71,7 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 		}
 	}
 	for _, comp := range components(w, h, func(i int32) bool { return rich[i] }) {
-		if len(comp) > perimeterPatchMax {
+		if len(comp) > perimeterPatchMax || len(comp) < perimeterPatchMin {
 			continue
 		}
 		cells := make([]domain.Cell, len(comp))
