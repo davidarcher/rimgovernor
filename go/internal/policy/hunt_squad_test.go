@@ -21,7 +21,7 @@ func TestSquadHuntsGroupMixedSpeciesAndKeepLoneHunters(t *testing.T) {
 	taken := preyRow("taken", 12, 12, 0.05)
 	taken.Taken = true
 	rows = append(rows, taken)
-	channels, lone := SquadHunts(rows, SquadHuntMinGunners)
+	channels, lone := SquadHunts(rows, SquadHuntMinGunners, domain.Fact[string]{})
 	if len(channels) != 2 {
 		t.Fatalf("channels = %+v", channels)
 	}
@@ -46,14 +46,14 @@ func TestSquadHuntsGroupMixedSpeciesAndKeepLoneHunters(t *testing.T) {
 		t.Fatalf("lone = %v", ids)
 	}
 	// Without a squad's gunners nothing is grouped.
-	if channels, lone = SquadHunts(rows, SquadHuntMinGunners-1); len(channels) != 0 || len(lone) != len(rows) {
+	if channels, lone = SquadHunts(rows, SquadHuntMinGunners-1, domain.Fact[string]{}); len(channels) != 0 || len(lone) != len(rows) {
 		t.Fatalf("squad without gunners: %v", channels)
 	}
 }
 
 func TestHuntRequestAndCombatCleared(t *testing.T) {
 	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05)}
-	squads, _ := SquadHunts(rows, 4)
+	squads, _ := SquadHunts(rows, 4, domain.Fact[string]{})
 	plan := domain.Known(FoodPlan{Portfolio: []FoodPlanEntry{{Channel: squads[0], Decision: FoodPlanOpen}}})
 	if got := HuntRequest(plan); !reflect.DeepEqual(got, []domain.PawnID{"a", "b", "c"}) {
 		t.Fatalf("request = %v", got)

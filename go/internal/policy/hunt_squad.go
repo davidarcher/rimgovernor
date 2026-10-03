@@ -24,6 +24,24 @@ const (
 	squadSleepingWork = 0.5
 )
 
+// weatherHitChance is the vanilla ranged hit-chance factor of a weather
+// (rain and snow 80%, fog 50%); weathers absent here do not change it.
+var weatherHitChance = map[string]float64{
+	"Rain": 0.8, "RainyThunderstorm": 0.8, "SnowGentle": 0.8, "SnowHard": 0.8,
+	"Fog": 0.5, "FoggyRain": 0.5,
+}
+
+// SquadWeatherWork scales a squad hunt's work for the current weather: half
+// of the extra shots the lower hit chance costs, so a hunt is mildly dearer
+// and never gated. Unknown or unlisted weather leaves it unchanged.
+func SquadWeatherWork(weather domain.Fact[string]) float64 {
+	def, known := weather.Value()
+	if hit, ok := weatherHitChance[def]; known && ok {
+		return 1 + (1/hit-1)/2
+	}
+	return 1
+}
+
 // SquadGunners counts the colonists a squad hunt may draft: ranged and
 // capable of hunting.
 func SquadGunners(profiles []PawnProfile) int {
@@ -90,8 +108,9 @@ func SquadPreyGroups(sources []AcquisitionSource) [][]AcquisitionSource {
 
 // SquadHunts are the food channels of the groups worth a squad when gunners
 // can form one, and the sources left to designation hunting. A grouped
-// animal is credited once, in its group's channel.
-func SquadHunts(sources []AcquisitionSource, gunners int) ([]FoodChannel, []AcquisitionSource) {
+// animal is credited once, in its group's channel. Bad weather (rain, snow,
+// fog) mildly raises the work of a hunt.
+func SquadHunts(sources []AcquisitionSource, gunners int, weather domain.Fact[string]) ([]FoodChannel, []AcquisitionSource) {
 	if gunners < SquadHuntMinGunners {
 		return nil, sources
 	}
@@ -107,7 +126,7 @@ func SquadHunts(sources []AcquisitionSource, gunners int) ([]FoodChannel, []Acqu
 			if s.Sleeping {
 				w *= squadSleepingWork
 			}
-			work += w
+			work += w * SquadWeatherWork(weather)
 			risk = math.Max(risk, s.HuntRevengeCost())
 			c.Prey = append(c.Prey, s.ID)
 		}

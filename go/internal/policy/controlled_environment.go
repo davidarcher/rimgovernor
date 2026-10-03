@@ -20,6 +20,8 @@ type ControlledEnvironment struct {
 	Networks            []PowerHeadroom
 	OutdoorTemperatureC domain.Fact[float64]
 	Daylight            domain.Fact[bool]
+	// Weather is the current WeatherDef name; unknown when unread.
+	Weather domain.Fact[string]
 }
 
 type GrowLight struct {

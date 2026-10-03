@@ -16,7 +16,7 @@ func TestRoutineReviewHuntOrigin(t *testing.T) {
 	s := open(t, filepath.Join(t.TempDir(), "hunt.db"))
 	r := routineRequest()
 	rows := []policy.AcquisitionSource{{ID: "a", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}, {ID: "b", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}, {ID: "c", Hunt: true, Food: true, NutritionYield: 10, Yield: 1}}
-	squads, _ := policy.SquadHunts(rows, policy.SquadHuntMaxGunners)
+	squads, _ := policy.SquadHunts(rows, policy.SquadHuntMaxGunners, domain.Fact[string]{})
 	r.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: squads[0], Decision: policy.FoodPlanOpen}}})
 	out := reviewRoutine(t, s, &r)
 	b, ok := out.Review.Incident(policy.ActiveCombat)

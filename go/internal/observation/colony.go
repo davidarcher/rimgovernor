@@ -572,7 +572,7 @@ func cellsOf(rows []*c.Cell) []domain.Cell {
 // their native order (ids ascending); every scalar stays unknown when the
 // native side omitted it.
 func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings bridge.Buildings) policy.ControlledEnvironment {
-	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight)}
+	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight), Weather: optional(v.Weather)}
 	for _, row := range v.Lights {
 		ref := buildings.Entity(row.Building)
 		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})

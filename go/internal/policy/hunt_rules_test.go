@@ -36,8 +36,8 @@ func TestSquadHuntSleepingPreyIsCheaperNotGated(t *testing.T) {
 		}
 		return rows
 	}
-	day, _ := SquadHunts(mk(false), SquadHuntMinGunners)
-	night, _ := SquadHunts(mk(true), SquadHuntMinGunners)
+	day, _ := SquadHunts(mk(false), SquadHuntMinGunners, domain.Fact[string]{})
+	night, _ := SquadHunts(mk(true), SquadHuntMinGunners, domain.Fact[string]{})
 	if len(day) != 1 || len(night) != 1 {
 		t.Fatalf("day %v night %v", day, night)
 	}
@@ -45,5 +45,27 @@ func TestSquadHuntSleepingPreyIsCheaperNotGated(t *testing.T) {
 	n, _ := night[0].WorkPerDay.Value()
 	if !(n < d) {
 		t.Fatalf("work day %v night %v", d, n)
+	}
+}
+
+// Rain, snow and fog make a squad hunt mildly dearer; clear, unlisted and
+// unknown weather leave it unchanged, and nothing is gated.
+func TestSquadHuntBadWeatherIsCostlierNotGated(t *testing.T) {
+	rows := []AcquisitionSource{preyRow("a", 1, 1, 0.05), preyRow("b", 2, 2, 0.05), preyRow("c", 3, 3, 0.05)}
+	work := func(w domain.Fact[string]) float64 {
+		channels, _ := SquadHunts(rows, SquadHuntMinGunners, w)
+		if len(channels) != 1 {
+			t.Fatalf("weather %v: channels %v", w, channels)
+		}
+		v, _ := channels[0].WorkPerDay.Value()
+		return v
+	}
+	base := work(domain.Fact[string]{})
+	if got := work(domain.Known("Clear")); got != base {
+		t.Fatalf("clear %v base %v", got, base)
+	}
+	rain, fog := work(domain.Known("Rain")), work(domain.Known("FoggyRain"))
+	if !(base < rain && rain < fog && fog < 2*base) {
+		t.Fatalf("base %v rain %v fog %v", base, rain, fog)
 	}
 }

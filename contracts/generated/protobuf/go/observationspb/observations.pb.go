@@ -27605,6 +27605,7 @@ type ControlledEnvironment struct {
 	Networks      []*PowerHeadroom       `protobuf:"bytes,4,rep,name=networks,proto3" json:"networks,omitempty"`
 	Daylight      *bool                  `protobuf:"varint,6,opt,name=daylight,proto3,oneof" json:"daylight,omitempty"`
 	Issues        []*ReadIssue           `protobuf:"bytes,8,rep,name=issues,proto3" json:"issues,omitempty"`
+	Weather       *string                `protobuf:"bytes,9,opt,name=weather,proto3,oneof" json:"weather,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -27679,6 +27680,13 @@ func (x *ControlledEnvironment) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *ControlledEnvironment) GetWeather() string {
+	if x != nil && x.Weather != nil {
+		return *x.Weather
+	}
+	return ""
 }
 
 // A sowable crop with an edible product: the map's per-day facts beside
@@ -40594,15 +40602,18 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_consumption_wB\x13\n" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\x14\n" +
-	"\x12_has_active_source\"\x9a\x03\n" +
+	"\x12_has_active_source\"\xc5\x03\n" +
 	"\x15ControlledEnvironment\x12>\n" +
 	"\x06lights\x18\x01 \x03(\v2&.rimgovernor.observations.v1.GrowLightR\x06lights\x12B\n" +
 	"\agrowers\x18\x02 \x03(\v2(.rimgovernor.observations.v1.PlantGrowerR\agrowers\x12;\n" +
 	"\x05rooms\x18\x03 \x03(\v2%.rimgovernor.observations.v1.GrowRoomR\x05rooms\x12F\n" +
 	"\bnetworks\x18\x04 \x03(\v2*.rimgovernor.observations.v1.PowerHeadroomR\bnetworks\x12\x1f\n" +
 	"\bdaylight\x18\x06 \x01(\bH\x00R\bdaylight\x88\x01\x01\x12>\n" +
-	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\v\n" +
-	"\t_daylightJ\x04\b\x05\x10\x06J\x04\b\a\x10\b\"\xcd\x01\n" +
+	"\x06issues\x18\b \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1d\n" +
+	"\aweather\x18\t \x01(\tH\x01R\aweather\x88\x01\x01B\v\n" +
+	"\t_daylightB\n" +
+	"\n" +
+	"\b_weatherJ\x04\b\x05\x10\x06J\x04\b\a\x10\b\"\xcd\x01\n" +
 	"\n" +
 	"EdibleCrop\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12<\n" +

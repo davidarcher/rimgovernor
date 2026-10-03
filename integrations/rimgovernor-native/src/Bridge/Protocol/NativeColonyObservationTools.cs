@@ -494,6 +494,8 @@ namespace HomeBridge.BridgeTools
         private static Obs.ControlledEnvironment Environment(Map map, IntVec3 min, IntVec3 max)
         {
             var result = new Obs.ControlledEnvironment { Daylight = GenCelestial.CurCelestialSunGlow(map) >= 0.3f };
+            var weather = map.weatherManager?.curWeather?.defName;
+            if (!string.IsNullOrEmpty(weather)) result.Weather = weather;
             bool Inside(IntVec3 c) => c.x >= min.x && c.x <= max.x && c.z >= min.z && c.z <= max.z;
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
