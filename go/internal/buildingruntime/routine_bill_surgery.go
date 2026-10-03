@@ -12,18 +12,22 @@ import (
 // surgeryPartDemand is MaintainSurgery's part demand (#1168): the
 // part-short restore wants from the pawn care facts, and the gear benches
 // that could fabricate them. A native without the gear bench census, or a
-// bench whose recipes or bills are unknown, fabricates nothing.
-func surgeryPartDemand(call context.Context, native any, identity *c.Identity, pawns domain.Fact[[]policy.CarePawn]) ([]policy.SurgeryPart, []policy.ProductionBench, error) {
+// bench whose recipes or bills are unknown, fabricates nothing. The chosen
+// elective (#1844) adds its part after the served ones when a bench can
+// fabricate it; ctx gates it.
+func surgeryPartDemand(call context.Context, native any, identity *c.Identity, pawns domain.Fact[[]policy.CarePawn], ctx policy.SurgeryContext) ([]policy.SurgeryPart, []policy.ProductionBench, error) {
 	parts := policy.SurgeryParts(policy.SelectSurgery(pawns, nil, policy.SurgeryContext{}).Wants)
+	elective, chosen := policy.ChosenElective(pawns, ctx)
 	source, ok := native.(artBenchSource)
-	if len(parts) == 0 || !ok {
+	if len(parts) == 0 && !chosen || !ok {
 		return parts, nil, nil
 	}
 	reads, _, err := source.ReadGearBenches(call, identity)
 	if err != nil {
 		return nil, nil, err
 	}
-	return parts, partBenches(reads), nil
+	benches := partBenches(reads)
+	return append(parts, policy.ElectiveParts(elective, chosen, policy.FabricableParts(benches))...), benches, nil
 }
 
 // partBenches converts the gear benches into production benches carrying

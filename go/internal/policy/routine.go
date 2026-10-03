@@ -1233,7 +1233,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// MaintainSurgery (#1164): an operation the planner serves stands on a
 	// living colonist until the health change removes it.
 	// An actionable elective upgrade (#1167) keeps it open too.
-	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping), f.ElectiveShare()), func(owed bool) bool { return !owed }))
+	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContext(), f.FabricableParts), func(owed bool) bool { return !owed }))
 	// A sale organ harvest (#1169) holds it open while the silver runway
 	// is short and a prisoner's organ clears its cost; a prisoner's
 	// recoverable artificial part (#1232) too, and a peg-leg step: doctor

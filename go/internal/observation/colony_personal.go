@@ -19,6 +19,20 @@ func (r ColonyProjection) PersonalShareOf(pawn policy.PawnID) policy.PersonalSha
 	return policy.UnknownPersonalShare()
 }
 
+// SurgeryContext is the surgery ranking context over the projection: the
+// hospital bed, the elective gate (PersonalShareOf) and the work profiles. The
+// surgery review and the part-demand path read the same one.
+func (r ColonyProjection) SurgeryContext() policy.SurgeryContext {
+	ctx := policy.SurgeryContext{Elective: policy.ElectiveShare{Items: r.Facts.Items, Of: r.PersonalShareOf}}
+	if bed, _ := policy.HospitalBedReady(r.Facts.Sleeping).Value(); bed {
+		ctx.HospitalBed = true
+	}
+	if pawns, known := r.WorkPawns.Value(); known {
+		ctx.Profiles = policy.Profiles(pawns)
+	}
+	return ctx
+}
+
 // personalShares fills p.PersonalShares from the reading's wealth, roster,
 // gear and sleeping census (#1846). Soldiers are the pawns whose gear role
 // derives to soldier; doctors are policy.ShareDoctors. Spent is unknown for

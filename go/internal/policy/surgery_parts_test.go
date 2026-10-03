@@ -117,3 +117,92 @@ func TestSurgeryPartCaravanSkipsFabricable(t *testing.T) {
 		t.Fatal("a part no bench can make opened no caravan", got)
 	}
 }
+
+func missingElective(recipe, part string, index int, stocked bool) SurgeryOperation {
+	op := electiveOp(recipe, part, index, 0.97)
+	op.IngredientsOnMap = domain.Known(stocked)
+	return op
+}
+
+// #1844: the single chosen affordable elective creates part demand until it
+// is stocked or installed; served demand is unchanged.
+func TestChosenElectivePartDemand(t *testing.T) {
+	eye := func(id PawnID, stocked bool) CarePawn {
+		return wholePawn(id, 0, missingElective("InstallBionicEye", "Eye", 5, stocked))
+	}
+	fab := map[Resource]bool{"BionicEye": true, "BionicArm": true}
+	ctx := func(remaining map[PawnID]float64) SurgeryContext {
+		return SurgeryContext{HospitalBed: true, Elective: electiveShares(remaining)}
+	}
+	rich := map[PawnID]float64{"a": 2000, "b": 2000}
+	demand := func(pawns []CarePawn, c SurgeryContext, fabricable map[Resource]bool) []SurgeryPart {
+		want, chosen := ChosenElective(domain.Known(pawns), c)
+		return ElectiveParts(want, chosen, fabricable)
+	}
+	t.Run("exactly one demand across colonists and parts", func(t *testing.T) {
+		pawns := []CarePawn{
+			wholePawn("a", 0, missingElective("InstallBionicEye", "Eye", 5, false), missingElective("InstallBionicArm", "Arm", 20, false)),
+			wholePawn("b", 0, missingElective("InstallBionicArm", "Arm", 20, false)),
+		}
+		parts := demand(pawns, ctx(rich), fab)
+		if len(parts) != 1 || parts[0].Pawn != "a" || parts[0].Part != 20 || parts[0].Items[0] != "BionicArm" {
+			t.Fatalf("parts %+v", parts)
+		}
+		if d := SurgeryPartDemand(parts); len(d) != 1 || d[0].Key.Def != "BionicArm" || d[0].Count != 1 {
+			t.Fatalf("demand %+v", d)
+		}
+	})
+	t.Run("same gate as selection: unaffordable yields none", func(t *testing.T) {
+		if parts := demand([]CarePawn{eye("a", false)}, ctx(map[PawnID]float64{"a": 100}), fab); len(parts) != 0 {
+			t.Fatalf("poor: %+v", parts)
+		}
+		// within the slack: 1000/1.1 = 909 fits 910, not 900
+		if parts := demand([]CarePawn{eye("a", false)}, ctx(map[PawnID]float64{"a": 910}), fab); len(parts) != 1 {
+			t.Fatalf("slack: %+v", parts)
+		}
+		if parts := demand([]CarePawn{eye("a", false)}, ctx(map[PawnID]float64{"a": 900}), fab); len(parts) != 0 {
+			t.Fatalf("below slack: %+v", parts)
+		}
+	})
+	t.Run("a part nothing fabricates yields none", func(t *testing.T) {
+		if parts := demand([]CarePawn{eye("a", false)}, ctx(rich), nil); len(parts) != 0 {
+			t.Fatalf("parts %+v", parts)
+		}
+		if want, chosen := ChosenElective(domain.Known([]CarePawn{eye("a", false)}), ctx(rich)); !chosen || want.Items[0] != "BionicEye" {
+			t.Fatalf("the purchase path still sees the choice: %+v %v", want, chosen)
+		}
+	})
+	t.Run("clears when stocked, queued or blocked", func(t *testing.T) {
+		if parts := demand([]CarePawn{eye("a", true)}, ctx(rich), fab); len(parts) != 0 {
+			t.Fatalf("stocked: %+v", parts)
+		}
+		if parts := demand([]CarePawn{eye("a", false), wholePawn("b", 1)}, ctx(rich), fab); len(parts) != 0 {
+			t.Fatalf("queued: %+v", parts)
+		}
+		if parts := demand([]CarePawn{eye("a", false)}, SurgeryContext{Elective: electiveShares(rich)}, fab); len(parts) != 0 {
+			t.Fatalf("no hospital bed: %+v", parts)
+		}
+	})
+	t.Run("served demand is unchanged and electives wait behind it", func(t *testing.T) {
+		served := surgeryPawn("b", 0, restoreOp("InstallProstheticLeg", "Leg", 3, 0.9, 1, false))
+		pawns := []CarePawn{eye("a", false), served}
+		if parts := demand(pawns, ctx(rich), fab); len(parts) != 0 {
+			t.Fatalf("elective demanded under a served one: %+v", parts)
+		}
+		if got := SurgeryParts(SelectSurgery(domain.Known(pawns), nil, ctx(rich)).Wants); len(got) != 1 || got[0].Part != 3 {
+			t.Fatalf("served demand changed: %+v", got)
+		}
+	})
+	t.Run("owed holds the goal while fabricable, not otherwise", func(t *testing.T) {
+		pawns := domain.Known([]CarePawn{eye("a", false)})
+		if owed, _ := ElectiveSurgeryOwed(pawns, ctx(rich), fab).Value(); !owed {
+			t.Fatal("fabricable part must hold MaintainSurgery open")
+		}
+		if owed, _ := ElectiveSurgeryOwed(pawns, ctx(rich), nil).Value(); owed {
+			t.Fatal("an unfabricable part must not hold it open here")
+		}
+		if owed, _ := ElectiveSurgeryOwed(pawns, ctx(map[PawnID]float64{"a": 100}), fab).Value(); owed {
+			t.Fatal("unaffordable must recover")
+		}
+	})
+}

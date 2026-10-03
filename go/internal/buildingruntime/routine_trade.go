@@ -533,7 +533,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	}
 	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
 	// Restore parts no bench can fabricate are bought (#1168).
-	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns)
+	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, policy.SurgeryContext{})
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}

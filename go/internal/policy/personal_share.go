@@ -50,6 +50,13 @@ func (f RoutineFacts) ElectiveShare() ElectiveShare {
 	}}
 }
 
+// SurgeryContext is the surgery ranking context over f: the hospital bed, the
+// elective gate and the work profiles.
+func (f RoutineFacts) SurgeryContext() SurgeryContext {
+	profiles, _ := f.WorkProfiles.Value()
+	return SurgeryContext{Profiles: profiles, HospitalBed: positive(HospitalBedReady(f.Sleeping)), Elective: f.ElectiveShare()}
+}
+
 // PersonalPool is the pool from f's wealth.
 func (f RoutineFacts) PersonalPool() domain.Fact[float64] { return PersonalPool(f.Wealth) }
 

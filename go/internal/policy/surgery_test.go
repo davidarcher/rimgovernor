@@ -221,7 +221,7 @@ func TestElectiveSurgery(t *testing.T) {
 					t.Fatalf("queue %+v", got.Queue)
 				}
 			}
-			owed, _ := ElectiveSurgeryOwed(domain.Known(c.pawns), domain.Known(c.ctx.HospitalBed), c.ctx.Elective).Value()
+			owed, _ := ElectiveSurgeryOwed(domain.Known(c.pawns), c.ctx, nil).Value()
 			if elective := len(got.Queue) > 0 && got.Queue[0].Kind == SurgeryInstall; owed != elective {
 				t.Fatalf("owed %v, queue %+v", owed, got.Queue)
 			}

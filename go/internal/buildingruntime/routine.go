@@ -398,7 +398,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: sale art err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
-	if parts, benches, err := surgeryPartDemand(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns); err != nil {
+	if parts, benches, err := surgeryPartDemand(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection.Facts.MedicalPawns, reading.Projection.SurgeryContext()); err != nil {
 		clockSchedulerLog("routine.step: surgery parts err=%v", err)
 		return store.RoutineReviewResult{}, err
 	} else if len(parts) > 0 {

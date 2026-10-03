@@ -98,11 +98,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, known := read.Projection.Facts.MedicalPawns.Value(); !known {
 		return RoutineSurgeryResult{Verdict: fieldUnavailable("medical_pawns"), NativeWorkTicks: ticks}, nil
 	}
-	surgery := policy.SurgeryContext{HospitalBed: positiveFact(policy.HospitalBedReady(read.Projection.Facts.Sleeping))}
-	surgery.Elective = policy.ElectiveShare{Items: read.Projection.Facts.Items, Of: read.Projection.PersonalShareOf}
-	if pawns, known := read.Projection.WorkPawns.Value(); known {
-		surgery.Profiles = policy.Profiles(pawns)
-	}
+	surgery := read.Projection.SurgeryContext()
 	selection := policy.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight, surgery)
 	result := RoutineSurgeryResult{Wants: selection.Wants, NativeWorkTicks: ticks}
 	var queue []policy.SurgeryChoice

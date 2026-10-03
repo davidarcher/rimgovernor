@@ -121,6 +121,21 @@ x role weight, and exactly one is queued colony-wide, ties by pawn id.
 holds MaintainSurgery open. Served operations never pass the share gate. The zero
 `ElectiveShare` is ungated, which the other `SelectSurgery` callers rely on.
 
+Elective part demand (#1844): `policy.ChosenElective(pawns, ctx)` is the one
+elective colony-wide whose part is missing: the best affordable elective
+(the same gate, slack and ranking as `SelectSurgery`, but over stocked and
+missing parts alike) that a doctor performs within `ElectiveFailureCap`. It is
+none while electives are not allowed (so a served operation anywhere wins by
+construction) or once any option of the chosen part is on the map, when
+`SelectSurgery` queues it. `ElectiveParts` turns it into a `SurgeryPart` of the
+items some usable bench fabricates, appended after the served parts, so the
+existing `SurgeryPartBill` (fabricate-first, `FabricableParts`) builds it; a part
+nothing fabricates yields no demand there, and the purchase path (#1845) reads
+the same `ChosenElective`. `ElectiveSurgeryOwed` holds MaintainSurgery open for a
+chosen elective only while it is fabricable, and the demand clears when the
+part is stocked, installed, queued or no longer affordable. The trade side
+(`routine_trade.go`) still sees served parts only.
+
 Peg-leg cycling (#1236) takes the same one-surgery slot after harvest and part
 recovery. It installs and removes cheap wood parts (peg leg, wooden hand, wooden
 foot) on colony prisoners:

@@ -171,7 +171,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return r.admit(call, epoch, arbiter, state, goal, read, selected, len(goal.Methods))
 	}
 	if r.purpose == policy.SurgeryPartBill {
-		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns)
+		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns, projection.SurgeryContext())
 		if err != nil {
 			return RoutineBillResult{}, err
 		}

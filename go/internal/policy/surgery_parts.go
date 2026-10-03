@@ -151,6 +151,103 @@ func selectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (Bill
 	return BillSelection{}, false
 }
 
+// ChosenElective is the one elective colony-wide whose part is missing
+// (#1844): the best affordable elective upgrade (ctx.Elective, the same gate
+// and slack as SelectSurgery) a doctor can perform within ElectiveFailureCap,
+// ranked as SelectSurgery ranks (gain over the natural part x part weight x
+// role weight, ties by pawn id then part) but over every elective, stocked or
+// not. It returns a SurgeryPartShort want whose Options and Items are that
+// part's affordable recipes, best first. Nothing is chosen while electives are
+// not allowed (no hospital bed, a queued bill or a served operation anywhere,
+// so served demand never conflicts) or once some option of the chosen part is
+// on the map: SelectSurgery then queues it. The purchase path (#1845) and
+// ElectiveParts both read this.
+func ChosenElective(pawns domain.Fact[[]CarePawn], ctx SurgeryContext) (SurgeryWant, bool) {
+	rows, _ := pawns.Value()
+	if !electivesAllowed(rows, ctx.HospitalBed) {
+		return SurgeryWant{}, false
+	}
+	profiles := map[PawnID]PawnProfile{}
+	for _, p := range ctx.Profiles {
+		profiles[p.ID] = p
+	}
+	var best SurgeryWant
+	var bestStocked, found bool
+	for _, pawn := range rows {
+		if dead, dk := pawn.Dead.Value(); !dk || dead {
+			continue
+		}
+		if queued, qk := pawn.QueuedSurgeries.Value(); !qk || queued > 0 {
+			continue
+		}
+		ops, _ := pawn.Operations.Value()
+		parts := map[int][]SurgeryOperation{}
+		var order []int
+		for _, op := range ops {
+			part, pk := op.PartIndex.Value()
+			if _, rk := op.Recipe.Value(); !rk || !pk || !electiveUpgrade(op) || !surgeryAcceptable(op, ElectiveFailureCap) || !ctx.Elective.affordable(pawn.ID, op) {
+				continue
+			}
+			if parts[part] == nil {
+				order = append(order, part)
+			}
+			parts[part] = append(parts[part], op)
+		}
+		sort.Ints(order)
+		for _, part := range order {
+			group := parts[part]
+			sort.SliceStable(group, func(i, j int) bool { return opTier(group[i]) > opTier(group[j]) })
+			name, _ := group[0].PartDefName.Value()
+			weight := partWeight(name)
+			if profile, ok := profiles[pawn.ID]; ok {
+				weight *= UpgradeRoleWeight(profile, name)
+			}
+			top, _ := group[0].Recipe.Value()
+			value := (PartTier(top) - 1) * weight
+			if found && (value < best.Value || value == best.Value && (pawn.ID > best.Pawn || pawn.ID == best.Pawn && part > best.Part)) {
+				continue
+			}
+			found = true
+			best = SurgeryWant{Pawn: pawn.ID, Part: part, Recipe: top, Reason: SurgeryPartShort, Value: value}
+			bestStocked = false
+			for _, op := range group {
+				recipe, _ := op.Recipe.Value()
+				best.Options = append(best.Options, recipe)
+				if op.Item != "" {
+					best.Items = append(best.Items, op.Item)
+				}
+				if stocked, known := op.IngredientsOnMap.Value(); known && stocked {
+					bestStocked = true
+				}
+			}
+		}
+	}
+	return best, found && !bestStocked
+}
+
+// fabricableItems are the valid items some usable bench can fabricate, in order.
+func fabricableItems(items []Resource, fabricable map[Resource]bool) []Resource {
+	var out []Resource
+	for _, item := range items {
+		if fabricable[item] && validResource(item) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// ElectiveParts is the chosen elective's part demand for the bill path
+// (#1844): one SurgeryPart of its fabricable items, or none. A part nothing
+// fabricates yields none here (the purchase path, #1845, supplies it). Callers
+// append it after the served parts, which win any conflict.
+func ElectiveParts(want SurgeryWant, chosen bool, fabricable map[Resource]bool) []SurgeryPart {
+	if !chosen {
+		return nil
+	}
+	want.Items = fabricableItems(want.Items, fabricable)
+	return SurgeryParts([]SurgeryWant{want})
+}
+
 func producesItem(recipe ProductionRecipe, item Resource) bool {
 	for _, product := range recipe.Products {
 		if Resource(product.Name) == item {

@@ -226,13 +226,21 @@ func electiveUpgrade(op SurgeryOperation) bool {
 // part within the colonist's remaining share) on a living colonist without a
 // queued bill. It keeps MaintainSurgery open; blocked or unaffordable
 // electives never do.
-func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], hospital domain.Fact[bool], gate ElectiveShare) domain.Fact[bool] {
+//
+// A chosen elective whose part is missing (ChosenElective) also holds it open
+// while a usable bench can fabricate the part (#1844): the part bill is the
+// work. fabricable is FabricableParts; nil fabricates nothing.
+func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], ctx SurgeryContext, fabricable map[Resource]bool) domain.Fact[bool] {
 	rows, known := pawns.Value()
 	if !known {
 		return domain.Unknown[bool]()
 	}
-	if !electivesAllowed(rows, positive(hospital)) {
+	if !electivesAllowed(rows, ctx.HospitalBed) {
 		return domain.Known(false)
+	}
+	gate := ctx.Elective
+	if want, ok := ChosenElective(pawns, ctx); ok && len(fabricableItems(want.Items, fabricable)) > 0 {
+		return domain.Known(true)
 	}
 	for _, pawn := range rows {
 		if dead, dk := pawn.Dead.Value(); !dk || dead {

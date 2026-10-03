@@ -27,7 +27,7 @@ func TestElectiveSurgeryUnderShare(t *testing.T) {
 	eye := func(id PawnID) CarePawn { return wholePawn(id, 0, electiveOp("InstallBionicEye", "Eye", 5, 0.97)) }
 	queue := func(pawns []CarePawn, gate ElectiveShare) ([]SurgeryChoice, bool) {
 		sel := SelectSurgery(domain.Known(pawns), nil, SurgeryContext{HospitalBed: true, Elective: gate})
-		owed, _ := ElectiveSurgeryOwed(domain.Known(pawns), domain.Known(true), gate).Value()
+		owed, _ := ElectiveSurgeryOwed(domain.Known(pawns), SurgeryContext{HospitalBed: true, Elective: gate}, nil).Value()
 		return sel.Queue, owed
 	}
 	t.Run("poor gets none, rich gets one", func(t *testing.T) {
