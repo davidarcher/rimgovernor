@@ -250,7 +250,11 @@ func FacilityCatalog() []FacilityRequirement {
 		// shells it while a deathrester lives and places a casket per
 		// deathrester and the accelerators its capacity allows.
 		{Role: RoomRoleDeathrestChamber, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleDeathrestCasket, RoleDeathrestAccelerator}},
-		{Role: RoomRoleContainmentCell, Status: FacilityPending, Content: "Anomaly"},
+		// A containment cell is its own planned room (#1741): MaintainHousing
+		// shells it while a capturable entity has no platform able to hold it
+		// and places the holding platform the game's defs name, once the
+		// predicted containment strength reaches what the entity needs.
+		{Role: RoomRoleContainmentCell, Status: FacilityImplemented, Content: "Anomaly", FurnitureFromGame: true},
 		{Role: RoomRoleCeremonialChamber, Status: FacilityPending, Content: "Anomaly"},
 	}
 }

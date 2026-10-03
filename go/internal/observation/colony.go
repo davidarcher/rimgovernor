@@ -58,11 +58,13 @@ type StuffOption struct {
 	Costs []policy.Amount
 }
 type ColonyProjection struct {
-	DeepResources       domain.Fact[DeepResources]
-	Policies            domain.Fact[Policies]
-	Biotech             domain.Fact[BiotechColony]
-	Odyssey             domain.Fact[OdysseyColony]
-	Anomaly             domain.Fact[AnomalyColony]
+	DeepResources domain.Fact[DeepResources]
+	Policies      domain.Fact[Policies]
+	Biotech       domain.Fact[BiotechColony]
+	Odyssey       domain.Fact[OdysseyColony]
+	Anomaly       domain.Fact[AnomalyColony]
+	// Containment is the containment cell's inputs (#1741), set by the routine reading.
+	Containment         policy.ContainmentPlanning
 	FoodFields          domain.Fact[[]policy.FoodField]
 	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]

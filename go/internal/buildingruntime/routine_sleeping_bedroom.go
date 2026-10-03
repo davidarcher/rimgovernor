@@ -189,8 +189,8 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
-	wallDef, wok := animalContainmentDefinition(facts.Definitions, "Wall")
-	doorDef, dok := animalContainmentDefinition(facts.Definitions, "Door")
+	wallDef, wok := animalContainmentDefinition(facts.Definitions, policy.ShellWallDefinition)
+	doorDef, dok := animalContainmentDefinition(facts.Definitions, policy.ShellDoorDefinition)
 	if !wok || !dok {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_definitions")}, nil
 	}
@@ -233,9 +233,9 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		if err := check(); err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		definition := "Wall"
+		definition := policy.ShellWallDefinition
 		if doors[cell] {
-			definition = "Door"
+			definition = policy.ShellDoorDefinition
 		}
 		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
 		if err != nil {

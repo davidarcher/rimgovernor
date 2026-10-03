@@ -219,6 +219,7 @@ var moduleRoomRoles = map[ModuleRole]RoomRole{
 	ModuleClassroom:        RoomRoleClassroom,
 	ModuleWorship:          RoomRoleWorshipRoom,
 	ModuleDeathrestChamber: RoomRoleDeathrestChamber,
+	ModuleContainmentCell:  RoomRoleContainmentCell,
 	ModuleHospital:         RoomRoleHospital,
 	ModuleKitchen:          RoomRoleKitchen,
 	ModuleWorkshop:         RoomRoleWorkshop,

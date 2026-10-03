@@ -33,8 +33,25 @@ func worshipDefinitions(facts observation.ColonyProjection) []string {
 // Room-role furniture rides every routine reading (the catalog names it).
 func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) {
 	worship := worshipDefinitions(reading.Projection)
-	reading.Projection.AddDefinitions(reading.Frame, worship)
+	reading.Projection.AddDefinitions(reading.Frame, slices.Concat(worship, containmentDefinitions(reading.Projection)))
 	r.census.rememberWorship(worship)
+	if _, verdict := containmentCellNeed(reading.Projection); verdict.Reason != "" {
+		clockSchedulerLog("containment cell not planned: %s", verdict.Reason)
+	}
+}
+
+// containmentDefinitions are the holding platform the containment cell
+// places; none while the catalog's containment inputs are unknown.
+func containmentDefinitions(facts observation.ColonyProjection) []string {
+	if defs, known := facts.Containment.Defs.Value(); known {
+		return []string{defs.Holder}
+	}
+	return nil
+}
+
+// containmentCellNeed is the cell the capturable entities owe.
+func containmentCellNeed(facts observation.ColonyProjection) (policy.ChildRoomNeed, policy.ContainmentVerdict) {
+	return policy.ContainmentCellNeed(facts.Containment, furnitureDefinitions(facts))
 }
 
 // childRoomNeeds are the rooms the projection owes: the child rooms its
@@ -50,13 +67,16 @@ func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
 			needs = append(needs, need)
 		}
 	}
+	if need, verdict := containmentCellNeed(facts); verdict.Owed {
+		needs = append(needs, need)
+	}
 	return needs
 }
 
 // furnitureDefinitions are the room furniture the projection's catalog
 // describes: the room-role furniture and the worship room's buildings.
 func furnitureDefinitions(facts observation.ColonyProjection) []policy.FurnitureDefinition {
-	names := worshipDefinitions(facts)
+	names := slices.Concat(worshipDefinitions(facts), containmentDefinitions(facts))
 	var defs []policy.FurnitureDefinition
 	for _, d := range facts.Definitions {
 		if len(d.RoomRoles) > 0 || slices.Contains(names, d.Name) {

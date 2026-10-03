@@ -102,6 +102,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		// names which definitions the planners furnish rooms from.
 		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, append(slices.Clone(definitions), frame.Catalog.RoomRoleDefinitions()...))
 	}
+	p.Containment = containmentPlanning(frame, p.Definitions)
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
 		sleeping.BedBuildable = p.DefinitionAvailable(policy.SleepingBedDefinitions[0])
 		p.Facts.Sleeping = domain.Known(sleeping)

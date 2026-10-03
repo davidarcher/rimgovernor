@@ -99,7 +99,8 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | Classroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Board, Desk |
 | WorshipRoom (Ideology) | implemented (own planned room, #1658) | | the buildings the ideoligion requires, read from the game |
 | DeathrestChamber (Biotech) | implemented (own planned room, #1690) | | catalog roles DeathrestCasket, DeathrestAccelerator |
-| ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+| ContainmentCell (Anomaly) | implemented (own planned room, #1741) | | the holding platform the defs name |
+| CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 ### Child rooms (Biotech)
 
@@ -182,6 +183,40 @@ remembers them for the planners' reads. Without Ideology or a primary
 ideoligion, or while any required building is unavailable or has no known
 size, no room is owed. The ideology read carries no room-quality
 requirement, so none is staged.
+
+### Containment cell (Anomaly)
+
+A living entity the game lets the colony capture (`can_be_captured`, not yet
+held) with no standing platform able to hold it owes one containment cell:
+its own planned room holding one holding platform, staged exactly like the
+worship room (`policy.ContainmentCellNeed` returns the `ChildRoomNeed`). The
+platform is the catalog's: the `ThingDef` with a
+`CompProperties_EntityHolderPlatform` comp and the greatest
+`containmentFactor`; no def name is listed in Go. Capture itself is not
+planned here.
+
+A cell is owed only when its predicted strength reaches the demand (the
+highest `min_containment_strength` among the entities; the margin to keep is
+the capture rule's, #1742). `ContainmentDefs.Predict` is the game's
+`StatWorker_ContainmentStrength` (decompile, recorded on #1741): the
+holder's stat base plus facility offsets plus (lighting + wall + door +
+floor, each times 0.9 per other holder, + roof) times the holder's
+`containmentFactor`. The defs supply the wall and door `MaxHitPoints`
+(`DefinitionCatalog.StatValue` for the shell's wall and door and their
+stuff), the factor, the holder's `ContainmentStrength` base (else the stat
+def's default), the terrain stat of plain floor (the stat's default) and the
+facility offsets with `maxSimultaneous` and `maxDistance`. The worker's own
+code constants (10 per glow, 5 for doors, 0.9, -30 open roof, the wall curve
+(0,0) (1000,100) (10000,150)) sit in `policy/containment_strength.go`. The
+planner has no light plan and builds a roofed room, so it predicts with zero
+glow (the least a room has) and no roof penalty. Facilities are not planned
+(an unpowered facility's offset is not sourced); a design that falls short
+owes nothing and the review logs why. A standing platform's native strength
+(`BuildingState.anomaly`) is the check once built: an available platform
+that reaches the demand owes no cell. One catalog file,
+`bridge/catalog_containment.go`, holds every def lookup. Unread demand, an
+unreadable catalog input or an unbuildable platform leaves the cell unowed
+with a plain reason.
 
 ### Throne room
 

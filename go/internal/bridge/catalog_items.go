@@ -30,7 +30,7 @@ func (catalog *DefinitionCatalog) thingRow(name string) (*d.ThingDef, error) {
 // compOf is the first comp of row that pick returns non-nil for.
 func compOf[T any](row *d.ThingDef, pick func(*d.CompPropertiesAny) *T) *T {
 	for _, comp := range row.GetComps() {
-		if found := pick(comp); found != nil {
+		if found := pick(comp.GetValue()); found != nil {
 			return found
 		}
 	}
@@ -52,7 +52,7 @@ func (catalog *DefinitionCatalog) Books() []policy.Book {
 		}
 		var tome, textbook, schematic bool
 		for _, doer := range book.GetDoers() {
-			switch doer.GetValue().(type) {
+			switch doer.GetValue().GetValue().(type) {
 			case *d.ReadingOutcomePropertiesAny_BookOutcomeProperties_GainAnomalyResearch, *d.ReadingOutcomePropertiesAny_BookOutcomeProperties_MentalBreak:
 				tome = true
 			case *d.ReadingOutcomePropertiesAny_BookOutcomeProperties_GainSkillExp:
