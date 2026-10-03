@@ -399,6 +399,79 @@ func (s defenseSite) onBorder(c domain.Cell) bool {
 	return c.X == reg.X || c.Z == reg.Z || c.X == reg.X+reg.Width-1 || c.Z == reg.Z+reg.Height-1
 }
 
+// defenseShape sizes the kill zone from the defenders and turrets: the
+// firing span centred on column 0 with a turret slot every turretSpacing
+// beyond it, within the plan's killbox. The snake's legs span it, and as
+// many legs as the killbox's depth holds.
+func defenseShape(r DefenseRequest) (half, legs int32, err error) {
+	half = int32(r.Defenders / 2)
+	if q := r.Turret; q.Definition != "" && q.Max > 0 {
+		size := max(q.Size.Width, q.Size.Height, 1)
+		half += (turretSpacing + size - 1) * int32((q.Max+1)/2)
+	}
+	half = min(max(half, killboxMinHalf), killboxHalf-1)
+	legs = min((r.Killbox.Depth-killboxZoneRows)/killboxLegPitch, killboxMaxLegs)
+	if legs < 1 {
+		return 0, 0, errors.New("killbox too shallow for the corridor")
+	}
+	return half, legs, nil
+}
+
+// DefenseDig lists the natural rock the killbox needs mined before the
+// layout can stand (#1588): the raiders' lane from the ring opening to the
+// kill zone, and the defenders' ground below it (kill row, fence bar,
+// firing cells and the doorway through the back wall). Rock beside the
+// lane stays: raiders do not mine, and the funnel leaves rock cells
+// unwalled. A cell the census holds as fogged counts as rock; the native
+// excavation read says whether it is. Cells come in lane order, then rows
+// inward.
+func DefenseDig(r DefenseRequest) ([]domain.Cell, error) {
+	s, err := newDefenseSite(r)
+	if err != nil {
+		return nil, err
+	}
+	kb := r.Killbox
+	if kb.Width < 1 || kb.Width > defenseMaxWidth || !s.inRegion(kb.Entry) {
+		return nil, errors.New("no killbox opening to anchor the corridor on")
+	}
+	half, legs, err := defenseShape(r)
+	if err != nil {
+		return nil, err
+	}
+	d := directionOf(kb.Toward)
+	p := perpendicular(d)
+	at := func(k, a int32) domain.Cell {
+		return addCell(kb.Entry, addCell(scale(d, perimeterThick+k), scale(p, a)))
+	}
+	hall := snakeCorridor(half, legs)
+	var want []domain.Cell
+	for _, c := range hall.lane {
+		want = append(want, at(c.Z, c.X))
+	}
+	fenceRow := hall.rows + 1
+	backWall := fenceRow + 4
+	for k := hall.rows; k < backWall; k++ {
+		for a := -half; a <= half; a++ {
+			want = append(want, at(k, a))
+		}
+	}
+	want = append(want, at(backWall, 0), at(backWall+1, 0))
+	seen := map[domain.Cell]bool{}
+	var out []domain.Cell
+	for _, c := range want {
+		row, ok := s.cells[c]
+		if !ok || seen[c] || positive(row.Passable) {
+			continue
+		}
+		seen[c] = true
+		if _, known := row.Passable.Value(); known && !positive(row.NaturalRock) {
+			continue // a wall or building, not rock
+		}
+		out = append(out, c)
+	}
+	return out, nil
+}
+
 // DefenseLayouts proposes a staged corridor defense in the request's killbox
 // opening. It returns an error without an opening or when the corridor
 // cannot stand there, and never places on protected, occupied or unknown
@@ -428,21 +501,11 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		return addCell(entry, addCell(scale(d, perimeterThick+k), scale(p, a)))
 	}
 	layout := DefenseLayout{Chokepoint: entry, Toward: rotationOf(d), Width: int(kb.Width), Entry: entry}
-	// The kill zone is sized from the defenders and turrets: the firing
-	// span centred on column 0 with a turret slot every turretSpacing
-	// beyond it, within the plan's killbox. The snake's legs span it, and
-	// as many legs as the killbox's depth holds.
-	half := int32(r.Defenders / 2)
-	if q := r.Turret; q.Definition != "" && q.Max > 0 {
-		size := max(q.Size.Width, q.Size.Height, 1)
-		half += (turretSpacing + size - 1) * int32((q.Max+1)/2)
+	half, legs, err := defenseShape(r)
+	if err != nil {
+		return DefenseLayout{}, err
 	}
-	half = min(max(half, killboxMinHalf), killboxHalf-1)
 	low, high := -half, half
-	legs := min((kb.Depth-killboxZoneRows)/killboxLegPitch, killboxMaxLegs)
-	if legs < 1 {
-		return DefenseLayout{}, errors.New("killbox too shallow for the corridor")
-	}
 	hall := snakeCorridor(half, legs)
 	for _, c := range hall.lane {
 		layout.TrapLane = append(layout.TrapLane, at(c.Z, c.X))

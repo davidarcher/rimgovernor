@@ -278,11 +278,14 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if !stored {
-		layout, entrances, ok, err := r.propose(call, state, read)
+		layout, entrances, held, ok, err := r.propose(call, epoch, goal, review, state, read)
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if !ok {
+			if held != "" {
+				return RoutineDefenseLayoutResult{Reason: held}, nil
+			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown}, nil
 		}
 		record, err = store.NewDefenseLayoutRecord(world, goal.Goal.ID, goal.Goal.Epoch, layout, entrances)
@@ -1144,20 +1147,20 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // the firing lines, and returns the policy layout. ok is false when the
 // colony has no verified killbox geometry yet (no ranged defender, no
 // chokepoint, no line of sight), which is a wait rather than an error.
-func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, RoutineBuildingReason, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
 	if !ok {
 		clockSchedulerLog("defense-layout: waiting for the layout plan's killbox")
-		return policy.DefenseLayout{}, nil, false, nil
+		return policy.DefenseLayout{}, nil, "", false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
-		return policy.DefenseLayout{}, nil, false, err
+		return policy.DefenseLayout{}, nil, "", false, err
 	}
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, false, err
+		return policy.DefenseLayout{}, nil, "", false, err
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
@@ -1176,29 +1179,41 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 		if err == nil {
 			clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
 		}
-		return policy.DefenseLayout{}, nil, false, err
+		return policy.DefenseLayout{}, nil, "", false, err
 	}
 	request.Defenders, request.MinRange = defenders, minRange
 	stock, stockKnown := projection.Resources.Value()
 	request.Definitions = policy.DefenseCoverChoice(request.Definitions, stock, stockKnown,
 		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
 	defenseIEDRequest(read, &request)
+	// Rock on the corridor and the defenders' ground is mined first, as a
+	// room's is (#1588); the layout waits on that dig.
+	if rock, digErr := policy.DefenseDig(request); digErr == nil && len(rock) > 0 {
+		result, handled, err := r.digKillbox(call, epoch, goal, review, state, read, request.Home, rock)
+		if err != nil || handled {
+			if err == nil {
+				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (%d rock cells, reason=%s)", len(rock), result.Reason)
+			}
+			return policy.DefenseLayout{}, nil, result.Reason, false, err
+		}
+		clockSchedulerLog("defense-layout: %d killbox cells in rock are not diggable now; the layout waits (first %v)", len(rock), rock[0])
+	}
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
-		return policy.DefenseLayout{}, nil, false, nil
+		return policy.DefenseLayout{}, nil, "", false, nil
 	}
 	firing, approach := layout.Probe()
 	if len(firing) == 0 {
 		clockSchedulerLog("defense-layout: the layout has no firing cell to probe")
-		return policy.DefenseLayout{}, nil, false, nil
+		return policy.DefenseLayout{}, nil, "", false, nil
 	}
 	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
 	if err != nil {
-		return policy.DefenseLayout{}, nil, false, err
+		return policy.DefenseLayout{}, nil, "", false, err
 	}
 	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, false, err
+		return policy.DefenseLayout{}, nil, "", false, err
 	}
 	for _, line := range lines.Lines {
 		l := policy.DefenseLine{From: line.From, To: line.To}
@@ -1211,9 +1226,32 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	layout, err = policy.DefenseLayouts(request)
 	if err != nil || !layout.LinesVerified {
 		clockSchedulerLog("defense-layout: lines of fire not verified (err=%v verified=%v)", err, layout.LinesVerified)
-		return policy.DefenseLayout{}, nil, false, nil
+		return policy.DefenseLayout{}, nil, "", false, nil
 	}
-	return layout, request.Entrances, true, nil
+	return layout, request.Entrances, "", true, nil
+}
+
+// digKillbox designates the rock the killbox corridor stands on through the
+// plan-dig path rooms use, reached from the yard behind the killbox. handled
+// is false when the native side has nothing to dig (or no excavation read).
+func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading, access domain.Cell, rock []domain.Cell) (RoutineBuildingResult, bool, error) {
+	source, ok := r.native.(RoutineExcavationSource)
+	if !ok {
+		return RoutineBuildingResult{}, false, nil
+	}
+	dig := &RoutineBuildingPlanner{reviewer: r.reviewer, goal: policy.EnsureDefensiveLayout, excavation: source}
+	step := excavationStep{state: state, review: review, goal: goal, facts: read.Projection, read: read.ColonyReading}
+	p := r.reviewer.player
+	check := func() error {
+		if err := p.current(call, epoch); err != nil {
+			return err
+		}
+		if p.session.State() != state {
+			return fmt.Errorf("%w: digKillbox: session state changed", ErrControl)
+		}
+		return nil
+	}
+	return dig.digPlanned(call, epoch, step, rock, access, "plan-dig-killbox", nil, check)
 }
 
 // admit previews one tier's placements, audits colonist access with every
