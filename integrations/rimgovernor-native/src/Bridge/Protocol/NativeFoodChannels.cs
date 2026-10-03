@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
                 if (ModsConfig.OdysseyActive)
                 {
                     var water = new Obs.FishableWater();
-                    var research = DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing");
+                    var research = ResearchProjectDefOf.Fishing;
                     if (research != null)
                     {
                         water.FishingResearched = research.IsFinished;

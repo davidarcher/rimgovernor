@@ -419,9 +419,7 @@ namespace HomeBridge.BridgeTools
                 var benches = sets.PlayerBuildings.OfType<Building_WorkTable>()
                     .OrderBy(b => b.thingIDNumber).ToList();
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
-                var feedDefs = DefDatabase<ThingDef>.AllDefsListForReading
-                    .Where(d => d.category == ThingCategory.Item && NativeFoodPolicy.IsFood(d))
-                    .OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
+                var feedDefs = FeedDefs.Value;
                 var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                 var values = animals.Select(p => {
@@ -494,6 +492,12 @@ namespace HomeBridge.BridgeTools
         // bounded number of reachability checks.
         private const int feedStorageCandidateCells = 8;
         private const int feedStorageFloodBound = 256;
+        // The food item defs, sorted by name: fixed for the process, so scanned once
+        // rather than per frame.
+        private static readonly Lazy<List<ThingDef>> FeedDefs = new Lazy<List<ThingDef>>(() =>
+            DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.category == ThingCategory.Item && NativeFoodPolicy.IsFood(d))
+                .OrderBy(d => d.defName, StringComparer.Ordinal).ToList());
+
         private static List<IntVec3> FeedStorageCandidates(Map map, Pawn animal, List<Pawn> haulers, Func<IntVec3, bool> allowed)
         {
             var result = new List<IntVec3>();

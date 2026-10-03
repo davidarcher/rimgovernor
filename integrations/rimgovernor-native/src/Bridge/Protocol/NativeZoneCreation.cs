@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
             if (command.Kind == Operations.ZoneType.Fishing)
                 return command.Label == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
-                    && command.Fishing != null && command.Fishing.HasPopulationFloor && command.Fishing.PopulationFloor == 0.6
+                    && command.Fishing != null && command.Fishing.HasPopulationFloor && command.Fishing.PopulationFloor >= 0 && command.Fishing.PopulationFloor <= 1
                     && (command.Zone == null || ProtoBoundary.IsIdentifier(command.Zone.Id));
             if (command.Fishing != null || command.Zone != null) return false;
             if (command.Kind == Operations.ZoneType.Growing)
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind);
             if (command.Kind == Operations.ZoneType.Fishing)
             {
-                if (!ModsConfig.OdysseyActive || DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing")?.IsFinished != true)
+                if (!ModsConfig.OdysseyActive || !ResearchProjectDefOf.Fishing.IsFinished)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
                 var body = cells[0].InBounds(map) ? cells[0].GetWaterBody(map) : null;
                 var existing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id) : null;

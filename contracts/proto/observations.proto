@@ -336,7 +336,7 @@ message PawnSettings {
   reserved 1; reserved "snapshot"; optional rimgovernor.operations.v1.MedicalCare medical_care = 2; optional bool self_tend = 3; optional rimgovernor.operations.v1.HostilityResponse hostility_response = 4;
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;
   repeated WorkSetting work = 9; repeated TimetableSlot schedule = 10; repeated DefinitionRef allowed_areas = 11;
-  repeated rimgovernor.operations.v1.MedicalCare medical_care_options = 12; repeated rimgovernor.operations.v1.HostilityResponse hostility_response_options = 13; repeated ReadIssue issues = 14;
+  reserved 12, 13; reserved "medical_care_options", "hostility_response_options"; repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
   reserved 18, 19; reserved "drug_policy_writable", "drug_policy_name";

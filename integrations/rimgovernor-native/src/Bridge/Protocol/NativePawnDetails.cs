@@ -456,7 +456,6 @@ namespace HomeBridge.BridgeTools
                 if(settings.UsesConfigurableHostilityResponse) row.HostilityResponse=NativeEnums.Hostility(settings.hostilityResponse);
                 else row.Issues.Add(Issue("hostility_response",Common.UnavailableReason.NotApplicable,"Pawn has no configurable hostility response."));
             }
-            row.Issues.Add(Unsupported("medical_care_options","Selectable medical care catalog is not projected."));
         }
 
         private static void Work(Pawn pawn,Obs.PawnSettings row)

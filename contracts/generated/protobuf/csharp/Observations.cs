@@ -321,7 +321,7 @@ namespace RimGovernor.Protocol.Observations {
             "aXR1YXRpb25hbF9jYWNoZV9zdGFsZRgEIAEoCEgBiAEBEjYKBmlzc3VlcxgF",
             "IAMoCzImLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5SZWFkSXNzdWVC",
             "FAoSX2hpZ2hfZXhwZWN0YXRpb25zQhoKGF9zaXR1YXRpb25hbF9jYWNoZV9z",
-            "dGFsZSLxCAoMUGF3blNldHRpbmdzEkEKDG1lZGljYWxfY2FyZRgCIAEoDjIm",
+            "dGFsZSKXCAoMUGF3blNldHRpbmdzEkEKDG1lZGljYWxfY2FyZRgCIAEoDjIm",
             "LnJpbWdvdmVybm9yLm9wZXJhdGlvbnMudjEuTWVkaWNhbENhcmVIAIgBARIW",
             "CglzZWxmX3RlbmQYAyABKAhIAYgBARJNChJob3N0aWxpdHlfcmVzcG9uc2UY",
             "BCABKA4yLC5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkhvc3RpbGl0eVJl",
@@ -331,21 +331,19 @@ namespace RimGovernor.Protocol.Observations {
             "IAMoCzIoLnJpbWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5Xb3JrU2V0dGlu",
             "ZxI8CghzY2hlZHVsZRgKIAMoCzIqLnJpbWdvdmVybm9yLm9ic2VydmF0aW9u",
             "cy52MS5UaW1ldGFibGVTbG90EkEKDWFsbG93ZWRfYXJlYXMYCyADKAsyKi5y",
-            "aW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuRGVmaW5pdGlvblJlZhJEChRt",
-            "ZWRpY2FsX2NhcmVfb3B0aW9ucxgMIAMoDjImLnJpbWdvdmVybm9yLm9wZXJh",
-            "dGlvbnMudjEuTWVkaWNhbENhcmUSUAoaaG9zdGlsaXR5X3Jlc3BvbnNlX29w",
-            "dGlvbnMYDSADKA4yLC5yaW1nb3Zlcm5vci5vcGVyYXRpb25zLnYxLkhvc3Rp",
-            "bGl0eVJlc3BvbnNlEjYKBmlzc3VlcxgOIAMoCzImLnJpbWdvdmVybm9yLm9i",
-            "c2VydmF0aW9ucy52MS5SZWFkSXNzdWUSGQoMd29ya19hcHBsaWVzGA8gASgI",
-            "SAeIAQESIwoWbWFudWFsX3dvcmtfcHJpb3JpdGllcxgQIAEoCEgIiAEBEkYK",
-            "EGZvb2RfcmVzdHJpY3Rpb24YESABKAsyLC5yaW1nb3Zlcm5vci5vYnNlcnZh",
-            "dGlvbnMudjEuRm9vZFJlc3RyaWN0aW9uEkQKDXBvbGljeV9pbnB1dHMYFCAB",
-            "KAsyLS5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuUGF3blBvbGljeUlu",
-            "cHV0c0IPCg1fbWVkaWNhbF9jYXJlQgwKCl9zZWxmX3RlbmRCFQoTX2hvc3Rp",
-            "bGl0eV9yZXNwb25zZUISChBfYWxsb3dlZF9hcmVhX2lkQgwKCl9tYXN0ZXJf",
-            "aWRCEQoPX2ZvbGxvd19kcmFmdGVkQhMKEV9mb2xsb3dfZmllbGR3b3JrQg8K",
-            "DV93b3JrX2FwcGxpZXNCGQoXX21hbnVhbF93b3JrX3ByaW9yaXRpZXNKBAgB",
-            "EAJKBAgSEBNKBAgTEBRSCHNuYXBzaG90UhRkcnVnX3BvbGljeV93cml0YWJs",
+            "aW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuRGVmaW5pdGlvblJlZhI2CgZp",
+            "c3N1ZXMYDiADKAsyJi5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuUmVh",
+            "ZElzc3VlEhkKDHdvcmtfYXBwbGllcxgPIAEoCEgHiAEBEiMKFm1hbnVhbF93",
+            "b3JrX3ByaW9yaXRpZXMYECABKAhICIgBARJGChBmb29kX3Jlc3RyaWN0aW9u",
+            "GBEgASgLMiwucmltZ292ZXJub3Iub2JzZXJ2YXRpb25zLnYxLkZvb2RSZXN0",
+            "cmljdGlvbhJECg1wb2xpY3lfaW5wdXRzGBQgASgLMi0ucmltZ292ZXJub3Iu",
+            "b2JzZXJ2YXRpb25zLnYxLlBhd25Qb2xpY3lJbnB1dHNCDwoNX21lZGljYWxf",
+            "Y2FyZUIMCgpfc2VsZl90ZW5kQhUKE19ob3N0aWxpdHlfcmVzcG9uc2VCEgoQ",
+            "X2FsbG93ZWRfYXJlYV9pZEIMCgpfbWFzdGVyX2lkQhEKD19mb2xsb3dfZHJh",
+            "ZnRlZEITChFfZm9sbG93X2ZpZWxkd29ya0IPCg1fd29ya19hcHBsaWVzQhkK",
+            "F19tYW51YWxfd29ya19wcmlvcml0aWVzSgQIARACSgQIDBANSgQIDRAOSgQI",
+            "EhATSgQIExAUUghzbmFwc2hvdFIUbWVkaWNhbF9jYXJlX29wdGlvbnNSGmhv",
+            "c3RpbGl0eV9yZXNwb25zZV9vcHRpb25zUhRkcnVnX3BvbGljeV93cml0YWJs",
             "ZVIQZHJ1Z19wb2xpY3lfbmFtZSKUBwoQUGF3blBvbGljeUlucHV0cxIdChBv",
             "dXRmaXRfcG9saWN5X2lkGAEgASgJSACIAQESGwoOZHJ1Z19wb2xpY3lfaWQY",
             "AiABKAlIAYgBARIeChFyZWFkaW5nX3BvbGljeV9pZBgDIAEoCUgCiAEBEksK",
@@ -3642,7 +3640,7 @@ namespace RimGovernor.Protocol.Observations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.Thought), global::RimGovernor.Protocol.Observations.Thought.Parser, new[]{ "DefName", "Label", "Count", "MoodOffsetEach", "MoodOffsetTotal" }, new[]{ "DefName", "Label", "Count", "MoodOffsetEach", "MoodOffsetTotal" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.Relation), global::RimGovernor.Protocol.Observations.Relation.Parser, new[]{ "Other", "RelationDefName", "Opinion", "OpinionReconstructed" }, new[]{ "RelationDefName", "Opinion", "OpinionReconstructed" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnSocial), global::RimGovernor.Protocol.Observations.PawnSocial.Parser, new[]{ "HighExpectations", "Memories", "Situational", "Relations", "SituationalCacheStale", "Issues" }, new[]{ "HighExpectations", "SituationalCacheStale" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnSettings), global::RimGovernor.Protocol.Observations.PawnSettings.Parser, new[]{ "MedicalCare", "SelfTend", "HostilityResponse", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork", "Work", "Schedule", "AllowedAreas", "MedicalCareOptions", "HostilityResponseOptions", "Issues", "WorkApplies", "ManualWorkPriorities", "FoodRestriction", "PolicyInputs" }, new[]{ "MedicalCare", "SelfTend", "HostilityResponse", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork", "WorkApplies", "ManualWorkPriorities" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnSettings), global::RimGovernor.Protocol.Observations.PawnSettings.Parser, new[]{ "MedicalCare", "SelfTend", "HostilityResponse", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork", "Work", "Schedule", "AllowedAreas", "Issues", "WorkApplies", "ManualWorkPriorities", "FoodRestriction", "PolicyInputs" }, new[]{ "MedicalCare", "SelfTend", "HostilityResponse", "AllowedAreaId", "MasterId", "FollowDrafted", "FollowFieldwork", "WorkApplies", "ManualWorkPriorities" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnPolicyInputs), global::RimGovernor.Protocol.Observations.PawnPolicyInputs.Parser, new[]{ "OutfitPolicyId", "DrugPolicyId", "ReadingPolicyId", "InventoryStock", "Chemicals", "DependencyChemicals", "RoyalTitle", "TitleApparel", "IdeoId", "Precepts", "IdeoRole", "RoleApparel", "PreceptApparel", "GuestStatus", "PrisonerInteraction", "SlaveInteraction", "MedicalTendQuality", "IdeoCertainty" }, new[]{ "OutfitPolicyId", "DrugPolicyId", "ReadingPolicyId", "RoyalTitle", "IdeoId", "IdeoRole", "GuestStatus", "PrisonerInteraction", "SlaveInteraction", "MedicalTendQuality", "IdeoCertainty" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.InventoryStockSetting), global::RimGovernor.Protocol.Observations.InventoryStockSetting.Parser, new[]{ "Group", "ThingDef", "Count" }, new[]{ "Group", "ThingDef", "Count" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.ChemicalState), global::RimGovernor.Protocol.Observations.ChemicalState.Parser, new[]{ "Chemical", "Addiction", "Withdrawal", "Tolerance" }, new[]{ "Chemical", "Addiction", "Withdrawal", "Tolerance" }, null, null, null),
@@ -24771,8 +24769,6 @@ namespace RimGovernor.Protocol.Observations {
       work_ = other.work_.Clone();
       schedule_ = other.schedule_.Clone();
       allowedAreas_ = other.allowedAreas_.Clone();
-      medicalCareOptions_ = other.medicalCareOptions_.Clone();
-      hostilityResponseOptions_ = other.hostilityResponseOptions_.Clone();
       issues_ = other.issues_.Clone();
       workApplies_ = other.workApplies_;
       manualWorkPriorities_ = other.manualWorkPriorities_;
@@ -25007,28 +25003,6 @@ namespace RimGovernor.Protocol.Observations {
       get { return allowedAreas_; }
     }
 
-    /// <summary>Field number for the "medical_care_options" field.</summary>
-    public const int MedicalCareOptionsFieldNumber = 12;
-    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Operations.MedicalCare> _repeated_medicalCareOptions_codec
-        = pb::FieldCodec.ForEnum(98, x => (int) x, x => (global::RimGovernor.Protocol.Operations.MedicalCare) x);
-    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Operations.MedicalCare> medicalCareOptions_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Operations.MedicalCare>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::RimGovernor.Protocol.Operations.MedicalCare> MedicalCareOptions {
-      get { return medicalCareOptions_; }
-    }
-
-    /// <summary>Field number for the "hostility_response_options" field.</summary>
-    public const int HostilityResponseOptionsFieldNumber = 13;
-    private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Operations.HostilityResponse> _repeated_hostilityResponseOptions_codec
-        = pb::FieldCodec.ForEnum(106, x => (int) x, x => (global::RimGovernor.Protocol.Operations.HostilityResponse) x);
-    private readonly pbc::RepeatedField<global::RimGovernor.Protocol.Operations.HostilityResponse> hostilityResponseOptions_ = new pbc::RepeatedField<global::RimGovernor.Protocol.Operations.HostilityResponse>();
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public pbc::RepeatedField<global::RimGovernor.Protocol.Operations.HostilityResponse> HostilityResponseOptions {
-      get { return hostilityResponseOptions_; }
-    }
-
     /// <summary>Field number for the "issues" field.</summary>
     public const int IssuesFieldNumber = 14;
     private static readonly pb::FieldCodec<global::RimGovernor.Protocol.Observations.ReadIssue> _repeated_issues_codec
@@ -25146,8 +25120,6 @@ namespace RimGovernor.Protocol.Observations {
       if(!work_.Equals(other.work_)) return false;
       if(!schedule_.Equals(other.schedule_)) return false;
       if(!allowedAreas_.Equals(other.allowedAreas_)) return false;
-      if(!medicalCareOptions_.Equals(other.medicalCareOptions_)) return false;
-      if(!hostilityResponseOptions_.Equals(other.hostilityResponseOptions_)) return false;
       if(!issues_.Equals(other.issues_)) return false;
       if (WorkApplies != other.WorkApplies) return false;
       if (ManualWorkPriorities != other.ManualWorkPriorities) return false;
@@ -25170,8 +25142,6 @@ namespace RimGovernor.Protocol.Observations {
       hash ^= work_.GetHashCode();
       hash ^= schedule_.GetHashCode();
       hash ^= allowedAreas_.GetHashCode();
-      hash ^= medicalCareOptions_.GetHashCode();
-      hash ^= hostilityResponseOptions_.GetHashCode();
       hash ^= issues_.GetHashCode();
       if (HasWorkApplies) hash ^= WorkApplies.GetHashCode();
       if (HasManualWorkPriorities) hash ^= ManualWorkPriorities.GetHashCode();
@@ -25226,8 +25196,6 @@ namespace RimGovernor.Protocol.Observations {
       work_.WriteTo(output, _repeated_work_codec);
       schedule_.WriteTo(output, _repeated_schedule_codec);
       allowedAreas_.WriteTo(output, _repeated_allowedAreas_codec);
-      medicalCareOptions_.WriteTo(output, _repeated_medicalCareOptions_codec);
-      hostilityResponseOptions_.WriteTo(output, _repeated_hostilityResponseOptions_codec);
       issues_.WriteTo(output, _repeated_issues_codec);
       if (HasWorkApplies) {
         output.WriteRawTag(120);
@@ -25286,8 +25254,6 @@ namespace RimGovernor.Protocol.Observations {
       work_.WriteTo(ref output, _repeated_work_codec);
       schedule_.WriteTo(ref output, _repeated_schedule_codec);
       allowedAreas_.WriteTo(ref output, _repeated_allowedAreas_codec);
-      medicalCareOptions_.WriteTo(ref output, _repeated_medicalCareOptions_codec);
-      hostilityResponseOptions_.WriteTo(ref output, _repeated_hostilityResponseOptions_codec);
       issues_.WriteTo(ref output, _repeated_issues_codec);
       if (HasWorkApplies) {
         output.WriteRawTag(120);
@@ -25339,8 +25305,6 @@ namespace RimGovernor.Protocol.Observations {
       size += work_.CalculateSize(_repeated_work_codec);
       size += schedule_.CalculateSize(_repeated_schedule_codec);
       size += allowedAreas_.CalculateSize(_repeated_allowedAreas_codec);
-      size += medicalCareOptions_.CalculateSize(_repeated_medicalCareOptions_codec);
-      size += hostilityResponseOptions_.CalculateSize(_repeated_hostilityResponseOptions_codec);
       size += issues_.CalculateSize(_repeated_issues_codec);
       if (HasWorkApplies) {
         size += 1 + 1;
@@ -25390,8 +25354,6 @@ namespace RimGovernor.Protocol.Observations {
       work_.Add(other.work_);
       schedule_.Add(other.schedule_);
       allowedAreas_.Add(other.allowedAreas_);
-      medicalCareOptions_.Add(other.medicalCareOptions_);
-      hostilityResponseOptions_.Add(other.hostilityResponseOptions_);
       issues_.Add(other.issues_);
       if (other.HasWorkApplies) {
         WorkApplies = other.WorkApplies;
@@ -25468,16 +25430,6 @@ namespace RimGovernor.Protocol.Observations {
           }
           case 90: {
             allowedAreas_.AddEntriesFrom(input, _repeated_allowedAreas_codec);
-            break;
-          }
-          case 98:
-          case 96: {
-            medicalCareOptions_.AddEntriesFrom(input, _repeated_medicalCareOptions_codec);
-            break;
-          }
-          case 106:
-          case 104: {
-            hostilityResponseOptions_.AddEntriesFrom(input, _repeated_hostilityResponseOptions_codec);
             break;
           }
           case 114: {
@@ -25563,16 +25515,6 @@ namespace RimGovernor.Protocol.Observations {
           }
           case 90: {
             allowedAreas_.AddEntriesFrom(ref input, _repeated_allowedAreas_codec);
-            break;
-          }
-          case 98:
-          case 96: {
-            medicalCareOptions_.AddEntriesFrom(ref input, _repeated_medicalCareOptions_codec);
-            break;
-          }
-          case 106:
-          case 104: {
-            hostilityResponseOptions_.AddEntriesFrom(ref input, _repeated_hostilityResponseOptions_codec);
             break;
           }
           case 114: {
