@@ -131,44 +131,11 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	return admitted, nil
 }
 
-// equipmentSlots is the development slots MaintainEquipment methods may still
-// take, shared by the gear and armory planners whose methods both bind to
-// that goal; a non-empty reason refuses the step.
+// equipmentSlots is how many MaintainEquipment methods the gear and armory
+// planners may start in one step. There is no development slot or pawn limit:
+// each gear plan is already confined to one pawn and one item.
 func equipmentSlots(call context.Context, p *Player, review store.RoutineReview) (int, RoutineBuildingReason, error) {
-	limit := review.Development.Capacity - len(review.Development.Committed)
-	open := 0
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainEquipment {
-			continue
-		}
-		goal, err := p.journal.LoadGoal(call, binding.Goal)
-		if err != nil {
-			return 0, "", err
-		}
-		for _, method := range goal.Methods {
-			plan, err := p.journal.LoadPlan(call, method.Plan)
-			if err != nil {
-				return 0, "", err
-			}
-			// An apparel policy write or outfit prune holds no development slot (#660).
-			if store.PlanOpen(plan) && !apparelPolicyPlan(plan.Spec) {
-				open++
-			}
-		}
-	}
-	for _, goal := range review.Development.Committed {
-		if goal == policy.MaintainEquipment {
-			limit++
-		}
-	}
-	limit -= open
-	if limit <= 0 {
-		if open > 0 {
-			return 0, BuildingMethodExistingWork, nil
-		}
-		return 0, BuildingMethodRefused, nil
-	}
-	return limit, "", nil
+	return 16, "", nil
 }
 
 // equipmentRanked: the ranking gave MaintainEquipment a slot (or it already

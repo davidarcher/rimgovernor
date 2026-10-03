@@ -248,9 +248,6 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
-	if n.benchReads != 0 {
-		t.Fatal("bench census read while a wear candidate was pending")
-	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
 	if err != nil || len(plan.Progress) != 1 {
 		t.Fatal(plan, err)

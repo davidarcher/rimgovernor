@@ -47,8 +47,8 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 	if err := admit(2, "b", "two"); err != nil {
 		t.Fatal(err)
 	}
-	if err := admit(3, "c", "three"); err == nil {
-		t.Fatal("exceeded free slots")
+	if err := admit(3, "c", "three"); err != nil {
+		t.Fatal("no slot limit applies", err)
 	}
 }
 

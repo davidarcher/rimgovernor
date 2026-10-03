@@ -47,28 +47,16 @@ func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan do
 	if !add(plan) {
 		return false, nil
 	}
-	open := 0
+	// No slot limit: open work only has to stay off the pawns and items this
+	// plan touches.
 	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
 		}
-		if domain.GoalWorkOpen(p.Progress) {
-			if !developmentExemptMethod(p.Spec) {
-				open++
-			}
-			if !add(p.Spec) {
-				return false, nil
-			}
+		if domain.GoalWorkOpen(p.Progress) && !add(p.Spec) {
+			return false, nil
 		}
 	}
-	occupied := len(review.Development.Committed)
-	for _, id := range review.Development.Committed {
-		if id == policy.MaintainEquipment {
-			occupied--
-		}
-	}
-	// An apparel policy write is a slotless settings write (#660): it only has
-	// to stay off the pawns the goal's open work already holds.
-	return developmentExemptMethod(plan) || open+occupied < review.Development.Capacity, nil
+	return true, nil
 }
