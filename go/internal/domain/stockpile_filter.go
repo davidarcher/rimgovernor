@@ -213,9 +213,10 @@ func RawVegFilter() StockpileFilter {
 }
 
 // PerishablesFilter holds every food and fresh animal corpse that is not yet
-// rotten: the freezer's catch-all under its dedicated shelves.
+// rotten: the freezer's catch-all under its dedicated shelves. Reserve food that
+// never rots (survival meals, pemmican) belongs in general storage.
 func PerishablesFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Foods"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Foods"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect")}, []FilterSelector{SpecialFilter("AllowRotten"), ThingDef("MealSurvivalPack"), ThingDef("Pemmican")})
 	return f
 }
 

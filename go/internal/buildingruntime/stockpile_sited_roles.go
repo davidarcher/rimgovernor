@@ -218,7 +218,16 @@ func stockpileSites(projection *observation.ColonyProjection, protected []domain
 				prefix string
 				filter domain.StockpileFilter
 			}{{domain.RawMeatRolePrefix, domain.RawMeatFilter()}, {domain.RawVegRolePrefix, domain.RawVegFilter()}, {domain.CorpsesRolePrefix, domain.CorpseLarderFilter()}} {
-				out = append(out, policy.StockpileSite{Role: shelf.prefix + room.ID, Room: room.Cells, Filter: shelf.filter, Priority: domain.CriticalPriority, Candidates: sites})
+				candidates := sites
+				if shelf.prefix == domain.CorpsesRolePrefix {
+					// Carcasses stay by the butcher's door into the freezer.
+					if door, ok := butcheryDoor(layout); ok {
+						if near, err := roomStorageSites(room.Cells, door, projection.Bounds, projection.Cells, protected); err == nil && len(near) > 0 {
+							candidates = near
+						}
+					}
+				}
+				out = append(out, policy.StockpileSite{Role: shelf.prefix + room.ID, Room: room.Cells, Filter: shelf.filter, Priority: domain.CriticalPriority, Candidates: candidates})
 			}
 			out = append(out, policy.StockpileSite{Role: domain.PerishablesRolePrefix + room.ID, Room: room.Cells, Filter: domain.PerishablesFilter(), Priority: domain.PreferredPriority, Remainder: true,
 				Candidates: [][]domain.Cell{roomPool(room.Cells, projection.Cells, protected)}})
@@ -401,4 +410,15 @@ func roomPool(room []domain.Cell, cells []policy.SiteCell, avoid []domain.Cell) 
 		}
 	}
 	return out
+}
+
+// butcheryDoor is the planned butchery's door when it opens through a Link
+// (into the freezer), else false.
+func butcheryDoor(layout policy.LayoutPlan) (domain.Cell, bool) {
+	for _, r := range layout.AllRooms() {
+		if r.Role == policy.ModuleButchery && r.Link != nil {
+			return *r.Link, true
+		}
+	}
+	return domain.Cell{}, false
 }
