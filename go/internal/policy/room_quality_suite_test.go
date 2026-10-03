@@ -89,11 +89,11 @@ func TestSuiteClaimantRoomGetsNoUpgrade(t *testing.T) {
 	obs.Beds = []SleepingBed{{ID: "Bed_1", Room: domain.Known("Room_1"), Owners: []PawnID{"a"}}}
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
 	all := func(string) bool { return true }
-	if _, ok := NextRoomUpgrade(obs, targets, tidy, all); !ok {
+	if _, ok := NextRoomUpgrade(obs, targets, tidy, all, RoomGate{}); !ok {
 		t.Fatal("no upgrade without a claim")
 	}
 	claims := []SuiteClaim{{Pawn: "a", Bed: "Bed_1", Target: ImpressivenessSlightlyImpressive, Reason: SuiteClaimFloor}}
-	if u, ok := NextRoomUpgrade(obs, UpgradeTargets(targets, obs, claims), tidy, all); ok {
+	if u, ok := NextRoomUpgrade(obs, UpgradeTargets(targets, obs, claims), tidy, all, RoomGate{}); ok {
 		t.Fatalf("claimant room upgrade = %+v", u)
 	}
 

@@ -32,7 +32,7 @@ func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 	if step := migrateStep(facts); step.Kind != policy.BedroomFurnish || step.Room.Interior.X != 20 {
 		t.Fatalf("migrate step = %+v, want the active room furnished", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatal("pending migration not owed")
 	}
 }

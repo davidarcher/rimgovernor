@@ -362,7 +362,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	r.census.rememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan)
 	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
-	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
+	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection, r.stage)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
 	// The herd furniture is read only when the containment method is on
 	// (readDefinitions above); a review without it owes no herd step.

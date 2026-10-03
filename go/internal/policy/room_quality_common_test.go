@@ -50,13 +50,13 @@ func TestCommonRoomBelowTargetGetsTheTemplateLamp(t *testing.T) {
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_2", Role: "DiningRoom", Quality: low}})}
 	targets := CommonRoomTargets(obs, BuildTierIndustrial, testImpressiveness)
 	all := func(string) bool { return true }
-	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all)
+	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{})
 	if !ok || u.Room != "Room_2" || u.Slot != "lamp" || u.Def != "StandingLamp" {
 		t.Fatalf("upgrade = %+v %v", u, ok)
 	}
 	// At the colony target: nothing to do.
 	obs.Rooms = domain.Known([]UpkeepRoom{{ID: "Room_2", Role: "DiningRoom", Quality: domain.Known(RoomQuality{Wealth: 300, Beauty: 1, Space: 60, Impressiveness: 41})}})
-	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all); ok {
+	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{}); ok {
 		t.Fatalf("met target upgrade = %+v", u)
 	}
 }

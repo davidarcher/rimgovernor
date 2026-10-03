@@ -45,7 +45,7 @@ func TestWorshipRoomOwesHousingUntilTheBuildingsStand(t *testing.T) {
 	if step := childRoomStep(facts); step.Kind != policy.ChildRoomShell || step.Room != room {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatalf("the shell is owed: %v %v", owed, known)
 	}
 	facts, _ = worshipProjection(true)

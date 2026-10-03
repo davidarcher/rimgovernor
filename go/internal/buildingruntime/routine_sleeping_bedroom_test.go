@@ -34,7 +34,7 @@ func TestTribalSpotOwnersShellABedroom(t *testing.T) {
 	if step := bedroomStep(facts); step.Kind != policy.BedroomShell || step.Unhoused != 5 {
 		t.Fatalf("step = %+v, want the bedroom shelled for 5", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatal("bedroom deficit not owed at Camp tier")
 	}
 	if !bedroomsFirst(policy.SleepingUnavailable) || !bedroomsFirst(policy.SleepingBuild) || bedroomsFirst(policy.SleepingAssign) {

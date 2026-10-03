@@ -30,7 +30,7 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 	obs, rooms, plan := upgradeFixture(t, low)
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
 	all := func(string) bool { return true }
-	u, ok := NextRoomUpgrade(obs, targets, rooms, all)
+	u, ok := NextRoomUpgrade(obs, targets, rooms, all, RoomGate{})
 	if !ok || u.Slot != "end_table" || u.Def != "EndTable" || u.Weakest != RoomStatWealth {
 		t.Fatalf("upgrade = %+v %v", u, ok)
 	}
@@ -40,7 +40,7 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 		}
 	}
 	// No end table stock: the dresser is next.
-	u, ok = NextRoomUpgrade(obs, targets, rooms, func(d string) bool { return d != "EndTable" })
+	u, ok = NextRoomUpgrade(obs, targets, rooms, func(d string) bool { return d != "EndTable" }, RoomGate{})
 	if !ok || u.Def != "Dresser" {
 		t.Fatalf("upgrade = %+v %v", u, ok)
 	}
@@ -50,7 +50,7 @@ func TestRoomUpgradeFillsTemplateSlotsCheapestFirst(t *testing.T) {
 			rooms[0].Pieces = append(rooms[0].Pieces, TidyPiece{Def: p.Def, Rect: p.Rect})
 		}
 	}
-	if u, ok := NextRoomUpgrade(obs, targets, rooms, all); ok {
+	if u, ok := NextRoomUpgrade(obs, targets, rooms, all, RoomGate{}); ok {
 		t.Fatalf("full room upgrade = %+v", u)
 	}
 }
@@ -66,12 +66,12 @@ func TestRoomUpgradeSmallBedroomSettledByAnyEndTable(t *testing.T) {
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_1", Quality: domain.Known(RoomQuality{Wealth: 196, Beauty: -1.35, Space: 15, Cleanliness: -1, Impressiveness: -9.2})}})}
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: testImpressiveness.Baseline(BuildTierMasonry)}}
 	all := func(string) bool { return true }
-	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all)
+	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{})
 	if !ok || u.Def != "EndTable" {
 		t.Fatalf("bare room upgrade = %+v %v, want the end table", u, ok)
 	}
 	tidy.Pieces = append(tidy.Pieces, TidyPiece{Thing: "EndTable_1", Def: "EndTable", Size: domain.Cell{X: 1, Z: 1}, Rect: Rectangle{1, 2, 1, 1}})
-	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all); ok {
+	if u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all, RoomGate{}); ok {
 		t.Fatalf("furnished room upgrade = %+v", u)
 	}
 }
@@ -90,7 +90,7 @@ func TestRoomUpgradeRespectsTargetsAndSpace(t *testing.T) {
 	}
 	for name, c := range cases {
 		obs, rooms, _ := upgradeFixture(t, c.q)
-		if u, ok := NextRoomUpgrade(obs, map[string]RoomTarget{"Room_1": c.target}, rooms, all); ok {
+		if u, ok := NextRoomUpgrade(obs, map[string]RoomTarget{"Room_1": c.target}, rooms, all, RoomGate{}); ok {
 			t.Errorf("%s: upgrade = %+v", name, u)
 		}
 	}

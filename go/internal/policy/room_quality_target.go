@@ -80,6 +80,11 @@ func CommonRoomTargets(obs SleepingObservation, tier BuildTier, levels Impressiv
 // a humanlike, non-medical, non-prisoner bed with owners. traits carries each
 // pawn's TraitEffects; a missing entry reads as no relevant trait.
 //
+// Min is the ceiling the room climbs to, not a spend it demands (#1840): the
+// in-place upgrade planners place one piece at a time while the room is below
+// it, and RoomGate refuses a step the owners' remaining personal share does
+// not pay for (a necessity, Baseline(Camp) = 0, is never charged).
+//
 // Per owner, the floor is the max of:
 //   - the tier baseline (ImpressivenessLevels.Baseline), unless the owner is ascetic;
 //   - Greedy: slightly impressive, the first stage ThoughtWorker_Greedy

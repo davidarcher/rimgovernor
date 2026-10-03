@@ -134,9 +134,12 @@ type ColonyProjection struct {
 	// remaining (#1846), computed by every routine reading; read it through
 	// PersonalShareOf. Nil without a routine reading.
 	PersonalShares map[policy.PawnID]policy.PersonalShare
-	Workers        domain.Fact[int]
-	Bounds         policy.Bounds
-	Center         domain.Cell
+	// BedPrice prices a bed by (def, stuff) from the catalog's MarketValue
+	// rows (#1840); nil without a catalog.
+	BedPrice policy.BedPrice
+	Workers  domain.Fact[int]
+	Bounds   policy.Bounds
+	Center   domain.Cell
 	// Region is the observed planning window; cells absent inside it are
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle
@@ -357,6 +360,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	if tables.Catalog != nil {
 		r.RoofSupport = float64(tables.Catalog.Constants.RoofMaxSupportDistance)
+		r.BedPrice = marketBedPrice(tables.Catalog)
 		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
 			return ColonyProjection{}, err
 		}

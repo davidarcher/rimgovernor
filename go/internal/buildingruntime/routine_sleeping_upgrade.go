@@ -11,9 +11,39 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
+// bedroomGate is the personal-share gate on in-place bedroom upgrades
+// (#1840): charged steps begin at Reserves and must fit the owners' remaining
+// share. stage is the review's colony stage.
+func bedroomGate(facts observation.ColonyProjection, stage policy.ColonyStage) policy.RoomGate {
+	gate := policy.RoomGate{Stage: stage, Shares: facts.PersonalShareOf, Items: facts.Facts.Items, BedPrice: facts.BedPrice}
+	// A piece is priced in the stuff upgradeBedroom would build it in; the
+	// item facts carry no row for a stuff-made def.
+	gate.PiecePrice = func(def string) (float64, bool) {
+		if facts.BedPrice == nil {
+			return 0, false
+		}
+		return facts.BedPrice(policy.Resource(def), policy.Resource(pieceStuff(facts, def)))
+	}
+	return gate
+}
+
+// pieceStuff is the stuff a bedroom upgrade piece is built in: the allowed
+// stocked one with the best rest effectiveness, else the ordinary placement
+// stuff.
+func pieceStuff(facts observation.ColonyProjection, def string) string {
+	stuff := facts.BuildStuff(def)
+	if d, found := facts.Definition(def); found {
+		stock, _ := facts.Stock()
+		if price, err := d.StuffChoice(observation.MaxRestEffectiveness, stock); err == nil {
+			stuff = price.Stuff
+		}
+	}
+	return stuff
+}
+
 // roomUpgrade is the next room quality upgrade (#814): one template piece
 // for an owned bedroom below its target.
-func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
+func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -33,12 +63,12 @@ func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) 
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
 	}
-	return policy.NextRoomUpgrade(obs, upgradeTargets(facts, targets), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
+	return policy.NextRoomUpgrade(obs, upgradeTargets(facts, targets), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, bedroomGate(facts, stage))
 }
 
 // bedReplacement is the next bed replacement step (#829), read from the
 // same census as roomUpgrade.
-func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, bool) {
+func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.BedReplacement, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -51,7 +81,7 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
 	}
-	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}, Items: facts.Facts.Items}
+	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}, Items: facts.Facts.Items, Gate: bedroomGate(facts, stage)}
 	materials.Stock, _ = facts.Resources.Value()
 	for _, d := range facts.Definitions {
 		// A bed's stuff is the allowed stocked one with the best rest
@@ -106,7 +136,7 @@ func companionBed(facts observation.ColonyProjection) (policy.RoomUpgrade, bool)
 
 // beautyUpgrade is the next beauty lever (#830): a plant pot or a
 // prettier floor for a bedroom whose weakest stat is beauty.
-func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
+func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (policy.RoomUpgrade, bool) {
 	obs, sk := facts.Facts.Sleeping.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
@@ -123,7 +153,7 @@ func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool
 	for _, d := range facts.Definitions {
 		floors.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
 	}
-	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
+	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors, bedroomGate(facts, stage))
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.
@@ -194,13 +224,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 	}
 	stuff := u.Stuff
 	if stuff == "" {
-		stuff = facts.BuildStuff(u.Def)
-		if d, found := facts.Definition(u.Def); found {
-			stock, _ := facts.Stock()
-			if price, err := d.StuffChoice(observation.MaxRestEffectiveness, stock); err == nil {
-				stuff = price.Stuff
-			}
-		}
+		stuff = pieceStuff(facts, u.Def)
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()

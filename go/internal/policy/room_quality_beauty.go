@@ -26,7 +26,7 @@ const maxBeautyFloorCells = 24
 // NextBeautyUpgrade returns the first (by room id) beauty upgrade due,
 // false when none. A floor upgrade carries its cells in Cells (Def placed
 // at each, North); a plant pot is one piece at Anchor.
-func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, flooring domain.Fact[FlooringObservation], floors FlooringFacts) (RoomUpgrade, bool) {
+func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, flooring domain.Fact[FlooringObservation], floors FlooringFacts, gate RoomGate) (RoomUpgrade, bool) {
 	furniture := map[string]TidyRoom{}
 	for _, r := range rooms {
 		furniture[r.ID] = r
@@ -47,13 +47,13 @@ func NextBeautyUpgrade(obs SleepingObservation, targets map[string]RoomTarget, r
 		for _, p := range room.Pieces {
 			pot = pot || p.Def == PlantPotDefinition
 		}
-		if !pot && available(PlantPotDefinition) {
+		if !pot && available(PlantPotDefinition) && gate.PieceAllowed(targets[id].Owners, PlantPotDefinition) {
 			if cell, _, ok := freeSpot(room, domain.Cell{X: 1, Z: 1}); ok {
 				return RoomUpgrade{Room: id, Slot: "plant_pot", Def: PlantPotDefinition, Anchor: cell, Rot: domain.North, Weakest: RoomStatBeauty}, true
 			}
 		}
 		if fr, ok := floorRooms[id]; ok && fk {
-			if u, ok := floorUpgrade(id, fr, fo.Terrains, floors); ok {
+			if u, ok := floorUpgrade(id, fr, fo.Terrains, floors, gate, targets[id].Owners); ok {
 				return u, true
 			}
 		}
@@ -172,7 +172,7 @@ func beautyRooms(obs SleepingObservation, targets map[string]RoomTarget) []strin
 
 // floorUpgrade picks the most beautiful affordable floor and the room's
 // cells whose terrain is less beautiful than it (none already ordered).
-func floorUpgrade(id string, room FloorRoom, terrains map[string]FloorTerrain, floors FlooringFacts) (RoomUpgrade, bool) {
+func floorUpgrade(id string, room FloorRoom, terrains map[string]FloorTerrain, floors FlooringFacts, gate RoomGate, owners []PawnID) (RoomUpgrade, bool) {
 	names := make([]string, 0, len(floors.Definitions))
 	for name := range floors.Definitions {
 		names = append(names, name)
@@ -203,6 +203,17 @@ func floorUpgrade(id string, room FloorRoom, terrains map[string]FloorTerrain, f
 		cells = append(cells, c.Cell)
 		if len(cells) == maxBeautyFloorCells {
 			break
+		}
+	}
+	// A gated room lays only the cells its owners' remaining share pays for,
+	// at the floor's material price (#1840).
+	if gate.Shares != nil && len(owners) > 0 {
+		price, ok := gate.FloorCellPrice(floors.Definitions[best])
+		if !ok {
+			return RoomUpgrade{}, false
+		}
+		for len(cells) > 0 && !gate.Allows(owners, price*float64(len(cells))) {
+			cells = cells[:len(cells)-1]
 		}
 	}
 	if len(cells) == 0 {

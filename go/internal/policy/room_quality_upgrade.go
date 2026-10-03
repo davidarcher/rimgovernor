@@ -83,7 +83,7 @@ type RoomUpgrade struct {
 // NextRoomUpgrade returns the first (by room id) upgrade due, false when
 // none. rooms are the furniture rooms (TidyFurnitureRooms); available
 // reports a definition the colony can build now.
-func NextRoomUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool) (RoomUpgrade, bool) {
+func NextRoomUpgrade(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, available func(string) bool, gate RoomGate) (RoomUpgrade, bool) {
 	census, ok := obs.Rooms.Value()
 	if !ok {
 		return RoomUpgrade{}, false
@@ -124,7 +124,7 @@ func NextRoomUpgrade(obs SleepingObservation, targets map[string]RoomTarget, roo
 		}
 		for _, slot := range roomUpgradeSlots {
 			for _, piece := range plan.Pieces {
-				if piece.Slot != slot || have[piece.Def] || !available(piece.Def) || roomPieceOverlaps(room.Pieces, piece.Rect) {
+				if piece.Slot != slot || have[piece.Def] || !available(piece.Def) || roomPieceOverlaps(room.Pieces, piece.Rect) || !gate.PieceAllowed(t.Owners, piece.Def) {
 					continue
 				}
 				return RoomUpgrade{Room: id, Slot: slot, Def: piece.Def, Anchor: piece.Anchor(), Rot: piece.Rot, Weakest: weakest}, true

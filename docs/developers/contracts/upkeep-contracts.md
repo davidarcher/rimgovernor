@@ -1023,3 +1023,27 @@ or price, gear) makes that colonist's spent Unknown, never zero.
   read (`PartsUnread`) makes that pawn's spent Unknown, never zero. An
   installed part moves wealth from Items (the pool) to Pawns, so every share
   shrinks slightly; accepted.
+
+### Bedroom upgrade gates (#1840)
+
+`RoomTarget.Min` from `RoomQualityTargets` is the tier ceiling (Greedy,
+Jealous and a title raise it, Ascetic caps it); the owners' share is the gate.
+`policy.RoomGate` is built per review by `bedroomGate` (`Stage` is the colony
+stage of the review the planner runs under, `Shares` is `PersonalShareOf`) and
+passed to `NextRoomUpgrade`, `NextBeautyUpgrade` and, through
+`BedMaterials.Gate`, `NextBedReplacement`. The zero `RoomGate` is ungated.
+
+- A step is charged its market-value delta: a template piece or plant pot at
+  the catalog's `(def, stuff)` MarketValue in the stuff `upgradeBedroom` would
+  build it in (`pieceStuff`); a bed rebuild at the new bed (Normal quality)
+  less the owned bed's price; a floor at the material cost per cell, laying
+  only the cells the share pays for. An unpriced step is refused while gated.
+- Never charged: a delta of zero or less, a room with no owners (common and
+  throne rooms stay on the baseline), the royal title's bed and furniture, and
+  the assign and remove steps that finish a started bed replacement.
+- Charged steps begin at the Reserves stage (`stage < Reserves` refuses them),
+  the stage of the previous review, as `RoutineReviewer.stage` carries it.
+- A shared room spends its owners' combined remaining share; an owner with an
+  unknown remaining refuses the room.
+- A refused step is not due, so `bedroomsOwed` (`MaintainHousing`) closes once
+  no affordable step is left; raising the share or the stage reopens it.

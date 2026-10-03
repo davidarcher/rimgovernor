@@ -54,7 +54,7 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	if step := throneStep(facts); step.Kind != policy.ThroneShell || step.Room != room {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatalf("the shell is owed: %v %v", owed, known)
 	}
 	facts, _ = throneProjection(true)
@@ -62,7 +62,7 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	if step.Kind != policy.ThronePlace || step.Piece.Def != "Throne" {
 		t.Fatalf("standing room: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatalf("the throne is owed: %v %v", owed, known)
 	}
 	// With the throne standing, the assignment is owed until the royalty
@@ -84,7 +84,7 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	if step := throneStep(facts); step.Kind != policy.ThroneAssign || step.Throne != "t1" || step.Need.Holder != "Alice" || !step.Owed() {
 		t.Fatalf("throne standing: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {
 		t.Fatal("the unassigned throne holds MaintainHousing open")
 	}
 	royalty.Thrones = []policy.RoyalThrone{{ID: "t1", Def: "Throne", Owner: "Alice"}}
@@ -92,7 +92,7 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	if step := throneStep(facts); step.Owed() {
 		t.Fatalf("assigned throne: %+v", step)
 	}
-	if owed, known := bedroomsOwed(facts).Value(); known && owed {
+	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); known && owed {
 		t.Fatal("an assigned throne owes nothing")
 	}
 	facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()

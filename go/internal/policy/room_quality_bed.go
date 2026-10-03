@@ -32,6 +32,9 @@ type BedMaterials struct {
 	Stock map[Resource]int64
 	Cost  map[Resource]int64
 	Items ItemFacts
+	// Gate is the personal-share gate on a quality or material rebuild
+	// (#1840); the zero value is ungated.
+	Gate RoomGate
 }
 
 // bestStuff is the best-scoring stocked stuff for def scoring above floor
@@ -215,6 +218,9 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 				continue
 			}
 		} else {
+			continue
+		}
+		if !materials.Gate.bedAllowed([]PawnID{s.owner}, want, stuff, owned) {
 			continue
 		}
 		if cell, rot, ok := bedSpot(room, want); ok {

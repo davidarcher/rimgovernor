@@ -83,7 +83,7 @@ func upgradeTargets(facts observation.ColonyProjection, targets map[string]polic
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
 // A due room quality swap (#813) or wing migration (#1244) owes a bedroom
 // too, so MaintainHousing stays open until it is done.
-func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) domain.Fact[bool] {
 	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {
@@ -92,7 +92,7 @@ func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		if migrateStep(facts).Kind != policy.BedroomNone {
 			return domain.Known(true)
 		}
-		if _, upgrade := roomUpgrade(facts); upgrade {
+		if _, upgrade := roomUpgrade(facts, stage); upgrade {
 			return domain.Known(true)
 		}
 		if _, bed := companionBed(facts); bed {
