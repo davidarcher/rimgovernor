@@ -33,6 +33,9 @@ type InteriorRoom struct {
 	// floor, sorted; a bench row's pitch widens to the widest standing
 	// member of its family.
 	Standing []string
+	// Dining is the furniture the dining and rec templates place, from the
+	// catalog rows; the zero value for a room those templates never plan.
+	Dining DiningFurniture
 }
 
 // InteriorFrame is the canonical view of a room a template plans in.
@@ -43,6 +46,8 @@ type InteriorFrame struct {
 	Entrance int32
 	// Standing are the shapes of the room's standing definitions.
 	Standing []InteriorPieceDef
+	// Dining is the room's dining furniture (InteriorRoom.Dining).
+	Dining DiningFurniture
 	// Doors are every door of the room in canonical cells, the entrance
 	// included; each lies one cell outside the frame.
 	Doors []domain.Cell
@@ -133,6 +138,7 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 		return InteriorPlan{}, false
 	}
 	frame := x.frame()
+	frame.Dining = room.Dining
 	for _, d := range room.Standing {
 		frame.Standing = append(frame.Standing, InteriorPieceDefFor(d))
 	}
@@ -512,6 +518,7 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 			}
 		}
 		sort.Strings(r.Standing)
+		r.Dining = rooms.Dining
 		out = append(out, r)
 	}
 	return out

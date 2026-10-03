@@ -52,6 +52,12 @@ type FixtureDef struct {
 	Joy *FixtureJoy
 	// Apparel makes the def a garment of an adult wearer.
 	Apparel *FixtureApparel
+	// Sittable makes the def a building a pawn sits on, with Comfort as its
+	// Comfort stat (every stuff of the def shares it); EatSurface gives it an
+	// eating surface.
+	Sittable   bool
+	Comfort    float32
+	EatSurface bool
 	// Weapon makes the def a weapon with the verb, projectile and tools it
 	// states (#1723).
 	Weapon *FixtureWeapon
@@ -169,7 +175,7 @@ func FixtureCatalog(loadToken string, defs ...FixtureDef) *DefinitionCatalog {
 }
 
 func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
-	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat"}
+	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat", StatComfort}
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
 	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}, RoomStatDefs: FixtureRoomStats()}
@@ -238,12 +244,24 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			class := "RimWorld.JoyGiver_Other"
 			if def.Joy.WatchGiver {
 				class = watchGiverClass
+				// The pin's own row: a thrower stands five cells out.
+				t.Building.WatchBuildingStandDistanceRange = &d.IntRange{Min: 5, Max: 5}
 			}
 			chains[class] = []string{"RimWorld.JoyGiver"}
 			chains["RimWorld.JoyGiver"] = nil
 			job := "Play_" + def.Name
 			wire.Defs.JobDefs = append(wire.Defs.JobDefs, &d.JobDef{DefName: job, JoyGainRate: 1, JoyDuration: 1000})
 			wire.Defs.JoyGiverDefs = append(wire.Defs.JoyGiverDefs, &d.JoyGiverDef{DefName: job, GiverClass: class, ThingDefs: []string{def.Name}, JobDef: job})
+		}
+		if def.Sittable {
+			if t.Building == nil {
+				t.Building = &d.BuildingProperties{}
+			}
+			t.Building.IsSittable = true
+			apparelStats[index(StatComfort)] = def.Comfort
+		}
+		if def.EatSurface {
+			t.SurfaceType = d.SurfaceType_SURFACE_TYPE_EAT
 		}
 		comp := func(value *d.CompPropertiesAny) { t.Comps = append(t.Comps, &d.Opt_CompPropertiesAny{Value: value}) }
 		if def.PowerW != nil {

@@ -224,14 +224,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureCooking {
 		definitions = []string{"Campfire", "NutrientPasteDispenser", "Hopper"}
 	}
-	var foothold string
+	var furniture policy.DiningFurniture
 	if r.phase == policy.ComfortRanked && !r.shelter || r.phase == policy.ComfortBasic {
 		var joy []string
 		var err error
-		if foothold, joy, err = recreationDefinitions(call, r.native, boundary.Identity(state.Snapshot)); err != nil {
+		if furniture, joy, err = recreationDefinitions(call, r.native, boundary.Identity(state.Snapshot)); err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		definitions = comfortDefinitions(foothold)
+		definitions = furniture.Definitions()
 		if r.phase != policy.ComfortBasic {
 			joy = nil
 		}
@@ -418,7 +418,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				} else if r.goal == policy.EnsureBasicPower {
 					result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else {
-					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, foothold)
+					result.NativeWorkTicks, err = comfortUseAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, furniture)
 				}
 				if err != nil {
 					return RoutineBuildingResult{}, err
@@ -961,7 +961,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		if restricted && !roomCells[c.Cell] {
 			continue
 		}
-		if r.definition == "DiningChair" && !adjacent[c.Cell] {
+		if comfortFurniture(facts).IsChair(r.definition) && !adjacent[c.Cell] {
 			continue
 		}
 		if roofed, known := c.Roofed.Value(); r.environment == policy.PlacementAnywhere || known && roofed {

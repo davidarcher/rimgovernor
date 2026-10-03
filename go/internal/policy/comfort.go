@@ -28,6 +28,9 @@ type ComfortObservation struct {
 	// (DefinitionCatalog.WatchBuildings). Both come from the catalog rows.
 	RecreationFoothold string
 	WatchBuildings     []string
+	// Furniture is the dining chair, table and recreation foothold the catalog
+	// rows name; RecreationFoothold is its pin.
+	Furniture DiningFurniture
 }
 
 // IsFoothold reports whether method builds the recreation foothold.
@@ -43,6 +46,7 @@ func (v ComfortObservation) footholdMethod() (ComfortMethod, error) {
 	}
 	return ComfortMethod(v.RecreationFoothold), nil
 }
+
 type ComfortUse struct {
 	Facility string
 	Tick     domain.Tick
@@ -196,11 +200,9 @@ func (r ComfortReview) Deficit() domain.Fact[float64] {
 type ComfortMethod string
 
 const (
-	ComfortNoMethod        ComfortMethod = "recovered"
-	ComfortWait            ComfortMethod = "wait_for_native_use"
-	ComfortAccessBlocked   ComfortMethod = "preserve_existing_facility_access"
-	ComfortBuildTable      ComfortMethod = "Table1x2c"
-	ComfortBuildChair      ComfortMethod = "DiningChair"
+	ComfortNoMethod      ComfortMethod = "recovered"
+	ComfortWait          ComfortMethod = "wait_for_native_use"
+	ComfortAccessBlocked ComfortMethod = "preserve_existing_facility_access"
 )
 
 func SelectComfortMethod(v ComfortObservation, r ComfortReview) (ComfortMethod, error) {
@@ -215,9 +217,9 @@ func SelectComfortMethod(v ComfortObservation, r ComfortReview) (ComfortMethod, 
 			return ComfortAccessBlocked, nil
 		}
 		if len(v.Surfaces) == 0 {
-			return ComfortBuildTable, nil
+			return v.Furniture.tableMethod()
 		}
-		return ComfortBuildChair, nil
+		return v.Furniture.chairMethod()
 	}
 	if r.Recreation == ComfortCapacity {
 		if len(v.Recreation) > 0 {
@@ -254,7 +256,7 @@ func HostedComfort(v ComfortObservation, rooms RoomObservation) (ComfortObservat
 		role, known := room.Role.Value()
 		return known && f.Hosts(role)
 	}
-	result := ComfortObservation{People: v.People}
+	result := ComfortObservation{People: v.People, RecreationFoothold: v.RecreationFoothold, WatchBuildings: v.WatchBuildings, Furniture: v.Furniture}
 	for _, s := range v.Surfaces {
 		if hosted(dining, s.RoomID) {
 			result.Surfaces = append(result.Surfaces, s)

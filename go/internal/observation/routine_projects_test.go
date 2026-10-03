@@ -26,6 +26,17 @@ type projectSource struct {
 	frame   bridge.RoutineFrame
 }
 
+// diningFixtureDefs are the chair, table and foothold pin the dining
+// furniture rules need in a fixture catalog.
+func diningFixtureDefs() []bridge.FixtureDef {
+	wood := []policy.Amount{{Resource: "WoodLog", Count: 20}}
+	return []bridge.FixtureDef{
+		{Name: "Chair", Sittable: true, Comfort: .5, Costs: wood},
+		{Name: "Table", Width: 1, Height: 2, EatSurface: true, Costs: wood},
+		{Name: "Pin", Joy: &bridge.FixtureJoy{Kind: "Gaming_Dexterity", WatchGiver: true}},
+	}
+}
+
 // testCatalog is a definition catalog of fixture defs.
 func testCatalog(rows ...bridge.FixtureDef) *bridge.DefinitionCatalog {
 	return bridge.FixtureCatalog("load", rows...)
@@ -66,7 +77,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			}
 			wall := bridge.FixtureDef{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}
 			row := bridge.FixtureDef{Name: "HospitalBed", ConstructionSkill: 8, Research: []string{"Medicine"}}
-			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []bridge.FixtureDef{wall, row}}
+			s := &projectSource{colonySource: &colonySource{reply: base}, extra: append([]bridge.FixtureDef{wall, row}, diningFixtureDefs()...)}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
 				t.Fatal(err)

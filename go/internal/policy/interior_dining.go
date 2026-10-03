@@ -17,10 +17,6 @@ const (
 	// A table unit is end chair, 1x2 table, end chair along the centre
 	// line, with side chairs either side of the table.
 	diningUnitDepth = 4
-	// horseshoesLane is how far from the pin a thrower stands
-	// (JoyGiver_WatchBuilding: five cells out, three cells wide), so the
-	// lane is the pin plus five cells toward the entrance.
-	horseshoesLane = 6
 )
 
 func init() {
@@ -29,6 +25,14 @@ func init() {
 }
 
 func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
+	// A room planned without the catalog's furniture has nothing to place.
+	dining := f.Dining
+	if dining.Validate() != nil {
+		return nil, false
+	}
+	// The pin's throw lane (JoyGiver_WatchBuilding) is the pin plus the cells
+	// a thrower stands on toward the entrance, from the pin's own row.
+	lane := dining.Lane
 	// Side aisles either side of the chairs keep the back reachable.
 	if f.Width < 5 {
 		return nil, false
@@ -36,10 +40,10 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 	c := CentreStart(f.Width, 1)
 	// Row 0 stays floor for the entrance; units are separated by one cell.
 	units := func(depth int32) int32 { return RowCapacity(depth-1, diningUnitDepth, 1) }
-	pin := f.Depth >= horseshoesLane+1
+	pin := f.Depth >= lane+1
 	tables := units(f.Depth)
 	if pin {
-		if withPin := units(f.Depth - horseshoesLane); withPin > 0 || recFirst {
+		if withPin := units(f.Depth - lane); withPin > 0 || recFirst {
 			tables = withPin
 		} else {
 			pin = false
@@ -50,13 +54,13 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 	}
 	var out []InteriorPiece
 	chair := func(slot string, rot domain.Rotation, u, v int32) InteriorPiece {
-		p := NewInteriorPiece(slot, "DiningChair", domain.Cell{X: 1, Z: 1}, rot, domain.Cell{X: u, Z: v})
+		p := NewInteriorPiece(slot, dining.Chair.Def, dining.Chair.Size, rot, domain.Cell{X: u, Z: v})
 		p.Centred = u == c
 		return p
 	}
 	for i := int32(0); i < tables; i++ {
 		v := 1 + i*(diningUnitDepth+1)
-		table := NewInteriorPiece(fmt.Sprintf("table.%d", i), "Table1x2c", domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: c, Z: v + 1})
+		table := NewInteriorPiece(fmt.Sprintf("table.%d", i), dining.Table.Def, dining.Table.Size, domain.North, domain.Cell{X: c, Z: v + 1})
 		table.Centred = true
 		out = append(out, table,
 			chair(fmt.Sprintf("chair.%d.front", i), domain.North, c, v),
@@ -72,7 +76,7 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 		}
 	}
 	if pin {
-		p := NewInteriorPiece("horseshoes", "HorseshoesPin", domain.Cell{X: 1, Z: 1}, domain.North, domain.Cell{X: c, Z: f.Depth - 1})
+		p := NewInteriorPiece("horseshoes", dining.Pin.Def, dining.Pin.Size, domain.North, domain.Cell{X: c, Z: f.Depth - 1})
 		p.Centred = true
 		out = append(out, p)
 	}

@@ -54,7 +54,23 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 	}
 	// The catalog-derived power rows are not in a recording: read them from
 	// the recorded planning catalog.
-	r.Projection.PowerSources, r.Projection.PowerBattery = recordedPowerRows(t)
+	var dining policy.DiningFurniture
+	r.Projection.PowerSources, r.Projection.PowerBattery, dining = recordedPowerRows(t)
+	// The dining furniture is catalog-derived too: a recording's comfort
+	// censuses and room census take it from the recorded catalog.
+	furnish := func(f *domain.Fact[policy.ComfortObservation]) {
+		if v, known := f.Value(); known {
+			v.Furniture = dining
+			*f = domain.Known(v)
+		}
+	}
+	for _, f := range []*domain.Fact[policy.ComfortObservation]{&r.Facts.Comfort, &r.Facts.BasicComfort, &r.Projection.Facts.Comfort, &r.Projection.Facts.BasicComfort} {
+		furnish(f)
+	}
+	if rooms, known := r.Projection.Rooms.Value(); known {
+		rooms.Dining = dining
+		r.Projection.Rooms = domain.Known(rooms)
+	}
 	return r
 }
 
@@ -62,12 +78,13 @@ var recordedPower struct {
 	once    sync.Once
 	sources map[string]policy.PowerSourceProfile
 	battery policy.PowerBattery
+	dining  policy.DiningFurniture
 	err     error
 }
 
 // recordedPowerRows are the power source profiles and the battery of the
 // planning catalog recorded from the game (observation/testdata).
-func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, policy.PowerBattery) {
+func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, policy.PowerBattery, policy.DiningFurniture) {
 	t.Helper()
 	recordedPower.once.Do(func() {
 		file, err := os.Open("../observation/testdata/planning_catalog.pb.gz")
@@ -98,12 +115,28 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 		if recordedPower.sources, recordedPower.err = catalog.PowerSources(); recordedPower.err != nil {
 			return
 		}
-		recordedPower.battery, recordedPower.err = catalog.PowerBattery(policy.BatteryDefinition)
+		if recordedPower.battery, recordedPower.err = catalog.PowerBattery(policy.BatteryDefinition); recordedPower.err != nil {
+			return
+		}
+		// The recorded catalog carries no joy giver rows, so the pin is the
+		// recorded HorseshoesPin row by name; the chair and table are the rules.
+		shape := func(def string) policy.InteriorPieceDef {
+			size := catalog.ThingDef(def).GetSize()
+			return policy.InteriorPieceDef{Def: def, Size: domain.Cell{X: size.GetX(), Z: size.GetZ()}}
+		}
+		var chair, table string
+		if chair, recordedPower.err = catalog.DiningChair(); recordedPower.err != nil {
+			return
+		}
+		if table, recordedPower.err = catalog.DiningTable(); recordedPower.err != nil {
+			return
+		}
+		recordedPower.dining = policy.DiningFurniture{Chair: shape(chair), Table: shape(table), Pin: shape("HorseshoesPin"), Lane: catalog.ThingDef("HorseshoesPin").GetBuilding().GetWatchBuildingStandDistanceRange().GetMax() + 1}
 	})
 	if recordedPower.err != nil {
 		t.Fatal(recordedPower.err)
 	}
-	return recordedPower.sources, recordedPower.battery
+	return recordedPower.sources, recordedPower.battery, recordedPower.dining
 }
 
 // recordedPlanner is goal's building planner over the recording's policy,

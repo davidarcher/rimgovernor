@@ -7,7 +7,7 @@ import (
 )
 
 func TestBasicComfortCountsCapacityWithoutProofOfUse(t *testing.T) {
-	v := ComfortObservation{People: []PawnID{"a", "b"}, RecreationFoothold: "Pin"}
+	v := ComfortObservation{People: []PawnID{"a", "b"}, RecreationFoothold: "Pin", Furniture: testComfortFurniture}
 	check := func(want ComfortMethod, fraction float64, recovered domain.Fact[bool]) {
 		t.Helper()
 		r, err := ReviewBasicComfort(domain.Known(v))
@@ -19,9 +19,9 @@ func TestBasicComfortCountsCapacityWithoutProofOfUse(t *testing.T) {
 			t.Fatal(r, method, err)
 		}
 	}
-	check(ComfortBuildTable, 1, domain.Known(false))
+	check(ComfortMethod("Table"), 1, domain.Known(false))
 	v.Surfaces = []DiningSurface{{ID: "table", Adjacent: []domain.Cell{{X: 1, Z: 2}}}}
-	check(ComfortBuildChair, 1, domain.Known(false))
+	check(ComfortMethod("Chair"), 1, domain.Known(false))
 	v.Dining = []ComfortFacility{{ID: "chair", AccessibleTo: []PawnID{"a", "b"}}}
 	check(ComfortMethod("Pin"), .5, domain.Known(false))
 	// Unused furniture everyone can reach is provided: proof of use is
@@ -56,7 +56,7 @@ func TestComfortFootholdComesFromTheCensus(t *testing.T) {
 		t.Fatal("a census with no foothold named a build", m)
 	}
 	v.RecreationFoothold = "Pin"
-	if m, err := SelectComfortMethod(v, r); err != nil || m != ComfortMethod("Pin") || !v.IsFoothold(m) || v.IsFoothold(ComfortBuildChair) {
+	if m, err := SelectComfortMethod(v, r); err != nil || m != ComfortMethod("Pin") || !v.IsFoothold(m) || v.IsFoothold(ComfortMethod("Chair")) {
 		t.Fatal(m, err)
 	}
 }

@@ -51,7 +51,11 @@ func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) 
 	if err != nil {
 		return domain.Unknown[policy.ComfortObservation](), fmt.Errorf("comfort census: %w", err)
 	}
-	r.RecreationFoothold, r.WatchBuildings = foothold, watch
+	furniture, err := catalog.DiningFurniture()
+	if err != nil {
+		return domain.Unknown[policy.ComfortObservation](), fmt.Errorf("comfort census: %w", err)
+	}
+	r.RecreationFoothold, r.WatchBuildings, r.Furniture = foothold, watch, furniture
 	for _, s := range value.Surfaces {
 		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoom().GetId()}
 		for _, c := range s.Adjacent {

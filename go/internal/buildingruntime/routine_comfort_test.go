@@ -54,7 +54,7 @@ func TestRoutineBuildingNativeUseBudgetCountsFromTheApplyReceipt(t *testing.T) {
 	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "HiddenConduit"} {
 		t.Run(definition, func(t *testing.T) {
 			budget := func(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
-				return comfortNativeWorkTicks(plan, current, tick, "HorseshoesPin")
+				return comfortNativeWorkTicks(plan, current, tick, testDiningFurniture)
 			}
 			if definition == "WoodFiredGenerator" || definition == "HiddenConduit" {
 				budget = powerNativeWorkTicks
@@ -167,7 +167,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	t.Parallel()
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked}
 	people := []policy.PawnID{"pawn"}
-	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin"}
+	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin", Furniture: testDiningFurniture}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuffed: true, StuffOptions: madeOf("WoodLog")}, {Name: "DiningChair", Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
 	selected, reason, err := planner.selectComfort(facts, policy.ComfortHistory{})
 	if err != nil || !reason.IsZero() || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {

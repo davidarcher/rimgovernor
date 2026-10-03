@@ -48,30 +48,30 @@ type definitionCatalogSource interface {
 	DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error)
 }
 
-// recreationDefinitions are the recreation foothold the catalog rows name
-// (DefinitionCatalog.RecreationFoothold) and the catalog's joy buildings in
+// recreationDefinitions are the dining furniture and recreation foothold the catalog rows name
+// (DefinitionCatalog.DiningFurniture) and the catalog's joy buildings in
 // preference order (DefinitionCatalog.JoyBuildings). A source that serves no
 // catalog cannot name the foothold: an error.
-func recreationDefinitions(ctx context.Context, native any, identity *c.Identity) (foothold string, joy []string, err error) {
+func recreationDefinitions(ctx context.Context, native any, identity *c.Identity) (furniture policy.DiningFurniture, joy []string, err error) {
 	source, ok := native.(definitionCatalogSource)
 	if !ok {
-		return "", nil, errors.New("native serves no definition catalog for the recreation foothold")
+		return policy.DiningFurniture{}, nil, errors.New("native serves no definition catalog for the recreation foothold")
 	}
 	catalog, err := source.DefinitionCatalog(ctx, identity)
 	if err != nil {
-		return "", nil, err
+		return policy.DiningFurniture{}, nil, err
 	}
-	if foothold, err = catalog.RecreationFoothold(); err != nil {
-		return "", nil, err
+	if furniture, err = catalog.DiningFurniture(); err != nil {
+		return policy.DiningFurniture{}, nil, err
 	}
 	methods, err := catalog.JoyBuildings()
 	if err != nil {
-		return "", nil, err
+		return policy.DiningFurniture{}, nil, err
 	}
 	for _, m := range methods {
 		joy = append(joy, m.Definition)
 	}
-	return foothold, joy, nil
+	return furniture, joy, nil
 }
 
 // creepJoinerDownsides is the catalog's creepjoiner downside defs. A source

@@ -16,10 +16,10 @@ import (
 // resolves from the definition catalog (#1340); a read names any other it
 // needs.
 var StarterDefinitions = []string{
-	"Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "DiningChair", "Door",
-	"Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "HorseshoesPin", "PassiveCooler", "PenMarker",
+	"Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "Door",
+	"Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PassiveCooler", "PenMarker",
 	"Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot",
-	"SolarGenerator", "StandingLamp", "Table1x2c", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
+	"SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
 }
 
 // DefinitionSource serves the load's definition catalog. A colony source

@@ -125,6 +125,9 @@ func MarkEnemyDoors(rooms RoomObservation, killbox []domain.Cell) RoomObservatio
 type RoomObservation struct {
 	Rooms        []Room
 	EligibleBeds domain.Fact[[]string]
+	// Dining is the dining and recreation furniture the catalog rows name; it
+	// rides with the rooms because the interior plans read it per room.
+	Dining DiningFurniture
 }
 
 // Room returns the census row for one native room ID.
@@ -194,8 +197,8 @@ func (f FacilityRequirement) Hosts(role RoomRole) bool {
 func FacilityCatalog() []FacilityRequirement {
 	generic := []RoomRole{RoomRoleRoom}
 	return []FacilityRequirement{
-		{Role: RoomRoleDiningRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleRecRoom}, generic...), Furniture: []string{"Table1x2c", "DiningChair"}},
-		{Role: RoomRoleRecRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleDiningRoom}, generic...), Furniture: []string{"HorseshoesPin"}},
+		{Role: RoomRoleDiningRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleRecRoom}, generic...), FurnitureFromGame: true},
+		{Role: RoomRoleRecRoom, Status: FacilityImplemented, Compatible: append([]RoomRole{RoomRoleDiningRoom}, generic...), FurnitureFromGame: true},
 		// A bedroom is a hosted colonist bed: MaintainHousing stages one in
 		// any room that already sleeps colonists or in a generic room, then
 		// assigns it; the game scores the room Bedroom or Barracks by count.

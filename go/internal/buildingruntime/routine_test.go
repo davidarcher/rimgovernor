@@ -62,6 +62,26 @@ func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables
 	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things, Catalog: n.thingCatalog()}, nil
 }
 
+// testDiningFurniture is what the fake catalog's dining rows derive to
+// (diningFixtureDefs): its chair, table and the foothold pin with the
+// six-cell lane of a watch stand distance of five.
+var testDiningFurniture = policy.DiningFurniture{
+	Chair: policy.InteriorPieceDef{Def: "DiningChair", Size: domain.Cell{X: 1, Z: 1}},
+	Table: policy.InteriorPieceDef{Def: "Table1x2c", Size: domain.Cell{X: 1, Z: 2}},
+	Pin:   policy.InteriorPieceDef{Def: "HorseshoesPin", Size: domain.Cell{X: 1, Z: 1}},
+	Lane:  6,
+}
+
+// diningFixtureDefs are the fake catalog's chair and table rows beside its
+// foothold pin: a sittable chair and a one-by-two eating surface.
+func diningFixtureDefs() []bridge.FixtureDef {
+	wood := []policy.Amount{{Resource: "WoodLog", Count: 20}}
+	return []bridge.FixtureDef{
+		{Name: "DiningChair", Sittable: true, Comfort: .7, Costs: wood},
+		{Name: "Table1x2c", Width: 1, Height: 2, EatSurface: true, Costs: wood},
+	}
+}
+
 // itemDef is what a test says about a def beyond the plain one: its base
 // deterioration and whether the game calls it medicine.
 type itemDef struct {
@@ -230,7 +250,7 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 	for _, def := range n.catalog {
 		named[def.Name] = true
 	}
-	defs := []bridge.FixtureDef{foothold}
+	defs := append([]bridge.FixtureDef{foothold}, diningFixtureDefs()...)
 	for _, g := range garments {
 		if !named[g.Name] {
 			defs = append(defs, g)

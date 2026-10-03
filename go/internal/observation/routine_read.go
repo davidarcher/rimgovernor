@@ -207,6 +207,12 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		temperature := domain.Unknown[policy.RoomObservation]()
 		if roomCensus != nil {
 			temperature = temperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping)
+			if planned, ok := temperature.Value(); ok && frame.Catalog != nil {
+				if planned.Dining, err = frame.Catalog.DiningFurniture(); err != nil {
+					return RoutineReading{}, err
+				}
+				temperature = domain.Known(planned)
+			}
 		}
 		p.Rooms = temperature
 		p.Facts.SleepingMin, p.Facts.SleepingMax = policy.TemperatureRange(temperature)

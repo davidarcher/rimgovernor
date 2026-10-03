@@ -14,7 +14,7 @@ func comfortFacilities() ComfortObservation {
 }
 
 func TestComfortCapacityAndObservedUseAreIndependent(t *testing.T) {
-	v := ComfortObservation{People: []PawnID{"a", "b"}, RecreationFoothold: "Pin"}
+	v := ComfortObservation{People: []PawnID{"a", "b"}, RecreationFoothold: "Pin", Furniture: testComfortFurniture}
 	h := ComfortHistory{}
 	check := func(want ComfortMethod, fraction float64) ComfortReview {
 		t.Helper()
@@ -29,9 +29,9 @@ func TestComfortCapacityAndObservedUseAreIndependent(t *testing.T) {
 		h = r.History
 		return r
 	}
-	check(ComfortBuildTable, 1)
+	check(ComfortMethod("Table"), 1)
 	v.Surfaces = []DiningSurface{{ID: "table", Adjacent: []domain.Cell{{X: 1, Z: 2}}}}
-	check(ComfortBuildChair, 1)
+	check(ComfortMethod("Chair"), 1)
 	v.Dining = []ComfortFacility{{ID: "chair", AccessibleTo: []PawnID{"a", "b"}}}
 	check(ComfortMethod("Pin"), 1)
 	v.Recreation = []ComfortFacility{{ID: "hoop", AccessibleTo: []PawnID{"a", "b"}}}

@@ -35,7 +35,7 @@ func TestCommonRoomTargetsUseTheColonyBaseline(t *testing.T) {
 }
 
 func TestCommonRoomBelowTargetGetsTheTemplateLamp(t *testing.T) {
-	room := InteriorRoom{Role: RoomRoleDiningRoom, Interior: Rectangle{0, 0, 7, 11}, Doors: []domain.Cell{{X: 3, Z: -1}}}
+	room := InteriorRoom{Role: RoomRoleDiningRoom, Interior: Rectangle{0, 0, 7, 11}, Doors: []domain.Cell{{X: 3, Z: -1}}, Dining: testDining}
 	plan, ok := PlanInterior(room, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no dining plan")

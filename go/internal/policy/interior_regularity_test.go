@@ -105,7 +105,7 @@ func assertInteriorRegular(t *testing.T, plan InteriorPlan) {
 // at entrance on each of the four walls and at the mirrored position.
 func interiorRoomsAround(role RoomRole, width, depth, entrance int32) []InteriorRoom {
 	at := func(r Rectangle, door domain.Cell) InteriorRoom {
-		return InteriorRoom{Role: role, Interior: r, Doors: []domain.Cell{door}}
+		return InteriorRoom{Role: role, Interior: r, Doors: []domain.Cell{door}, Dining: testDining}
 	}
 	ns := Rectangle{X: 10, Z: 20, Width: width, Height: depth}
 	ew := Rectangle{X: 10, Z: 20, Width: depth, Height: width}

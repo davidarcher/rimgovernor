@@ -75,6 +75,7 @@ func TidyFurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells
 		if !ok {
 			continue
 		}
+		input.Dining = rooms.Dining
 		t := TidyRoom{ID: room.ID}
 		for _, b := range census.Buildings {
 			if b.ID == "" || len(b.Cells) == 0 {

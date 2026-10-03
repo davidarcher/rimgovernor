@@ -105,9 +105,9 @@ func SelectBasicComfortMethod(v ComfortObservation, r BasicComfortReview) (Comfo
 			return ComfortAccessBlocked, nil
 		}
 		if len(v.Surfaces) == 0 {
-			return ComfortBuildTable, nil
+			return v.Furniture.tableMethod()
 		}
-		return ComfortBuildChair, nil
+		return v.Furniture.chairMethod()
 	}
 	if r.Recreation == ComfortCapacity {
 		if len(v.Recreation) > 0 {

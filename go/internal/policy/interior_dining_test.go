@@ -70,7 +70,7 @@ func TestDiningAndRecPrioritiesInAShortRoom(t *testing.T) {
 	if count(RoomRoleRecRoom, "HorseshoesPin") != 1 || count(RoomRoleRecRoom, "Table1x2c") != 0 {
 		t.Error("rec room should keep its pin over a table")
 	}
-	if _, ok := PlanInterior(InteriorRoom{Role: RoomRoleDiningRoom, Interior: Rectangle{Width: 4, Height: 9}, Doors: []domain.Cell{{X: 1, Z: -1}}}, InteriorPieceDef{}); ok {
+	if _, ok := PlanInterior(InteriorRoom{Role: RoomRoleDiningRoom, Interior: Rectangle{Width: 4, Height: 9}, Doors: []domain.Cell{{X: 1, Z: -1}}, Dining: testDining}, InteriorPieceDef{}); ok {
 		t.Error("a 4-wide room has no side aisle")
 	}
 }

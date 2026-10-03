@@ -7,6 +7,24 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// testDining is the dining furniture shapes the dining template lays out: a
+// chair and pin of one cell, a one-by-two table, and the pin's six-cell lane
+// (watch stand distance 5 plus the pin).
+var testDining = DiningFurniture{
+	Chair: InteriorPieceDef{Def: "DiningChair", Size: domain.Cell{X: 1, Z: 1}},
+	Table: InteriorPieceDef{Def: "Table1x2c", Size: domain.Cell{X: 1, Z: 2}},
+	Pin:   InteriorPieceDef{Def: "HorseshoesPin", Size: domain.Cell{X: 1, Z: 1}},
+	Lane:  6,
+}
+
+// testComfortFurniture names the comfort methods the comfort tests expect.
+var testComfortFurniture = DiningFurniture{
+	Chair: InteriorPieceDef{Def: "Chair", Size: domain.Cell{X: 1, Z: 1}},
+	Table: InteriorPieceDef{Def: "Table", Size: domain.Cell{X: 1, Z: 2}},
+	Pin:   InteriorPieceDef{Def: "Pin", Size: domain.Cell{X: 1, Z: 1}},
+	Lane:  6,
+}
+
 // GearMaterialBudget is the loadout model's Budget: what each measured
 // material can fund after holds, the same
 // floor food bills honour (#470). Unmeasured resources are absent, which the
@@ -57,7 +75,7 @@ func (l DefenseLayout) Tier(name DefenseTierName) (DefenseTier, bool) {
 // HorseshoesLane is the canonical rectangle a pin at the back wall keeps
 // clear: three cells wide, from the pin five cells toward the entrance.
 func HorseshoesLane(f InteriorFrame) Rectangle {
-	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - horseshoesLane, Width: 3, Height: horseshoesLane - 1}
+	return Rectangle{X: CentreStart(f.Width, 1) - 1, Z: f.Depth - f.Dining.Lane, Width: 3, Height: f.Dining.Lane - 1}
 }
 
 // TurbineWindCells mirrors WindTurbineUtility.CalculateWindCells for a
