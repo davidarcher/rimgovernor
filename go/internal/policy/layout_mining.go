@@ -41,6 +41,9 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 // walls the room.
 func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
 	want := map[domain.Cell]bool{room.Door: true}
+	if shell, err := room.Footprint(); err == nil {
+		want[shell.Threshold()] = true // a hallway cell still in rock
+	}
 	for _, c := range RectangleCells(room.Interior) {
 		want[c] = true
 	}

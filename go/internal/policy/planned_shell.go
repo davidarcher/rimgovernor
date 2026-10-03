@@ -208,6 +208,11 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		reused, claimed, mined := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 		buildable := true
 		door := shell.Door()
+		// fogged counts interior and door cells the census lacks: fogged mountain
+		// is never listed and cannot be designated yet, so it is mined once the
+		// front of the dig reveals it. foggedRing counts ring cells likewise.
+		fogged, foggedRing := 0, 0
+		missing := func(p domain.Cell) bool { _, exists := cells[p]; return !exists }
 		first := ""
 		block := func(p domain.Cell, what string) {
 			buildable = false
@@ -220,6 +225,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 			case p == door:
 				if rock(p) {
 					mined[p] = true
+				} else if missing(p) {
+					fogged++
 				} else if !lit(p) {
 					block(p, "door")
 				}
@@ -227,6 +234,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 				reused[p] = true
 			case claim(p):
 				claimed[p] = true
+			case missing(p):
+				foggedRing++
 			case !lit(p):
 				block(p, "wall")
 			}
@@ -234,6 +243,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		for _, p := range shell.Interior() {
 			if rock(p) && positive(cells[p].SupportsLight) {
 				mined[p] = true
+			} else if missing(p) {
+				fogged++
 			} else if !lit(p) {
 				block(p, "interior")
 			}
@@ -241,7 +252,17 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		// The door opens onto the spine hallway, which the caller protects:
 		// its threshold need only be open ground.
 		if c, observed := cells[shell.Threshold()]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
-			block(shell.Threshold(), "threshold")
+			if positive(c.NaturalRock) {
+				mined[shell.Threshold()] = true // an unopened hallway cell
+			} else {
+				block(shell.Threshold(), "threshold")
+			}
+		}
+		switch {
+		case fogged > 0 && len(mined) == 0:
+			block(shell.Door(), fmt.Sprintf("%d fogged cells with no visible rock to mine yet", fogged))
+		case foggedRing > 0 && fogged == 0:
+			block(shell.Door(), fmt.Sprintf("%d ring cells not in the census", foggedRing))
 		}
 		if !buildable {
 			blocked = append(blocked, first)

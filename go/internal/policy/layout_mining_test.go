@@ -70,7 +70,11 @@ func TestPlannedDig(t *testing.T) {
 		dig[c] = true
 	}
 	want := RectangleCells(in)
-	want = append(append(want, freezer.Door, site.Cell), RectangleCells(shaft)...)
+	threshold := domain.Cell{X: freezer.Door.X, Z: freezer.Door.Z}
+	if shell, err := freezer.Footprint(); err == nil {
+		threshold = shell.Threshold()
+	}
+	want = append(append(want, freezer.Door, threshold, site.Cell), RectangleCells(shaft)...)
 	if len(dig) != len(want) {
 		t.Fatalf("dig %d cells, want %d", len(dig), len(want))
 	}
