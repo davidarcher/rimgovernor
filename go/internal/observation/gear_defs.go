@@ -2,6 +2,8 @@ package observation
 
 import (
 	"context"
+	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -70,7 +72,7 @@ func wearerOf(p *o.GearLoadout) (gearWearer, bool) {
 // (PawnCanWear) and a present part in one of the garment's body part groups
 // (ApparelUtility.HasPartsToWear).
 func (w gearWearer) canWear(a *d.ApparelProperties) bool {
-	if a.GetGender() != d.Gender_GENDER_NONE && a.GetGender() != w.gender {
+	if a.GetGender() != d.Gender_GENDER_NONE && w.gender != d.Gender_GENDER_NONE && a.GetGender() != w.gender {
 		return false
 	}
 	if int32(a.GetDevelopmentalStageFilter())&int32(w.stage) == 0 {
@@ -136,12 +138,22 @@ func hasShield(row *d.ThingDef) bool {
 }
 
 // optionStat is one stat of the option's (def, stuff) at Normal quality
-// before condition, never negative. A stat the game does not show for the
-// def is one the garment does not have: zero.
-func optionStat(catalog *bridge.DefinitionCatalog, def, stuff, stat string) (float64, error) {
+// before condition, never negative. A stat the game hides for the def is an
+// error unless tolerateHidden: armor and insulation are shown for every
+// apparel (their StatDefs do not set showIfUndefined false), so a hidden one
+// is a catalog gap, never a garment without it. Market value is the exception:
+// the game hides it for gear nobody can trade (mech apparel), which is zero
+// cost to the planner, not an unknown.
+func optionStat(catalog *bridge.DefinitionCatalog, def, stuff, stat string, tolerateHidden bool) (float64, error) {
 	value, shown, err := catalog.ShownStatValue(def, stuff, stat)
-	if err != nil || !shown || value < 0 {
+	if err != nil {
 		return 0, err
 	}
-	return float64(value), nil
+	if !shown {
+		if tolerateHidden {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("stat %s is not shown for apparel %s with stuff %q", stat, def, stuff)
+	}
+	return math.Max(0, float64(value)), nil
 }

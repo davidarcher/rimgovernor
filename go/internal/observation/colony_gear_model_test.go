@@ -2,6 +2,7 @@ package observation
 
 import (
 	"maps"
+	"math"
 	"slices"
 	"testing"
 
@@ -44,6 +45,13 @@ var gearGarments = map[string]gearGarment{
 // Smithing and FlakArmor but not PlateArmor or MarineArmor.
 func gearModelDefs(t *testing.T) GearDefinitions {
 	t.Helper()
+	return gearModelDefsShowing(t, []int32{0, 1, 2, 3, 4})
+}
+
+// gearModelDefsShowing is gearModelDefs with only the listed stat indexes (of
+// sharp, blunt, cold, heat, market value) in every garment's stat row.
+func gearModelDefsShowing(t *testing.T, shown []int32) GearDefinitions {
+	t.Helper()
 	id := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)},
 		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, StatValues: &o.DefStatTable{Stats: []string{statArmorSharp, statArmorBlunt, statInsulationCold, statInsulationHeat, statMarketValue}},
@@ -55,11 +63,12 @@ func gearModelDefs(t *testing.T) GearDefinitions {
 			row.EquippedStatOffsets = []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: statMoveSpeed, Value: g.speed}}}
 		}
 		v.ThingDefs = append(v.ThingDefs, row)
-		// A stat the game does not show for a def is absent from its row:
-		// the unarmoured garments show no blunt armor.
-		stats, values := []int32{0, 2, 3, 4}, []float32{g.sharp, 2, 1, 100}
-		if g.blunt != 0 {
-			stats, values = []int32{0, 1, 2, 3, 4}, []float32{g.sharp, g.blunt, 2, 1, 100}
+		// The game shows every Apparel-category stat for an apparel def
+		// (StatWorker.ShouldShowFor), a zero armor rating included.
+		all := []float32{g.sharp, g.blunt, 2, 1, 100}
+		stats, values := shown, make([]float32, len(shown))
+		for i, s := range shown {
+			values[i] = all[s]
 		}
 		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: name, Stat: stats, Value: values})
 	}
@@ -324,4 +333,35 @@ func gearModelTables() bridge.Tables {
 		things = things.With("tribal-"+id, &o.Thing{Thing: &o.EntityRef{Id: proto.String("tribal-" + id), DefName: proto.String("Apparel_TribalA")}})
 	}
 	return bridge.Tables{Things: things}
+}
+
+// A stat the game hides for an apparel def is an error for armor and
+// insulation (the game shows every Apparel-category stat for apparel), and
+// zero cost for market value (hidden for gear nobody trades).
+func TestOptionStatIsStrictExceptMarketValue(t *testing.T) {
+	noBlunt := gearModelDefsShowing(t, []int32{0, 2, 3, 4}).Catalog
+	if _, err := optionStat(noBlunt, "Apparel_FlakVest", "", statArmorBlunt, false); err == nil {
+		t.Fatal("a hidden armor stat read as a value")
+	}
+	noValue := gearModelDefsShowing(t, []int32{0, 1, 2, 3}).Catalog
+	if v, err := optionStat(noValue, "Apparel_FlakVest", "", statMarketValue, true); err != nil || v != 0 {
+		t.Fatal("hidden market value", v, err)
+	}
+	if v, err := optionStat(gearModelDefs(t).Catalog, "Apparel_FlakVest", "", statArmorBlunt, false); err != nil || math.Abs(v-.36) > 1e-6 {
+		t.Fatal("shown blunt armor", v, err)
+	}
+}
+
+// ApparelProperties.CorrectGenderForWearing lets a genderless wearer wear
+// gendered apparel.
+func TestCanWearGenderlessWearerWearsGenderedApparel(t *testing.T) {
+	w := gearWearer{gender: d.Gender_GENDER_NONE, stage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT, groups: map[string]bool{"Torso": true}}
+	a := &d.ApparelProperties{Gender: d.Gender_GENDER_MALE, BodyPartGroups: []string{"Torso"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
+	if !w.canWear(a) {
+		t.Fatal("genderless wearer refused male apparel")
+	}
+	w.gender = d.Gender_GENDER_FEMALE
+	if w.canWear(a) {
+		t.Fatal("female wearer wore male apparel")
+	}
 }
