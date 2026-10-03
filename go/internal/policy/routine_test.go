@@ -10,7 +10,7 @@ import (
 func stableRoutine() RoutineFacts {
 	gear := GearObservation{}
 	for _, id := range []PawnID{"a", "b", "c"} {
-		gear.Pawns = append(gear.Pawns, GearPawn{Pawn: id, Loadout: "loadout", Deficit: domain.Known(false), Candidates: domain.Known([]GearCandidate{})})
+		gear.Pawns = append(gear.Pawns, GearPawn{Pawn: id, Loadout: "loadout", LoadoutModel: domain.Known(GearLoadoutInput{})})
 	}
 	return RoutineFacts{
 		BabyFeeding:         domain.Known(BabyFeeding{}),

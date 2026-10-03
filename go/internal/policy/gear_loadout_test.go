@@ -294,16 +294,10 @@ func TestGearDemandAndReview(t *testing.T) {
 	if err != nil || review.Recovered != domain.Known(true) {
 		t.Fatal(review, err)
 	}
-	// Unknown rich inputs preserve the old native census recovery contract.
+	// A pawn with no model is not judged by a weaker rule.
 	rows[0].LoadoutModel = domain.Unknown[GearLoadoutInput]()
-	rows[0].Deficit = domain.Known(false)
-	rows[0].Candidates = domain.Known([]GearCandidate{})
-	review, err = ReviewGear(domain.Known(GearObservation{Pawns: rows}))
-	if err != nil || review.Recovered != domain.Known(true) {
-		t.Fatal(review, err)
-	}
-	if _, known := review.Demand.Value(); known {
-		t.Fatal("invented demand")
+	if _, err := ReviewGear(domain.Known(GearObservation{Pawns: rows})); err == nil {
+		t.Fatal("a pawn without a model was reviewed")
 	}
 }
 
@@ -353,7 +347,7 @@ func TestGearModelMethodsUseNativeAdmissionAndModelGain(t *testing.T) {
 	if err != nil || m.Kind != GearProduce || m.Need.Stuff != "Cloth" {
 		t.Fatal(m, err)
 	}
-	if got := GearReplacementNeeds(r.Observation); !reflect.DeepEqual(got, []Resource{"Parka"}) {
+	if got, err := GearReplacementNeeds(r.Observation); err != nil || !reflect.DeepEqual(got, []Resource{"Parka"}) {
 		t.Fatal(got)
 	}
 }

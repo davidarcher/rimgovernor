@@ -123,13 +123,19 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		if err != nil {
 			return nil, Verdict{}, err
 		}
-		facts := gearObservationFacts(gear, bridge.Tables{Things: things}, defs)
+		facts, known := gearObservationFacts(observed, bridge.Tables{Things: things}, defs)
+		if !known {
+			return nil, fieldUnavailable("gear_census"), nil
+		}
 		for _, pawn := range facts.Pawns {
 			if candidates, known := pawn.Candidates.Value(); !known || len(candidates) > 0 {
 				return nil, BuildingReasonExistingWork, nil
 			}
 		}
-		needs := policy.GearReplacementNeeds(domain.Known(facts))
+		needs, err := policy.GearReplacementNeeds(domain.Known(facts))
+		if err != nil {
+			return nil, Verdict{}, err
+		}
 		if len(needs) == 0 {
 			return nil, BuildingReasonNoDeficit, nil
 		}

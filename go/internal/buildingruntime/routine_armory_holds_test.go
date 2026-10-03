@@ -60,12 +60,14 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 	}
 	observed := native.reply.GetObserved()
 	setGearProductionNeed(observed)
-	observed.GetPlanning().GetObserved().Gear.Pawns[0].ReplacementNeeds = []*o.GearReplacementNeed{{DefName: proto.String("Apparel_PowerArmor"), Reason: proto.String("loadout")}}
+	pawn := observed.GetPlanning().GetObserved().Gear.Pawns[0]
+	gearModel(pawn, true, nil, gearBillOption("Apparel_PowerArmor", ""))
 	observed.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(3000)}}}
 	n := &fabricationArmorNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, editPawn: func(row *o.PawnState) {
 		gun := row.GetPawn().GetId() + "-gun"
 		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String(gun), Equipped: []*o.GearItem{{Thing: native.entity(&o.EntityRef{Id: proto.String(gun), DefName: proto.String("Gun_ChargeRifle")}), Weapon: proto.Bool(true), Ranged: proto.Bool(true), Quality: o.Quality_QUALITY_GOOD.Enum()}}}
 	}}}}
+	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
 	ctx := context.Background()

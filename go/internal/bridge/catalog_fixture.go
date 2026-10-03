@@ -50,6 +50,15 @@ type FixtureDef struct {
 	WorkToBuild *float32
 	// Joy makes the def a joy building offered by a joy giver.
 	Joy *FixtureJoy
+	// Apparel makes the def a garment of an adult wearer.
+	Apparel *FixtureApparel
+}
+
+// FixtureApparel is a garment's layers, covered body part groups, outfit tags
+// and armor ratings (every stuff of the def shares them).
+type FixtureApparel struct {
+	Layers, Groups, Tags []string
+	Sharp, Blunt         float32
 }
 
 // FixtureJoy is a joy building's kind and the giver and job that offer it
@@ -105,7 +114,7 @@ func FixtureCatalog(loadToken string, defs ...FixtureDef) *DefinitionCatalog {
 }
 
 func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
-	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty}
+	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat"}
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
 	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}}
@@ -156,6 +165,11 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		}
 		if def.Plant != nil {
 			t.DesignationCategory = ""
+		}
+		apparelStats := map[int32]float32{}
+		if a := def.Apparel; a != nil {
+			t.Apparel = &d.ApparelProperties{Layers: a.Layers, BodyPartGroups: a.Groups, DefaultOutfitTags: a.Tags, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
+			apparelStats = map[int32]float32{index("ArmorRating_Sharp"): a.Sharp, index("ArmorRating_Blunt"): a.Blunt, index("Insulation_Cold"): 0, index("Insulation_Heat"): 0, index(StatMarketValue): 100}
 		}
 		if def.SowTag != "" {
 			t.Building = &d.BuildingProperties{SowTag: def.SowTag}
@@ -219,7 +233,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		wire.ThingDefs = append(wire.ThingDefs, t)
 		wire.ThingFacts = append(wire.ThingFacts, facts)
 		if len(t.StuffCategories) == 0 {
-			values := map[int32]float32{}
+			values := maps.Clone(apparelStats)
 			if def.WorkToBuild != nil {
 				values[index(StatWorkToBuild)] = *def.WorkToBuild
 			}
@@ -227,7 +241,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			continue
 		}
 		for _, stuff := range def.Stuffs {
-			values := map[int32]float32{}
+			values := maps.Clone(apparelStats)
 			for stat, value := range stuff.Stats {
 				if slices.Contains(stats, stat) {
 					values[index(stat)] = value

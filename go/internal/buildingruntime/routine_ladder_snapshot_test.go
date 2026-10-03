@@ -1,8 +1,11 @@
 package buildingruntime
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 )
@@ -142,7 +145,22 @@ func TestSnapshotApparelBuildsBenchThenProducesShirt(t *testing.T) {
 	if len(g.GearMethods) == 0 {
 		t.Fatal("no gear selection recorded")
 	}
-	method, err := policy.SelectGearMethod(g.GearMethods[0])
+	// The recording predates the loadout model: its deficit pawns' native
+	// replacements become the model's bill options (a bare wearer wanting
+	// each), the same demand under the rule the planner now judges by.
+	gearReq := g.GearMethods[0]
+	census, _ := gearReq.Observation.Value()
+	census.Pawns = slices.Clone(census.Pawns)
+	for i, pawn := range census.Pawns {
+		need, _ := pawn.Replacements.Value()
+		var options []policy.GearOption
+		for j, n := range need {
+			options = append(options, policy.GearOption{ID: fmt.Sprintf("bill:%s/%s/%d", n.Definition, n.Stuff, j), Definition: n.Definition, Stuff: n.Stuff, Quality: 2, Slot: policy.GearSkinTorso, Layers: []string{"OnSkin"}, Groups: []string{"Torso"}, Source: policy.GearBillSource, Condition: 1})
+		}
+		census.Pawns[i].LoadoutModel = domain.Known(policy.GearLoadoutInput{Female: true, Options: options})
+	}
+	gearReq.Observation = domain.Known(census)
+	method, err := policy.SelectGearMethod(gearReq)
 	if err != nil || method.Kind != policy.GearProduce || method.Bench == "" || method.Recipe != "Make_Apparel_BasicShirt" {
 		t.Fatalf("gear: method %+v err %v, want a shirt produced on the bench", method, err)
 	}

@@ -37,6 +37,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	setGearProductionNeed(observed)
 	observed.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(1500)}}}
 	n := &shellBenchNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}}}}
+	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
 	ctx := context.Background()

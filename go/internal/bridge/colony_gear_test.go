@@ -14,7 +14,7 @@ import (
 func gearColonyFixture(t *testing.T) *o.ColonyFactsSnapshot {
 	v := colonyFixture(t).GetObserved()
 	ctx := v.Context
-	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Weapon: proto.Bool(false)}}}, Gender: d.Gender_GENDER_FEMALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso"}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
+	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Weapon: proto.Bool(false)}}}, Gender: d.Gender_GENDER_FEMALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso"}, ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
 	p.LoadoutModel = &o.GearLoadoutModel{Options: []*o.GearLoadoutOption{{Id: proto.String("bill:Apparel_FlakVest/"), DefName: proto.String("Apparel_FlakVest"), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), Research: []string{"FlakArmor"}, Ingredients: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(60)}}}}}
 	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}}
 	return v
@@ -46,9 +46,8 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		"model empty ingredient": func(g *o.GearSnapshot) {
 			g.Pawns[0].LoadoutModel.Options[0].Ingredients[0].Units = proto.Int64(0)
 		},
-		"duplicate need": func(g *o.GearSnapshot) {
-			g.Pawns[0].ReplacementNeeds = append(g.Pawns[0].ReplacementNeeds, g.Pawns[0].ReplacementNeeds[0])
-		},
+		"no loadout model": func(g *o.GearSnapshot) { g.Pawns[0].LoadoutModel = nil },
+		"no comfort range": func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := gearColonyFixture(t)

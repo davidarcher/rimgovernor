@@ -73,7 +73,10 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}
-	observation := gearObservationFacts(gear, bridge.Tables{Things: things}, defs)
+	observation, known := gearObservationFacts(observed, bridge.Tables{Things: things}, defs)
+	if !known {
+		return RoutineArmoryResult{Verdict: fieldUnavailable("gear_census")}, nil
+	}
 	for i := range observation.Pawns {
 		candidates, _ := observation.Pawns[i].Candidates.Value()
 		available := []policy.GearCandidate{}

@@ -134,7 +134,10 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}
-	targets := routineDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear)
+	targets, err := routineDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear)
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
 	benchWork, err := routineBenchWork(call, r.reviewer.benchSource(r.benches, expected, false), state.Snapshot, plans, playerPlans, targets, len(targets) > 0)
 	if err != nil {
 		return RoutineWorkResult{}, err

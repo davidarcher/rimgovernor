@@ -47,6 +47,7 @@ func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 	reviewer.policy.Stage.Floor = policy.StageDevelopment
 	setGearProductionNeed(native.reply.GetObserved())
 	n := &clubBenchNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{}, filtered: 4}}}
+	settleGearPolicies(t, native)
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
 	ctx := context.Background()

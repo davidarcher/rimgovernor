@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
             foreach (var pawn in people) {
                 var refusal = GearUpkeepTools.Available(pawn);
                 var row = new Obs.GearLoadout {
-                    Pawn = NativeRef.Thing(pawn), Deficit = GearUpkeepTools.Deficit(pawn),
+                    Pawn = NativeRef.Thing(pawn),
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = GearUpkeepTools.Identity(pawn) },
                     ComfortableMinC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
@@ -75,12 +75,6 @@ namespace HomeBridge.BridgeTools
                     });
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber))
                         row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
-                }
-                var needs = GearUpkeepTools.ProductionNeeds(pawn);
-                foreach (var need in needs) {
-                    var replacement = new Obs.GearReplacementNeed { DefName = Id(need.defName), Reason = Text(need.reason) };
-                    if (need.stuff != null) replacement.Stuff = Id(need.stuff);
-                    row.ReplacementNeeds.Add(replacement);
                 }
                 row.LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions);
                 result.Pawns.Add(row);

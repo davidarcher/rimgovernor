@@ -1034,7 +1034,6 @@ message ResolveTargetSnapshot { rimgovernor.common.v1.ObservationContext context
 message ResolveTargetRequest { ReadScope scope = 1; oneof query { string entity_id = 2; string exact_name = 3; rimgovernor.common.v1.Cell cell = 4; } }
 message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
-message GearReplacementNeed { optional string def_name = 1; optional string stuff = 2; optional string reason = 3; optional double gain = 4; }
 // candidates are every eligible loose item, best gain first (then thing id).
 // The pawn's wear inputs (gender, developmental_stage, body_part_groups) are
 // what the definition catalog's apparel rows cannot say: Go applies the wear
@@ -1042,7 +1041,7 @@ message GearReplacementNeed { optional string def_name = 1; optional string stuf
 // is the pawn's single DevelopmentalStage (the apparel filter's flag bit);
 // body_part_groups are the BodyPartGroupDef names for which the pawn has a
 // part that is not missing.
-message GearLoadout { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; GearLoadoutModel loadout_model = 12;
+message GearLoadout { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 5, 8, 9; reserved "replacement_needs", "deficit"; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; GearLoadoutModel loadout_model = 12;
   optional rimgovernor.defs.v1.Gender gender = 13; optional rimgovernor.defs.v1.DevelopmentalStage developmental_stage = 14; repeated string body_part_groups = 15; }
 // One apparel option the Go loadout model may choose. Layers, body part
 // groups and the def x stuff stats come from the catalog (def rows and stat

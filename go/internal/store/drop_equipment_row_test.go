@@ -15,7 +15,7 @@ func TestDropEquipmentActionRowRoundTrips(t *testing.T) {
 	defer db.Close()
 	r := routineRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
-	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}})
+	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	drop, err := domain.NewDropEquipment("joiner", "Gun_Revolver7")
 	if err != nil {

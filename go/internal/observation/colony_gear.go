@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -12,28 +13,28 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// colonyGear decodes the gear census against the frame's definitions: the
+// GearFacts decodes the gear census against the frame's definitions: the
 // catalog's apparel rows and stat table give every garment's layers, groups
 // and stats, and the finished research its bill options need (#1732). A frame
-// without a catalog leaves the census unknown.
-func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables, defs GearDefinitions) domain.Fact[policy.GearObservation] {
+// without a catalog, finished research or outdoor temperature leaves the
+// census unknown; a pawn the loadout model refuses carries the cause in
+// GearPawn.ModelRefusal.
+func GearFacts(v *o.ColonyFactsSnapshot, tables bridge.Tables, defs GearDefinitions) domain.Fact[policy.GearObservation] {
 	gear := v.GetPlanning().GetObserved().GetGear()
-	if gear == nil || defs.Catalog == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
+	if _, researched := defs.Finished.Value(); gear == nil || defs.Catalog == nil || !researched || v.OutdoorTemperatureC == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
 		return domain.Unknown[policy.GearObservation]()
 	}
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: GearStorageFacts(gear)}
 	for _, p := range gear.Pawns {
-		row := policy.GearPawn{Pawn: policy.PawnID(p.Pawn.GetId()), Loadout: p.Snapshot.GetToken(), Blocked: p.Blocker != nil, Deficit: optional(p.Deficit)}
-		needs := []policy.GearReplacement{}
-		for _, n := range p.ReplacementNeeds {
-			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(n.GetDefName()), Stuff: policy.Resource(n.GetStuff()), Reason: n.GetReason()})
-		}
+		row := policy.GearPawn{Pawn: policy.PawnID(p.Pawn.GetId()), Loadout: p.Snapshot.GetToken(), Blocked: p.Blocker != nil}
 		row.Candidates = GearCandidateFacts(p, tables, defs.Catalog)
-		row.Replacements = domain.Known(needs)
 		row.Apparel = GearApparelFacts(p.Equipment, tables, defs.Catalog)
 		row.Policy = ApparelPolicyFacts(p, defs.Catalog)
 		row.Climate = GearClimateFacts(gear)
-		row.LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, row.Policy)
+		var err error
+		if row.LoadoutModel, err = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, row.Policy); err != nil {
+			row.ModelRefusal = err.Error()
+		}
 		result.Pawns = append(result.Pawns, row)
 	}
 	result.Outfits = OutfitIDs(ColonyPolicies(v.Policies))
@@ -43,17 +44,27 @@ func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables, defs GearDefinit
 // GearLoadoutModelFacts maps one pawn's loadout-model inputs. The role is the
 // apparel-policy role (with the model's traits), and unworn options are
 // narrowed to the definitions that role's apparel policy permits, so the
-// model never plans a garment DesiredApparelPolicy would forbid. Unknown when
-// the producer sent no model, role or temperatures, when the catalog lacks a
-// garment's row or stat values or the finished research is unknown, or when
-// the model falls outside the policy's bounds (PlanGearLoadout's Validate):
-// the census then keeps the native deficit path.
-func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+// model never plans a garment DesiredApparelPolicy would forbid. A pawn with
+// no apparel policy cannot wear apparel: unknown with no error. Any other
+// pawn the model cannot be built for (no model, role or temperatures, a
+// garment the catalog lacks a row or stat values for, or a model outside
+// PlanGearLoadout's bounds such as two worn garments on one slot) is unknown
+// with an error naming the cause.
+func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) (domain.Fact[policy.GearLoadoutInput], error) {
+	unknown := domain.Unknown[policy.GearLoadoutInput]()
 	m := p.GetLoadoutModel()
+	if p.GetApparelPolicy() == nil {
+		return unknown, nil
+	}
 	role, known := state.Value()
-	finished, researched := defs.Finished.Value()
-	if m == nil || !known || !researched || p.Gender == nil || outdoor == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
-		return domain.Unknown[policy.GearLoadoutInput]()
+	finished, _ := defs.Finished.Value()
+	switch {
+	case m == nil:
+		return unknown, errors.New("the producer sent no loadout model")
+	case !known:
+		return unknown, errors.New("apparel policy facts unavailable (wearer inputs or definition catalog)")
+	case p.Gender == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil || outdoor == nil:
+		return unknown, errors.New("missing gender, comfortable temperatures or outdoor temperature")
 	}
 	in := policy.GearLoadoutInput{Role: role.Role, Female: p.GetGender() == d.Gender_GENDER_FEMALE, Research: slices.Sorted(maps.Keys(finished)), Ambient: *outdoor, ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
 	traits := []policy.PawnTrait{}
@@ -71,7 +82,7 @@ func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoad
 	for _, x := range m.GetWorn() {
 		option, ok, err := gearLoadoutOption(x, defs.Catalog)
 		if err != nil {
-			return domain.Unknown[policy.GearLoadoutInput]()
+			return unknown, err
 		}
 		if ok {
 			in.Worn = append(in.Worn, option)
@@ -80,16 +91,16 @@ func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoad
 	for _, x := range m.GetOptions() {
 		option, ok, err := gearLoadoutOption(x, defs.Catalog)
 		if err != nil {
-			return domain.Unknown[policy.GearLoadoutInput]()
+			return unknown, err
 		}
 		if ok && (allowed == nil || allowed[x.GetDefName()]) {
 			in.Options = append(in.Options, option)
 		}
 	}
-	if in.Validate() != nil {
-		return domain.Unknown[policy.GearLoadoutInput]()
+	if err := in.Validate(); err != nil {
+		return unknown, err
 	}
-	return domain.Known(in)
+	return domain.Known(in), nil
 }
 
 // gearLoadoutOption maps one native option against the catalog: its layers

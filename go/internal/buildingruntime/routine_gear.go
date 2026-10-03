@@ -50,47 +50,19 @@ func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) 
 	return &RoutineGearPlanner{reviewer, native}, nil
 }
 
-// gearObservationFacts decodes an already-validated gear census the same way
-// observation.colonyGear does for routine review. It is duplicated here
-// (rather than exported from the observation package) because the routine
-// planner reads a fresh census of its own immediately before proposing a
-// method, the same way RoutineEquipPlanner rereads combat pawns and loose
-// weapons rather than reusing the review's cached facts.
-func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables, defs observation.GearDefinitions) policy.GearObservation {
-	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: observation.GearStorageFacts(gear)}
-	for _, p := range gear.GetPawns() {
-		row := policy.GearPawn{Pawn: policy.PawnID(p.GetPawn().GetId()), Loadout: p.GetSnapshot().GetToken(), Blocked: p.Blocker != nil, Deficit: optionalBool(p.Deficit)}
-		needs := []policy.GearReplacement{}
-		for _, need := range p.GetReplacementNeeds() {
-			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(need.GetDefName()), Stuff: policy.Resource(need.GetStuff()), Reason: need.GetReason()})
-		}
-		row.Candidates = observation.GearCandidateFacts(p, tables, defs.Catalog)
-		row.Replacements = domain.Known(needs)
-		row.Apparel = observation.GearApparelFacts(p.GetEquipment(), tables, defs.Catalog)
-		row.Policy = observation.ApparelPolicyFacts(p, defs.Catalog)
-		row.Climate = observation.GearClimateFacts(gear)
-		result.Pawns = append(result.Pawns, row)
-	}
-	return result
-}
-
-// gearModelFacts is observation.GearLoadoutModelFacts; the package name is
-// shadowed where it is used.
-func gearModelFacts(defs observation.GearDefinitions, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
-	return observation.GearLoadoutModelFacts(defs, outdoor, p, state)
+// gearObservationFacts decodes the frame's gear census the way routine review
+// does (observation.GearFacts). The planner reads a fresh census of its own
+// immediately before proposing a method, the same way RoutineEquipPlanner
+// rereads combat pawns and loose weapons rather than reusing the review's
+// cached facts. False when the frame cannot ground the census.
+func gearObservationFacts(observed *o.ColonyFactsSnapshot, tables bridge.Tables, defs observation.GearDefinitions) (policy.GearObservation, bool) {
+	return observation.GearFacts(observed, tables, defs).Value()
 }
 
 // gearDefinitions are the catalog and finished research the gear census is
 // decoded against, read from source.
 func gearDefinitions(call context.Context, source any, identity *c.Identity) (observation.GearDefinitions, error) {
 	return observation.ReadGearDefinitions(call, source, identity)
-}
-
-func optionalBool(v *bool) domain.Fact[bool] {
-	if v == nil {
-		return domain.Unknown[bool]()
-	}
-	return domain.Known(*v)
 }
 
 func gearCandidateDefinition(observation policy.GearObservation, pawn policy.PawnID, target string) (string, bool) {
@@ -226,7 +198,6 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
 		return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
 	}
-	outfits := observation.OutfitIDs(observation.ColonyPolicies(observed.Policies))
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {
 		return RoutineGearResult{}, err
@@ -235,7 +206,10 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
-	observation := gearObservationFacts(gear, bridge.Tables{Things: things}, defs)
+	observation, known := gearObservationFacts(observed, bridge.Tables{Things: things}, defs)
+	if !known {
+		return RoutineGearResult{Verdict: fieldUnavailable("gear_census")}, nil
+	}
 	for i := range observation.Pawns {
 		pawn := &observation.Pawns[i]
 		pawn.Blocked = pawn.Blocked || busy[domain.PawnID(pawn.Pawn)]
@@ -255,15 +229,8 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	// colonists before any wear order or bill (#660). A write whose CAS token an
 	// earlier write in the batch staled is cancelled and re-admitted next round,
 	// so the batch converges in about one round per distinct role policy.
-	// Outfits are judged with the loadout model, as the review judges them
-	// (the quality floor reads its stock); method selection below keeps the
-	// census without it.
-	outfitCensus := policy.GearObservation{Pawns: append([]policy.GearPawn{}, observation.Pawns...), Outfits: outfits}
-	for i := range outfitCensus.Pawns {
-		outfitCensus.Pawns[i].LoadoutModel = gearModelFacts(defs, observed.OutdoorTemperatureC, gear.GetPawns()[i], outfitCensus.Pawns[i].Policy)
-	}
 	var policies RoutineGearResult
-	for _, pawn := range outfitCensus.Pawns {
+	for _, pawn := range observation.Pawns {
 		if pawn.Blocked {
 			continue
 		}
@@ -288,7 +255,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	// Once every pawn is on its own outfit, every other outfit (vanilla and
 	// player-made included) is pruned (#1302, #1298). The other policy
 	// databases wait for their own per-pawn planners.
-	if drop := outfitCensus.OutfitsToPrune(); len(drop) > 0 && !pruning {
+	if drop := observation.OutfitsToPrune(); len(drop) > 0 && !pruning {
 		prune, err := domain.NewPolicyPrune(domain.OutfitPolicies, drop)
 		if err != nil {
 			return RoutineGearResult{}, err

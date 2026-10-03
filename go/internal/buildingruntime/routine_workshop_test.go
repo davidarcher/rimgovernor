@@ -26,6 +26,11 @@ func (n *workshopNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (
 	return fakeFrame(ctx, n, id)
 }
 
+// ReadResearch serves the finished projects the gear census is judged against.
+func (n *workshopNative) ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error) {
+	return bridge.ResearchRead{Context: n.reply.GetObserved().Context, Finished: n.finishedResearch()}, bridge.Result{}, nil
+}
+
 // AnimalRaceCatalog is the empty race catalog (the observation source requires one).
 func (n *workshopNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
 	return &bridge.AnimalRaces{}, nil
@@ -80,6 +85,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	planner.goal = policy.MaintainEquipment
 	planner.reviewer.policy.ResourceTargets = nil
 	setGearProductionNeed(native.reply.GetObserved())
+	native.finished = []string{}
 	native.hosts = []policy.RecipeHost{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: true, Benches: []string{"HandTailoringBench"}}}
 	ctx := context.Background()
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
@@ -114,7 +120,9 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	// A missing layer may suggest advanced armor before the worn shirt in
 	// lexical order; it must not prevent staging the available tailoring bench.
 	native.benches = nil
-	native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds = append(native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds, &o.GearReplacementNeed{DefName: proto.String("Apparel_ArmorRecon"), Reason: proto.String("missing")})
+	reconPawn := native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0]
+	reconPawn.ApparelPolicy.Drafted = proto.Bool(true)
+	reconPawn.LoadoutModel.Options = append(reconPawn.LoadoutModel.Options, gearBillOption("Apparel_ArmorRecon", ""))
 	native.hosts = append(native.hosts, policy.RecipeHost{Definition: "Make_Armor", Products: []policy.Resource{"Apparel_ArmorRecon"}, Available: false, Research: []string{"ReconArmor"}, Benches: []string{"FabricationBench"}})
 	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
 	if err != nil || !reason.IsZero() || selection == nil || len(selection.alternatives) != 1 {

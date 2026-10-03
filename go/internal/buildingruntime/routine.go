@@ -529,7 +529,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			benches := r.benchSource(native, expected, true)
 			recovered, _ := policy.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources)
 			deficit, deficitKnown := recovered.Value()
-			targets := routineDeficitTargets(resourceTargets, deficitKnown && !deficit, reading.Projection.Facts.Gear)
+			targets, err := routineDeficitTargets(resourceTargets, deficitKnown && !deficit, reading.Projection.Facts.Gear)
+			if err != nil {
+				return store.RoutineReviewResult{}, err
+			}
 			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, targets, len(targets) > 0)
 			if err != nil {
 				clockSchedulerLog("routine.step: bench work err=%v", err)

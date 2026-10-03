@@ -96,59 +96,5 @@ namespace HomeBridge.BridgeTools
                 return use(a => JobGiver_OptimizeApparel.ApparelScoreGain(p, a, worn));
             } finally { NeededWarmth.SetValue(null, prior); }
         }
-
-        internal sealed class ProductionNeed
-        {
-            public string? defName { get; set; }
-            public string? stuff { get; set; }
-            public string? reason { get; set; }
-        }
-
-        internal static bool Deficit(Pawn p) => p.apparel != null &&
-            (p.apparel.WornApparel.Any(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f)
-             || p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin)
-             || p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax)
-             || (p.equipment?.Primary == null && !p.WorkTagIsDisabled(WorkTags.Violent))
-             || (p.equipment?.Primary != null && p.equipment.Primary.def.useHitPoints
-                 && p.equipment.Primary.HitPoints <= p.equipment.Primary.MaxHitPoints * .5f));
-
-        internal static List<ProductionNeed> ProductionNeeds(Pawn p)
-        {
-            var needs = new List<ProductionNeed>();
-            if (Available(p) != null) return needs;
-            foreach (var a in p.apparel.WornApparel.Where(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f
-                && p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) && !p.apparel.IsLocked(a)
-                && p.outfits.CurrentApparelPolicy.filter.Allows(a.def)))
-                needs.Add(new ProductionNeed { defName = a.def.defName, stuff = a.Stuff?.defName, reason = "wear" });
-            var primary = p.equipment?.Primary;
-            if (primary != null && primary.def.useHitPoints && primary.HitPoints <= primary.MaxHitPoints * .5f)
-                needs.Add(new ProductionNeed { defName = primary.def.defName, stuff = primary.Stuff?.defName, reason = "weapon wear" });
-            var cold = p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin);
-            var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);
-            if (!cold && !hot) return needs;
-            // Definition-level candidates: allowed, wearable, displacing no forced or locked garment,
-            // one per stocked stuff (Go's material budget funds the bill, #1354), ranked by the insulation stat the deficit names.
-            List<Tuple<ThingDef, ThingDef?, float>> Options(StatDef stat)
-            {
-                var options = new List<Tuple<ThingDef, ThingDef?, float>>();
-                foreach (var def in p.outfits.CurrentApparelPolicy.filter.AllowedThingDefs.Where(d => d.IsApparel
-                    && d.apparel.CorrectGenderForWearing(p.gender) && d.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)
-                    && ApparelUtility.HasPartsToWear(p, d))) {
-                    var displaced = p.apparel.WornApparel.Where(a => !ApparelUtility.CanWearTogether(a.def, def, p.RaceProps.body)).ToList();
-                    if (displaced.Any(a => !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) || p.apparel.IsLocked(a))) continue;
-                    var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => p.Map.resourceCounter.GetCount(s) > 0).Cast<ThingDef?>()
-                        : new ThingDef?[] { null };
-                    foreach (var stuff in stuffs)
-                        options.Add(Tuple.Create(def, stuff, def.GetStatValueAbstract(stat, stuff) - displaced.Sum(a => a.GetStatValue(stat))));
-                }
-                return options.OrderByDescending(o => o.Item3).ThenBy(o => o.Item1.defName).ThenBy(o => o.Item2?.defName).ToList();
-            }
-            if (cold || hot) {
-                var stat = cold ? StatDefOf.Insulation_Cold : StatDefOf.Insulation_Heat;
-                needs.AddRange(Options(stat).Where(o => o.Item3 > 1f).Take(8).Select(o => new ProductionNeed {
-                    defName = o.Item1.defName, stuff = o.Item2?.defName, reason = cold ? "cold" : "heat" }));
-            }
-            return needs;
-        }
     }
 }

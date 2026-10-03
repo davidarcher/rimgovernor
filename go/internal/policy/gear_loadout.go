@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -639,9 +640,6 @@ func gearPurchases(items []GearOption) int {
 // planner. Native gain is only an admission gate: a loose/stored item must still
 // occur in the fresh eligible candidate list, but is ordered by model gain.
 func modeledGearObservation(v GearObservation, loadouts []GearLoadout) GearObservation {
-	if len(loadouts) == 0 {
-		return v
-	}
 	v.Pawns = append([]GearPawn{}, v.Pawns...)
 	models := map[PawnID]GearLoadout{}
 	for _, l := range loadouts {
@@ -650,6 +648,11 @@ func modeledGearObservation(v GearObservation, loadouts []GearLoadout) GearObser
 	for i, p := range v.Pawns {
 		l, ok := models[p.Pawn]
 		if !ok {
+			// A pawn the model skipped cannot wear apparel: nothing to repair.
+			p.Deficit = domain.Known(false)
+			p.Candidates = domain.Known([]GearCandidate{})
+			p.Replacements = domain.Known([]GearReplacement{})
+			v.Pawns[i] = p
 			continue
 		}
 		native, _ := p.Candidates.Value()
@@ -722,7 +725,13 @@ func PlanColonyGear(pawns []GearPawn) ([]GearLoadout, domain.Fact[[]GearDemand],
 	for _, p := range rows {
 		input, known := p.LoadoutModel.Value()
 		if !known {
-			return nil, domain.Unknown[[]GearDemand](), nil
+			switch {
+			case p.ModelRefusal != "":
+				return nil, domain.Unknown[[]GearDemand](), fmt.Errorf("gear pawn %s: loadout model refused: %s", p.Pawn, p.ModelRefusal)
+			case p.Blocked:
+				continue
+			}
+			return nil, domain.Unknown[[]GearDemand](), fmt.Errorf("gear pawn %s: no loadout model", p.Pawn)
 		}
 		if p.Climate != nil {
 			input.Climate = p.Climate

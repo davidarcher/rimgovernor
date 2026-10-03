@@ -57,12 +57,13 @@ replacement need contributes its work type to `EnsureWorkAssignments` before
 any bill exists, the same way a resource deficit covers its benches, because
 native bill admission refuses a bench nobody works.
 
-Production needs include damaged replaceable apparel (`wear`), worn upkeep-owned
-weapons, and bounded native definition/stuff candidates that improve an
+Production needs are the definitions the loadout model wants a bill to supply:
+replacements for damaged apparel, and definition/stuff options that improve an
 observed thermal deficit (`cold`, `heat`). A core body-part group (Torso, Legs)
 the pawn wears nothing over is a deficit in any weather, found by Go from the
-worn garments' groups (the native deficit and production needs do not read it).
-A definition-level
+worn garments' groups. The native producer sends no deficit flag and no
+replacement list (`GearLoadout.deficit` and `replacement_needs` are reserved);
+every gap is the model's. A definition-level
 thermal estimate is a procurement candidate, not proof of the eventual garment's
 quality, eligibility or sufficient protection.
 
@@ -70,8 +71,7 @@ The review's apparel-condition census (`GearReview.WornOut`, `Uncovered`) is the
 fraction of colonists wearing any garment at or under the 50% tattered threshold
 and the fraction with a core group uncovered, derived from the same loadout read;
 it is known only when every colonist's worn apparel was observed. With complete
-loadout-model inputs, condition and coverage contribute to scored gaps; older
-observations retain native-deficit recovery.
+loadout-model inputs, condition and coverage contribute to scored gaps.
 Missing research, workshops, materials or suitable definitions remain explicit
 blockers. This goal does not invent a trade or bypass native apparel eligibility to obtain
 an item. Bench staging uses the equipment goal through the shared workshop ladder.
@@ -98,10 +98,15 @@ wear (`ApparelPolicyState.definitions` is gone); armor is the Soldier outfit
 tag without Worker, and a def covers the body with a Torso or Legs group.
 Go derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
-the definitions that role's apparel policy permits. A census without the
-model, or one the model's bounds refuse (for example two worn garments on
-one slot), leaves `GearPawn.LoadoutModel` unknown and the native deficit,
-replacement and single-item bill path active. This pure Go model neither discovers
+the definitions that role's apparel policy permits. A census row the
+model cannot be built for (no model, comfortable temperatures, gender or outdoor
+temperature, a definition the catalog lacks) or whose bounds the model refuses (for
+example two worn garments on one slot) is not judged by a weaker rule: the pawn's
+`GearPawn.LoadoutModel` is unknown with the cause in `GearPawn.ModelRefusal`, and
+planning the colony fails with an error naming the pawn and the cause. A pawn with no
+apparel policy (it cannot wear apparel) is unknown with no cause and is skipped when
+blocked, an error otherwise. A frame without the definition catalog, finished research
+or outdoor temperature leaves the whole census unknown. This pure Go model neither discovers
 products nor issues orders. Catalog providers resolve native material stats,
 outfit/body/stage eligibility and available production resources before planning.
 Stats are Normal-quality values for the specific material; armor multipliers are

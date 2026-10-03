@@ -34,13 +34,18 @@ type GearApparel struct {
 }
 type GearPawn struct {
 	Climate *GearClimate
-	// LoadoutModel is supplied only with a complete eligible product census.
-	// Older native observations continue through the deficit-repair path.
-	Policy       domain.Fact[ApparelPolicyState]
+	Policy  domain.Fact[ApparelPolicyState]
+	// LoadoutModel is unknown only for a pawn that cannot wear apparel
+	// (Blocked, no apparel policy) or one the model refused, whose cause
+	// ModelRefusal names; PlanColonyGear fails on a refused pawn rather than
+	// judging it by a weaker rule.
 	LoadoutModel domain.Fact[GearLoadoutInput]
+	ModelRefusal string
 	Pawn         PawnID
 	Loadout      string
 	Blocked      bool
+	// Deficit and Replacements are projected from the loadout model's gaps
+	// (modeledGearObservation); a census decoder never sets them.
 	Deficit      domain.Fact[bool]
 	Candidates   domain.Fact[[]GearCandidate]
 	Replacements domain.Fact[[]GearReplacement]
@@ -72,7 +77,7 @@ func (v GearObservation) OutfitsToPrune() []string {
 }
 
 // GearReview is the census MaintainEquipment is judged on. Recovered and
-// Deficit follow the native deficit flags and candidates; WornOut and
+// Deficit follow the loadout model's gaps and the outfit policy; WornOut and
 // Uncovered are the apparel-condition census (the fraction of pawns wearing
 // any garment at or under the tattered threshold, and the fraction with a
 // core body-part group uncovered), known only when every pawn's worn
@@ -191,8 +196,9 @@ func (v GearObservation) Validate() error {
 	return nil
 }
 
-// ReviewGear matches the complete native census used by equipment upkeep.
-// Unknown fields and an empty census cannot establish recovery.
+// ReviewGear matches the complete census used by equipment upkeep. An unknown
+// or empty census cannot establish recovery; a pawn the loadout model refuses
+// is an error naming the cause.
 func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 	v, known := f.Value()
 	if !known {
@@ -214,20 +220,14 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		modeled[l.Pawn] = l
 	}
 	for _, p := range v.Pawns {
-		deficit, dk := p.Deficit.Value()
-		candidates, ck := p.Candidates.Value()
+		deficit := false
 		if l, ok := modeled[p.Pawn]; ok {
-			deficit, dk, ck = false, true, true
-			candidates = nil
 			for _, gap := range l.Gaps {
 				deficit = deficit || gap.Gain > GearGapThreshold(l.Role)
 			}
 		}
-		if !dk || !ck {
-			return GearReview{}, nil
-		}
 		_, policyNeeded := DesiredApparelPolicy(p)
-		if deficit || len(candidates) > 0 || policyNeeded {
+		if deficit || policyNeeded {
 			missing++
 		}
 		if _, known := p.Apparel.Value(); !known {
@@ -258,14 +258,15 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 // for pawns in deficit (replacement needs with no loose candidate to wear),
 // sorted and deduplicated. Empty unless the census is known, valid and not
 // recovered, so the work planner enables a bench's work type exactly while
-// MaintainEquipment is in deficit and could raise a bill.
-func GearReplacementNeeds(f domain.Fact[GearObservation]) []Resource {
+// MaintainEquipment is in deficit and could raise a bill. A pawn the loadout
+// model refuses is an error, not an empty answer.
+func GearReplacementNeeds(f domain.Fact[GearObservation]) ([]Resource, error) {
 	review, err := ReviewGear(f)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	if recovered, known := review.Recovered.Value(); !known || recovered {
-		return nil
+		return nil, nil
 	}
 	v, _ := f.Value()
 	v = modeledGearObservation(v, review.Loadouts)
@@ -284,7 +285,7 @@ func GearReplacementNeeds(f domain.Fact[GearObservation]) []Resource {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
-	return out
+	return out, nil
 }
 
 type GearMethodKind string
@@ -392,12 +393,17 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	if positive(review.Recovered) {
 		return GearMethod{Kind: GearRecovered}, nil
 	}
+	v, _ := r.Observation.Value()
+	return selectGear(r, review, modeledGearObservation(v, review.Loadouts))
+}
+
+// selectGear chooses the method for a census already projected from the
+// loadout model (modeledGearObservation).
+func selectGear(r GearPlanningRequest, review GearReview, v GearObservation) (GearMethod, error) {
 	seen, err := gearSeen(r.Seen)
 	if err != nil {
 		return GearMethod{}, err
 	}
-	v, _ := r.Observation.Value()
-	v = modeledGearObservation(v, review.Loadouts)
 	if err := validateGearProduction(nil, r); err != nil {
 		return GearMethod{}, err
 	}
@@ -580,12 +586,6 @@ func produceGear(needs []gearNeed, v GearObservation, review GearReview, seen ma
 				}
 				slots = gearBatchIngredients(slots, count)
 				costs, filter, ok, unknown := gearIngredients(slots, n.need.Stuff, r)
-				// The inspected stuff is a preference, not a requirement: a
-				// synthread shirt worn out with only leather in stock is still
-				// replaced, from whatever funded material the recipe accepts.
-				if !ok && n.need.Stuff != "" && n.need.Reason != "loadout" {
-					costs, filter, ok, unknown = gearIngredients(slots, "", r)
-				}
 				if !ok && unknown {
 					return GearMethod{Kind: GearUnknown}, nil
 				}

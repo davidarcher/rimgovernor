@@ -9,12 +9,24 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
+// gearDeficitPawn is a bare woman whose loadout model wants a shirt a bill
+// can supply; gearRecoveredPawn already wears one.
+func gearDeficitPawn(id policy.PawnID) policy.GearPawn {
+	shirt := policy.GearOption{ID: "bill:shirt", Definition: "Apparel_BasicShirt", Quality: 2, Slot: policy.GearSkinTorso, Layers: []string{"OnSkin"}, Groups: []string{"Torso"}, Source: policy.GearBillSource, Condition: 1}
+	return policy.GearPawn{Pawn: id, Loadout: "loadout", LoadoutModel: domain.Known(policy.GearLoadoutInput{Female: true, Options: []policy.GearOption{shirt}})}
+}
+
+func gearRecoveredPawn(id policy.PawnID) policy.GearPawn {
+	shirt := policy.GearOption{ID: "shirt", Definition: "Apparel_BasicShirt", Quality: 2, Slot: policy.GearSkinTorso, Layers: []string{"OnSkin"}, Groups: []string{"Torso"}, Source: policy.GearWorn, Condition: 1}
+	return policy.GearPawn{Pawn: id, Loadout: "loadout", LoadoutModel: domain.Known(policy.GearLoadoutInput{Female: true, Worn: []policy.GearOption{shirt}})}
+}
+
 func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()
 	r := routineRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
-	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}})
+	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	admit := func(index int, pawn domain.PawnID, item string) error {
 		gear, err := domain.NewGearReplace(pawn, item, "Parka")
@@ -58,7 +70,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	db := open(t, path)
 	r := routineRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
-	gear := policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "pawn", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}}
+	gear := policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("pawn")}}
 	r.Facts.Gear = domain.Known(gear)
 	out := reviewRoutine(t, db, &r)
 	g := routineGoal(t, out, policy.MaintainEquipment)
@@ -73,16 +85,16 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	if g.Goal.Need != domain.NeedUnknown || g.Goal.Epoch != epoch {
 		t.Fatal("missing census recovered or renewed need", g)
 	}
-	gear.Pawns[0].Deficit = domain.Known(false)
+	gear.Pawns[0] = gearRecoveredPawn("pawn")
 	r.Facts.Gear = domain.Known(gear)
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	if g.Goal.Status != domain.GoalSatisfied {
 		t.Fatal(g)
 	}
-	gear.Pawns[0].Candidates = domain.Known([]policy.GearCandidate{{Target: "replacement", Gain: .1, Definition: "Parka"}})
+	gear.Pawns[0] = gearDeficitPawn("pawn")
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
 	if g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= epoch {
-		t.Fatal("native replacement did not reopen equipment need", g)
+		t.Fatal("a new model gap did not reopen equipment need", g)
 	}
 	// The equipment goal ranks for a development slot like any other
 	// optional need (#233): with the slot it admits the gear family's

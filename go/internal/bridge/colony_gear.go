@@ -86,16 +86,8 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := combatDetails(&o.PawnState{Equipment: &o.PawnEquipment{Equipped: candidates}}, ctx); err != nil {
 			return err
 		}
-		needs := map[[3]string]bool{}
-		for _, n := range p.ReplacementNeeds {
-			if n == nil || validID(n.GetDefName()) != nil || n.Stuff != nil && validID(n.GetStuff()) != nil || validID(n.GetReason()) != nil || !combatNumber(n.Gain, false) {
-				return contract("invalid gear production need")
-			}
-			key := [3]string{n.GetDefName(), n.GetStuff(), n.GetReason()}
-			if needs[key] {
-				return contract("duplicate gear production need")
-			}
-			needs[key] = true
+		if p.LoadoutModel == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
+			return contract("gear loadout without a loadout model or comfortable temperatures")
 		}
 		if err := validateGearModel(p.LoadoutModel); err != nil {
 			return err
@@ -104,13 +96,10 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 	return nil
 }
 
-// validateGearWearer checks the wear inputs of a pawn row that carries an
-// apparel policy or loadout model: the pawn's gender and single developmental
-// stage and the body part groups it still has a part in.
+// validateGearWearer checks the wear inputs of a pawn row: the pawn's gender
+// and single developmental stage and the body part groups it still has a part
+// in.
 func validateGearWearer(p *o.GearLoadout) error {
-	if p.ApparelPolicy == nil && p.LoadoutModel == nil {
-		return nil
-	}
 	switch p.GetDevelopmentalStage() {
 	case d.DevelopmentalStage_DEVELOPMENTAL_STAGE_NEWBORN, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_BABY, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_CHILD, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT:
 	default:
@@ -124,7 +113,7 @@ func validateGearWearer(p *o.GearLoadout) error {
 
 // validateGearModel checks the loadout model's wire shape: identities, the
 // source vocabulary and finite stats. Policy checks the model's bounds and
-// conflicts when the row is mapped; a model it refuses stays unknown.
+// conflicts when the row is mapped; a model it refuses is a named error.
 func validateGearModel(m *o.GearLoadoutModel) error {
 	if m == nil {
 		return nil

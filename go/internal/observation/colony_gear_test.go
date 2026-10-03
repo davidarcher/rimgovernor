@@ -11,14 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestColonyGearPreservesMissingDeficitAndExactRoutineCensus(t *testing.T) {
-	row := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Token: proto.String("native-loadout")}, Deficit: proto.Bool(false)}
-	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: &o.GearSnapshot{Pawns: []*o.GearLoadout{row}}}}}}
-	gear := colonyGear(v, bridge.Tables{}, GearDefinitions{Catalog: &bridge.DefinitionCatalog{}})
-	review, err := policy.ReviewGear(gear)
-	if err != nil || review.Recovered != domain.Known(true) {
-		t.Fatal(review, err)
-	}
+func TestColonyGearExactRoutineCensus(t *testing.T) {
+	gear := domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "pawn", Loadout: "native-loadout"}}})
 	emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn"}}}
 	if _, known := routineGear(gear, emergency).Value(); !known {
 		t.Fatal("matching census lost")
@@ -27,23 +21,31 @@ func TestColonyGearPreservesMissingDeficitAndExactRoutineCensus(t *testing.T) {
 	if _, known := routineGear(gear, emergency).Value(); known {
 		t.Fatal("same count concealed missing pawn")
 	}
-	row.Deficit = nil
-	review, err = policy.ReviewGear(colonyGear(v, bridge.Tables{}, GearDefinitions{Catalog: &bridge.DefinitionCatalog{}}))
-	if _, known := review.Recovered.Value(); err != nil || known {
-		t.Fatal("missing deficit became false", review, err)
+}
+
+// A frame that cannot ground the census (a partial roster, no gear, no
+// outdoor temperature, unknown finished research) leaves it unknown.
+func TestColonyGearUnknownWithoutFrameInputs(t *testing.T) {
+	row := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Token: proto.String("native-loadout")}}
+	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), OutdoorTemperatureC: proto.Float64(10), Planning: &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: &o.PlanningFacts{Gear: &o.GearSnapshot{Pawns: []*o.GearLoadout{row}}}}}}
+	defs := GearDefinitions{Catalog: &bridge.DefinitionCatalog{}, Finished: domain.Known(map[string]bool{})}
+	if _, known := GearFacts(v, bridge.Tables{}, defs).Value(); !known {
+		t.Fatal("complete frame unknown")
 	}
-	row.Deficit = proto.Bool(true)
-	row.Blocker = proto.String("player job")
-	review, err = policy.ReviewGear(colonyGear(v, bridge.Tables{}, GearDefinitions{Catalog: &bridge.DefinitionCatalog{}}))
-	if err != nil || review.Recovered != domain.Known(false) {
-		t.Fatal("blocked pawn lost need", review, err)
+	if _, known := GearFacts(v, bridge.Tables{}, GearDefinitions{Catalog: defs.Catalog}).Value(); known {
+		t.Fatal("census known without finished research")
 	}
+	v.OutdoorTemperatureC = nil
+	if _, known := GearFacts(v, bridge.Tables{}, defs).Value(); known {
+		t.Fatal("census known without the outdoor temperature")
+	}
+	v.OutdoorTemperatureC = proto.Float64(10)
 	v.ColonistCount = proto.Uint32(2)
-	if _, known := colonyGear(v, bridge.Tables{}, GearDefinitions{Catalog: &bridge.DefinitionCatalog{}}).Value(); known {
+	if _, known := GearFacts(v, bridge.Tables{}, defs).Value(); known {
 		t.Fatal("partial gear census accepted")
 	}
 	v.GetPlanning().GetObserved().Gear = nil
-	if _, known := colonyGear(v, bridge.Tables{}, GearDefinitions{Catalog: &bridge.DefinitionCatalog{}}).Value(); known {
+	if _, known := GearFacts(v, bridge.Tables{}, defs).Value(); known {
 		t.Fatal("unavailable gear treated as empty")
 	}
 }

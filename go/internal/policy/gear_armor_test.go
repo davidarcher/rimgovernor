@@ -188,9 +188,10 @@ func TestGearUtilityExtras(t *testing.T) {
 }
 
 func armoryArmorFixture(stock ...Stock) GearPlanningRequest {
-	r := gearFixture()
+	r := gearModelFixture()
 	v, _ := r.Observation.Value()
-	v.Pawns[0].Replacements = domain.Known([]GearReplacement{{Definition: "Apparel_PowerArmor", Reason: "loadout"}})
+	armor := armorOption("Apparel_PowerArmor", GearOuter, 1, 1, nil)
+	v.Pawns[0] = gearDeficitPawn("pawn", armor)
 	p := v.Pawns[0]
 	p.Pawn = "second"
 	v.Pawns = append(v.Pawns, p)

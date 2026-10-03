@@ -4,6 +4,7 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -109,7 +110,6 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 		return &o.GearLoadout{
 			Pawn:               &c.Ref{Id: proto.String(id)},
 			Snapshot:           &o.SnapshotRef{Token: proto.String("loadout-" + id)},
-			Deficit:            proto.Bool(false),
 			ComfortableMinC:    proto.Float64(16),
 			ComfortableMaxC:    proto.Float64(26),
 			Gender:             gender.Enum(),
@@ -130,7 +130,7 @@ func gearModelCensus() *o.ColonyFactsSnapshot {
 // the marine helmet for its unfinished research, and the grower is planned
 // no armour.
 func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
-	gear := colonyGear(gearModelCensus(), gearModelTables(), gearModelDefs(t))
+	gear := GearFacts(gearModelCensus(), gearModelTables(), gearModelDefs(t))
 	v, known := gear.Value()
 	if !known {
 		t.Fatal("census unknown")
@@ -200,7 +200,7 @@ func TestColonyGearLoadoutModelPlansSoldierArmour(t *testing.T) {
 	if err != nil || review.Recovered != domain.Known(false) {
 		t.Fatal("review", review.Recovered, err)
 	}
-	if needs := policy.GearReplacementNeeds(gear); !slices.Contains(needs, "Apparel_FlakVest") {
+	if needs, err := policy.GearReplacementNeeds(gear); err != nil || !slices.Contains(needs, "Apparel_FlakVest") {
 		t.Fatal("bench needs", needs)
 	}
 	if !policy.GearSoldierPresent(gear) {
@@ -276,49 +276,75 @@ func TestApparelPolicyDefinitionsAreTheWearableRows(t *testing.T) {
 	}
 }
 
-// A producer without the model, role or temperatures leaves the model
-// unknown, so the census keeps the native deficit path; so does a model the
-// policy's bounds refuse (two worn helmets on one slot), a garment the
-// catalog lacks and unknown finished research.
-func TestColonyGearLoadoutModelUnknownWithoutInputs(t *testing.T) {
+// A frame without a catalog, finished research or outdoor temperature leaves
+// the census unknown. A pawn the model cannot be built for (no model,
+// temperatures or wearer inputs, a def the catalog lacks, or a model the
+// policy's bounds refuse, such as two worn helmets on one slot) is unknown
+// with its cause in ModelRefusal, and planning the colony fails naming it
+// rather than judging the pawn by a weaker rule. A pawn with no apparel
+// policy cannot wear apparel: unknown with no cause, skipped when blocked.
+func TestColonyGearLoadoutModelRefusalNamesTheCause(t *testing.T) {
 	defs := gearModelDefs(t)
 	v := gearModelCensus()
 	v.OutdoorTemperatureC = nil
-	if gear, _ := colonyGear(v, gearModelTables(), defs).Value(); func() bool { _, k := gear.Pawns[0].LoadoutModel.Value(); return k }() {
-		t.Fatal("model known without the outdoor temperature")
+	if _, known := GearFacts(v, gearModelTables(), defs).Value(); known {
+		t.Fatal("census known without the outdoor temperature")
 	}
-	if _, known := colonyGear(gearModelCensus(), gearModelTables(), GearDefinitions{}).Value(); known {
+	if _, known := GearFacts(gearModelCensus(), gearModelTables(), GearDefinitions{}).Value(); known {
 		t.Fatal("census known without a catalog")
 	}
-	for name, change := range map[string]func(*o.GearSnapshot, *GearDefinitions){
-		"no model":   func(g *o.GearSnapshot, _ *GearDefinitions) { g.Pawns[0].LoadoutModel = nil },
-		"no role":    func(g *o.GearSnapshot, _ *GearDefinitions) { g.Pawns[0].ApparelPolicy = nil },
-		"no comfort": func(g *o.GearSnapshot, _ *GearDefinitions) { g.Pawns[0].ComfortableMinC = nil },
-		"no gender":  func(g *o.GearSnapshot, _ *GearDefinitions) { g.Pawns[0].Gender = nil },
-		"no research": func(_ *o.GearSnapshot, defs *GearDefinitions) {
-			defs.Finished = domain.Unknown[map[string]bool]()
-		},
-		"unknown def": func(g *o.GearSnapshot, _ *GearDefinitions) {
+	noResearch := defs
+	noResearch.Finished = domain.Unknown[map[string]bool]()
+	if _, known := GearFacts(gearModelCensus(), gearModelTables(), noResearch).Value(); known {
+		t.Fatal("census known without finished research")
+	}
+	for name, tt := range map[string]struct {
+		change func(*o.GearSnapshot)
+		cause  string
+	}{
+		"no model":   {func(g *o.GearSnapshot) { g.Pawns[0].LoadoutModel = nil }, "no loadout model"},
+		"no comfort": {func(g *o.GearSnapshot) { g.Pawns[0].ComfortableMinC = nil }, "comfortable temperatures"},
+		"no gender":  {func(g *o.GearSnapshot) { g.Pawns[0].Gender = nil }, "apparel policy facts unavailable"},
+		"unknown def": {func(g *o.GearSnapshot) {
 			g.Pawns[0].LoadoutModel.Options[0].DefName = proto.String("Apparel_Missing")
-		},
-		"slot collision": func(g *o.GearSnapshot, _ *GearDefinitions) {
+		}, "Apparel_Missing"},
+		"slot collision": {func(g *o.GearSnapshot) {
 			hat := gearModelOption("hat", "Apparel_Tuque", "worn", nil, nil)
 			mask := gearModelOption("mask", "Apparel_ClothMask", "worn", nil, nil)
 			g.Pawns[0].LoadoutModel.Worn = append(g.Pawns[0].LoadoutModel.Worn, hat, mask)
-		},
+		}, "conflicting worn gear"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			v, defs := gearModelCensus(), gearModelDefs(t)
-			change(v.GetPlanning().GetObserved().GetGear(), &defs)
-			gear, _ := colonyGear(v, gearModelTables(), defs).Value()
-			if _, known := gear.Pawns[0].LoadoutModel.Value(); known {
-				t.Fatal("model known")
+			tt.change(v.GetPlanning().GetObserved().GetGear())
+			gear, known := GearFacts(v, gearModelTables(), defs).Value()
+			if !known {
+				t.Fatal("census unknown")
 			}
-			if _, demand, err := policy.PlanColonyGear(gear.Pawns); err != nil || isKnown(demand) {
-				t.Fatal("colony demand known without every model", err)
+			if _, known := gear.Pawns[0].LoadoutModel.Value(); known || !strings.Contains(gear.Pawns[0].ModelRefusal, tt.cause) {
+				t.Fatal("model known or cause unnamed:", gear.Pawns[0].ModelRefusal)
+			}
+			if _, _, err := policy.PlanColonyGear(gear.Pawns); err == nil || !strings.Contains(err.Error(), tt.cause) {
+				t.Fatal("planning did not fail naming the cause", err)
 			}
 		})
 	}
+	t.Run("no apparel policy", func(t *testing.T) {
+		v := gearModelCensus()
+		v.GetPlanning().GetObserved().GetGear().Pawns[0].ApparelPolicy = nil
+		gear, _ := GearFacts(v, gearModelTables(), defs).Value()
+		row := gear.Pawns[0]
+		if _, known := row.LoadoutModel.Value(); known || row.ModelRefusal != "" {
+			t.Fatal("a pawn without an apparel policy was modeled or refused", row.ModelRefusal)
+		}
+		if _, _, err := policy.PlanColonyGear(gear.Pawns); err == nil {
+			t.Fatal("an unblocked pawn without a model was planned")
+		}
+		gear.Pawns[0].Blocked = true
+		if loadouts, _, err := policy.PlanColonyGear(gear.Pawns); err != nil || len(loadouts) != len(gear.Pawns)-1 {
+			t.Fatal("a blocked pawn without an apparel policy was not skipped", err)
+		}
+	})
 }
 
 func isKnown[T any](f domain.Fact[T]) bool {

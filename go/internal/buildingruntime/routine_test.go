@@ -187,7 +187,28 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 	// build: a watch-building pin that draws no power and needs no research,
 	// the recreation foothold.
 	foothold := bridge.FixtureDef{Name: "HorseshoesPin", Joy: &bridge.FixtureJoy{Kind: "Gaming_Dexterity", WatchGiver: true}}
-	catalog := testCatalog(id, append([]bridge.FixtureDef{foothold}, n.catalog...)...)
+	// The garments a gear census's loadout model may name, with the stat rows
+	// the model joins to.
+	skin := &bridge.FixtureApparel{Layers: []string{"OnSkin"}, Groups: []string{"Torso", "Arms"}, Tags: []string{"Worker", "Soldier"}, Sharp: .05}
+	cloth := []bridge.FixtureStuff{{Stuff: "Cloth"}}
+	garments := []bridge.FixtureDef{
+		{Name: "Apparel_BasicShirt", Apparel: skin, Stuffs: cloth},
+		{Name: "Apparel_Parka", Apparel: skin, Stuffs: cloth},
+		{Name: "Apparel_PowerArmor", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle", "Shell"}, Groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, Tags: []string{"Soldier"}, Sharp: 1.2, Blunt: .5}},
+		{Name: "Apparel_ArmorRecon", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: .9, Blunt: .3}},
+		{Name: "Apparel_FlakVest", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: 1, Blunt: .36}},
+	}
+	named := map[string]bool{}
+	for _, def := range n.catalog {
+		named[def.Name] = true
+	}
+	defs := []bridge.FixtureDef{foothold}
+	for _, g := range garments {
+		if !named[g.Name] {
+			defs = append(defs, g)
+		}
+	}
+	catalog := testCatalog(id, append(defs, n.catalog...)...)
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
 	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {
 		if catalog.ThingDefs[row.DefName] == nil {

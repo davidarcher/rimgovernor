@@ -215,17 +215,21 @@ func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearB
 // a bench nobody works, so the tailoring work type must be enabled before the
 // bill is proposed, exactly as a resource deficit's bench work is. An unknown
 // census contributes nothing: the equipment goal is not in deficit then.
-func routineDeficitTargets(resources map[policy.Resource]int64, resourceDeficit bool, gear domain.Fact[policy.GearObservation]) map[policy.Resource]int64 {
+func routineDeficitTargets(resources map[policy.Resource]int64, resourceDeficit bool, gear domain.Fact[policy.GearObservation]) (map[policy.Resource]int64, error) {
 	out := map[policy.Resource]int64{}
 	if resourceDeficit {
 		for r, n := range resources {
 			out[r] = n
 		}
 	}
-	for _, need := range policy.GearReplacementNeeds(gear) {
+	needs, err := policy.GearReplacementNeeds(gear)
+	if err != nil {
+		return nil, err
+	}
+	for _, need := range needs {
 		out[need]++
 	}
-	return out
+	return out, nil
 }
 
 // routineBenchWork is the bench-hosted work the review and the work planner

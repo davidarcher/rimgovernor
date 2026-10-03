@@ -157,9 +157,11 @@ a depleted drill for removal from the deep drill step's recorded read.
   medical bed and best permitted medicine on the map, eligible doctor count,
   `ingredients_on_map`, `violation` and `lethal`). Go never recomputes them.
   `ReadMedicalCatalog` is retired.
-- Gear loadouts carry an explicitly present native deficit and an optional blocker;
-  blocked pawns can still have equipment needs. Complete candidate and replacement
-  lists belong to that exact loadout token. Planning read issues distinguish an
+- Gear loadouts carry the loadout model's inputs and an optional blocker; Go
+  derives every deficit and replacement need from the model (the native deficit
+  and replacement-need fields are reserved). Blocked pawns can still have
+  equipment needs. The complete candidate list belongs to that exact loadout
+  token. Planning read issues distinguish an
   unavailable gear census from a complete census with no eligible replacements.
 - PlanningFacts.environment is the controlled-growing census inside the 45x45
   planning region: sun lamps with the native growth cells (specialDisplayRadius,

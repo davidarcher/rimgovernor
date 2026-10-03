@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -108,10 +109,25 @@ func decodeRoutine(data []byte) (Routine, error) {
 	if err := Decode(data, &r); err != nil {
 		return Routine{}, err
 	}
+	dropNativeGearCensus(&r.Facts)
 	if r.Projection != nil {
 		r.Projection.Facts = r.Facts
 	}
 	return r, nil
+}
+
+// dropNativeGearCensus leaves a recording's gear census unknown when a pawn
+// in it has no loadout model: a recording from before the model judged gear
+// by the native deficit rule, which no planner reads now, and a census that
+// cannot be judged is the one a live read would refuse.
+func dropNativeGearCensus(f *policy.RoutineFacts) {
+	v, known := f.Gear.Value()
+	if known && slices.ContainsFunc(v.Pawns, func(p policy.GearPawn) bool {
+		_, modeled := p.LoadoutModel.Value()
+		return !modeled && p.ModelRefusal == "" && !p.Blocked
+	}) {
+		f.Gear = domain.Unknown[policy.GearObservation]()
+	}
 }
 
 // Detect replays the review's need detection over the recorded facts.

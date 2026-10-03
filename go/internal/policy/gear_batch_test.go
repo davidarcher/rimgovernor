@@ -8,7 +8,7 @@ import (
 )
 
 func TestGearBatchNetsStoredMaterialAndQuality(t *testing.T) {
-	r := gearFixture()
+	r := gearModelFixture()
 	v, _ := r.Observation.Value()
 	for _, id := range []PawnID{"b", "c", "d"} {
 		p := v.Pawns[0]
@@ -36,9 +36,9 @@ func TestGearBatchNetsStoredMaterialAndQuality(t *testing.T) {
 }
 
 func TestGearWeaponBatch(t *testing.T) {
-	r := gearFixture()
+	r := gearModelFixture()
 	v, _ := r.Observation.Value()
-	v.Pawns[0].Replacements = domain.Known([]GearReplacement{})
+	v.Pawns[0] = gearDressedPawn("pawn", loadoutOption("Parka", GearSkinTorso))
 	r.Observation = domain.Known(v)
 	r.Stock = []Stock{{"Cloth", domain.Known(int64(240))}, {"Synthread", domain.Known(int64(0))}}
 	if m, err := SelectGearMethod(r); err != nil || m.Kind == GearProduce {
