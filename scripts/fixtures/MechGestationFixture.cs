@@ -117,6 +117,8 @@ namespace HomeBridge.BridgeTools
                 if (8 + gestatorDef.size.x + chargerDef.size.x > width || line + 1 + chargerDef.size.z > height - 2) return Refuse("The clearing is too small for the charger.");
                 var charger = Spawn(chargerDef, 8 + gestatorDef.size.x, line + 1);
                 generator.TryGetComp<CompRefuelable>().Refuel(generator.TryGetComp<CompRefuelable>().Props.fuelCapacity);
+                // The game is paused, so the power nets are not rebuilt until a tick.
+                map.powerNetManager.UpdatePowerNetsAndConnections_First();
                 var power = gestator.TryGetComp<CompPowerTrader>();
                 if (power == null || power.PowerNet == null || !power.PowerNet.powerComps.Any(c => c.parent == generator))
                     return Refuse("The gestator is not on the generator's power network.");
