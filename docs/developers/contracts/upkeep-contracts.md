@@ -936,7 +936,7 @@ wealth fact each review.
 - `PersonalShare{Share, Spent, Remaining}`: Remaining is `max(Share - Spent, 0)`.
   Unknown pool or spent leaves Remaining unknown and `Allows` refuses any
   charged upgrade; a zero-value `PersonalShare` is ungated. A delta of zero or
-  less (a necessity) is always allowed. `Spent` is filled by #1838/#1839.
+  less (a necessity) is always allowed. `Spent` is filled by #1838/#1839 (below).
 
 ### Wealth probe finding
 
@@ -955,3 +955,29 @@ live-save run; no acceptance probe was added.
 - `WealthBuildings` is not halved: it is the full `MarketValueIgnoreHp` of
   player artificial buildings plus floor terrain value. Any halving belongs to
   the storyteller's own wealth curve, not the watcher's split.
+
+### Spent attribution (#1838)
+
+`policy.PersonalSpent` derives each free colonist's `Spent` from the sleeping
+census and their carried gear every review; nothing is persisted. Slaves and
+prisoners get no entry, and any unread part (room census, wealth, bed quality
+or price, gear) makes that colonist's spent Unknown, never zero.
+
+- Item price: `ItemMarketValue(base, quality, condition)` reproduces the
+  MarketValue stat parts (decompiled `StatPart_Quality`, `StatPart_Health`,
+  Core `Stats_Basics_General.xml`): value `min(base x q, base + maxGain)` with
+  q = 0.5, 0.75, 1, 1.25, 1.5, 2.5, 5 and gain caps 500, 1000, 2000, 3000 for
+  Good through Legendary, times the hit-point curve (0 -> 0, 0.5 -> 0.1,
+  0.6 -> 0.5, 0.9 -> 1, linear between, flat outside). `base` is the catalog
+  (def, stuff) value at Normal quality (`GearOption.Cost`).
+- Worn apparel and the equipped weapon are `PersonalItem`s priced that way.
+- Bed: priced the same way from `SleepingBed.Definition/Stuff/Quality` through
+  a `BedPrice` lookup (`ItemFacts.Market` is per def, so cannot price stuff),
+  at full health (bed hit points are not read). A bed's value is split among
+  that bed's owners.
+- Room contents proxy: `RoomQuality.Wealth` (`RoomStatWorker_Wealth`: every
+  building, plant and floor in the room, the beds included) less the room's
+  bed values, floored at 0, split evenly among the room's owners (the union of
+  its beds' owners, as `RoomQualityTargets` groups them). No per-piece
+  contract. Medical, prisoner and slave beds and owner-less rooms charge no
+  free colonist.

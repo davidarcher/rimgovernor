@@ -107,6 +107,8 @@ type FixtureWeapon struct {
 	// VerbClass is the ranged verb's class ("Verse.Verb_Shoot"); empty makes
 	// the weapon a melee one.
 	VerbClass string
+	// Market is the weapon's MarketValue at Normal quality; zero reads as 1.
+	Market float32
 	// Range and ForcedMissRadius are the verb's; ExplosionRadius, DamageDef
 	// and Incendiary the projectile's (named Name+"_Projectile").
 	Range, ForcedMissRadius, ExplosionRadius float32
@@ -273,6 +275,9 @@ func ptr[T any](v T) *T { return &v }
 type FixtureApparel struct {
 	Layers, Groups, Tags []string
 	Sharp, Blunt         float32
+	// Market is the garment's MarketValue at Normal quality; zero reads as
+	// 100, which hides price differences, so a test that prices gear states it.
+	Market float32
 }
 
 // FixtureJoy is a joy building's kind and the giver and job that offer it
@@ -387,7 +392,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		apparelStats := map[int32]float32{}
 		if a := def.Apparel; a != nil {
 			t.Apparel = &d.ApparelProperties{Layers: a.Layers, BodyPartGroups: a.Groups, DefaultOutfitTags: a.Tags, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
-			apparelStats = map[int32]float32{index("ArmorRating_Sharp"): a.Sharp, index("ArmorRating_Blunt"): a.Blunt, index("Insulation_Cold"): 0, index("Insulation_Heat"): 0, index(StatMarketValue): 100}
+			apparelStats = map[int32]float32{index("ArmorRating_Sharp"): a.Sharp, index("ArmorRating_Blunt"): a.Blunt, index("Insulation_Cold"): 0, index("Insulation_Heat"): 0, index(StatMarketValue): cmp.Or(a.Market, 100)}
 		}
 		if def.SowTag != "" {
 			t.Building = &d.BuildingProperties{SowTag: def.SowTag}
@@ -559,7 +564,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			values := maps.Clone(apparelStats)
 			if _, priced := values[index(StatMarketValue)]; def.Weapon != nil && !priced {
 				// A weapon is an item too (WoodLog is both a club and a stuff).
-				values[index(StatMarketValue)] = 1
+				values[index(StatMarketValue)] = cmp.Or(def.Weapon.Market, 1)
 			}
 			if def.WorkToBuild != nil {
 				values[index(StatWorkToBuild)] = *def.WorkToBuild

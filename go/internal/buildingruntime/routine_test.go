@@ -244,7 +244,7 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 		{Name: "Apparel_Parka", Apparel: skin, Stuffs: cloth},
 		{Name: "Apparel_PowerArmor", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle", "Shell"}, Groups: []string{"Torso", "Neck", "Shoulders", "Arms", "Legs"}, Tags: []string{"Soldier"}, Sharp: 1.2, Blunt: .5}},
 		{Name: "Apparel_ArmorRecon", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: .9, Blunt: .3}},
-		{Name: "Apparel_FlakVest", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: 1, Blunt: .36}},
+		{Name: "Apparel_FlakVest", Apparel: &bridge.FixtureApparel{Layers: []string{"Middle"}, Groups: []string{"Torso", "Neck"}, Tags: []string{"Soldier"}, Sharp: 1, Blunt: .36, Market: 223}},
 	}
 	named := map[string]bool{}
 	for _, def := range n.catalog {
