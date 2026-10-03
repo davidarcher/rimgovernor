@@ -218,7 +218,7 @@ func TestBurnSealPlan(t *testing.T) {
 	doors := b.CorridorDoors()
 	census[doors[1]] = WaitDoorCell{Edifice: BurnDoorDef, Stuff: "WoodLog", Walkable: true}
 	census[doors[2]] = WaitDoorCell{Edifice: BurnDoorDef, Stuff: "BlocksSlate", Walkable: true}
-	got, err := BurnSeal(b, census, "BlocksGranite")
+	got, err := BurnSeal(b, census, "BlocksGranite", CoreItemFacts())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +268,8 @@ func TestBurnSealPlan(t *testing.T) {
 func TestBurnSurvey(t *testing.T) {
 	b := CombatBurn{Hive: hiveCell, Exit: domain.Cell{Z: 1}}
 	census := openCensus(10)
-	seal, err := BurnSeal(b, census, BurnStoneStuff)
+	items := CoreItemFacts()
+	seal, err := BurnSeal(b, census, "BlocksGranite", items)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,15 +283,15 @@ func TestBurnSurvey(t *testing.T) {
 	for _, x := range fuel[1:] {
 		census[x.Cell()] = WaitDoorCell{Edifice: BurnFuelDef, Stuff: BurnFuelStuff, Walkable: true, Roofed: true}
 	}
-	if got, _ := BurnSurvey(b, census); got.Missing != 1 || !got.Roofed || len(got.Fuel) != burnFuelStools-1 {
+	if got, _ := BurnSurvey(b, census, items); got.Missing != 1 || !got.Roofed || len(got.Fuel) != burnFuelStools-1 {
 		t.Fatalf("survey %+v", got)
 	}
 	census[fuel[0].Cell()] = WaitDoorCell{Edifice: BurnFuelDef, Walkable: true, Roofed: true}
-	if got, _ := BurnSurvey(b, census); got.Missing != 0 || len(got.Fuel) != burnFuelStools {
+	if got, _ := BurnSurvey(b, census, items); got.Missing != 0 || len(got.Fuel) != burnFuelStools {
 		t.Fatalf("survey %+v", got)
 	}
 	census[domain.Cell{X: hiveCell.X + 1, Z: hiveCell.Z}] = WaitDoorCell{Walkable: true}
-	if got, _ := BurnSurvey(b, census); got.Roofed {
+	if got, _ := BurnSurvey(b, census, items); got.Roofed {
 		t.Fatalf("survey %+v", got)
 	}
 }

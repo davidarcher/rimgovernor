@@ -114,7 +114,12 @@ func floorStyle(facts observation.ColonyProjection) func(policy.RoomRole) (strin
 	if tier < policy.BuildTierMasonry {
 		return nil
 	}
-	research := policy.FloorStyleFacts{CarpetMaking: styleResearchFinished(facts, "CarpetMaking"), SterileMaterials: styleResearchFinished(facts, "SterileMaterials")}
+	research := policy.FloorStyleFacts{CarpetMaking: styleResearchFinished(facts, "CarpetMaking"), SterileMaterials: styleResearchFinished(facts, "SterileMaterials"), Costs: map[string][]policy.Amount{}}
+	for _, d := range facts.Definitions {
+		if costs, known := d.Costs.Value(); known && (d.Name == policy.Carpet || d.Name == policy.SterileTile) {
+			research.Costs[d.Name] = costs
+		}
+	}
 	return func(role policy.RoomRole) (string, bool) {
 		return policy.FloorDef(tier, role, stock, research)
 	}

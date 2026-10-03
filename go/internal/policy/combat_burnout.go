@@ -2,7 +2,6 @@ package policy
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -29,10 +28,9 @@ const (
 	BurnFuelDef   = "Stool"
 	BurnFuelStuff = "WoodLog"
 	// BurnWallDef and BurnDoorDef are the seal's walls and corridor doors,
-	// built in stone: BurnStoneStuff unless the stock holds other blocks.
-	BurnWallDef    = "Wall"
-	BurnDoorDef    = "Door"
-	BurnStoneStuff = "BlocksGranite"
+	// built in stone: the block ItemFacts.StoneBlock picks.
+	BurnWallDef = "Wall"
+	BurnDoorDef = "Door"
 	// BurnFuelRadius bounds the fuel around the hive (Chebyshev); the seal
 	// ring lies one cell beyond it. No stool stands nearer the hive than
 	// burnFuelClear.
@@ -189,8 +187,12 @@ func BurnRoofed(hive domain.Cell, census map[domain.Cell]WaitDoorCell) bool {
 }
 
 // BurnSurvey is the combat step's BurnSite from a census.
-func BurnSurvey(b CombatBurn, census map[domain.Cell]WaitDoorCell) (BurnSite, error) {
-	missing, err := BurnBuilds(b, census, BurnStoneStuff)
+func BurnSurvey(b CombatBurn, census map[domain.Cell]WaitDoorCell, items ItemFacts) (BurnSite, error) {
+	stone, err := items.StoneBlock(nil)
+	if err != nil {
+		return BurnSite{}, err
+	}
+	missing, err := BurnBuilds(b, census, string(stone), items)
 	if err != nil {
 		return BurnSite{}, err
 	}
@@ -204,7 +206,7 @@ func BurnSurvey(b CombatBurn, census map[domain.Cell]WaitDoorCell) (BurnSite, er
 // cell not already holding one (a door of other stuff, per the census's
 // edifice stuff read, is rebuilt in stone). A ring or flank cell the
 // census does not carry is left alone; a door is always asked for.
-func BurnSeal(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) ([]domain.Building, error) {
+func BurnSeal(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string, items ItemFacts) ([]domain.Building, error) {
 	doors := b.CorridorDoors()
 	var cells []domain.Cell
 	for x := b.Hive.X - burnSealRadius; x <= b.Hive.X+burnSealRadius; x++ {
@@ -228,7 +230,7 @@ func BurnSeal(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) (
 		}
 	}
 	for _, c := range doors {
-		if at := census[c]; at.Edifice != BurnDoorDef || !strings.HasPrefix(at.Stuff, "Blocks") {
+		if at := census[c]; at.Edifice != BurnDoorDef || !items.IsStoneBlocks(Resource(at.Stuff)) {
 			d, err := domain.NewBuilding(BurnDoorDef, c, domain.North, stone)
 			if err != nil {
 				return nil, err
@@ -241,8 +243,8 @@ func BurnSeal(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) (
 
 // BurnBuilds is everything the burn-out still needs standing: its seal
 // and corridor, then its fuel. The fight lights on none missing.
-func BurnBuilds(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string) ([]domain.Building, error) {
-	seal, err := BurnSeal(b, census, stone)
+func BurnBuilds(b CombatBurn, census map[domain.Cell]WaitDoorCell, stone string, items ItemFacts) ([]domain.Building, error) {
+	seal, err := BurnSeal(b, census, stone, items)
 	if err != nil {
 		return nil, err
 	}

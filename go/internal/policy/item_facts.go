@@ -117,6 +117,35 @@ func (i ItemFacts) drugsWhere(keep func(Drug) bool) []Drug {
 	return out
 }
 
+// stoneBlocksCategory is the thing category the game files every stone
+// block def under.
+const stoneBlocksCategory = "StoneBlocks"
+
+// IsStoneBlocks reports whether def is a stone block def: one filed under
+// the StoneBlocks thing category.
+func (i ItemFacts) IsStoneBlocks(def Resource) bool {
+	return slices.Contains(i.Categories[def], stoneBlocksCategory)
+}
+
+// StoneBlock is the stone block def a stone build uses: the one stock holds
+// most of, ties by name (so the first by name when stock holds none). A
+// catalog with no stone block def is an error.
+func (i ItemFacts) StoneBlock(stock map[Resource]int64) (Resource, error) {
+	best, found := Resource(""), false
+	for def := range i.Categories {
+		if !i.IsStoneBlocks(def) {
+			continue
+		}
+		if !found || stock[def] > stock[best] || stock[def] == stock[best] && def < best {
+			best, found = def, true
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("the catalog has no def in thing category %s", stoneBlocksCategory)
+	}
+	return best, nil
+}
+
 // MarketValue is def's market value.
 func (i ItemFacts) MarketValue(def Resource) (float64, error) {
 	v, ok := i.Market[def]

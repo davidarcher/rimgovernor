@@ -43,7 +43,7 @@ func TestSelectFlooringPrefersTheTierStyle(t *testing.T) {
 	facts.Definitions[Carpet] = FloorDefinition{Available: domain.Known(true), Terrain: domain.Known(true), Cleanliness: domain.Known(0.0), Beauty: domain.Known(2.0), Flammability: domain.Known(1.0), PathCost: domain.Known[int32](0), Costs: domain.Known([]Amount{{Resource: "Cloth", Count: 7}})}
 	facts.Stock = domain.Known(map[Resource]int64{"BlocksGranite": 100, "WoodLog": 100, "Cloth": 100})
 	facts.Style = func(role RoomRole) (string, bool) {
-		return FloorDef(BuildTierMasonry, role, TierStyleStock{"BlocksGranite": 100, "Cloth": 100}, FloorStyleFacts{CarpetMaking: true})
+		return FloorDef(BuildTierMasonry, role, TierStyleStock{"BlocksGranite": 100, "Cloth": 100}, FloorStyleFacts{CarpetMaking: true, Costs: floorCosts})
 	}
 	p.Floors = append(p.Floors, Carpet)
 	review.Deficits = review.Deficits[1:] // the bedroom next

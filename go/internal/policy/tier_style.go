@@ -173,19 +173,35 @@ func floorClassOf(role RoomRole) floorClass {
 
 // FloorStyleFacts is what FloorDef reads beyond tier, role and stock: the
 // finished research that gates carpet (CarpetMaking, the Core prerequisite
-// the issue calls Complex Furniture) and sterile tile (SterileMaterials).
+// the issue calls Complex Furniture) and sterile tile (SterileMaterials),
+// and the cost list per cell of each floor those research projects unlock
+// (the terrain defs' cost lists, by name); a floor with no known cost list
+// cannot be afforded.
 type FloorStyleFacts struct {
 	CarpetMaking, SterileMaterials bool
+	Costs                          map[string][]Amount
+}
+
+// affordable reports that stock covers one cell of the floor def.
+func (f FloorStyleFacts) affordable(def string, stock TierStyleStock) bool {
+	costs, known := f.Costs[def]
+	if !known {
+		return false
+	}
+	for _, c := range costs {
+		if !stock.has(c.Resource, c.Count) {
+			return false
+		}
+	}
+	return true
 }
 
 // Carpet is the generated Core carpet definition the soft rooms take; one
-// colour keeps the proposal deterministic. carpetCloth is its cost per cell.
-const (
-	Carpet              = "CarpetRed"
-	carpetCloth   int64 = 7
-	sterileSteel  int64 = 3
-	sterileSilver int64 = 12
-)
+// colour keeps the proposal deterministic.
+const Carpet = "CarpetRed"
+
+// SterileTile is the hospital's sterile floor.
+const SterileTile = "SterileTile"
 
 // FloorDef is the floor rule: nothing at Camp; from Masonry flagstone of the
 // quarried stone on aisles and in storage and stone tile in the lived-in
@@ -215,8 +231,8 @@ func FloorDef(tier BuildTier, role RoomRole, stock TierStyleStock, facts FloorSt
 		}
 		switch {
 		case class == floorHospital && t >= BuildTierIndustrial:
-			if facts.SterileMaterials && stock.has("Steel", sterileSteel) && stock.has("Silver", sterileSilver) {
-				return "SterileTile", true
+			if facts.SterileMaterials && facts.affordable(SterileTile, stock) {
+				return SterileTile, true
 			}
 			// Sterile tile unmet: the rung below Industrial is the stone
 			// floor, and Spacer shares Industrial's rung.
@@ -224,7 +240,7 @@ func FloorDef(tier BuildTier, role RoomRole, stock TierStyleStock, facts FloorSt
 				return stoneFloor()
 			}
 			return "", false
-		case class == floorSoft && facts.CarpetMaking && stock.has("Cloth", carpetCloth):
+		case class == floorSoft && facts.CarpetMaking && facts.affordable(Carpet, stock):
 			return Carpet, true
 		}
 		return stoneFloor()

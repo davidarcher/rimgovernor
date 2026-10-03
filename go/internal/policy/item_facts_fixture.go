@@ -22,8 +22,9 @@ func CoreItemFacts() ItemFacts {
 			"Cloth": {"Fabric"}, "Synthread": {"Fabric"}, "Hyperweave": {"Fabric"}, "Leather_Plain": {"Leathery"}, "Leather_Heavy": {"Leathery"},
 		},
 		AcceptedStuff: map[Resource][]string{},
-		Categories:    map[Resource][]string{"RawRice": {"PlantFoodRaw"}},
-		Currency:      "Silver",
+		Categories: map[Resource][]string{"RawRice": {"PlantFoodRaw"},
+			"BlocksSandstone": {"StoneBlocks"}, "BlocksGranite": {"StoneBlocks"}, "BlocksLimestone": {"StoneBlocks"}, "BlocksSlate": {"StoneBlocks"}, "BlocksMarble": {"StoneBlocks"}},
+		Currency: "Silver",
 		// Drugs are Core's, in the catalog's preference order.
 		Drugs: []Drug{
 			{Def: "Beer", Chemical: "Alcohol", Social: true}, {Def: "SmokeleafJoint", Chemical: "Smokeleaf", Social: true}, {Def: "PsychiteTea", Chemical: "Psychite", Social: true},

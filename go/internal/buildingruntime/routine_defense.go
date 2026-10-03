@@ -174,7 +174,11 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		held = domain.Known(combatLayout)
 	}
-	burn, err := combatBurnSite(call, r.native, identity, memory, combat.Context.GetTick())
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	burn, err := combatBurnSite(call, r.native, identity, memory, combat.Context.GetTick(), items)
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}

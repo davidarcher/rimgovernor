@@ -70,8 +70,8 @@ func TestWallStuffTable(t *testing.T) {
 }
 
 func TestFloorDefTable(t *testing.T) {
-	carpet := FloorStyleFacts{CarpetMaking: true}
-	sterile := FloorStyleFacts{SterileMaterials: true}
+	carpet := FloorStyleFacts{CarpetMaking: true, Costs: floorCosts}
+	sterile := FloorStyleFacts{SterileMaterials: true, Costs: floorCosts}
 	cases := []struct {
 		name  string
 		tier  BuildTier
@@ -81,7 +81,7 @@ func TestFloorDefTable(t *testing.T) {
 		want  string
 		ok    bool
 	}{
-		{"camp never floors", BuildTierCamp, RoomRoleBedroom, fullStock, FloorStyleFacts{true, true}, "", false},
+		{"camp never floors", BuildTierCamp, RoomRoleBedroom, fullStock, FloorStyleFacts{CarpetMaking: true, SterileMaterials: true, Costs: floorCosts}, "", false},
 		{"masonry aisle flagstone", BuildTierMasonry, RoomRoleNone, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
 		{"masonry storage flagstone", BuildTierMasonry, RoomRoleStoreroom, stoneStock, FloorStyleFacts{}, "FlagstoneGranite", true},
 		{"masonry bedroom tile", BuildTierMasonry, RoomRoleBedroom, stoneStock, FloorStyleFacts{}, "TileGranite", true},
