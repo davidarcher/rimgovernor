@@ -5,7 +5,8 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // Cremating raiders (#833). A stranger's corpse lying unburied is a mood
 // hit and a rot source; once the crematorium is available, MaintainWaste
 // places one in a free workshop slot and gives it a forever CremateCorpse
-// bill that takes stranger corpses only. Colonists go to the tomb (#832)
+// bill that takes stranger corpses only. While the human butchery is open a
+// fresh stranger is butchered instead (#1811, RouteStranger). Colonists go to the tomb (#832)
 // and are never cremated. Animal corpses that are rotting or desiccated
 // get a second bill (#1810); fresh ones stay with the butcher.
 
@@ -32,6 +33,9 @@ type CremationStep struct {
 	Piece     InteriorPiece
 	Bench     string
 	Strangers int
+	// StrangerSpoiledOnly: the stranger bill takes rotting and desiccated
+	// corpses only, because the butcher is open (#1811).
+	StrangerSpoiledOnly bool
 	// Animals counts unburied animal corpses past fresh (#1810).
 	Animals int
 }
@@ -40,15 +44,21 @@ type CremationStep struct {
 // census, the waste census and the colony's built buildings. The bill
 // step does not know whether the bench already carries the bill; the
 // caller reads the bench's bills.
-func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding) CremationStep {
-	step := CremationStep{}
+//
+// butchery is HumanButcheryOpen (#1811): while it holds, a fresh stranger
+// corpse is the butcher's and only spoiled ones are cremated, by a bill
+// that leaves fresh ones alone (StrangerSpoiledOnly).
+func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, built []CurrentBuilding, butchery bool) CremationStep {
+	step := CremationStep{StrangerSpoiledOnly: butchery}
 	for _, item := range waste {
 		if item.State == WasteBuried {
 			continue
 		}
 		switch {
 		case item.CorpseOf == domain.CorpseStranger:
-			step.Strangers++
+			if RouteStranger(item.RotStage, butchery) == StrangerCremate {
+				step.Strangers++
+			}
 		case item.CorpseOf == domain.CorpseAnimal && item.RotStage.Spoiled():
 			step.Animals++
 		}
@@ -105,7 +115,7 @@ func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem
 // unknown while a fact the step reads is. A built crematorium keeps it
 // owed until the stranger and spoiled animal corpses are gone: the bill step reads the
 // bench's bills and falls through to the haul once the bill stands.
-func CremationOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction]) domain.Fact[bool] {
+func CremationOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], rooms domain.Fact[RoomObservation], waste domain.Fact[[]WasteItem], built domain.Fact[CurrentConstruction], butchery bool) domain.Fact[bool] {
 	a, ak := available.Value()
 	if ak && !a {
 		return domain.Known(false)
@@ -117,5 +127,5 @@ func CremationOwed(available domain.Fact[bool], plan domain.Fact[LayoutPlan], ro
 	if !ak || !pk || !rk || !wk || !bk || !b.Colony {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(NextCremationStep(p, r, w, b.Buildings).Kind != CremationNone)
+	return domain.Known(NextCremationStep(p, r, w, b.Buildings, butchery).Kind != CremationNone)
 }

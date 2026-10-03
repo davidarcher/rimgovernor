@@ -116,6 +116,53 @@ func HumanButcherEligible(traits domain.Fact[[]PawnTrait], preceptAcceptable, ca
 	return false
 }
 
+// StrangerRoute is where a stranger corpse (raider, prisoner, visitor) goes
+// (#1811).
+type StrangerRoute string
+
+const (
+	StrangerButcher StrangerRoute = "butcher"
+	StrangerCremate StrangerRoute = "cremate"
+)
+
+// RouteStranger butchers a corpse that is still fresh while butchery is
+// open and cremates every other: a rotting or desiccated one is never
+// hauled to the butchery. An unread rot stage is not spoiled.
+func RouteStranger(rot domain.RotStage, butcheryOpen bool) StrangerRoute {
+	if butcheryOpen && !rot.Spoiled() {
+		return StrangerButcher
+	}
+	return StrangerCremate
+}
+
+// HumanButcheryOpen is whether the existing human-butcher gate would take a
+// stranger corpse now: a usable butchery whose recipe is available, a worker
+// who qualifies (QualifyingHumanButcher) and room for the corpse (stocked
+// storage, or cells to zone). It ignores whether the human bill stands.
+func HumanButcheryOpen(benches domain.Fact[[]ProductionBench], ideology domain.Fact[Ideoligion]) bool {
+	rows, known := benches.Value()
+	if !known {
+		return false
+	}
+	for _, b := range rows {
+		usable, uk := b.Usable.Value()
+		nutrition, nk := b.HumanCorpseNutrition.Value()
+		ready, _ := b.HumanStorageReady.Value()
+		if !b.Butcher || !uk || !usable || !nk || !foodNumber(nutrition) || nutrition <= 0 || !ready && len(b.HumanStorageCells) == 0 {
+			continue
+		}
+		available := false
+		for _, recipe := range b.Recipes {
+			v, k := recipe.Available.Value()
+			available = available || recipe.Name == "ButcherCorpseFlesh" && k && v
+		}
+		if _, ok := QualifyingHumanButcher(b.HumanButchers, ideology); ok && available {
+			return true
+		}
+	}
+	return false
+}
+
 type HumanMeatRoute string
 
 const (

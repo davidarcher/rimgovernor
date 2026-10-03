@@ -42,7 +42,7 @@ func TestCorpseBillIsRecipePlusCorpseFilter(t *testing.T) {
 		recipe string
 		of     CorpseOf
 		rot    RotStage
-	}{{CremateRecipe, CorpseAnimal, ""}, {CremateRecipe, CorpseAnimal, RotFresh}, {CremateRecipe, CorpseStranger, RotRotting}, {ButcherRecipe, CorpseAnimal, RotRotting}} {
+	}{{CremateRecipe, CorpseAnimal, ""}, {CremateRecipe, CorpseAnimal, RotFresh}, {CremateRecipe, CorpseStranger, RotFresh}, {ButcherRecipe, CorpseAnimal, RotRotting}} {
 		if _, err := NewCorpseBill("Crem_1", bad.recipe, bad.of, bad.rot); err == nil {
 			t.Errorf("%s/%s/%s accepted", bad.recipe, bad.of, bad.rot)
 		}

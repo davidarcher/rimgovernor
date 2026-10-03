@@ -29,7 +29,7 @@ type cremationBills interface {
 // cremationMethod names a cremation step's method, once per goal epoch.
 func cremationMethod(step policy.CremationStep) domain.MethodID {
 	if step.Kind == policy.CremationBill {
-		return cremationBillMethod(step.Bench, domain.CorpseStranger)
+		return cremationBillMethod(step.Bench, domain.CorpseStranger, step.StrangerSpoiledOnly)
 	}
 	return domain.MethodID(fmt.Sprintf("cremate-place-%d-%d-%s", step.Room.Interior.X, step.Room.Interior.Z, step.Piece.Slot))
 }
@@ -54,9 +54,12 @@ func (r *RoutineWastePlanner) stageCremation(call, epoch context.Context, state 
 }
 
 // cremationBillMethod names one corpse class's bill method on a bench.
-func cremationBillMethod(bench string, of domain.CorpseOf) domain.MethodID {
+func cremationBillMethod(bench string, of domain.CorpseOf, spoiledOnly bool) domain.MethodID {
 	if of == domain.CorpseAnimal {
 		return domain.MethodID("cremate-bill-" + bench + "-animal")
+	}
+	if spoiledOnly {
+		return domain.MethodID("cremate-bill-" + bench + "-spoiled")
 	}
 	return domain.MethodID("cremate-bill-" + bench)
 }
@@ -73,14 +76,14 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		of = domain.CorpseAnimal
 	}
 	if of == domain.CorpseStranger {
-		if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, cremationBillMethod(step.Bench, of)); err == nil {
+		if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, cremationBillMethod(step.Bench, of, step.StrangerSpoiledOnly)); err == nil {
 			of = ""
 			if step.Animals > 0 {
 				of = domain.CorpseAnimal
 			}
 		}
 	}
-	method := cremationBillMethod(step.Bench, of)
+	method := cremationBillMethod(step.Bench, of, step.StrangerSpoiledOnly)
 	if of == "" {
 		return RoutineWasteResult{}, false, nil
 	}
@@ -106,7 +109,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bench")}, true, nil
 	}
 	minRot := domain.RotStage("")
-	if of == domain.CorpseAnimal {
+	if of == domain.CorpseAnimal || of == domain.CorpseStranger && step.StrangerSpoiledOnly {
 		minRot = domain.RotRotting
 	}
 	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, of, minRot)

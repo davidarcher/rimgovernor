@@ -66,11 +66,17 @@ func cremationStep(facts observation.ColonyProjection) policy.CremationStep {
 	rooms, _ := facts.Rooms.Value()
 	waste, _ := facts.Facts.Waste.Value()
 	built, _ := facts.Facts.CurrentConstruction.Value()
-	return policy.NextCremationStep(plan, rooms, waste, built.Buildings)
+	return policy.NextCremationStep(plan, rooms, waste, built.Buildings, strangerButchery(facts))
+}
+
+// strangerButchery is whether the human butchery would take a fresh stranger
+// corpse now (#1811); unread benches mean no.
+func strangerButchery(facts observation.ColonyProjection) bool {
+	return policy.HumanButcheryOpen(facts.ProductionBenches, facts.Facts.Ideology)
 }
 
 func cremationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
-	return policy.CremationOwed(facts.DefinitionAvailable(policy.CrematoriumDefinition), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction)
+	return policy.CremationOwed(facts.DefinitionAvailable(policy.CrematoriumDefinition), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction, strangerButchery(facts))
 }
 
 // corpsesOwed is the review's CorpsesOwed fact: the tomb or the

@@ -95,12 +95,13 @@ const (
 // worker) stays NewHumanButcherBill. Cremation takes any class; which
 // class to cremate is policy's choice. An animal cremation bill must name
 // minRot RotRotting so fresh animal corpses stay for the butcher (#1810);
-// no other bill takes a minimum.
+// a stranger bill may too, while butchery is open (#1811); no other bill takes
+// a minimum.
 func NewCorpseBill(bench, recipe string, corpses CorpseOf, minRot RotStage) (ProductionBill, error) {
 	if recipe == ButcherRecipe && corpses == CorpseAnimal && minRot == "" {
 		return NewProductionBill(bench, recipe, ButcherForever, 0)
 	}
-	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) || minRot != "" && corpses != CorpseAnimal || corpses == CorpseAnimal && minRot != RotRotting {
+	if recipe != CremateRecipe || !corpses.Valid() || !validID(bench) || minRot != "" && minRot != RotRotting || corpses == CorpseAnimal && minRot != RotRotting {
 		return ProductionBill{}, errors.New("invalid corpse bill")
 	}
 	return ProductionBill{bench: bench, recipe: recipe, mode: ButcherForever, corpses: corpses, minRot: minRot}, nil
