@@ -522,6 +522,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return result, err
 	}
 	missing, method, reason := r.selection(facts)
+	if method == "butcher-spot-retire" {
+		if spot, owed := standingButcherSpot(facts); owed {
+			return r.retireBuilding(call, epoch, state, review, goal, reading, spot, "butcher-spot-retire", "stand-in butcher spot")
+		}
+	}
 	if method == "butcher-table" {
 		// A stand-in spot stands apart: the real table goes in the same room (the
 		// planned butchery) once the wood is in stock.

@@ -65,6 +65,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			// butcher spot is admitted outside. Deconstructing the shared
 			// one needs a generic deconstruct action (follow-up).
 			if !butchersAllColocated(benches, facts.Rooms) {
+				if _, retire := standingButcherSpot(facts); retire {
+					return 1, "butcher-spot-retire", ""
+				}
 				if butcherTableWanted(facts, benches) {
 					return 1, "butcher-table", ""
 				}
@@ -288,4 +291,33 @@ func butcherTableWanted(facts observation.ColonyProjection, benches []observatio
 	}
 	wood, known := facts.Facts.Wood.Value()
 	return known && wood >= policy.ButcherTableWood && comfortBuilderAvailable(facts, "TableButcher")
+}
+
+// standingButcherSpot is a standing butcher spot, found in the building
+// census, once a butcher table stands apart as well: the stand-in spot is
+// deconstructed then.
+func standingButcherSpot(facts observation.ColonyProjection) (policy.CurrentBuilding, bool) {
+	benches, bk := facts.ButcheringBenches.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	if !bk || !ck {
+		return policy.CurrentBuilding{}, false
+	}
+	table := false
+	for _, bench := range benches {
+		table = table || bench.Definition == "TableButcher"
+	}
+	if !table {
+		return policy.CurrentBuilding{}, false
+	}
+	for _, bench := range benches {
+		if bench.Definition != "ButcherSpot" {
+			continue
+		}
+		for _, b := range census.Buildings {
+			if b.ID == bench.ID && len(b.Cells) > 0 {
+				return b, true
+			}
+		}
+	}
+	return policy.CurrentBuilding{}, false
 }

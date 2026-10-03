@@ -1646,14 +1646,19 @@ func butcherSpotMet(f RoutineFacts) domain.Fact[bool] {
 	for _, room := range shared {
 		colocated[room.ID] = true
 	}
-	apart, table := false, false
+	apart, table, spot := false, false, false
 	for _, bench := range benches {
 		if room, known := bench.Room.Value(); !known || !colocated[room] {
 			apart = true
 			table = table || bench.Definition != "ButcherSpot"
+			spot = spot || bench.Definition == "ButcherSpot"
 		}
 	}
 	if !apart {
+		return domain.Known(false)
+	}
+	// A table standing beside its stand-in spot owes the spot's removal.
+	if table && spot {
 		return domain.Known(false)
 	}
 	// Only a stand-in spot stands apart: with the wood to build one, the
