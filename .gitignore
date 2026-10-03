@@ -53,3 +53,6 @@ issue-*.md
 # acceptance run evidence (-output dirs)
 /out/
 /go/remoteaccept
+
+# built landing lane binary (go build ./cmd/land)
+/go/land
