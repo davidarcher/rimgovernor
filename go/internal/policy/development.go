@@ -502,26 +502,13 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			return a.Goal < b.Goal
 		})
 	}
-	_, _, paused := holdsFit(result, nil)
-	var chosen []LaborProfile
+	// No project limit: every eligible goal acts, whatever the open work holds.
 	for i := range result.Rows {
 		row := &result.Rows[i]
 		if row.Reason != "" {
 			continue
 		}
-		if paused {
-			row.Reason = DevelopmentOvercommitted
-			continue
-		}
-		// A goal with work and a pawn able to do it acts: no project
-		// limit, stage or startup hold defers it.
-		profile := profiles[row.Goal]
-		fits, bottlenecks, _ := holdsFit(result, append(chosen[:len(chosen):len(chosen)], profile))
-		if last := len(fits) - 1; !fits[last] {
-			row.Reason, row.Bottleneck = DevelopmentLabor, bottlenecks[last]
-			continue
-		}
-		chosen = append(chosen, profile)
+		// No project limit, stage or startup hold defers a goal with work.
 		row.Selected = true
 	}
 	summarizeDevelopment(&result)

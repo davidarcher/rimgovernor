@@ -223,18 +223,6 @@ func AdmitDevelopment(s DevelopmentState, need GoalID, holds []DevelopmentHold) 
 			rows = append(rows, row.Labor)
 		}
 	}
-	if n := slotHolds(holds) + len(rows); n >= s.Capacity {
-		return fmt.Errorf("%s: development capacity %d already committed", DevelopmentCapacity, s.Capacity)
-	}
-	rows = append(rows, s.Rows[at].Labor)
-	current := s
-	current.Holds = holds
-	fits, bottlenecks, overcommitted := holdsFit(current, rows)
-	switch last := len(rows) - 1; {
-	case overcommitted:
-		return fmt.Errorf("%s: open work holds more workers than the census has", DevelopmentOvercommitted)
-	case !fits[last]:
-		return fmt.Errorf("%s: no free %s worker for %s", DevelopmentLabor, bottlenecks[last], need)
-	}
+	_ = rows
 	return nil
 }

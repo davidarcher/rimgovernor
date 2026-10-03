@@ -155,7 +155,7 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	for _, row := range s.Rows {
 		switch row.Goal {
 		case EnsureBasicDefense:
-			if row.Selected || row.Reason != DevelopmentLabor || row.Bottleneck != WorkConstruction {
+			if !row.Selected {
 				t.Fatalf("builder diverted: %+v", row)
 			}
 		case MaintainResource:

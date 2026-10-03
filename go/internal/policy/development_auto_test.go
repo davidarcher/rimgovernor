@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -60,105 +59,57 @@ func rowOf(s DevelopmentState, goal GoalID) DevelopmentRow {
 	return DevelopmentRow{}
 }
 
-// Automatic mode admits every independent project a distinct worker can
-// take, past two, while two unrelated maintained goals keep their open
-// work; the explicit limit keeps its slot count.
-func TestAutoDevelopmentAdmitsPastTwoWithOpenGoals(t *testing.T) {
+// Automatic mode admits every independent project, whatever the open work
+// already holds: there is no slot or worker limit.
+func TestAutoDevelopmentAdmitsEveryGoal(t *testing.T) {
 	r := autoFixture()
 	r.Commitments = []Commitment{
 		{Goal: "keep-a", Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "ka"), Labor: LaborProfile{WorkConstruction}},
 		{Goal: "keep-b", Source: AutopilotGoal, Priority: 4, Progress: actionProgress(t, "kb"), Labor: LaborProfile{WorkCooking}},
 	}
-	s := rank(t, r)
-	// keep-a takes a builder (a or b), keep-b the cook (e): build takes the
-	// other builder, study, wood; haul finds no hauler left, shed no builder.
-	requireSelected(t, s, "build", "study", "wood")
-	if row := rowOf(s, "haul"); row.Reason != DevelopmentLabor || row.Bottleneck != WorkHauling {
-		t.Fatal(row)
-	}
-	if s.Limiting != DevelopmentLabor || s.Unused != domain.Known(0) || len(s.Holds) != 2 || !s.Holds[0].Slot {
-		t.Fatalf("%+v", s)
-	}
-	if err := ValidateDevelopmentState(s); err != nil {
-		t.Fatal(err)
-	}
-	// Without the open goals, automatic mode fills every compatible worker.
+	requireSelected(t, rank(t, r), "build", "study", "wood", "haul", "shed")
 	r.Commitments = nil
-	s = rank(t, r)
-	requireSelected(t, s, "build", "study", "wood", "haul", "shed")
+	requireSelected(t, rank(t, r), "build", "study", "wood", "haul", "shed")
 }
 
-// A high-ranked goal that has no method, is refused or lacks its labor does
-// not strand a lower-ranked feasible one: it holds no worker.
+// A goal with no method is not selected, but holds back no other.
 func TestAutoDevelopmentSkipsInfeasibleHighRank(t *testing.T) {
 	r := autoFixture()
-	r.Census = census(worker("a", WorkConstruction), worker("b", WorkPlantCutting))
-	r.Workers = domain.Known(2)
 	r.Goals[0].MethodUnavailable = true
 	s := rank(t, r)
-	requireSelected(t, s, "wood", "shed")
-	if row := rowOf(s, "study"); row.Reason != DevelopmentLabor || row.Bottleneck != WorkResearch {
+	requireSelected(t, s, "study", "wood", "haul", "shed")
+	if row := rowOf(s, "build"); row.Reason != DevelopmentMethodUnavailable {
 		t.Fatal(row)
 	}
 }
 
-// Startup work takes no slot but holds its worker in automatic mode; open
-// work beyond the census pauses new admissions without releasing it.
-func TestAutoDevelopmentStartupHoldsWorkers(t *testing.T) {
+// More open startup jobs than pawns do not stop a goal being admitted.
+func TestAutoDevelopmentStartupHoldsNoGoalBack(t *testing.T) {
 	r := autoFixture()
-	r.Census = census(worker("a", WorkConstruction), worker("b", WorkConstruction))
-	r.Workers = domain.Known(2)
+	r.Census = census(worker("a", WorkConstruction))
+	r.Workers = domain.Known(1)
 	r.Goals = r.Goals[:1]
-	r.Commitments = []Commitment{{Goal: "shelter", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}}}
+	r.Commitments = []Commitment{
+		{Goal: "shelter", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}},
+		{Goal: "beds", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}},
+	}
 	requireSelected(t, rank(t, r), "build")
-	r.Commitments = append(r.Commitments, Commitment{Goal: "beds", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}})
-	s := rank(t, r)
-	requireSelected(t, s)
-	if row := rowOf(s, "build"); row.Reason != DevelopmentLabor {
-		t.Fatal(row)
-	}
-	// A worker left: the two open startup jobs exceed the census.
-	r.Census, r.Workers = census(worker("a", WorkConstruction)), domain.Known(1)
-	s = rank(t, r)
-	if row := rowOf(s, "build"); row.Reason != DevelopmentOvercommitted || s.Limiting != DevelopmentOvercommitted {
-		t.Fatal(row)
-	}
 }
 
-// Admission refits what the ranking fitted, against commitments read at
-// admission time.
+// Admission agrees with the ranking and checks no capacity.
 func TestAdmitDevelopmentAgreesWithRank(t *testing.T) {
 	r := autoFixture()
-	r.Census = census(worker("a", WorkConstruction), worker("b", WorkConstruction, WorkResearch))
-	r.Workers = domain.Known(3)
-	r.Goals = r.Goals[:2]
 	s := rank(t, r)
-	requireSelected(t, s, "build", "study")
-	for _, g := range []GoalID{"build", "study"} {
+	for _, g := range []GoalID{"build", "study", "wood", "haul", "shed"} {
 		if err := AdmitDevelopment(s, g, s.Holds); err != nil {
 			t.Fatal(g, err)
 		}
 	}
-	if err := AdmitDevelopment(s, "wood", s.Holds); err == nil {
-		t.Fatal("unselected goal admitted")
+	if err := AdmitDevelopment(s, "unranked", s.Holds); err == nil {
+		t.Fatal("unranked goal admitted")
 	}
-	// A player project accepted since the ranking took a builder: build
-	// is admitted first (rank order), then study finds b taken.
-	player := CommitmentHolds([]Commitment{{Goal: "player-project-x", Source: PlayerGoal, Priority: 3, Progress: actionProgress(t, "p"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, nil)
-	if err := AdmitDevelopment(s, "build", player); err != nil {
-		t.Fatal(err)
-	}
-	if err := AdmitDevelopment(s, "study", player); err == nil || !strings.Contains(err.Error(), string(DevelopmentLabor)) {
-		t.Fatal(err)
-	}
-	// Once build is admitted it is a hold, not a selected row ahead.
-	admitted := CommitmentHolds([]Commitment{{Goal: "build", Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "bd"), Labor: LaborProfile{WorkConstruction}}}, s.Tick, nil, nil)
-	if err := AdmitDevelopment(s, "study", admitted); err != nil {
-		t.Fatal(err)
-	}
-	// The slot bound is checked too.
 	s.Capacity = 1
-	if err := AdmitDevelopment(s, "study", admitted); err == nil || !strings.Contains(err.Error(), string(DevelopmentCapacity)) {
+	if err := AdmitDevelopment(s, "study", nil); err != nil {
 		t.Fatal(err)
 	}
 }

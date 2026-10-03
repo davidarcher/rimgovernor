@@ -42,19 +42,15 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 	if s.Rows[0].Goal != "comfort" || s.Rows[0].Score != 45 || s.Rows[1].Goal != "research" || s.Rows[1].Score != 40 || s.Rows[2].Goal != "expansion" || s.Rows[2].Score != 35 {
 		t.Fatal(s.Rows)
 	}
-	requireSelected(t, s, "comfort", "research")
-	// The only builder went to comfort: expansion reads the labor it lacks,
-	// not the slot count.
-	if s.Rows[2].Reason != DevelopmentLabor || s.Rows[2].Bottleneck != WorkConstruction {
-		t.Fatal(s.Rows[2])
-	}
+	// Contested labor only lowers the order; every goal is admitted.
+	requireSelected(t, s, "comfort", "research", "expansion")
 	r.Weights = DefaultDevelopmentWeights()
 	r.Weights.Bottleneck = 0
 	s = rank(t, r)
-	if s.Rows[0].Goal != "comfort" || s.Rows[1].Goal != "expansion" || s.Rows[1].Reason != DevelopmentLabor {
+	if s.Rows[0].Goal != "comfort" || s.Rows[1].Goal != "expansion" {
 		t.Fatal(s.Rows)
 	}
-	requireSelected(t, s, "comfort", "research")
+	requireSelected(t, s, "comfort", "expansion", "research")
 	// A committed player construction project leaves nothing free: ratio 0.
 	r.Weights = DevelopmentWeights{}
 	r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}

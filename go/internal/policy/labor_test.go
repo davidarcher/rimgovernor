@@ -44,18 +44,10 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 		{ID: "resource", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.2), Labor: GoalLabor(MaintainResource)},
 	}
 	s := rank(t, r)
-	requireSelected(t, s, "comfort", "research")
+	requireSelected(t, s, "comfort", "expansion", "research", "resource")
 	rows := map[GoalID]DevelopmentRow{}
 	for _, row := range s.Rows {
 		rows[row.Goal] = row
-	}
-	if rows["expansion"].Reason != DevelopmentLabor || rows["expansion"].Bottleneck != WorkConstruction {
-		t.Fatal(rows["expansion"])
-	}
-	// Every alternative of a multi-type profile is exhausted: the bottleneck
-	// names the first alternative in stable order.
-	if rows["resource"].Reason != DevelopmentLabor || rows["resource"].Bottleneck != WorkCrafting {
-		t.Fatal(rows["resource"])
 	}
 	if err := ValidateDevelopmentState(s); err != nil {
 		t.Fatal(err)
@@ -64,7 +56,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1, WorkMining: 1})
 	r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
 	s = rank(t, r)
-	requireSelected(t, s, "research", "resource")
+	requireSelected(t, s, "comfort", "expansion", "research", "resource")
 	// Unknown labor keeps only the coarse worker bound; an empty profile is
 	// never labor-gated.
 	r.Commitments = nil
@@ -73,9 +65,9 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Labor = domain.Known(map[WorkType]int{})
 	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.1)})
 	s = rank(t, r)
-	requireSelected(t, s, "monitor")
+	requireSelected(t, s, "comfort", "expansion", "monitor", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{WorkResearch: 1})
-	requireSelected(t, rank(t, r), "research", "monitor")
+	requireSelected(t, rank(t, r), "comfort", "expansion", "research", "monitor", "resource")
 	r.Labor = domain.Known(map[WorkType]int{"": 1})
 	if _, err := RankDevelopment(r); err == nil {
 		t.Fatal("invalid labor census accepted")

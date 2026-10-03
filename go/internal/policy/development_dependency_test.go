@@ -56,16 +56,16 @@ func rankDep(t *testing.T, r DevelopmentRequest) DevelopmentState {
 }
 
 func TestShelterWoodShortfallOrdersWoodFirst(t *testing.T) {
-	// Without the edge the lower-deficit wood acquisition is deferred.
+	// Without the edge wood ranks behind feed.
 	base := rankDep(t, woodShortage())
-	if !rowOf(base, MaintainAnimalFeed).Selected || rowOf(base, MaintainResource).Selected {
-		t.Fatalf("baseline should defer wood behind feed: %+v", base.Rows)
+	if rowOf(base, MaintainResource).Donation != nil || base.Rows[0].Goal != MaintainAnimalFeed {
+		t.Fatalf("baseline should rank wood behind feed: %+v", base.Rows)
 	}
 	r := woodShortage()
 	r.Dependencies = []DevelopmentDependency{shelterWood(domain.Known[int64](40), DependencyCost{"wall-1", 60}, DependencyCost{"wall-2", 60})}
 	s := rankDep(t, r)
 	wood := rowOf(s, MaintainResource)
-	if !wood.Selected || wood.Donation == nil || rowOf(s, MaintainAnimalFeed).Selected {
+	if !wood.Selected || wood.Donation == nil || s.Rows[0].Goal != MaintainResource {
 		t.Fatalf("wood should take the worker: %+v", s.Rows)
 	}
 	want := DevelopmentDonation{Priority: 2, Chain: []GoalID{MaintainHousing, MaintainResource}, Resource: "WoodLog", Shortfall: 80}
@@ -92,7 +92,7 @@ func TestDonationOnlyWhileShortfallOpen(t *testing.T) {
 		r := woodShortage()
 		r.Dependencies = []DevelopmentDependency{dep}
 		s := rankDep(t, r)
-		if w := rowOf(s, MaintainResource); w.Selected || w.Donation != nil {
+		if w := rowOf(s, MaintainResource); w.Donation != nil {
 			t.Fatalf("%s: wood kept a donation: %+v", name, w)
 		}
 	}

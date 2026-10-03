@@ -2,9 +2,7 @@ package store
 
 import (
 	"context"
-	"errors"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -56,8 +54,8 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	expansion := routineGoal(t, first, policy.MaintainHousing)
-	if _, err = s.CommitGoalMethod(ctx, expansion.Goal.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrNotAdmitted) || !strings.Contains(err.Error(), string(policy.DevelopmentLabor)) {
-		t.Fatal("builder double-spent", err)
+	if _, err = s.CommitGoalMethod(ctx, expansion.Goal.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
+		t.Fatal("builder limit refused a goal", err)
 	}
 	research := routineGoal(t, first, policy.EnsureResearch)
 	if _, err = s.CommitGoalMethod(ctx, research.Goal.ID, research.Revision, "study", plan(t, "study", "study-action")); err != nil {

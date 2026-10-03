@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"reflect"
 	"testing"
 
@@ -256,15 +255,11 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 	r.Facts.Colonists, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
 	second := reviewRoutine(t, s, &r)
 	expansion := developmentRow(t, second.Review, policy.MaintainHousing)
-	if expansion.Selected || expansion.Reason != policy.DevelopmentLabor || expansion.Bottleneck != policy.WorkConstruction {
+	if !expansion.Selected || expansion.Bottleneck != "" {
 		t.Fatal(expansion)
 	}
 	if !developmentRow(t, second.Review, policy.EnsureResearch).Selected || !developmentRow(t, second.Review, policy.MaintainResource).Selected {
 		t.Fatal(second.Review.Development.Rows)
-	}
-	g := routineGoal(t, second, policy.MaintainHousing)
-	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "wall", plan(t, "wall", "wall-action")); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal("labor-deferred goal admitted", err)
 	}
 	// An observed outdoor hazard defers outdoor work ahead of labor accounting
 	// and the measured risk persists with the row.

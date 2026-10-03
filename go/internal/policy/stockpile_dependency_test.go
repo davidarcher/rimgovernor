@@ -31,7 +31,7 @@ func TestMissingStoreOrdersStockpilesBeforeHauls(t *testing.T) {
 	}
 	grow := StockpileReview{Known: true, Active: true, Edits: []StockpileEdit{{Kind: StockpileGrow, Role: domain.GeneralRole}}}
 	s = rankDep(t, request(grow))
-	if !rowOf(s, MaintainStorage).Selected || rowOf(s, MaintainStockpiles).Selected {
+	if s.Rows[0].Goal != MaintainStorage || rowOf(s, MaintainStockpiles).Donation != nil {
 		t.Fatalf("a standing store keeps score order: %+v", s.Rows)
 	}
 	// A resource edge still donates only to a strictly more urgent origin.
