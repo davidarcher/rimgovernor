@@ -79,6 +79,14 @@ type StarterLayout struct {
 	Blocked []string
 }
 
+func setOf(cells []domain.Cell) map[domain.Cell]bool {
+	set := make(map[domain.Cell]bool, len(cells))
+	for _, c := range cells {
+		set[c] = true
+	}
+	return set
+}
+
 func sortedCells(set map[domain.Cell]bool) []domain.Cell {
 	if len(set) == 0 {
 		return nil
@@ -205,12 +213,13 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		return "unknown"
 	}
 	for i, shell := range r.Planned {
-		reused, claimed, mined := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
+		claimed, playerWalls := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+		var roles []RoleCell
 		buildable := true
 		door := shell.Door()
 		// fogged counts interior and door cells the census lacks: fogged mountain
-		// is mined like any rock (the game designates through fog), so those cells
-		// join Mined and native says which are rock. foggedRing counts ring cells likewise.
+		// is dug like any rock (RockStep), so native says which are rock.
+		// foggedRing counts ring cells likewise; RockStep leaves them as rock.
 		fogged, foggedRing := 0, 0
 		missing := func(p domain.Cell) bool { _, exists := cells[p]; return !exists }
 		first := ""
@@ -223,46 +232,45 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		for _, p := range shell.Walls() {
 			switch {
 			case p == door:
-				if rock(p) {
-					mined[p] = true
-				} else if missing(p) {
+				roles = append(roles, RoleCell{p, RockNeedsFloor})
+				if missing(p) {
 					fogged++
-					mined[p] = true // fogged mountain is mined like any rock
-				} else if !lit(p) {
+				} else if !rock(p) && !lit(p) {
 					block(p, "door")
 				}
 			case wall(p):
-				reused[p] = true
+				roles = append(roles, RoleCell{p, RockBlocks})
+				if !rock(p) {
+					playerWalls[p] = true
+				}
 			case claim(p):
 				claimed[p] = true
 			case missing(p):
+				roles = append(roles, RoleCell{p, RockBlocks})
 				foggedRing++
 			case !lit(p):
 				block(p, "wall")
 			}
 		}
 		for _, p := range shell.Interior() {
-			if rock(p) && positive(cells[p].SupportsLight) {
-				mined[p] = true
-			} else if missing(p) {
+			roles = append(roles, RoleCell{p, RockNeedsFloor})
+			if missing(p) {
 				fogged++
-				mined[p] = true
-				mined[p] = true
-			} else if !lit(p) {
+			} else if !(rock(p) && positive(cells[p].SupportsLight)) && !lit(p) {
 				block(p, "interior")
 			}
 		}
 		// The door opens onto the spine hallway, which the caller protects:
-		// its threshold need only be open ground.
+		// its threshold need only be open ground; an unopened hallway cell of
+		// rock is dug.
 		if c, observed := cells[shell.Threshold()]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
 			if positive(c.NaturalRock) {
-				mined[shell.Threshold()] = true // an unopened hallway cell
+				roles = append(roles, RoleCell{shell.Threshold(), RockNeedsFloor})
 			} else {
 				block(shell.Threshold(), "threshold")
 			}
 		}
-		switch {
-		case foggedRing > 0 && fogged == 0:
+		if foggedRing > 0 && fogged == 0 {
 			block(shell.Door(), fmt.Sprintf("%d ring cells not in the census", foggedRing))
 		}
 		if !buildable {
@@ -270,7 +278,12 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 			continue
 		}
 		b := shell.Bounds()
-		return StarterLayout{Room: Rectangle{b.X, b.Z, b.Width, b.Height}, Storage: starterStorage(shell), Shell: shell, Planned: i, Reused: sortedCells(reused), Mined: sortedCells(mined), Claimed: sortedCells(claimed), Blocked: blocked}, true, nil
+		step := RockStep(roles, r.Cells)
+		reused := playerWalls
+		for _, c := range step.Left {
+			reused[c] = true
+		}
+		return StarterLayout{Room: Rectangle{b.X, b.Z, b.Width, b.Height}, Storage: starterStorage(shell), Shell: shell, Planned: i, Reused: sortedCells(reused), Mined: sortedCells(setOf(step.Dig)), Claimed: sortedCells(claimed), Blocked: blocked}, true, nil
 	}
 	return StarterLayout{Blocked: blocked}, false, nil
 }
