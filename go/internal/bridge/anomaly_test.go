@@ -156,7 +156,7 @@ func TestPawnAnomalyRow(t *testing.T) {
 		t.Fatal("a failed held read must not hide study")
 	}
 	for name, mutate := range map[string]func(*o.PawnAnomaly){
-		"nan minimum":      func(v *o.PawnAnomaly) { v.MinContainmentStrength = proto.Float64(math.NaN()) },
+		"nan minimum": func(v *o.PawnAnomaly) { v.MinContainmentStrength = proto.Float64(math.NaN()) },
 		"unspecified mode": func(v *o.PawnAnomaly) {
 			v.Held.Mode = o.EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED.Enum()
 		},
