@@ -308,7 +308,6 @@ func rectangleRing(cells map[domain.Cell]bool, door bool) (policy.Rectangle, boo
 
 const maxFoodStorageSites = 8
 
-
 func roofedIndoors(c policy.SiteCell) bool {
 	indoors, ik := c.Indoors.Value()
 	roofed, rk := c.Roofed.Value()

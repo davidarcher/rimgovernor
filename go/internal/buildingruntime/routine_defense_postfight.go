@@ -66,7 +66,7 @@ func (r *RoutineDefensePlanner) postFight(call, epoch context.Context, incident 
 				return RoutineDefenseResult{}, false, err
 			}
 		}
-		switch policy.PostFightNext(apparelWorn(combat.Detail[string(id)]), strip) {
+		switch policy.PostFightNext(apparelWorn(combat.Detail.At(string(id))), strip) {
 		case policy.PostFightWait:
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork, Plan: fightPlan}, true, nil
 		case policy.PostFightStrip:
@@ -89,7 +89,7 @@ func downedRaiders(combat bridge.Combat) []*mp.CombatPawn {
 		if row.GetSide() != mp.CombatSide_COMBAT_SIDE_HOSTILE || !row.GetDowned() || row.GetDead() {
 			continue
 		}
-		if detail := combat.Detail[row.GetId()]; detail != nil && detail.Humanlike != nil && !detail.GetHumanlike() {
+		if detail, _ := combat.Detail.Get(row.GetId()); detail != nil && detail.Humanlike != nil && !detail.GetHumanlike() {
 			continue // an animal has nothing to strip and is never captured here
 		}
 		out = append(out, row)

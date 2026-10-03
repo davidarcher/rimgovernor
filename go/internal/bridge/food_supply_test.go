@@ -27,15 +27,15 @@ func foodFixture(t *testing.T) (*o.FoodSupplyFacts, Things) {
 	}
 	things := Things{}
 	for _, row := range table.Things {
-		things[row.Thing.GetId()] = row
+		things = things.With(row.Thing.GetId(), row)
 	}
 	return supply, things
 }
 
 func cloneThings(things Things) Things {
 	out := Things{}
-	for id, row := range things {
-		out[id] = proto.Clone(row).(*o.Thing)
+	for id, row := range things.All() {
+		out = out.With(id, proto.Clone(row).(*o.Thing))
 	}
 	return out
 }
@@ -72,7 +72,7 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 			v.Larder = &o.FoodLarderFacts{Corpses: []*o.CorpseHandling{{StockId: "rice"}}}
 		},
 		func(_ *o.FoodSupplyFacts, things Things) {
-			things["rice"].Corpse, things["rice"].MeatAmount = proto.Bool(true), proto.Float64(0)
+			things.At("rice").Corpse, things.At("rice").MeatAmount = proto.Bool(true), proto.Float64(0)
 		},
 	} {
 		v, rows := proto.Clone(fixture).(*o.FoodSupplyFacts), cloneThings(things)
@@ -83,7 +83,7 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 	}
 	// A stock the table misses waits for a later frame.
 	rows := cloneThings(things)
-	delete(rows, "pack")
+	rows = rows.Without("pack")
 	if _, known, err := JoinFoodSupply(fixture, rows); err != nil || known {
 		t.Fatal("an unresolved stock was decided", known, err)
 	}
@@ -93,7 +93,7 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 func TestThingRowValidatesFoodFacts(t *testing.T) {
 	_, things := foodFixture(t)
 	ctx := pbContext()
-	for _, row := range things {
+	for row := range things.Values() {
 		if err := ValidThing(row, ctx); err != nil {
 			t.Fatal(row, err)
 		}
@@ -112,13 +112,13 @@ func TestThingRowValidatesFoodFacts(t *testing.T) {
 		func(v *o.Thing) { v.TemperatureC = proto.Float64(math.Inf(1)) },
 		func(v *o.Thing) { v.Thing.Id = proto.String("") },
 	} {
-		v := proto.Clone(things["rice"]).(*o.Thing)
+		v := proto.Clone(things.At("rice")).(*o.Thing)
 		change(v)
 		if err := ValidThing(v, ctx); err == nil {
 			t.Fatal("invalid thing row accepted", v)
 		}
 	}
-	if _, err := ThingTable(&o.ThingsSnapshot{Context: ctx, Things: []*o.Thing{things["rice"], things["rice"]}}, pbIdentity()); err == nil {
+	if _, err := ThingTable(&o.ThingsSnapshot{Context: ctx, Things: []*o.Thing{things.At("rice"), things.At("rice")}}, pbIdentity()); err == nil {
 		t.Fatal("duplicate thing row accepted")
 	}
 }

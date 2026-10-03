@@ -10,11 +10,26 @@ import (
 // Things is a frame's things table by id (#1343): the canonical rows every
 // food stock reference resolves against. A reference the table does not
 // hold waits for the next frame: the fact it feeds is unknown until then.
-type Things map[string]*o.Thing
+type Things struct{ Table[*o.Thing] }
+
+// NewThings is the table of rows by their thing id.
+func NewThings(rows ...*o.Thing) Things {
+	var t Table[*o.Thing]
+	for _, row := range rows {
+		t = t.Set(row.GetThing().GetId(), row)
+	}
+	return Things{t}
+}
+
+// With is the table with row added or replaced under id.
+func (t Things) With(id string, row *o.Thing) Things { return Things{t.Set(id, row)} }
+
+// Without is the table without id.
+func (t Things) Without(id string) Things { return Things{t.Delete(id)} }
 
 // Row is ref's canonical row, false when the table does not hold it.
 func (t Things) Row(ref Reference) (*o.Thing, bool) {
-	row, ok := t[ref.GetId()]
+	row, ok := t.Get(ref.GetId())
 	return row, ok && row != nil
 }
 
@@ -25,20 +40,20 @@ func ThingTable(v *o.ThingsSnapshot, identity *c.Identity) (Things, error) {
 		return Things{}, nil
 	}
 	if err := ValidateContext(v.Context); err != nil {
-		return nil, err
+		return Things{}, err
 	}
 	if !sameIdentity(v.Context.Identity, identity) {
-		return nil, contract("things table world mismatch")
+		return Things{}, contract("things table world mismatch")
 	}
-	out := make(Things, len(v.Things))
+	var out Things
 	for _, row := range v.Things {
 		if err := ValidThing(row, v.Context); err != nil {
-			return nil, err
+			return Things{}, err
 		}
-		if out[row.Thing.GetId()] != nil {
-			return nil, contract("duplicate thing row")
+		if out.Has(row.Thing.GetId()) {
+			return Things{}, contract("duplicate thing row")
 		}
-		out[row.Thing.GetId()] = row
+		out.Table = out.Set(row.Thing.GetId(), row)
 	}
 	return out, nil
 }
@@ -87,7 +102,7 @@ const frameThingsMethod = "rimgovernor/snapshot_frame_things"
 // stock reference waits.
 func (caller *Client) FrameThings(ctx context.Context, identity *c.Identity) (Things, error) {
 	if err := ValidateIdentity(identity); err != nil {
-		return nil, err
+		return Things{}, err
 	}
 	if caller.frames == nil {
 		return Things{}, nil

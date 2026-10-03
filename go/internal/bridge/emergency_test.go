@@ -36,7 +36,7 @@ func emergencyThreat(id string) *o.ThreatPawn {
 func emergencyTable(rows ...*o.PawnState) Pawns {
 	out := Pawns{}
 	for _, row := range rows {
-		out[row.Pawn.GetId()] = row
+		out = out.With(row.Pawn.GetId(), row)
 	}
 	return out
 }

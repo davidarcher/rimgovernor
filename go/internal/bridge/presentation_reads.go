@@ -108,7 +108,7 @@ func (client *Client) joinDossiers(ctx context.Context, roster *p.ColonistRoster
 		return err
 	}
 	for _, item := range roster.Colonists {
-		row, ok := pawns[item.GetPawnId()]
+		row, ok := pawns.Get(item.GetPawnId())
 		if !ok {
 			return fmt.Errorf("%w: colonist %s is not in the pawn table yet", ErrUnavailable, item.GetPawnId())
 		}

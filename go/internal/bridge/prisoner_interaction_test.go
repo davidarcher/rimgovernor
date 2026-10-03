@@ -18,7 +18,7 @@ func populationPawns(v *o.PopulationSnapshot) Pawns {
 	out := Pawns{}
 	for _, person := range v.GetPersons() {
 		id := person.GetPawn().GetId()
-		out[id] = &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Prisoner: proto.Bool(!person.GetAdmitted())}
+		out = out.With(id, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Prisoner: proto.Bool(!person.GetAdmitted())})
 	}
 	return out
 }
@@ -27,7 +27,7 @@ func populationPawns(v *o.PopulationSnapshot) Pawns {
 func populationTable(v *o.PopulationSnapshot) *o.ListPawnsReply {
 	out := &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: &o.Completeness{}}
 	for _, person := range v.GetPersons() {
-		out.Pawns = append(out.Pawns, populationPawns(v)[person.GetPawn().GetId()])
+		out.Pawns = append(out.Pawns, populationPawns(v).At(person.GetPawn().GetId()))
 	}
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: out}}
 }

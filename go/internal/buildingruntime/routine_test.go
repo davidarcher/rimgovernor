@@ -59,10 +59,7 @@ func (n *routineNative) FrameThings(context.Context, *c.Identity) (bridge.Things
 // thing puts row in the frame's things table and returns the reference a
 // food stock carries to it.
 func (n *routineNative) thing(row *o.Thing) *c.Ref {
-	if n.things == nil {
-		n.things = bridge.Things{}
-	}
-	n.things[row.Thing.GetId()] = row
+	n.things = n.things.With(row.Thing.GetId(), row)
 	return &c.Ref{Id: row.Thing.Id}
 }
 
@@ -70,7 +67,7 @@ func (n *routineNative) thing(row *o.Thing) *c.Ref {
 // unless the frame already holds one, and returns the reference a section
 // carries to it (#1342).
 func (n *routineNative) entity(ref *o.EntityRef) *c.Ref {
-	if _, ok := n.things[ref.GetId()]; !ok {
+	if _, ok := n.things.Get(ref.GetId()); !ok {
 		n.thing(&o.Thing{Thing: ref})
 	}
 	return &c.Ref{Id: ref.Id}
@@ -80,16 +77,13 @@ func (n *routineNative) entity(ref *o.EntityRef) *c.Ref {
 // reference a section carries to it; a row without service or settings
 // gets empty ones.
 func (n *routineNative) building(row *o.BuildingState) *o.EntityRef {
-	if n.buildings == nil {
-		n.buildings = bridge.Buildings{}
-	}
 	if row.Service == nil {
 		row.Service = &o.BuildingServiceState{}
 	}
 	if row.Settings == nil {
 		row.Settings = &o.BuildingSettings{Forbidden: proto.Bool(false)}
 	}
-	n.buildings[row.Building.GetId()] = row
+	n.buildings = n.buildings.With(row.Building.GetId(), row)
 	return row.Building
 }
 
@@ -97,7 +91,7 @@ func (n *routineNative) building(row *o.BuildingState) *o.EntityRef {
 // table, unless it already holds one, and returns the reference a section
 // carries to it (#1342).
 func (n *routineNative) head(ref *o.EntityRef) *c.Ref {
-	if _, ok := n.buildings[ref.GetId()]; !ok {
+	if _, ok := n.buildings.Get(ref.GetId()); !ok {
 		n.building(&o.BuildingState{Building: ref})
 	}
 	return &c.Ref{Id: ref.Id}
@@ -106,10 +100,7 @@ func (n *routineNative) head(ref *o.EntityRef) *c.Ref {
 // pawn puts row in the frame's pawn table and returns the reference a
 // section carries to it.
 func (n *routineNative) pawn(row *o.PawnState) *o.EntityRef {
-	if n.pawns == nil {
-		n.pawns = bridge.Pawns{}
-	}
-	n.pawns[row.Pawn.GetId()] = row
+	n.pawns = n.pawns.With(row.Pawn.GetId(), row)
 	return &o.EntityRef{Id: row.Pawn.Id}
 }
 
@@ -320,7 +311,7 @@ func fakeFrame(ctx context.Context, source observation.ColonySource, id *c.Ident
 		if err != nil && reply.GetUnavailable() == nil {
 			return bridge.RoutineFrame{}, err
 		}
-		frame.Construction = reply.GetObserved()
+		frame.Buildings = bridge.BuildingCensusOf(reply.GetObserved())
 	}
 	if s, ok := source.(observation.ZonesNative); ok {
 		zones, _, err := s.ReadZoneSection(ctx, id)

@@ -21,7 +21,7 @@ func pawnTableFixture() *o.PawnSnapshot {
 // carries, and refuses a malformed row of any kind.
 func TestPawnTableValidatesEveryKind(t *testing.T) {
 	pawns, err := PawnTable(pawnTableFixture(), pbIdentity())
-	if err != nil || len(pawns) != 3 {
+	if err != nil || pawns.Len() != 3 {
 		t.Fatal(pawns, err)
 	}
 	if row, ok := pawns.Row(&o.EntityRef{Id: proto.String("dog")}); !ok || row.GetAnimalState().GetPenId() != "pen" {
@@ -46,7 +46,7 @@ func TestPawnTableValidatesEveryKind(t *testing.T) {
 			t.Fatal("invalid pawn table accepted", v)
 		}
 	}
-	if pawns, err := PawnTable(nil, pbIdentity()); err != nil || len(pawns) != 0 {
+	if pawns, err := PawnTable(nil, pbIdentity()); err != nil || pawns.Len() != 0 {
 		t.Fatal("a frame without a pawn table is an empty table", pawns, err)
 	}
 }

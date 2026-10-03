@@ -10,7 +10,7 @@ import (
 )
 
 func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
-	pawns := bridge.Pawns{"animal": {Pawn: &o.EntityRef{Id: proto.String("animal"), DefName: proto.String("Muffalo")}, AnimalState: &o.AnimalState{Contained: proto.Bool(false), Release: proto.Bool(false), Slaughter: proto.Bool(false)}}}
+	pawns := bridge.NewPawns(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("animal"), DefName: proto.String("Muffalo")}, AnimalState: &o.AnimalState{Contained: proto.Bool(false), Release: proto.Bool(false), Slaughter: proto.Bool(false)}})
 	u := &o.UpkeepFacts{Animals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("animal")}, RequiresPen: proto.Bool(true)}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	if _, known := colonyAnimals(v, bridge.Pawns{}).Value(); known {
@@ -23,7 +23,7 @@ func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 	if value, known := rows[0].Contained.Value(); !known || value {
 		t.Fatal("false containment lost")
 	}
-	pawns["animal"].AnimalState.Contained = nil
+	pawns.At("animal").AnimalState.Contained = nil
 	rows, _ = colonyAnimals(v, pawns).Value()
 	if _, known := rows[0].Contained.Value(); known {
 		t.Fatal("absent containment became false")
@@ -44,7 +44,7 @@ func TestAnimalCensusPreservesUnknownAndKnownFalse(t *testing.T) {
 }
 
 func TestWildAnimalCensusDecodesTameFactsAndIssues(t *testing.T) {
-	pawns := bridge.Pawns{"wild": {Pawn: &o.EntityRef{Id: proto.String("wild"), DefName: proto.String("Muffalo")}, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}}}
+	pawns := bridge.NewPawns(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("wild"), DefName: proto.String("Muffalo")}, Wild: proto.Bool(true), AnimalState: &o.AnimalState{Tameable: proto.Bool(true), Tame: proto.Bool(false)}})
 	u := &o.UpkeepFacts{WildAnimals: []*o.AnimalFeed{{Pawn: &commonpb.Ref{Id: proto.String("wild")}}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	rows, known := colonyWildAnimals(v, pawns).Value()
@@ -60,7 +60,7 @@ func TestWildAnimalCensusDecodesTameFactsAndIssues(t *testing.T) {
 	if release, known := rows[0].Release.Value(); !known || release {
 		t.Fatal("a wild animal is never release-designated")
 	}
-	pawns["wild"].AnimalState.Tameable = nil
+	pawns.At("wild").AnimalState.Tameable = nil
 	rows, _ = colonyWildAnimals(v, pawns).Value()
 	if _, known := rows[0].Tameable.Value(); known {
 		t.Fatal("absent tameable became known")

@@ -181,7 +181,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 	t.Parallel()
 	p, _, n, _ := refrigerationFixture(t, true)
 	power := n.reply.GetObserved().Development.GetObserved().Power
-	n.routineNative.buildings[power[len(power)-1].Building.GetId()].Service.PowerOn = proto.Bool(false)
+	n.routineNative.buildings.At(power[len(power)-1].Building.GetId()).Service.PowerOn = proto.Bool(false)
 	// Planners plan from the review's census (#75): refresh it first.
 	if _, err := p.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
@@ -235,7 +235,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 		t.Fatal(err)
 	}
 	power := n.reply.GetObserved().Development.GetObserved().Power
-	n.routineNative.buildings[power[len(power)-1].Building.GetId()].Service.PowerOn = proto.Bool(false)
+	n.routineNative.buildings.At(power[len(power)-1].Building.GetId()).Service.PowerOn = proto.Bool(false)
 	if _, err := p.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}

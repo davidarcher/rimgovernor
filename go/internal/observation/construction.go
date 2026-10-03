@@ -1,6 +1,9 @@
 package observation
 
 import (
+	"iter"
+	"slices"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -19,9 +22,25 @@ var siteStages = map[o.BuildingStatus]string{o.BuildingStatus_BUILDING_STATUS_BL
 // ConstructionBuildings projects a validated player-only building read. Empty IDs
 // identifies a complete colony census, independent of controller action history.
 func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[policy.CurrentConstruction], error) {
+	return constructionRows(slices.Values(v.Buildings), ids)
+}
+
+// ConstructionCensus is ConstructionBuildings' colony census read from a
+// building table: its built rows.
+func ConstructionCensus(rows bridge.Buildings) (domain.Fact[policy.CurrentConstruction], error) {
+	return constructionRows(func(yield func(*o.BuildingState) bool) {
+		for row := range rows.Values() {
+			if row.GetStatus() == o.BuildingStatus_BUILDING_STATUS_BUILT && !yield(row) {
+				return
+			}
+		}
+	}, nil)
+}
+
+func constructionRows(rows iter.Seq[*o.BuildingState], ids []string) (domain.Fact[policy.CurrentConstruction], error) {
 	unknown := domain.Unknown[policy.CurrentConstruction]()
 	r := policy.CurrentConstruction{Colony: len(ids) == 0, Requested: append([]string{}, ids...), Buildings: []policy.CurrentBuilding{}}
-	for _, row := range v.Buildings {
+	for row := range rows {
 		stuff := row.GetStuff()
 		if row.Stuff == nil {
 			notApplicable := false
@@ -49,12 +68,21 @@ func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 // unfiltered buildings read) to a colony census: an applied building
 // intent with a site standing as its building is still open (#1355).
 func WithSites(census domain.Fact[policy.CurrentConstruction], v *o.BuildingsSnapshot) (domain.Fact[policy.CurrentConstruction], error) {
+	return withSiteRows(census, slices.Values(v.GetBuildings()))
+}
+
+// WithSiteRows is WithSites reading a building table.
+func WithSiteRows(census domain.Fact[policy.CurrentConstruction], rows bridge.Buildings) (domain.Fact[policy.CurrentConstruction], error) {
+	return withSiteRows(census, rows.Values())
+}
+
+func withSiteRows(census domain.Fact[policy.CurrentConstruction], rows iter.Seq[*o.BuildingState]) (domain.Fact[policy.CurrentConstruction], error) {
 	r, known := census.Value()
 	if !known || !r.Colony {
 		return census, nil
 	}
 	r.Sites = []policy.ConstructionSite{}
-	for _, row := range v.GetBuildings() {
+	for row := range rows {
 		stage, ok := siteStages[row.GetStatus()]
 		if !ok || row.GetBuildDefName() == "" {
 			continue
@@ -72,12 +100,21 @@ func WithSites(census domain.Fact[policy.CurrentConstruction], v *o.BuildingsSna
 // blueprints and frames are still owed (ConstructionState.resources[]
 // still_needed). Unknown without the read or when any row's need is.
 func ConstructionDeficit(v *o.BuildingsSnapshot) domain.Fact[map[policy.Resource]int64] {
-	unknown := domain.Unknown[map[policy.Resource]int64]()
 	if v == nil {
-		return unknown
+		return domain.Unknown[map[policy.Resource]int64]()
 	}
+	return deficitRows(slices.Values(v.Buildings))
+}
+
+// ConstructionDeficitRows is ConstructionDeficit reading a building table.
+func ConstructionDeficitRows(rows bridge.Buildings) domain.Fact[map[policy.Resource]int64] {
+	return deficitRows(rows.Values())
+}
+
+func deficitRows(rows iter.Seq[*o.BuildingState]) domain.Fact[map[policy.Resource]int64] {
+	unknown := domain.Unknown[map[policy.Resource]int64]()
 	out := map[policy.Resource]int64{}
-	for _, row := range v.Buildings {
+	for row := range rows {
 		switch row.GetStatus() {
 		case o.BuildingStatus_BUILDING_STATUS_BLUEPRINT, o.BuildingStatus_BUILDING_STATUS_FRAME:
 		default:

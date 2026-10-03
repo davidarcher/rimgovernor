@@ -174,12 +174,8 @@ func (r *RoutineReviewer) publishFrame(expected observation.Identity, frame brid
 	}
 	generation, _ := expected.NativeGeneration.Value()
 	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generation)}
-	if frame.Tables.Pawns != nil {
-		publishPawns(r.store, scope, frame.Tables.Pawns, frame.Context.GetTick())
-	}
-	if frame.Tables.Things != nil {
-		publishThings(r.store, scope, frame.Tables.Things, frame.Context.GetTick())
-	}
+	publishPawns(r.store, scope, frame.Tables.Pawns, frame.Context.GetTick())
+	publishThings(r.store, scope, frame.Tables.Things, frame.Context.GetTick())
 	if frame.Colony != nil {
 		r.census.rememberColony(publishColony(r.store, scope, frame.Colony))
 	}

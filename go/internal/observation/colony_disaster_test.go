@@ -16,7 +16,7 @@ import (
 func heads(refs ...*o.EntityRef) bridge.Tables {
 	things := bridge.Things{}
 	for _, ref := range refs {
-		things[ref.GetId()] = &o.Thing{Thing: ref}
+		things = things.With(ref.GetId(), &o.Thing{Thing: ref})
 	}
 	return bridge.Tables{Things: things}
 }
@@ -29,7 +29,7 @@ func buildingRows(rows ...*o.BuildingState) bridge.Buildings {
 func TestColonyDisasterPreservesServiceUnknowns(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{Context: &c.ObservationContext{Tick: proto.Int64(12)}, Environment: []*o.EnvironmentCondition{{Id: proto.String("1"), DefName: proto.String("ColdSnap")}}}
 	f := policy.RoutineFacts{}
-	colonyDisaster(v, &f, nil)
+	colonyDisaster(v, &f, bridge.Buildings{})
 	if rows, k := f.DisasterConditions.Value(); !k || len(rows) != 1 || f.DisasterTick != 12 {
 		t.Fatal(f)
 	}
@@ -40,7 +40,7 @@ func TestColonyDisasterPreservesServiceUnknowns(t *testing.T) {
 	v.Recovery = &o.RecoveryReply{Outcome: &o.RecoveryReply_Observed{Observed: &o.RecoverySnapshot{Buildings: []*c.Ref{bridge.NewRef(b.Building.GetId())}}}}
 	table := buildingRows(b)
 	f = policy.RoutineFacts{}
-	colonyDisaster(v, &f, nil)
+	colonyDisaster(v, &f, bridge.Buildings{})
 	if _, k := f.RecoveryBuildings.Value(); k {
 		t.Fatal("an unresolved building reference became a known census")
 	}
@@ -61,7 +61,7 @@ func TestColonyDisasterPreservesServiceUnknowns(t *testing.T) {
 	v.Environment = nil
 	v.Issues = []*o.ReadIssue{{Field: proto.String("environment")}}
 	f = policy.RoutineFacts{}
-	colonyDisaster(v, &f, nil)
+	colonyDisaster(v, &f, bridge.Buildings{})
 	if _, k := f.DisasterConditions.Value(); k {
 		t.Fatal("missing environment became clear")
 	}
@@ -75,7 +75,7 @@ func TestColonyDisasterCarriesRemainingTicks(t *testing.T) {
 		{Id: proto.String("4"), DefName: proto.String("Eclipse")},
 	}}
 	f := policy.RoutineFacts{}
-	colonyDisaster(v, &f, nil)
+	colonyDisaster(v, &f, bridge.Buildings{})
 	rows, k := f.DisasterConditions.Value()
 	if !k || len(rows) != 4 {
 		t.Fatal(rows, k)

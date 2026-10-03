@@ -80,18 +80,34 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 			return contract("unexpected building")
 		}
 		seen[row.Building.GetId()] = true
-		e := row.Building
-		if e.DefName == nil || e.MapId == nil || e.Position == nil || pawnsEntity(e, v.Context) != nil || row.GetStatus() != o.BuildingStatus_BUILDING_STATUS_BUILT || row.Rotation == nil || row.Stuff != nil && validID(row.GetStuff()) != nil {
-			return contract("invalid building identity or geometry")
-		}
-		switch row.GetRotation() {
-		case p.Rotation_ROTATION_NORTH, p.Rotation_ROTATION_EAST, p.Rotation_ROTATION_SOUTH, p.Rotation_ROTATION_WEST:
-		default:
-			return contract("invalid building rotation")
-		}
-		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
+		if err := validateConstructionRow(row, v.Context); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// checkBuiltRow validates a building table row as the construction census
+// reads it: a built row against ValidateConstructionBuildings' row rules,
+// any other status unchecked.
+func checkBuiltRow(row *o.BuildingState, ctx *c.ObservationContext) error {
+	if row.GetStatus() != o.BuildingStatus_BUILDING_STATUS_BUILT {
+		return nil
+	}
+	return validateConstructionRow(row, ctx)
+}
+
+// validateConstructionRow is one built player building's identity,
+// geometry and issue checks.
+func validateConstructionRow(row *o.BuildingState, ctx *c.ObservationContext) error {
+	e := row.Building
+	if e.GetDefName() == "" && e.DefName == nil || e.MapId == nil || e.Position == nil || pawnsEntity(e, ctx) != nil || row.GetStatus() != o.BuildingStatus_BUILDING_STATUS_BUILT || row.Rotation == nil || row.Stuff != nil && validID(row.GetStuff()) != nil {
+		return contract("invalid building identity or geometry")
+	}
+	switch row.GetRotation() {
+	case p.Rotation_ROTATION_NORTH, p.Rotation_ROTATION_EAST, p.Rotation_ROTATION_SOUTH, p.Rotation_ROTATION_WEST:
+	default:
+		return contract("invalid building rotation")
+	}
+	return pawnsIssues(row.Issues, row.ProtoReflect())
 }

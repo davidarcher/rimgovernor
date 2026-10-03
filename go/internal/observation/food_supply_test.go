@@ -27,7 +27,7 @@ func foodFixture(t *testing.T) (*o.FoodSupplyFacts, bridge.Things) {
 	}
 	things := bridge.Things{}
 	for _, row := range table.Things {
-		things[row.Thing.GetId()] = row
+		things = things.With(row.Thing.GetId(), row)
 	}
 	return supply, things
 }
@@ -51,7 +51,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	if days, known := forecast.RunwayDays.Value(); err != nil || !known || days != 1 || forecast.InventoryNutrition != 4 || forecast.UsableNutrition != 7 {
 		t.Fatal(forecast, err)
 	}
-	things["rice"].RotTicks = nil
+	things.At("rice").RotTicks = nil
 	supply, err = decodeFood(t, wire, things)
 	if err != nil {
 		t.Fatal("optional unknown deadline rejected", err)
@@ -59,7 +59,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	if _, err = policy.ForecastFood(supply, nil); err == nil {
 		t.Fatal("unknown deadline certified food")
 	}
-	things["rice"].RotTicks = proto.Int64(60000)
+	things.At("rice").RotTicks = proto.Int64(60000)
 	wire.Stocks[1].Eaters = append(wire.Stocks[1].Eaters, bridge.NewRef("b"))
 	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("shared private inventory accepted")
@@ -69,7 +69,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 // A food stock the things table misses leaves the supply unknown (#1343).
 func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
 	wire, things := foodFixture(t)
-	delete(things, "rice")
+	things = things.Without("rice")
 	if _, known, err := DecodeFoodSupply(wire, things); err != nil || known {
 		t.Fatal("an unresolved stock was decided", known, err)
 	}
@@ -77,7 +77,7 @@ func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
 
 func TestCorpseSupplyProjectionPreservesReserveAndYield(t *testing.T) {
 	wire, things := foodFixture(t)
-	row := things["rice"]
+	row := things.At("rice")
 	row.Corpse = proto.Bool(true)
 	row.Forbidden = proto.Bool(true)
 	row.StackCount = proto.Int64(1)
@@ -105,17 +105,17 @@ func TestCorpseSupplyProjectionPreservesReserveAndYield(t *testing.T) {
 
 func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
 	wire, things := foodFixture(t)
-	things["rice"].Thing.DefName = proto.String("Pemmican")
+	things.At("rice").Thing.DefName = proto.String("Pemmican")
 	wire.Stocks[0].Reserve = proto.Bool(true)
 	supply, err := decodeFood(t, wire, things)
 	if err != nil || !supply.Stocks[0].Reserve {
 		t.Fatal(supply, err)
 	}
-	things["rice"].Thing.DefName = proto.String("Rice")
+	things.At("rice").Thing.DefName = proto.String("Rice")
 	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("ordinary food accepted as reserve")
 	}
-	things["rice"].Thing.DefName = proto.String("Pemmican")
+	things.At("rice").Thing.DefName = proto.String("Pemmican")
 	wire.Stocks[0].Holder = wire.Stocks[0].Eaters[0]
 	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
 		t.Fatal("held inventory accepted as reserve")

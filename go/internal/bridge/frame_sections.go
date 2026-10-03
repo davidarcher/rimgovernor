@@ -1,8 +1,6 @@
 package bridge
 
 import (
-	"slices"
-
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -72,22 +70,20 @@ var elidedSections = map[string]elidedSection{
 // keyedTable is one held keyed table (#1348, #1578): pawns, buildings or
 // things. Native carries it as a keyframe, every row, or as a delta
 // against the table published at the watermark's base_seq: the rows whose
-// hash changed and the ids that left. The hold keeps one persistent table
-// per family and a delta updates it in place and validates only its
-// changed rows, so ingesting a delta frame is O(changed rows); only a
-// keyframe visits every row. Consumers read the table through frozen
-// copies (rowTable.freeze), built on the first read after a change and
-// shared by every reader of that version.
+// hash changed and the ids that left. The hold keeps one persistent Table
+// per family; a delta yields the next version in O(changed rows), sharing
+// every other row with the last, and validates only its changed rows.
+// Consumers read versions of the table directly (heldTables); a version is
+// immutable, so one kept across frames never changes.
 type keyedTable interface {
 	seq() uint64
 	// load replaces the table with a keyframe's rows and envelope.
 	load(m proto.Message, seq uint64, ctx *c.ObservationContext)
-	// apply updates the table in place with a delta.
+	// apply applies a delta.
 	apply(m proto.Message, seq uint64, ctx *c.ObservationContext)
-	// view is the table at ctx as the family's snapshot message. Its row
-	// slice is the table's own: valid until the next apply, so only the
-	// frame being decoded reads it.
-	view(ctx *c.ObservationContext) proto.Message
+	// meta is the section's envelope at ctx, without rows: the frame's
+	// marker that the table was carried.
+	meta(ctx *c.ObservationContext) proto.Message
 	// err is the first invalid row, nil when every row is valid.
 	err() error
 }
@@ -103,21 +99,21 @@ var keyedSections = map[string]keyedSection{
 		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.Pawns) },
 		set: func(v *o.BundleSnapshot, m proto.Message) { v.Pawns, _ = m.(*o.PawnSnapshot) },
 		table: func() keyedTable {
-			return &pawnTable{rows: newRowTable(func(r *o.PawnState) string { return r.GetPawn().GetId() }, checkPawnRow)}
+			return &pawnTable{rows: newHeldRows(func(r *o.PawnState) string { return r.GetPawn().GetId() }, checkPawnRow)}
 		},
 	},
 	"buildings": {
 		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.Buildings) },
 		set: func(v *o.BundleSnapshot, m proto.Message) { v.Buildings, _ = m.(*o.BuildingsSnapshot) },
 		table: func() keyedTable {
-			return &buildingTable{rows: newRowTable(func(r *o.BuildingState) string { return r.GetBuilding().GetId() }, nil)}
+			return &buildingTable{rows: newHeldRows(func(r *o.BuildingState) string { return r.GetBuilding().GetId() }, checkBuiltRow)}
 		},
 	},
 	"things": {
 		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.Things) },
 		set: func(v *o.BundleSnapshot, m proto.Message) { v.Things, _ = m.(*o.ThingsSnapshot) },
 		table: func() keyedTable {
-			return &thingTable{rows: newRowTable(func(r *o.Thing) string { return r.GetThing().GetId() }, ValidThing)}
+			return &thingTable{rows: newHeldRows(func(r *o.Thing) string { return r.GetThing().GetId() }, ValidThing)}
 		},
 	},
 }
@@ -130,11 +126,11 @@ func checkPawnRow(row *o.PawnState, ctx *c.ObservationContext) error {
 		map[string]bool{row.GetPawn().GetId(): true}, tableDetails)
 }
 
-// pawnTable, buildingTable and thingTable hold the rows by id and the
-// section's other fields as the last carrying frame set them (every delta
-// carries them).
+// pawnTable, buildingTable and thingTable hold the rows and the section's
+// other fields as the last carrying frame set them (every delta carries
+// them).
 type pawnTable struct {
-	rows         *rowTable[o.PawnState]
+	rows         *heldRows[o.PawnState]
 	at           uint64
 	completeness *o.Completeness
 	meditate     *bool
@@ -152,24 +148,20 @@ func (t *pawnTable) apply(m proto.Message, seq uint64, ctx *c.ObservationContext
 	t.at, t.completeness, t.meditate = seq, s.Completeness, s.MeditateAssignmentAvailable
 	t.rows.apply(s.Pawns, s.Removed, ctx)
 }
-func (t *pawnTable) view(ctx *c.ObservationContext) proto.Message {
-	return &o.PawnSnapshot{Context: ctx, Completeness: t.completeness, MeditateAssignmentAvailable: t.meditate, Pawns: t.rows.list()}
-}
-
-// frozen is the table at ctx with its own row slice, safe to keep.
-func (t *pawnTable) frozen(ctx *c.ObservationContext) *o.PawnSnapshot {
-	return &o.PawnSnapshot{Context: ctx, Completeness: t.completeness, MeditateAssignmentAvailable: t.meditate, Pawns: t.rows.freeze().list}
+func (t *pawnTable) meta(ctx *c.ObservationContext) proto.Message { return t.envelope(ctx) }
+func (t *pawnTable) envelope(ctx *c.ObservationContext) *o.PawnSnapshot {
+	return &o.PawnSnapshot{Context: ctx, Completeness: t.completeness, MeditateAssignmentAvailable: t.meditate}
 }
 
 type buildingTable struct {
-	rows         *rowTable[o.BuildingState]
+	rows         *heldRows[o.BuildingState]
 	at           uint64
 	completeness *o.Completeness
 	power        []*o.PowerNetwork
 }
 
 func (t *buildingTable) seq() uint64 { return t.at }
-func (t *buildingTable) err() error  { return nil }
+func (t *buildingTable) err() error  { return t.rows.err() }
 func (t *buildingTable) load(m proto.Message, seq uint64, ctx *c.ObservationContext) {
 	s := m.(*o.BuildingsSnapshot)
 	t.at, t.completeness, t.power = seq, s.Completeness, s.PowerNetworks
@@ -180,17 +172,13 @@ func (t *buildingTable) apply(m proto.Message, seq uint64, ctx *c.ObservationCon
 	t.at, t.completeness, t.power = seq, s.Completeness, s.PowerNetworks
 	t.rows.apply(s.Buildings, s.Removed, ctx)
 }
-func (t *buildingTable) view(ctx *c.ObservationContext) proto.Message {
-	return &o.BuildingsSnapshot{Context: ctx, PowerNetworks: t.power, Completeness: t.completeness, Buildings: t.rows.list()}
-}
-
-// frozen is the table at ctx with its own row slice, safe to keep.
-func (t *buildingTable) frozen(ctx *c.ObservationContext) *o.BuildingsSnapshot {
-	return &o.BuildingsSnapshot{Context: ctx, PowerNetworks: t.power, Completeness: t.completeness, Buildings: t.rows.freeze().list}
+func (t *buildingTable) meta(ctx *c.ObservationContext) proto.Message { return t.envelope(ctx) }
+func (t *buildingTable) envelope(ctx *c.ObservationContext) *o.BuildingsSnapshot {
+	return &o.BuildingsSnapshot{Context: ctx, PowerNetworks: t.power, Completeness: t.completeness}
 }
 
 type thingTable struct {
-	rows *rowTable[o.Thing]
+	rows *heldRows[o.Thing]
 	at   uint64
 }
 
@@ -205,35 +193,25 @@ func (t *thingTable) apply(m proto.Message, seq uint64, ctx *c.ObservationContex
 	t.at = seq
 	t.rows.apply(s.Things, s.Removed, ctx)
 }
-func (t *thingTable) view(ctx *c.ObservationContext) proto.Message {
-	return &o.ThingsSnapshot{Context: ctx, Things: t.rows.list()}
+func (t *thingTable) meta(ctx *c.ObservationContext) proto.Message {
+	return &o.ThingsSnapshot{Context: ctx}
 }
 
-// rowTable is a keyed row list updated in place: rows in first-seen order
-// with a slot per id; a removed row leaves a nil slot that list compacts.
-// A row with no id is kept in the list but is not addressable. check, when
-// set, validates each row as it arrives; bad holds the rows that failed.
-type rowTable[R any] struct {
-	id     func(*R) string
-	check  func(*R, *c.ObservationContext) error
-	rows   []*R
-	at     map[string]int
-	dead   int
-	bad    map[string]error
-	frozen *frozenRows[R]
+// heldRows is a keyed row table updated by delta. check, when set,
+// validates each row as it arrives; bad holds the rows that failed, by id.
+// A row with no id is not addressable and never enters the table.
+type heldRows[R any] struct {
+	id    func(*R) string
+	check func(*R, *c.ObservationContext) error
+	table Table[*R]
+	bad   map[string]error
 }
 
-// frozenRows is one version of a table, immutable once built.
-type frozenRows[R any] struct {
-	list []*R
-	byID map[string]*R
+func newHeldRows[R any](id func(*R) string, check func(*R, *c.ObservationContext) error) *heldRows[R] {
+	return &heldRows[R]{id: id, check: check, bad: map[string]error{}}
 }
 
-func newRowTable[R any](id func(*R) string, check func(*R, *c.ObservationContext) error) *rowTable[R] {
-	return &rowTable[R]{id: id, check: check, at: map[string]int{}, bad: map[string]error{}}
-}
-
-func (t *rowTable[R]) checkRow(k string, r *R, ctx *c.ObservationContext) {
+func (t *heldRows[R]) checkRow(k string, r *R, ctx *c.ObservationContext) {
 	delete(t.bad, k)
 	if t.check != nil {
 		if err := t.check(r, ctx); err != nil {
@@ -242,96 +220,38 @@ func (t *rowTable[R]) checkRow(k string, r *R, ctx *c.ObservationContext) {
 	}
 }
 
-// load replaces the table with rows, copying the slice: the caller's
-// frame keeps its own.
-func (t *rowTable[R]) load(rows []*R, ctx *c.ObservationContext) {
-	t.rows, t.dead, t.frozen = slices.Clone(rows), 0, nil
-	t.at, t.bad = make(map[string]int, len(rows)), map[string]error{}
-	for i, r := range t.rows {
+// load replaces the table with rows.
+func (t *heldRows[R]) load(rows []*R, ctx *c.ObservationContext) {
+	t.table, t.bad = Table[*R]{}, map[string]error{}
+	for _, r := range rows {
 		k := t.id(r)
-		if _, dup := t.at[k]; dup && k != "" {
+		if k != "" && t.table.Has(k) {
 			t.bad["duplicate "+k] = contract("duplicate row %q", k)
 		}
-		if k != "" {
-			t.at[k] = i
-		}
 		t.checkRow(k, r, ctx)
+		if k != "" {
+			t.table = t.table.Set(k, r)
+		}
 	}
 }
 
-// apply drops the removed ids, replaces each changed row of a held id in
-// place and appends the others.
-func (t *rowTable[R]) apply(changed []*R, removed []string, ctx *c.ObservationContext) {
-	t.frozen = nil
+// apply drops the removed ids and sets the changed rows.
+func (t *heldRows[R]) apply(changed []*R, removed []string, ctx *c.ObservationContext) {
 	for _, k := range removed {
-		if i, ok := t.at[k]; ok {
-			t.rows[i] = nil
-			delete(t.at, k)
-			delete(t.bad, k)
-			t.dead++
-		}
+		t.table = t.table.Delete(k)
+		delete(t.bad, k)
 	}
 	for _, r := range changed {
 		k := t.id(r)
 		t.checkRow(k, r, ctx)
-		if i, ok := t.at[k]; ok && k != "" {
-			t.rows[i] = r
-			continue
-		}
 		if k != "" {
-			t.at[k] = len(t.rows)
-		}
-		t.rows = append(t.rows, r)
-	}
-}
-
-// list is the live rows. It compacts removed slots first (O(rows), only
-// after a removal) and otherwise shares the table's slice without copying.
-func (t *rowTable[R]) list() []*R {
-	if t.dead > 0 {
-		out := t.rows[:0]
-		for _, r := range t.rows {
-			if r != nil {
-				if k := t.id(r); k != "" {
-					t.at[k] = len(out)
-				}
-				out = append(out, r)
-			}
-		}
-		clear(t.rows[len(out):])
-		t.rows, t.dead = out, 0
-	}
-	return t.rows
-}
-
-// lookup is the live row of id.
-func (t *rowTable[R]) lookup(id string) (*R, bool) {
-	i, ok := t.at[id]
-	if !ok {
-		return nil, false
-	}
-	return t.rows[i], true
-}
-
-// pick is the live rows of the ids in table order.
-func (t *rowTable[R]) pick(ids map[string]bool) []*R {
-	t.list()
-	var at []int
-	for k := range ids {
-		if i, ok := t.at[k]; ok {
-			at = append(at, i)
+			t.table = t.table.Set(k, r)
 		}
 	}
-	slices.Sort(at)
-	out := make([]*R, len(at))
-	for n, i := range at {
-		out[n] = t.rows[i]
-	}
-	return out
 }
 
 // err is the first invalid row in id order, nil when all are valid.
-func (t *rowTable[R]) err() error {
+func (t *heldRows[R]) err() error {
 	var first string
 	var err error
 	for k, e := range t.bad {
@@ -342,33 +262,82 @@ func (t *rowTable[R]) err() error {
 	return err
 }
 
-// freeze is the table's current version as a copy no later apply touches,
-// built once per version (O(rows) pointer copies) however many readers ask.
-func (t *rowTable[R]) freeze() *frozenRows[R] {
-	if t.frozen == nil {
-		list := slices.Clone(t.list())
-		byID := make(map[string]*R, len(list))
-		for _, r := range list {
-			if k := t.id(r); k != "" {
-				byID[k] = r
-			}
-		}
-		t.frozen = &frozenRows[R]{list: list, byID: byID}
-	}
-	return t.frozen
+// heldTables are the hold's keyed tables as of one frame: versions the
+// reader may keep. A table the frame does not carry is empty; its meta is
+// nil. err is the first invalid pawn or thing row.
+type heldTables struct {
+	pawns      Pawns
+	pawnMeta   *o.PawnSnapshot
+	pawnErr    error
+	buildings  Buildings
+	buildMeta  *o.BuildingsSnapshot
+	buildErr   error
+	things     Things
+	thingsMeta *o.ThingsSnapshot
+	thingErr   error
 }
 
-// pawnRows is the held pawn table's live rows for a lookup within the
-// frame being decoded; the zero value is an empty table.
-type pawnRows struct{ t *pawnTable }
-
-// Row is ref's canonical row, false when the table does not hold it.
-func (p pawnRows) Row(ref Reference) (*o.PawnState, bool) {
-	if p.t == nil {
-		return nil, false
+// err is the first invalid pawn or thing row.
+func (t heldTables) err() error {
+	if t.pawnErr != nil {
+		return t.pawnErr
 	}
-	row, ok := p.t.rows.lookup(ref.GetId())
-	return row, ok && row != nil
+	return t.thingErr
+}
+
+// heldAt is the hold's keyed tables at ctx: O(1), nothing is copied.
+func (h *sectionHold) heldAt(ctx *c.ObservationContext) heldTables {
+	var out heldTables
+	if t := h.pawnTable(); t != nil {
+		out.pawns, out.pawnMeta, out.pawnErr = Pawns{t.rows.table}, t.envelope(ctx), t.err()
+	}
+	if t := h.buildingTable(); t != nil {
+		out.buildings, out.buildMeta, out.buildErr = Buildings{t.rows.table}, t.envelope(ctx), t.err()
+	}
+	if t := h.thingTable(); t != nil {
+		out.things, out.thingsMeta, out.thingErr = Things{t.rows.table}, &o.ThingsSnapshot{Context: ctx}, t.err()
+	}
+	return out
+}
+
+// wholePawns is the pawn table as a list snapshot, for the readers of a
+// whole list (a step snapshot, a recording, the list reads): built per
+// call from the held table, or v's own list when no table is held. nil
+// when the frame carries none.
+func (t *heldTables) wholePawns(v *o.BundleSnapshot) proto.Message {
+	if t == nil {
+		return nilMessage(v.Pawns)
+	}
+	return nilMessage(t.pawnList())
+}
+
+// wholeBuildings is wholePawns for the building table.
+func (t *heldTables) wholeBuildings(v *o.BundleSnapshot) *o.BuildingsSnapshot {
+	if t == nil {
+		return v.Buildings
+	}
+	return t.buildingList()
+}
+
+// pawnList is the pawn table as a list snapshot in id order, nil when the
+// frame carries none.
+func (t heldTables) pawnList() *o.PawnSnapshot {
+	if t.pawnMeta == nil {
+		return nil
+	}
+	out := proto.Clone(t.pawnMeta).(*o.PawnSnapshot)
+	out.Pawns = t.pawns.Sorted()
+	return out
+}
+
+// buildingList is pawnList for the building table.
+func (t heldTables) buildingList() *o.BuildingsSnapshot {
+	if t.buildMeta == nil {
+		return nil
+	}
+	out := proto.Clone(t.buildMeta).(*o.BuildingsSnapshot)
+	out.Buildings = t.buildings.Sorted()
+	return out
 }
 
 // nilMessage keeps a typed nil section from becoming a non-nil interface.
@@ -454,13 +423,14 @@ func (h *sectionHold) fillKeyed(v *o.BundleSnapshot, w *o.SectionWatermark, k ke
 		t := k.table()
 		t.load(m, w.GetSeq(), ctx)
 		h.tables[name] = t
+		k.set(v, t.meta(ctx))
 		return true
 	case m != nil && kept != nil && kept.seq() == w.GetBaseSeq():
 		kept.apply(m, w.GetSeq(), ctx)
-		k.set(v, kept.view(ctx))
+		k.set(v, kept.meta(ctx))
 		return true
 	case m == nil && kept != nil && kept.seq() == w.GetSeq():
-		k.set(v, kept.view(ctx))
+		k.set(v, kept.meta(ctx))
 		return true
 	}
 	delete(h.tables, name)

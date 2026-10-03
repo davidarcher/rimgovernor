@@ -17,7 +17,7 @@ func TestCombatFrameInputsPendingPodsIsAFight(t *testing.T) {
 	t.Parallel()
 	combat := bridge.Combat{
 		Emergency: bridge.EmergencyObservation{Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "rifle"}}}},
-		Detail:    map[string]*n.PawnState{"rifle": {}},
+		Detail:    bridge.PawnsFromMap(map[string]*n.PawnState{"rifle": {}}),
 	}
 	if _, reason, err := combatFrameInputs(combat, nil); err != nil || reason != BuildingMethodUsed {
 		t.Fatalf("no pods: reason %q err %v", reason, err)

@@ -28,7 +28,7 @@ func TestPawnSectionPublishesTable(t *testing.T) {
 	frame := func(pawns ...*o.PawnState) bridge.Pawns {
 		out := bridge.Pawns{}
 		for _, row := range pawns {
-			out[row.Pawn.GetId()] = row
+			out = out.With(row.Pawn.GetId(), row)
 		}
 		return out
 	}

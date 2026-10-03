@@ -23,8 +23,8 @@ func forecastFixture(t *testing.T) (*o.ColonyFactsReply, Identity, bridge.Tables
 		t.Fatal(err)
 	}
 	human, things := foodFixture(t)
-	things["rice"].Perishable = proto.Bool(false)
-	things["rice"].RotTicks = nil
+	things.At("rice").Perishable = proto.Bool(false)
+	things.At("rice").RotTicks = nil
 	combined := proto.Clone(human).(*o.FoodSupplyFacts)
 	combined.Consumers = append(combined.Consumers, &o.FoodConsumer{PawnId: proto.String("animal"), NutritionPerDay: proto.Float64(1)})
 	combined.Stocks[0].Eaters = append(combined.Stocks[0].Eaters, bridge.NewRef("animal"))

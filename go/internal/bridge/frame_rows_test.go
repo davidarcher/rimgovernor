@@ -31,44 +31,52 @@ func rowFrame(tick int64, buildings *o.BuildingsSnapshot, section string, seq ui
 	return v
 }
 
-func buildingHPs(v *o.BundleSnapshot) map[string]int32 {
+// heldHPs is the hold's building table as id to hit points, read through
+// the held version as a consumer reads it.
+func heldHPs(h *sectionHold) map[string]int32 {
 	out := map[string]int32{}
-	for _, b := range v.GetBuildings().GetBuildings() {
-		out[b.GetBuilding().GetId()] = b.GetHitPoints()
+	for id, b := range h.heldAt(nil).buildings.All() {
+		out[id] = b.GetHitPoints()
 	}
 	return out
 }
 
 // TestKeyedDeltaMergesAndTombstones (#1348): a delta's changed and new rows
 // replace or join the held table, its removed ids leave it, an omitted
-// unchanged table is the held one at the frame's tick, and a delta against
-// a base the hold does not have is a gap that drops the table.
+// unchanged table is the held one at the frame's tick, a delta against a
+// base the hold does not have is a gap that drops the table, and the
+// keyframe after the gap restores it. Versions a consumer took earlier are
+// never changed by a later delta.
 func TestKeyedDeltaMergesAndTombstones(t *testing.T) {
 	var h sectionHold
 	key := rowFrame(10, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 1), rowBuilding("b", 2), rowBuilding("c", 3)}}, "buildings", 1, false, 0)
-	if held, gap := h.fill(key); held != 0 || gap || len(key.Buildings.Buildings) != 3 {
-		t.Fatalf("keyframe held %d gap %v rows %d", held, gap, len(key.Buildings.Buildings))
+	if held, gap := h.fill(key); held != 0 || gap || len(heldHPs(&h)) != 3 {
+		t.Fatalf("keyframe held %d gap %v rows %v", held, gap, heldHPs(&h))
 	}
+	if key.Buildings == nil || len(key.Buildings.Buildings) != 0 {
+		t.Fatalf("a filled frame carries the table's envelope, not its rows: %v", key.Buildings)
+	}
+	first := h.heldAt(nil).buildings
 	delta := rowFrame(11, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("b", 20), rowBuilding("d", 4)}, Removed: []string{"c"}}, "buildings", 2, true, 1)
 	if held, gap := h.fill(delta); held != 1 || gap {
 		t.Fatalf("delta held %d gap %v", held, gap)
 	}
-	got := buildingHPs(delta)
+	got := heldHPs(&h)
 	if len(got) != 3 || got["a"] != 1 || got["b"] != 20 || got["d"] != 4 {
 		t.Fatalf("merged %v, want a=1 b=20 d=4", got)
 	}
 	if delta.Buildings.Context.GetTick() != 11 {
 		t.Fatalf("merged table at tick %d, want the frame's 11", delta.Buildings.Context.GetTick())
 	}
-	if len(key.Buildings.Buildings) != 3 || buildingHPs(key)["b"] != 2 {
-		t.Fatal("the keyframe's table was mutated by the merge")
+	if first.Len() != 3 || first.At("b").GetHitPoints() != 2 || first.Has("d") || !first.Has("c") {
+		t.Fatal("an earlier version changed under a later delta")
 	}
 	same := rowFrame(12, nil, "buildings", 2, false, 0)
-	if held, gap := h.fill(same); held != 1 || gap || len(buildingHPs(same)) != 3 || same.Buildings.Context.GetTick() != 12 {
-		t.Fatalf("omitted table held %d gap %v rows %v", held, gap, buildingHPs(same))
+	if held, gap := h.fill(same); held != 1 || gap || len(heldHPs(&h)) != 3 || same.Buildings.Context.GetTick() != 12 {
+		t.Fatalf("omitted table held %d gap %v rows %v", held, gap, heldHPs(&h))
 	}
 	skipped := rowFrame(14, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 9)}}, "buildings", 4, true, 3)
-	if _, gap := h.fill(skipped); !gap || skipped.Buildings != nil {
+	if _, gap := h.fill(skipped); !gap || skipped.Buildings != nil || len(heldHPs(&h)) != 0 {
 		t.Fatalf("delta past a skipped frame: gap %v table %v", gap, skipped.Buildings)
 	}
 	later := rowFrame(15, nil, "buildings", 4, false, 0)
@@ -76,8 +84,8 @@ func TestKeyedDeltaMergesAndTombstones(t *testing.T) {
 		t.Fatalf("omission after a gap: gap %v table %v", gap, later.Buildings)
 	}
 	rekey := rowFrame(16, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 9)}}, "buildings", 5, false, 0)
-	if _, gap := h.fill(rekey); gap || len(rekey.Buildings.Buildings) != 1 {
-		t.Fatalf("keyframe after the gap: gap %v", gap)
+	if _, gap := h.fill(rekey); gap || len(heldHPs(&h)) != 1 {
+		t.Fatalf("keyframe after the gap: gap %v rows %v", gap, heldHPs(&h))
 	}
 }
 
@@ -112,49 +120,42 @@ func TestKeyedDeltaMergesPawnsAndThings(t *testing.T) {
 	if held, gap := h.fill(v); held != 2 || gap {
 		t.Fatalf("held %d gap %v", held, gap)
 	}
-	if len(v.Pawns.Pawns) != 2 || v.Pawns.Pawns[0].Pawn.GetId() != "p2" || v.Pawns.Pawns[1].Pawn.GetId() != "p3" {
-		t.Fatalf("pawns %v", v.Pawns.Pawns)
+	tables := h.heldAt(ctx(2))
+	if tables.pawns.Len() != 2 || tables.pawns.Has("p1") || !tables.pawns.Has("p2") || !tables.pawns.Has("p3") {
+		t.Fatalf("pawns %v", tables.pawns.Keys())
 	}
-	if len(v.Things.Things) != 1 || v.Things.Things[0].GetStackCount() != 50 {
-		t.Fatalf("things %v", v.Things.Things)
+	if tables.things.Len() != 1 || tables.things.At("t1").GetStackCount() != 50 {
+		t.Fatalf("things %v", tables.things.Keys())
 	}
 }
 
-// TestRowTableUpdatesInPlace (#1578): a delta frame touches only its
-// changed rows. The held table's slots are updated in place, an unchanged
-// row keeps its pointer, a delta without removals shares the table's slice
-// instead of copying it, and a removal re-added in the same delta moves to
-// the end.
-func TestRowTableUpdatesInPlace(t *testing.T) {
-	var h sectionHold
-	rows := make([]*o.BuildingState, 1000)
-	for i := range rows {
-		rows[i] = rowBuilding(fmt.Sprintf("b%d", i), 1)
-	}
-	h.fill(rowFrame(1, &o.BuildingsSnapshot{Buildings: rows}, "buildings", 1, false, 0))
-	for seq := uint64(2); seq < 12; seq++ {
-		v := rowFrame(int64(seq), &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("b7", int32(seq))}}, "buildings", seq, true, seq-1)
-		h.fill(v)
-		got := v.Buildings.Buildings
-		if len(got) != 1000 || got[7].GetHitPoints() != int32(seq) || got[0] != rows[0] {
-			t.Fatalf("seq %d: rows %d b7 %d", seq, len(got), got[7].GetHitPoints())
+// TestHeldTableDeltaCostIsIndependentOfSize (#1578): applying a one-row
+// delta allocates the same few trie nodes whether the held table has 100
+// rows or 100000, and leaves the earlier version intact.
+func TestHeldTableDeltaCostIsIndependentOfSize(t *testing.T) {
+	cost := func(rows int) float64 {
+		var h sectionHold
+		all := make([]*o.BuildingState, rows)
+		for i := range all {
+			all[i] = rowBuilding(fmt.Sprintf("b%d", i), 1)
 		}
+		h.fill(rowFrame(1, &o.BuildingsSnapshot{Buildings: all}, "buildings", 1, false, 0))
+		table := h.buildingTable()
+		before := table.rows.table
+		n := 0
+		allocs := testing.AllocsPerRun(50, func() {
+			n++
+			table.rows.apply([]*o.BuildingState{rowBuilding(fmt.Sprintf("b%d", n%rows), int32(n))}, nil, nil)
+		})
+		if before.Len() != rows || before.At("b0").GetHitPoints() != 1 {
+			t.Fatal("the version taken before the deltas changed")
+		}
+		return allocs
 	}
-	if rows[7].GetHitPoints() != 1 {
-		t.Fatal("the keyframe's own rows were touched")
-	}
-	v := rowFrame(20, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("b1", 5)}, Removed: []string{"b1", "b2"}}, "buildings", 12, true, 11)
-	h.fill(v)
-	got := v.Buildings.Buildings
-	if len(got) != 999 || got[len(got)-1].GetBuilding().GetId() != "b1" || got[1].GetBuilding().GetId() != "b3" {
-		t.Fatalf("remove and re-add: %d rows, first ids %s %s", len(got), got[0].GetBuilding().GetId(), got[1].GetBuilding().GetId())
-	}
-	table := h.tables["buildings"].(*buildingTable).rows
-	if allocs := testing.AllocsPerRun(100, func() {
-		table.apply([]*o.BuildingState{rows[3]}, nil, v.Context)
-		table.list()
-	}); allocs != 0 {
-		t.Fatalf("a one-row delta allocated %v times", allocs)
+	small, large := cost(100), cost(100000)
+	t.Logf("allocations per one-row delta: %.0f at 100 rows, %.0f at 100000", small, large)
+	if large > small+10 {
+		t.Fatalf("delta cost grew with the table: %.0f vs %.0f", small, large)
 	}
 }
 
@@ -163,8 +164,7 @@ func rowPawn(id string) *o.PawnState {
 }
 
 // TestHeldPawnTableValidatesChangedRows (#1578): rows are validated as they
-// arrive, a bad row fails the table until a delta replaces or removes it,
-// and a frozen copy handed to a reader never changes under a later delta.
+// arrive and a bad row fails the table until a delta replaces or removes it.
 func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
 	var h sectionHold
 	pawnFrame := func(tick int64, p *o.PawnSnapshot, seq uint64, delta bool, base uint64) *o.BundleSnapshot {
@@ -178,30 +178,22 @@ func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
 		return v
 	}
 	h.fill(pawnFrame(1, &o.PawnSnapshot{Pawns: []*o.PawnState{rowPawn("a"), rowPawn("b")}}, 1, false, 0))
-	if err := h.pawnTable().err(); err != nil {
+	if err := h.heldAt(nil).err(); err != nil {
 		t.Fatal(err)
 	}
-	ctx := &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1), NativeGeneration: proto.Uint64(7)}
-	first := h.pawnTable().frozen(ctx)
 	bad := rowPawn("b")
 	bad.AnimalState = &o.AnimalState{Contained: proto.Bool(false), MinimumHandlingSkill: proto.Int32(-1)}
 	h.fill(pawnFrame(2, &o.PawnSnapshot{Pawns: []*o.PawnState{bad, rowPawn("c")}}, 2, true, 1))
-	if h.pawnTable().err() == nil {
+	if h.heldAt(nil).err() == nil {
 		t.Fatal("an invalid changed row was accepted")
 	}
 	h.fill(pawnFrame(3, &o.PawnSnapshot{Removed: []string{"b"}}, 3, true, 2))
-	if err := h.pawnTable().err(); err != nil {
+	tables := h.heldAt(nil)
+	if err := tables.err(); err != nil {
 		t.Fatalf("after the bad row left: %v", err)
 	}
-	if len(first.Pawns) != 2 || first.Pawns[1].GetPawn().GetId() != "b" || first.Pawns[1].AnimalState != nil {
-		t.Fatalf("a frozen copy changed: %v", first.Pawns)
-	}
-	now := h.pawnTable().frozen(ctx)
-	if len(now.Pawns) != 2 || now.Pawns[0].GetPawn().GetId() != "a" || now.Pawns[1].GetPawn().GetId() != "c" {
-		t.Fatalf("held table %v", now.Pawns)
-	}
-	if again := h.pawnTable().frozen(ctx); &again.Pawns[0] != &now.Pawns[0] {
-		t.Fatal("the frozen copy was rebuilt without a change")
+	if got := tables.pawns.Keys(); len(got) != 2 || got[0] != "a" || got[1] != "c" {
+		t.Fatalf("held pawns %v", got)
 	}
 }
 
@@ -217,10 +209,10 @@ func TestFramesBuildNothingUnread(t *testing.T) {
 		return payload
 	}
 	rows := []*o.BuildingState{rowBuilding("a", 1), rowBuilding("b", 2)}
-	if _, _, _, _, gap, _, _, err := s.frameTable(frame(rowFrame(1, &o.BuildingsSnapshot{Buildings: rows}, "buildings", 1, false, 0))); err != nil || gap {
+	if _, _, _, _, _, gap, _, _, err := s.frameTable(frame(rowFrame(1, &o.BuildingsSnapshot{Buildings: rows}, "buildings", 1, false, 0))); err != nil || gap {
 		t.Fatal(err, gap)
 	}
-	table, _, _, _, _, _, _, err := s.frameTable(frame(rowFrame(2, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 9)}}, "buildings", 2, true, 1)))
+	table, _, _, _, _, _, _, _, err := s.frameTable(frame(rowFrame(2, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 9)}}, "buildings", 2, true, 1)))
 	if err != nil || len(table) == 0 {
 		t.Fatal(err, len(table))
 	}

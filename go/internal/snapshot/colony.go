@@ -85,7 +85,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 			if err := Decode(raw, &row); err != nil {
 				return fail(err)
 			}
-			tables.Buildings[row.GetBuilding().GetId()] = row
+			tables.Buildings.Table = tables.Buildings.Set(row.GetBuilding().GetId(), row)
 		}
 	}
 	if s := sections[string(facts.Pawns)]; s != nil {
@@ -94,7 +94,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 			if err := Decode(raw, &row); err != nil {
 				return fail(err)
 			}
-			tables.Pawns[row.GetPawn().GetId()] = row
+			tables.Pawns.Table = tables.Pawns.Set(row.GetPawn().GetId(), row)
 		}
 	}
 	if s := sections[bridge.ThingsSection]; s != nil {
@@ -103,7 +103,7 @@ func buildColony(sections map[string]*recSection) *colonyDecoded {
 			if err := Decode(raw, &row); err != nil {
 				return fail(err)
 			}
-			tables.Things[row.GetThing().GetId()] = row
+			tables.Things.Table = tables.Things.Set(row.GetThing().GetId(), row)
 		}
 	}
 	at := v.GetContext()

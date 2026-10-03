@@ -107,18 +107,19 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		p.Facts.Sleeping = domain.Known(sleeping)
 	}
 	p.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
-	if frame.Construction != nil {
-		if err := bridge.ValidateConstructionBuildings(frame.Construction, id, nil); err != nil {
+	p.Facts.ConstructionDeficit = domain.Unknown[map[policy.Resource]int64]()
+	if census := frame.Buildings; census != nil {
+		if census.Invalid != nil {
+			return RoutineReading{}, census.Invalid
+		}
+		if p.Facts.CurrentConstruction, err = ConstructionCensus(census.Rows); err != nil {
 			return RoutineReading{}, err
 		}
-		if p.Facts.CurrentConstruction, err = ConstructionBuildings(frame.Construction, nil); err != nil {
+		if p.Facts.CurrentConstruction, err = WithSiteRows(p.Facts.CurrentConstruction, census.Rows); err != nil {
 			return RoutineReading{}, err
 		}
-		if p.Facts.CurrentConstruction, err = WithSites(p.Facts.CurrentConstruction, frame.Sites); err != nil {
-			return RoutineReading{}, err
-		}
+		p.Facts.ConstructionDeficit = ConstructionDeficitRows(census.Rows)
 	}
-	p.Facts.ConstructionDeficit = ConstructionDeficit(frame.Sites)
 	p.Facts.BillReservations = BillReservations(frame.Bills)
 	pawns, err := routinePawns(frame, id)
 	if err != nil {

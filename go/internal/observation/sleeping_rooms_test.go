@@ -18,7 +18,7 @@ func TestSleepingProjectionMapsRoomsPartnersAndTitle(t *testing.T) {
 		Beds: []*o.UpkeepBed{{Bed: &commonpb.Ref{Id: proto.String("bed")}, Room: &commonpb.Ref{Id: proto.String("7")}, Quality: proto.String("Good"), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false)}},
 	}
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1), Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	if _, k := colonySleeping(v, nil).Value(); k {
+	if _, k := colonySleeping(v, bridge.Buildings{}).Value(); k {
 		t.Fatal("an unresolved bed became a known census")
 	}
 	r, known := colonySleeping(v, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("Bed")}})).Value()

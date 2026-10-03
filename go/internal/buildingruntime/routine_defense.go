@@ -326,7 +326,7 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	// targets while the frame shows none.
 	if len(in.hostileIDs)+len(in.buildings) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
 		for _, id := range huntPrey {
-			if row := combat.Detail[string(id)]; row != nil && boundary.FactBool(row.Dead) != domain.Known(true) {
+			if row, _ := combat.Detail.Get(string(id)); row != nil && boundary.FactBool(row.Dead) != domain.Known(true) {
 				in.prey = append(in.prey, string(id))
 			}
 		}
@@ -338,10 +338,10 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	}
 	in.rows = map[string]*n.PawnState{}
 	for _, pawn := range facts.Colonists {
-		in.rows[string(pawn.ID)] = combat.Detail[string(pawn.ID)]
+		in.rows[string(pawn.ID)], _ = combat.Detail.Get(string(pawn.ID))
 	}
 	for _, id := range append(slices.Clone(in.hostileIDs), in.prey...) {
-		in.rows[id] = combat.Detail[id]
+		in.rows[id], _ = combat.Detail.Get(id)
 	}
 	for _, row := range in.rows {
 		if row == nil {

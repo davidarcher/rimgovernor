@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"slices"
 	"testing"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -22,17 +23,16 @@ func TestDecodeRoutineFrameKeepsBlueprintSites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := func(v *o.BuildingsSnapshot) (out []string) {
-		for _, r := range v.GetBuildings() {
-			out = append(out, r.GetBuilding().GetId())
+	var sites, built []string
+	for id, r := range out.Buildings.Rows.All() {
+		sites = append(sites, id)
+		if r.GetStatus() == o.BuildingStatus_BUILDING_STATUS_BUILT {
+			built = append(built, id)
 		}
-		return out
 	}
-	if got := ids(out.Sites); len(got) != 3 || got[0] != "blueprint" || got[1] != "frame" {
-		t.Fatalf("sites %v", got)
-	}
-	if got := ids(out.Construction); len(got) != 1 || got[0] != "wall" {
-		t.Fatalf("construction %v", got)
+	slices.Sort(sites)
+	if len(sites) != 3 || sites[0] != "blueprint" || sites[1] != "frame" || len(built) != 1 || built[0] != "wall" {
+		t.Fatalf("sites %v built %v", sites, built)
 	}
 }
 

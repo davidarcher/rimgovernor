@@ -12,17 +12,54 @@ import (
 // every other section's building reference resolves against. A reference
 // the table does not hold waits for the next frame: the fact it feeds is
 // unknown until then.
-type Buildings map[string]*o.BuildingState
+type Buildings struct{ Table[*o.BuildingState] }
 
-// BuildingTable indexes v's rows by id; a nil v is an empty table.
-func BuildingTable(v *o.BuildingsSnapshot) Buildings {
-	out := make(Buildings, len(v.GetBuildings()))
-	for _, row := range v.GetBuildings() {
+// NewBuildings is the table of rows by their building id; a row with no
+// id is not addressable and is left out.
+func NewBuildings(rows ...*o.BuildingState) Buildings {
+	var t Table[*o.BuildingState]
+	for _, row := range rows {
 		if id := row.GetBuilding().GetId(); id != "" {
-			out[id] = row
+			t = t.Set(id, row)
+		}
+	}
+	return Buildings{t}
+}
+
+// BuildingCensusOf is the building census of a whole building snapshot:
+// its rows by id and the first invalid built row.
+func BuildingCensusOf(v *o.BuildingsSnapshot) *BuildingCensus {
+	if v == nil {
+		return nil
+	}
+	out := &BuildingCensus{Context: v.Context, Rows: BuildingTable(v)}
+	for _, row := range v.Buildings {
+		if out.Invalid = checkBuiltRow(row, v.Context); out.Invalid != nil {
+			break
 		}
 	}
 	return out
+}
+
+// With is the table with row added or replaced under id.
+func (b Buildings) With(id string, row *o.BuildingState) Buildings { return Buildings{b.Set(id, row)} }
+
+// Without is the table without id.
+func (b Buildings) Without(id string) Buildings { return Buildings{b.Delete(id)} }
+
+// BuildingCensus is a frame's player building table (the routine frame's
+// construction census): the held table version, the frame's context and
+// the first invalid built row, which fails any reader of the construction
+// census.
+type BuildingCensus struct {
+	Context *c.ObservationContext
+	Rows    Buildings
+	Invalid error
+}
+
+// BuildingTable indexes v's rows by id; a nil v is an empty table.
+func BuildingTable(v *o.BuildingsSnapshot) Buildings {
+	return NewBuildings(v.GetBuildings()...)
 }
 
 // Row is ref's canonical row, false when the table does not hold it or
@@ -32,11 +69,12 @@ func (b Buildings) Entity(ref Reference) *o.EntityRef {
 	if ref == nil {
 		return nil
 	}
-	return b[ref.GetId()].GetBuilding()
+	row, _ := b.Get(ref.GetId())
+	return row.GetBuilding()
 }
 
 func (b Buildings) Row(ref Reference) (*o.BuildingState, bool) {
-	row, ok := b[ref.GetId()]
+	row, ok := b.Get(ref.GetId())
 	if !ok || validBuildingService(row.GetService()) != nil || row.GetSettings() == nil {
 		return nil, false
 	}
@@ -83,7 +121,7 @@ func validBuildingService(s *o.BuildingServiceState) error {
 // player building list), or that list read over GABP without a stream.
 func (caller *Client) FrameBuildings(ctx context.Context, identity *c.Identity) (Buildings, error) {
 	if err := ValidateIdentity(identity); err != nil {
-		return nil, err
+		return Buildings{}, err
 	}
 	if caller.frames != nil {
 		held, err := caller.frameHeld(ctx, frameBuildingsMethod, identity)
@@ -93,23 +131,23 @@ func (caller *Client) FrameBuildings(ctx context.Context, identity *c.Identity) 
 	reply := &o.ListBuildingsReply{}
 	served, err := caller.frameRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 	if err != nil {
-		return nil, err
+		return Buildings{}, err
 	}
 	if !served {
 		raw, err := caller.protoRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 		if err != nil {
-			return nil, err
+			return Buildings{}, err
 		}
 		switch v := reply.Outcome.(type) {
 		case *o.ListBuildingsReply_Failure:
-			return nil, failure(v.Failure, raw)
+			return Buildings{}, failure(v.Failure, raw)
 		case *o.ListBuildingsReply_Unavailable:
-			return nil, unavailable(v.Unavailable, raw)
+			return Buildings{}, unavailable(v.Unavailable, raw)
 		}
 	}
 	observed := reply.GetObserved()
 	if observed == nil || ValidateContext(observed.Context) != nil || !sameIdentity(observed.Context.Identity, identity) {
-		return nil, contract("building table without the expected context")
+		return Buildings{}, contract("building table without the expected context")
 	}
 	return BuildingTable(observed), nil
 }

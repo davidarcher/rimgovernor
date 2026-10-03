@@ -30,18 +30,18 @@ func TestLanceUsersNeedAnAbleWearer(t *testing.T) {
 		lanceRow("pacifist", false, false, "Apparel_PsychicShockLance"),
 		lanceRow("insane", false, true, "Apparel_PsychicInsanityLance"),
 		lanceRow("wearer", false, true, "Apparel_Parka", "Apparel_PsychicShockLance"),
-	}, bridge.Things(lanceThings))
+	}, *lanceThings.things)
 	if len(users) != 1 || users[0].Pawn != "wearer" || users[0].Item != "Apparel_PsychicShockLance2" {
 		t.Fatalf("users = %+v", users)
 	}
 }
 
 // lanceThings is the things table lanceRow wear joins against.
-type lanceTable bridge.Things
+type lanceTable struct{ things *bridge.Things }
 
-var lanceThings = lanceTable{}
+var lanceThings = lanceTable{&bridge.Things{}}
 
 func (t lanceTable) ref(id, def string) *c.Ref {
-	t[id] = &n.Thing{Thing: &n.EntityRef{Id: proto.String(id), DefName: proto.String(def)}}
+	*t.things = t.things.With(id, &n.Thing{Thing: &n.EntityRef{Id: proto.String(id), DefName: proto.String(def)}})
 	return &c.Ref{Id: proto.String(id)}
 }

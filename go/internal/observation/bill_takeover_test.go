@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -13,7 +14,7 @@ import (
 func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), Worker: &commonpb.Ref{Id: proto.String("pawn")}, IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
 	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &commonpb.Ref{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
-	if _, k := colonyProductionBenches(snapshot, nil).Value(); k {
+	if _, k := colonyProductionBenches(snapshot, bridge.Buildings{}).Value(); k {
 		t.Fatal("an unresolved bench became a known census")
 	}
 	benches, known := colonyProductionBenches(snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()

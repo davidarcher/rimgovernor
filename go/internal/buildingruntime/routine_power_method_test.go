@@ -151,7 +151,7 @@ func TestRoutinePowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) 
 			case "skill":
 				n.pawnReply.GetObserved().Pawns[0].Biography.Skills[0].Level = proto.Int32(3)
 			case "switched":
-				n.buildings[v.Development.GetObserved().Power[0].Building.GetId()].Service.SwitchedOn = proto.Bool(false)
+				n.buildings.At(v.Development.GetObserved().Power[0].Building.GetId()).Service.SwitchedOn = proto.Bool(false)
 			case "flare":
 				v.Environment = []*o.EnvironmentCondition{{Id: proto.String("flare"), DefName: proto.String("SolarFlare")}}
 			default:

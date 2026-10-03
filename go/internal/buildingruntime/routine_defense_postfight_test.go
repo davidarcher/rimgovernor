@@ -29,7 +29,7 @@ func TestPostFightRaidersAndStripper(t *testing.T) {
 			postFightPawn("near", colonist, 12, false, ""),
 			postFightPawn("down", colonist, 10, true, ""),
 		},
-		Detail: map[string]*n.PawnState{"wolf": {Humanlike: proto.Bool(false)}},
+		Detail: bridge.PawnsFromMap(map[string]*n.PawnState{"wolf": {Humanlike: proto.Bool(false)}}),
 	}
 	raiders := downedRaiders(combat)
 	if len(raiders) != 2 || raiders[0].GetId() != "r1" || raiders[1].GetId() != "r2" {

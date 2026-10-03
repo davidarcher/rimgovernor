@@ -24,7 +24,7 @@ func TestCombatFrameInputsHuntOriginTargetsPrey(t *testing.T) {
 	dead.Dead = proto.Bool(true)
 	combat := bridge.Combat{
 		Emergency: bridge.EmergencyObservation{Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "rifle"}}}},
-		Detail:    map[string]*n.PawnState{"rifle": {Pawn: &n.EntityRef{Id: proto.String("rifle")}}, "deer": preyRow("deer", 40, 10), "boar": preyRow("boar", 42, 12), "dead": dead},
+		Detail:    bridge.PawnsFromMap(map[string]*n.PawnState{"rifle": {Pawn: &n.EntityRef{Id: proto.String("rifle")}}, "deer": preyRow("deer", 40, 10), "boar": preyRow("boar", 42, 12), "dead": dead}),
 	}
 	prey := []domain.PawnID{"boar", "dead", "deer", "gone"}
 	in, reason, err := combatFrameInputs(combat, prey)

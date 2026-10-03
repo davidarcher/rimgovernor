@@ -171,7 +171,7 @@ func isKnown[T any](f domain.Fact[T]) bool {
 func gearModelTables() bridge.Tables {
 	things := bridge.Things{}
 	for _, id := range []string{"soldier-a", "soldier-b", "grower"} {
-		things["tribal-"+id] = &o.Thing{Thing: &o.EntityRef{Id: proto.String("tribal-" + id), DefName: proto.String("Apparel_TribalA")}}
+		things = things.With("tribal-"+id, &o.Thing{Thing: &o.EntityRef{Id: proto.String("tribal-" + id), DefName: proto.String("Apparel_TribalA")}})
 	}
 	return bridge.Tables{Things: things}
 }

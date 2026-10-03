@@ -169,7 +169,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	}
 	// Both beavers wander off their planned cells.
 	for _, row := range v.Acquisition {
-		if head := native.pawns[row.Source.GetId()].GetPawn(); head.GetDefName() == "Alphabeaver" {
+		if head := native.pawns.At(row.Source.GetId()).GetPawn(); head.GetDefName() == "Alphabeaver" {
 			head.Position = &c.Cell{X: proto.Int32(head.Position.GetX() + 1), Z: proto.Int32(head.Position.GetZ())}
 		}
 	}
