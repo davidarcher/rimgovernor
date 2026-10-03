@@ -259,10 +259,20 @@ reflection into `DefinitionCatalog.Defs` (message full name, then `defName`);
 that is absent or empty, an invalid `defName` and a repeated `defName` within
 a class are contract violations.
 
-Cycle rule consequence: a def class whose fields nest its own kind (quest
-nodes, think nodes, thing set makers) mirrors those nesting fields as skipped,
-listed in the `defs.proto` header; see
+Rows mirror private fields too, and a def class whose fields nest its own
+kind (quest nodes, think nodes, thing set makers) mirrors them as recursive
+messages, so a quest script carries its whole node tree. Every row's
+`modPackageId` is the id of the mod that defined it
+(`Def.modContentPack.PackageId`; unset when the def has no mod). The runtime-state
+exclusions are listed in the `defs.proto` header; see
 [schema generation](../schema-generation.md#def-mirror).
+
+`DefinitionCatalog.class_chains` (`ClassChain`, #1785) carries the base classes
+of every class the fill touched, def classes and every `System.Type` value in a
+row alike, sorted by name. `bridge.DefinitionCatalog.ClassIsA(class, base)` and
+`RowIsA(row, base)` match a family against it; a class with no chain is an
+error. `ActiveCondition.condition_class` is the concrete `GetType().Name`, not a
+full name, so a consumer needs the full name to resolve it against the chains.
 
 ### Stat values and adjusted costs
 

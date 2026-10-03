@@ -47,6 +47,9 @@ type DefinitionCatalog struct {
 	// generated rows of defs.proto's DefSets by message full name, then
 	// defName. Read them with DefRow.
 	Defs map[protoreflect.FullName]map[string]proto.Message
+	// classBases is each class the rows name by CLR full name with its base
+	// classes, nearest first (ClassIsA, RowIsA).
+	classBases map[string][]string
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants
@@ -243,6 +246,49 @@ func defSetRows(sets *d.DefSets) (map[protoreflect.FullName]map[string]proto.Mes
 	return out, err
 }
 
+// classBases keys the class chains by class name; an unnamed or repeated
+// chain, or one with an empty base name, is a contract violation.
+func classBases(chains []*o.ClassChain) (map[string][]string, error) {
+	out := make(map[string][]string, len(chains))
+	for _, chain := range chains {
+		if chain == nil || chain.GetName() == "" || slices.Contains(chain.GetBases(), "") {
+			return nil, contract("invalid catalog class chain")
+		}
+		if _, exists := out[chain.GetName()]; exists {
+			return nil, contract("duplicate catalog class chain %s", chain.GetName())
+		}
+		out[chain.GetName()] = chain.GetBases()
+	}
+	return out, nil
+}
+
+// ClassIsA reports whether the class named by its CLR full name is base or
+// derives from it, by the base chains the catalog carries (every def class
+// and every System.Type value of a row, a mod's classes included): a family
+// such as the no-sunlight game conditions is a base class, not a list of
+// names. A class the catalog has no chain for is an error, never false.
+func (catalog *DefinitionCatalog) ClassIsA(class, base string) (bool, error) {
+	if catalog == nil {
+		return false, contract("no definition catalog")
+	}
+	bases, ok := catalog.classBases[class]
+	if !ok {
+		return false, contract("catalog has no class chain for %s", class)
+	}
+	return class == base || slices.Contains(bases, base), nil
+}
+
+// RowIsA is ClassIsA for the class a generated def row mirrors (its
+// message's clr_type), so a row of a subclass matches its base class.
+func (catalog *DefinitionCatalog) RowIsA(row proto.Message, base string) (bool, error) {
+	descriptor := row.ProtoReflect().Descriptor()
+	class, _ := proto.GetExtension(descriptor.Options(), d.E_ClrType).(string)
+	if class == "" {
+		return false, contract("message %s mirrors no CLR class", descriptor.FullName())
+	}
+	return catalog.ClassIsA(class, base)
+}
+
 // validateConstants refuses an absent constants block and one with a
 // non-positive or non-finite value.
 func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
@@ -291,6 +337,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.Defs, err = defSetRows(v.Defs); err != nil {
+		return nil, err
+	}
+	if out.classBases, err = classBases(v.ClassChains); err != nil {
 		return nil, err
 	}
 	if out.Constants, err = validateConstants(v.Constants); err != nil {

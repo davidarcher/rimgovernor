@@ -14,7 +14,8 @@ namespace HomeBridge.BridgeTools
     // game's def objects by protobuf reflection, with no per-class code. The
     // mapping is the generator's contract (contracts/schema-generation.md):
     //   * a message mirrors the CLR class named by its clr_type option, and a
-    //     field's name is the CLR field's name;
+    //     field's name is the CLR field's name, public or not, except a derived field
+    //     (clr_path option) that is the value of a member path (modPackageId);
     //   * a def reference is the def's defName, a System.Type its full name, an
     //     enum its numeric value, a Nullable<T> an optional field, a SlateRef<T>
     //     its XML text;
@@ -35,10 +36,25 @@ namespace HomeBridge.BridgeTools
             internal string Clr = "";
             internal Type Type = typeof(object);
             internal FieldDescriptor[] Fields = Array.Empty<FieldDescriptor>();
-            internal FieldInfo[] Infos = Array.Empty<FieldInfo>();
+            // Reads field i of a source: a CLR field, or the member path of a derived field.
+            internal Func<object, object?>[] Readers = Array.Empty<Func<object, object?>>();
         }
 
+        private const BindingFlags AnyInstance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+
         private readonly Dictionary<MessageDescriptor, Plan> plans = new Dictionary<MessageDescriptor, Plan>();
+        // The classes of the System.Type values the fill wrote; the classes of the
+        // filled objects are the plans' types.
+        private readonly HashSet<Type> typeValues = new HashSet<Type>();
+        // The objects being filled, outermost first: a def field that reaches an
+        // object already being filled would recurse forever.
+        private readonly HashSet<object> active = new HashSet<object>(new IdentityComparer());
+
+        private sealed class IdentityComparer : IEqualityComparer<object>
+        {
+            bool IEqualityComparer<object>.Equals(object x, object y) => ReferenceEquals(x, y);
+            int IEqualityComparer<object>.GetHashCode(object value) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value);
+        }
         private readonly Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>> arms = new Dictionary<MessageDescriptor, Dictionary<string, FieldDescriptor>>();
 
         // The message mirroring source, filled.
@@ -92,28 +108,87 @@ namespace HomeBridge.BridgeTools
             var type = source.GetType();
             if (type.FullName != clr) throw Fail(owner, field, $"{type.FullName} is not the mirrored class {clr} of {descriptor.Name}");
             var fields = descriptor.Fields.InFieldNumberOrder().ToArray();
-            var infos = new FieldInfo[fields.Length];
+            var readers = new Func<object, object?>[fields.Length];
             for (var i = 0; i < fields.Length; i++)
             {
+                // A derived field (clr_path) is read through its member path, a
+                // mirrored field from the CLR field of that name, of any visibility
+                // (the game's XML loader fills private fields too).
+                var raw = fields[i].GetOptions();
+                if (raw != null && raw.HasExtension(Defs.DefsExtensions.ClrPath))
+                {
+                    var steps = raw.GetExtension(Defs.DefsExtensions.ClrPath).Split('.');
+                    var derived = fields[i].Name;
+                    readers[i] = source => ReadPath(source, steps, clr, derived);
+                    continue;
+                }
                 FieldInfo? found = null;
                 for (var t = type; t != null && found == null; t = t.BaseType)
-                    found = t.GetField(fields[i].Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-                infos[i] = found ?? throw Fail(clr, fields[i].Name, "no such public instance field");
+                    found = t.GetField(fields[i].Name, AnyInstance);
+                var info = found ?? throw Fail(clr, fields[i].Name, "no such instance field");
+                readers[i] = info.GetValue;
             }
-            return plans[descriptor] = new Plan { Clr = clr, Type = type, Fields = fields, Infos = infos };
+            return plans[descriptor] = new Plan { Clr = clr, Type = type, Fields = fields, Readers = readers };
+        }
+
+        // The value of a dot-separated member path (fields or properties, any
+        // visibility) from source; null when a step is null.
+        private static object? ReadPath(object source, string[] steps, string owner, string field)
+        {
+            object? current = source;
+            foreach (var step in steps)
+            {
+                if (current == null) return null;
+                var type = current.GetType();
+                object? next = null;
+                var found = false;
+                for (var t = type; t != null && !found; t = t.BaseType)
+                {
+                    if (t.GetField(step, AnyInstance) is { } info) { next = info.GetValue(current); found = true; }
+                    else if (t.GetProperty(step, AnyInstance) is { } property) { next = property.GetValue(current); found = true; }
+                }
+                if (!found) throw Fail(owner, field, $"{type.FullName} has no member {step} of the path");
+                current = next;
+            }
+            return current;
         }
 
         private void Fill(IMessage message, object source, string owner, string field)
         {
             var plan = PlanOf(message.Descriptor, source, owner, field);
+            // A def's object graph is a tree; an object that holds itself again (a
+            // runtime back pointer) fails the read here instead of overflowing the stack.
+            var tracked = !source.GetType().IsValueType;
+            if (tracked && !active.Add(source)) throw Fail(owner, field, $"{plan.Clr} object reaches itself again");
             for (var i = 0; i < plan.Fields.Length; i++)
             {
                 var fd = plan.Fields[i];
-                var value = plan.Infos[i].GetValue(source);
+                var value = plan.Readers[i](source);
                 if (value == null) continue;
                 if (fd.IsRepeated) AddAll((IList)fd.Accessor.GetValue(message), fd, value, plan.Clr, fd.Name);
                 else fd.Accessor.SetValue(message, Value(fd, value, plan.Clr, fd.Name));
             }
+            if (tracked) active.Remove(source);
+        }
+
+        // Every class the fill touched with its base classes, nearest first, up
+        // to but not including System.Object: the class of each filled object
+        // (the def classes among them) and each System.Type value written
+        // (worker, condition and thing classes), sorted by full name.
+        internal List<KeyValuePair<string, List<string>>> ClassChains()
+        {
+            var classes = new HashSet<Type>(typeValues);
+            foreach (var plan in plans.Values) classes.Add(plan.Type);
+            var chains = new List<KeyValuePair<string, List<string>>>();
+            foreach (var type in classes)
+            {
+                var bases = new List<string>();
+                for (var b = type.BaseType; b != null && b != typeof(object); b = b.BaseType)
+                    bases.Add(b.FullName ?? throw new InvalidOperationException($"{type.FullName}: base class {b} has no full name"));
+                chains.Add(new KeyValuePair<string, List<string>>(type.FullName ?? throw new InvalidOperationException($"type {type} has no full name"), bases));
+            }
+            chains.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+            return chains;
         }
 
         private void AddAll(IList target, FieldDescriptor fd, object collection, string owner, string field)
@@ -162,14 +237,19 @@ namespace HomeBridge.BridgeTools
                 case FieldType.Double: return Convert.ToDouble(value);
                 case FieldType.String:
                     if (value is string text) return text;
-                    if (value is Type type) return type.FullName ?? throw Fail(owner, field, $"type {type} has no full name");
+                    if (value is Type type)
+                    {
+                        typeValues.Add(type);
+                        return type.FullName ?? throw Fail(owner, field, $"type {type} has no full name");
+                    }
                     if (value is Verse.Def def) return def.defName ?? "";
                     // SlateRef<T> is the XML text of the field: its one private string.
                     if (value.GetType() is { IsGenericType: true } generic && generic.GetGenericTypeDefinition() == typeof(RimWorld.QuestGen.SlateRef<>))
                         return (generic.GetField("slateRef", BindingFlags.Instance | BindingFlags.NonPublic)
                             ?? throw Fail(owner, field, $"{generic.FullName} has no slateRef field")).GetValue(value) as string ?? "";
                     throw Fail(owner, field, $"{value.GetType().FullName} is not a string, Type or def");
-                case FieldType.Enum: return Enum.ToObject(fd.EnumType.ClrType, Convert.ToInt32(value));
+                // A uint enum member above int32 max is its two's-complement int32 (defs.proto).
+                case FieldType.Enum: return Enum.ToObject(fd.EnumType.ClrType, unchecked((int)Convert.ToInt64(value)));
                 case FieldType.Message: return MessageOf(fd.MessageType, value, owner, field);
                 default: throw Fail(owner, field, $"field type {fd.FieldType} is not mapped");
             }

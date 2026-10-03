@@ -1918,7 +1918,15 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // Every def of every other concrete Verse.Def class (#1761), one repeated
   // field per class, filled the same way.
   rimgovernor.defs.v1.DefSets defs = 12;
+  // The base classes of every class the def rows name: the class of each
+  // mirrored object (each def's own class among them) and each System.Type
+  // value in a row (worker, condition, thing classes), sorted by name. Go
+  // matches a family against it (`DefinitionCatalog.ClassIsA`) with no name list.
+  repeated ClassChain class_chains = 13;
 }
+// A class by CLR full name and its base classes, nearest first, up to but not
+// including System.Object.
+message ClassChain { string name = 1; repeated string bases = 2; }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
 // with no stuff otherwise (#1759). Stat rules are game code; Go looks values up

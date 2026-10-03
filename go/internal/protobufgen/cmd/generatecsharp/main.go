@@ -35,7 +35,7 @@ const (
 	projectRelative = "tools/protobuf/ProtobufProof.csproj"
 	generatedCSharp = "contracts/generated/protobuf/csharp"
 	protoRelative   = "contracts/proto"
-	// buildGeneratedCSharp is gitignored (49 MB): the native builds generate it
+	// buildGeneratedCSharp is gitignored (66 MB): the native builds generate it
 	// with this program before compiling; --check does not compare it.
 	buildGeneratedCSharp = "Defs.cs"
 )

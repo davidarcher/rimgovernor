@@ -18,7 +18,7 @@ language source; the one exception is the [def mirror](#def-mirror), which emits
 `.proto`, never Go or C#. See [C# commands](../tools/protobuf/README.md) and
 [Go commands](../tools/protobuf/go/README.md). Keep private build outputs in fresh
 ignored `.rimgovernor/` directories; commit official generated bindings with their
-schemas, except `generated/protobuf/csharp/Defs.cs` (49 MB): it is gitignored and
+schemas, except `generated/protobuf/csharp/Defs.cs` (66 MB): it is gitignored and
 generated from `defs.proto` by `generatecsharp` (the pinned Grpc.Tools protoc) at the
 start of `scripts/build_native_ref.sh` and `scripts/build_native_mod.ps1`; run
 `go -C go run ./internal/protobufgen/cmd/generatecsharp` to produce it for an IDE.
@@ -72,8 +72,20 @@ then reports drift against the committed file.
 
 Mapping, with no allow-list and no name lists:
 
-- A message holds every public instance field of the class and its bases
-  (a redeclared name keeps the most derived).
+- A message holds every instance field of the class and its bases, whatever
+  its visibility (a redeclared name keeps the most derived). The game's XML
+  loader looks a field up by name on the class and its bases and fills it
+  whether it is public or private, so a private field the loader fills
+  (`ThingDef.verbs`, `SimpleCurve.points`) is def data; the only exclusions are
+  `[Unsaved]` and runtime state, below. (Stated from the loader's behaviour as
+  known; the reference assemblies carry no method bodies, so the generator
+  cannot check it.)
+- Every `Verse.Def` message ends with the derived field `modPackageId`, an
+  `optional string` whose `clr_path` field option names the member path native
+  reads from the mirrored object, `modContentPack.PackageId`:
+  `Def.modContentPack` is `[Unsaved]`, so reflection alone cannot reach it. It is
+  unset for a def with no mod. `clr_path` is the one mechanism for a derived
+  field: a field with the option is not a CLR field and is read by path.
 - Def references are the target's `defName` string; `System.Type` is the type's
   full name string; enums keep their numeric values (flags enums hold the bitmask).
 - `RimWorld.QuestGen.SlateRef<T>` (every quest node parameter) is the string it
@@ -96,26 +108,48 @@ Mapping, with no allow-list and no name lists:
   `DefModExtension` message: vanilla defines no subclass; the abstract class
   with no fields is listed in the header.
 
-Def data excludes `[Unsaved]` and non-public fields (stated in the `defs.proto`
-header), runtime state and reference cycles; the header lists every field skipped
-on the last two grounds:
+Def data excludes `[Unsaved]` fields and runtime state; the header lists every
+field skipped as runtime state:
 
-- Runtime state: a field whose type, collection element or generic argument
-  derives from `Verse.Entity` or `UnityEngine.Object` (`Material`, `Texture`, ...),
-  implements `Verse.ILoadReferenceable`, is a delegate, is an interface or is
-  `System.Object` (untyped: no message can hold it, `ThingSetMakerParams.custom`).
-- Reference cycle: the type graph is walked depth-first from `ThingDef`, then
-  `TerrainDef`, then every other concrete `Verse.Def` class in ordinal order of
-  full name, fields in declaration order and subclasses in ordinal order. A
-  field whose type (or any subclass of it, since the `<Class>Any` wrapper holds
-  them) is still being built closes a cycle and is skipped
-  (`GraphicData.attachments`, `PawnRenderNodeProperties.children`, and the
-  child nodes of every tree: `QuestNode`, `ThinkNode`, `ThingSetMaker`, ...).
-  The rule is structural and the walk order is fixed, so the drift check is
-  stable; the mirror holds no recursive message. A tree def (a quest script, a
-  think tree) therefore carries its root node's own fields and not its
-  children.
+- A field whose type, collection element or generic argument derives from
+  `Verse.Entity` or `UnityEngine.Object` (`Material`, `Texture`, ...), implements
+  `Verse.ILoadReferenceable`, is a delegate, is an interface, is `System.Object`
+  (untyped: no message can hold it, `ThingSetMakerParams.custom`) or is any other
+  class outside the game's def assemblies (BCL, Unity and Steam classes such as
+  `MaterialPropertyBlock`: def data never uses one).
+- A non-public field whose generic type the mapping has no shape for
+  (`DefMap<,>`, `Stack<>`, `NativeArray<>`, `Pair<,>`, ...): a cache or scratch
+  buffer, which XML never fills with data. The same type in a public field
+  fails generation (below).
+
+Reference cycles are not excluded: the type graph is walked depth-first from
+`ThingDef`, then `TerrainDef`, then every other concrete `Verse.Def` class in
+ordinal order of full name, fields in declaration order and subclasses in
+ordinal order, and a field that reaches a class already begun is a recursive
+message (`QuestNode` children, `ThinkNode.subNodes`, `ThingSetMaker` options,
+`GraphicData.attachments`, `PawnRenderNodeProperties.children`). The walk order
+is fixed, so the drift check is stable. A tree def (a quest script, a think
+tree) carries its whole tree. Native fills by object graph, so an object that
+reaches itself again (a runtime back pointer no [Unsaved] marks) fails the read
+naming `Class.field` instead of recursing.
+
+An enum whose underlying type is `uint` and has a member above `int32` max (a
+flags `All`) is carried as the two's-complement `int32` of its value, because
+proto enums are `int32`; `PsychicRitualRoleDef.Condition.All` is `-1`.
 
 Any other field the tool cannot represent fails generation naming
 `Class.field`, writes nothing and exits 1. Fixing it means extending the mapping
 rules here, never listing the field.
+
+### Class chains
+
+The base-class chain of a class is not a field of each row: a family (any
+no-sunlight game condition, a mod's subclass included) is a base class, and a
+`System.Type` value in a row (`conditionClass`, a worker class) names a class
+that is no def. `DefinitionCatalog.class_chains` (`ClassChain`: CLR full name,
+base classes nearest first up to but excluding `System.Object`, sorted by name)
+holds the chain of every class the fill touched: the class of each mirrored
+object (each def's own class among them) and each `System.Type` value written,
+so a mod's classes are covered. Go matches with
+`DefinitionCatalog.ClassIsA(class, base)` and `RowIsA(row, base)`
+(`bridge/catalog.go`): no class list, and a class the table lacks is an error.

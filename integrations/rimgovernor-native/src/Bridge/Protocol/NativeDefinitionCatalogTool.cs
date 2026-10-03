@@ -67,6 +67,13 @@ namespace HomeBridge.BridgeTools
             foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
             catalog.Defs = DefSets(mirror);
+            // After every def is filled: the base chains of the classes the fill touched.
+            foreach (var chain in mirror.ClassChains())
+            {
+                var row = new Obs.ClassChain { Name = chain.Key };
+                row.Bases.AddRange(chain.Value);
+                catalog.ClassChains.Add(row);
+            }
             catalog.Constants = Constants();
             catalog.StatValues = StatValues();
             catalog.Biotech = NativeBiotechFacts.Catalog();

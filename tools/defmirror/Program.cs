@@ -4,13 +4,15 @@
 // managed assemblies. See contracts/schema-generation.md.
 //
 // Rules, with no allow-list and no silent skip:
-//   * A message holds every public instance field of the class and its bases,
-//     except [Unsaved] fields and fields typed as runtime state (a type deriving
-//     from Verse.Entity or UnityEngine.Object, implementing Verse.ILoadReferenceable,
-//     a delegate, an interface or System.Object (untyped), alone or as a collection
-//     element or generic argument). Each such field is listed in the output header.
-//     Field names are the CLR names, so native fills a message by protobuf
-//     reflection by name alone.
+//   * A message holds every instance field of the class and its bases, whatever its
+//     visibility (the game's XML loader fills private fields as well), except
+//     [Unsaved] fields and fields typed as runtime state (a type deriving from
+//     Verse.Entity or UnityEngine.Object, implementing Verse.ILoadReferenceable, a
+//     delegate, an interface, System.Object (untyped) or any other class outside the
+//     game's def assemblies, alone or as a collection element or generic argument;
+//     also a non-public field of a generic type the mapping has no shape for). Each
+//     such field is listed in the output header. Field names are the CLR names, so
+//     native fills a message by protobuf reflection by name alone.
 //   * Def references become the def's defName (string); System.Type becomes its
 //     full name; enums keep their numeric values; RimWorld.QuestGen.SlateRef<T>
 //     becomes the string it holds (its XML text, a literal or a "$variable").
@@ -30,11 +32,13 @@
 //     over the class and each concrete subclass. An abstract class with no fields
 //     and no concrete subclass (DefModExtension in vanilla) becomes an empty
 //     message and is listed in the header.
-//   * A field that closes a reference cycle is skipped and listed in the header:
-//     the graph is walked depth-first from the roots (ThingDef, TerrainDef, then every
-//     other concrete Verse.Def class in ordinal order) with
-//     fields in declaration order and subclasses in ordinal order, and a field whose
-//     type (or any subclass of it) is still being built is the back edge.
+//   * A field that reaches a class being built (a tree node holding its children)
+//     is a recursive message. The type graph is walked depth-first from the roots
+//     (ThingDef, TerrainDef, then every other concrete Verse.Def class in ordinal
+//     order), fields in declaration order and subclasses in ordinal order.
+//   * Every Def message ends with the derived field modPackageId (clr_path option
+//     "modContentPack.PackageId"): Def.modContentPack is [Unsaved], so it is not
+//     reflected and native reads the path.
 //   * Any other field type the tool cannot represent fails the run
 //     and the failure names the declaring class and field. Nothing is written.
 using System.Reflection;
@@ -120,7 +124,8 @@ internal sealed class Field
     public bool Repeated;
     public bool Optional;
     public Ref? Element;
-    public required FieldInfo Info;
+    public FieldInfo? Info;
+    public string? Path; // a derived field: the member path native reads, not a CLR field
 }
 
 internal sealed class Message
@@ -134,7 +139,7 @@ internal sealed class Generator
     private const string Package = "rimgovernor.defs.v1";
     private static readonly string[] DefAssemblies = { "Assembly-CSharp", "Assembly-CSharp-firstpass" };
     private const BindingFlags InstanceFields =
-        BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly;
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
     private readonly MetadataLoadContext context;
     private readonly string managed;
@@ -144,7 +149,6 @@ internal sealed class Generator
     private readonly HashSet<Type> emptyAbstract = new();
     private readonly HashSet<Type> enums = new();
     private readonly HashSet<Synth> synths = new();
-    private readonly Dictionary<Type, int> open = new(); // types on the depth-first stack
     private readonly SortedSet<string> errors = new(StringComparer.Ordinal);
     private readonly SortedSet<string> skipped = new(StringComparer.Ordinal);
     private Dictionary<Type, string> names = new();
@@ -162,8 +166,7 @@ internal sealed class Generator
     public int SkippedCount => skipped.Count;
 
     // DefinitionCatalog carries these two roots in its own fields (8 and 9, #1730);
-    // every other root is a repeated field of DefSets. They walk first, so the
-    // cycle skips of the first mirror stay as they were.
+    // every other root is a repeated field of DefSets. They walk first.
     private static readonly string[] CarriedRoots = { "Verse.ThingDef", "Verse.TerrainDef" };
 
     public string Run()
@@ -221,7 +224,8 @@ internal sealed class Generator
 
     // The first type in t (itself, an array element or a generic argument) that
     // is runtime state: a Verse.Entity, a Verse.ILoadReferenceable, a delegate,
-    // an interface, System.Object (untyped) or a UnityEngine.Object (Material, Texture, ...).
+    // an interface, System.Object (untyped), a UnityEngine.Object (Material, Texture, ...)
+    // or any other class outside the game's def assemblies (BCL, Unity, Steam).
     private static Type? RuntimeState(Type t)
     {
         if (t.IsArray) return RuntimeState(t.GetElementType()!);
@@ -230,6 +234,8 @@ internal sealed class Generator
         if (IsSlateRef(t)) return null; // its XML text, whatever it is typed to hold
         for (var b = t; b != null; b = b.BaseType)
             if (b.FullName is "Verse.Entity" or "System.MulticastDelegate" or "System.Delegate" or "UnityEngine.Object") return t;
+        // A class of the BCL, Unity or Steam (a MaterialPropertyBlock, a StringBuilder): the game's def data never uses one.
+        if (!t.IsGenericType && !t.IsValueType && ScalarOf(t) == null && !DefAssemblies.Contains(t.Assembly.GetName().Name)) return t;
         if (t.FullName == "Verse.ILoadReferenceable" || t.GetInterfaces().Any(i => i.FullName == "Verse.ILoadReferenceable")) return t;
         if (t.IsGenericType)
             foreach (var a in t.GetGenericArguments())
@@ -251,7 +257,7 @@ internal sealed class Generator
         _ => null,
     };
 
-    private bool InDefAssembly(Type t) => DefAssemblies.Contains(t.Assembly.GetName().Name);
+    private static bool InDefAssembly(Type t) => DefAssemblies.Contains(t.Assembly.GetName().Name);
 
     private Ref Resolve(Type t)
     {
@@ -286,55 +292,24 @@ internal sealed class Generator
 
     // Depth-first from the roots, fields in declaration order and subclasses in
     // ordinal order, so the same assemblies always yield the same output. A type
-    // being built is "open"; a polymorphic class opens together with all its
-    // subclasses, because its "<Class>Any" wrapper holds each of them.
+    // already begun is not built again, so a field that reaches an enclosing
+    // class (a tree node holding its children) is a recursive message.
     private void Need(Type t)
     {
         if (messages.ContainsKey(t)) return;
         messages[t] = new Message { Clr = t };
-        var group = new List<Type> { t };
-        List<Type>? subs = null;
-        if (t.IsClass && subclasses.TryGetValue(t, out subs))
-        {
-            group.AddRange(subs);
-            anys.Add(t);
-        }
-        foreach (var g in group) open[g] = open.GetValueOrDefault(g) + 1;
         Build(t);
-        if (subs != null) foreach (var s in subs) Need(s);
-        foreach (var g in group) open[g]--;
-    }
-
-    // The types a field's type needs a message for: the payload of a Nullable,
-    // the elements of a collection, each generic argument.
-    private IEnumerable<Type> MessageTargets(Type t)
-    {
-        if (t.IsArray) return MessageTargets(t.GetElementType()!);
-        if (IsSlateRef(t)) return Enumerable.Empty<Type>();
-        if (t.IsGenericType) return t.GetGenericArguments().SelectMany(MessageTargets);
-        if (ScalarOf(t) != null || t.IsEnum || t.IsPointer || t.IsByRef || t.IsGenericParameter || IsDef(t)) return Enumerable.Empty<Type>();
-        if (t.IsValueType ? t.FullName!.StartsWith("System.", StringComparison.Ordinal) : !InDefAssembly(t)) return Enumerable.Empty<Type>();
-        return new[] { t };
-    }
-
-    // The open type a field's type reaches (directly, or through a "<Class>Any"
-    // wrapper's subclasses): the field closes a reference cycle.
-    private Type? ClosesCycle(Type fieldType)
-    {
-        foreach (var target in MessageTargets(fieldType))
+        if (t.IsClass && subclasses.TryGetValue(t, out var subs))
         {
-            if (open.GetValueOrDefault(target) > 0) return target;
-            if (target.IsClass && subclasses.TryGetValue(target, out var subs))
-                foreach (var s in subs)
-                    if (open.GetValueOrDefault(s) > 0) return s;
+            anys.Add(t);
+            foreach (var s in subs) Need(s);
         }
-        return null;
     }
 
     private static bool HasUnsaved(FieldInfo f) =>
         f.CustomAttributes.Any(a => a.AttributeType.Name == "UnsavedAttribute");
 
-    private static List<FieldInfo> DataFields(Type t)
+    private static List<FieldInfo> DataFields(Type t, bool withNonPublic = false)
     {
         var chain = new List<Type>();
         for (var c = t; c != null && c.FullName is not ("System.Object" or "System.ValueType"); c = c.BaseType)
@@ -343,7 +318,7 @@ internal sealed class Generator
         foreach (var c in chain)
             foreach (var f in c.GetFields(InstanceFields).OrderBy(f => f.MetadataToken))
             {
-                if (f.IsStatic || f.IsLiteral || HasUnsaved(f)) continue;
+                if (f.IsStatic || f.IsLiteral || HasUnsaved(f) || (!f.IsPublic && !withNonPublic)) continue;
                 if (f.Name.Contains('<')) continue; // compiler-generated backing fields
                 var hidden = fields.FindIndex(x => x.Name == f.Name);
                 if (hidden >= 0) fields[hidden] = f; else fields.Add(f);
@@ -362,7 +337,8 @@ internal sealed class Generator
         var message = messages[t];
         var number = 0;
         var keys = new Dictionary<string, string>();
-        foreach (var f in DataFields(t))
+        // An abstract class with no concrete subclass is never instantiated: its non-public fields are not data.
+        foreach (var f in DataFields(t, !t.IsAbstract || subclasses.ContainsKey(t)))
         {
             var where = $"{f.DeclaringType!.FullName}.{f.Name}";
             if (RuntimeState(f.FieldType) is { } state)
@@ -370,21 +346,17 @@ internal sealed class Generator
                 skipped.Add($"{where}: {TypeText(f.FieldType)} (runtime state {TypeText(state)})");
                 continue;
             }
-            if (ClosesCycle(f.FieldType) is { } cycle)
-            {
-                skipped.Add($"{where}: {TypeText(f.FieldType)} (reference cycle back to {cycle.FullName})");
-                continue;
-            }
-            var key =char.ToUpperInvariant(f.Name[0]) + f.Name.Substring(1).Replace("_", "");
+            var key = char.ToUpperInvariant(f.Name[0]) + f.Name.Substring(1).Replace("_", "");
             if (keys.TryGetValue(key, out var other))
             {
                 errors.Add($"{where}: name collides with {other} after protobuf name normalisation");
                 continue;
             }
-            keys[key] = f.Name;
+            var enumsBefore = new HashSet<Type>(enums);
+            var synthsBefore = new HashSet<Synth>(synths);
             try
             {
-                var field = new Field { Name = f.Name, Number = ++number, Info = f };
+                var field = new Field { Name = f.Name, Number = number + 1, Info = f };
                 var ft = f.FieldType;
                 if (IsNullable(ft))
                 {
@@ -401,14 +373,33 @@ internal sealed class Generator
                     field.Element = Resolve(ft);
                 }
                 message.Fields.Add(field);
+                keys[key] = f.Name;
+                number++;
             }
             catch (Unsupported u)
             {
-                errors.Add($"{where}: {u.Message}");
+                if (f.IsPublic)
+                {
+                    errors.Add($"{where}: {u.Message}");
+                    continue;
+                }
+                // A non-public field of a type the mirror cannot hold is not def
+                // data either; nothing of it stays in the schema.
+                skipped.Add($"{where}: {TypeText(f.FieldType)} (runtime state: a non-public field of a type no message can hold, {u.Message})");
+                enums.IntersectWith(enumsBefore);
+                synths.IntersectWith(synthsBefore);
             }
+        }
+        // Every Def row names the mod that defined it: Def.modContentPack is
+        // [Unsaved], so the field is derived, not reflected.
+        if (IsDef(t))
+        {
+            if (keys.ContainsKey(DerivedModKey)) errors.Add($"{t.FullName}: modPackageId collides with a field");
+            message.Fields.Add(new Field { Name = "modPackageId", Number = number + 1, Optional = true, Element = new Ref("string", null, false, false), Path = "modContentPack.PackageId" });
         }
     }
 
+    private const string DerivedModKey = "ModPackageId";
     // The repeated element of a collection: the item, or a key/value entry.
     private Ref CollectionElement(Type t)
     {
@@ -509,7 +500,14 @@ internal sealed class Generator
         L("// Regenerate with `task defmirror:generate`; `task build` fails on drift.");
         foreach (var a in assemblies) L("// Source: " + a.GetName().Name + " " + a.GetName().Version);
         L("//");
-        L("// Public instance fields only, minus [Unsaved] fields. Def references are the");
+        L("// Instance fields of any visibility, minus [Unsaved] fields: the game's XML loader fills");
+        L("// private fields as well as public ones (it looks a field up by name on the class and");
+        L("// its bases, whatever its visibility). A non-public field of a type no message can hold is");
+        L("// runtime state (a cache, a scratch buffer) and is listed below; a public one fails the run.");
+        L("// Reference cycles are mirrored as recursive messages (a tree node holds its");
+        L("// children). Every Def message ends with a derived field, modPackageId, read from");
+        L("// Def.modContentPack.PackageId (the field is [Unsaved]); its clr_path option names");
+        L("// the member path native reads. It is unset for a def with no mod. Def references are the");
         L("// defName, System.Type is its full name, Nullable<T> is optional, a Dictionary is");
         L("// repeated Entry_ messages (key, value), a collection nested in a collection is a");
         L("// List_ message (items). A repeated element that is a class mirrored as a message is an");
@@ -522,10 +520,7 @@ internal sealed class Generator
         L("//");
         L("// Fields skipped (runtime state, not def data): a type deriving from Verse.Entity or");
         L("// UnityEngine.Object, implementing Verse.ILoadReferenceable, a delegate, an interface or System.Object (untyped),");
-        L("// alone or as a collection element or generic argument; or a field that closes a");
-        L("// reference cycle in the type graph (depth-first from the roots, ThingDef and TerrainDef first; a");
-        L("// polymorphic class holds its subclasses), which protobuf could only mirror as a");
-        L("// recursive message.");
+        L("// alone or as a collection element or generic argument.");
         foreach (var s in skipped) L("//   " + s);
         L();
         L("syntax = \"proto3\";");
@@ -540,6 +535,11 @@ internal sealed class Generator
         L("  // \"entry\" (a Dictionary entry: key, value), \"list\" (a nested collection: items)\n  // or \"optional\" (a possibly null repeated element: value).");
         L("  string clr_synthetic = 50101;");
         L("}");
+        L();
+        L("extend google.protobuf.FieldOptions {");
+        L("  // A derived field: not a CLR field of the class but the value of this member path\n  // (fields or properties, dot separated) read from the mirrored object; unset when a\n  // step is null.");
+        L("  string clr_path = 50102;");
+        L("}");
 
         foreach (var e in enums.OrderBy(t => names[t], StringComparer.Ordinal))
         {
@@ -548,11 +548,12 @@ internal sealed class Generator
             var members = new List<(string Name, long Value)>();
             foreach (var f in e.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                try { members.Add((f.Name, Convert.ToInt64(f.GetRawConstantValue()))); }
+                // Proto enums are int32: a uint enum member above int32.MaxValue (a flags "All") is its two's-complement int32.
+                try { var raw = Convert.ToInt64(f.GetRawConstantValue()); members.Add((f.Name, e.GetEnumUnderlyingType().FullName == "System.UInt32" && raw > int.MaxValue ? unchecked((int)(uint)raw) : raw)); }
                 catch (OverflowException) { errors.Add($"{e.FullName}.{f.Name}: value outside int64"); }
             }
             L();
-            L("// " + e.FullName + (e.CustomAttributes.Any(a => a.AttributeType.Name == "FlagsAttribute") ? " (flags: the field holds the bitmask)" : ""));
+            L("// " + e.FullName + (e.CustomAttributes.Any(a => a.AttributeType.Name == "FlagsAttribute") ? " (flags: the field holds the bitmask)" : "") + (e.GetEnumUnderlyingType().FullName == "System.UInt32" && members.Any(m => m.Value < 0) ? " (uint: a member above int32 max is its two's-complement int32)" : ""));
             L("enum " + name + " {");
             foreach (var m in members.Where(m => m.Value is < int.MinValue or > int.MaxValue))
                 errors.Add($"{e.FullName}.{m.Name}: value {m.Value} outside int32");
@@ -577,7 +578,7 @@ internal sealed class Generator
             L("message " + names[t] + " {");
             L("  option (clr_type) = \"" + t.FullName + "\";");
             foreach (var f in m.Fields)
-                L($"  {(f.Repeated ? "repeated " : f.Optional ? "optional " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number};");
+                L($"  {(f.Repeated ? "repeated " : f.Optional ? "optional " : "")}{TypeName(f.Element!)} {f.Name} = {f.Number}{(f.Path != null ? " [(clr_path) = \"" + f.Path + "\"]" : "")};");
             L("}");
         }
 
