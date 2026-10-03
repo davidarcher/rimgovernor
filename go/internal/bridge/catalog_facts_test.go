@@ -231,3 +231,34 @@ func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {
 		t.Fatal("a giver class without a chain answered")
 	}
 }
+
+// TestCatalogStatRowForScenarioForcedStuff: a scenario can start the colony
+// with a stuff the game would not offer for the def (the classic scenario's
+// jade knife). Native sends a row for the pair so its stats read, and the
+// pair is not one of the def's allowed stuffs.
+func TestCatalogStatRowForScenarioForcedStuff(t *testing.T) {
+	v := factsReply()
+	byName := map[string]*d.ThingDef{}
+	for _, row := range v.ThingDefs {
+		byName[row.DefName] = row
+	}
+	byName["Steel"].StuffProps = &d.StuffProperties{Categories: []string{"Metallic"}}
+	jade := &d.ThingDef{DefName: "Jade", StuffProps: &d.StuffProperties{Categories: []string{"Stony"}}}
+	knife := &d.ThingDef{DefName: "Knife", StuffCategories: []string{"Metallic"}}
+	v.ThingDefs = append(v.ThingDefs, jade, knife)
+	v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: "Jade"}, &o.ThingDefFacts{DefName: "Knife"})
+	v.StatValues.Rows = append(v.StatValues.Rows,
+		&o.DefStatRow{DefName: "Jade"},
+		&o.DefStatRow{DefName: "Knife", StuffName: "Steel", Stat: []int32{3}, Value: []float32{20}},
+		&o.DefStatRow{DefName: "Knife", StuffName: "Jade", Stat: []int32{3}, Value: []float32{30}})
+	catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := catalog.StatValue("Knife", "Jade", StatMarketValue); err != nil || got != 30 {
+		t.Fatal(got, err)
+	}
+	if got, err := catalog.AllowedStuffs("Knife"); err != nil || !slices.Equal(got, []string{"Steel"}) {
+		t.Fatal(got, err)
+	}
+}

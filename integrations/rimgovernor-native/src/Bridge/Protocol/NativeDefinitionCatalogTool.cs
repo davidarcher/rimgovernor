@@ -118,18 +118,47 @@ namespace HomeBridge.BridgeTools
         private static Obs.DefStatTable StatValues()
         {
             var table = new Obs.DefStatTable();
+            var forcedStuffs = ScenarioStartingStuffs();
             var stats = DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal).ToList();
             foreach (var stat in stats) table.Stats.Add(stat.defName);
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
             {
                 if (!def.MadeFromStuff) { table.Rows.Add(StatRow(def, null, stats)); continue; }
-                foreach (var stuff in GenStuff.AllowedStuffsFor(def).OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
+                var allowed = GenStuff.AllowedStuffsFor(def).ToList();
+                // A scenario can start the colony with a stuff the game would not
+                // offer for the def (the classic one's jade knife); the item
+                // exists, so its stats are read from a row of its own. Go keeps
+                // such a pair out of the allowed stuffs by category.
+                if (forcedStuffs.TryGetValue(def, out var forced))
+                    allowed.AddRange(forced.Where(s => !allowed.Contains(s)));
+                foreach (var stuff in allowed.OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
                     table.Rows.Add(StatRow(def, stuff, stats));
             }
             // Every TerrainDef the same way, with no stuff, and its adjusted cost list.
             foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 table.TerrainRows.Add(StatRow(def, null, stats));
             return table;
+        }
+
+        // The (def, stuff) pairs the current scenario's parts start the colony
+        // with (ScenPart_ThingCount.thingDef and .stuff, both protected).
+        private static Dictionary<ThingDef, List<ThingDef>> ScenarioStartingStuffs()
+        {
+            var result = new Dictionary<ThingDef, List<ThingDef>>();
+            var scenario = Current.Game?.Scenario;
+            if (scenario == null) return result;
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+            var defField = typeof(ScenPart_ThingCount).GetField("thingDef", flags) ?? throw new InvalidOperationException("ScenPart_ThingCount.thingDef is unavailable.");
+            var stuffField = typeof(ScenPart_ThingCount).GetField("stuff", flags) ?? throw new InvalidOperationException("ScenPart_ThingCount.stuff is unavailable.");
+            foreach (var part in scenario.AllParts.OfType<ScenPart_ThingCount>())
+            {
+                if (defField.GetValue(part) is ThingDef def && def.MadeFromStuff && stuffField.GetValue(part) is ThingDef stuff)
+                {
+                    if (!result.TryGetValue(def, out var list)) result[def] = list = new List<ThingDef>();
+                    if (!list.Contains(stuff)) list.Add(stuff);
+                }
+            }
+            return result;
         }
 
         // Stats a planner reads of every ThingDef whether or not the game shows

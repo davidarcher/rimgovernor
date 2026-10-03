@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"math"
+	"slices"
 
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -13,7 +14,7 @@ type statTable struct {
 	things   map[defStuff]*statRow
 	terrains map[string]*statRow
 	// stuffs are the allowed stuffs of each stuffed def, in row order (the
-	// native defName order).
+	// native defName order): the rows whose stuff can make the def.
 	stuffs map[string][]string
 }
 
@@ -50,7 +51,9 @@ func decodeStatTable(v *o.DefStatTable, things map[string]*d.ThingDef, terrains 
 		}
 		decoded.costs = row.Costs
 		out.things[key] = decoded
-		if key.stuff != "" {
+		// A pair the game would not offer (a scenario forces a jade knife) has a
+		// row so its stats can be read, but is not an allowed stuff.
+		if key.stuff != "" && canMake(things[key.stuff], things[key.def]) {
 			out.stuffs[key.def] = append(out.stuffs[key.def], key.stuff)
 		}
 	}
@@ -199,4 +202,15 @@ func (catalog *DefinitionCatalog) TerrainStatValue(terrain, stat string) (float3
 		return 0, contract("stat %s is not shown for terrain %s", stat, terrain)
 	}
 	return value, nil
+}
+
+// canMake is StuffProperties.CanMake: the stuff's categories share one with
+// the def's stuffCategories.
+func canMake(stuff, def *d.ThingDef) bool {
+	for _, category := range def.StuffCategories {
+		if slices.Contains(stuff.GetStuffProps().GetCategories(), category) {
+			return true
+		}
+	}
+	return false
 }

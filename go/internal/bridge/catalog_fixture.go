@@ -188,6 +188,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		chains[class] = nil
 	}
 	items := map[string]bool{"Silver": true}
+	stuffNames := map[string]bool{}
 	row := func(def, stuff string, values map[int32]float32, costs []policy.Amount) {
 		r := &o.DefStatRow{DefName: def, StuffName: stuff}
 		for stat, value := range values {
@@ -342,6 +343,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			}
 			row(def.Name, stuff.Stuff, values, stuff.Costs)
 			items[stuff.Stuff] = true
+			stuffNames[stuff.Stuff] = true
 		}
 	}
 	// Every cost and stuff the fixture names is an item def with a market value
@@ -353,6 +355,13 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: item, ThingClass: fixtureThingClass})
 		wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: item})
 		row(item, "", map[int32]float32{index(StatMarketValue): 1}, nil)
+	}
+	// A stuff names the category the fixture's stuffed defs accept, so its rows
+	// are allowed stuffs (StuffProperties.CanMake).
+	for _, t := range wire.ThingDefs {
+		if stuffNames[t.DefName] && t.StuffProps == nil {
+			t.StuffProps = &d.StuffProperties{Categories: []string{"Fixture"}}
+		}
 	}
 	wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: "Anchor", ThingClass: fixtureThingClass})
 	wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: "Anchor"})
