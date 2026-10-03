@@ -82,3 +82,32 @@ func TestIncineratorStepFollowsTheRing(t *testing.T) {
 		t.Fatal("ring standing but not the dump zone's room", got)
 	}
 }
+
+// The batch is the interior cells holding things; a burn waits for a read,
+// empty fire census.
+func TestIncineratorBatchAndFireGate(t *testing.T) {
+	interior := policy.Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
+	var facts observation.ColonyProjection
+	for i, c := range policy.RectangleCells(interior) {
+		facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, StorageEmpty: domain.Known(i >= 4)})
+	}
+	facts.Cells = append(facts.Cells, policy.SiteCell{Cell: domain.Cell{X: 20, Z: 20}, StorageEmpty: domain.Known(false)})
+	if got := incineratorStored(facts, interior); got != 4 {
+		t.Fatal(got)
+	}
+	if !fireBurning(facts) {
+		t.Fatal("an unread fire census is not a quiet one")
+	}
+	facts.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
+	if fireBurning(facts) {
+		t.Fatal("an empty fire census burns")
+	}
+	facts.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "f"}})
+	if !fireBurning(facts) {
+		t.Fatal("a fire is not burning")
+	}
+	got := molotovs([]bridge.EquipCandidate{{Thing: "m", Definition: policy.MolotovDef}, {Thing: "g", Definition: "Gun"}})
+	if len(got) != 1 || got[0].Thing != "m" {
+		t.Fatal(got)
+	}
+}

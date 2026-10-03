@@ -620,7 +620,7 @@ var plannerCatalog = []plannerEntry{
 			out.Armory = &method
 			return method.Verdict, nil
 		}},
-	{name: "waste", goal: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction}, sections: sectionsBuilding,
+	{name: "waste", goal: policy.MaintainWaste, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction, domain.BuildingAction, domain.ProductionBillAction, domain.EquipAction, domain.OwnedDraftAction, domain.IgniteAction, domain.CleanAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Waste.step(ctx, epoch, arbiter)

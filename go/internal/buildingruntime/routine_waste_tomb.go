@@ -26,7 +26,7 @@ func tombMethod(step policy.TombStep) domain.MethodID {
 }
 
 // stageTomb answers a due tomb step; handled is false when none is due.
-func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, expected observation.Identity) (RoutineWasteResult, bool, error) {
+func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, arbiter *stepArbiter, expected observation.Identity) (RoutineWasteResult, bool, error) {
 	source, ok := r.native.(observation.RoutineSource)
 	if !ok || r.building == nil {
 		return RoutineWasteResult{}, false, nil
@@ -46,7 +46,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 				return RoutineWasteResult{Verdict: result.Verdict}, true, err
 			}
 		}
-		return r.stageDisposal(call, epoch, state, review, goal, reading)
+		return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
 	}
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
@@ -59,7 +59,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 		// The layout review grows another tomb; a grave only once a
 		// replan found no room for one; cremation goes on meanwhile.
 		if !r.reviewer.tombGrowthRefused(reading.Projection.Identity.Tick) {
-			return r.stageDisposal(call, epoch, state, review, goal, reading)
+			return r.stageDisposal(call, epoch, state, review, goal, arbiter, reading)
 		}
 		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
 	case policy.TombGrave:

@@ -99,7 +99,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineWasteResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	if result, handled, err := r.stageTomb(call, epoch, state, review, goal, expected); err != nil || handled {
+	if result, handled, err := r.stageTomb(call, epoch, state, review, goal, arbiter, expected); err != nil || handled {
 		return result, err
 	}
 	started := r.reviewer.clock.Now()
@@ -111,39 +111,16 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if !known || len(items) == 0 {
 		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
 	}
-	identityRef := boundary.Identity(state.Snapshot)
-	emergency, _, err := r.native.ReadEmergency(call, identityRef)
+	rows, ok, err := r.colonistRows(call, state, review)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}
-	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineWasteResult{}, fmt.Errorf("%w: step: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
-	}
-	complete, known := emergency.Facts.ColonistsComplete.Value()
-	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
+	if !ok {
 		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
-	}
-	ids := make([]string, 0, len(emergency.Facts.Colonists))
-	for _, pawn := range emergency.Facts.Colonists {
-		ids = append(ids, string(pawn.ID))
-	}
-	reply, _, err := r.native.ReadTendPawns(call, identityRef, ids)
-	if err != nil {
-		return RoutineWasteResult{}, err
-	}
-	observed := reply.GetObserved()
-	if observed == nil {
-		return RoutineWasteResult{}, fmt.Errorf("%w: step: observed == nil", ErrControl)
-	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineWasteResult{}, fmt.Errorf("%w: step: err != nil", ErrControl)
-	}
-	if len(observed.Pawns) != len(ids) {
-		return RoutineWasteResult{}, fmt.Errorf("%w: step: len(observed.Pawns) != len(ids)", ErrControl)
 	}
 	var pawns []policy.WastePawn
 	seen := map[string]bool{}
-	for _, row := range observed.Pawns {
+	for _, row := range rows {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
 			return RoutineWasteResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
@@ -195,4 +172,40 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 func wasteCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.WastePawn {
 	facts := policy.WastePawn{ID: policy.PawnID(pawn), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
 	return facts
+}
+
+// colonistRows are the detail rows of every colonist, in one tend-pawn read;
+// ok is false while the colonist list is incomplete or empty.
+func (r *RoutineWastePlanner) colonistRows(call context.Context, state ControlState, review store.RoutineReview) ([]*n.PawnState, bool, error) {
+	identityRef := boundary.Identity(state.Snapshot)
+	emergency, _, err := r.native.ReadEmergency(call, identityRef)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
+		return nil, false, fmt.Errorf("%w: colonistRows: err != nil || emergency.Context.GetTick() < int64(review.Tick)", ErrControl)
+	}
+	complete, known := emergency.Facts.ColonistsComplete.Value()
+	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
+		return nil, false, nil
+	}
+	ids := make([]string, 0, len(emergency.Facts.Colonists))
+	for _, pawn := range emergency.Facts.Colonists {
+		ids = append(ids, string(pawn.ID))
+	}
+	reply, _, err := r.native.ReadTendPawns(call, identityRef, ids)
+	if err != nil {
+		return nil, false, err
+	}
+	observed := reply.GetObserved()
+	if observed == nil {
+		return nil, false, fmt.Errorf("%w: colonistRows: observed == nil", ErrControl)
+	}
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
+		return nil, false, fmt.Errorf("%w: colonistRows: err != nil", ErrControl)
+	}
+	if len(observed.Pawns) != len(ids) {
+		return nil, false, fmt.Errorf("%w: colonistRows: len(observed.Pawns) != len(ids)", ErrControl)
+	}
+	return observed.Pawns, true, nil
 }
