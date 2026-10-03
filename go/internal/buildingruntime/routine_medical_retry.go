@@ -1,9 +1,11 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // maxMedicalAttemptsPerPatient bounds repeated tend/rescue attempts for one
@@ -38,3 +40,19 @@ func medicalAttemptCount(methods []domain.GoalMethod, epoch uint64, prefix strin
 // itself out. Lending the same bound the stock waits use keeps the world moving
 // under the emergency without pretending a method ran.
 const medicalWaitTicks = stockWaitTicks
+
+// nextWaveMethod is nextEquipWaveMethod for any wave prefix.
+func nextWaveMethod(goal store.GoalState, prefix string) domain.MethodID {
+	bound := map[domain.MethodID]bool{}
+	for _, m := range goal.History {
+		bound[m.Method] = true
+	}
+	for _, m := range goal.Methods {
+		bound[m.Method] = true
+	}
+	for i := 0; ; i++ {
+		if method := domain.MethodID(fmt.Sprintf("%s%d", prefix, i)); !bound[method] {
+			return method
+		}
+	}
+}

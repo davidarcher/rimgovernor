@@ -90,6 +90,7 @@ func init() {
 	registerIntentKind(domain.OpenCasketAction, openCasketAction)
 	registerIntentKind(domain.TendAction, tendAction)
 	registerIntentKind(domain.EquipAction, equipAction)
+	registerIntentKind(domain.DropEquipmentAction, dropEquipmentAction)
 	registerIntentKind(domain.RescueAction, rescueAction)
 	registerIntentKind(domain.CaptureAction, captureAction)
 	registerIntentKind(domain.MoodReliefAction, moodReliefAction)

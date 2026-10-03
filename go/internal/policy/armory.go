@@ -244,6 +244,9 @@ func ArmoryWeaponDemand(tier ArmoryTier, pawns []EquipCandidatePawn, primaries m
 
 // armoryFighter is a present colonist capable of violence, armed or not.
 func armoryFighter(p EquipCandidatePawn) bool {
+	if p.NoArms != "" {
+		return false
+	}
 	for _, f := range []domain.Fact[bool]{p.Dead, p.Downed, p.Drafted, p.MentalState, p.IncapableOfViolence} {
 		if value, known := f.Value(); !known || value {
 			return false

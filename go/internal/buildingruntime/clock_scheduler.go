@@ -136,6 +136,7 @@ type ClockSchedulerConfig struct {
 	MaintainShelter     *MaintainShelterPlanner
 	Firebreak           *RoutineFirebreakPlanner
 	Psylink             *RoutinePsylinkPlanner
+	CreepJoiners        *RoutineCreepJoinerPlanner
 	Permits             *RoutinePermitsPlanner
 	IdeoRoles           *RoutineIdeoRolesPlanner
 	Rituals             *RoutineRitualsPlanner
@@ -221,6 +222,7 @@ type ClockSchedulerResult struct {
 	MaintainShelter              *MaintainShelterResult
 	Firebreak                    *RoutineFirebreakResult
 	Psylink                      *RoutinePsylinkResult
+	CreepJoiners                 *RoutineCreepJoinerResult
 	Permits                      *RoutinePermitsResult
 	IdeoRoles                    *RoutineIdeoRolesResult
 	Rituals                      *RoutineRitualsResult
@@ -594,6 +596,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Permits != nil && (config.Routine == nil || config.Permits.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Permits != nil && (config.Routine == nil || config.Permits.reviewer != config.Routine)", ErrControl)
+	}
+	if config.CreepJoiners != nil && (config.Routine == nil || config.CreepJoiners.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.CreepJoiners != nil && (config.Routine == nil || config.CreepJoiners.reviewer != config.Routine)", ErrControl)
 	}
 	if config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.HomeCoverage != nil && (config.Routine == nil || config.HomeCoverage.reviewer != config.Routine)", ErrControl)
@@ -1995,7 +2000,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 			switch p.Action().Kind() {
 			case domain.AcquisitionAction, domain.AcquisitionWithdrawAction, domain.ProductionBillAction, domain.OwnedDraftAction,
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
-				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
+				domain.HaulAction, domain.EquipAction, domain.DropEquipmentAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
 				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.RoyaltyAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:

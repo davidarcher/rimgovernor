@@ -79,7 +79,7 @@ func ProfileWeapon(w EquipCandidateWeapon) WeaponProfile {
 // ScoreWeapon scores skill at an accuracy-weighted engagement range, then
 // applies role fit and the known armor census. Unknown roles/armor are neutral.
 func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
-	if p.Role == WeaponRoleNonCombatant {
+	if p.Role == WeaponRoleNonCombatant || p.NoArms != "" {
 		return 0
 	}
 	if (w.Biocoded || w.BiocodedTo != "") && w.BiocodedTo != p.Pawn {
@@ -164,6 +164,9 @@ type EquipAssignment struct {
 }
 
 func equipAvailable(p EquipCandidatePawn) bool {
+	if p.NoArms != "" {
+		return false
+	}
 	for _, f := range []domain.Fact[bool]{p.Dead, p.Downed, p.Drafted, p.MentalState, p.IncapableOfViolence} {
 		if value, known := f.Value(); !known || value {
 			return false

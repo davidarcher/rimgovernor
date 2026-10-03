@@ -26,6 +26,7 @@ const TendAction ActionKind = "tend"
 const RescueAction ActionKind = "rescue"
 const HaulAction ActionKind = "haul"
 const EquipAction ActionKind = "equip"
+const DropEquipmentAction ActionKind = "drop_equipment"
 const GearReplaceAction ActionKind = "gear_replace"
 const RepairAction ActionKind = "repair"
 const CaravanDepartureAction ActionKind = "caravan_departure"
@@ -114,6 +115,7 @@ type Action struct {
 	movement            Movement
 	haul                Haul
 	equip               Equip
+	dropEquipment       DropEquipment
 	gearReplace         GearReplace
 	repair              Repair
 	clean               Clean
@@ -246,6 +248,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewHaulAction(a.id, a.haul)
 		case EquipAction:
 			canonical, err = NewEquipAction(a.id, a.equip)
+		case DropEquipmentAction:
+			canonical, err = NewDropEquipmentAction(a.id, a.dropEquipment)
 		case ApparelPolicyAction:
 			canonical, err = NewApparelPolicyAction(a.id, a.apparelPolicy)
 		case GearReplaceAction:

@@ -192,19 +192,19 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 
 func TestEquipPawnRaidArmorPresence(t *testing.T) {
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn")}}
-	if _, known := equipCandidatePawnFacts(row).RaidArmor.Value(); known {
+	if _, known := equipCandidatePawnFacts(row, policy.CreepJoinerDownsides{}).RaidArmor.Value(); known {
 		t.Fatal("missing armor became known")
 	}
 	row.RaidArmor = proto.Float64(0)
-	if armor, known := equipCandidatePawnFacts(row).RaidArmor.Value(); !known || armor != 0 {
+	if armor, known := equipCandidatePawnFacts(row, policy.CreepJoinerDownsides{}).RaidArmor.Value(); !known || armor != 0 {
 		t.Fatal("zero armor lost")
 	}
 	row.RaidArmor = proto.Float64(.8)
-	if armor, known := equipCandidatePawnFacts(row).RaidArmor.Value(); !known || armor != .8 {
+	if armor, known := equipCandidatePawnFacts(row, policy.CreepJoinerDownsides{}).RaidArmor.Value(); !known || armor != .8 {
 		t.Fatal("armor lost")
 	}
 	row.Issues = []*o.ReadIssue{{Field: proto.String("raid_armor")}}
-	if _, known := equipCandidatePawnFacts(row).RaidArmor.Value(); known {
+	if _, known := equipCandidatePawnFacts(row, policy.CreepJoinerDownsides{}).RaidArmor.Value(); known {
 		t.Fatal("unavailable armor became known")
 	}
 }

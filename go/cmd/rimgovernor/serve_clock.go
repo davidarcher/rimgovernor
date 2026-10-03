@@ -667,6 +667,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.routineCreepJoinerPlans {
+			// ManageCreepJoiners (#1740) plans from the review's frame; no read of its own.
+			if config.CreepJoiners, err = buildingruntime.NewRoutineCreepJoinerPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if sc.routineShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
@@ -1045,6 +1051,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routinePsylinkPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPsylink)
+	}
+	if sc.routineCreepJoinerPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.ManageCreepJoiners)
 	}
 	if sc.routinePermitPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPermits)

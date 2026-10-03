@@ -43,18 +43,7 @@ func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource
 // plans, so counting it reused "equip-wave-0" once the first wave retired and
 // the goal_methods key refused every later wave (#1674).
 func nextEquipWaveMethod(goal store.GoalState) domain.MethodID {
-	bound := map[domain.MethodID]bool{}
-	for _, m := range goal.History {
-		bound[m.Method] = true
-	}
-	for _, m := range goal.Methods {
-		bound[m.Method] = true
-	}
-	for i := 0; ; i++ {
-		if method := domain.MethodID(fmt.Sprintf("equip-wave-%d", i)); !bound[method] {
-			return method
-		}
-	}
+	return nextWaveMethod(goal, "equip-wave-")
 }
 
 func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineEquipResult, error) {
@@ -132,6 +121,10 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
+	downsides, err := creepJoinerDownsides(call, r.native, identity)
+	if err != nil {
+		return RoutineEquipResult{}, err
+	}
 	var pawns []policy.EquipCandidatePawn
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -139,7 +132,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineEquipResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
-		facts := equipCandidatePawnFacts(row)
+		facts := equipCandidatePawnFacts(row, downsides)
 		if current := row.GetEquipment().GetPrimaryId(); current != "" {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {
@@ -172,7 +165,12 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	arbiter.mu.Lock()
 	pool := make([]policy.EquipCandidatePawn, 0, len(pawns))
 	exhausted := false
+	var held []domain.PawnID
 	for _, pawn := range pawns {
+		if pawn.NoArms != "" {
+			held = append(held, pawn.Pawn)
+			continue
+		}
 		attempts := attemptsByPawn[pawn.Pawn]
 		if attempts >= maxMedicalAttemptsPerPatient {
 			exhausted = true
@@ -197,6 +195,11 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if len(assignments) == 0 {
 		if exhausted {
 			return RoutineEquipResult{Verdict: BuildingReasonExhausted}, nil
+		}
+		// Every colonist left is held back from arms (a creepjoiner whose
+		// downside has not shown, #1740): no weapon is owed until it does.
+		if len(held) > 0 && len(pool) == 0 {
+			return RoutineEquipResult{Verdict: refuse(RefusalNoWorker, "creepjoiner_downside_unrevealed", string(held[0]))}, nil
 		}
 		// No loose weapon fits an unarmed fighter: the armory crafts one
 		// (#1204).

@@ -123,7 +123,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	}
 	p.Facts.Armed, p.Facts.Unarmed, p.Facts.DefenseCapacity, p.WorkPawns, p.Facts.MedicalPawns, p.Facts.MoodPawns = domain.Fact[int64]{}, domain.Fact[int64]{}, domain.Fact[float64]{}, domain.Fact[[]policy.WorkPawn]{}, domain.Fact[[]policy.CarePawn]{}, domain.Fact[[]policy.MoodPawn]{}
 	if pawns != nil {
-		p.Facts.Armed, p.Facts.Unarmed = routineArmed(colony, emergency, pawns)
+		p.Facts.Armed, p.Facts.Unarmed = routineArmed(colony, emergency, pawns, frame.Catalog.CreepJoinerDownsides())
 		p.Facts.DefenseCapacity = policy.DefenseCapacity(routineDefenders(colony, emergency, pawns), p.DefenseTurrets)
 		var biotech *bridge.BiotechCatalog
 		if frame.Catalog != nil {

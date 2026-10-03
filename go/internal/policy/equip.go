@@ -19,6 +19,11 @@ type EquipCandidatePawn struct {
 	RaidArmor   domain.Fact[float64]
 	// Current is the equipped primary: the bot owns every equipment decision.
 	Current *EquipCandidateWeapon
+	// NoArms is the plain-English reason the pawn must not hold a weapon
+	// yet, "" when nothing holds it back (a creepjoiner whose downside has
+	// not shown, #1740; CreepJoinerDownsides.ArmsHold). Every weapon decision
+	// leaves such a pawn unarmed.
+	NoArms string
 }
 
 // EquipCandidateWeapon describes one already-observed loose weapon.

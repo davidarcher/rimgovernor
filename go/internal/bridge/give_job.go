@@ -13,6 +13,10 @@ const (
 	JobOpen        = "Open"
 	JobTendPatient = "TendPatient"
 	JobEquip       = "Equip"
+	// JobDropWeapon is this protocol's token, not a JobDef name (like
+	// JobHaulWaste): native drops the weapon the pawn holds with the game's own
+	// drop job, which it finds by its driver class (#1740).
+	JobDropWeapon  = "DropWeapon"
 	JobWear        = "Wear"
 	JobRescue      = "Rescue"
 	JobCapture     = "Capture"
@@ -126,6 +130,16 @@ func equipAction(action domain.Action) (*o.Action, error) {
 		return nil, contract("not an equip action")
 	}
 	return giveJob(v.Pawn(), JobEquip, v.Thing())
+}
+
+// dropEquipmentAction orders a pawn to drop the weapon it holds; native
+// checks the weapon is in the pawn's hands live.
+func dropEquipmentAction(action domain.Action) (*o.Action, error) {
+	v, ok := action.DropEquipment()
+	if !ok {
+		return nil, contract("not a drop equipment action")
+	}
+	return giveJob(v.Pawn(), JobDropWeapon, v.Thing())
 }
 
 func rescueAction(action domain.Action) (*o.Action, error) {

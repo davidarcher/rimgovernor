@@ -80,6 +80,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.OwnedDraftAction:          true,
 	domain.SubdueAction:              true,
 	domain.EquipAction:               true,
+	domain.DropEquipmentAction:       true,
 	domain.RescueAction:              true,
 	domain.CaptureAction:             true,
 	domain.MoodReliefAction:          true,

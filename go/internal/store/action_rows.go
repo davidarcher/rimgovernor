@@ -94,6 +94,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'tend',?,?)", a.ID(), plan, ordinal, tend.Doctor(), tend.Patient())
 	} else if rescue, ok := a.Rescue(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'rescue',?,?)", a.ID(), plan, ordinal, rescue.Rescuer(), rescue.Patient())
+	} else if drop, ok := a.DropEquipment(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'drop_equipment',?,?)", a.ID(), plan, ordinal, drop.Pawn(), drop.Thing())
 	} else if capture, ok := a.Capture(); ok {
 		if capture.Arrest() {
 			_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'capture',?,?,?)", a.ID(), plan, ordinal, capture.Capturer(), capture.Patient(), capture.Bed())
@@ -799,6 +801,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRescueAction(id, r)
+		return a, ordinal, err
+	}
+	if kind == "drop_equipment" && pawn.Valid && target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		d, err := domain.NewDropEquipment(domain.PawnID(pawn.String), target.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewDropEquipmentAction(id, d)
 		return a, ordinal, err
 	}
 	if kind == "capture" && pawn.Valid && target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {

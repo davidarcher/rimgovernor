@@ -307,6 +307,10 @@ type RoutineFacts struct {
 	// neuroformer is held (PsylinkOwed, #1609); it holds MaintainPsylink
 	// open. Unknown unless the method is composed.
 	PsylinkOwed domain.Fact[bool]
+	// CreepJoinerOwed: a creepjoiner whose downside has not shown holds a
+	// weapon (CreepJoinerDownsides.WeaponDrops, #1740); it holds
+	// ManageCreepJoiners open. Unknown unless the method is composed.
+	CreepJoinerOwed domain.Fact[bool]
 	// RolesOwed: an active ideoligion role has a free place and a fitting
 	// believer (RolesOwed, #1661); it holds MaintainIdeoRoles open.
 	RolesOwed domain.Fact[bool]
@@ -1423,6 +1427,14 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainPermits, 3, PermitsSpent(f.Royalty))
 	if _, owed := NextPermitOf(f.Royalty); owed {
 		addGoal(MaintainPermits, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// ManageCreepJoiners (#1740): a creepjoiner holds a weapon before its
+	// downside has shown. Ranked with the upkeep projects; unknown raises
+	// nothing.
+	addAssessment(ManageCreepJoiners, 3, measured(f.CreepJoinerOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.CreepJoinerOwed.Value(); known && owed {
+		addGoal(ManageCreepJoiners, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	animalContainment := domain.Unknown[bool]()

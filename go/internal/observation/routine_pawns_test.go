@@ -21,7 +21,7 @@ func TestRoutineArmedCountsUnarmedFighters(t *testing.T) {
 		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(id), Dead: domain.Known(false), Downed: domain.Known(false)})
 	}
 	p := &o.PawnSnapshot{Pawns: []*o.PawnState{row("a", true), row("b", false), row("c", false, "Violent")}}
-	armed, unarmed := routineArmed(v, e, p)
+	armed, unarmed := routineArmed(v, e, p, policy.CreepJoinerDownsides{})
 	if a, k := armed.Value(); !k || a != 1 {
 		t.Fatal(a, k)
 	}
@@ -29,7 +29,7 @@ func TestRoutineArmedCountsUnarmedFighters(t *testing.T) {
 		t.Fatal(u, k)
 	}
 	p.Pawns[1].Biography = nil
-	if _, unarmed = routineArmed(v, e, p); func() bool { _, k := unarmed.Value(); return k }() {
+	if _, unarmed = routineArmed(v, e, p, policy.CreepJoinerDownsides{}); func() bool { _, k := unarmed.Value(); return k }() {
 		t.Fatal("missing biography gave a known unarmed count")
 	}
 }

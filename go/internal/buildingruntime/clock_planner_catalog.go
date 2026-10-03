@@ -862,6 +862,16 @@ var plannerCatalog = []plannerEntry{
 			out.Psylink = &method
 			return method.Verdict, nil
 		}},
+	{name: "creepJoiners", goal: policy.ManageCreepJoiners, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DropEquipmentAction}, sections: sectionsMedical,
+		configured: func(c *ClockSchedulerConfig) bool { return c.CreepJoiners != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.CreepJoiners.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.CreepJoiners = &method
+			return method.Verdict, nil
+		}},
 	{name: "ideoRoles", goal: policy.MaintainIdeoRoles, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AssignAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.IdeoRoles != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

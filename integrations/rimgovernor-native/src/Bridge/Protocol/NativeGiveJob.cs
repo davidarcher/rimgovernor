@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
-    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, Waste }
+    internal enum JobOrderKind { Repair, Clean, OpenCasket, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, Waste }
 
     // One pawn, one target (and Arrest's bed) for a JobOrderKind.
     internal sealed class JobOrder
@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<string, JobOrderKind> Kinds = new Dictionary<string, JobOrderKind>
         {
             ["Repair"] = JobOrderKind.Repair, ["Clean"] = JobOrderKind.Clean, ["Open"] = JobOrderKind.OpenCasket,
-            ["TendPatient"] = JobOrderKind.Tend, ["Equip"] = JobOrderKind.Equip, ["Wear"] = JobOrderKind.Wear,
+            ["TendPatient"] = JobOrderKind.Tend, ["Equip"] = JobOrderKind.Equip, [DropWeapon] = JobOrderKind.DropWeapon, ["Wear"] = JobOrderKind.Wear,
             ["Rescue"] = JobOrderKind.Rescue, ["Capture"] = JobOrderKind.Capture, ["Arrest"] = JobOrderKind.Arrest,
             ["AttackMelee"] = JobOrderKind.Subdue, ["FixBrokenDownBuilding"] = JobOrderKind.FixBreakdown,
             ["Refuel"] = JobOrderKind.Refuel, [HaulWaste] = JobOrderKind.Waste,
@@ -43,6 +43,9 @@ namespace HomeBridge.BridgeTools
         // HaulWaste names the waste haul (NativeWasteOperations): the Hauling
         // giver's HaulToCell or burial job to a separated destination.
         internal const string HaulWaste = "HaulWaste";
+        // DropWeapon names the drop of the weapon in the pawn's hands
+        // (NativeDropOperations): the job whose driver is JobDriver_DropEquipment.
+        internal const string DropWeapon = "DropWeapon";
 
         private static string? Id(Common.Ref? r) => r != null && r.HasId && ProtoBoundary.IsIdentifier(r.Id) ? r.Id : null;
 
@@ -121,6 +124,7 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.OpenCasket: return NativeOpenCasketOperations.Validate(order, context);
                 case JobOrderKind.Tend: return NativeTendOperations.Validate(order, context);
                 case JobOrderKind.Equip: return NativeEquipOperations.Validate(order, context);
+                case JobOrderKind.DropWeapon: return NativeDropOperations.Validate(order, context);
                 case JobOrderKind.Wear: return NativeGearOperations.Validate(order, context);
                 case JobOrderKind.Rescue: case JobOrderKind.Capture: return NativeCustodyOperations.Validate(order, context);
                 case JobOrderKind.Arrest: return NativeArrestOperations.Validate(order, context);
@@ -140,6 +144,7 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.OpenCasket: return NativeOpenCasketOperations.Apply(order, context);
                 case JobOrderKind.Tend: return NativeTendOperations.Apply(order, context);
                 case JobOrderKind.Equip: return NativeEquipOperations.Apply(order, context);
+                case JobOrderKind.DropWeapon: return NativeDropOperations.Apply(order, context);
                 case JobOrderKind.Wear: return NativeGearOperations.Apply(order, context);
                 case JobOrderKind.Rescue: case JobOrderKind.Capture: return NativeCustodyOperations.Apply(order, context);
                 case JobOrderKind.Arrest: return NativeArrestOperations.Apply(order, context);

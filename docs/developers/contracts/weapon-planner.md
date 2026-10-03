@@ -19,9 +19,15 @@ table uses planning estimates, with conservative class defaults for other defs.
 
 Pairs are assigned highest score first, then pawn identity, distance and weapon
 identity; each pawn and weapon appears once. A known biocode restricts the weapon
-to its pawn. An existing weapon is preserved unless automation owns its exact
-identity, and a swap requires over 20% score improvement. Biocoded primaries stay
-pinned. The routine equip planner admits the entire assignment as independent
+to its pawn. The planner owns every weapon decision: a pawn's weapon swaps for
+any loose weapon that scores strictly higher, and biocoded primaries stay
+pinned. A colonist held back from arms (`EquipCandidatePawn.NoArms`: a
+creepjoiner whose downside has not shown, see
+[population goals](population-contracts.md#creepjoiners)) scores zero for
+every weapon, is not counted as an unarmed fighter and is never assigned,
+swapped or loaded out; when every colonist left is held back the equip step
+refuses with `no_worker` naming the colonist and
+`creepjoiner_downside_unrevealed`. The routine equip planner admits the entire assignment as independent
 actions in one plan, retaining per-pawn retry limits and native postconditions.
 Native preview still decides current equip eligibility, including biocoding.
 

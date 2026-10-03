@@ -88,6 +88,37 @@ pawn is a living free colonist. Expired, changed and
 unsupported offers are never answered. Without known capacity, letters expire
 through their own native quest timeout.
 
+### Creepjoiners
+
+A creepjoiner's downside is hidden at arrival, so until it shows the colonist
+is a risk and holds no weapon (#1740, David 2026-10-03: accept first, give no
+gear). The downside has shown when the tracker's `downside_triggered` is true,
+or the colonist carries a trait or a visible hediff that some downside def in
+the definition catalog adds (`policy.CreepJoinerDownsides`, built from the
+catalog's downside rows; no def name is written in Go, and the colonist's own
+downside def is never read). Facts the answer rests on that are unread leave
+it unknown, and an unknown holds the colonist back; a colonist with no
+Anomaly block is no creepjoiner.
+
+- `ManageCreepJoiners` (People, priority 3, `policy.CreepJoinerDownsides.WeaponDrops`):
+  each review reads the frame's colonist rows (complete roster only) and opens
+  the goal while an available colonist held back from arms holds a weapon. Its
+  planner orders one `drop_equipment` action per such colonist in one plan
+  (job token `DropWeapon`, [action contracts](action-contracts.md)); a drop is
+  development-exempt like an `Equip`. The goal recovers when the weapon is out
+  of the colonist's hands; the dropped weapon is then loose stock.
+- The equipment planner, the armory's weapon demand and the fight loadout set
+  `EquipCandidatePawn.NoArms` from the same check
+  ([weapon planner](weapon-planner.md)); the basic-defense unarmed count skips
+  the colonist so `EnsureBasicDefense` does not stay open for it.
+
+Open (waiting on the room catalog and recipe rows, #1720): the isolation room
+role, surgical inspection and the prosthetic trick (dentures and wooden hands,
+then removal); valuable apparel has no expressible rule yet. A downside trait
+or hediff that the colonist's benefit or form also grants counts as shown (the
+catalog rows do not tell the two apart): unverified in game, as the drop job's
+build and admission are (no acceptance run).
+
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,
 `converted`, `released`, `escaped` or `died`. While held, the order is complete as

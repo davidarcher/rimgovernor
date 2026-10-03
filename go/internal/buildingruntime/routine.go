@@ -50,6 +50,9 @@ type RoutineReviewer struct {
 	// psylink is MaintainPsylink's review memory (#1609), set when its
 	// planner is composed.
 	psylink *psylinkMemory
+	// creepJoiners is ManageCreepJoiners's review memory (#1740), set when
+	// its planner is composed.
+	creepJoiners *creepJoinerMemory
 	// moodCasts is set when the mood relief planner is composed: it casts
 	// mood psycasts (#1612), so the review reads the royalty facts.
 	moodCasts bool
@@ -398,6 +401,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	var psylinkCandidates domain.Fact[[]policy.PawnID]
 	if r.psylink != nil {
 		psylinkCandidates, reading.Projection.Facts.PsylinkOwed = r.psylink.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection)
+	}
+	if r.creepJoiners != nil {
+		reading.Projection.Facts.CreepJoinerOwed = r.creepJoiners.review(state.Snapshot, reading.Projection.Identity.Tick, reading.Frame)
 	}
 	if r.methodEnabled(policy.MaintainIdeoRoles) {
 		reading.Projection.Facts.RolesOwed = policy.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns)

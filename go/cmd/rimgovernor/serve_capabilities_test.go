@@ -35,6 +35,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"stone-shell", policy.MaintainStoneShell},
 		{"firebreak", policy.MaintainFirebreak},
 		{"psylink", policy.MaintainPsylink},
+		{"creepjoiner", policy.ManageCreepJoiners},
 		{"permits", policy.MaintainPermits},
 		{"ideo-roles", policy.MaintainIdeoRoles},
 		{"rituals", policy.MaintainRituals},

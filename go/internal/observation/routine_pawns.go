@@ -14,7 +14,7 @@ import (
 // no weapon: EnsureBasicDefense stays owed while any remain, so a loose
 // starting club is equipped (or a weapon crafted) for every one of them, not
 // only the first two. A row without its biography leaves it unknown.
-func routineArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, pawns *o.PawnSnapshot) (domain.Fact[int64], domain.Fact[int64]) {
+func routineArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, pawns *o.PawnSnapshot, downsides policy.CreepJoinerDownsides) (domain.Fact[int64], domain.Fact[int64]) {
 	unknown := domain.Unknown[int64]()
 	if colony == nil || colony.ColonistCount == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(pawns.Pawns) != len(emergency.Colonists) {
 		return unknown, unknown
@@ -40,6 +40,12 @@ func routineArmed(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts
 		}
 		if row.Equipment.GetArmed() {
 			armed++
+			continue
+		}
+		// A colonist held back from arms (a creepjoiner whose downside has not
+		// shown, #1740) is owed no weapon: counting it would hold
+		// EnsureBasicDefense open for good.
+		if downsides.ArmsHold(bridge.CreepJoinerPawn(row)) != "" {
 			continue
 		}
 		if row.Biography == nil || hasIssue(row.Biography.GetIssues(), "disabled_work_tags") {

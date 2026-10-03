@@ -226,7 +226,7 @@ func loadoutReady(d LoadoutDefender) bool {
 			return false
 		}
 	}
-	return d.Role != WeaponRoleNonCombatant
+	return d.Role != WeaponRoleNonCombatant && d.NoArms == ""
 }
 
 // loadoutMelee is a melee fighter: the melee role, a melee-only pawn, or

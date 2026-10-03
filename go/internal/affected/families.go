@@ -120,6 +120,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_shelter.go":              {"shelter", "expansion"},
 	"routine_maintain_shelter.go":     {"sheltering"},
 	"routine_firebreak.go":            {"firebreak"},
+	"routine_creepjoiner.go":          {"creepjoiner"},
 	"routine_psylink.go":              {"psylink"},
 	"routine_permits.go":              {"permits"},
 	"routine_ideo_roles.go":           {"ideo-roles"},
