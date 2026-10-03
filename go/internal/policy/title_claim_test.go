@@ -7,7 +7,7 @@ import (
 )
 
 // claimFixture is a Yeoman with the favor for the Knight, a bedroom that
-// meets the Yeoman's title and a standing Knight throne room at 60.
+// meets the Knight's requirements and a standing Knight throne room at 60.
 func claimFixture(t *testing.T) TitleClaimFacts {
 	t.Helper()
 	plan, room, _ := throneFixture()
@@ -21,11 +21,14 @@ func claimFixture(t *testing.T) TitleClaimFacts {
 		}
 	}
 	obs, tidy, _ := upgradeFixture(t, RoomQuality{Impressiveness: 80})
-	obs.People = []SleepingPerson{{ID: "Alice", Title: &RoyalTitle{Definition: "Yeoman", BedroomMinImpressiveness: 50, BedroomThings: []BedroomThing{{AnyOf: []Resource{"EndTable"}, Count: 1}}}}}
+	obs.People = []SleepingPerson{{ID: "Alice"}}
+	ladder := throneLadder()
+	ladder[1].BedroomMinImpressiveness = domain.Known(50)
+	ladder[1].BedroomThings = []BedroomThing{{AnyOf: []Resource{"EndTable"}, Count: 1}}
 	obs.Beds = []SleepingBed{replacementBed("Bed_1", "Good", "Alice")}
 	tidy[0].Pieces = append(tidy[0].Pieces, TidyPiece{Def: "EndTable"})
 	return TitleClaimFacts{
-		Royalty:        RoyaltyFacts{Ladder: throneLadder(), Holders: map[PawnID][]RoyalHolding{"Alice": royalHolder("Yeoman", 10)}},
+		Royalty:        RoyaltyFacts{Ladder: ladder, Holders: map[PawnID][]RoyalHolding{"Alice": royalHolder("Yeoman", 10)}},
 		Sleeping:       obs,
 		BedroomPieces:  tidy,
 		Plan:           plan,

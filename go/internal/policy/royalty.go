@@ -15,6 +15,8 @@ type RoyaltyFacts struct {
 	Psycasts map[PawnID][]Psycast
 	// Neuroformers is the colony's neuroformer stock by def (#1600).
 	Neuroformers map[string]Neuroformer
+	// Ceremonies are the pending bestowing ceremonies (#1602), by pawn.
+	Ceremonies []BestowingCeremony
 }
 
 // PsycastTarget is what a psycast aims at.
@@ -65,6 +67,12 @@ type RoyalRung struct {
 	ThroneMinArea           domain.Fact[int]
 	ThroneThings            []string
 	ThroneAssigned          domain.Fact[bool]
+	// Bedroom* are the title's bedroom requirements: an absent area or
+	// impressiveness is none, and no BedroomThings needs no furniture.
+	BedroomMinArea           domain.Fact[int]
+	BedroomMinImpressiveness domain.Fact[int]
+	BedroomFloored           domain.Fact[bool]
+	BedroomThings            []BedroomThing
 }
 
 // RoyalPermit is one permit definition. Acts marks a permit the holder calls

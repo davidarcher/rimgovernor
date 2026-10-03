@@ -246,7 +246,8 @@ psycaster, its known psycasts (def, unlocking psylink level, Psyfocus cost,
 neural heat, target kind, longest cooldown), plus the colony's neuroformer
 stock: the psylink neuroformer and each psycast neurotrainer with `held`
 (unforbidden stacks on home maps), `craftable` (a recipe available now) and
-`tradeable` (a trader sells it). Absent scalars are unknown, never zero. The
+`tradeable` (a trader sells it), each rung's bedroom requirements and the
+pending bestowing ceremonies (observations.md, Royalty facts). Absent scalars are unknown, never zero. The
 pawn row keeps only the constantly refreshed psylink level and Psyfocus.
 
 ### Environmental disruption

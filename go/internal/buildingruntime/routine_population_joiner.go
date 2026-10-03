@@ -84,7 +84,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
 	prefix := "joiner"
 	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
-		if empire := policy.SelectEmpireQuestMethod(facts.QuestOffers); empire.Reason == "" {
+		if empire := policy.SelectEmpireQuestMethod(facts.QuestOffers, facts.TitleClaimQuests...); empire.Reason == "" {
 			choice, prefix = empire, "empire"
 		}
 	}

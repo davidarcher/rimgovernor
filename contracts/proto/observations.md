@@ -199,7 +199,13 @@ read from `RoyalTitleDef.throneRoomRequirements`: minimum impressiveness and
 area, the accepted throne definitions and whether the throne is assigned),
 the permit catalog (minimum title, permit points, whether the permit acts and
 the favor a call spends) and each colonist's holdings per faction (title,
-favor, permit points, taken permits). It is separate from the pawn row and
+favor, permit points, taken permits). Each rung also carries the title's
+bedroom requirements (`RoyalTitleDef.bedroomRequirements`: minimum area and
+impressiveness, floor, furniture rows; without a holder's ideo exemptions) and
+`ceremonies` lists each offered or ongoing bestowing-ceremony quest
+(`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`): quest id, colonist,
+bestower, awarded title, accepted, bestower waiting in the lord's Wait toil,
+started, spot and the lord's colonist attendees (#1602). It is separate from the pawn row and
 slow-changing: the Go client reuses a read for `RoyaltyRefreshTicks` and
 decodes it into `policy.RoyaltyFacts`, where an absent scalar is unknown.
 Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client

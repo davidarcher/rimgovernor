@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI.Group;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 
@@ -60,7 +61,27 @@ namespace HomeBridge.BridgeTools
                         break;
                 }
             }
+            foreach (var req in title.bedroomRequirements ?? Enumerable.Empty<RoomRequirement>())
+            {
+                switch (req)
+                {
+                    case RoomRequirement_Area area: rung.BedroomMinArea = Math.Max(rung.BedroomMinArea, area.area); break;
+                    case RoomRequirement_Impressiveness imp: rung.BedroomMinImpressiveness = Math.Max(rung.BedroomMinImpressiveness, imp.impressiveness); break;
+                    case RoomRequirement_TerrainWithTags _: rung.BedroomFloored = true; break;
+                    case RoomRequirement_ThingAnyOfCount anyCount: rung.BedroomThings.Add(BedroomThing(anyCount.things, anyCount.count)); break;
+                    case RoomRequirement_ThingAnyOf any: rung.BedroomThings.Add(BedroomThing(any.things, 1)); break;
+                    case RoomRequirement_ThingCount count: rung.BedroomThings.Add(BedroomThing(new List<ThingDef> { count.thingDef }, count.count)); break;
+                    case RoomRequirement_Thing thing: rung.BedroomThings.Add(BedroomThing(new List<ThingDef> { thing.thingDef }, 1)); break;
+                }
+            }
             return rung;
+        }
+
+        private static Obs.BedroomThingRequirement BedroomThing(List<ThingDef> defs, int count)
+        {
+            var row = new Obs.BedroomThingRequirement { Count = count };
+            row.AnyOf.AddRange(defs.Where(d => d != null && ProtoBoundary.IsIdentifier(d.defName)).Select(d => d.defName));
+            return row;
         }
 
         private static Obs.RoyaltyFacts Read(Common.ObservationContext context)
@@ -101,7 +122,46 @@ namespace HomeBridge.BridgeTools
                 if (row.Holdings.Count > 0 || row.Psycasts.Count > 0) facts.Pawns.Add(row);
             }
             ReadNeuroformers(facts);
+            ReadCeremonies(facts);
             return facts;
+        }
+
+        // Pending bestowing ceremonies (#1602): the bestowing quest of each
+        // colonist and royal faction (the offered or ongoing quest, never an
+        // ended one). The lord is the bestower's: its Wait toil is the
+        // ceremony waiting for the player's command, its job holds the
+        // started flag, the ceremony spot and the colonist participants.
+        private static void ReadCeremonies(Obs.RoyaltyFacts facts)
+        {
+            var royalFactions = Find.FactionManager.AllFactionsListForReading
+                .Where(f => f?.def != null && f.def.HasRoyalTitles && ProtoBoundary.IsIdentifier(f.def.defName))
+                .OrderBy(f => f.def.defName, StringComparer.Ordinal).ToList();
+            foreach (var pawn in PawnsFinder.AllMaps_FreeColonists.Where(p => p.royalty != null).OrderBy(p => p.thingIDNumber))
+            {
+                foreach (var faction in royalFactions)
+                {
+                    var quest = RoyalTitleUtility.GetCurrentBestowingCeremonyQuest(pawn, faction);
+                    if (quest == null || quest.State != QuestState.NotYetAccepted && quest.State != QuestState.Ongoing) continue;
+                    var part = quest.PartsListForReading.OfType<QuestPart_BestowingCeremony>().FirstOrDefault();
+                    var row = new Obs.BestowingCeremony { Quest = quest.GetUniqueLoadID(), Pawn = new Common.Ref { Id = pawn.GetUniqueLoadID() }, FactionDef = faction.def.defName, Accepted = quest.State == QuestState.Ongoing };
+                    var awarded = pawn.royalty.GetTitleAwardedWhenUpdating(faction, pawn.royalty.GetFavor(faction));
+                    if (awarded != null && ProtoBoundary.IsIdentifier(awarded.defName)) row.Title = awarded.defName;
+                    var bestower = part?.bestower;
+                    if (bestower != null) row.Bestower = new Common.Ref { Id = bestower.GetUniqueLoadID() };
+                    var lord = bestower?.GetLord();
+                    var job = lord?.LordJob as LordJob_BestowingCeremony;
+                    row.BestowerWaiting = bestower != null && bestower.Spawned && lord?.CurLordToil is LordToil_BestowingCeremony_Wait;
+                    if (job != null)
+                    {
+                        row.Started = job.ceremonyStarted;
+                        var spot = job.Spot;
+                        if (spot.IsValid) row.Spot = new Common.Cell { X = spot.x, Z = spot.z };
+                        foreach (var attendee in (job.colonistParticipants ?? new List<Pawn>()).Where(p => p != null).OrderBy(p => p.thingIDNumber))
+                            row.Attendees.Add(new Common.Ref { Id = attendee.GetUniqueLoadID() });
+                    }
+                    facts.Ceremonies.Add(row);
+                }
+            }
         }
 
         private static Obs.PawnPsycast Psycast(AbilityDef def)

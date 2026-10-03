@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -232,28 +233,51 @@ func empireAnswerable(offer JoinerOffer) bool {
 		offer.FactionID != "" && known && !hostile && offer.OnMap && favor > 0
 }
 
-// EmpireDeficit reports whether an answerable Empire quest is waiting; an
-// unknown census leaves it unknown.
-func EmpireDeficit(offers domain.Fact[[]JoinerOffer]) domain.Fact[bool] {
+// claimAnswerable reports whether an offer is a bestowing-ceremony quest the
+// title claim gate allows (claims, ClaimQuests): not yet accepted,
+// native-acceptable and needing no accepter. The quest is identified by the
+// royalty read's quest id, not by script def.
+func claimAnswerable(offer JoinerOffer, claims []domain.QuestID) bool {
+	return slices.Contains(claims, offer.Quest) && offer.State == "NotYetAccepted" && offer.CanAccept && !offer.RequiresAccepter
+}
+
+// EmpireDeficit reports whether an answerable Empire quest (or an allowed
+// title claim, claims) is waiting; an unknown census leaves it unknown.
+func EmpireDeficit(offers domain.Fact[[]JoinerOffer], claims ...domain.QuestID) domain.Fact[bool] {
 	rows, known := offers.Value()
 	if !known {
 		return domain.Unknown[bool]()
 	}
 	for _, offer := range rows {
-		if empireAnswerable(offer) {
+		if empireAnswerable(offer) || claimAnswerable(offer, claims) {
 			return domain.Known(true)
 		}
 	}
 	return domain.Known(false)
 }
 
-// SelectEmpireQuestMethod picks the answerable Empire quest granting the most
-// favor (lowest quest ID on a tie) and the reward choice that grants it, to
-// accept through the existing QuestAccept write.
-func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer]) JoinerChoice {
+// SelectEmpireQuestMethod picks the Empire quest to accept through the
+// existing QuestAccept write: first the bestowing-ceremony quest of an
+// allowed title claim (claims; the lowest quest ID, reward choice -1 or the
+// game's first option), else the answerable quest granting the most favor
+// (lowest quest ID on a tie) and the reward choice that grants it.
+func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer], claims ...domain.QuestID) JoinerChoice {
 	rows, known := offers.Value()
 	if !known {
 		return JoinerChoice{Reason: JoinerCensusUnknown}
+	}
+	var claim *JoinerOffer
+	for i, offer := range rows {
+		if claimAnswerable(offer, claims) && (claim == nil || offer.Quest < claim.Quest) {
+			claim = &rows[i]
+		}
+	}
+	if claim != nil {
+		choice := JoinerChoice{Quest: claim.Quest, RewardChoice: -1}
+		if claim.ChoiceCount > 0 {
+			choice.RewardChoice = 0
+		}
+		return choice
 	}
 	best, bestChoice, bestFavor := JoinerOffer{}, int32(0), int32(0)
 	for _, offer := range rows {

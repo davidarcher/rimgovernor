@@ -321,6 +321,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		}
 	}
 	r.census.rememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan)
+	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
@@ -481,7 +482,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 				// deficit the same review corrects (#417).
 				if matches, ok := work.Matches.Value(); ok && matches {
 					meditate, _ := reading.Projection.MeditateAvailable.Value()
-					for _, row := range policy.PlanSchedules(pawns, reading.Projection.Facts.Comfort, meditate).Schedules {
+					for _, row := range policy.PlanSchedulesHeld(pawns, reading.Projection.Facts.Comfort, meditate, policy.CeremonyHoldOf(reading.Projection.Facts.Royalty)).Schedules {
 						if !row.Matches {
 							reading.Projection.Facts.WorkCoverage = domain.Known(false)
 						}

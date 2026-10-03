@@ -342,9 +342,13 @@ type RoutineFacts struct {
 	// Royalty is the slow-refresh royalty read (#1599), read by a
 	// RoutineSource offering RoutineRoyaltySource; unknown when the source
 	// has none, the read failed or Royalty is not applicable.
-	Royalty       domain.Fact[RoyaltyFacts]
-	JoinerLetters domain.Fact[[]JoinerLetterOffer]
-	RaidPoints    domain.Fact[float64]
+	Royalty domain.Fact[RoyaltyFacts]
+	// TitleClaimQuests are the bestowing-ceremony quests the title claim
+	// gate allows to accept now (ClaimQuests, #1605); the review fills it
+	// once the plan, rooms and royalty read are known.
+	TitleClaimQuests []domain.QuestID
+	JoinerLetters    domain.Fact[[]JoinerLetterOffer]
+	RaidPoints       domain.Fact[float64]
 	// ShellsShort is the armory shell review (#1207): a built mortar's shell
 	// stock below half its target puts MaintainEquipment in deficit.
 	ShellsShort domain.Fact[bool]
@@ -1360,7 +1364,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
-	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers).Value()
+	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers, f.TitleClaimQuests...).Value()
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	switch {
 	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, letterKnown && letterDeficit:

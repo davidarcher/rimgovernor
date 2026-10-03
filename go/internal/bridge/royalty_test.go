@@ -13,9 +13,12 @@ func royaltyRead() *o.RoyaltyFacts {
 	return &o.RoyaltyFacts{
 		Context: authorityTestContext(7),
 		Ladder: []*o.RoyalTitleRung{
-			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), ThroneMinImpressiveness: proto.Int32(55), ThroneMinArea: proto.Int32(30), ThroneThings: []string{"Throne"}, ThroneAssigned: proto.Bool(true)},
+			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), ThroneMinImpressiveness: proto.Int32(55), ThroneMinArea: proto.Int32(30), ThroneThings: []string{"Throne"}, ThroneAssigned: proto.Bool(true),
+				BedroomMinImpressiveness: proto.Int32(50), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"EndTable"}, Count: proto.Int32(1)}}},
 			{DefName: proto.String("Yeoman")},
 		},
+		Ceremonies: []*o.BestowingCeremony{{Quest: proto.String("Quest_4"), Pawn: &c.Ref{Id: proto.String("Human12")}, Bestower: &c.Ref{Id: proto.String("Human30")}, FactionDef: proto.String("Empire"),
+			Title: proto.String("Knight"), Accepted: proto.Bool(true), BestowerWaiting: proto.Bool(true), Spot: &c.Cell{X: proto.Int32(4), Z: proto.Int32(9)}, Attendees: []*c.Ref{{Id: proto.String("Human13")}}}},
 		Permits: []*o.RoyalPermitDef{
 			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30)},
 			{DefName: proto.String("TradeSettlement"), Acts: proto.Bool(false)},
@@ -112,11 +115,54 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	}
 }
 
+// TestDecodeRoyaltyFactsCeremonyAndBedroom (#1602, #1605): the bestowing
+// ceremony and the rung's bedroom requirements decode; an absent flag stays
+// unknown.
+func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
+	facts, err := DecodeRoyaltyFacts(royaltyRead(), pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rung := facts.Ladder[0]
+	if n, ok := rung.BedroomMinImpressiveness.Value(); !ok || n != 50 || len(rung.BedroomThings) != 1 || rung.BedroomThings[0].AnyOf[0] != "EndTable" || rung.BedroomThings[0].Count != 1 {
+		t.Fatalf("bedroom %+v", rung)
+	}
+	if _, ok := rung.BedroomMinArea.Value(); ok {
+		t.Fatal("absent bedroom area read as known")
+	}
+	if len(facts.Ceremonies) != 1 {
+		t.Fatalf("ceremonies %+v", facts.Ceremonies)
+	}
+	cm := facts.Ceremonies[0]
+	if cm.Quest != "Quest_4" || cm.Pawn != "Human12" || cm.Bestower != "Human30" || cm.Title != "Knight" || len(cm.Attendees) != 1 || cm.Attendees[0] != "Human13" {
+		t.Fatalf("ceremony %+v", cm)
+	}
+	if w, ok := cm.BestowerWaiting.Value(); !ok || !w {
+		t.Fatal("bestower waiting")
+	}
+	if _, ok := cm.Started.Value(); ok {
+		t.Fatal("absent started read as known")
+	}
+	if spot, ok := cm.Spot.Value(); !ok || spot.X != 4 || spot.Z != 9 {
+		t.Fatalf("spot %+v", spot)
+	}
+}
+
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held"} {
+	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
+			case "ceremony-quest":
+				v.Ceremonies[0].Quest = proto.String("")
+			case "ceremony-duplicate":
+				v.Ceremonies = append(v.Ceremonies, v.Ceremonies[0])
+			case "ceremony-attendee":
+				v.Ceremonies[0].Attendees[0].Id = proto.String("")
+			case "bedroom-count":
+				v.Ladder[0].BedroomThings[0].Count = proto.Int32(0)
+			case "bedroom-def":
+				v.Ladder[0].BedroomThings[0].AnyOf = []string{""}
 			case "world":
 				v.Context.Identity.LoadToken = proto.String("other")
 			case "title-duplicate":

@@ -223,6 +223,14 @@ func sameSchedule(a, b []string) bool {
 // (#1313; unknown reads as false): psycasters then meditate in their
 // recreation block (#1316).
 func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool) ScheduleDecision {
+	return PlanSchedulesHeld(pawns, comfort, meditateAvailable, nil)
+}
+
+// PlanSchedulesHeld is PlanSchedules with the pawns in hold kept off Sleep
+// (every Sleep hour planned Anything): a pending bestowing ceremony
+// (CeremonyHold, #1602) needs its colonist and attendees awake to join the
+// ritual. Rest below the sleep band still sends them to bed on their own.
+func PlanSchedulesHeld(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], meditateAvailable bool, hold map[PawnID]bool) ScheduleDecision {
 	var decision ScheduleDecision
 	var ids []PawnID
 	for _, pawn := range pawns {
@@ -237,6 +245,13 @@ func PlanSchedules(pawns []WorkPawn, comfort domain.Fact[ComfortObservation], me
 			continue
 		}
 		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID], meditation(pawn, meditateAvailable))
+		if hold[pawn.ID] {
+			for h, slot := range want {
+				if slot == ScheduleSleep {
+					want[h] = ScheduleAnything
+				}
+			}
+		}
 		decision.Schedules = append(decision.Schedules, PawnSchedule{Pawn: pawn.ID, Slots: want, Matches: sameSchedule(current, want)})
 	}
 	sort.Slice(decision.Schedules, func(i, j int) bool { return decision.Schedules[i].Pawn < decision.Schedules[j].Pawn })

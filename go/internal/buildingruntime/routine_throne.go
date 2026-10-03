@@ -79,7 +79,36 @@ func throneNeed(facts observation.ColonyProjection) (policy.ThroneNeed, bool) {
 	if !known {
 		return policy.ThroneNeed{}, false
 	}
+	if need, ok := policy.CeremonyThroneNeed(royalty); ok {
+		return need, true
+	}
 	return policy.NextThroneNeed(royalty)
+}
+
+// titleClaimQuests are the bestowing-ceremony quests the title claim gate
+// allows to accept now (policy.NextTitleClaim, policy.ClaimQuests); none
+// while the royalty read, sleeping census, plan, rooms or construction
+// census is unknown.
+func titleClaimQuests(facts observation.ColonyProjection) []domain.QuestID {
+	royalty, rok := facts.Royalty.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	if !rok || !sk || !pk || !rk || !ck || !census.Colony {
+		return nil
+	}
+	impressiveness := map[string]float64{}
+	if upkeep, ok := sleeping.Rooms.Value(); ok {
+		for _, room := range upkeep {
+			if q, ok := room.Quality.Value(); ok {
+				impressiveness[room.ID] = float64(q.Impressiveness)
+			}
+		}
+	}
+	claim := policy.NextTitleClaim(policy.TitleClaimFacts{Royalty: royalty, Sleeping: sleeping, BedroomPieces: policy.TidyFurnitureRooms(rooms, census, facts.Cells),
+		Plan: plan, Rooms: rooms, Built: census.Buildings, Impressiveness: impressiveness})
+	return policy.ClaimQuests(royalty, claim)
 }
 
 // throneStep is the projection's next throne step; none while the plan, the

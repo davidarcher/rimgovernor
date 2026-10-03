@@ -72,17 +72,12 @@ func nextClaim(ladder []RoyalRung, held string) (RoyalRung, bool) {
 	return ladder[next], true
 }
 
-// bedroomMet reports whether holder's solo bedroom meets its current
-// title's impressiveness and furniture; unknown when the holder's title or
-// bedroom is unread. A colonist without a title has no bedroom requirement.
-func bedroomMet(f TitleClaimFacts, holder PawnID) domain.Fact[bool] {
-	var title *RoyalTitle
-	for _, p := range f.Sleeping.People {
-		if p.ID == holder {
-			title = p.Title
-		}
-	}
-	if title == nil {
+// bedroomMet reports whether holder's solo bedroom meets rung's bedroom
+// requirements (its impressiveness and furniture); a rung that asks for
+// none is met. Unknown when the holder's bedroom furniture is unread.
+func bedroomMet(f TitleClaimFacts, holder PawnID, rung RoyalRung) domain.Fact[bool] {
+	minImpressiveness, _ := rung.BedroomMinImpressiveness.Value()
+	if minImpressiveness <= 0 && len(rung.BedroomThings) == 0 {
 		return domain.Known(true)
 	}
 	furniture := map[string]TidyRoom{}
@@ -93,14 +88,14 @@ func bedroomMet(f TitleClaimFacts, holder PawnID) domain.Fact[bool] {
 		if s.owner != holder {
 			continue
 		}
-		if s.impressiveness < float64(title.BedroomMinImpressiveness) {
+		if s.impressiveness < float64(minImpressiveness) {
 			return domain.Known(false)
 		}
 		room, ok := furniture[s.room]
-		if !ok && len(title.BedroomThings) > 0 {
+		if !ok && len(rung.BedroomThings) > 0 {
 			return domain.Unknown[bool]()
 		}
-		for _, thing := range title.BedroomThings {
+		for _, thing := range rung.BedroomThings {
 			if isReplacementBed(thing.AnyOf) {
 				continue
 			}
@@ -178,7 +173,7 @@ func NextTitleClaim(f TitleClaimFacts) TitleClaim {
 				continue
 			}
 			claim := TitleClaim{Holder: id, Title: rung.Title}
-			bedroom, bk := bedroomMet(f, id).Value()
+			bedroom, bk := bedroomMet(f, id, rung).Value()
 			throne, tk := throneMet(f, rung).Value()
 			switch {
 			case bk && !bedroom:

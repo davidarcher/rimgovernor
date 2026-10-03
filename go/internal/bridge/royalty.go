@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -82,9 +83,24 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 				return nil, contract("invalid royalty throne definition")
 			}
 		}
-		out.Ladder = append(out.Ladder, policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded)),
+		rung := policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded)),
 			ThroneMinImpressiveness: optionalFact(intPtr(row.ThroneMinImpressiveness)), ThroneMinArea: optionalFact(intPtr(row.ThroneMinArea)),
-			ThroneThings: append([]string{}, row.ThroneThings...), ThroneAssigned: optionalFact(row.ThroneAssigned)})
+			ThroneThings: append([]string{}, row.ThroneThings...), ThroneAssigned: optionalFact(row.ThroneAssigned),
+			BedroomMinArea: optionalFact(intPtr(row.BedroomMinArea)), BedroomMinImpressiveness: optionalFact(intPtr(row.BedroomMinImpressiveness)), BedroomFloored: optionalFact(row.BedroomFloored)}
+		for _, req := range row.BedroomThings {
+			if req == nil || len(req.AnyOf) == 0 || req.GetCount() < 1 {
+				return nil, contract("invalid royalty bedroom requirement")
+			}
+			thing := policy.BedroomThing{Count: int(req.GetCount())}
+			for _, def := range req.AnyOf {
+				if validID(def) != nil {
+					return nil, contract("invalid royalty bedroom definition")
+				}
+				thing.AnyOf = append(thing.AnyOf, policy.Resource(def))
+			}
+			rung.BedroomThings = append(rung.BedroomThings, thing)
+		}
+		out.Ladder = append(out.Ladder, rung)
 	}
 	for _, row := range v.Permits {
 		name := row.GetDefName()
@@ -145,6 +161,27 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		}
 		out.Neuroformers[name] = policy.Neuroformer{Def: name, TeachesPsycast: row.GetTeachesPsycast(), Held: optionalFact(intPtr(row.Held)),
 			Craftable: optionalFact(row.Craftable), Tradeable: optionalFact(row.Tradeable)}
+	}
+	seen := map[string]bool{}
+	for _, row := range v.Ceremonies {
+		pawn, bestower := row.GetPawn().GetId(), row.GetBestower().GetId()
+		if validID(pawn) != nil || bestower != "" && validID(bestower) != nil || validID(row.GetQuest()) != nil || row.FactionDef != nil && validID(row.GetFactionDef()) != nil ||
+			row.Title != nil && validID(row.GetTitle()) != nil || seen[pawn+"/"+row.GetFactionDef()] {
+			return nil, contract("invalid royalty ceremony")
+		}
+		seen[pawn+"/"+row.GetFactionDef()] = true
+		c := policy.BestowingCeremony{Quest: domain.QuestID(row.GetQuest()), Pawn: policy.PawnID(pawn), Bestower: policy.PawnID(bestower), Faction: row.GetFactionDef(), Title: row.GetTitle(),
+			Accepted: optionalFact(row.Accepted), BestowerWaiting: optionalFact(row.BestowerWaiting), Started: optionalFact(row.Started)}
+		if row.Spot != nil {
+			c.Spot = domain.Known(domain.Cell{X: row.Spot.GetX(), Z: row.Spot.GetZ()})
+		}
+		for _, a := range row.Attendees {
+			if validID(a.GetId()) != nil {
+				return nil, contract("invalid royalty ceremony attendee")
+			}
+			c.Attendees = append(c.Attendees, policy.PawnID(a.GetId()))
+		}
+		out.Ceremonies = append(out.Ceremonies, c)
 	}
 	return out, nil
 }
