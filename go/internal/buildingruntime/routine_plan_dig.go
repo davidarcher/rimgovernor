@@ -64,23 +64,10 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 		clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
 		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, true, nil
 	}
-	// A dig reaches only the rock the miners can reach now, so once that is
-	// mined the next layer needs a fresh method: one per remaining rock
-	// count, each run once.
-	fresh := false
-	for _, candidate := range []domain.MethodID{method, domain.MethodID(fmt.Sprintf("%s-r%d", method, len(rock)))} {
-		_, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, candidate)
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, store.ErrNotFound) {
-			return RoutineBuildingResult{}, false, err
-		}
-		method, fresh = candidate, true
-		break
-	}
-	if !fresh {
+	if _, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, false, err
 	}
 	snapshot.Plan = domain.MintPlanID()
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
