@@ -21,7 +21,9 @@ namespace HomeBridge.BridgeTools
     // controller's. Which gestator, recipes, ingredients and skills apply are
     // read from the game's defs, never named here. Everything after the
     // staging (the gestation bill, the hauling, the forming, the control group
-    // mode) is the game's and the controller's.
+    // mode) is the game's and the controller's; test/mech_gestation_advance
+    // only completes the forming bill's gestation cycles (vanilla's own
+    // debug action) so the days-long gestation fits the case's budget.
     public sealed class MechGestationFixture
     {
         [Tool("test/mech_gestation_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1692): make one colonist a mechanitor, build a mech gestator on a fueled generator's conduit line, stock the ingredients of the gestation recipes its free bandwidth affords, finish their research and skills, and park the mechanitor's first control group in a mode the controller never writes. Requires Biotech.")]
@@ -161,6 +163,21 @@ namespace HomeBridge.BridgeTools
                     recipes = affordable.Select(r => (object)new { recipe = r.defName, mechKind = NativeMechBills.Kind(r), bandwidth = Cost(r), gestationCycles = r.gestationCycles }).ToList(),
                     stock = seeded,
                 };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/mech_gestation_advance", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1692): once the gestator's bill is forming (a pawn has started it and hauled its ingredients), complete all of its gestation cycles so the mech forms within game minutes instead of the recipe's game days. Idempotent: advanced is false until a bill is forming.")]
+        public async Task<object> Advance(IRimBridgeContext ctx, CancellationToken cancellationToken, string gestatorId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !ModsConfig.BiotechActive) return Refuse("A Biotech map is required.");
+                var gestator = map.listerBuildings.allBuildingsColonist.OfType<Building_MechGestator>().FirstOrDefault(b => b.GetUniqueLoadID() == gestatorId);
+                if (gestator == null) return Refuse("The gestator is not on the map.");
+                var bill = gestator.ActiveMechBill;
+                if (bill == null) return new { success = true, advanced = false, tick = Find.TickManager.TicksGame };
+                bill.ForceCompleteAllCycles();
+                return new { success = true, advanced = true, tick = Find.TickManager.TicksGame, recipe = bill.recipe.defName, cycles = bill.GestationCyclesCompleted };
             }, cancellationToken).ConfigureAwait(false);
         }
 

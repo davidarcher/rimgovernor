@@ -18,10 +18,17 @@ import (
 
 const (
 	mechPrepareTool = "test/mech_gestation_prepare"
+	mechAdvanceTool = "test/mech_gestation_advance"
 	mechInspectTool = "test/mech_gestation_inspect"
-	// mechCeiling bounds each journal wait; the stall budget, whose
-	// signature carries the game day, ends it earlier when nothing moves.
-	mechCeiling = 12 * time.Minute
+	// mechBillCeiling and mechBirthCeiling bound the two journal waits (the
+	// bill, then the mech's work mode); the stall budget ends either earlier
+	// when nothing moves.
+	mechBillCeiling  = 3 * time.Minute
+	mechBirthCeiling = 5 * time.Minute
+	// mechFormTicks bounds the native run that hauls the ingredients and
+	// starts the forming bill (under a game day); the fixture then completes
+	// its gestation cycles, so the days-long gestation never runs.
+	mechFormTicks = 30000
 )
 
 func init() {
@@ -29,21 +36,21 @@ func init() {
 		Name: "child/mech-gestation",
 		Scope: "Issue #1692: a mechanitor with a powered gestator is owed a mech by MaintainMechs, which bills the gestator " +
 			"inside the mechanitor's free bandwidth; the game hauls the ingredients and forms the mech, and the routine's mech " +
-			"control gives its control group the work mode its kind calls for. A Go snapshot over recorded facts cannot cover " +
+			"control gives its control group the work mode its kind calls for; the fixture completes the forming bill's gestation cycles so the game days of gestation are not run. A Go snapshot over recorded facts cannot cover " +
 			"it: the chain is vanilla's own (the Bill_Mech bandwidth rule, hauling, gestation cycles under power, the mech's " +
 			"birth into an overseer's control group), asserted on the live mechanitor and mech.",
 		Start:       cases.Fixture{Op: mechPrepareTool, On: cases.LabStart()},
 		Expansions:  []string{"ludeon.rimworld.biotech"},
 		NoKeep:      true,
 		Quiet:       na.QuietRequired,
-		RequiredOps: []string{mechPrepareTool, mechInspectTool},
+		RequiredOps: []string{mechPrepareTool, mechAdvanceTool, mechInspectTool},
 		// mechs bills the gestator and, with work, runs the mech control; the
 		// shelter family keeps supervised windows running and dialog answers
 		// the letters (the birth raises one).
 		Serve: &cases.ServeSpec{
 			Families: []string{"mechs", "work", "shelter", "dialog"}, NativeTimeout: 15 * time.Second, Prefix: "child-mech-gestation",
 		},
-		Budget: 25 * time.Minute,
+		Budget: 12 * time.Minute,
 		Run:    runMechGestation,
 	})
 }
@@ -133,49 +140,81 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 	if _, err := na.ConfirmColonyNames(ctx, s.Harness(), report); err != nil {
 		return err
 	}
-	service, err := s.Serve(ctx, s.Spec())
-	if err != nil {
-		return err
-	}
-	defer service.Stop()
-	if _, err := service.Acquire(); err != nil {
-		return err
-	}
-	service.KeepAuthority(ctx)
-	st, err := service.Store(ctx)
-	if err != nil {
-		return err
-	}
-	defer st.Close()
-
-	// until polls the journal; the signature carries the game day so a
-	// long gestation does not read as a stall and a broken phase does.
-	until := func(what string, done func(ctx context.Context) (bool, error)) error {
-		err := na.WaitProgress(ctx, na.Wait{Ceiling: mechCeiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
+	// serve runs the controller until the journal shows done, then releases
+	// the game slot. The signature carries the game day so a slow phase does
+	// not read as a stall and a broken one does.
+	serve := func(what string, ceiling time.Duration, done func(ctx context.Context, st *store.Store) (bool, error)) error {
+		service, err := s.Serve(ctx, s.Spec())
+		if err != nil {
+			return err
+		}
+		defer service.Stop()
+		if _, err := service.Acquire(); err != nil {
+			return err
+		}
+		service.KeepAuthority(ctx)
+		st, err := service.Store(ctx)
+		if err != nil {
+			return err
+		}
+		defer st.Close()
+		err = na.WaitProgress(ctx, na.Wait{Ceiling: ceiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 			review, err := st.LoadRoutineReview(ctx)
 			if err != nil {
 				return na.Signature("no-review"), false, nil
 			}
-			ok, err := done(ctx)
+			ok, err := done(ctx, st)
 			return na.Signature(ok, review.Tick/na.TicksPerDay), ok, err
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", what, err)
 		}
+		report["keepalive_"+what] = service.Stop()
 		return nil
 	}
 	// The colony's answer to a mechanitor with bandwidth to spare: a
-	// gestation bill on its gestator, then the work order for the mech.
-	if err := until("gestation bill", func(ctx context.Context) (bool, error) { return mechBillPlaced(ctx, st, gestator) }); err != nil {
+	// gestation bill on its gestator.
+	if err := serve("gestation bill", mechBillCeiling, func(ctx context.Context, st *store.Store) (bool, error) {
+		return mechBillPlaced(ctx, st, gestator)
+	}); err != nil {
 		return err
 	}
-	if err := until("mech work mode", func(ctx context.Context) (bool, error) { return mechModeWritten(ctx, st) }); err != nil {
+	// The game hauls the ingredients and starts the bill; the fixture then
+	// completes its gestation cycles (a game-days wait that is vanilla's, not
+	// the controller's).
+	h, err := s.Reattach(ctx)
+	if err != nil {
+		return fmt.Errorf("reopen session after the bill: %w", err)
+	}
+	var advanced map[string]any
+	elapsed, err := na.RunUntil(ctx, h, "mech-forming", mechFormTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		reply, err := h.Call(ctx, "mech-advance", mechAdvanceTool, map[string]any{"gestatorId": gestator})
+		if err != nil {
+			return "", false, err
+		}
+		if ok, _ := na.AsBool(reply["success"]); !ok {
+			return "", false, fmt.Errorf("mech advance refused: %v", reply)
+		}
+		advanced = reply
+		done, _ := na.AsBool(reply["advanced"])
+		return na.Signature(done), done, nil
+	})
+	report["form_ticks"], report["advanced"] = elapsed, advanced
+	if err != nil {
+		return fmt.Errorf("gestation never started forming: %w", err)
+	}
+	if _, err := h.Call(ctx, "pause-forming", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	report["run_keepalive"] = service.Stop()
+	// The birth, then the controller's work order for the mech.
+	if err := serve("mech work mode", mechBirthCeiling, func(ctx context.Context, st *store.Store) (bool, error) {
+		return mechModeWritten(ctx, st)
+	}); err != nil {
+		return err
+	}
 
 	// Native postconditions after the service releases the game slot.
-	h, err := s.Reattach(ctx)
+	h, err = s.Reattach(ctx)
 	if err != nil {
 		return fmt.Errorf("reopen session after service stop: %w", err)
 	}
