@@ -1,12 +1,14 @@
 #nullable enable
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
+using Defs = RimGovernor.Protocol.Defs;
 using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -19,7 +21,7 @@ namespace HomeBridge.BridgeTools
     {
         internal const string ToolName = "rimgovernor/observations_read_definition_catalog";
 
-        [Tool(ToolName, Title = "Read the definition catalog", Description = "Static planning facts of every player-buildable or sowable ThingDef and buildable TerrainDef, and every research project with its costs and prerequisites. Fixed for a load. Read-only.")]
+        [Tool(ToolName, Title = "Read the definition catalog", Description = "Static planning facts of every player-buildable or sowable ThingDef and buildable TerrainDef, and every research project with its costs and prerequisites, plus every ThingDef and TerrainDef with all its fields and the game constants. Fixed for a load. Read-only.")]
         [ToolResponse("payload", "string", "Official DefinitionCatalogReply ProtoJSON.", Always = true)]
         public async Task<object> ReadDefinitionCatalog(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw DefinitionCatalogRequest ProtoJSON string.")] object? request = null)
@@ -55,11 +57,42 @@ namespace HomeBridge.BridgeTools
                 catalog.Definitions.Add(row);
             foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
+            // Every def with all its fields (#1730), by protobuf reflection over the
+            // generated messages. An unmapped field throws and fails the read.
+            var mirror = new DefMirrorFill();
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
+                catalog.ThingDefs.Add(mirror.Build<Defs.ThingDef>(def));
+            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
+                catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
+            catalog.Constants = Constants();
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Ideology = NativeIdeologyObservation.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
             catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
+        }
+
+        private static Obs.CatalogConstants Constants() => new Obs.CatalogConstants
+        {
+            TicksPerHour = GenDate.TicksPerHour,
+            TicksPerDay = GenDate.TicksPerDay,
+            DaysPerYear = GenDate.DaysPerYear,
+            BillStackMax = BillStack.MaxCount,
+            SkillMaxLevel = SkillRecord.MaxLevel,
+            LitGlowThreshold = LitGlowThreshold(),
+        };
+
+        // GlowGrid.GameGlowLitThreshold is a non-public const: read it by name, and
+        // fail naming it when the game no longer has it or its type changed.
+        private static float LitGlowThreshold()
+        {
+            const string member = "GlowGrid.GameGlowLitThreshold";
+            var field = typeof(GlowGrid).GetField("GameGlowLitThreshold", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field == null || !field.IsLiteral)
+                throw new InvalidOperationException($"{member} is not a constant of this game version.");
+            if (!(field.GetRawConstantValue() is float value))
+                throw new InvalidOperationException($"{member} is a {field.FieldType.FullName} constant, not a float.");
+            return value;
         }
     }
 }

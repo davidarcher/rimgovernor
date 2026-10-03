@@ -2,12 +2,14 @@ package bridge
 
 import (
 	"context"
+	"math"
 	"slices"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -36,6 +38,29 @@ type DefinitionCatalog struct {
 	Anomaly *AnomalyCatalog
 	// Ideology is the Ideology defs (#1654); nil without Ideology.
 	Ideology *policy.IdeologyDefs
+	// ThingDefs and TerrainDefs are every def with all its fields (#1730)
+	// by defName: the generated messages of defs.proto, unfiltered.
+	ThingDefs   map[string]*d.ThingDef
+	TerrainDefs map[string]*d.TerrainDef
+	// Constants are the game constants the native read took from the game
+	// assemblies; nil in a reply that carries none.
+	Constants *o.CatalogConstants
+}
+
+// ThingDef is name's generated def row, nil when the catalog has none.
+func (catalog *DefinitionCatalog) ThingDef(name string) *d.ThingDef {
+	if catalog == nil {
+		return nil
+	}
+	return catalog.ThingDefs[name]
+}
+
+// TerrainDef is name's generated def row, nil when the catalog has none.
+func (catalog *DefinitionCatalog) TerrainDef(name string) *d.TerrainDef {
+	if catalog == nil {
+		return nil
+	}
+	return catalog.TerrainDefs[name]
 }
 
 // Definition is name's catalog row, nil when the catalog has none.
@@ -105,6 +130,39 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	return catalog, nil
 }
 
+// defRows keys generated def rows by defName; a row without a valid name
+// or a repeated name is a contract violation.
+func defRows[T any](rows []*T, name func(*T) string, kind string) (map[string]*T, error) {
+	out := make(map[string]*T, len(rows))
+	for _, row := range rows {
+		if row == nil || validID(name(row)) != nil {
+			return nil, contract("invalid catalog %s def", kind)
+		}
+		if out[name(row)] != nil {
+			return nil, contract("duplicate catalog %s def %s", kind, name(row))
+		}
+		out[name(row)] = row
+	}
+	return out, nil
+}
+
+// validateConstants refuses a constants block with a non-positive or
+// non-finite value; an absent block stays nil.
+func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
+	if v == nil {
+		return nil, nil
+	}
+	for name, n := range map[string]int32{"ticks_per_hour": v.TicksPerHour, "ticks_per_day": v.TicksPerDay, "days_per_year": v.DaysPerYear, "bill_stack_max": v.BillStackMax, "skill_max_level": v.SkillMaxLevel} {
+		if n <= 0 {
+			return nil, contract("catalog constant %s is %d", name, n)
+		}
+	}
+	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
+		return nil, contract("catalog constant lit_glow_threshold is %v", g)
+	}
+	return v, nil
+}
+
 // DecodeDefinitionCatalog validates a catalog read under identity.
 func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*DefinitionCatalog, error) {
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
@@ -122,6 +180,15 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.Anomaly, err = DecodeAnomalyCatalog(v.Anomaly); err != nil {
+		return nil, err
+	}
+	if out.ThingDefs, err = defRows(v.ThingDefs, (*d.ThingDef).GetDefName, "thing"); err != nil {
+		return nil, err
+	}
+	if out.TerrainDefs, err = defRows(v.TerrainDefs, (*d.TerrainDef).GetDefName, "terrain"); err != nil {
+		return nil, err
+	}
+	if out.Constants, err = validateConstants(v.Constants); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Definitions {

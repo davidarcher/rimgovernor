@@ -8,6 +8,7 @@ import "mirror.proto";
 import "placement.proto";
 import "operations.proto";
 import "receipts.proto";
+import "defs.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -1898,6 +1899,27 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   OdysseyCatalog odyssey = 6;
   // The Anomaly defs (#1737); absent without Anomaly.
   AnomalyCatalog anomaly = 7;
+  // Every ThingDef and TerrainDef with all of its fields, by defName (#1730):
+  // the messages of defs.proto, filled by protobuf reflection over the game's
+  // def objects (field name = CLR field name). Unlike `definitions` it is not
+  // filtered to buildable or sowable defs.
+  repeated rimgovernor.defs.v1.ThingDef thing_defs = 8;
+  repeated rimgovernor.defs.v1.TerrainDef terrain_defs = 9;
+  CatalogConstants constants = 10;
+}
+// Game constants read from the game assemblies, never typed in (#1730).
+message CatalogConstants {
+  // GenDate.TicksPerHour, TicksPerDay and DaysPerYear.
+  int32 ticks_per_hour = 1;
+  int32 ticks_per_day = 2;
+  int32 days_per_year = 3;
+  // BillStack.MaxCount.
+  int32 bill_stack_max = 4;
+  // SkillRecord.MaxLevel.
+  int32 skill_max_level = 5;
+  // GlowGrid.GameGlowLitThreshold (a non-public const): the glow at or above
+  // which a cell counts as lit.
+  float lit_glow_threshold = 6;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a

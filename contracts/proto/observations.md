@@ -192,6 +192,46 @@ a depleted drill for removal from the deep drill step's recorded read.
   text, lock/refusal reasons, hidden/read failures, thermal sides and ingredients)
   remain typed facts or bounded diagnostic strings.
 
+## Generated def rows and constants
+
+`DefinitionCatalog.thing_defs` and `terrain_defs` (#1730, epic #1720) carry
+every `ThingDef` and every `TerrainDef` as the generated messages of
+[`defs.proto`](defs.proto) (all fields, comps and verbs included), sorted by
+`defName`, beside the planning rows, which are unchanged until #1731 makes
+them views over these. Unlike the planning rows they are unfiltered: no
+buildable or sowable test. A def whose name is not a valid identifier is
+left out, as in the planning rows.
+
+Native fills them with `DefMirrorFill`, a generic protobuf-reflection walker
+over the generated descriptors, with no per-class code: a message mirrors the
+CLR class its `clr_type` option names, a field is read by its name, a def
+reference is its `defName`, a `System.Type` its full name, an enum its number,
+a `Nullable<T>` an optional field, a `Dictionary` repeated `entry` messages
+and a nested collection a `list` message. A class with subclasses is a
+`<Class>Any` oneof whose arm is chosen by the value's exact type. A value the
+messages cannot hold fails the whole read naming `Class.field`, with no skip
+and no fallback: a missing CLR field, a null collection element, or a type
+with no arm. A mod subclass of a mirrored polymorphic class (a mod's
+`CompProperties`) is such a type, so the catalog read fails on a modded game;
+the supported configuration is vanilla plus the DLCs the generator saw.
+
+`DefinitionCatalog.constants` (`CatalogConstants`) holds the game numbers Go
+must not type in: `ticks_per_hour`, `ticks_per_day`, `days_per_year`
+(`GenDate`), `bill_stack_max` (`BillStack.MaxCount`), `skill_max_level`
+(`SkillRecord.MaxLevel`) and `lit_glow_threshold`, read by reflection from the
+non-public const `GlowGrid.GameGlowLitThreshold`; the read throws naming the
+member when it is missing or not a float. There is no plant-glow constant: each
+def carries `growMinGlow`.
+
+`bridge.DecodeDefinitionCatalog` keys the rows by def name in the per-load-token
+cache (`DefinitionCatalog.ThingDef`, `TerrainDef`; a thing and a terrain may
+share a name) and refuses a missing or repeated name and a non-positive or
+nonfinite constant. A reply without rows or constants decodes with them empty;
+a consumer that needs a row or constant treats its absence as an error. The
+reply stays under the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a
+decompression guard, not a row cap); a synthesized reply of about 3000 defs is
+9 MB.
+
 ## Royalty facts
 
 `ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed, and the throne-room requirement
