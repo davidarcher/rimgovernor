@@ -49,12 +49,15 @@ type HerdPlanInput struct {
 	// Offers are races a trader offers or a quest rewards now; they count
 	// as obtainable (the buying and reward hooks, #1636).
 	Offers []Resource
+	// Handlers are the colony's pawn profiles; an unread roster plans no
+	// leveling.
+	Handlers domain.Fact[[]PawnProfile]
 }
 
 // HerdPlanInput is the plan's facts from a routine reading.
 func (f RoutineFacts) HerdPlanInput() HerdPlanInput {
 	return HerdPlanInput{Animals: f.AnimalUpkeep.Animals, Wild: f.AnimalUpkeep.WildAnimals, Races: f.AnimalUpkeep.AnimalRaces,
-		Budget: f.WealthBudget(), Wealth: f.Wealth, Pens: f.PenGrazing, Food: f.FoodPlan}
+		Budget: f.WealthBudget(), Wealth: f.Wealth, Pens: f.PenGrazing, Food: f.FoodPlan, Handlers: f.WorkProfiles}
 }
 
 // HerdPolicy is the population band of the herd plan of f.
@@ -97,6 +100,10 @@ type HerdPlan struct {
 	Roles  map[Resource]HerdRole
 	Jobs   map[HerdJob]HerdJobPlan
 	Policy HerdPolicy
+	// Leveling is the easy race tamed (and trained) to raise the best
+	// handler's Animals skill while a wanted race needs more than any
+	// handler has (#1634); empty when none is needed or available.
+	Leveling Resource
 }
 
 type herdRace struct {
@@ -382,6 +389,12 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		plan.Policy.PopulationMin[def] = heads
 		plan.Policy.PopulationMax[def] = heads + herdSpare
 	}
+	if race := herdLevelingRace(in, stats, targets); race != "" {
+		plan.Leveling = race
+		plan.Roles[race] = HerdRole{Race: race, Job: HerdJobNone}
+		plan.Policy.PopulationMin[race] = 1
+		plan.Policy.PopulationMax[race] = 1 + herdSpare
+	}
 	if share, ok := herdBudgetCeiling(in); ok {
 		for def, ceiling := range plan.Policy.PopulationMax {
 			plan.Policy.PopulationMax[def] = herdShareOf(ceiling, share, herdPairSize)
@@ -434,6 +447,50 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		}
 	}
 	return plan
+}
+
+// herdEasyRaces are the quick levellers of the Animals skill: low minimum
+// handling skill and easy to tame.
+var herdEasyRaces = []Resource{"Alpaca", "Boar", "Hare", "Husky", "LabradorRetriever"}
+
+// herdLevelingRace is the easy race to tame while a wanted race's head
+// count is short and its minimum handling skill is above what every handler
+// has (TamerFor). It is the first easy race with a tameable wild animal on
+// the map that a handler already clears, and empty once a handler clears
+// the wanted race (the leveling stops) or no such animal is on the map.
+func herdLevelingRace(in HerdPlanInput, stats map[Resource]*herdRace, targets map[Resource]int64) Resource {
+	profiles, ok := in.Handlers.Value()
+	if !ok {
+		return ""
+	}
+	gap := false
+	for def, heads := range targets {
+		race, _ := in.Races.Race(def)
+		minimum, known := race.MinimumHandlingSkill.Value()
+		if !known || stats[def] != nil && stats[def].n >= heads {
+			continue
+		}
+		if _, handled := TamerFor(profiles, minimum); !handled {
+			gap = true
+		}
+	}
+	if !gap {
+		return ""
+	}
+	wild, _ := in.Wild.Value()
+	for _, easy := range herdEasyRaces {
+		race, _ := in.Races.Race(easy)
+		minimum, known := race.MinimumHandlingSkill.Value()
+		if _, handled := TamerFor(profiles, minimum); !known || !handled {
+			continue
+		}
+		for _, a := range wild {
+			if tameable, ok := a.Tameable.Value(); a.Definition == easy && ok && tameable && !herdDangerous(a) {
+				return easy
+			}
+		}
+	}
+	return ""
 }
 
 func herdKeep(keeps map[Resource]map[HerdJob]bool, def Resource, job HerdJob) {
