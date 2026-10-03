@@ -3,7 +3,6 @@ package policy
 import (
 	"math"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -258,7 +257,7 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 		}
 		// The bulk recipe wins over its single-item sibling: singles are for
 		// the odd one or two items a player cranks out by hand.
-		if bulk := strings.HasSuffix(a.Recipe, "Bulk"); bulk != strings.HasSuffix(b.Recipe, "Bulk") {
+		if bulk := BulkRecipe(a.Recipe); bulk != BulkRecipe(b.Recipe) {
 			return bulk
 		}
 		if a.Recipe != b.Recipe {

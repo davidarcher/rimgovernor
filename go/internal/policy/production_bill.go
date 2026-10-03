@@ -144,6 +144,14 @@ func billAdequate(bill ExistingProductionBill, selection BillSelection) bool {
 	return !tk || target >= selection.Target
 }
 
+// BulkRecipe reports a native bulk recipe (Make_PemmicanBulk,
+// CookMealSimpleBulk, ...). Every bill selector prefers the bulk recipe over
+// its single-item sibling: singles are for the odd item cranked out by hand.
+func BulkRecipe(name string) bool { return strings.HasSuffix(name, "Bulk") }
+
+// baseRecipe is a recipe's single-item name: the sibling a bulk recipe repeats.
+func baseRecipe(name string) string { return strings.TrimSuffix(name, "Bulk") }
+
 // OrdinaryMealRecipe is a bill recipe native lets a meal bill replace: the
 // game's CookMeal* recipes short of the survival pack, the tier family the
 // meal review chooses among. Reserve (pemmican) and butcher bills are never
@@ -300,11 +308,14 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
-		if (purpose == CookFood || purpose == CookAheadFood) && (a.Recipe == "CookMealSimple") != (b.Recipe == "CookMealSimple") {
-			return a.Recipe == "CookMealSimple"
+		if simple := baseRecipe(a.Recipe) == "CookMealSimple"; (purpose == CookFood || purpose == CookAheadFood) && simple != (baseRecipe(b.Recipe) == "CookMealSimple") {
+			return simple
 		}
 		if separated[a.Bench] != separated[b.Bench] {
 			return separated[a.Bench]
+		}
+		if bulk := BulkRecipe(a.Recipe); bulk != BulkRecipe(b.Recipe) {
+			return bulk
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe

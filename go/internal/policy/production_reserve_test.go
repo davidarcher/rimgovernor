@@ -166,3 +166,22 @@ func TestSelectProductionBillCookAheadCooksAtRiskStockBeyondReservedBills(t *tes
 		t.Fatal("cook duplicated the bench's existing bill")
 	}
 }
+
+// Every bill selector prefers the bulk recipe over its single sibling.
+func TestSelectProductionBillPrefersBulkRecipe(t *testing.T) {
+	rows, _ := cookAheadBenches(0).Value()
+	meal := func(name string) ProductionRecipe {
+		r := rows[1].Recipes[0]
+		r.Name = name
+		return r
+	}
+	rows[1].Recipes = []ProductionRecipe{meal("CookMealSimple"), meal("CookMealSimpleBulk")}
+	selection, ok := SelectProductionBill(CookAheadFood, domain.Known(rows), domain.Known(int64(3)), domain.Unknown[float64](), domain.Known(18.0), 7)
+	if !ok || selection.Recipe != "CookMealSimpleBulk" {
+		t.Fatal(selection, ok)
+	}
+	rows[1].Recipes = rows[1].Recipes[:1]
+	if selection, ok = SelectProductionBill(CookAheadFood, domain.Known(rows), domain.Known(int64(3)), domain.Unknown[float64](), domain.Known(18.0), 7); !ok || selection.Recipe != "CookMealSimple" {
+		t.Fatal("the single recipe is the fallback", selection, ok)
+	}
+}

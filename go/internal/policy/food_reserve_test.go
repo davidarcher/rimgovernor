@@ -185,11 +185,17 @@ func TestReserveBillSkipsSiblingRecipeOfSameProduct(t *testing.T) {
 	}
 	bench := ProductionBench{ID: "stove", Token: domain.Known("token"), Usable: domain.Known(true), Recipes: []ProductionRecipe{recipe("MakePemmican"), recipe("MakePemmicanBulk")}}
 	b, ok := SelectReserveBill(domain.Known([]ProductionBench{bench}), r)
-	if !ok || b.Recipe != "MakePemmican" {
+	if !ok || b.Recipe != "MakePemmicanBulk" {
 		t.Fatal(b, ok)
 	}
-	bench.Bills = []ExistingProductionBill{{ID: "bill1", Recipe: "MakePemmican", Active: domain.Known(true), Forever: domain.Known(false), TargetCount: domain.Known(int32(b.Target))}}
-	if b, ok = SelectReserveBill(domain.Known([]ProductionBench{bench}), r); ok && b.Recipe == "MakePemmicanBulk" {
+	bench.Recipes = bench.Recipes[:1]
+	if b, ok = SelectReserveBill(domain.Known([]ProductionBench{bench}), r); !ok || b.Recipe != "MakePemmican" {
+		t.Fatal("the single recipe is the fallback when no bulk recipe exists", b, ok)
+	}
+	bench.Recipes = []ProductionRecipe{recipe("MakePemmican"), recipe("MakePemmicanBulk")}
+	b, _ = SelectReserveBill(domain.Known([]ProductionBench{bench}), r)
+	bench.Bills = []ExistingProductionBill{{ID: "bill1", Recipe: "MakePemmicanBulk", Active: domain.Known(true), Forever: domain.Known(false), TargetCount: domain.Known(int32(b.Target))}}
+	if b, ok = SelectReserveBill(domain.Known([]ProductionBench{bench}), r); ok && b.Recipe == "MakePemmican" {
 		t.Fatalf("sibling recipe got a second bill: %v", b)
 	}
 }
