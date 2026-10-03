@@ -59,6 +59,11 @@ type RoomGrowth struct {
 	Gear       GearRoomDemand
 	// Incinerator is the site of the incinerator the plan lacks (#1814).
 	Incinerator IncineratorSite
+	// Shapes are every resolved child-room need and Built the planned rooms
+	// standing: the duplicates of one role reduce to one (#1823) once Built is
+	// set (the census is known).
+	Shapes []ChildRoomShape
+	Built  map[Rectangle]bool
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
@@ -93,6 +98,11 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	next, freed := dropEmptiedWings(next, emptied, pawns, tombs, tier, suites...)
 	dropped = dropped || freed
+	if growth.Built != nil {
+		var retired bool
+		next, retired = retireDuplicateRooms(next, growth.Shapes, growth.Built)
+		dropped = dropped || retired
+	}
 	next, throne := growThroneRoom(next, growth.ThroneArea)
 	dropped = dropped || throne
 	for _, shape := range growth.Child {

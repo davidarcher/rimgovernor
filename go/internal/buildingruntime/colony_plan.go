@@ -110,9 +110,13 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	// A baby, toddler or child owed a nursery, playroom or classroom the
 	// plan lacks (#1680): grow it, sized to its furniture.
 	if haveLayout {
-		growth.Child = policy.ChildRoomsOwed(layout.Plan, childRoomNeeds(*projection), furnitureDefinitions(*projection))
+		needs, defs := childRoomNeeds(*projection), furnitureDefinitions(*projection)
+		growth.Child = policy.ChildRoomsOwed(layout.Plan, needs, defs)
+		if census, known := projection.Rooms.Value(); known && policy.DuplicateRooms(layout.Plan) > 0 {
+			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, census)
+		}
 	}
-	children := len(growth.Child) > 0 && hourly
+	children := (len(growth.Child) > 0 || growth.Built != nil) && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
 	if demand := r.stockpiles.gearDemand(stockpileWorld(snapshot)); haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0) {
