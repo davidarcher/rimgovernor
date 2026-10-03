@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.ActiveCondition Condition(GameCondition c)
         {
-            var row = new Obs.ActiveCondition { ConditionId = Id("GameCondition_" + c.uniqueID), DefName = Id(c.def.defName), ConditionClass = Id(c.GetType().Name),
+            var row = new Obs.ActiveCondition { ConditionId = Id("GameCondition_" + c.uniqueID), DefName = Id(c.def.defName), ConditionClass = Id(c.GetType().FullName),
                 TicksPassed = c.TicksPassed, Permanent = c.Permanent };
             if (!c.Permanent) row.TicksLeft = c.TicksLeft;
             if (c.conditionCauser != null) row.CauserId = Id(c.conditionCauser.GetUniqueLoadID());

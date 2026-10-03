@@ -41,8 +41,8 @@ func TestOdysseyColonyProjection(t *testing.T) {
 	}
 	f := &o.OdysseyColonyFacts{
 		Conditions: []*o.ActiveCondition{
-			{ConditionId: proto.String("GameCondition_1"), DefName: proto.String("LavaFlow"), ConditionClass: proto.String("GameCondition_LavaFlow"), TicksPassed: proto.Int32(10), TicksLeft: proto.Int32(500), Permanent: proto.Bool(false)},
-			{ConditionId: proto.String("GameCondition_2"), DefName: proto.String("ToxicSpewer"), ConditionClass: proto.String("GameCondition_ToxicFallout"), Permanent: proto.Bool(true), CauserId: proto.String("Building_7")}},
+			{ConditionId: proto.String("GameCondition_1"), DefName: proto.String("LavaFlow"), ConditionClass: proto.String("RimWorld.GameCondition_LavaFlow"), TicksPassed: proto.Int32(10), TicksLeft: proto.Int32(500), Permanent: proto.Bool(false)},
+			{ConditionId: proto.String("GameCondition_2"), DefName: proto.String("ToxicSpewer"), ConditionClass: proto.String("RimWorld.GameCondition_ToxicFallout"), Permanent: proto.Bool(true), CauserId: proto.String("Building_7")}},
 		HazardTerrain:  []*o.HazardTerrain{{DefName: proto.String("LavaDeep"), Cells: proto.Uint32(40), Dangerous: proto.Bool(true), BurnDamage: proto.Int32(3), HeatPerTick: proto.Float64(0.5)}},
 		LavaEmergences: []*o.LavaEmergenceState{{ThingId: proto.String("LavaEmergence_3"), Position: cell(20, 20)}},
 		Sites: []*o.UndergroundSite{{HatchId: proto.String("AncientHatch_4"), PocketMapId: proto.Int32(2), StockpileType: proto.String("Medical"), ColonistsPresent: proto.Uint32(2),
