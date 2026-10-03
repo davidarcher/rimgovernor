@@ -23,6 +23,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/food"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/hazard"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/ideology"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lab"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/layout"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/letter"
