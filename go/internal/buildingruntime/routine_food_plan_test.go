@@ -15,8 +15,14 @@ func TestFoodPlanIncludesAnimalRatesLaborAndDerivedFloor(t *testing.T) {
 	p := observation.ColonyProjection{Workers: domain.Known(1), Acquisition: domain.Known([]policy.AcquisitionSource{}),
 		CombinedFoodSupply: domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "human", NutritionPerDay: domain.Known(2.0)}}}),
 		FoodChannels:       domain.Known(observation.FoodChannels{Gatherable: []observation.GatherableAnimal{{PawnID: "cow", Race: "Cow", Resource: domain.Known("Milk"), Active: domain.Known(true), HandlerReachable: domain.Known(true), NutritionPerDay: domain.Known(.9), WorkPerDay: domain.Known(400.0), LeadDays: domain.Known(0.0)}}})}
+	cow := func(id, gender string) policy.UpkeepAnimal {
+		return policy.UpkeepAnimal{ID: policy.PawnID(id), Definition: "Cow", Gender: gender, Release: domain.Known(false), Slaughter: domain.Known(false)}
+	}
+	p.Facts.AnimalUpkeep.Animals = domain.Known([]policy.UpkeepAnimal{cow("cow", "Female"), cow("bull", "Male")})
+	p.Facts.AnimalUpkeep.AnimalRaces = policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Cow": {Def: "Cow", BodySize: domain.Known(2.5),
+		Products: []policy.RaceProduct{{Kind: "milk", Def: "Milk", Amount: domain.Known(12.0), IntervalDays: domain.Known(1.0)}}}}}
 	plan, known := reviewFoodPlan(p, policy.DefaultRoutinePolicy()).Value()
-	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 1") {
+	if !known || !strings.Contains(plan.Explain(), "MaintainHerd-Cow floor 3") {
 		t.Fatal(plan.Explain(), known)
 	}
 	if plan.DeliveredPerDay != .9 {

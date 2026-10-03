@@ -2,6 +2,7 @@ package observation
 
 import (
 	"context"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -24,6 +25,8 @@ type projectSource struct {
 	extra   []*o.PlanningDefinition
 	onFrame func()
 	frame   bridge.RoutineFrame
+	// racesErr fails the race catalog read.
+	racesErr error
 }
 
 // testCatalog is a definition catalog of rows.
@@ -54,8 +57,16 @@ func (s *projectSource) ReadRoutineFrame(context.Context, *c.Identity) (bridge.R
 	return frame, nil
 }
 
+// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
+func (s *projectSource) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
+	if s.racesErr != nil {
+		return nil, s.racesErr
+	}
+	return &bridge.AnimalRaces{}, nil
+}
+
 func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
-	for _, phase := range []string{"supplement", "default-only", "expired", "cancelled", "uncataloged"} {
+	for _, phase := range []string{"supplement", "default-only", "expired", "cancelled", "uncataloged", "races-unread"} {
 		t.Run(phase, func(t *testing.T) {
 			data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 			if err != nil {
@@ -88,11 +99,19 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 				s.onFrame = cancel
 			case "uncataloged":
 				row.Definition.DefName = proto.String("Door")
+			case "races-unread":
+				s.racesErr = bridge.ErrUnavailable
 			}
 			out, err := observeRoutineUnowned(ctx, s, clock, expected, time.Second, names...)
 			if phase == "expired" || phase == "cancelled" {
 				if err == nil {
 					t.Fatal("unsafe extra read accepted")
+				}
+				return
+			}
+			if phase == "races-unread" {
+				if !errors.Is(err, bridge.ErrUnavailable) {
+					t.Fatal("an unreadable race catalog must fail the reading", err)
 				}
 				return
 			}

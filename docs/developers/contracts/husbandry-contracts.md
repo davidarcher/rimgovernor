@@ -11,7 +11,9 @@ handling skill, and products with item and interval) come from one native read,
 `rimgovernor/observations_read_animal_race_catalog`, taken once per load token
 and held in Go memory as `policy.AnimalRaceCatalog`. It covers every animal race
 the game knows, wild or tame, and an unread fact is unknown, never zero. It is
-derived state: no save, journal or per-animal copy.
+derived state: no save, journal or per-animal copy. The routine reading
+requires the catalog: an unreadable catalog fails the reading loudly like any
+other required native read, and the herd plan never runs without it.
 
 - **Herd plan (#1628).** `policy.PlanHerd` derives every race's job each cycle
   from colony facts and the race catalog; nothing is stored. A job (milk, wool,
@@ -23,8 +25,7 @@ derived state: no save, journal or per-animal copy.
   (body size stands for feed), then cows first for milk, then lower
   `minimum_handling_skill`, then name. The best is the job's target; the plan
   re-ranks every cycle as availability changes. A race with an unread yield or
-  size freezes its job (no ranking, no retirement); an unread catalog plans no
-  jobs. Other roles: companion (a bonded animal on a race with no work job) and
+  size cannot hold or be ranked for the job that needs it. Other roles: companion (a bonded animal on a race with no work job) and
   none.
 - **Floor.** The target race's floor is its head count: the larger of a
   breeding pair, the capacity the other holders give today (adult yield, or
@@ -36,8 +37,7 @@ derived state: no save, journal or per-animal copy.
   [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
   `minimum_handling_skill`. Predators and races with
   `manhunterOnTameFailChance ≥ 0.2` are never tamed, except grizzly and polar
-  bears and wargs. A race that is not a target has no floor, except a race the
-  plan cannot place (unread catalog or yield), which keeps the food plan's floor.
+  bears and wargs. A race that is not a target has no floor.
 - **Cap.** The target's cap is its floor plus one breeding group (3). The
   ceilings are the wealth budget: while `WealthBudget` headroom is negative,
   every cap scales by `(wealth + headroom) / wealth` (a race with no job is held

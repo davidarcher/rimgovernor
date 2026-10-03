@@ -5,7 +5,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -73,10 +72,6 @@ func TestDecodeAnimalRaceCatalog(t *testing.T) {
 	}
 	if _, ok := races.Race("Dodo"); ok {
 		t.Fatal("unknown race found")
-	}
-	var none *policy.AnimalRaceCatalog
-	if _, ok := none.Race("Muffalo"); ok {
-		t.Fatal("nil catalog found a race")
 	}
 }
 

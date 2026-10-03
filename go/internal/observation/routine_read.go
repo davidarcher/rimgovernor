@@ -14,10 +14,13 @@ import (
 )
 
 // RoutineSource is the routine census: one decoded frame per reading
-// (bridge.Client.ReadRoutineFrame) with the load's definition catalog.
+// (bridge.Client.ReadRoutineFrame) with the load's definition catalog, and
+// the load's animal race catalog (bridge.Client.AnimalRaceCatalog, cached per
+// load token): an unreadable catalog fails the reading.
 type RoutineSource interface {
 	ColonySource
 	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
+	AnimalRaceCatalog(ctx context.Context, identity *c.Identity) (*bridge.AnimalRaces, error)
 }
 
 // RoutineRoyaltySource is the optional royalty read of a RoutineSource
@@ -25,12 +28,6 @@ type RoutineSource interface {
 // means Royalty is not applicable.
 type RoutineRoyaltySource interface {
 	RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error)
-}
-
-// RoutineRaceSource is the optional animal race catalog read of a
-// RoutineSource (bridge.Client.AnimalRaceCatalog, cached per load token).
-type RoutineRaceSource interface {
-	AnimalRaceCatalog(ctx context.Context, identity *c.Identity) (*bridge.AnimalRaces, error)
 }
 
 type RoutineReading struct {
@@ -150,15 +147,13 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			p.Facts.Royalty = domain.Known(*facts)
 		}
 	}
-	// The race catalog is static for a load and cached by the source; a
-	// failed read leaves the herd plan without jobs rather than failing the
-	// reading.
-	p.Facts.AnimalUpkeep.AnimalRaces = nil
-	if races, ok := source.(RoutineRaceSource); ok {
-		if read, err := races.AnimalRaceCatalog(ctx, id); err == nil && read != nil {
-			p.Facts.AnimalUpkeep.AnimalRaces = &read.AnimalRaceCatalog
-		}
+	// The race catalog is static for a load and cached by the source; the
+	// herd plan stands on it, so an unreadable catalog fails the reading.
+	races, err := source.AnimalRaceCatalog(ctx, id)
+	if err != nil {
+		return RoutineReading{}, err
 	}
+	p.Facts.AnimalUpkeep.AnimalRaces = races.AnimalRaceCatalog
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}
 	p.Facts.OwnedNames = domain.Fact[[]policy.OwnedName]{}
 	p.Facts.Guests = domain.Fact[[]policy.CarePatient]{}

@@ -37,11 +37,11 @@ const (
 const herdMilkFirst Resource = "Cow"
 
 // HerdPlanInput is every fact the herd plan derives from. Unknown facts leave
-// the plan unchanged: an unread catalog plans no job, and a race whose yield,
-// size or capacity is unread is neither ranked nor retired.
+// the plan unchanged: a race whose yield, size or capacity is unread cannot
+// hold or be ranked for the job that needs it. The catalog is required.
 type HerdPlanInput struct {
 	Animals, Wild domain.Fact[[]UpkeepAnimal]
-	Races         *AnimalRaceCatalog
+	Races         AnimalRaceCatalog
 	Budget        domain.Fact[float64]
 	Wealth        domain.Fact[WealthFacts]
 	Pens          domain.Fact[[]PenGrazing]
@@ -190,8 +190,8 @@ func herdLearned(a UpkeepAnimal, def string) bool {
 
 // herdHeld is whether the animal holds the job, and what it adds when adult.
 func herdHeld(job HerdJob, a UpkeepAnimal, race AnimalRace) (holds bool, value float64) {
-	per, capable, known := herdPerAdult(job, race)
-	if !capable {
+	per, capable, _ := herdPerAdult(job, race)
+	if _, known := herdScore(job, race); !capable || !known {
 		return false, 0
 	}
 	switch job {
@@ -202,7 +202,7 @@ func herdHeld(job HerdJob, a UpkeepAnimal, race AnimalRace) (holds bool, value f
 	default:
 		holds = true
 	}
-	if holds && known && !herdJuvenile(a) {
+	if holds && !herdJuvenile(a) {
 		value = per
 	}
 	return holds, value
@@ -239,9 +239,6 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 	floors := FoodHerdPolicy(HerdPolicy{}, in.Food).PopulationMin
 	rows, rk := in.Animals.Value()
 	if !rk {
-		for def, floor := range floors {
-			plan.Policy.PopulationMin[def] = floor
-		}
 		return plan
 	}
 	stats := map[Resource]*herdRace{}
@@ -256,9 +253,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		if s == nil {
 			s = &herdRace{capacity: map[HerdJob]float64{}, holds: map[HerdJob]bool{}}
 			stats[a.Definition], order = s, append(order, a.Definition)
-			if race, ok := in.Races.Race(a.Definition); ok {
-				s.race = race
-			}
+			s.race, _ = in.Races.Race(a.Definition)
 		}
 		s.n++
 		switch a.Gender {
@@ -274,9 +269,6 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		if bonded, _ := a.Bonded.Value(); bonded {
 			s.bonded = true
 		}
-		if s.race.Def == "" {
-			continue
-		}
 		for _, job := range herdWorkJobs {
 			if holds, value := herdHeld(job, a, s.race); holds {
 				s.holds[job] = true
@@ -290,7 +282,6 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 	preferred := map[Resource]bool{}
 	keeps := map[Resource]map[HerdJob]bool{}
 	targets := map[Resource]int64{}
-	covered := map[Resource]bool{}
 	for _, job := range herdWorkJobs {
 		var holders []Resource
 		for _, def := range order {
@@ -298,19 +289,10 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 				holders = append(holders, def)
 			}
 		}
-		if len(holders) == 0 || in.Races == nil {
+		if len(holders) == 0 {
 			continue
 		}
-		frozen := false
-		for _, def := range holders {
-			if _, ok := herdScore(job, stats[def].race); !ok {
-				frozen = true
-			}
-		}
-		jp := HerdJobPlan{Job: job}
-		if !frozen {
-			jp.Ranked = herdRank(job, in.Races, obtainable)
-		}
+		jp := HerdJobPlan{Job: job, Ranked: herdRank(job, in.Races, obtainable)}
 		if len(jp.Ranked) == 0 {
 			for _, def := range holders {
 				herdKeep(keeps, def, job)
@@ -319,9 +301,6 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 			continue
 		}
 		jp.Target = jp.Ranked[0]
-		for _, def := range holders {
-			covered[def] = true
-		}
 		preferred[jp.Target] = true
 		herdKeep(keeps, jp.Target, job)
 		target := stats[jp.Target]
@@ -329,14 +308,13 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 			target = &herdRace{capacity: map[HerdJob]float64{}}
 		}
 		targetRace, _ := in.Races.Race(jp.Target)
-		perTarget, _, perKnown := herdPerAdult(job, targetRace)
+		perTarget, _, _ := herdPerAdult(job, targetRace)
 		demand := target.capacity[job]
 		others, foodDemand := 0.0, 0.0
 		for _, def := range holders {
 			s := stats[def]
-			if per, _, known := herdPerAdult(job, s.race); known {
-				foodDemand += float64(floors[def]) * per
-			}
+			per, _, _ := herdPerAdult(job, s.race)
+			foodDemand += float64(floors[def]) * per
 			if def == jp.Target {
 				continue
 			}
@@ -348,7 +326,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		}
 		demand = math.Max(demand, math.Max(others, foodDemand))
 		jp.Heads = herdPairSize
-		if perKnown && !math.IsInf(demand, 0) {
+		if !math.IsInf(demand, 0) {
 			jp.Heads = max(jp.Heads, int64(math.Ceil(demand/perTarget)))
 		}
 		targets[jp.Target] = max(targets[jp.Target], jp.Heads)
@@ -420,17 +398,6 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 				plan.Policy.PopulationMax[def] = feed
 			}
 		}
-	}
-	// A race the plan cannot place (no catalog, an unread yield) keeps the
-	// food plan's floor, as before the plan existed.
-	for def, floor := range floors {
-		if _, planned := targets[def]; planned || covered[def] {
-			continue
-		}
-		if ceiling, ok := plan.Policy.PopulationMax[def]; ok {
-			floor = min(floor, ceiling)
-		}
-		plan.Policy.PopulationMin[def] = max(plan.Policy.PopulationMin[def], floor)
 	}
 	plan.Policy.Roles = plan.Roles
 	for def, role := range plan.Roles {
@@ -543,7 +510,7 @@ func herdObtainable(in HerdPlanInput, owned map[Resource]*herdRace) map[Resource
 }
 
 // herdRank orders the obtainable races able to hold the job.
-func herdRank(job HerdJob, catalog *AnimalRaceCatalog, obtainable map[Resource]bool) []Resource {
+func herdRank(job HerdJob, catalog AnimalRaceCatalog, obtainable map[Resource]bool) []Resource {
 	type ranked struct {
 		def   Resource
 		score float64

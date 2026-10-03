@@ -539,7 +539,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
-	projection.Facts.AnimalUpkeep.AnimalRaces = &races.AnimalRaceCatalog
+	projection.Facts.AnimalUpkeep.AnimalRaces = races.AnimalRaceCatalog
 	saleAnimals := projection.Facts.SaleAnimals()
 	need, known := policy.AnimalSaleNeed(policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {

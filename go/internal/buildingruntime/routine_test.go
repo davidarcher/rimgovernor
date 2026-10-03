@@ -214,6 +214,11 @@ func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (b
 	return fakeFrame(ctx, n, id)
 }
 
+// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
+func (n *routineNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
+	return &bridge.AnimalRaces{}, nil
+}
+
 // fakeFrame is the frame a test fake serves: the colony reply's context
 // and whichever section reads the fake (source, the outermost type, so its
 // overrides count) offers.
@@ -608,6 +613,11 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 
 func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
+}
+
+// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
+func (n *routineMedicalNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
+	return &bridge.AnimalRaces{}, nil
 }
 
 // extentCells stands in for the frame grid: each test room fills its

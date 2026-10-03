@@ -198,3 +198,8 @@ func TestHaulPairAdmissionIsCompletionOrderIndependent(t *testing.T) {
 func (n *haulPairNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
 }
+
+// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
+func (n *haulPairNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
+	return &bridge.AnimalRaces{}, nil
+}

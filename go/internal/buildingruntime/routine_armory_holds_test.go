@@ -27,6 +27,11 @@ func (n *fabricationArmorNative) ReadRoutineFrame(ctx context.Context, id *c.Ide
 	return fakeFrame(ctx, n, id)
 }
 
+// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
+func (n *fabricationArmorNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
+	return &bridge.AnimalRaces{}, nil
+}
+
 func (n *fabricationArmorNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
 	recipe := func(def string, product policy.Resource, slots [][]policy.Amount) policy.GearRecipe {
 		return policy.GearRecipe{Definition: def, Products: []policy.Resource{product}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known(slots), RequiredWork: domain.Known([]policy.WorkRequirement{})}

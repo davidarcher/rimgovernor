@@ -15,8 +15,8 @@ func haulRace(def Resource, capacity, body float64) AnimalRace {
 	return AnimalRace{Def: def, BodySize: domain.Known(body), CarryingCapacity: domain.Known(capacity), Trainables: []string{"Haul", "Obedience"}}
 }
 
-func raceCatalog(races ...AnimalRace) *AnimalRaceCatalog {
-	c := &AnimalRaceCatalog{Races: map[Resource]AnimalRace{}}
+func raceCatalog(races ...AnimalRace) AnimalRaceCatalog {
+	c := AnimalRaceCatalog{Races: map[Resource]AnimalRace{}}
 	for _, r := range races {
 		c.Races[r.Def] = r
 	}
@@ -206,19 +206,14 @@ func TestHerdPlanCeilingsStillBind(t *testing.T) {
 }
 
 func TestHerdPlanUnknownFactsLeavePlansUnchanged(t *testing.T) {
+	// A goat with an unread yield cannot hold the milk job: it is neither
+	// ranked nor retired.
 	in := milkInput(append(goatHerd(), planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female")), wildOf("Cow"))
-	in.Races = nil
-	plan := PlanHerd(in)
-	if len(plan.Policy.PopulationMin) != 0 || len(plan.Policy.PopulationMax) != 0 || plan.Policy.Retired != nil || plan.Roles["Goat"].Job != HerdJobNone {
-		t.Fatal("no catalog, no jobs", plan)
-	}
-	// An unread goat yield freezes the job: nothing is ranked or retired.
-	in = milkInput(append(goatHerd(), planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female")), wildOf("Cow"))
 	goat := milkRace("Goat", 2, 0.8)
 	goat.Products[0].Amount = domain.Unknown[float64]()
 	in.Races = raceCatalog(milkRace("Cow", 12, 2.5), goat)
-	plan = PlanHerd(in)
-	if plan.Roles["Goat"].Retiring || plan.Roles["Cow"].Retiring || plan.Jobs[HerdJobMilk].Target != "" || len(plan.Policy.PopulationMin) != 0 {
+	plan := PlanHerd(in)
+	if plan.Roles["Goat"].Retiring || plan.Roles["Goat"].Job != HerdJobNone || plan.Jobs[HerdJobMilk].Target != "Cow" {
 		t.Fatal(plan)
 	}
 	if got := PlanHerd(HerdPlanInput{Animals: domain.Unknown[[]UpkeepAnimal](), Races: in.Races}); len(got.Roles) != 0 || len(got.Policy.PopulationMax) != 0 {
@@ -256,11 +251,6 @@ func TestHerdPlanFoodPlanTermsSizeTheJob(t *testing.T) {
 		DeliveredPerDay: 10,
 	}}})
 	// Seven cows' milk (84 a day) needs seven cows.
-	if got := PlanHerd(in).Policy.PopulationMin["Cow"]; got != 7 {
-		t.Fatal(got)
-	}
-	// Without a catalog the food plan's floor stands as it did.
-	in.Races = nil
 	if got := PlanHerd(in).Policy.PopulationMin["Cow"]; got != 7 {
 		t.Fatal(got)
 	}
