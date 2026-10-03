@@ -96,7 +96,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		handlers = domain.Known(policy.Profiles(pawns))
 	}
-	herd := policy.FoodHerdPolicy(policy.HerdFor(animals, read.Projection.Facts.WealthBudget(), read.Projection.Facts.Wealth, read.Projection.Facts.PenGrazing), read.Projection.Facts.FoodPlan)
+	herd := read.Projection.Facts.HerdPolicy()
 	choice := policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), herd, handlers)

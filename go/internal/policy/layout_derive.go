@@ -15,7 +15,11 @@ import (
 
 // layoutUtilities is what a fresh plan reserves beside its core; the pen
 // holds a full herd (the wealth-budget herd cap, #1593).
-var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1, PenAnimals: herdCapCeiling}
+// layoutPenAnimals sizes the layout's pen until pens follow the herd plan
+// (#1633).
+const layoutPenAnimals = 30
+
+var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1, PenAnimals: layoutPenAnimals}
 
 // DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser

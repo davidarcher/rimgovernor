@@ -13,27 +13,58 @@ and held in Go memory as `policy.AnimalRaceCatalog`. It covers every animal race
 the game knows, wild or tame, and an unread fact is unknown, never zero. It is
 derived state: no save, journal or per-animal copy.
 
-- **Cap.** Every observed race is capped at the smaller of
-  the wealth-budget cap (#1189) — 30 per race while `WealthBudget(raid
-  points, defense capacity, wealth)` has non-negative headroom, else
-  `clamp(floor(30 × (wealth + headroom) / wealth), 6, 30)`, i.e. 30 × defense
-  capacity / raid points: 15 when capacity is half the raid points, 6 at a
-  fifth or less — and, for pen animals, the pasture
-  cap `floor(n × B / D)`: `B` is the pens' worst-quadrum pasture plus stored
-  feed spread over 15 days, `D` their grazing demand, `n` the race's penned
-  count. RimWorld's pen capacity is this same nutrition balance
-  (`PenFoodCalculator`), so there is no separate density term. Predators are
-  never penned; they eat meat and stay under the stored-food feed gate.
-  An unknown budget (raid points, capacity or wealth) or pen facts leave
-  that term out.
-- **Floor.** The food plan's productive-animal floor (`FoodHerdPolicy`), and a
-  breeding pair for any race producing milk, wool, chemfuel or eggs, clipped
-  to the cap. Below it, the lowest-ID tameable wild animal of that race is
-  designated (`tame`) while `MaintainAnimalFeed`'s review reports no shortfall
-  and a [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
+- **Herd plan (#1628).** `policy.PlanHerd` derives every race's job each cycle
+  from colony facts and the race catalog; nothing is stored. A job (milk, wool,
+  chemfuel, food = eggs, haul, war) is wanted while a kept animal holds it: a
+  catalog product, or a learned `Haul` / `Release` (attack) training. Its
+  candidates are the catalog races able to hold it that the colony can obtain:
+  owned, tameable and non-dangerous wild animals on the map, or offered (a
+  trader or reward, `HerdPlanInput.Offers`). They rank by yield per body size
+  (body size stands for feed), then cows first for milk, then lower
+  `minimum_handling_skill`, then name. The best is the job's target; the plan
+  re-ranks every cycle as availability changes. A race with an unread yield or
+  size freezes its job (no ranking, no retirement); an unread catalog plans no
+  jobs. Other roles: companion (a bonded animal on a race with no work job) and
+  none.
+- **Floor.** The target race's floor is its head count: the larger of a
+  breeding pair, the capacity the other holders give today (adult yield, or
+  trained carrying capacity or combat power) and the food plan's
+  productive-animal terms, divided by one adult's yield. Below it, the
+  lowest-ID tameable wild animal of that race is designated (`tame`) while
+  `MaintainAnimalFeed`'s review reports no shortfall and a
+  [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
   `minimum_handling_skill`. Predators and races with
   `manhunterOnTameFailChance ≥ 0.2` are never tamed, except grizzly and polar
-  bears and wargs.
+  bears and wargs. A race that is not a target has no floor, except a race the
+  plan cannot place (unread catalog or yield), which keeps the food plan's floor.
+- **Cap.** The target's cap is its floor plus one breeding group (3). The
+  ceilings are the wealth budget: while `WealthBudget` headroom is negative,
+  every cap scales by `(wealth + headroom) / wealth` (a race with no job is held
+  to its current count scaled, never below 6; a target never below 3); with
+  non-negative headroom there is no wealth cap and no flat per-race cap. And,
+  for pen animals, the pasture cap `floor(n × B / D)`: `B` is the pens'
+  worst-quadrum pasture plus stored feed spread over 15 days, `D` their grazing
+  demand, `n` the race's penned count (RimWorld's pen capacity is this same
+  nutrition balance, `PenFoodCalculator`). Predators are never penned; they eat
+  meat and stay under the stored-food feed gate. An unknown budget or pen facts
+  leave that ceiling out.
+- **Founder.** A preferred race with animals but no breeding pair (a lone
+  animal, or one sex only) is a founder: never culled or sold, no cap, and
+  `HerdRole.WantMale` / `WantFemale` name the missing sex for taming (#1629)
+  and buying (#1636). No sterilize applies until a pair exists.
+- **Retirement.** A holder that is not the target keeps working until the
+  target's adults cover the job: the target has a breeding pair and its adult
+  capacity is at least the holder's (trained capacity counts only animals that
+  learned the training, so small haulers retire only after larger ones learn
+  Haul). Then, if it holds no other kept job, the race is `Retiring`: cap 0, no
+  breeding pair kept, `HerdPolicy.Retired`; its animals are surplus (slaughter
+  or release below; sterilize and selling are #1631, #1632). A bonded animal is
+  never removed (native `SafeToSlaughter`).
+- **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
+  retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
+  are what the taming, training, sterilize, sale, purchase and pen issues read;
+  `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` goals
+  execute.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideo neither venerates the race nor has an
@@ -42,9 +73,9 @@ derived state: no save, journal or per-animal copy.
   `lifeExpectancy`) or sick; males beyond one per five females; untrained
   adults by highest grazing demand per meat; adults that learned Haul, Rescue
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties
-  go to the lowest ID.
+  go to the lowest ID. Races without a cap are never culled for surplus.
 - **Breeding pair.** No removal leaves a race with fewer than one male and two
-  females; an animal of unknown sex is never removed. Standing designations
+  females, except a retiring race; an animal of unknown sex is never removed. Standing designations
   that would break the pair, or no longer match a surplus or an open food
   offer, are cancelled.
 
@@ -157,10 +188,12 @@ budget. Full production comps have zero lead time. Projected products never
 increase stored-food runway before normal native jobs produce them.
 
 An admitted productive race that beats the marginal crop's nutrition per work
-gets a derived population floor. The effective minimum is at least the operator
-minimum; an explicit maximum bounds only the derived addition. The portfolio
-explains `MaintainHerd-<race>` and its floor. Both herd review and dispatch use
-that policy, including the existing feed gate before taming.
+(`FoodHerdPolicy`) gives its job demand: its `productive_animals` term is a head
+count the herd plan sizes the job's target race for, so the floor lands on the
+best race for the job, not necessarily the race the channel was observed on.
+The portfolio explains `MaintainHerd-<race>` and its effective floor. Both herd
+review and dispatch use the plan's policy, including the existing feed gate
+before taming.
 
 `MaintainAnimalFeed` compares the seasonal harvest gap with each enclosed pen's
 native worst-quadrum pasture rate and stored feed. A negative balance can add a

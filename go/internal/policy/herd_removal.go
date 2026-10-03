@@ -50,6 +50,9 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 		ceiling, capped := herd.PopulationMax[a.Definition]
 		sex := a.Definition + "/" + Resource(a.Gender)
 		pair := a.Gender == "Male" && sexes[sex] <= herdPairMales || a.Gender == "Female" && sexes[sex] <= herdPairFemales
+		if herd.Retired[a.Definition] {
+			floor, pair = 0, false
+		}
 		room := counts[a.Definition] > floor && !pair
 		surplus := capped && counts[a.Definition] > max(floor, ceiling)
 		keepRelease := release && !slaughter && surplus && !pair

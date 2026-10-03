@@ -79,7 +79,9 @@ type AnimalUpkeepObservation struct {
 	Animals  domain.Fact[[]UpkeepAnimal]
 	// WildAnimals is the factionless census MaintainHerd tames from; it
 	// carries no feed or pen facts.
-	WildAnimals   domain.Fact[[]UpkeepAnimal]
+	WildAnimals domain.Fact[[]UpkeepAnimal]
+	// AnimalRaces is the load's race catalog (#1625); nil until read.
+	AnimalRaces   *AnimalRaceCatalog
 	Food          domain.Fact[FoodSupply]
 	DirectedHerds []Resource
 }

@@ -27,6 +27,12 @@ type RoutineRoyaltySource interface {
 	RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error)
 }
 
+// RoutineRaceSource is the optional animal race catalog read of a
+// RoutineSource (bridge.Client.AnimalRaceCatalog, cached per load token).
+type RoutineRaceSource interface {
+	AnimalRaceCatalog(ctx context.Context, identity *c.Identity) (*bridge.AnimalRaces, error)
+}
+
 type RoutineReading struct {
 	ColonyReading
 	Emergency policy.EmergencyFacts
@@ -141,6 +147,15 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if royalty, ok := source.(RoutineRoyaltySource); ok {
 		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil {
 			p.Facts.Royalty = domain.Known(*facts)
+		}
+	}
+	// The race catalog is static for a load and cached by the source; a
+	// failed read leaves the herd plan without jobs rather than failing the
+	// reading.
+	p.Facts.AnimalUpkeep.AnimalRaces = nil
+	if races, ok := source.(RoutineRaceSource); ok {
+		if read, err := races.AnimalRaceCatalog(ctx, id); err == nil && read != nil {
+			p.Facts.AnimalUpkeep.AnimalRaces = &read.AnimalRaceCatalog
 		}
 	}
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}

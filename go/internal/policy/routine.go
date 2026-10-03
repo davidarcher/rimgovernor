@@ -1364,14 +1364,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if need, known := HayNutritionNeed(f.PenGrazing, HarvestGapDays(f.Calendar, f.DisasterConditions)).Value(); known && need > 0 {
 		animalFeed = domain.Known(false)
 	}
+	herd := f.HerdPolicy()
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.WealthBudget(), f.Wealth, f.PenGrazing), f.FoodPlan)).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), herd).Value(); known {
 		herdRecovered = domain.Known(!deficit)
 	}
-	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.WealthBudget(), f.Wealth, f.PenGrazing), f.FoodPlan)); choice.Method == domain.HusbandrySlaughter {
+	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, herd); choice.Method == domain.HusbandrySlaughter {
 		herdRecovered = domain.Known(false)
 	}
-	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, FoodHerdPolicy(HerdFor(f.AnimalUpkeep.Animals, f.WealthBudget(), f.Wealth, f.PenGrazing), f.FoodPlan), f.FoodPlan); choice.Method != "" {
+	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, herd, f.FoodPlan); choice.Method != "" {
 		herdRecovered = domain.Known(false)
 	} else if choice.Reason == HusbandryUnknown {
 		herdRecovered = domain.Unknown[bool]()

@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"math"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -15,24 +14,6 @@ const (
 	herdPairSize    = herdPairMales + herdPairFemales
 )
 
-// Budget-scaled per-race herd cap (#1189): herdCapCeiling animals while the
-// wealth budget has headroom, shrinking with the share of wealth the defense
-// can hold when it is negative, never below herdCapFloor.
-const (
-	herdCapCeiling = 30
-	herdCapFloor   = 6
-)
-
-// herdBudgetCap is the per-race cap for wealth budget headroom over colony
-// wealth total: 30 at non-negative headroom, else
-// clamp(floor(30 × (total + headroom) / total), 6, 30).
-func herdBudgetCap(headroom, total float64) int64 {
-	if headroom >= 0 || total <= 0 {
-		return herdCapCeiling
-	}
-	return int64(math.Max(herdCapFloor, math.Floor(herdCapCeiling*(total+headroom)/total)))
-}
-
 // HerdFacts are the per-animal facts MaintainHerd sizes and culls by
 // (#875). The census fills age, life expectancy, sickness, adulthood,
 // precepts and tame danger natively; MeatNutrition, FeedPerDay and Product
@@ -42,7 +23,8 @@ type HerdFacts struct {
 	AgeYears, LifeExpectancy, ManhunterOnTameFail, MeatNutrition, FeedPerDay domain.Fact[float64]
 	Sick, Adult, SlaughterBarred, Venerated                                  domain.Fact[bool]
 	// Predator is RaceProps.predator; Product is true for a milk, wool,
-	// chemfuel or egg producer.
+	// chemfuel or egg producer (no longer read by the herd plan; kept so
+	// recorded snapshots still decode).
 	Predator, Product bool
 }
 
@@ -82,56 +64,6 @@ func herdJuvenile(a UpkeepAnimal) bool {
 func herdDangerous(a UpkeepAnimal) bool {
 	chance, _ := a.Herd.ManhunterOnTameFail.Value()
 	return (a.Herd.Predator || chance >= herdTameDanger) && !herdDangerousAllowed[a.Definition]
-}
-
-// HerdFor derives MaintainHerd's population band with no operator input.
-// Every observed race's max is min(budget cap, feed cap); the budget cap is
-// herdBudgetCap of the WealthBudget headroom (30 unless defense lags wealth). The feed
-// cap applies to pen animals only: with pasture supply B = Σ worst-quadrum
-// pasture + Σ stored feed / 15 days and demand D = Σ pen grazing demand, a
-// race with n penned animals keeps floor(n × B/D). Pen capacity in RimWorld
-// is this same nutrition balance (PenFoodCalculator), so it is not a separate
-// term. Predators are never penned and eat meat: they stay under the stored
-// food feed gate, not the pasture cap. B < D sets FeedShort, which lets
-// juveniles be culled. Product races (milk, wool, chemfuel, eggs) get a
-// breeding pair as their min. Unknown budget, wealth or pens leave that term out,
-// so nothing is culled on a guess; FoodHerdPolicy adds food floors.
-func HerdFor(animals domain.Fact[[]UpkeepAnimal], budget domain.Fact[float64], wealth domain.Fact[WealthFacts], pens domain.Fact[[]PenGrazing]) HerdPolicy {
-	herd := HerdPolicy{PopulationMin: map[Resource]int64{}, PopulationMax: map[Resource]int64{}}
-	rows, rk := animals.Value()
-	if !rk {
-		return herd
-	}
-	headroom, bk := budget.Value()
-	if w, wk := wealth.Value(); bk && wk && finite(headroom) && finite(w.Total) {
-		limit := herdBudgetCap(headroom, w.Total)
-		for _, a := range rows {
-			herd.PopulationMax[a.Definition] = limit
-		}
-	}
-	for _, a := range rows {
-		if a.Herd.Product {
-			herd.PopulationMin[a.Definition] = herdPairSize
-		}
-	}
-	ratio, known := herdPastureRatio(pens)
-	if !known {
-		return herd
-	}
-	herd.FeedShort = ratio < 1
-	penned := map[Resource]int64{}
-	for _, a := range rows {
-		if pen, ok := a.RequiresPen.Value(); ok && pen && !a.Herd.Predator {
-			penned[a.Definition]++
-		}
-	}
-	for race, n := range penned {
-		feed := int64(math.Floor(float64(n) * ratio))
-		if cap, ok := herd.PopulationMax[race]; !ok || feed < cap {
-			herd.PopulationMax[race] = feed
-		}
-	}
-	return herd
 }
 
 // herdPastureRatio is pasture supply over pen demand; unknown when any pen
@@ -215,10 +147,11 @@ func herdFeedPerMeat(a UpkeepAnimal) float64 {
 // one per five females; then untrained adults by highest feed per meat;
 // then trained adults; juveniles only when juveniles is set (feed short).
 // Ties go to the lowest ID. An animal whose removal would leave its race
-// under a breeding pair of its own sex (or whose sex is unknown) is kept.
+// under a breeding pair of its own sex (or whose sex is unknown) is kept, except in
+// a retired race (the plan's, #1628), which keeps no pair.
 // Any tracked animal with an unknown designation or eligibility fact makes
 // the result unknown.
-func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juveniles bool) ([]herdRemoval, bool) {
+func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juveniles bool, retired map[Resource]bool) ([]herdRemoval, bool) {
 	kept := map[Resource]int64{}
 	sexes := map[Resource]map[string]int64{}
 	eligible := map[Resource][]herdRemoval{}
@@ -298,6 +231,7 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 				break
 			}
 			switch g := r.animal.Gender; {
+			case retired[race]:
 			case g == "Male" && sexes[race][g] > herdPairMales, g == "Female" && sexes[race][g] > herdPairFemales:
 				sexes[race][g]--
 			case g == "None": // asexual race: no pair to keep
@@ -312,12 +246,16 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 	return out, false
 }
 
-// herdFoodLimits keeps max(floor, breeding pair) of every observed race: food
-// slaughter never cuts below either.
+// herdFoodLimits keeps max(floor, breeding pair) of every observed race, none
+// of a retired one: food slaughter never cuts below either.
 func herdFoodLimits(rows []UpkeepAnimal, herd HerdPolicy) map[Resource]int64 {
 	limits := map[Resource]int64{}
 	for _, a := range rows {
-		limits[a.Definition] = max(herd.PopulationMin[a.Definition], herdPairSize)
+		if herd.Retired[a.Definition] {
+			limits[a.Definition] = 0
+		} else {
+			limits[a.Definition] = max(herd.PopulationMin[a.Definition], herdPairSize)
+		}
 	}
 	return limits
 }

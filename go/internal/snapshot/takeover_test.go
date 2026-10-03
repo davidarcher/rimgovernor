@@ -81,7 +81,7 @@ func TestTakeoverHerdRemovalFlagsAreCancelled(t *testing.T) {
 		"testdata/takeover-herd-slaughter-flag.json": domain.HusbandryCancelSlaughter,
 	} {
 		r := load(t, path)
-		got := policy.ReconcileHerdRemoval(r.Facts.AnimalUpkeep.Animals, policy.HerdFor(r.Facts.AnimalUpkeep.Animals, r.Facts.WealthBudget(), r.Facts.Wealth, r.Facts.PenGrazing), r.Facts.FoodPlan)
+		got := policy.ReconcileHerdRemoval(r.Facts.AnimalUpkeep.Animals, r.Facts.HerdPolicy(), r.Facts.FoodPlan)
 		if got.Method != want || got.Animal == "" {
 			t.Fatal(path, got)
 		}

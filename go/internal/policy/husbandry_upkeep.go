@@ -10,7 +10,7 @@ import (
 // non-release/slaughter-flagged animal with an available-but-untrained
 // trainable; any race below its food-derived population floor with a
 // tameable wild animal on the map while the herd's feed forecast reports no
-// shortfall; and any race above its wealth-scaled cap (HerdFor) with a
+// shortfall; and any race above its wealth-scaled cap (PlanHerd) with a
 // removable animal (herdSurplusCandidates). Removal needs no opt-in: it is
 // slaughter whenever native SafeToSlaughter allows it, release only when
 // slaughter is refused and SafeToRelease allows it, and never breaks the last
@@ -25,7 +25,10 @@ const MaintainHerd GoalID = "MaintainHerd"
 // lets juveniles be culled.
 type HerdPolicy struct {
 	PopulationMin, PopulationMax map[Resource]int64
-	FeedShort                    bool
+	// Retired races (PlanHerd) are surplus entirely: Max is 0 and no
+	// breeding pair is kept.
+	Retired   map[Resource]bool
+	FeedShort bool
 }
 
 // HusbandryPlanReason names why RoutineHusbandryPlanner did or did not
@@ -112,7 +115,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd.Retired); unknown {
 		return domain.Unknown[bool]()
 	} else if len(removals) > 0 {
 		deficit = true
@@ -255,7 +258,7 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd.Retired); unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	} else if len(removals) > 0 {
 		return HusbandryChoice{Animal: removals[0].animal.ID, Method: removals[0].method}
