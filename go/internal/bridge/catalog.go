@@ -31,6 +31,8 @@ type DefinitionCatalog struct {
 	Biotech *BiotechCatalog
 	// Odyssey is the Odyssey defs (#1708); nil without Odyssey.
 	Odyssey *OdysseyCatalog
+	// Anomaly is the Anomaly defs (#1737); nil without Anomaly.
+	Anomaly *AnomalyCatalog
 	// Ideology is the Ideology defs (#1654); nil without Ideology.
 	Ideology *policy.IdeologyDefs
 }
@@ -100,6 +102,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.Odyssey, err = DecodeOdysseyCatalog(v.Odyssey); err != nil {
+		return nil, err
+	}
+	if out.Anomaly, err = DecodeAnomalyCatalog(v.Anomaly); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Definitions {

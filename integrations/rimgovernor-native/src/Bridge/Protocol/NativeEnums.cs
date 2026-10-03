@@ -48,6 +48,25 @@ namespace HomeBridge.BridgeTools
             _ => Obs.HungerCategory.Unspecified
         };
 
+        // The Anomaly enums (#1737) fail loudly on a value the wire does not
+        // name: the caller turns the exception into a ReadIssue.
+        internal static Obs.EntityDiscoveryKind Discovery(EntityDiscoveryType type) => type switch
+        {
+            EntityDiscoveryType.Spawn => Obs.EntityDiscoveryKind.Spawn,
+            EntityDiscoveryType.Unfog => Obs.EntityDiscoveryKind.Unfog,
+            EntityDiscoveryType.BecameVisible => Obs.EntityDiscoveryKind.BecameVisible,
+            _ => throw new InvalidOperationException("EntityDiscoveryType " + type + " has no wire value.")
+        };
+
+        internal static Obs.EntityContainmentModeKind ContainmentMode(EntityContainmentMode mode) => mode switch
+        {
+            EntityContainmentMode.MaintainOnly => Obs.EntityContainmentModeKind.MaintainOnly,
+            EntityContainmentMode.Study => Obs.EntityContainmentModeKind.Study,
+            EntityContainmentMode.Release => Obs.EntityContainmentModeKind.Release,
+            EntityContainmentMode.Execute => Obs.EntityContainmentModeKind.Execute,
+            _ => throw new InvalidOperationException("EntityContainmentMode " + mode + " has no wire value.")
+        };
+
         internal static Obs.RotStage Rot(RotStage stage) => stage switch
         {
             RotStage.Fresh => Obs.RotStage.Fresh,

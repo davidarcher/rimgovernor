@@ -58,6 +58,7 @@ namespace HomeBridge.BridgeTools
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Ideology = NativeIdeologyObservation.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
+            catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
         }
     }

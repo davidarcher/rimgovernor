@@ -453,6 +453,8 @@ message PawnState {
   // Biotech pawn facts (#1678); absent without Biotech, so absent is not
   // applicable, never a gene-less pawn.
   PawnBiotech biotech = 46;
+  // Anomaly facts (#1737); absent without Anomaly.
+  PawnAnomaly anomaly = 47;
 }
 // Biotech facts of one pawn (#1678). Each scalar is absent when native could
 // not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
@@ -667,6 +669,9 @@ message BuildingState {
   Rectangle occupied = 22;
   // Odyssey hack and portal facts (#1708); absent on a building with neither.
   OdysseyBuilding odyssey = 23;
+  // Anomaly containment and study facts (#1737); absent without Anomaly or on
+  // a building with neither.
+  AnomalyBuilding anomaly = 24;
 }
 message PowerNetwork {
   optional string id = 1; optional uint32 producers = 2; optional uint32 consumers = 3; optional uint32 batteries = 4;
@@ -1836,6 +1841,8 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   IdeologyCatalog ideology = 5;
   // The Odyssey defs (#1708); absent without Odyssey.
   OdysseyCatalog odyssey = 6;
+  // The Anomaly defs (#1737); absent without Anomaly.
+  AnomalyCatalog anomaly = 7;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a
@@ -2061,6 +2068,109 @@ message HackableState { optional double progress_percent = 1; optional double de
 // an ancient hatch adds its stockpile type (StockpileTypeRow.name) and
 // layout (LayoutDef name).
 message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket_map_id = 2; optional string stockpile_type = 3; optional string layout = 4; }
+// The static Anomaly definitions (#1737), each read natively from the game
+// defs, sorted by name, fixed for a load: entity and knowledge categories,
+// codex entries (the entities and what discovers them), the thing defs that
+// are entities, studiable, held on a platform or hold an entity, and the
+// incidents the game marks as Anomaly incidents. A def name is the key every
+// other Anomaly message refers by.
+message AnomalyCatalog {
+  repeated EntityCategoryRow entity_categories = 1; repeated KnowledgeCategoryRow knowledge_categories = 2; repeated EntityCodexRow codex_entries = 3;
+  repeated AnomalyThingRow things = 4; repeated AnomalyIncidentRow incidents = 5;
+}
+// EntityCategoryDef: a codex grouping of entities.
+message EntityCategoryRow { optional string def_name = 1; optional string label = 2; optional int32 list_order = 3; }
+// KnowledgeCategoryDef: a kind of anomaly knowledge; overflow_category is the
+// category knowledge spills into when this one is full.
+message KnowledgeCategoryRow { optional string def_name = 1; optional string label = 2; optional string overflow_category = 3; }
+// EntityDiscoveryType: when a codex entry counts as discovered.
+enum EntityDiscoveryKind { ENTITY_DISCOVERY_KIND_UNSPECIFIED = 0; ENTITY_DISCOVERY_KIND_SPAWN = 1; ENTITY_DISCOVERY_KIND_UNFOG = 2; ENTITY_DISCOVERY_KIND_BECAME_VISIBLE = 3; }
+// EntityCodexEntryDef: category and linked_things (ThingDef names) are the
+// entity the entry describes; provocation_incidents are IncidentDef names
+// and discovered_research_projects ResearchProjectDef names.
+message EntityCodexRow {
+  optional string def_name = 1; optional string label = 2; optional string category = 3; optional bool start_discovered = 4;
+  optional EntityDiscoveryKind discovery_type = 5; optional bool allow_discovery_while_map_generating = 6; optional int32 order_in_category = 7;
+  repeated string linked_things = 8; repeated string provocation_incidents = 9; repeated string discovered_research_projects = 10;
+}
+// A ThingDef that is an Anomaly entity (RaceProperties.IsAnomalyEntity), has
+// a codex entry, is studiable, can be held on a holding platform or holds an
+// entity. entity is the race flag; race_knowledge_category and
+// race_anomaly_knowledge are the race's own study yield;
+// min_containment_strength is the def's StatDefOf.MinimumContainmentStrength
+// base value (absent when the def declares none); the blocks mirror the
+// def's comp properties and are absent when the def has no such comp.
+message AnomalyThingRow {
+  optional string def_name = 1; optional string label = 2; optional string codex_entry = 3; optional bool entity = 4;
+  optional string race_knowledge_category = 5; optional int32 race_anomaly_knowledge = 6; optional double min_containment_strength = 7;
+  StudiableProps studiable = 8; HoldingTargetProps holding_target = 9; EntityHolderProps holder = 10;
+}
+// CompProperties_Studiable: comp is the properties' class name (the monolith
+// has its own); anomaly_knowledge and knowledge_category are the comp's own
+// values, absent when the def leaves them to the race.
+message StudiableProps {
+  optional string comp = 1; optional int32 frequency_ticks = 2; optional double study_amount_to_complete = 3; optional bool show_toggle_gizmo = 4;
+  optional bool study_enabled_by_default = 5; optional bool can_be_activity_deactivated = 6; optional double anomaly_knowledge = 7;
+  optional string knowledge_category = 8; optional double knowledge_factor_outdoors = 9; optional int32 min_monolith_level_for_study = 10;
+  optional bool requires_holding_platform = 11; optional bool requires_imprisonment = 12;
+}
+// CompProperties_HoldingPlatformTarget: held_pawn_kind is a PawnKindDef name.
+message HoldingTargetProps {
+  optional string held_pawn_kind = 1; optional double base_escape_interval_mtb_days = 2; optional bool look_for_target_on_escape = 3;
+  optional bool can_be_executed = 4; optional bool gets_cold_containment_bonus = 5;
+}
+// CompProperties_EntityHolder: comp is the properties' class name (a holding
+// platform has its own); containment_factor scales the containment strength
+// the holder provides.
+message EntityHolderProps { optional string comp = 1; optional double containment_factor = 2; }
+// An IncidentDef the game marks IsAnomalyIncident. category is the
+// IncidentCategoryDef name; threat is true for the ThreatSmall and ThreatBig
+// categories; worker is the IncidentWorker class name and codex_entry the
+// entity the incident discovers.
+message AnomalyIncidentRow {
+  optional string def_name = 1; optional string label = 2; optional string category = 3; optional bool threat = 4; optional string worker = 5;
+  repeated string target_tags = 6; optional double base_chance = 7; optional int32 earliest_day = 8; optional bool points_scaleable = 9;
+  optional double min_threat_points = 10; optional int32 min_anomaly_threat_level = 11; optional string codex_entry = 12;
+}
+// EntityContainmentMode: what the player has ordered done with a held entity.
+enum EntityContainmentModeKind {
+  ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED = 0; ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY = 1; ENTITY_CONTAINMENT_MODE_KIND_STUDY = 2;
+  ENTITY_CONTAINMENT_MODE_KIND_RELEASE = 3; ENTITY_CONTAINMENT_MODE_KIND_EXECUTE = 4;
+}
+// Anomaly facts of one pawn row (#1737). entity is Pawn.IsEntity, mutant
+// Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
+// min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
+// held is set for a pawn with a CompHoldingPlatformTarget, study for one with
+// a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
+// block absent and adds a ReadIssue named entity, held or study.
+message PawnAnomaly {
+  optional bool entity = 1; optional bool mutant = 2; optional bool shambler = 3; optional double min_containment_strength = 4;
+  HeldState held = 5; StudyState study = 6; repeated ReadIssue issues = 7;
+}
+// CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
+// Building_HoldingPlatform holding the pawn; mode the ordered containment
+// mode; escaping the pawn has begun to escape; can_be_captured whether the
+// game lets the player capture it.
+message HeldState {
+  optional bool held = 1; rimgovernor.common.v1.Ref platform = 2; optional EntityContainmentModeKind mode = 3; optional bool escaping = 4;
+  optional bool extract_bioferrite = 5; optional bool can_be_captured = 6;
+}
+// CompStudiable: progress_percent is 0..1; knowledge_category and
+// anomaly_knowledge are the values the game resolves for this thing;
+// anomaly_knowledge_gained is what its study has already yielded.
+message StudyState {
+  optional bool study_enabled = 1; optional bool completed = 2; optional double progress_percent = 3; optional double study_points = 4;
+  optional double anomaly_knowledge_gained = 5; optional int32 study_interactions = 6; optional bool ever_studiable = 7; optional bool currently_studiable = 8;
+  optional string knowledge_category = 9; optional double anomaly_knowledge = 10;
+}
+// Anomaly facts of one building row (#1737): holder is a CompEntityHolder
+// (a holding platform), study a CompStudiable. A failed sub-read leaves its
+// block absent and adds a ReadIssue named holder or study.
+message AnomalyBuilding { EntityHolderState holder = 1; StudyState study = 2; repeated ReadIssue issues = 3; }
+// CompEntityHolder: containment_strength is the strength the holder's room
+// provides now (CompEntityHolder.ContainmentStrength), available whether it can take
+// a pawn, held_pawn the pawn it holds.
+message EntityHolderState { optional double containment_strength = 1; optional bool available = 2; rimgovernor.common.v1.Ref held_pawn = 3; }
 message DefinitionCatalogRequest { ReadScope scope = 1; }
 message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message SnapshotStreamOpened {

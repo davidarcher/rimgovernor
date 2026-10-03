@@ -1700,6 +1700,115 @@ func (PreceptEffectKind) EnumDescriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{27}
 }
 
+// EntityDiscoveryType: when a codex entry counts as discovered.
+type EntityDiscoveryKind int32
+
+const (
+	EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_UNSPECIFIED    EntityDiscoveryKind = 0
+	EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_SPAWN          EntityDiscoveryKind = 1
+	EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_UNFOG          EntityDiscoveryKind = 2
+	EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_BECAME_VISIBLE EntityDiscoveryKind = 3
+)
+
+// Enum value maps for EntityDiscoveryKind.
+var (
+	EntityDiscoveryKind_name = map[int32]string{
+		0: "ENTITY_DISCOVERY_KIND_UNSPECIFIED",
+		1: "ENTITY_DISCOVERY_KIND_SPAWN",
+		2: "ENTITY_DISCOVERY_KIND_UNFOG",
+		3: "ENTITY_DISCOVERY_KIND_BECAME_VISIBLE",
+	}
+	EntityDiscoveryKind_value = map[string]int32{
+		"ENTITY_DISCOVERY_KIND_UNSPECIFIED":    0,
+		"ENTITY_DISCOVERY_KIND_SPAWN":          1,
+		"ENTITY_DISCOVERY_KIND_UNFOG":          2,
+		"ENTITY_DISCOVERY_KIND_BECAME_VISIBLE": 3,
+	}
+)
+
+func (x EntityDiscoveryKind) Enum() *EntityDiscoveryKind {
+	p := new(EntityDiscoveryKind)
+	*p = x
+	return p
+}
+
+func (x EntityDiscoveryKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EntityDiscoveryKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_observations_proto_enumTypes[28].Descriptor()
+}
+
+func (EntityDiscoveryKind) Type() protoreflect.EnumType {
+	return &file_observations_proto_enumTypes[28]
+}
+
+func (x EntityDiscoveryKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EntityDiscoveryKind.Descriptor instead.
+func (EntityDiscoveryKind) EnumDescriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{28}
+}
+
+// EntityContainmentMode: what the player has ordered done with a held entity.
+type EntityContainmentModeKind int32
+
+const (
+	EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED   EntityContainmentModeKind = 0
+	EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY EntityContainmentModeKind = 1
+	EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_STUDY         EntityContainmentModeKind = 2
+	EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_RELEASE       EntityContainmentModeKind = 3
+	EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_EXECUTE       EntityContainmentModeKind = 4
+)
+
+// Enum value maps for EntityContainmentModeKind.
+var (
+	EntityContainmentModeKind_name = map[int32]string{
+		0: "ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED",
+		1: "ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY",
+		2: "ENTITY_CONTAINMENT_MODE_KIND_STUDY",
+		3: "ENTITY_CONTAINMENT_MODE_KIND_RELEASE",
+		4: "ENTITY_CONTAINMENT_MODE_KIND_EXECUTE",
+	}
+	EntityContainmentModeKind_value = map[string]int32{
+		"ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED":   0,
+		"ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY": 1,
+		"ENTITY_CONTAINMENT_MODE_KIND_STUDY":         2,
+		"ENTITY_CONTAINMENT_MODE_KIND_RELEASE":       3,
+		"ENTITY_CONTAINMENT_MODE_KIND_EXECUTE":       4,
+	}
+)
+
+func (x EntityContainmentModeKind) Enum() *EntityContainmentModeKind {
+	p := new(EntityContainmentModeKind)
+	*p = x
+	return p
+}
+
+func (x EntityContainmentModeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EntityContainmentModeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_observations_proto_enumTypes[29].Descriptor()
+}
+
+func (EntityContainmentModeKind) Type() protoreflect.EnumType {
+	return &file_observations_proto_enumTypes[29]
+}
+
+func (x EntityContainmentModeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EntityContainmentModeKind.Descriptor instead.
+func (EntityContainmentModeKind) EnumDescriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{29}
+}
+
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
 // Every list is complete in one reply: no page size, collection cap or
@@ -6753,7 +6862,9 @@ type PawnState struct {
 	PawnSnapshot *SnapshotRef `protobuf:"bytes,45,opt,name=pawn_snapshot,json=pawnSnapshot,proto3" json:"pawn_snapshot,omitempty"`
 	// Biotech pawn facts (#1678); absent without Biotech, so absent is not
 	// applicable, never a gene-less pawn.
-	Biotech       *PawnBiotech `protobuf:"bytes,46,opt,name=biotech,proto3" json:"biotech,omitempty"`
+	Biotech *PawnBiotech `protobuf:"bytes,46,opt,name=biotech,proto3" json:"biotech,omitempty"`
+	// Anomaly facts (#1737); absent without Anomaly.
+	Anomaly       *PawnAnomaly `protobuf:"bytes,47,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7099,6 +7210,13 @@ func (x *PawnState) GetPawnSnapshot() *SnapshotRef {
 func (x *PawnState) GetBiotech() *PawnBiotech {
 	if x != nil {
 		return x.Biotech
+	}
+	return nil
+}
+
+func (x *PawnState) GetAnomaly() *PawnAnomaly {
+	if x != nil {
+		return x.Anomaly
 	}
 	return nil
 }
@@ -10462,7 +10580,10 @@ type BuildingState struct {
 	// The building's occupied rect, inclusive (#1346).
 	Occupied *Rectangle `protobuf:"bytes,22,opt,name=occupied,proto3" json:"occupied,omitempty"`
 	// Odyssey hack and portal facts (#1708); absent on a building with neither.
-	Odyssey       *OdysseyBuilding `protobuf:"bytes,23,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
+	Odyssey *OdysseyBuilding `protobuf:"bytes,23,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
+	// Anomaly containment and study facts (#1737); absent without Anomaly or on
+	// a building with neither.
+	Anomaly       *AnomalyBuilding `protobuf:"bytes,24,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -10640,6 +10761,13 @@ func (x *BuildingState) GetOccupied() *Rectangle {
 func (x *BuildingState) GetOdyssey() *OdysseyBuilding {
 	if x != nil {
 		return x.Odyssey
+	}
+	return nil
+}
+
+func (x *BuildingState) GetAnomaly() *AnomalyBuilding {
+	if x != nil {
+		return x.Anomaly
 	}
 	return nil
 }
@@ -38549,7 +38677,9 @@ type DefinitionCatalog struct {
 	// The Ideology definitions (#1654); absent without Ideology.
 	Ideology *IdeologyCatalog `protobuf:"bytes,5,opt,name=ideology,proto3" json:"ideology,omitempty"`
 	// The Odyssey defs (#1708); absent without Odyssey.
-	Odyssey       *OdysseyCatalog `protobuf:"bytes,6,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
+	Odyssey *OdysseyCatalog `protobuf:"bytes,6,opt,name=odyssey,proto3" json:"odyssey,omitempty"`
+	// The Anomaly defs (#1737); absent without Anomaly.
+	Anomaly       *AnomalyCatalog `protobuf:"bytes,7,opt,name=anomaly,proto3" json:"anomaly,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -38622,6 +38752,13 @@ func (x *DefinitionCatalog) GetIdeology() *IdeologyCatalog {
 func (x *DefinitionCatalog) GetOdyssey() *OdysseyCatalog {
 	if x != nil {
 		return x.Odyssey
+	}
+	return nil
+}
+
+func (x *DefinitionCatalog) GetAnomaly() *AnomalyCatalog {
+	if x != nil {
+		return x.Anomaly
 	}
 	return nil
 }
@@ -42383,6 +42520,1287 @@ func (x *PortalState) GetLayout() string {
 	return ""
 }
 
+// The static Anomaly definitions (#1737), each read natively from the game
+// defs, sorted by name, fixed for a load: entity and knowledge categories,
+// codex entries (the entities and what discovers them), the thing defs that
+// are entities, studiable, held on a platform or hold an entity, and the
+// incidents the game marks as Anomaly incidents. A def name is the key every
+// other Anomaly message refers by.
+type AnomalyCatalog struct {
+	state               protoimpl.MessageState  `protogen:"open.v1"`
+	EntityCategories    []*EntityCategoryRow    `protobuf:"bytes,1,rep,name=entity_categories,json=entityCategories,proto3" json:"entity_categories,omitempty"`
+	KnowledgeCategories []*KnowledgeCategoryRow `protobuf:"bytes,2,rep,name=knowledge_categories,json=knowledgeCategories,proto3" json:"knowledge_categories,omitempty"`
+	CodexEntries        []*EntityCodexRow       `protobuf:"bytes,3,rep,name=codex_entries,json=codexEntries,proto3" json:"codex_entries,omitempty"`
+	Things              []*AnomalyThingRow      `protobuf:"bytes,4,rep,name=things,proto3" json:"things,omitempty"`
+	Incidents           []*AnomalyIncidentRow   `protobuf:"bytes,5,rep,name=incidents,proto3" json:"incidents,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *AnomalyCatalog) Reset() {
+	*x = AnomalyCatalog{}
+	mi := &file_observations_proto_msgTypes[440]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnomalyCatalog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnomalyCatalog) ProtoMessage() {}
+
+func (x *AnomalyCatalog) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[440]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnomalyCatalog.ProtoReflect.Descriptor instead.
+func (*AnomalyCatalog) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{440}
+}
+
+func (x *AnomalyCatalog) GetEntityCategories() []*EntityCategoryRow {
+	if x != nil {
+		return x.EntityCategories
+	}
+	return nil
+}
+
+func (x *AnomalyCatalog) GetKnowledgeCategories() []*KnowledgeCategoryRow {
+	if x != nil {
+		return x.KnowledgeCategories
+	}
+	return nil
+}
+
+func (x *AnomalyCatalog) GetCodexEntries() []*EntityCodexRow {
+	if x != nil {
+		return x.CodexEntries
+	}
+	return nil
+}
+
+func (x *AnomalyCatalog) GetThings() []*AnomalyThingRow {
+	if x != nil {
+		return x.Things
+	}
+	return nil
+}
+
+func (x *AnomalyCatalog) GetIncidents() []*AnomalyIncidentRow {
+	if x != nil {
+		return x.Incidents
+	}
+	return nil
+}
+
+// EntityCategoryDef: a codex grouping of entities.
+type EntityCategoryRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DefName       *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label         *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	ListOrder     *int32                 `protobuf:"varint,3,opt,name=list_order,json=listOrder,proto3,oneof" json:"list_order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EntityCategoryRow) Reset() {
+	*x = EntityCategoryRow{}
+	mi := &file_observations_proto_msgTypes[441]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntityCategoryRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntityCategoryRow) ProtoMessage() {}
+
+func (x *EntityCategoryRow) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[441]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntityCategoryRow.ProtoReflect.Descriptor instead.
+func (*EntityCategoryRow) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{441}
+}
+
+func (x *EntityCategoryRow) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
+}
+
+func (x *EntityCategoryRow) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *EntityCategoryRow) GetListOrder() int32 {
+	if x != nil && x.ListOrder != nil {
+		return *x.ListOrder
+	}
+	return 0
+}
+
+// KnowledgeCategoryDef: a kind of anomaly knowledge; overflow_category is the
+// category knowledge spills into when this one is full.
+type KnowledgeCategoryRow struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	DefName          *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label            *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	OverflowCategory *string                `protobuf:"bytes,3,opt,name=overflow_category,json=overflowCategory,proto3,oneof" json:"overflow_category,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *KnowledgeCategoryRow) Reset() {
+	*x = KnowledgeCategoryRow{}
+	mi := &file_observations_proto_msgTypes[442]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KnowledgeCategoryRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KnowledgeCategoryRow) ProtoMessage() {}
+
+func (x *KnowledgeCategoryRow) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[442]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KnowledgeCategoryRow.ProtoReflect.Descriptor instead.
+func (*KnowledgeCategoryRow) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{442}
+}
+
+func (x *KnowledgeCategoryRow) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
+}
+
+func (x *KnowledgeCategoryRow) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *KnowledgeCategoryRow) GetOverflowCategory() string {
+	if x != nil && x.OverflowCategory != nil {
+		return *x.OverflowCategory
+	}
+	return ""
+}
+
+// EntityCodexEntryDef: category and linked_things (ThingDef names) are the
+// entity the entry describes; provocation_incidents are IncidentDef names
+// and discovered_research_projects ResearchProjectDef names.
+type EntityCodexRow struct {
+	state                            protoimpl.MessageState `protogen:"open.v1"`
+	DefName                          *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label                            *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Category                         *string                `protobuf:"bytes,3,opt,name=category,proto3,oneof" json:"category,omitempty"`
+	StartDiscovered                  *bool                  `protobuf:"varint,4,opt,name=start_discovered,json=startDiscovered,proto3,oneof" json:"start_discovered,omitempty"`
+	DiscoveryType                    *EntityDiscoveryKind   `protobuf:"varint,5,opt,name=discovery_type,json=discoveryType,proto3,enum=rimgovernor.observations.v1.EntityDiscoveryKind,oneof" json:"discovery_type,omitempty"`
+	AllowDiscoveryWhileMapGenerating *bool                  `protobuf:"varint,6,opt,name=allow_discovery_while_map_generating,json=allowDiscoveryWhileMapGenerating,proto3,oneof" json:"allow_discovery_while_map_generating,omitempty"`
+	OrderInCategory                  *int32                 `protobuf:"varint,7,opt,name=order_in_category,json=orderInCategory,proto3,oneof" json:"order_in_category,omitempty"`
+	LinkedThings                     []string               `protobuf:"bytes,8,rep,name=linked_things,json=linkedThings,proto3" json:"linked_things,omitempty"`
+	ProvocationIncidents             []string               `protobuf:"bytes,9,rep,name=provocation_incidents,json=provocationIncidents,proto3" json:"provocation_incidents,omitempty"`
+	DiscoveredResearchProjects       []string               `protobuf:"bytes,10,rep,name=discovered_research_projects,json=discoveredResearchProjects,proto3" json:"discovered_research_projects,omitempty"`
+	unknownFields                    protoimpl.UnknownFields
+	sizeCache                        protoimpl.SizeCache
+}
+
+func (x *EntityCodexRow) Reset() {
+	*x = EntityCodexRow{}
+	mi := &file_observations_proto_msgTypes[443]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntityCodexRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntityCodexRow) ProtoMessage() {}
+
+func (x *EntityCodexRow) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[443]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntityCodexRow.ProtoReflect.Descriptor instead.
+func (*EntityCodexRow) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{443}
+}
+
+func (x *EntityCodexRow) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
+}
+
+func (x *EntityCodexRow) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *EntityCodexRow) GetCategory() string {
+	if x != nil && x.Category != nil {
+		return *x.Category
+	}
+	return ""
+}
+
+func (x *EntityCodexRow) GetStartDiscovered() bool {
+	if x != nil && x.StartDiscovered != nil {
+		return *x.StartDiscovered
+	}
+	return false
+}
+
+func (x *EntityCodexRow) GetDiscoveryType() EntityDiscoveryKind {
+	if x != nil && x.DiscoveryType != nil {
+		return *x.DiscoveryType
+	}
+	return EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_UNSPECIFIED
+}
+
+func (x *EntityCodexRow) GetAllowDiscoveryWhileMapGenerating() bool {
+	if x != nil && x.AllowDiscoveryWhileMapGenerating != nil {
+		return *x.AllowDiscoveryWhileMapGenerating
+	}
+	return false
+}
+
+func (x *EntityCodexRow) GetOrderInCategory() int32 {
+	if x != nil && x.OrderInCategory != nil {
+		return *x.OrderInCategory
+	}
+	return 0
+}
+
+func (x *EntityCodexRow) GetLinkedThings() []string {
+	if x != nil {
+		return x.LinkedThings
+	}
+	return nil
+}
+
+func (x *EntityCodexRow) GetProvocationIncidents() []string {
+	if x != nil {
+		return x.ProvocationIncidents
+	}
+	return nil
+}
+
+func (x *EntityCodexRow) GetDiscoveredResearchProjects() []string {
+	if x != nil {
+		return x.DiscoveredResearchProjects
+	}
+	return nil
+}
+
+// A ThingDef that is an Anomaly entity (RaceProperties.IsAnomalyEntity), has
+// a codex entry, is studiable, can be held on a holding platform or holds an
+// entity. entity is the race flag; race_knowledge_category and
+// race_anomaly_knowledge are the race's own study yield;
+// min_containment_strength is the def's StatDefOf.MinimumContainmentStrength
+// base value (absent when the def declares none); the blocks mirror the
+// def's comp properties and are absent when the def has no such comp.
+type AnomalyThingRow struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	DefName                *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label                  *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	CodexEntry             *string                `protobuf:"bytes,3,opt,name=codex_entry,json=codexEntry,proto3,oneof" json:"codex_entry,omitempty"`
+	Entity                 *bool                  `protobuf:"varint,4,opt,name=entity,proto3,oneof" json:"entity,omitempty"`
+	RaceKnowledgeCategory  *string                `protobuf:"bytes,5,opt,name=race_knowledge_category,json=raceKnowledgeCategory,proto3,oneof" json:"race_knowledge_category,omitempty"`
+	RaceAnomalyKnowledge   *int32                 `protobuf:"varint,6,opt,name=race_anomaly_knowledge,json=raceAnomalyKnowledge,proto3,oneof" json:"race_anomaly_knowledge,omitempty"`
+	MinContainmentStrength *float64               `protobuf:"fixed64,7,opt,name=min_containment_strength,json=minContainmentStrength,proto3,oneof" json:"min_containment_strength,omitempty"`
+	Studiable              *StudiableProps        `protobuf:"bytes,8,opt,name=studiable,proto3" json:"studiable,omitempty"`
+	HoldingTarget          *HoldingTargetProps    `protobuf:"bytes,9,opt,name=holding_target,json=holdingTarget,proto3" json:"holding_target,omitempty"`
+	Holder                 *EntityHolderProps     `protobuf:"bytes,10,opt,name=holder,proto3" json:"holder,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AnomalyThingRow) Reset() {
+	*x = AnomalyThingRow{}
+	mi := &file_observations_proto_msgTypes[444]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnomalyThingRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnomalyThingRow) ProtoMessage() {}
+
+func (x *AnomalyThingRow) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[444]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnomalyThingRow.ProtoReflect.Descriptor instead.
+func (*AnomalyThingRow) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{444}
+}
+
+func (x *AnomalyThingRow) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
+}
+
+func (x *AnomalyThingRow) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *AnomalyThingRow) GetCodexEntry() string {
+	if x != nil && x.CodexEntry != nil {
+		return *x.CodexEntry
+	}
+	return ""
+}
+
+func (x *AnomalyThingRow) GetEntity() bool {
+	if x != nil && x.Entity != nil {
+		return *x.Entity
+	}
+	return false
+}
+
+func (x *AnomalyThingRow) GetRaceKnowledgeCategory() string {
+	if x != nil && x.RaceKnowledgeCategory != nil {
+		return *x.RaceKnowledgeCategory
+	}
+	return ""
+}
+
+func (x *AnomalyThingRow) GetRaceAnomalyKnowledge() int32 {
+	if x != nil && x.RaceAnomalyKnowledge != nil {
+		return *x.RaceAnomalyKnowledge
+	}
+	return 0
+}
+
+func (x *AnomalyThingRow) GetMinContainmentStrength() float64 {
+	if x != nil && x.MinContainmentStrength != nil {
+		return *x.MinContainmentStrength
+	}
+	return 0
+}
+
+func (x *AnomalyThingRow) GetStudiable() *StudiableProps {
+	if x != nil {
+		return x.Studiable
+	}
+	return nil
+}
+
+func (x *AnomalyThingRow) GetHoldingTarget() *HoldingTargetProps {
+	if x != nil {
+		return x.HoldingTarget
+	}
+	return nil
+}
+
+func (x *AnomalyThingRow) GetHolder() *EntityHolderProps {
+	if x != nil {
+		return x.Holder
+	}
+	return nil
+}
+
+// CompProperties_Studiable: comp is the properties' class name (the monolith
+// has its own); anomaly_knowledge and knowledge_category are the comp's own
+// values, absent when the def leaves them to the race.
+type StudiableProps struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	Comp                     *string                `protobuf:"bytes,1,opt,name=comp,proto3,oneof" json:"comp,omitempty"`
+	FrequencyTicks           *int32                 `protobuf:"varint,2,opt,name=frequency_ticks,json=frequencyTicks,proto3,oneof" json:"frequency_ticks,omitempty"`
+	StudyAmountToComplete    *float64               `protobuf:"fixed64,3,opt,name=study_amount_to_complete,json=studyAmountToComplete,proto3,oneof" json:"study_amount_to_complete,omitempty"`
+	ShowToggleGizmo          *bool                  `protobuf:"varint,4,opt,name=show_toggle_gizmo,json=showToggleGizmo,proto3,oneof" json:"show_toggle_gizmo,omitempty"`
+	StudyEnabledByDefault    *bool                  `protobuf:"varint,5,opt,name=study_enabled_by_default,json=studyEnabledByDefault,proto3,oneof" json:"study_enabled_by_default,omitempty"`
+	CanBeActivityDeactivated *bool                  `protobuf:"varint,6,opt,name=can_be_activity_deactivated,json=canBeActivityDeactivated,proto3,oneof" json:"can_be_activity_deactivated,omitempty"`
+	AnomalyKnowledge         *float64               `protobuf:"fixed64,7,opt,name=anomaly_knowledge,json=anomalyKnowledge,proto3,oneof" json:"anomaly_knowledge,omitempty"`
+	KnowledgeCategory        *string                `protobuf:"bytes,8,opt,name=knowledge_category,json=knowledgeCategory,proto3,oneof" json:"knowledge_category,omitempty"`
+	KnowledgeFactorOutdoors  *float64               `protobuf:"fixed64,9,opt,name=knowledge_factor_outdoors,json=knowledgeFactorOutdoors,proto3,oneof" json:"knowledge_factor_outdoors,omitempty"`
+	MinMonolithLevelForStudy *int32                 `protobuf:"varint,10,opt,name=min_monolith_level_for_study,json=minMonolithLevelForStudy,proto3,oneof" json:"min_monolith_level_for_study,omitempty"`
+	RequiresHoldingPlatform  *bool                  `protobuf:"varint,11,opt,name=requires_holding_platform,json=requiresHoldingPlatform,proto3,oneof" json:"requires_holding_platform,omitempty"`
+	RequiresImprisonment     *bool                  `protobuf:"varint,12,opt,name=requires_imprisonment,json=requiresImprisonment,proto3,oneof" json:"requires_imprisonment,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *StudiableProps) Reset() {
+	*x = StudiableProps{}
+	mi := &file_observations_proto_msgTypes[445]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StudiableProps) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StudiableProps) ProtoMessage() {}
+
+func (x *StudiableProps) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[445]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StudiableProps.ProtoReflect.Descriptor instead.
+func (*StudiableProps) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{445}
+}
+
+func (x *StudiableProps) GetComp() string {
+	if x != nil && x.Comp != nil {
+		return *x.Comp
+	}
+	return ""
+}
+
+func (x *StudiableProps) GetFrequencyTicks() int32 {
+	if x != nil && x.FrequencyTicks != nil {
+		return *x.FrequencyTicks
+	}
+	return 0
+}
+
+func (x *StudiableProps) GetStudyAmountToComplete() float64 {
+	if x != nil && x.StudyAmountToComplete != nil {
+		return *x.StudyAmountToComplete
+	}
+	return 0
+}
+
+func (x *StudiableProps) GetShowToggleGizmo() bool {
+	if x != nil && x.ShowToggleGizmo != nil {
+		return *x.ShowToggleGizmo
+	}
+	return false
+}
+
+func (x *StudiableProps) GetStudyEnabledByDefault() bool {
+	if x != nil && x.StudyEnabledByDefault != nil {
+		return *x.StudyEnabledByDefault
+	}
+	return false
+}
+
+func (x *StudiableProps) GetCanBeActivityDeactivated() bool {
+	if x != nil && x.CanBeActivityDeactivated != nil {
+		return *x.CanBeActivityDeactivated
+	}
+	return false
+}
+
+func (x *StudiableProps) GetAnomalyKnowledge() float64 {
+	if x != nil && x.AnomalyKnowledge != nil {
+		return *x.AnomalyKnowledge
+	}
+	return 0
+}
+
+func (x *StudiableProps) GetKnowledgeCategory() string {
+	if x != nil && x.KnowledgeCategory != nil {
+		return *x.KnowledgeCategory
+	}
+	return ""
+}
+
+func (x *StudiableProps) GetKnowledgeFactorOutdoors() float64 {
+	if x != nil && x.KnowledgeFactorOutdoors != nil {
+		return *x.KnowledgeFactorOutdoors
+	}
+	return 0
+}
+
+func (x *StudiableProps) GetMinMonolithLevelForStudy() int32 {
+	if x != nil && x.MinMonolithLevelForStudy != nil {
+		return *x.MinMonolithLevelForStudy
+	}
+	return 0
+}
+
+func (x *StudiableProps) GetRequiresHoldingPlatform() bool {
+	if x != nil && x.RequiresHoldingPlatform != nil {
+		return *x.RequiresHoldingPlatform
+	}
+	return false
+}
+
+func (x *StudiableProps) GetRequiresImprisonment() bool {
+	if x != nil && x.RequiresImprisonment != nil {
+		return *x.RequiresImprisonment
+	}
+	return false
+}
+
+// CompProperties_HoldingPlatformTarget: held_pawn_kind is a PawnKindDef name.
+type HoldingTargetProps struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	HeldPawnKind              *string                `protobuf:"bytes,1,opt,name=held_pawn_kind,json=heldPawnKind,proto3,oneof" json:"held_pawn_kind,omitempty"`
+	BaseEscapeIntervalMtbDays *float64               `protobuf:"fixed64,2,opt,name=base_escape_interval_mtb_days,json=baseEscapeIntervalMtbDays,proto3,oneof" json:"base_escape_interval_mtb_days,omitempty"`
+	LookForTargetOnEscape     *bool                  `protobuf:"varint,3,opt,name=look_for_target_on_escape,json=lookForTargetOnEscape,proto3,oneof" json:"look_for_target_on_escape,omitempty"`
+	CanBeExecuted             *bool                  `protobuf:"varint,4,opt,name=can_be_executed,json=canBeExecuted,proto3,oneof" json:"can_be_executed,omitempty"`
+	GetsColdContainmentBonus  *bool                  `protobuf:"varint,5,opt,name=gets_cold_containment_bonus,json=getsColdContainmentBonus,proto3,oneof" json:"gets_cold_containment_bonus,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *HoldingTargetProps) Reset() {
+	*x = HoldingTargetProps{}
+	mi := &file_observations_proto_msgTypes[446]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HoldingTargetProps) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HoldingTargetProps) ProtoMessage() {}
+
+func (x *HoldingTargetProps) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[446]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HoldingTargetProps.ProtoReflect.Descriptor instead.
+func (*HoldingTargetProps) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{446}
+}
+
+func (x *HoldingTargetProps) GetHeldPawnKind() string {
+	if x != nil && x.HeldPawnKind != nil {
+		return *x.HeldPawnKind
+	}
+	return ""
+}
+
+func (x *HoldingTargetProps) GetBaseEscapeIntervalMtbDays() float64 {
+	if x != nil && x.BaseEscapeIntervalMtbDays != nil {
+		return *x.BaseEscapeIntervalMtbDays
+	}
+	return 0
+}
+
+func (x *HoldingTargetProps) GetLookForTargetOnEscape() bool {
+	if x != nil && x.LookForTargetOnEscape != nil {
+		return *x.LookForTargetOnEscape
+	}
+	return false
+}
+
+func (x *HoldingTargetProps) GetCanBeExecuted() bool {
+	if x != nil && x.CanBeExecuted != nil {
+		return *x.CanBeExecuted
+	}
+	return false
+}
+
+func (x *HoldingTargetProps) GetGetsColdContainmentBonus() bool {
+	if x != nil && x.GetsColdContainmentBonus != nil {
+		return *x.GetsColdContainmentBonus
+	}
+	return false
+}
+
+// CompProperties_EntityHolder: comp is the properties' class name (a holding
+// platform has its own); containment_factor scales the containment strength
+// the holder provides.
+type EntityHolderProps struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Comp              *string                `protobuf:"bytes,1,opt,name=comp,proto3,oneof" json:"comp,omitempty"`
+	ContainmentFactor *float64               `protobuf:"fixed64,2,opt,name=containment_factor,json=containmentFactor,proto3,oneof" json:"containment_factor,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *EntityHolderProps) Reset() {
+	*x = EntityHolderProps{}
+	mi := &file_observations_proto_msgTypes[447]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntityHolderProps) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntityHolderProps) ProtoMessage() {}
+
+func (x *EntityHolderProps) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[447]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntityHolderProps.ProtoReflect.Descriptor instead.
+func (*EntityHolderProps) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{447}
+}
+
+func (x *EntityHolderProps) GetComp() string {
+	if x != nil && x.Comp != nil {
+		return *x.Comp
+	}
+	return ""
+}
+
+func (x *EntityHolderProps) GetContainmentFactor() float64 {
+	if x != nil && x.ContainmentFactor != nil {
+		return *x.ContainmentFactor
+	}
+	return 0
+}
+
+// An IncidentDef the game marks IsAnomalyIncident. category is the
+// IncidentCategoryDef name; threat is true for the ThreatSmall and ThreatBig
+// categories; worker is the IncidentWorker class name and codex_entry the
+// entity the incident discovers.
+type AnomalyIncidentRow struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	DefName               *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Label                 *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
+	Category              *string                `protobuf:"bytes,3,opt,name=category,proto3,oneof" json:"category,omitempty"`
+	Threat                *bool                  `protobuf:"varint,4,opt,name=threat,proto3,oneof" json:"threat,omitempty"`
+	Worker                *string                `protobuf:"bytes,5,opt,name=worker,proto3,oneof" json:"worker,omitempty"`
+	TargetTags            []string               `protobuf:"bytes,6,rep,name=target_tags,json=targetTags,proto3" json:"target_tags,omitempty"`
+	BaseChance            *float64               `protobuf:"fixed64,7,opt,name=base_chance,json=baseChance,proto3,oneof" json:"base_chance,omitempty"`
+	EarliestDay           *int32                 `protobuf:"varint,8,opt,name=earliest_day,json=earliestDay,proto3,oneof" json:"earliest_day,omitempty"`
+	PointsScaleable       *bool                  `protobuf:"varint,9,opt,name=points_scaleable,json=pointsScaleable,proto3,oneof" json:"points_scaleable,omitempty"`
+	MinThreatPoints       *float64               `protobuf:"fixed64,10,opt,name=min_threat_points,json=minThreatPoints,proto3,oneof" json:"min_threat_points,omitempty"`
+	MinAnomalyThreatLevel *int32                 `protobuf:"varint,11,opt,name=min_anomaly_threat_level,json=minAnomalyThreatLevel,proto3,oneof" json:"min_anomaly_threat_level,omitempty"`
+	CodexEntry            *string                `protobuf:"bytes,12,opt,name=codex_entry,json=codexEntry,proto3,oneof" json:"codex_entry,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AnomalyIncidentRow) Reset() {
+	*x = AnomalyIncidentRow{}
+	mi := &file_observations_proto_msgTypes[448]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnomalyIncidentRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnomalyIncidentRow) ProtoMessage() {}
+
+func (x *AnomalyIncidentRow) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[448]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnomalyIncidentRow.ProtoReflect.Descriptor instead.
+func (*AnomalyIncidentRow) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{448}
+}
+
+func (x *AnomalyIncidentRow) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
+}
+
+func (x *AnomalyIncidentRow) GetLabel() string {
+	if x != nil && x.Label != nil {
+		return *x.Label
+	}
+	return ""
+}
+
+func (x *AnomalyIncidentRow) GetCategory() string {
+	if x != nil && x.Category != nil {
+		return *x.Category
+	}
+	return ""
+}
+
+func (x *AnomalyIncidentRow) GetThreat() bool {
+	if x != nil && x.Threat != nil {
+		return *x.Threat
+	}
+	return false
+}
+
+func (x *AnomalyIncidentRow) GetWorker() string {
+	if x != nil && x.Worker != nil {
+		return *x.Worker
+	}
+	return ""
+}
+
+func (x *AnomalyIncidentRow) GetTargetTags() []string {
+	if x != nil {
+		return x.TargetTags
+	}
+	return nil
+}
+
+func (x *AnomalyIncidentRow) GetBaseChance() float64 {
+	if x != nil && x.BaseChance != nil {
+		return *x.BaseChance
+	}
+	return 0
+}
+
+func (x *AnomalyIncidentRow) GetEarliestDay() int32 {
+	if x != nil && x.EarliestDay != nil {
+		return *x.EarliestDay
+	}
+	return 0
+}
+
+func (x *AnomalyIncidentRow) GetPointsScaleable() bool {
+	if x != nil && x.PointsScaleable != nil {
+		return *x.PointsScaleable
+	}
+	return false
+}
+
+func (x *AnomalyIncidentRow) GetMinThreatPoints() float64 {
+	if x != nil && x.MinThreatPoints != nil {
+		return *x.MinThreatPoints
+	}
+	return 0
+}
+
+func (x *AnomalyIncidentRow) GetMinAnomalyThreatLevel() int32 {
+	if x != nil && x.MinAnomalyThreatLevel != nil {
+		return *x.MinAnomalyThreatLevel
+	}
+	return 0
+}
+
+func (x *AnomalyIncidentRow) GetCodexEntry() string {
+	if x != nil && x.CodexEntry != nil {
+		return *x.CodexEntry
+	}
+	return ""
+}
+
+// Anomaly facts of one pawn row (#1737). entity is Pawn.IsEntity, mutant
+// Pawn.IsMutant and shambler Pawn.IsShambler (hostility is PawnState.hostile).
+// min_containment_strength is the pawn's StatDefOf.MinimumContainmentStrength.
+// held is set for a pawn with a CompHoldingPlatformTarget, study for one with
+// a CompStudiable. A scalar absent is unknown; a failed sub-read leaves its
+// block absent and adds a ReadIssue named entity, held or study.
+type PawnAnomaly struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	Entity                 *bool                  `protobuf:"varint,1,opt,name=entity,proto3,oneof" json:"entity,omitempty"`
+	Mutant                 *bool                  `protobuf:"varint,2,opt,name=mutant,proto3,oneof" json:"mutant,omitempty"`
+	Shambler               *bool                  `protobuf:"varint,3,opt,name=shambler,proto3,oneof" json:"shambler,omitempty"`
+	MinContainmentStrength *float64               `protobuf:"fixed64,4,opt,name=min_containment_strength,json=minContainmentStrength,proto3,oneof" json:"min_containment_strength,omitempty"`
+	Held                   *HeldState             `protobuf:"bytes,5,opt,name=held,proto3" json:"held,omitempty"`
+	Study                  *StudyState            `protobuf:"bytes,6,opt,name=study,proto3" json:"study,omitempty"`
+	Issues                 []*ReadIssue           `protobuf:"bytes,7,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *PawnAnomaly) Reset() {
+	*x = PawnAnomaly{}
+	mi := &file_observations_proto_msgTypes[449]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PawnAnomaly) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PawnAnomaly) ProtoMessage() {}
+
+func (x *PawnAnomaly) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[449]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PawnAnomaly.ProtoReflect.Descriptor instead.
+func (*PawnAnomaly) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{449}
+}
+
+func (x *PawnAnomaly) GetEntity() bool {
+	if x != nil && x.Entity != nil {
+		return *x.Entity
+	}
+	return false
+}
+
+func (x *PawnAnomaly) GetMutant() bool {
+	if x != nil && x.Mutant != nil {
+		return *x.Mutant
+	}
+	return false
+}
+
+func (x *PawnAnomaly) GetShambler() bool {
+	if x != nil && x.Shambler != nil {
+		return *x.Shambler
+	}
+	return false
+}
+
+func (x *PawnAnomaly) GetMinContainmentStrength() float64 {
+	if x != nil && x.MinContainmentStrength != nil {
+		return *x.MinContainmentStrength
+	}
+	return 0
+}
+
+func (x *PawnAnomaly) GetHeld() *HeldState {
+	if x != nil {
+		return x.Held
+	}
+	return nil
+}
+
+func (x *PawnAnomaly) GetStudy() *StudyState {
+	if x != nil {
+		return x.Study
+	}
+	return nil
+}
+
+func (x *PawnAnomaly) GetIssues() []*ReadIssue {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+// CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
+// Building_HoldingPlatform holding the pawn; mode the ordered containment
+// mode; escaping the pawn has begun to escape; can_be_captured whether the
+// game lets the player capture it.
+type HeldState struct {
+	state             protoimpl.MessageState     `protogen:"open.v1"`
+	Held              *bool                      `protobuf:"varint,1,opt,name=held,proto3,oneof" json:"held,omitempty"`
+	Platform          *commonpb.Ref              `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
+	Mode              *EntityContainmentModeKind `protobuf:"varint,3,opt,name=mode,proto3,enum=rimgovernor.observations.v1.EntityContainmentModeKind,oneof" json:"mode,omitempty"`
+	Escaping          *bool                      `protobuf:"varint,4,opt,name=escaping,proto3,oneof" json:"escaping,omitempty"`
+	ExtractBioferrite *bool                      `protobuf:"varint,5,opt,name=extract_bioferrite,json=extractBioferrite,proto3,oneof" json:"extract_bioferrite,omitempty"`
+	CanBeCaptured     *bool                      `protobuf:"varint,6,opt,name=can_be_captured,json=canBeCaptured,proto3,oneof" json:"can_be_captured,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *HeldState) Reset() {
+	*x = HeldState{}
+	mi := &file_observations_proto_msgTypes[450]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeldState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeldState) ProtoMessage() {}
+
+func (x *HeldState) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[450]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeldState.ProtoReflect.Descriptor instead.
+func (*HeldState) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{450}
+}
+
+func (x *HeldState) GetHeld() bool {
+	if x != nil && x.Held != nil {
+		return *x.Held
+	}
+	return false
+}
+
+func (x *HeldState) GetPlatform() *commonpb.Ref {
+	if x != nil {
+		return x.Platform
+	}
+	return nil
+}
+
+func (x *HeldState) GetMode() EntityContainmentModeKind {
+	if x != nil && x.Mode != nil {
+		return *x.Mode
+	}
+	return EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED
+}
+
+func (x *HeldState) GetEscaping() bool {
+	if x != nil && x.Escaping != nil {
+		return *x.Escaping
+	}
+	return false
+}
+
+func (x *HeldState) GetExtractBioferrite() bool {
+	if x != nil && x.ExtractBioferrite != nil {
+		return *x.ExtractBioferrite
+	}
+	return false
+}
+
+func (x *HeldState) GetCanBeCaptured() bool {
+	if x != nil && x.CanBeCaptured != nil {
+		return *x.CanBeCaptured
+	}
+	return false
+}
+
+// CompStudiable: progress_percent is 0..1; knowledge_category and
+// anomaly_knowledge are the values the game resolves for this thing;
+// anomaly_knowledge_gained is what its study has already yielded.
+type StudyState struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	StudyEnabled           *bool                  `protobuf:"varint,1,opt,name=study_enabled,json=studyEnabled,proto3,oneof" json:"study_enabled,omitempty"`
+	Completed              *bool                  `protobuf:"varint,2,opt,name=completed,proto3,oneof" json:"completed,omitempty"`
+	ProgressPercent        *float64               `protobuf:"fixed64,3,opt,name=progress_percent,json=progressPercent,proto3,oneof" json:"progress_percent,omitempty"`
+	StudyPoints            *float64               `protobuf:"fixed64,4,opt,name=study_points,json=studyPoints,proto3,oneof" json:"study_points,omitempty"`
+	AnomalyKnowledgeGained *float64               `protobuf:"fixed64,5,opt,name=anomaly_knowledge_gained,json=anomalyKnowledgeGained,proto3,oneof" json:"anomaly_knowledge_gained,omitempty"`
+	StudyInteractions      *int32                 `protobuf:"varint,6,opt,name=study_interactions,json=studyInteractions,proto3,oneof" json:"study_interactions,omitempty"`
+	EverStudiable          *bool                  `protobuf:"varint,7,opt,name=ever_studiable,json=everStudiable,proto3,oneof" json:"ever_studiable,omitempty"`
+	CurrentlyStudiable     *bool                  `protobuf:"varint,8,opt,name=currently_studiable,json=currentlyStudiable,proto3,oneof" json:"currently_studiable,omitempty"`
+	KnowledgeCategory      *string                `protobuf:"bytes,9,opt,name=knowledge_category,json=knowledgeCategory,proto3,oneof" json:"knowledge_category,omitempty"`
+	AnomalyKnowledge       *float64               `protobuf:"fixed64,10,opt,name=anomaly_knowledge,json=anomalyKnowledge,proto3,oneof" json:"anomaly_knowledge,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *StudyState) Reset() {
+	*x = StudyState{}
+	mi := &file_observations_proto_msgTypes[451]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StudyState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StudyState) ProtoMessage() {}
+
+func (x *StudyState) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[451]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StudyState.ProtoReflect.Descriptor instead.
+func (*StudyState) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{451}
+}
+
+func (x *StudyState) GetStudyEnabled() bool {
+	if x != nil && x.StudyEnabled != nil {
+		return *x.StudyEnabled
+	}
+	return false
+}
+
+func (x *StudyState) GetCompleted() bool {
+	if x != nil && x.Completed != nil {
+		return *x.Completed
+	}
+	return false
+}
+
+func (x *StudyState) GetProgressPercent() float64 {
+	if x != nil && x.ProgressPercent != nil {
+		return *x.ProgressPercent
+	}
+	return 0
+}
+
+func (x *StudyState) GetStudyPoints() float64 {
+	if x != nil && x.StudyPoints != nil {
+		return *x.StudyPoints
+	}
+	return 0
+}
+
+func (x *StudyState) GetAnomalyKnowledgeGained() float64 {
+	if x != nil && x.AnomalyKnowledgeGained != nil {
+		return *x.AnomalyKnowledgeGained
+	}
+	return 0
+}
+
+func (x *StudyState) GetStudyInteractions() int32 {
+	if x != nil && x.StudyInteractions != nil {
+		return *x.StudyInteractions
+	}
+	return 0
+}
+
+func (x *StudyState) GetEverStudiable() bool {
+	if x != nil && x.EverStudiable != nil {
+		return *x.EverStudiable
+	}
+	return false
+}
+
+func (x *StudyState) GetCurrentlyStudiable() bool {
+	if x != nil && x.CurrentlyStudiable != nil {
+		return *x.CurrentlyStudiable
+	}
+	return false
+}
+
+func (x *StudyState) GetKnowledgeCategory() string {
+	if x != nil && x.KnowledgeCategory != nil {
+		return *x.KnowledgeCategory
+	}
+	return ""
+}
+
+func (x *StudyState) GetAnomalyKnowledge() float64 {
+	if x != nil && x.AnomalyKnowledge != nil {
+		return *x.AnomalyKnowledge
+	}
+	return 0
+}
+
+// Anomaly facts of one building row (#1737): holder is a CompEntityHolder
+// (a holding platform), study a CompStudiable. A failed sub-read leaves its
+// block absent and adds a ReadIssue named holder or study.
+type AnomalyBuilding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Holder        *EntityHolderState     `protobuf:"bytes,1,opt,name=holder,proto3" json:"holder,omitempty"`
+	Study         *StudyState            `protobuf:"bytes,2,opt,name=study,proto3" json:"study,omitempty"`
+	Issues        []*ReadIssue           `protobuf:"bytes,3,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnomalyBuilding) Reset() {
+	*x = AnomalyBuilding{}
+	mi := &file_observations_proto_msgTypes[452]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnomalyBuilding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnomalyBuilding) ProtoMessage() {}
+
+func (x *AnomalyBuilding) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[452]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnomalyBuilding.ProtoReflect.Descriptor instead.
+func (*AnomalyBuilding) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{452}
+}
+
+func (x *AnomalyBuilding) GetHolder() *EntityHolderState {
+	if x != nil {
+		return x.Holder
+	}
+	return nil
+}
+
+func (x *AnomalyBuilding) GetStudy() *StudyState {
+	if x != nil {
+		return x.Study
+	}
+	return nil
+}
+
+func (x *AnomalyBuilding) GetIssues() []*ReadIssue {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+// CompEntityHolder: containment_strength is the strength the holder's room
+// provides now (CompEntityHolder.ContainmentStrength), available whether it can take
+// a pawn, held_pawn the pawn it holds.
+type EntityHolderState struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	ContainmentStrength *float64               `protobuf:"fixed64,1,opt,name=containment_strength,json=containmentStrength,proto3,oneof" json:"containment_strength,omitempty"`
+	Available           *bool                  `protobuf:"varint,2,opt,name=available,proto3,oneof" json:"available,omitempty"`
+	HeldPawn            *commonpb.Ref          `protobuf:"bytes,3,opt,name=held_pawn,json=heldPawn,proto3" json:"held_pawn,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *EntityHolderState) Reset() {
+	*x = EntityHolderState{}
+	mi := &file_observations_proto_msgTypes[453]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntityHolderState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntityHolderState) ProtoMessage() {}
+
+func (x *EntityHolderState) ProtoReflect() protoreflect.Message {
+	mi := &file_observations_proto_msgTypes[453]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntityHolderState.ProtoReflect.Descriptor instead.
+func (*EntityHolderState) Descriptor() ([]byte, []int) {
+	return file_observations_proto_rawDescGZIP(), []int{453}
+}
+
+func (x *EntityHolderState) GetContainmentStrength() float64 {
+	if x != nil && x.ContainmentStrength != nil {
+		return *x.ContainmentStrength
+	}
+	return 0
+}
+
+func (x *EntityHolderState) GetAvailable() bool {
+	if x != nil && x.Available != nil {
+		return *x.Available
+	}
+	return false
+}
+
+func (x *EntityHolderState) GetHeldPawn() *commonpb.Ref {
+	if x != nil {
+		return x.HeldPawn
+	}
+	return nil
+}
+
 type DefinitionCatalogRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -42392,7 +43810,7 @@ type DefinitionCatalogRequest struct {
 
 func (x *DefinitionCatalogRequest) Reset() {
 	*x = DefinitionCatalogRequest{}
-	mi := &file_observations_proto_msgTypes[440]
+	mi := &file_observations_proto_msgTypes[454]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42404,7 +43822,7 @@ func (x *DefinitionCatalogRequest) String() string {
 func (*DefinitionCatalogRequest) ProtoMessage() {}
 
 func (x *DefinitionCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[440]
+	mi := &file_observations_proto_msgTypes[454]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42417,7 +43835,7 @@ func (x *DefinitionCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefinitionCatalogRequest.ProtoReflect.Descriptor instead.
 func (*DefinitionCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{440}
+	return file_observations_proto_rawDescGZIP(), []int{454}
 }
 
 func (x *DefinitionCatalogRequest) GetScope() *ReadScope {
@@ -42441,7 +43859,7 @@ type DefinitionCatalogReply struct {
 
 func (x *DefinitionCatalogReply) Reset() {
 	*x = DefinitionCatalogReply{}
-	mi := &file_observations_proto_msgTypes[441]
+	mi := &file_observations_proto_msgTypes[455]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42453,7 +43871,7 @@ func (x *DefinitionCatalogReply) String() string {
 func (*DefinitionCatalogReply) ProtoMessage() {}
 
 func (x *DefinitionCatalogReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[441]
+	mi := &file_observations_proto_msgTypes[455]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42466,7 +43884,7 @@ func (x *DefinitionCatalogReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefinitionCatalogReply.ProtoReflect.Descriptor instead.
 func (*DefinitionCatalogReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{441}
+	return file_observations_proto_rawDescGZIP(), []int{455}
 }
 
 func (x *DefinitionCatalogReply) GetOutcome() isDefinitionCatalogReply_Outcome {
@@ -42536,7 +43954,7 @@ type SnapshotStreamOpened struct {
 
 func (x *SnapshotStreamOpened) Reset() {
 	*x = SnapshotStreamOpened{}
-	mi := &file_observations_proto_msgTypes[442]
+	mi := &file_observations_proto_msgTypes[456]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42548,7 +43966,7 @@ func (x *SnapshotStreamOpened) String() string {
 func (*SnapshotStreamOpened) ProtoMessage() {}
 
 func (x *SnapshotStreamOpened) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[442]
+	mi := &file_observations_proto_msgTypes[456]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42561,7 +43979,7 @@ func (x *SnapshotStreamOpened) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnapshotStreamOpened.ProtoReflect.Descriptor instead.
 func (*SnapshotStreamOpened) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{442}
+	return file_observations_proto_rawDescGZIP(), []int{456}
 }
 
 func (x *SnapshotStreamOpened) GetName() string {
@@ -42599,7 +44017,7 @@ type SnapshotStreamReply struct {
 
 func (x *SnapshotStreamReply) Reset() {
 	*x = SnapshotStreamReply{}
-	mi := &file_observations_proto_msgTypes[443]
+	mi := &file_observations_proto_msgTypes[457]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42611,7 +44029,7 @@ func (x *SnapshotStreamReply) String() string {
 func (*SnapshotStreamReply) ProtoMessage() {}
 
 func (x *SnapshotStreamReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[443]
+	mi := &file_observations_proto_msgTypes[457]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42624,7 +44042,7 @@ func (x *SnapshotStreamReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnapshotStreamReply.ProtoReflect.Descriptor instead.
 func (*SnapshotStreamReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{443}
+	return file_observations_proto_rawDescGZIP(), []int{457}
 }
 
 func (x *SnapshotStreamReply) GetOutcome() isSnapshotStreamReply_Outcome {
@@ -42693,7 +44111,7 @@ type FlushSnapshotRequest struct {
 
 func (x *FlushSnapshotRequest) Reset() {
 	*x = FlushSnapshotRequest{}
-	mi := &file_observations_proto_msgTypes[444]
+	mi := &file_observations_proto_msgTypes[458]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42705,7 +44123,7 @@ func (x *FlushSnapshotRequest) String() string {
 func (*FlushSnapshotRequest) ProtoMessage() {}
 
 func (x *FlushSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[444]
+	mi := &file_observations_proto_msgTypes[458]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42718,7 +44136,7 @@ func (x *FlushSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlushSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*FlushSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{444}
+	return file_observations_proto_rawDescGZIP(), []int{458}
 }
 
 type FlushSnapshotReply struct {
@@ -42734,7 +44152,7 @@ type FlushSnapshotReply struct {
 
 func (x *FlushSnapshotReply) Reset() {
 	*x = FlushSnapshotReply{}
-	mi := &file_observations_proto_msgTypes[445]
+	mi := &file_observations_proto_msgTypes[459]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42746,7 +44164,7 @@ func (x *FlushSnapshotReply) String() string {
 func (*FlushSnapshotReply) ProtoMessage() {}
 
 func (x *FlushSnapshotReply) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[445]
+	mi := &file_observations_proto_msgTypes[459]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42759,7 +44177,7 @@ func (x *FlushSnapshotReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlushSnapshotReply.ProtoReflect.Descriptor instead.
 func (*FlushSnapshotReply) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{445}
+	return file_observations_proto_rawDescGZIP(), []int{459}
 }
 
 func (x *FlushSnapshotReply) GetOutcome() isFlushSnapshotReply_Outcome {
@@ -42817,7 +44235,7 @@ type TradeFoodFacts struct {
 
 func (x *TradeFoodFacts) Reset() {
 	*x = TradeFoodFacts{}
-	mi := &file_observations_proto_msgTypes[446]
+	mi := &file_observations_proto_msgTypes[460]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42829,7 +44247,7 @@ func (x *TradeFoodFacts) String() string {
 func (*TradeFoodFacts) ProtoMessage() {}
 
 func (x *TradeFoodFacts) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[446]
+	mi := &file_observations_proto_msgTypes[460]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42842,7 +44260,7 @@ func (x *TradeFoodFacts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeFoodFacts.ProtoReflect.Descriptor instead.
 func (*TradeFoodFacts) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{446}
+	return file_observations_proto_rawDescGZIP(), []int{460}
 }
 
 func (x *TradeFoodFacts) GetNutrition() float64 {
@@ -42893,7 +44311,7 @@ type FoodRestriction struct {
 
 func (x *FoodRestriction) Reset() {
 	*x = FoodRestriction{}
-	mi := &file_observations_proto_msgTypes[447]
+	mi := &file_observations_proto_msgTypes[461]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42905,7 +44323,7 @@ func (x *FoodRestriction) String() string {
 func (*FoodRestriction) ProtoMessage() {}
 
 func (x *FoodRestriction) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[447]
+	mi := &file_observations_proto_msgTypes[461]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42918,7 +44336,7 @@ func (x *FoodRestriction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodRestriction.ProtoReflect.Descriptor instead.
 func (*FoodRestriction) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{447}
+	return file_observations_proto_rawDescGZIP(), []int{461}
 }
 
 func (x *FoodRestriction) GetPolicyId() string {
@@ -42957,7 +44375,7 @@ type ApparelPolicyDefinition struct {
 
 func (x *ApparelPolicyDefinition) Reset() {
 	*x = ApparelPolicyDefinition{}
-	mi := &file_observations_proto_msgTypes[448]
+	mi := &file_observations_proto_msgTypes[462]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42969,7 +44387,7 @@ func (x *ApparelPolicyDefinition) String() string {
 func (*ApparelPolicyDefinition) ProtoMessage() {}
 
 func (x *ApparelPolicyDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[448]
+	mi := &file_observations_proto_msgTypes[462]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42982,7 +44400,7 @@ func (x *ApparelPolicyDefinition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApparelPolicyDefinition.ProtoReflect.Descriptor instead.
 func (*ApparelPolicyDefinition) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{448}
+	return file_observations_proto_rawDescGZIP(), []int{462}
 }
 
 func (x *ApparelPolicyDefinition) GetDefName() string {
@@ -43051,7 +44469,7 @@ type ApparelPolicyState struct {
 
 func (x *ApparelPolicyState) Reset() {
 	*x = ApparelPolicyState{}
-	mi := &file_observations_proto_msgTypes[449]
+	mi := &file_observations_proto_msgTypes[463]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43063,7 +44481,7 @@ func (x *ApparelPolicyState) String() string {
 func (*ApparelPolicyState) ProtoMessage() {}
 
 func (x *ApparelPolicyState) ProtoReflect() protoreflect.Message {
-	mi := &file_observations_proto_msgTypes[449]
+	mi := &file_observations_proto_msgTypes[463]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43076,7 +44494,7 @@ func (x *ApparelPolicyState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApparelPolicyState.ProtoReflect.Descriptor instead.
 func (*ApparelPolicyState) Descriptor() ([]byte, []int) {
-	return file_observations_proto_rawDescGZIP(), []int{449}
+	return file_observations_proto_rawDescGZIP(), []int{463}
 }
 
 func (x *ApparelPolicyState) GetToken() string {
@@ -43984,7 +45402,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_medical_careB\t\n" +
 	"\a_bondedB\r\n" +
 	"\v_sterilizedB\x13\n" +
-	"\x11_sterilize_queued\"\x89\x15\n" +
+	"\x11_sterilize_queued\"\xcd\x15\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x124\n" +
@@ -44034,7 +45452,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x06fogged\x18+ \x01(\bH\x1aR\x06fogged\x88\x01\x01\x12%\n" +
 	"\vinspiration\x18, \x01(\tH\x1bR\vinspiration\x88\x01\x01\x12M\n" +
 	"\rpawn_snapshot\x18- \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\fpawnSnapshot\x12B\n" +
-	"\abiotech\x18. \x01(\v2(.rimgovernor.observations.v1.PawnBiotechR\abiotechB\x10\n" +
+	"\abiotech\x18. \x01(\v2(.rimgovernor.observations.v1.PawnBiotechR\abiotech\x12B\n" +
+	"\aanomaly\x18/ \x01(\v2(.rimgovernor.observations.v1.PawnAnomalyR\aanomalyB\x10\n" +
 	"\x0e_kind_def_nameB\v\n" +
 	"\t_colonistB\x10\n" +
 	"\x0e_free_colonistB\v\n" +
@@ -44600,7 +46019,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_target_fuelB\x0e\n" +
 	"\f_out_of_fuelB\x0e\n" +
 	"\f_broken_downB\x0f\n" +
-	"\r_power_net_id\"\x9c\v\n" +
+	"\r_power_net_id\"\xe4\v\n" +
 	"\rBuildingState\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12C\n" +
 	"\brotation\x18\x02 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x19\n" +
@@ -44623,7 +46042,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x06issues\x18\x13 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
 	"\bsnapshot\x18\x14 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12B\n" +
 	"\boccupied\x18\x16 \x01(\v2&.rimgovernor.observations.v1.RectangleR\boccupied\x12F\n" +
-	"\aodyssey\x18\x17 \x01(\v2,.rimgovernor.observations.v1.OdysseyBuildingR\aodysseyB\v\n" +
+	"\aodyssey\x18\x17 \x01(\v2,.rimgovernor.observations.v1.OdysseyBuildingR\aodyssey\x12F\n" +
+	"\aanomaly\x18\x18 \x01(\v2,.rimgovernor.observations.v1.AnomalyBuildingR\aanomalyB\v\n" +
 	"\t_rotationB\b\n" +
 	"\x06_stuffB\t\n" +
 	"\a_statusB\x11\n" +
@@ -48266,14 +49686,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x15SnapshotStreamRequest\x12)\n" +
 	"\x10resource_sources\x18\x01 \x03(\tR\x0fresourceSources\x12\x1f\n" +
 	"\bkeyframe\x18\x04 \x01(\bH\x00R\bkeyframe\x88\x01\x01B\v\n" +
-	"\t_keyframeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vdefinitions\"\xcd\x03\n" +
+	"\t_keyframeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vdefinitions\"\x94\x04\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12Q\n" +
 	"\vdefinitions\x18\x02 \x03(\v2/.rimgovernor.observations.v1.PlanningDefinitionR\vdefinitions\x12H\n" +
 	"\bresearch\x18\x03 \x03(\v2,.rimgovernor.observations.v1.ResearchProjectR\bresearch\x12E\n" +
 	"\abiotech\x18\x04 \x01(\v2+.rimgovernor.observations.v1.BiotechCatalogR\abiotech\x12H\n" +
 	"\bideology\x18\x05 \x01(\v2,.rimgovernor.observations.v1.IdeologyCatalogR\bideology\x12E\n" +
-	"\aodyssey\x18\x06 \x01(\v2+.rimgovernor.observations.v1.OdysseyCatalogR\aodyssey\"\xac\x02\n" +
+	"\aodyssey\x18\x06 \x01(\v2+.rimgovernor.observations.v1.OdysseyCatalogR\aodyssey\x12E\n" +
+	"\aanomaly\x18\a \x01(\v2+.rimgovernor.observations.v1.AnomalyCatalogR\aanomaly\"\xac\x02\n" +
 	"\x0fIdeologyCatalog\x12A\n" +
 	"\x05memes\x18\x01 \x03(\v2+.rimgovernor.observations.v1.MemeDefinitionR\x05memes\x12J\n" +
 	"\bprecepts\x18\x02 \x03(\v2..rimgovernor.observations.v1.PreceptDefinitionR\bprecepts\x12A\n" +
@@ -48836,7 +50257,198 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_pocket_map_existsB\x10\n" +
 	"\x0e_pocket_map_idB\x11\n" +
 	"\x0f_stockpile_typeB\t\n" +
-	"\a_layout\"X\n" +
+	"\a_layout\"\xba\x03\n" +
+	"\x0eAnomalyCatalog\x12[\n" +
+	"\x11entity_categories\x18\x01 \x03(\v2..rimgovernor.observations.v1.EntityCategoryRowR\x10entityCategories\x12d\n" +
+	"\x14knowledge_categories\x18\x02 \x03(\v21.rimgovernor.observations.v1.KnowledgeCategoryRowR\x13knowledgeCategories\x12P\n" +
+	"\rcodex_entries\x18\x03 \x03(\v2+.rimgovernor.observations.v1.EntityCodexRowR\fcodexEntries\x12D\n" +
+	"\x06things\x18\x04 \x03(\v2,.rimgovernor.observations.v1.AnomalyThingRowR\x06things\x12M\n" +
+	"\tincidents\x18\x05 \x03(\v2/.rimgovernor.observations.v1.AnomalyIncidentRowR\tincidents\"\x98\x01\n" +
+	"\x11EntityCategoryRow\x12\x1e\n" +
+	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"list_order\x18\x03 \x01(\x05H\x02R\tlistOrder\x88\x01\x01B\v\n" +
+	"\t_def_nameB\b\n" +
+	"\x06_labelB\r\n" +
+	"\v_list_order\"\xb0\x01\n" +
+	"\x14KnowledgeCategoryRow\x12\x1e\n" +
+	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x120\n" +
+	"\x11overflow_category\x18\x03 \x01(\tH\x02R\x10overflowCategory\x88\x01\x01B\v\n" +
+	"\t_def_nameB\b\n" +
+	"\x06_labelB\x14\n" +
+	"\x12_overflow_category\"\xa7\x05\n" +
+	"\x0eEntityCodexRow\x12\x1e\n" +
+	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1f\n" +
+	"\bcategory\x18\x03 \x01(\tH\x02R\bcategory\x88\x01\x01\x12.\n" +
+	"\x10start_discovered\x18\x04 \x01(\bH\x03R\x0fstartDiscovered\x88\x01\x01\x12\\\n" +
+	"\x0ediscovery_type\x18\x05 \x01(\x0e20.rimgovernor.observations.v1.EntityDiscoveryKindH\x04R\rdiscoveryType\x88\x01\x01\x12S\n" +
+	"$allow_discovery_while_map_generating\x18\x06 \x01(\bH\x05R allowDiscoveryWhileMapGenerating\x88\x01\x01\x12/\n" +
+	"\x11order_in_category\x18\a \x01(\x05H\x06R\x0forderInCategory\x88\x01\x01\x12#\n" +
+	"\rlinked_things\x18\b \x03(\tR\flinkedThings\x123\n" +
+	"\x15provocation_incidents\x18\t \x03(\tR\x14provocationIncidents\x12@\n" +
+	"\x1cdiscovered_research_projects\x18\n" +
+	" \x03(\tR\x1adiscoveredResearchProjectsB\v\n" +
+	"\t_def_nameB\b\n" +
+	"\x06_labelB\v\n" +
+	"\t_categoryB\x13\n" +
+	"\x11_start_discoveredB\x11\n" +
+	"\x0f_discovery_typeB'\n" +
+	"%_allow_discovery_while_map_generatingB\x14\n" +
+	"\x12_order_in_category\"\xb7\x05\n" +
+	"\x0fAnomalyThingRow\x12\x1e\n" +
+	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12$\n" +
+	"\vcodex_entry\x18\x03 \x01(\tH\x02R\n" +
+	"codexEntry\x88\x01\x01\x12\x1b\n" +
+	"\x06entity\x18\x04 \x01(\bH\x03R\x06entity\x88\x01\x01\x12;\n" +
+	"\x17race_knowledge_category\x18\x05 \x01(\tH\x04R\x15raceKnowledgeCategory\x88\x01\x01\x129\n" +
+	"\x16race_anomaly_knowledge\x18\x06 \x01(\x05H\x05R\x14raceAnomalyKnowledge\x88\x01\x01\x12=\n" +
+	"\x18min_containment_strength\x18\a \x01(\x01H\x06R\x16minContainmentStrength\x88\x01\x01\x12I\n" +
+	"\tstudiable\x18\b \x01(\v2+.rimgovernor.observations.v1.StudiablePropsR\tstudiable\x12V\n" +
+	"\x0eholding_target\x18\t \x01(\v2/.rimgovernor.observations.v1.HoldingTargetPropsR\rholdingTarget\x12F\n" +
+	"\x06holder\x18\n" +
+	" \x01(\v2..rimgovernor.observations.v1.EntityHolderPropsR\x06holderB\v\n" +
+	"\t_def_nameB\b\n" +
+	"\x06_labelB\x0e\n" +
+	"\f_codex_entryB\t\n" +
+	"\a_entityB\x1a\n" +
+	"\x18_race_knowledge_categoryB\x19\n" +
+	"\x17_race_anomaly_knowledgeB\x1b\n" +
+	"\x19_min_containment_strength\"\xe0\a\n" +
+	"\x0eStudiableProps\x12\x17\n" +
+	"\x04comp\x18\x01 \x01(\tH\x00R\x04comp\x88\x01\x01\x12,\n" +
+	"\x0ffrequency_ticks\x18\x02 \x01(\x05H\x01R\x0efrequencyTicks\x88\x01\x01\x12<\n" +
+	"\x18study_amount_to_complete\x18\x03 \x01(\x01H\x02R\x15studyAmountToComplete\x88\x01\x01\x12/\n" +
+	"\x11show_toggle_gizmo\x18\x04 \x01(\bH\x03R\x0fshowToggleGizmo\x88\x01\x01\x12<\n" +
+	"\x18study_enabled_by_default\x18\x05 \x01(\bH\x04R\x15studyEnabledByDefault\x88\x01\x01\x12B\n" +
+	"\x1bcan_be_activity_deactivated\x18\x06 \x01(\bH\x05R\x18canBeActivityDeactivated\x88\x01\x01\x120\n" +
+	"\x11anomaly_knowledge\x18\a \x01(\x01H\x06R\x10anomalyKnowledge\x88\x01\x01\x122\n" +
+	"\x12knowledge_category\x18\b \x01(\tH\aR\x11knowledgeCategory\x88\x01\x01\x12?\n" +
+	"\x19knowledge_factor_outdoors\x18\t \x01(\x01H\bR\x17knowledgeFactorOutdoors\x88\x01\x01\x12C\n" +
+	"\x1cmin_monolith_level_for_study\x18\n" +
+	" \x01(\x05H\tR\x18minMonolithLevelForStudy\x88\x01\x01\x12?\n" +
+	"\x19requires_holding_platform\x18\v \x01(\bH\n" +
+	"R\x17requiresHoldingPlatform\x88\x01\x01\x128\n" +
+	"\x15requires_imprisonment\x18\f \x01(\bH\vR\x14requiresImprisonment\x88\x01\x01B\a\n" +
+	"\x05_compB\x12\n" +
+	"\x10_frequency_ticksB\x1b\n" +
+	"\x19_study_amount_to_completeB\x14\n" +
+	"\x12_show_toggle_gizmoB\x1b\n" +
+	"\x19_study_enabled_by_defaultB\x1e\n" +
+	"\x1c_can_be_activity_deactivatedB\x14\n" +
+	"\x12_anomaly_knowledgeB\x15\n" +
+	"\x13_knowledge_categoryB\x1c\n" +
+	"\x1a_knowledge_factor_outdoorsB\x1f\n" +
+	"\x1d_min_monolith_level_for_studyB\x1c\n" +
+	"\x1a_requires_holding_platformB\x18\n" +
+	"\x16_requires_imprisonment\"\xbd\x03\n" +
+	"\x12HoldingTargetProps\x12)\n" +
+	"\x0eheld_pawn_kind\x18\x01 \x01(\tH\x00R\fheldPawnKind\x88\x01\x01\x12E\n" +
+	"\x1dbase_escape_interval_mtb_days\x18\x02 \x01(\x01H\x01R\x19baseEscapeIntervalMtbDays\x88\x01\x01\x12=\n" +
+	"\x19look_for_target_on_escape\x18\x03 \x01(\bH\x02R\x15lookForTargetOnEscape\x88\x01\x01\x12+\n" +
+	"\x0fcan_be_executed\x18\x04 \x01(\bH\x03R\rcanBeExecuted\x88\x01\x01\x12B\n" +
+	"\x1bgets_cold_containment_bonus\x18\x05 \x01(\bH\x04R\x18getsColdContainmentBonus\x88\x01\x01B\x11\n" +
+	"\x0f_held_pawn_kindB \n" +
+	"\x1e_base_escape_interval_mtb_daysB\x1c\n" +
+	"\x1a_look_for_target_on_escapeB\x12\n" +
+	"\x10_can_be_executedB\x1e\n" +
+	"\x1c_gets_cold_containment_bonus\"\x80\x01\n" +
+	"\x11EntityHolderProps\x12\x17\n" +
+	"\x04comp\x18\x01 \x01(\tH\x00R\x04comp\x88\x01\x01\x122\n" +
+	"\x12containment_factor\x18\x02 \x01(\x01H\x01R\x11containmentFactor\x88\x01\x01B\a\n" +
+	"\x05_compB\x15\n" +
+	"\x13_containment_factor\"\x91\x05\n" +
+	"\x12AnomalyIncidentRow\x12\x1e\n" +
+	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
+	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1f\n" +
+	"\bcategory\x18\x03 \x01(\tH\x02R\bcategory\x88\x01\x01\x12\x1b\n" +
+	"\x06threat\x18\x04 \x01(\bH\x03R\x06threat\x88\x01\x01\x12\x1b\n" +
+	"\x06worker\x18\x05 \x01(\tH\x04R\x06worker\x88\x01\x01\x12\x1f\n" +
+	"\vtarget_tags\x18\x06 \x03(\tR\n" +
+	"targetTags\x12$\n" +
+	"\vbase_chance\x18\a \x01(\x01H\x05R\n" +
+	"baseChance\x88\x01\x01\x12&\n" +
+	"\fearliest_day\x18\b \x01(\x05H\x06R\vearliestDay\x88\x01\x01\x12.\n" +
+	"\x10points_scaleable\x18\t \x01(\bH\aR\x0fpointsScaleable\x88\x01\x01\x12/\n" +
+	"\x11min_threat_points\x18\n" +
+	" \x01(\x01H\bR\x0fminThreatPoints\x88\x01\x01\x12<\n" +
+	"\x18min_anomaly_threat_level\x18\v \x01(\x05H\tR\x15minAnomalyThreatLevel\x88\x01\x01\x12$\n" +
+	"\vcodex_entry\x18\f \x01(\tH\n" +
+	"R\n" +
+	"codexEntry\x88\x01\x01B\v\n" +
+	"\t_def_nameB\b\n" +
+	"\x06_labelB\v\n" +
+	"\t_categoryB\t\n" +
+	"\a_threatB\t\n" +
+	"\a_workerB\x0e\n" +
+	"\f_base_chanceB\x0f\n" +
+	"\r_earliest_dayB\x13\n" +
+	"\x11_points_scaleableB\x14\n" +
+	"\x12_min_threat_pointsB\x1b\n" +
+	"\x19_min_anomaly_threat_levelB\x0e\n" +
+	"\f_codex_entry\"\xa2\x03\n" +
+	"\vPawnAnomaly\x12\x1b\n" +
+	"\x06entity\x18\x01 \x01(\bH\x00R\x06entity\x88\x01\x01\x12\x1b\n" +
+	"\x06mutant\x18\x02 \x01(\bH\x01R\x06mutant\x88\x01\x01\x12\x1f\n" +
+	"\bshambler\x18\x03 \x01(\bH\x02R\bshambler\x88\x01\x01\x12=\n" +
+	"\x18min_containment_strength\x18\x04 \x01(\x01H\x03R\x16minContainmentStrength\x88\x01\x01\x12:\n" +
+	"\x04held\x18\x05 \x01(\v2&.rimgovernor.observations.v1.HeldStateR\x04held\x12=\n" +
+	"\x05study\x18\x06 \x01(\v2'.rimgovernor.observations.v1.StudyStateR\x05study\x12>\n" +
+	"\x06issues\x18\a \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\t\n" +
+	"\a_entityB\t\n" +
+	"\a_mutantB\v\n" +
+	"\t_shamblerB\x1b\n" +
+	"\x19_min_containment_strength\"\xf9\x02\n" +
+	"\tHeldState\x12\x17\n" +
+	"\x04held\x18\x01 \x01(\bH\x00R\x04held\x88\x01\x01\x126\n" +
+	"\bplatform\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bplatform\x12O\n" +
+	"\x04mode\x18\x03 \x01(\x0e26.rimgovernor.observations.v1.EntityContainmentModeKindH\x01R\x04mode\x88\x01\x01\x12\x1f\n" +
+	"\bescaping\x18\x04 \x01(\bH\x02R\bescaping\x88\x01\x01\x122\n" +
+	"\x12extract_bioferrite\x18\x05 \x01(\bH\x03R\x11extractBioferrite\x88\x01\x01\x12+\n" +
+	"\x0fcan_be_captured\x18\x06 \x01(\bH\x04R\rcanBeCaptured\x88\x01\x01B\a\n" +
+	"\x05_heldB\a\n" +
+	"\x05_modeB\v\n" +
+	"\t_escapingB\x15\n" +
+	"\x13_extract_bioferriteB\x12\n" +
+	"\x10_can_be_captured\"\xbe\x05\n" +
+	"\n" +
+	"StudyState\x12(\n" +
+	"\rstudy_enabled\x18\x01 \x01(\bH\x00R\fstudyEnabled\x88\x01\x01\x12!\n" +
+	"\tcompleted\x18\x02 \x01(\bH\x01R\tcompleted\x88\x01\x01\x12.\n" +
+	"\x10progress_percent\x18\x03 \x01(\x01H\x02R\x0fprogressPercent\x88\x01\x01\x12&\n" +
+	"\fstudy_points\x18\x04 \x01(\x01H\x03R\vstudyPoints\x88\x01\x01\x12=\n" +
+	"\x18anomaly_knowledge_gained\x18\x05 \x01(\x01H\x04R\x16anomalyKnowledgeGained\x88\x01\x01\x122\n" +
+	"\x12study_interactions\x18\x06 \x01(\x05H\x05R\x11studyInteractions\x88\x01\x01\x12*\n" +
+	"\x0eever_studiable\x18\a \x01(\bH\x06R\reverStudiable\x88\x01\x01\x124\n" +
+	"\x13currently_studiable\x18\b \x01(\bH\aR\x12currentlyStudiable\x88\x01\x01\x122\n" +
+	"\x12knowledge_category\x18\t \x01(\tH\bR\x11knowledgeCategory\x88\x01\x01\x120\n" +
+	"\x11anomaly_knowledge\x18\n" +
+	" \x01(\x01H\tR\x10anomalyKnowledge\x88\x01\x01B\x10\n" +
+	"\x0e_study_enabledB\f\n" +
+	"\n" +
+	"_completedB\x13\n" +
+	"\x11_progress_percentB\x0f\n" +
+	"\r_study_pointsB\x1b\n" +
+	"\x19_anomaly_knowledge_gainedB\x15\n" +
+	"\x13_study_interactionsB\x11\n" +
+	"\x0f_ever_studiableB\x16\n" +
+	"\x14_currently_studiableB\x15\n" +
+	"\x13_knowledge_categoryB\x14\n" +
+	"\x12_anomaly_knowledge\"\xd8\x01\n" +
+	"\x0fAnomalyBuilding\x12F\n" +
+	"\x06holder\x18\x01 \x01(\v2..rimgovernor.observations.v1.EntityHolderStateR\x06holder\x12=\n" +
+	"\x05study\x18\x02 \x01(\v2'.rimgovernor.observations.v1.StudyStateR\x05study\x12>\n" +
+	"\x06issues\x18\x03 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\"\xce\x01\n" +
+	"\x11EntityHolderState\x126\n" +
+	"\x14containment_strength\x18\x01 \x01(\x01H\x00R\x13containmentStrength\x88\x01\x01\x12!\n" +
+	"\tavailable\x18\x02 \x01(\bH\x01R\tavailable\x88\x01\x01\x127\n" +
+	"\theld_pawn\x18\x03 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bheldPawnB\x17\n" +
+	"\x15_containment_strengthB\f\n" +
+	"\n" +
+	"_available\"X\n" +
 	"\x18DefinitionCatalogRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xf5\x01\n" +
 	"\x16DefinitionCatalogReply\x12L\n" +
@@ -49116,7 +50728,18 @@ const file_observations_proto_rawDesc = "" +
 	"&PRECEPT_EFFECT_KIND_DEVELOPMENT_POINTS\x10\b\x12*\n" +
 	"&PRECEPT_EFFECT_KIND_GOODWILL_SITUATION\x10\t\x12\x1d\n" +
 	"\x19PRECEPT_EFFECT_KIND_OTHER\x10\n" +
-	"2\x9d&\n" +
+	"*\xa8\x01\n" +
+	"\x13EntityDiscoveryKind\x12%\n" +
+	"!ENTITY_DISCOVERY_KIND_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bENTITY_DISCOVERY_KIND_SPAWN\x10\x01\x12\x1f\n" +
+	"\x1bENTITY_DISCOVERY_KIND_UNFOG\x10\x02\x12(\n" +
+	"$ENTITY_DISCOVERY_KIND_BECAME_VISIBLE\x10\x03*\xf5\x01\n" +
+	"\x19EntityContainmentModeKind\x12,\n" +
+	"(ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED\x10\x00\x12.\n" +
+	"*ENTITY_CONTAINMENT_MODE_KIND_MAINTAIN_ONLY\x10\x01\x12&\n" +
+	"\"ENTITY_CONTAINMENT_MODE_KIND_STUDY\x10\x02\x12(\n" +
+	"$ENTITY_CONTAINMENT_MODE_KIND_RELEASE\x10\x03\x12(\n" +
+	"$ENTITY_CONTAINMENT_MODE_KIND_EXECUTE\x10\x042\x9d&\n" +
 	"\fObservations\x12\x7f\n" +
 	"\x13GetClearanceTargets\x124.rimgovernor.observations.v1.ClearanceTargetsRequest\x1a2.rimgovernor.observations.v1.ClearanceTargetsReply\x12y\n" +
 	"\x11GetAncientShrines\x122.rimgovernor.observations.v1.AncientShrinesRequest\x1a0.rimgovernor.observations.v1.AncientShrinesReply\x12\x89\x01\n" +
@@ -49174,8 +50797,8 @@ func file_observations_proto_rawDescGZIP() []byte {
 	return file_observations_proto_rawDescData
 }
 
-var file_observations_proto_enumTypes = make([]protoimpl.EnumInfo, 28)
-var file_observations_proto_msgTypes = make([]protoimpl.MessageInfo, 451)
+var file_observations_proto_enumTypes = make([]protoimpl.EnumInfo, 30)
+var file_observations_proto_msgTypes = make([]protoimpl.MessageInfo, 465)
 var file_observations_proto_goTypes = []any{
 	(ClearanceClass)(0),                  // 0: rimgovernor.observations.v1.ClearanceClass
 	(ShrineGuardKind)(0),                 // 1: rimgovernor.observations.v1.ShrineGuardKind
@@ -49205,1593 +50828,1630 @@ var file_observations_proto_goTypes = []any{
 	(MealIngredients)(0),                 // 25: rimgovernor.observations.v1.MealIngredients
 	(FoodEaterKind)(0),                   // 26: rimgovernor.observations.v1.FoodEaterKind
 	(PreceptEffectKind)(0),               // 27: rimgovernor.observations.v1.PreceptEffectKind
-	(*ReadScope)(nil),                    // 28: rimgovernor.observations.v1.ReadScope
-	(*SnapshotRef)(nil),                  // 29: rimgovernor.observations.v1.SnapshotRef
-	(*Completeness)(nil),                 // 30: rimgovernor.observations.v1.Completeness
-	(*ReadIssue)(nil),                    // 31: rimgovernor.observations.v1.ReadIssue
-	(*Rectangle)(nil),                    // 32: rimgovernor.observations.v1.Rectangle
-	(*ClearanceTarget)(nil),              // 33: rimgovernor.observations.v1.ClearanceTarget
-	(*ClearanceFloor)(nil),               // 34: rimgovernor.observations.v1.ClearanceFloor
-	(*SalvageYield)(nil),                 // 35: rimgovernor.observations.v1.SalvageYield
-	(*SalvageEvidence)(nil),              // 36: rimgovernor.observations.v1.SalvageEvidence
-	(*ClearanceChunk)(nil),               // 37: rimgovernor.observations.v1.ClearanceChunk
-	(*ClearanceTargetsRequest)(nil),      // 38: rimgovernor.observations.v1.ClearanceTargetsRequest
-	(*ClearanceTargetsSnapshot)(nil),     // 39: rimgovernor.observations.v1.ClearanceTargetsSnapshot
-	(*ClearanceTargetsReply)(nil),        // 40: rimgovernor.observations.v1.ClearanceTargetsReply
-	(*ShrineCasket)(nil),                 // 41: rimgovernor.observations.v1.ShrineCasket
-	(*ShrineGuard)(nil),                  // 42: rimgovernor.observations.v1.ShrineGuard
-	(*ShrineOccupant)(nil),               // 43: rimgovernor.observations.v1.ShrineOccupant
-	(*ShrineBreachWall)(nil),             // 44: rimgovernor.observations.v1.ShrineBreachWall
-	(*AncientShrine)(nil),                // 45: rimgovernor.observations.v1.AncientShrine
-	(*AncientShrinesRequest)(nil),        // 46: rimgovernor.observations.v1.AncientShrinesRequest
-	(*AncientShrinesSnapshot)(nil),       // 47: rimgovernor.observations.v1.AncientShrinesSnapshot
-	(*AncientShrinesReply)(nil),          // 48: rimgovernor.observations.v1.AncientShrinesReply
-	(*MapSize)(nil),                      // 49: rimgovernor.observations.v1.MapSize
-	(*DefinitionRef)(nil),                // 50: rimgovernor.observations.v1.DefinitionRef
-	(*EntityRef)(nil),                    // 51: rimgovernor.observations.v1.EntityRef
-	(*TargetRef)(nil),                    // 52: rimgovernor.observations.v1.TargetRef
-	(*Quantity)(nil),                     // 53: rimgovernor.observations.v1.Quantity
-	(*Amount)(nil),                       // 54: rimgovernor.observations.v1.Amount
-	(*SkillRequirement)(nil),             // 55: rimgovernor.observations.v1.SkillRequirement
-	(*JobEvidence)(nil),                  // 56: rimgovernor.observations.v1.JobEvidence
-	(*PawnNeeds)(nil),                    // 57: rimgovernor.observations.v1.PawnNeeds
-	(*Hediff)(nil),                       // 58: rimgovernor.observations.v1.Hediff
-	(*Capacity)(nil),                     // 59: rimgovernor.observations.v1.Capacity
-	(*SurgeryBill)(nil),                  // 60: rimgovernor.observations.v1.SurgeryBill
-	(*PawnHealth)(nil),                   // 61: rimgovernor.observations.v1.PawnHealth
-	(*MissingBodyPart)(nil),              // 62: rimgovernor.observations.v1.MissingBodyPart
-	(*SurgeryOperation)(nil),             // 63: rimgovernor.observations.v1.SurgeryOperation
-	(*GearItem)(nil),                     // 64: rimgovernor.observations.v1.GearItem
-	(*PawnEquipment)(nil),                // 65: rimgovernor.observations.v1.PawnEquipment
-	(*Skill)(nil),                        // 66: rimgovernor.observations.v1.Skill
-	(*Trait)(nil),                        // 67: rimgovernor.observations.v1.Trait
-	(*WorkSetting)(nil),                  // 68: rimgovernor.observations.v1.WorkSetting
-	(*TimetableSlot)(nil),                // 69: rimgovernor.observations.v1.TimetableSlot
-	(*PawnBiography)(nil),                // 70: rimgovernor.observations.v1.PawnBiography
-	(*Thought)(nil),                      // 71: rimgovernor.observations.v1.Thought
-	(*Relation)(nil),                     // 72: rimgovernor.observations.v1.Relation
-	(*PawnSocial)(nil),                   // 73: rimgovernor.observations.v1.PawnSocial
-	(*PawnSettings)(nil),                 // 74: rimgovernor.observations.v1.PawnSettings
-	(*PawnPolicyInputs)(nil),             // 75: rimgovernor.observations.v1.PawnPolicyInputs
-	(*InventoryStockSetting)(nil),        // 76: rimgovernor.observations.v1.InventoryStockSetting
-	(*ChemicalState)(nil),                // 77: rimgovernor.observations.v1.ChemicalState
-	(*ApparelRequirementFact)(nil),       // 78: rimgovernor.observations.v1.ApparelRequirementFact
-	(*TrainingEntry)(nil),                // 79: rimgovernor.observations.v1.TrainingEntry
-	(*AnimalState)(nil),                  // 80: rimgovernor.observations.v1.AnimalState
-	(*PawnState)(nil),                    // 81: rimgovernor.observations.v1.PawnState
-	(*PawnGene)(nil),                     // 82: rimgovernor.observations.v1.PawnGene
-	(*PawnMechanitor)(nil),               // 83: rimgovernor.observations.v1.PawnMechanitor
-	(*PawnMech)(nil),                     // 84: rimgovernor.observations.v1.PawnMech
-	(*PawnDeathrest)(nil),                // 85: rimgovernor.observations.v1.PawnDeathrest
-	(*PawnBiotech)(nil),                  // 86: rimgovernor.observations.v1.PawnBiotech
-	(*PawnTendDoctor)(nil),               // 87: rimgovernor.observations.v1.PawnTendDoctor
-	(*PawnFilter)(nil),                   // 88: rimgovernor.observations.v1.PawnFilter
-	(*PawnDetails)(nil),                  // 89: rimgovernor.observations.v1.PawnDetails
-	(*PawnSnapshot)(nil),                 // 90: rimgovernor.observations.v1.PawnSnapshot
-	(*ListPawnsRequest)(nil),             // 91: rimgovernor.observations.v1.ListPawnsRequest
-	(*ListPawnsReply)(nil),               // 92: rimgovernor.observations.v1.ListPawnsReply
-	(*StockItem)(nil),                    // 93: rimgovernor.observations.v1.StockItem
-	(*HeldStock)(nil),                    // 94: rimgovernor.observations.v1.HeldStock
-	(*CorpseState)(nil),                  // 95: rimgovernor.observations.v1.CorpseState
-	(*ResourceStock)(nil),                // 96: rimgovernor.observations.v1.ResourceStock
-	(*StockFilter)(nil),                  // 97: rimgovernor.observations.v1.StockFilter
-	(*SuppliesSnapshot)(nil),             // 98: rimgovernor.observations.v1.SuppliesSnapshot
-	(*ListSuppliesRequest)(nil),          // 99: rimgovernor.observations.v1.ListSuppliesRequest
-	(*ListSuppliesReply)(nil),            // 100: rimgovernor.observations.v1.ListSuppliesReply
-	(*IngredientRequirement)(nil),        // 101: rimgovernor.observations.v1.IngredientRequirement
-	(*FilterSpecialRule)(nil),            // 102: rimgovernor.observations.v1.FilterSpecialRule
-	(*StockpileFilter)(nil),              // 103: rimgovernor.observations.v1.StockpileFilter
-	(*BillState)(nil),                    // 104: rimgovernor.observations.v1.BillState
-	(*IngredientReservation)(nil),        // 105: rimgovernor.observations.v1.IngredientReservation
-	(*BillStack)(nil),                    // 106: rimgovernor.observations.v1.BillStack
-	(*RecipeState)(nil),                  // 107: rimgovernor.observations.v1.RecipeState
-	(*FoodIngredientSlot)(nil),           // 108: rimgovernor.observations.v1.FoodIngredientSlot
-	(*RecipeIngredientClasses)(nil),      // 109: rimgovernor.observations.v1.RecipeIngredientClasses
-	(*BuildingSettings)(nil),             // 110: rimgovernor.observations.v1.BuildingSettings
-	(*MaterialDeficit)(nil),              // 111: rimgovernor.observations.v1.MaterialDeficit
-	(*ConstructionState)(nil),            // 112: rimgovernor.observations.v1.ConstructionState
-	(*ThermalSide)(nil),                  // 113: rimgovernor.observations.v1.ThermalSide
-	(*BuildingServiceState)(nil),         // 114: rimgovernor.observations.v1.BuildingServiceState
-	(*BuildingState)(nil),                // 115: rimgovernor.observations.v1.BuildingState
-	(*PowerNetwork)(nil),                 // 116: rimgovernor.observations.v1.PowerNetwork
-	(*BuildingsSnapshot)(nil),            // 117: rimgovernor.observations.v1.BuildingsSnapshot
-	(*ListBuildingsRequest)(nil),         // 118: rimgovernor.observations.v1.ListBuildingsRequest
-	(*ListBuildingsReply)(nil),           // 119: rimgovernor.observations.v1.ListBuildingsReply
-	(*RoomStat)(nil),                     // 120: rimgovernor.observations.v1.RoomStat
-	(*RoomBedMembership)(nil),            // 121: rimgovernor.observations.v1.RoomBedMembership
-	(*StockpileMembership)(nil),          // 122: rimgovernor.observations.v1.StockpileMembership
-	(*RoomState)(nil),                    // 123: rimgovernor.observations.v1.RoomState
-	(*RoomDoor)(nil),                     // 124: rimgovernor.observations.v1.RoomDoor
-	(*RoomsSnapshot)(nil),                // 125: rimgovernor.observations.v1.RoomsSnapshot
-	(*ListRoomsRequest)(nil),             // 126: rimgovernor.observations.v1.ListRoomsRequest
-	(*ListRoomsReply)(nil),               // 127: rimgovernor.observations.v1.ListRoomsReply
-	(*ZoneState)(nil),                    // 128: rimgovernor.observations.v1.ZoneState
-	(*ZonesSnapshot)(nil),                // 129: rimgovernor.observations.v1.ZonesSnapshot
-	(*ListZonesRequest)(nil),             // 130: rimgovernor.observations.v1.ListZonesRequest
-	(*ListZonesReply)(nil),               // 131: rimgovernor.observations.v1.ListZonesReply
-	(*Thing)(nil),                        // 132: rimgovernor.observations.v1.Thing
-	(*ThingsSnapshot)(nil),               // 133: rimgovernor.observations.v1.ThingsSnapshot
-	(*CellsSnapshot)(nil),                // 134: rimgovernor.observations.v1.CellsSnapshot
-	(*GetCellsRequest)(nil),              // 135: rimgovernor.observations.v1.GetCellsRequest
-	(*GetCellsReply)(nil),                // 136: rimgovernor.observations.v1.GetCellsReply
-	(*ResearchUnlock)(nil),               // 137: rimgovernor.observations.v1.ResearchUnlock
-	(*ResearchProject)(nil),              // 138: rimgovernor.observations.v1.ResearchProject
-	(*Researcher)(nil),                   // 139: rimgovernor.observations.v1.Researcher
-	(*ResearchFacility)(nil),             // 140: rimgovernor.observations.v1.ResearchFacility
-	(*ResearchBench)(nil),                // 141: rimgovernor.observations.v1.ResearchBench
-	(*ResearchSlot)(nil),                 // 142: rimgovernor.observations.v1.ResearchSlot
-	(*ResearchSnapshot)(nil),             // 143: rimgovernor.observations.v1.ResearchSnapshot
-	(*ResearchRequest)(nil),              // 144: rimgovernor.observations.v1.ResearchRequest
-	(*ResearchReply)(nil),                // 145: rimgovernor.observations.v1.ResearchReply
-	(*AccessTarget)(nil),                 // 146: rimgovernor.observations.v1.AccessTarget
-	(*PawnAccess)(nil),                   // 147: rimgovernor.observations.v1.PawnAccess
-	(*SpatialAccessSnapshot)(nil),        // 148: rimgovernor.observations.v1.SpatialAccessSnapshot
-	(*SpatialAccessRequest)(nil),         // 149: rimgovernor.observations.v1.SpatialAccessRequest
-	(*SpatialAccessReply)(nil),           // 150: rimgovernor.observations.v1.SpatialAccessReply
-	(*DefenseCell)(nil),                  // 151: rimgovernor.observations.v1.DefenseCell
-	(*RaidTrack)(nil),                    // 152: rimgovernor.observations.v1.RaidTrack
-	(*DefenseSiteSnapshot)(nil),          // 153: rimgovernor.observations.v1.DefenseSiteSnapshot
-	(*DefenseSiteRequest)(nil),           // 154: rimgovernor.observations.v1.DefenseSiteRequest
-	(*DefenseSiteReply)(nil),             // 155: rimgovernor.observations.v1.DefenseSiteReply
-	(*LineOfFire)(nil),                   // 156: rimgovernor.observations.v1.LineOfFire
-	(*LinesOfFireSnapshot)(nil),          // 157: rimgovernor.observations.v1.LinesOfFireSnapshot
-	(*LinesOfFireRequest)(nil),           // 158: rimgovernor.observations.v1.LinesOfFireRequest
-	(*LinesOfFireReply)(nil),             // 159: rimgovernor.observations.v1.LinesOfFireReply
-	(*RoofSupportCell)(nil),              // 160: rimgovernor.observations.v1.RoofSupportCell
-	(*RoofSupportSnapshot)(nil),          // 161: rimgovernor.observations.v1.RoofSupportSnapshot
-	(*RoofSupportRequest)(nil),           // 162: rimgovernor.observations.v1.RoofSupportRequest
-	(*RoofSupportReply)(nil),             // 163: rimgovernor.observations.v1.RoofSupportReply
-	(*ExcavationCell)(nil),               // 164: rimgovernor.observations.v1.ExcavationCell
-	(*ExcavationSiteSnapshot)(nil),       // 165: rimgovernor.observations.v1.ExcavationSiteSnapshot
-	(*ExcavationSiteRequest)(nil),        // 166: rimgovernor.observations.v1.ExcavationSiteRequest
-	(*ExcavationSiteReply)(nil),          // 167: rimgovernor.observations.v1.ExcavationSiteReply
-	(*PlantCutCensusRequest)(nil),        // 168: rimgovernor.observations.v1.PlantCutCensusRequest
-	(*PlantCutTarget)(nil),               // 169: rimgovernor.observations.v1.PlantCutTarget
-	(*PlantCutCensusSnapshot)(nil),       // 170: rimgovernor.observations.v1.PlantCutCensusSnapshot
-	(*PlantCutCensusReply)(nil),          // 171: rimgovernor.observations.v1.PlantCutCensusReply
-	(*StuffOption)(nil),                  // 172: rimgovernor.observations.v1.StuffOption
-	(*WallUpgradeSite)(nil),              // 173: rimgovernor.observations.v1.WallUpgradeSite
-	(*WallUpgradeSnapshot)(nil),          // 174: rimgovernor.observations.v1.WallUpgradeSnapshot
-	(*WallUpgradeSitesRequest)(nil),      // 175: rimgovernor.observations.v1.WallUpgradeSitesRequest
-	(*WallUpgradeSitesReply)(nil),        // 176: rimgovernor.observations.v1.WallUpgradeSitesReply
-	(*ResourceSource)(nil),               // 177: rimgovernor.observations.v1.ResourceSource
-	(*StorageCapacity)(nil),              // 178: rimgovernor.observations.v1.StorageCapacity
-	(*ExtractionWorkType)(nil),           // 179: rimgovernor.observations.v1.ExtractionWorkType
-	(*ExtractionSite)(nil),               // 180: rimgovernor.observations.v1.ExtractionSite
-	(*OwnedDrill)(nil),                   // 181: rimgovernor.observations.v1.OwnedDrill
-	(*ExtractionDevelopment)(nil),        // 182: rimgovernor.observations.v1.ExtractionDevelopment
-	(*ResourceSourcesSnapshot)(nil),      // 183: rimgovernor.observations.v1.ResourceSourcesSnapshot
-	(*ResourceSourcesRequest)(nil),       // 184: rimgovernor.observations.v1.ResourceSourcesRequest
-	(*ResourceSourcesReply)(nil),         // 185: rimgovernor.observations.v1.ResourceSourcesReply
-	(*HandlerState)(nil),                 // 186: rimgovernor.observations.v1.HandlerState
-	(*HusbandryAnimal)(nil),              // 187: rimgovernor.observations.v1.HusbandryAnimal
-	(*HusbandrySnapshot)(nil),            // 188: rimgovernor.observations.v1.HusbandrySnapshot
-	(*HusbandryRequest)(nil),             // 189: rimgovernor.observations.v1.HusbandryRequest
-	(*HusbandryReply)(nil),               // 190: rimgovernor.observations.v1.HusbandryReply
-	(*WasteItem)(nil),                    // 191: rimgovernor.observations.v1.WasteItem
-	(*WasteSnapshot)(nil),                // 192: rimgovernor.observations.v1.WasteSnapshot
-	(*WasteRequest)(nil),                 // 193: rimgovernor.observations.v1.WasteRequest
-	(*WasteReply)(nil),                   // 194: rimgovernor.observations.v1.WasteReply
-	(*RecoveryRestriction)(nil),          // 195: rimgovernor.observations.v1.RecoveryRestriction
-	(*RecoverySnapshot)(nil),             // 196: rimgovernor.observations.v1.RecoverySnapshot
-	(*RecoveryRequest)(nil),              // 197: rimgovernor.observations.v1.RecoveryRequest
-	(*RecoveryReply)(nil),                // 198: rimgovernor.observations.v1.RecoveryReply
-	(*PopulationPerson)(nil),             // 199: rimgovernor.observations.v1.PopulationPerson
-	(*PopulationSnapshot)(nil),           // 200: rimgovernor.observations.v1.PopulationSnapshot
-	(*OwnedName)(nil),                    // 201: rimgovernor.observations.v1.OwnedName
-	(*PopulationRequest)(nil),            // 202: rimgovernor.observations.v1.PopulationRequest
-	(*PopulationReply)(nil),              // 203: rimgovernor.observations.v1.PopulationReply
-	(*Settlement)(nil),                   // 204: rimgovernor.observations.v1.Settlement
-	(*WorldTile)(nil),                    // 205: rimgovernor.observations.v1.WorldTile
-	(*WorldSnapshot)(nil),                // 206: rimgovernor.observations.v1.WorldSnapshot
-	(*WorldRequest)(nil),                 // 207: rimgovernor.observations.v1.WorldRequest
-	(*WorldReply)(nil),                   // 208: rimgovernor.observations.v1.WorldReply
-	(*WorldRoute)(nil),                   // 209: rimgovernor.observations.v1.WorldRoute
-	(*CaravanState)(nil),                 // 210: rimgovernor.observations.v1.CaravanState
-	(*QuestTradeRequest)(nil),            // 211: rimgovernor.observations.v1.QuestTradeRequest
-	(*QuestReward)(nil),                  // 212: rimgovernor.observations.v1.QuestReward
-	(*QuestState)(nil),                   // 213: rimgovernor.observations.v1.QuestState
-	(*FactionState)(nil),                 // 214: rimgovernor.observations.v1.FactionState
-	(*WorldMap)(nil),                     // 215: rimgovernor.observations.v1.WorldMap
-	(*CaravanAssembly)(nil),              // 216: rimgovernor.observations.v1.CaravanAssembly
-	(*WorldProgressionSnapshot)(nil),     // 217: rimgovernor.observations.v1.WorldProgressionSnapshot
-	(*WorldProgressionRequest)(nil),      // 218: rimgovernor.observations.v1.WorldProgressionRequest
-	(*WorldProgressionReply)(nil),        // 219: rimgovernor.observations.v1.WorldProgressionReply
-	(*BillsSnapshot)(nil),                // 220: rimgovernor.observations.v1.BillsSnapshot
-	(*BillsRequest)(nil),                 // 221: rimgovernor.observations.v1.BillsRequest
-	(*BillsReply)(nil),                   // 222: rimgovernor.observations.v1.BillsReply
-	(*RecipesSnapshot)(nil),              // 223: rimgovernor.observations.v1.RecipesSnapshot
-	(*RecipesRequest)(nil),               // 224: rimgovernor.observations.v1.RecipesRequest
-	(*RecipesReply)(nil),                 // 225: rimgovernor.observations.v1.RecipesReply
-	(*BuildingSettingsRequest)(nil),      // 226: rimgovernor.observations.v1.BuildingSettingsRequest
-	(*BuildingSettingsReply)(nil),        // 227: rimgovernor.observations.v1.BuildingSettingsReply
-	(*PawnSettingsRequest)(nil),          // 228: rimgovernor.observations.v1.PawnSettingsRequest
-	(*PawnSettingsReply)(nil),            // 229: rimgovernor.observations.v1.PawnSettingsReply
-	(*ResolveTargetSnapshot)(nil),        // 230: rimgovernor.observations.v1.ResolveTargetSnapshot
-	(*ResolveTargetRequest)(nil),         // 231: rimgovernor.observations.v1.ResolveTargetRequest
-	(*ResolveTargetReply)(nil),           // 232: rimgovernor.observations.v1.ResolveTargetReply
-	(*GearCandidate)(nil),                // 233: rimgovernor.observations.v1.GearCandidate
-	(*GearReplacementNeed)(nil),          // 234: rimgovernor.observations.v1.GearReplacementNeed
-	(*GearLoadout)(nil),                  // 235: rimgovernor.observations.v1.GearLoadout
-	(*GearLoadoutOption)(nil),            // 236: rimgovernor.observations.v1.GearLoadoutOption
-	(*GearLoadoutModel)(nil),             // 237: rimgovernor.observations.v1.GearLoadoutModel
-	(*GearSnapshot)(nil),                 // 238: rimgovernor.observations.v1.GearSnapshot
-	(*GearStock)(nil),                    // 239: rimgovernor.observations.v1.GearStock
-	(*GearStorage)(nil),                  // 240: rimgovernor.observations.v1.GearStorage
-	(*GearWeatherCondition)(nil),         // 241: rimgovernor.observations.v1.GearWeatherCondition
-	(*GearRequest)(nil),                  // 242: rimgovernor.observations.v1.GearRequest
-	(*GearReply)(nil),                    // 243: rimgovernor.observations.v1.GearReply
-	(*Trader)(nil),                       // 244: rimgovernor.observations.v1.Trader
-	(*TradersSnapshot)(nil),              // 245: rimgovernor.observations.v1.TradersSnapshot
-	(*TradersRequest)(nil),               // 246: rimgovernor.observations.v1.TradersRequest
-	(*TradersReply)(nil),                 // 247: rimgovernor.observations.v1.TradersReply
-	(*TradeLine)(nil),                    // 248: rimgovernor.observations.v1.TradeLine
-	(*TradeSession)(nil),                 // 249: rimgovernor.observations.v1.TradeSession
-	(*TradeSessionRequest)(nil),          // 250: rimgovernor.observations.v1.TradeSessionRequest
-	(*TradeSessionReply)(nil),            // 251: rimgovernor.observations.v1.TradeSessionReply
-	(*TradeSheet)(nil),                   // 252: rimgovernor.observations.v1.TradeSheet
-	(*TradeSheetRequest)(nil),            // 253: rimgovernor.observations.v1.TradeSheetRequest
-	(*TradeSheetReply)(nil),              // 254: rimgovernor.observations.v1.TradeSheetReply
-	(*FoodConsumer)(nil),                 // 255: rimgovernor.observations.v1.FoodConsumer
-	(*FoodStock)(nil),                    // 256: rimgovernor.observations.v1.FoodStock
-	(*CorpseHandling)(nil),               // 257: rimgovernor.observations.v1.CorpseHandling
-	(*FoodLarderFacts)(nil),              // 258: rimgovernor.observations.v1.FoodLarderFacts
-	(*FoodSupplyFacts)(nil),              // 259: rimgovernor.observations.v1.FoodSupplyFacts
-	(*CropForecast)(nil),                 // 260: rimgovernor.observations.v1.CropForecast
-	(*PatientForecast)(nil),              // 261: rimgovernor.observations.v1.PatientForecast
-	(*ForecastFacts)(nil),                // 262: rimgovernor.observations.v1.ForecastFacts
-	(*ComfortSurface)(nil),               // 263: rimgovernor.observations.v1.ComfortSurface
-	(*ComfortFacility)(nil),              // 264: rimgovernor.observations.v1.ComfortFacility
-	(*JoyTolerance)(nil),                 // 265: rimgovernor.observations.v1.JoyTolerance
-	(*JoyBuildingMethod)(nil),            // 266: rimgovernor.observations.v1.JoyBuildingMethod
-	(*RecreationCensus)(nil),             // 267: rimgovernor.observations.v1.RecreationCensus
-	(*ComfortFacts)(nil),                 // 268: rimgovernor.observations.v1.ComfortFacts
-	(*UpkeepItem)(nil),                   // 269: rimgovernor.observations.v1.UpkeepItem
-	(*UpkeepBed)(nil),                    // 270: rimgovernor.observations.v1.UpkeepBed
-	(*StorageCell)(nil),                  // 271: rimgovernor.observations.v1.StorageCell
-	(*ItemStorageCapacity)(nil),          // 272: rimgovernor.observations.v1.ItemStorageCapacity
-	(*UpkeepStructure)(nil),              // 273: rimgovernor.observations.v1.UpkeepStructure
-	(*FireState)(nil),                    // 274: rimgovernor.observations.v1.FireState
-	(*FilthState)(nil),                   // 275: rimgovernor.observations.v1.FilthState
-	(*ProtectedCell)(nil),                // 276: rimgovernor.observations.v1.ProtectedCell
-	(*UpkeepPerson)(nil),                 // 277: rimgovernor.observations.v1.UpkeepPerson
-	(*BedroomThingRequirement)(nil),      // 278: rimgovernor.observations.v1.BedroomThingRequirement
-	(*RoyalTitleFacts)(nil),              // 279: rimgovernor.observations.v1.RoyalTitleFacts
-	(*RoyalTitleRung)(nil),               // 280: rimgovernor.observations.v1.RoyalTitleRung
-	(*RoyalPermitDef)(nil),               // 281: rimgovernor.observations.v1.RoyalPermitDef
-	(*PermitCooldown)(nil),               // 282: rimgovernor.observations.v1.PermitCooldown
-	(*PawnRoyalHolding)(nil),             // 283: rimgovernor.observations.v1.PawnRoyalHolding
-	(*PawnPsycast)(nil),                  // 284: rimgovernor.observations.v1.PawnPsycast
-	(*NeuroformerStock)(nil),             // 285: rimgovernor.observations.v1.NeuroformerStock
-	(*PawnRoyalty)(nil),                  // 286: rimgovernor.observations.v1.PawnRoyalty
-	(*BestowingCeremony)(nil),            // 287: rimgovernor.observations.v1.BestowingCeremony
-	(*RoyalThrone)(nil),                  // 288: rimgovernor.observations.v1.RoyalThrone
-	(*RoyaltyFacts)(nil),                 // 289: rimgovernor.observations.v1.RoyaltyFacts
-	(*RoyaltyFactsRequest)(nil),          // 290: rimgovernor.observations.v1.RoyaltyFactsRequest
-	(*RoyaltyFactsReply)(nil),            // 291: rimgovernor.observations.v1.RoyaltyFactsReply
-	(*AnimalProduct)(nil),                // 292: rimgovernor.observations.v1.AnimalProduct
-	(*AnimalFeedItem)(nil),               // 293: rimgovernor.observations.v1.AnimalFeedItem
-	(*AnimalRaceFacts)(nil),              // 294: rimgovernor.observations.v1.AnimalRaceFacts
-	(*AnimalRaceCatalog)(nil),            // 295: rimgovernor.observations.v1.AnimalRaceCatalog
-	(*AnimalRaceCatalogRequest)(nil),     // 296: rimgovernor.observations.v1.AnimalRaceCatalogRequest
-	(*AnimalRaceCatalogReply)(nil),       // 297: rimgovernor.observations.v1.AnimalRaceCatalogReply
-	(*FeedDefinition)(nil),               // 298: rimgovernor.observations.v1.FeedDefinition
-	(*AnimalFeedStorage)(nil),            // 299: rimgovernor.observations.v1.AnimalFeedStorage
-	(*AnimalFeed)(nil),                   // 300: rimgovernor.observations.v1.AnimalFeed
-	(*DevelopmentPower)(nil),             // 301: rimgovernor.observations.v1.DevelopmentPower
-	(*DevelopmentFurniture)(nil),         // 302: rimgovernor.observations.v1.DevelopmentFurniture
-	(*SteamGeyser)(nil),                  // 303: rimgovernor.observations.v1.SteamGeyser
-	(*DevelopmentFacts)(nil),             // 304: rimgovernor.observations.v1.DevelopmentFacts
-	(*EnvironmentCondition)(nil),         // 305: rimgovernor.observations.v1.EnvironmentCondition
-	(*FoodClimate)(nil),                  // 306: rimgovernor.observations.v1.FoodClimate
-	(*FarmFacts)(nil),                    // 307: rimgovernor.observations.v1.FarmFacts
-	(*PlanningDefinition)(nil),           // 308: rimgovernor.observations.v1.PlanningDefinition
-	(*GrowLight)(nil),                    // 309: rimgovernor.observations.v1.GrowLight
-	(*PlantGrower)(nil),                  // 310: rimgovernor.observations.v1.PlantGrower
-	(*GrowRoom)(nil),                     // 311: rimgovernor.observations.v1.GrowRoom
-	(*PowerHeadroom)(nil),                // 312: rimgovernor.observations.v1.PowerHeadroom
-	(*ControlledEnvironment)(nil),        // 313: rimgovernor.observations.v1.ControlledEnvironment
-	(*EdibleCrop)(nil),                   // 314: rimgovernor.observations.v1.EdibleCrop
-	(*PlanningFacts)(nil),                // 315: rimgovernor.observations.v1.PlanningFacts
-	(*FoodProduct)(nil),                  // 316: rimgovernor.observations.v1.FoodProduct
-	(*FoodProduction)(nil),               // 317: rimgovernor.observations.v1.FoodProduction
-	(*CookingFacts)(nil),                 // 318: rimgovernor.observations.v1.CookingFacts
-	(*BlightedPlant)(nil),                // 319: rimgovernor.observations.v1.BlightedPlant
-	(*AcquisitionFacts)(nil),             // 320: rimgovernor.observations.v1.AcquisitionFacts
-	(*ButcheringFacts)(nil),              // 321: rimgovernor.observations.v1.ButcheringFacts
-	(*HumanButcherCandidate)(nil),        // 322: rimgovernor.observations.v1.HumanButcherCandidate
-	(*FoodCorpse)(nil),                   // 323: rimgovernor.observations.v1.FoodCorpse
-	(*ColonyNaming)(nil),                 // 324: rimgovernor.observations.v1.ColonyNaming
-	(*ChoiceDialogOption)(nil),           // 325: rimgovernor.observations.v1.ChoiceDialogOption
-	(*ChoiceDialog)(nil),                 // 326: rimgovernor.observations.v1.ChoiceDialog
-	(*ComfortSection)(nil),               // 327: rimgovernor.observations.v1.ComfortSection
-	(*FoodSupplySection)(nil),            // 328: rimgovernor.observations.v1.FoodSupplySection
-	(*ForecastSection)(nil),              // 329: rimgovernor.observations.v1.ForecastSection
-	(*DevelopmentSection)(nil),           // 330: rimgovernor.observations.v1.DevelopmentSection
-	(*PlanningSection)(nil),              // 331: rimgovernor.observations.v1.PlanningSection
-	(*WallRemovalRecord)(nil),            // 332: rimgovernor.observations.v1.WallRemovalRecord
-	(*WallRemovalFacts)(nil),             // 333: rimgovernor.observations.v1.WallRemovalFacts
-	(*WallRemovalSection)(nil),           // 334: rimgovernor.observations.v1.WallRemovalSection
-	(*HomeExtentGeometry)(nil),           // 335: rimgovernor.observations.v1.HomeExtentGeometry
-	(*HomeCoverageTarget)(nil),           // 336: rimgovernor.observations.v1.HomeCoverageTarget
-	(*HomeCoverageFacts)(nil),            // 337: rimgovernor.observations.v1.HomeCoverageFacts
-	(*HomeCoverageSection)(nil),          // 338: rimgovernor.observations.v1.HomeCoverageSection
-	(*WorkLightCell)(nil),                // 339: rimgovernor.observations.v1.WorkLightCell
-	(*LampState)(nil),                    // 340: rimgovernor.observations.v1.LampState
-	(*LightingFacts)(nil),                // 341: rimgovernor.observations.v1.LightingFacts
-	(*LightingSection)(nil),              // 342: rimgovernor.observations.v1.LightingSection
-	(*FloorCell)(nil),                    // 343: rimgovernor.observations.v1.FloorCell
-	(*FloorRoom)(nil),                    // 344: rimgovernor.observations.v1.FloorRoom
-	(*FloorTerrain)(nil),                 // 345: rimgovernor.observations.v1.FloorTerrain
-	(*FlooringFacts)(nil),                // 346: rimgovernor.observations.v1.FlooringFacts
-	(*FlooringSection)(nil),              // 347: rimgovernor.observations.v1.FlooringSection
-	(*RouteTravel)(nil),                  // 348: rimgovernor.observations.v1.RouteTravel
-	(*RouteBreach)(nil),                  // 349: rimgovernor.observations.v1.RouteBreach
-	(*RouteFacility)(nil),                // 350: rimgovernor.observations.v1.RouteFacility
-	(*TrafficCell)(nil),                  // 351: rimgovernor.observations.v1.TrafficCell
-	(*RoutesFacts)(nil),                  // 352: rimgovernor.observations.v1.RoutesFacts
-	(*RoutesSection)(nil),                // 353: rimgovernor.observations.v1.RoutesSection
-	(*UpkeepFacts)(nil),                  // 354: rimgovernor.observations.v1.UpkeepFacts
-	(*UpkeepSection)(nil),                // 355: rimgovernor.observations.v1.UpkeepSection
-	(*ThreatFacts)(nil),                  // 356: rimgovernor.observations.v1.ThreatFacts
-	(*ThreatSection)(nil),                // 357: rimgovernor.observations.v1.ThreatSection
-	(*LootItem)(nil),                     // 358: rimgovernor.observations.v1.LootItem
-	(*LootCensus)(nil),                   // 359: rimgovernor.observations.v1.LootCensus
-	(*LootSection)(nil),                  // 360: rimgovernor.observations.v1.LootSection
-	(*FishableRegion)(nil),               // 361: rimgovernor.observations.v1.FishableRegion
-	(*FishableWater)(nil),                // 362: rimgovernor.observations.v1.FishableWater
-	(*GatherableAnimal)(nil),             // 363: rimgovernor.observations.v1.GatherableAnimal
-	(*EggLayerAnimal)(nil),               // 364: rimgovernor.observations.v1.EggLayerAnimal
-	(*PasteDispenser)(nil),               // 365: rimgovernor.observations.v1.PasteDispenser
-	(*ForagePlant)(nil),                  // 366: rimgovernor.observations.v1.ForagePlant
-	(*PenGrazing)(nil),                   // 367: rimgovernor.observations.v1.PenGrazing
-	(*FoodSlaughterAnimal)(nil),          // 368: rimgovernor.observations.v1.FoodSlaughterAnimal
-	(*FoodChannelsFacts)(nil),            // 369: rimgovernor.observations.v1.FoodChannelsFacts
-	(*FoodChannelsSection)(nil),          // 370: rimgovernor.observations.v1.FoodChannelsSection
-	(*DeepResourceLump)(nil),             // 371: rimgovernor.observations.v1.DeepResourceLump
-	(*MineralScannerState)(nil),          // 372: rimgovernor.observations.v1.MineralScannerState
-	(*DeepDrillState)(nil),               // 373: rimgovernor.observations.v1.DeepDrillState
-	(*DeepResourcesFacts)(nil),           // 374: rimgovernor.observations.v1.DeepResourcesFacts
-	(*DeepResourcesSection)(nil),         // 375: rimgovernor.observations.v1.DeepResourcesSection
-	(*ColonyFactsSnapshot)(nil),          // 376: rimgovernor.observations.v1.ColonyFactsSnapshot
-	(*OdysseySection)(nil),               // 377: rimgovernor.observations.v1.OdysseySection
-	(*OdysseyColonyFacts)(nil),           // 378: rimgovernor.observations.v1.OdysseyColonyFacts
-	(*ActiveCondition)(nil),              // 379: rimgovernor.observations.v1.ActiveCondition
-	(*HazardTerrain)(nil),                // 380: rimgovernor.observations.v1.HazardTerrain
-	(*LavaEmergenceState)(nil),           // 381: rimgovernor.observations.v1.LavaEmergenceState
-	(*UndergroundSite)(nil),              // 382: rimgovernor.observations.v1.UndergroundSite
-	(*UndergroundHackable)(nil),          // 383: rimgovernor.observations.v1.UndergroundHackable
-	(*PolicyEntry)(nil),                  // 384: rimgovernor.observations.v1.PolicyEntry
-	(*BookDefinition)(nil),               // 385: rimgovernor.observations.v1.BookDefinition
-	(*FoodDefinition)(nil),               // 386: rimgovernor.observations.v1.FoodDefinition
-	(*AllowedAreaEntry)(nil),             // 387: rimgovernor.observations.v1.AllowedAreaEntry
-	(*PolicyFacts)(nil),                  // 388: rimgovernor.observations.v1.PolicyFacts
-	(*FoodEater)(nil),                    // 389: rimgovernor.observations.v1.FoodEater
-	(*PolicySection)(nil),                // 390: rimgovernor.observations.v1.PolicySection
-	(*BiotechSection)(nil),               // 391: rimgovernor.observations.v1.BiotechSection
-	(*BiotechColonyFacts)(nil),           // 392: rimgovernor.observations.v1.BiotechColonyFacts
-	(*PollutionTotals)(nil),              // 393: rimgovernor.observations.v1.PollutionTotals
-	(*Polluter)(nil),                     // 394: rimgovernor.observations.v1.Polluter
-	(*Wastepack)(nil),                    // 395: rimgovernor.observations.v1.Wastepack
-	(*WastepackAtomizer)(nil),            // 396: rimgovernor.observations.v1.WastepackAtomizer
-	(*PollutionPump)(nil),                // 397: rimgovernor.observations.v1.PollutionPump
-	(*MechGestatorState)(nil),            // 398: rimgovernor.observations.v1.MechGestatorState
-	(*MechChargerState)(nil),             // 399: rimgovernor.observations.v1.MechChargerState
-	(*BabyCare)(nil),                     // 400: rimgovernor.observations.v1.BabyCare
-	(*BabyAutofeeder)(nil),               // 401: rimgovernor.observations.v1.BabyAutofeeder
-	(*JoinerLetter)(nil),                 // 402: rimgovernor.observations.v1.JoinerLetter
-	(*ColonyFactsRequest)(nil),           // 403: rimgovernor.observations.v1.ColonyFactsRequest
-	(*ColonyFactsReply)(nil),             // 404: rimgovernor.observations.v1.ColonyFactsReply
-	(*ThreatPawn)(nil),                   // 405: rimgovernor.observations.v1.ThreatPawn
-	(*ThreatBuilding)(nil),               // 406: rimgovernor.observations.v1.ThreatBuilding
-	(*ThreatsSnapshot)(nil),              // 407: rimgovernor.observations.v1.ThreatsSnapshot
-	(*StatusSnapshot)(nil),               // 408: rimgovernor.observations.v1.StatusSnapshot
-	(*StatusRequest)(nil),                // 409: rimgovernor.observations.v1.StatusRequest
-	(*StatusReply)(nil),                  // 410: rimgovernor.observations.v1.StatusReply
-	(*BundleSnapshot)(nil),               // 411: rimgovernor.observations.v1.BundleSnapshot
-	(*SectionWatermark)(nil),             // 412: rimgovernor.observations.v1.SectionWatermark
-	(*ObservationBatchSnapshot)(nil),     // 413: rimgovernor.observations.v1.ObservationBatchSnapshot
-	(*ObservationBatchRequest)(nil),      // 414: rimgovernor.observations.v1.ObservationBatchRequest
-	(*ObservationBatchReply)(nil),        // 415: rimgovernor.observations.v1.ObservationBatchReply
-	(*ArchitectCategory)(nil),            // 416: rimgovernor.observations.v1.ArchitectCategory
-	(*ArchitectDesignator)(nil),          // 417: rimgovernor.observations.v1.ArchitectDesignator
-	(*ArchitectCategoriesSnapshot)(nil),  // 418: rimgovernor.observations.v1.ArchitectCategoriesSnapshot
-	(*ArchitectCategoriesRequest)(nil),   // 419: rimgovernor.observations.v1.ArchitectCategoriesRequest
-	(*ArchitectCategoriesReply)(nil),     // 420: rimgovernor.observations.v1.ArchitectCategoriesReply
-	(*ArchitectDesignatorsSnapshot)(nil), // 421: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
-	(*ArchitectDesignatorsRequest)(nil),  // 422: rimgovernor.observations.v1.ArchitectDesignatorsRequest
-	(*ArchitectDesignatorsReply)(nil),    // 423: rimgovernor.observations.v1.ArchitectDesignatorsReply
-	(*SnapshotStreamRequest)(nil),        // 424: rimgovernor.observations.v1.SnapshotStreamRequest
-	(*DefinitionCatalog)(nil),            // 425: rimgovernor.observations.v1.DefinitionCatalog
-	(*IdeologyCatalog)(nil),              // 426: rimgovernor.observations.v1.IdeologyCatalog
-	(*MemeDefinition)(nil),               // 427: rimgovernor.observations.v1.MemeDefinition
-	(*RequiredRitual)(nil),               // 428: rimgovernor.observations.v1.RequiredRitual
-	(*PreceptDefinition)(nil),            // 429: rimgovernor.observations.v1.PreceptDefinition
-	(*PreceptBuilding)(nil),              // 430: rimgovernor.observations.v1.PreceptBuilding
-	(*PreceptEffect)(nil),                // 431: rimgovernor.observations.v1.PreceptEffect
-	(*RoleDefinition)(nil),               // 432: rimgovernor.observations.v1.RoleDefinition
-	(*RoleRequirementFact)(nil),          // 433: rimgovernor.observations.v1.RoleRequirementFact
-	(*SkillRequirementFact)(nil),         // 434: rimgovernor.observations.v1.SkillRequirementFact
-	(*RoleEffectFact)(nil),               // 435: rimgovernor.observations.v1.RoleEffectFact
-	(*RitualDefinition)(nil),             // 436: rimgovernor.observations.v1.RitualDefinition
-	(*RitualRoleSlot)(nil),               // 437: rimgovernor.observations.v1.RitualRoleSlot
-	(*IdeologySnapshot)(nil),             // 438: rimgovernor.observations.v1.IdeologySnapshot
-	(*IdeoPrecept)(nil),                  // 439: rimgovernor.observations.v1.IdeoPrecept
-	(*IdeoRole)(nil),                     // 440: rimgovernor.observations.v1.IdeoRole
-	(*IdeoRitual)(nil),                   // 441: rimgovernor.observations.v1.IdeoRitual
-	(*IdeoBuilding)(nil),                 // 442: rimgovernor.observations.v1.IdeoBuilding
-	(*StatEffect)(nil),                   // 443: rimgovernor.observations.v1.StatEffect
-	(*SkillLevel)(nil),                   // 444: rimgovernor.observations.v1.SkillLevel
-	(*CapacityEffect)(nil),               // 445: rimgovernor.observations.v1.CapacityEffect
-	(*LifeStageRow)(nil),                 // 446: rimgovernor.observations.v1.LifeStageRow
-	(*LifeStageAgeRow)(nil),              // 447: rimgovernor.observations.v1.LifeStageAgeRow
-	(*WorkMinAge)(nil),                   // 448: rimgovernor.observations.v1.WorkMinAge
-	(*RaceLifeStages)(nil),               // 449: rimgovernor.observations.v1.RaceLifeStages
-	(*GeneRow)(nil),                      // 450: rimgovernor.observations.v1.GeneRow
-	(*PassionEffect)(nil),                // 451: rimgovernor.observations.v1.PassionEffect
-	(*XenotypeRow)(nil),                  // 452: rimgovernor.observations.v1.XenotypeRow
-	(*MechWorkPriority)(nil),             // 453: rimgovernor.observations.v1.MechWorkPriority
-	(*MechKindRow)(nil),                  // 454: rimgovernor.observations.v1.MechKindRow
-	(*MechWorkModeRow)(nil),              // 455: rimgovernor.observations.v1.MechWorkModeRow
-	(*BiotechCatalog)(nil),               // 456: rimgovernor.observations.v1.BiotechCatalog
-	(*OdysseyCatalog)(nil),               // 457: rimgovernor.observations.v1.OdysseyCatalog
-	(*BiomeAnimal)(nil),                  // 458: rimgovernor.observations.v1.BiomeAnimal
-	(*BiomeDisease)(nil),                 // 459: rimgovernor.observations.v1.BiomeDisease
-	(*BiomeRow)(nil),                     // 460: rimgovernor.observations.v1.BiomeRow
-	(*TileMutatorRow)(nil),               // 461: rimgovernor.observations.v1.TileMutatorRow
-	(*HackableRow)(nil),                  // 462: rimgovernor.observations.v1.HackableRow
-	(*PortalRow)(nil),                    // 463: rimgovernor.observations.v1.PortalRow
-	(*StockpileTypeRow)(nil),             // 464: rimgovernor.observations.v1.StockpileTypeRow
-	(*OdysseyBuilding)(nil),              // 465: rimgovernor.observations.v1.OdysseyBuilding
-	(*HackableState)(nil),                // 466: rimgovernor.observations.v1.HackableState
-	(*PortalState)(nil),                  // 467: rimgovernor.observations.v1.PortalState
-	(*DefinitionCatalogRequest)(nil),     // 468: rimgovernor.observations.v1.DefinitionCatalogRequest
-	(*DefinitionCatalogReply)(nil),       // 469: rimgovernor.observations.v1.DefinitionCatalogReply
-	(*SnapshotStreamOpened)(nil),         // 470: rimgovernor.observations.v1.SnapshotStreamOpened
-	(*SnapshotStreamReply)(nil),          // 471: rimgovernor.observations.v1.SnapshotStreamReply
-	(*FlushSnapshotRequest)(nil),         // 472: rimgovernor.observations.v1.FlushSnapshotRequest
-	(*FlushSnapshotReply)(nil),           // 473: rimgovernor.observations.v1.FlushSnapshotReply
-	(*TradeFoodFacts)(nil),               // 474: rimgovernor.observations.v1.TradeFoodFacts
-	(*FoodRestriction)(nil),              // 475: rimgovernor.observations.v1.FoodRestriction
-	(*ApparelPolicyDefinition)(nil),      // 476: rimgovernor.observations.v1.ApparelPolicyDefinition
-	(*ApparelPolicyState)(nil),           // 477: rimgovernor.observations.v1.ApparelPolicyState
-	nil,                                  // 478: rimgovernor.observations.v1.SurgeryOperation.DoctorChancesEntry
-	(*commonpb.Identity)(nil),            // 479: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),  // 480: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),         // 481: rimgovernor.common.v1.Unavailable
-	(*commonpb.Cell)(nil),                // 482: rimgovernor.common.v1.Cell
-	(*commonpb.Failure)(nil),             // 483: rimgovernor.common.v1.Failure
-	(*commonpb.Ref)(nil),                 // 484: rimgovernor.common.v1.Ref
-	(operationspb.MedicalCare)(0),        // 485: rimgovernor.operations.v1.MedicalCare
-	(operationspb.HostilityResponse)(0),  // 486: rimgovernor.operations.v1.HostilityResponse
-	(operationspb.RepeatMode)(0),         // 487: rimgovernor.operations.v1.RepeatMode
-	(operationspb.StoreMode)(0),          // 488: rimgovernor.operations.v1.StoreMode
-	(placementpb.Rotation)(0),            // 489: rimgovernor.placement.v1.Rotation
-	(*mirrorpb.CellGrid)(nil),            // 490: rimgovernor.mirror.v1.CellGrid
-	(commonpb.CorpseClass)(0),            // 491: rimgovernor.common.v1.CorpseClass
-	(receiptspb.QuestStatus)(0),          // 492: rimgovernor.receipts.v1.QuestStatus
-	(*operationspb.DrugPolicyEntry)(nil), // 493: rimgovernor.operations.v1.DrugPolicyEntry
-	(*clockpb.Status)(nil),               // 494: rimgovernor.clock.v1.Status
-	(*mirrorpb.CombatPawn)(nil),          // 495: rimgovernor.mirror.v1.CombatPawn
-	(*mirrorpb.CombatEventRow)(nil),      // 496: rimgovernor.mirror.v1.CombatEventRow
-	(*mirrorpb.CombatDoorRow)(nil),       // 497: rimgovernor.mirror.v1.CombatDoorRow
-	(*mirrorpb.CombatMortarRow)(nil),     // 498: rimgovernor.mirror.v1.CombatMortarRow
+	(EntityDiscoveryKind)(0),             // 28: rimgovernor.observations.v1.EntityDiscoveryKind
+	(EntityContainmentModeKind)(0),       // 29: rimgovernor.observations.v1.EntityContainmentModeKind
+	(*ReadScope)(nil),                    // 30: rimgovernor.observations.v1.ReadScope
+	(*SnapshotRef)(nil),                  // 31: rimgovernor.observations.v1.SnapshotRef
+	(*Completeness)(nil),                 // 32: rimgovernor.observations.v1.Completeness
+	(*ReadIssue)(nil),                    // 33: rimgovernor.observations.v1.ReadIssue
+	(*Rectangle)(nil),                    // 34: rimgovernor.observations.v1.Rectangle
+	(*ClearanceTarget)(nil),              // 35: rimgovernor.observations.v1.ClearanceTarget
+	(*ClearanceFloor)(nil),               // 36: rimgovernor.observations.v1.ClearanceFloor
+	(*SalvageYield)(nil),                 // 37: rimgovernor.observations.v1.SalvageYield
+	(*SalvageEvidence)(nil),              // 38: rimgovernor.observations.v1.SalvageEvidence
+	(*ClearanceChunk)(nil),               // 39: rimgovernor.observations.v1.ClearanceChunk
+	(*ClearanceTargetsRequest)(nil),      // 40: rimgovernor.observations.v1.ClearanceTargetsRequest
+	(*ClearanceTargetsSnapshot)(nil),     // 41: rimgovernor.observations.v1.ClearanceTargetsSnapshot
+	(*ClearanceTargetsReply)(nil),        // 42: rimgovernor.observations.v1.ClearanceTargetsReply
+	(*ShrineCasket)(nil),                 // 43: rimgovernor.observations.v1.ShrineCasket
+	(*ShrineGuard)(nil),                  // 44: rimgovernor.observations.v1.ShrineGuard
+	(*ShrineOccupant)(nil),               // 45: rimgovernor.observations.v1.ShrineOccupant
+	(*ShrineBreachWall)(nil),             // 46: rimgovernor.observations.v1.ShrineBreachWall
+	(*AncientShrine)(nil),                // 47: rimgovernor.observations.v1.AncientShrine
+	(*AncientShrinesRequest)(nil),        // 48: rimgovernor.observations.v1.AncientShrinesRequest
+	(*AncientShrinesSnapshot)(nil),       // 49: rimgovernor.observations.v1.AncientShrinesSnapshot
+	(*AncientShrinesReply)(nil),          // 50: rimgovernor.observations.v1.AncientShrinesReply
+	(*MapSize)(nil),                      // 51: rimgovernor.observations.v1.MapSize
+	(*DefinitionRef)(nil),                // 52: rimgovernor.observations.v1.DefinitionRef
+	(*EntityRef)(nil),                    // 53: rimgovernor.observations.v1.EntityRef
+	(*TargetRef)(nil),                    // 54: rimgovernor.observations.v1.TargetRef
+	(*Quantity)(nil),                     // 55: rimgovernor.observations.v1.Quantity
+	(*Amount)(nil),                       // 56: rimgovernor.observations.v1.Amount
+	(*SkillRequirement)(nil),             // 57: rimgovernor.observations.v1.SkillRequirement
+	(*JobEvidence)(nil),                  // 58: rimgovernor.observations.v1.JobEvidence
+	(*PawnNeeds)(nil),                    // 59: rimgovernor.observations.v1.PawnNeeds
+	(*Hediff)(nil),                       // 60: rimgovernor.observations.v1.Hediff
+	(*Capacity)(nil),                     // 61: rimgovernor.observations.v1.Capacity
+	(*SurgeryBill)(nil),                  // 62: rimgovernor.observations.v1.SurgeryBill
+	(*PawnHealth)(nil),                   // 63: rimgovernor.observations.v1.PawnHealth
+	(*MissingBodyPart)(nil),              // 64: rimgovernor.observations.v1.MissingBodyPart
+	(*SurgeryOperation)(nil),             // 65: rimgovernor.observations.v1.SurgeryOperation
+	(*GearItem)(nil),                     // 66: rimgovernor.observations.v1.GearItem
+	(*PawnEquipment)(nil),                // 67: rimgovernor.observations.v1.PawnEquipment
+	(*Skill)(nil),                        // 68: rimgovernor.observations.v1.Skill
+	(*Trait)(nil),                        // 69: rimgovernor.observations.v1.Trait
+	(*WorkSetting)(nil),                  // 70: rimgovernor.observations.v1.WorkSetting
+	(*TimetableSlot)(nil),                // 71: rimgovernor.observations.v1.TimetableSlot
+	(*PawnBiography)(nil),                // 72: rimgovernor.observations.v1.PawnBiography
+	(*Thought)(nil),                      // 73: rimgovernor.observations.v1.Thought
+	(*Relation)(nil),                     // 74: rimgovernor.observations.v1.Relation
+	(*PawnSocial)(nil),                   // 75: rimgovernor.observations.v1.PawnSocial
+	(*PawnSettings)(nil),                 // 76: rimgovernor.observations.v1.PawnSettings
+	(*PawnPolicyInputs)(nil),             // 77: rimgovernor.observations.v1.PawnPolicyInputs
+	(*InventoryStockSetting)(nil),        // 78: rimgovernor.observations.v1.InventoryStockSetting
+	(*ChemicalState)(nil),                // 79: rimgovernor.observations.v1.ChemicalState
+	(*ApparelRequirementFact)(nil),       // 80: rimgovernor.observations.v1.ApparelRequirementFact
+	(*TrainingEntry)(nil),                // 81: rimgovernor.observations.v1.TrainingEntry
+	(*AnimalState)(nil),                  // 82: rimgovernor.observations.v1.AnimalState
+	(*PawnState)(nil),                    // 83: rimgovernor.observations.v1.PawnState
+	(*PawnGene)(nil),                     // 84: rimgovernor.observations.v1.PawnGene
+	(*PawnMechanitor)(nil),               // 85: rimgovernor.observations.v1.PawnMechanitor
+	(*PawnMech)(nil),                     // 86: rimgovernor.observations.v1.PawnMech
+	(*PawnDeathrest)(nil),                // 87: rimgovernor.observations.v1.PawnDeathrest
+	(*PawnBiotech)(nil),                  // 88: rimgovernor.observations.v1.PawnBiotech
+	(*PawnTendDoctor)(nil),               // 89: rimgovernor.observations.v1.PawnTendDoctor
+	(*PawnFilter)(nil),                   // 90: rimgovernor.observations.v1.PawnFilter
+	(*PawnDetails)(nil),                  // 91: rimgovernor.observations.v1.PawnDetails
+	(*PawnSnapshot)(nil),                 // 92: rimgovernor.observations.v1.PawnSnapshot
+	(*ListPawnsRequest)(nil),             // 93: rimgovernor.observations.v1.ListPawnsRequest
+	(*ListPawnsReply)(nil),               // 94: rimgovernor.observations.v1.ListPawnsReply
+	(*StockItem)(nil),                    // 95: rimgovernor.observations.v1.StockItem
+	(*HeldStock)(nil),                    // 96: rimgovernor.observations.v1.HeldStock
+	(*CorpseState)(nil),                  // 97: rimgovernor.observations.v1.CorpseState
+	(*ResourceStock)(nil),                // 98: rimgovernor.observations.v1.ResourceStock
+	(*StockFilter)(nil),                  // 99: rimgovernor.observations.v1.StockFilter
+	(*SuppliesSnapshot)(nil),             // 100: rimgovernor.observations.v1.SuppliesSnapshot
+	(*ListSuppliesRequest)(nil),          // 101: rimgovernor.observations.v1.ListSuppliesRequest
+	(*ListSuppliesReply)(nil),            // 102: rimgovernor.observations.v1.ListSuppliesReply
+	(*IngredientRequirement)(nil),        // 103: rimgovernor.observations.v1.IngredientRequirement
+	(*FilterSpecialRule)(nil),            // 104: rimgovernor.observations.v1.FilterSpecialRule
+	(*StockpileFilter)(nil),              // 105: rimgovernor.observations.v1.StockpileFilter
+	(*BillState)(nil),                    // 106: rimgovernor.observations.v1.BillState
+	(*IngredientReservation)(nil),        // 107: rimgovernor.observations.v1.IngredientReservation
+	(*BillStack)(nil),                    // 108: rimgovernor.observations.v1.BillStack
+	(*RecipeState)(nil),                  // 109: rimgovernor.observations.v1.RecipeState
+	(*FoodIngredientSlot)(nil),           // 110: rimgovernor.observations.v1.FoodIngredientSlot
+	(*RecipeIngredientClasses)(nil),      // 111: rimgovernor.observations.v1.RecipeIngredientClasses
+	(*BuildingSettings)(nil),             // 112: rimgovernor.observations.v1.BuildingSettings
+	(*MaterialDeficit)(nil),              // 113: rimgovernor.observations.v1.MaterialDeficit
+	(*ConstructionState)(nil),            // 114: rimgovernor.observations.v1.ConstructionState
+	(*ThermalSide)(nil),                  // 115: rimgovernor.observations.v1.ThermalSide
+	(*BuildingServiceState)(nil),         // 116: rimgovernor.observations.v1.BuildingServiceState
+	(*BuildingState)(nil),                // 117: rimgovernor.observations.v1.BuildingState
+	(*PowerNetwork)(nil),                 // 118: rimgovernor.observations.v1.PowerNetwork
+	(*BuildingsSnapshot)(nil),            // 119: rimgovernor.observations.v1.BuildingsSnapshot
+	(*ListBuildingsRequest)(nil),         // 120: rimgovernor.observations.v1.ListBuildingsRequest
+	(*ListBuildingsReply)(nil),           // 121: rimgovernor.observations.v1.ListBuildingsReply
+	(*RoomStat)(nil),                     // 122: rimgovernor.observations.v1.RoomStat
+	(*RoomBedMembership)(nil),            // 123: rimgovernor.observations.v1.RoomBedMembership
+	(*StockpileMembership)(nil),          // 124: rimgovernor.observations.v1.StockpileMembership
+	(*RoomState)(nil),                    // 125: rimgovernor.observations.v1.RoomState
+	(*RoomDoor)(nil),                     // 126: rimgovernor.observations.v1.RoomDoor
+	(*RoomsSnapshot)(nil),                // 127: rimgovernor.observations.v1.RoomsSnapshot
+	(*ListRoomsRequest)(nil),             // 128: rimgovernor.observations.v1.ListRoomsRequest
+	(*ListRoomsReply)(nil),               // 129: rimgovernor.observations.v1.ListRoomsReply
+	(*ZoneState)(nil),                    // 130: rimgovernor.observations.v1.ZoneState
+	(*ZonesSnapshot)(nil),                // 131: rimgovernor.observations.v1.ZonesSnapshot
+	(*ListZonesRequest)(nil),             // 132: rimgovernor.observations.v1.ListZonesRequest
+	(*ListZonesReply)(nil),               // 133: rimgovernor.observations.v1.ListZonesReply
+	(*Thing)(nil),                        // 134: rimgovernor.observations.v1.Thing
+	(*ThingsSnapshot)(nil),               // 135: rimgovernor.observations.v1.ThingsSnapshot
+	(*CellsSnapshot)(nil),                // 136: rimgovernor.observations.v1.CellsSnapshot
+	(*GetCellsRequest)(nil),              // 137: rimgovernor.observations.v1.GetCellsRequest
+	(*GetCellsReply)(nil),                // 138: rimgovernor.observations.v1.GetCellsReply
+	(*ResearchUnlock)(nil),               // 139: rimgovernor.observations.v1.ResearchUnlock
+	(*ResearchProject)(nil),              // 140: rimgovernor.observations.v1.ResearchProject
+	(*Researcher)(nil),                   // 141: rimgovernor.observations.v1.Researcher
+	(*ResearchFacility)(nil),             // 142: rimgovernor.observations.v1.ResearchFacility
+	(*ResearchBench)(nil),                // 143: rimgovernor.observations.v1.ResearchBench
+	(*ResearchSlot)(nil),                 // 144: rimgovernor.observations.v1.ResearchSlot
+	(*ResearchSnapshot)(nil),             // 145: rimgovernor.observations.v1.ResearchSnapshot
+	(*ResearchRequest)(nil),              // 146: rimgovernor.observations.v1.ResearchRequest
+	(*ResearchReply)(nil),                // 147: rimgovernor.observations.v1.ResearchReply
+	(*AccessTarget)(nil),                 // 148: rimgovernor.observations.v1.AccessTarget
+	(*PawnAccess)(nil),                   // 149: rimgovernor.observations.v1.PawnAccess
+	(*SpatialAccessSnapshot)(nil),        // 150: rimgovernor.observations.v1.SpatialAccessSnapshot
+	(*SpatialAccessRequest)(nil),         // 151: rimgovernor.observations.v1.SpatialAccessRequest
+	(*SpatialAccessReply)(nil),           // 152: rimgovernor.observations.v1.SpatialAccessReply
+	(*DefenseCell)(nil),                  // 153: rimgovernor.observations.v1.DefenseCell
+	(*RaidTrack)(nil),                    // 154: rimgovernor.observations.v1.RaidTrack
+	(*DefenseSiteSnapshot)(nil),          // 155: rimgovernor.observations.v1.DefenseSiteSnapshot
+	(*DefenseSiteRequest)(nil),           // 156: rimgovernor.observations.v1.DefenseSiteRequest
+	(*DefenseSiteReply)(nil),             // 157: rimgovernor.observations.v1.DefenseSiteReply
+	(*LineOfFire)(nil),                   // 158: rimgovernor.observations.v1.LineOfFire
+	(*LinesOfFireSnapshot)(nil),          // 159: rimgovernor.observations.v1.LinesOfFireSnapshot
+	(*LinesOfFireRequest)(nil),           // 160: rimgovernor.observations.v1.LinesOfFireRequest
+	(*LinesOfFireReply)(nil),             // 161: rimgovernor.observations.v1.LinesOfFireReply
+	(*RoofSupportCell)(nil),              // 162: rimgovernor.observations.v1.RoofSupportCell
+	(*RoofSupportSnapshot)(nil),          // 163: rimgovernor.observations.v1.RoofSupportSnapshot
+	(*RoofSupportRequest)(nil),           // 164: rimgovernor.observations.v1.RoofSupportRequest
+	(*RoofSupportReply)(nil),             // 165: rimgovernor.observations.v1.RoofSupportReply
+	(*ExcavationCell)(nil),               // 166: rimgovernor.observations.v1.ExcavationCell
+	(*ExcavationSiteSnapshot)(nil),       // 167: rimgovernor.observations.v1.ExcavationSiteSnapshot
+	(*ExcavationSiteRequest)(nil),        // 168: rimgovernor.observations.v1.ExcavationSiteRequest
+	(*ExcavationSiteReply)(nil),          // 169: rimgovernor.observations.v1.ExcavationSiteReply
+	(*PlantCutCensusRequest)(nil),        // 170: rimgovernor.observations.v1.PlantCutCensusRequest
+	(*PlantCutTarget)(nil),               // 171: rimgovernor.observations.v1.PlantCutTarget
+	(*PlantCutCensusSnapshot)(nil),       // 172: rimgovernor.observations.v1.PlantCutCensusSnapshot
+	(*PlantCutCensusReply)(nil),          // 173: rimgovernor.observations.v1.PlantCutCensusReply
+	(*StuffOption)(nil),                  // 174: rimgovernor.observations.v1.StuffOption
+	(*WallUpgradeSite)(nil),              // 175: rimgovernor.observations.v1.WallUpgradeSite
+	(*WallUpgradeSnapshot)(nil),          // 176: rimgovernor.observations.v1.WallUpgradeSnapshot
+	(*WallUpgradeSitesRequest)(nil),      // 177: rimgovernor.observations.v1.WallUpgradeSitesRequest
+	(*WallUpgradeSitesReply)(nil),        // 178: rimgovernor.observations.v1.WallUpgradeSitesReply
+	(*ResourceSource)(nil),               // 179: rimgovernor.observations.v1.ResourceSource
+	(*StorageCapacity)(nil),              // 180: rimgovernor.observations.v1.StorageCapacity
+	(*ExtractionWorkType)(nil),           // 181: rimgovernor.observations.v1.ExtractionWorkType
+	(*ExtractionSite)(nil),               // 182: rimgovernor.observations.v1.ExtractionSite
+	(*OwnedDrill)(nil),                   // 183: rimgovernor.observations.v1.OwnedDrill
+	(*ExtractionDevelopment)(nil),        // 184: rimgovernor.observations.v1.ExtractionDevelopment
+	(*ResourceSourcesSnapshot)(nil),      // 185: rimgovernor.observations.v1.ResourceSourcesSnapshot
+	(*ResourceSourcesRequest)(nil),       // 186: rimgovernor.observations.v1.ResourceSourcesRequest
+	(*ResourceSourcesReply)(nil),         // 187: rimgovernor.observations.v1.ResourceSourcesReply
+	(*HandlerState)(nil),                 // 188: rimgovernor.observations.v1.HandlerState
+	(*HusbandryAnimal)(nil),              // 189: rimgovernor.observations.v1.HusbandryAnimal
+	(*HusbandrySnapshot)(nil),            // 190: rimgovernor.observations.v1.HusbandrySnapshot
+	(*HusbandryRequest)(nil),             // 191: rimgovernor.observations.v1.HusbandryRequest
+	(*HusbandryReply)(nil),               // 192: rimgovernor.observations.v1.HusbandryReply
+	(*WasteItem)(nil),                    // 193: rimgovernor.observations.v1.WasteItem
+	(*WasteSnapshot)(nil),                // 194: rimgovernor.observations.v1.WasteSnapshot
+	(*WasteRequest)(nil),                 // 195: rimgovernor.observations.v1.WasteRequest
+	(*WasteReply)(nil),                   // 196: rimgovernor.observations.v1.WasteReply
+	(*RecoveryRestriction)(nil),          // 197: rimgovernor.observations.v1.RecoveryRestriction
+	(*RecoverySnapshot)(nil),             // 198: rimgovernor.observations.v1.RecoverySnapshot
+	(*RecoveryRequest)(nil),              // 199: rimgovernor.observations.v1.RecoveryRequest
+	(*RecoveryReply)(nil),                // 200: rimgovernor.observations.v1.RecoveryReply
+	(*PopulationPerson)(nil),             // 201: rimgovernor.observations.v1.PopulationPerson
+	(*PopulationSnapshot)(nil),           // 202: rimgovernor.observations.v1.PopulationSnapshot
+	(*OwnedName)(nil),                    // 203: rimgovernor.observations.v1.OwnedName
+	(*PopulationRequest)(nil),            // 204: rimgovernor.observations.v1.PopulationRequest
+	(*PopulationReply)(nil),              // 205: rimgovernor.observations.v1.PopulationReply
+	(*Settlement)(nil),                   // 206: rimgovernor.observations.v1.Settlement
+	(*WorldTile)(nil),                    // 207: rimgovernor.observations.v1.WorldTile
+	(*WorldSnapshot)(nil),                // 208: rimgovernor.observations.v1.WorldSnapshot
+	(*WorldRequest)(nil),                 // 209: rimgovernor.observations.v1.WorldRequest
+	(*WorldReply)(nil),                   // 210: rimgovernor.observations.v1.WorldReply
+	(*WorldRoute)(nil),                   // 211: rimgovernor.observations.v1.WorldRoute
+	(*CaravanState)(nil),                 // 212: rimgovernor.observations.v1.CaravanState
+	(*QuestTradeRequest)(nil),            // 213: rimgovernor.observations.v1.QuestTradeRequest
+	(*QuestReward)(nil),                  // 214: rimgovernor.observations.v1.QuestReward
+	(*QuestState)(nil),                   // 215: rimgovernor.observations.v1.QuestState
+	(*FactionState)(nil),                 // 216: rimgovernor.observations.v1.FactionState
+	(*WorldMap)(nil),                     // 217: rimgovernor.observations.v1.WorldMap
+	(*CaravanAssembly)(nil),              // 218: rimgovernor.observations.v1.CaravanAssembly
+	(*WorldProgressionSnapshot)(nil),     // 219: rimgovernor.observations.v1.WorldProgressionSnapshot
+	(*WorldProgressionRequest)(nil),      // 220: rimgovernor.observations.v1.WorldProgressionRequest
+	(*WorldProgressionReply)(nil),        // 221: rimgovernor.observations.v1.WorldProgressionReply
+	(*BillsSnapshot)(nil),                // 222: rimgovernor.observations.v1.BillsSnapshot
+	(*BillsRequest)(nil),                 // 223: rimgovernor.observations.v1.BillsRequest
+	(*BillsReply)(nil),                   // 224: rimgovernor.observations.v1.BillsReply
+	(*RecipesSnapshot)(nil),              // 225: rimgovernor.observations.v1.RecipesSnapshot
+	(*RecipesRequest)(nil),               // 226: rimgovernor.observations.v1.RecipesRequest
+	(*RecipesReply)(nil),                 // 227: rimgovernor.observations.v1.RecipesReply
+	(*BuildingSettingsRequest)(nil),      // 228: rimgovernor.observations.v1.BuildingSettingsRequest
+	(*BuildingSettingsReply)(nil),        // 229: rimgovernor.observations.v1.BuildingSettingsReply
+	(*PawnSettingsRequest)(nil),          // 230: rimgovernor.observations.v1.PawnSettingsRequest
+	(*PawnSettingsReply)(nil),            // 231: rimgovernor.observations.v1.PawnSettingsReply
+	(*ResolveTargetSnapshot)(nil),        // 232: rimgovernor.observations.v1.ResolveTargetSnapshot
+	(*ResolveTargetRequest)(nil),         // 233: rimgovernor.observations.v1.ResolveTargetRequest
+	(*ResolveTargetReply)(nil),           // 234: rimgovernor.observations.v1.ResolveTargetReply
+	(*GearCandidate)(nil),                // 235: rimgovernor.observations.v1.GearCandidate
+	(*GearReplacementNeed)(nil),          // 236: rimgovernor.observations.v1.GearReplacementNeed
+	(*GearLoadout)(nil),                  // 237: rimgovernor.observations.v1.GearLoadout
+	(*GearLoadoutOption)(nil),            // 238: rimgovernor.observations.v1.GearLoadoutOption
+	(*GearLoadoutModel)(nil),             // 239: rimgovernor.observations.v1.GearLoadoutModel
+	(*GearSnapshot)(nil),                 // 240: rimgovernor.observations.v1.GearSnapshot
+	(*GearStock)(nil),                    // 241: rimgovernor.observations.v1.GearStock
+	(*GearStorage)(nil),                  // 242: rimgovernor.observations.v1.GearStorage
+	(*GearWeatherCondition)(nil),         // 243: rimgovernor.observations.v1.GearWeatherCondition
+	(*GearRequest)(nil),                  // 244: rimgovernor.observations.v1.GearRequest
+	(*GearReply)(nil),                    // 245: rimgovernor.observations.v1.GearReply
+	(*Trader)(nil),                       // 246: rimgovernor.observations.v1.Trader
+	(*TradersSnapshot)(nil),              // 247: rimgovernor.observations.v1.TradersSnapshot
+	(*TradersRequest)(nil),               // 248: rimgovernor.observations.v1.TradersRequest
+	(*TradersReply)(nil),                 // 249: rimgovernor.observations.v1.TradersReply
+	(*TradeLine)(nil),                    // 250: rimgovernor.observations.v1.TradeLine
+	(*TradeSession)(nil),                 // 251: rimgovernor.observations.v1.TradeSession
+	(*TradeSessionRequest)(nil),          // 252: rimgovernor.observations.v1.TradeSessionRequest
+	(*TradeSessionReply)(nil),            // 253: rimgovernor.observations.v1.TradeSessionReply
+	(*TradeSheet)(nil),                   // 254: rimgovernor.observations.v1.TradeSheet
+	(*TradeSheetRequest)(nil),            // 255: rimgovernor.observations.v1.TradeSheetRequest
+	(*TradeSheetReply)(nil),              // 256: rimgovernor.observations.v1.TradeSheetReply
+	(*FoodConsumer)(nil),                 // 257: rimgovernor.observations.v1.FoodConsumer
+	(*FoodStock)(nil),                    // 258: rimgovernor.observations.v1.FoodStock
+	(*CorpseHandling)(nil),               // 259: rimgovernor.observations.v1.CorpseHandling
+	(*FoodLarderFacts)(nil),              // 260: rimgovernor.observations.v1.FoodLarderFacts
+	(*FoodSupplyFacts)(nil),              // 261: rimgovernor.observations.v1.FoodSupplyFacts
+	(*CropForecast)(nil),                 // 262: rimgovernor.observations.v1.CropForecast
+	(*PatientForecast)(nil),              // 263: rimgovernor.observations.v1.PatientForecast
+	(*ForecastFacts)(nil),                // 264: rimgovernor.observations.v1.ForecastFacts
+	(*ComfortSurface)(nil),               // 265: rimgovernor.observations.v1.ComfortSurface
+	(*ComfortFacility)(nil),              // 266: rimgovernor.observations.v1.ComfortFacility
+	(*JoyTolerance)(nil),                 // 267: rimgovernor.observations.v1.JoyTolerance
+	(*JoyBuildingMethod)(nil),            // 268: rimgovernor.observations.v1.JoyBuildingMethod
+	(*RecreationCensus)(nil),             // 269: rimgovernor.observations.v1.RecreationCensus
+	(*ComfortFacts)(nil),                 // 270: rimgovernor.observations.v1.ComfortFacts
+	(*UpkeepItem)(nil),                   // 271: rimgovernor.observations.v1.UpkeepItem
+	(*UpkeepBed)(nil),                    // 272: rimgovernor.observations.v1.UpkeepBed
+	(*StorageCell)(nil),                  // 273: rimgovernor.observations.v1.StorageCell
+	(*ItemStorageCapacity)(nil),          // 274: rimgovernor.observations.v1.ItemStorageCapacity
+	(*UpkeepStructure)(nil),              // 275: rimgovernor.observations.v1.UpkeepStructure
+	(*FireState)(nil),                    // 276: rimgovernor.observations.v1.FireState
+	(*FilthState)(nil),                   // 277: rimgovernor.observations.v1.FilthState
+	(*ProtectedCell)(nil),                // 278: rimgovernor.observations.v1.ProtectedCell
+	(*UpkeepPerson)(nil),                 // 279: rimgovernor.observations.v1.UpkeepPerson
+	(*BedroomThingRequirement)(nil),      // 280: rimgovernor.observations.v1.BedroomThingRequirement
+	(*RoyalTitleFacts)(nil),              // 281: rimgovernor.observations.v1.RoyalTitleFacts
+	(*RoyalTitleRung)(nil),               // 282: rimgovernor.observations.v1.RoyalTitleRung
+	(*RoyalPermitDef)(nil),               // 283: rimgovernor.observations.v1.RoyalPermitDef
+	(*PermitCooldown)(nil),               // 284: rimgovernor.observations.v1.PermitCooldown
+	(*PawnRoyalHolding)(nil),             // 285: rimgovernor.observations.v1.PawnRoyalHolding
+	(*PawnPsycast)(nil),                  // 286: rimgovernor.observations.v1.PawnPsycast
+	(*NeuroformerStock)(nil),             // 287: rimgovernor.observations.v1.NeuroformerStock
+	(*PawnRoyalty)(nil),                  // 288: rimgovernor.observations.v1.PawnRoyalty
+	(*BestowingCeremony)(nil),            // 289: rimgovernor.observations.v1.BestowingCeremony
+	(*RoyalThrone)(nil),                  // 290: rimgovernor.observations.v1.RoyalThrone
+	(*RoyaltyFacts)(nil),                 // 291: rimgovernor.observations.v1.RoyaltyFacts
+	(*RoyaltyFactsRequest)(nil),          // 292: rimgovernor.observations.v1.RoyaltyFactsRequest
+	(*RoyaltyFactsReply)(nil),            // 293: rimgovernor.observations.v1.RoyaltyFactsReply
+	(*AnimalProduct)(nil),                // 294: rimgovernor.observations.v1.AnimalProduct
+	(*AnimalFeedItem)(nil),               // 295: rimgovernor.observations.v1.AnimalFeedItem
+	(*AnimalRaceFacts)(nil),              // 296: rimgovernor.observations.v1.AnimalRaceFacts
+	(*AnimalRaceCatalog)(nil),            // 297: rimgovernor.observations.v1.AnimalRaceCatalog
+	(*AnimalRaceCatalogRequest)(nil),     // 298: rimgovernor.observations.v1.AnimalRaceCatalogRequest
+	(*AnimalRaceCatalogReply)(nil),       // 299: rimgovernor.observations.v1.AnimalRaceCatalogReply
+	(*FeedDefinition)(nil),               // 300: rimgovernor.observations.v1.FeedDefinition
+	(*AnimalFeedStorage)(nil),            // 301: rimgovernor.observations.v1.AnimalFeedStorage
+	(*AnimalFeed)(nil),                   // 302: rimgovernor.observations.v1.AnimalFeed
+	(*DevelopmentPower)(nil),             // 303: rimgovernor.observations.v1.DevelopmentPower
+	(*DevelopmentFurniture)(nil),         // 304: rimgovernor.observations.v1.DevelopmentFurniture
+	(*SteamGeyser)(nil),                  // 305: rimgovernor.observations.v1.SteamGeyser
+	(*DevelopmentFacts)(nil),             // 306: rimgovernor.observations.v1.DevelopmentFacts
+	(*EnvironmentCondition)(nil),         // 307: rimgovernor.observations.v1.EnvironmentCondition
+	(*FoodClimate)(nil),                  // 308: rimgovernor.observations.v1.FoodClimate
+	(*FarmFacts)(nil),                    // 309: rimgovernor.observations.v1.FarmFacts
+	(*PlanningDefinition)(nil),           // 310: rimgovernor.observations.v1.PlanningDefinition
+	(*GrowLight)(nil),                    // 311: rimgovernor.observations.v1.GrowLight
+	(*PlantGrower)(nil),                  // 312: rimgovernor.observations.v1.PlantGrower
+	(*GrowRoom)(nil),                     // 313: rimgovernor.observations.v1.GrowRoom
+	(*PowerHeadroom)(nil),                // 314: rimgovernor.observations.v1.PowerHeadroom
+	(*ControlledEnvironment)(nil),        // 315: rimgovernor.observations.v1.ControlledEnvironment
+	(*EdibleCrop)(nil),                   // 316: rimgovernor.observations.v1.EdibleCrop
+	(*PlanningFacts)(nil),                // 317: rimgovernor.observations.v1.PlanningFacts
+	(*FoodProduct)(nil),                  // 318: rimgovernor.observations.v1.FoodProduct
+	(*FoodProduction)(nil),               // 319: rimgovernor.observations.v1.FoodProduction
+	(*CookingFacts)(nil),                 // 320: rimgovernor.observations.v1.CookingFacts
+	(*BlightedPlant)(nil),                // 321: rimgovernor.observations.v1.BlightedPlant
+	(*AcquisitionFacts)(nil),             // 322: rimgovernor.observations.v1.AcquisitionFacts
+	(*ButcheringFacts)(nil),              // 323: rimgovernor.observations.v1.ButcheringFacts
+	(*HumanButcherCandidate)(nil),        // 324: rimgovernor.observations.v1.HumanButcherCandidate
+	(*FoodCorpse)(nil),                   // 325: rimgovernor.observations.v1.FoodCorpse
+	(*ColonyNaming)(nil),                 // 326: rimgovernor.observations.v1.ColonyNaming
+	(*ChoiceDialogOption)(nil),           // 327: rimgovernor.observations.v1.ChoiceDialogOption
+	(*ChoiceDialog)(nil),                 // 328: rimgovernor.observations.v1.ChoiceDialog
+	(*ComfortSection)(nil),               // 329: rimgovernor.observations.v1.ComfortSection
+	(*FoodSupplySection)(nil),            // 330: rimgovernor.observations.v1.FoodSupplySection
+	(*ForecastSection)(nil),              // 331: rimgovernor.observations.v1.ForecastSection
+	(*DevelopmentSection)(nil),           // 332: rimgovernor.observations.v1.DevelopmentSection
+	(*PlanningSection)(nil),              // 333: rimgovernor.observations.v1.PlanningSection
+	(*WallRemovalRecord)(nil),            // 334: rimgovernor.observations.v1.WallRemovalRecord
+	(*WallRemovalFacts)(nil),             // 335: rimgovernor.observations.v1.WallRemovalFacts
+	(*WallRemovalSection)(nil),           // 336: rimgovernor.observations.v1.WallRemovalSection
+	(*HomeExtentGeometry)(nil),           // 337: rimgovernor.observations.v1.HomeExtentGeometry
+	(*HomeCoverageTarget)(nil),           // 338: rimgovernor.observations.v1.HomeCoverageTarget
+	(*HomeCoverageFacts)(nil),            // 339: rimgovernor.observations.v1.HomeCoverageFacts
+	(*HomeCoverageSection)(nil),          // 340: rimgovernor.observations.v1.HomeCoverageSection
+	(*WorkLightCell)(nil),                // 341: rimgovernor.observations.v1.WorkLightCell
+	(*LampState)(nil),                    // 342: rimgovernor.observations.v1.LampState
+	(*LightingFacts)(nil),                // 343: rimgovernor.observations.v1.LightingFacts
+	(*LightingSection)(nil),              // 344: rimgovernor.observations.v1.LightingSection
+	(*FloorCell)(nil),                    // 345: rimgovernor.observations.v1.FloorCell
+	(*FloorRoom)(nil),                    // 346: rimgovernor.observations.v1.FloorRoom
+	(*FloorTerrain)(nil),                 // 347: rimgovernor.observations.v1.FloorTerrain
+	(*FlooringFacts)(nil),                // 348: rimgovernor.observations.v1.FlooringFacts
+	(*FlooringSection)(nil),              // 349: rimgovernor.observations.v1.FlooringSection
+	(*RouteTravel)(nil),                  // 350: rimgovernor.observations.v1.RouteTravel
+	(*RouteBreach)(nil),                  // 351: rimgovernor.observations.v1.RouteBreach
+	(*RouteFacility)(nil),                // 352: rimgovernor.observations.v1.RouteFacility
+	(*TrafficCell)(nil),                  // 353: rimgovernor.observations.v1.TrafficCell
+	(*RoutesFacts)(nil),                  // 354: rimgovernor.observations.v1.RoutesFacts
+	(*RoutesSection)(nil),                // 355: rimgovernor.observations.v1.RoutesSection
+	(*UpkeepFacts)(nil),                  // 356: rimgovernor.observations.v1.UpkeepFacts
+	(*UpkeepSection)(nil),                // 357: rimgovernor.observations.v1.UpkeepSection
+	(*ThreatFacts)(nil),                  // 358: rimgovernor.observations.v1.ThreatFacts
+	(*ThreatSection)(nil),                // 359: rimgovernor.observations.v1.ThreatSection
+	(*LootItem)(nil),                     // 360: rimgovernor.observations.v1.LootItem
+	(*LootCensus)(nil),                   // 361: rimgovernor.observations.v1.LootCensus
+	(*LootSection)(nil),                  // 362: rimgovernor.observations.v1.LootSection
+	(*FishableRegion)(nil),               // 363: rimgovernor.observations.v1.FishableRegion
+	(*FishableWater)(nil),                // 364: rimgovernor.observations.v1.FishableWater
+	(*GatherableAnimal)(nil),             // 365: rimgovernor.observations.v1.GatherableAnimal
+	(*EggLayerAnimal)(nil),               // 366: rimgovernor.observations.v1.EggLayerAnimal
+	(*PasteDispenser)(nil),               // 367: rimgovernor.observations.v1.PasteDispenser
+	(*ForagePlant)(nil),                  // 368: rimgovernor.observations.v1.ForagePlant
+	(*PenGrazing)(nil),                   // 369: rimgovernor.observations.v1.PenGrazing
+	(*FoodSlaughterAnimal)(nil),          // 370: rimgovernor.observations.v1.FoodSlaughterAnimal
+	(*FoodChannelsFacts)(nil),            // 371: rimgovernor.observations.v1.FoodChannelsFacts
+	(*FoodChannelsSection)(nil),          // 372: rimgovernor.observations.v1.FoodChannelsSection
+	(*DeepResourceLump)(nil),             // 373: rimgovernor.observations.v1.DeepResourceLump
+	(*MineralScannerState)(nil),          // 374: rimgovernor.observations.v1.MineralScannerState
+	(*DeepDrillState)(nil),               // 375: rimgovernor.observations.v1.DeepDrillState
+	(*DeepResourcesFacts)(nil),           // 376: rimgovernor.observations.v1.DeepResourcesFacts
+	(*DeepResourcesSection)(nil),         // 377: rimgovernor.observations.v1.DeepResourcesSection
+	(*ColonyFactsSnapshot)(nil),          // 378: rimgovernor.observations.v1.ColonyFactsSnapshot
+	(*OdysseySection)(nil),               // 379: rimgovernor.observations.v1.OdysseySection
+	(*OdysseyColonyFacts)(nil),           // 380: rimgovernor.observations.v1.OdysseyColonyFacts
+	(*ActiveCondition)(nil),              // 381: rimgovernor.observations.v1.ActiveCondition
+	(*HazardTerrain)(nil),                // 382: rimgovernor.observations.v1.HazardTerrain
+	(*LavaEmergenceState)(nil),           // 383: rimgovernor.observations.v1.LavaEmergenceState
+	(*UndergroundSite)(nil),              // 384: rimgovernor.observations.v1.UndergroundSite
+	(*UndergroundHackable)(nil),          // 385: rimgovernor.observations.v1.UndergroundHackable
+	(*PolicyEntry)(nil),                  // 386: rimgovernor.observations.v1.PolicyEntry
+	(*BookDefinition)(nil),               // 387: rimgovernor.observations.v1.BookDefinition
+	(*FoodDefinition)(nil),               // 388: rimgovernor.observations.v1.FoodDefinition
+	(*AllowedAreaEntry)(nil),             // 389: rimgovernor.observations.v1.AllowedAreaEntry
+	(*PolicyFacts)(nil),                  // 390: rimgovernor.observations.v1.PolicyFacts
+	(*FoodEater)(nil),                    // 391: rimgovernor.observations.v1.FoodEater
+	(*PolicySection)(nil),                // 392: rimgovernor.observations.v1.PolicySection
+	(*BiotechSection)(nil),               // 393: rimgovernor.observations.v1.BiotechSection
+	(*BiotechColonyFacts)(nil),           // 394: rimgovernor.observations.v1.BiotechColonyFacts
+	(*PollutionTotals)(nil),              // 395: rimgovernor.observations.v1.PollutionTotals
+	(*Polluter)(nil),                     // 396: rimgovernor.observations.v1.Polluter
+	(*Wastepack)(nil),                    // 397: rimgovernor.observations.v1.Wastepack
+	(*WastepackAtomizer)(nil),            // 398: rimgovernor.observations.v1.WastepackAtomizer
+	(*PollutionPump)(nil),                // 399: rimgovernor.observations.v1.PollutionPump
+	(*MechGestatorState)(nil),            // 400: rimgovernor.observations.v1.MechGestatorState
+	(*MechChargerState)(nil),             // 401: rimgovernor.observations.v1.MechChargerState
+	(*BabyCare)(nil),                     // 402: rimgovernor.observations.v1.BabyCare
+	(*BabyAutofeeder)(nil),               // 403: rimgovernor.observations.v1.BabyAutofeeder
+	(*JoinerLetter)(nil),                 // 404: rimgovernor.observations.v1.JoinerLetter
+	(*ColonyFactsRequest)(nil),           // 405: rimgovernor.observations.v1.ColonyFactsRequest
+	(*ColonyFactsReply)(nil),             // 406: rimgovernor.observations.v1.ColonyFactsReply
+	(*ThreatPawn)(nil),                   // 407: rimgovernor.observations.v1.ThreatPawn
+	(*ThreatBuilding)(nil),               // 408: rimgovernor.observations.v1.ThreatBuilding
+	(*ThreatsSnapshot)(nil),              // 409: rimgovernor.observations.v1.ThreatsSnapshot
+	(*StatusSnapshot)(nil),               // 410: rimgovernor.observations.v1.StatusSnapshot
+	(*StatusRequest)(nil),                // 411: rimgovernor.observations.v1.StatusRequest
+	(*StatusReply)(nil),                  // 412: rimgovernor.observations.v1.StatusReply
+	(*BundleSnapshot)(nil),               // 413: rimgovernor.observations.v1.BundleSnapshot
+	(*SectionWatermark)(nil),             // 414: rimgovernor.observations.v1.SectionWatermark
+	(*ObservationBatchSnapshot)(nil),     // 415: rimgovernor.observations.v1.ObservationBatchSnapshot
+	(*ObservationBatchRequest)(nil),      // 416: rimgovernor.observations.v1.ObservationBatchRequest
+	(*ObservationBatchReply)(nil),        // 417: rimgovernor.observations.v1.ObservationBatchReply
+	(*ArchitectCategory)(nil),            // 418: rimgovernor.observations.v1.ArchitectCategory
+	(*ArchitectDesignator)(nil),          // 419: rimgovernor.observations.v1.ArchitectDesignator
+	(*ArchitectCategoriesSnapshot)(nil),  // 420: rimgovernor.observations.v1.ArchitectCategoriesSnapshot
+	(*ArchitectCategoriesRequest)(nil),   // 421: rimgovernor.observations.v1.ArchitectCategoriesRequest
+	(*ArchitectCategoriesReply)(nil),     // 422: rimgovernor.observations.v1.ArchitectCategoriesReply
+	(*ArchitectDesignatorsSnapshot)(nil), // 423: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
+	(*ArchitectDesignatorsRequest)(nil),  // 424: rimgovernor.observations.v1.ArchitectDesignatorsRequest
+	(*ArchitectDesignatorsReply)(nil),    // 425: rimgovernor.observations.v1.ArchitectDesignatorsReply
+	(*SnapshotStreamRequest)(nil),        // 426: rimgovernor.observations.v1.SnapshotStreamRequest
+	(*DefinitionCatalog)(nil),            // 427: rimgovernor.observations.v1.DefinitionCatalog
+	(*IdeologyCatalog)(nil),              // 428: rimgovernor.observations.v1.IdeologyCatalog
+	(*MemeDefinition)(nil),               // 429: rimgovernor.observations.v1.MemeDefinition
+	(*RequiredRitual)(nil),               // 430: rimgovernor.observations.v1.RequiredRitual
+	(*PreceptDefinition)(nil),            // 431: rimgovernor.observations.v1.PreceptDefinition
+	(*PreceptBuilding)(nil),              // 432: rimgovernor.observations.v1.PreceptBuilding
+	(*PreceptEffect)(nil),                // 433: rimgovernor.observations.v1.PreceptEffect
+	(*RoleDefinition)(nil),               // 434: rimgovernor.observations.v1.RoleDefinition
+	(*RoleRequirementFact)(nil),          // 435: rimgovernor.observations.v1.RoleRequirementFact
+	(*SkillRequirementFact)(nil),         // 436: rimgovernor.observations.v1.SkillRequirementFact
+	(*RoleEffectFact)(nil),               // 437: rimgovernor.observations.v1.RoleEffectFact
+	(*RitualDefinition)(nil),             // 438: rimgovernor.observations.v1.RitualDefinition
+	(*RitualRoleSlot)(nil),               // 439: rimgovernor.observations.v1.RitualRoleSlot
+	(*IdeologySnapshot)(nil),             // 440: rimgovernor.observations.v1.IdeologySnapshot
+	(*IdeoPrecept)(nil),                  // 441: rimgovernor.observations.v1.IdeoPrecept
+	(*IdeoRole)(nil),                     // 442: rimgovernor.observations.v1.IdeoRole
+	(*IdeoRitual)(nil),                   // 443: rimgovernor.observations.v1.IdeoRitual
+	(*IdeoBuilding)(nil),                 // 444: rimgovernor.observations.v1.IdeoBuilding
+	(*StatEffect)(nil),                   // 445: rimgovernor.observations.v1.StatEffect
+	(*SkillLevel)(nil),                   // 446: rimgovernor.observations.v1.SkillLevel
+	(*CapacityEffect)(nil),               // 447: rimgovernor.observations.v1.CapacityEffect
+	(*LifeStageRow)(nil),                 // 448: rimgovernor.observations.v1.LifeStageRow
+	(*LifeStageAgeRow)(nil),              // 449: rimgovernor.observations.v1.LifeStageAgeRow
+	(*WorkMinAge)(nil),                   // 450: rimgovernor.observations.v1.WorkMinAge
+	(*RaceLifeStages)(nil),               // 451: rimgovernor.observations.v1.RaceLifeStages
+	(*GeneRow)(nil),                      // 452: rimgovernor.observations.v1.GeneRow
+	(*PassionEffect)(nil),                // 453: rimgovernor.observations.v1.PassionEffect
+	(*XenotypeRow)(nil),                  // 454: rimgovernor.observations.v1.XenotypeRow
+	(*MechWorkPriority)(nil),             // 455: rimgovernor.observations.v1.MechWorkPriority
+	(*MechKindRow)(nil),                  // 456: rimgovernor.observations.v1.MechKindRow
+	(*MechWorkModeRow)(nil),              // 457: rimgovernor.observations.v1.MechWorkModeRow
+	(*BiotechCatalog)(nil),               // 458: rimgovernor.observations.v1.BiotechCatalog
+	(*OdysseyCatalog)(nil),               // 459: rimgovernor.observations.v1.OdysseyCatalog
+	(*BiomeAnimal)(nil),                  // 460: rimgovernor.observations.v1.BiomeAnimal
+	(*BiomeDisease)(nil),                 // 461: rimgovernor.observations.v1.BiomeDisease
+	(*BiomeRow)(nil),                     // 462: rimgovernor.observations.v1.BiomeRow
+	(*TileMutatorRow)(nil),               // 463: rimgovernor.observations.v1.TileMutatorRow
+	(*HackableRow)(nil),                  // 464: rimgovernor.observations.v1.HackableRow
+	(*PortalRow)(nil),                    // 465: rimgovernor.observations.v1.PortalRow
+	(*StockpileTypeRow)(nil),             // 466: rimgovernor.observations.v1.StockpileTypeRow
+	(*OdysseyBuilding)(nil),              // 467: rimgovernor.observations.v1.OdysseyBuilding
+	(*HackableState)(nil),                // 468: rimgovernor.observations.v1.HackableState
+	(*PortalState)(nil),                  // 469: rimgovernor.observations.v1.PortalState
+	(*AnomalyCatalog)(nil),               // 470: rimgovernor.observations.v1.AnomalyCatalog
+	(*EntityCategoryRow)(nil),            // 471: rimgovernor.observations.v1.EntityCategoryRow
+	(*KnowledgeCategoryRow)(nil),         // 472: rimgovernor.observations.v1.KnowledgeCategoryRow
+	(*EntityCodexRow)(nil),               // 473: rimgovernor.observations.v1.EntityCodexRow
+	(*AnomalyThingRow)(nil),              // 474: rimgovernor.observations.v1.AnomalyThingRow
+	(*StudiableProps)(nil),               // 475: rimgovernor.observations.v1.StudiableProps
+	(*HoldingTargetProps)(nil),           // 476: rimgovernor.observations.v1.HoldingTargetProps
+	(*EntityHolderProps)(nil),            // 477: rimgovernor.observations.v1.EntityHolderProps
+	(*AnomalyIncidentRow)(nil),           // 478: rimgovernor.observations.v1.AnomalyIncidentRow
+	(*PawnAnomaly)(nil),                  // 479: rimgovernor.observations.v1.PawnAnomaly
+	(*HeldState)(nil),                    // 480: rimgovernor.observations.v1.HeldState
+	(*StudyState)(nil),                   // 481: rimgovernor.observations.v1.StudyState
+	(*AnomalyBuilding)(nil),              // 482: rimgovernor.observations.v1.AnomalyBuilding
+	(*EntityHolderState)(nil),            // 483: rimgovernor.observations.v1.EntityHolderState
+	(*DefinitionCatalogRequest)(nil),     // 484: rimgovernor.observations.v1.DefinitionCatalogRequest
+	(*DefinitionCatalogReply)(nil),       // 485: rimgovernor.observations.v1.DefinitionCatalogReply
+	(*SnapshotStreamOpened)(nil),         // 486: rimgovernor.observations.v1.SnapshotStreamOpened
+	(*SnapshotStreamReply)(nil),          // 487: rimgovernor.observations.v1.SnapshotStreamReply
+	(*FlushSnapshotRequest)(nil),         // 488: rimgovernor.observations.v1.FlushSnapshotRequest
+	(*FlushSnapshotReply)(nil),           // 489: rimgovernor.observations.v1.FlushSnapshotReply
+	(*TradeFoodFacts)(nil),               // 490: rimgovernor.observations.v1.TradeFoodFacts
+	(*FoodRestriction)(nil),              // 491: rimgovernor.observations.v1.FoodRestriction
+	(*ApparelPolicyDefinition)(nil),      // 492: rimgovernor.observations.v1.ApparelPolicyDefinition
+	(*ApparelPolicyState)(nil),           // 493: rimgovernor.observations.v1.ApparelPolicyState
+	nil,                                  // 494: rimgovernor.observations.v1.SurgeryOperation.DoctorChancesEntry
+	(*commonpb.Identity)(nil),            // 495: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),  // 496: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),         // 497: rimgovernor.common.v1.Unavailable
+	(*commonpb.Cell)(nil),                // 498: rimgovernor.common.v1.Cell
+	(*commonpb.Failure)(nil),             // 499: rimgovernor.common.v1.Failure
+	(*commonpb.Ref)(nil),                 // 500: rimgovernor.common.v1.Ref
+	(operationspb.MedicalCare)(0),        // 501: rimgovernor.operations.v1.MedicalCare
+	(operationspb.HostilityResponse)(0),  // 502: rimgovernor.operations.v1.HostilityResponse
+	(operationspb.RepeatMode)(0),         // 503: rimgovernor.operations.v1.RepeatMode
+	(operationspb.StoreMode)(0),          // 504: rimgovernor.operations.v1.StoreMode
+	(placementpb.Rotation)(0),            // 505: rimgovernor.placement.v1.Rotation
+	(*mirrorpb.CellGrid)(nil),            // 506: rimgovernor.mirror.v1.CellGrid
+	(commonpb.CorpseClass)(0),            // 507: rimgovernor.common.v1.CorpseClass
+	(receiptspb.QuestStatus)(0),          // 508: rimgovernor.receipts.v1.QuestStatus
+	(*operationspb.DrugPolicyEntry)(nil), // 509: rimgovernor.operations.v1.DrugPolicyEntry
+	(*clockpb.Status)(nil),               // 510: rimgovernor.clock.v1.Status
+	(*mirrorpb.CombatPawn)(nil),          // 511: rimgovernor.mirror.v1.CombatPawn
+	(*mirrorpb.CombatEventRow)(nil),      // 512: rimgovernor.mirror.v1.CombatEventRow
+	(*mirrorpb.CombatDoorRow)(nil),       // 513: rimgovernor.mirror.v1.CombatDoorRow
+	(*mirrorpb.CombatMortarRow)(nil),     // 514: rimgovernor.mirror.v1.CombatMortarRow
 }
 var file_observations_proto_depIdxs = []int32{
-	479,  // 0: rimgovernor.observations.v1.ReadScope.expected_identity:type_name -> rimgovernor.common.v1.Identity
-	480,  // 1: rimgovernor.observations.v1.SnapshotRef.context:type_name -> rimgovernor.common.v1.ObservationContext
-	481,  // 2: rimgovernor.observations.v1.ReadIssue.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 3: rimgovernor.observations.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
-	482,  // 4: rimgovernor.observations.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
-	32,   // 5: rimgovernor.observations.v1.ClearanceTarget.occupied:type_name -> rimgovernor.observations.v1.Rectangle
+	495,  // 0: rimgovernor.observations.v1.ReadScope.expected_identity:type_name -> rimgovernor.common.v1.Identity
+	496,  // 1: rimgovernor.observations.v1.SnapshotRef.context:type_name -> rimgovernor.common.v1.ObservationContext
+	497,  // 2: rimgovernor.observations.v1.ReadIssue.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 3: rimgovernor.observations.v1.Rectangle.minimum:type_name -> rimgovernor.common.v1.Cell
+	498,  // 4: rimgovernor.observations.v1.Rectangle.maximum:type_name -> rimgovernor.common.v1.Cell
+	34,   // 5: rimgovernor.observations.v1.ClearanceTarget.occupied:type_name -> rimgovernor.observations.v1.Rectangle
 	0,    // 6: rimgovernor.observations.v1.ClearanceTarget.class:type_name -> rimgovernor.observations.v1.ClearanceClass
-	36,   // 7: rimgovernor.observations.v1.ClearanceTarget.salvage:type_name -> rimgovernor.observations.v1.SalvageEvidence
-	482,  // 8: rimgovernor.observations.v1.ClearanceFloor.cell:type_name -> rimgovernor.common.v1.Cell
-	35,   // 9: rimgovernor.observations.v1.SalvageEvidence.yields:type_name -> rimgovernor.observations.v1.SalvageYield
-	482,  // 10: rimgovernor.observations.v1.ClearanceChunk.cell:type_name -> rimgovernor.common.v1.Cell
-	28,   // 11: rimgovernor.observations.v1.ClearanceTargetsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 12: rimgovernor.observations.v1.ClearanceTargetsRequest.planned_ground:type_name -> rimgovernor.observations.v1.Rectangle
-	480,  // 13: rimgovernor.observations.v1.ClearanceTargetsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	33,   // 14: rimgovernor.observations.v1.ClearanceTargetsSnapshot.targets:type_name -> rimgovernor.observations.v1.ClearanceTarget
-	37,   // 15: rimgovernor.observations.v1.ClearanceTargetsSnapshot.chunks:type_name -> rimgovernor.observations.v1.ClearanceChunk
-	482,  // 16: rimgovernor.observations.v1.ClearanceTargetsSnapshot.dump_sites:type_name -> rimgovernor.common.v1.Cell
-	34,   // 17: rimgovernor.observations.v1.ClearanceTargetsSnapshot.floors:type_name -> rimgovernor.observations.v1.ClearanceFloor
-	39,   // 18: rimgovernor.observations.v1.ClearanceTargetsReply.observed:type_name -> rimgovernor.observations.v1.ClearanceTargetsSnapshot
-	481,  // 19: rimgovernor.observations.v1.ClearanceTargetsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 20: rimgovernor.observations.v1.ClearanceTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 21: rimgovernor.observations.v1.ShrineCasket.cell:type_name -> rimgovernor.common.v1.Cell
-	482,  // 22: rimgovernor.observations.v1.ShrineCasket.interaction_cell:type_name -> rimgovernor.common.v1.Cell
+	38,   // 7: rimgovernor.observations.v1.ClearanceTarget.salvage:type_name -> rimgovernor.observations.v1.SalvageEvidence
+	498,  // 8: rimgovernor.observations.v1.ClearanceFloor.cell:type_name -> rimgovernor.common.v1.Cell
+	37,   // 9: rimgovernor.observations.v1.SalvageEvidence.yields:type_name -> rimgovernor.observations.v1.SalvageYield
+	498,  // 10: rimgovernor.observations.v1.ClearanceChunk.cell:type_name -> rimgovernor.common.v1.Cell
+	30,   // 11: rimgovernor.observations.v1.ClearanceTargetsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 12: rimgovernor.observations.v1.ClearanceTargetsRequest.planned_ground:type_name -> rimgovernor.observations.v1.Rectangle
+	496,  // 13: rimgovernor.observations.v1.ClearanceTargetsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	35,   // 14: rimgovernor.observations.v1.ClearanceTargetsSnapshot.targets:type_name -> rimgovernor.observations.v1.ClearanceTarget
+	39,   // 15: rimgovernor.observations.v1.ClearanceTargetsSnapshot.chunks:type_name -> rimgovernor.observations.v1.ClearanceChunk
+	498,  // 16: rimgovernor.observations.v1.ClearanceTargetsSnapshot.dump_sites:type_name -> rimgovernor.common.v1.Cell
+	36,   // 17: rimgovernor.observations.v1.ClearanceTargetsSnapshot.floors:type_name -> rimgovernor.observations.v1.ClearanceFloor
+	41,   // 18: rimgovernor.observations.v1.ClearanceTargetsReply.observed:type_name -> rimgovernor.observations.v1.ClearanceTargetsSnapshot
+	497,  // 19: rimgovernor.observations.v1.ClearanceTargetsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 20: rimgovernor.observations.v1.ClearanceTargetsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 21: rimgovernor.observations.v1.ShrineCasket.cell:type_name -> rimgovernor.common.v1.Cell
+	498,  // 22: rimgovernor.observations.v1.ShrineCasket.interaction_cell:type_name -> rimgovernor.common.v1.Cell
 	1,    // 23: rimgovernor.observations.v1.ShrineGuard.kind:type_name -> rimgovernor.observations.v1.ShrineGuardKind
-	482,  // 24: rimgovernor.observations.v1.ShrineBreachWall.cell:type_name -> rimgovernor.common.v1.Cell
-	482,  // 25: rimgovernor.observations.v1.ShrineBreachWall.outside:type_name -> rimgovernor.common.v1.Cell
-	32,   // 26: rimgovernor.observations.v1.AncientShrine.room:type_name -> rimgovernor.observations.v1.Rectangle
-	41,   // 27: rimgovernor.observations.v1.AncientShrine.caskets:type_name -> rimgovernor.observations.v1.ShrineCasket
-	42,   // 28: rimgovernor.observations.v1.AncientShrine.guards:type_name -> rimgovernor.observations.v1.ShrineGuard
-	44,   // 29: rimgovernor.observations.v1.AncientShrine.breach_walls:type_name -> rimgovernor.observations.v1.ShrineBreachWall
-	43,   // 30: rimgovernor.observations.v1.AncientShrine.occupants:type_name -> rimgovernor.observations.v1.ShrineOccupant
-	28,   // 31: rimgovernor.observations.v1.AncientShrinesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	480,  // 32: rimgovernor.observations.v1.AncientShrinesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	45,   // 33: rimgovernor.observations.v1.AncientShrinesSnapshot.shrines:type_name -> rimgovernor.observations.v1.AncientShrine
-	47,   // 34: rimgovernor.observations.v1.AncientShrinesReply.observed:type_name -> rimgovernor.observations.v1.AncientShrinesSnapshot
-	481,  // 35: rimgovernor.observations.v1.AncientShrinesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 36: rimgovernor.observations.v1.AncientShrinesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 37: rimgovernor.observations.v1.EntityRef.position:type_name -> rimgovernor.common.v1.Cell
-	484,  // 38: rimgovernor.observations.v1.TargetRef.entity:type_name -> rimgovernor.common.v1.Ref
-	482,  // 39: rimgovernor.observations.v1.TargetRef.cell:type_name -> rimgovernor.common.v1.Cell
-	481,  // 40: rimgovernor.observations.v1.TargetRef.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	52,   // 41: rimgovernor.observations.v1.JobEvidence.target_a:type_name -> rimgovernor.observations.v1.TargetRef
-	31,   // 42: rimgovernor.observations.v1.JobEvidence.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	482,  // 43: rimgovernor.observations.v1.JobEvidence.target_a_cell:type_name -> rimgovernor.common.v1.Cell
+	498,  // 24: rimgovernor.observations.v1.ShrineBreachWall.cell:type_name -> rimgovernor.common.v1.Cell
+	498,  // 25: rimgovernor.observations.v1.ShrineBreachWall.outside:type_name -> rimgovernor.common.v1.Cell
+	34,   // 26: rimgovernor.observations.v1.AncientShrine.room:type_name -> rimgovernor.observations.v1.Rectangle
+	43,   // 27: rimgovernor.observations.v1.AncientShrine.caskets:type_name -> rimgovernor.observations.v1.ShrineCasket
+	44,   // 28: rimgovernor.observations.v1.AncientShrine.guards:type_name -> rimgovernor.observations.v1.ShrineGuard
+	46,   // 29: rimgovernor.observations.v1.AncientShrine.breach_walls:type_name -> rimgovernor.observations.v1.ShrineBreachWall
+	45,   // 30: rimgovernor.observations.v1.AncientShrine.occupants:type_name -> rimgovernor.observations.v1.ShrineOccupant
+	30,   // 31: rimgovernor.observations.v1.AncientShrinesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	496,  // 32: rimgovernor.observations.v1.AncientShrinesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	47,   // 33: rimgovernor.observations.v1.AncientShrinesSnapshot.shrines:type_name -> rimgovernor.observations.v1.AncientShrine
+	49,   // 34: rimgovernor.observations.v1.AncientShrinesReply.observed:type_name -> rimgovernor.observations.v1.AncientShrinesSnapshot
+	497,  // 35: rimgovernor.observations.v1.AncientShrinesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 36: rimgovernor.observations.v1.AncientShrinesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 37: rimgovernor.observations.v1.EntityRef.position:type_name -> rimgovernor.common.v1.Cell
+	500,  // 38: rimgovernor.observations.v1.TargetRef.entity:type_name -> rimgovernor.common.v1.Ref
+	498,  // 39: rimgovernor.observations.v1.TargetRef.cell:type_name -> rimgovernor.common.v1.Cell
+	497,  // 40: rimgovernor.observations.v1.TargetRef.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	54,   // 41: rimgovernor.observations.v1.JobEvidence.target_a:type_name -> rimgovernor.observations.v1.TargetRef
+	33,   // 42: rimgovernor.observations.v1.JobEvidence.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	498,  // 43: rimgovernor.observations.v1.JobEvidence.target_a_cell:type_name -> rimgovernor.common.v1.Cell
 	5,    // 44: rimgovernor.observations.v1.PawnNeeds.hunger_category:type_name -> rimgovernor.observations.v1.HungerCategory
 	6,    // 45: rimgovernor.observations.v1.PawnNeeds.break_risk:type_name -> rimgovernor.observations.v1.BreakRisk
-	31,   // 46: rimgovernor.observations.v1.PawnNeeds.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	50,   // 47: rimgovernor.observations.v1.Hediff.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	481,  // 48: rimgovernor.observations.v1.Capacity.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	59,   // 49: rimgovernor.observations.v1.PawnHealth.capacities:type_name -> rimgovernor.observations.v1.Capacity
-	58,   // 50: rimgovernor.observations.v1.PawnHealth.hediffs:type_name -> rimgovernor.observations.v1.Hediff
-	30,   // 51: rimgovernor.observations.v1.PawnHealth.hediff_completeness:type_name -> rimgovernor.observations.v1.Completeness
-	60,   // 52: rimgovernor.observations.v1.PawnHealth.surgery_bills:type_name -> rimgovernor.observations.v1.SurgeryBill
-	31,   // 53: rimgovernor.observations.v1.PawnHealth.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	29,   // 54: rimgovernor.observations.v1.PawnHealth.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	62,   // 55: rimgovernor.observations.v1.PawnHealth.missing_parts:type_name -> rimgovernor.observations.v1.MissingBodyPart
-	63,   // 56: rimgovernor.observations.v1.PawnHealth.operations:type_name -> rimgovernor.observations.v1.SurgeryOperation
-	50,   // 57: rimgovernor.observations.v1.SurgeryOperation.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	33,   // 46: rimgovernor.observations.v1.PawnNeeds.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	52,   // 47: rimgovernor.observations.v1.Hediff.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	497,  // 48: rimgovernor.observations.v1.Capacity.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	61,   // 49: rimgovernor.observations.v1.PawnHealth.capacities:type_name -> rimgovernor.observations.v1.Capacity
+	60,   // 50: rimgovernor.observations.v1.PawnHealth.hediffs:type_name -> rimgovernor.observations.v1.Hediff
+	32,   // 51: rimgovernor.observations.v1.PawnHealth.hediff_completeness:type_name -> rimgovernor.observations.v1.Completeness
+	62,   // 52: rimgovernor.observations.v1.PawnHealth.surgery_bills:type_name -> rimgovernor.observations.v1.SurgeryBill
+	33,   // 53: rimgovernor.observations.v1.PawnHealth.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	31,   // 54: rimgovernor.observations.v1.PawnHealth.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	64,   // 55: rimgovernor.observations.v1.PawnHealth.missing_parts:type_name -> rimgovernor.observations.v1.MissingBodyPart
+	65,   // 56: rimgovernor.observations.v1.PawnHealth.operations:type_name -> rimgovernor.observations.v1.SurgeryOperation
+	52,   // 57: rimgovernor.observations.v1.SurgeryOperation.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
 	2,    // 58: rimgovernor.observations.v1.SurgeryOperation.kind:type_name -> rimgovernor.observations.v1.SurgeryKind
-	478,  // 59: rimgovernor.observations.v1.SurgeryOperation.doctor_chances:type_name -> rimgovernor.observations.v1.SurgeryOperation.DoctorChancesEntry
-	484,  // 60: rimgovernor.observations.v1.GearItem.thing:type_name -> rimgovernor.common.v1.Ref
+	494,  // 59: rimgovernor.observations.v1.SurgeryOperation.doctor_chances:type_name -> rimgovernor.observations.v1.SurgeryOperation.DoctorChancesEntry
+	500,  // 60: rimgovernor.observations.v1.GearItem.thing:type_name -> rimgovernor.common.v1.Ref
 	3,    // 61: rimgovernor.observations.v1.GearItem.quality:type_name -> rimgovernor.observations.v1.Quality
-	29,   // 62: rimgovernor.observations.v1.GearItem.thing_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	64,   // 63: rimgovernor.observations.v1.PawnEquipment.equipped:type_name -> rimgovernor.observations.v1.GearItem
-	64,   // 64: rimgovernor.observations.v1.PawnEquipment.apparel:type_name -> rimgovernor.observations.v1.GearItem
-	64,   // 65: rimgovernor.observations.v1.PawnEquipment.inventory_weapons:type_name -> rimgovernor.observations.v1.GearItem
-	31,   // 66: rimgovernor.observations.v1.PawnEquipment.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	50,   // 67: rimgovernor.observations.v1.Skill.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	31,   // 62: rimgovernor.observations.v1.GearItem.thing_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	66,   // 63: rimgovernor.observations.v1.PawnEquipment.equipped:type_name -> rimgovernor.observations.v1.GearItem
+	66,   // 64: rimgovernor.observations.v1.PawnEquipment.apparel:type_name -> rimgovernor.observations.v1.GearItem
+	66,   // 65: rimgovernor.observations.v1.PawnEquipment.inventory_weapons:type_name -> rimgovernor.observations.v1.GearItem
+	33,   // 66: rimgovernor.observations.v1.PawnEquipment.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	52,   // 67: rimgovernor.observations.v1.Skill.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
 	4,    // 68: rimgovernor.observations.v1.Skill.passion:type_name -> rimgovernor.observations.v1.Passion
-	50,   // 69: rimgovernor.observations.v1.PawnBiography.childhood:type_name -> rimgovernor.observations.v1.DefinitionRef
-	50,   // 70: rimgovernor.observations.v1.PawnBiography.adulthood:type_name -> rimgovernor.observations.v1.DefinitionRef
-	66,   // 71: rimgovernor.observations.v1.PawnBiography.skills:type_name -> rimgovernor.observations.v1.Skill
-	67,   // 72: rimgovernor.observations.v1.PawnBiography.traits:type_name -> rimgovernor.observations.v1.Trait
-	31,   // 73: rimgovernor.observations.v1.PawnBiography.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 74: rimgovernor.observations.v1.Relation.other:type_name -> rimgovernor.common.v1.Ref
-	71,   // 75: rimgovernor.observations.v1.PawnSocial.memories:type_name -> rimgovernor.observations.v1.Thought
-	71,   // 76: rimgovernor.observations.v1.PawnSocial.situational:type_name -> rimgovernor.observations.v1.Thought
-	72,   // 77: rimgovernor.observations.v1.PawnSocial.relations:type_name -> rimgovernor.observations.v1.Relation
-	31,   // 78: rimgovernor.observations.v1.PawnSocial.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	485,  // 79: rimgovernor.observations.v1.PawnSettings.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	486,  // 80: rimgovernor.observations.v1.PawnSettings.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
-	68,   // 81: rimgovernor.observations.v1.PawnSettings.work:type_name -> rimgovernor.observations.v1.WorkSetting
-	69,   // 82: rimgovernor.observations.v1.PawnSettings.schedule:type_name -> rimgovernor.observations.v1.TimetableSlot
-	50,   // 83: rimgovernor.observations.v1.PawnSettings.allowed_areas:type_name -> rimgovernor.observations.v1.DefinitionRef
-	485,  // 84: rimgovernor.observations.v1.PawnSettings.medical_care_options:type_name -> rimgovernor.operations.v1.MedicalCare
-	486,  // 85: rimgovernor.observations.v1.PawnSettings.hostility_response_options:type_name -> rimgovernor.operations.v1.HostilityResponse
-	31,   // 86: rimgovernor.observations.v1.PawnSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	475,  // 87: rimgovernor.observations.v1.PawnSettings.food_restriction:type_name -> rimgovernor.observations.v1.FoodRestriction
-	75,   // 88: rimgovernor.observations.v1.PawnSettings.policy_inputs:type_name -> rimgovernor.observations.v1.PawnPolicyInputs
-	76,   // 89: rimgovernor.observations.v1.PawnPolicyInputs.inventory_stock:type_name -> rimgovernor.observations.v1.InventoryStockSetting
-	77,   // 90: rimgovernor.observations.v1.PawnPolicyInputs.chemicals:type_name -> rimgovernor.observations.v1.ChemicalState
-	78,   // 91: rimgovernor.observations.v1.PawnPolicyInputs.title_apparel:type_name -> rimgovernor.observations.v1.ApparelRequirementFact
-	78,   // 92: rimgovernor.observations.v1.PawnPolicyInputs.role_apparel:type_name -> rimgovernor.observations.v1.ApparelRequirementFact
-	79,   // 93: rimgovernor.observations.v1.AnimalState.training:type_name -> rimgovernor.observations.v1.TrainingEntry
-	31,   // 94: rimgovernor.observations.v1.AnimalState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	485,  // 95: rimgovernor.observations.v1.AnimalState.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	61,   // 96: rimgovernor.observations.v1.AnimalState.conditions:type_name -> rimgovernor.observations.v1.PawnHealth
-	51,   // 97: rimgovernor.observations.v1.PawnState.pawn:type_name -> rimgovernor.observations.v1.EntityRef
-	484,  // 98: rimgovernor.observations.v1.PawnState.faction:type_name -> rimgovernor.common.v1.Ref
-	56,   // 99: rimgovernor.observations.v1.PawnState.job:type_name -> rimgovernor.observations.v1.JobEvidence
-	57,   // 100: rimgovernor.observations.v1.PawnState.needs:type_name -> rimgovernor.observations.v1.PawnNeeds
-	61,   // 101: rimgovernor.observations.v1.PawnState.health:type_name -> rimgovernor.observations.v1.PawnHealth
-	65,   // 102: rimgovernor.observations.v1.PawnState.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
-	70,   // 103: rimgovernor.observations.v1.PawnState.biography:type_name -> rimgovernor.observations.v1.PawnBiography
-	74,   // 104: rimgovernor.observations.v1.PawnState.settings:type_name -> rimgovernor.observations.v1.PawnSettings
-	73,   // 105: rimgovernor.observations.v1.PawnState.social:type_name -> rimgovernor.observations.v1.PawnSocial
-	80,   // 106: rimgovernor.observations.v1.PawnState.animal_state:type_name -> rimgovernor.observations.v1.AnimalState
-	484,  // 107: rimgovernor.observations.v1.PawnState.nearest_colonist:type_name -> rimgovernor.common.v1.Ref
-	31,   // 108: rimgovernor.observations.v1.PawnState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 109: rimgovernor.observations.v1.PawnState.owned_bed:type_name -> rimgovernor.common.v1.Ref
-	29,   // 110: rimgovernor.observations.v1.PawnState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	87,   // 111: rimgovernor.observations.v1.PawnState.tend_doctor:type_name -> rimgovernor.observations.v1.PawnTendDoctor
-	29,   // 112: rimgovernor.observations.v1.PawnState.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	86,   // 113: rimgovernor.observations.v1.PawnState.biotech:type_name -> rimgovernor.observations.v1.PawnBiotech
-	484,  // 114: rimgovernor.observations.v1.PawnMechanitor.controlled_mechs:type_name -> rimgovernor.common.v1.Ref
-	484,  // 115: rimgovernor.observations.v1.PawnMech.overseer:type_name -> rimgovernor.common.v1.Ref
-	82,   // 116: rimgovernor.observations.v1.PawnBiotech.genes:type_name -> rimgovernor.observations.v1.PawnGene
-	83,   // 117: rimgovernor.observations.v1.PawnBiotech.mechanitor:type_name -> rimgovernor.observations.v1.PawnMechanitor
-	84,   // 118: rimgovernor.observations.v1.PawnBiotech.mech:type_name -> rimgovernor.observations.v1.PawnMech
-	85,   // 119: rimgovernor.observations.v1.PawnBiotech.deathrest:type_name -> rimgovernor.observations.v1.PawnDeathrest
-	31,   // 120: rimgovernor.observations.v1.PawnBiotech.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	31,   // 121: rimgovernor.observations.v1.PawnTendDoctor.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	480,  // 122: rimgovernor.observations.v1.PawnSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	81,   // 123: rimgovernor.observations.v1.PawnSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	30,   // 124: rimgovernor.observations.v1.PawnSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 125: rimgovernor.observations.v1.ListPawnsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	88,   // 126: rimgovernor.observations.v1.ListPawnsRequest.filter:type_name -> rimgovernor.observations.v1.PawnFilter
-	89,   // 127: rimgovernor.observations.v1.ListPawnsRequest.details:type_name -> rimgovernor.observations.v1.PawnDetails
-	90,   // 128: rimgovernor.observations.v1.ListPawnsReply.observed:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	481,  // 129: rimgovernor.observations.v1.ListPawnsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 130: rimgovernor.observations.v1.ListPawnsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 131: rimgovernor.observations.v1.StockItem.item:type_name -> rimgovernor.common.v1.Ref
-	482,  // 132: rimgovernor.observations.v1.StockItem.cell:type_name -> rimgovernor.common.v1.Cell
-	29,   // 133: rimgovernor.observations.v1.StockItem.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 134: rimgovernor.observations.v1.StockItem.inner:type_name -> rimgovernor.common.v1.Ref
-	484,  // 135: rimgovernor.observations.v1.HeldStock.holder:type_name -> rimgovernor.common.v1.Ref
-	7,    // 136: rimgovernor.observations.v1.HeldStock.holder_kind:type_name -> rimgovernor.observations.v1.HolderKind
-	484,  // 137: rimgovernor.observations.v1.CorpseState.corpse:type_name -> rimgovernor.common.v1.Ref
-	484,  // 138: rimgovernor.observations.v1.CorpseState.inner_pawn:type_name -> rimgovernor.common.v1.Ref
-	8,    // 139: rimgovernor.observations.v1.CorpseState.rot_stage:type_name -> rimgovernor.observations.v1.RotStage
-	50,   // 140: rimgovernor.observations.v1.ResourceStock.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	93,   // 141: rimgovernor.observations.v1.ResourceStock.items:type_name -> rimgovernor.observations.v1.StockItem
-	94,   // 142: rimgovernor.observations.v1.ResourceStock.holders:type_name -> rimgovernor.observations.v1.HeldStock
-	95,   // 143: rimgovernor.observations.v1.ResourceStock.corpses:type_name -> rimgovernor.observations.v1.CorpseState
-	31,   // 144: rimgovernor.observations.v1.ResourceStock.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	29,   // 145: rimgovernor.observations.v1.ResourceStock.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	64,   // 146: rimgovernor.observations.v1.ResourceStock.weapon_items:type_name -> rimgovernor.observations.v1.GearItem
-	11,   // 147: rimgovernor.observations.v1.StockFilter.category:type_name -> rimgovernor.observations.v1.StockCategory
-	12,   // 148: rimgovernor.observations.v1.StockFilter.ownership:type_name -> rimgovernor.observations.v1.StockOwnership
-	32,   // 149: rimgovernor.observations.v1.StockFilter.region:type_name -> rimgovernor.observations.v1.Rectangle
-	480,  // 150: rimgovernor.observations.v1.SuppliesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	96,   // 151: rimgovernor.observations.v1.SuppliesSnapshot.stocks:type_name -> rimgovernor.observations.v1.ResourceStock
-	30,   // 152: rimgovernor.observations.v1.SuppliesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 153: rimgovernor.observations.v1.ListSuppliesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	97,   // 154: rimgovernor.observations.v1.ListSuppliesRequest.filter:type_name -> rimgovernor.observations.v1.StockFilter
-	98,   // 155: rimgovernor.observations.v1.ListSuppliesReply.observed:type_name -> rimgovernor.observations.v1.SuppliesSnapshot
-	481,  // 156: rimgovernor.observations.v1.ListSuppliesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 157: rimgovernor.observations.v1.ListSuppliesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	31,   // 158: rimgovernor.observations.v1.IngredientRequirement.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	53,   // 159: rimgovernor.observations.v1.IngredientRequirement.alternatives:type_name -> rimgovernor.observations.v1.Quantity
-	102,  // 160: rimgovernor.observations.v1.StockpileFilter.special_rules:type_name -> rimgovernor.observations.v1.FilterSpecialRule
-	50,   // 161: rimgovernor.observations.v1.BillState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
-	487,  // 162: rimgovernor.observations.v1.BillState.repeat_mode:type_name -> rimgovernor.operations.v1.RepeatMode
-	484,  // 163: rimgovernor.observations.v1.BillState.worker:type_name -> rimgovernor.common.v1.Ref
-	103,  // 164: rimgovernor.observations.v1.BillState.ingredient_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	488,  // 165: rimgovernor.observations.v1.BillState.store_mode:type_name -> rimgovernor.operations.v1.StoreMode
-	484,  // 166: rimgovernor.observations.v1.BillState.store_zone:type_name -> rimgovernor.common.v1.Ref
-	101,  // 167: rimgovernor.observations.v1.BillState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
-	31,   // 168: rimgovernor.observations.v1.BillState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	105,  // 169: rimgovernor.observations.v1.BillState.reservations:type_name -> rimgovernor.observations.v1.IngredientReservation
-	53,   // 170: rimgovernor.observations.v1.IngredientReservation.items:type_name -> rimgovernor.observations.v1.Quantity
-	29,   // 171: rimgovernor.observations.v1.BillStack.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 172: rimgovernor.observations.v1.BillStack.bench:type_name -> rimgovernor.common.v1.Ref
-	10,   // 173: rimgovernor.observations.v1.BillStack.unusable_reason:type_name -> rimgovernor.observations.v1.BenchUnusableReason
-	104,  // 174: rimgovernor.observations.v1.BillStack.bills:type_name -> rimgovernor.observations.v1.BillState
-	50,   // 175: rimgovernor.observations.v1.RecipeState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
-	55,   // 176: rimgovernor.observations.v1.RecipeState.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
-	101,  // 177: rimgovernor.observations.v1.RecipeState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
-	53,   // 178: rimgovernor.observations.v1.RecipeState.products:type_name -> rimgovernor.observations.v1.Quantity
-	103,  // 179: rimgovernor.observations.v1.RecipeState.default_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	109,  // 180: rimgovernor.observations.v1.RecipeState.ingredient_classes:type_name -> rimgovernor.observations.v1.RecipeIngredientClasses
-	13,   // 181: rimgovernor.observations.v1.FoodIngredientSlot.alternatives:type_name -> rimgovernor.observations.v1.FoodIngredientClass
-	108,  // 182: rimgovernor.observations.v1.RecipeIngredientClasses.slots:type_name -> rimgovernor.observations.v1.FoodIngredientSlot
-	29,   // 183: rimgovernor.observations.v1.BuildingSettings.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 184: rimgovernor.observations.v1.BuildingSettings.assigned_pawns:type_name -> rimgovernor.common.v1.Ref
-	484,  // 185: rimgovernor.observations.v1.BuildingSettings.assigning_candidates:type_name -> rimgovernor.common.v1.Ref
-	31,   // 186: rimgovernor.observations.v1.BuildingSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	111,  // 187: rimgovernor.observations.v1.ConstructionState.resources:type_name -> rimgovernor.observations.v1.MaterialDeficit
-	31,   // 188: rimgovernor.observations.v1.ConstructionState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	482,  // 189: rimgovernor.observations.v1.ThermalSide.position:type_name -> rimgovernor.common.v1.Cell
-	484,  // 190: rimgovernor.observations.v1.ThermalSide.room:type_name -> rimgovernor.common.v1.Ref
-	31,   // 191: rimgovernor.observations.v1.ThermalSide.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	31,   // 192: rimgovernor.observations.v1.BuildingServiceState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	51,   // 193: rimgovernor.observations.v1.BuildingState.building:type_name -> rimgovernor.observations.v1.EntityRef
-	489,  // 194: rimgovernor.observations.v1.BuildingState.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	484,  // 195: rimgovernor.observations.v1.BuildingState.faction:type_name -> rimgovernor.common.v1.Ref
-	14,   // 196: rimgovernor.observations.v1.BuildingState.status:type_name -> rimgovernor.observations.v1.BuildingStatus
-	112,  // 197: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
-	114,  // 198: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
-	110,  // 199: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
-	113,  // 200: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
-	106,  // 201: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
-	31,   // 202: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	29,   // 203: rimgovernor.observations.v1.BuildingState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	32,   // 204: rimgovernor.observations.v1.BuildingState.occupied:type_name -> rimgovernor.observations.v1.Rectangle
-	465,  // 205: rimgovernor.observations.v1.BuildingState.odyssey:type_name -> rimgovernor.observations.v1.OdysseyBuilding
-	480,  // 206: rimgovernor.observations.v1.BuildingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	115,  // 207: rimgovernor.observations.v1.BuildingsSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
-	116,  // 208: rimgovernor.observations.v1.BuildingsSnapshot.power_networks:type_name -> rimgovernor.observations.v1.PowerNetwork
-	30,   // 209: rimgovernor.observations.v1.BuildingsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 210: rimgovernor.observations.v1.ListBuildingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 211: rimgovernor.observations.v1.ListBuildingsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	117,  // 212: rimgovernor.observations.v1.ListBuildingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
-	481,  // 213: rimgovernor.observations.v1.ListBuildingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 214: rimgovernor.observations.v1.ListBuildingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	481,  // 215: rimgovernor.observations.v1.RoomStat.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	484,  // 216: rimgovernor.observations.v1.RoomBedMembership.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 217: rimgovernor.observations.v1.RoomBedMembership.owners:type_name -> rimgovernor.common.v1.Ref
-	484,  // 218: rimgovernor.observations.v1.RoomBedMembership.users:type_name -> rimgovernor.common.v1.Ref
-	484,  // 219: rimgovernor.observations.v1.RoomBedMembership.accessible_to:type_name -> rimgovernor.common.v1.Ref
-	484,  // 220: rimgovernor.observations.v1.StockpileMembership.zone:type_name -> rimgovernor.common.v1.Ref
-	96,   // 221: rimgovernor.observations.v1.StockpileMembership.contents:type_name -> rimgovernor.observations.v1.ResourceStock
-	32,   // 222: rimgovernor.observations.v1.RoomState.extents:type_name -> rimgovernor.observations.v1.Rectangle
-	482,  // 223: rimgovernor.observations.v1.RoomState.center:type_name -> rimgovernor.common.v1.Cell
-	120,  // 224: rimgovernor.observations.v1.RoomState.stats:type_name -> rimgovernor.observations.v1.RoomStat
-	484,  // 225: rimgovernor.observations.v1.RoomState.pawns:type_name -> rimgovernor.common.v1.Ref
-	484,  // 226: rimgovernor.observations.v1.RoomState.beds:type_name -> rimgovernor.common.v1.Ref
-	484,  // 227: rimgovernor.observations.v1.RoomState.stockpile_zones:type_name -> rimgovernor.common.v1.Ref
-	53,   // 228: rimgovernor.observations.v1.RoomState.contents:type_name -> rimgovernor.observations.v1.Quantity
-	31,   // 229: rimgovernor.observations.v1.RoomState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	29,   // 230: rimgovernor.observations.v1.RoomState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	121,  // 231: rimgovernor.observations.v1.RoomState.bed_memberships:type_name -> rimgovernor.observations.v1.RoomBedMembership
-	122,  // 232: rimgovernor.observations.v1.RoomState.stockpile_memberships:type_name -> rimgovernor.observations.v1.StockpileMembership
-	124,  // 233: rimgovernor.observations.v1.RoomState.doors:type_name -> rimgovernor.observations.v1.RoomDoor
-	482,  // 234: rimgovernor.observations.v1.RoomDoor.cell:type_name -> rimgovernor.common.v1.Cell
-	482,  // 235: rimgovernor.observations.v1.RoomDoor.outside:type_name -> rimgovernor.common.v1.Cell
-	480,  // 236: rimgovernor.observations.v1.RoomsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	123,  // 237: rimgovernor.observations.v1.RoomsSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomState
-	30,   // 238: rimgovernor.observations.v1.RoomsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 239: rimgovernor.observations.v1.ListRoomsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 240: rimgovernor.observations.v1.ListRoomsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	125,  // 241: rimgovernor.observations.v1.ListRoomsReply.observed:type_name -> rimgovernor.observations.v1.RoomsSnapshot
-	481,  // 242: rimgovernor.observations.v1.ListRoomsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 243: rimgovernor.observations.v1.ListRoomsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	32,   // 244: rimgovernor.observations.v1.ZoneState.bounds:type_name -> rimgovernor.observations.v1.Rectangle
-	103,  // 245: rimgovernor.observations.v1.ZoneState.filter:type_name -> rimgovernor.observations.v1.StockpileFilter
-	53,   // 246: rimgovernor.observations.v1.ZoneState.contents:type_name -> rimgovernor.observations.v1.Quantity
-	31,   // 247: rimgovernor.observations.v1.ZoneState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	307,  // 248: rimgovernor.observations.v1.ZoneState.farm:type_name -> rimgovernor.observations.v1.FarmFacts
-	480,  // 249: rimgovernor.observations.v1.ZonesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	128,  // 250: rimgovernor.observations.v1.ZonesSnapshot.zones:type_name -> rimgovernor.observations.v1.ZoneState
-	30,   // 251: rimgovernor.observations.v1.ZonesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 252: rimgovernor.observations.v1.ListZonesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 253: rimgovernor.observations.v1.ListZonesRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	129,  // 254: rimgovernor.observations.v1.ListZonesReply.observed:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	481,  // 255: rimgovernor.observations.v1.ListZonesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 256: rimgovernor.observations.v1.ListZonesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	51,   // 257: rimgovernor.observations.v1.Thing.thing:type_name -> rimgovernor.observations.v1.EntityRef
-	484,  // 258: rimgovernor.observations.v1.Thing.owners:type_name -> rimgovernor.common.v1.Ref
-	484,  // 259: rimgovernor.observations.v1.Thing.room:type_name -> rimgovernor.common.v1.Ref
-	13,   // 260: rimgovernor.observations.v1.Thing.raw_class:type_name -> rimgovernor.observations.v1.FoodIngredientClass
-	29,   // 261: rimgovernor.observations.v1.Thing.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	480,  // 262: rimgovernor.observations.v1.ThingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	132,  // 263: rimgovernor.observations.v1.ThingsSnapshot.things:type_name -> rimgovernor.observations.v1.Thing
-	480,  // 264: rimgovernor.observations.v1.CellsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	49,   // 265: rimgovernor.observations.v1.CellsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
-	490,  // 266: rimgovernor.observations.v1.CellsSnapshot.grid:type_name -> rimgovernor.mirror.v1.CellGrid
-	132,  // 267: rimgovernor.observations.v1.CellsSnapshot.things:type_name -> rimgovernor.observations.v1.Thing
-	28,   // 268: rimgovernor.observations.v1.GetCellsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 269: rimgovernor.observations.v1.GetCellsRequest.rectangle:type_name -> rimgovernor.observations.v1.Rectangle
-	134,  // 270: rimgovernor.observations.v1.GetCellsReply.observed:type_name -> rimgovernor.observations.v1.CellsSnapshot
-	481,  // 271: rimgovernor.observations.v1.GetCellsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 272: rimgovernor.observations.v1.GetCellsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	50,   // 273: rimgovernor.observations.v1.ResearchProject.project:type_name -> rimgovernor.observations.v1.DefinitionRef
-	15,   // 274: rimgovernor.observations.v1.ResearchProject.tech_level:type_name -> rimgovernor.observations.v1.TechLevel
-	137,  // 275: rimgovernor.observations.v1.ResearchProject.unlocks:type_name -> rimgovernor.observations.v1.ResearchUnlock
-	31,   // 276: rimgovernor.observations.v1.ResearchProject.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 277: rimgovernor.observations.v1.Researcher.pawn:type_name -> rimgovernor.common.v1.Ref
-	50,   // 278: rimgovernor.observations.v1.ResearchFacility.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	484,  // 279: rimgovernor.observations.v1.ResearchBench.building:type_name -> rimgovernor.common.v1.Ref
-	140,  // 280: rimgovernor.observations.v1.ResearchBench.facilities:type_name -> rimgovernor.observations.v1.ResearchFacility
-	31,   // 281: rimgovernor.observations.v1.ResearchBench.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	480,  // 282: rimgovernor.observations.v1.ResearchSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	29,   // 283: rimgovernor.observations.v1.ResearchSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	142,  // 284: rimgovernor.observations.v1.ResearchSnapshot.slots:type_name -> rimgovernor.observations.v1.ResearchSlot
-	138,  // 285: rimgovernor.observations.v1.ResearchSnapshot.projects:type_name -> rimgovernor.observations.v1.ResearchProject
-	141,  // 286: rimgovernor.observations.v1.ResearchSnapshot.benches:type_name -> rimgovernor.observations.v1.ResearchBench
-	139,  // 287: rimgovernor.observations.v1.ResearchSnapshot.researchers:type_name -> rimgovernor.observations.v1.Researcher
-	30,   // 288: rimgovernor.observations.v1.ResearchSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 289: rimgovernor.observations.v1.ResearchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	143,  // 290: rimgovernor.observations.v1.ResearchReply.observed:type_name -> rimgovernor.observations.v1.ResearchSnapshot
-	481,  // 291: rimgovernor.observations.v1.ResearchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 292: rimgovernor.observations.v1.ResearchReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 293: rimgovernor.observations.v1.AccessTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 294: rimgovernor.observations.v1.PawnAccess.pawn:type_name -> rimgovernor.common.v1.Ref
-	146,  // 295: rimgovernor.observations.v1.PawnAccess.targets:type_name -> rimgovernor.observations.v1.AccessTarget
-	482,  // 296: rimgovernor.observations.v1.PawnAccess.projected_origin:type_name -> rimgovernor.common.v1.Cell
-	482,  // 297: rimgovernor.observations.v1.PawnAccess.position:type_name -> rimgovernor.common.v1.Cell
-	480,  // 298: rimgovernor.observations.v1.SpatialAccessSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	147,  // 299: rimgovernor.observations.v1.SpatialAccessSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnAccess
-	28,   // 300: rimgovernor.observations.v1.SpatialAccessRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	482,  // 301: rimgovernor.observations.v1.SpatialAccessRequest.blocked_cells:type_name -> rimgovernor.common.v1.Cell
-	482,  // 302: rimgovernor.observations.v1.SpatialAccessRequest.target_cells:type_name -> rimgovernor.common.v1.Cell
-	148,  // 303: rimgovernor.observations.v1.SpatialAccessReply.observed:type_name -> rimgovernor.observations.v1.SpatialAccessSnapshot
-	481,  // 304: rimgovernor.observations.v1.SpatialAccessReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 305: rimgovernor.observations.v1.SpatialAccessReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 306: rimgovernor.observations.v1.DefenseCell.cell:type_name -> rimgovernor.common.v1.Cell
-	31,   // 307: rimgovernor.observations.v1.DefenseCell.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	16,   // 308: rimgovernor.observations.v1.DefenseCell.cover_kind:type_name -> rimgovernor.observations.v1.CoverKind
-	482,  // 309: rimgovernor.observations.v1.RaidTrack.spawn:type_name -> rimgovernor.common.v1.Cell
-	482,  // 310: rimgovernor.observations.v1.RaidTrack.trail:type_name -> rimgovernor.common.v1.Cell
-	480,  // 311: rimgovernor.observations.v1.DefenseSiteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	49,   // 312: rimgovernor.observations.v1.DefenseSiteSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
-	32,   // 313: rimgovernor.observations.v1.DefenseSiteSnapshot.region:type_name -> rimgovernor.observations.v1.Rectangle
-	151,  // 314: rimgovernor.observations.v1.DefenseSiteSnapshot.cells:type_name -> rimgovernor.observations.v1.DefenseCell
-	152,  // 315: rimgovernor.observations.v1.DefenseSiteSnapshot.raids:type_name -> rimgovernor.observations.v1.RaidTrack
-	28,   // 316: rimgovernor.observations.v1.DefenseSiteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	32,   // 317: rimgovernor.observations.v1.DefenseSiteRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
-	153,  // 318: rimgovernor.observations.v1.DefenseSiteReply.observed:type_name -> rimgovernor.observations.v1.DefenseSiteSnapshot
-	481,  // 319: rimgovernor.observations.v1.DefenseSiteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 320: rimgovernor.observations.v1.DefenseSiteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 321: rimgovernor.observations.v1.LineOfFire.from:type_name -> rimgovernor.common.v1.Cell
-	482,  // 322: rimgovernor.observations.v1.LineOfFire.to:type_name -> rimgovernor.common.v1.Cell
-	31,   // 323: rimgovernor.observations.v1.LineOfFire.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	480,  // 324: rimgovernor.observations.v1.LinesOfFireSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	156,  // 325: rimgovernor.observations.v1.LinesOfFireSnapshot.lines:type_name -> rimgovernor.observations.v1.LineOfFire
-	28,   // 326: rimgovernor.observations.v1.LinesOfFireRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	482,  // 327: rimgovernor.observations.v1.LinesOfFireRequest.firing_cells:type_name -> rimgovernor.common.v1.Cell
-	482,  // 328: rimgovernor.observations.v1.LinesOfFireRequest.approach_cells:type_name -> rimgovernor.common.v1.Cell
-	157,  // 329: rimgovernor.observations.v1.LinesOfFireReply.observed:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
-	481,  // 330: rimgovernor.observations.v1.LinesOfFireReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 331: rimgovernor.observations.v1.LinesOfFireReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 332: rimgovernor.observations.v1.RoofSupportCell.cell:type_name -> rimgovernor.common.v1.Cell
-	480,  // 333: rimgovernor.observations.v1.RoofSupportSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	484,  // 334: rimgovernor.observations.v1.RoofSupportSnapshot.target:type_name -> rimgovernor.common.v1.Ref
-	160,  // 335: rimgovernor.observations.v1.RoofSupportSnapshot.roofs:type_name -> rimgovernor.observations.v1.RoofSupportCell
-	28,   // 336: rimgovernor.observations.v1.RoofSupportRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	161,  // 337: rimgovernor.observations.v1.RoofSupportReply.observed:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
-	481,  // 338: rimgovernor.observations.v1.RoofSupportReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 339: rimgovernor.observations.v1.RoofSupportReply.failure:type_name -> rimgovernor.common.v1.Failure
-	482,  // 340: rimgovernor.observations.v1.ExcavationCell.cell:type_name -> rimgovernor.common.v1.Cell
-	480,  // 341: rimgovernor.observations.v1.ExcavationSiteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	164,  // 342: rimgovernor.observations.v1.ExcavationSiteSnapshot.cells:type_name -> rimgovernor.observations.v1.ExcavationCell
-	17,   // 343: rimgovernor.observations.v1.ExcavationSiteSnapshot.support_after_removal:type_name -> rimgovernor.observations.v1.ExcavationSupport
-	28,   // 344: rimgovernor.observations.v1.ExcavationSiteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	482,  // 345: rimgovernor.observations.v1.ExcavationSiteRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	482,  // 346: rimgovernor.observations.v1.ExcavationSiteRequest.access_cell:type_name -> rimgovernor.common.v1.Cell
-	165,  // 347: rimgovernor.observations.v1.ExcavationSiteReply.observed:type_name -> rimgovernor.observations.v1.ExcavationSiteSnapshot
-	481,  // 348: rimgovernor.observations.v1.ExcavationSiteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 349: rimgovernor.observations.v1.ExcavationSiteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	28,   // 350: rimgovernor.observations.v1.PlantCutCensusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	482,  // 351: rimgovernor.observations.v1.PlantCutCensusRequest.cells:type_name -> rimgovernor.common.v1.Cell
-	484,  // 352: rimgovernor.observations.v1.PlantCutTarget.plant:type_name -> rimgovernor.common.v1.Ref
-	482,  // 353: rimgovernor.observations.v1.PlantCutTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	480,  // 354: rimgovernor.observations.v1.PlantCutCensusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	169,  // 355: rimgovernor.observations.v1.PlantCutCensusSnapshot.plants:type_name -> rimgovernor.observations.v1.PlantCutTarget
-	170,  // 356: rimgovernor.observations.v1.PlantCutCensusReply.observed:type_name -> rimgovernor.observations.v1.PlantCutCensusSnapshot
-	481,  // 357: rimgovernor.observations.v1.PlantCutCensusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 358: rimgovernor.observations.v1.PlantCutCensusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	53,   // 359: rimgovernor.observations.v1.StuffOption.costs:type_name -> rimgovernor.observations.v1.Quantity
-	484,  // 360: rimgovernor.observations.v1.WallUpgradeSite.target:type_name -> rimgovernor.common.v1.Ref
-	482,  // 361: rimgovernor.observations.v1.WallUpgradeSite.backup_cells:type_name -> rimgovernor.common.v1.Cell
-	53,   // 362: rimgovernor.observations.v1.WallUpgradeSite.costs:type_name -> rimgovernor.observations.v1.Quantity
-	96,   // 363: rimgovernor.observations.v1.WallUpgradeSite.materials:type_name -> rimgovernor.observations.v1.ResourceStock
-	484,  // 364: rimgovernor.observations.v1.WallUpgradeSite.workers:type_name -> rimgovernor.common.v1.Ref
-	29,   // 365: rimgovernor.observations.v1.WallUpgradeSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	482,  // 366: rimgovernor.observations.v1.WallUpgradeSite.normal:type_name -> rimgovernor.common.v1.Cell
-	484,  // 367: rimgovernor.observations.v1.WallUpgradeSite.original:type_name -> rimgovernor.common.v1.Ref
-	484,  // 368: rimgovernor.observations.v1.WallUpgradeSite.left_support:type_name -> rimgovernor.common.v1.Ref
-	484,  // 369: rimgovernor.observations.v1.WallUpgradeSite.right_support:type_name -> rimgovernor.common.v1.Ref
-	484,  // 370: rimgovernor.observations.v1.WallUpgradeSite.completed_backups:type_name -> rimgovernor.common.v1.Ref
-	484,  // 371: rimgovernor.observations.v1.WallUpgradeSite.replacement:type_name -> rimgovernor.common.v1.Ref
-	29,   // 372: rimgovernor.observations.v1.WallUpgradeSite.target_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	172,  // 373: rimgovernor.observations.v1.WallUpgradeSite.replacement_materials:type_name -> rimgovernor.observations.v1.StuffOption
-	134,  // 374: rimgovernor.observations.v1.WallUpgradeSite.geometry:type_name -> rimgovernor.observations.v1.CellsSnapshot
-	161,  // 375: rimgovernor.observations.v1.WallUpgradeSite.roof_support:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
-	480,  // 376: rimgovernor.observations.v1.WallUpgradeSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	173,  // 377: rimgovernor.observations.v1.WallUpgradeSnapshot.sites:type_name -> rimgovernor.observations.v1.WallUpgradeSite
-	28,   // 378: rimgovernor.observations.v1.WallUpgradeSitesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	174,  // 379: rimgovernor.observations.v1.WallUpgradeSitesReply.observed:type_name -> rimgovernor.observations.v1.WallUpgradeSnapshot
-	481,  // 380: rimgovernor.observations.v1.WallUpgradeSitesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 381: rimgovernor.observations.v1.WallUpgradeSitesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 382: rimgovernor.observations.v1.ResourceSource.source:type_name -> rimgovernor.common.v1.Ref
-	29,   // 383: rimgovernor.observations.v1.ResourceSource.source_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	482,  // 384: rimgovernor.observations.v1.ResourceSource.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 385: rimgovernor.observations.v1.StorageCapacity.haulers:type_name -> rimgovernor.common.v1.Ref
-	31,   // 386: rimgovernor.observations.v1.StorageCapacity.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	482,  // 387: rimgovernor.observations.v1.StorageCapacity.candidates:type_name -> rimgovernor.common.v1.Cell
-	50,   // 388: rimgovernor.observations.v1.ExtractionWorkType.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	50,   // 389: rimgovernor.observations.v1.ExtractionWorkType.work_givers:type_name -> rimgovernor.observations.v1.DefinitionRef
-	29,   // 390: rimgovernor.observations.v1.ExtractionSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	482,  // 391: rimgovernor.observations.v1.ExtractionSite.cell:type_name -> rimgovernor.common.v1.Cell
-	489,  // 392: rimgovernor.observations.v1.ExtractionSite.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	179,  // 393: rimgovernor.observations.v1.ExtractionSite.work_types:type_name -> rimgovernor.observations.v1.ExtractionWorkType
-	29,   // 394: rimgovernor.observations.v1.OwnedDrill.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	482,  // 395: rimgovernor.observations.v1.OwnedDrill.cell:type_name -> rimgovernor.common.v1.Cell
-	177,  // 396: rimgovernor.observations.v1.ExtractionDevelopment.deposits:type_name -> rimgovernor.observations.v1.ResourceSource
-	50,   // 397: rimgovernor.observations.v1.ExtractionDevelopment.definitions:type_name -> rimgovernor.observations.v1.DefinitionRef
-	53,   // 398: rimgovernor.observations.v1.ExtractionDevelopment.costs:type_name -> rimgovernor.observations.v1.Quantity
-	180,  // 399: rimgovernor.observations.v1.ExtractionDevelopment.sites:type_name -> rimgovernor.observations.v1.ExtractionSite
-	181,  // 400: rimgovernor.observations.v1.ExtractionDevelopment.owned:type_name -> rimgovernor.observations.v1.OwnedDrill
-	179,  // 401: rimgovernor.observations.v1.ExtractionDevelopment.flick_work_type:type_name -> rimgovernor.observations.v1.ExtractionWorkType
-	480,  // 402: rimgovernor.observations.v1.ResourceSourcesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	177,  // 403: rimgovernor.observations.v1.ResourceSourcesSnapshot.sources:type_name -> rimgovernor.observations.v1.ResourceSource
-	178,  // 404: rimgovernor.observations.v1.ResourceSourcesSnapshot.storage:type_name -> rimgovernor.observations.v1.StorageCapacity
-	182,  // 405: rimgovernor.observations.v1.ResourceSourcesSnapshot.development:type_name -> rimgovernor.observations.v1.ExtractionDevelopment
-	30,   // 406: rimgovernor.observations.v1.ResourceSourcesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
-	28,   // 407: rimgovernor.observations.v1.ResourceSourcesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	183,  // 408: rimgovernor.observations.v1.ResourceSourcesReply.observed:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
-	481,  // 409: rimgovernor.observations.v1.ResourceSourcesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 410: rimgovernor.observations.v1.ResourceSourcesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 411: rimgovernor.observations.v1.HandlerState.pawn:type_name -> rimgovernor.common.v1.Ref
-	484,  // 412: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.common.v1.Ref
-	80,   // 413: rimgovernor.observations.v1.HusbandryAnimal.animal:type_name -> rimgovernor.observations.v1.AnimalState
-	186,  // 414: rimgovernor.observations.v1.HusbandryAnimal.handlers:type_name -> rimgovernor.observations.v1.HandlerState
-	480,  // 415: rimgovernor.observations.v1.HusbandrySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	29,   // 416: rimgovernor.observations.v1.HusbandrySnapshot.census:type_name -> rimgovernor.observations.v1.SnapshotRef
-	187,  // 417: rimgovernor.observations.v1.HusbandrySnapshot.animals:type_name -> rimgovernor.observations.v1.HusbandryAnimal
-	28,   // 418: rimgovernor.observations.v1.HusbandryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	188,  // 419: rimgovernor.observations.v1.HusbandryReply.observed:type_name -> rimgovernor.observations.v1.HusbandrySnapshot
-	481,  // 420: rimgovernor.observations.v1.HusbandryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 421: rimgovernor.observations.v1.HusbandryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 422: rimgovernor.observations.v1.WasteItem.thing:type_name -> rimgovernor.common.v1.Ref
-	18,   // 423: rimgovernor.observations.v1.WasteItem.state:type_name -> rimgovernor.observations.v1.WasteLocation
-	484,  // 424: rimgovernor.observations.v1.WasteItem.zone:type_name -> rimgovernor.common.v1.Ref
-	484,  // 425: rimgovernor.observations.v1.WasteItem.grave:type_name -> rimgovernor.common.v1.Ref
-	8,    // 426: rimgovernor.observations.v1.WasteItem.rot_stage:type_name -> rimgovernor.observations.v1.RotStage
-	9,    // 427: rimgovernor.observations.v1.WasteItem.kind:type_name -> rimgovernor.observations.v1.WasteKind
-	491,  // 428: rimgovernor.observations.v1.WasteItem.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
-	480,  // 429: rimgovernor.observations.v1.WasteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	191,  // 430: rimgovernor.observations.v1.WasteSnapshot.items:type_name -> rimgovernor.observations.v1.WasteItem
-	28,   // 431: rimgovernor.observations.v1.WasteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	192,  // 432: rimgovernor.observations.v1.WasteReply.observed:type_name -> rimgovernor.observations.v1.WasteSnapshot
-	481,  // 433: rimgovernor.observations.v1.WasteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 434: rimgovernor.observations.v1.WasteReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 435: rimgovernor.observations.v1.RecoveryRestriction.pawn:type_name -> rimgovernor.common.v1.Ref
-	480,  // 436: rimgovernor.observations.v1.RecoverySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	195,  // 437: rimgovernor.observations.v1.RecoverySnapshot.restrictions:type_name -> rimgovernor.observations.v1.RecoveryRestriction
-	484,  // 438: rimgovernor.observations.v1.RecoverySnapshot.buildings:type_name -> rimgovernor.common.v1.Ref
-	28,   // 439: rimgovernor.observations.v1.RecoveryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	196,  // 440: rimgovernor.observations.v1.RecoveryReply.observed:type_name -> rimgovernor.observations.v1.RecoverySnapshot
-	481,  // 441: rimgovernor.observations.v1.RecoveryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 442: rimgovernor.observations.v1.RecoveryReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 443: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.common.v1.Ref
-	29,   // 444: rimgovernor.observations.v1.PopulationPerson.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 445: rimgovernor.observations.v1.PopulationPerson.owned_bed:type_name -> rimgovernor.common.v1.Ref
-	70,   // 446: rimgovernor.observations.v1.PopulationPerson.biography:type_name -> rimgovernor.observations.v1.PawnBiography
-	61,   // 447: rimgovernor.observations.v1.PopulationPerson.surgery:type_name -> rimgovernor.observations.v1.PawnHealth
-	484,  // 448: rimgovernor.observations.v1.PopulationPerson.faction:type_name -> rimgovernor.common.v1.Ref
-	485,  // 449: rimgovernor.observations.v1.PopulationPerson.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	61,   // 450: rimgovernor.observations.v1.PopulationPerson.conditions:type_name -> rimgovernor.observations.v1.PawnHealth
-	75,   // 451: rimgovernor.observations.v1.PopulationPerson.policy_inputs:type_name -> rimgovernor.observations.v1.PawnPolicyInputs
-	480,  // 452: rimgovernor.observations.v1.PopulationSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	199,  // 453: rimgovernor.observations.v1.PopulationSnapshot.persons:type_name -> rimgovernor.observations.v1.PopulationPerson
-	50,   // 454: rimgovernor.observations.v1.PopulationSnapshot.supported_interactions:type_name -> rimgovernor.observations.v1.DefinitionRef
-	201,  // 455: rimgovernor.observations.v1.PopulationSnapshot.owned_names:type_name -> rimgovernor.observations.v1.OwnedName
-	28,   // 456: rimgovernor.observations.v1.PopulationRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	200,  // 457: rimgovernor.observations.v1.PopulationReply.observed:type_name -> rimgovernor.observations.v1.PopulationSnapshot
-	481,  // 458: rimgovernor.observations.v1.PopulationReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 459: rimgovernor.observations.v1.PopulationReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 460: rimgovernor.observations.v1.Settlement.faction:type_name -> rimgovernor.common.v1.Ref
-	29,   // 461: rimgovernor.observations.v1.Settlement.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	29,   // 462: rimgovernor.observations.v1.Settlement.faction_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	50,   // 463: rimgovernor.observations.v1.WorldTile.biome:type_name -> rimgovernor.observations.v1.DefinitionRef
-	31,   // 464: rimgovernor.observations.v1.WorldTile.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	480,  // 465: rimgovernor.observations.v1.WorldSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	205,  // 466: rimgovernor.observations.v1.WorldSnapshot.tile:type_name -> rimgovernor.observations.v1.WorldTile
-	204,  // 467: rimgovernor.observations.v1.WorldSnapshot.settlements:type_name -> rimgovernor.observations.v1.Settlement
-	28,   // 468: rimgovernor.observations.v1.WorldRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	206,  // 469: rimgovernor.observations.v1.WorldReply.observed:type_name -> rimgovernor.observations.v1.WorldSnapshot
-	481,  // 470: rimgovernor.observations.v1.WorldReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 471: rimgovernor.observations.v1.WorldReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 472: rimgovernor.observations.v1.WorldRoute.faction:type_name -> rimgovernor.common.v1.Ref
-	51,   // 473: rimgovernor.observations.v1.CaravanState.caravan:type_name -> rimgovernor.observations.v1.EntityRef
-	81,   // 474: rimgovernor.observations.v1.CaravanState.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	209,  // 475: rimgovernor.observations.v1.CaravanState.home_routes:type_name -> rimgovernor.observations.v1.WorldRoute
-	53,   // 476: rimgovernor.observations.v1.CaravanState.inventory:type_name -> rimgovernor.observations.v1.Quantity
-	53,   // 477: rimgovernor.observations.v1.QuestReward.items:type_name -> rimgovernor.observations.v1.Quantity
-	492,  // 478: rimgovernor.observations.v1.QuestState.state:type_name -> rimgovernor.receipts.v1.QuestStatus
-	484,  // 479: rimgovernor.observations.v1.QuestState.eligible_pawns:type_name -> rimgovernor.common.v1.Ref
-	211,  // 480: rimgovernor.observations.v1.QuestState.trade_requests:type_name -> rimgovernor.observations.v1.QuestTradeRequest
-	212,  // 481: rimgovernor.observations.v1.QuestState.rewards:type_name -> rimgovernor.observations.v1.QuestReward
-	31,   // 482: rimgovernor.observations.v1.QuestState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	29,   // 483: rimgovernor.observations.v1.QuestState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	29,   // 484: rimgovernor.observations.v1.FactionState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	81,   // 485: rimgovernor.observations.v1.WorldMap.pawns:type_name -> rimgovernor.observations.v1.PawnState
-	96,   // 486: rimgovernor.observations.v1.WorldMap.stored_items:type_name -> rimgovernor.observations.v1.ResourceStock
-	484,  // 487: rimgovernor.observations.v1.CaravanAssembly.pawns:type_name -> rimgovernor.common.v1.Ref
-	480,  // 488: rimgovernor.observations.v1.WorldProgressionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	215,  // 489: rimgovernor.observations.v1.WorldProgressionSnapshot.maps:type_name -> rimgovernor.observations.v1.WorldMap
-	214,  // 490: rimgovernor.observations.v1.WorldProgressionSnapshot.factions:type_name -> rimgovernor.observations.v1.FactionState
-	210,  // 491: rimgovernor.observations.v1.WorldProgressionSnapshot.caravans:type_name -> rimgovernor.observations.v1.CaravanState
-	216,  // 492: rimgovernor.observations.v1.WorldProgressionSnapshot.assemblies:type_name -> rimgovernor.observations.v1.CaravanAssembly
-	213,  // 493: rimgovernor.observations.v1.WorldProgressionSnapshot.quests:type_name -> rimgovernor.observations.v1.QuestState
-	28,   // 494: rimgovernor.observations.v1.WorldProgressionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	217,  // 495: rimgovernor.observations.v1.WorldProgressionReply.observed:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
-	481,  // 496: rimgovernor.observations.v1.WorldProgressionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 497: rimgovernor.observations.v1.WorldProgressionReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 498: rimgovernor.observations.v1.BillsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	106,  // 499: rimgovernor.observations.v1.BillsSnapshot.benches:type_name -> rimgovernor.observations.v1.BillStack
-	28,   // 500: rimgovernor.observations.v1.BillsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	220,  // 501: rimgovernor.observations.v1.BillsReply.observed:type_name -> rimgovernor.observations.v1.BillsSnapshot
-	481,  // 502: rimgovernor.observations.v1.BillsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 503: rimgovernor.observations.v1.BillsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 504: rimgovernor.observations.v1.RecipesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	29,   // 505: rimgovernor.observations.v1.RecipesSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	107,  // 506: rimgovernor.observations.v1.RecipesSnapshot.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	28,   // 507: rimgovernor.observations.v1.RecipesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	223,  // 508: rimgovernor.observations.v1.RecipesReply.observed:type_name -> rimgovernor.observations.v1.RecipesSnapshot
-	481,  // 509: rimgovernor.observations.v1.RecipesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 510: rimgovernor.observations.v1.RecipesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	28,   // 511: rimgovernor.observations.v1.BuildingSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	110,  // 512: rimgovernor.observations.v1.BuildingSettingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingSettings
-	481,  // 513: rimgovernor.observations.v1.BuildingSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 514: rimgovernor.observations.v1.BuildingSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	28,   // 515: rimgovernor.observations.v1.PawnSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	74,   // 516: rimgovernor.observations.v1.PawnSettingsReply.observed:type_name -> rimgovernor.observations.v1.PawnSettings
-	481,  // 517: rimgovernor.observations.v1.PawnSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 518: rimgovernor.observations.v1.PawnSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 519: rimgovernor.observations.v1.ResolveTargetSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	52,   // 520: rimgovernor.observations.v1.ResolveTargetSnapshot.candidates:type_name -> rimgovernor.observations.v1.TargetRef
-	28,   // 521: rimgovernor.observations.v1.ResolveTargetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	482,  // 522: rimgovernor.observations.v1.ResolveTargetRequest.cell:type_name -> rimgovernor.common.v1.Cell
-	230,  // 523: rimgovernor.observations.v1.ResolveTargetReply.observed:type_name -> rimgovernor.observations.v1.ResolveTargetSnapshot
-	481,  // 524: rimgovernor.observations.v1.ResolveTargetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 525: rimgovernor.observations.v1.ResolveTargetReply.failure:type_name -> rimgovernor.common.v1.Failure
-	64,   // 526: rimgovernor.observations.v1.GearCandidate.item:type_name -> rimgovernor.observations.v1.GearItem
-	29,   // 527: rimgovernor.observations.v1.GearLoadout.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 528: rimgovernor.observations.v1.GearLoadout.pawn:type_name -> rimgovernor.common.v1.Ref
-	65,   // 529: rimgovernor.observations.v1.GearLoadout.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
-	233,  // 530: rimgovernor.observations.v1.GearLoadout.candidates:type_name -> rimgovernor.observations.v1.GearCandidate
-	234,  // 531: rimgovernor.observations.v1.GearLoadout.replacement_needs:type_name -> rimgovernor.observations.v1.GearReplacementNeed
-	477,  // 532: rimgovernor.observations.v1.GearLoadout.apparel_policy:type_name -> rimgovernor.observations.v1.ApparelPolicyState
-	237,  // 533: rimgovernor.observations.v1.GearLoadout.loadout_model:type_name -> rimgovernor.observations.v1.GearLoadoutModel
-	53,   // 534: rimgovernor.observations.v1.GearLoadoutOption.ingredients:type_name -> rimgovernor.observations.v1.Quantity
-	67,   // 535: rimgovernor.observations.v1.GearLoadoutModel.traits:type_name -> rimgovernor.observations.v1.Trait
-	236,  // 536: rimgovernor.observations.v1.GearLoadoutModel.worn:type_name -> rimgovernor.observations.v1.GearLoadoutOption
-	236,  // 537: rimgovernor.observations.v1.GearLoadoutModel.options:type_name -> rimgovernor.observations.v1.GearLoadoutOption
-	480,  // 538: rimgovernor.observations.v1.GearSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	235,  // 539: rimgovernor.observations.v1.GearSnapshot.pawns:type_name -> rimgovernor.observations.v1.GearLoadout
-	241,  // 540: rimgovernor.observations.v1.GearSnapshot.active_weather:type_name -> rimgovernor.observations.v1.GearWeatherCondition
-	240,  // 541: rimgovernor.observations.v1.GearSnapshot.stored_apparel:type_name -> rimgovernor.observations.v1.GearStorage
-	239,  // 542: rimgovernor.observations.v1.GearStorage.rows:type_name -> rimgovernor.observations.v1.GearStock
-	28,   // 543: rimgovernor.observations.v1.GearRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	238,  // 544: rimgovernor.observations.v1.GearReply.observed:type_name -> rimgovernor.observations.v1.GearSnapshot
-	481,  // 545: rimgovernor.observations.v1.GearReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 546: rimgovernor.observations.v1.GearReply.failure:type_name -> rimgovernor.common.v1.Failure
-	51,   // 547: rimgovernor.observations.v1.Trader.trader:type_name -> rimgovernor.observations.v1.EntityRef
-	484,  // 548: rimgovernor.observations.v1.Trader.faction:type_name -> rimgovernor.common.v1.Ref
-	29,   // 549: rimgovernor.observations.v1.Trader.trader_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	480,  // 550: rimgovernor.observations.v1.TradersSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	244,  // 551: rimgovernor.observations.v1.TradersSnapshot.traders:type_name -> rimgovernor.observations.v1.Trader
-	484,  // 552: rimgovernor.observations.v1.TradersSnapshot.negotiators:type_name -> rimgovernor.common.v1.Ref
-	28,   // 553: rimgovernor.observations.v1.TradersRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	245,  // 554: rimgovernor.observations.v1.TradersReply.observed:type_name -> rimgovernor.observations.v1.TradersSnapshot
-	481,  // 555: rimgovernor.observations.v1.TradersReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 556: rimgovernor.observations.v1.TradersReply.failure:type_name -> rimgovernor.common.v1.Failure
-	50,   // 557: rimgovernor.observations.v1.TradeLine.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	19,   // 558: rimgovernor.observations.v1.TradeLine.buy_price_type:type_name -> rimgovernor.observations.v1.PriceType
-	19,   // 559: rimgovernor.observations.v1.TradeLine.sell_price_type:type_name -> rimgovernor.observations.v1.PriceType
-	474,  // 560: rimgovernor.observations.v1.TradeLine.food:type_name -> rimgovernor.observations.v1.TradeFoodFacts
-	66,   // 561: rimgovernor.observations.v1.TradeLine.skills:type_name -> rimgovernor.observations.v1.Skill
-	480,  // 562: rimgovernor.observations.v1.TradeSession.context:type_name -> rimgovernor.common.v1.ObservationContext
-	28,   // 563: rimgovernor.observations.v1.TradeSessionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	249,  // 564: rimgovernor.observations.v1.TradeSessionReply.observed:type_name -> rimgovernor.observations.v1.TradeSession
-	481,  // 565: rimgovernor.observations.v1.TradeSessionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 566: rimgovernor.observations.v1.TradeSessionReply.failure:type_name -> rimgovernor.common.v1.Failure
-	29,   // 567: rimgovernor.observations.v1.TradeSheet.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 568: rimgovernor.observations.v1.TradeSheet.trader:type_name -> rimgovernor.common.v1.Ref
-	484,  // 569: rimgovernor.observations.v1.TradeSheet.negotiator:type_name -> rimgovernor.common.v1.Ref
-	248,  // 570: rimgovernor.observations.v1.TradeSheet.lines:type_name -> rimgovernor.observations.v1.TradeLine
-	28,   // 571: rimgovernor.observations.v1.TradeSheetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	252,  // 572: rimgovernor.observations.v1.TradeSheetReply.observed:type_name -> rimgovernor.observations.v1.TradeSheet
-	481,  // 573: rimgovernor.observations.v1.TradeSheetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 574: rimgovernor.observations.v1.TradeSheetReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 575: rimgovernor.observations.v1.FoodStock.item:type_name -> rimgovernor.common.v1.Ref
-	484,  // 576: rimgovernor.observations.v1.FoodStock.holder:type_name -> rimgovernor.common.v1.Ref
-	484,  // 577: rimgovernor.observations.v1.FoodStock.eaters:type_name -> rimgovernor.common.v1.Ref
-	482,  // 578: rimgovernor.observations.v1.CorpseHandling.cell:type_name -> rimgovernor.common.v1.Cell
-	257,  // 579: rimgovernor.observations.v1.FoodLarderFacts.corpses:type_name -> rimgovernor.observations.v1.CorpseHandling
-	482,  // 580: rimgovernor.observations.v1.FoodLarderFacts.cold_sites:type_name -> rimgovernor.common.v1.Cell
-	255,  // 581: rimgovernor.observations.v1.FoodSupplyFacts.consumers:type_name -> rimgovernor.observations.v1.FoodConsumer
-	256,  // 582: rimgovernor.observations.v1.FoodSupplyFacts.stocks:type_name -> rimgovernor.observations.v1.FoodStock
-	258,  // 583: rimgovernor.observations.v1.FoodSupplyFacts.larder:type_name -> rimgovernor.observations.v1.FoodLarderFacts
-	484,  // 584: rimgovernor.observations.v1.CropForecast.zone:type_name -> rimgovernor.common.v1.Ref
-	31,   // 585: rimgovernor.observations.v1.CropForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	31,   // 586: rimgovernor.observations.v1.PatientForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	259,  // 587: rimgovernor.observations.v1.ForecastFacts.combined_food_supply:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
-	260,  // 588: rimgovernor.observations.v1.ForecastFacts.crops:type_name -> rimgovernor.observations.v1.CropForecast
-	261,  // 589: rimgovernor.observations.v1.ForecastFacts.patients:type_name -> rimgovernor.observations.v1.PatientForecast
-	482,  // 590: rimgovernor.observations.v1.ComfortSurface.adjacent:type_name -> rimgovernor.common.v1.Cell
-	484,  // 591: rimgovernor.observations.v1.ComfortSurface.room:type_name -> rimgovernor.common.v1.Ref
-	484,  // 592: rimgovernor.observations.v1.ComfortFacility.accessible_to:type_name -> rimgovernor.common.v1.Ref
-	484,  // 593: rimgovernor.observations.v1.ComfortFacility.users:type_name -> rimgovernor.common.v1.Ref
-	484,  // 594: rimgovernor.observations.v1.ComfortFacility.room:type_name -> rimgovernor.common.v1.Ref
-	265,  // 595: rimgovernor.observations.v1.RecreationCensus.pawns:type_name -> rimgovernor.observations.v1.JoyTolerance
-	266,  // 596: rimgovernor.observations.v1.RecreationCensus.methods:type_name -> rimgovernor.observations.v1.JoyBuildingMethod
-	263,  // 597: rimgovernor.observations.v1.ComfortFacts.surfaces:type_name -> rimgovernor.observations.v1.ComfortSurface
-	264,  // 598: rimgovernor.observations.v1.ComfortFacts.dining:type_name -> rimgovernor.observations.v1.ComfortFacility
-	264,  // 599: rimgovernor.observations.v1.ComfortFacts.recreation:type_name -> rimgovernor.observations.v1.ComfortFacility
-	267,  // 600: rimgovernor.observations.v1.ComfortFacts.joy:type_name -> rimgovernor.observations.v1.RecreationCensus
-	484,  // 601: rimgovernor.observations.v1.UpkeepItem.item:type_name -> rimgovernor.common.v1.Ref
-	484,  // 602: rimgovernor.observations.v1.UpkeepBed.bed:type_name -> rimgovernor.common.v1.Ref
-	484,  // 603: rimgovernor.observations.v1.UpkeepBed.owners:type_name -> rimgovernor.common.v1.Ref
-	484,  // 604: rimgovernor.observations.v1.UpkeepBed.users:type_name -> rimgovernor.common.v1.Ref
-	484,  // 605: rimgovernor.observations.v1.UpkeepBed.accessible_to:type_name -> rimgovernor.common.v1.Ref
-	484,  // 606: rimgovernor.observations.v1.UpkeepBed.room:type_name -> rimgovernor.common.v1.Ref
-	482,  // 607: rimgovernor.observations.v1.StorageCell.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 608: rimgovernor.observations.v1.UpkeepStructure.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 609: rimgovernor.observations.v1.FireState.fire:type_name -> rimgovernor.common.v1.Ref
-	484,  // 610: rimgovernor.observations.v1.FireState.safe_workers:type_name -> rimgovernor.common.v1.Ref
-	484,  // 611: rimgovernor.observations.v1.FilthState.filth:type_name -> rimgovernor.common.v1.Ref
-	484,  // 612: rimgovernor.observations.v1.FilthState.room:type_name -> rimgovernor.common.v1.Ref
-	482,  // 613: rimgovernor.observations.v1.ProtectedCell.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 614: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.common.v1.Ref
-	484,  // 615: rimgovernor.observations.v1.UpkeepPerson.owned_bed:type_name -> rimgovernor.common.v1.Ref
-	484,  // 616: rimgovernor.observations.v1.UpkeepPerson.partners:type_name -> rimgovernor.common.v1.Ref
-	279,  // 617: rimgovernor.observations.v1.UpkeepPerson.title:type_name -> rimgovernor.observations.v1.RoyalTitleFacts
-	278,  // 618: rimgovernor.observations.v1.RoyalTitleFacts.bedroom_things:type_name -> rimgovernor.observations.v1.BedroomThingRequirement
-	278,  // 619: rimgovernor.observations.v1.RoyalTitleRung.bedroom_things:type_name -> rimgovernor.observations.v1.BedroomThingRequirement
-	282,  // 620: rimgovernor.observations.v1.PawnRoyalHolding.permit_cooldowns:type_name -> rimgovernor.observations.v1.PermitCooldown
-	20,   // 621: rimgovernor.observations.v1.PawnPsycast.target_kind:type_name -> rimgovernor.observations.v1.PsycastTargetKind
-	484,  // 622: rimgovernor.observations.v1.PawnRoyalty.pawn:type_name -> rimgovernor.common.v1.Ref
-	283,  // 623: rimgovernor.observations.v1.PawnRoyalty.holdings:type_name -> rimgovernor.observations.v1.PawnRoyalHolding
-	284,  // 624: rimgovernor.observations.v1.PawnRoyalty.psycasts:type_name -> rimgovernor.observations.v1.PawnPsycast
-	484,  // 625: rimgovernor.observations.v1.BestowingCeremony.pawn:type_name -> rimgovernor.common.v1.Ref
-	484,  // 626: rimgovernor.observations.v1.BestowingCeremony.bestower:type_name -> rimgovernor.common.v1.Ref
-	482,  // 627: rimgovernor.observations.v1.BestowingCeremony.spot:type_name -> rimgovernor.common.v1.Cell
-	484,  // 628: rimgovernor.observations.v1.BestowingCeremony.attendees:type_name -> rimgovernor.common.v1.Ref
-	484,  // 629: rimgovernor.observations.v1.RoyalThrone.thing:type_name -> rimgovernor.common.v1.Ref
-	484,  // 630: rimgovernor.observations.v1.RoyalThrone.owner:type_name -> rimgovernor.common.v1.Ref
-	480,  // 631: rimgovernor.observations.v1.RoyaltyFacts.context:type_name -> rimgovernor.common.v1.ObservationContext
-	280,  // 632: rimgovernor.observations.v1.RoyaltyFacts.ladder:type_name -> rimgovernor.observations.v1.RoyalTitleRung
-	281,  // 633: rimgovernor.observations.v1.RoyaltyFacts.permits:type_name -> rimgovernor.observations.v1.RoyalPermitDef
-	286,  // 634: rimgovernor.observations.v1.RoyaltyFacts.pawns:type_name -> rimgovernor.observations.v1.PawnRoyalty
-	285,  // 635: rimgovernor.observations.v1.RoyaltyFacts.neuroformers:type_name -> rimgovernor.observations.v1.NeuroformerStock
-	287,  // 636: rimgovernor.observations.v1.RoyaltyFacts.ceremonies:type_name -> rimgovernor.observations.v1.BestowingCeremony
-	288,  // 637: rimgovernor.observations.v1.RoyaltyFacts.thrones:type_name -> rimgovernor.observations.v1.RoyalThrone
-	28,   // 638: rimgovernor.observations.v1.RoyaltyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	289,  // 639: rimgovernor.observations.v1.RoyaltyFactsReply.observed:type_name -> rimgovernor.observations.v1.RoyaltyFacts
-	481,  // 640: rimgovernor.observations.v1.RoyaltyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 641: rimgovernor.observations.v1.RoyaltyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	292,  // 642: rimgovernor.observations.v1.AnimalRaceFacts.products:type_name -> rimgovernor.observations.v1.AnimalProduct
-	293,  // 643: rimgovernor.observations.v1.AnimalRaceFacts.feed_items:type_name -> rimgovernor.observations.v1.AnimalFeedItem
-	480,  // 644: rimgovernor.observations.v1.AnimalRaceCatalog.context:type_name -> rimgovernor.common.v1.ObservationContext
-	294,  // 645: rimgovernor.observations.v1.AnimalRaceCatalog.races:type_name -> rimgovernor.observations.v1.AnimalRaceFacts
-	28,   // 646: rimgovernor.observations.v1.AnimalRaceCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	295,  // 647: rimgovernor.observations.v1.AnimalRaceCatalogReply.observed:type_name -> rimgovernor.observations.v1.AnimalRaceCatalog
-	481,  // 648: rimgovernor.observations.v1.AnimalRaceCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 649: rimgovernor.observations.v1.AnimalRaceCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 650: rimgovernor.observations.v1.FeedDefinition.eaters:type_name -> rimgovernor.common.v1.Ref
-	484,  // 651: rimgovernor.observations.v1.AnimalFeedStorage.zone:type_name -> rimgovernor.common.v1.Ref
-	484,  // 652: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.common.v1.Ref
-	484,  // 653: rimgovernor.observations.v1.AnimalFeed.suitable_pen:type_name -> rimgovernor.common.v1.Ref
-	256,  // 654: rimgovernor.observations.v1.AnimalFeed.reachable_stored_feed:type_name -> rimgovernor.observations.v1.FoodStock
-	484,  // 655: rimgovernor.observations.v1.AnimalFeed.reachable_benches:type_name -> rimgovernor.common.v1.Ref
-	299,  // 656: rimgovernor.observations.v1.AnimalFeed.reachable_storage:type_name -> rimgovernor.observations.v1.AnimalFeedStorage
-	482,  // 657: rimgovernor.observations.v1.AnimalFeed.storage_candidates:type_name -> rimgovernor.common.v1.Cell
-	484,  // 658: rimgovernor.observations.v1.DevelopmentPower.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 659: rimgovernor.observations.v1.DevelopmentFurniture.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 660: rimgovernor.observations.v1.SteamGeyser.geyser:type_name -> rimgovernor.common.v1.Ref
-	482,  // 661: rimgovernor.observations.v1.SteamGeyser.cells:type_name -> rimgovernor.common.v1.Cell
-	301,  // 662: rimgovernor.observations.v1.DevelopmentFacts.power:type_name -> rimgovernor.observations.v1.DevelopmentPower
-	302,  // 663: rimgovernor.observations.v1.DevelopmentFacts.furniture:type_name -> rimgovernor.observations.v1.DevelopmentFurniture
-	116,  // 664: rimgovernor.observations.v1.DevelopmentFacts.networks:type_name -> rimgovernor.observations.v1.PowerNetwork
-	303,  // 665: rimgovernor.observations.v1.DevelopmentFacts.geysers:type_name -> rimgovernor.observations.v1.SteamGeyser
-	31,   // 666: rimgovernor.observations.v1.FoodClimate.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 667: rimgovernor.observations.v1.FarmFacts.zone:type_name -> rimgovernor.common.v1.Ref
-	50,   // 668: rimgovernor.observations.v1.PlanningDefinition.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
-	49,   // 669: rimgovernor.observations.v1.PlanningDefinition.size:type_name -> rimgovernor.observations.v1.MapSize
-	53,   // 670: rimgovernor.observations.v1.PlanningDefinition.costs:type_name -> rimgovernor.observations.v1.Quantity
-	31,   // 671: rimgovernor.observations.v1.PlanningDefinition.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	172,  // 672: rimgovernor.observations.v1.PlanningDefinition.stuff_options:type_name -> rimgovernor.observations.v1.StuffOption
-	484,  // 673: rimgovernor.observations.v1.GrowLight.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 674: rimgovernor.observations.v1.GrowLight.room:type_name -> rimgovernor.common.v1.Ref
-	482,  // 675: rimgovernor.observations.v1.GrowLight.growth_cells:type_name -> rimgovernor.common.v1.Cell
-	31,   // 676: rimgovernor.observations.v1.GrowLight.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 677: rimgovernor.observations.v1.PlantGrower.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 678: rimgovernor.observations.v1.PlantGrower.room:type_name -> rimgovernor.common.v1.Ref
-	482,  // 679: rimgovernor.observations.v1.PlantGrower.plant_cells:type_name -> rimgovernor.common.v1.Cell
-	31,   // 680: rimgovernor.observations.v1.PlantGrower.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 681: rimgovernor.observations.v1.GrowRoom.room:type_name -> rimgovernor.common.v1.Ref
-	309,  // 682: rimgovernor.observations.v1.ControlledEnvironment.lights:type_name -> rimgovernor.observations.v1.GrowLight
-	310,  // 683: rimgovernor.observations.v1.ControlledEnvironment.growers:type_name -> rimgovernor.observations.v1.PlantGrower
-	311,  // 684: rimgovernor.observations.v1.ControlledEnvironment.rooms:type_name -> rimgovernor.observations.v1.GrowRoom
-	312,  // 685: rimgovernor.observations.v1.ControlledEnvironment.networks:type_name -> rimgovernor.observations.v1.PowerHeadroom
-	31,   // 686: rimgovernor.observations.v1.ControlledEnvironment.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	238,  // 687: rimgovernor.observations.v1.PlanningFacts.gear:type_name -> rimgovernor.observations.v1.GearSnapshot
-	31,   // 688: rimgovernor.observations.v1.PlanningFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	313,  // 689: rimgovernor.observations.v1.PlanningFacts.environment:type_name -> rimgovernor.observations.v1.ControlledEnvironment
-	314,  // 690: rimgovernor.observations.v1.PlanningFacts.crops:type_name -> rimgovernor.observations.v1.EdibleCrop
-	316,  // 691: rimgovernor.observations.v1.FoodProduction.products:type_name -> rimgovernor.observations.v1.FoodProduct
-	484,  // 692: rimgovernor.observations.v1.CookingFacts.bench:type_name -> rimgovernor.common.v1.Ref
-	107,  // 693: rimgovernor.observations.v1.CookingFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	104,  // 694: rimgovernor.observations.v1.CookingFacts.bills:type_name -> rimgovernor.observations.v1.BillState
-	317,  // 695: rimgovernor.observations.v1.CookingFacts.production:type_name -> rimgovernor.observations.v1.FoodProduction
-	484,  // 696: rimgovernor.observations.v1.CookingFacts.room:type_name -> rimgovernor.common.v1.Ref
-	29,   // 697: rimgovernor.observations.v1.CookingFacts.bench_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 698: rimgovernor.observations.v1.BlightedPlant.plant:type_name -> rimgovernor.common.v1.Ref
-	484,  // 699: rimgovernor.observations.v1.BlightedPlant.zone:type_name -> rimgovernor.common.v1.Ref
-	29,   // 700: rimgovernor.observations.v1.BlightedPlant.plant_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 701: rimgovernor.observations.v1.AcquisitionFacts.source:type_name -> rimgovernor.common.v1.Ref
-	29,   // 702: rimgovernor.observations.v1.AcquisitionFacts.source_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	484,  // 703: rimgovernor.observations.v1.ButcheringFacts.bench:type_name -> rimgovernor.common.v1.Ref
-	29,   // 704: rimgovernor.observations.v1.ButcheringFacts.bench_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	104,  // 705: rimgovernor.observations.v1.ButcheringFacts.bills:type_name -> rimgovernor.observations.v1.BillState
-	107,  // 706: rimgovernor.observations.v1.ButcheringFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
-	484,  // 707: rimgovernor.observations.v1.ButcheringFacts.room:type_name -> rimgovernor.common.v1.Ref
-	322,  // 708: rimgovernor.observations.v1.ButcheringFacts.human_butchers:type_name -> rimgovernor.observations.v1.HumanButcherCandidate
-	482,  // 709: rimgovernor.observations.v1.ButcheringFacts.human_storage_cells:type_name -> rimgovernor.common.v1.Cell
-	95,   // 710: rimgovernor.observations.v1.FoodCorpse.corpse:type_name -> rimgovernor.observations.v1.CorpseState
-	31,   // 711: rimgovernor.observations.v1.ColonyNaming.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	325,  // 712: rimgovernor.observations.v1.ChoiceDialog.options:type_name -> rimgovernor.observations.v1.ChoiceDialogOption
-	268,  // 713: rimgovernor.observations.v1.ComfortSection.observed:type_name -> rimgovernor.observations.v1.ComfortFacts
-	481,  // 714: rimgovernor.observations.v1.ComfortSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	259,  // 715: rimgovernor.observations.v1.FoodSupplySection.observed:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
-	481,  // 716: rimgovernor.observations.v1.FoodSupplySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	262,  // 717: rimgovernor.observations.v1.ForecastSection.observed:type_name -> rimgovernor.observations.v1.ForecastFacts
-	481,  // 718: rimgovernor.observations.v1.ForecastSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	304,  // 719: rimgovernor.observations.v1.DevelopmentSection.observed:type_name -> rimgovernor.observations.v1.DevelopmentFacts
-	481,  // 720: rimgovernor.observations.v1.DevelopmentSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	315,  // 721: rimgovernor.observations.v1.PlanningSection.observed:type_name -> rimgovernor.observations.v1.PlanningFacts
-	481,  // 722: rimgovernor.observations.v1.PlanningSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	332,  // 723: rimgovernor.observations.v1.WallRemovalFacts.records:type_name -> rimgovernor.observations.v1.WallRemovalRecord
-	29,   // 724: rimgovernor.observations.v1.WallRemovalFacts.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	333,  // 725: rimgovernor.observations.v1.WallRemovalSection.observed:type_name -> rimgovernor.observations.v1.WallRemovalFacts
-	481,  // 726: rimgovernor.observations.v1.WallRemovalSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 727: rimgovernor.observations.v1.HomeExtentGeometry.enclosed_interior:type_name -> rimgovernor.common.v1.Cell
-	482,  // 728: rimgovernor.observations.v1.HomeExtentGeometry.corridor:type_name -> rimgovernor.common.v1.Cell
-	482,  // 729: rimgovernor.observations.v1.HomeExtentGeometry.zone:type_name -> rimgovernor.common.v1.Cell
-	482,  // 730: rimgovernor.observations.v1.HomeCoverageTarget.cells:type_name -> rimgovernor.common.v1.Cell
-	29,   // 731: rimgovernor.observations.v1.HomeCoverageTarget.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	335,  // 732: rimgovernor.observations.v1.HomeCoverageTarget.extent_geometry:type_name -> rimgovernor.observations.v1.HomeExtentGeometry
-	336,  // 733: rimgovernor.observations.v1.HomeCoverageFacts.targets:type_name -> rimgovernor.observations.v1.HomeCoverageTarget
-	337,  // 734: rimgovernor.observations.v1.HomeCoverageSection.observed:type_name -> rimgovernor.observations.v1.HomeCoverageFacts
-	481,  // 735: rimgovernor.observations.v1.HomeCoverageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	484,  // 736: rimgovernor.observations.v1.WorkLightCell.bench:type_name -> rimgovernor.common.v1.Ref
-	482,  // 737: rimgovernor.observations.v1.WorkLightCell.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 738: rimgovernor.observations.v1.WorkLightCell.room:type_name -> rimgovernor.common.v1.Ref
-	484,  // 739: rimgovernor.observations.v1.LampState.building:type_name -> rimgovernor.common.v1.Ref
-	484,  // 740: rimgovernor.observations.v1.LampState.room:type_name -> rimgovernor.common.v1.Ref
-	339,  // 741: rimgovernor.observations.v1.LightingFacts.work_cells:type_name -> rimgovernor.observations.v1.WorkLightCell
-	340,  // 742: rimgovernor.observations.v1.LightingFacts.lamps:type_name -> rimgovernor.observations.v1.LampState
-	341,  // 743: rimgovernor.observations.v1.LightingSection.observed:type_name -> rimgovernor.observations.v1.LightingFacts
-	481,  // 744: rimgovernor.observations.v1.LightingSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 745: rimgovernor.observations.v1.FloorCell.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 746: rimgovernor.observations.v1.FloorRoom.room:type_name -> rimgovernor.common.v1.Ref
-	343,  // 747: rimgovernor.observations.v1.FloorRoom.cells:type_name -> rimgovernor.observations.v1.FloorCell
-	344,  // 748: rimgovernor.observations.v1.FlooringFacts.rooms:type_name -> rimgovernor.observations.v1.FloorRoom
-	345,  // 749: rimgovernor.observations.v1.FlooringFacts.terrains:type_name -> rimgovernor.observations.v1.FloorTerrain
-	346,  // 750: rimgovernor.observations.v1.FlooringSection.observed:type_name -> rimgovernor.observations.v1.FlooringFacts
-	481,  // 751: rimgovernor.observations.v1.FlooringSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 752: rimgovernor.observations.v1.RouteBreach.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 753: rimgovernor.observations.v1.RouteFacility.facility:type_name -> rimgovernor.common.v1.Ref
-	22,   // 754: rimgovernor.observations.v1.RouteFacility.kind:type_name -> rimgovernor.observations.v1.RouteFacilityKind
-	482,  // 755: rimgovernor.observations.v1.RouteFacility.cell:type_name -> rimgovernor.common.v1.Cell
-	484,  // 756: rimgovernor.observations.v1.RouteFacility.room:type_name -> rimgovernor.common.v1.Ref
-	348,  // 757: rimgovernor.observations.v1.RouteFacility.travel:type_name -> rimgovernor.observations.v1.RouteTravel
-	349,  // 758: rimgovernor.observations.v1.RouteFacility.breaches:type_name -> rimgovernor.observations.v1.RouteBreach
-	482,  // 759: rimgovernor.observations.v1.TrafficCell.cell:type_name -> rimgovernor.common.v1.Cell
-	21,   // 760: rimgovernor.observations.v1.TrafficCell.layer:type_name -> rimgovernor.observations.v1.TrafficLayer
-	350,  // 761: rimgovernor.observations.v1.RoutesFacts.facilities:type_name -> rimgovernor.observations.v1.RouteFacility
-	351,  // 762: rimgovernor.observations.v1.RoutesFacts.traffic:type_name -> rimgovernor.observations.v1.TrafficCell
-	352,  // 763: rimgovernor.observations.v1.RoutesSection.observed:type_name -> rimgovernor.observations.v1.RoutesFacts
-	481,  // 764: rimgovernor.observations.v1.RoutesSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	327,  // 765: rimgovernor.observations.v1.UpkeepFacts.comfort:type_name -> rimgovernor.observations.v1.ComfortSection
-	269,  // 766: rimgovernor.observations.v1.UpkeepFacts.items:type_name -> rimgovernor.observations.v1.UpkeepItem
-	270,  // 767: rimgovernor.observations.v1.UpkeepFacts.beds:type_name -> rimgovernor.observations.v1.UpkeepBed
-	271,  // 768: rimgovernor.observations.v1.UpkeepFacts.storage_cells:type_name -> rimgovernor.observations.v1.StorageCell
-	272,  // 769: rimgovernor.observations.v1.UpkeepFacts.storage_capacity:type_name -> rimgovernor.observations.v1.ItemStorageCapacity
-	273,  // 770: rimgovernor.observations.v1.UpkeepFacts.structures:type_name -> rimgovernor.observations.v1.UpkeepStructure
-	274,  // 771: rimgovernor.observations.v1.UpkeepFacts.fires:type_name -> rimgovernor.observations.v1.FireState
-	275,  // 772: rimgovernor.observations.v1.UpkeepFacts.filth:type_name -> rimgovernor.observations.v1.FilthState
-	276,  // 773: rimgovernor.observations.v1.UpkeepFacts.protected_cells:type_name -> rimgovernor.observations.v1.ProtectedCell
-	277,  // 774: rimgovernor.observations.v1.UpkeepFacts.people:type_name -> rimgovernor.observations.v1.UpkeepPerson
-	298,  // 775: rimgovernor.observations.v1.UpkeepFacts.feed_definitions:type_name -> rimgovernor.observations.v1.FeedDefinition
-	300,  // 776: rimgovernor.observations.v1.UpkeepFacts.animals:type_name -> rimgovernor.observations.v1.AnimalFeed
-	31,   // 777: rimgovernor.observations.v1.UpkeepFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	334,  // 778: rimgovernor.observations.v1.UpkeepFacts.wall_removal:type_name -> rimgovernor.observations.v1.WallRemovalSection
-	338,  // 779: rimgovernor.observations.v1.UpkeepFacts.home_coverage:type_name -> rimgovernor.observations.v1.HomeCoverageSection
-	342,  // 780: rimgovernor.observations.v1.UpkeepFacts.lighting:type_name -> rimgovernor.observations.v1.LightingSection
-	300,  // 781: rimgovernor.observations.v1.UpkeepFacts.wild_animals:type_name -> rimgovernor.observations.v1.AnimalFeed
-	347,  // 782: rimgovernor.observations.v1.UpkeepFacts.flooring:type_name -> rimgovernor.observations.v1.FlooringSection
-	353,  // 783: rimgovernor.observations.v1.UpkeepFacts.routes:type_name -> rimgovernor.observations.v1.RoutesSection
-	277,  // 784: rimgovernor.observations.v1.UpkeepFacts.slaves:type_name -> rimgovernor.observations.v1.UpkeepPerson
-	482,  // 785: rimgovernor.observations.v1.UpkeepFacts.home_cells:type_name -> rimgovernor.common.v1.Cell
-	354,  // 786: rimgovernor.observations.v1.UpkeepSection.observed:type_name -> rimgovernor.observations.v1.UpkeepFacts
-	481,  // 787: rimgovernor.observations.v1.UpkeepSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	31,   // 788: rimgovernor.observations.v1.ThreatFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	356,  // 789: rimgovernor.observations.v1.ThreatSection.observed:type_name -> rimgovernor.observations.v1.ThreatFacts
-	481,  // 790: rimgovernor.observations.v1.ThreatSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	484,  // 791: rimgovernor.observations.v1.LootItem.item:type_name -> rimgovernor.common.v1.Ref
-	358,  // 792: rimgovernor.observations.v1.LootCensus.items:type_name -> rimgovernor.observations.v1.LootItem
-	359,  // 793: rimgovernor.observations.v1.LootSection.observed:type_name -> rimgovernor.observations.v1.LootCensus
-	481,  // 794: rimgovernor.observations.v1.LootSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 795: rimgovernor.observations.v1.FishableRegion.root:type_name -> rimgovernor.common.v1.Cell
-	482,  // 796: rimgovernor.observations.v1.FishableRegion.proposed_cells:type_name -> rimgovernor.common.v1.Cell
-	361,  // 797: rimgovernor.observations.v1.FishableWater.regions:type_name -> rimgovernor.observations.v1.FishableRegion
-	362,  // 798: rimgovernor.observations.v1.FoodChannelsFacts.fishable_water:type_name -> rimgovernor.observations.v1.FishableWater
-	363,  // 799: rimgovernor.observations.v1.FoodChannelsFacts.gatherable:type_name -> rimgovernor.observations.v1.GatherableAnimal
-	364,  // 800: rimgovernor.observations.v1.FoodChannelsFacts.egg_layer:type_name -> rimgovernor.observations.v1.EggLayerAnimal
-	365,  // 801: rimgovernor.observations.v1.FoodChannelsFacts.paste_dispenser:type_name -> rimgovernor.observations.v1.PasteDispenser
-	366,  // 802: rimgovernor.observations.v1.FoodChannelsFacts.forage:type_name -> rimgovernor.observations.v1.ForagePlant
-	367,  // 803: rimgovernor.observations.v1.FoodChannelsFacts.grazing:type_name -> rimgovernor.observations.v1.PenGrazing
-	368,  // 804: rimgovernor.observations.v1.FoodChannelsFacts.slaughter:type_name -> rimgovernor.observations.v1.FoodSlaughterAnimal
-	369,  // 805: rimgovernor.observations.v1.FoodChannelsSection.observed:type_name -> rimgovernor.observations.v1.FoodChannelsFacts
-	481,  // 806: rimgovernor.observations.v1.FoodChannelsSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	482,  // 807: rimgovernor.observations.v1.DeepResourceLump.centre:type_name -> rimgovernor.common.v1.Cell
-	482,  // 808: rimgovernor.observations.v1.MineralScannerState.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 809: rimgovernor.observations.v1.DeepDrillState.position:type_name -> rimgovernor.common.v1.Cell
-	371,  // 810: rimgovernor.observations.v1.DeepResourcesFacts.lumps:type_name -> rimgovernor.observations.v1.DeepResourceLump
-	372,  // 811: rimgovernor.observations.v1.DeepResourcesFacts.ground_scanners:type_name -> rimgovernor.observations.v1.MineralScannerState
-	372,  // 812: rimgovernor.observations.v1.DeepResourcesFacts.long_range_scanners:type_name -> rimgovernor.observations.v1.MineralScannerState
-	373,  // 813: rimgovernor.observations.v1.DeepResourcesFacts.drills:type_name -> rimgovernor.observations.v1.DeepDrillState
-	374,  // 814: rimgovernor.observations.v1.DeepResourcesSection.observed:type_name -> rimgovernor.observations.v1.DeepResourcesFacts
-	481,  // 815: rimgovernor.observations.v1.DeepResourcesSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	480,  // 816: rimgovernor.observations.v1.ColonyFactsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	324,  // 817: rimgovernor.observations.v1.ColonyFactsSnapshot.naming:type_name -> rimgovernor.observations.v1.ColonyNaming
-	482,  // 818: rimgovernor.observations.v1.ColonyFactsSnapshot.center:type_name -> rimgovernor.common.v1.Cell
-	49,   // 819: rimgovernor.observations.v1.ColonyFactsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
-	53,   // 820: rimgovernor.observations.v1.ColonyFactsSnapshot.resources:type_name -> rimgovernor.observations.v1.Quantity
-	50,   // 821: rimgovernor.observations.v1.ColonyFactsSnapshot.policy_resources:type_name -> rimgovernor.observations.v1.DefinitionRef
-	305,  // 822: rimgovernor.observations.v1.ColonyFactsSnapshot.environment:type_name -> rimgovernor.observations.v1.EnvironmentCondition
-	306,  // 823: rimgovernor.observations.v1.ColonyFactsSnapshot.food_climate:type_name -> rimgovernor.observations.v1.FoodClimate
-	307,  // 824: rimgovernor.observations.v1.ColonyFactsSnapshot.farms:type_name -> rimgovernor.observations.v1.FarmFacts
-	318,  // 825: rimgovernor.observations.v1.ColonyFactsSnapshot.cooking:type_name -> rimgovernor.observations.v1.CookingFacts
-	320,  // 826: rimgovernor.observations.v1.ColonyFactsSnapshot.acquisition:type_name -> rimgovernor.observations.v1.AcquisitionFacts
-	321,  // 827: rimgovernor.observations.v1.ColonyFactsSnapshot.butchering:type_name -> rimgovernor.observations.v1.ButcheringFacts
-	323,  // 828: rimgovernor.observations.v1.ColonyFactsSnapshot.food_corpses:type_name -> rimgovernor.observations.v1.FoodCorpse
-	484,  // 829: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.common.v1.Ref
-	328,  // 830: rimgovernor.observations.v1.ColonyFactsSnapshot.food_supply:type_name -> rimgovernor.observations.v1.FoodSupplySection
-	329,  // 831: rimgovernor.observations.v1.ColonyFactsSnapshot.forecast:type_name -> rimgovernor.observations.v1.ForecastSection
-	355,  // 832: rimgovernor.observations.v1.ColonyFactsSnapshot.upkeep:type_name -> rimgovernor.observations.v1.UpkeepSection
-	330,  // 833: rimgovernor.observations.v1.ColonyFactsSnapshot.development:type_name -> rimgovernor.observations.v1.DevelopmentSection
-	331,  // 834: rimgovernor.observations.v1.ColonyFactsSnapshot.planning:type_name -> rimgovernor.observations.v1.PlanningSection
-	198,  // 835: rimgovernor.observations.v1.ColonyFactsSnapshot.recovery:type_name -> rimgovernor.observations.v1.RecoveryReply
-	194,  // 836: rimgovernor.observations.v1.ColonyFactsSnapshot.waste:type_name -> rimgovernor.observations.v1.WasteReply
-	31,   // 837: rimgovernor.observations.v1.ColonyFactsSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	326,  // 838: rimgovernor.observations.v1.ColonyFactsSnapshot.dialog:type_name -> rimgovernor.observations.v1.ChoiceDialog
-	319,  // 839: rimgovernor.observations.v1.ColonyFactsSnapshot.blighted_plants:type_name -> rimgovernor.observations.v1.BlightedPlant
-	357,  // 840: rimgovernor.observations.v1.ColonyFactsSnapshot.threat:type_name -> rimgovernor.observations.v1.ThreatSection
-	360,  // 841: rimgovernor.observations.v1.ColonyFactsSnapshot.event_loot:type_name -> rimgovernor.observations.v1.LootSection
-	402,  // 842: rimgovernor.observations.v1.ColonyFactsSnapshot.joiner_letters:type_name -> rimgovernor.observations.v1.JoinerLetter
-	370,  // 843: rimgovernor.observations.v1.ColonyFactsSnapshot.food_channels:type_name -> rimgovernor.observations.v1.FoodChannelsSection
-	375,  // 844: rimgovernor.observations.v1.ColonyFactsSnapshot.deep_resources:type_name -> rimgovernor.observations.v1.DeepResourcesSection
-	390,  // 845: rimgovernor.observations.v1.ColonyFactsSnapshot.policies:type_name -> rimgovernor.observations.v1.PolicySection
-	391,  // 846: rimgovernor.observations.v1.ColonyFactsSnapshot.biotech:type_name -> rimgovernor.observations.v1.BiotechSection
-	377,  // 847: rimgovernor.observations.v1.ColonyFactsSnapshot.odyssey:type_name -> rimgovernor.observations.v1.OdysseySection
-	378,  // 848: rimgovernor.observations.v1.OdysseySection.observed:type_name -> rimgovernor.observations.v1.OdysseyColonyFacts
-	481,  // 849: rimgovernor.observations.v1.OdysseySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	379,  // 850: rimgovernor.observations.v1.OdysseyColonyFacts.conditions:type_name -> rimgovernor.observations.v1.ActiveCondition
-	380,  // 851: rimgovernor.observations.v1.OdysseyColonyFacts.hazard_terrain:type_name -> rimgovernor.observations.v1.HazardTerrain
-	381,  // 852: rimgovernor.observations.v1.OdysseyColonyFacts.lava_emergences:type_name -> rimgovernor.observations.v1.LavaEmergenceState
-	382,  // 853: rimgovernor.observations.v1.OdysseyColonyFacts.sites:type_name -> rimgovernor.observations.v1.UndergroundSite
-	482,  // 854: rimgovernor.observations.v1.LavaEmergenceState.position:type_name -> rimgovernor.common.v1.Cell
-	383,  // 855: rimgovernor.observations.v1.UndergroundSite.hackables:type_name -> rimgovernor.observations.v1.UndergroundHackable
-	482,  // 856: rimgovernor.observations.v1.UndergroundHackable.position:type_name -> rimgovernor.common.v1.Cell
-	493,  // 857: rimgovernor.observations.v1.PolicyEntry.drug_entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
-	23,   // 858: rimgovernor.observations.v1.BookDefinition.kind:type_name -> rimgovernor.observations.v1.BookKind
-	24,   // 859: rimgovernor.observations.v1.FoodDefinition.kind:type_name -> rimgovernor.observations.v1.FoodKind
-	25,   // 860: rimgovernor.observations.v1.FoodDefinition.ingredients:type_name -> rimgovernor.observations.v1.MealIngredients
-	384,  // 861: rimgovernor.observations.v1.PolicyFacts.outfit:type_name -> rimgovernor.observations.v1.PolicyEntry
-	384,  // 862: rimgovernor.observations.v1.PolicyFacts.drug:type_name -> rimgovernor.observations.v1.PolicyEntry
-	384,  // 863: rimgovernor.observations.v1.PolicyFacts.food:type_name -> rimgovernor.observations.v1.PolicyEntry
-	384,  // 864: rimgovernor.observations.v1.PolicyFacts.reading:type_name -> rimgovernor.observations.v1.PolicyEntry
-	387,  // 865: rimgovernor.observations.v1.PolicyFacts.allowed_areas:type_name -> rimgovernor.observations.v1.AllowedAreaEntry
-	385,  // 866: rimgovernor.observations.v1.PolicyFacts.books:type_name -> rimgovernor.observations.v1.BookDefinition
-	386,  // 867: rimgovernor.observations.v1.PolicyFacts.foods:type_name -> rimgovernor.observations.v1.FoodDefinition
-	389,  // 868: rimgovernor.observations.v1.PolicyFacts.food_eaters:type_name -> rimgovernor.observations.v1.FoodEater
-	26,   // 869: rimgovernor.observations.v1.FoodEater.kind:type_name -> rimgovernor.observations.v1.FoodEaterKind
-	388,  // 870: rimgovernor.observations.v1.PolicySection.observed:type_name -> rimgovernor.observations.v1.PolicyFacts
-	481,  // 871: rimgovernor.observations.v1.PolicySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	392,  // 872: rimgovernor.observations.v1.BiotechSection.observed:type_name -> rimgovernor.observations.v1.BiotechColonyFacts
-	481,  // 873: rimgovernor.observations.v1.BiotechSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	393,  // 874: rimgovernor.observations.v1.BiotechColonyFacts.pollution:type_name -> rimgovernor.observations.v1.PollutionTotals
-	394,  // 875: rimgovernor.observations.v1.BiotechColonyFacts.polluters:type_name -> rimgovernor.observations.v1.Polluter
-	395,  // 876: rimgovernor.observations.v1.BiotechColonyFacts.wastepacks:type_name -> rimgovernor.observations.v1.Wastepack
-	396,  // 877: rimgovernor.observations.v1.BiotechColonyFacts.atomizers:type_name -> rimgovernor.observations.v1.WastepackAtomizer
-	397,  // 878: rimgovernor.observations.v1.BiotechColonyFacts.pumps:type_name -> rimgovernor.observations.v1.PollutionPump
-	398,  // 879: rimgovernor.observations.v1.BiotechColonyFacts.gestators:type_name -> rimgovernor.observations.v1.MechGestatorState
-	399,  // 880: rimgovernor.observations.v1.BiotechColonyFacts.chargers:type_name -> rimgovernor.observations.v1.MechChargerState
-	400,  // 881: rimgovernor.observations.v1.BiotechColonyFacts.babies:type_name -> rimgovernor.observations.v1.BabyCare
-	482,  // 882: rimgovernor.observations.v1.Polluter.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 883: rimgovernor.observations.v1.Wastepack.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 884: rimgovernor.observations.v1.WastepackAtomizer.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 885: rimgovernor.observations.v1.PollutionPump.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 886: rimgovernor.observations.v1.MechGestatorState.position:type_name -> rimgovernor.common.v1.Cell
-	482,  // 887: rimgovernor.observations.v1.MechChargerState.position:type_name -> rimgovernor.common.v1.Cell
-	401,  // 888: rimgovernor.observations.v1.BabyCare.autofeeders:type_name -> rimgovernor.observations.v1.BabyAutofeeder
-	28,   // 889: rimgovernor.observations.v1.ColonyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	376,  // 890: rimgovernor.observations.v1.ColonyFactsReply.observed:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
-	481,  // 891: rimgovernor.observations.v1.ColonyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 892: rimgovernor.observations.v1.ColonyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	484,  // 893: rimgovernor.observations.v1.ThreatPawn.prey:type_name -> rimgovernor.common.v1.Ref
-	484,  // 894: rimgovernor.observations.v1.ThreatPawn.pawn:type_name -> rimgovernor.common.v1.Ref
-	484,  // 895: rimgovernor.observations.v1.ThreatPawn.faction:type_name -> rimgovernor.common.v1.Ref
-	51,   // 896: rimgovernor.observations.v1.ThreatBuilding.building:type_name -> rimgovernor.observations.v1.EntityRef
-	29,   // 897: rimgovernor.observations.v1.ThreatBuilding.building_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
-	32,   // 898: rimgovernor.observations.v1.ThreatBuilding.occupied:type_name -> rimgovernor.observations.v1.Rectangle
-	405,  // 899: rimgovernor.observations.v1.ThreatsSnapshot.pawns:type_name -> rimgovernor.observations.v1.ThreatPawn
-	406,  // 900: rimgovernor.observations.v1.ThreatsSnapshot.hostile_buildings:type_name -> rimgovernor.observations.v1.ThreatBuilding
-	480,  // 901: rimgovernor.observations.v1.StatusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	407,  // 902: rimgovernor.observations.v1.StatusSnapshot.threats:type_name -> rimgovernor.observations.v1.ThreatsSnapshot
-	31,   // 903: rimgovernor.observations.v1.StatusSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	484,  // 904: rimgovernor.observations.v1.StatusSnapshot.colonists:type_name -> rimgovernor.common.v1.Ref
-	28,   // 905: rimgovernor.observations.v1.StatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	408,  // 906: rimgovernor.observations.v1.StatusReply.observed:type_name -> rimgovernor.observations.v1.StatusSnapshot
-	481,  // 907: rimgovernor.observations.v1.StatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 908: rimgovernor.observations.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 909: rimgovernor.observations.v1.BundleSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	494,  // 910: rimgovernor.observations.v1.BundleSnapshot.clock_status:type_name -> rimgovernor.clock.v1.Status
-	408,  // 911: rimgovernor.observations.v1.BundleSnapshot.emergency:type_name -> rimgovernor.observations.v1.StatusSnapshot
-	376,  // 912: rimgovernor.observations.v1.BundleSnapshot.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
-	200,  // 913: rimgovernor.observations.v1.BundleSnapshot.population:type_name -> rimgovernor.observations.v1.PopulationSnapshot
-	143,  // 914: rimgovernor.observations.v1.BundleSnapshot.research:type_name -> rimgovernor.observations.v1.ResearchSnapshot
-	117,  // 915: rimgovernor.observations.v1.BundleSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
-	220,  // 916: rimgovernor.observations.v1.BundleSnapshot.bills:type_name -> rimgovernor.observations.v1.BillsSnapshot
-	129,  // 917: rimgovernor.observations.v1.BundleSnapshot.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
-	245,  // 918: rimgovernor.observations.v1.BundleSnapshot.traders:type_name -> rimgovernor.observations.v1.TradersSnapshot
-	217,  // 919: rimgovernor.observations.v1.BundleSnapshot.world_progression:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
-	183,  // 920: rimgovernor.observations.v1.BundleSnapshot.resource_sources:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
-	495,  // 921: rimgovernor.observations.v1.BundleSnapshot.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
-	496,  // 922: rimgovernor.observations.v1.BundleSnapshot.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
-	157,  // 923: rimgovernor.observations.v1.BundleSnapshot.combat_lines_of_fire:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
-	497,  // 924: rimgovernor.observations.v1.BundleSnapshot.combat_doors:type_name -> rimgovernor.mirror.v1.CombatDoorRow
-	125,  // 925: rimgovernor.observations.v1.BundleSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomsSnapshot
-	498,  // 926: rimgovernor.observations.v1.BundleSnapshot.combat_mortars:type_name -> rimgovernor.mirror.v1.CombatMortarRow
-	412,  // 927: rimgovernor.observations.v1.BundleSnapshot.watermarks:type_name -> rimgovernor.observations.v1.SectionWatermark
-	90,   // 928: rimgovernor.observations.v1.BundleSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
-	133,  // 929: rimgovernor.observations.v1.BundleSnapshot.things:type_name -> rimgovernor.observations.v1.ThingsSnapshot
-	490,  // 930: rimgovernor.observations.v1.BundleSnapshot.grid:type_name -> rimgovernor.mirror.v1.CellGrid
-	438,  // 931: rimgovernor.observations.v1.BundleSnapshot.ideology:type_name -> rimgovernor.observations.v1.IdeologySnapshot
-	480,  // 932: rimgovernor.observations.v1.ObservationBatchSnapshot.start_context:type_name -> rimgovernor.common.v1.ObservationContext
-	480,  // 933: rimgovernor.observations.v1.ObservationBatchSnapshot.end_context:type_name -> rimgovernor.common.v1.ObservationContext
-	410,  // 934: rimgovernor.observations.v1.ObservationBatchSnapshot.status_before:type_name -> rimgovernor.observations.v1.StatusReply
-	92,   // 935: rimgovernor.observations.v1.ObservationBatchSnapshot.pawns:type_name -> rimgovernor.observations.v1.ListPawnsReply
-	100,  // 936: rimgovernor.observations.v1.ObservationBatchSnapshot.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesReply
-	119,  // 937: rimgovernor.observations.v1.ObservationBatchSnapshot.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsReply
-	127,  // 938: rimgovernor.observations.v1.ObservationBatchSnapshot.rooms:type_name -> rimgovernor.observations.v1.ListRoomsReply
-	131,  // 939: rimgovernor.observations.v1.ObservationBatchSnapshot.zones:type_name -> rimgovernor.observations.v1.ListZonesReply
-	410,  // 940: rimgovernor.observations.v1.ObservationBatchSnapshot.status_after:type_name -> rimgovernor.observations.v1.StatusReply
-	28,   // 941: rimgovernor.observations.v1.ObservationBatchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	409,  // 942: rimgovernor.observations.v1.ObservationBatchRequest.status:type_name -> rimgovernor.observations.v1.StatusRequest
-	91,   // 943: rimgovernor.observations.v1.ObservationBatchRequest.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
-	99,   // 944: rimgovernor.observations.v1.ObservationBatchRequest.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesRequest
-	118,  // 945: rimgovernor.observations.v1.ObservationBatchRequest.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsRequest
-	126,  // 946: rimgovernor.observations.v1.ObservationBatchRequest.rooms:type_name -> rimgovernor.observations.v1.ListRoomsRequest
-	130,  // 947: rimgovernor.observations.v1.ObservationBatchRequest.zones:type_name -> rimgovernor.observations.v1.ListZonesRequest
-	413,  // 948: rimgovernor.observations.v1.ObservationBatchReply.observed:type_name -> rimgovernor.observations.v1.ObservationBatchSnapshot
-	481,  // 949: rimgovernor.observations.v1.ObservationBatchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 950: rimgovernor.observations.v1.ObservationBatchReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 951: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	416,  // 952: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.categories:type_name -> rimgovernor.observations.v1.ArchitectCategory
-	28,   // 953: rimgovernor.observations.v1.ArchitectCategoriesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	418,  // 954: rimgovernor.observations.v1.ArchitectCategoriesReply.observed:type_name -> rimgovernor.observations.v1.ArchitectCategoriesSnapshot
-	481,  // 955: rimgovernor.observations.v1.ArchitectCategoriesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 956: rimgovernor.observations.v1.ArchitectCategoriesReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 957: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	417,  // 958: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.designators:type_name -> rimgovernor.observations.v1.ArchitectDesignator
-	28,   // 959: rimgovernor.observations.v1.ArchitectDesignatorsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	421,  // 960: rimgovernor.observations.v1.ArchitectDesignatorsReply.observed:type_name -> rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
-	481,  // 961: rimgovernor.observations.v1.ArchitectDesignatorsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 962: rimgovernor.observations.v1.ArchitectDesignatorsReply.failure:type_name -> rimgovernor.common.v1.Failure
-	480,  // 963: rimgovernor.observations.v1.DefinitionCatalog.context:type_name -> rimgovernor.common.v1.ObservationContext
-	308,  // 964: rimgovernor.observations.v1.DefinitionCatalog.definitions:type_name -> rimgovernor.observations.v1.PlanningDefinition
-	138,  // 965: rimgovernor.observations.v1.DefinitionCatalog.research:type_name -> rimgovernor.observations.v1.ResearchProject
-	456,  // 966: rimgovernor.observations.v1.DefinitionCatalog.biotech:type_name -> rimgovernor.observations.v1.BiotechCatalog
-	426,  // 967: rimgovernor.observations.v1.DefinitionCatalog.ideology:type_name -> rimgovernor.observations.v1.IdeologyCatalog
-	457,  // 968: rimgovernor.observations.v1.DefinitionCatalog.odyssey:type_name -> rimgovernor.observations.v1.OdysseyCatalog
-	427,  // 969: rimgovernor.observations.v1.IdeologyCatalog.memes:type_name -> rimgovernor.observations.v1.MemeDefinition
-	429,  // 970: rimgovernor.observations.v1.IdeologyCatalog.precepts:type_name -> rimgovernor.observations.v1.PreceptDefinition
-	432,  // 971: rimgovernor.observations.v1.IdeologyCatalog.roles:type_name -> rimgovernor.observations.v1.RoleDefinition
-	436,  // 972: rimgovernor.observations.v1.IdeologyCatalog.rituals:type_name -> rimgovernor.observations.v1.RitualDefinition
-	428,  // 973: rimgovernor.observations.v1.MemeDefinition.required_rituals:type_name -> rimgovernor.observations.v1.RequiredRitual
-	431,  // 974: rimgovernor.observations.v1.PreceptDefinition.effects:type_name -> rimgovernor.observations.v1.PreceptEffect
-	430,  // 975: rimgovernor.observations.v1.PreceptDefinition.buildings:type_name -> rimgovernor.observations.v1.PreceptBuilding
-	27,   // 976: rimgovernor.observations.v1.PreceptEffect.kind:type_name -> rimgovernor.observations.v1.PreceptEffectKind
-	433,  // 977: rimgovernor.observations.v1.RoleDefinition.requirements:type_name -> rimgovernor.observations.v1.RoleRequirementFact
-	435,  // 978: rimgovernor.observations.v1.RoleDefinition.effects:type_name -> rimgovernor.observations.v1.RoleEffectFact
-	434,  // 979: rimgovernor.observations.v1.RoleRequirementFact.skills:type_name -> rimgovernor.observations.v1.SkillRequirementFact
-	437,  // 980: rimgovernor.observations.v1.RitualDefinition.roles:type_name -> rimgovernor.observations.v1.RitualRoleSlot
-	480,  // 981: rimgovernor.observations.v1.IdeologySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
-	439,  // 982: rimgovernor.observations.v1.IdeologySnapshot.precepts:type_name -> rimgovernor.observations.v1.IdeoPrecept
-	440,  // 983: rimgovernor.observations.v1.IdeologySnapshot.roles:type_name -> rimgovernor.observations.v1.IdeoRole
-	441,  // 984: rimgovernor.observations.v1.IdeologySnapshot.rituals:type_name -> rimgovernor.observations.v1.IdeoRitual
-	442,  // 985: rimgovernor.observations.v1.IdeologySnapshot.buildings:type_name -> rimgovernor.observations.v1.IdeoBuilding
-	484,  // 986: rimgovernor.observations.v1.IdeoRole.pawns:type_name -> rimgovernor.common.v1.Ref
-	443,  // 987: rimgovernor.observations.v1.LifeStageRow.effects:type_name -> rimgovernor.observations.v1.StatEffect
-	447,  // 988: rimgovernor.observations.v1.RaceLifeStages.stages:type_name -> rimgovernor.observations.v1.LifeStageAgeRow
-	448,  // 989: rimgovernor.observations.v1.RaceLifeStages.work_min_ages:type_name -> rimgovernor.observations.v1.WorkMinAge
-	443,  // 990: rimgovernor.observations.v1.GeneRow.effects:type_name -> rimgovernor.observations.v1.StatEffect
-	444,  // 991: rimgovernor.observations.v1.GeneRow.aptitudes:type_name -> rimgovernor.observations.v1.SkillLevel
-	451,  // 992: rimgovernor.observations.v1.GeneRow.passion_mods:type_name -> rimgovernor.observations.v1.PassionEffect
-	445,  // 993: rimgovernor.observations.v1.GeneRow.capacity_effects:type_name -> rimgovernor.observations.v1.CapacityEffect
-	453,  // 994: rimgovernor.observations.v1.MechKindRow.work_priorities:type_name -> rimgovernor.observations.v1.MechWorkPriority
-	446,  // 995: rimgovernor.observations.v1.BiotechCatalog.life_stages:type_name -> rimgovernor.observations.v1.LifeStageRow
-	449,  // 996: rimgovernor.observations.v1.BiotechCatalog.races:type_name -> rimgovernor.observations.v1.RaceLifeStages
-	450,  // 997: rimgovernor.observations.v1.BiotechCatalog.genes:type_name -> rimgovernor.observations.v1.GeneRow
-	452,  // 998: rimgovernor.observations.v1.BiotechCatalog.xenotypes:type_name -> rimgovernor.observations.v1.XenotypeRow
-	454,  // 999: rimgovernor.observations.v1.BiotechCatalog.mech_kinds:type_name -> rimgovernor.observations.v1.MechKindRow
-	455,  // 1000: rimgovernor.observations.v1.BiotechCatalog.mech_work_modes:type_name -> rimgovernor.observations.v1.MechWorkModeRow
-	460,  // 1001: rimgovernor.observations.v1.OdysseyCatalog.biomes:type_name -> rimgovernor.observations.v1.BiomeRow
-	461,  // 1002: rimgovernor.observations.v1.OdysseyCatalog.tile_mutators:type_name -> rimgovernor.observations.v1.TileMutatorRow
-	462,  // 1003: rimgovernor.observations.v1.OdysseyCatalog.hackables:type_name -> rimgovernor.observations.v1.HackableRow
-	463,  // 1004: rimgovernor.observations.v1.OdysseyCatalog.portals:type_name -> rimgovernor.observations.v1.PortalRow
-	464,  // 1005: rimgovernor.observations.v1.OdysseyCatalog.stockpile_types:type_name -> rimgovernor.observations.v1.StockpileTypeRow
-	458,  // 1006: rimgovernor.observations.v1.BiomeRow.wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
-	458,  // 1007: rimgovernor.observations.v1.BiomeRow.pollution_wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
-	458,  // 1008: rimgovernor.observations.v1.BiomeRow.coastal_wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
-	459,  // 1009: rimgovernor.observations.v1.BiomeRow.diseases:type_name -> rimgovernor.observations.v1.BiomeDisease
-	466,  // 1010: rimgovernor.observations.v1.OdysseyBuilding.hackable:type_name -> rimgovernor.observations.v1.HackableState
-	467,  // 1011: rimgovernor.observations.v1.OdysseyBuilding.portal:type_name -> rimgovernor.observations.v1.PortalState
-	31,   // 1012: rimgovernor.observations.v1.OdysseyBuilding.issues:type_name -> rimgovernor.observations.v1.ReadIssue
-	28,   // 1013: rimgovernor.observations.v1.DefinitionCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
-	425,  // 1014: rimgovernor.observations.v1.DefinitionCatalogReply.observed:type_name -> rimgovernor.observations.v1.DefinitionCatalog
-	481,  // 1015: rimgovernor.observations.v1.DefinitionCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 1016: rimgovernor.observations.v1.DefinitionCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
-	470,  // 1017: rimgovernor.observations.v1.SnapshotStreamReply.opened:type_name -> rimgovernor.observations.v1.SnapshotStreamOpened
-	481,  // 1018: rimgovernor.observations.v1.SnapshotStreamReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	483,  // 1019: rimgovernor.observations.v1.SnapshotStreamReply.failure:type_name -> rimgovernor.common.v1.Failure
-	483,  // 1020: rimgovernor.observations.v1.FlushSnapshotReply.failure:type_name -> rimgovernor.common.v1.Failure
-	13,   // 1021: rimgovernor.observations.v1.TradeFoodFacts.ingredient_class:type_name -> rimgovernor.observations.v1.FoodIngredientClass
-	476,  // 1022: rimgovernor.observations.v1.ApparelPolicyState.definitions:type_name -> rimgovernor.observations.v1.ApparelPolicyDefinition
-	68,   // 1023: rimgovernor.observations.v1.ApparelPolicyState.work:type_name -> rimgovernor.observations.v1.WorkSetting
-	66,   // 1024: rimgovernor.observations.v1.ApparelPolicyState.skills:type_name -> rimgovernor.observations.v1.Skill
-	38,   // 1025: rimgovernor.observations.v1.Observations.GetClearanceTargets:input_type -> rimgovernor.observations.v1.ClearanceTargetsRequest
-	46,   // 1026: rimgovernor.observations.v1.Observations.GetAncientShrines:input_type -> rimgovernor.observations.v1.AncientShrinesRequest
-	419,  // 1027: rimgovernor.observations.v1.Observations.ListArchitectCategories:input_type -> rimgovernor.observations.v1.ArchitectCategoriesRequest
-	422,  // 1028: rimgovernor.observations.v1.Observations.ListArchitectDesignators:input_type -> rimgovernor.observations.v1.ArchitectDesignatorsRequest
-	409,  // 1029: rimgovernor.observations.v1.Observations.ReadStatus:input_type -> rimgovernor.observations.v1.StatusRequest
-	414,  // 1030: rimgovernor.observations.v1.Observations.ReadObservationBatch:input_type -> rimgovernor.observations.v1.ObservationBatchRequest
-	424,  // 1031: rimgovernor.observations.v1.Observations.OpenSnapshotStream:input_type -> rimgovernor.observations.v1.SnapshotStreamRequest
-	472,  // 1032: rimgovernor.observations.v1.Observations.FlushSnapshot:input_type -> rimgovernor.observations.v1.FlushSnapshotRequest
-	91,   // 1033: rimgovernor.observations.v1.Observations.ListPawns:input_type -> rimgovernor.observations.v1.ListPawnsRequest
-	99,   // 1034: rimgovernor.observations.v1.Observations.ListSupplies:input_type -> rimgovernor.observations.v1.ListSuppliesRequest
-	118,  // 1035: rimgovernor.observations.v1.Observations.ListBuildings:input_type -> rimgovernor.observations.v1.ListBuildingsRequest
-	126,  // 1036: rimgovernor.observations.v1.Observations.ListRooms:input_type -> rimgovernor.observations.v1.ListRoomsRequest
-	130,  // 1037: rimgovernor.observations.v1.Observations.ListZones:input_type -> rimgovernor.observations.v1.ListZonesRequest
-	135,  // 1038: rimgovernor.observations.v1.Observations.GetCells:input_type -> rimgovernor.observations.v1.GetCellsRequest
-	144,  // 1039: rimgovernor.observations.v1.Observations.ReadResearch:input_type -> rimgovernor.observations.v1.ResearchRequest
-	468,  // 1040: rimgovernor.observations.v1.Observations.ReadDefinitionCatalog:input_type -> rimgovernor.observations.v1.DefinitionCatalogRequest
-	403,  // 1041: rimgovernor.observations.v1.Observations.ReadColonyFacts:input_type -> rimgovernor.observations.v1.ColonyFactsRequest
-	149,  // 1042: rimgovernor.observations.v1.Observations.ReadSpatialAccess:input_type -> rimgovernor.observations.v1.SpatialAccessRequest
-	162,  // 1043: rimgovernor.observations.v1.Observations.ReadRoofSupport:input_type -> rimgovernor.observations.v1.RoofSupportRequest
-	166,  // 1044: rimgovernor.observations.v1.Observations.ReadExcavationSite:input_type -> rimgovernor.observations.v1.ExcavationSiteRequest
-	168,  // 1045: rimgovernor.observations.v1.Observations.ReadPlantCutCensus:input_type -> rimgovernor.observations.v1.PlantCutCensusRequest
-	154,  // 1046: rimgovernor.observations.v1.Observations.ReadDefenseSite:input_type -> rimgovernor.observations.v1.DefenseSiteRequest
-	158,  // 1047: rimgovernor.observations.v1.Observations.ReadLinesOfFire:input_type -> rimgovernor.observations.v1.LinesOfFireRequest
-	175,  // 1048: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:input_type -> rimgovernor.observations.v1.WallUpgradeSitesRequest
-	184,  // 1049: rimgovernor.observations.v1.Observations.ListResourceSources:input_type -> rimgovernor.observations.v1.ResourceSourcesRequest
-	189,  // 1050: rimgovernor.observations.v1.Observations.ReadHusbandry:input_type -> rimgovernor.observations.v1.HusbandryRequest
-	290,  // 1051: rimgovernor.observations.v1.Observations.ReadRoyaltyFacts:input_type -> rimgovernor.observations.v1.RoyaltyFactsRequest
-	296,  // 1052: rimgovernor.observations.v1.Observations.ReadAnimalRaceCatalog:input_type -> rimgovernor.observations.v1.AnimalRaceCatalogRequest
-	193,  // 1053: rimgovernor.observations.v1.Observations.ReadWaste:input_type -> rimgovernor.observations.v1.WasteRequest
-	197,  // 1054: rimgovernor.observations.v1.Observations.ReadRecovery:input_type -> rimgovernor.observations.v1.RecoveryRequest
-	202,  // 1055: rimgovernor.observations.v1.Observations.ReadPopulation:input_type -> rimgovernor.observations.v1.PopulationRequest
-	207,  // 1056: rimgovernor.observations.v1.Observations.ReadWorld:input_type -> rimgovernor.observations.v1.WorldRequest
-	218,  // 1057: rimgovernor.observations.v1.Observations.ReadWorldProgression:input_type -> rimgovernor.observations.v1.WorldProgressionRequest
-	221,  // 1058: rimgovernor.observations.v1.Observations.ReadBills:input_type -> rimgovernor.observations.v1.BillsRequest
-	224,  // 1059: rimgovernor.observations.v1.Observations.ReadRecipes:input_type -> rimgovernor.observations.v1.RecipesRequest
-	226,  // 1060: rimgovernor.observations.v1.Observations.ReadBuildingSettings:input_type -> rimgovernor.observations.v1.BuildingSettingsRequest
-	228,  // 1061: rimgovernor.observations.v1.Observations.ReadPawnSettings:input_type -> rimgovernor.observations.v1.PawnSettingsRequest
-	231,  // 1062: rimgovernor.observations.v1.Observations.ResolveTarget:input_type -> rimgovernor.observations.v1.ResolveTargetRequest
-	242,  // 1063: rimgovernor.observations.v1.Observations.ReadGear:input_type -> rimgovernor.observations.v1.GearRequest
-	246,  // 1064: rimgovernor.observations.v1.Observations.ListTraders:input_type -> rimgovernor.observations.v1.TradersRequest
-	253,  // 1065: rimgovernor.observations.v1.Observations.ReadTradeSheet:input_type -> rimgovernor.observations.v1.TradeSheetRequest
-	250,  // 1066: rimgovernor.observations.v1.Observations.ReadTradeSession:input_type -> rimgovernor.observations.v1.TradeSessionRequest
-	40,   // 1067: rimgovernor.observations.v1.Observations.GetClearanceTargets:output_type -> rimgovernor.observations.v1.ClearanceTargetsReply
-	48,   // 1068: rimgovernor.observations.v1.Observations.GetAncientShrines:output_type -> rimgovernor.observations.v1.AncientShrinesReply
-	420,  // 1069: rimgovernor.observations.v1.Observations.ListArchitectCategories:output_type -> rimgovernor.observations.v1.ArchitectCategoriesReply
-	423,  // 1070: rimgovernor.observations.v1.Observations.ListArchitectDesignators:output_type -> rimgovernor.observations.v1.ArchitectDesignatorsReply
-	410,  // 1071: rimgovernor.observations.v1.Observations.ReadStatus:output_type -> rimgovernor.observations.v1.StatusReply
-	415,  // 1072: rimgovernor.observations.v1.Observations.ReadObservationBatch:output_type -> rimgovernor.observations.v1.ObservationBatchReply
-	471,  // 1073: rimgovernor.observations.v1.Observations.OpenSnapshotStream:output_type -> rimgovernor.observations.v1.SnapshotStreamReply
-	473,  // 1074: rimgovernor.observations.v1.Observations.FlushSnapshot:output_type -> rimgovernor.observations.v1.FlushSnapshotReply
-	92,   // 1075: rimgovernor.observations.v1.Observations.ListPawns:output_type -> rimgovernor.observations.v1.ListPawnsReply
-	100,  // 1076: rimgovernor.observations.v1.Observations.ListSupplies:output_type -> rimgovernor.observations.v1.ListSuppliesReply
-	119,  // 1077: rimgovernor.observations.v1.Observations.ListBuildings:output_type -> rimgovernor.observations.v1.ListBuildingsReply
-	127,  // 1078: rimgovernor.observations.v1.Observations.ListRooms:output_type -> rimgovernor.observations.v1.ListRoomsReply
-	131,  // 1079: rimgovernor.observations.v1.Observations.ListZones:output_type -> rimgovernor.observations.v1.ListZonesReply
-	136,  // 1080: rimgovernor.observations.v1.Observations.GetCells:output_type -> rimgovernor.observations.v1.GetCellsReply
-	145,  // 1081: rimgovernor.observations.v1.Observations.ReadResearch:output_type -> rimgovernor.observations.v1.ResearchReply
-	469,  // 1082: rimgovernor.observations.v1.Observations.ReadDefinitionCatalog:output_type -> rimgovernor.observations.v1.DefinitionCatalogReply
-	404,  // 1083: rimgovernor.observations.v1.Observations.ReadColonyFacts:output_type -> rimgovernor.observations.v1.ColonyFactsReply
-	150,  // 1084: rimgovernor.observations.v1.Observations.ReadSpatialAccess:output_type -> rimgovernor.observations.v1.SpatialAccessReply
-	163,  // 1085: rimgovernor.observations.v1.Observations.ReadRoofSupport:output_type -> rimgovernor.observations.v1.RoofSupportReply
-	167,  // 1086: rimgovernor.observations.v1.Observations.ReadExcavationSite:output_type -> rimgovernor.observations.v1.ExcavationSiteReply
-	171,  // 1087: rimgovernor.observations.v1.Observations.ReadPlantCutCensus:output_type -> rimgovernor.observations.v1.PlantCutCensusReply
-	155,  // 1088: rimgovernor.observations.v1.Observations.ReadDefenseSite:output_type -> rimgovernor.observations.v1.DefenseSiteReply
-	159,  // 1089: rimgovernor.observations.v1.Observations.ReadLinesOfFire:output_type -> rimgovernor.observations.v1.LinesOfFireReply
-	176,  // 1090: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:output_type -> rimgovernor.observations.v1.WallUpgradeSitesReply
-	185,  // 1091: rimgovernor.observations.v1.Observations.ListResourceSources:output_type -> rimgovernor.observations.v1.ResourceSourcesReply
-	190,  // 1092: rimgovernor.observations.v1.Observations.ReadHusbandry:output_type -> rimgovernor.observations.v1.HusbandryReply
-	291,  // 1093: rimgovernor.observations.v1.Observations.ReadRoyaltyFacts:output_type -> rimgovernor.observations.v1.RoyaltyFactsReply
-	297,  // 1094: rimgovernor.observations.v1.Observations.ReadAnimalRaceCatalog:output_type -> rimgovernor.observations.v1.AnimalRaceCatalogReply
-	194,  // 1095: rimgovernor.observations.v1.Observations.ReadWaste:output_type -> rimgovernor.observations.v1.WasteReply
-	198,  // 1096: rimgovernor.observations.v1.Observations.ReadRecovery:output_type -> rimgovernor.observations.v1.RecoveryReply
-	203,  // 1097: rimgovernor.observations.v1.Observations.ReadPopulation:output_type -> rimgovernor.observations.v1.PopulationReply
-	208,  // 1098: rimgovernor.observations.v1.Observations.ReadWorld:output_type -> rimgovernor.observations.v1.WorldReply
-	219,  // 1099: rimgovernor.observations.v1.Observations.ReadWorldProgression:output_type -> rimgovernor.observations.v1.WorldProgressionReply
-	222,  // 1100: rimgovernor.observations.v1.Observations.ReadBills:output_type -> rimgovernor.observations.v1.BillsReply
-	225,  // 1101: rimgovernor.observations.v1.Observations.ReadRecipes:output_type -> rimgovernor.observations.v1.RecipesReply
-	227,  // 1102: rimgovernor.observations.v1.Observations.ReadBuildingSettings:output_type -> rimgovernor.observations.v1.BuildingSettingsReply
-	229,  // 1103: rimgovernor.observations.v1.Observations.ReadPawnSettings:output_type -> rimgovernor.observations.v1.PawnSettingsReply
-	232,  // 1104: rimgovernor.observations.v1.Observations.ResolveTarget:output_type -> rimgovernor.observations.v1.ResolveTargetReply
-	243,  // 1105: rimgovernor.observations.v1.Observations.ReadGear:output_type -> rimgovernor.observations.v1.GearReply
-	247,  // 1106: rimgovernor.observations.v1.Observations.ListTraders:output_type -> rimgovernor.observations.v1.TradersReply
-	254,  // 1107: rimgovernor.observations.v1.Observations.ReadTradeSheet:output_type -> rimgovernor.observations.v1.TradeSheetReply
-	251,  // 1108: rimgovernor.observations.v1.Observations.ReadTradeSession:output_type -> rimgovernor.observations.v1.TradeSessionReply
-	1067, // [1067:1109] is the sub-list for method output_type
-	1025, // [1025:1067] is the sub-list for method input_type
-	1025, // [1025:1025] is the sub-list for extension type_name
-	1025, // [1025:1025] is the sub-list for extension extendee
-	0,    // [0:1025] is the sub-list for field type_name
+	52,   // 69: rimgovernor.observations.v1.PawnBiography.childhood:type_name -> rimgovernor.observations.v1.DefinitionRef
+	52,   // 70: rimgovernor.observations.v1.PawnBiography.adulthood:type_name -> rimgovernor.observations.v1.DefinitionRef
+	68,   // 71: rimgovernor.observations.v1.PawnBiography.skills:type_name -> rimgovernor.observations.v1.Skill
+	69,   // 72: rimgovernor.observations.v1.PawnBiography.traits:type_name -> rimgovernor.observations.v1.Trait
+	33,   // 73: rimgovernor.observations.v1.PawnBiography.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 74: rimgovernor.observations.v1.Relation.other:type_name -> rimgovernor.common.v1.Ref
+	73,   // 75: rimgovernor.observations.v1.PawnSocial.memories:type_name -> rimgovernor.observations.v1.Thought
+	73,   // 76: rimgovernor.observations.v1.PawnSocial.situational:type_name -> rimgovernor.observations.v1.Thought
+	74,   // 77: rimgovernor.observations.v1.PawnSocial.relations:type_name -> rimgovernor.observations.v1.Relation
+	33,   // 78: rimgovernor.observations.v1.PawnSocial.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	501,  // 79: rimgovernor.observations.v1.PawnSettings.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	502,  // 80: rimgovernor.observations.v1.PawnSettings.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
+	70,   // 81: rimgovernor.observations.v1.PawnSettings.work:type_name -> rimgovernor.observations.v1.WorkSetting
+	71,   // 82: rimgovernor.observations.v1.PawnSettings.schedule:type_name -> rimgovernor.observations.v1.TimetableSlot
+	52,   // 83: rimgovernor.observations.v1.PawnSettings.allowed_areas:type_name -> rimgovernor.observations.v1.DefinitionRef
+	501,  // 84: rimgovernor.observations.v1.PawnSettings.medical_care_options:type_name -> rimgovernor.operations.v1.MedicalCare
+	502,  // 85: rimgovernor.observations.v1.PawnSettings.hostility_response_options:type_name -> rimgovernor.operations.v1.HostilityResponse
+	33,   // 86: rimgovernor.observations.v1.PawnSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	491,  // 87: rimgovernor.observations.v1.PawnSettings.food_restriction:type_name -> rimgovernor.observations.v1.FoodRestriction
+	77,   // 88: rimgovernor.observations.v1.PawnSettings.policy_inputs:type_name -> rimgovernor.observations.v1.PawnPolicyInputs
+	78,   // 89: rimgovernor.observations.v1.PawnPolicyInputs.inventory_stock:type_name -> rimgovernor.observations.v1.InventoryStockSetting
+	79,   // 90: rimgovernor.observations.v1.PawnPolicyInputs.chemicals:type_name -> rimgovernor.observations.v1.ChemicalState
+	80,   // 91: rimgovernor.observations.v1.PawnPolicyInputs.title_apparel:type_name -> rimgovernor.observations.v1.ApparelRequirementFact
+	80,   // 92: rimgovernor.observations.v1.PawnPolicyInputs.role_apparel:type_name -> rimgovernor.observations.v1.ApparelRequirementFact
+	81,   // 93: rimgovernor.observations.v1.AnimalState.training:type_name -> rimgovernor.observations.v1.TrainingEntry
+	33,   // 94: rimgovernor.observations.v1.AnimalState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	501,  // 95: rimgovernor.observations.v1.AnimalState.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	63,   // 96: rimgovernor.observations.v1.AnimalState.conditions:type_name -> rimgovernor.observations.v1.PawnHealth
+	53,   // 97: rimgovernor.observations.v1.PawnState.pawn:type_name -> rimgovernor.observations.v1.EntityRef
+	500,  // 98: rimgovernor.observations.v1.PawnState.faction:type_name -> rimgovernor.common.v1.Ref
+	58,   // 99: rimgovernor.observations.v1.PawnState.job:type_name -> rimgovernor.observations.v1.JobEvidence
+	59,   // 100: rimgovernor.observations.v1.PawnState.needs:type_name -> rimgovernor.observations.v1.PawnNeeds
+	63,   // 101: rimgovernor.observations.v1.PawnState.health:type_name -> rimgovernor.observations.v1.PawnHealth
+	67,   // 102: rimgovernor.observations.v1.PawnState.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
+	72,   // 103: rimgovernor.observations.v1.PawnState.biography:type_name -> rimgovernor.observations.v1.PawnBiography
+	76,   // 104: rimgovernor.observations.v1.PawnState.settings:type_name -> rimgovernor.observations.v1.PawnSettings
+	75,   // 105: rimgovernor.observations.v1.PawnState.social:type_name -> rimgovernor.observations.v1.PawnSocial
+	82,   // 106: rimgovernor.observations.v1.PawnState.animal_state:type_name -> rimgovernor.observations.v1.AnimalState
+	500,  // 107: rimgovernor.observations.v1.PawnState.nearest_colonist:type_name -> rimgovernor.common.v1.Ref
+	33,   // 108: rimgovernor.observations.v1.PawnState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 109: rimgovernor.observations.v1.PawnState.owned_bed:type_name -> rimgovernor.common.v1.Ref
+	31,   // 110: rimgovernor.observations.v1.PawnState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	89,   // 111: rimgovernor.observations.v1.PawnState.tend_doctor:type_name -> rimgovernor.observations.v1.PawnTendDoctor
+	31,   // 112: rimgovernor.observations.v1.PawnState.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	88,   // 113: rimgovernor.observations.v1.PawnState.biotech:type_name -> rimgovernor.observations.v1.PawnBiotech
+	479,  // 114: rimgovernor.observations.v1.PawnState.anomaly:type_name -> rimgovernor.observations.v1.PawnAnomaly
+	500,  // 115: rimgovernor.observations.v1.PawnMechanitor.controlled_mechs:type_name -> rimgovernor.common.v1.Ref
+	500,  // 116: rimgovernor.observations.v1.PawnMech.overseer:type_name -> rimgovernor.common.v1.Ref
+	84,   // 117: rimgovernor.observations.v1.PawnBiotech.genes:type_name -> rimgovernor.observations.v1.PawnGene
+	85,   // 118: rimgovernor.observations.v1.PawnBiotech.mechanitor:type_name -> rimgovernor.observations.v1.PawnMechanitor
+	86,   // 119: rimgovernor.observations.v1.PawnBiotech.mech:type_name -> rimgovernor.observations.v1.PawnMech
+	87,   // 120: rimgovernor.observations.v1.PawnBiotech.deathrest:type_name -> rimgovernor.observations.v1.PawnDeathrest
+	33,   // 121: rimgovernor.observations.v1.PawnBiotech.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	33,   // 122: rimgovernor.observations.v1.PawnTendDoctor.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	496,  // 123: rimgovernor.observations.v1.PawnSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	83,   // 124: rimgovernor.observations.v1.PawnSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	32,   // 125: rimgovernor.observations.v1.PawnSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 126: rimgovernor.observations.v1.ListPawnsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	90,   // 127: rimgovernor.observations.v1.ListPawnsRequest.filter:type_name -> rimgovernor.observations.v1.PawnFilter
+	91,   // 128: rimgovernor.observations.v1.ListPawnsRequest.details:type_name -> rimgovernor.observations.v1.PawnDetails
+	92,   // 129: rimgovernor.observations.v1.ListPawnsReply.observed:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	497,  // 130: rimgovernor.observations.v1.ListPawnsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 131: rimgovernor.observations.v1.ListPawnsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 132: rimgovernor.observations.v1.StockItem.item:type_name -> rimgovernor.common.v1.Ref
+	498,  // 133: rimgovernor.observations.v1.StockItem.cell:type_name -> rimgovernor.common.v1.Cell
+	31,   // 134: rimgovernor.observations.v1.StockItem.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 135: rimgovernor.observations.v1.StockItem.inner:type_name -> rimgovernor.common.v1.Ref
+	500,  // 136: rimgovernor.observations.v1.HeldStock.holder:type_name -> rimgovernor.common.v1.Ref
+	7,    // 137: rimgovernor.observations.v1.HeldStock.holder_kind:type_name -> rimgovernor.observations.v1.HolderKind
+	500,  // 138: rimgovernor.observations.v1.CorpseState.corpse:type_name -> rimgovernor.common.v1.Ref
+	500,  // 139: rimgovernor.observations.v1.CorpseState.inner_pawn:type_name -> rimgovernor.common.v1.Ref
+	8,    // 140: rimgovernor.observations.v1.CorpseState.rot_stage:type_name -> rimgovernor.observations.v1.RotStage
+	52,   // 141: rimgovernor.observations.v1.ResourceStock.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	95,   // 142: rimgovernor.observations.v1.ResourceStock.items:type_name -> rimgovernor.observations.v1.StockItem
+	96,   // 143: rimgovernor.observations.v1.ResourceStock.holders:type_name -> rimgovernor.observations.v1.HeldStock
+	97,   // 144: rimgovernor.observations.v1.ResourceStock.corpses:type_name -> rimgovernor.observations.v1.CorpseState
+	33,   // 145: rimgovernor.observations.v1.ResourceStock.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	31,   // 146: rimgovernor.observations.v1.ResourceStock.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	66,   // 147: rimgovernor.observations.v1.ResourceStock.weapon_items:type_name -> rimgovernor.observations.v1.GearItem
+	11,   // 148: rimgovernor.observations.v1.StockFilter.category:type_name -> rimgovernor.observations.v1.StockCategory
+	12,   // 149: rimgovernor.observations.v1.StockFilter.ownership:type_name -> rimgovernor.observations.v1.StockOwnership
+	34,   // 150: rimgovernor.observations.v1.StockFilter.region:type_name -> rimgovernor.observations.v1.Rectangle
+	496,  // 151: rimgovernor.observations.v1.SuppliesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	98,   // 152: rimgovernor.observations.v1.SuppliesSnapshot.stocks:type_name -> rimgovernor.observations.v1.ResourceStock
+	32,   // 153: rimgovernor.observations.v1.SuppliesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 154: rimgovernor.observations.v1.ListSuppliesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	99,   // 155: rimgovernor.observations.v1.ListSuppliesRequest.filter:type_name -> rimgovernor.observations.v1.StockFilter
+	100,  // 156: rimgovernor.observations.v1.ListSuppliesReply.observed:type_name -> rimgovernor.observations.v1.SuppliesSnapshot
+	497,  // 157: rimgovernor.observations.v1.ListSuppliesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 158: rimgovernor.observations.v1.ListSuppliesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	33,   // 159: rimgovernor.observations.v1.IngredientRequirement.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	55,   // 160: rimgovernor.observations.v1.IngredientRequirement.alternatives:type_name -> rimgovernor.observations.v1.Quantity
+	104,  // 161: rimgovernor.observations.v1.StockpileFilter.special_rules:type_name -> rimgovernor.observations.v1.FilterSpecialRule
+	52,   // 162: rimgovernor.observations.v1.BillState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	503,  // 163: rimgovernor.observations.v1.BillState.repeat_mode:type_name -> rimgovernor.operations.v1.RepeatMode
+	500,  // 164: rimgovernor.observations.v1.BillState.worker:type_name -> rimgovernor.common.v1.Ref
+	105,  // 165: rimgovernor.observations.v1.BillState.ingredient_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	504,  // 166: rimgovernor.observations.v1.BillState.store_mode:type_name -> rimgovernor.operations.v1.StoreMode
+	500,  // 167: rimgovernor.observations.v1.BillState.store_zone:type_name -> rimgovernor.common.v1.Ref
+	103,  // 168: rimgovernor.observations.v1.BillState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
+	33,   // 169: rimgovernor.observations.v1.BillState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	107,  // 170: rimgovernor.observations.v1.BillState.reservations:type_name -> rimgovernor.observations.v1.IngredientReservation
+	55,   // 171: rimgovernor.observations.v1.IngredientReservation.items:type_name -> rimgovernor.observations.v1.Quantity
+	31,   // 172: rimgovernor.observations.v1.BillStack.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 173: rimgovernor.observations.v1.BillStack.bench:type_name -> rimgovernor.common.v1.Ref
+	10,   // 174: rimgovernor.observations.v1.BillStack.unusable_reason:type_name -> rimgovernor.observations.v1.BenchUnusableReason
+	106,  // 175: rimgovernor.observations.v1.BillStack.bills:type_name -> rimgovernor.observations.v1.BillState
+	52,   // 176: rimgovernor.observations.v1.RecipeState.recipe:type_name -> rimgovernor.observations.v1.DefinitionRef
+	57,   // 177: rimgovernor.observations.v1.RecipeState.skills:type_name -> rimgovernor.observations.v1.SkillRequirement
+	103,  // 178: rimgovernor.observations.v1.RecipeState.ingredients:type_name -> rimgovernor.observations.v1.IngredientRequirement
+	55,   // 179: rimgovernor.observations.v1.RecipeState.products:type_name -> rimgovernor.observations.v1.Quantity
+	105,  // 180: rimgovernor.observations.v1.RecipeState.default_filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	111,  // 181: rimgovernor.observations.v1.RecipeState.ingredient_classes:type_name -> rimgovernor.observations.v1.RecipeIngredientClasses
+	13,   // 182: rimgovernor.observations.v1.FoodIngredientSlot.alternatives:type_name -> rimgovernor.observations.v1.FoodIngredientClass
+	110,  // 183: rimgovernor.observations.v1.RecipeIngredientClasses.slots:type_name -> rimgovernor.observations.v1.FoodIngredientSlot
+	31,   // 184: rimgovernor.observations.v1.BuildingSettings.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 185: rimgovernor.observations.v1.BuildingSettings.assigned_pawns:type_name -> rimgovernor.common.v1.Ref
+	500,  // 186: rimgovernor.observations.v1.BuildingSettings.assigning_candidates:type_name -> rimgovernor.common.v1.Ref
+	33,   // 187: rimgovernor.observations.v1.BuildingSettings.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	113,  // 188: rimgovernor.observations.v1.ConstructionState.resources:type_name -> rimgovernor.observations.v1.MaterialDeficit
+	33,   // 189: rimgovernor.observations.v1.ConstructionState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	498,  // 190: rimgovernor.observations.v1.ThermalSide.position:type_name -> rimgovernor.common.v1.Cell
+	500,  // 191: rimgovernor.observations.v1.ThermalSide.room:type_name -> rimgovernor.common.v1.Ref
+	33,   // 192: rimgovernor.observations.v1.ThermalSide.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	33,   // 193: rimgovernor.observations.v1.BuildingServiceState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	53,   // 194: rimgovernor.observations.v1.BuildingState.building:type_name -> rimgovernor.observations.v1.EntityRef
+	505,  // 195: rimgovernor.observations.v1.BuildingState.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	500,  // 196: rimgovernor.observations.v1.BuildingState.faction:type_name -> rimgovernor.common.v1.Ref
+	14,   // 197: rimgovernor.observations.v1.BuildingState.status:type_name -> rimgovernor.observations.v1.BuildingStatus
+	114,  // 198: rimgovernor.observations.v1.BuildingState.construction:type_name -> rimgovernor.observations.v1.ConstructionState
+	116,  // 199: rimgovernor.observations.v1.BuildingState.service:type_name -> rimgovernor.observations.v1.BuildingServiceState
+	112,  // 200: rimgovernor.observations.v1.BuildingState.settings:type_name -> rimgovernor.observations.v1.BuildingSettings
+	115,  // 201: rimgovernor.observations.v1.BuildingState.thermal_sides:type_name -> rimgovernor.observations.v1.ThermalSide
+	108,  // 202: rimgovernor.observations.v1.BuildingState.bills:type_name -> rimgovernor.observations.v1.BillStack
+	33,   // 203: rimgovernor.observations.v1.BuildingState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	31,   // 204: rimgovernor.observations.v1.BuildingState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	34,   // 205: rimgovernor.observations.v1.BuildingState.occupied:type_name -> rimgovernor.observations.v1.Rectangle
+	467,  // 206: rimgovernor.observations.v1.BuildingState.odyssey:type_name -> rimgovernor.observations.v1.OdysseyBuilding
+	482,  // 207: rimgovernor.observations.v1.BuildingState.anomaly:type_name -> rimgovernor.observations.v1.AnomalyBuilding
+	496,  // 208: rimgovernor.observations.v1.BuildingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	117,  // 209: rimgovernor.observations.v1.BuildingsSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingState
+	118,  // 210: rimgovernor.observations.v1.BuildingsSnapshot.power_networks:type_name -> rimgovernor.observations.v1.PowerNetwork
+	32,   // 211: rimgovernor.observations.v1.BuildingsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 212: rimgovernor.observations.v1.ListBuildingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 213: rimgovernor.observations.v1.ListBuildingsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	119,  // 214: rimgovernor.observations.v1.ListBuildingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
+	497,  // 215: rimgovernor.observations.v1.ListBuildingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 216: rimgovernor.observations.v1.ListBuildingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	497,  // 217: rimgovernor.observations.v1.RoomStat.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	500,  // 218: rimgovernor.observations.v1.RoomBedMembership.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 219: rimgovernor.observations.v1.RoomBedMembership.owners:type_name -> rimgovernor.common.v1.Ref
+	500,  // 220: rimgovernor.observations.v1.RoomBedMembership.users:type_name -> rimgovernor.common.v1.Ref
+	500,  // 221: rimgovernor.observations.v1.RoomBedMembership.accessible_to:type_name -> rimgovernor.common.v1.Ref
+	500,  // 222: rimgovernor.observations.v1.StockpileMembership.zone:type_name -> rimgovernor.common.v1.Ref
+	98,   // 223: rimgovernor.observations.v1.StockpileMembership.contents:type_name -> rimgovernor.observations.v1.ResourceStock
+	34,   // 224: rimgovernor.observations.v1.RoomState.extents:type_name -> rimgovernor.observations.v1.Rectangle
+	498,  // 225: rimgovernor.observations.v1.RoomState.center:type_name -> rimgovernor.common.v1.Cell
+	122,  // 226: rimgovernor.observations.v1.RoomState.stats:type_name -> rimgovernor.observations.v1.RoomStat
+	500,  // 227: rimgovernor.observations.v1.RoomState.pawns:type_name -> rimgovernor.common.v1.Ref
+	500,  // 228: rimgovernor.observations.v1.RoomState.beds:type_name -> rimgovernor.common.v1.Ref
+	500,  // 229: rimgovernor.observations.v1.RoomState.stockpile_zones:type_name -> rimgovernor.common.v1.Ref
+	55,   // 230: rimgovernor.observations.v1.RoomState.contents:type_name -> rimgovernor.observations.v1.Quantity
+	33,   // 231: rimgovernor.observations.v1.RoomState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	31,   // 232: rimgovernor.observations.v1.RoomState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	123,  // 233: rimgovernor.observations.v1.RoomState.bed_memberships:type_name -> rimgovernor.observations.v1.RoomBedMembership
+	124,  // 234: rimgovernor.observations.v1.RoomState.stockpile_memberships:type_name -> rimgovernor.observations.v1.StockpileMembership
+	126,  // 235: rimgovernor.observations.v1.RoomState.doors:type_name -> rimgovernor.observations.v1.RoomDoor
+	498,  // 236: rimgovernor.observations.v1.RoomDoor.cell:type_name -> rimgovernor.common.v1.Cell
+	498,  // 237: rimgovernor.observations.v1.RoomDoor.outside:type_name -> rimgovernor.common.v1.Cell
+	496,  // 238: rimgovernor.observations.v1.RoomsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	125,  // 239: rimgovernor.observations.v1.RoomsSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomState
+	32,   // 240: rimgovernor.observations.v1.RoomsSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 241: rimgovernor.observations.v1.ListRoomsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 242: rimgovernor.observations.v1.ListRoomsRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	127,  // 243: rimgovernor.observations.v1.ListRoomsReply.observed:type_name -> rimgovernor.observations.v1.RoomsSnapshot
+	497,  // 244: rimgovernor.observations.v1.ListRoomsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 245: rimgovernor.observations.v1.ListRoomsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	34,   // 246: rimgovernor.observations.v1.ZoneState.bounds:type_name -> rimgovernor.observations.v1.Rectangle
+	105,  // 247: rimgovernor.observations.v1.ZoneState.filter:type_name -> rimgovernor.observations.v1.StockpileFilter
+	55,   // 248: rimgovernor.observations.v1.ZoneState.contents:type_name -> rimgovernor.observations.v1.Quantity
+	33,   // 249: rimgovernor.observations.v1.ZoneState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	309,  // 250: rimgovernor.observations.v1.ZoneState.farm:type_name -> rimgovernor.observations.v1.FarmFacts
+	496,  // 251: rimgovernor.observations.v1.ZonesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	130,  // 252: rimgovernor.observations.v1.ZonesSnapshot.zones:type_name -> rimgovernor.observations.v1.ZoneState
+	32,   // 253: rimgovernor.observations.v1.ZonesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 254: rimgovernor.observations.v1.ListZonesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 255: rimgovernor.observations.v1.ListZonesRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	131,  // 256: rimgovernor.observations.v1.ListZonesReply.observed:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	497,  // 257: rimgovernor.observations.v1.ListZonesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 258: rimgovernor.observations.v1.ListZonesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	53,   // 259: rimgovernor.observations.v1.Thing.thing:type_name -> rimgovernor.observations.v1.EntityRef
+	500,  // 260: rimgovernor.observations.v1.Thing.owners:type_name -> rimgovernor.common.v1.Ref
+	500,  // 261: rimgovernor.observations.v1.Thing.room:type_name -> rimgovernor.common.v1.Ref
+	13,   // 262: rimgovernor.observations.v1.Thing.raw_class:type_name -> rimgovernor.observations.v1.FoodIngredientClass
+	31,   // 263: rimgovernor.observations.v1.Thing.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	496,  // 264: rimgovernor.observations.v1.ThingsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	134,  // 265: rimgovernor.observations.v1.ThingsSnapshot.things:type_name -> rimgovernor.observations.v1.Thing
+	496,  // 266: rimgovernor.observations.v1.CellsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	51,   // 267: rimgovernor.observations.v1.CellsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
+	506,  // 268: rimgovernor.observations.v1.CellsSnapshot.grid:type_name -> rimgovernor.mirror.v1.CellGrid
+	134,  // 269: rimgovernor.observations.v1.CellsSnapshot.things:type_name -> rimgovernor.observations.v1.Thing
+	30,   // 270: rimgovernor.observations.v1.GetCellsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 271: rimgovernor.observations.v1.GetCellsRequest.rectangle:type_name -> rimgovernor.observations.v1.Rectangle
+	136,  // 272: rimgovernor.observations.v1.GetCellsReply.observed:type_name -> rimgovernor.observations.v1.CellsSnapshot
+	497,  // 273: rimgovernor.observations.v1.GetCellsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 274: rimgovernor.observations.v1.GetCellsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	52,   // 275: rimgovernor.observations.v1.ResearchProject.project:type_name -> rimgovernor.observations.v1.DefinitionRef
+	15,   // 276: rimgovernor.observations.v1.ResearchProject.tech_level:type_name -> rimgovernor.observations.v1.TechLevel
+	139,  // 277: rimgovernor.observations.v1.ResearchProject.unlocks:type_name -> rimgovernor.observations.v1.ResearchUnlock
+	33,   // 278: rimgovernor.observations.v1.ResearchProject.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 279: rimgovernor.observations.v1.Researcher.pawn:type_name -> rimgovernor.common.v1.Ref
+	52,   // 280: rimgovernor.observations.v1.ResearchFacility.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	500,  // 281: rimgovernor.observations.v1.ResearchBench.building:type_name -> rimgovernor.common.v1.Ref
+	142,  // 282: rimgovernor.observations.v1.ResearchBench.facilities:type_name -> rimgovernor.observations.v1.ResearchFacility
+	33,   // 283: rimgovernor.observations.v1.ResearchBench.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	496,  // 284: rimgovernor.observations.v1.ResearchSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	31,   // 285: rimgovernor.observations.v1.ResearchSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	144,  // 286: rimgovernor.observations.v1.ResearchSnapshot.slots:type_name -> rimgovernor.observations.v1.ResearchSlot
+	140,  // 287: rimgovernor.observations.v1.ResearchSnapshot.projects:type_name -> rimgovernor.observations.v1.ResearchProject
+	143,  // 288: rimgovernor.observations.v1.ResearchSnapshot.benches:type_name -> rimgovernor.observations.v1.ResearchBench
+	141,  // 289: rimgovernor.observations.v1.ResearchSnapshot.researchers:type_name -> rimgovernor.observations.v1.Researcher
+	32,   // 290: rimgovernor.observations.v1.ResearchSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 291: rimgovernor.observations.v1.ResearchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	145,  // 292: rimgovernor.observations.v1.ResearchReply.observed:type_name -> rimgovernor.observations.v1.ResearchSnapshot
+	497,  // 293: rimgovernor.observations.v1.ResearchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 294: rimgovernor.observations.v1.ResearchReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 295: rimgovernor.observations.v1.AccessTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 296: rimgovernor.observations.v1.PawnAccess.pawn:type_name -> rimgovernor.common.v1.Ref
+	148,  // 297: rimgovernor.observations.v1.PawnAccess.targets:type_name -> rimgovernor.observations.v1.AccessTarget
+	498,  // 298: rimgovernor.observations.v1.PawnAccess.projected_origin:type_name -> rimgovernor.common.v1.Cell
+	498,  // 299: rimgovernor.observations.v1.PawnAccess.position:type_name -> rimgovernor.common.v1.Cell
+	496,  // 300: rimgovernor.observations.v1.SpatialAccessSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	149,  // 301: rimgovernor.observations.v1.SpatialAccessSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnAccess
+	30,   // 302: rimgovernor.observations.v1.SpatialAccessRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	498,  // 303: rimgovernor.observations.v1.SpatialAccessRequest.blocked_cells:type_name -> rimgovernor.common.v1.Cell
+	498,  // 304: rimgovernor.observations.v1.SpatialAccessRequest.target_cells:type_name -> rimgovernor.common.v1.Cell
+	150,  // 305: rimgovernor.observations.v1.SpatialAccessReply.observed:type_name -> rimgovernor.observations.v1.SpatialAccessSnapshot
+	497,  // 306: rimgovernor.observations.v1.SpatialAccessReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 307: rimgovernor.observations.v1.SpatialAccessReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 308: rimgovernor.observations.v1.DefenseCell.cell:type_name -> rimgovernor.common.v1.Cell
+	33,   // 309: rimgovernor.observations.v1.DefenseCell.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	16,   // 310: rimgovernor.observations.v1.DefenseCell.cover_kind:type_name -> rimgovernor.observations.v1.CoverKind
+	498,  // 311: rimgovernor.observations.v1.RaidTrack.spawn:type_name -> rimgovernor.common.v1.Cell
+	498,  // 312: rimgovernor.observations.v1.RaidTrack.trail:type_name -> rimgovernor.common.v1.Cell
+	496,  // 313: rimgovernor.observations.v1.DefenseSiteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	51,   // 314: rimgovernor.observations.v1.DefenseSiteSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
+	34,   // 315: rimgovernor.observations.v1.DefenseSiteSnapshot.region:type_name -> rimgovernor.observations.v1.Rectangle
+	153,  // 316: rimgovernor.observations.v1.DefenseSiteSnapshot.cells:type_name -> rimgovernor.observations.v1.DefenseCell
+	154,  // 317: rimgovernor.observations.v1.DefenseSiteSnapshot.raids:type_name -> rimgovernor.observations.v1.RaidTrack
+	30,   // 318: rimgovernor.observations.v1.DefenseSiteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	34,   // 319: rimgovernor.observations.v1.DefenseSiteRequest.region:type_name -> rimgovernor.observations.v1.Rectangle
+	155,  // 320: rimgovernor.observations.v1.DefenseSiteReply.observed:type_name -> rimgovernor.observations.v1.DefenseSiteSnapshot
+	497,  // 321: rimgovernor.observations.v1.DefenseSiteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 322: rimgovernor.observations.v1.DefenseSiteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 323: rimgovernor.observations.v1.LineOfFire.from:type_name -> rimgovernor.common.v1.Cell
+	498,  // 324: rimgovernor.observations.v1.LineOfFire.to:type_name -> rimgovernor.common.v1.Cell
+	33,   // 325: rimgovernor.observations.v1.LineOfFire.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	496,  // 326: rimgovernor.observations.v1.LinesOfFireSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	158,  // 327: rimgovernor.observations.v1.LinesOfFireSnapshot.lines:type_name -> rimgovernor.observations.v1.LineOfFire
+	30,   // 328: rimgovernor.observations.v1.LinesOfFireRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	498,  // 329: rimgovernor.observations.v1.LinesOfFireRequest.firing_cells:type_name -> rimgovernor.common.v1.Cell
+	498,  // 330: rimgovernor.observations.v1.LinesOfFireRequest.approach_cells:type_name -> rimgovernor.common.v1.Cell
+	159,  // 331: rimgovernor.observations.v1.LinesOfFireReply.observed:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
+	497,  // 332: rimgovernor.observations.v1.LinesOfFireReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 333: rimgovernor.observations.v1.LinesOfFireReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 334: rimgovernor.observations.v1.RoofSupportCell.cell:type_name -> rimgovernor.common.v1.Cell
+	496,  // 335: rimgovernor.observations.v1.RoofSupportSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	500,  // 336: rimgovernor.observations.v1.RoofSupportSnapshot.target:type_name -> rimgovernor.common.v1.Ref
+	162,  // 337: rimgovernor.observations.v1.RoofSupportSnapshot.roofs:type_name -> rimgovernor.observations.v1.RoofSupportCell
+	30,   // 338: rimgovernor.observations.v1.RoofSupportRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	163,  // 339: rimgovernor.observations.v1.RoofSupportReply.observed:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
+	497,  // 340: rimgovernor.observations.v1.RoofSupportReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 341: rimgovernor.observations.v1.RoofSupportReply.failure:type_name -> rimgovernor.common.v1.Failure
+	498,  // 342: rimgovernor.observations.v1.ExcavationCell.cell:type_name -> rimgovernor.common.v1.Cell
+	496,  // 343: rimgovernor.observations.v1.ExcavationSiteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	166,  // 344: rimgovernor.observations.v1.ExcavationSiteSnapshot.cells:type_name -> rimgovernor.observations.v1.ExcavationCell
+	17,   // 345: rimgovernor.observations.v1.ExcavationSiteSnapshot.support_after_removal:type_name -> rimgovernor.observations.v1.ExcavationSupport
+	30,   // 346: rimgovernor.observations.v1.ExcavationSiteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	498,  // 347: rimgovernor.observations.v1.ExcavationSiteRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	498,  // 348: rimgovernor.observations.v1.ExcavationSiteRequest.access_cell:type_name -> rimgovernor.common.v1.Cell
+	167,  // 349: rimgovernor.observations.v1.ExcavationSiteReply.observed:type_name -> rimgovernor.observations.v1.ExcavationSiteSnapshot
+	497,  // 350: rimgovernor.observations.v1.ExcavationSiteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 351: rimgovernor.observations.v1.ExcavationSiteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	30,   // 352: rimgovernor.observations.v1.PlantCutCensusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	498,  // 353: rimgovernor.observations.v1.PlantCutCensusRequest.cells:type_name -> rimgovernor.common.v1.Cell
+	500,  // 354: rimgovernor.observations.v1.PlantCutTarget.plant:type_name -> rimgovernor.common.v1.Ref
+	498,  // 355: rimgovernor.observations.v1.PlantCutTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	496,  // 356: rimgovernor.observations.v1.PlantCutCensusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	171,  // 357: rimgovernor.observations.v1.PlantCutCensusSnapshot.plants:type_name -> rimgovernor.observations.v1.PlantCutTarget
+	172,  // 358: rimgovernor.observations.v1.PlantCutCensusReply.observed:type_name -> rimgovernor.observations.v1.PlantCutCensusSnapshot
+	497,  // 359: rimgovernor.observations.v1.PlantCutCensusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 360: rimgovernor.observations.v1.PlantCutCensusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	55,   // 361: rimgovernor.observations.v1.StuffOption.costs:type_name -> rimgovernor.observations.v1.Quantity
+	500,  // 362: rimgovernor.observations.v1.WallUpgradeSite.target:type_name -> rimgovernor.common.v1.Ref
+	498,  // 363: rimgovernor.observations.v1.WallUpgradeSite.backup_cells:type_name -> rimgovernor.common.v1.Cell
+	55,   // 364: rimgovernor.observations.v1.WallUpgradeSite.costs:type_name -> rimgovernor.observations.v1.Quantity
+	98,   // 365: rimgovernor.observations.v1.WallUpgradeSite.materials:type_name -> rimgovernor.observations.v1.ResourceStock
+	500,  // 366: rimgovernor.observations.v1.WallUpgradeSite.workers:type_name -> rimgovernor.common.v1.Ref
+	31,   // 367: rimgovernor.observations.v1.WallUpgradeSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	498,  // 368: rimgovernor.observations.v1.WallUpgradeSite.normal:type_name -> rimgovernor.common.v1.Cell
+	500,  // 369: rimgovernor.observations.v1.WallUpgradeSite.original:type_name -> rimgovernor.common.v1.Ref
+	500,  // 370: rimgovernor.observations.v1.WallUpgradeSite.left_support:type_name -> rimgovernor.common.v1.Ref
+	500,  // 371: rimgovernor.observations.v1.WallUpgradeSite.right_support:type_name -> rimgovernor.common.v1.Ref
+	500,  // 372: rimgovernor.observations.v1.WallUpgradeSite.completed_backups:type_name -> rimgovernor.common.v1.Ref
+	500,  // 373: rimgovernor.observations.v1.WallUpgradeSite.replacement:type_name -> rimgovernor.common.v1.Ref
+	31,   // 374: rimgovernor.observations.v1.WallUpgradeSite.target_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	174,  // 375: rimgovernor.observations.v1.WallUpgradeSite.replacement_materials:type_name -> rimgovernor.observations.v1.StuffOption
+	136,  // 376: rimgovernor.observations.v1.WallUpgradeSite.geometry:type_name -> rimgovernor.observations.v1.CellsSnapshot
+	163,  // 377: rimgovernor.observations.v1.WallUpgradeSite.roof_support:type_name -> rimgovernor.observations.v1.RoofSupportSnapshot
+	496,  // 378: rimgovernor.observations.v1.WallUpgradeSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	175,  // 379: rimgovernor.observations.v1.WallUpgradeSnapshot.sites:type_name -> rimgovernor.observations.v1.WallUpgradeSite
+	30,   // 380: rimgovernor.observations.v1.WallUpgradeSitesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	176,  // 381: rimgovernor.observations.v1.WallUpgradeSitesReply.observed:type_name -> rimgovernor.observations.v1.WallUpgradeSnapshot
+	497,  // 382: rimgovernor.observations.v1.WallUpgradeSitesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 383: rimgovernor.observations.v1.WallUpgradeSitesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 384: rimgovernor.observations.v1.ResourceSource.source:type_name -> rimgovernor.common.v1.Ref
+	31,   // 385: rimgovernor.observations.v1.ResourceSource.source_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	498,  // 386: rimgovernor.observations.v1.ResourceSource.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 387: rimgovernor.observations.v1.StorageCapacity.haulers:type_name -> rimgovernor.common.v1.Ref
+	33,   // 388: rimgovernor.observations.v1.StorageCapacity.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	498,  // 389: rimgovernor.observations.v1.StorageCapacity.candidates:type_name -> rimgovernor.common.v1.Cell
+	52,   // 390: rimgovernor.observations.v1.ExtractionWorkType.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	52,   // 391: rimgovernor.observations.v1.ExtractionWorkType.work_givers:type_name -> rimgovernor.observations.v1.DefinitionRef
+	31,   // 392: rimgovernor.observations.v1.ExtractionSite.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	498,  // 393: rimgovernor.observations.v1.ExtractionSite.cell:type_name -> rimgovernor.common.v1.Cell
+	505,  // 394: rimgovernor.observations.v1.ExtractionSite.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	181,  // 395: rimgovernor.observations.v1.ExtractionSite.work_types:type_name -> rimgovernor.observations.v1.ExtractionWorkType
+	31,   // 396: rimgovernor.observations.v1.OwnedDrill.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	498,  // 397: rimgovernor.observations.v1.OwnedDrill.cell:type_name -> rimgovernor.common.v1.Cell
+	179,  // 398: rimgovernor.observations.v1.ExtractionDevelopment.deposits:type_name -> rimgovernor.observations.v1.ResourceSource
+	52,   // 399: rimgovernor.observations.v1.ExtractionDevelopment.definitions:type_name -> rimgovernor.observations.v1.DefinitionRef
+	55,   // 400: rimgovernor.observations.v1.ExtractionDevelopment.costs:type_name -> rimgovernor.observations.v1.Quantity
+	182,  // 401: rimgovernor.observations.v1.ExtractionDevelopment.sites:type_name -> rimgovernor.observations.v1.ExtractionSite
+	183,  // 402: rimgovernor.observations.v1.ExtractionDevelopment.owned:type_name -> rimgovernor.observations.v1.OwnedDrill
+	181,  // 403: rimgovernor.observations.v1.ExtractionDevelopment.flick_work_type:type_name -> rimgovernor.observations.v1.ExtractionWorkType
+	496,  // 404: rimgovernor.observations.v1.ResourceSourcesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	179,  // 405: rimgovernor.observations.v1.ResourceSourcesSnapshot.sources:type_name -> rimgovernor.observations.v1.ResourceSource
+	180,  // 406: rimgovernor.observations.v1.ResourceSourcesSnapshot.storage:type_name -> rimgovernor.observations.v1.StorageCapacity
+	184,  // 407: rimgovernor.observations.v1.ResourceSourcesSnapshot.development:type_name -> rimgovernor.observations.v1.ExtractionDevelopment
+	32,   // 408: rimgovernor.observations.v1.ResourceSourcesSnapshot.completeness:type_name -> rimgovernor.observations.v1.Completeness
+	30,   // 409: rimgovernor.observations.v1.ResourceSourcesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	185,  // 410: rimgovernor.observations.v1.ResourceSourcesReply.observed:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
+	497,  // 411: rimgovernor.observations.v1.ResourceSourcesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 412: rimgovernor.observations.v1.ResourceSourcesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 413: rimgovernor.observations.v1.HandlerState.pawn:type_name -> rimgovernor.common.v1.Ref
+	500,  // 414: rimgovernor.observations.v1.HusbandryAnimal.pawn:type_name -> rimgovernor.common.v1.Ref
+	82,   // 415: rimgovernor.observations.v1.HusbandryAnimal.animal:type_name -> rimgovernor.observations.v1.AnimalState
+	188,  // 416: rimgovernor.observations.v1.HusbandryAnimal.handlers:type_name -> rimgovernor.observations.v1.HandlerState
+	496,  // 417: rimgovernor.observations.v1.HusbandrySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	31,   // 418: rimgovernor.observations.v1.HusbandrySnapshot.census:type_name -> rimgovernor.observations.v1.SnapshotRef
+	189,  // 419: rimgovernor.observations.v1.HusbandrySnapshot.animals:type_name -> rimgovernor.observations.v1.HusbandryAnimal
+	30,   // 420: rimgovernor.observations.v1.HusbandryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	190,  // 421: rimgovernor.observations.v1.HusbandryReply.observed:type_name -> rimgovernor.observations.v1.HusbandrySnapshot
+	497,  // 422: rimgovernor.observations.v1.HusbandryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 423: rimgovernor.observations.v1.HusbandryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 424: rimgovernor.observations.v1.WasteItem.thing:type_name -> rimgovernor.common.v1.Ref
+	18,   // 425: rimgovernor.observations.v1.WasteItem.state:type_name -> rimgovernor.observations.v1.WasteLocation
+	500,  // 426: rimgovernor.observations.v1.WasteItem.zone:type_name -> rimgovernor.common.v1.Ref
+	500,  // 427: rimgovernor.observations.v1.WasteItem.grave:type_name -> rimgovernor.common.v1.Ref
+	8,    // 428: rimgovernor.observations.v1.WasteItem.rot_stage:type_name -> rimgovernor.observations.v1.RotStage
+	9,    // 429: rimgovernor.observations.v1.WasteItem.kind:type_name -> rimgovernor.observations.v1.WasteKind
+	507,  // 430: rimgovernor.observations.v1.WasteItem.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
+	496,  // 431: rimgovernor.observations.v1.WasteSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	193,  // 432: rimgovernor.observations.v1.WasteSnapshot.items:type_name -> rimgovernor.observations.v1.WasteItem
+	30,   // 433: rimgovernor.observations.v1.WasteRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	194,  // 434: rimgovernor.observations.v1.WasteReply.observed:type_name -> rimgovernor.observations.v1.WasteSnapshot
+	497,  // 435: rimgovernor.observations.v1.WasteReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 436: rimgovernor.observations.v1.WasteReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 437: rimgovernor.observations.v1.RecoveryRestriction.pawn:type_name -> rimgovernor.common.v1.Ref
+	496,  // 438: rimgovernor.observations.v1.RecoverySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	197,  // 439: rimgovernor.observations.v1.RecoverySnapshot.restrictions:type_name -> rimgovernor.observations.v1.RecoveryRestriction
+	500,  // 440: rimgovernor.observations.v1.RecoverySnapshot.buildings:type_name -> rimgovernor.common.v1.Ref
+	30,   // 441: rimgovernor.observations.v1.RecoveryRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	198,  // 442: rimgovernor.observations.v1.RecoveryReply.observed:type_name -> rimgovernor.observations.v1.RecoverySnapshot
+	497,  // 443: rimgovernor.observations.v1.RecoveryReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 444: rimgovernor.observations.v1.RecoveryReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 445: rimgovernor.observations.v1.PopulationPerson.pawn:type_name -> rimgovernor.common.v1.Ref
+	31,   // 446: rimgovernor.observations.v1.PopulationPerson.pawn_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 447: rimgovernor.observations.v1.PopulationPerson.owned_bed:type_name -> rimgovernor.common.v1.Ref
+	72,   // 448: rimgovernor.observations.v1.PopulationPerson.biography:type_name -> rimgovernor.observations.v1.PawnBiography
+	63,   // 449: rimgovernor.observations.v1.PopulationPerson.surgery:type_name -> rimgovernor.observations.v1.PawnHealth
+	500,  // 450: rimgovernor.observations.v1.PopulationPerson.faction:type_name -> rimgovernor.common.v1.Ref
+	501,  // 451: rimgovernor.observations.v1.PopulationPerson.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	63,   // 452: rimgovernor.observations.v1.PopulationPerson.conditions:type_name -> rimgovernor.observations.v1.PawnHealth
+	77,   // 453: rimgovernor.observations.v1.PopulationPerson.policy_inputs:type_name -> rimgovernor.observations.v1.PawnPolicyInputs
+	496,  // 454: rimgovernor.observations.v1.PopulationSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	201,  // 455: rimgovernor.observations.v1.PopulationSnapshot.persons:type_name -> rimgovernor.observations.v1.PopulationPerson
+	52,   // 456: rimgovernor.observations.v1.PopulationSnapshot.supported_interactions:type_name -> rimgovernor.observations.v1.DefinitionRef
+	203,  // 457: rimgovernor.observations.v1.PopulationSnapshot.owned_names:type_name -> rimgovernor.observations.v1.OwnedName
+	30,   // 458: rimgovernor.observations.v1.PopulationRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	202,  // 459: rimgovernor.observations.v1.PopulationReply.observed:type_name -> rimgovernor.observations.v1.PopulationSnapshot
+	497,  // 460: rimgovernor.observations.v1.PopulationReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 461: rimgovernor.observations.v1.PopulationReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 462: rimgovernor.observations.v1.Settlement.faction:type_name -> rimgovernor.common.v1.Ref
+	31,   // 463: rimgovernor.observations.v1.Settlement.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	31,   // 464: rimgovernor.observations.v1.Settlement.faction_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	52,   // 465: rimgovernor.observations.v1.WorldTile.biome:type_name -> rimgovernor.observations.v1.DefinitionRef
+	33,   // 466: rimgovernor.observations.v1.WorldTile.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	496,  // 467: rimgovernor.observations.v1.WorldSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	207,  // 468: rimgovernor.observations.v1.WorldSnapshot.tile:type_name -> rimgovernor.observations.v1.WorldTile
+	206,  // 469: rimgovernor.observations.v1.WorldSnapshot.settlements:type_name -> rimgovernor.observations.v1.Settlement
+	30,   // 470: rimgovernor.observations.v1.WorldRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	208,  // 471: rimgovernor.observations.v1.WorldReply.observed:type_name -> rimgovernor.observations.v1.WorldSnapshot
+	497,  // 472: rimgovernor.observations.v1.WorldReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 473: rimgovernor.observations.v1.WorldReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 474: rimgovernor.observations.v1.WorldRoute.faction:type_name -> rimgovernor.common.v1.Ref
+	53,   // 475: rimgovernor.observations.v1.CaravanState.caravan:type_name -> rimgovernor.observations.v1.EntityRef
+	83,   // 476: rimgovernor.observations.v1.CaravanState.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	211,  // 477: rimgovernor.observations.v1.CaravanState.home_routes:type_name -> rimgovernor.observations.v1.WorldRoute
+	55,   // 478: rimgovernor.observations.v1.CaravanState.inventory:type_name -> rimgovernor.observations.v1.Quantity
+	55,   // 479: rimgovernor.observations.v1.QuestReward.items:type_name -> rimgovernor.observations.v1.Quantity
+	508,  // 480: rimgovernor.observations.v1.QuestState.state:type_name -> rimgovernor.receipts.v1.QuestStatus
+	500,  // 481: rimgovernor.observations.v1.QuestState.eligible_pawns:type_name -> rimgovernor.common.v1.Ref
+	213,  // 482: rimgovernor.observations.v1.QuestState.trade_requests:type_name -> rimgovernor.observations.v1.QuestTradeRequest
+	214,  // 483: rimgovernor.observations.v1.QuestState.rewards:type_name -> rimgovernor.observations.v1.QuestReward
+	33,   // 484: rimgovernor.observations.v1.QuestState.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	31,   // 485: rimgovernor.observations.v1.QuestState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	31,   // 486: rimgovernor.observations.v1.FactionState.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	83,   // 487: rimgovernor.observations.v1.WorldMap.pawns:type_name -> rimgovernor.observations.v1.PawnState
+	98,   // 488: rimgovernor.observations.v1.WorldMap.stored_items:type_name -> rimgovernor.observations.v1.ResourceStock
+	500,  // 489: rimgovernor.observations.v1.CaravanAssembly.pawns:type_name -> rimgovernor.common.v1.Ref
+	496,  // 490: rimgovernor.observations.v1.WorldProgressionSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	217,  // 491: rimgovernor.observations.v1.WorldProgressionSnapshot.maps:type_name -> rimgovernor.observations.v1.WorldMap
+	216,  // 492: rimgovernor.observations.v1.WorldProgressionSnapshot.factions:type_name -> rimgovernor.observations.v1.FactionState
+	212,  // 493: rimgovernor.observations.v1.WorldProgressionSnapshot.caravans:type_name -> rimgovernor.observations.v1.CaravanState
+	218,  // 494: rimgovernor.observations.v1.WorldProgressionSnapshot.assemblies:type_name -> rimgovernor.observations.v1.CaravanAssembly
+	215,  // 495: rimgovernor.observations.v1.WorldProgressionSnapshot.quests:type_name -> rimgovernor.observations.v1.QuestState
+	30,   // 496: rimgovernor.observations.v1.WorldProgressionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	219,  // 497: rimgovernor.observations.v1.WorldProgressionReply.observed:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
+	497,  // 498: rimgovernor.observations.v1.WorldProgressionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 499: rimgovernor.observations.v1.WorldProgressionReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 500: rimgovernor.observations.v1.BillsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	108,  // 501: rimgovernor.observations.v1.BillsSnapshot.benches:type_name -> rimgovernor.observations.v1.BillStack
+	30,   // 502: rimgovernor.observations.v1.BillsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	222,  // 503: rimgovernor.observations.v1.BillsReply.observed:type_name -> rimgovernor.observations.v1.BillsSnapshot
+	497,  // 504: rimgovernor.observations.v1.BillsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 505: rimgovernor.observations.v1.BillsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 506: rimgovernor.observations.v1.RecipesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	31,   // 507: rimgovernor.observations.v1.RecipesSnapshot.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	109,  // 508: rimgovernor.observations.v1.RecipesSnapshot.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	30,   // 509: rimgovernor.observations.v1.RecipesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	225,  // 510: rimgovernor.observations.v1.RecipesReply.observed:type_name -> rimgovernor.observations.v1.RecipesSnapshot
+	497,  // 511: rimgovernor.observations.v1.RecipesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 512: rimgovernor.observations.v1.RecipesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	30,   // 513: rimgovernor.observations.v1.BuildingSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	112,  // 514: rimgovernor.observations.v1.BuildingSettingsReply.observed:type_name -> rimgovernor.observations.v1.BuildingSettings
+	497,  // 515: rimgovernor.observations.v1.BuildingSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 516: rimgovernor.observations.v1.BuildingSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	30,   // 517: rimgovernor.observations.v1.PawnSettingsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	76,   // 518: rimgovernor.observations.v1.PawnSettingsReply.observed:type_name -> rimgovernor.observations.v1.PawnSettings
+	497,  // 519: rimgovernor.observations.v1.PawnSettingsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 520: rimgovernor.observations.v1.PawnSettingsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 521: rimgovernor.observations.v1.ResolveTargetSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	54,   // 522: rimgovernor.observations.v1.ResolveTargetSnapshot.candidates:type_name -> rimgovernor.observations.v1.TargetRef
+	30,   // 523: rimgovernor.observations.v1.ResolveTargetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	498,  // 524: rimgovernor.observations.v1.ResolveTargetRequest.cell:type_name -> rimgovernor.common.v1.Cell
+	232,  // 525: rimgovernor.observations.v1.ResolveTargetReply.observed:type_name -> rimgovernor.observations.v1.ResolveTargetSnapshot
+	497,  // 526: rimgovernor.observations.v1.ResolveTargetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 527: rimgovernor.observations.v1.ResolveTargetReply.failure:type_name -> rimgovernor.common.v1.Failure
+	66,   // 528: rimgovernor.observations.v1.GearCandidate.item:type_name -> rimgovernor.observations.v1.GearItem
+	31,   // 529: rimgovernor.observations.v1.GearLoadout.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 530: rimgovernor.observations.v1.GearLoadout.pawn:type_name -> rimgovernor.common.v1.Ref
+	67,   // 531: rimgovernor.observations.v1.GearLoadout.equipment:type_name -> rimgovernor.observations.v1.PawnEquipment
+	235,  // 532: rimgovernor.observations.v1.GearLoadout.candidates:type_name -> rimgovernor.observations.v1.GearCandidate
+	236,  // 533: rimgovernor.observations.v1.GearLoadout.replacement_needs:type_name -> rimgovernor.observations.v1.GearReplacementNeed
+	493,  // 534: rimgovernor.observations.v1.GearLoadout.apparel_policy:type_name -> rimgovernor.observations.v1.ApparelPolicyState
+	239,  // 535: rimgovernor.observations.v1.GearLoadout.loadout_model:type_name -> rimgovernor.observations.v1.GearLoadoutModel
+	55,   // 536: rimgovernor.observations.v1.GearLoadoutOption.ingredients:type_name -> rimgovernor.observations.v1.Quantity
+	69,   // 537: rimgovernor.observations.v1.GearLoadoutModel.traits:type_name -> rimgovernor.observations.v1.Trait
+	238,  // 538: rimgovernor.observations.v1.GearLoadoutModel.worn:type_name -> rimgovernor.observations.v1.GearLoadoutOption
+	238,  // 539: rimgovernor.observations.v1.GearLoadoutModel.options:type_name -> rimgovernor.observations.v1.GearLoadoutOption
+	496,  // 540: rimgovernor.observations.v1.GearSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	237,  // 541: rimgovernor.observations.v1.GearSnapshot.pawns:type_name -> rimgovernor.observations.v1.GearLoadout
+	243,  // 542: rimgovernor.observations.v1.GearSnapshot.active_weather:type_name -> rimgovernor.observations.v1.GearWeatherCondition
+	242,  // 543: rimgovernor.observations.v1.GearSnapshot.stored_apparel:type_name -> rimgovernor.observations.v1.GearStorage
+	241,  // 544: rimgovernor.observations.v1.GearStorage.rows:type_name -> rimgovernor.observations.v1.GearStock
+	30,   // 545: rimgovernor.observations.v1.GearRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	240,  // 546: rimgovernor.observations.v1.GearReply.observed:type_name -> rimgovernor.observations.v1.GearSnapshot
+	497,  // 547: rimgovernor.observations.v1.GearReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 548: rimgovernor.observations.v1.GearReply.failure:type_name -> rimgovernor.common.v1.Failure
+	53,   // 549: rimgovernor.observations.v1.Trader.trader:type_name -> rimgovernor.observations.v1.EntityRef
+	500,  // 550: rimgovernor.observations.v1.Trader.faction:type_name -> rimgovernor.common.v1.Ref
+	31,   // 551: rimgovernor.observations.v1.Trader.trader_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	496,  // 552: rimgovernor.observations.v1.TradersSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	246,  // 553: rimgovernor.observations.v1.TradersSnapshot.traders:type_name -> rimgovernor.observations.v1.Trader
+	500,  // 554: rimgovernor.observations.v1.TradersSnapshot.negotiators:type_name -> rimgovernor.common.v1.Ref
+	30,   // 555: rimgovernor.observations.v1.TradersRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	247,  // 556: rimgovernor.observations.v1.TradersReply.observed:type_name -> rimgovernor.observations.v1.TradersSnapshot
+	497,  // 557: rimgovernor.observations.v1.TradersReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 558: rimgovernor.observations.v1.TradersReply.failure:type_name -> rimgovernor.common.v1.Failure
+	52,   // 559: rimgovernor.observations.v1.TradeLine.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	19,   // 560: rimgovernor.observations.v1.TradeLine.buy_price_type:type_name -> rimgovernor.observations.v1.PriceType
+	19,   // 561: rimgovernor.observations.v1.TradeLine.sell_price_type:type_name -> rimgovernor.observations.v1.PriceType
+	490,  // 562: rimgovernor.observations.v1.TradeLine.food:type_name -> rimgovernor.observations.v1.TradeFoodFacts
+	68,   // 563: rimgovernor.observations.v1.TradeLine.skills:type_name -> rimgovernor.observations.v1.Skill
+	496,  // 564: rimgovernor.observations.v1.TradeSession.context:type_name -> rimgovernor.common.v1.ObservationContext
+	30,   // 565: rimgovernor.observations.v1.TradeSessionRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	251,  // 566: rimgovernor.observations.v1.TradeSessionReply.observed:type_name -> rimgovernor.observations.v1.TradeSession
+	497,  // 567: rimgovernor.observations.v1.TradeSessionReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 568: rimgovernor.observations.v1.TradeSessionReply.failure:type_name -> rimgovernor.common.v1.Failure
+	31,   // 569: rimgovernor.observations.v1.TradeSheet.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 570: rimgovernor.observations.v1.TradeSheet.trader:type_name -> rimgovernor.common.v1.Ref
+	500,  // 571: rimgovernor.observations.v1.TradeSheet.negotiator:type_name -> rimgovernor.common.v1.Ref
+	250,  // 572: rimgovernor.observations.v1.TradeSheet.lines:type_name -> rimgovernor.observations.v1.TradeLine
+	30,   // 573: rimgovernor.observations.v1.TradeSheetRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	254,  // 574: rimgovernor.observations.v1.TradeSheetReply.observed:type_name -> rimgovernor.observations.v1.TradeSheet
+	497,  // 575: rimgovernor.observations.v1.TradeSheetReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 576: rimgovernor.observations.v1.TradeSheetReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 577: rimgovernor.observations.v1.FoodStock.item:type_name -> rimgovernor.common.v1.Ref
+	500,  // 578: rimgovernor.observations.v1.FoodStock.holder:type_name -> rimgovernor.common.v1.Ref
+	500,  // 579: rimgovernor.observations.v1.FoodStock.eaters:type_name -> rimgovernor.common.v1.Ref
+	498,  // 580: rimgovernor.observations.v1.CorpseHandling.cell:type_name -> rimgovernor.common.v1.Cell
+	259,  // 581: rimgovernor.observations.v1.FoodLarderFacts.corpses:type_name -> rimgovernor.observations.v1.CorpseHandling
+	498,  // 582: rimgovernor.observations.v1.FoodLarderFacts.cold_sites:type_name -> rimgovernor.common.v1.Cell
+	257,  // 583: rimgovernor.observations.v1.FoodSupplyFacts.consumers:type_name -> rimgovernor.observations.v1.FoodConsumer
+	258,  // 584: rimgovernor.observations.v1.FoodSupplyFacts.stocks:type_name -> rimgovernor.observations.v1.FoodStock
+	260,  // 585: rimgovernor.observations.v1.FoodSupplyFacts.larder:type_name -> rimgovernor.observations.v1.FoodLarderFacts
+	500,  // 586: rimgovernor.observations.v1.CropForecast.zone:type_name -> rimgovernor.common.v1.Ref
+	33,   // 587: rimgovernor.observations.v1.CropForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	33,   // 588: rimgovernor.observations.v1.PatientForecast.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	261,  // 589: rimgovernor.observations.v1.ForecastFacts.combined_food_supply:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
+	262,  // 590: rimgovernor.observations.v1.ForecastFacts.crops:type_name -> rimgovernor.observations.v1.CropForecast
+	263,  // 591: rimgovernor.observations.v1.ForecastFacts.patients:type_name -> rimgovernor.observations.v1.PatientForecast
+	498,  // 592: rimgovernor.observations.v1.ComfortSurface.adjacent:type_name -> rimgovernor.common.v1.Cell
+	500,  // 593: rimgovernor.observations.v1.ComfortSurface.room:type_name -> rimgovernor.common.v1.Ref
+	500,  // 594: rimgovernor.observations.v1.ComfortFacility.accessible_to:type_name -> rimgovernor.common.v1.Ref
+	500,  // 595: rimgovernor.observations.v1.ComfortFacility.users:type_name -> rimgovernor.common.v1.Ref
+	500,  // 596: rimgovernor.observations.v1.ComfortFacility.room:type_name -> rimgovernor.common.v1.Ref
+	267,  // 597: rimgovernor.observations.v1.RecreationCensus.pawns:type_name -> rimgovernor.observations.v1.JoyTolerance
+	268,  // 598: rimgovernor.observations.v1.RecreationCensus.methods:type_name -> rimgovernor.observations.v1.JoyBuildingMethod
+	265,  // 599: rimgovernor.observations.v1.ComfortFacts.surfaces:type_name -> rimgovernor.observations.v1.ComfortSurface
+	266,  // 600: rimgovernor.observations.v1.ComfortFacts.dining:type_name -> rimgovernor.observations.v1.ComfortFacility
+	266,  // 601: rimgovernor.observations.v1.ComfortFacts.recreation:type_name -> rimgovernor.observations.v1.ComfortFacility
+	269,  // 602: rimgovernor.observations.v1.ComfortFacts.joy:type_name -> rimgovernor.observations.v1.RecreationCensus
+	500,  // 603: rimgovernor.observations.v1.UpkeepItem.item:type_name -> rimgovernor.common.v1.Ref
+	500,  // 604: rimgovernor.observations.v1.UpkeepBed.bed:type_name -> rimgovernor.common.v1.Ref
+	500,  // 605: rimgovernor.observations.v1.UpkeepBed.owners:type_name -> rimgovernor.common.v1.Ref
+	500,  // 606: rimgovernor.observations.v1.UpkeepBed.users:type_name -> rimgovernor.common.v1.Ref
+	500,  // 607: rimgovernor.observations.v1.UpkeepBed.accessible_to:type_name -> rimgovernor.common.v1.Ref
+	500,  // 608: rimgovernor.observations.v1.UpkeepBed.room:type_name -> rimgovernor.common.v1.Ref
+	498,  // 609: rimgovernor.observations.v1.StorageCell.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 610: rimgovernor.observations.v1.UpkeepStructure.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 611: rimgovernor.observations.v1.FireState.fire:type_name -> rimgovernor.common.v1.Ref
+	500,  // 612: rimgovernor.observations.v1.FireState.safe_workers:type_name -> rimgovernor.common.v1.Ref
+	500,  // 613: rimgovernor.observations.v1.FilthState.filth:type_name -> rimgovernor.common.v1.Ref
+	500,  // 614: rimgovernor.observations.v1.FilthState.room:type_name -> rimgovernor.common.v1.Ref
+	498,  // 615: rimgovernor.observations.v1.ProtectedCell.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 616: rimgovernor.observations.v1.UpkeepPerson.pawn:type_name -> rimgovernor.common.v1.Ref
+	500,  // 617: rimgovernor.observations.v1.UpkeepPerson.owned_bed:type_name -> rimgovernor.common.v1.Ref
+	500,  // 618: rimgovernor.observations.v1.UpkeepPerson.partners:type_name -> rimgovernor.common.v1.Ref
+	281,  // 619: rimgovernor.observations.v1.UpkeepPerson.title:type_name -> rimgovernor.observations.v1.RoyalTitleFacts
+	280,  // 620: rimgovernor.observations.v1.RoyalTitleFacts.bedroom_things:type_name -> rimgovernor.observations.v1.BedroomThingRequirement
+	280,  // 621: rimgovernor.observations.v1.RoyalTitleRung.bedroom_things:type_name -> rimgovernor.observations.v1.BedroomThingRequirement
+	284,  // 622: rimgovernor.observations.v1.PawnRoyalHolding.permit_cooldowns:type_name -> rimgovernor.observations.v1.PermitCooldown
+	20,   // 623: rimgovernor.observations.v1.PawnPsycast.target_kind:type_name -> rimgovernor.observations.v1.PsycastTargetKind
+	500,  // 624: rimgovernor.observations.v1.PawnRoyalty.pawn:type_name -> rimgovernor.common.v1.Ref
+	285,  // 625: rimgovernor.observations.v1.PawnRoyalty.holdings:type_name -> rimgovernor.observations.v1.PawnRoyalHolding
+	286,  // 626: rimgovernor.observations.v1.PawnRoyalty.psycasts:type_name -> rimgovernor.observations.v1.PawnPsycast
+	500,  // 627: rimgovernor.observations.v1.BestowingCeremony.pawn:type_name -> rimgovernor.common.v1.Ref
+	500,  // 628: rimgovernor.observations.v1.BestowingCeremony.bestower:type_name -> rimgovernor.common.v1.Ref
+	498,  // 629: rimgovernor.observations.v1.BestowingCeremony.spot:type_name -> rimgovernor.common.v1.Cell
+	500,  // 630: rimgovernor.observations.v1.BestowingCeremony.attendees:type_name -> rimgovernor.common.v1.Ref
+	500,  // 631: rimgovernor.observations.v1.RoyalThrone.thing:type_name -> rimgovernor.common.v1.Ref
+	500,  // 632: rimgovernor.observations.v1.RoyalThrone.owner:type_name -> rimgovernor.common.v1.Ref
+	496,  // 633: rimgovernor.observations.v1.RoyaltyFacts.context:type_name -> rimgovernor.common.v1.ObservationContext
+	282,  // 634: rimgovernor.observations.v1.RoyaltyFacts.ladder:type_name -> rimgovernor.observations.v1.RoyalTitleRung
+	283,  // 635: rimgovernor.observations.v1.RoyaltyFacts.permits:type_name -> rimgovernor.observations.v1.RoyalPermitDef
+	288,  // 636: rimgovernor.observations.v1.RoyaltyFacts.pawns:type_name -> rimgovernor.observations.v1.PawnRoyalty
+	287,  // 637: rimgovernor.observations.v1.RoyaltyFacts.neuroformers:type_name -> rimgovernor.observations.v1.NeuroformerStock
+	289,  // 638: rimgovernor.observations.v1.RoyaltyFacts.ceremonies:type_name -> rimgovernor.observations.v1.BestowingCeremony
+	290,  // 639: rimgovernor.observations.v1.RoyaltyFacts.thrones:type_name -> rimgovernor.observations.v1.RoyalThrone
+	30,   // 640: rimgovernor.observations.v1.RoyaltyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	291,  // 641: rimgovernor.observations.v1.RoyaltyFactsReply.observed:type_name -> rimgovernor.observations.v1.RoyaltyFacts
+	497,  // 642: rimgovernor.observations.v1.RoyaltyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 643: rimgovernor.observations.v1.RoyaltyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	294,  // 644: rimgovernor.observations.v1.AnimalRaceFacts.products:type_name -> rimgovernor.observations.v1.AnimalProduct
+	295,  // 645: rimgovernor.observations.v1.AnimalRaceFacts.feed_items:type_name -> rimgovernor.observations.v1.AnimalFeedItem
+	496,  // 646: rimgovernor.observations.v1.AnimalRaceCatalog.context:type_name -> rimgovernor.common.v1.ObservationContext
+	296,  // 647: rimgovernor.observations.v1.AnimalRaceCatalog.races:type_name -> rimgovernor.observations.v1.AnimalRaceFacts
+	30,   // 648: rimgovernor.observations.v1.AnimalRaceCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	297,  // 649: rimgovernor.observations.v1.AnimalRaceCatalogReply.observed:type_name -> rimgovernor.observations.v1.AnimalRaceCatalog
+	497,  // 650: rimgovernor.observations.v1.AnimalRaceCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 651: rimgovernor.observations.v1.AnimalRaceCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 652: rimgovernor.observations.v1.FeedDefinition.eaters:type_name -> rimgovernor.common.v1.Ref
+	500,  // 653: rimgovernor.observations.v1.AnimalFeedStorage.zone:type_name -> rimgovernor.common.v1.Ref
+	500,  // 654: rimgovernor.observations.v1.AnimalFeed.pawn:type_name -> rimgovernor.common.v1.Ref
+	500,  // 655: rimgovernor.observations.v1.AnimalFeed.suitable_pen:type_name -> rimgovernor.common.v1.Ref
+	258,  // 656: rimgovernor.observations.v1.AnimalFeed.reachable_stored_feed:type_name -> rimgovernor.observations.v1.FoodStock
+	500,  // 657: rimgovernor.observations.v1.AnimalFeed.reachable_benches:type_name -> rimgovernor.common.v1.Ref
+	301,  // 658: rimgovernor.observations.v1.AnimalFeed.reachable_storage:type_name -> rimgovernor.observations.v1.AnimalFeedStorage
+	498,  // 659: rimgovernor.observations.v1.AnimalFeed.storage_candidates:type_name -> rimgovernor.common.v1.Cell
+	500,  // 660: rimgovernor.observations.v1.DevelopmentPower.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 661: rimgovernor.observations.v1.DevelopmentFurniture.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 662: rimgovernor.observations.v1.SteamGeyser.geyser:type_name -> rimgovernor.common.v1.Ref
+	498,  // 663: rimgovernor.observations.v1.SteamGeyser.cells:type_name -> rimgovernor.common.v1.Cell
+	303,  // 664: rimgovernor.observations.v1.DevelopmentFacts.power:type_name -> rimgovernor.observations.v1.DevelopmentPower
+	304,  // 665: rimgovernor.observations.v1.DevelopmentFacts.furniture:type_name -> rimgovernor.observations.v1.DevelopmentFurniture
+	118,  // 666: rimgovernor.observations.v1.DevelopmentFacts.networks:type_name -> rimgovernor.observations.v1.PowerNetwork
+	305,  // 667: rimgovernor.observations.v1.DevelopmentFacts.geysers:type_name -> rimgovernor.observations.v1.SteamGeyser
+	33,   // 668: rimgovernor.observations.v1.FoodClimate.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 669: rimgovernor.observations.v1.FarmFacts.zone:type_name -> rimgovernor.common.v1.Ref
+	52,   // 670: rimgovernor.observations.v1.PlanningDefinition.definition:type_name -> rimgovernor.observations.v1.DefinitionRef
+	51,   // 671: rimgovernor.observations.v1.PlanningDefinition.size:type_name -> rimgovernor.observations.v1.MapSize
+	55,   // 672: rimgovernor.observations.v1.PlanningDefinition.costs:type_name -> rimgovernor.observations.v1.Quantity
+	33,   // 673: rimgovernor.observations.v1.PlanningDefinition.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	174,  // 674: rimgovernor.observations.v1.PlanningDefinition.stuff_options:type_name -> rimgovernor.observations.v1.StuffOption
+	500,  // 675: rimgovernor.observations.v1.GrowLight.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 676: rimgovernor.observations.v1.GrowLight.room:type_name -> rimgovernor.common.v1.Ref
+	498,  // 677: rimgovernor.observations.v1.GrowLight.growth_cells:type_name -> rimgovernor.common.v1.Cell
+	33,   // 678: rimgovernor.observations.v1.GrowLight.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 679: rimgovernor.observations.v1.PlantGrower.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 680: rimgovernor.observations.v1.PlantGrower.room:type_name -> rimgovernor.common.v1.Ref
+	498,  // 681: rimgovernor.observations.v1.PlantGrower.plant_cells:type_name -> rimgovernor.common.v1.Cell
+	33,   // 682: rimgovernor.observations.v1.PlantGrower.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 683: rimgovernor.observations.v1.GrowRoom.room:type_name -> rimgovernor.common.v1.Ref
+	311,  // 684: rimgovernor.observations.v1.ControlledEnvironment.lights:type_name -> rimgovernor.observations.v1.GrowLight
+	312,  // 685: rimgovernor.observations.v1.ControlledEnvironment.growers:type_name -> rimgovernor.observations.v1.PlantGrower
+	313,  // 686: rimgovernor.observations.v1.ControlledEnvironment.rooms:type_name -> rimgovernor.observations.v1.GrowRoom
+	314,  // 687: rimgovernor.observations.v1.ControlledEnvironment.networks:type_name -> rimgovernor.observations.v1.PowerHeadroom
+	33,   // 688: rimgovernor.observations.v1.ControlledEnvironment.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	240,  // 689: rimgovernor.observations.v1.PlanningFacts.gear:type_name -> rimgovernor.observations.v1.GearSnapshot
+	33,   // 690: rimgovernor.observations.v1.PlanningFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	315,  // 691: rimgovernor.observations.v1.PlanningFacts.environment:type_name -> rimgovernor.observations.v1.ControlledEnvironment
+	316,  // 692: rimgovernor.observations.v1.PlanningFacts.crops:type_name -> rimgovernor.observations.v1.EdibleCrop
+	318,  // 693: rimgovernor.observations.v1.FoodProduction.products:type_name -> rimgovernor.observations.v1.FoodProduct
+	500,  // 694: rimgovernor.observations.v1.CookingFacts.bench:type_name -> rimgovernor.common.v1.Ref
+	109,  // 695: rimgovernor.observations.v1.CookingFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	106,  // 696: rimgovernor.observations.v1.CookingFacts.bills:type_name -> rimgovernor.observations.v1.BillState
+	319,  // 697: rimgovernor.observations.v1.CookingFacts.production:type_name -> rimgovernor.observations.v1.FoodProduction
+	500,  // 698: rimgovernor.observations.v1.CookingFacts.room:type_name -> rimgovernor.common.v1.Ref
+	31,   // 699: rimgovernor.observations.v1.CookingFacts.bench_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 700: rimgovernor.observations.v1.BlightedPlant.plant:type_name -> rimgovernor.common.v1.Ref
+	500,  // 701: rimgovernor.observations.v1.BlightedPlant.zone:type_name -> rimgovernor.common.v1.Ref
+	31,   // 702: rimgovernor.observations.v1.BlightedPlant.plant_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 703: rimgovernor.observations.v1.AcquisitionFacts.source:type_name -> rimgovernor.common.v1.Ref
+	31,   // 704: rimgovernor.observations.v1.AcquisitionFacts.source_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	500,  // 705: rimgovernor.observations.v1.ButcheringFacts.bench:type_name -> rimgovernor.common.v1.Ref
+	31,   // 706: rimgovernor.observations.v1.ButcheringFacts.bench_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	106,  // 707: rimgovernor.observations.v1.ButcheringFacts.bills:type_name -> rimgovernor.observations.v1.BillState
+	109,  // 708: rimgovernor.observations.v1.ButcheringFacts.recipes:type_name -> rimgovernor.observations.v1.RecipeState
+	500,  // 709: rimgovernor.observations.v1.ButcheringFacts.room:type_name -> rimgovernor.common.v1.Ref
+	324,  // 710: rimgovernor.observations.v1.ButcheringFacts.human_butchers:type_name -> rimgovernor.observations.v1.HumanButcherCandidate
+	498,  // 711: rimgovernor.observations.v1.ButcheringFacts.human_storage_cells:type_name -> rimgovernor.common.v1.Cell
+	97,   // 712: rimgovernor.observations.v1.FoodCorpse.corpse:type_name -> rimgovernor.observations.v1.CorpseState
+	33,   // 713: rimgovernor.observations.v1.ColonyNaming.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	327,  // 714: rimgovernor.observations.v1.ChoiceDialog.options:type_name -> rimgovernor.observations.v1.ChoiceDialogOption
+	270,  // 715: rimgovernor.observations.v1.ComfortSection.observed:type_name -> rimgovernor.observations.v1.ComfortFacts
+	497,  // 716: rimgovernor.observations.v1.ComfortSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	261,  // 717: rimgovernor.observations.v1.FoodSupplySection.observed:type_name -> rimgovernor.observations.v1.FoodSupplyFacts
+	497,  // 718: rimgovernor.observations.v1.FoodSupplySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	264,  // 719: rimgovernor.observations.v1.ForecastSection.observed:type_name -> rimgovernor.observations.v1.ForecastFacts
+	497,  // 720: rimgovernor.observations.v1.ForecastSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	306,  // 721: rimgovernor.observations.v1.DevelopmentSection.observed:type_name -> rimgovernor.observations.v1.DevelopmentFacts
+	497,  // 722: rimgovernor.observations.v1.DevelopmentSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	317,  // 723: rimgovernor.observations.v1.PlanningSection.observed:type_name -> rimgovernor.observations.v1.PlanningFacts
+	497,  // 724: rimgovernor.observations.v1.PlanningSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	334,  // 725: rimgovernor.observations.v1.WallRemovalFacts.records:type_name -> rimgovernor.observations.v1.WallRemovalRecord
+	31,   // 726: rimgovernor.observations.v1.WallRemovalFacts.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	335,  // 727: rimgovernor.observations.v1.WallRemovalSection.observed:type_name -> rimgovernor.observations.v1.WallRemovalFacts
+	497,  // 728: rimgovernor.observations.v1.WallRemovalSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 729: rimgovernor.observations.v1.HomeExtentGeometry.enclosed_interior:type_name -> rimgovernor.common.v1.Cell
+	498,  // 730: rimgovernor.observations.v1.HomeExtentGeometry.corridor:type_name -> rimgovernor.common.v1.Cell
+	498,  // 731: rimgovernor.observations.v1.HomeExtentGeometry.zone:type_name -> rimgovernor.common.v1.Cell
+	498,  // 732: rimgovernor.observations.v1.HomeCoverageTarget.cells:type_name -> rimgovernor.common.v1.Cell
+	31,   // 733: rimgovernor.observations.v1.HomeCoverageTarget.snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	337,  // 734: rimgovernor.observations.v1.HomeCoverageTarget.extent_geometry:type_name -> rimgovernor.observations.v1.HomeExtentGeometry
+	338,  // 735: rimgovernor.observations.v1.HomeCoverageFacts.targets:type_name -> rimgovernor.observations.v1.HomeCoverageTarget
+	339,  // 736: rimgovernor.observations.v1.HomeCoverageSection.observed:type_name -> rimgovernor.observations.v1.HomeCoverageFacts
+	497,  // 737: rimgovernor.observations.v1.HomeCoverageSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	500,  // 738: rimgovernor.observations.v1.WorkLightCell.bench:type_name -> rimgovernor.common.v1.Ref
+	498,  // 739: rimgovernor.observations.v1.WorkLightCell.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 740: rimgovernor.observations.v1.WorkLightCell.room:type_name -> rimgovernor.common.v1.Ref
+	500,  // 741: rimgovernor.observations.v1.LampState.building:type_name -> rimgovernor.common.v1.Ref
+	500,  // 742: rimgovernor.observations.v1.LampState.room:type_name -> rimgovernor.common.v1.Ref
+	341,  // 743: rimgovernor.observations.v1.LightingFacts.work_cells:type_name -> rimgovernor.observations.v1.WorkLightCell
+	342,  // 744: rimgovernor.observations.v1.LightingFacts.lamps:type_name -> rimgovernor.observations.v1.LampState
+	343,  // 745: rimgovernor.observations.v1.LightingSection.observed:type_name -> rimgovernor.observations.v1.LightingFacts
+	497,  // 746: rimgovernor.observations.v1.LightingSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 747: rimgovernor.observations.v1.FloorCell.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 748: rimgovernor.observations.v1.FloorRoom.room:type_name -> rimgovernor.common.v1.Ref
+	345,  // 749: rimgovernor.observations.v1.FloorRoom.cells:type_name -> rimgovernor.observations.v1.FloorCell
+	346,  // 750: rimgovernor.observations.v1.FlooringFacts.rooms:type_name -> rimgovernor.observations.v1.FloorRoom
+	347,  // 751: rimgovernor.observations.v1.FlooringFacts.terrains:type_name -> rimgovernor.observations.v1.FloorTerrain
+	348,  // 752: rimgovernor.observations.v1.FlooringSection.observed:type_name -> rimgovernor.observations.v1.FlooringFacts
+	497,  // 753: rimgovernor.observations.v1.FlooringSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 754: rimgovernor.observations.v1.RouteBreach.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 755: rimgovernor.observations.v1.RouteFacility.facility:type_name -> rimgovernor.common.v1.Ref
+	22,   // 756: rimgovernor.observations.v1.RouteFacility.kind:type_name -> rimgovernor.observations.v1.RouteFacilityKind
+	498,  // 757: rimgovernor.observations.v1.RouteFacility.cell:type_name -> rimgovernor.common.v1.Cell
+	500,  // 758: rimgovernor.observations.v1.RouteFacility.room:type_name -> rimgovernor.common.v1.Ref
+	350,  // 759: rimgovernor.observations.v1.RouteFacility.travel:type_name -> rimgovernor.observations.v1.RouteTravel
+	351,  // 760: rimgovernor.observations.v1.RouteFacility.breaches:type_name -> rimgovernor.observations.v1.RouteBreach
+	498,  // 761: rimgovernor.observations.v1.TrafficCell.cell:type_name -> rimgovernor.common.v1.Cell
+	21,   // 762: rimgovernor.observations.v1.TrafficCell.layer:type_name -> rimgovernor.observations.v1.TrafficLayer
+	352,  // 763: rimgovernor.observations.v1.RoutesFacts.facilities:type_name -> rimgovernor.observations.v1.RouteFacility
+	353,  // 764: rimgovernor.observations.v1.RoutesFacts.traffic:type_name -> rimgovernor.observations.v1.TrafficCell
+	354,  // 765: rimgovernor.observations.v1.RoutesSection.observed:type_name -> rimgovernor.observations.v1.RoutesFacts
+	497,  // 766: rimgovernor.observations.v1.RoutesSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	329,  // 767: rimgovernor.observations.v1.UpkeepFacts.comfort:type_name -> rimgovernor.observations.v1.ComfortSection
+	271,  // 768: rimgovernor.observations.v1.UpkeepFacts.items:type_name -> rimgovernor.observations.v1.UpkeepItem
+	272,  // 769: rimgovernor.observations.v1.UpkeepFacts.beds:type_name -> rimgovernor.observations.v1.UpkeepBed
+	273,  // 770: rimgovernor.observations.v1.UpkeepFacts.storage_cells:type_name -> rimgovernor.observations.v1.StorageCell
+	274,  // 771: rimgovernor.observations.v1.UpkeepFacts.storage_capacity:type_name -> rimgovernor.observations.v1.ItemStorageCapacity
+	275,  // 772: rimgovernor.observations.v1.UpkeepFacts.structures:type_name -> rimgovernor.observations.v1.UpkeepStructure
+	276,  // 773: rimgovernor.observations.v1.UpkeepFacts.fires:type_name -> rimgovernor.observations.v1.FireState
+	277,  // 774: rimgovernor.observations.v1.UpkeepFacts.filth:type_name -> rimgovernor.observations.v1.FilthState
+	278,  // 775: rimgovernor.observations.v1.UpkeepFacts.protected_cells:type_name -> rimgovernor.observations.v1.ProtectedCell
+	279,  // 776: rimgovernor.observations.v1.UpkeepFacts.people:type_name -> rimgovernor.observations.v1.UpkeepPerson
+	300,  // 777: rimgovernor.observations.v1.UpkeepFacts.feed_definitions:type_name -> rimgovernor.observations.v1.FeedDefinition
+	302,  // 778: rimgovernor.observations.v1.UpkeepFacts.animals:type_name -> rimgovernor.observations.v1.AnimalFeed
+	33,   // 779: rimgovernor.observations.v1.UpkeepFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	336,  // 780: rimgovernor.observations.v1.UpkeepFacts.wall_removal:type_name -> rimgovernor.observations.v1.WallRemovalSection
+	340,  // 781: rimgovernor.observations.v1.UpkeepFacts.home_coverage:type_name -> rimgovernor.observations.v1.HomeCoverageSection
+	344,  // 782: rimgovernor.observations.v1.UpkeepFacts.lighting:type_name -> rimgovernor.observations.v1.LightingSection
+	302,  // 783: rimgovernor.observations.v1.UpkeepFacts.wild_animals:type_name -> rimgovernor.observations.v1.AnimalFeed
+	349,  // 784: rimgovernor.observations.v1.UpkeepFacts.flooring:type_name -> rimgovernor.observations.v1.FlooringSection
+	355,  // 785: rimgovernor.observations.v1.UpkeepFacts.routes:type_name -> rimgovernor.observations.v1.RoutesSection
+	279,  // 786: rimgovernor.observations.v1.UpkeepFacts.slaves:type_name -> rimgovernor.observations.v1.UpkeepPerson
+	498,  // 787: rimgovernor.observations.v1.UpkeepFacts.home_cells:type_name -> rimgovernor.common.v1.Cell
+	356,  // 788: rimgovernor.observations.v1.UpkeepSection.observed:type_name -> rimgovernor.observations.v1.UpkeepFacts
+	497,  // 789: rimgovernor.observations.v1.UpkeepSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	33,   // 790: rimgovernor.observations.v1.ThreatFacts.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	358,  // 791: rimgovernor.observations.v1.ThreatSection.observed:type_name -> rimgovernor.observations.v1.ThreatFacts
+	497,  // 792: rimgovernor.observations.v1.ThreatSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	500,  // 793: rimgovernor.observations.v1.LootItem.item:type_name -> rimgovernor.common.v1.Ref
+	360,  // 794: rimgovernor.observations.v1.LootCensus.items:type_name -> rimgovernor.observations.v1.LootItem
+	361,  // 795: rimgovernor.observations.v1.LootSection.observed:type_name -> rimgovernor.observations.v1.LootCensus
+	497,  // 796: rimgovernor.observations.v1.LootSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 797: rimgovernor.observations.v1.FishableRegion.root:type_name -> rimgovernor.common.v1.Cell
+	498,  // 798: rimgovernor.observations.v1.FishableRegion.proposed_cells:type_name -> rimgovernor.common.v1.Cell
+	363,  // 799: rimgovernor.observations.v1.FishableWater.regions:type_name -> rimgovernor.observations.v1.FishableRegion
+	364,  // 800: rimgovernor.observations.v1.FoodChannelsFacts.fishable_water:type_name -> rimgovernor.observations.v1.FishableWater
+	365,  // 801: rimgovernor.observations.v1.FoodChannelsFacts.gatherable:type_name -> rimgovernor.observations.v1.GatherableAnimal
+	366,  // 802: rimgovernor.observations.v1.FoodChannelsFacts.egg_layer:type_name -> rimgovernor.observations.v1.EggLayerAnimal
+	367,  // 803: rimgovernor.observations.v1.FoodChannelsFacts.paste_dispenser:type_name -> rimgovernor.observations.v1.PasteDispenser
+	368,  // 804: rimgovernor.observations.v1.FoodChannelsFacts.forage:type_name -> rimgovernor.observations.v1.ForagePlant
+	369,  // 805: rimgovernor.observations.v1.FoodChannelsFacts.grazing:type_name -> rimgovernor.observations.v1.PenGrazing
+	370,  // 806: rimgovernor.observations.v1.FoodChannelsFacts.slaughter:type_name -> rimgovernor.observations.v1.FoodSlaughterAnimal
+	371,  // 807: rimgovernor.observations.v1.FoodChannelsSection.observed:type_name -> rimgovernor.observations.v1.FoodChannelsFacts
+	497,  // 808: rimgovernor.observations.v1.FoodChannelsSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	498,  // 809: rimgovernor.observations.v1.DeepResourceLump.centre:type_name -> rimgovernor.common.v1.Cell
+	498,  // 810: rimgovernor.observations.v1.MineralScannerState.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 811: rimgovernor.observations.v1.DeepDrillState.position:type_name -> rimgovernor.common.v1.Cell
+	373,  // 812: rimgovernor.observations.v1.DeepResourcesFacts.lumps:type_name -> rimgovernor.observations.v1.DeepResourceLump
+	374,  // 813: rimgovernor.observations.v1.DeepResourcesFacts.ground_scanners:type_name -> rimgovernor.observations.v1.MineralScannerState
+	374,  // 814: rimgovernor.observations.v1.DeepResourcesFacts.long_range_scanners:type_name -> rimgovernor.observations.v1.MineralScannerState
+	375,  // 815: rimgovernor.observations.v1.DeepResourcesFacts.drills:type_name -> rimgovernor.observations.v1.DeepDrillState
+	376,  // 816: rimgovernor.observations.v1.DeepResourcesSection.observed:type_name -> rimgovernor.observations.v1.DeepResourcesFacts
+	497,  // 817: rimgovernor.observations.v1.DeepResourcesSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	496,  // 818: rimgovernor.observations.v1.ColonyFactsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	326,  // 819: rimgovernor.observations.v1.ColonyFactsSnapshot.naming:type_name -> rimgovernor.observations.v1.ColonyNaming
+	498,  // 820: rimgovernor.observations.v1.ColonyFactsSnapshot.center:type_name -> rimgovernor.common.v1.Cell
+	51,   // 821: rimgovernor.observations.v1.ColonyFactsSnapshot.map_size:type_name -> rimgovernor.observations.v1.MapSize
+	55,   // 822: rimgovernor.observations.v1.ColonyFactsSnapshot.resources:type_name -> rimgovernor.observations.v1.Quantity
+	52,   // 823: rimgovernor.observations.v1.ColonyFactsSnapshot.policy_resources:type_name -> rimgovernor.observations.v1.DefinitionRef
+	307,  // 824: rimgovernor.observations.v1.ColonyFactsSnapshot.environment:type_name -> rimgovernor.observations.v1.EnvironmentCondition
+	308,  // 825: rimgovernor.observations.v1.ColonyFactsSnapshot.food_climate:type_name -> rimgovernor.observations.v1.FoodClimate
+	309,  // 826: rimgovernor.observations.v1.ColonyFactsSnapshot.farms:type_name -> rimgovernor.observations.v1.FarmFacts
+	320,  // 827: rimgovernor.observations.v1.ColonyFactsSnapshot.cooking:type_name -> rimgovernor.observations.v1.CookingFacts
+	322,  // 828: rimgovernor.observations.v1.ColonyFactsSnapshot.acquisition:type_name -> rimgovernor.observations.v1.AcquisitionFacts
+	323,  // 829: rimgovernor.observations.v1.ColonyFactsSnapshot.butchering:type_name -> rimgovernor.observations.v1.ButcheringFacts
+	325,  // 830: rimgovernor.observations.v1.ColonyFactsSnapshot.food_corpses:type_name -> rimgovernor.observations.v1.FoodCorpse
+	500,  // 831: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.common.v1.Ref
+	330,  // 832: rimgovernor.observations.v1.ColonyFactsSnapshot.food_supply:type_name -> rimgovernor.observations.v1.FoodSupplySection
+	331,  // 833: rimgovernor.observations.v1.ColonyFactsSnapshot.forecast:type_name -> rimgovernor.observations.v1.ForecastSection
+	357,  // 834: rimgovernor.observations.v1.ColonyFactsSnapshot.upkeep:type_name -> rimgovernor.observations.v1.UpkeepSection
+	332,  // 835: rimgovernor.observations.v1.ColonyFactsSnapshot.development:type_name -> rimgovernor.observations.v1.DevelopmentSection
+	333,  // 836: rimgovernor.observations.v1.ColonyFactsSnapshot.planning:type_name -> rimgovernor.observations.v1.PlanningSection
+	200,  // 837: rimgovernor.observations.v1.ColonyFactsSnapshot.recovery:type_name -> rimgovernor.observations.v1.RecoveryReply
+	196,  // 838: rimgovernor.observations.v1.ColonyFactsSnapshot.waste:type_name -> rimgovernor.observations.v1.WasteReply
+	33,   // 839: rimgovernor.observations.v1.ColonyFactsSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	328,  // 840: rimgovernor.observations.v1.ColonyFactsSnapshot.dialog:type_name -> rimgovernor.observations.v1.ChoiceDialog
+	321,  // 841: rimgovernor.observations.v1.ColonyFactsSnapshot.blighted_plants:type_name -> rimgovernor.observations.v1.BlightedPlant
+	359,  // 842: rimgovernor.observations.v1.ColonyFactsSnapshot.threat:type_name -> rimgovernor.observations.v1.ThreatSection
+	362,  // 843: rimgovernor.observations.v1.ColonyFactsSnapshot.event_loot:type_name -> rimgovernor.observations.v1.LootSection
+	404,  // 844: rimgovernor.observations.v1.ColonyFactsSnapshot.joiner_letters:type_name -> rimgovernor.observations.v1.JoinerLetter
+	372,  // 845: rimgovernor.observations.v1.ColonyFactsSnapshot.food_channels:type_name -> rimgovernor.observations.v1.FoodChannelsSection
+	377,  // 846: rimgovernor.observations.v1.ColonyFactsSnapshot.deep_resources:type_name -> rimgovernor.observations.v1.DeepResourcesSection
+	392,  // 847: rimgovernor.observations.v1.ColonyFactsSnapshot.policies:type_name -> rimgovernor.observations.v1.PolicySection
+	393,  // 848: rimgovernor.observations.v1.ColonyFactsSnapshot.biotech:type_name -> rimgovernor.observations.v1.BiotechSection
+	379,  // 849: rimgovernor.observations.v1.ColonyFactsSnapshot.odyssey:type_name -> rimgovernor.observations.v1.OdysseySection
+	380,  // 850: rimgovernor.observations.v1.OdysseySection.observed:type_name -> rimgovernor.observations.v1.OdysseyColonyFacts
+	497,  // 851: rimgovernor.observations.v1.OdysseySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	381,  // 852: rimgovernor.observations.v1.OdysseyColonyFacts.conditions:type_name -> rimgovernor.observations.v1.ActiveCondition
+	382,  // 853: rimgovernor.observations.v1.OdysseyColonyFacts.hazard_terrain:type_name -> rimgovernor.observations.v1.HazardTerrain
+	383,  // 854: rimgovernor.observations.v1.OdysseyColonyFacts.lava_emergences:type_name -> rimgovernor.observations.v1.LavaEmergenceState
+	384,  // 855: rimgovernor.observations.v1.OdysseyColonyFacts.sites:type_name -> rimgovernor.observations.v1.UndergroundSite
+	498,  // 856: rimgovernor.observations.v1.LavaEmergenceState.position:type_name -> rimgovernor.common.v1.Cell
+	385,  // 857: rimgovernor.observations.v1.UndergroundSite.hackables:type_name -> rimgovernor.observations.v1.UndergroundHackable
+	498,  // 858: rimgovernor.observations.v1.UndergroundHackable.position:type_name -> rimgovernor.common.v1.Cell
+	509,  // 859: rimgovernor.observations.v1.PolicyEntry.drug_entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
+	23,   // 860: rimgovernor.observations.v1.BookDefinition.kind:type_name -> rimgovernor.observations.v1.BookKind
+	24,   // 861: rimgovernor.observations.v1.FoodDefinition.kind:type_name -> rimgovernor.observations.v1.FoodKind
+	25,   // 862: rimgovernor.observations.v1.FoodDefinition.ingredients:type_name -> rimgovernor.observations.v1.MealIngredients
+	386,  // 863: rimgovernor.observations.v1.PolicyFacts.outfit:type_name -> rimgovernor.observations.v1.PolicyEntry
+	386,  // 864: rimgovernor.observations.v1.PolicyFacts.drug:type_name -> rimgovernor.observations.v1.PolicyEntry
+	386,  // 865: rimgovernor.observations.v1.PolicyFacts.food:type_name -> rimgovernor.observations.v1.PolicyEntry
+	386,  // 866: rimgovernor.observations.v1.PolicyFacts.reading:type_name -> rimgovernor.observations.v1.PolicyEntry
+	389,  // 867: rimgovernor.observations.v1.PolicyFacts.allowed_areas:type_name -> rimgovernor.observations.v1.AllowedAreaEntry
+	387,  // 868: rimgovernor.observations.v1.PolicyFacts.books:type_name -> rimgovernor.observations.v1.BookDefinition
+	388,  // 869: rimgovernor.observations.v1.PolicyFacts.foods:type_name -> rimgovernor.observations.v1.FoodDefinition
+	391,  // 870: rimgovernor.observations.v1.PolicyFacts.food_eaters:type_name -> rimgovernor.observations.v1.FoodEater
+	26,   // 871: rimgovernor.observations.v1.FoodEater.kind:type_name -> rimgovernor.observations.v1.FoodEaterKind
+	390,  // 872: rimgovernor.observations.v1.PolicySection.observed:type_name -> rimgovernor.observations.v1.PolicyFacts
+	497,  // 873: rimgovernor.observations.v1.PolicySection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	394,  // 874: rimgovernor.observations.v1.BiotechSection.observed:type_name -> rimgovernor.observations.v1.BiotechColonyFacts
+	497,  // 875: rimgovernor.observations.v1.BiotechSection.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	395,  // 876: rimgovernor.observations.v1.BiotechColonyFacts.pollution:type_name -> rimgovernor.observations.v1.PollutionTotals
+	396,  // 877: rimgovernor.observations.v1.BiotechColonyFacts.polluters:type_name -> rimgovernor.observations.v1.Polluter
+	397,  // 878: rimgovernor.observations.v1.BiotechColonyFacts.wastepacks:type_name -> rimgovernor.observations.v1.Wastepack
+	398,  // 879: rimgovernor.observations.v1.BiotechColonyFacts.atomizers:type_name -> rimgovernor.observations.v1.WastepackAtomizer
+	399,  // 880: rimgovernor.observations.v1.BiotechColonyFacts.pumps:type_name -> rimgovernor.observations.v1.PollutionPump
+	400,  // 881: rimgovernor.observations.v1.BiotechColonyFacts.gestators:type_name -> rimgovernor.observations.v1.MechGestatorState
+	401,  // 882: rimgovernor.observations.v1.BiotechColonyFacts.chargers:type_name -> rimgovernor.observations.v1.MechChargerState
+	402,  // 883: rimgovernor.observations.v1.BiotechColonyFacts.babies:type_name -> rimgovernor.observations.v1.BabyCare
+	498,  // 884: rimgovernor.observations.v1.Polluter.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 885: rimgovernor.observations.v1.Wastepack.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 886: rimgovernor.observations.v1.WastepackAtomizer.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 887: rimgovernor.observations.v1.PollutionPump.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 888: rimgovernor.observations.v1.MechGestatorState.position:type_name -> rimgovernor.common.v1.Cell
+	498,  // 889: rimgovernor.observations.v1.MechChargerState.position:type_name -> rimgovernor.common.v1.Cell
+	403,  // 890: rimgovernor.observations.v1.BabyCare.autofeeders:type_name -> rimgovernor.observations.v1.BabyAutofeeder
+	30,   // 891: rimgovernor.observations.v1.ColonyFactsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	378,  // 892: rimgovernor.observations.v1.ColonyFactsReply.observed:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
+	497,  // 893: rimgovernor.observations.v1.ColonyFactsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 894: rimgovernor.observations.v1.ColonyFactsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	500,  // 895: rimgovernor.observations.v1.ThreatPawn.prey:type_name -> rimgovernor.common.v1.Ref
+	500,  // 896: rimgovernor.observations.v1.ThreatPawn.pawn:type_name -> rimgovernor.common.v1.Ref
+	500,  // 897: rimgovernor.observations.v1.ThreatPawn.faction:type_name -> rimgovernor.common.v1.Ref
+	53,   // 898: rimgovernor.observations.v1.ThreatBuilding.building:type_name -> rimgovernor.observations.v1.EntityRef
+	31,   // 899: rimgovernor.observations.v1.ThreatBuilding.building_snapshot:type_name -> rimgovernor.observations.v1.SnapshotRef
+	34,   // 900: rimgovernor.observations.v1.ThreatBuilding.occupied:type_name -> rimgovernor.observations.v1.Rectangle
+	407,  // 901: rimgovernor.observations.v1.ThreatsSnapshot.pawns:type_name -> rimgovernor.observations.v1.ThreatPawn
+	408,  // 902: rimgovernor.observations.v1.ThreatsSnapshot.hostile_buildings:type_name -> rimgovernor.observations.v1.ThreatBuilding
+	496,  // 903: rimgovernor.observations.v1.StatusSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	409,  // 904: rimgovernor.observations.v1.StatusSnapshot.threats:type_name -> rimgovernor.observations.v1.ThreatsSnapshot
+	33,   // 905: rimgovernor.observations.v1.StatusSnapshot.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 906: rimgovernor.observations.v1.StatusSnapshot.colonists:type_name -> rimgovernor.common.v1.Ref
+	30,   // 907: rimgovernor.observations.v1.StatusRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	410,  // 908: rimgovernor.observations.v1.StatusReply.observed:type_name -> rimgovernor.observations.v1.StatusSnapshot
+	497,  // 909: rimgovernor.observations.v1.StatusReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 910: rimgovernor.observations.v1.StatusReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 911: rimgovernor.observations.v1.BundleSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	510,  // 912: rimgovernor.observations.v1.BundleSnapshot.clock_status:type_name -> rimgovernor.clock.v1.Status
+	410,  // 913: rimgovernor.observations.v1.BundleSnapshot.emergency:type_name -> rimgovernor.observations.v1.StatusSnapshot
+	378,  // 914: rimgovernor.observations.v1.BundleSnapshot.colony_facts:type_name -> rimgovernor.observations.v1.ColonyFactsSnapshot
+	202,  // 915: rimgovernor.observations.v1.BundleSnapshot.population:type_name -> rimgovernor.observations.v1.PopulationSnapshot
+	145,  // 916: rimgovernor.observations.v1.BundleSnapshot.research:type_name -> rimgovernor.observations.v1.ResearchSnapshot
+	119,  // 917: rimgovernor.observations.v1.BundleSnapshot.buildings:type_name -> rimgovernor.observations.v1.BuildingsSnapshot
+	222,  // 918: rimgovernor.observations.v1.BundleSnapshot.bills:type_name -> rimgovernor.observations.v1.BillsSnapshot
+	131,  // 919: rimgovernor.observations.v1.BundleSnapshot.zones:type_name -> rimgovernor.observations.v1.ZonesSnapshot
+	247,  // 920: rimgovernor.observations.v1.BundleSnapshot.traders:type_name -> rimgovernor.observations.v1.TradersSnapshot
+	219,  // 921: rimgovernor.observations.v1.BundleSnapshot.world_progression:type_name -> rimgovernor.observations.v1.WorldProgressionSnapshot
+	185,  // 922: rimgovernor.observations.v1.BundleSnapshot.resource_sources:type_name -> rimgovernor.observations.v1.ResourceSourcesSnapshot
+	511,  // 923: rimgovernor.observations.v1.BundleSnapshot.combat_pawns:type_name -> rimgovernor.mirror.v1.CombatPawn
+	512,  // 924: rimgovernor.observations.v1.BundleSnapshot.combat_events:type_name -> rimgovernor.mirror.v1.CombatEventRow
+	159,  // 925: rimgovernor.observations.v1.BundleSnapshot.combat_lines_of_fire:type_name -> rimgovernor.observations.v1.LinesOfFireSnapshot
+	513,  // 926: rimgovernor.observations.v1.BundleSnapshot.combat_doors:type_name -> rimgovernor.mirror.v1.CombatDoorRow
+	127,  // 927: rimgovernor.observations.v1.BundleSnapshot.rooms:type_name -> rimgovernor.observations.v1.RoomsSnapshot
+	514,  // 928: rimgovernor.observations.v1.BundleSnapshot.combat_mortars:type_name -> rimgovernor.mirror.v1.CombatMortarRow
+	414,  // 929: rimgovernor.observations.v1.BundleSnapshot.watermarks:type_name -> rimgovernor.observations.v1.SectionWatermark
+	92,   // 930: rimgovernor.observations.v1.BundleSnapshot.pawns:type_name -> rimgovernor.observations.v1.PawnSnapshot
+	135,  // 931: rimgovernor.observations.v1.BundleSnapshot.things:type_name -> rimgovernor.observations.v1.ThingsSnapshot
+	506,  // 932: rimgovernor.observations.v1.BundleSnapshot.grid:type_name -> rimgovernor.mirror.v1.CellGrid
+	440,  // 933: rimgovernor.observations.v1.BundleSnapshot.ideology:type_name -> rimgovernor.observations.v1.IdeologySnapshot
+	496,  // 934: rimgovernor.observations.v1.ObservationBatchSnapshot.start_context:type_name -> rimgovernor.common.v1.ObservationContext
+	496,  // 935: rimgovernor.observations.v1.ObservationBatchSnapshot.end_context:type_name -> rimgovernor.common.v1.ObservationContext
+	412,  // 936: rimgovernor.observations.v1.ObservationBatchSnapshot.status_before:type_name -> rimgovernor.observations.v1.StatusReply
+	94,   // 937: rimgovernor.observations.v1.ObservationBatchSnapshot.pawns:type_name -> rimgovernor.observations.v1.ListPawnsReply
+	102,  // 938: rimgovernor.observations.v1.ObservationBatchSnapshot.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesReply
+	121,  // 939: rimgovernor.observations.v1.ObservationBatchSnapshot.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsReply
+	129,  // 940: rimgovernor.observations.v1.ObservationBatchSnapshot.rooms:type_name -> rimgovernor.observations.v1.ListRoomsReply
+	133,  // 941: rimgovernor.observations.v1.ObservationBatchSnapshot.zones:type_name -> rimgovernor.observations.v1.ListZonesReply
+	412,  // 942: rimgovernor.observations.v1.ObservationBatchSnapshot.status_after:type_name -> rimgovernor.observations.v1.StatusReply
+	30,   // 943: rimgovernor.observations.v1.ObservationBatchRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	411,  // 944: rimgovernor.observations.v1.ObservationBatchRequest.status:type_name -> rimgovernor.observations.v1.StatusRequest
+	93,   // 945: rimgovernor.observations.v1.ObservationBatchRequest.pawns:type_name -> rimgovernor.observations.v1.ListPawnsRequest
+	101,  // 946: rimgovernor.observations.v1.ObservationBatchRequest.supplies:type_name -> rimgovernor.observations.v1.ListSuppliesRequest
+	120,  // 947: rimgovernor.observations.v1.ObservationBatchRequest.buildings:type_name -> rimgovernor.observations.v1.ListBuildingsRequest
+	128,  // 948: rimgovernor.observations.v1.ObservationBatchRequest.rooms:type_name -> rimgovernor.observations.v1.ListRoomsRequest
+	132,  // 949: rimgovernor.observations.v1.ObservationBatchRequest.zones:type_name -> rimgovernor.observations.v1.ListZonesRequest
+	415,  // 950: rimgovernor.observations.v1.ObservationBatchReply.observed:type_name -> rimgovernor.observations.v1.ObservationBatchSnapshot
+	497,  // 951: rimgovernor.observations.v1.ObservationBatchReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 952: rimgovernor.observations.v1.ObservationBatchReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 953: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	418,  // 954: rimgovernor.observations.v1.ArchitectCategoriesSnapshot.categories:type_name -> rimgovernor.observations.v1.ArchitectCategory
+	30,   // 955: rimgovernor.observations.v1.ArchitectCategoriesRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	420,  // 956: rimgovernor.observations.v1.ArchitectCategoriesReply.observed:type_name -> rimgovernor.observations.v1.ArchitectCategoriesSnapshot
+	497,  // 957: rimgovernor.observations.v1.ArchitectCategoriesReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 958: rimgovernor.observations.v1.ArchitectCategoriesReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 959: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	419,  // 960: rimgovernor.observations.v1.ArchitectDesignatorsSnapshot.designators:type_name -> rimgovernor.observations.v1.ArchitectDesignator
+	30,   // 961: rimgovernor.observations.v1.ArchitectDesignatorsRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	423,  // 962: rimgovernor.observations.v1.ArchitectDesignatorsReply.observed:type_name -> rimgovernor.observations.v1.ArchitectDesignatorsSnapshot
+	497,  // 963: rimgovernor.observations.v1.ArchitectDesignatorsReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 964: rimgovernor.observations.v1.ArchitectDesignatorsReply.failure:type_name -> rimgovernor.common.v1.Failure
+	496,  // 965: rimgovernor.observations.v1.DefinitionCatalog.context:type_name -> rimgovernor.common.v1.ObservationContext
+	310,  // 966: rimgovernor.observations.v1.DefinitionCatalog.definitions:type_name -> rimgovernor.observations.v1.PlanningDefinition
+	140,  // 967: rimgovernor.observations.v1.DefinitionCatalog.research:type_name -> rimgovernor.observations.v1.ResearchProject
+	458,  // 968: rimgovernor.observations.v1.DefinitionCatalog.biotech:type_name -> rimgovernor.observations.v1.BiotechCatalog
+	428,  // 969: rimgovernor.observations.v1.DefinitionCatalog.ideology:type_name -> rimgovernor.observations.v1.IdeologyCatalog
+	459,  // 970: rimgovernor.observations.v1.DefinitionCatalog.odyssey:type_name -> rimgovernor.observations.v1.OdysseyCatalog
+	470,  // 971: rimgovernor.observations.v1.DefinitionCatalog.anomaly:type_name -> rimgovernor.observations.v1.AnomalyCatalog
+	429,  // 972: rimgovernor.observations.v1.IdeologyCatalog.memes:type_name -> rimgovernor.observations.v1.MemeDefinition
+	431,  // 973: rimgovernor.observations.v1.IdeologyCatalog.precepts:type_name -> rimgovernor.observations.v1.PreceptDefinition
+	434,  // 974: rimgovernor.observations.v1.IdeologyCatalog.roles:type_name -> rimgovernor.observations.v1.RoleDefinition
+	438,  // 975: rimgovernor.observations.v1.IdeologyCatalog.rituals:type_name -> rimgovernor.observations.v1.RitualDefinition
+	430,  // 976: rimgovernor.observations.v1.MemeDefinition.required_rituals:type_name -> rimgovernor.observations.v1.RequiredRitual
+	433,  // 977: rimgovernor.observations.v1.PreceptDefinition.effects:type_name -> rimgovernor.observations.v1.PreceptEffect
+	432,  // 978: rimgovernor.observations.v1.PreceptDefinition.buildings:type_name -> rimgovernor.observations.v1.PreceptBuilding
+	27,   // 979: rimgovernor.observations.v1.PreceptEffect.kind:type_name -> rimgovernor.observations.v1.PreceptEffectKind
+	435,  // 980: rimgovernor.observations.v1.RoleDefinition.requirements:type_name -> rimgovernor.observations.v1.RoleRequirementFact
+	437,  // 981: rimgovernor.observations.v1.RoleDefinition.effects:type_name -> rimgovernor.observations.v1.RoleEffectFact
+	436,  // 982: rimgovernor.observations.v1.RoleRequirementFact.skills:type_name -> rimgovernor.observations.v1.SkillRequirementFact
+	439,  // 983: rimgovernor.observations.v1.RitualDefinition.roles:type_name -> rimgovernor.observations.v1.RitualRoleSlot
+	496,  // 984: rimgovernor.observations.v1.IdeologySnapshot.context:type_name -> rimgovernor.common.v1.ObservationContext
+	441,  // 985: rimgovernor.observations.v1.IdeologySnapshot.precepts:type_name -> rimgovernor.observations.v1.IdeoPrecept
+	442,  // 986: rimgovernor.observations.v1.IdeologySnapshot.roles:type_name -> rimgovernor.observations.v1.IdeoRole
+	443,  // 987: rimgovernor.observations.v1.IdeologySnapshot.rituals:type_name -> rimgovernor.observations.v1.IdeoRitual
+	444,  // 988: rimgovernor.observations.v1.IdeologySnapshot.buildings:type_name -> rimgovernor.observations.v1.IdeoBuilding
+	500,  // 989: rimgovernor.observations.v1.IdeoRole.pawns:type_name -> rimgovernor.common.v1.Ref
+	445,  // 990: rimgovernor.observations.v1.LifeStageRow.effects:type_name -> rimgovernor.observations.v1.StatEffect
+	449,  // 991: rimgovernor.observations.v1.RaceLifeStages.stages:type_name -> rimgovernor.observations.v1.LifeStageAgeRow
+	450,  // 992: rimgovernor.observations.v1.RaceLifeStages.work_min_ages:type_name -> rimgovernor.observations.v1.WorkMinAge
+	445,  // 993: rimgovernor.observations.v1.GeneRow.effects:type_name -> rimgovernor.observations.v1.StatEffect
+	446,  // 994: rimgovernor.observations.v1.GeneRow.aptitudes:type_name -> rimgovernor.observations.v1.SkillLevel
+	453,  // 995: rimgovernor.observations.v1.GeneRow.passion_mods:type_name -> rimgovernor.observations.v1.PassionEffect
+	447,  // 996: rimgovernor.observations.v1.GeneRow.capacity_effects:type_name -> rimgovernor.observations.v1.CapacityEffect
+	455,  // 997: rimgovernor.observations.v1.MechKindRow.work_priorities:type_name -> rimgovernor.observations.v1.MechWorkPriority
+	448,  // 998: rimgovernor.observations.v1.BiotechCatalog.life_stages:type_name -> rimgovernor.observations.v1.LifeStageRow
+	451,  // 999: rimgovernor.observations.v1.BiotechCatalog.races:type_name -> rimgovernor.observations.v1.RaceLifeStages
+	452,  // 1000: rimgovernor.observations.v1.BiotechCatalog.genes:type_name -> rimgovernor.observations.v1.GeneRow
+	454,  // 1001: rimgovernor.observations.v1.BiotechCatalog.xenotypes:type_name -> rimgovernor.observations.v1.XenotypeRow
+	456,  // 1002: rimgovernor.observations.v1.BiotechCatalog.mech_kinds:type_name -> rimgovernor.observations.v1.MechKindRow
+	457,  // 1003: rimgovernor.observations.v1.BiotechCatalog.mech_work_modes:type_name -> rimgovernor.observations.v1.MechWorkModeRow
+	462,  // 1004: rimgovernor.observations.v1.OdysseyCatalog.biomes:type_name -> rimgovernor.observations.v1.BiomeRow
+	463,  // 1005: rimgovernor.observations.v1.OdysseyCatalog.tile_mutators:type_name -> rimgovernor.observations.v1.TileMutatorRow
+	464,  // 1006: rimgovernor.observations.v1.OdysseyCatalog.hackables:type_name -> rimgovernor.observations.v1.HackableRow
+	465,  // 1007: rimgovernor.observations.v1.OdysseyCatalog.portals:type_name -> rimgovernor.observations.v1.PortalRow
+	466,  // 1008: rimgovernor.observations.v1.OdysseyCatalog.stockpile_types:type_name -> rimgovernor.observations.v1.StockpileTypeRow
+	460,  // 1009: rimgovernor.observations.v1.BiomeRow.wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
+	460,  // 1010: rimgovernor.observations.v1.BiomeRow.pollution_wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
+	460,  // 1011: rimgovernor.observations.v1.BiomeRow.coastal_wild_animals:type_name -> rimgovernor.observations.v1.BiomeAnimal
+	461,  // 1012: rimgovernor.observations.v1.BiomeRow.diseases:type_name -> rimgovernor.observations.v1.BiomeDisease
+	468,  // 1013: rimgovernor.observations.v1.OdysseyBuilding.hackable:type_name -> rimgovernor.observations.v1.HackableState
+	469,  // 1014: rimgovernor.observations.v1.OdysseyBuilding.portal:type_name -> rimgovernor.observations.v1.PortalState
+	33,   // 1015: rimgovernor.observations.v1.OdysseyBuilding.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	471,  // 1016: rimgovernor.observations.v1.AnomalyCatalog.entity_categories:type_name -> rimgovernor.observations.v1.EntityCategoryRow
+	472,  // 1017: rimgovernor.observations.v1.AnomalyCatalog.knowledge_categories:type_name -> rimgovernor.observations.v1.KnowledgeCategoryRow
+	473,  // 1018: rimgovernor.observations.v1.AnomalyCatalog.codex_entries:type_name -> rimgovernor.observations.v1.EntityCodexRow
+	474,  // 1019: rimgovernor.observations.v1.AnomalyCatalog.things:type_name -> rimgovernor.observations.v1.AnomalyThingRow
+	478,  // 1020: rimgovernor.observations.v1.AnomalyCatalog.incidents:type_name -> rimgovernor.observations.v1.AnomalyIncidentRow
+	28,   // 1021: rimgovernor.observations.v1.EntityCodexRow.discovery_type:type_name -> rimgovernor.observations.v1.EntityDiscoveryKind
+	475,  // 1022: rimgovernor.observations.v1.AnomalyThingRow.studiable:type_name -> rimgovernor.observations.v1.StudiableProps
+	476,  // 1023: rimgovernor.observations.v1.AnomalyThingRow.holding_target:type_name -> rimgovernor.observations.v1.HoldingTargetProps
+	477,  // 1024: rimgovernor.observations.v1.AnomalyThingRow.holder:type_name -> rimgovernor.observations.v1.EntityHolderProps
+	480,  // 1025: rimgovernor.observations.v1.PawnAnomaly.held:type_name -> rimgovernor.observations.v1.HeldState
+	481,  // 1026: rimgovernor.observations.v1.PawnAnomaly.study:type_name -> rimgovernor.observations.v1.StudyState
+	33,   // 1027: rimgovernor.observations.v1.PawnAnomaly.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 1028: rimgovernor.observations.v1.HeldState.platform:type_name -> rimgovernor.common.v1.Ref
+	29,   // 1029: rimgovernor.observations.v1.HeldState.mode:type_name -> rimgovernor.observations.v1.EntityContainmentModeKind
+	483,  // 1030: rimgovernor.observations.v1.AnomalyBuilding.holder:type_name -> rimgovernor.observations.v1.EntityHolderState
+	481,  // 1031: rimgovernor.observations.v1.AnomalyBuilding.study:type_name -> rimgovernor.observations.v1.StudyState
+	33,   // 1032: rimgovernor.observations.v1.AnomalyBuilding.issues:type_name -> rimgovernor.observations.v1.ReadIssue
+	500,  // 1033: rimgovernor.observations.v1.EntityHolderState.held_pawn:type_name -> rimgovernor.common.v1.Ref
+	30,   // 1034: rimgovernor.observations.v1.DefinitionCatalogRequest.scope:type_name -> rimgovernor.observations.v1.ReadScope
+	427,  // 1035: rimgovernor.observations.v1.DefinitionCatalogReply.observed:type_name -> rimgovernor.observations.v1.DefinitionCatalog
+	497,  // 1036: rimgovernor.observations.v1.DefinitionCatalogReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 1037: rimgovernor.observations.v1.DefinitionCatalogReply.failure:type_name -> rimgovernor.common.v1.Failure
+	486,  // 1038: rimgovernor.observations.v1.SnapshotStreamReply.opened:type_name -> rimgovernor.observations.v1.SnapshotStreamOpened
+	497,  // 1039: rimgovernor.observations.v1.SnapshotStreamReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	499,  // 1040: rimgovernor.observations.v1.SnapshotStreamReply.failure:type_name -> rimgovernor.common.v1.Failure
+	499,  // 1041: rimgovernor.observations.v1.FlushSnapshotReply.failure:type_name -> rimgovernor.common.v1.Failure
+	13,   // 1042: rimgovernor.observations.v1.TradeFoodFacts.ingredient_class:type_name -> rimgovernor.observations.v1.FoodIngredientClass
+	492,  // 1043: rimgovernor.observations.v1.ApparelPolicyState.definitions:type_name -> rimgovernor.observations.v1.ApparelPolicyDefinition
+	70,   // 1044: rimgovernor.observations.v1.ApparelPolicyState.work:type_name -> rimgovernor.observations.v1.WorkSetting
+	68,   // 1045: rimgovernor.observations.v1.ApparelPolicyState.skills:type_name -> rimgovernor.observations.v1.Skill
+	40,   // 1046: rimgovernor.observations.v1.Observations.GetClearanceTargets:input_type -> rimgovernor.observations.v1.ClearanceTargetsRequest
+	48,   // 1047: rimgovernor.observations.v1.Observations.GetAncientShrines:input_type -> rimgovernor.observations.v1.AncientShrinesRequest
+	421,  // 1048: rimgovernor.observations.v1.Observations.ListArchitectCategories:input_type -> rimgovernor.observations.v1.ArchitectCategoriesRequest
+	424,  // 1049: rimgovernor.observations.v1.Observations.ListArchitectDesignators:input_type -> rimgovernor.observations.v1.ArchitectDesignatorsRequest
+	411,  // 1050: rimgovernor.observations.v1.Observations.ReadStatus:input_type -> rimgovernor.observations.v1.StatusRequest
+	416,  // 1051: rimgovernor.observations.v1.Observations.ReadObservationBatch:input_type -> rimgovernor.observations.v1.ObservationBatchRequest
+	426,  // 1052: rimgovernor.observations.v1.Observations.OpenSnapshotStream:input_type -> rimgovernor.observations.v1.SnapshotStreamRequest
+	488,  // 1053: rimgovernor.observations.v1.Observations.FlushSnapshot:input_type -> rimgovernor.observations.v1.FlushSnapshotRequest
+	93,   // 1054: rimgovernor.observations.v1.Observations.ListPawns:input_type -> rimgovernor.observations.v1.ListPawnsRequest
+	101,  // 1055: rimgovernor.observations.v1.Observations.ListSupplies:input_type -> rimgovernor.observations.v1.ListSuppliesRequest
+	120,  // 1056: rimgovernor.observations.v1.Observations.ListBuildings:input_type -> rimgovernor.observations.v1.ListBuildingsRequest
+	128,  // 1057: rimgovernor.observations.v1.Observations.ListRooms:input_type -> rimgovernor.observations.v1.ListRoomsRequest
+	132,  // 1058: rimgovernor.observations.v1.Observations.ListZones:input_type -> rimgovernor.observations.v1.ListZonesRequest
+	137,  // 1059: rimgovernor.observations.v1.Observations.GetCells:input_type -> rimgovernor.observations.v1.GetCellsRequest
+	146,  // 1060: rimgovernor.observations.v1.Observations.ReadResearch:input_type -> rimgovernor.observations.v1.ResearchRequest
+	484,  // 1061: rimgovernor.observations.v1.Observations.ReadDefinitionCatalog:input_type -> rimgovernor.observations.v1.DefinitionCatalogRequest
+	405,  // 1062: rimgovernor.observations.v1.Observations.ReadColonyFacts:input_type -> rimgovernor.observations.v1.ColonyFactsRequest
+	151,  // 1063: rimgovernor.observations.v1.Observations.ReadSpatialAccess:input_type -> rimgovernor.observations.v1.SpatialAccessRequest
+	164,  // 1064: rimgovernor.observations.v1.Observations.ReadRoofSupport:input_type -> rimgovernor.observations.v1.RoofSupportRequest
+	168,  // 1065: rimgovernor.observations.v1.Observations.ReadExcavationSite:input_type -> rimgovernor.observations.v1.ExcavationSiteRequest
+	170,  // 1066: rimgovernor.observations.v1.Observations.ReadPlantCutCensus:input_type -> rimgovernor.observations.v1.PlantCutCensusRequest
+	156,  // 1067: rimgovernor.observations.v1.Observations.ReadDefenseSite:input_type -> rimgovernor.observations.v1.DefenseSiteRequest
+	160,  // 1068: rimgovernor.observations.v1.Observations.ReadLinesOfFire:input_type -> rimgovernor.observations.v1.LinesOfFireRequest
+	177,  // 1069: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:input_type -> rimgovernor.observations.v1.WallUpgradeSitesRequest
+	186,  // 1070: rimgovernor.observations.v1.Observations.ListResourceSources:input_type -> rimgovernor.observations.v1.ResourceSourcesRequest
+	191,  // 1071: rimgovernor.observations.v1.Observations.ReadHusbandry:input_type -> rimgovernor.observations.v1.HusbandryRequest
+	292,  // 1072: rimgovernor.observations.v1.Observations.ReadRoyaltyFacts:input_type -> rimgovernor.observations.v1.RoyaltyFactsRequest
+	298,  // 1073: rimgovernor.observations.v1.Observations.ReadAnimalRaceCatalog:input_type -> rimgovernor.observations.v1.AnimalRaceCatalogRequest
+	195,  // 1074: rimgovernor.observations.v1.Observations.ReadWaste:input_type -> rimgovernor.observations.v1.WasteRequest
+	199,  // 1075: rimgovernor.observations.v1.Observations.ReadRecovery:input_type -> rimgovernor.observations.v1.RecoveryRequest
+	204,  // 1076: rimgovernor.observations.v1.Observations.ReadPopulation:input_type -> rimgovernor.observations.v1.PopulationRequest
+	209,  // 1077: rimgovernor.observations.v1.Observations.ReadWorld:input_type -> rimgovernor.observations.v1.WorldRequest
+	220,  // 1078: rimgovernor.observations.v1.Observations.ReadWorldProgression:input_type -> rimgovernor.observations.v1.WorldProgressionRequest
+	223,  // 1079: rimgovernor.observations.v1.Observations.ReadBills:input_type -> rimgovernor.observations.v1.BillsRequest
+	226,  // 1080: rimgovernor.observations.v1.Observations.ReadRecipes:input_type -> rimgovernor.observations.v1.RecipesRequest
+	228,  // 1081: rimgovernor.observations.v1.Observations.ReadBuildingSettings:input_type -> rimgovernor.observations.v1.BuildingSettingsRequest
+	230,  // 1082: rimgovernor.observations.v1.Observations.ReadPawnSettings:input_type -> rimgovernor.observations.v1.PawnSettingsRequest
+	233,  // 1083: rimgovernor.observations.v1.Observations.ResolveTarget:input_type -> rimgovernor.observations.v1.ResolveTargetRequest
+	244,  // 1084: rimgovernor.observations.v1.Observations.ReadGear:input_type -> rimgovernor.observations.v1.GearRequest
+	248,  // 1085: rimgovernor.observations.v1.Observations.ListTraders:input_type -> rimgovernor.observations.v1.TradersRequest
+	255,  // 1086: rimgovernor.observations.v1.Observations.ReadTradeSheet:input_type -> rimgovernor.observations.v1.TradeSheetRequest
+	252,  // 1087: rimgovernor.observations.v1.Observations.ReadTradeSession:input_type -> rimgovernor.observations.v1.TradeSessionRequest
+	42,   // 1088: rimgovernor.observations.v1.Observations.GetClearanceTargets:output_type -> rimgovernor.observations.v1.ClearanceTargetsReply
+	50,   // 1089: rimgovernor.observations.v1.Observations.GetAncientShrines:output_type -> rimgovernor.observations.v1.AncientShrinesReply
+	422,  // 1090: rimgovernor.observations.v1.Observations.ListArchitectCategories:output_type -> rimgovernor.observations.v1.ArchitectCategoriesReply
+	425,  // 1091: rimgovernor.observations.v1.Observations.ListArchitectDesignators:output_type -> rimgovernor.observations.v1.ArchitectDesignatorsReply
+	412,  // 1092: rimgovernor.observations.v1.Observations.ReadStatus:output_type -> rimgovernor.observations.v1.StatusReply
+	417,  // 1093: rimgovernor.observations.v1.Observations.ReadObservationBatch:output_type -> rimgovernor.observations.v1.ObservationBatchReply
+	487,  // 1094: rimgovernor.observations.v1.Observations.OpenSnapshotStream:output_type -> rimgovernor.observations.v1.SnapshotStreamReply
+	489,  // 1095: rimgovernor.observations.v1.Observations.FlushSnapshot:output_type -> rimgovernor.observations.v1.FlushSnapshotReply
+	94,   // 1096: rimgovernor.observations.v1.Observations.ListPawns:output_type -> rimgovernor.observations.v1.ListPawnsReply
+	102,  // 1097: rimgovernor.observations.v1.Observations.ListSupplies:output_type -> rimgovernor.observations.v1.ListSuppliesReply
+	121,  // 1098: rimgovernor.observations.v1.Observations.ListBuildings:output_type -> rimgovernor.observations.v1.ListBuildingsReply
+	129,  // 1099: rimgovernor.observations.v1.Observations.ListRooms:output_type -> rimgovernor.observations.v1.ListRoomsReply
+	133,  // 1100: rimgovernor.observations.v1.Observations.ListZones:output_type -> rimgovernor.observations.v1.ListZonesReply
+	138,  // 1101: rimgovernor.observations.v1.Observations.GetCells:output_type -> rimgovernor.observations.v1.GetCellsReply
+	147,  // 1102: rimgovernor.observations.v1.Observations.ReadResearch:output_type -> rimgovernor.observations.v1.ResearchReply
+	485,  // 1103: rimgovernor.observations.v1.Observations.ReadDefinitionCatalog:output_type -> rimgovernor.observations.v1.DefinitionCatalogReply
+	406,  // 1104: rimgovernor.observations.v1.Observations.ReadColonyFacts:output_type -> rimgovernor.observations.v1.ColonyFactsReply
+	152,  // 1105: rimgovernor.observations.v1.Observations.ReadSpatialAccess:output_type -> rimgovernor.observations.v1.SpatialAccessReply
+	165,  // 1106: rimgovernor.observations.v1.Observations.ReadRoofSupport:output_type -> rimgovernor.observations.v1.RoofSupportReply
+	169,  // 1107: rimgovernor.observations.v1.Observations.ReadExcavationSite:output_type -> rimgovernor.observations.v1.ExcavationSiteReply
+	173,  // 1108: rimgovernor.observations.v1.Observations.ReadPlantCutCensus:output_type -> rimgovernor.observations.v1.PlantCutCensusReply
+	157,  // 1109: rimgovernor.observations.v1.Observations.ReadDefenseSite:output_type -> rimgovernor.observations.v1.DefenseSiteReply
+	161,  // 1110: rimgovernor.observations.v1.Observations.ReadLinesOfFire:output_type -> rimgovernor.observations.v1.LinesOfFireReply
+	178,  // 1111: rimgovernor.observations.v1.Observations.ListWallUpgradeSites:output_type -> rimgovernor.observations.v1.WallUpgradeSitesReply
+	187,  // 1112: rimgovernor.observations.v1.Observations.ListResourceSources:output_type -> rimgovernor.observations.v1.ResourceSourcesReply
+	192,  // 1113: rimgovernor.observations.v1.Observations.ReadHusbandry:output_type -> rimgovernor.observations.v1.HusbandryReply
+	293,  // 1114: rimgovernor.observations.v1.Observations.ReadRoyaltyFacts:output_type -> rimgovernor.observations.v1.RoyaltyFactsReply
+	299,  // 1115: rimgovernor.observations.v1.Observations.ReadAnimalRaceCatalog:output_type -> rimgovernor.observations.v1.AnimalRaceCatalogReply
+	196,  // 1116: rimgovernor.observations.v1.Observations.ReadWaste:output_type -> rimgovernor.observations.v1.WasteReply
+	200,  // 1117: rimgovernor.observations.v1.Observations.ReadRecovery:output_type -> rimgovernor.observations.v1.RecoveryReply
+	205,  // 1118: rimgovernor.observations.v1.Observations.ReadPopulation:output_type -> rimgovernor.observations.v1.PopulationReply
+	210,  // 1119: rimgovernor.observations.v1.Observations.ReadWorld:output_type -> rimgovernor.observations.v1.WorldReply
+	221,  // 1120: rimgovernor.observations.v1.Observations.ReadWorldProgression:output_type -> rimgovernor.observations.v1.WorldProgressionReply
+	224,  // 1121: rimgovernor.observations.v1.Observations.ReadBills:output_type -> rimgovernor.observations.v1.BillsReply
+	227,  // 1122: rimgovernor.observations.v1.Observations.ReadRecipes:output_type -> rimgovernor.observations.v1.RecipesReply
+	229,  // 1123: rimgovernor.observations.v1.Observations.ReadBuildingSettings:output_type -> rimgovernor.observations.v1.BuildingSettingsReply
+	231,  // 1124: rimgovernor.observations.v1.Observations.ReadPawnSettings:output_type -> rimgovernor.observations.v1.PawnSettingsReply
+	234,  // 1125: rimgovernor.observations.v1.Observations.ResolveTarget:output_type -> rimgovernor.observations.v1.ResolveTargetReply
+	245,  // 1126: rimgovernor.observations.v1.Observations.ReadGear:output_type -> rimgovernor.observations.v1.GearReply
+	249,  // 1127: rimgovernor.observations.v1.Observations.ListTraders:output_type -> rimgovernor.observations.v1.TradersReply
+	256,  // 1128: rimgovernor.observations.v1.Observations.ReadTradeSheet:output_type -> rimgovernor.observations.v1.TradeSheetReply
+	253,  // 1129: rimgovernor.observations.v1.Observations.ReadTradeSession:output_type -> rimgovernor.observations.v1.TradeSessionReply
+	1088, // [1088:1130] is the sub-list for method output_type
+	1046, // [1046:1088] is the sub-list for method input_type
+	1046, // [1046:1046] is the sub-list for extension type_name
+	1046, // [1046:1046] is the sub-list for extension extendee
+	0,    // [0:1046] is the sub-list for field type_name
 }
 
 func init() { file_observations_proto_init() }
@@ -51378,30 +53038,42 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[436].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[438].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[439].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[441].OneofWrappers = []any{
+	file_observations_proto_msgTypes[441].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[442].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[443].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[444].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[445].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[446].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[447].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[448].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[449].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[450].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[451].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[453].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[455].OneofWrappers = []any{
 		(*DefinitionCatalogReply_Observed)(nil),
 		(*DefinitionCatalogReply_Unavailable)(nil),
 		(*DefinitionCatalogReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[443].OneofWrappers = []any{
+	file_observations_proto_msgTypes[457].OneofWrappers = []any{
 		(*SnapshotStreamReply_Opened)(nil),
 		(*SnapshotStreamReply_Unavailable)(nil),
 		(*SnapshotStreamReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[445].OneofWrappers = []any{
+	file_observations_proto_msgTypes[459].OneofWrappers = []any{
 		(*FlushSnapshotReply_Flushed)(nil),
 		(*FlushSnapshotReply_Failure)(nil),
 	}
-	file_observations_proto_msgTypes[447].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[448].OneofWrappers = []any{}
-	file_observations_proto_msgTypes[449].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[461].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[462].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[463].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_observations_proto_rawDesc), len(file_observations_proto_rawDesc)),
-			NumEnums:      28,
-			NumMessages:   451,
+			NumEnums:      30,
+			NumMessages:   465,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

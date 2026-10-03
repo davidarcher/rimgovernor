@@ -174,6 +174,9 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := validatePawnBiotech(row.Biotech); err != nil {
 			return err
 		}
+		if err := validatePawnAnomaly(row.Anomaly); err != nil {
+			return err
+		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
 			return err
 		}

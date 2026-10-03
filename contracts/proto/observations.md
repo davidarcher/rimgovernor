@@ -315,6 +315,49 @@ condition) and projects them into `observation.OdysseyColony`
 (`ColonyProjection.Odyssey`). Derived state held in Go memory
 (persistence-contracts.md); it adds no store.
 
+## Anomaly defs and facts
+
+Anomaly (#1694) follows the shared wire pattern (#1333): static defs ride the
+definition catalog and per-pawn and per-building facts ride the canonical rows.
+There is no separate read tool and no Anomaly intent. All of it is absent
+without Anomaly (`ModsConfig.AnomalyActive`).
+
+`DefinitionCatalog.anomaly` (#1737) holds, each sorted by name and read from the
+game defs (never Go name lists): `EntityCategoryDef` and `KnowledgeCategoryDef`
+rows; `EntityCodexEntryDef` rows (category, how and when the entry is
+discovered, the linked thing defs, provocation incidents and discovering
+research projects); `AnomalyThingRow`, one per ThingDef that is an entity
+(`RaceProperties.IsAnomalyEntity`), has a codex entry, is studiable, can be
+held on a platform or holds an entity (the race's study yield, the def's
+`MinimumContainmentStrength` base value and the `CompProperties_Studiable`,
+`CompProperties_HoldingPlatformTarget` and `CompProperties_EntityHolder`
+values); and `AnomalyIncidentRow`, one per `IncidentDef.IsAnomalyIncident`
+(category, whether it is a `ThreatSmall` or `ThreatBig` threat, worker class,
+chance and threat-point gates, the codex entry it discovers).
+`bridge.DecodeAnomalyCatalog` indexes them by name and refuses duplicates,
+unknown references (categories, codex entries), nonfinite or negative numbers
+and an unnamed enum value. Creepjoiner and monolith level defs are not
+included; their children add them. The thing rows duplicate what the generated
+ThingDef rows of #1720 will carry (comps, stat bases); they become Go views
+over those rows when it lands.
+
+`PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
+entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
+(held on a platform and which, the ordered `EntityContainmentMode`, escaping,
+bioferrite extraction, whether it can be captured) and its `CompStudiable`
+state (enabled, completed, progress, points, knowledge gained, the knowledge
+category and amount the game resolves). Hostility stays `PawnState.hostile`.
+`BuildingState.anomaly` carries a holding platform's `CompEntityHolder` state
+(the containment strength its room provides now, whether it is available, the
+pawn it holds) and a studiable building's `CompStudiable` state. An absent
+scalar is unknown;
+a failed sub-read leaves its block absent and adds a `ReadIssue` named
+`entity`, `held`, `holder` or `study`. Go lifts the blocks into
+`policy.PawnAnomaly` and `policy.BuildingAnomaly` (`bridge.PawnAnomaly`,
+`BuildingAnomaly`); all of it is derived state held in Go memory
+(persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
+no study state.
+
 ## Biotech colony section
 
 `ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide

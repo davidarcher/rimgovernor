@@ -96,7 +96,10 @@ func checkBuildingListRow(row *o.BuildingState) error {
 	if row == nil || row.Building == nil || validID(row.Building.GetId()) != nil {
 		return contract("invalid entity identity")
 	}
-	return validateBuildingOdyssey(row.Odyssey)
+	if err := validateBuildingOdyssey(row.Odyssey); err != nil {
+		return err
+	}
+	return validateBuildingAnomaly(row.Anomaly)
 }
 
 // checkBuiltRow validates a building table row as the construction census
@@ -122,6 +125,9 @@ func validateConstructionRow(row *o.BuildingState, ctx *c.ObservationContext) er
 		return contract("invalid building rotation")
 	}
 	if err := validateBuildingOdyssey(row.Odyssey); err != nil {
+		return err
+	}
+	if err := validateBuildingAnomaly(row.Anomaly); err != nil {
 		return err
 	}
 	return pawnsIssues(row.Issues, row.ProtoReflect())

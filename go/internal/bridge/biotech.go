@@ -20,50 +20,12 @@ type BiotechCatalog struct {
 	MechWorkModes map[string]*o.MechWorkModeRow
 }
 
-// biotechIndex indexes rows by name, refusing an invalid or duplicate one.
-func biotechIndex[T any](kind string, rows []T, name func(T) string) (map[string]T, error) {
-	out := make(map[string]T, len(rows))
-	for _, row := range rows {
-		n := name(row)
-		if validID(n) != nil {
-			return nil, contract("invalid biotech %s name", kind)
-		}
-		if _, dup := out[n]; dup {
-			return nil, contract("duplicate biotech %s %s", kind, n)
-		}
-		out[n] = row
-	}
-	return out, nil
-}
-
-func biotechNumbers(kind string, values ...*float64) error {
-	for _, v := range values {
-		if v != nil && (math.IsNaN(*v) || math.IsInf(*v, 0)) {
-			return contract("nonfinite biotech %s number", kind)
-		}
-	}
-	return nil
-}
-
-func biotechIDs(kind string, lists ...[]string) error {
-	for _, list := range lists {
-		seen := map[string]bool{}
-		for _, id := range list {
-			if validID(id) != nil || seen[id] {
-				return contract("invalid or duplicate biotech %s reference", kind)
-			}
-			seen[id] = true
-		}
-	}
-	return nil
-}
-
 func biotechEffects(kind string, rows []*o.StatEffect) error {
 	for _, e := range rows {
 		if e == nil || validID(e.GetStat()) != nil || (e.Factor == nil) == (e.Offset == nil) {
 			return contract("invalid biotech %s stat effect", kind)
 		}
-		if err := biotechNumbers(kind, e.Factor, e.Offset); err != nil {
+		if err := catalogNumbers("biotech "+kind, e.Factor, e.Offset); err != nil {
 			return err
 		}
 	}
@@ -78,22 +40,22 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 	}
 	out := &BiotechCatalog{}
 	var err error
-	if out.LifeStages, err = biotechIndex("life stage", v.LifeStages, (*o.LifeStageRow).GetDefName); err != nil {
+	if out.LifeStages, err = catalogIndex("biotech life stage", v.LifeStages, (*o.LifeStageRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.Races, err = biotechIndex("race", v.Races, (*o.RaceLifeStages).GetRace); err != nil {
+	if out.Races, err = catalogIndex("biotech race", v.Races, (*o.RaceLifeStages).GetRace); err != nil {
 		return nil, err
 	}
-	if out.Genes, err = biotechIndex("gene", v.Genes, (*o.GeneRow).GetDefName); err != nil {
+	if out.Genes, err = catalogIndex("biotech gene", v.Genes, (*o.GeneRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.Xenotypes, err = biotechIndex("xenotype", v.Xenotypes, (*o.XenotypeRow).GetDefName); err != nil {
+	if out.Xenotypes, err = catalogIndex("biotech xenotype", v.Xenotypes, (*o.XenotypeRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.MechKinds, err = biotechIndex("mech kind", v.MechKinds, (*o.MechKindRow).GetDefName); err != nil {
+	if out.MechKinds, err = catalogIndex("biotech mech kind", v.MechKinds, (*o.MechKindRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.MechWorkModes, err = biotechIndex("mech work mode", v.MechWorkModes, (*o.MechWorkModeRow).GetDefName); err != nil {
+	if out.MechWorkModes, err = catalogIndex("biotech mech work mode", v.MechWorkModes, (*o.MechWorkModeRow).GetDefName); err != nil {
 		return nil, err
 	}
 	if len(v.MechWorkModes) > 0 {
@@ -111,7 +73,7 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 		if err := biotechEffects("life stage", row.Effects); err != nil {
 			return nil, err
 		}
-		if err := biotechNumbers("life stage", row.HungerRateFactor, row.BodySizeFactor, row.HealthScaleFactor); err != nil {
+		if err := catalogNumbers("biotech life stage", row.HungerRateFactor, row.BodySizeFactor, row.HealthScaleFactor); err != nil {
 			return nil, err
 		}
 	}
@@ -135,10 +97,10 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 		if err := biotechEffects("gene", row.Effects); err != nil {
 			return nil, err
 		}
-		if err := biotechIDs("gene", row.DisabledWorkTags, row.EnablesNeeds, row.DisablesNeeds, row.ForcedTraits, row.SuppressedTraits, row.MakeImmuneTo, row.ExclusionTags); err != nil {
+		if err := catalogIDs("biotech gene", row.DisabledWorkTags, row.EnablesNeeds, row.DisablesNeeds, row.ForcedTraits, row.SuppressedTraits, row.MakeImmuneTo, row.ExclusionTags); err != nil {
 			return nil, err
 		}
-		if err := biotechNumbers("gene", row.AddictionChanceFactor, row.OverdoseChanceFactor, row.ToleranceBuildupFactor, row.MinAgeActive, row.PainOffset, row.PainFactor); err != nil {
+		if err := catalogNumbers("biotech gene", row.AddictionChanceFactor, row.OverdoseChanceFactor, row.ToleranceBuildupFactor, row.MinAgeActive, row.PainOffset, row.PainFactor); err != nil {
 			return nil, err
 		}
 		for _, a := range row.Aptitudes {
@@ -155,13 +117,13 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 			if validID(c.GetCapacity()) != nil {
 				return nil, contract("invalid biotech gene capacity effect")
 			}
-			if err := biotechNumbers("gene", c.Offset, c.SetMax, c.PostFactor); err != nil {
+			if err := catalogNumbers("biotech gene", c.Offset, c.SetMax, c.PostFactor); err != nil {
 				return nil, err
 			}
 		}
 	}
 	for _, row := range v.Xenotypes {
-		if err := biotechIDs("xenotype", row.Genes); err != nil {
+		if err := catalogIDs("biotech xenotype", row.Genes); err != nil {
 			return nil, err
 		}
 		for _, gene := range row.Genes {
@@ -171,10 +133,10 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 		}
 	}
 	for _, row := range v.MechKinds {
-		if err := biotechIDs("mech kind", row.WorkTypes); err != nil {
+		if err := catalogIDs("biotech mech kind", row.WorkTypes); err != nil {
 			return nil, err
 		}
-		if err := biotechNumbers("mech kind", row.BandwidthCost, row.BodySize, row.CombatPower); err != nil {
+		if err := catalogNumbers("biotech mech kind", row.BandwidthCost, row.BodySize, row.CombatPower); err != nil {
 			return nil, err
 		}
 		for _, p := range row.WorkPriorities {
@@ -191,7 +153,7 @@ func validatePawnBiotech(b *o.PawnBiotech) error {
 	if b == nil {
 		return nil
 	}
-	if err := biotechNumbers("pawn", b.Learning); err != nil {
+	if err := catalogNumbers("biotech pawn", b.Learning); err != nil {
 		return err
 	}
 	if b.Learning != nil && (b.GetLearning() < 0 || b.GetLearning() > 1) {
@@ -225,7 +187,7 @@ func validatePawnBiotech(b *o.PawnBiotech) error {
 		if m.Overseer != nil && !validRef(m.Overseer) || m.WorkMode != nil && validID(m.GetWorkMode()) != nil || m.ControlGroup != nil && m.GetControlGroup() < 0 {
 			return contract("invalid biotech mech")
 		}
-		if err := biotechNumbers("mech", m.Energy, m.RechargeBelow, m.RechargeAbove); err != nil {
+		if err := catalogNumbers("biotech mech", m.Energy, m.RechargeBelow, m.RechargeAbove); err != nil {
 			return err
 		}
 		for _, n := range []*float64{m.Energy, m.RechargeBelow, m.RechargeAbove} {
@@ -238,7 +200,7 @@ func validatePawnBiotech(b *o.PawnBiotech) error {
 		}
 	}
 	if d := b.Deathrest; d != nil {
-		if err := biotechNumbers("deathrest", d.Level, d.DeathrestPercent); err != nil {
+		if err := catalogNumbers("biotech deathrest", d.Level, d.DeathrestPercent); err != nil {
 			return err
 		}
 		for _, n := range []*int32{d.Capacity, d.BoundBuildings} {

@@ -48,23 +48,23 @@ func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
 	}
 	out := &OdysseyCatalog{}
 	var err error
-	if out.Biomes, err = biotechIndex("odyssey biome", v.Biomes, (*o.BiomeRow).GetDefName); err != nil {
+	if out.Biomes, err = catalogIndex("odyssey biome", v.Biomes, (*o.BiomeRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.TileMutators, err = biotechIndex("odyssey tile mutator", v.TileMutators, (*o.TileMutatorRow).GetDefName); err != nil {
+	if out.TileMutators, err = catalogIndex("odyssey tile mutator", v.TileMutators, (*o.TileMutatorRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.Hackables, err = biotechIndex("odyssey hackable", v.Hackables, (*o.HackableRow).GetDefName); err != nil {
+	if out.Hackables, err = catalogIndex("odyssey hackable", v.Hackables, (*o.HackableRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.Portals, err = biotechIndex("odyssey portal", v.Portals, (*o.PortalRow).GetDefName); err != nil {
+	if out.Portals, err = catalogIndex("odyssey portal", v.Portals, (*o.PortalRow).GetDefName); err != nil {
 		return nil, err
 	}
-	if out.StockpileTypes, err = biotechIndex("odyssey stockpile type", v.StockpileTypes, (*o.StockpileTypeRow).GetName); err != nil {
+	if out.StockpileTypes, err = catalogIndex("odyssey stockpile type", v.StockpileTypes, (*o.StockpileTypeRow).GetName); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Biomes {
-		if err := biotechIDs("odyssey biome", row.MapConditions); err != nil {
+		if err := catalogIDs("odyssey biome", row.MapConditions); err != nil {
 			return nil, err
 		}
 		if err := odysseyNumbers("biome", row.AnimalDensity, row.PlantDensity, row.DiseaseMtbDays, row.Forageability, row.MovementDifficulty,
@@ -85,7 +85,7 @@ func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
 		}
 	}
 	for _, row := range v.TileMutators {
-		if err := biotechIDs("odyssey tile mutator", row.Categories, row.AdditionalGameConditions, row.BiomeWhitelist, row.BiomeBlacklist); err != nil {
+		if err := catalogIDs("odyssey tile mutator", row.Categories, row.AdditionalGameConditions, row.BiomeWhitelist, row.BiomeBlacklist); err != nil {
 			return nil, err
 		}
 		for _, biome := range append(append([]string{}, row.BiomeWhitelist...), row.BiomeBlacklist...) {
@@ -115,7 +115,7 @@ func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
 				return nil, contract("invalid odyssey portal name")
 			}
 		}
-		if err := biotechIDs("odyssey portal", row.PocketTileMutators); err != nil {
+		if err := catalogIDs("odyssey portal", row.PocketTileMutators); err != nil {
 			return nil, err
 		}
 		for _, m := range row.PocketTileMutators {
