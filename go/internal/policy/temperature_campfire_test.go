@@ -17,8 +17,11 @@ func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
 		}
 		return RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{r}}
 	}
+	// The sleeper's own comfortable range is the band the refuel switch
+	// follows; a room with no sleeper whose range is known owes nothing.
+	sleeper := SleepingPerson{ID: "a", OwnedBed: domain.Known("bed"), ComfortableMin: domain.Known(16.0), ComfortableMax: domain.Known(26.0)}
 	fire := func(on bool) TemperatureCooling {
-		return TemperatureCooling{HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room"), AutoRefuel: domain.Known(on)}}}
+		return TemperatureCooling{Sleepers: []SleepingPerson{sleeper}, HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room"), AutoRefuel: domain.Known(on)}}}
 	}
 	for _, tc := range []struct {
 		name     string
@@ -34,7 +37,8 @@ func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
 		{"comfortable room owes nothing", 20, true, fire(false), TemperatureNoMethod},
 		{"cold again refuels", 15, true, fire(false), TemperatureRefuelOn},
 		{"cold room with refuel on waits", 5, true, fire(true), TemperatureWait},
-		{"unknown toggle owes nothing", 30, true, TemperatureCooling{HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room")}}}, TemperatureNoMethod},
+		{"no known sleeper range owes nothing", 30, true, TemperatureCooling{HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room"), AutoRefuel: domain.Known(true)}}}, TemperatureNoMethod},
+		{"unknown toggle owes nothing", 30, true, TemperatureCooling{Sleepers: []SleepingPerson{sleeper}, HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room")}}}, TemperatureNoMethod},
 	} {
 		got, err := SelectTemperatureMethod(domain.Known(room(tc.temp, tc.campfire)), tc.cooling, DefaultRoutinePolicy(), RoutineLatches{})
 		if err != nil || got.Method != tc.want {

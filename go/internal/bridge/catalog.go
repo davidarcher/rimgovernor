@@ -60,6 +60,10 @@ type DefinitionCatalog struct {
 	itemsOnce sync.Once
 	items     policy.ItemFacts
 	itemsErr  error
+	// powerSources is PowerSources, built once on first use.
+	powerOnce    sync.Once
+	powerSources map[string]policy.PowerSourceProfile
+	powerErr     error
 }
 
 // defStuff keys a stat row: stuff is empty for a def not made from stuff.

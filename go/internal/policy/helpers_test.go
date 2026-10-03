@@ -181,5 +181,32 @@ func (b PowerBudget) Batteries() int {
 	if b.StorageShortfallWD <= 0 {
 		return 0
 	}
-	return int(math.Ceil(b.StorageShortfallWD / BatteryCapacityWD))
+	return int(math.Ceil(b.StorageShortfallWD / testBattery.CapacityWD))
+}
+
+// testBattery is the stock Battery def's CompProperties_Battery.
+var testBattery = PowerBattery{CapacityWD: 600, Efficiency: 0.5}
+
+// testPowerSources are the catalog's delivery profiles of the stock generators.
+func testPowerSources() map[string]PowerSourceProfile {
+	return map[string]PowerSourceProfile{
+		"SolarGenerator": SolarPowerProfile, WindTurbineDefinition: WindPowerProfile, "WoodFiredGenerator": ConstantPowerProfile,
+		"ChemfuelPoweredGenerator": ConstantPowerProfile, GeothermalDefinition: ConstantPowerProfile,
+	}
+}
+
+// testPowerPlanning is DefaultPowerPlanning over the stock catalog rows.
+func testPowerPlanning() PowerPlanning {
+	p := DefaultPowerPlanning()
+	p.Battery, p.Sources = testBattery, testPowerSources()
+	return p
+}
+
+// testGeneratorOptions is DefaultGeneratorOptions over the stock sources.
+func testGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64]) []GeneratorOption {
+	options, err := DefaultGeneratorOptions(available, stock, testPowerSources())
+	if err != nil {
+		panic(err)
+	}
+	return options
 }

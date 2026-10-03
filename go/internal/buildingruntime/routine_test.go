@@ -77,7 +77,9 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 		// The one joy building every fake colony can build: a watch-building
 		// pin that draws no power and needs no research, the recreation
 		// foothold.
-		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}},
+		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.CompProperties_Power"},
+			{Name: "RimWorld.CompProperties_Battery", Bases: []string{"RimWorld.CompProperties_Power"}},
+			{Name: "RimWorld.CompPowerPlant"}, {Name: "RimWorld.CompPowerPlantSolar", Bases: []string{"RimWorld.CompPowerPlant"}}, {Name: "RimWorld.CompPowerPlantWind", Bases: []string{"RimWorld.CompPowerPlant"}}},
 		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}},
 			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
 			JoyGiverDefs: []*d.JoyGiverDef{{DefName: "Play_Horseshoes", GiverClass: "RimWorld.JoyGiver_WatchBuilding", ThingDefs: []string{"HorseshoesPin"}, JobDef: "Play_Horseshoes"}}},
@@ -96,6 +98,17 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	}
 	add(&d.ThingDef{DefName: "HorseshoesPin", Building: &d.BuildingProperties{JoyKind: "Gaming_Dexterity"}})
 	add(&d.ThingDef{DefName: "Silver"})
+	// The power family's rows: each generator's power comp (negative draw, its
+	// plant class) and the battery's storage.
+	generator := func(name, class string, watts float32) {
+		add(&d.ThingDef{DefName: name, Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{CompClass: class, BasePowerConsumption: -watts}}}}}})
+	}
+	generator("SolarGenerator", "RimWorld.CompPowerPlantSolar", 1700)
+	generator("WindTurbine", "RimWorld.CompPowerPlantWind", 2300)
+	generator("WoodFiredGenerator", "RimWorld.CompPowerPlant", 1000)
+	generator("ChemfuelPoweredGenerator", "RimWorld.CompPowerPlant", 1000)
+	generator("GeothermalGenerator", "RimWorld.CompPowerPlant", 3600)
+	add(&d.ThingDef{DefName: "Battery", Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Battery{CompProperties_Battery: &d.CompProperties_Battery{StoredEnergyMax: 600, Efficiency: 0.5}}}}}})
 	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
 	plain := func(name string) {
 		add(&d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},

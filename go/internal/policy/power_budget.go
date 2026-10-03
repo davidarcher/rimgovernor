@@ -2,17 +2,11 @@ package policy
 
 import "math"
 
-// Wiki figures the energy budget reasons from (rimworldwiki.com Power,
-// Battery, Solar generator, Wind turbine). Nominal wattage per producer comes
-// from the native census; only the shape of a day is assumed here.
+// The shape of a day the energy budget reasons from (rimworldwiki.com Power,
+// Solar generator, Wind turbine). Nominal wattage per producer comes from the
+// native census and a battery's storage from its comp row; only the shape of
+// a day is assumed here.
 const (
-	// BatteryCapacityWD is one battery's usable storage.
-	BatteryCapacityWD = 600.0
-	// BatteryChargeEfficiency is the stored share of a charging surplus: one
-	// watt of surplus for a day stores half a watt-day.
-	BatteryChargeEfficiency = 0.5
-	// BatterySelfDischargeWD is what each battery loses per day on its own.
-	BatterySelfDischargeWD = 5.0
 	// SolarNightFraction is the share of a day a solar generator makes
 	// nothing (about eight hours near the equator).
 	SolarNightFraction = 8.0 / 24.0
@@ -27,33 +21,37 @@ const (
 	BatteryDefinition = "Battery"
 )
 
+// PowerBattery is one battery's usable storage and the stored share of a
+// charging surplus (CompProperties_Battery storedEnergyMax and efficiency):
+// one watt of surplus for a day stores Efficiency watt-days.
+type PowerBattery struct {
+	CapacityWD, Efficiency float64
+}
+
 // PowerSourceProfile is how a producer definition delivers its nominal wattage
 // over a day. Daily is the average share of nominal across 24 h; Night is the
 // share delivered while the sun is down. Solar marks a source that stops in
-// an eclipse.
+// an eclipse. The zero value is no profile.
 type PowerSourceProfile struct {
 	Daily, Night float64
 	Solar        bool
 }
 
-// SourceProfile returns the profile for a producer definition. Fuel-burning,
-// geothermal and watermill generators hold nominal output around the clock
-// while served; every unlisted producer is treated the same way.
-func SourceProfile(definition string) PowerSourceProfile {
-	switch definition {
-	case "SolarGenerator":
-		return PowerSourceProfile{Daily: SolarDailyFraction, Night: 0, Solar: true}
-	case "WindTurbine":
-		return PowerSourceProfile{Daily: WindAverageFraction, Night: WindAverageFraction}
-	}
-	return PowerSourceProfile{Daily: 1, Night: 1}
-}
+// The profiles a producer's comp class selects (DefinitionCatalog.PowerSources):
+// fuel-burning, geothermal and watermill generators hold nominal output
+// around the clock while served.
+var (
+	SolarPowerProfile    = PowerSourceProfile{Daily: SolarDailyFraction, Night: 0, Solar: true}
+	WindPowerProfile     = PowerSourceProfile{Daily: WindAverageFraction, Night: WindAverageFraction}
+	ConstantPowerProfile = PowerSourceProfile{Daily: 1, Night: 1}
+)
 
-// PowerProducer is one producer's nominal wattage and definition as the budget
-// sees it.
+// PowerProducer is one producer's nominal wattage and delivery profile as the
+// budget sees it.
 type PowerProducer struct {
 	Definition string
 	NominalW   float64
+	Profile    PowerSourceProfile
 }
 
 // PowerBudgetInput is one network's demand, producers and installed storage
@@ -62,7 +60,9 @@ type PowerBudgetInput struct {
 	DemandW    float64
 	Producers  []PowerProducer
 	CapacityWD float64
-	Eclipse    bool
+	// ChargeEfficiency is the battery's PowerBattery.Efficiency.
+	ChargeEfficiency float64
+	Eclipse          bool
 	// StorageMargin is the share of the night deficit added to the storage
 	// target so the bank does not run flat at dawn.
 	StorageMargin float64
@@ -97,7 +97,7 @@ func ComputePowerBudget(in PowerBudgetInput) PowerBudget {
 	night, day := SolarNightFraction, 1-SolarNightFraction
 	var supplyWD, nightW, dayW float64
 	for _, p := range in.Producers {
-		profile := SourceProfile(p.Definition)
+		profile := p.Profile
 		if profile.Solar && in.Eclipse {
 			continue
 		}
@@ -115,9 +115,9 @@ func ComputePowerBudget(in PowerBudgetInput) PowerBudget {
 		b.GenerationShortfallW = in.DemandW - dayW
 		nightW += b.GenerationShortfallW
 	}
-	fillable := b.DaySurplusWD * BatteryChargeEfficiency
+	fillable := b.DaySurplusWD * in.ChargeEfficiency
 	if remaining := math.Max(0, (in.DemandW-nightW)*night); remaining > fillable {
-		b.GenerationShortfallW += (remaining - fillable) / (night + BatteryChargeEfficiency*day)
+		b.GenerationShortfallW += (remaining - fillable) / (night + in.ChargeEfficiency*day)
 	}
 	covered := math.Min(b.NightDeficitWD, fillable)
 	if covered > 0 {

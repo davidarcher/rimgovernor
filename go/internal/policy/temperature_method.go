@@ -32,15 +32,6 @@ const (
 	TemperatureRefuelOn  TemperatureMethod = "campfire_refuel_on"
 )
 
-// ComfortMinC and ComfortMaxC are a colonist's vanilla comfortable
-// temperature range, the band of a sleeping room whose sleepers' own
-// ranges are unknown. A campfire pushes heat up to 28 C and burns its wood
-// regardless of the room.
-const (
-	ComfortMinC = 16.0
-	ComfortMaxC = 26.0
-)
-
 // HeatCampfire is a campfire the temperature family built as room heat
 // (its construction claim carries EnsureTemperatureSafety): its native
 // room and auto-refuel toggle.
@@ -82,8 +73,8 @@ type TemperatureCooling struct {
 
 // sleepersBand is the intersection of the comfortable ranges of the people
 // owning a bed in room (#1199): apparel, traits and genes shift each one.
-// Without a sleeper whose range is known it is ComfortMinC to ComfortMaxC
-// and banded is false.
+// Without a sleeper whose range is known banded is false and the band is
+// unknown: nothing is judged against a range the game did not state.
 func sleepersBand(room Room, sleepers []SleepingPerson) (low, high float64, banded bool) {
 	beds := map[string]bool{}
 	for _, id := range room.Beds {
@@ -100,7 +91,7 @@ func sleepersBand(room Room, sleepers []SleepingPerson) (low, high float64, band
 		low, high, banded = math.Max(low, min), math.Min(high, max), true
 	}
 	if !banded {
-		return ComfortMinC, ComfortMaxC, false
+		return 0, 0, false
 	}
 	return low, high, true
 }
@@ -158,7 +149,10 @@ func CampfireRefuel(fact domain.Fact[RoomObservation], cooling TemperatureCoolin
 		if !tk {
 			continue
 		}
-		low, high, _ := sleepersBand(room, cooling.Sleepers)
+		low, high, banded := sleepersBand(room, cooling.Sleepers)
+		if !banded {
+			continue
+		}
 		method := TemperatureNoMethod
 		if on && temperature >= high {
 			method = TemperatureRefuelOff

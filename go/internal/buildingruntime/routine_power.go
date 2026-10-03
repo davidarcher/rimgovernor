@@ -26,7 +26,12 @@ func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSou
 // about to build; their declared draw joins the budget's demand.
 func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection, pendingConsumers []string) (*RoutineBuildingPlanner, Verdict, error) {
 	planning := policy.DefaultPowerPlanning()
-	planning.Generators = facts.GeneratorOptions()
+	generators, err := facts.GeneratorOptions()
+	if err != nil {
+		return nil, Verdict{}, err
+	}
+	planning.Generators = generators
+	planning.Sources, planning.Battery = facts.PowerSources, facts.PowerBattery
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
 	planning.GeothermalAvailable = facts.DefinitionAvailable(policy.GeothermalDefinition)
 	planning.PendingDemandW = pendingDemand(facts, pendingConsumers)

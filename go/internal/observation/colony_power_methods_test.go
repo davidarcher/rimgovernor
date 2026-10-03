@@ -47,7 +47,15 @@ func TestNativePowerMethodsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, policy.DefaultPowerPlanning())
+		planning := policy.DefaultPowerPlanning()
+		catalog := recordedCatalog(t)
+		if planning.Sources, err = catalog.PowerSources(); err != nil {
+			t.Fatal(err)
+		}
+		if planning.Battery, err = catalog.PowerBattery(policy.BatteryDefinition); err != nil {
+			t.Fatal(err)
+		}
+		proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 		if err != nil {
 			t.Fatal(err)
 		}

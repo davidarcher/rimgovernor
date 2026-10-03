@@ -73,6 +73,9 @@ type GeneratorOption struct {
 	Fuel        Resource
 	FuelStock   domain.Fact[int64]
 	MinimumFuel int64
+	// Profile is how the generator delivers its nominal watts over a day
+	// (DefinitionCatalog.PowerSources).
+	Profile PowerSourceProfile
 }
 
 // GeneratorDefinitions lists every generator definition RankGenerators may
@@ -103,35 +106,45 @@ func PowerFamilyDefinitions() []string {
 	return append(append([]string{string(PowerConnect)}, GeneratorDefinitions...), GeothermalDefinition, BatteryDefinition)
 }
 
-// DefaultGeneratorOptions pairs each generator definition with its fuel and the
-// stock floor below which the planner will not commit to that fuel.
-func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64]) []GeneratorOption {
+// DefaultGeneratorOptions pairs each generator definition with its fuel, the
+// stock floor below which the planner will not commit to that fuel, and its
+// delivery profile from sources; a generator with no profile is an error.
+func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64], sources map[string]PowerSourceProfile) ([]GeneratorOption, error) {
 	fuels := map[string]struct {
 		fuel    Resource
 		minimum int64
 	}{"WoodFiredGenerator": {"WoodLog", 75}, "ChemfuelPoweredGenerator": {"Chemfuel", 30}}
 	options := make([]GeneratorOption, 0, len(GeneratorDefinitions))
 	for _, name := range GeneratorDefinitions {
-		option := GeneratorOption{Definition: name, Available: available(name)}
+		profile, ok := sources[name]
+		if !ok {
+			return nil, fmt.Errorf("generator %s has no catalog power source profile", name)
+		}
+		option := GeneratorOption{Definition: name, Available: available(name), Profile: profile}
 		if f, ok := fuels[name]; ok {
 			option.Fuel, option.MinimumFuel, option.FuelStock = f.fuel, f.minimum, stock(f.fuel)
 		}
 		options = append(options, option)
 	}
-	return options
+	return options, nil
 }
 
 // PowerPlanning carries the planner-side choices SelectPowerMethod needs
 // beyond the observed topology: which generators are compilable, whether a
-// battery is, how many days of stored reserve a draining network must keep
+// battery is (and its storage, from the catalog), how many days of stored reserve a draining network must keep
 // before the budget is consulted even though every consumer is currently
 // powered, and the margin the storage target carries over the night deficit.
 type PowerPlanning struct {
 	Generators          []GeneratorOption
 	BatteryAvailable    domain.Fact[bool]
+	Battery             PowerBattery
 	GeothermalAvailable domain.Fact[bool]
-	ReserveMinDays      float64
-	StorageMargin       float64
+	// Sources is the delivery profile of every producer definition the
+	// catalog has (DefinitionCatalog.PowerSources); a producer on the map
+	// that it lacks is an error.
+	Sources        map[string]PowerSourceProfile
+	ReserveMinDays float64
+	StorageMargin  float64
 	// PendingDemandW is the wattage of consumers other goals' admitted plans
 	// are about to build, counted in the budget's demand so generation and
 	// storage are sized for the colony being built, not only the one standing.
@@ -170,7 +183,7 @@ func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []strin
 			continue
 		}
 		tier := 0
-		switch profile := SourceProfile(o.Definition); {
+		switch profile := o.Profile; {
 		case profile.Night < 1 && (!battery || ranking.NightOnly && profile.Night == 0):
 			tier = 3
 		case profile.Night < 1:
@@ -238,6 +251,9 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 	}
 	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || !foodNumber(planning.PendingDemandW) || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12 {
 		return PowerProposal{}, errors.New("invalid power planning")
+	}
+	if !(planning.Battery.CapacityWD > 0) || !(planning.Battery.Efficiency > 0 && planning.Battery.Efficiency <= 1) {
+		return PowerProposal{}, errors.New("invalid power planning: no catalog battery")
 	}
 	networks := map[string]PowerNetworkFact{}
 	for _, n := range v.Networks {
@@ -413,7 +429,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		demand, capacity, output := 0.0, 0.0, 0.0
 		connectedProducers, disabledProducer, unfueledProducer, brokenProducer := 0, false, false, false
-		budget := PowerBudgetInput{Eclipse: eclipse, StorageMargin: planning.StorageMargin}
+		budget := PowerBudgetInput{Eclipse: eclipse, StorageMargin: planning.StorageMargin, ChargeEfficiency: planning.Battery.Efficiency}
 		for _, b := range v.Buildings {
 			if !same(b) {
 				continue
@@ -430,7 +446,11 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			if w > 0 {
 				connectedProducers++
 				capacity += w
-				budget.Producers = append(budget.Producers, PowerProducer{Definition: b.Definition, NominalW: w})
+				profile, ok := planning.Sources[b.Definition]
+				if !ok {
+					return PowerProposal{}, fmt.Errorf("power producer %s has no catalog power source profile", b.Definition)
+				}
+				budget.Producers = append(budget.Producers, PowerProducer{Definition: b.Definition, NominalW: w, Profile: profile})
 				f, _ := b.Forbidden.Value()
 				s, _ := b.SwitchedOn.Value()
 				disabledProducer = disabledProducer || f || !s

@@ -1,14 +1,21 @@
 package buildingruntime
 
 import (
+	"compress/gzip"
+	"io"
+	"os"
 	"reflect"
 	"slices"
+	"sync"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 // Snapshot tests (#747): each replays a routine review recorded from the
@@ -45,7 +52,58 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 	if !reflect.DeepEqual(needs.Latches, r.Review.Latches) {
 		t.Fatalf("%s: replayed latches %+v, recorded %+v", name, needs.Latches, r.Review.Latches)
 	}
+	// The catalog-derived power rows are not in a recording: read them from
+	// the recorded planning catalog.
+	r.Projection.PowerSources, r.Projection.PowerBattery = recordedPowerRows(t)
 	return r
+}
+
+var recordedPower struct {
+	once    sync.Once
+	sources map[string]policy.PowerSourceProfile
+	battery policy.PowerBattery
+	err     error
+}
+
+// recordedPowerRows are the power source profiles and the battery of the
+// planning catalog recorded from the game (observation/testdata).
+func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, policy.PowerBattery) {
+	t.Helper()
+	recordedPower.once.Do(func() {
+		file, err := os.Open("../observation/testdata/planning_catalog.pb.gz")
+		if err != nil {
+			recordedPower.err = err
+			return
+		}
+		defer file.Close()
+		zr, err := gzip.NewReader(file)
+		if err != nil {
+			recordedPower.err = err
+			return
+		}
+		data, err := io.ReadAll(zr)
+		if err != nil {
+			recordedPower.err = err
+			return
+		}
+		wire := &o.DefinitionCatalog{}
+		if recordedPower.err = proto.Unmarshal(data, wire); recordedPower.err != nil {
+			return
+		}
+		catalog, err := bridge.DecodeDefinitionCatalog(wire, wire.GetContext().GetIdentity())
+		if err != nil {
+			recordedPower.err = err
+			return
+		}
+		if recordedPower.sources, recordedPower.err = catalog.PowerSources(); recordedPower.err != nil {
+			return
+		}
+		recordedPower.battery, recordedPower.err = catalog.PowerBattery(policy.BatteryDefinition)
+	})
+	if recordedPower.err != nil {
+		t.Fatal(recordedPower.err)
+	}
+	return recordedPower.sources, recordedPower.battery
 }
 
 // recordedPlanner is goal's building planner over the recording's policy,

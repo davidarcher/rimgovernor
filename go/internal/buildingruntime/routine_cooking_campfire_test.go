@@ -81,6 +81,8 @@ func TestHeatTemperatureOwed(t *testing.T) {
 	rooms, _ := facts.Rooms.Value()
 	rooms.Rooms[0].Temperature = domain.Known(27.0)
 	facts.Rooms = domain.Known(rooms)
+	// The sleeper's own comfortable range is the band the refuel switch follows.
+	facts.Facts.Sleeping = domain.Known(policy.SleepingObservation{People: []policy.SleepingPerson{{ID: "pawn", OwnedBed: domain.Known("spot1"), ComfortableMin: domain.Known(16.0), ComfortableMax: domain.Known(26.0)}}})
 	if got := heatCampfires(facts); len(got) != 0 || positiveFact(temperatureOwed(facts)) {
 		t.Fatalf("an unclaimed campfire counted as heat: %v", got)
 	}

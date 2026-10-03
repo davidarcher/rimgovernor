@@ -62,8 +62,8 @@ func TestPowerMethodNetworkCapacityAndPlayerIntent(t *testing.T) {
 				v.Buildings = nil
 				want = PowerNoMethod
 			}
-			planning := DefaultPowerPlanning()
-			planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(200)) })
+			planning := testPowerPlanning()
+			planning.Generators = testGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(200)) })
 			p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 			if err != nil || p.Method != want {
 				t.Fatal(p, err, want)
@@ -83,22 +83,22 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	for x := int32(1); x <= 14; x++ {
 		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
 	}
-	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, DefaultPowerPlanning())
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	want := []domain.Cell{{X: 11, Z: 2}, {X: 10, Z: 2}, {X: 9, Z: 2}, {X: 8, Z: 2}, {X: 7, Z: 2}, {X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}}
 	if err != nil || p.Method != PowerConnect || !reflect.DeepEqual(p.Cells, want) {
 		t.Fatal(p, err)
 	}
 	v.Conduits = append(v.Conduits, p.Cells...)
-	next, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, DefaultPowerPlanning())
+	next, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || next.Method != PowerConnect || next.Key == p.Key || !reflect.DeepEqual(next.Cells, []domain.Cell{{X: 3, Z: 2}, {X: 2, Z: 2}, {X: 1, Z: 2}}) {
 		t.Fatal(next, err)
 	}
-	blocked, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, []domain.Cell{{X: 6, Z: 2}}, DefaultPowerPlanning())
+	blocked, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, []domain.Cell{{X: 6, Z: 2}}, testPowerPlanning())
 	if err != nil || blocked.Method != PowerRouteBlocked {
 		t.Fatal(blocked, err)
 	}
 	cells[5].SupportsLight = domain.Unknown[bool]()
-	blocked, err = SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, DefaultPowerPlanning())
+	blocked, err = SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || blocked.Method != PowerRouteBlocked {
 		t.Fatal(blocked, err)
 	}
@@ -116,7 +116,7 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 	for x := int32(1); x <= 14; x++ {
 		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
 	}
-	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, DefaultPowerPlanning())
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
 		t.Fatal(p, err)
 	}
@@ -124,17 +124,17 @@ func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
 
 func TestPowerMethodIdentityIgnoresOutputAndInputRejectsAmbiguity(t *testing.T) {
 	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a"), powerSite("generator", 5, 100, 100, "a")}, Blackout: domain.Known(false)}
-	first, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())
+	first, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())
 	if err != nil {
 		t.Fatal(err)
 	}
 	v.Buildings[1].OutputW = domain.Known(0.0)
-	next, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())
+	next, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())
 	if err != nil || first.Key != next.Key {
 		t.Fatal(first, next, err)
 	}
 	v.Buildings = append(v.Buildings, powerSite("other", 6, 50, 0, "a"))
-	next, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())
+	next, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())
 	if err != nil || first.Key == next.Key {
 		t.Fatal(first, next, err)
 	}
@@ -153,7 +153,7 @@ func TestPowerMethodIdentityIgnoresOutputAndInputRejectsAmbiguity(t *testing.T) 
 			case "conduits":
 				bad.Conduits = []domain.Cell{{X: 1, Z: 1}, {X: 1, Z: 1}}
 			}
-			if _, err := SelectPowerMethod(domain.Known(bad), Bounds{20, 20}, nil, nil, DefaultPowerPlanning()); err == nil {
+			if _, err := SelectPowerMethod(domain.Known(bad), Bounds{20, 20}, nil, nil, testPowerPlanning()); err == nil {
 				t.Fatal("ambiguous input accepted")
 			}
 		})
@@ -162,7 +162,7 @@ func TestPowerMethodIdentityIgnoresOutputAndInputRejectsAmbiguity(t *testing.T) 
 
 func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 	options := func(solar, wood bool, woodStock int64) []GeneratorOption {
-		return DefaultGeneratorOptions(func(name string) domain.Fact[bool] {
+		return testGeneratorOptions(func(name string) domain.Fact[bool] {
 			switch name {
 			case "SolarGenerator":
 				return domain.Known(solar)
@@ -180,7 +180,8 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 	for _, name := range []string{"out-of-fuel", "broken", "reserve-short", "reserve-fine", "reserve-unknown", "reserve-store", "reserve-store-unavailable", "reserve-charging", "reserve-eclipse", "solar-preferred", "solar-without-battery", "wood-short", "no-generator", "empty-census"} {
 		t.Run(name, func(t *testing.T) {
 			v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a")}, Blackout: domain.Known(false)}
-			planning := PowerPlanning{ReserveMinDays: 1, Generators: options(false, true, 200)}
+			planning := testPowerPlanning()
+			planning.Generators = options(false, true, 200)
 			want, wantDefinition := PowerGenerate, "WoodFiredGenerator"
 			switch name {
 			case "out-of-fuel":
@@ -269,13 +270,13 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 		t.Fatal(days, ok)
 	}
 	bad := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a")}, Blackout: domain.Known(false), Networks: []PowerNetworkFact{{ID: "a"}, {ID: "a"}}}
-	if _, err := SelectPowerMethod(domain.Known(bad), Bounds{20, 20}, nil, nil, DefaultPowerPlanning()); err == nil {
+	if _, err := SelectPowerMethod(domain.Known(bad), Bounds{20, 20}, nil, nil, testPowerPlanning()); err == nil {
 		t.Fatal("duplicate network accepted")
 	}
 }
 
 func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
-	options := DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(r Resource) domain.Fact[int64] {
+	options := testGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(r Resource) domain.Fact[int64] {
 		if r == "WoodLog" {
 			return domain.Known(int64(10))
 		}
@@ -297,14 +298,15 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 			t.Fatal(tc.name, got)
 		}
 	}
-	unavailable := DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(false) }, func(Resource) domain.Fact[int64] { return domain.Unknown[int64]() })
+	unavailable := testGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(false) }, func(Resource) domain.Fact[int64] { return domain.Unknown[int64]() })
 	if got := RankGenerators(unavailable, GeneratorRanking{}); len(got) != 0 {
 		t.Fatal(got)
 	}
 	// A solar net short only at night is answered by a constant source.
 	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -800, -800, "a"), powerSite("panel", 5, 1700, 0, "a")}, Blackout: domain.Known(false), Networks: []PowerNetworkFact{{ID: "a", GenerationW: domain.Known(0.0), ConsumptionW: domain.Known(800.0), StoredWD: domain.Known(50.0), CapacityWD: domain.Known(600.0)}}}
 	v.Buildings[0].Powered, v.Buildings[1].Definition, v.Buildings[1].Powered = domain.Known(true), "SolarGenerator", domain.Known(true)
-	planning := PowerPlanning{ReserveMinDays: 1, StorageMargin: 0.25, BatteryAvailable: battery, Generators: options}
+	planning := testPowerPlanning()
+	planning.BatteryAvailable, planning.Generators = battery, options
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 	if err != nil || p.Method != PowerGenerate || p.Definition != "WindTurbine" || !reflect.DeepEqual(p.Alternatives, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}) || p.Budget.GenerationShortfallW <= 0 || p.Budget.DaySurplusWD <= 0 {
 		t.Fatal(p, err)
@@ -319,9 +321,9 @@ func TestPowerMethodSizesTheComingNightAndPendingDemand(t *testing.T) {
 		v.Buildings[1].Definition = "SolarGenerator"
 		return v
 	}
-	planning := DefaultPowerPlanning()
+	planning := testPowerPlanning()
 	planning.BatteryAvailable = domain.Known(true)
-	planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
+	planning.Generators = testGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
 	p, err := SelectPowerMethod(domain.Known(solar()), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 	if err != nil || p.Method != PowerStore || p.Budget.NightDeficitWD <= 0 || p.Budget.StorageShortfallWD <= 0 {
 		t.Fatal(p, err)
@@ -364,9 +366,9 @@ func TestPowerMethodProposesGeothermalOnAReachableFreeGeyser(t *testing.T) {
 	topology := func() PowerTopology {
 		return PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -30, 0, "a")}, Blackout: domain.Known(false), Geysers: []PowerGeyser{geyser}}
 	}
-	planning := DefaultPowerPlanning()
+	planning := testPowerPlanning()
 	planning.GeothermalAvailable = domain.Known(true)
-	planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
+	planning.Generators = testGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
 	p, err := SelectPowerMethod(domain.Known(topology()), Bounds{Width: 40, Height: 10}, cells, nil, planning)
 	if err != nil || p.Method != PowerGenerate || p.Definition != GeothermalDefinition || !p.FixedSite() || p.Center != geyser.Cell || len(p.Cells) != 4 || len(p.Alternatives) != 0 {
 		t.Fatal(p, err)

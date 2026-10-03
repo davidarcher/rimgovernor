@@ -6,10 +6,10 @@ import (
 )
 
 func TestPowerBudgetSizesGenerationAndStorageIndependently(t *testing.T) {
-	solar := PowerProducer{Definition: "SolarGenerator", NominalW: 1700}
-	wood := PowerProducer{Definition: "WoodFiredGenerator", NominalW: 1000}
-	wind := PowerProducer{Definition: "WindTurbine", NominalW: 2300}
-	geo := PowerProducer{Definition: "GeothermalGenerator", NominalW: 3600}
+	solar := PowerProducer{Definition: "SolarGenerator", NominalW: 1700, Profile: SolarPowerProfile}
+	wood := PowerProducer{Definition: "WoodFiredGenerator", NominalW: 1000, Profile: ConstantPowerProfile}
+	wind := PowerProducer{Definition: "WindTurbine", NominalW: 2300, Profile: WindPowerProfile}
+	geo := PowerProducer{Definition: "GeothermalGenerator", NominalW: 3600, Profile: ConstantPowerProfile}
 	near := func(a, b float64) bool { return math.Abs(a-b) < 0.5 }
 	solarDayW := 1700 * SolarDailyFraction / (1 - SolarNightFraction)
 	for _, tc := range []struct {
@@ -48,6 +48,7 @@ func TestPowerBudgetSizesGenerationAndStorageIndependently(t *testing.T) {
 		{name: "solar-and-wood", in: PowerBudgetInput{DemandW: 900, Producers: []PowerProducer{solar, wood}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			tc.in.ChargeEfficiency = testBattery.Efficiency
 			b := ComputePowerBudget(tc.in)
 			if !near(b.GenerationShortfallW, tc.generationW) || !near(b.StorageShortfallWD, tc.storageWD) || b.Batteries() != tc.batteries {
 				t.Fatalf("%+v want generation %.1f W storage %.1f Wd batteries %d", b, tc.generationW, tc.storageWD, tc.batteries)
@@ -63,12 +64,9 @@ func TestPowerBudgetSizesGenerationAndStorageIndependently(t *testing.T) {
 	// A constant source sized to the generation shortfall balances the
 	// overdrawn solar net exactly: the remaining night deficit equals what
 	// the surplus stores at charge efficiency.
-	first := ComputePowerBudget(PowerBudgetInput{DemandW: 1500, Producers: []PowerProducer{solar}})
-	second := ComputePowerBudget(PowerBudgetInput{DemandW: 1500, Producers: []PowerProducer{solar, {Definition: "ChemfuelPoweredGenerator", NominalW: first.GenerationShortfallW}}})
-	if !near(second.GenerationShortfallW, 0) || !near(second.NightDeficitWD, second.DaySurplusWD*BatteryChargeEfficiency) {
+	first := ComputePowerBudget(PowerBudgetInput{DemandW: 1500, Producers: []PowerProducer{solar}, ChargeEfficiency: testBattery.Efficiency})
+	second := ComputePowerBudget(PowerBudgetInput{DemandW: 1500, Producers: []PowerProducer{solar, {Definition: "ChemfuelPoweredGenerator", NominalW: first.GenerationShortfallW, Profile: ConstantPowerProfile}}, ChargeEfficiency: testBattery.Efficiency})
+	if !near(second.GenerationShortfallW, 0) || !near(second.NightDeficitWD, second.DaySurplusWD*testBattery.Efficiency) {
 		t.Fatal(first, second)
-	}
-	if p := SourceProfile("Unknown"); p.Daily != 1 || p.Night != 1 || p.Solar {
-		t.Fatal(p)
 	}
 }

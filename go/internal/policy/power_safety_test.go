@@ -39,17 +39,17 @@ func TestPowerSafetyPrecedesGenerationAndUsesNativeRoofs(t *testing.T) {
 			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), SupportsLight: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
 		}
 	}
-	p, err := SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	p, err := SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerShelter || p.Target != "battery" || p.Room != (Rectangle{6, 6, 5, 6}) {
 		t.Fatal(p, err)
 	}
 	blocked := []domain.Cell{{X: 6, Z: 6}}
-	p, err = SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, blocked, DefaultPowerPlanning())
+	p, err = SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, blocked, testPowerPlanning())
 	if err != nil || p.Method != PowerRouteBlocked {
 		t.Fatal(p, err)
 	}
 	topology.Buildings[0].Roofed = domain.Known(true)
-	p, err = SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	p, err = SelectPowerMethod(domain.Known(topology), Bounds{20, 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerNoMethod {
 		t.Fatal(p, err)
 	}
@@ -58,12 +58,12 @@ func TestPowerSafetyPrecedesGenerationAndUsesNativeRoofs(t *testing.T) {
 func TestPowerUpgradesOrdinaryConduitsEvenWithoutRain(t *testing.T) {
 	cells := []domain.Cell{{X: 3, Z: 3}, {X: 2, Z: 3}}
 	v := PowerTopology{Conduits: cells, UnsafeConduits: cells, Blackout: domain.Known(false)}
-	p, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || string(p.Method) != "HiddenConduit" || len(p.Cells) != 2 || p.Cells[0].X != 2 {
 		t.Fatal(p, err)
 	}
 	v.UnsafeConduits = nil
-	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())
+	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerNoMethod {
 		t.Fatal(p, err)
 	}
@@ -104,7 +104,7 @@ func TestPowerConnectsConsumerToLiveNetBeforeUpgrading(t *testing.T) {
 	plain := []domain.Cell{{X: 7, Z: 2}, {X: 8, Z: 2}, {X: 9, Z: 2}}
 	cooler := powerSite("cooler", 2, -200, 0, "")
 	v := PowerTopology{Buildings: []PowerSite{cooler, powerSite("gen", 10, 1000, 1000, "a")}, Conduits: plain, UnsafeConduits: plain, Blackout: domain.Known(false)}
-	p, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, testPowerPlanning())
 	want := []domain.Cell{{X: 6, Z: 2}, {X: 5, Z: 2}, {X: 4, Z: 2}, {X: 3, Z: 2}, {X: 2, Z: 2}}
 	if err != nil || p.Method != PowerConnect || p.Target != "cooler" || !reflect.DeepEqual(p.Cells, want) {
 		t.Fatal(p, err)
@@ -113,14 +113,14 @@ func TestPowerConnectsConsumerToLiveNetBeforeUpgrading(t *testing.T) {
 	// exposure: upgrade first.
 	v.Conduits = append(append([]domain.Cell(nil), plain...), domain.Cell{X: 4, Z: 2})
 	v.UnsafeConduits = v.Conduits
-	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Method != PowerConnect || p.Target != "" || len(p.Cells) != 4 {
 		t.Fatal(p, err)
 	}
 	// A dead producer: upgrade first.
 	v.Conduits, v.UnsafeConduits = plain, plain
 	v.Buildings[1] = powerSite("gen", 10, 1000, 0, "a")
-	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, DefaultPowerPlanning())
+	p, err = SelectPowerMethod(domain.Known(v), Bounds{20, 20}, cells, nil, testPowerPlanning())
 	if err != nil || p.Target != "" || len(p.Cells) != 3 {
 		t.Fatal(p, err)
 	}

@@ -96,6 +96,11 @@ type ColonyProjection struct {
 	FieldCapacityCrops domain.Fact[[]policy.FieldCrop]
 	CookingBenches     domain.Fact[[]CookingBench]
 	PowerPlanning      domain.Fact[policy.PowerTopology]
+	// PowerSources and PowerBattery are the catalog's producer delivery
+	// profiles and the storage of its battery def (DefinitionCatalog.PowerSources,
+	// PowerBattery); the power planner refuses a projection without them.
+	PowerSources map[string]policy.PowerSourceProfile
+	PowerBattery policy.PowerBattery
 	// DefenseTurrets is every built turret gun in the power census with its
 	// observed damage per second (#1188).
 	DefenseTurrets domain.Fact[[]policy.DefenseTurretFacts]
@@ -193,8 +198,8 @@ func (r ColonyProjection) DefinitionAvailable(name string) domain.Fact[bool] {
 }
 
 // GeneratorOptions pairs the power family's generator definitions with their
-// native availability and observed fuel stock.
-func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
+// native availability, observed fuel stock and catalog delivery profile.
+func (r ColonyProjection) GeneratorOptions() ([]policy.GeneratorOption, error) {
 	available := map[string]domain.Fact[bool]{}
 	for _, d := range r.Definitions {
 		available[d.Name] = d.Available
@@ -204,7 +209,7 @@ func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
 			return fact
 		}
 		return domain.Unknown[bool]()
-	}, r.ResourceStock)
+	}, r.ResourceStock, r.PowerSources)
 }
 
 type FarmZoneFact struct {
@@ -331,6 +336,16 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		policies.Books = tables.Catalog.Books()
 		policies.Foods = tables.Catalog.Foods()
 		r.Policies = domain.Known(policies)
+	}
+	if tables.Catalog != nil {
+		if r.PowerSources, err = tables.Catalog.PowerSources(); err != nil {
+			return ColonyProjection{}, err
+		}
+		if tables.Catalog.ThingDef(policy.BatteryDefinition) != nil {
+			if r.PowerBattery, err = tables.Catalog.PowerBattery(policy.BatteryDefinition); err != nil {
+				return ColonyProjection{}, err
+			}
+		}
 	}
 	r.Biotech = colonyBiotech(v.Biotech)
 	r.Odyssey = colonyOdyssey(v.Odyssey)
