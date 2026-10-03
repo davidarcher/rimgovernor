@@ -72,8 +72,11 @@ other required native read, and the herd plan never runs without it.
   breeding pair kept, `HerdPolicy.Retired`; its animals are surplus (slaughter
   or release below; selling is #1632). A holder that keeps working only until
   a better race covers its job is `HerdRole.Superseded`: it is sterilized
-  (below), not culled. A bonded animal is never removed (native
-  `SafeToSlaughter`).
+  (below), not culled. A bonded animal (`Bonded`, `bonded_pawn_ids`) is never
+  removed: `herdRemovalMethod` returns none for it (so surplus slaughter,
+  release, food slaughter and sale skip it and pick an unbonded animal of the
+  race) and `PrioritizeSlaughterChoice` orders no slaughter for it. An unread
+  bond fails the removal choice as unknown.
 - **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
   retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
   are what the taming, training, sterilize, sale, purchase and pen issues read;

@@ -10,7 +10,7 @@ import (
 
 func animalFixture(nutrition float64) AnimalUpkeepObservation {
 	return AnimalUpkeepObservation{
-		Animals: domain.Known([]UpkeepAnimal{{ID: "muffalo", Definition: "Muffalo", RequiresPen: domain.Known(true), Contained: domain.Known(false), Release: domain.Known(false), Slaughter: domain.Known(false)}}),
+		Animals: domain.Known([]UpkeepAnimal{{ID: "muffalo", Definition: "Muffalo", RequiresPen: domain.Known(true), Contained: domain.Known(false), Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false)}}),
 		Food:    domain.Known(FoodSupply{Complete: domain.Known(true), Consumers: []FoodConsumer{{ID: "muffalo", NutritionPerDay: domain.Known(1.0)}, {ID: "human", NutritionPerDay: domain.Known(1.0)}}, Stocks: []FoodStock{{ID: "shared", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(nutrition), Eaters: []PawnID{"human", "muffalo"}, Perishable: domain.Known(false)}}}),
 	}
 }

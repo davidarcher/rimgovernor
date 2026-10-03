@@ -95,7 +95,7 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 // PrioritizeSlaughterChoice orders the best Animals-skilled capable handler
 // (TamerFor) to slaughter the first animal whose slaughter designation
 // stands, through the game's Prioritize order. An animal not designated,
-// or also marked for release, gets no order; no capable handler or an
+// also marked for release, or bonded (or of unread bond), gets no order; no capable handler or an
 // unread census or roster (nothing to act on yet) leaves the designation to native handlers.
 func PrioritizeSlaughterChoice(animals domain.Fact[[]UpkeepAnimal], profiles domain.Fact[[]PawnProfile]) HusbandryChoice {
 	rows, known := animals.Value()
@@ -110,6 +110,11 @@ func PrioritizeSlaughterChoice(animals domain.Fact[[]UpkeepAnimal], profiles dom
 		slaughter, sk := a.Slaughter.Value()
 		release, rk := a.Release.Value()
 		if !sk || !rk || !slaughter || release {
+			continue
+		}
+		if bonded, bk := a.Bonded.Value(); !bk {
+			return HusbandryChoice{Reason: HusbandryUnknown}
+		} else if bonded {
 			continue
 		}
 		if barred, bk := a.Herd.SlaughterBarred.Value(); !bk {

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -49,9 +50,9 @@ func TestReconcileHerdRemoval(t *testing.T) {
 
 // cows is a herd of one bull and n cows, none designated.
 func cows(n int) []UpkeepAnimal {
-	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}}
+	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}}
 	for i := range n {
-		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}})
+		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}})
 	}
 	return rows
 }
@@ -139,6 +140,37 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 	rows[0].Slaughter, rows[0].Release = domain.Known(true), domain.Known(true)
 	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
 		t.Fatal("a release-marked animal got an order", got)
+	}
+}
+
+// A bonded animal is never the removal pick: the unbonded animal of the same
+// race goes instead, by every removal path (#1645).
+func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
+	bonded := bondedAs(planAnimal("a1", "Cow", "None"), true)
+	bonded.BondedPawns = []string{"p1"}
+	free := bondedAs(planAnimal("a2", "Cow", "None"), false)
+	limits := map[Resource]int64{"Cow": 1}
+	got, unknown := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil)
+	if unknown || len(got) != 1 || got[0].animal.ID != "a2" {
+		t.Fatalf("surplus pick = %+v, want a2", got)
+	}
+	free.SafeToSlaughter, free.SafeToRelease = domain.Known(false), domain.Known(true)
+	bonded.SafeToRelease = domain.Known(true)
+	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
+		t.Fatalf("release pick = %+v, want a2", got)
+	}
+	retired := HerdPolicy{PopulationMax: limits, Retired: map[Resource]bool{"Cow": true}}
+	free.Master, bonded.Master = domain.Known(""), domain.Known("")
+	if sale := HerdSaleAnimals(domain.Known([]UpkeepAnimal{bonded, free}), retired); !reflect.DeepEqual(sale, map[PawnID]bool{"a2": true}) {
+		t.Fatalf("sale = %v, want a2", sale)
+	}
+	bonded.Slaughter, free.Slaughter = domain.Known(true), domain.Known(true)
+	handlers := domain.Known([]PawnProfile{{ID: "h", Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 5}}}})
+	if got := PrioritizeSlaughterChoice(domain.Known([]UpkeepAnimal{bonded, free}), handlers); got.Animal != "a2" {
+		t.Fatalf("prioritized slaughter = %+v, want a2", got)
+	}
+	if got := PrioritizeSlaughterChoice(domain.Known([]UpkeepAnimal{bonded}), handlers); got.Method != "" {
+		t.Fatalf("bonded animal got a slaughter order: %+v", got)
 	}
 }
 

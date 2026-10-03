@@ -118,11 +118,17 @@ type herdRemoval struct {
 	method domain.HusbandryMethod
 }
 
-// herdRemovalMethod is slaughter whenever native allows it and the player
+// herdRemovalMethod is none for a bonded animal (losing it is a large mood
+// penalty for its colonist), otherwise slaughter whenever native allows it and the player
 // ideo neither venerates the race nor carries an AnimalSlaughter precept,
 // else release when native allows that, else none. ok is false when a
 // needed native fact is unknown.
 func herdRemovalMethod(a UpkeepAnimal) (domain.HusbandryMethod, bool) {
+	if bonded, bk := a.Bonded.Value(); !bk {
+		return "", false
+	} else if bonded {
+		return "", true
+	}
 	slaughter, sk := a.SafeToSlaughter.Value()
 	if !sk {
 		return "", false
