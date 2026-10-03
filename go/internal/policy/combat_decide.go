@@ -90,6 +90,9 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 				// window instead of parking the clock (#1146).
 				next.Tactic, next.Roles = TacticShelter, shelterRoles(view)
 			}
+		} else if view.Hunt {
+			// A squad hunt picks its own tactic (#1616).
+			next.Tactic, next.Roles, next.Refusal = TacticHunt, huntFormation(view), ""
 		} else if mode := siegeMode(view, next); mode != "" {
 			// A siege picks its own tactic (#776).
 			next.Tactic, next.Roles, next.Refusal = TacticSiege, siegeFormation(view, mode), ""
@@ -329,6 +332,8 @@ type CombatView struct {
 	// Burn is a burn-out's census from the combat step while it is
 	// active (#1122): what it lacks, its roof and its fuel.
 	Burn domain.Fact[BurnSite] `json:",omitzero"`
+	// Hunt marks a squad hunt (#1616): Threats are wild prey, not raiders.
+	Hunt bool `json:",omitempty"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -827,6 +832,8 @@ func reform(view CombatView, stop StopEvent, m CombatMemory) bool {
 		return reformManhunter(view, m)
 	case TacticSquad:
 		return squadTargetDown(view, m)
+	case TacticHunt:
+		return reformHunt(view, m)
 	case TacticPrisonBreak:
 		// The escapees are down or gone: whatever is left is a fight anew.
 		return true
