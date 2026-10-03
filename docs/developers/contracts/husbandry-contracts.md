@@ -63,15 +63,17 @@ other required native read, and the herd plan never runs without it.
 - **Founder.** A preferred race with animals but no breeding pair (a lone
   animal, or one sex only) is a founder: never culled or sold, no cap, and
   `HerdRole.WantMale` / `WantFemale` name the missing sex for taming (#1629)
-  and buying (#1636). No sterilize applies until a pair exists.
+  and buying (#1636). No sterilize applies to a founder.
 - **Retirement.** A holder that is not the target keeps working until the
   target's adults cover the job: the target has a breeding pair and its adult
   capacity is at least the holder's (trained capacity counts only animals that
   learned the training, so small haulers retire only after larger ones learn
   Haul). Then, if it holds no other kept job, the race is `Retiring`: cap 0, no
   breeding pair kept, `HerdPolicy.Retired`; its animals are surplus (slaughter
-  or release below; sterilize and selling are #1631, #1632). A bonded animal is
-  never removed (native `SafeToSlaughter`).
+  or release below; selling is #1632). A holder that keeps working only until
+  a better race covers its job is `HerdRole.Superseded`: it is sterilized
+  (below), not culled. A bonded animal is never removed (native
+  `SafeToSlaughter`).
 - **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
   retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
   are what the taming, training, sterilize, sale, purchase and pen issues read;
@@ -109,7 +111,11 @@ other required native read, and the herd plan never runs without it.
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties
   go to the lowest ID. Races without a cap are never culled for surplus.
 - **Breeding pair.** No removal leaves a race with fewer than one male and two
-  females, except a retiring race; an animal of unknown sex is never removed. Standing designations
+  females, except a retiring race; an animal of unknown sex is never removed.
+  Only fertile animals make the pair: a sterilized animal (`AnimalState.sterilized`,
+  `UpkeepAnimal.Sterilized`) counts toward a race's head count and cap but not
+  toward its pair, in removal, the founder rule (`paired()`) and sterilize
+  itself. Standing designations
   that would break the pair, or no longer match a surplus or an open food
   offer, are cancelled.
 
@@ -130,12 +136,15 @@ receipt. `cancel_slaughter` and `cancel_release` remove a standing designation.
 | `prioritize_slaughter` | player animal with a standing slaughter designation | `GiveJobIntent` `Slaughter`, prioritized, by the best Animals-skilled Handling-capable colonist (argument: handler id); no draft, no flag write | handler takes the job; the designation is consumed by the slaughter |
 | `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
 | `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
+| `sterilize` | player animal | `HealthCardUtility.CreateSurgeryBill` of the sterilize recipe, found live on the animal's `def.AllRecipes` (whole-body, adds `HediffDefOf.Sterilized`); no argument, no fallback recipe | bill queued; the animal's `sterilized` reads back once the surgery has run (receipt: `AnimalEffect.sterilized`, `sterilize_queued`) |
 | `allowed_area` | player animal | `AreaRestrictionInPawnCurrentMap` (argument: area id, empty clears) | animal's allowed area reads back equal |
 | `master` | player animal | `PlayerSettings.Master` (argument: colonist id, empty clears) | master reads back equal |
 | `follow_drafted` | player animal | `followDrafted` (argument: `true`/`false`) | flag reads back equal |
 | `follow_fieldwork` | player animal | `followFieldwork` (argument: `true`/`false`) | flag reads back equal |
 
-Apply-time rules: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
+Apply-time rules: `sterilize` fails loudly when no recipe on the race adds the
+Sterilized hediff, or the recipe is not available on the animal now;
+`allowed_area` needs `SupportsAllowedAreas`; `master` and the
 follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
 area or master id the map does not carry is refused as not found. Each follow
 method writes only its own flag.
@@ -185,8 +194,26 @@ write per cycle. Native reports `master_id` and
 `bonded_pawn_ids` as `GetUniqueLoadID()`, the same id as the pawn rows. The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
 mastered animal outside a retired race.
 
+**Sterilize (#1631).** `SterilizeChoice` wants an animal sterilized when its race
+is `Superseded` (it keeps working but stops breeding until it retires) or it is
+a male beyond the plan's ratio (one per five females, `herdMalesPerFemales`) of
+a race kept within its cap. Never a founder, a retiring race (culled instead),
+an animal designated for removal, or one with an unread `sterilized` or
+`sterilize_queued` fact; and never a sex below its breeding pair of fertile
+animals (1 male, 2 females), which must exist to begin with. A queued bill
+counts as sterile, so bills cannot take a race below the pair. It runs only
+while `RoutineFacts.VetRoom` is ready (a vet room reservation with a built
+medical animal bed, plus the allowed-area id covering it); an unknown or
+unready vet room selects nothing, and the layout does not expose it yet. The
+steps are derived each cycle from the animals' allowed area and sterilize
+facts, one write per cycle and one animal in the room at a time: `allowed_area`
+into the vet room, `sterilize`, then `allowed_area` cleared once sterilized
+(also for an animal in the room that is no longer wanted and has no bill). An
+animal with a bill queued is waited on. Clearing the area does not restore an
+earlier restriction.
+
 Selection order each cycle is train, then tame, then surplus removal, then
-master assignment; one write
+master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
 Auto safety facts: a roofed refuge during roof hazards, otherwise unrestricted
 food/work access. It skips pen-managed animals and unknown area/safety facts.

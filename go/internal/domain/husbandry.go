@@ -4,7 +4,7 @@ import "errors"
 
 // HusbandryMethod names the direct-write animal management orders: a
 // recursive training request; a slaughter, tame or release-to-wild
-// designation or its cancel; or one Animals-tab setting (allowed area,
+// designation or its cancel; a sterilize surgery bill; or one Animals-tab setting (allowed area,
 // master, follow-drafted, follow-fieldwork). Each is a HusbandryIntent
 // (#941), a direct settings write with no native job, so applied is the
 // effect; the taming and release work itself is native handler labor
@@ -22,10 +22,13 @@ const (
 	// to slaughter an already-designated animal (the game's Prioritize
 	// order, a GiveJobIntent on the wire); it writes no flag.
 	HusbandryPrioritizeSlaughter HusbandryMethod = "prioritize_slaughter"
-	HusbandryAllowedArea         HusbandryMethod = "allowed_area"
-	HusbandryMaster              HusbandryMethod = "master"
-	HusbandryFollowDrafted       HusbandryMethod = "follow_drafted"
-	HusbandryFollowFieldwork     HusbandryMethod = "follow_fieldwork"
+	// HusbandrySterilize queues the animal sterilize surgery bill (native
+	// finds the recipe on the animal's race live); applied means queued.
+	HusbandrySterilize       HusbandryMethod = "sterilize"
+	HusbandryAllowedArea     HusbandryMethod = "allowed_area"
+	HusbandryMaster          HusbandryMethod = "master"
+	HusbandryFollowDrafted   HusbandryMethod = "follow_drafted"
+	HusbandryFollowFieldwork HusbandryMethod = "follow_fieldwork"
 )
 
 // Husbandry is explicit intent to write one already-observed animal's
@@ -51,7 +54,7 @@ func NewHusbandry(animal PawnID, method HusbandryMethod, argument string) (Husba
 		if !validID(argument) {
 			return Husbandry{}, errors.New("husbandry training requires a valid trainable definition")
 		}
-	case HusbandrySlaughter, HusbandryTame, HusbandryRelease, HusbandryCancelSlaughter, HusbandryCancelRelease:
+	case HusbandrySlaughter, HusbandryTame, HusbandryRelease, HusbandryCancelSlaughter, HusbandryCancelRelease, HusbandrySterilize:
 		if argument != "" {
 			return Husbandry{}, errors.New("husbandry designation does not take an argument")
 		}

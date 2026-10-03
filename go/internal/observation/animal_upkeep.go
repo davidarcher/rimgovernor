@@ -43,6 +43,7 @@ func colonyAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns) domain.Fact[[]p
 		last := &rows[len(rows)-1]
 		last.Care, last.Bonded, last.BondedPawns = careName(state.MedicalCare), optional(state.Bonded), state.GetBondedPawnIds()
 		last.Master, last.FollowDrafted, last.FollowFieldwork, last.Obedient = optional(state.MasterId), optional(state.FollowDrafted), optional(state.FollowFieldwork), optional(state.Obedient)
+		last.Sterilized, last.SterilizeQueued = optional(state.Sterilized), optional(state.SterilizeQueued)
 		if state.Conditions != nil {
 			last.Conditions, last.LifeThreatening = bridge.CareConditions(state.Conditions)
 		}

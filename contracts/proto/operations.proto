@@ -608,6 +608,10 @@ enum HusbandryOrder {
   HUSBANDRY_ORDER_UNSPECIFIED = 0; HUSBANDRY_ORDER_TRAIN = 1; HUSBANDRY_ORDER_SLAUGHTER = 2; HUSBANDRY_ORDER_TAME = 3;
   HUSBANDRY_ORDER_RELEASE = 4; HUSBANDRY_ORDER_ALLOWED_AREA = 5; HUSBANDRY_ORDER_MASTER = 6; HUSBANDRY_ORDER_FOLLOW_DRAFTED = 7;
   HUSBANDRY_ORDER_FOLLOW_FIELDWORK = 8; HUSBANDRY_ORDER_CANCEL_SLAUGHTER = 9; HUSBANDRY_ORDER_CANCEL_RELEASE = 10;
+  // Queue the animal sterilize surgery bill (the recipe is found live on the
+  // race's recipes); applied means queued, the sterilized state reads back
+  // when the surgery is done.
+  HUSBANDRY_ORDER_STERILIZE = 11;
 }
 message HusbandryIntent { optional string animal_id = 1; optional HusbandryOrder order = 2; optional string trainable_def = 3; optional string target_id = 4; optional bool follow = 5; }
 // Add one production bill to a player bench: the recipe, its repeat

@@ -110,6 +110,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.HerdMasterChoice(animals, herd, handlers)
 	}
+	if choice.Reason == policy.HusbandryNoDeficit {
+		choice = policy.SterilizeChoice(animals, herd, read.Projection.Facts.VetRoom)
+	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil

@@ -86,6 +86,11 @@ namespace HomeBridge.BridgeTools
             row.SafeToSlaughter = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToSlaughter(animal);
             row.SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal);
             row.Tameable = NativeHusbandryOperations.Tameable(animal);
+            if (animal.Faction == Faction.OfPlayer)
+            {
+                row.Sterilized = NativeHusbandryOperations.Sterilized(animal);
+                row.SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null;
+            }
             if (NativeHusbandryOperations.Eligible(animal))
             {
                 row.AllowedAreaId = NativeHusbandryOperations.AreaId(animal);

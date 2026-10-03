@@ -271,7 +271,7 @@ message JobEffect {
   // distinct from resulting_snapshot_token's post-effect pawn meaning.
   optional string target_snapshot_token = 23;
 }
-message AnimalEffect { SnapshotEvidence animal = 1; reserved 2; reserved "census_token"; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; optional string allowed_area_id = 8; optional string master_id = 9; optional bool follow_drafted = 10; optional bool follow_fieldwork = 11; }
+message AnimalEffect { SnapshotEvidence animal = 1; reserved 2; reserved "census_token"; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; optional string allowed_area_id = 8; optional string master_id = 9; optional bool follow_drafted = 10; optional bool follow_fieldwork = 11; optional bool sterilized = 12; optional bool sterilize_queued = 13; }
 // outcome is the pawn's actual custody state read from native at observation:
 // held (still a colony prisoner), recruited, enslaved, converted, released,
 // escaped or died. It is the evidence a completed or unsuccessful progress

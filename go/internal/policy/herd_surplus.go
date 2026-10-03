@@ -7,12 +7,20 @@ import (
 )
 
 // Breeding pair MaintainHerd never culls below: one male and two females of
-// each race, so a race can still recover by breeding after any removal.
+// each race, so a race can still recover by breeding after any removal. Only
+// fertile animals count toward it (herdFertile).
 const (
 	herdPairMales   = 1
 	herdPairFemales = 2
 	herdPairSize    = herdPairMales + herdPairFemales
 )
+
+// herdFertile is whether the animal can still breed: anything not read as
+// sterilized, so a census without the fact counts every animal.
+func herdFertile(a UpkeepAnimal) bool {
+	sterilized, _ := a.Sterilized.Value()
+	return !sterilized
+}
 
 // HerdFacts are the per-animal facts MaintainHerd sizes and culls by
 // (#875). The census fills age, life expectancy, sickness, adulthood,
@@ -149,6 +157,7 @@ func herdFeedPerMeat(a UpkeepAnimal) float64 {
 // Ties go to the lowest ID. An animal whose removal would leave its race
 // under a breeding pair of its own sex (or whose sex is unknown) is kept, except in
 // a retired race (the plan's, #1628), which keeps no pair.
+// A sterilized animal is no part of the pair and is removed freely.
 // Any tracked animal with an unknown designation or eligibility fact makes
 // the result unknown.
 func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juveniles bool, retired map[Resource]bool) ([]herdRemoval, bool) {
@@ -171,7 +180,9 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 		if sexes[a.Definition] == nil {
 			sexes[a.Definition] = map[string]int64{}
 		}
-		sexes[a.Definition][a.Gender]++
+		if herdFertile(a) {
+			sexes[a.Definition][a.Gender]++
+		}
 		method, ok := herdRemovalMethod(a)
 		if !ok {
 			return nil, true
@@ -231,7 +242,7 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 				break
 			}
 			switch g := r.animal.Gender; {
-			case retired[race]:
+			case retired[race], !herdFertile(r.animal): // no pair to keep
 			case g == "Male" && sexes[race][g] > herdPairMales, g == "Female" && sexes[race][g] > herdPairFemales:
 				sexes[race][g]--
 			case g == "None": // asexual race: no pair to keep

@@ -37,12 +37,25 @@ namespace HomeBridge.BridgeTools
                 Designated(animal, DesignationDefOf.Tame).ToString(),
                 AreaId(animal), MasterId(animal),
                 (animal.playerSettings?.followDrafted ?? false).ToString(),
-                (animal.playerSettings?.followFieldwork ?? false).ToString() };
+                (animal.playerSettings?.followFieldwork ?? false).ToString(),
+                Sterilized(animal).ToString(), (SterilizeBill(animal) != null).ToString() };
             if (animal.training != null)
                 values.AddRange(DefDatabase<TrainableDef>.AllDefsListForReading.OrderBy(t => t.defName, StringComparer.Ordinal)
                     .Select(t => t.defName + "=" + animal.training.GetWanted(t)));
             return "husbandry-" + Hash(string.Join("|", values));
         }
+
+        // The Sterilized hediff, and the queued sterilize surgery bill (the
+        // bill whose recipe adds it).
+        internal static bool Sterilized(Pawn animal) => animal.health.hediffSet.HasHediff(HediffDefOf.Sterilized);
+        internal static Bill_Medical? SterilizeBill(Pawn animal) => animal.BillStack?.Bills.OfType<Bill_Medical>()
+            .FirstOrDefault(b => b.recipe.addsHediff == HediffDefOf.Sterilized);
+
+        // The animal's own whole-body sterilize recipe, found live on its
+        // race's recipes by what it adds; null when the race offers none
+        // (the order then fails loudly, there is no fallback recipe).
+        internal static RecipeDef? SterilizeRecipe(Pawn animal) => animal.def.AllRecipes?
+            .FirstOrDefault(r => r.addsHediff == HediffDefOf.Sterilized && !r.targetsBodyPart);
 
         internal static bool Observable(Pawn? animal) => animal != null && !animal.Destroyed && animal.Spawned
             && ProtoBoundary.IsLoaded(animal.Map) && animal.RaceProps.Animal && !animal.Dead && !animal.Position.Fogged(animal.Map);
@@ -72,6 +85,8 @@ namespace HomeBridge.BridgeTools
             state.Gender = animal.gender.ToString();
             if (animal.Faction != Faction.OfPlayer) return;
             state.Sick = animal.health.hediffSet.AnyHediffMakesSickThought;
+            state.Sterilized = Sterilized(animal);
+            state.SterilizeQueued = SterilizeBill(animal) != null;
             var ideo = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
             state.Venerated = ideo != null && ideo.IsVeneratedAnimal(animal);
             state.SlaughterBarred = state.Venerated || ideo != null
@@ -111,7 +126,8 @@ namespace HomeBridge.BridgeTools
     }
 
     // HusbandryIntent (#941): one animal's training request, slaughter, tame
-    // or release-to-wild designation (or its cancel), or Animals-tab setting;
+    // or release-to-wild designation (or its cancel), a sterilize surgery bill
+    // (queued on the animal, whose recipe is found live), or Animals-tab setting;
     // an immediate settings write with no native job. Native checks the
     // animal and the order's own eligibility live when it applies; an order
     // that already holds applies again. Taming and release work is ordinary
@@ -141,6 +157,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.Tame:
                 case Operations.HusbandryOrder.Release:
+                case Operations.HusbandryOrder.Sterilize:
                 case Operations.HusbandryOrder.CancelSlaughter:
                 case Operations.HusbandryOrder.CancelRelease: return true;
                 default: return false;
@@ -182,6 +199,9 @@ namespace HomeBridge.BridgeTools
             {
                 case Operations.HusbandryOrder.Train: return target.Trainable != null && animal.training != null && animal.training.GetWanted(target.Trainable);
                 case Operations.HusbandryOrder.Tame: return animal.Faction == Faction.OfPlayer || NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame);
+                // Queued, or already done: the bill is gone once the surgery has run.
+                case Operations.HusbandryOrder.Sterilize: return animal.Faction == Faction.OfPlayer
+                    && (NativeHusbandryOperations.Sterilized(animal) || NativeHusbandryOperations.SterilizeBill(animal) != null);
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.Release: return animal.Faction == Faction.OfPlayer && NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order)!);
                 case Operations.HusbandryOrder.CancelSlaughter:
@@ -228,6 +248,12 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Tame:
                     rules.Require(() => NativeHusbandryOperations.Tameable(animal), "native tame eligibility refused the animal or it is designated for hunting");
                     break;
+                case Operations.HusbandryOrder.Sterilize:
+                    rules.Require(() => NativeHusbandryOperations.SterilizeRecipe(animal) != null,
+                            "race " + animal.def.defName + " offers no whole-body sterilize recipe (no recipe on its race adds the Sterilized hediff)")
+                        .Require(() => { var r = NativeHusbandryOperations.SterilizeRecipe(animal)!; return r.AvailableNow && r.Worker.AvailableReport(animal).Accepted && r.AvailableOnNow(animal, null); },
+                            "sterilize recipe is not available on this animal now");
+                    break;
                 case Operations.HusbandryOrder.AllowedArea:
                     rules.Require(() => NativeHusbandryOperations.SupportsAllowedAreas(animal), "animal cannot carry an allowed area")
                         .Present(() => !intent!.HasTargetId || target.Area != null, "allowed area " + intent!.TargetId + " is not on the animal's map")
@@ -270,6 +296,7 @@ namespace HomeBridge.BridgeTools
                 switch (intent.Order)
                 {
                     case Operations.HusbandryOrder.Train: animal.training!.SetWantedRecursive(target.Trainable, true); break;
+                    case Operations.HusbandryOrder.Sterilize: HealthCardUtility.CreateSurgeryBill(animal, NativeHusbandryOperations.SterilizeRecipe(animal)!, null); break;
                     case Operations.HusbandryOrder.AllowedArea: animal.playerSettings!.AreaRestrictionInPawnCurrentMap = target.Area; break;
                     case Operations.HusbandryOrder.Master: animal.playerSettings!.Master = target.Master; break;
                     case Operations.HusbandryOrder.FollowDrafted: animal.playerSettings!.followDrafted = intent.Follow; break;
@@ -292,6 +319,10 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.CancelSlaughter: effect.SlaughterDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Slaughter); break;
                 case Operations.HusbandryOrder.Tame: effect.TameDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame); break;
+                case Operations.HusbandryOrder.Sterilize:
+                    effect.Sterilized = NativeHusbandryOperations.Sterilized(animal);
+                    effect.SterilizeQueued = NativeHusbandryOperations.SterilizeBill(animal) != null;
+                    break;
                 case Operations.HusbandryOrder.Release:
                 case Operations.HusbandryOrder.CancelRelease: effect.ReleaseDesignated = NativeHusbandryOperations.Designated(animal, DesignationDefOf.ReleaseAnimalToWild); break;
                 case Operations.HusbandryOrder.AllowedArea: effect.AllowedAreaId = NativeHusbandryOperations.AreaId(animal); break;

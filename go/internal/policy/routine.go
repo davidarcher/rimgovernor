@@ -235,6 +235,9 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	// VetRoom is the layout's vet room; unread (the zero value) until
+	// the layout exposes it, which keeps sterilize off.
+	VetRoom              VetRoom
 	FoodPlan             domain.Fact[FoodPlan]
 	FoodReserve          domain.Fact[FoodReserveReview]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
@@ -1398,6 +1401,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		herdRecovered = domain.Known(false)
 	}
 	if HerdMasterChoice(f.AnimalUpkeep.Animals, herd, f.WorkProfiles).Method != "" {
+		herdRecovered = domain.Known(false)
+	}
+	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.VetRoom).Method != "" {
 		herdRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)

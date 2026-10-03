@@ -19,6 +19,7 @@ var husbandryOrders = map[domain.HusbandryMethod]o.HusbandryOrder{
 	domain.HusbandryFollowFieldwork: o.HusbandryOrder_HUSBANDRY_ORDER_FOLLOW_FIELDWORK,
 	domain.HusbandryCancelSlaughter: o.HusbandryOrder_HUSBANDRY_ORDER_CANCEL_SLAUGHTER,
 	domain.HusbandryCancelRelease:   o.HusbandryOrder_HUSBANDRY_ORDER_CANCEL_RELEASE,
+	domain.HusbandrySterilize:       o.HusbandryOrder_HUSBANDRY_ORDER_STERILIZE,
 }
 
 // husbandryAction is the HusbandryIntent of one animal order. Native checks

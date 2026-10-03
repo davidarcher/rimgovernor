@@ -83,6 +83,10 @@ type HerdRole struct {
 	// Retiring marks a race every one of whose jobs a better, adult,
 	// paired race now covers: surplus, no breeding pair kept.
 	Retiring bool
+	// Superseded marks a race kept only for jobs a better race will take
+	// over but does not yet cover: it keeps working and stops breeding
+	// (sterilize) until it retires.
+	Superseded bool
 }
 
 // HerdJobPlan is one job's ranking.
@@ -107,7 +111,8 @@ type HerdPlan struct {
 }
 
 type herdRace struct {
-	race                       AnimalRace
+	race AnimalRace
+	// males, females and asexual count fertile animals only: they make the pair.
 	n, males, females, asexual int64
 	unsexed                    bool
 	bonded                     bool
@@ -256,15 +261,16 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 			s.race, _ = in.Races.Race(a.Definition)
 		}
 		s.n++
-		switch a.Gender {
-		case "Male":
-			s.males++
-		case "Female":
-			s.females++
-		case "None":
-			s.asexual++
-		default:
+		switch {
+		case a.Gender != "Male" && a.Gender != "Female" && a.Gender != "None":
 			s.unsexed = true
+		case !herdFertile(a): // a sterilized animal is no part of a pair
+		case a.Gender == "Male":
+			s.males++
+		case a.Gender == "Female":
+			s.females++
+		default:
+			s.asexual++
 		}
 		if bonded, _ := a.Bonded.Value(); bonded {
 			s.bonded = true
@@ -281,6 +287,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 	retiring := map[Resource]bool{}
 	preferred := map[Resource]bool{}
 	keeps := map[Resource]map[HerdJob]bool{}
+	superseded := map[Resource]bool{}
 	targets := map[Resource]int64{}
 	for _, job := range herdWorkJobs {
 		var holders []Resource
@@ -326,6 +333,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 				continue
 			}
 			herdKeep(keeps, def, job)
+			superseded[def] = true
 		}
 		demand = math.Max(demand, math.Max(others, foodDemand))
 		jp.Heads = herdPairSize
@@ -337,7 +345,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 	}
 	for _, def := range order {
 		s := stats[def]
-		role := HerdRole{Race: def, Job: HerdJobNone, Preferred: preferred[def]}
+		role := HerdRole{Race: def, Job: HerdJobNone, Preferred: preferred[def], Superseded: superseded[def] && !preferred[def]}
 		var held []HerdJob
 		for _, job := range herdWorkJobs {
 			if s.holds[job] {

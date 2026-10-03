@@ -26,7 +26,9 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 			return HusbandryChoice{Reason: HusbandryUnknown}
 		}
 		counts[a.Definition]++
-		sexes[a.Definition+"/"+Resource(a.Gender)]++
+		if herdFertile(a) {
+			sexes[a.Definition+"/"+Resource(a.Gender)]++
+		}
 	}
 	plan, foodKnown := food.Value()
 	foodWanted := map[PawnID]bool{}
@@ -49,7 +51,9 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 		floor := max(herd.PopulationMin[a.Definition], herdPairSize)
 		ceiling, capped := herd.PopulationMax[a.Definition]
 		sex := a.Definition + "/" + Resource(a.Gender)
-		pair := a.Gender == "Male" && sexes[sex] <= herdPairMales || a.Gender == "Female" && sexes[sex] <= herdPairFemales
+		// A sterilized animal is no part of a breeding pair.
+		fertile := herdFertile(a)
+		pair := fertile && (a.Gender == "Male" && sexes[sex] <= herdPairMales || a.Gender == "Female" && sexes[sex] <= herdPairFemales)
 		if herd.Retired[a.Definition] {
 			floor, pair = 0, false
 		}
@@ -61,7 +65,9 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 		if !capped && room && !keepSlaughter {
 			unknown = true
 			counts[a.Definition]--
-			sexes[sex]--
+			if fertile {
+				sexes[sex]--
+			}
 			continue
 		}
 		if release && !keepRelease {
@@ -76,7 +82,9 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 			}
 		}
 		counts[a.Definition]--
-		sexes[sex]--
+		if fertile {
+			sexes[sex]--
+		}
 	}
 	if unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}

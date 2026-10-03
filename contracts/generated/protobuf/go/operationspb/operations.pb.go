@@ -1053,6 +1053,10 @@ const (
 	HusbandryOrder_HUSBANDRY_ORDER_FOLLOW_FIELDWORK HusbandryOrder = 8
 	HusbandryOrder_HUSBANDRY_ORDER_CANCEL_SLAUGHTER HusbandryOrder = 9
 	HusbandryOrder_HUSBANDRY_ORDER_CANCEL_RELEASE   HusbandryOrder = 10
+	// Queue the animal sterilize surgery bill (the recipe is found live on the
+	// race's recipes); applied means queued, the sterilized state reads back
+	// when the surgery is done.
+	HusbandryOrder_HUSBANDRY_ORDER_STERILIZE HusbandryOrder = 11
 )
 
 // Enum value maps for HusbandryOrder.
@@ -1069,6 +1073,7 @@ var (
 		8:  "HUSBANDRY_ORDER_FOLLOW_FIELDWORK",
 		9:  "HUSBANDRY_ORDER_CANCEL_SLAUGHTER",
 		10: "HUSBANDRY_ORDER_CANCEL_RELEASE",
+		11: "HUSBANDRY_ORDER_STERILIZE",
 	}
 	HusbandryOrder_value = map[string]int32{
 		"HUSBANDRY_ORDER_UNSPECIFIED":      0,
@@ -1082,6 +1087,7 @@ var (
 		"HUSBANDRY_ORDER_FOLLOW_FIELDWORK": 8,
 		"HUSBANDRY_ORDER_CANCEL_SLAUGHTER": 9,
 		"HUSBANDRY_ORDER_CANCEL_RELEASE":   10,
+		"HUSBANDRY_ORDER_STERILIZE":        11,
 	}
 )
 
@@ -8172,7 +8178,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x1bDESIGNATION_GUARD_ENCLOSURE\x10\x01\x12!\n" +
 	"\x1dDESIGNATION_GUARD_MINE_SAFETY\x10\x02\x12\"\n" +
 	"\x1eDESIGNATION_GUARD_WALL_UPGRADE\x10\x03\x12!\n" +
-	"\x1dDESIGNATION_GUARD_ACQUISITION\x10\x04*\xf4\x02\n" +
+	"\x1dDESIGNATION_GUARD_ACQUISITION\x10\x04*\x93\x03\n" +
 	"\x0eHusbandryOrder\x12\x1f\n" +
 	"\x1bHUSBANDRY_ORDER_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HUSBANDRY_ORDER_TRAIN\x10\x01\x12\x1d\n" +
@@ -8185,7 +8191,8 @@ const file_operations_proto_rawDesc = "" +
 	" HUSBANDRY_ORDER_FOLLOW_FIELDWORK\x10\b\x12$\n" +
 	" HUSBANDRY_ORDER_CANCEL_SLAUGHTER\x10\t\x12\"\n" +
 	"\x1eHUSBANDRY_ORDER_CANCEL_RELEASE\x10\n" +
-	"2n\n" +
+	"\x12\x1d\n" +
+	"\x19HUSBANDRY_ORDER_STERILIZE\x10\v2n\n" +
 	"\x05Zones\x12e\n" +
 	"\aPreview\x12-.rimgovernor.operations.v1.ZonePreviewRequest\x1a+.rimgovernor.operations.v1.ZonePreviewReply2b\n" +
 	"\aActions\x12W\n" +

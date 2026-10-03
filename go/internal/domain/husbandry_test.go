@@ -119,3 +119,12 @@ func TestHusbandrySettingsVariants(t *testing.T) {
 		t.Fatal(train)
 	}
 }
+
+func TestHusbandrySterilizeTakesNoArgument(t *testing.T) {
+	if h, err := NewHusbandry("animal", HusbandrySterilize, ""); err != nil || h.Method() != HusbandrySterilize {
+		t.Fatal(h, err)
+	}
+	if _, err := NewHusbandry("animal", HusbandrySterilize, "Sterilize"); err == nil {
+		t.Fatal("sterilize accepted a recipe name: native finds the recipe live")
+	}
+}

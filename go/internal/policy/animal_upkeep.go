@@ -62,7 +62,10 @@ type UpkeepAnimal struct {
 	// Master is the colonist id mastering the animal ("" unassigned);
 	// Obedient is learned Obedience, which native requires to master or
 	// follow (#1635).
-	Master                                   domain.Fact[string]
+	Master domain.Fact[string]
+	// Sterilized is the Sterilized hediff; SterilizeQueued a sterilize
+	// surgery bill waiting on the animal.
+	Sterilized, SterilizeQueued              domain.Fact[bool]
 	FollowDrafted, FollowFieldwork, Obedient domain.Fact[bool]
 	Conditions                               domain.Fact[[]CareCondition]
 	LifeThreatening                          domain.Fact[bool]

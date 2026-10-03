@@ -6291,6 +6291,10 @@ type AnimalState struct {
 	MedicalCare *operationspb.MedicalCare `protobuf:"varint,33,opt,name=medical_care,json=medicalCare,proto3,enum=rimgovernor.operations.v1.MedicalCare,oneof" json:"medical_care,omitempty"`
 	Bonded      *bool                     `protobuf:"varint,34,opt,name=bonded,proto3,oneof" json:"bonded,omitempty"`
 	Conditions  *PawnHealth               `protobuf:"bytes,35,opt,name=conditions,proto3" json:"conditions,omitempty"`
+	// Sterilized hediff present, and a queued sterilize surgery bill on the
+	// animal (the husbandry sterilize order).
+	Sterilized      *bool `protobuf:"varint,37,opt,name=sterilized,proto3,oneof" json:"sterilized,omitempty"`
+	SterilizeQueued *bool `protobuf:"varint,38,opt,name=sterilize_queued,json=sterilizeQueued,proto3,oneof" json:"sterilize_queued,omitempty"`
 	// Ids of the living humanlike pawns this animal has a Bond relation with
 	// (any faction or status; the planner keeps those on the colony roster).
 	BondedPawnIds []string `protobuf:"bytes,36,rep,name=bonded_pawn_ids,json=bondedPawnIds,proto3" json:"bonded_pawn_ids,omitempty"`
@@ -6571,6 +6575,20 @@ func (x *AnimalState) GetConditions() *PawnHealth {
 		return x.Conditions
 	}
 	return nil
+}
+
+func (x *AnimalState) GetSterilized() bool {
+	if x != nil && x.Sterilized != nil {
+		return *x.Sterilized
+	}
+	return false
+}
+
+func (x *AnimalState) GetSterilizeQueued() bool {
+	if x != nil && x.SterilizeQueued != nil {
+		return *x.SterilizeQueued
+	}
+	return false
 }
 
 func (x *AnimalState) GetBondedPawnIds() []string {
@@ -37825,7 +37843,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\x89\x10\n" +
+	"\a_reason\"\x82\x11\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -37866,7 +37884,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x06bonded\x18\" \x01(\bH\x1eR\x06bonded\x88\x01\x01\x12G\n" +
 	"\n" +
 	"conditions\x18# \x01(\v2'.rimgovernor.observations.v1.PawnHealthR\n" +
-	"conditions\x12&\n" +
+	"conditions\x12#\n" +
+	"\n" +
+	"sterilized\x18% \x01(\bH\x1fR\n" +
+	"sterilized\x88\x01\x01\x12.\n" +
+	"\x10sterilize_queued\x18& \x01(\bH R\x0fsterilizeQueued\x88\x01\x01\x12&\n" +
 	"\x0fbonded_pawn_ids\x18$ \x03(\tR\rbondedPawnIdsB\t\n" +
 	"\a_genderB\f\n" +
 	"\n" +
@@ -37906,7 +37928,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x17_manhunter_on_tame_failB\b\n" +
 	"\x06_adultB\x0f\n" +
 	"\r_medical_careB\t\n" +
-	"\a_bonded\"\xc5\x14\n" +
+	"\a_bondedB\r\n" +
+	"\v_sterilizedB\x13\n" +
+	"\x11_sterilize_queued\"\xc5\x14\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x124\n" +

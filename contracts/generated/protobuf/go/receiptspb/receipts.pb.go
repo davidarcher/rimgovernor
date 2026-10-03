@@ -3990,6 +3990,8 @@ type AnimalEffect struct {
 	MasterId            *string                `protobuf:"bytes,9,opt,name=master_id,json=masterId,proto3,oneof" json:"master_id,omitempty"`
 	FollowDrafted       *bool                  `protobuf:"varint,10,opt,name=follow_drafted,json=followDrafted,proto3,oneof" json:"follow_drafted,omitempty"`
 	FollowFieldwork     *bool                  `protobuf:"varint,11,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
+	Sterilized          *bool                  `protobuf:"varint,12,opt,name=sterilized,proto3,oneof" json:"sterilized,omitempty"`
+	SterilizeQueued     *bool                  `protobuf:"varint,13,opt,name=sterilize_queued,json=sterilizeQueued,proto3,oneof" json:"sterilize_queued,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -4090,6 +4092,20 @@ func (x *AnimalEffect) GetFollowDrafted() bool {
 func (x *AnimalEffect) GetFollowFieldwork() bool {
 	if x != nil && x.FollowFieldwork != nil {
 		return *x.FollowFieldwork
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetSterilized() bool {
+	if x != nil && x.Sterilized != nil {
+		return *x.Sterilized
+	}
+	return false
+}
+
+func (x *AnimalEffect) GetSterilizeQueued() bool {
+	if x != nil && x.SterilizeQueued != nil {
+		return *x.SterilizeQueued
 	}
 	return false
 }
@@ -5667,7 +5683,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_can_tryB\x1b\n" +
 	"\x19_resulting_snapshot_tokenB\x18\n" +
-	"\x16_target_snapshot_tokenJ\x04\b\x16\x10\x17R\x0edraft_claim_id\"\x9c\x05\n" +
+	"\x16_target_snapshot_tokenJ\x04\b\x16\x10\x17R\x0edraft_claim_id\"\x95\x06\n" +
 	"\fAnimalEffect\x12A\n" +
 	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12(\n" +
 	"\rtrainable_def\x18\x03 \x01(\tH\x00R\ftrainableDef\x88\x01\x01\x12\x1b\n" +
@@ -5679,7 +5695,12 @@ const file_receipts_proto_rawDesc = "" +
 	"\tmaster_id\x18\t \x01(\tH\x06R\bmasterId\x88\x01\x01\x12*\n" +
 	"\x0efollow_drafted\x18\n" +
 	" \x01(\bH\aR\rfollowDrafted\x88\x01\x01\x12.\n" +
-	"\x10follow_fieldwork\x18\v \x01(\bH\bR\x0ffollowFieldwork\x88\x01\x01B\x10\n" +
+	"\x10follow_fieldwork\x18\v \x01(\bH\bR\x0ffollowFieldwork\x88\x01\x01\x12#\n" +
+	"\n" +
+	"sterilized\x18\f \x01(\bH\tR\n" +
+	"sterilized\x88\x01\x01\x12.\n" +
+	"\x10sterilize_queued\x18\r \x01(\bH\n" +
+	"R\x0fsterilizeQueued\x88\x01\x01B\x10\n" +
 	"\x0e_trainable_defB\t\n" +
 	"\a_wantedB\x17\n" +
 	"\x15_slaughter_designatedB\x12\n" +
@@ -5689,7 +5710,9 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_master_idB\x11\n" +
 	"\x0f_follow_draftedB\x13\n" +
-	"\x11_follow_fieldworkJ\x04\b\x02\x10\x03R\fcensus_token\"\xbc\x01\n" +
+	"\x11_follow_fieldworkB\r\n" +
+	"\v_sterilizedB\x13\n" +
+	"\x11_sterilize_queuedJ\x04\b\x02\x10\x03R\fcensus_token\"\xbc\x01\n" +
 	"\x0ePrisonerEffect\x12=\n" +
 	"\x04pawn\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04pawn\x12,\n" +
 	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01\x12\x1d\n" +
