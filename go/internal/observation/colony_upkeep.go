@@ -2,6 +2,7 @@ package observation
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -131,7 +132,11 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 	if f == nil {
 		return domain.Fact[policy.FlooringObservation]{}, nil
 	}
-	r := policy.FlooringObservation{Rooms: []policy.FloorRoom{}, Terrains: map[string]policy.FloorTerrain{}}
+	terrains, err := catalog.FloorTerrains()
+	if err != nil {
+		return domain.Fact[policy.FlooringObservation]{}, err
+	}
+	r := policy.FlooringObservation{Rooms: []policy.FloorRoom{}, Terrains: maps.Clone(terrains)}
 	// The traffic tier reads the routes census's observed travel; an
 	// unknown routes census leaves the whole flooring census unknown rather
 	// than silently dropping the tier. Traffic cells whose terrain the
@@ -143,13 +148,6 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 		}
 		r.TrafficSamples = t.TrafficSamples
 		r.Traffic = t.Traffic
-	}
-	for _, row := range f.Terrains {
-		terrain, err := catalog.FloorTerrain(row.GetDefName())
-		if err != nil {
-			return domain.Fact[policy.FlooringObservation]{}, err
-		}
-		r.Terrains[row.GetDefName()] = terrain
 	}
 	if len(r.Traffic) > 0 {
 		kept := r.Traffic[:0]
@@ -168,6 +166,9 @@ func colonyFlooring(section *o.FlooringSection, routes *o.RoutesSection, catalog
 		for _, cell := range room.Cells {
 			if cell.Terrain == nil {
 				return domain.Fact[policy.FlooringObservation]{}, nil
+			}
+			if _, priced := r.Terrains[cell.GetTerrain()]; !priced {
+				return domain.Fact[policy.FlooringObservation]{}, fmt.Errorf("%w: flooring cell stands on terrain %s, which the catalog has no row for", ErrContract, cell.GetTerrain())
 			}
 			out.Cells = append(out.Cells, policy.FloorCell{Cell: domain.Cell{X: cell.Cell.GetX(), Z: cell.Cell.GetZ()}, Terrain: cell.GetTerrain(), Pending: cell.GetPending()})
 		}

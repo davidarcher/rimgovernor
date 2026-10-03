@@ -15,11 +15,15 @@ func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
 	t.Parallel()
 	r, _, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
+	watts := 200.0
+	consumer := buildable("PowerConsumer", 4, 1, 1)
+	consumer.PowerW = &watts
+	native.putCatalog(consumer)
 	for _, phase := range []string{"no-consumers", "disconnected", "powered", "unknown"} {
 		p := &o.DevelopmentFacts{}
 		want := domain.NeedRecovered
 		if phase != "no-consumers" {
-			p.Power = []*o.DevelopmentPower{{BaseW: proto.Float64(-200), Building: bridge.NewRef(native.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("consumer"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}).GetId())}}
+			p.Power = []*o.DevelopmentPower{{Building: bridge.NewRef(native.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("consumer"), DefName: proto.String("PowerConsumer"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}).GetId())}}
 			want = domain.NeedDeficit
 			if phase == "powered" {
 				s := native.buildings.At("consumer").Service
@@ -27,7 +31,7 @@ func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
 				want = domain.NeedRecovered
 			}
 			if phase == "unknown" {
-				p.Power[0].BaseW = nil
+				native.buildings.At("consumer").Building.DefName = nil
 				want = domain.NeedUnknown
 			}
 		}

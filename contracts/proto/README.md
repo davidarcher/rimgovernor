@@ -70,7 +70,7 @@ The current native colony adapter projects `DevelopmentFacts.power`, conduit
 `furniture` and per-network `networks`; omitted research remains unported,
 not observed empty. Power rows carry refuelable service facts (`fuel`, `target_fuel`,
 `out_of_fuel`, `allowed_fuel_defs`, `broken_down`) when the building has the
-matching component, and batteries appear as `base_w = 0` rows with
+matching component, and batteries appear as rows with
 `stored_watt_days`/`capacity_watt_days`. `networks` summarises each native
 power net's generation, consumption, stored and capacity energy. Power building
 references carry identity only, without operation-precondition snapshot tokens.

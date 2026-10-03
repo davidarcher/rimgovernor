@@ -35,19 +35,20 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 	count := func(n uint64) *o.Completeness {
 		return &o.Completeness{Filtered: proto.Uint64(0)}
 	}
-	row := func(id, def string, x int32, base float64) *o.DevelopmentPower {
+	row := func(id, def string, x int32) *o.DevelopmentPower {
 		cell := &c.Cell{X: proto.Int32(x), Z: proto.Int32(2)}
-		return &o.DevelopmentPower{BaseW: proto.Float64(base), Building: bridge.NewRef(n.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: cell}, Occupied: &o.Rectangle{Minimum: cell, Maximum: cell}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}).GetId())}
+		return &o.DevelopmentPower{Building: bridge.NewRef(n.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def), MapId: proto.Int32(0), Position: cell}, Occupied: &o.Rectangle{Minimum: cell, Maximum: cell}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}).GetId())}
 	}
-	development := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row("lamp", "StandingLamp", 1, -200)}}
+	development := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row("lamp", "StandingLamp", 1)}}
 	if conduit {
-		development.Power = append(development.Power, row("generator", "WoodFiredGenerator", 4, 1000))
+		development.Power = append(development.Power, row("generator", "WoodFiredGenerator", 4))
 	}
 	v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: development}}
 	n.catalog = nil
-	for _, name := range []string{"HiddenConduit", "WoodFiredGenerator"} {
-		n.putCatalog(buildable(name, 4, 1, 1))
-	}
+	lampW, generatorW := 200.0, -1000.0
+	lamp, generator := buildable("StandingLamp", 4, 1, 1), buildable("WoodFiredGenerator", 4, 1, 1)
+	lamp.PowerW, generator.PowerW = &lampW, &generatorW
+	n.putCatalog(buildable("HiddenConduit", 4, 1, 1), lamp, generator)
 	pawn := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false)}
 	var skills []policy.WorkSkill
 	for _, name := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {

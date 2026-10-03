@@ -47,13 +47,11 @@ func lightingWire() *o.LightingSection {
 
 func flooringWire() *o.FlooringSection {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-	terrain := func(name string) *o.FloorTerrain { return &o.FloorTerrain{DefName: proto.String(name)} }
 	return &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{
 		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Role: proto.String("Kitchen"), Cells: []*o.FloorCell{
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}},
-		Terrains: []*o.FloorTerrain{terrain("Soil"), terrain("WoodPlankFloor")},
 	}}}
 }
 
@@ -67,14 +65,12 @@ func TestDirectUpkeepFlooringBoundary(t *testing.T) {
 	for _, mutate := range []func(*o.FlooringFacts){
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Cell.X = proto.Int32(50) },
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Terrain = nil },
-		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Terrain = proto.String("Lava") },
+		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Terrain = proto.String("") },
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells[0].Pending = proto.String("") },
 		func(f *o.FlooringFacts) { f.Rooms[0].Cells = append(f.Rooms[0].Cells, f.Rooms[0].Cells[0]) },
 		func(f *o.FlooringFacts) { f.Rooms = append(f.Rooms, f.Rooms[0]) },
 		func(f *o.FlooringFacts) { f.Rooms[0].Room = &c.Ref{Id: proto.String("")} },
 		func(f *o.FlooringFacts) { f.Rooms[0].Role = proto.String("") },
-		func(f *o.FlooringFacts) { f.Terrains = append(f.Terrains, f.Terrains[0]) },
-		func(f *o.FlooringFacts) { f.Terrains[0].DefName = nil },
 	} {
 		v := upkeepWire()
 		v.Flooring = flooringWire()

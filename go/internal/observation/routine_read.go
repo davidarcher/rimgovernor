@@ -65,7 +65,13 @@ func (f frameColony) ReadColonyFacts(context.Context, *c.Identity, bool) (*o.Col
 }
 
 func (f frameColony) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
-	return f.frame.Tables, nil
+	tables := f.frame.Tables
+	// A power row's wattage includes the upgrades the frame's research
+	// census says are finished (#1726).
+	if f.frame.Research != nil {
+		tables.FinishedResearch = domain.Known(slices.Clone(f.frame.Research.Finished))
+	}
+	return tables, nil
 }
 
 func (f frameColony) ReadZoneSection(context.Context, *c.Identity) (bridge.ZonesRead, bridge.Result, error) {

@@ -10,20 +10,16 @@ import (
 )
 
 func TestColonyPowerRejectsPartialOrAmbiguousCensus(t *testing.T) {
-	for _, phase := range []string{"valid", "unknown", "duplicate", "infinite"} {
+	for _, phase := range []string{"valid", "duplicate"} {
 		t.Run(phase, func(t *testing.T) {
-			row := &o.DevelopmentPower{BaseW: proto.Float64(-200), Building: &c.Ref{Id: proto.String("building")}}
+			row := &o.DevelopmentPower{Building: &c.Ref{Id: proto.String("building")}}
 			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{row}}
 			switch phase {
-			case "unknown":
-				row.BaseW = nil
 			case "duplicate":
 				v.Power = append(v.Power, proto.Clone(row).(*o.DevelopmentPower))
-			case "infinite":
-				row.BaseW = proto.Float64(math.Inf(1))
 			}
 			err := validateColonyPower(v, &c.Identity{MapId: proto.Int32(0)}, &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)})
-			if (err == nil) != (phase == "valid" || phase == "unknown") {
+			if (err == nil) != (phase == "valid") {
 				t.Fatal(phase, err)
 			}
 		})
@@ -92,8 +88,8 @@ func TestColonyEnvironmentRejectsUnavailablePopulatedAndDuplicateConditions(t *t
 func TestColonyPowerAcceptsBatteryAndNetworkFacts(t *testing.T) {
 	for _, phase := range []string{"valid", "stored-over-capacity", "duplicate-network", "network-unknown-field", "network-nan"} {
 		t.Run(phase, func(t *testing.T) {
-			generator := &o.DevelopmentPower{BaseW: proto.Float64(1000), Building: &c.Ref{Id: proto.String("generator")}}
-			battery := &o.DevelopmentPower{BaseW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), Building: &c.Ref{Id: proto.String("battery")}}
+			generator := &o.DevelopmentPower{Building: &c.Ref{Id: proto.String("generator")}}
+			battery := &o.DevelopmentPower{StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), Building: &c.Ref{Id: proto.String("battery")}}
 			net := &o.PowerNetwork{Id: proto.String("net"), Producers: proto.Uint32(1), Consumers: proto.Uint32(0), Batteries: proto.Uint32(1), Transmitters: proto.Uint32(3), Connectors: proto.Uint32(0), GenerationW: proto.Float64(0), ConsumptionW: proto.Float64(0), NetW: proto.Float64(0), StoredWattDays: proto.Float64(300), CapacityWattDays: proto.Float64(600), HasSource: proto.Bool(true), HasActiveSource: proto.Bool(false)}
 			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{generator, battery}, Networks: []*o.PowerNetwork{net}}
 			switch phase {

@@ -266,19 +266,11 @@ func validateRoutes(section *o.RoutesSection, size *o.MapSize, mapID int32) erro
 }
 
 // validateFlooring checks the flooring section: unique rooms of unique
-// in-map cells, each naming a terrain listed once in the terrain table,
-// whose stats are finite numbers.
+// in-map cells, each naming a terrain (the catalog prices it).
 func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 	f := section.GetObserved()
 	if f == nil {
 		return validateUnavailable(section.GetUnavailable())
-	}
-	terrains := map[string]bool{}
-	for _, row := range f.Terrains {
-		if row == nil || validID(row.GetDefName()) != nil || terrains[row.GetDefName()] || !proto.Equal(row, &o.FloorTerrain{DefName: row.DefName}) {
-			return contract("invalid flooring terrain")
-		}
-		terrains[row.GetDefName()] = true
 	}
 	rooms := map[string]bool{}
 	cells := map[[2]int32]bool{}
@@ -288,7 +280,7 @@ func validateFlooring(section *o.FlooringSection, size *o.MapSize) error {
 		}
 		rooms[room.GetRoom().GetId()] = true
 		for _, cell := range room.Cells {
-			if cell == nil || !colonyCell(cell.Cell, size) || cell.Terrain == nil || !terrains[cell.GetTerrain()] || cell.Pending != nil && validID(cell.GetPending()) != nil || !proto.Equal(cell, &o.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain, Pending: cell.Pending}) {
+			if cell == nil || !colonyCell(cell.Cell, size) || cell.Terrain == nil || validID(cell.GetTerrain()) != nil || cell.Pending != nil && validID(cell.GetPending()) != nil || !proto.Equal(cell, &o.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain, Pending: cell.Pending}) {
 				return contract("invalid flooring cell")
 			}
 			key := [2]int32{cell.Cell.GetX(), cell.Cell.GetZ()}

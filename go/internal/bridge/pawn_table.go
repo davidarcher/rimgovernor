@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -64,6 +65,10 @@ type Tables struct {
 	// name to what the def says (#1733); nil where none is held, and the
 	// facts that need it stay unknown.
 	Catalog *DefinitionCatalog
+	// FinishedResearch is the finished research projects of the frame's
+	// research census; unknown where the frame carries none. Power rows read
+	// it for the def's finished upgrades (#1726).
+	FinishedResearch domain.Fact[[]string]
 }
 
 // heldCatalog is the catalog read for identity's load, nil when this

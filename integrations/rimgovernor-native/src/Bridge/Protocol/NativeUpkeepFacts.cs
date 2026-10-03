@@ -202,38 +202,25 @@ namespace HomeBridge.BridgeTools
             Read("flooring", result, () => {
                 // Every proper indoor room the colony lives in (any cell in
                 // the home area, not psychologically outdoors) with the
-                // terrain under each cell; the terrain table carries the
-                // abstract stats MaintainFlooring scores. A floor blueprint
+                // terrain under each cell; the catalog's terrain rows carry the
+                // stats MaintainFlooring scores. A floor blueprint
                 // or frame on a cell is reported as its pending terrain so
                 // the planner never doubles an open order.
                 var rooms = map.regionGrid.AllRooms.Where(r => r.ProperRoom && !r.PsychologicallyOutdoors && !r.TouchesMapEdge
                     && !r.Fogged && r.Cells.Any(c => map.areaManager.Home[c])).OrderBy(r => r.ID).ToList();
                 var facts = new Obs.FlooringFacts();
-                var terrains = new System.Collections.Generic.SortedDictionary<string, TerrainDef>(StringComparer.Ordinal);
                 foreach (var r in rooms) {
                     var row = new Obs.FloorRoom { Room = NativeRef.Room(r) };
                     if (r.Role != null) row.Role = Id(r.Role.defName);
                     foreach (var c in r.Cells.OrderBy(c => c.z).ThenBy(c => c.x)) {
                         var terrain = c.GetTerrain(map);
                         var cell = new Obs.FloorCell { Cell = Cell(c), Terrain = Id(terrain.defName) };
-                        terrains[terrain.defName] = terrain;
                         var pending = c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
                         if (pending != null) cell.Pending = Id(pending.def.entityDefToBuild.defName);
                         row.Cells.Add(cell);
                     }
                     facts.Rooms.Add(row);
                 }
-                // The traffic tier scores the routes census's most-travelled
-                // cells against the same table, so their terrains are named too.
-                var traffic = map.GetComponent<TrafficState>();
-                if (traffic != null)
-                    for (int layer = 0; layer < TrafficCounts.Layers; layer++)
-                        foreach (var index in traffic.Counts.Top(layer, TrafficTop)) {
-                            var terrain = map.cellIndices.IndexToCell(index).GetTerrain(map);
-                            terrains[terrain.defName] = terrain;
-                        }
-                foreach (var terrain in terrains.Values)
-                    facts.Terrains.Add(new Obs.FloorTerrain { DefName = Id(terrain.defName) });
                 result.Flooring = new Obs.FlooringSection { Observed = facts };
             });
             Read("routes", result, () => {

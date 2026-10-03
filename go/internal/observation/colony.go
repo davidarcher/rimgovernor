@@ -402,7 +402,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 				}
 				rainVulnerable = domain.Known(vulnerable)
 			}
-			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
+			baseW := domain.Unknown[float64]()
+			if def := b.GetBuilding().DefName; def != nil && tables.Catalog != nil {
+				if baseW, err = tables.Catalog.PowerBaseW(*def, tables.FinishedResearch); err != nil {
+					return ColonyProjection{}, err
+				}
+			}
+			power = append(power, policy.PowerBuilding{BaseW: baseW, OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
 				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := b.GetBuilding()

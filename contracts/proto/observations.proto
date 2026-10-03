@@ -1232,7 +1232,7 @@ message AnimalFeedStorage { rimgovernor.common.v1.Ref zone = 1; repeated string 
 // pawn refers to the bundle pawn table row (#1343), whose animal_state
 // carries the herd facts.
 message AnimalFeed { reserved 1; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
-message DevelopmentPower { reserved 1; rimgovernor.common.v1.Ref building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; reserved 5; reserved "rain_vulnerable"; optional bool roofed = 6;
+message DevelopmentPower { reserved 1, 2; reserved "base_w"; rimgovernor.common.v1.Ref building = 8; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; reserved 5; reserved "rain_vulnerable"; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }
 message DevelopmentFurniture { rimgovernor.common.v1.Ref building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
@@ -1350,10 +1350,8 @@ message LightingSection { oneof outcome { LightingFacts observed = 1; rimgoverno
 message FloorCell { rimgovernor.common.v1.Cell cell = 1; optional string terrain = 2; optional string pending = 3; }
 // Room stats live on the bundle rooms census (RoomState.stats), not here (#821, #1338).
 message FloorRoom { rimgovernor.common.v1.Ref room = 1; optional string role = 2; repeated FloorCell cells = 3; reserved 4; reserved "quality"; }
-// A terrain a room cell or route tile stands on; its stats and fields are the
-// catalog's TerrainDef row and terrain stat rows.
-message FloorTerrain { optional string def_name = 1; reserved 2 to 6; reserved "cleanliness", "path_cost", "beauty", "flammability", "natural"; }
-message FlooringFacts { repeated FloorRoom rooms = 1; repeated FloorTerrain terrains = 2; reserved 3; }
+// Every terrain a cell can stand on is a catalog TerrainDef row; the frame names none.
+message FlooringFacts { repeated FloorRoom rooms = 1; reserved 2, 3; reserved "terrains"; }
 message FlooringSection { oneof outcome { FlooringFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Routes census (issue #6 slice 5): each colony facility a colonist must
 // reach (bed, work bench, storage, dining surface, defence emplacement) with

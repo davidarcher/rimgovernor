@@ -120,7 +120,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}, RoomStatDefs: FixtureRoomStats()}
 	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
-	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain"}}
+	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}
 	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}} {
 		class, _ := proto.GetExtension(message.ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)

@@ -310,8 +310,8 @@ as in the def rows. Go does not port StatWorker or type any stat constant.
 costs; kept apart from `rows` because a terrain defName may also name a
 ThingDef); `DefinitionCatalog.TerrainStatValue` reads them and
 `FloorTerrain(name)` joins cleanliness, beauty and flammability with the def
-row's `pathCost` and `natural`, so a frame's `FloorTerrain` names the terrain
-only (#1733).
+row's `pathCost` and `natural`; `FloorTerrains()` prices every terrain row once
+per load, so a flooring frame names no terrain (#1733, #1726).
 
 `DefinitionCatalog.StatValue(def, stuff, stat)` and `AdjustedCosts(def, stuff)`
 look the values up in the per-load-token cache; an absent table, a missing

@@ -1,6 +1,9 @@
 package bridge
 
 import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -95,4 +98,55 @@ func (catalog *DefinitionCatalog) PowerBattery(name string) (policy.PowerBattery
 		return policy.PowerBattery{}, contract("battery %s has capacity %v and efficiency %v", name, out.CapacityWD, out.Efficiency)
 	}
 	return out, nil
+}
+
+// PowerBaseW is the base wattage a power row states for the named def, in the
+// sign the power policy reads: negative for a consumer, positive for a
+// producer, zero for a battery. It is the def's basePowerConsumption with the
+// factor of every power upgrade whose research is finished applied in order,
+// as the game's CompProperties_Power.PowerConsumption does. A def with upgrades
+// and no finished-research census yields an unknown fact; a def with no power
+// comp is an error.
+func (catalog *DefinitionCatalog) PowerBaseW(name string, finished domain.Fact[[]string]) (domain.Fact[float64], error) {
+	row, err := catalog.thingRow(name)
+	if err != nil {
+		return domain.Fact[float64]{}, err
+	}
+	comp, err := catalog.CompOf(row, ClassPowerComp)
+	if err != nil {
+		return domain.Fact[float64]{}, err
+	}
+	if comp == nil {
+		return domain.Fact[float64]{}, contract("def %s has no power comp", name)
+	}
+	draw, err := CompFloat(comp, "basePowerConsumption")
+	if err != nil {
+		return domain.Fact[float64]{}, err
+	}
+	fd := comp.Descriptor().Fields().ByName("powerUpgrades")
+	if fd == nil || !fd.IsList() || fd.Message() == nil {
+		return domain.Fact[float64]{}, contract("comp %s has no powerUpgrades list", comp.Descriptor().FullName())
+	}
+	upgrades := comp.Get(fd).List()
+	if upgrades.Len() == 0 {
+		return domain.Known(0 - float64(float32(draw))), nil
+	}
+	done, known := finished.Value()
+	if !known {
+		return domain.Fact[float64]{}, nil
+	}
+	num := float32(draw)
+	for i := 0; i < upgrades.Len(); i++ {
+		wrapper := upgrades.Get(i).Message()
+		valueField := wrapper.Descriptor().Fields().ByName("value")
+		if valueField == nil || !wrapper.Has(valueField) {
+			return domain.Fact[float64]{}, contract("def %s has an empty power upgrade", name)
+		}
+		upgrade := wrapper.Get(valueField).Message()
+		project := upgrade.Get(upgrade.Descriptor().Fields().ByName("researchProject")).String()
+		if project != "" && slices.Contains(done, project) {
+			num *= float32(upgrade.Get(upgrade.Descriptor().Fields().ByName("factor")).Float())
+		}
+	}
+	return domain.Known(0 - float64(num)), nil
 }

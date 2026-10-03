@@ -9,6 +9,29 @@ const (
 	StatFlammability = "Flammability"
 )
 
+// FloorTerrains prices every TerrainDef row (#1726): the table a flooring
+// census scores its cells against, built once per catalog. The caller must not
+// modify the map. A terrain the stat table does not show a floor stat for fails
+// the whole table.
+func (catalog *DefinitionCatalog) FloorTerrains() (map[string]policy.FloorTerrain, error) {
+	if catalog == nil {
+		return nil, contract("no definition catalog")
+	}
+	catalog.floorOnce.Do(func() {
+		out := make(map[string]policy.FloorTerrain, len(catalog.TerrainDefs))
+		for name := range catalog.TerrainDefs {
+			terrain, err := catalog.FloorTerrain(name)
+			if err != nil {
+				catalog.floorErr = err
+				return
+			}
+			out[name] = terrain
+		}
+		catalog.floorTerrains = out
+	})
+	return catalog.floorTerrains, catalog.floorErr
+}
+
 // FloorTerrain is what a TerrainDef says about the floor it lays (#1733): its
 // cleanliness, beauty and flammability stat values from the stat table, and its
 // path cost and natural flag from its def row. A terrain without a row or

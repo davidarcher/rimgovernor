@@ -256,8 +256,8 @@ namespace HomeBridge.BridgeTools
         {
             // Traders (consumers and generators) and batteries share one census so
             // Go's power topology sees every network member that matters for
-            // coverage and reserve: batteries carry base_w = 0 plus stored/capacity
-            // energy; each member's service state is its building table row (#1343).
+            // coverage and reserve: batteries carry stored/capacity energy; the
+            // base wattage is the def's (Go reads it from the catalog); each member's service state is its building table row (#1343).
             var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
@@ -278,7 +278,7 @@ namespace HomeBridge.BridgeTools
             if (incidents.Count > 0) result.ShortCircuitTick = incidents.Max();
             foreach (var power in traders) {
                 var building = (Building)power.parent;
-                var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = NativeBuildingObservationTools.Ref(building),
+                var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
                     Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second (#1188).
                 try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
@@ -286,7 +286,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                result.Power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
                     StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)

@@ -111,8 +111,15 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	add(&d.ThingDef{DefName: "Battery", Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Battery{CompProperties_Battery: &d.CompProperties_Battery{StoredEnergyMax: 600, Efficiency: 0.5}}}}}})
 	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
 	plain := func(name string) {
+		// A def a test gave a wattage (PowerW) draws it, as its row states.
+		var watts float32
+		for _, def := range n.catalog {
+			if def.Name == name && def.PowerW != nil {
+				watts = float32(*def.PowerW)
+			}
+		}
 		add(&d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
-			Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}})
+			Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: watts}}}}}})
 	}
 	for row := range n.things.Values() {
 		plain(row.GetThing().GetDefName())

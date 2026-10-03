@@ -33,9 +33,6 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		if row.StoredWattDays != nil && row.CapacityWattDays != nil && row.GetStoredWattDays() > row.GetCapacityWattDays() {
 			return contract("power storage exceeds capacity")
 		}
-		if value := row.BaseW; value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || math.Abs(*value) > 1e12) {
-			return contract("invalid power wattage")
-		}
 	}
 	networks := map[string]bool{}
 	for _, net := range v.Networks {

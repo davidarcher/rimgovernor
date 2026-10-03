@@ -67,7 +67,6 @@ func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
 
 func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
-	terrain := func(name string) *o.FloorTerrain { return &o.FloorTerrain{DefName: proto.String(name)} }
 	// Cleanliness, beauty and flammability are the catalog's terrain stats.
 	tables := bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}, "WoodPlankFloor": {0, -3, 0}})}
 	flooring := &o.FlooringFacts{
@@ -75,7 +74,6 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 			{Cell: cell(10, 10), Terrain: proto.String("Soil")},
 			{Cell: cell(11, 10), Terrain: proto.String("Soil"), Pending: proto.String("WoodPlankFloor")},
 		}}, {Room: &c.Ref{Id: proto.String("8")}, Cells: []*o.FloorCell{{Cell: cell(20, 20), Terrain: proto.String("WoodPlankFloor")}}}},
-		Terrains: []*o.FloorTerrain{terrain("Soil"), terrain("WoodPlankFloor")},
 	}
 	u := &o.UpkeepFacts{Flooring: &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: flooring}}}
 	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
@@ -108,7 +106,7 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 		t.Fatal("absent section became known")
 	}
 	u.Flooring = &o.FlooringSection{Outcome: &o.FlooringSection_Observed{Observed: &o.FlooringFacts{}}}
-	if f, known := upkeepOf(t, v, bridge.Tables{}).Flooring.Value(); !known || len(f.Rooms) != 0 {
+	if f, known := upkeepOf(t, v, tables).Flooring.Value(); !known || len(f.Rooms) != 0 {
 		t.Fatal("empty census is a known census", f, known)
 	}
 }
@@ -228,7 +226,6 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	flooring := &o.FlooringFacts{
 		Rooms:    []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
-		Terrains: []*o.FloorTerrain{{DefName: proto.String("Soil")}},
 	}
 	tables := bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}})}
 	routes := routesWireFacts()
