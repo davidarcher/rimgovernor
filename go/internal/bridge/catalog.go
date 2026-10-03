@@ -43,7 +43,7 @@ type DefinitionCatalog struct {
 	ThingDefs   map[string]*d.ThingDef
 	TerrainDefs map[string]*d.TerrainDef
 	// Constants are the game constants the native read took from the game
-	// assemblies; nil in a reply that carries none.
+	// assemblies.
 	Constants *o.CatalogConstants
 }
 
@@ -130,9 +130,14 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	return catalog, nil
 }
 
-// defRows keys generated def rows by defName; a row without a valid name
-// or a repeated name is a contract violation.
+// defRows keys generated def rows by defName; no rows, a row without a
+// valid name or a repeated name is a contract violation (the game defines
+// both kinds, so an empty list is a reply from a build without the def
+// mirror).
 func defRows[T any](rows []*T, name func(*T) string, kind string) (map[string]*T, error) {
+	if len(rows) == 0 {
+		return nil, contract("catalog carries no %s defs", kind)
+	}
 	out := make(map[string]*T, len(rows))
 	for _, row := range rows {
 		if row == nil || validID(name(row)) != nil {
@@ -146,11 +151,11 @@ func defRows[T any](rows []*T, name func(*T) string, kind string) (map[string]*T
 	return out, nil
 }
 
-// validateConstants refuses a constants block with a non-positive or
-// non-finite value; an absent block stays nil.
+// validateConstants refuses an absent constants block and one with a
+// non-positive or non-finite value.
 func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 	if v == nil {
-		return nil, nil
+		return nil, contract("catalog carries no constants")
 	}
 	for name, n := range map[string]int32{"ticks_per_hour": v.TicksPerHour, "ticks_per_day": v.TicksPerDay, "days_per_year": v.DaysPerYear, "bill_stack_max": v.BillStackMax, "skill_max_level": v.SkillMaxLevel} {
 		if n <= 0 {

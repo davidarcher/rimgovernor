@@ -60,9 +60,9 @@ namespace HomeBridge.BridgeTools
             // Every def with all its fields (#1730), by protobuf reflection over the
             // generated messages. An unmapped field throws and fails the read.
             var mirror = new DefMirrorFill();
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
                 catalog.ThingDefs.Add(mirror.Build<Defs.ThingDef>(def));
-            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
+            foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
             catalog.Constants = Constants();
             catalog.Biotech = NativeBiotechFacts.Catalog();
@@ -71,6 +71,11 @@ namespace HomeBridge.BridgeTools
             catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
         }
+
+        // A def whose defName is not a protocol identifier cannot be a catalog key:
+        // fail the read naming it rather than leave it out.
+        private static string Named(string defName, string kind) =>
+            ProtoBoundary.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"{kind} defName '{defName}' is not an identifier.");
 
         private static Obs.CatalogConstants Constants() => new Obs.CatalogConstants
         {

@@ -41,7 +41,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	if catalog.ThingDef("Missing") != nil || catalog.TerrainDef("Bed") != nil || catalog.Constants.TicksPerDay != 60000 {
 		t.Fatalf("lookup %+v", catalog)
 	}
-	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow"} {
+	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-thing-defs", "no-terrain-defs", "no-constants"} {
 		t.Run(change, func(t *testing.T) {
 			v := build()
 			switch change {
@@ -55,6 +55,12 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 				v.TerrainDefs = append(v.TerrainDefs, nil)
 			case "zero-constant":
 				v.Constants.BillStackMax = 0
+			case "no-thing-defs":
+				v.ThingDefs = nil
+			case "no-terrain-defs":
+				v.TerrainDefs = nil
+			case "no-constants":
+				v.Constants = nil
 			case "nan-glow":
 				v.Constants.LitGlowThreshold = float32(math.NaN())
 			}
@@ -62,9 +68,6 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 				t.Fatal("malformed rows accepted")
 			}
 		})
-	}
-	if catalog, err := DecodeDefinitionCatalog(catalogReply(context).GetObserved(), pbIdentity()); err != nil || catalog.Constants != nil || catalog.ThingDef("Wall") != nil {
-		t.Fatalf("a reply without generated rows: %+v %v", catalog, err)
 	}
 }
 
