@@ -35,6 +35,9 @@ const (
 	projectRelative = "tools/protobuf/ProtobufProof.csproj"
 	generatedCSharp = "contracts/generated/protobuf/csharp"
 	protoRelative   = "contracts/proto"
+	// buildGeneratedCSharp is gitignored (49 MB): the native builds generate it
+	// with this program before compiling; --check does not compare it.
+	buildGeneratedCSharp = "Defs.cs"
 )
 
 type options struct {
@@ -176,6 +179,12 @@ func run(opts options) error {
 	expected, err := filesByName(generated, ".cs")
 	if err != nil {
 		return err
+	}
+	if opts.check {
+		// The def mirror's binding is built, not committed: its drift check is
+		// defs.proto against tools/defmirror, and this run already compiled it.
+		delete(current, buildGeneratedCSharp)
+		delete(expected, buildGeneratedCSharp)
 	}
 	differences, err := differing(current, expected)
 	if err != nil {

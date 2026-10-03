@@ -18,7 +18,12 @@ language source; the one exception is the [def mirror](#def-mirror), which emits
 `.proto`, never Go or C#. See [C# commands](../tools/protobuf/README.md) and
 [Go commands](../tools/protobuf/go/README.md). Keep private build outputs in fresh
 ignored `.rimgovernor/` directories; commit official generated bindings with their
-schemas. Review generation drift for the complete file set.
+schemas, except `generated/protobuf/csharp/Defs.cs` (49 MB): it is gitignored and
+generated from `defs.proto` by `generatecsharp` (the pinned Grpc.Tools protoc) at the
+start of `scripts/build_native_ref.sh` and `scripts/build_native_mod.ps1`; run
+`go -C go run ./internal/protobufgen/cmd/generatecsharp` to produce it for an IDE.
+`--check` does not compare it; `defs.proto` itself is checked by `defmirror:build`.
+The Go binding `defspb/defs.pb.go` stays committed (generating it takes minutes). Review generation drift for the complete file set.
 
 Use official ProtoJSON for the MCP payload string. Each advertised method has a
 fixed generated request/reply type; SDK reflection must not serialize generated

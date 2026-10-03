@@ -66,7 +66,9 @@ rules; no historical JSON parity gate applies.
 See the official [C# generated-code guide](https://protobuf.dev/reference/csharp/csharp-generated/)
 for generated presence and oneof APIs. Generated C# files are committed under
 `contracts/generated/protobuf/csharp`; edit the `.proto` inputs and rerun the
-compiler instead of editing generated code.
+compiler instead of editing generated code. `Defs.cs` is the exception: it is
+gitignored, written by the same command and generated again by the native builds;
+`--check` skips it.
 
 ## Complete package proof
 

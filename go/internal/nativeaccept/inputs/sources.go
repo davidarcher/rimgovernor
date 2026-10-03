@@ -41,6 +41,12 @@ func contractSource(relative string) bool {
 	return !buildOutputDir.MatchString(relative) && !binaryExt[strings.ToLower(filepath.Ext(relative))]
 }
 
+// committedBinding keeps contractSource files except the build-generated
+// Defs.cs, which the build writes into its copy after hashing.
+func committedBinding(relative string) bool {
+	return contractSource(relative) && relative != "Defs.cs"
+}
+
 func fixtureSource(relative string) bool {
 	ext := strings.ToLower(filepath.Ext(relative))
 	return (ext == ".cs" || ext == ".csproj") && !buildOutputDir.MatchString(relative)
@@ -55,7 +61,7 @@ var nativeSourceInputs = []nativeSourceInput{
 	{repo: "integrations/rimgovernor-native/Notices", copy: "integrations/rimgovernor-native/Notices", keep: notNativeBuildOutput},
 	{repo: "integrations/rimgovernor-native/README.md", copy: "integrations/rimgovernor-native/README.md"},
 	{repo: "contracts/proto", copy: "contracts/proto", keep: contractSource},
-	{repo: "contracts/generated/protobuf/csharp", copy: "contracts/generated/protobuf/csharp", keep: contractSource},
+	{repo: "contracts/generated/protobuf/csharp", copy: "contracts/generated/protobuf/csharp", keep: committedBinding},
 	{repo: "tools/protobuf", copy: "tools/protobuf", keep: contractSource},
 	{repo: "scripts/build_native_mod.ps1", copy: "scripts/build_native_mod.ps1"},
 	{repo: "go/internal/protobufgen/cmd/generatecsharp/main.go", copy: "scripts/generate_protobuf.go"},

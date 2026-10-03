@@ -65,7 +65,8 @@ foreach ($taskDirectory in @('src', 'About', 'Defs', 'Notices')) {
 foreach ($taskContractDirectory in @('contracts/proto', 'contracts/generated/protobuf/csharp', 'tools/protobuf')) {
     $taskFrom = Join-Path $taskRepo $taskContractDirectory
     foreach ($taskFile in Get-ChildItem -LiteralPath $taskFrom -Recurse -File | Where-Object {
-        $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe')
+        $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe') -and
+        $_.FullName -notmatch '[\\/]csharp[\\/]Defs\.cs$'
     }) {
         $taskRelative = $taskFile.FullName.Substring($taskRepo.Length + 1)
         $taskTo = Join-Path $taskCopyRoot $taskRelative
@@ -102,6 +103,13 @@ $taskSourceLines.Sort([System.StringComparer]::Ordinal)
 $taskSourceHasher = [System.Security.Cryptography.SHA256]::Create()
 $taskSourceTree = [BitConverter]::ToString($taskSourceHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes(-join $taskSourceLines))).Replace('-', '').ToLowerInvariant()
 $taskSourceHasher.Dispose()
+# Defs.cs (49 MB) is not committed: generate it into the private copy with the
+# bundled generator (pinned Grpc.Tools protoc) after the source hash is taken.
+Push-Location $taskCopyRoot
+try {
+    & go run (Join-Path $taskScripts 'generate_protobuf.go') -root $taskCopyRoot -dotnet $taskCompiler -output (Join-Path $taskBuild 'protobuf') *> (Join-Path $taskBuild 'generate.log')
+    if ($LASTEXITCODE) { throw "Defs.cs generation failed; inspect $taskBuild/generate.log" }
+} finally { Pop-Location }
 $taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
     "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly",
@@ -136,7 +144,8 @@ Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $tas
 $taskSnapshot = Join-Path $taskPackage 'Source'
 New-Item -ItemType Directory -Path $taskSnapshot -Force | Out-Null
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File | Where-Object {
-    $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe')
+    $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe') -and
+    $_.FullName -notmatch '[\\/]csharp[\\/]Defs\.cs$'
 }) {
     $taskRelative = $taskFile.FullName.Substring($taskCopyRoot.Length + 1)
     $taskDestination = Join-Path $taskSnapshot $taskRelative

@@ -5,6 +5,8 @@
 # sessions; the output is never installed into a game. Windows builds keep
 # using build_native_mod.ps1 against the real install.
 #
+# Needs Go to generate the gitignored contracts/generated/protobuf/csharp/Defs.cs.
+#
 # Usage: scripts/build_native_ref.sh [-p:SomeFixture=true ...]
 # Extra arguments pass through to dotnet build (e.g. fixture switches).
 set -euo pipefail
@@ -36,6 +38,17 @@ sdk="$cache/rimbridge-sdk"
 mkdir -p "$sdk"
 cp "$(fetch rimbridgeserver.sdk "$RIMBRIDGE_SDK_VERSION")/lib/net472/RimBridgeServer.Sdk.dll" "$sdk/"
 cp "$(fetch newtonsoft.json "$NEWTONSOFT_VERSION")/lib/net45/Newtonsoft.Json.dll" "$sdk/"
+
+# Defs.cs (49 MB) is generated, not committed: build it with the pinned
+# Grpc.Tools protoc (generatecsharp) when missing or older than defs.proto.
+defs="$repo/contracts/generated/protobuf/csharp/Defs.cs"
+if [ ! -f "$defs" ] || [ "$repo/contracts/proto/defs.proto" -nt "$defs" ]; then
+  command -v go >/dev/null || { echo "go not found (needed to generate Defs.cs)" >&2; exit 1; }
+  gen="$cache/protobuf-gen"
+  rm -rf "$gen"
+  go -C "$repo/go" run ./internal/protobufgen/cmd/generatecsharp --dotnet dotnet --output "$gen"
+  rm -rf "$gen"
+fi
 
 dotnet build "$repo/integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj" \
   -c Release -nologo -o "$out" \
