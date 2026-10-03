@@ -258,15 +258,18 @@ type RoutineFacts struct {
 	RecoverySafety       domain.Fact[RecoverySafety]
 	RecoveryWorkers      domain.Fact[[]RecoveryWorker]
 	DisasterConditions   domain.Fact[[]DisasterCondition]
-	RecoveryBuildings    domain.Fact[[]RecoveryBuilding]
-	Disaster             *DisasterHistory
-	DisasterTick         domain.Tick
-	MoodPawns            domain.Fact[[]MoodPawn]
-	Mood                 MoodHistory
-	HomeCoverage         domain.Fact[HomeCoverageObservation]
-	StoneStructures      domain.Fact[[]StoneStructure]
-	ConstructionClaims   domain.Fact[[]ConstructionClaim]
-	CurrentConstruction  domain.Fact[CurrentConstruction]
+	// OutdoorsDark is the colony biome's permanent darkness (#1712): its map
+	// conditions include a no-sunlight class.
+	OutdoorsDark        domain.Fact[bool]
+	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
+	Disaster            *DisasterHistory
+	DisasterTick        domain.Tick
+	MoodPawns           domain.Fact[[]MoodPawn]
+	Mood                MoodHistory
+	HomeCoverage        domain.Fact[HomeCoverageObservation]
+	StoneStructures     domain.Fact[[]StoneStructure]
+	ConstructionClaims  domain.Fact[[]ConstructionClaim]
+	CurrentConstruction domain.Fact[CurrentConstruction]
 	// ConstructionDeficit is the material standing blueprints and frames
 	// are still owed, per resource.
 	ConstructionDeficit domain.Fact[map[Resource]int64]
@@ -801,7 +804,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, EclipseHold(f.DisasterConditions))
+	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

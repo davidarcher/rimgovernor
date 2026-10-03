@@ -157838,7 +157838,7 @@ namespace RimGovernor.Protocol.Observations {
 
   /// <summary>
   /// def_name is the GameConditionDef; condition_class the GameCondition
-  /// subclass name. Permanent conditions carry no ticks_left. causer_id is the
+  /// subclass CLR full name. Permanent conditions carry no ticks_left. causer_id is the
   /// Thing causing the condition (a toxic spewer, a climate adjuster), absent
   /// for an event's.
   /// </summary>

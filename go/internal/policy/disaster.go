@@ -114,6 +114,14 @@ func EclipseHold(conditions domain.Fact[[]DisasterCondition]) bool {
 	return known && ticks > 0
 }
 
+// SkyDarkHold reports that the sky gives no light by day: an eclipse (see
+// EclipseHold) or a biome whose map conditions black the sky out for good
+// (outdoorsDark, #1712). An unknown outdoorsDark counts as lit.
+func SkyDarkHold(conditions domain.Fact[[]DisasterCondition], outdoorsDark domain.Fact[bool]) bool {
+	dark, _ := outdoorsDark.Value()
+	return dark || EclipseHold(conditions)
+}
+
 // GrowthPauseDays is the observed remaining duration, in game days, of the
 // conditions that stop the fields producing regardless of the seasonal
 // calendar: a volcanic winter or cold snap with a native remaining-duration

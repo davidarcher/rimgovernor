@@ -12,7 +12,21 @@ import (
 type CropClimate struct {
 	Sowing        domain.Fact[bool]
 	DaysRemaining domain.Fact[float64]
+	// OutdoorsDark is the biome's permanent darkness (#1712): the sky never
+	// lights the ground, so no crop that needs light grows outdoors whatever
+	// the season says. Unknown counts as lit.
+	OutdoorsDark domain.Fact[bool]
 }
+
+// SowingOutdoors is whether a crop that needs light can be sown outdoors
+// now: the native season read, false in a permanently dark biome.
+func (c CropClimate) SowingOutdoors() domain.Fact[bool] {
+	if dark, _ := c.OutdoorsDark.Value(); dark {
+		return domain.Known(false)
+	}
+	return c.Sowing
+}
+
 type CropChoice struct {
 	// HarvestUnits scores non-food crop sites without inventing nutrition.
 	HarvestUnits                                                           domain.Fact[float64]
@@ -86,7 +100,7 @@ func (p FieldPlan) Explain() string {
 // than 2.5 cycles of the fastest crop is urgent and also prefers the fastest
 // crop. Existing zones are never re-cropped: the plan only adds patches.
 func PlanField(r FieldRequest) (FieldPlan, bool) {
-	sowing, sk := r.Climate.Sowing.Value()
+	sowing, sk := r.Climate.SowingOutdoors().Value()
 	if !sk || !sowing {
 		return FieldPlan{}, false
 	}

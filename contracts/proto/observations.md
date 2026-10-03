@@ -285,8 +285,13 @@ exclusions are listed in the `defs.proto` header; see
 of every class the fill touched, def classes and every `System.Type` value in a
 row alike, sorted by name. `bridge.DefinitionCatalog.ClassIsA(class, base)` and
 `RowIsA(row, base)` match a family against it; a class with no chain is an
-error. `ActiveCondition.condition_class` is the concrete `GetType().Name`, not a
-full name, so a consumer needs the full name to resolve it against the chains.
+error. `ActiveCondition.condition_class` is the concrete `GetType().FullName`
+(#1794), the key the chains use. A family is matched by base class, never by a
+name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` (#1712) is
+true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
+derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
+it as `RoutineFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
+without a biome read or catalog.
 
 ### Stat values and adjusted costs
 

@@ -640,8 +640,16 @@ func FixtureEnvironmentDefs(v *o.DefinitionCatalog) {
 	const base = "RimWorld.GameCondition"
 	classes := map[string]string{"SolarFlare": electricityDisabledClass, "ColdSnap": "RimWorld.GameCondition_TemperatureOffset", "HeatWave": "RimWorld.GameCondition_TemperatureOffset",
 		"Eclipse": "RimWorld.GameCondition_Eclipse", "ToxicFallout": "RimWorld.GameCondition_ToxicFallout", "VolcanicWinter": "RimWorld.GameCondition_VolcanicWinter", "PsychicDrone": "RimWorld.GameCondition_PsychicEmanator"}
+	// Two biomes: FixtureDarkBiome carries a condition of a subclass of the
+	// no-sunlight family (a mod's), FixtureLitBiome an unrelated one.
+	classes["FixtureDarkness"] = "FixtureMod.GameCondition_PermanentDark"
+	classes["FixtureBreeze"] = "RimWorld.GameCondition_TemperatureOffset"
+	v.Defs.BiomeDefs = append(v.Defs.BiomeDefs, &d.BiomeDef{DefName: "FixtureDarkBiome", BiomeMapConditions: []string{"FixtureBreeze", "FixtureDarkness"}},
+		&d.BiomeDef{DefName: "FixtureLitBiome", BiomeMapConditions: []string{"FixtureBreeze"}}, &d.BiomeDef{DefName: "FixtureBareBiome"})
 	seen := map[string]bool{base: true}
-	v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: base})
+	v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: base}, &o.ClassChain{Name: noSunlightClass, Bases: []string{base}},
+		&o.ClassChain{Name: "FixtureMod.GameCondition_PermanentDark", Bases: []string{noSunlightClass, base}})
+	seen[noSunlightClass], seen["FixtureMod.GameCondition_PermanentDark"] = true, true
 	for name, class := range classes {
 		v.Defs.GameConditionDefs = append(v.Defs.GameConditionDefs, &d.GameConditionDef{DefName: name, ConditionClass: class})
 		if !seen[class] {

@@ -198,17 +198,22 @@ func PlanSiteType(r SiteTypeRequest) (SiteTypePlan, bool) {
 	}
 	plan := SiteTypePlan{}
 	field, ok := PlanField(r.Field)
-	sowing, sk := r.Field.Climate.Sowing.Value()
+	sowing, sk := r.Field.Climate.SowingOutdoors().Value()
+	dark, _ := r.Field.Climate.OutdoorsDark.Value()
+	notPossible := "outdoor sowing not possible"
+	if dark {
+		notPossible = "outdoors permanently dark"
+	}
 	for _, c := range field.Candidates {
 		reason := c.Reason
 		if !sk || !sowing {
-			reason = "outdoor sowing not possible"
+			reason = notPossible
 		}
 		plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: SiteOutdoor, Crop: c.Crop, Needed: c.Needed, Sites: c.Sites, Cells: c.Sites.Cells, Score: c.Score, Terms: c.Terms, Reason: reason})
 	}
 	if !ok && (!sk || !sowing) && len(field.Candidates) == 0 {
 		for _, crop := range r.Field.Choices {
-			plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: SiteOutdoor, Crop: crop, Reason: "outdoor sowing not possible"})
+			plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: SiteOutdoor, Crop: crop, Reason: notPossible})
 		}
 	}
 	urgent := field.Urgent

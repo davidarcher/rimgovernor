@@ -12,7 +12,7 @@ func fieldCrop(name string, days, yield, minimum, sensitivity float64) CropChoic
 	return CropChoice{Name: name, Available: domain.Known(true), Edible: domain.Known(true), GrowDays: domain.Known(days), HarvestNutrition: domain.Known(yield), FertilityMin: domain.Known(minimum), FertilitySensitivity: domain.Known(sensitivity), Demand: domain.Known(4.8)}
 }
 func fieldRequest(fertility float64) FieldRequest {
-	r := FieldRequest{Climate: CropClimate{domain.Known(true), domain.Known(60.0)}, Runway: domain.Known(30.0), Colonists: domain.Known(int64(3)), ReserveDays: 10, Coverage: domain.Known(0.0)}
+	r := FieldRequest{Climate: CropClimate{Sowing: domain.Known(true), DaysRemaining: domain.Known(60.0)}, Runway: domain.Known(30.0), Colonists: domain.Known(int64(3)), ReserveDays: 10, Coverage: domain.Known(0.0)}
 	r.Choices = []CropChoice{fieldCrop("Plant_Rice", 3, 0.3, 0.7, 1.0), fieldCrop("Plant_Corn", 11, 1.3, 0.7, 1.0), fieldCrop("Plant_Potato", 6, 0.55, 0.5, 0.4)}
 	r.Site = FarmSiteRequest{Bounds: Bounds{40, 40}, Anchor: domain.Cell{X: 20, Z: 20}}
 	for x := int32(0); x < 40; x++ {

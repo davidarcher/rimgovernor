@@ -107,20 +107,22 @@ type LightingReview struct {
 	Active bool
 	Dark   []string
 	Known  bool
-	// Eclipse records that the review measured unroofed work cells too:
-	// under an eclipse the sky gives no light by day, so a dark outdoor
-	// bench is a deficit a torch answers for the condition's duration.
-	Eclipse bool
+	// SkyDark records that the review measured unroofed work cells too: the
+	// sky gives no light by day (an eclipse, or a biome whose map conditions
+	// black it out for good), so a dark outdoor bench is a deficit a torch
+	// answers for as long as that lasts.
+	SkyDark bool
 }
 
 // ReviewLighting measures every roofed work cell against LitGlow. There is
 // no hysteresis: a lamp within reach lifts the cell well above the
 // threshold, and unroofed cells are skipped because sky glow would flap the
-// latch with the day, except under an eclipse (#408), when the day is as
-// dark as the night and every work cell is measured. A light-sensitive
+// latch with the day, except while the sky is dark (an eclipse, #408, or a
+// permanently dark biome, #1712), when the day is as dark as the night and
+// every work cell is measured. A light-sensitive
 // cell (its room grows cave fungus) is never dark: lighting it would kill
 // the crop. An unknown census keeps the previous dark set.
-func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p LightingPolicy, eclipse bool) (LightingReview, error) {
+func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p LightingPolicy, skyDark bool) (LightingReview, error) {
 	if !p.valid() {
 		return LightingReview{}, errors.New("invalid lighting policy")
 	}
@@ -128,14 +130,14 @@ func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p 
 	if !known {
 		dark := append([]string(nil), previous...)
 		sort.Strings(dark)
-		return LightingReview{Active: len(dark) > 0, Dark: dark, Eclipse: eclipse}, nil
+		return LightingReview{Active: len(dark) > 0, Dark: dark, SkyDark: skyDark}, nil
 	}
 	if err := v.Validate(); err != nil {
 		return LightingReview{}, err
 	}
-	r := LightingReview{Known: true, Eclipse: eclipse}
+	r := LightingReview{Known: true, SkyDark: skyDark}
 	for _, c := range v.WorkCells {
-		if (c.Roofed || eclipse) && !c.LightSensitive && c.Glow < p.LitGlow {
+		if (c.Roofed || skyDark) && !c.LightSensitive && c.Glow < p.LitGlow {
 			r.Dark = append(r.Dark, c.Bench)
 		}
 	}
@@ -232,7 +234,7 @@ func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObserv
 	var deferred LightingMethod
 	for _, bench := range review.Dark {
 		target, ok := work[bench]
-		if !ok || !target.Roofed && !review.Eclipse || target.Glow >= p.LitGlow {
+		if !ok || !target.Roofed && !review.SkyDark || target.Glow >= p.LitGlow {
 			// The census no longer lists the bench as dark: the latch is
 			// stale, and the next review releases it.
 			continue

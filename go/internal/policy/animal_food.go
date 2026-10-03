@@ -41,7 +41,7 @@ func PlanHayField(need domain.Fact[float64], crop CropChoice, climate CropClimat
 	n, nk := need.Value()
 	yield, yk := crop.HarvestNutrition.Value()
 	days, dk := crop.GrowDays.Value()
-	sowing, sk := climate.Sowing.Value()
+	sowing, sk := climate.SowingOutdoors().Value()
 	season, ck := climate.DaysRemaining.Value()
 	available, ak := crop.Available.Value()
 	if !nk || !foodNumber(n) || n <= 0 || crop.Name != "Plant_Haygrass" || !yk || !fieldPositive(yield) || !dk || !fieldPositive(days) || !sk || !sowing || !ck || season < days*fieldCycles || !ak || !available {

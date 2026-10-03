@@ -122,3 +122,27 @@ func TestColonyConditionsReadTheDefRow(t *testing.T) {
 		t.Fatal("a condition with no catalog row was accepted")
 	}
 }
+
+// TestColonyOutdoorsDarkReadsTheBiomeConditions (#1712): darkness is the
+// biome's map conditions' class family; no biome read or catalog is unknown,
+// a biome without a row an error.
+func TestColonyOutdoorsDarkReadsTheBiomeConditions(t *testing.T) {
+	catalog := decodeCatalog(t, &o.DefinitionCatalog{ThingDefs: []*d.ThingDef{{DefName: "Anchor"}}, StatValues: &o.DefStatTable{}})
+	for biome, want := range map[string]bool{"FixtureDarkBiome": true, "FixtureLitBiome": false} {
+		got, err := colonyOutdoorsDark(&o.ColonyFactsSnapshot{Biome: proto.String(biome)}, catalog)
+		if dark, known := got.Value(); err != nil || !known || dark != want {
+			t.Fatal(biome, got, err)
+		}
+	}
+	if got, err := colonyOutdoorsDark(&o.ColonyFactsSnapshot{}, catalog); err != nil || isKnown(got) {
+		t.Fatal("no biome read was known", got, err)
+	}
+	if got, err := colonyOutdoorsDark(&o.ColonyFactsSnapshot{Biome: proto.String("FixtureDarkBiome")}, nil); err != nil || isKnown(got) {
+		t.Fatal("no catalog was known", got, err)
+	}
+	if _, err := colonyOutdoorsDark(&o.ColonyFactsSnapshot{Biome: proto.String("Unlisted")}, catalog); err == nil {
+		t.Fatal("a biome with no row was accepted")
+	}
+}
+
+func isKnown(f domain.Fact[bool]) bool { _, ok := f.Value(); return ok }

@@ -29,3 +29,18 @@ func TestWeatherAndConditionRows(t *testing.T) {
 		t.Fatal("no catalog was accepted")
 	}
 }
+
+// TestOutdoorsPermanentlyDark (#1712): a biome is dark when a map condition's
+// class derives from the no-sunlight family (a mod's subclass counts, no name
+// list), lit otherwise; a biome with no row is an error.
+func TestOutdoorsPermanentlyDark(t *testing.T) {
+	catalog := FixtureCatalog("load")
+	for biome, want := range map[string]bool{"FixtureDarkBiome": true, "FixtureLitBiome": false, "FixtureBareBiome": false} {
+		if got, err := catalog.OutdoorsPermanentlyDark(biome); err != nil || got != want {
+			t.Errorf("%s dark = %v, %v; want %v", biome, got, err, want)
+		}
+	}
+	if _, err := catalog.OutdoorsPermanentlyDark("Unlisted"); err == nil {
+		t.Fatal("a biome with no row was accepted")
+	}
+}

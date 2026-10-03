@@ -30,6 +30,20 @@ func colonyConditions(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalo
 	return conditions, true, nil
 }
 
+// colonyOutdoorsDark is whether the frame's biome keeps the sky dark for good
+// (its map conditions' class family, #1712); unknown without a biome read or
+// a catalog, an error for a biome the catalog has no row for.
+func colonyOutdoorsDark(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[bool], error) {
+	if catalog == nil || v.Biome == nil {
+		return domain.Unknown[bool](), nil
+	}
+	dark, err := catalog.OutdoorsPermanentlyDark(v.GetBiome())
+	if err != nil {
+		return domain.Unknown[bool](), err
+	}
+	return domain.Known(dark), nil
+}
+
 func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildings bridge.Buildings, conditions []policy.DisasterCondition, conditionsKnown bool) {
 	if conditionsKnown {
 		facts.DisasterConditions = domain.Known(conditions)

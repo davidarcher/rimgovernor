@@ -33,7 +33,7 @@ func PlanSocialCrop(crop CropChoice, climate CropClimate, existing int) int {
 		return 0
 	}
 	available, known := crop.Available.Value()
-	sowing, sk := climate.Sowing.Value()
+	sowing, sk := climate.SowingOutdoors().Value()
 	days, dk := crop.GrowDays.Value()
 	season, remaining := climate.DaysRemaining.Value()
 	if !known || !available || !sk || !sowing || !dk || !fieldPositive(days) || !remaining || season < days*2.5 {

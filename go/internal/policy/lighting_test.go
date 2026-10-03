@@ -185,7 +185,7 @@ func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
 	p := DefaultLightingPolicy()
 	census := domain.Known(lightingCensus())
 	r, err := ReviewLighting(census, nil, p, true)
-	if err != nil || !r.Eclipse || len(r.Dark) != 2 || r.Dark[0] != "bench" || r.Dark[1] != "stove" {
+	if err != nil || !r.SkyDark || len(r.Dark) != 2 || r.Dark[0] != "bench" || r.Dark[1] != "stove" {
 		t.Fatal(r, err)
 	}
 	site := lightingSite()
@@ -202,7 +202,7 @@ func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
 	// next review; a stale outdoor entry in the latch is skipped by the
 	// method rather than served.
 	after, err := ReviewLighting(census, r.Dark, p, false)
-	if err != nil || after.Eclipse || len(after.Dark) != 1 || after.Dark[0] != "stove" {
+	if err != nil || after.SkyDark || len(after.Dark) != 1 || after.Dark[0] != "stove" {
 		t.Fatal(after, err)
 	}
 	stale := LightingReview{Active: true, Dark: []string{"bench"}, Known: true}
