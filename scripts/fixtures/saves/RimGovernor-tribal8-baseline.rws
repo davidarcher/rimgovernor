@@ -68877,7 +68877,6 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 					<li Class="BreakdownManager" />
 					<li Class="HomeBridge.BridgeTools.GovernorOverlay" />
 					<li Class="HomeBridge.BridgeTools.HomeCoverageState" />
-					<li Class="HomeBridge.BridgeTools.LayoutPlanLabels" />
 					<li Class="HomeBridge.BridgeTools.RaidArrivalState" />
 					<li Class="HomeBridge.BridgeTools.TrafficState" />
 				</components>
