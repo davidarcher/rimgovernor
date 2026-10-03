@@ -296,7 +296,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			}
 		}
 	}
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+	// Pollution is read-gated (ManagePollution exists only on a Biotech
+	// colony); a known empty read lists it so its binding validates.
+	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick, Pollution: domain.Known(policy.PollutionFacts{})}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
@@ -308,7 +310,11 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			return RoutineReview{}, errors.New("unknown optional routine goal")
 		}
 	}
-	if (r.Enabled || len(r.Goals) != 0) && len(r.Goals) != len(allowed) {
+	required := len(allowed)
+	if !bindsNeed(r.Goals, policy.ManagePollution) {
+		required--
+	}
+	if (r.Enabled || len(r.Goals) != 0) && len(r.Goals) != required {
 		return RoutineReview{}, errors.New("incomplete routine goal bindings")
 	}
 	seen := map[domain.GoalID]bool{}
@@ -331,6 +337,15 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, err
 	}
 	return r, nil
+}
+
+func bindsNeed(goals []RoutineGoal, need domain.GoalID) bool {
+	for _, g := range goals {
+		if g.Need == need {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Store) LoadRoutineReview(ctx context.Context) (RoutineReview, error) {
