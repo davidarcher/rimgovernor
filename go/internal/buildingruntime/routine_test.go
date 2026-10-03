@@ -76,7 +76,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	v := &o.DefinitionCatalog{Context: &c.ObservationContext{Identity: id, Tick: proto.Int64(1), NativeGeneration: proto.Uint64(1)},
 		TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}},
 		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
-		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3}}
+		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, CurrencyDef: "Silver"}}
 	seen := map[string]bool{}
 	add := func(row *d.ThingDef) {
 		if row.DefName == "" || seen[row.DefName] {
@@ -88,6 +88,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 		v.ThingFacts = append(v.ThingFacts, &o.ThingDefFacts{DefName: row.DefName, Medicine: item.medicine})
 		v.StatValues.Rows = append(v.StatValues.Rows, &o.DefStatRow{DefName: row.DefName, Stat: []int32{0}, Value: []float32{item.deterioration}})
 	}
+	add(&d.ThingDef{DefName: "Silver"})
 	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
 	plain := func(name string) {
 		add(&d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},

@@ -803,6 +803,13 @@ func plannedStorageRoom(projection observation.ColonyProjection) (domain.RoomFoo
 	if len(shells) == 0 {
 		return domain.RoomFootprint{}, false
 	}
+	// A further storage room (#1772) is raised before the first one is
+	// zoned again.
+	for _, shell := range shells {
+		if _, perimeter := storageRoomStep(shell, projection.Cells); perimeter != nil {
+			return shell, true
+		}
+	}
 	return shells[0], true
 }
 

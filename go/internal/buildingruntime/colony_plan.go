@@ -115,7 +115,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	children := len(growth.Child) > 0 && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
-	if demand := r.stockpiles.gearDemand(stockpileWorld(snapshot)); haveLayout && len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 {
+	if demand := r.stockpiles.gearDemand(stockpileWorld(snapshot)); haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0) {
 		growth.Gear = demand
 	}
 	gear := growth.Gear != (policy.GearRoomDemand{}) && hourly

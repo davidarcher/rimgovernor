@@ -53,6 +53,9 @@ type StorageRequest struct {
 // planner never plans the rooms; layout adds them (GearRoomsOwed).
 type GearRoomDemand struct {
 	Armory, Wardrobe bool
+	// Storage is the storage rooms the plan should hold, 0 for no demand
+	// (a further warehouse, #1772; see storageRoomsWanted).
+	Storage int
 }
 
 // StoragePlan is the desired storage, most important site first.
@@ -68,6 +71,7 @@ type StoragePlan struct {
 // kitchen.
 func PlanStorage(r StorageRequest) StoragePlan {
 	plan := StoragePlan{Gear: r.gearDemand()}
+	plan.Gear.Storage = r.storageRoomsWanted()
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}

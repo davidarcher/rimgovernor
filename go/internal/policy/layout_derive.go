@@ -100,6 +100,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	}
 	next, gear := growGearRooms(next, growth.Gear)
 	dropped = dropped || gear
+	next, storage := growStorageRooms(next, growth.Gear)
+	dropped = dropped || storage
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))

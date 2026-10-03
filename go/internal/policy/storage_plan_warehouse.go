@@ -14,12 +14,12 @@ import (
 // store's size, else a 2x2 patch. It supersedes the opening outdoor store,
 // which is deleted, its items rehoming within the haul budget.
 
-// warehouseSites is the warehouse site once a storage room stands.
+// warehouseSites is the warehouse site of each standing storage room: the
+// first planned room's is the "general" role (superseding the opening
+// store), a further room's (#1772) is "general:<room id>".
 func (r StorageRequest) warehouseSites() []StockpileSite {
-	for _, planned := range r.Layout.AllRooms() {
-		if planned.Role != ModuleStorage {
-			continue
-		}
+	var sites []StockpileSite
+	for i, planned := range r.plannedStorageRooms() {
 		room, ok := PlannedRoomStanding(planned, *r.Rooms)
 		if !ok || len(room.Cells) == 0 {
 			continue
@@ -29,10 +29,14 @@ func (r StorageRequest) warehouseSites() []StockpileSite {
 		if small, err := roomStorageSites(room.Cells, centre, r.Bounds, r.Cells, r.Protected); err == nil {
 			candidates = append(candidates, small...)
 		}
-		return []StockpileSite{{Role: domain.GeneralRole, Room: room.Cells, Filter: domain.GeneralFilter(), Priority: domain.LowPriority,
-			Candidates: candidates, Supersedes: domain.OpeningGeneralRole}}
+		site := StockpileSite{Role: domain.GeneralRole, Room: room.Cells, Filter: domain.GeneralFilter(), Priority: domain.LowPriority,
+			Candidates: candidates, Supersedes: domain.OpeningGeneralRole}
+		if i > 0 {
+			site.Role, site.Supersedes = domain.GeneralRole+":"+room.ID, ""
+		}
+		sites = append(sites, site)
 	}
-	return nil
+	return sites
 }
 
 // roomSquares are the side x side squares wholly inside pool, nearest
