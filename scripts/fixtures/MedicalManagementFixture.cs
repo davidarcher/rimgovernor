@@ -142,7 +142,8 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Disable routine Doctor work to exercise repeated explicit native tending.", DefaultValue = false)] bool manualTending = false,
             [ToolParameter(Description = "Force the surgical patient into the high-severity withdrawal stage of GoJuiceAddiction, instead of waiting on real decay/timing.", DefaultValue = false)] bool withdrawal = false,
             [ToolParameter(Description = "Hospital planning variant: flu patients start tended, no medical sleeping spots are placed and PatientBedRest stays enabled, so the patients need a hosted medical bed the service must provide.", DefaultValue = false)] bool hospital = false,
-            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand, missingKidney or missingArm; missingKidney and missingArm also hold one unrecruitable non-player prisoner on a prisoner sleeping spot, under missingArm with a BionicArm. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). pegTraining (#1236) instead drops every doctor to Medicine 8 and holds one unrecruitable factionless prisoner missing a leg. Empty adds nothing.", DefaultValue = "")] string condition = "")
+            [ToolParameter(Description = "surgery/elective-share (#1848, epic #1829): rich stocks 6000 gold, poor destroys every loose item but wood, medicine, the prosthetic leg, the two bionic parts and 8 meals, so the colonists' personal shares differ. Used with condition elective.", DefaultValue = "")] string wealth = "",
+            [ToolParameter(Description = "Surgery cases (#1170): give the second colonist cataract, infectedHand, missingKidney or missingArm; missingKidney and missingArm also hold one unrecruitable non-player prisoner on a prisoner sleeping spot, under missingArm with a BionicArm. missingKidneyIndustrial is missingKidney without the herbal stock, so industrial medicine is the only medicine (#1239). pegTraining (#1236) instead drops every doctor to Medicine 8 and holds one unrecruitable factionless prisoner missing a leg. elective (#1848) adds no condition: the surgery room and hospital bed stand, a BionicEye and a BionicArm are stocked for healthy colonists, and the third colonist's missing leg is the one served operation. Empty adds nothing.", DefaultValue = "")] string condition = "")
         {
             var industrialOnly = condition == "missingKidneyIndustrial";
             if (industrialOnly) condition = "missingKidney";
@@ -255,6 +256,7 @@ namespace HomeBridge.BridgeTools
                     case "missingKidney": partDef = "Kidney"; break;
                     case "missingArm": partDef = "Shoulder"; break;
                     case "pegTraining": partDef = null; break;
+                    case "elective": partDef = null; break;
                     default: throw new InvalidOperationException("Unknown condition " + condition);
                     }
                     var part = partDef == null ? null : patient.health.hediffSet.GetNotMissingParts().First(p => p.def.defName == partDef);
@@ -307,7 +309,31 @@ namespace HomeBridge.BridgeTools
                         prisonerId = prisoner.GetUniqueLoadID();
                     }
                 }
-                return new { success = true, setupOnly = true, completedWorkInjected = false, failSurgery,
+                if (condition == "elective") {
+                    stage = "elective " + wealth;
+                    if (wealth != "rich" && wealth != "poor") throw new InvalidOperationException("elective needs wealth rich or poor");
+                    foreach (var name in new[] { "BionicEye", "BionicArm" }) {
+                        var part = ThingMaker.MakeThing(ThingDef.Named(name));
+                        if (!GenPlace.TryPlaceThing(part, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Elective part placement failed");
+                        part.SetForbidden(false, false);
+                    }
+                    if (wealth == "poor") {
+                        var keepDefs = new[] { "WoodLog", "MedicineIndustrial", "SimpleProstheticLeg", "BionicEye", "BionicArm" };
+                        foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && !keepDefs.Contains(t.def.defName)).ToList()) item.Destroy();
+                        var meals = ThingMaker.MakeThing(ThingDef.Named("MealSurvivalPack")); meals.stackCount = 8;
+                        if (!GenPlace.TryPlaceThing(meals, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Meal placement failed");
+                        meals.SetForbidden(false, false);
+                    } else {
+                        var gold = ThingDef.Named("Gold");
+                        for (var left = 6000; left > 0;) {
+                            var stack = ThingMaker.MakeThing(gold); stack.stackCount = Math.Min(gold.stackLimit, left); left -= stack.stackCount;
+                            if (!GenPlace.TryPlaceThing(stack, center, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Gold placement failed");
+                            stack.SetForbidden(false, false);
+                        }
+                    }
+                    map.wealthWatcher.ForceRecount();
+                }
+                return new { success = true, setupOnly = true, completedWorkInjected = false, failSurgery, wealthItems = map.wealthWatcher.WealthItems,
                     patients = people.Take(2).Select(p => p.GetUniqueLoadID()).ToArray(), surgical = surgical.GetUniqueLoadID(),
                     part = surgical.RaceProps.body.AllParts.IndexOf(leg), withdrawalPatient, conditionPatient, conditionPart, prisonerId,
                     tick = Find.TickManager.TicksGame };

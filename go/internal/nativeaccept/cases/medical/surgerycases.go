@@ -2,6 +2,7 @@ package medical
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
@@ -110,6 +113,9 @@ type surgeryRun struct {
 	stop  func()
 	// tick is the journal's routine review tick.
 	tick func(ctx context.Context) (domain.Tick, error)
+	// recovered is whether the routine review binds the need to a goal the
+	// journal reads as recovered.
+	recovered func(ctx context.Context, need policy.GoalID) (bool, error)
 }
 
 func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surgeryRun, error) {
@@ -162,6 +168,24 @@ func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surg
 	}, tick: func(ctx context.Context) (domain.Tick, error) {
 		review, err := journal.LoadRoutineReview(ctx)
 		return review.Tick, err
+	}, recovered: func(ctx context.Context, need policy.GoalID) (bool, error) {
+		review, err := journal.LoadRoutineReview(ctx)
+		if err != nil {
+			return false, err
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != need {
+				continue
+			}
+			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return false, err
+			}
+			if err == nil && goal.Goal.Need == domain.NeedRecovered {
+				return true, nil
+			}
+		}
+		return false, nil
 	}}, nil
 }
 

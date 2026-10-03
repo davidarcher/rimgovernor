@@ -143,6 +143,18 @@ chosen elective only while it is fabricable, and the demand clears when the
 part is stocked, installed, queued or no longer affordable. The trade side
 (`routine_trade.go`) still sees served parts only.
 
+Acceptance (#1848): `medical/surgery-elective-rich` and
+`medical/surgery-elective-poor` run the same hospital, three Medicine 20 doctors,
+a third colonist missing a leg with a prosthetic stocked (the one served
+operation) and a stocked BionicEye and BionicArm (`test/medical_management_setup`
+`condition=elective`, `wealth=rich|poor`: 6000 gold, or every loose item but
+wood, medicine, those parts and eight meals destroyed). Both assert served
+first (no elective intent before the leg's bill, the leg installed by the end).
+Rich asserts exactly one elective intent at first sight, no colonist with two
+queued elective bills, and a bionic installed after one served window. Poor
+asserts no elective is ever queued or installed and MaintainSurgery recovers.
+Written and registered without a local run; the next full tier runs them.
+
 Peg-leg cycling (#1236) takes the same one-surgery slot after harvest and part
 recovery. It installs and removes cheap wood parts (peg leg, wooden hand, wooden
 foot) on colony prisoners:
