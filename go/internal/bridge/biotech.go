@@ -59,14 +59,19 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 		return nil, err
 	}
 	if len(v.MechWorkModes) > 0 {
-		recharge := 0
-		for _, row := range v.MechWorkModes {
-			if row.GetRecharge() {
-				recharge++
-			}
+		roles := map[string]func(*o.MechWorkModeRow) bool{
+			"work": (*o.MechWorkModeRow).GetWork, "escort": (*o.MechWorkModeRow).GetEscort, "recharge": (*o.MechWorkModeRow).GetRecharge,
 		}
-		if recharge != 1 {
-			return nil, contract("biotech mech work modes carry %d recharge roles, want one", recharge)
+		for role, flag := range roles {
+			count := 0
+			for _, row := range v.MechWorkModes {
+				if flag(row) {
+					count++
+				}
+			}
+			if count != 1 {
+				return nil, contract("biotech mech work modes carry %d %s roles, want one", count, role)
+			}
 		}
 	}
 	for _, row := range v.LifeStages {
@@ -269,10 +274,11 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 	return domain.Known(r)
 }
 
-// MechCatalog is the catalog's mech kinds and work mode names as the mech
-// planner reads them (#1687); the zero value without Biotech.
+// MechCatalog is the catalog's mech kinds and the work modes the game names
+// by role as the mech planner reads them (#1687); the zero value without
+// Biotech.
 func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
-	out := policy.MechCatalog{Kinds: map[string]policy.MechKind{}, Modes: map[string]bool{}}
+	out := policy.MechCatalog{Kinds: map[string]policy.MechKind{}}
 	if c == nil {
 		return out
 	}
@@ -284,7 +290,12 @@ func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
 		out.Kinds[name] = kind
 	}
 	for name, row := range c.MechWorkModes {
-		out.Modes[name] = true
+		if row.GetWork() {
+			out.Work = name
+		}
+		if row.GetEscort() {
+			out.Escort = name
+		}
 		if row.GetRecharge() {
 			out.Recharge = name
 		}

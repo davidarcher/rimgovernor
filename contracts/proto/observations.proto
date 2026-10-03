@@ -2066,8 +2066,12 @@ message MechKindRow {
 }
 // MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
 // the def's flag.
-// recharge is the game's own role: def == MechWorkModeDefOf.Recharge.
-message MechWorkModeRow { optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4; optional bool recharge = 5; }
+// work, escort and recharge are the game's own roles: def ==
+// MechWorkModeDefOf.Work, .Escort and .Recharge; each is set on exactly one row.
+message MechWorkModeRow {
+  optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4;
+  optional bool recharge = 5; optional bool work = 6; optional bool escort = 7;
+}
 message BiotechCatalog {
   repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
   repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;

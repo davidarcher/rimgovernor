@@ -12,7 +12,7 @@ func mechCatalog() MechCatalog {
 			"Mech_Lifter":  {Name: "Mech_Lifter", WorkMech: true, WorkTypes: []WorkType{"Hauling"}, BandwidthCost: 1},
 			"Mech_Militor": {Name: "Mech_Militor", BandwidthCost: 1},
 		},
-		Modes: map[string]bool{"Work": true, "Escort": true, "Recharge": true}, Recharge: "Recharge",
+		Work: "Work", Escort: "Escort", Recharge: "Recharge",
 	}
 }
 
@@ -137,7 +137,7 @@ func TestPlanMechControlSkipsUnreadAndUncontrolledFailsLoudOnUnknownDefs(t *test
 		t.Fatal("an unknown mech kind must fail")
 	}
 	noEscort := mechCatalog()
-	delete(noEscort.Modes, "Escort")
+	noEscort.Escort = ""
 	if _, err := PlanMechControl(noEscort, nil, nil, false, false); err == nil {
 		t.Fatal("a catalog without the Escort mode must fail")
 	}

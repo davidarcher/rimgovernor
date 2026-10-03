@@ -175,8 +175,10 @@ worker, any other kind a guard. With two or more control groups (vanilla default
 2) workers go to the group already holding most of them, guards to the busiest
 other group; workers run `Work`, guards `Escort` (the wiki's "do available work
 tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
-`SelfShutdown`, unused here). The catalog must carry both modes, the recharge
-mode and every mech's kind, else the plan fails. A mech with no overseer among the
+`SelfShutdown`, unused here). The modes are never named in Go: the catalog's
+`MechWorkModeRow` flags `work`, `escort` and `recharge` mark `MechWorkModeDefOf.Work`,
+`.Escort` and `.Recharge` (native reflection), each on exactly one row or the
+catalog fails to decode. The plan fails without those modes or any mech's kind. A mech with no overseer among the
 inputs, or an unread group, is left alone.
 
 Colonist need versus bandwidth, decided from the read: control never changes
@@ -198,11 +200,30 @@ catalog's recharge mode (`MechWorkModeRow.recharge`, native
 `def == MechWorkModeDefOf.Recharge`), stays there until every mech is at the
 band's upper bound, then returns to the role mode; with no charger ready it
 does not enter, and a charging group leaves. Unread energy never counts as low.
+A group the player set to Recharge by hand is treated like any manual edit (a
+deficit to Auto, never a provenance hold; control-loop.md, Manual control): once
+every mech is at the upper bound it returns to its role mode, as after a charge
+the bot started. The system keeps no per-setting player-owned state, so none is
+added here.
 `MechChargerOwed` is the build side: a mechanitor exists and every standing
 charger is busy (a charger full of waste is #1683's), so gestation (#1686)
 should not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.mech_charger` (`Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
+
+`EnsureMechCharger` (`mech_charger_goal.go`, `routine_mech_charger.go`) is the goal
+for that need: a Standard in the Upkeep domain, assessed only where the Biotech
+colony read and the mechs are known (`RoutineFacts.MechChargerOwed`), in deficit
+while a charger is owed. Its one method builds the first catalog-flagged,
+researched charger on the first footprint native previews as legal, safe and
+reachable, ranked by `MechChargerSites` over the polluting-machine rule
+`PollutionSites` (#1684): footprints lie wholly on known free ground (walkable,
+unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.size`,
+far from field zones, bedroom and barracks cells, dining and recreation room
+cells and polluted cells, then near an atomizer. A charger blueprint, frame or
+open plan holds it. Powering the charger is the power goal's; emptying its waste is
+`ManagePollution`'s. Biotech goals are bound only when assessed, so the store
+counts `policy.BiotechGoals` apart from the goals every colony has.
 
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native

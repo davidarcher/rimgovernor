@@ -35,6 +35,7 @@ var goalConcepts = map[GoalID]Concept{
 	MaintainWaste:         ConceptStandard,
 	RemoveBlight:          ConceptStandard,
 	ManagePollution:       ConceptStandard,
+	EnsureMechCharger:     ConceptStandard,
 	MaintainStockpiles:    ConceptStandard,
 	TidyLayout:            ConceptStandard,
 	ClearHomeObstructions: ConceptStandard,

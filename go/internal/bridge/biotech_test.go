@@ -20,7 +20,7 @@ func biotechCatalogFixture() *o.BiotechCatalog {
 		Genes:         []*o.GeneRow{{DefName: proto.String("Robust"), DisabledWorkTags: []string{"Violent"}, Effects: []*o.StatEffect{{Stat: proto.String("WorkSpeedGlobal"), Offset: proto.Float64(.1)}}, Aptitudes: []*o.SkillLevel{{Skill: proto.String("Shooting"), Level: proto.Int32(2)}}}},
 		Xenotypes:     []*o.XenotypeRow{{DefName: proto.String("Hussar"), Genes: []string{"Robust"}}},
 		MechKinds:     []*o.MechKindRow{{DefName: proto.String("Mech_Lifter"), BandwidthCost: proto.Float64(1), WorkTypes: []string{"Hauling"}, WorkPriorities: []*o.MechWorkPriority{{WorkType: proto.String("Hauling"), Priority: proto.Int32(1)}}}},
-		MechWorkModes: []*o.MechWorkModeRow{{DefName: proto.String("Work"), UiOrder: proto.Int32(1)}, {DefName: proto.String("Recharge"), UiOrder: proto.Int32(2), Recharge: proto.Bool(true)}},
+		MechWorkModes: []*o.MechWorkModeRow{{DefName: proto.String("Work"), UiOrder: proto.Int32(1), Work: proto.Bool(true)}, {DefName: proto.String("Escort"), UiOrder: proto.Int32(3), Escort: proto.Bool(true)}, {DefName: proto.String("Recharge"), UiOrder: proto.Int32(2), Recharge: proto.Bool(true)}},
 	}
 }
 
@@ -152,12 +152,25 @@ func TestMechEnergyAndRechargeRole(t *testing.T) {
 		}
 	}
 	catalog, err := DecodeBiotechCatalog(biotechCatalogFixture())
-	if err != nil || catalog.MechCatalog().Recharge != "Recharge" {
-		t.Fatal("recharge role", err)
+	if modes := catalog.MechCatalog(); err != nil || modes.Work != "Work" || modes.Escort != "Escort" || modes.Recharge != "Recharge" {
+		t.Fatal("mode roles", err)
 	}
-	two := biotechCatalogFixture()
-	two.MechWorkModes[0].Recharge = proto.Bool(true)
-	if _, err := DecodeBiotechCatalog(two); err == nil {
-		t.Fatal("two recharge modes accepted")
+	for role, set := range map[string]func(*o.MechWorkModeRow){
+		"work": func(r *o.MechWorkModeRow) { r.Work = proto.Bool(true) }, "escort": func(r *o.MechWorkModeRow) { r.Escort = proto.Bool(true) },
+		"recharge": func(r *o.MechWorkModeRow) { r.Recharge = proto.Bool(true) },
+	} {
+		two := biotechCatalogFixture()
+		set(two.MechWorkModes[2])
+		two.MechWorkModes = append(two.MechWorkModes, &o.MechWorkModeRow{DefName: proto.String("Extra" + role)})
+		set(two.MechWorkModes[3])
+		if _, err := DecodeBiotechCatalog(two); err == nil {
+			t.Fatalf("two %s modes accepted", role)
+		}
+		none := biotechCatalogFixture()
+		none.MechWorkModes = none.MechWorkModes[:0:0]
+		none.MechWorkModes = append(none.MechWorkModes, &o.MechWorkModeRow{DefName: proto.String("Only")})
+		if _, err := DecodeBiotechCatalog(none); err == nil {
+			t.Fatalf("no %s mode accepted", role)
+		}
 	}
 }

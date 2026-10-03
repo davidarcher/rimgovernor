@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
                 catalog.MechKinds.Add(MechKind(def));
             foreach (var def in Sorted(DefDatabase<MechWorkModeDef>.AllDefsListForReading))
                 catalog.MechWorkModes.Add(new Obs.MechWorkModeRow { DefName = def.defName, Label = Label(def), UiOrder = def.uiOrder, IgnoreGroupChargeLimits = def.ignoreGroupChargeLimits,
-                    Recharge = def == MechWorkModeDefOf.Recharge });
+                    Recharge = def == MechWorkModeDefOf.Recharge, Work = def == MechWorkModeDefOf.Work, Escort = def == MechWorkModeDefOf.Escort });
             return catalog;
         }
 

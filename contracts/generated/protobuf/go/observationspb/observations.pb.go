@@ -41992,7 +41992,8 @@ func (x *MechKindRow) GetCombatPower() float64 {
 
 // MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
 // the def's flag.
-// recharge is the game's own role: def == MechWorkModeDefOf.Recharge.
+// work, escort and recharge are the game's own roles: def ==
+// MechWorkModeDefOf.Work, .Escort and .Recharge; each is set on exactly one row.
 type MechWorkModeRow struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	DefName                 *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
@@ -42000,6 +42001,8 @@ type MechWorkModeRow struct {
 	UiOrder                 *int32                 `protobuf:"varint,3,opt,name=ui_order,json=uiOrder,proto3,oneof" json:"ui_order,omitempty"`
 	IgnoreGroupChargeLimits *bool                  `protobuf:"varint,4,opt,name=ignore_group_charge_limits,json=ignoreGroupChargeLimits,proto3,oneof" json:"ignore_group_charge_limits,omitempty"`
 	Recharge                *bool                  `protobuf:"varint,5,opt,name=recharge,proto3,oneof" json:"recharge,omitempty"`
+	Work                    *bool                  `protobuf:"varint,6,opt,name=work,proto3,oneof" json:"work,omitempty"`
+	Escort                  *bool                  `protobuf:"varint,7,opt,name=escort,proto3,oneof" json:"escort,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -42065,6 +42068,20 @@ func (x *MechWorkModeRow) GetIgnoreGroupChargeLimits() bool {
 func (x *MechWorkModeRow) GetRecharge() bool {
 	if x != nil && x.Recharge != nil {
 		return *x.Recharge
+	}
+	return false
+}
+
+func (x *MechWorkModeRow) GetWork() bool {
+	if x != nil && x.Work != nil {
+		return *x.Work
+	}
+	return false
+}
+
+func (x *MechWorkModeRow) GetEscort() bool {
+	if x != nil && x.Escort != nil {
+		return *x.Escort
 	}
 	return false
 }
@@ -50888,18 +50905,22 @@ const file_observations_proto_rawDesc = "" +
 	"_work_mechB\f\n" +
 	"\n" +
 	"_body_sizeB\x0f\n" +
-	"\r_combat_power\"\x9f\x02\n" +
+	"\r_combat_power\"\xe9\x02\n" +
 	"\x0fMechWorkModeRow\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1e\n" +
 	"\bui_order\x18\x03 \x01(\x05H\x02R\auiOrder\x88\x01\x01\x12@\n" +
 	"\x1aignore_group_charge_limits\x18\x04 \x01(\bH\x03R\x17ignoreGroupChargeLimits\x88\x01\x01\x12\x1f\n" +
-	"\brecharge\x18\x05 \x01(\bH\x04R\brecharge\x88\x01\x01B\v\n" +
+	"\brecharge\x18\x05 \x01(\bH\x04R\brecharge\x88\x01\x01\x12\x17\n" +
+	"\x04work\x18\x06 \x01(\bH\x05R\x04work\x88\x01\x01\x12\x1b\n" +
+	"\x06escort\x18\a \x01(\bH\x06R\x06escort\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_labelB\v\n" +
 	"\t_ui_orderB\x1d\n" +
 	"\x1b_ignore_group_charge_limitsB\v\n" +
-	"\t_recharge\"\xc2\x03\n" +
+	"\t_rechargeB\a\n" +
+	"\x05_workB\t\n" +
+	"\a_escort\"\xc2\x03\n" +
 	"\x0eBiotechCatalog\x12J\n" +
 	"\vlife_stages\x18\x01 \x03(\v2).rimgovernor.observations.v1.LifeStageRowR\n" +
 	"lifeStages\x12A\n" +

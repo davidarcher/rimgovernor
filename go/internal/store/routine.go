@@ -296,25 +296,31 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			}
 		}
 	}
-	// Pollution is read-gated (ManagePollution exists only on a Biotech
-	// colony); a known empty read lists it so its binding validates.
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick, Pollution: domain.Known(policy.PollutionFacts{})}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
 	allowed := map[domain.GoalID]bool{}
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
 		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves || n.ID == policy.MaintainFoodStorage
 	}
+	// Biotech goals are assessed only where the colony read is known, so the
+	// empty-facts universe above lacks them: they are allowed and optional,
+	// and a review binds them exactly when its read assessed them.
+	for _, id := range policy.BiotechGoals {
+		allowed[id], optional[id] = true, true
+	}
 	for _, row := range r.Development.Rows {
 		if !optional[row.Goal] {
 			return RoutineReview{}, errors.New("unknown optional routine goal")
 		}
 	}
-	required := len(allowed)
-	if !bindsNeed(r.Goals, policy.ManagePollution) {
-		required--
+	required, bound := len(allowed)-len(policy.BiotechGoals), len(r.Goals)
+	for _, binding := range r.Goals {
+		if slices.Contains(policy.BiotechGoals, binding.Need) {
+			bound--
+		}
 	}
-	if (r.Enabled || len(r.Goals) != 0) && len(r.Goals) != required {
+	if (r.Enabled || len(r.Goals) != 0) && bound != required {
 		return RoutineReview{}, errors.New("incomplete routine goal bindings")
 	}
 	seen := map[domain.GoalID]bool{}
@@ -337,15 +343,6 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, err
 	}
 	return r, nil
-}
-
-func bindsNeed(goals []RoutineGoal, need domain.GoalID) bool {
-	for _, g := range goals {
-		if g.Need == need {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Store) LoadRoutineReview(ctx context.Context) (RoutineReview, error) {

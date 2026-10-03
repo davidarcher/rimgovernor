@@ -143,6 +143,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if frame.Tables.Pawns.Len() > 0 {
 		p.Mechs = domain.Known(MechFleet(frame.Tables.Pawns.Values()))
 	}
+	p.Facts.MechChargerOwed = policy.MechChargerNeed(p.Mechs, mechChargerFact(p.Biotech))
 	p.Facts.RecoveryWorkers = recoveryWorkers(p.Facts.MoodPawns)
 	p.Facts.Gear = routineGear(p.Facts.Gear, emergency)
 	p.Facts.Research = frameResearch(frame.Research)

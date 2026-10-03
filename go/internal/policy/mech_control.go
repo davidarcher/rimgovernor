@@ -32,12 +32,6 @@ import (
 //     while a hostile is on the map or when the group holds only guards,
 //     Work otherwise; a raid is the one time a worker's chores yield.
 
-// Mech work mode def names the planner picks; the catalog must carry them.
-const (
-	MechModeWork   = "Work"
-	MechModeEscort = "Escort"
-)
-
 // MechCommandRange is how far from its overseer a mech can be ordered
 // (Mechanitor wiki: 25 tiles; the game's own check is
 // MechanitorUtility.InMechanitorCommandRange, which stays authoritative).
@@ -75,10 +69,10 @@ func (k MechKind) Role() MechRole {
 // names. The zero value is a game without Biotech.
 type MechCatalog struct {
 	Kinds map[string]MechKind
-	Modes map[string]bool
-	// Recharge is the work mode the game names MechWorkModeDefOf.Recharge
-	// (the catalog row's role flag); "" without Biotech.
-	Recharge string
+	// Work, Escort and Recharge are the work modes the game names
+	// MechWorkModeDefOf.Work, .Escort and .Recharge (the catalog rows' role
+	// flags, each on exactly one row); "" without Biotech.
+	Work, Escort, Recharge string
 }
 
 // MechanitorInput is one colonist mechanitor.
@@ -115,9 +109,9 @@ type MechFleet struct {
 // mech whose overseer is not an input mechanitor is skipped; a mech kind or
 // mode the catalog lacks is an error.
 func PlanMechControl(catalog MechCatalog, mechanitors []MechanitorInput, mechs []MechInput, hostile, chargerReady bool) ([]domain.PawnSettings, error) {
-	for _, mode := range []string{MechModeWork, MechModeEscort, catalog.Recharge} {
-		if !catalog.Modes[mode] {
-			return nil, fmt.Errorf("mech work mode %s is not in the catalog", mode)
+	for role, mode := range map[string]string{"work": catalog.Work, "escort": catalog.Escort, "recharge": catalog.Recharge} {
+		if mode == "" {
+			return nil, fmt.Errorf("mech %s work mode is not in the catalog", role)
 		}
 	}
 	var moves, modes []domain.PawnSettings
@@ -148,19 +142,19 @@ func PlanMechControl(catalog MechCatalog, mechanitors []MechanitorInput, mechs [
 		sortMechs(guards)
 		var assigned []mechGroup
 		if groups == 1 {
-			mode := MechModeWork
+			mode := catalog.Work
 			if hostile || len(workers) == 0 {
-				mode = MechModeEscort
+				mode = catalog.Escort
 			}
 			assigned = []mechGroup{{index: 0, mode: mode, mechs: append(slices.Clone(workers), guards...)}}
 		} else {
 			workerGroup := busiestGroup(workers, -1, groups)
 			guardGroup := busiestGroup(guards, workerGroup, groups)
 			if len(workers) > 0 {
-				assigned = append(assigned, mechGroup{index: workerGroup, mode: MechModeWork, mechs: workers})
+				assigned = append(assigned, mechGroup{index: workerGroup, mode: catalog.Work, mechs: workers})
 			}
 			if len(guards) > 0 {
-				assigned = append(assigned, mechGroup{index: guardGroup, mode: MechModeEscort, mechs: guards})
+				assigned = append(assigned, mechGroup{index: guardGroup, mode: catalog.Escort, mechs: guards})
 			}
 		}
 		for _, g := range assigned {

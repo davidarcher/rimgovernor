@@ -142,6 +142,16 @@ func (b BiotechColony) MechChargerRows() []policy.MechCharger {
 	return out
 }
 
+// mechChargerFact is the section's chargers as a fact, unknown with the
+// section.
+func mechChargerFact(section domain.Fact[BiotechColony]) domain.Fact[[]policy.MechCharger] {
+	b, known := section.Value()
+	if !known {
+		return domain.Unknown[[]policy.MechCharger]()
+	}
+	return domain.Known(b.MechChargerRows())
+}
+
 // MechChargerDefs are the catalog definitions that are mech chargers
 // (PlanningDefinition.MechCharger, from the game's Building_MechCharger
 // class), in catalog order; the build planner picks among them.

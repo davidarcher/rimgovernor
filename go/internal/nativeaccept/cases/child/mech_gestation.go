@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -88,6 +87,40 @@ func mechModeWritten(ctx context.Context, st *store.Store) (bool, error) {
 	return false, nil
 }
 
+// mechModes are the work modes the game names by role: the Biotech catalog's
+// MechWorkModeRow rows flagged work and escort.
+type mechModes struct{ work, escort string }
+
+// mechRoleModes reads the definition catalog and returns the mode each role
+// flag marks; exactly one row must carry each.
+func mechRoleModes(ctx context.Context, h *na.Harness, identity map[string]any) (mechModes, error) {
+	reply, err := h.Wire(ctx, "definition-catalog", "observations_read_definition_catalog", map[string]any{
+		"scope": map[string]any{"expectedIdentity": identity}})
+	if err != nil {
+		return mechModes{}, err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return mechModes{}, err
+	}
+	biotech, _ := na.AsMap(observed["biotech"])
+	var out mechModes
+	var work, escort int
+	for _, raw := range na.AsSlice(biotech["mechWorkModes"]) {
+		row, _ := na.AsMap(raw)
+		if flag, _ := na.AsBool(row["work"]); flag {
+			out.work, work = na.AsString(row["defName"]), work+1
+		}
+		if flag, _ := na.AsBool(row["escort"]); flag {
+			out.escort, escort = na.AsString(row["defName"]), escort+1
+		}
+	}
+	if work != 1 || escort != 1 {
+		return mechModes{}, fmt.Errorf("catalog marks %d work and %d escort modes, want one each: %v", work, escort, biotech["mechWorkModes"])
+	}
+	return out, nil
+}
+
 func runMechGestation(ctx context.Context, s cases.Session) error {
 	report, prepared := s.Report(), s.Prepared()
 	mechanitor, gestator := na.AsString(prepared["mechanitorId"]), na.AsString(prepared["gestatorId"])
@@ -146,6 +179,11 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return fmt.Errorf("reopen session after service stop: %w", err)
 	}
+	modes, err := mechRoleModes(ctx, h, s.Identity())
+	if err != nil {
+		return err
+	}
+	report["modes"] = map[string]any{"work": modes.work, "escort": modes.escort}
 	reply, err := h.Call(ctx, "mech-inspect", mechInspectTool, map[string]any{"mechanitorId": mechanitor, "gestatorId": gestator})
 	if err != nil {
 		return err
@@ -173,10 +211,11 @@ func runMechGestation(ctx context.Context, s cases.Session) error {
 		if na.AsString(mech["overseerId"]) != mechanitor {
 			return fmt.Errorf("mech %v is overseen by %v, not the mechanitor %s", mech["id"], mech["overseerId"], mechanitor)
 		}
-		// A work mech's group works, any other kind's escorts (policy.PlanMechControl).
-		want := policy.MechModeEscort
+		// A work mech's group works, any other kind's escorts (policy.PlanMechControl);
+		// the modes are the catalog's role rows, never names.
+		want := modes.escort
 		if work, _ := na.AsBool(mech["workMech"]); work {
-			want = policy.MechModeWork
+			want = modes.work
 		}
 		if got := na.AsString(mech["mode"]); got != want {
 			return fmt.Errorf("mech %v (%v) runs mode %q in group %v, want %q", mech["id"], mech["kind"], got, mech["controlGroup"], want)

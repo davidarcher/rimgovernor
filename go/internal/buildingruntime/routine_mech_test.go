@@ -19,7 +19,7 @@ func mechBiotechCatalog() *bridge.BiotechCatalog {
 			"Mech_Constructoid": {WorkMech: proto.Bool(true)},
 			"Mech_Militor":      {WorkMech: proto.Bool(false)},
 		},
-		MechWorkModes: map[string]*o.MechWorkModeRow{"Work": {}, "Escort": {}, "Recharge": {Recharge: proto.Bool(true)}},
+		MechWorkModes: map[string]*o.MechWorkModeRow{"Work": {Work: proto.Bool(true)}, "Escort": {Escort: proto.Bool(true)}, "Recharge": {Recharge: proto.Bool(true)}},
 	}
 }
 
