@@ -593,7 +593,7 @@ var plannerCatalog = []plannerEntry{
 			out.Waste = &method
 			return method.Reason, nil
 		}},
-	{name: "moodRelief", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MoodReliefAction}, sections: sectionsPawns,
+	{name: "moodRelief", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MoodReliefAction, domain.AbilityAction}, sections: sectionsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.MoodRelief != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			method, err := s.config.MoodRelief.step(ctx, epoch, arbiter)

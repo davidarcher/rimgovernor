@@ -50,6 +50,9 @@ type RoutineReviewer struct {
 	// psylink is MaintainPsylink's review memory (#1609), set when its
 	// planner is composed.
 	psylink *psylinkMemory
+	// moodCasts is set when the mood relief planner is composed: it casts
+	// mood psycasts (#1612), so the review reads the royalty facts.
+	moodCasts bool
 	// stage is the colony stage of the review the last step loaded (#630):
 	// the stage the store holds that step's review to, so the planners'
 	// targets (staged) agree with the review's. Foothold before any

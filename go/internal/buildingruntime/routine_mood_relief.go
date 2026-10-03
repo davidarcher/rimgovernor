@@ -21,6 +21,7 @@ func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer) (*RoutineMoodReliefP
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineMoodReliefPlanner: reviewer == nil", ErrControl)
 	}
+	reviewer.moodCasts = true
 	return &RoutineMoodReliefPlanner{reviewer}, nil
 }
 
@@ -149,6 +150,13 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			}
 		}
 		if proposal.Reason != policy.MoodRelief {
+			if moodCastReason(proposal.Reason) {
+				if id, cast, err := r.castMoodRelief(call, epoch, arbiter, incident, moodState.Pawn.ID); err != nil {
+					return RoutineMoodReliefResult{}, err
+				} else if cast {
+					return RoutineMoodReliefResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+				}
+			}
 			continue
 		}
 		need, ok := domainMoodReliefNeed(proposal.Need)

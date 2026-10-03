@@ -167,6 +167,19 @@ func (s *routineCensusStore) materialHolds(snapshot domain.GenerationSnapshot) [
 	return policy.MaterialHolds(f.ConstructionDeficit, f.BillReservations, "")
 }
 
+// psycasters is the royalty read and the colonists' rows of the latest
+// census, which a psycast planner reads its casters from (#1612). Both are
+// unknown without a current census.
+func (s *routineCensusStore) psycasters() (domain.Fact[policy.RoyaltyFacts], domain.Fact[[]policy.WorkPawn]) {
+	s.mu.Lock()
+	census, generation, royalty := s.latest, s.generation, s.royalty
+	s.mu.Unlock()
+	if census == nil || census.generation != generation {
+		return domain.Unknown[policy.RoyaltyFacts](), domain.Unknown[[]policy.WorkPawn]()
+	}
+	return royalty, census.reading.Projection.WorkPawns
+}
+
 // invalidate retires the retained census: committed clock evidence made
 // some of what it observed stale.
 func (s *routineCensusStore) invalidate() {

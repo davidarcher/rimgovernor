@@ -262,6 +262,31 @@ it) the planner orders `UseItem` with the colonist as its own target, at most
 twice per colonist per goal epoch. Psyfocus is kept at target by the
 meditation schedule, not by this goal.
 
+Non-combat psycasts (#1612, `policy.SelectMoodCast`) are the mood relief
+planner's: for a colonist whose mood pressure is active and whose measured need
+relief is spent or absent (`no_measured_correctable_need`,
+`bounded_methods_exhausted`, `unowned_thought_pressure`; never while a facility
+goal owns the pressure), it commits an `Ability` action (psycast source, pawn
+target) on the pawn's mood incident. The caster is another available colonist
+whose royalty read lists `WordOfJoy` (matched case-insensitively) as a
+pawn-targeted psycast with read cost, neural heat and cooldown, and whose
+Psyfocus stays at least 0.25 above the cost after the cast; most Psyfocus wins.
+Every unread fact holds the cast. Current neural heat and the remaining
+cooldown are not read: native refuses an overflowing or cooling-down cast
+(guards `entropy`, `cooldown`) and each caster-psycast pair has at most eight
+attempts per mood incident. The review reads the royalty facts while the mood
+planner is composed.
+
+Psycasts judged and not done (no clear, safe payoff for an unattended
+colony, or native cannot take them): `Skip` and `Farskip` (a destination
+cell: native refuses destination psycasts as unsupported); healing (vanilla
+Royalty has no psycast that heals injuries, and the care read carries no pain
+fact for `Painblock`); `Chunkskip` and `Waterskip` (no planner owns a debris or
+fire target cell); `Focus`, `Invisibility`, `Overshield`-class self buffs
+(fight-only, #1611); `WordOfSerenity`, `WordOfTrust`, `WordOfLove`
+(social targets the mood and prisoner planners do not measure); `Resurrect`
+(an irreversible spend on a corpse choice); and every combat psycast (#1611).
+
 ### Environmental disruption
 
 `rimgovernor/observations_read_colony_facts` `environment` reports current-map native condition
