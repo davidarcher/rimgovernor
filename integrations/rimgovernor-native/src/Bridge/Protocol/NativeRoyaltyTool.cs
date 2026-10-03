@@ -131,9 +131,26 @@ namespace HomeBridge.BridgeTools
                         row.Psycasts.Add(Psycast(ability.def));
                 if (row.Holdings.Count > 0 || row.Psycasts.Count > 0) facts.Pawns.Add(row);
             }
+            ReadThrones(facts);
             ReadNeuroformers(facts);
             ReadCeremonies(facts);
             return facts;
+        }
+
+        // Throne ownership (#1601): every spawned player throne on the home
+        // maps with its assigned colonist (Building_Throne.AssignedPawn), so
+        // the planner can tell when a throne's assignment is done.
+        private static void ReadThrones(Obs.RoyaltyFacts facts)
+        {
+            foreach (var map in Find.Maps.Where(m => m.IsPlayerHome))
+                foreach (var throne in map.listerBuildings.AllBuildingsColonistOfClass<Building_Throne>().OrderBy(t => t.thingIDNumber))
+                {
+                    var row = new Obs.RoyalThrone { Thing = new Common.Ref { Id = throne.GetUniqueLoadID() } };
+                    if (ProtoBoundary.IsIdentifier(throne.def.defName)) row.DefName = throne.def.defName;
+                    var owner = throne.AssignedPawn;
+                    if (owner != null) row.Owner = new Common.Ref { Id = owner.GetUniqueLoadID() };
+                    facts.Thrones.Add(row);
+                }
         }
 
         // Pending bestowing ceremonies (#1602): the bestowing quest of each

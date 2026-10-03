@@ -15,10 +15,11 @@ import (
 // minimum impressiveness through the room quality levers (ThroneRoomTargets).
 // The throne's footprint is the native catalog's, never a constant here.
 //
-// Assigning the throne to its holder is a seam: NextThroneStep reports
-// ThroneAssign once the throne stands, and no runtime acts on it until a
-// ThroneAssign action kind exists (#1601 awaits that decision), so the step
-// is never owed.
+// Once the throne stands and the holder holds the title, NextThroneStep
+// reports ThroneAssign until the royalty read lists the holder as the
+// throne's owner (RoyalThrone); the runtime sends it as the generic Assign
+// intent, and the step holds MaintainHousing open until the read shows it
+// done.
 
 // ThroneNeed is the throne room a colonist is owed: the first title above
 // the holder's current one (the current one at the top) whose requirement
@@ -35,6 +36,9 @@ type ThroneNeed struct {
 	Things []string
 	// Assigned is whether the throne must be assigned to the holder.
 	Assigned bool
+	// Titled is whether the holder holds a title already: native lets
+	// only a titled colonist own a throne, so assignment waits for it.
+	Titled bool
 }
 
 // rungRequirement is rung's throne requirement, false for a title that asks
@@ -98,6 +102,7 @@ func NextThroneNeed(f RoyaltyFacts) (ThroneNeed, bool) {
 				continue
 			}
 			need.Holder = id
+			need.Titled = holdsTitle(f, id)
 			if !found || need.MinArea > best.MinArea || need.MinArea == best.MinArea && need.MinImpressiveness > best.MinImpressiveness {
 				best, found = need, true
 			}
@@ -124,9 +129,8 @@ const (
 	ThroneShell ThroneStepKind = "shell"
 	// ThronePlace: place Piece, a throne, in Room.
 	ThronePlace ThroneStepKind = "place"
-	// ThroneAssign: the throne stands; assign it to Need.Holder. This is
-	// the assignment seam: no action kind carries it yet, so the step is
-	// reported but never owed (ThroneStepOwed).
+	// ThroneAssign: the throne stands unowned; assign Throne to
+	// Need.Holder, replacing PreviousThrone (empty: none).
 	ThroneAssign ThroneStepKind = "assign"
 )
 
@@ -136,12 +140,14 @@ type ThroneStep struct {
 	Room  LayoutRoom
 	Piece InteriorPiece
 	Need  ThroneNeed
+	// Throne is the standing throne to assign and PreviousThrone the
+	// throne the holder owns already, empty when none.
+	Throne, PreviousThrone string
 }
 
-// Owed reports whether the planner can act on the step now; the assignment
-// seam is not owed.
+// Owed reports whether the planner can act on the step now.
 func (s ThroneStep) Owed() bool {
-	return s.Kind == ThroneShell || s.Kind == ThronePlace
+	return s.Kind == ThroneShell || s.Kind == ThronePlace || s.Kind == ThroneAssign
 }
 
 // throneDefinition is the first of need's throne definitions the catalog
@@ -162,26 +168,63 @@ func throneDefinition(need ThroneNeed, defs []ThroneDefinition) (InteriorPieceDe
 	return InteriorPieceDef{}, false
 }
 
-// throneStands is the standing throne of need inside r's interior.
-func throneStands(r LayoutRoom, need ThroneNeed, built []CurrentBuilding) bool {
+// standingThroneIn is the standing throne of need inside r's interior.
+func standingThroneIn(r LayoutRoom, need ThroneNeed, built []CurrentBuilding) (CurrentBuilding, bool) {
 	for _, b := range built {
 		if len(b.Cells) == 0 || !rectInside(r.Interior, cellsRectangle(b.Cells)) {
 			continue
 		}
 		for _, thing := range need.Things {
 			if b.Building.Definition() == thing {
-				return true
+				return b, true
 			}
+		}
+	}
+	return CurrentBuilding{}, false
+}
+
+// holdsTitle is whether id holds an Empire title now.
+func holdsTitle(f RoyaltyFacts, id PawnID) bool {
+	for _, h := range f.Holders[id] {
+		if h.Title != "" {
+			return true
 		}
 	}
 	return false
 }
 
+// throneAssignment is the assignment still due for the standing throne: it
+// must be listed by the royalty read (a throne built after the read waits for
+// the next one) and unowned, and the holder must hold the title. A throne
+// another colonist owns is left alone.
+func throneAssignment(step ThroneStep, throne CurrentBuilding, thrones []RoyalThrone) ThroneStep {
+	if !step.Need.Assigned || !step.Need.Titled {
+		return ThroneStep{}
+	}
+	listed := false
+	for _, t := range thrones {
+		if t.ID == throne.ID {
+			if t.Owner != "" {
+				return ThroneStep{}
+			}
+			listed = true
+		} else if t.Owner == step.Need.Holder {
+			step.PreviousThrone = t.ID
+		}
+	}
+	if !listed {
+		return ThroneStep{}
+	}
+	step.Kind, step.Throne = ThroneAssign, throne.ID
+	return step
+}
+
 // NextThroneStep picks the next throne step for need from the plan, the
 // room census, the colony's buildings and the throne definitions. None
 // while the plan holds no room of the title's area (the layout review owes
-// it) or no throne definition is available with a known size.
-func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []ThroneDefinition) ThroneStep {
+// it) or no throne definition is available with a known size, and once the
+// throne stands and is assigned (or cannot be yet).
+func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []ThroneDefinition, thrones []RoyalThrone) ThroneStep {
 	room, ok := plan.ThroneRoomFor(need.MinArea)
 	if !ok {
 		return ThroneStep{}
@@ -191,7 +234,8 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		step.Kind = ThroneShell
 		return step
 	}
-	if !throneStands(room, need, built) {
+	standing, stands := standingThroneIn(room, need, built)
+	if !stands {
 		def, ok := throneDefinition(need, defs)
 		in, rok := InteriorRoomFromLayout(room)
 		if !ok || !rok {
@@ -221,10 +265,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		}
 		return ThroneStep{}
 	}
-	if need.Assigned {
-		step.Kind = ThroneAssign
-	}
-	return step
+	return throneAssignment(step, standing, thrones)
 }
 
 // ThroneRoomTargets is the impressiveness target of the standing throne

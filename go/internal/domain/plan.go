@@ -38,7 +38,7 @@ const BedUseAction ActionKind = "bed_medical"
 const GrowerCropAction ActionKind = "grower_crop"
 const ClaimBuildingAction ActionKind = "claim_building"
 const ZoneDeleteAction ActionKind = "zone_delete"
-const BedAssignAction ActionKind = "bed_assign"
+const AssignAction ActionKind = "assign"
 
 // ZoneEditAction is declared in zone_edit.go alongside its ZoneEdit payload.
 
@@ -137,7 +137,7 @@ type Action struct {
 	zoneCellEdit        ZoneCellEdit
 	stockpilePatch      StockpilePatch
 	openCasket          OpenCasket
-	bedAssign           BedAssign
+	assign              Assign
 	researchSelect      ResearchSelect
 	husbandry           Husbandry
 	prisonerInteraction PrisonerInteraction
@@ -294,8 +294,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewStockpilePatchAction(a.id, a.stockpilePatch)
 		case OpenCasketAction:
 			canonical, err = NewOpenCasketAction(a.id, a.openCasket)
-		case BedAssignAction:
-			canonical, err = NewBedAssignAction(a.id, a.bedAssign)
+		case AssignAction:
+			canonical, err = NewAssignAction(a.id, a.assign)
 		case ResearchSelectAction:
 			canonical, err = NewResearchSelectAction(a.id, a.researchSelect)
 		case HusbandryAction:

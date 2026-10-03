@@ -77,7 +77,7 @@ func moved(sample map[string]any) bool {
 func bedrooms(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	report["fixture"] = s.Prepared()
-	var move domain.BedAssign
+	var move domain.Assign
 	found := false
 	_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 		WatchConfig: sustainedfood.WatchConfig{Watch: 2 * time.Minute, Extra: []policy.GoalID{policy.MaintainHousing}, Until: func(sample map[string]any) bool {
@@ -108,8 +108,8 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 					continue
 				}
 				for _, a := range plan.Spec.Actions() {
-					if assign, ok := a.BedAssign(); ok {
-						if assign.PreviousBed().ID() != "" {
+					if assign, ok := a.Assign(); ok {
+						if assign.Previous().ID() != "" {
 							move, found = assign, true
 						}
 					}
@@ -118,8 +118,8 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 			if !found {
 				return fmt.Errorf("no bed assignment moving a colonist out of an owned bed followed a bedroom shell")
 			}
-			previous := move.PreviousBed().ID()
-			report["move"] = map[string]any{"pawn": string(move.Pawn()), "bed": move.Bed(), "previous": previous}
+			previous := move.Previous().ID()
+			report["move"] = map[string]any{"pawn": string(move.Pawn()), "bed": move.Thing(), "previous": previous}
 			identity := s.Identity()
 			reply, err := h.Wire(ctx, "pawn", "observations_list_pawns", map[string]any{
 				"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{string(move.Pawn())}},
@@ -137,8 +137,8 @@ func bedrooms(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("pawn read: %#v", observed)
 			}
 			row, _ := na.AsMap(rows[0])
-			if owned := na.RefID(row["ownedBed"]); owned != move.Bed() {
-				return fmt.Errorf("colonist %s owns %q, not the bedroom bed %q", move.Pawn(), owned, move.Bed())
+			if owned := na.RefID(row["ownedBed"]); owned != move.Thing() {
+				return fmt.Errorf("colonist %s owns %q, not the bedroom bed %q", move.Pawn(), owned, move.Thing())
 			}
 			reply, err = h.Wire(ctx, "spare", "observations_list_buildings", map[string]any{
 				"scope": map[string]any{"expectedIdentity": identity}, "ids": []string{previous},

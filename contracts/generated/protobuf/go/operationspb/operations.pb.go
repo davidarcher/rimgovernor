@@ -3716,7 +3716,7 @@ type Action struct {
 	//	*Action_Prisoner
 	//	*Action_AcceptQuest
 	//	*Action_FormCaravan
-	//	*Action_BedAssign
+	//	*Action_Assign
 	//	*Action_WorkSettings
 	//	*Action_ProductionBill
 	//	*Action_Husbandry
@@ -3894,10 +3894,10 @@ func (x *Action) GetFormCaravan() *FormCaravanIntent {
 	return nil
 }
 
-func (x *Action) GetBedAssign() *BedAssignIntent {
+func (x *Action) GetAssign() *AssignIntent {
 	if x != nil {
-		if x, ok := x.Intent.(*Action_BedAssign); ok {
-			return x.BedAssign
+		if x, ok := x.Intent.(*Action_Assign); ok {
+			return x.Assign
 		}
 	}
 	return nil
@@ -4149,8 +4149,8 @@ type Action_FormCaravan struct {
 	FormCaravan *FormCaravanIntent `protobuf:"bytes,21,opt,name=form_caravan,json=formCaravan,proto3,oneof"`
 }
 
-type Action_BedAssign struct {
-	BedAssign *BedAssignIntent `protobuf:"bytes,22,opt,name=bed_assign,json=bedAssign,proto3,oneof"`
+type Action_Assign struct {
+	Assign *AssignIntent `protobuf:"bytes,22,opt,name=assign,proto3,oneof"`
 }
 
 type Action_WorkSettings struct {
@@ -4264,7 +4264,7 @@ func (*Action_AcceptQuest) isAction_Intent() {}
 
 func (*Action_FormCaravan) isAction_Intent() {}
 
-func (*Action_BedAssign) isAction_Intent() {}
+func (*Action_Assign) isAction_Intent() {}
 
 func (*Action_WorkSettings) isAction_Intent() {}
 
@@ -6205,34 +6205,37 @@ func (x *WorkSettingsIntent) GetSchedule() *Schedule {
 	return nil
 }
 
-// Assign one free colonist to one humanlike bed, replacing the bed it owned
-// when the planner chose (expected_previous_bed: that bed or clear). Native
-// checks the pawn, the bed and that ownership live; a pawn that already owns
-// the bed applies again.
-type BedAssignIntent struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	PawnId              *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
-	BedId               *string                `protobuf:"bytes,2,opt,name=bed_id,json=bedId,proto3,oneof" json:"bed_id,omitempty"`
-	ExpectedPreviousBed *Assignment            `protobuf:"bytes,3,opt,name=expected_previous_bed,json=expectedPreviousBed,proto3" json:"expected_previous_bed,omitempty"`
-	Swap                *bool                  `protobuf:"varint,4,opt,name=swap,proto3,oneof" json:"swap,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+// Assign one free colonist to one assignable thing (a bed, a throne, a
+// sarcophagus: anything with CompAssignableToPawn), replacing the thing of
+// that kind the pawn owned when the planner chose (expected_previous: that
+// thing or clear). Native resolves the thing's CompAssignableToPawn, refuses
+// a thing that has none, and checks the pawn, the thing and that ownership
+// live; a pawn that already owns the thing applies again. swap (beds)
+// evicts the thing's current owners instead of refusing an owned bed.
+type AssignIntent struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	PawnId           *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
+	ThingId          *string                `protobuf:"bytes,2,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
+	ExpectedPrevious *Assignment            `protobuf:"bytes,3,opt,name=expected_previous,json=expectedPrevious,proto3" json:"expected_previous,omitempty"`
+	Swap             *bool                  `protobuf:"varint,4,opt,name=swap,proto3,oneof" json:"swap,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *BedAssignIntent) Reset() {
-	*x = BedAssignIntent{}
+func (x *AssignIntent) Reset() {
+	*x = AssignIntent{}
 	mi := &file_operations_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BedAssignIntent) String() string {
+func (x *AssignIntent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BedAssignIntent) ProtoMessage() {}
+func (*AssignIntent) ProtoMessage() {}
 
-func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
+func (x *AssignIntent) ProtoReflect() protoreflect.Message {
 	mi := &file_operations_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -6244,33 +6247,33 @@ func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BedAssignIntent.ProtoReflect.Descriptor instead.
-func (*BedAssignIntent) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssignIntent.ProtoReflect.Descriptor instead.
+func (*AssignIntent) Descriptor() ([]byte, []int) {
 	return file_operations_proto_rawDescGZIP(), []int{59}
 }
 
-func (x *BedAssignIntent) GetPawnId() string {
+func (x *AssignIntent) GetPawnId() string {
 	if x != nil && x.PawnId != nil {
 		return *x.PawnId
 	}
 	return ""
 }
 
-func (x *BedAssignIntent) GetBedId() string {
-	if x != nil && x.BedId != nil {
-		return *x.BedId
+func (x *AssignIntent) GetThingId() string {
+	if x != nil && x.ThingId != nil {
+		return *x.ThingId
 	}
 	return ""
 }
 
-func (x *BedAssignIntent) GetExpectedPreviousBed() *Assignment {
+func (x *AssignIntent) GetExpectedPrevious() *Assignment {
 	if x != nil {
-		return x.ExpectedPreviousBed
+		return x.ExpectedPrevious
 	}
 	return nil
 }
 
-func (x *BedAssignIntent) GetSwap() bool {
+func (x *AssignIntent) GetSwap() bool {
 	if x != nil && x.Swap != nil {
 		return *x.Swap
 	}
@@ -7538,7 +7541,7 @@ const file_operations_proto_rawDesc = "" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
 	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\x12*\n" +
 	"\x0edefer_snapshot\x18\x03 \x01(\bH\x00R\rdeferSnapshot\x88\x01\x01B\x11\n" +
-	"\x0f_defer_snapshot\"\xb4\x17\n" +
+	"\x0f_defer_snapshot\"\xaa\x17\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
 	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
@@ -7553,9 +7556,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x06dialog\x18\x12 \x01(\v2'.rimgovernor.operations.v1.DialogIntentH\x00R\x06dialog\x12R\n" +
 	"\bprisoner\x18\x13 \x01(\v24.rimgovernor.operations.v1.PrisonerInteractionIntentH\x00R\bprisoner\x12Q\n" +
 	"\faccept_quest\x18\x14 \x01(\v2,.rimgovernor.operations.v1.AcceptQuestIntentH\x00R\vacceptQuest\x12Q\n" +
-	"\fform_caravan\x18\x15 \x01(\v2,.rimgovernor.operations.v1.FormCaravanIntentH\x00R\vformCaravan\x12K\n" +
-	"\n" +
-	"bed_assign\x18\x16 \x01(\v2*.rimgovernor.operations.v1.BedAssignIntentH\x00R\tbedAssign\x12T\n" +
+	"\fform_caravan\x18\x15 \x01(\v2,.rimgovernor.operations.v1.FormCaravanIntentH\x00R\vformCaravan\x12A\n" +
+	"\x06assign\x18\x16 \x01(\v2'.rimgovernor.operations.v1.AssignIntentH\x00R\x06assign\x12T\n" +
 	"\rwork_settings\x18\x17 \x01(\v2-.rimgovernor.operations.v1.WorkSettingsIntentH\x00R\fworkSettings\x12Z\n" +
 	"\x0fproduction_bill\x18\x18 \x01(\v2/.rimgovernor.operations.v1.ProductionBillIntentH\x00R\x0eproductionBill\x12J\n" +
 	"\thusbandry\x18\x19 \x01(\v2*.rimgovernor.operations.v1.HusbandryIntentH\x00R\thusbandry\x12;\n" +
@@ -7768,15 +7770,15 @@ const file_operations_proto_rawDesc = "" +
 	"\bschedule\x18\x04 \x01(\v2#.rimgovernor.operations.v1.ScheduleR\bscheduleB\n" +
 	"\n" +
 	"\b_pawn_idJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\fmedical_careR\n" +
-	"food_allowR\vdrug_policy\"\xdf\x01\n" +
-	"\x0fBedAssignIntent\x12\x1c\n" +
-	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
-	"\x06bed_id\x18\x02 \x01(\tH\x01R\x05bedId\x88\x01\x01\x12Y\n" +
-	"\x15expected_previous_bed\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x13expectedPreviousBed\x12\x17\n" +
+	"food_allowR\vdrug_policy\"\xdb\x01\n" +
+	"\fAssignIntent\x12\x1c\n" +
+	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1e\n" +
+	"\bthing_id\x18\x02 \x01(\tH\x01R\athingId\x88\x01\x01\x12R\n" +
+	"\x11expected_previous\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x10expectedPrevious\x12\x17\n" +
 	"\x04swap\x18\x04 \x01(\bH\x02R\x04swap\x88\x01\x01B\n" +
 	"\n" +
-	"\b_pawn_idB\t\n" +
-	"\a_bed_idB\a\n" +
+	"\b_pawn_idB\v\n" +
+	"\t_thing_idB\a\n" +
 	"\x05_swap\"\xac\x01\n" +
 	"\x19PrisonerInteractionIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12U\n" +
@@ -8101,7 +8103,7 @@ var file_operations_proto_goTypes = []any{
 	(*HusbandryIntent)(nil),                // 74: rimgovernor.operations.v1.HusbandryIntent
 	(*ProductionBillIntent)(nil),           // 75: rimgovernor.operations.v1.ProductionBillIntent
 	(*WorkSettingsIntent)(nil),             // 76: rimgovernor.operations.v1.WorkSettingsIntent
-	(*BedAssignIntent)(nil),                // 77: rimgovernor.operations.v1.BedAssignIntent
+	(*AssignIntent)(nil),                   // 77: rimgovernor.operations.v1.AssignIntent
 	(*PrisonerInteractionIntent)(nil),      // 78: rimgovernor.operations.v1.PrisonerInteractionIntent
 	(*DialogIntent)(nil),                   // 79: rimgovernor.operations.v1.DialogIntent
 	(*NamingIntent)(nil),                   // 80: rimgovernor.operations.v1.NamingIntent
@@ -8202,7 +8204,7 @@ var file_operations_proto_depIdxs = []int32{
 	78,  // 70: rimgovernor.operations.v1.Action.prisoner:type_name -> rimgovernor.operations.v1.PrisonerInteractionIntent
 	84,  // 71: rimgovernor.operations.v1.Action.accept_quest:type_name -> rimgovernor.operations.v1.AcceptQuestIntent
 	83,  // 72: rimgovernor.operations.v1.Action.form_caravan:type_name -> rimgovernor.operations.v1.FormCaravanIntent
-	77,  // 73: rimgovernor.operations.v1.Action.bed_assign:type_name -> rimgovernor.operations.v1.BedAssignIntent
+	77,  // 73: rimgovernor.operations.v1.Action.assign:type_name -> rimgovernor.operations.v1.AssignIntent
 	76,  // 74: rimgovernor.operations.v1.Action.work_settings:type_name -> rimgovernor.operations.v1.WorkSettingsIntent
 	75,  // 75: rimgovernor.operations.v1.Action.production_bill:type_name -> rimgovernor.operations.v1.ProductionBillIntent
 	74,  // 76: rimgovernor.operations.v1.Action.husbandry:type_name -> rimgovernor.operations.v1.HusbandryIntent
@@ -8259,7 +8261,7 @@ var file_operations_proto_depIdxs = []int32{
 	32,  // 127: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
 	20,  // 128: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
 	33,  // 129: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	20,  // 130: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	20,  // 130: rimgovernor.operations.v1.AssignIntent.expected_previous:type_name -> rimgovernor.operations.v1.Assignment
 	12,  // 131: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
 	21,  // 132: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
 	93,  // 133: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
@@ -8364,7 +8366,7 @@ func file_operations_proto_init() {
 		(*Action_Prisoner)(nil),
 		(*Action_AcceptQuest)(nil),
 		(*Action_FormCaravan)(nil),
-		(*Action_BedAssign)(nil),
+		(*Action_Assign)(nil),
 		(*Action_WorkSettings)(nil),
 		(*Action_ProductionBill)(nil),
 		(*Action_Husbandry)(nil),

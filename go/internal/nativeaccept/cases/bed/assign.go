@@ -1,7 +1,7 @@
-// The bed/assign case exercises the BedAssignIntent on Actions/Apply
-// (issues #34, #941): BedAssignActionHandler
+// The bed/assign case exercises the AssignIntent on Actions/Apply
+// (issues #34, #941): AssignActionHandler
 // (integrations/rimgovernor-native/src/Bridge/Protocol/
-// NativeBedAssignOperations.cs) drives the same
+// NativeAssignOperations.cs) drives the same
 // CompAssignableToPawn.TryAssignPawn write the Assign tab uses. A
 // colonist who genuinely owns one bed
 // actually has their bed ownership reassigned to a different, real,
@@ -27,7 +27,7 @@ import (
 func init() {
 	cases.Register(cases.Case{
 		Name: "bed/assign",
-		Scope: "Native CompAssignableToPawn.TryAssignPawn (BedAssignIntent on Actions/Apply): a colonist who " +
+		Scope: "Native CompAssignableToPawn.TryAssignPawn (AssignIntent on Actions/Apply): a colonist who " +
 			"genuinely owns one bed actually has their bed ownership reassigned to a different real, previously-" +
 			"unclaimed compliant bed, a drifted previous-bed expectation is refused without mutation, the real " +
 			"bed-ownership change is observed via native readback (not just a result), and a resent intent " +
@@ -93,10 +93,10 @@ func run(ctx context.Context, s cases.Session) error {
 		return na.RefID(row["ownedBed"]), nil
 	}
 
-	// apply sends one BedAssignIntent and returns the action's result.
+	// apply sends one AssignIntent and returns the action's result.
 	apply := func(label, key, expectedPrevious string) (map[string]any, error) {
 		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{
-			"key": key, "bedAssign": map[string]any{"pawnId": pawnID, "bedId": bedID, "expectedPreviousBed": map[string]any{"entityId": expectedPrevious}},
+			"key": key, "assign": map[string]any{"pawnId": pawnID, "thingId": bedID, "expectedPrevious": map[string]any{"entityId": expectedPrevious}},
 		}}})
 		if err != nil {
 			return nil, err
@@ -142,8 +142,8 @@ func run(ctx context.Context, s cases.Session) error {
 		receipt, _ := na.AsMap(result["applied"])
 		applied, _ := na.AsMap(receipt["applied"])
 		observed, _ := na.AsMap(applied["observed"])
-		effect, ok := na.AsMap(observed["bed"])
-		if !ok || na.AsString(effect["pawnId"]) != pawnID || na.AsString(effect["bedId"]) != bedID {
+		effect, ok := na.AsMap(observed["assign"])
+		if !ok || na.AsString(effect["pawnId"]) != pawnID || na.AsString(effect["thingId"]) != bedID {
 			return fmt.Errorf("%s: expected applied bed evidence, got %#v", label, result)
 		}
 		if assigned, _ := na.AsBool(effect["assigned"]); !assigned {
@@ -192,11 +192,11 @@ func run(ctx context.Context, s cases.Session) error {
 		if otherBed != "" {
 			previous = map[string]any{"entityId": otherBed}
 		}
-		intent := map[string]any{"pawnId": otherID, "bedId": bedID, "expectedPreviousBed": previous}
+		intent := map[string]any{"pawnId": otherID, "thingId": bedID, "expectedPrevious": previous}
 		if swap {
 			intent["swap"] = true
 		}
-		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "bedAssign": intent}}})
+		reply, err := h.Wire(ctx, label, "operations_apply", map[string]any{"identity": identity, "actions": []any{map[string]any{"key": key, "assign": intent}}})
 		if err != nil {
 			return nil, err
 		}

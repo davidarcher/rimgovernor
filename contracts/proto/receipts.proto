@@ -46,7 +46,7 @@ message EffectEvidence {
     BillEffect bill = 5;
     ResearchEffect research = 6;
     ZoneEffect zone = 8;
-    BedEffect bed = 10;
+    AssignEffect assign = 10;
     WallEffect wall = 11;
     JobEffect job = 13;
     AnimalEffect animal = 15;
@@ -171,7 +171,7 @@ message BillEffect { SnapshotEvidence stack = 1; rimgovernor.common.v1.Ref bill 
 message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
 message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted = 2; optional string reason = 3; optional string taken_from_zone_id = 4; }
 message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
-message BedEffect { optional string pawn_id = 1; optional string bed_id = 2; optional string previous_bed_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
+message AssignEffect { optional string pawn_id = 1; optional string thing_id = 2; optional string previous_thing_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
 message DeconstructEffect { optional string target_id = 1; optional string designation_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 4; SnapshotEvidence site = 5; optional bool waiting_for_roof = 6; optional string replacement_id = 7; }
 // One result per CombatOrders order, in request order. An applied result
 // names the ordered job where one was taken (Goto, AttackStatic,

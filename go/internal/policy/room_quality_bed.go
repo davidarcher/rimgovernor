@@ -8,7 +8,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // replacement is one change walked across reviews, each step read back
 // from the census rather than remembered:
 //   - build: a PlaceBuilding for the new bed on free floor in the room;
-//   - assign: once it stands, a BedAssignIntent moves the owner onto it;
+//   - assign: once it stands, a AssignIntent moves the owner onto it;
 //   - remove: the old bed, now unowned and worse, is deconstructed; so
 //     is a new bed that came out no better (the next epoch rebuilds).
 //

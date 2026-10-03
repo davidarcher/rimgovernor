@@ -17,6 +17,15 @@ type RoyaltyFacts struct {
 	Neuroformers map[string]Neuroformer
 	// Ceremonies are the pending bestowing ceremonies (#1602), by pawn.
 	Ceremonies []BestowingCeremony
+	// Thrones are the standing player thrones and their owners (#1601).
+	Thrones []RoyalThrone
+}
+
+// RoyalThrone is one standing throne: Owner is the colonist it is assigned
+// to, empty when unassigned.
+type RoyalThrone struct {
+	ID, Def string
+	Owner   PawnID
 }
 
 // PsycastTarget is what a psycast aims at.

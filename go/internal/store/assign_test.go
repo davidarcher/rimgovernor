@@ -8,11 +8,11 @@ import (
 )
 
 // The bedroom swap flag (#1243) survives a plan round trip.
-func TestBedAssignSwapRoundTrips(t *testing.T) {
+func TestAssignSwapRoundTrips(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
 	for i, swap := range []bool{false, true} {
-		assign, err := domain.NewBedAssign("Human1", "Bed2", domain.ClearPreviousBed())
+		assign, err := domain.NewAssign("Human1", "Bed2", domain.ClearPrevious())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -20,7 +20,7 @@ func TestBedAssignSwapRoundTrips(t *testing.T) {
 			assign = assign.AsSwap()
 		}
 		id := domain.PlanID([]string{"bed-plain", "bed-swap"}[i])
-		action, err := domain.NewBedAssignAction(domain.ActionID(string(id)+"-0"), assign)
+		action, err := domain.NewAssignAction(domain.ActionID(string(id)+"-0"), assign)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -35,8 +35,8 @@ func TestBedAssignSwapRoundTrips(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got, ok := loaded.Progress[0].Action().BedAssign()
-		if !ok || got.Swap() != swap || got.Bed() != "Bed2" || !got.PreviousBed().Clear() {
+		got, ok := loaded.Progress[0].Action().Assign()
+		if !ok || got.Swap() != swap || got.Thing() != "Bed2" || !got.Previous().Clear() {
 			t.Fatal(swap, got)
 		}
 	}

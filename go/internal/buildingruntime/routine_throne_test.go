@@ -65,7 +65,9 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
 		t.Fatalf("the throne is owed: %v %v", owed, known)
 	}
-	// With the throne standing only the assignment seam remains, never owed.
+	// With the throne standing, the assignment is owed until the royalty
+	// read lists the holder as its owner. A throne built after the read
+	// waits for the next one.
 	throne, err := domain.NewBuilding("Throne", step.Piece.Anchor(), step.Piece.Rot, "")
 	if err != nil {
 		t.Fatal(err)
@@ -73,11 +75,25 @@ func TestThroneRoomOwesHousingUntilTheThroneStands(t *testing.T) {
 	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "t1", Building: throne}}}
 	census.Buildings[0].Cells = []domain.Cell{step.Piece.Anchor()}
 	facts.Facts.CurrentConstruction = domain.Known(census)
-	if step := throneStep(facts); step.Kind != policy.ThroneAssign || step.Owed() {
+	if step := throneStep(facts); step.Kind != policy.ThroneNone {
+		t.Fatalf("throne unlisted by the read: %+v", step)
+	}
+	royalty, _ := facts.Royalty.Value()
+	royalty.Thrones = []policy.RoyalThrone{{ID: "t1", Def: "Throne"}}
+	facts.Royalty = domain.Known(royalty)
+	if step := throneStep(facts); step.Kind != policy.ThroneAssign || step.Throne != "t1" || step.Need.Holder != "Alice" || !step.Owed() {
 		t.Fatalf("throne standing: %+v", step)
 	}
+	if owed, known := bedroomsOwed(facts).Value(); !known || !owed {
+		t.Fatal("the unassigned throne holds MaintainHousing open")
+	}
+	royalty.Thrones = []policy.RoyalThrone{{ID: "t1", Def: "Throne", Owner: "Alice"}}
+	facts.Royalty = domain.Known(royalty)
+	if step := throneStep(facts); step.Owed() {
+		t.Fatalf("assigned throne: %+v", step)
+	}
 	if owed, known := bedroomsOwed(facts).Value(); known && owed {
-		t.Fatal("assignment awaits an action kind and is not owed")
+		t.Fatal("an assigned throne owes nothing")
 	}
 	facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()
 	if step := throneStep(facts); step.Kind != policy.ThroneNone {
@@ -142,5 +158,39 @@ func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
 	royalty, _ := projection.Royalty.Value()
 	if names := throneThings(royalty); len(names) != 1 || names[0] != "Throne" {
 		t.Fatalf("throne definitions %v", names)
+	}
+}
+
+// The throne step commits one Assign of the throne to its holder, once per
+// holder and throne per goal epoch (#1601).
+func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, db, _ := sleepingUpkeepFixture(t)
+	goal := sleepingGoal(t, db)
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, epoch := planner.reviewer.player.session.State(), planner.reviewer.player.epoch
+	step := policy.ThroneStep{Kind: policy.ThroneAssign, Throne: "t1", PreviousThrone: "t0", Need: policy.ThroneNeed{Holder: "Alice"}}
+	result, err := planner.assignThrone(ctx, epoch, state, review, goal, step)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	goal = sleepingGoal(t, db)
+	if len(goal.Methods) != 1 || goal.Methods[0].Method != "throne-assign-Alice-t1" {
+		t.Fatal(goal.Methods)
+	}
+	plan, err := db.LoadPlan(ctx, goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 1 {
+		t.Fatal(plan, err)
+	}
+	assign, ok := plan.Progress[0].Action().Assign()
+	if !ok || assign.Pawn() != "Alice" || assign.Thing() != "t1" || assign.Previous().ID() != "t0" || assign.Swap() {
+		t.Fatal(plan.Progress[0].Action())
+	}
+	if result, err = planner.assignThrone(ctx, epoch, state, review, goal, step); err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodExistingWork {
+		t.Fatal("assigned twice in one epoch", result, err)
 	}
 }

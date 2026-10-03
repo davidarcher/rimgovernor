@@ -203,6 +203,15 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		}
 		out.Ceremonies = append(out.Ceremonies, c)
 	}
+	thrones := map[string]bool{}
+	for _, row := range v.Thrones {
+		id, owner := row.GetThing().GetId(), row.GetOwner().GetId()
+		if validID(id) != nil || owner != "" && validID(owner) != nil || row.DefName != nil && validID(row.GetDefName()) != nil || thrones[id] {
+			return nil, contract("invalid royalty throne")
+		}
+		thrones[id] = true
+		out.Thrones = append(out.Thrones, policy.RoyalThrone{ID: id, Def: row.GetDefName(), Owner: policy.PawnID(owner)})
+	}
 	return out, nil
 }
 

@@ -172,7 +172,7 @@ completing never clears the deficit.
 
 The bedroom row works the same way for `MaintainHousing` (the `sleeping`
 family): a colonist without an owned suitable bed is first assigned a vacant
-one through the typed `bed_assign` operation, and only when nobody can be
+one through the typed `assign` operation, and only when nobody can be
 assigned is one bed staged in a Bedroom-hosting room (Bedroom, Barracks or
 generic Room) whose observed temperature lies inside the comfortable band of
 every colonist still unhoused, one bed per method, assigned on a later review.

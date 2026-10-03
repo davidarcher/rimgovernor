@@ -16,8 +16,9 @@ import (
 // shells the planned room, places the title's throne and furnishes it to the
 // title's impressiveness (policy.NextThroneStep, policy.ThroneRoomTargets).
 // The layout review grows the room from the title's minimum area
-// (policy.ReplanLayoutWithThrone). Assigning the throne to its holder is the
-// seam below: no ThroneAssign action kind exists yet.
+// (policy.ReplanLayoutWithThrone). Once it stands, the throne is assigned to
+// its holder through the generic Assign action; the step holds
+// MaintainHousing open until the royalty read lists the holder as its owner.
 
 // RoyaltyNative is the optional native royalty read behind the throne room
 // (bridge.Client.RoyaltyFacts). A reviewer whose native lacks it, or whose
@@ -127,7 +128,8 @@ func throneStep(facts observation.ColonyProjection) policy.ThroneStep {
 			defs = append(defs, policy.ThroneDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
 		}
 	}
-	return policy.NextThroneStep(plan, rooms, census.Buildings, need, defs)
+	royalty, _ := facts.Royalty.Value()
+	return policy.NextThroneStep(plan, rooms, census.Buildings, need, defs, royalty.Thrones)
 }
 
 // withThroneTargets adds the throne room's impressiveness target to the
@@ -169,13 +171,58 @@ func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, 
 	case policy.ThronePlace:
 		return r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, throneMethod(step))
 	case policy.ThroneAssign:
-		throneAssignmentSeam(step)
+		return r.assignThrone(call, epoch, state, review, goal, step)
 	}
 	return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
 }
 
-// throneAssignmentSeam is where the throne is assigned to its holder once
-// policy.NextThroneStep reports policy.ThroneAssign. It acts on nothing:
-// assignment needs a ThroneAssign action kind (#1601 awaits that decision),
-// so MaintainHousing never owes the step.
-func throneAssignmentSeam(policy.ThroneStep) {}
+// assignThrone commits one Assign of the standing throne to its holder,
+// once per holder and throne per goal epoch (refused attempts retry within
+// assignMethod's bound). The royalty read refreshes on its own cadence, so a
+// throne assigned this epoch reads unowned until then and the method is used.
+func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, step policy.ThroneStep) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	method, err := r.assignMethod(call, goal, fmt.Sprintf("throne-assign-%s-%s", step.Need.Holder, step.Throne))
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if method == "" {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	}
+	previous := domain.ClearPrevious()
+	if step.PreviousThrone != "" {
+		if previous, err = domain.KnownPrevious(step.PreviousThrone); err != nil {
+			return RoutineBuildingResult{}, err
+		}
+	}
+	assign, err := domain.NewAssign(domain.PawnID(step.Need.Holder), step.Throne, previous)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	id := domain.MintPlanID()
+	action, err := domain.NewAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: assignThrone: p.session.State() != state", ErrControl)
+	}
+	latest, err := p.journal.LoadRoutineReview(call)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if latest.Revision != review.Revision || !latest.Enabled {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: assignThrone: latest.Revision != review.Revision || !latest.Enabled", ErrControl)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+}

@@ -468,7 +468,7 @@ the deficit stays visible as method-unavailable. Each review re-derives the
 sleeping targets (colonists without an owned suitable bed, or without observed
 use of one) from the upkeep census against the retained use history. The method
 assigns first: the lowest waiting colonist with a vacant suitable bed receives
-the lowest such bed through the typed `bed_assign` operation, one assignment per
+the lowest such bed through the typed `assign` operation, one assignment per
 goal epoch, carrying that colonist's expected previous bed so a player change
 since the review is refused rather than overwritten. An attempt the native side
 never admitted (its CAS token moved between inspection and write, so the

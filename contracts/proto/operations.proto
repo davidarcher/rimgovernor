@@ -277,7 +277,7 @@ message Action {
     PrisonerInteractionIntent prisoner = 19;
     AcceptQuestIntent accept_quest = 20;
     FormCaravanIntent form_caravan = 21;
-    BedAssignIntent bed_assign = 22;
+    AssignIntent assign = 22;
     WorkSettingsIntent work_settings = 23;
     ProductionBillIntent production_bill = 24;
     HusbandryIntent husbandry = 25;
@@ -636,11 +636,14 @@ message WorkSettingsIntent {
   reserved 6; reserved "food_allow";
   reserved 7; reserved "drug_policy";
 }
-// Assign one free colonist to one humanlike bed, replacing the bed it owned
-// when the planner chose (expected_previous_bed: that bed or clear). Native
-// checks the pawn, the bed and that ownership live; a pawn that already owns
-// the bed applies again.
-message BedAssignIntent { optional string pawn_id = 1; optional string bed_id = 2; Assignment expected_previous_bed = 3; optional bool swap = 4; }
+// Assign one free colonist to one assignable thing (a bed, a throne, a
+// sarcophagus: anything with CompAssignableToPawn), replacing the thing of
+// that kind the pawn owned when the planner chose (expected_previous: that
+// thing or clear). Native resolves the thing's CompAssignableToPawn, refuses
+// a thing that has none, and checks the pawn, the thing and that ownership
+// live; a pawn that already owns the thing applies again. swap (beds)
+// evicts the thing's current owners instead of refusing an owned bed.
+message AssignIntent { optional string pawn_id = 1; optional string thing_id = 2; Assignment expected_previous = 3; optional bool swap = 4; }
 // Set one colony prisoner's exclusive interaction mode. Native checks the
 // prisoner and the mode's eligibility (recruitable, wild man, Ideology) live;
 // a prisoner already set to the mode applies again.

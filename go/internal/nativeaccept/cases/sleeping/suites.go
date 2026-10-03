@@ -61,7 +61,7 @@ func init() {
 
 // suiteMove is the Greedy colonist's completed move into a suite.
 type suiteMove struct {
-	assign domain.BedAssign
+	assign domain.Assign
 	room   policy.LayoutRoom
 	// standard counts the completed standard-wing shells before it.
 	standard int
@@ -154,14 +154,14 @@ func findSuiteMove(ctx context.Context, journal *store.Store, pawn domain.PawnID
 			continue
 		}
 		for _, a := range plan.Spec.Actions() {
-			assign, ok := a.BedAssign()
+			assign, ok := a.Assign()
 			if !ok || assign.Pawn() != pawn {
 				continue
 			}
-			if moved[assign.PreviousBed().ID()] {
+			if moved[assign.Previous().ID()] {
 				return suiteMove{assign: assign, room: suite, standard: standard}, true, nil
 			}
-			moved[assign.Bed()] = true
+			moved[assign.Thing()] = true
 		}
 	}
 	return suiteMove{}, false, nil
@@ -233,9 +233,9 @@ func suites(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("no standard bedroom-wing shell completed before the suite move")
 			}
 			in := move.room.Interior
-			report["suite_move"] = map[string]any{"pawn": string(pawn), "bed": move.assign.Bed(), "previous": move.assign.PreviousBed().ID(),
+			report["suite_move"] = map[string]any{"pawn": string(pawn), "bed": move.assign.Thing(), "previous": move.assign.Previous().ID(),
 				"suite": fmt.Sprintf("%d,%d %dx%d", in.X, in.Z, in.Width, in.Height), "standard_shells": move.standard}
-			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Bed(), "after the move")
+			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Thing(), "after the move")
 		},
 	})
 	if err != nil {
@@ -264,7 +264,7 @@ func suites(ctx context.Context, s cases.Session) error {
 			if err := auditGrowth(ctx, journal, report, pawn, move); err != nil {
 				return err
 			}
-			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Bed(), "after the growth")
+			return ownsBed(ctx, h, s.Identity(), pawn, move.assign.Thing(), "after the growth")
 		},
 	})
 	return err
@@ -316,16 +316,16 @@ func auditGrowth(ctx context.Context, journal *store.Store, report na.Report, pa
 			relocations++
 		}
 		for _, a := range plan.Spec.Actions() {
-			assign, ok := a.BedAssign()
+			assign, ok := a.Assign()
 			if !ok || assign.Pawn() != pawn {
 				continue
 			}
-			if assign.Bed() == move.assign.Bed() && assign.PreviousBed().ID() == move.assign.PreviousBed().ID() {
+			if assign.Thing() == move.assign.Thing() && assign.Previous().ID() == move.assign.Previous().ID() {
 				after = true
 				continue
 			}
 			if after {
-				return fmt.Errorf("colonist %s was reassigned to %s after the suite move (method %s)", pawn, assign.Bed(), method)
+				return fmt.Errorf("colonist %s was reassigned to %s after the suite move (method %s)", pawn, assign.Thing(), method)
 			}
 		}
 	}

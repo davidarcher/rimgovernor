@@ -208,7 +208,10 @@ impressiveness, floor, furniture rows; without a holder's ideo exemptions) and
 `ceremonies` lists each offered or ongoing bestowing-ceremony quest
 (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`): quest id, colonist,
 bestower, awarded title, accepted, bestower waiting in the lord's Wait toil,
-started, spot and the lord's colonist attendees (#1602). It is separate from the pawn row and
+started, spot and the lord's colonist attendees (#1602). `thrones` lists every
+spawned player throne (`Building_Throne`) with its assigned owner, absent when
+unassigned (#1601); a throne appears once it stands, so the planner treats one
+the read does not list as built after it. It is separate from the pawn row and
 slow-changing: the Go client reuses a read for `RoyaltyRefreshTicks` and
 decodes it into `policy.RoyaltyFacts`, where an absent scalar is unknown.
 Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
@@ -257,7 +260,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | ZoneIntent.zone (Ref) | ListZones.zone.id; ListBuildings storage row id |
-| BedAssignIntent.pawn_id/bed_id/expected_previous_bed | ListPawns.pawn and owned bed; ListBuildings.building |
+| AssignIntent.pawn_id/thing_id/expected_previous | ListPawns.pawn and owned bed; ListBuildings.building; RoyaltyFacts.thrones.thing for a throne |
 | NeedReliefIntent.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | PawnOrderIntent WEAR pawn/target | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
 | HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |

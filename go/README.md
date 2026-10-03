@@ -629,7 +629,7 @@ remains disabled. The reviewer journals needs; the `sleeping` family compiles
 eligible shelter deficits into pending methods at that same paused boundary
 under the player gate, and a failed preview prevents a new clock window. The
 same family declares `MaintainHousing`: its upkeep planner assigns a vacant
-suitable bed to a colonist without one through the typed `bed_assign`
+suitable bed to a colonist without one through the typed `assign`
 operation (one per goal epoch, carrying the expected previous bed) and, when
 nobody can be assigned, stages one `Bed` through the building ladder in a
 Bedroom-hosting room whose observed temperature suits the unhoused colonists;

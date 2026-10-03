@@ -12,13 +12,13 @@ import (
 )
 
 // upkeep/couple (#812): two bedless lovers beside one vacant double bed.
-// MaintainHousing must assign both to it through BedAssignIntents and recovers
+// MaintainHousing must assign both to it through AssignIntents and recovers
 // only once each is observed sleeping there, so neither sleeps alone.
 func init() {
 	sleeping := scenarios()["sleeping"]
 	cases.Register(cases.Case{
 		Name:   "upkeep/couple",
-		Scope:  "Couples share a bedroom (#812): two willing lovers are both assigned one vacant double bed via BedAssignIntents and MaintainHousing recovers on their observed shared sleep.",
+		Scope:  "Couples share a bedroom (#812): two willing lovers are both assigned one vacant double bed via AssignIntents and MaintainHousing recovers on their observed shared sleep.",
 		Start:  cases.LabStart(),
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "work"}, Extra: sleeping.extra, Prefix: prefix},

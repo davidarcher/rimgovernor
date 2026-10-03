@@ -107,16 +107,18 @@ planner raises it under MaintainHousing, like the tomb:
 3. The standing room gets the title's minimum impressiveness as a room
    quality target (reason `title`), which the room upgrade and beauty
    upgrade fill with end table, dresser, lamp, plant pot and floor.
+4. Once the throne stands and the holder holds a title, `NextThroneStep`
+   reports `ThroneAssign` while the royalty read's `thrones` list shows the
+   standing throne unowned (a throne built after the read waits for the next
+   one; one owned by another colonist is left alone). The runtime sends the
+   generic `assign` action (`AssignIntent`) with the holder's current throne
+   as the expected previous assignment, once per holder and throne per goal
+   epoch. The step holds MaintainHousing open until the read lists the holder
+   as the throne's owner.
 
 The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without
 Royalty, no throne room is owed.
-
-Assigning the throne to its holder is not implemented: it needs a
-`ThroneAssign` action kind, which awaits a decision (#1601).
-`NextThroneStep` reports `ThroneAssign` once the throne stands and the
-runtime's `throneAssignmentSeam` receives it and does nothing, so the step
-is never owed and MaintainHousing is not held open by it.
 
 ### Bestowing ceremony and title claim
 

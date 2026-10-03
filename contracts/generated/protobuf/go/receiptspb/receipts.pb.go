@@ -776,7 +776,7 @@ type EffectEvidence struct {
 	//	*EffectEvidence_Bill
 	//	*EffectEvidence_Research
 	//	*EffectEvidence_Zone
-	//	*EffectEvidence_Bed
+	//	*EffectEvidence_Assign
 	//	*EffectEvidence_Wall
 	//	*EffectEvidence_Job
 	//	*EffectEvidence_Animal
@@ -902,10 +902,10 @@ func (x *EffectEvidence) GetZone() *ZoneEffect {
 	return nil
 }
 
-func (x *EffectEvidence) GetBed() *BedEffect {
+func (x *EffectEvidence) GetAssign() *AssignEffect {
 	if x != nil {
-		if x, ok := x.Effect.(*EffectEvidence_Bed); ok {
-			return x.Bed
+		if x, ok := x.Effect.(*EffectEvidence_Assign); ok {
+			return x.Assign
 		}
 	}
 	return nil
@@ -1123,8 +1123,8 @@ type EffectEvidence_Zone struct {
 	Zone *ZoneEffect `protobuf:"bytes,8,opt,name=zone,proto3,oneof"`
 }
 
-type EffectEvidence_Bed struct {
-	Bed *BedEffect `protobuf:"bytes,10,opt,name=bed,proto3,oneof"`
+type EffectEvidence_Assign struct {
+	Assign *AssignEffect `protobuf:"bytes,10,opt,name=assign,proto3,oneof"`
 }
 
 type EffectEvidence_Wall struct {
@@ -1221,7 +1221,7 @@ func (*EffectEvidence_Research) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_Zone) isEffectEvidence_Effect() {}
 
-func (*EffectEvidence_Bed) isEffectEvidence_Effect() {}
+func (*EffectEvidence_Assign) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_Wall) isEffectEvidence_Effect() {}
 
@@ -2547,31 +2547,31 @@ func (x *ZoneEffect) GetPhantomCellCount() int32 {
 	return 0
 }
 
-type BedEffect struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PawnId        *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
-	BedId         *string                `protobuf:"bytes,2,opt,name=bed_id,json=bedId,proto3,oneof" json:"bed_id,omitempty"`
-	PreviousBedId *string                `protobuf:"bytes,3,opt,name=previous_bed_id,json=previousBedId,proto3,oneof" json:"previous_bed_id,omitempty"`
-	Assigned      *bool                  `protobuf:"varint,4,opt,name=assigned,proto3,oneof" json:"assigned,omitempty"`
-	Sleeping      *bool                  `protobuf:"varint,5,opt,name=sleeping,proto3,oneof" json:"sleeping,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type AssignEffect struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PawnId          *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
+	ThingId         *string                `protobuf:"bytes,2,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
+	PreviousThingId *string                `protobuf:"bytes,3,opt,name=previous_thing_id,json=previousThingId,proto3,oneof" json:"previous_thing_id,omitempty"`
+	Assigned        *bool                  `protobuf:"varint,4,opt,name=assigned,proto3,oneof" json:"assigned,omitempty"`
+	Sleeping        *bool                  `protobuf:"varint,5,opt,name=sleeping,proto3,oneof" json:"sleeping,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *BedEffect) Reset() {
-	*x = BedEffect{}
+func (x *AssignEffect) Reset() {
+	*x = AssignEffect{}
 	mi := &file_receipts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BedEffect) String() string {
+func (x *AssignEffect) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BedEffect) ProtoMessage() {}
+func (*AssignEffect) ProtoMessage() {}
 
-func (x *BedEffect) ProtoReflect() protoreflect.Message {
+func (x *AssignEffect) ProtoReflect() protoreflect.Message {
 	mi := &file_receipts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2583,40 +2583,40 @@ func (x *BedEffect) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BedEffect.ProtoReflect.Descriptor instead.
-func (*BedEffect) Descriptor() ([]byte, []int) {
+// Deprecated: Use AssignEffect.ProtoReflect.Descriptor instead.
+func (*AssignEffect) Descriptor() ([]byte, []int) {
 	return file_receipts_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *BedEffect) GetPawnId() string {
+func (x *AssignEffect) GetPawnId() string {
 	if x != nil && x.PawnId != nil {
 		return *x.PawnId
 	}
 	return ""
 }
 
-func (x *BedEffect) GetBedId() string {
-	if x != nil && x.BedId != nil {
-		return *x.BedId
+func (x *AssignEffect) GetThingId() string {
+	if x != nil && x.ThingId != nil {
+		return *x.ThingId
 	}
 	return ""
 }
 
-func (x *BedEffect) GetPreviousBedId() string {
-	if x != nil && x.PreviousBedId != nil {
-		return *x.PreviousBedId
+func (x *AssignEffect) GetPreviousThingId() string {
+	if x != nil && x.PreviousThingId != nil {
+		return *x.PreviousThingId
 	}
 	return ""
 }
 
-func (x *BedEffect) GetAssigned() bool {
+func (x *AssignEffect) GetAssigned() bool {
 	if x != nil && x.Assigned != nil {
 		return *x.Assigned
 	}
 	return false
 }
 
-func (x *BedEffect) GetSleeping() bool {
+func (x *AssignEffect) GetSleeping() bool {
 	if x != nil && x.Sleeping != nil {
 		return *x.Sleeping
 	}
@@ -5025,7 +5025,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tUncertain\x12L\n" +
 	"\rlast_observed\x18\x01 \x01(\v2'.rimgovernor.receipts.v1.EffectEvidenceR\flastObserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\xa0\x10\n" +
+	"\a_detail\"\xa9\x10\n" +
 	"\x0eEffectEvidence\x12Q\n" +
 	"\fconstruction\x18\x01 \x01(\v2+.rimgovernor.receipts.v1.ConstructionEffectH\x00R\fconstruction\x12Q\n" +
 	"\finstallation\x18\x02 \x01(\v2+.rimgovernor.receipts.v1.InstallationEffectH\x00R\finstallation\x12N\n" +
@@ -5033,9 +5033,9 @@ const file_receipts_proto_rawDesc = "" +
 	"\bsettings\x18\x04 \x01(\v2'.rimgovernor.receipts.v1.SettingsEffectH\x00R\bsettings\x129\n" +
 	"\x04bill\x18\x05 \x01(\v2#.rimgovernor.receipts.v1.BillEffectH\x00R\x04bill\x12E\n" +
 	"\bresearch\x18\x06 \x01(\v2'.rimgovernor.receipts.v1.ResearchEffectH\x00R\bresearch\x129\n" +
-	"\x04zone\x18\b \x01(\v2#.rimgovernor.receipts.v1.ZoneEffectH\x00R\x04zone\x126\n" +
-	"\x03bed\x18\n" +
-	" \x01(\v2\".rimgovernor.receipts.v1.BedEffectH\x00R\x03bed\x129\n" +
+	"\x04zone\x18\b \x01(\v2#.rimgovernor.receipts.v1.ZoneEffectH\x00R\x04zone\x12?\n" +
+	"\x06assign\x18\n" +
+	" \x01(\v2%.rimgovernor.receipts.v1.AssignEffectH\x00R\x06assign\x129\n" +
 	"\x04wall\x18\v \x01(\v2#.rimgovernor.receipts.v1.WallEffectH\x00R\x04wall\x126\n" +
 	"\x03job\x18\r \x01(\v2\".rimgovernor.receipts.v1.JobEffectH\x00R\x03job\x12?\n" +
 	"\x06animal\x18\x0f \x01(\v2%.rimgovernor.receipts.v1.AnimalEffectH\x00R\x06animal\x12E\n" +
@@ -5259,17 +5259,17 @@ const file_receipts_proto_rawDesc = "" +
 	"\x0e_changed_cellsB\x14\n" +
 	"\x12_listed_cell_countB\x12\n" +
 	"\x10_grid_cell_countB\x15\n" +
-	"\x13_phantom_cell_count\"\xf9\x01\n" +
-	"\tBedEffect\x12\x1c\n" +
-	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
-	"\x06bed_id\x18\x02 \x01(\tH\x01R\x05bedId\x88\x01\x01\x12+\n" +
-	"\x0fprevious_bed_id\x18\x03 \x01(\tH\x02R\rpreviousBedId\x88\x01\x01\x12\x1f\n" +
+	"\x13_phantom_cell_count\"\x88\x02\n" +
+	"\fAssignEffect\x12\x1c\n" +
+	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1e\n" +
+	"\bthing_id\x18\x02 \x01(\tH\x01R\athingId\x88\x01\x01\x12/\n" +
+	"\x11previous_thing_id\x18\x03 \x01(\tH\x02R\x0fpreviousThingId\x88\x01\x01\x12\x1f\n" +
 	"\bassigned\x18\x04 \x01(\bH\x03R\bassigned\x88\x01\x01\x12\x1f\n" +
 	"\bsleeping\x18\x05 \x01(\bH\x04R\bsleeping\x88\x01\x01B\n" +
 	"\n" +
-	"\b_pawn_idB\t\n" +
-	"\a_bed_idB\x12\n" +
-	"\x10_previous_bed_idB\v\n" +
+	"\b_pawn_idB\v\n" +
+	"\t_thing_idB\x14\n" +
+	"\x12_previous_thing_idB\v\n" +
 	"\t_assignedB\v\n" +
 	"\t_sleeping\"\xb1\x03\n" +
 	"\x11DeconstructEffect\x12 \n" +
@@ -5708,7 +5708,7 @@ var file_receipts_proto_goTypes = []any{
 	(*ResearchEffect)(nil),              // 24: rimgovernor.receipts.v1.ResearchEffect
 	(*CellResult)(nil),                  // 25: rimgovernor.receipts.v1.CellResult
 	(*ZoneEffect)(nil),                  // 26: rimgovernor.receipts.v1.ZoneEffect
-	(*BedEffect)(nil),                   // 27: rimgovernor.receipts.v1.BedEffect
+	(*AssignEffect)(nil),                // 27: rimgovernor.receipts.v1.AssignEffect
 	(*DeconstructEffect)(nil),           // 28: rimgovernor.receipts.v1.DeconstructEffect
 	(*CombatOrderResult)(nil),           // 29: rimgovernor.receipts.v1.CombatOrderResult
 	(*CombatOrdersEffect)(nil),          // 30: rimgovernor.receipts.v1.CombatOrdersEffect
@@ -5763,7 +5763,7 @@ var file_receipts_proto_depIdxs = []int32{
 	23, // 12: rimgovernor.receipts.v1.EffectEvidence.bill:type_name -> rimgovernor.receipts.v1.BillEffect
 	24, // 13: rimgovernor.receipts.v1.EffectEvidence.research:type_name -> rimgovernor.receipts.v1.ResearchEffect
 	26, // 14: rimgovernor.receipts.v1.EffectEvidence.zone:type_name -> rimgovernor.receipts.v1.ZoneEffect
-	27, // 15: rimgovernor.receipts.v1.EffectEvidence.bed:type_name -> rimgovernor.receipts.v1.BedEffect
+	27, // 15: rimgovernor.receipts.v1.EffectEvidence.assign:type_name -> rimgovernor.receipts.v1.AssignEffect
 	39, // 16: rimgovernor.receipts.v1.EffectEvidence.wall:type_name -> rimgovernor.receipts.v1.WallEffect
 	41, // 17: rimgovernor.receipts.v1.EffectEvidence.job:type_name -> rimgovernor.receipts.v1.JobEffect
 	42, // 18: rimgovernor.receipts.v1.EffectEvidence.animal:type_name -> rimgovernor.receipts.v1.AnimalEffect
@@ -5869,7 +5869,7 @@ func file_receipts_proto_init() {
 		(*EffectEvidence_Bill)(nil),
 		(*EffectEvidence_Research)(nil),
 		(*EffectEvidence_Zone)(nil),
-		(*EffectEvidence_Bed)(nil),
+		(*EffectEvidence_Assign)(nil),
 		(*EffectEvidence_Wall)(nil),
 		(*EffectEvidence_Job)(nil),
 		(*EffectEvidence_Animal)(nil),

@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             [Operations.Action.IntentOneofCase.Ritual] = new RitualActionHandler(),
             [Operations.Action.IntentOneofCase.Ability] = new AbilityActionHandler(),
             [Operations.Action.IntentOneofCase.FormCaravan] = new FormCaravanActionHandler(),
-            [Operations.Action.IntentOneofCase.BedAssign] = new BedAssignActionHandler(),
+            [Operations.Action.IntentOneofCase.Assign] = new AssignActionHandler(),
             [Operations.Action.IntentOneofCase.WorkSettings] = new WorkSettingsActionHandler(),
             [Operations.Action.IntentOneofCase.ProductionBill] = new ProductionBillActionHandler(),
             [Operations.Action.IntentOneofCase.Husbandry] = new HusbandryActionHandler(),

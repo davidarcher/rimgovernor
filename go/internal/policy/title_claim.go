@@ -129,7 +129,7 @@ func throneMet(f TitleClaimFacts, rung RoyalRung) domain.Fact[bool] {
 		return domain.Known(false)
 	}
 	standing, ok := PlannedRoomStanding(room, f.Rooms)
-	if !ok || !throneStands(room, need, f.Built) {
+	if _, stands := standingThroneIn(room, need, f.Built); !ok || !stands {
 		return domain.Known(false)
 	}
 	if need.MinImpressiveness <= 0 {

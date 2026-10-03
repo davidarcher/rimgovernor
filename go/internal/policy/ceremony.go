@@ -81,7 +81,7 @@ func CeremonyThroneNeed(f RoyaltyFacts) (ThroneNeed, bool) {
 				continue
 			}
 			if need, ok := rungRequirement(rung); ok {
-				need.Holder = c.Pawn
+				need.Holder, need.Titled = c.Pawn, holdsTitle(f, c.Pawn)
 				return need, true
 			}
 		}

@@ -1118,7 +1118,12 @@ message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHold
 // (the throne spot) and attendees the lord's colonist participants. Each
 // scalar is absent when native could not read it.
 message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Ref pawn = 1; rimgovernor.common.v1.Ref bestower = 2; optional string faction_def = 3; optional string title = 4; optional bool accepted = 5; optional bool bestower_waiting = 6; optional bool started = 7; rimgovernor.common.v1.Cell spot = 8; repeated rimgovernor.common.v1.Ref attendees = 9; }
-message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; }
+// Throne ownership (#1601): thrones lists every spawned player throne
+// (Building_Throne) with its assigned owner; owner is absent when none is
+// assigned. A throne appears once it stands, so a throne missing from the
+// list was built after the read.
+message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
+message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // Animal race catalog (#1625): the static facts of every animal race the game

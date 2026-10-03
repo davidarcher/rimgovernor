@@ -19,7 +19,7 @@ const (
 	// SleepingNoDemand: every colonist owns a suitable bed; the goal waits
 	// on observed use.
 	SleepingNoDemand SleepingMethod = "no_demand"
-	// SleepingAssign: transfer ownership of Bed to Pawn (BedAssignIntent).
+	// SleepingAssign: transfer ownership of Bed to Pawn (AssignIntent).
 	SleepingAssign SleepingMethod = "assign"
 	// SleepingBuild: stage Definition in a Bedroom-hosting room whose
 	// temperature suits the colonists still waiting; the next review assigns

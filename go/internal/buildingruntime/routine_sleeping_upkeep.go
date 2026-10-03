@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -23,7 +24,7 @@ const (
 
 // RoutineSleepingUpkeepPlanner answers MaintainHousing's bedroom phase: it transfers
 // ownership of a vacant suitable bed to a colonist without one (a one-shot
-// BedAssignIntent native checks for roof, access, allowed area and the
+// AssignIntent native checks for roof, access, allowed area and the
 // pawn's comfortable band), and when no bed can be assigned it stages one
 // through the same building ladder the hospital walks (furnish a
 // Bedroom-hosting room warm enough for the waiting colonists, else a starter
@@ -230,6 +231,10 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		return RoutineBuildingResult{}, err
 	}
 	for _, m := range methods {
+		// Only a bed assignment is followed by observed sleep.
+		if strings.HasPrefix(string(m.Method), "throne-") {
+			continue
+		}
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
 			return RoutineBuildingResult{}, err
@@ -260,7 +265,7 @@ func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnap
 		return 0
 	}
 	p := plan.Progress[0]
-	if _, ok := p.Action().BedAssign(); !ok {
+	if _, ok := p.Action().Assign(); !ok {
 		return 0
 	}
 	// The assignment's observation is taken at the root plan's scope, so
@@ -398,20 +403,20 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	// not retried; the next epoch reconsiders. The one exception is an
 	// intent native refused: that leaves no effect behind, so a bounded
 	// number of fresh attempts follow.
-	method, err := r.assignMethod(call, goal, choice)
+	method, err := r.assignMethod(call, goal, fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed))
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if method == "" {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
-	previous := domain.ClearPreviousBed()
+	previous := domain.ClearPrevious()
 	if choice.PreviousBed != "" {
-		if previous, err = domain.KnownPreviousBed(choice.PreviousBed); err != nil {
+		if previous, err = domain.KnownPrevious(choice.PreviousBed); err != nil {
 			return RoutineBuildingResult{}, err
 		}
 	}
-	assign, err := domain.NewBedAssign(domain.PawnID(choice.Pawn), choice.Bed, previous)
+	assign, err := domain.NewAssign(domain.PawnID(choice.Pawn), choice.Bed, previous)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -422,7 +427,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
 	id := domain.MintPlanID()
-	action, err := domain.NewBedAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
+	action, err := domain.NewAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -455,11 +460,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 const sleepingAssignAttempts = 3
 
 // assignMethod returns the method ID for the next assignment attempt of this
-// epoch, or "" when the pair was already applied (or the
+// epoch under base, or "" when the pair was already applied (or the
 // attempt bound is spent).
-func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.GoalState, choice policy.SleepingChoice) (domain.MethodID, error) {
+func (r *RoutineSleepingUpkeepPlanner) assignMethod(call context.Context, goal store.GoalState, base string) (domain.MethodID, error) {
 	p := r.reviewer.player
-	base := fmt.Sprintf("sleeping-assign-%s-%s", choice.Pawn, choice.Bed)
 	for try := 0; try < sleepingAssignAttempts; try++ {
 		method := domain.MethodID(base)
 		if try > 0 {

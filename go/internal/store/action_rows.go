@@ -234,18 +234,18 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if medical, ok := a.BedUse(); ok {
 		// definition carries the wanted flag, or "prisoners" (#880).
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'bed_medical',?,?)", a.ID(), plan, ordinal, medical.Thing(), bedUseDefinition(medical))
-	} else if assign, ok := a.BedAssign(); ok {
+	} else if assign, ok := a.Assign(); ok {
 		// definition carries the expected previous bed; empty means none.
 		def := ""
-		if !assign.PreviousBed().Clear() {
-			def = assign.PreviousBed().ID()
+		if !assign.Previous().Clear() {
+			def = assign.Previous().ID()
 		}
 		// stuff carries "swap" for a bedroom swap (#1243).
 		var swap any
 		if assign.Swap() {
 			swap = "swap"
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,stuff) VALUES(?,?,?,'bed_assign',?,?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Bed(), def, swap)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,stuff) VALUES(?,?,?,'assign',?,?,?,?)", a.ID(), plan, ordinal, assign.Pawn(), assign.Thing(), def, swap)
 	} else if relief, ok := a.MoodRelief(); ok {
 		data, encodeErr := json.Marshal(moodReliefPayload{relief.Need()})
 		if encodeErr != nil {
@@ -974,22 +974,22 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewBedUseAction(id, medical)
 		return a, ordinal, err
 	}
-	if kind == "bed_assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "swap") {
-		previous := domain.ClearPreviousBed()
+	if kind == "assign" && pawn.Valid && target.Valid && def.Valid && !x.Valid && !z.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "swap") {
+		previous := domain.ClearPrevious()
 		if def.String != "" {
 			var err error
-			if previous, err = domain.KnownPreviousBed(def.String); err != nil {
+			if previous, err = domain.KnownPrevious(def.String); err != nil {
 				return domain.Action{}, 0, err
 			}
 		}
-		assign, err := domain.NewBedAssign(domain.PawnID(pawn.String), target.String, previous)
+		assign, err := domain.NewAssign(domain.PawnID(pawn.String), target.String, previous)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
 		if stuff.Valid {
 			assign = assign.AsSwap()
 		}
-		a, err := domain.NewBedAssignAction(id, assign)
+		a, err := domain.NewAssignAction(id, assign)
 		return a, ordinal, err
 	}
 	if kind == "husbandry" && target.Valid && def.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {

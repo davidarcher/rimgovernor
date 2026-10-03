@@ -30,6 +30,7 @@ func royaltyRead() *o.RoyaltyFacts {
 			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900)},
 			{DefName: proto.String("Burden")},
 		}}},
+		Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}, DefName: proto.String("Throne"), Owner: &c.Ref{Id: proto.String("Human12")}}, {Thing: &c.Ref{Id: proto.String("Throne_2")}, DefName: proto.String("Throne")}},
 		Neuroformers: []*o.NeuroformerStock{
 			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
 			{DefName: proto.String("Neurotrainer_Skip"), TeachesPsycast: proto.String("Skip")},
@@ -130,6 +131,10 @@ func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
 	if _, ok := rung.BedroomMinArea.Value(); ok {
 		t.Fatal("absent bedroom area read as known")
 	}
+	// The throne-owner fact (#1601): an owned throne and an unowned one.
+	if len(facts.Thrones) != 2 || facts.Thrones[0] != (policy.RoyalThrone{ID: "Throne_1", Def: "Throne", Owner: "Human12"}) || facts.Thrones[1] != (policy.RoyalThrone{ID: "Throne_2", Def: "Throne"}) {
+		t.Fatalf("thrones %+v", facts.Thrones)
+	}
 	if len(facts.Ceremonies) != 1 {
 		t.Fatalf("ceremonies %+v", facts.Ceremonies)
 	}
@@ -149,7 +154,7 @@ func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held"} {
+	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit", "psycast-duplicate", "psycast-cost", "psycast-target", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
@@ -191,6 +196,10 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Pawns[0].Psycasts[0].TargetKind = o.PsycastTargetKind(99)
 			case "neuroformer-duplicate":
 				v.Neuroformers = append(v.Neuroformers, v.Neuroformers[0])
+			case "throne-duplicate":
+				v.Thrones = append(v.Thrones, v.Thrones[0])
+			case "throne-owner":
+				v.Thrones[0].Owner.Id = proto.String(" ")
 			case "neuroformer-held":
 				v.Neuroformers[0].Held = proto.Int32(-1)
 			}
