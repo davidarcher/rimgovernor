@@ -76,6 +76,16 @@ namespace HomeBridge.BridgeTools
             // colonists can say so, an all-downed colony leaves it standing.
             var mobile = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).ToList();
             snapshot.AccessReachable = stand.IsValid && (mobile.Count == 0 || mobile.Any(p => p.CanReach(stand, PathEndMode.OnCell, Danger.None)));
+            // A door threshold still inside the mountain has no standing
+            // cell, but the dig runs from the open front: a miner mines the
+            // rock beside any open cell it reaches, then the next cell
+            // (#1671).
+            if (!snapshot.AccessReachable && mobile.Count > 0)
+            {
+                var fronts = cells.Where(c => c.InBounds(map)).SelectMany(c => GenAdj.CardinalDirections.Select(o => c + o))
+                    .Where(n => n.InBounds(map) && !n.Fogged(map) && n.Walkable(map) && mobile.Any(p => p.CanReach(n, PathEndMode.OnCell, Danger.None))).Take(1).ToList();
+                if (fronts.Count > 0) { stand = fronts[0]; snapshot.AccessReachable = true; }
+            }
             var workers = snapshot.AccessReachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
             snapshot.WorkerAvailable = workers.Count > 0;
             foreach (var worker in workers) snapshot.WorkerIds.Add(worker.GetUniqueLoadID());
