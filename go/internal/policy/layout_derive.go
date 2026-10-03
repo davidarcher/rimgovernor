@@ -45,6 +45,13 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // wing it otherwise could not (dropEmptiedWings); else it stays as spare
 // beds.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
+	return ReplanLayoutWithThrone(plan, s, 0, pawns, tombs, tier, geysers, emptied, suites...)
+}
+
+// ReplanLayoutWithThrone is ReplanLayout that also keeps a throne room of at
+// least throneArea cells (#1601; 0 asks for none), added after the rest of
+// the rooms and before the perimeter is replanned around them.
+func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
@@ -70,6 +77,8 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	next, freed := dropEmptiedWings(next, emptied, pawns, tombs, tier, suites...)
 	dropped = dropped || freed
+	next, throne := growThroneRoom(next, throneArea)
+	dropped = dropped || throne
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))

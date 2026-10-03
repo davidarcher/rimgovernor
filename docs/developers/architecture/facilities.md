@@ -85,8 +85,38 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | Hospital | implemented (hosted bed) | Bedroom, Barracks, Room | medical bed / sleeping spot |
 | Workshop | implemented | Barracks, Room | the bench the recipe catalog names for the deficit |
 | Laboratory | implemented | Workshop, Barracks, Room | SimpleResearchBench |
+| ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
 | Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb, Barn | pending | | |
-| ThroneRoom (Royalty), WorshipRoom (Ideology), Nursery, Playroom, Classroom, DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+| WorshipRoom (Ideology), Nursery, Playroom, Classroom, DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+
+### Throne room
+
+A colonist who holds an Empire title, or has the favor to claim the next
+one, is owed the throne room of the first title above its own whose
+requirement names a throne and a minimum area (`RoyalRung.Throne*`, the
+royalty read; the largest room any colonist is owed wins). The sleeping
+planner raises it under MaintainHousing, like the tomb:
+
+1. The layout review grows a `throne` core room of at least
+   `throne_min_area` cells (`policy.ReplanLayoutWithThrone`); existing
+   rooms never move, so a title that outgrows the room adds a larger one.
+2. `NextThroneStep` shells the room, then places the title's throne at
+   the template's back-wall slot. The throne's footprint is the native
+   definition catalog's size, never a constant; an unavailable throne or an
+   unknown size places nothing.
+3. The standing room gets the title's minimum impressiveness as a room
+   quality target (reason `title`), which the room upgrade and beauty
+   upgrade fill with end table, dresser, lamp, plant pot and floor.
+
+The royalty read reaches the projection through the optional
+`RoyaltyNative` source (like `MapSurveyNative`); without it, or without
+Royalty, no throne room is owed.
+
+Assigning the throne to its holder is not implemented: it needs a
+`ThroneAssign` action kind, which awaits a decision (#1601).
+`NextThroneStep` reports `ThroneAssign` once the throne stands and the
+runtime's `throneAssignmentSeam` receives it and does nothing, so the step
+is never owed and MaintainHousing is not held open by it.
 
 Content-gated rows are pursued only when their definitions exist in the
 planning census. The table is the catalog's own rows; `go test ./internal/policy`

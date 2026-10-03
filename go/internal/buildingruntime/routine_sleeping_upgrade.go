@@ -28,6 +28,7 @@ func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) 
 			targets[id] = t
 		}
 	}
+	targets = withThroneTargets(facts, targets)
 	available := func(def string) bool {
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
@@ -98,7 +99,7 @@ func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool
 	for _, d := range facts.Definitions {
 		floors.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
 	}
-	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
+	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.

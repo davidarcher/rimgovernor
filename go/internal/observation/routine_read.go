@@ -304,3 +304,12 @@ func FinishedResearch(research domain.Fact[policy.ResearchFacts]) domain.Fact[[]
 	}
 	return domain.Unknown[[]policy.ResearchProjectID]()
 }
+
+// AddDefinitions appends to p the planning rows of names the frame's
+// catalog describes and p does not hold yet (a definition only a later
+// read names, such as a title's throne).
+func (p *ColonyProjection) AddDefinitions(frame bridge.RoutineFrame, names []string) {
+	if frame.Catalog != nil {
+		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, names)
+	}
+}

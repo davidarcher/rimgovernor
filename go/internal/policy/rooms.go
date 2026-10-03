@@ -221,7 +221,10 @@ func FacilityCatalog() []FacilityRequirement {
 		// places a sarcophagus while a dead colonist has none waiting.
 		{Role: RoomRoleTomb, Status: FacilityImplemented, Furniture: []string{SarcophagusDefinition}},
 		{Role: RoomRoleBarn, Status: FacilityPending},
-		{Role: RoomRoleThroneRoom, Status: FacilityPending, Content: "Royalty"},
+		// A throne room is its own planned room (#1601): MaintainHousing shells
+		// it sized to the next title's area, places a throne and furnishes it to
+		// the title's impressiveness; assigning the throne awaits an action kind.
+		{Role: RoomRoleThroneRoom, Status: FacilityImplemented, Content: "Royalty", Furniture: []string{"Throne", "GrandThrone"}},
 		{Role: RoomRoleWorshipRoom, Status: FacilityPending, Content: "Ideology"},
 		{Role: RoomRoleNursery, Status: FacilityPending, Content: "Biotech"},
 		{Role: RoomRolePlayroom, Status: FacilityPending, Content: "Biotech"},

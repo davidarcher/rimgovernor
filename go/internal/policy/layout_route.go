@@ -26,7 +26,7 @@ var routeTrips = [][2]ModuleRole{
 // noThroughfare are the roles nobody may walk through.
 var noThroughfare = map[ModuleRole]bool{
 	ModuleBedroom: true, ModuleSuite: true, ModuleBarracks: true, ModulePrison: true,
-	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true,
+	ModuleKitchen: true, ModuleHospital: true, ModuleLab: true, ModuleThrone: true,
 }
 
 // CheckRoutes paths every trip over p and returns how many paths cross each

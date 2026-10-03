@@ -287,7 +287,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), r.reviewer.rememberedThrones()...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -354,6 +354,11 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			// A suite grown in the plan is walked there (#1218).
 			if growth, due := suiteGrowth(facts); due {
 				return r.growSuite(call, epoch, state, review, goal, reading, growth)
+			}
+			// The title's throne room: shell, throne, then its furnishing
+			// through the room upgrade below (#1601).
+			if throne := throneStep(facts); throne.Owed() {
+				return r.stageThrone(call, epoch, state, review, goal, reading, throne)
 			}
 			swap, ok := bedroomSwap(facts)
 			if !ok {

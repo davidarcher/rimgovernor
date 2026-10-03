@@ -51,6 +51,10 @@ type routineCensusStore struct {
 	// fresh read never drops the plan the review already derived.
 	layout      domain.Fact[policy.LayoutPlan]
 	layoutScope observation.Identity
+	// royalty is the royalty read the latest review served for royaltyScope
+	// (#1601), served to planners the same way as the layout plan.
+	royalty      domain.Fact[policy.RoyaltyFacts]
+	royaltyScope observation.Identity
 	// benches is the mirror version of the bench table the latest review
 	// refreshed (0: it read none), which planners of its census serve.
 	benches uint64
@@ -93,18 +97,39 @@ func (s *routineCensusStore) rememberLayout(identity observation.Identity, layou
 	s.mu.Unlock()
 }
 
-// serveLayout sets the remembered layout plan on a fresh projection of the
-// same colony, map and load.
-func (s *routineCensusStore) serveLayout(projection *observation.ColonyProjection) {
-	if _, known := projection.LayoutPlan.Value(); known {
-		return
-	}
+// rememberRoyalty keeps the royalty read the review served under its identity.
+func (s *routineCensusStore) rememberRoyalty(identity observation.Identity, royalty domain.Fact[policy.RoyaltyFacts]) {
 	s.mu.Lock()
-	layout, scope := s.layout, s.layoutScope
+	s.royalty, s.royaltyScope = royalty, identity
+	s.mu.Unlock()
+}
+
+// remembered is the latest royalty read, whatever its scope.
+func (s *routineCensusStore) remembered() domain.Fact[policy.RoyaltyFacts] {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.royalty
+}
+
+// serveLayout sets the remembered layout plan and royalty read on a fresh
+// projection of the same colony, map and load.
+func (s *routineCensusStore) serveLayout(projection *observation.ColonyProjection) {
+	s.mu.Lock()
+	layout, scope, royalty, royaltyScope := s.layout, s.layoutScope, s.royalty, s.royaltyScope
 	s.mu.Unlock()
 	id := projection.Identity
-	if _, known := layout.Value(); known && scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load {
-		projection.LayoutPlan = layout
+	same := func(scope observation.Identity) bool {
+		return scope.Colony == id.Colony && scope.Map == id.Map && scope.Load == id.Load
+	}
+	if _, known := projection.LayoutPlan.Value(); !known {
+		if _, known := layout.Value(); known && same(scope) {
+			projection.LayoutPlan = layout
+		}
+	}
+	if _, known := projection.Royalty.Value(); !known {
+		if _, known := royalty.Value(); known && same(royaltyScope) {
+			projection.Royalty = royalty
+		}
 	}
 }
 

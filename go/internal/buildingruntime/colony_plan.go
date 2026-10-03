@@ -98,7 +98,14 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		r.logSuiteClaims(ctx, claims)
 	}
 	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && hourly
-	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite) {
+	// A colonist who holds or can claim a title that asks for a throne room
+	// the plan lacks (#1601): grow one sized to the title's area.
+	throneArea := 0
+	if need, owed := throneNeed(*projection); haveLayout {
+		throneArea = policy.ThroneAreaOwed(layout.Plan, need, owed)
+	}
+	throne := throneArea > 0 && hourly
+	if native, ok := r.native.(MapSurveyNative); ok && (outgrown || missing || terrain || research || tomb || suite || throne) {
 		replanned := false
 		if survey, _, err := native.ReadMapSurvey(ctx, controlIdentity(snapshot), projection.Bounds); err != nil {
 			clockSchedulerLog("layout plan check deferred, map survey unavailable: %v", err)
@@ -109,10 +116,10 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 				err = r.deriveLayoutPlan(ctx, snapshot, tick, survey, int(pawns), layoutTier(*projection), topology.Geysers)
 				r.planGrownFor, r.planPawns, r.planInputs = grown, int(pawns), layoutInputs{}
 			} else {
-				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers), bounds: survey.Bounds, cells: survey.Cells}
+				inputs := layoutInputs{planTick: layout.Tick, key: fmt.Sprint(grown, pawns, tombs, suites, topology.Geysers, throneArea), bounds: survey.Bounds, cells: survey.Cells}
 				if !inputs.same(r.planInputs) {
-					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite})
-					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
+					reason := layoutReasons(map[string]bool{"outgrown": outgrown, "terrain": inputs.bounds != r.planInputs.bounds || !slices.Equal(inputs.cells, r.planInputs.cells), "pawns": int(pawns) != r.planPawns, "research": research, "tomb": tomb, "suite": suite, "throne": throne})
+					err = r.replanLayout(ctx, snapshot, tick, layout.Plan, survey, throneArea, int(pawns), tombs, layoutTier(*projection), reason, topology.Geysers, policy.EmptiedRetiringWings(layout.Plan, projection.Rooms, projection.Facts.Sleeping), suites)
 					if err == nil {
 						r.planGrownFor, r.planPawns = grown, int(pawns)
 						r.planInputs, replanned = inputs, true
@@ -230,8 +237,8 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
-func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
-	next, changed := policy.ReplanLayout(plan, survey, pawns, tombs, tier, geysers, emptied, suites...)
+func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, throneArea, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
+	next, changed := policy.ReplanLayoutWithThrone(plan, survey, throneArea, pawns, tombs, tier, geysers, emptied, suites...)
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}

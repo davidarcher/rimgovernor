@@ -83,10 +83,13 @@ type ColonyProjection struct {
 	// LayoutPlan is the persisted v2 layout (#783), served by the routine
 	// review; unknown until one is derived. layoutAnchor reads it (#785).
 	LayoutPlan domain.Fact[policy.LayoutPlan]
-	Facts      policy.RoutineFacts
-	Workers    domain.Fact[int]
-	Bounds     policy.Bounds
-	Center     domain.Cell
+	// Royalty is the Empire ladder, permits and holdings (#1599); unknown
+	// without Royalty or a royalty source.
+	Royalty domain.Fact[policy.RoyaltyFacts]
+	Facts   policy.RoutineFacts
+	Workers domain.Fact[int]
+	Bounds  policy.Bounds
+	Center  domain.Cell
 	// Region is the observed planning window; cells absent inside it are
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle

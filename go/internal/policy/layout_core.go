@@ -119,44 +119,8 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 			spine, wings = growWing(g, base, spine, rooms, wings, pawns, tier)
 			continue
 		}
-		placed, fit := false, false
-		for !placed {
-			for i := range spine {
-				var next SpineSegment
-				var room LayoutRoom
-				ok := false
-				if i == 0 {
-					local, main, _ := g.segmentGrid(spine, 0, rooms)
-					next = main
-					room, ok = local.beside(&next, rooms, role)
-				}
-				if !ok {
-					next, room, ok = g.placeOn(spine, i, rooms, role, coreRoomSize[role])
-				}
-				if !ok {
-					continue
-				}
-				fit = true
-				// A room that makes a thoroughfare (#780) is left out; the
-				// next hallway (or role) tries its slot.
-				trial := append(append([]LayoutRoom(nil), rooms...), room)
-				grown := append([]SpineSegment(nil), spine...)
-				grown[i] = next
-				if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial, Wings: wings}); err != nil {
-					continue
-				}
-				spine, rooms, placed = grown, trial, true
-				break
-			}
-			if placed || fit {
-				break
-			}
-			next, ok := g.addCrossing(spine, rooms)
-			if !ok {
-				break
-			}
-			spine = next
-		}
+		var fit bool
+		spine, rooms, _, fit = g.placeRole(spine, rooms, wings, role, coreRoomSize[role])
 		if !fit {
 			break
 		}
@@ -178,6 +142,51 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
 	return plan
+}
+
+// placeRole places one room of role on the nearest free slot, trying every
+// hallway and adding a crossing while no slot fits. fit reports that some
+// slot fit the role (a room that makes a thoroughfare, #780, still counts
+// as fit); placed that a room was added.
+func (g coreGrid) placeRole(spine []SpineSegment, rooms []LayoutRoom, wings []Wing, role ModuleRole, size [2]int32) (_ []SpineSegment, _ []LayoutRoom, placed, fit bool) {
+	for !placed {
+		for i := range spine {
+			var next SpineSegment
+			var room LayoutRoom
+			ok := false
+			if i == 0 {
+				local, main, _ := g.segmentGrid(spine, 0, rooms)
+				next = main
+				room, ok = local.beside(&next, rooms, role)
+			}
+			if !ok {
+				next, room, ok = g.placeOn(spine, i, rooms, role, size)
+			}
+			if !ok {
+				continue
+			}
+			fit = true
+			// A room that makes a thoroughfare (#780) is left out; the
+			// next hallway (or role) tries its slot.
+			trial := append(append([]LayoutRoom(nil), rooms...), room)
+			grown := append([]SpineSegment(nil), spine...)
+			grown[i] = next
+			if _, err := CheckRoutes(LayoutPlan{Spine: grown, Rooms: trial, Wings: wings}); err != nil {
+				continue
+			}
+			spine, rooms, placed = grown, trial, true
+			break
+		}
+		if placed || fit {
+			break
+		}
+		next, ok := g.addCrossing(spine, rooms)
+		if !ok {
+			break
+		}
+		spine = next
+	}
+	return spine, rooms, placed, fit
 }
 
 // growWing grows the bedroom wings over base (the core with no bedroom
