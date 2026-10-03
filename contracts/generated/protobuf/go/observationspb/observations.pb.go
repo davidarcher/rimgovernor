@@ -24720,13 +24720,22 @@ func (x *RoyalTitleFacts) GetBedroomThings() []*BedroomThingRequirement {
 // permit is a call (it carries a royal aid) and favor_cost is then the favor
 // a call spends. pawns: colonists holding a title or favor, one holding per
 // faction. Royalty inactive is Unavailable(NOT_APPLICABLE).
+// RoyalTitleRung throne fields read RoyalTitleDef.throneRoomRequirements:
+// throne_min_impressiveness and throne_min_area are absent when the title sets
+// no such requirement; throne_things are the throne definitions the title
+// accepts (empty when it needs no throne) and throne_assigned is true when the
+// throne must be assigned to the holder.
 type RoyalTitleRung struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DefName       *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
-	Seniority     *int32                 `protobuf:"varint,2,opt,name=seniority,proto3,oneof" json:"seniority,omitempty"`
-	FavorNeeded   *int32                 `protobuf:"varint,3,opt,name=favor_needed,json=favorNeeded,proto3,oneof" json:"favor_needed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	DefName                 *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Seniority               *int32                 `protobuf:"varint,2,opt,name=seniority,proto3,oneof" json:"seniority,omitempty"`
+	FavorNeeded             *int32                 `protobuf:"varint,3,opt,name=favor_needed,json=favorNeeded,proto3,oneof" json:"favor_needed,omitempty"`
+	ThroneMinImpressiveness *int32                 `protobuf:"varint,4,opt,name=throne_min_impressiveness,json=throneMinImpressiveness,proto3,oneof" json:"throne_min_impressiveness,omitempty"`
+	ThroneMinArea           *int32                 `protobuf:"varint,5,opt,name=throne_min_area,json=throneMinArea,proto3,oneof" json:"throne_min_area,omitempty"`
+	ThroneThings            []string               `protobuf:"bytes,6,rep,name=throne_things,json=throneThings,proto3" json:"throne_things,omitempty"`
+	ThroneAssigned          *bool                  `protobuf:"varint,7,opt,name=throne_assigned,json=throneAssigned,proto3,oneof" json:"throne_assigned,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RoyalTitleRung) Reset() {
@@ -24778,6 +24787,34 @@ func (x *RoyalTitleRung) GetFavorNeeded() int32 {
 		return *x.FavorNeeded
 	}
 	return 0
+}
+
+func (x *RoyalTitleRung) GetThroneMinImpressiveness() int32 {
+	if x != nil && x.ThroneMinImpressiveness != nil {
+		return *x.ThroneMinImpressiveness
+	}
+	return 0
+}
+
+func (x *RoyalTitleRung) GetThroneMinArea() int32 {
+	if x != nil && x.ThroneMinArea != nil {
+		return *x.ThroneMinArea
+	}
+	return 0
+}
+
+func (x *RoyalTitleRung) GetThroneThings() []string {
+	if x != nil {
+		return x.ThroneThings
+	}
+	return nil
+}
+
+func (x *RoyalTitleRung) GetThroneAssigned() bool {
+	if x != nil && x.ThroneAssigned != nil {
+		return *x.ThroneAssigned
+	}
+	return false
 }
 
 type RoyalPermitDef struct {
@@ -39294,15 +39331,22 @@ const file_observations_proto_rawDesc = "" +
 	"_seniorityB\x13\n" +
 	"\x11_bedroom_min_areaB\x1d\n" +
 	"\x1b_bedroom_min_impressivenessB\x12\n" +
-	"\x10_bedroom_floored\"\xa7\x01\n" +
+	"\x10_bedroom_floored\"\xae\x03\n" +
 	"\x0eRoyalTitleRung\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12!\n" +
 	"\tseniority\x18\x02 \x01(\x05H\x01R\tseniority\x88\x01\x01\x12&\n" +
-	"\ffavor_needed\x18\x03 \x01(\x05H\x02R\vfavorNeeded\x88\x01\x01B\v\n" +
+	"\ffavor_needed\x18\x03 \x01(\x05H\x02R\vfavorNeeded\x88\x01\x01\x12?\n" +
+	"\x19throne_min_impressiveness\x18\x04 \x01(\x05H\x03R\x17throneMinImpressiveness\x88\x01\x01\x12+\n" +
+	"\x0fthrone_min_area\x18\x05 \x01(\x05H\x04R\rthroneMinArea\x88\x01\x01\x12#\n" +
+	"\rthrone_things\x18\x06 \x03(\tR\fthroneThings\x12,\n" +
+	"\x0fthrone_assigned\x18\a \x01(\bH\x05R\x0ethroneAssigned\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
 	"_seniorityB\x0f\n" +
-	"\r_favor_needed\"\xba\x02\n" +
+	"\r_favor_neededB\x1c\n" +
+	"\x1a_throne_min_impressivenessB\x12\n" +
+	"\x10_throne_min_areaB\x12\n" +
+	"\x10_throne_assigned\"\xba\x02\n" +
 	"\x0eRoyalPermitDef\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12 \n" +
 	"\tmin_title\x18\x02 \x01(\tH\x01R\bminTitle\x88\x01\x01\x12(\n" +

@@ -76,7 +76,14 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 			return nil, contract("invalid royalty title")
 		}
 		titles[row.GetDefName()] = true
-		out.Ladder = append(out.Ladder, policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded))})
+		for _, thing := range row.ThroneThings {
+			if validID(thing) != nil {
+				return nil, contract("invalid royalty throne definition")
+			}
+		}
+		out.Ladder = append(out.Ladder, policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded)),
+			ThroneMinImpressiveness: optionalFact(intPtr(row.ThroneMinImpressiveness)), ThroneMinArea: optionalFact(intPtr(row.ThroneMinArea)),
+			ThroneThings: append([]string{}, row.ThroneThings...), ThroneAssigned: optionalFact(row.ThroneAssigned)})
 	}
 	for _, row := range v.Permits {
 		name := row.GetDefName()

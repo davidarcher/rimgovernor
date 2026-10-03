@@ -194,7 +194,9 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Royalty facts
 
-`ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed),
+`ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed, and the throne-room requirement
+read from `RoyalTitleDef.throneRoomRequirements`: minimum impressiveness and
+area, the accepted throne definitions and whether the throne is assigned),
 the permit catalog (minimum title, permit points, whether the permit acts and
 the favor a call spends) and each colonist's holdings per faction (title,
 favor, permit points, taken permits). It is separate from the pawn row and

@@ -1082,7 +1082,12 @@ message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority
 // permit is a call (it carries a royal aid) and favor_cost is then the favor
 // a call spends. pawns: colonists holding a title or favor, one holding per
 // faction. Royalty inactive is Unavailable(NOT_APPLICABLE).
-message RoyalTitleRung { optional string def_name = 1; optional int32 seniority = 2; optional int32 favor_needed = 3; }
+// RoyalTitleRung throne fields read RoyalTitleDef.throneRoomRequirements:
+// throne_min_impressiveness and throne_min_area are absent when the title sets
+// no such requirement; throne_things are the throne definitions the title
+// accepts (empty when it needs no throne) and throne_assigned is true when the
+// throne must be assigned to the holder.
+message RoyalTitleRung { optional string def_name = 1; optional int32 seniority = 2; optional int32 favor_needed = 3; optional int32 throne_min_impressiveness = 4; optional int32 throne_min_area = 5; repeated string throne_things = 6; optional bool throne_assigned = 7; }
 message RoyalPermitDef { optional string def_name = 1; optional string min_title = 2; optional int32 permit_points = 3; optional bool acts = 4; optional int32 favor_cost = 5; optional double cooldown_days = 6; }
 message PawnRoyalHolding { optional string faction_def = 1; optional string title = 2; optional int32 favor = 3; optional int32 permit_points = 4; repeated string permits = 5; }
 message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHolding holdings = 2; }

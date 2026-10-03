@@ -13,7 +13,7 @@ func royaltyRead() *o.RoyaltyFacts {
 	return &o.RoyaltyFacts{
 		Context: authorityTestContext(7),
 		Ladder: []*o.RoyalTitleRung{
-			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6)},
+			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), ThroneMinImpressiveness: proto.Int32(55), ThroneMinArea: proto.Int32(30), ThroneThings: []string{"Throne"}, ThroneAssigned: proto.Bool(true)},
 			{DefName: proto.String("Yeoman")},
 		},
 		Permits: []*o.RoyalPermitDef{
@@ -43,6 +43,19 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if _, ok := facts.Ladder[1].FavorNeeded.Value(); ok {
 		t.Fatal("absent favor needed read as known")
 	}
+	knight := facts.Ladder[0]
+	if n, ok := knight.ThroneMinImpressiveness.Value(); !ok || n != 55 {
+		t.Fatalf("throne impressiveness %v %v", n, ok)
+	}
+	if n, ok := knight.ThroneMinArea.Value(); !ok || n != 30 {
+		t.Fatalf("throne area %v %v", n, ok)
+	}
+	if assigned, ok := knight.ThroneAssigned.Value(); !ok || !assigned || len(knight.ThroneThings) != 1 || knight.ThroneThings[0] != "Throne" {
+		t.Fatalf("throne %+v", knight)
+	}
+	if _, ok := facts.Ladder[1].ThroneMinArea.Value(); ok {
+		t.Fatal("absent throne area read as known")
+	}
 	call := facts.Permits["CallLaborerPack"]
 	if acts, _ := call.Acts.Value(); !acts {
 		t.Fatalf("call permit %+v", call)
@@ -66,7 +79,7 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit"} {
+	for _, change := range []string{"world", "title-duplicate", "title-id", "throne-id", "permit-duplicate", "permit-min-title", "pawn-duplicate", "pawn-id", "holding-faction", "holding-permit"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
@@ -76,6 +89,8 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Ladder = append(v.Ladder, v.Ladder[0])
 			case "title-id":
 				v.Ladder[0].DefName = proto.String("")
+			case "throne-id":
+				v.Ladder[0].ThroneThings = []string{""}
 			case "permit-duplicate":
 				v.Permits = append(v.Permits, v.Permits[0])
 			case "permit-min-title":

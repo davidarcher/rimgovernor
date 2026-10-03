@@ -14,10 +14,19 @@ type RoyaltyFacts struct {
 }
 
 // RoyalRung is one title on the ladder; FavorNeeded is the favor that earns it.
+//
+// The Throne fields are the title's throne-room requirement: minimum
+// impressiveness and area (unknown when the read left them absent), the
+// throne definitions it accepts (empty when it needs no throne) and whether
+// the throne must be assigned to the holder.
 type RoyalRung struct {
-	Title       string
-	Seniority   domain.Fact[int]
-	FavorNeeded domain.Fact[int]
+	Title                   string
+	Seniority               domain.Fact[int]
+	FavorNeeded             domain.Fact[int]
+	ThroneMinImpressiveness domain.Fact[int]
+	ThroneMinArea           domain.Fact[int]
+	ThroneThings            []string
+	ThroneAssigned          domain.Fact[bool]
 }
 
 // RoyalPermit is one permit definition. Acts marks a permit the holder calls

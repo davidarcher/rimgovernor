@@ -42,12 +42,33 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // Rung reads RoyalTitleDef.throneRoomRequirements: the minimum
+        // impressiveness and area, and the throne definitions that must stand
+        // assigned to the holder.
+        private static Obs.RoyalTitleRung Rung(RoyalTitleDef title)
+        {
+            var rung = new Obs.RoyalTitleRung { DefName = title.defName, Seniority = title.seniority, FavorNeeded = title.favorCost };
+            foreach (var req in title.throneRoomRequirements ?? Enumerable.Empty<RoomRequirement>())
+            {
+                switch (req)
+                {
+                    case RoomRequirement_Area area: rung.ThroneMinArea = Math.Max(rung.ThroneMinArea, area.area); break;
+                    case RoomRequirement_Impressiveness imp: rung.ThroneMinImpressiveness = Math.Max(rung.ThroneMinImpressiveness, imp.impressiveness); break;
+                    case RoomRequirement_HasAssignedThroneAnyOf throne:
+                        rung.ThroneAssigned = true;
+                        rung.ThroneThings.AddRange((throne.things ?? new List<ThingDef>()).Where(d => d != null && ProtoBoundary.IsIdentifier(d.defName)).Select(d => d.defName));
+                        break;
+                }
+            }
+            return rung;
+        }
+
         private static Obs.RoyaltyFacts Read(Common.ObservationContext context)
         {
             var facts = new Obs.RoyaltyFacts { Context = context };
             foreach (var title in DefDatabase<RoyalTitleDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName))
                 .OrderBy(d => d.seniority).ThenBy(d => d.defName, StringComparer.Ordinal))
-                facts.Ladder.Add(new Obs.RoyalTitleRung { DefName = title.defName, Seniority = title.seniority, FavorNeeded = title.favorCost });
+                facts.Ladder.Add(Rung(title));
             foreach (var permit in DefDatabase<RoyalTitlePermitDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName))
                 .OrderBy(d => d.defName, StringComparer.Ordinal))
             {
