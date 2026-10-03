@@ -50,7 +50,7 @@ func TestRoutineShelterDigsADugPlannedStoreroom(t *testing.T) {
 	}
 	n := &dugShelterNative{sleepingNative: base, rock: rock}
 	r.native = n
-	room := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South, Dug: true}
+	room := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South, Dug: true}
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}})
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted {

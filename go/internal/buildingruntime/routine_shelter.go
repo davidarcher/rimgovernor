@@ -67,13 +67,12 @@ func shellShapesAtDoor(planned []domain.RoomFootprint, door domain.Cell) []domai
 }
 
 // plannedRole is the room role whose planned rooms this planner builds
-// (#1231): the initial shelter stands on the layout plan's storeroom at
-// every tier, Camp included (#1177), and becomes the storeroom once
-// everyone has moved out to bedrooms; any other shell builds its own
-// role's rooms.
+// (#1231): the initial shelter stands on the layout plan's barracks at
+// every tier, Camp included; the storage room is built for supplies
+// separately. Any other shell builds its own role's rooms.
 func (r *RoutineBuildingPlanner) plannedRole() policy.RoomRole {
 	if r.shelter && r.phase == policy.HousingShelter {
-		return policy.RoomRoleStoreroom
+		return policy.RoomRoleBarracks
 	}
 	return r.roomRole()
 }

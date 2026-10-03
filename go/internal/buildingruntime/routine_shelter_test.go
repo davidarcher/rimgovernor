@@ -71,7 +71,7 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 // planned room (#1231).
 func recordStoreroom(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, interior policy.Rectangle) policy.LayoutRoom {
 	t.Helper()
-	room := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
+	room := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: interior, Door: domain.Cell{X: interior.X + interior.Width/2, Z: interior.Z - 1}, DoorRot: domain.South}
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{room}})
 	return room
 }
@@ -758,7 +758,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	door := domain.Cell{X: 4, Z: 3}
 	// Two planned storerooms share the door: the square one and a taller one.
-	square := policy.LayoutRoom{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
+	square := policy.LayoutRoom{Role: policy.ModuleBarracks, Interior: policy.Rectangle{X: 1, Z: 4, Width: 7, Height: 7}, Door: door, DoorRot: domain.South}
 	tall := square
 	tall.Interior.Height = 9
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{square, tall}})

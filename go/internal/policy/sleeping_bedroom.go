@@ -17,7 +17,7 @@ import (
 func ShellBedIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 	shell := map[string]bool{}
 	for _, r := range plan.AllRooms() {
-		if r.Role != ModuleStorage {
+		if r.Role != ModuleBarracks {
 			continue
 		}
 		if room, ok := PlannedRoomStanding(r, rooms); ok {
