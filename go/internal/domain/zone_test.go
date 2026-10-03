@@ -87,7 +87,7 @@ func TestReconstructZoneRoundTripsBothKinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	general, err := NewFilteredStockpileZone(GeneralFilter(), NormalPriority, cells)
+	general, err := NewFilteredStockpileZone(OpeningStoreFilter(), NormalPriority, cells)
 	if err != nil || general.Label() != "General store" {
 		t.Fatal(general, err)
 	}

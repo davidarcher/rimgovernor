@@ -126,12 +126,6 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	request.GearRooms = stockpileGearRooms(projection)
 	if plan, known := projection.LayoutPlan.Value(); known {
 		request.Prisons = policy.PrisonCells(plan)
-		for _, room := range plan.AllRooms() {
-			if room.Role == policy.ModuleStorage {
-				request.StorageRoom = room.Interior
-				break
-			}
-		}
 	}
 	request.Opening = true
 	for _, z := range owned {

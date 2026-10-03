@@ -3,7 +3,11 @@ package domain
 // Stockpile role keys (#724). A planner claims the zones it creates by role;
 // parameterized roles append ":<key>".
 const (
-	GeneralRole           = "general"
+	// GeneralRole is the warehouse: the roofed general store (#1770).
+	GeneralRole = "general"
+	// OpeningGeneralRole is the opening outdoor general store, deleted once
+	// the warehouse stands.
+	OpeningGeneralRole    = "opening_general"
 	CoveredRolePrefix     = "covered:"
 	IngredientsPrefix     = "ingredients:"
 	MealsRolePrefix       = "meals:"

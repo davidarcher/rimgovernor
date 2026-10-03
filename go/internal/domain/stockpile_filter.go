@@ -182,8 +182,12 @@ func (f StockpileFilter) Quality() (min, max Quality, ok bool) {
 // FoodFilter is the native food preset, unpatched.
 func FoodFilter() StockpileFilter { return StockpileFilter{base: BaseFood} }
 
-// GeneralFilter is every non-perishable storable except chunks.
-func GeneralFilter() StockpileFilter {
+// GeneralFilter is the warehouse's: every storable that is not safe outside.
+func GeneralFilter() StockpileFilter { return StockpileFilter{base: BaseIndoorOnly} }
+
+// OpeningStoreFilter is the opening outdoor store's: every non-perishable
+// storable except chunks.
+func OpeningStoreFilter() StockpileFilter {
 	f, _ := NewStockpileFilter(BaseNonperishables, nil, []FilterSelector{CategoryDef("Chunks")})
 	return f
 }

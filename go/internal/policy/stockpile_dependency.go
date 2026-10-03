@@ -15,7 +15,7 @@ func StockpileDependencies(review domain.Fact[StockpileReview]) []DevelopmentDep
 		return nil
 	}
 	for _, e := range v.Edits {
-		if e.Kind == StockpileCreate && (e.Role == domain.GeneralRole || e.Role == domain.FoodRole) {
+		if e.Kind == StockpileCreate && (e.Role == domain.GeneralRole || e.Role == domain.OpeningGeneralRole || e.Role == domain.FoodRole) {
 			return []DevelopmentDependency{
 				{Dependent: MaintainStorage, Prerequisite: MaintainStockpiles},
 				{Dependent: SecureSupplies, Prerequisite: MaintainStockpiles},

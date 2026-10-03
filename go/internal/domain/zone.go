@@ -210,6 +210,8 @@ func stockpileLabel(f StockpileFilter, priority StockpilePriority) string {
 	case f == CorpseLarderFilter():
 		return "Corpse larder"
 	case f == GeneralFilter():
+		return "Warehouse"
+	case f == OpeningStoreFilter():
 		return "General store"
 	case f == RawFoodFilter():
 		return "Raw food"

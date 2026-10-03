@@ -41,7 +41,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 	}
 	food := domain.FoodFilter()
 	owned := []store.OwnedZone{
-		{ID: "Zone_1", Kind: domain.StockpileZone, Role: "general", Filter: domain.GeneralFilter(), Priority: domain.NormalPriority},
+		{ID: "Zone_1", Kind: domain.StockpileZone, Role: domain.OpeningGeneralRole, Filter: domain.OpeningStoreFilter(), Priority: domain.NormalPriority},
 		{ID: "Zone_2", Kind: domain.StockpileZone, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority},
 		{ID: "Zone_3", Kind: domain.GrowingZone, Crop: "Plant_Rice"},
 		{ID: "Zone_9", Kind: domain.StockpileZone, Role: "general"},
@@ -52,7 +52,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		t.Fatalf("request zones %+v", request.Zones)
 	}
 	one, two := request.Zones[0], request.Zones[1]
-	if one.ID != "Zone_1" || len(one.Cells) != 4 || one.Used() != 4 || one.Role != "general" {
+	if one.ID != "Zone_1" || len(one.Cells) != 4 || one.Used() != 4 || one.Role != domain.OpeningGeneralRole {
 		t.Fatalf("zone 1 %+v", one)
 	}
 	if two.ID != "Zone_2" || len(two.Cells) != 4 || two.Used() != 1 || two.Role != "kitchen" || two.Filter != food || two.Priority != domain.PreferredPriority {
@@ -182,7 +182,8 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"medicine:Room_3", false, false, domain.StockpileFilter{}, ""},
 		{"ingredients:Bench_1", false, false, domain.StockpileFilter{}, ""},
 		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
-		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.NormalPriority},
+		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
+		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
 		{"covered:WoodLog", true, false, mustAllowOnly(t, "WoodLog"), domain.ImportantPriority},
 		{domain.ApparelRole, true, false, domain.ApparelFilter(), domain.PreferredPriority},
 		{domain.WeaponsRole, true, false, domain.WeaponsFilter(), domain.PreferredPriority},

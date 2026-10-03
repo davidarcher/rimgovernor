@@ -26,7 +26,7 @@ type legacyZone struct {
 func TestPresetFiltersWireUnchanged(t *testing.T) {
 	cells := []domain.Cell{{X: 1, Z: 1}}
 	var zones []legacyZone
-	presets := map[string]domain.StockpileFilter{"food": domain.FoodFilter(), "corpse_larder": domain.CorpseLarderFilter(), "general": domain.GeneralFilter()}
+	presets := map[string]domain.StockpileFilter{"food": domain.FoodFilter(), "corpse_larder": domain.CorpseLarderFilter(), "general": domain.OpeningStoreFilter()}
 	labels := map[string]string{"food": "Food storage", "corpse_larder": "Corpse larder", "general": "General store"}
 	for preset, filter := range presets {
 		for _, priority := range []domain.StockpilePriority{domain.CriticalPriority, domain.ImportantPriority, domain.PreferredPriority, domain.NormalPriority, domain.LowPriority} {
@@ -89,7 +89,7 @@ func TestZoneIntentActions(t *testing.T) {
 	if s := compactJSON(t, got); s != want {
 		t.Fatal(s)
 	}
-	patch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", domain.GeneralFilter(), domain.CriticalPriority, "shelf:Shelf_1")
+	patch, _ := domain.NewStockpilePatch(domain.StorageBuildingTarget, "Shelf_1", domain.OpeningStoreFilter(), domain.CriticalPriority, "shelf:Shelf_1")
 	pa, _ := domain.NewStockpilePatchAction("p", patch)
 	if got, err = IntentAction("k", pa); err != nil {
 		t.Fatal(err)

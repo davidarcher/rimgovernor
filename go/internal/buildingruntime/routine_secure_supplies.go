@@ -20,10 +20,13 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-// The general store keeps the general filter at Normal priority; a
+// The warehouse keeps the indoor-only filter at Low priority so the
+// workstation stockpiles draw items first; the opening outdoor store keeps
+// the non-perishables at Normal until the warehouse replaces it; a
 // covered:<def> fallback zone keeps its one definition at Important.
 func init() {
-	RegisterStockpileRole(domain.GeneralRole, fixedStockpileRole(domain.GeneralFilter(), domain.NormalPriority))
+	RegisterStockpileRole(domain.GeneralRole, fixedStockpileRole(domain.GeneralFilter(), domain.LowPriority))
+	RegisterStockpileRole(domain.OpeningGeneralRole, fixedStockpileRole(domain.OpeningStoreFilter(), domain.NormalPriority))
 	RegisterStockpileRole(domain.FoodRole, fixedStockpileRole(domain.FoodFilter(), domain.PreferredPriority))
 	RegisterStockpileRole(strings.TrimSuffix(domain.CoveredRolePrefix, ":"), func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
 		_, definition, _ := strings.Cut(role, ":")
@@ -485,7 +488,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	if len(cells) == 0 {
 		return PlanResult{}, nil
 	}
-	value, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.NormalPriority, cells)
+	value, err := domain.NewFilteredStockpileZone(domain.GeneralFilter(), domain.LowPriority, cells)
 	if err == nil {
 		value, err = value.WithRole(domain.GeneralRole)
 	}

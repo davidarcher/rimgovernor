@@ -130,7 +130,7 @@ func (z StockZone) stores() (food, general bool, defs map[Resource]bool) {
 	switch filter.Base() {
 	case domain.BaseFood, domain.BasePerishables:
 		food = true
-	case domain.BaseEverything, domain.BaseNonperishables:
+	case domain.BaseEverything, domain.BaseNonperishables, domain.BaseIndoorOnly:
 		general = true
 	}
 	if names, ok := filter.AllowOnlyDefinitions(); ok {

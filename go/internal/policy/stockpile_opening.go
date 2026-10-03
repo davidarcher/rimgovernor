@@ -12,7 +12,9 @@ import (
 // waiting on a room, a deficit or a haul budget. Each is created while no
 // owned zone of its kind stands (the food stockpile is a planner site,
 // storage_plan_food.go):
-//   - the general store, outdoors is fine, nearest the colony anchor;
+//   - the general store, outdoors is fine, nearest the colony anchor; the
+//     warehouse replaces it once the storage room stands (StockpileSite
+//     Supersedes), so none is raised while a warehouse site is planned;
 //   - the corpse dump, outdoors at least openingDumpDistance from the
 //     anchor and clear of living rooms.
 //
@@ -33,11 +35,14 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	var general, dump bool
 	for _, z := range r.Zones {
 		switch {
-		case z.Role == domain.GeneralRole || z.Filter.Base() == domain.BaseNonperishables:
+		case z.Role == domain.GeneralRole || z.Role == domain.OpeningGeneralRole || z.Filter.Base() == domain.BaseNonperishables:
 			general = true
 		case z.Role == domain.CorpseDumpRole:
 			dump = true
 		}
+	}
+	for _, site := range r.Sited {
+		general = general || site.Role == domain.GeneralRole
 	}
 	var out []StockpileEdit
 	take := func(role string, filter domain.StockpileFilter, priority domain.StockpilePriority, site Rectangle, where string) {
@@ -49,10 +54,8 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 			Explanation: fmt.Sprintf("opening stockpile %s: none stands, create %dx%d at (%d,%d) %s", role, site.Width, site.Height, site.X, site.Z, where)})
 	}
 	if !general {
-		if site, ok := storageRoomSite(open, r.StorageRoom, openingGeneralSide); ok {
-			take(domain.GeneralRole, domain.GeneralFilter(), domain.NormalPriority, site, "in the planned storage room")
-		} else if site, ok := openingSite(open, r.Anchor, openingGeneralSide, nil); ok {
-			take(domain.GeneralRole, domain.GeneralFilter(), domain.NormalPriority, site, "near the colony")
+		if site, ok := openingSite(open, r.Anchor, openingGeneralSide, nil); ok {
+			take(domain.OpeningGeneralRole, domain.OpeningStoreFilter(), domain.NormalPriority, site, "near the colony")
 		}
 	}
 	if !dump {
@@ -68,39 +71,6 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 		}
 	}
 	return out
-}
-
-// storageRoomSite is the side x side square inside the planned storage
-// room nearest its centre whose every cell is open. A room none of whose
-// cells were observed (it stands past the planning window) takes the
-// centred square on trust; a room observed but blocked takes none.
-func storageRoomSite(open stockpileOpen, room Rectangle, side int32) (Rectangle, bool) {
-	if room.Width < side || room.Height < side {
-		return Rectangle{}, false
-	}
-	seen := false
-	for _, c := range rectCells(room) {
-		if _, ok := open.cells[c]; ok {
-			seen = true
-			break
-		}
-	}
-	centre := Rectangle{room.X + (room.Width-side)/2, room.Z + (room.Height-side)/2, side, side}
-	if !seen {
-		return centre, true
-	}
-	var best Rectangle
-	var bestScore int64 = -1
-	for x := room.X; x+side <= room.X+room.Width; x++ {
-		for z := room.Z; z+side <= room.Z+room.Height; z++ {
-			site := Rectangle{x, z, side, side}
-			score := squaredDistance(domain.Cell{X: x, Z: z}, domain.Cell{X: centre.X, Z: centre.Z})
-			if (bestScore < 0 || score < bestScore) && openFree(open, site) {
-				best, bestScore = site, score
-			}
-		}
-	}
-	return best, bestScore >= 0
 }
 
 // openingSite is the free side x side square nearest anchor whose every

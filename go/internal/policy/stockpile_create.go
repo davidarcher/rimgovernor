@@ -109,6 +109,9 @@ type StockpileSite struct {
 	// may take, and the zone created is every pool cell still open once the
 	// sites ahead of it have taken theirs.
 	Remainder bool
+	// Supersedes is a role prefix whose zones are deleted once the site is
+	// served: the stand-in it replaces.
+	Supersedes string
 }
 
 // stockpileSiteMoves deletes the zones of a site's prefix standing outside

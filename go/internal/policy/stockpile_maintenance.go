@@ -137,9 +137,6 @@ type StockpileRequest struct {
 	Rooms domain.Fact[[]Room]
 	// Anchor sites the gear stockpiles when no general store stands.
 	Anchor domain.Cell
-	// StorageRoom is the planned storage room's interior (zero: none): the
-	// opening general store is sited inside it.
-	StorageRoom Rectangle
 	// Prisons are the planned prisons' cells (#1081): a weapons stockpile
 	// never stands near one.
 	Prisons []domain.Cell
@@ -251,6 +248,9 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileSiteMoves(r) {
 		take(e, true)
 	}
+	for _, e := range stockpileSupersededDeletes(r) {
+		take(e, true)
+	}
 	for _, e := range stockpileGearMoves(r) {
 		take(e, true)
 	}
@@ -347,6 +347,8 @@ func stockpileGrowEdit(open stockpileOpen, z StockpileZone) (StockpileEdit, bool
 	for _, c := range z.Cells {
 		own[c] = true
 	}
+	// An indoor-only zone (the warehouse) never grows onto open sky.
+	indoor := z.Filter.Base() == domain.BaseIndoorOnly
 	frontier := stockpileSorted(z.Cells)
 	seen := map[domain.Cell]bool{}
 	var added []domain.Cell
@@ -354,7 +356,7 @@ func stockpileGrowEdit(open stockpileOpen, z StockpileZone) (StockpileEdit, bool
 		var next []domain.Cell
 		for _, c := range frontier {
 			for _, n := range stockpileNeighbours(c) {
-				if own[n] || seen[n] || !open.ok(n) {
+				if own[n] || seen[n] || !open.ok(n) || indoor && !positive(open.cells[n].Roofed) {
 					continue
 				}
 				seen[n] = true

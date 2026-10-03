@@ -36,8 +36,8 @@ func TestFreshColonyFirstReviewAdmitsOpeningStockpiles(t *testing.T) {
 	if !review.Active || review.Deferred != 0 || len(got) != 2 {
 		t.Fatalf("review %+v", review)
 	}
-	general := got[domain.GeneralRole]
-	if general.Filter != domain.GeneralFilter() || general.Priority != domain.NormalPriority || len(general.Cells) != 25 {
+	general := got[domain.OpeningGeneralRole]
+	if general.Filter != domain.OpeningStoreFilter() || general.Priority != domain.NormalPriority || len(general.Cells) != 25 {
 		t.Fatalf("general %+v", general)
 	}
 	for _, c := range general.Cells {

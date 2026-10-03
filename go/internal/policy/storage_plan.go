@@ -72,6 +72,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	if r.Layout != nil && r.Rooms != nil {
 		plan.Sites = append(plan.Sites, r.freezerSites()...)
 		plan.Sites = append(plan.Sites, r.tombSites()...)
+		plan.Sites = append(plan.Sites, r.warehouseSites()...)
 		plan.Sites = append(plan.Sites, r.yardSites()...)
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
