@@ -10,24 +10,17 @@ import (
 // TacticPrisonBreak answers a prison break (#1080): the escapees are
 // subdued, not killed. Armored wardens body-block them, one brawler per
 // injured escapee and two unarmed wardens per healthy one; ranged wardens
-// with low-DPS weapons hold fire until an escapee is blocked, then shoot it.
+// with guns hold fire until an escapee is blocked, then shoot it.
 const TacticPrisonBreak CombatTactic = "prison_break"
 
 // ReasonPrisonFire is a ranged warden's fire-mode toggle: hold until the
 // escapee is blocked, then fire at will.
 const ReasonPrisonFire CombatOrderReason = "prison_fire"
 
-// prisonLethal are ranged weapons too deadly to shoot an escapee with:
-// snipers, heavy and area weapons.
-var prisonLethal = map[string]bool{
-	"Gun_SniperRifle": true, "Gun_BoltActionRifle": true, "Gun_ChargeLance": true, "Gun_Minigun": true,
-	"Gun_LMG": true, "Gun_ChargeRifle": true, "Gun_AssaultRifle": true, "Gun_HeavySMG": true,
-}
-
-// prisonSafeRanged is a low-DPS ranged weapon: no sniper, heavy, rocket,
-// launcher or grenade.
-func prisonSafeRanged(def string, facts WeaponDef) bool {
-	return facts.Ranged && !prisonLethal[def] && !facts.Explosive
+// prisonSafeRanged is a ranged weapon that is not explosive: an escapee is
+// shot, and may die, but a warden never lobs area damage into the prison.
+func prisonSafeRanged(facts WeaponDef) bool {
+	return facts.Ranged && !facts.Explosive
 }
 
 // escapees are the live prison-breaking prisoners in id order.
@@ -136,7 +129,7 @@ func prisonBlocked(roles []CombatRole, out []CombatPawnState, state map[domain.P
 // injured escapee the best brawler (blunt weapon, then unarmed, then any
 // melee weapon), for a healthy one two unarmed wardens (unarmed first,
 // then blunt), each rank wardens first, then best armored. Every eligible
-// defender left with a low-DPS gun is a ranged warden; the rest stay out.
+// defender left with a non-explosive gun is a ranged warden; the rest stay out.
 func prisonFormation(view CombatView, out []CombatPawnState) []CombatRole {
 	weapon := map[domain.PawnID]string{}
 	facts := map[domain.PawnID]WeaponDef{}
@@ -148,7 +141,7 @@ func prisonFormation(view CombatView, out []CombatPawnState) []CombatRole {
 		switch {
 		case !squadDefenderEligible(d):
 		case positive(d.RangedEquipped) || facts[d.ID].Ranged:
-			if prisonSafeRanged(weapon[d.ID], facts[d.ID]) {
+			if prisonSafeRanged(facts[d.ID]) {
 				ranged = append(ranged, d)
 			}
 		default:

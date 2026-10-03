@@ -38,9 +38,9 @@ func prisonView(weapons map[domain.PawnID]string) CombatView {
 }
 
 // One brawler (a blunt weapon first) per injured escapee, two unarmed
-// wardens per healthy one; a sniper stays out.
+// wardens per healthy one; a rocket launcher stays out.
 func TestPrisonBreakBlock(t *testing.T) {
-	view := prisonView(map[domain.PawnID]string{"a": "", "b": "MeleeWeapon_Mace", "c": "", "d": "MeleeWeapon_LongSword", "e": "Gun_SniperRifle"})
+	view := prisonView(map[domain.PawnID]string{"a": "", "b": "MeleeWeapon_Mace", "c": "", "d": "MeleeWeapon_LongSword", "e": "Gun_TripleRocket"})
 	orders, _, m := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
 	if m.Tactic != TacticPrisonBreak {
 		t.Fatalf("tactic %q", m.Tactic)
@@ -65,28 +65,31 @@ func TestPrisonBreakBlock(t *testing.T) {
 }
 
 // A ranged warden holds fire while no escapee is blocked, then fires on
-// the blocked one; a lethal gun never gets a role.
+// the blocked one, any gun that is not explosive; an explosive weapon never gets a role.
 func TestWardensHoldFireUntilBlocked(t *testing.T) {
-	view := prisonView(map[domain.PawnID]string{"a": "MeleeWeapon_Club", "f": "Gun_Revolver", "e": "Gun_SniperRifle"})
+	view := prisonView(map[domain.PawnID]string{"a": "MeleeWeapon_Club", "f": "Gun_Revolver", "e": "Gun_SniperRifle", "d": "Gun_TripleRocket"})
 	orders, _, m := DecideCombat(view, GeometryReply{}, StopEvent{}, CombatMemory{})
 	want := []CombatOrder{
 		{Pawn: "a", Kind: OrderAttack, Target: "p2", Reason: ReasonFormation},
+		{Pawn: "e", Kind: OrderFireMode, FireMode: HoldFire, Reason: ReasonPrisonFire},
 		{Pawn: "f", Kind: OrderFireMode, FireMode: HoldFire, Reason: ReasonPrisonFire},
 	}
 	if !reflect.DeepEqual(orders, want) {
 		t.Fatalf("unblocked: %+v", orders)
 	}
-	// The club reaches p2 and fights it: f fires at will on p2.
+	// The club reaches p2 and fights it: e and f fire at will on p2.
 	for i := range view.Pawns {
 		switch view.Pawns[i].ID {
 		case "a":
 			view.Pawns[i].Cell, view.Pawns[i].Target, view.Pawns[i].Stance = domain.Known(domain.Cell{X: 9, Z: 11}), "p2", StanceMelee
-		case "f":
+		case "e", "f":
 			view.Pawns[i].FireMode = HoldFire
 		}
 	}
 	orders, _, _ = DecideCombat(view, GeometryReply{}, StopEvent{}, m)
 	want = []CombatOrder{
+		{Pawn: "e", Kind: OrderFireMode, FireMode: FireAtWill, Reason: ReasonPrisonFire},
+		{Pawn: "e", Kind: OrderAttack, Target: "p2", Reason: ReasonFormation},
 		{Pawn: "f", Kind: OrderFireMode, FireMode: FireAtWill, Reason: ReasonPrisonFire},
 		{Pawn: "f", Kind: OrderAttack, Target: "p2", Reason: ReasonFormation},
 	}
