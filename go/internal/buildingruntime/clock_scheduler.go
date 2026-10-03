@@ -1230,7 +1230,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		out.Deferred = true
 		return out, nil
 	}
-	combatPlan, fightOpen, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
+	combatPlan, fightOpen, huntPrey, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
 	if err != nil {
 		return out, err
 	}
@@ -1361,7 +1361,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if status.GetStopped() != nil {
 		clockState = policy.ClockStopped
 	}
-	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan), SquadUnanswered: squadUnanswered, Sheltered: sheltered}
+	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan), HuntPrey: huntPrey, SquadUnanswered: squadUnanswered, Sheltered: sheltered}
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
@@ -1981,38 +1981,43 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 // clockSchedulerCombatPlan reports whether the current routine review binds an
 // ActiveCombat incident in deficit whose admitted plan still has open work: the only
 // evidence under which live hostiles are watched rather than refused.
-func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, bool, error) {
+func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current domain.GenerationSnapshot) (bool, bool, []domain.PawnID, error) {
 	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
-		return false, false, err
+		return false, false, nil, err
 	}
 	if !review.Enabled || review.Snapshot != current {
-		return false, false, nil
+		return false, false, nil, nil
 	}
 	fights, err := journal.OpenCombatFights(ctx)
 	if err != nil {
-		return false, false, err
+		return false, false, nil, err
 	}
 	incident, need, found, err := routineIncident(ctx, journal, review, policy.ActiveCombat)
 	if err != nil || !found || need != domain.NeedDeficit {
-		return false, false, err
+		return false, false, nil, err
 	}
 	for _, method := range incident.Methods {
 		// A fight (#852) owns the combat: its orders go out at each
 		// stop, not as plan work. Closed, it holds the incident until its
 		// claims are released (#910), with no stops armed.
 		if fight, ok := fights[method.Plan]; ok {
-			return true, fight.Open, nil
+			// A hunt origin's fight is watched through its live prey.
+			var prey []domain.PawnID
+			if fight.Open {
+				prey = store.HuntPrey(incident.Incident)
+			}
+			return true, fight.Open, prey, nil
 		}
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return false, false, err
+			return false, false, nil, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return true, false, nil
+			return true, false, nil, nil
 		}
 	}
-	return false, false, nil
+	return false, false, nil, nil
 }
 
 // armedCombatStops is the combat event list a combat window arms: every

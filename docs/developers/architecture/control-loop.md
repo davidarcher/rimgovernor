@@ -234,7 +234,10 @@ deficit with the channel's prey as the occurrence's payload
 (`store.HuntPrey`). The fight then runs through `admitFight` with
 `CombatView.Hunt` set and the prey as its threats; the frame's detail rows
 cover the open hunt census rows. A hostile in the frame, or the plan no
-longer opening the hunt, ends the origin.
+longer opening the hunt, ends the origin. An open hunt fight runs in combat
+windows with the live prey as the window's acknowledged ids
+(`ClockWindowFacts.HuntPrey`), so the combat budget backstop wakes its next
+decision; no hostile exists to make the window a combat one otherwise.
 
 An outmatched fight calls the royal permits its colonists hold (#1608,
 `combat_permit.go`): with the royalty read (`CombatView.Royalty`, the

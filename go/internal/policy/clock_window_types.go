@@ -57,6 +57,10 @@ type ClockWindowFacts struct {
 	// area. A hostile pawn is then watched in a combat window instead of
 	// refused, so the sheltered colony waits it out (#1560).
 	Sheltered domain.Fact[bool]
+	// HuntPrey are the live prey of an open hunt fight (the hunt origin of
+	// ActiveCombat): no hostile stands, so the window is a combat one that
+	// watches them, and the combat budget wakes the fight's next decision.
+	HuntPrey []domain.PawnID
 }
 
 // CombatMaxTicks bounds a combat window; zero means the colony budget. A raid

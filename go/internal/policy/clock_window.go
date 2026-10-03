@@ -105,6 +105,14 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			hold(ClockWindowUnsafe)
 		}
 	}
+	if combatPlan && len(f.HuntPrey) > 0 {
+		// A hunt fight has no hostile to make the window a combat one, yet
+		// its decisions wait on combat stops: the prey are the watched ids.
+		combat = true
+		for _, id := range f.HuntPrey {
+			hostiles = append(hostiles, PawnID(id))
+		}
+	}
 	check := func(fact domain.Fact[bool], want bool, reason ClockWindowReason) {
 		value, known := fact.Value()
 		if !known {
