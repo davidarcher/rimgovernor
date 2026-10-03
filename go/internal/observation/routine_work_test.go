@@ -54,7 +54,11 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 	if err := bridge.ValidateRoutinePawnSnapshot(p, v.Context.Identity, ids); err != nil {
 		t.Fatal(err)
 	}
-	workers, known := routineWork(v, e, p).Value()
+	work, err := routineWork(v, e, p, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workers, known := work.Value()
 	if !known {
 		t.Fatal("native workers unknown")
 	}

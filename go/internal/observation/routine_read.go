@@ -122,7 +122,13 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if pawns != nil {
 		p.Facts.Armed, p.Facts.Unarmed = routineArmed(colony, emergency, pawns)
 		p.Facts.DefenseCapacity = policy.DefenseCapacity(routineDefenders(colony, emergency, pawns), p.DefenseTurrets)
-		p.WorkPawns = routineWork(colony, emergency, pawns)
+		var biotech *bridge.BiotechCatalog
+		if frame.Catalog != nil {
+			biotech = frame.Catalog.Biotech
+		}
+		if p.WorkPawns, err = routineWork(colony, emergency, pawns, biotech); err != nil {
+			return RoutineReading{}, err
+		}
 		p.MeditateAvailable = optional(pawns.MeditateAssignmentAvailable)
 		p.Facts.MedicalPawns = routineMedical(colony, emergency, pawns)
 		p.Facts.MoodPawns = routineMood(colony, emergency, pawns)

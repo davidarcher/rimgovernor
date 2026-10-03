@@ -20,9 +20,12 @@ type PawnBiotech struct {
 	Xenotype     domain.Fact[string]
 	XenotypeName domain.Fact[string]
 	Hybrid       domain.Fact[bool]
-	Mechanitor   domain.Fact[*PawnMechanitor]
-	Mech         domain.Fact[*PawnMech]
-	Deathrest    domain.Fact[*PawnDeathrest]
+	// Effects are the active genes' combined typed effects, resolved from
+	// the catalog (#1689); known whenever Genes is.
+	Effects    domain.Fact[GeneEffects]
+	Mechanitor domain.Fact[*PawnMechanitor]
+	Mech       domain.Fact[*PawnMech]
+	Deathrest  domain.Fact[*PawnDeathrest]
 }
 
 // PawnGene is one gene of a pawn; Active is false while another gene

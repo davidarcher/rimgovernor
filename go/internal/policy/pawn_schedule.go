@@ -244,7 +244,14 @@ func PlanSchedulesHeld(pawns []WorkPawn, comfort domain.Fact[ComfortObservation]
 		if !ok {
 			continue
 		}
-		want := plannedSchedule(BuildProfile(pawn).Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID], meditation(pawn, meditateAvailable))
+		profile := BuildProfile(pawn)
+		want := plannedSchedule(profile.Effects, pawn.Rest, pawn.Joy, current, offsets[pawn.ID], meditation(pawn, meditateAvailable))
+		// A need an active gene removes needs no block for it (#1689).
+		for h, slot := range want {
+			if slot == ScheduleSleep && profile.Genes.NeedDisabled("Rest") || slot == ScheduleJoy && profile.Genes.NeedDisabled("Joy") {
+				want[h] = ScheduleAnything
+			}
+		}
 		if hold[pawn.ID] {
 			for h, slot := range want {
 				if slot == ScheduleSleep {

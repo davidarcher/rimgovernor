@@ -173,6 +173,9 @@ type PawnProfile struct {
 	// Biotech is the pawn's Biotech facts (#1678): life stage, genes and
 	// the rest; unknown without Biotech.
 	Biotech domain.Fact[PawnBiotech]
+	// Genes are the active genes' typed effects (#1689); zero when unknown.
+	// Their stat modifiers are already folded into Effects.
+	Genes GeneEffects
 	// Ranged is whether the pawn's primary weapon is ranged.
 	Ranged bool
 	// Inspiration is the current InspirationDef defName; known "" is none
@@ -257,6 +260,11 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 	}
 	profile.Biotech = pawn.Biotech
 	if bt, ok := pawn.Biotech.Value(); ok {
+		if genes, ok := bt.Effects.Value(); ok {
+			profile.Genes = genes
+			profile.Effects.WorkSpeed = genes.apply("WorkSpeedGlobal", profile.Effects.WorkSpeed)
+			profile.Effects.LearnRate = genes.apply("GlobalLearningFactor", profile.Effects.LearnRate)
+		}
 		if child, known := bt.IsChild(); known {
 			profile.Child = child
 		}

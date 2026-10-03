@@ -282,6 +282,44 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 	return domain.Known(r)
 }
 
+// GeneEffects resolves the active genes of a pawn into their combined typed
+// effects from the catalog's gene rows. A gene the catalog does not define is
+// a contract failure, never skipped.
+func (c *BiotechCatalog) GeneEffects(genes []policy.PawnGene) (policy.GeneEffects, error) {
+	out := policy.GeneEffects{Stats: map[string]policy.StatModifier{}, DisabledNeeds: map[string]bool{}, EnabledNeeds: map[string]bool{}}
+	for _, g := range genes {
+		if active, ok := g.Active.Value(); ok && !active {
+			continue
+		}
+		var row *o.GeneRow
+		if c != nil {
+			row = c.Genes[g.Name]
+		}
+		if row == nil {
+			return policy.GeneEffects{}, contract("pawn gene %s is not in the biotech catalog", g.Name)
+		}
+		for _, e := range row.Effects {
+			m, seen := out.Stats[e.GetStat()]
+			if !seen {
+				m.Factor = 1
+			}
+			if e.Factor != nil {
+				m.Factor *= e.GetFactor()
+			} else {
+				m.Offset += e.GetOffset()
+			}
+			out.Stats[e.GetStat()] = m
+		}
+		for _, n := range row.DisablesNeeds {
+			out.DisabledNeeds[n] = true
+		}
+		for _, n := range row.EnablesNeeds {
+			out.EnabledNeeds[n] = true
+		}
+	}
+	return out, nil
+}
+
 func optionalInt(p *int32) domain.Fact[int] {
 	if p == nil {
 		return domain.Unknown[int]()

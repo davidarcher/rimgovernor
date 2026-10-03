@@ -9,9 +9,9 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot) domain.Fact[[]policy.WorkPawn] {
+func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, biotech *bridge.BiotechCatalog) (domain.Fact[[]policy.WorkPawn], error) {
 	if colony == nil || colony.ColonistCount == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(snapshot.Pawns) != len(emergency.Colonists) {
-		return domain.Unknown[[]policy.WorkPawn]()
+		return domain.Unknown[[]policy.WorkPawn](), nil
 	}
 	byID := map[string]*o.PawnState{}
 	for _, row := range snapshot.Pawns {
@@ -23,12 +23,22 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		dead, dk := p.Dead.Value()
 		downed, nk := p.Downed.Value()
 		if row == nil || !dk || !nk || row.Dead == nil || row.Downed == nil || row.GetDead() != dead || row.GetDowned() != downed || row.Colonist == nil || !row.GetColonist() {
-			return domain.Unknown[[]policy.WorkPawn]()
+			return domain.Unknown[[]policy.WorkPawn](), nil
 		}
 		w := WorkPawnRow(row)
+		if bt, ok := w.Biotech.Value(); ok {
+			if genes, known := bt.Genes.Value(); known {
+				effects, err := biotech.GeneEffects(genes)
+				if err != nil {
+					return domain.Unknown[[]policy.WorkPawn](), err
+				}
+				bt.Effects = domain.Known(effects)
+				w.Biotech = domain.Known(bt)
+			}
+		}
 		rows = append(rows, w)
 	}
-	return domain.Known(rows)
+	return domain.Known(rows), nil
 }
 
 // WorkPawnRow lifts one pawn row into the planner's WorkPawn: availability
