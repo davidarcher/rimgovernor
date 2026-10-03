@@ -18,7 +18,7 @@ language source; the one exception is the [def mirror](#def-mirror), which emits
 `.proto`, never Go or C#. See [C# commands](../tools/protobuf/README.md) and
 [Go commands](../tools/protobuf/go/README.md). Keep private build outputs in fresh
 ignored `.rimgovernor/` directories; commit official generated bindings with their
-schemas, except `generated/protobuf/csharp/Defs.cs` (66 MB): it is gitignored and
+schemas, except `generated/protobuf/csharp/Defs.cs` (57 MB): it is gitignored and
 generated from `defs.proto` by `generatecsharp` (the pinned Grpc.Tools protoc) at the
 start of `scripts/build_native_ref.sh` and `scripts/build_native_mod.ps1`; run
 `go -C go run ./internal/protobufgen/cmd/generatecsharp` to produce it for an IDE.
@@ -121,6 +121,27 @@ field skipped as runtime state:
   (`DefMap<,>`, `Stack<>`, `NativeArray<>`, `Pair<,>`, ...): a cache or scratch
   buffer, which XML never fills with data. The same type in a public field
   fails generation (below).
+- A class the XML loader cannot build: a concrete class with no public
+  parameterless constructor (a worker or handler constructed with its def or
+  map: `TileMutatorWorker`, `SubEffecter`, `PowerNet`), and a base class none
+  of whose concrete subclasses has one. An abstract class nothing concrete
+  extends stays (`ResearchMod`, `DefModExtension`: a mod's extension point).
+- A non-public field holding one instance of a class family (abstract, or with
+  subclasses) that no public field reaches: the lazily built worker, graphic
+  or noise module (`workerInt`, `graphicInt`, `BiomeDef.worker`). The data
+  a non-public field holds is a collection or a struct
+  (`SimpleCurve.points`, `RulePack.rulesRaw`, `ThingFilter.allowedQualities`,
+  `BiomeDef.wildAnimals`, `Scenario.parts`, `PrefabDef.things`) or a class a
+  public field also reaches, and those stay. Reference assemblies carry no
+  method bodies, so this is a rule over the type graph, not a read of the
+  loader.
+- The classes of the generator's `RuntimeClasses` table (and their
+  subclasses): the few no rule above separates, each with a one-line reason,
+  printed in the `defs.proto` header. Adding an entry needs the same evidence
+  as the existing ones; a class not shown to be runtime stays mirrored.
+
+A field of an excluded class is skipped like any other runtime state, so a
+class only such fields reach leaves the schema with them.
 
 Reference cycles are not excluded: the type graph is walked depth-first from
 `ThingDef`, then `TerrainDef`, then every other concrete `Verse.Def` class in

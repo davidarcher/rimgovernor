@@ -13,6 +13,16 @@
 //     also a non-public field of a generic type the mapping has no shape for). Each
 //     such field is listed in the output header. Field names are the CLR names, so
 //     native fills a message by protobuf reflection by name alone.
+//   * A class carries def data only if the XML loader can build it, so these are
+//     runtime state as well, and a field of one is skipped like any other:
+//       - a class with a concrete subclass but no instantiable one, or a concrete class
+//         without a public parameterless constructor (a worker or handler built with its
+//         def or map as an argument);
+//       - a non-public field holding one instance of a class family (abstract, or with
+//         subclasses) that no public field reaches: a lazily built worker, graphic or
+//         noise module (the data a non-public field holds is a collection or a struct);
+//       - the classes of RuntimeClasses (with their subclasses), the explicit table of
+//         what no structural rule separates, each with its reason.
 //   * Def references become the def's defName (string); System.Type becomes its
 //     full name; enums keep their numeric values; RimWorld.QuestGen.SlateRef<T>
 //     becomes the string it holds (its XML text, a literal or a "$variable").
@@ -193,6 +203,7 @@ internal sealed class Generator
             if (!defs.Any(t => t.FullName == carried)) throw new InvalidOperationException($"{carried} not found in {string.Join(", ", DefAssemblies)}");
         roots = defs.OrderBy(t => Array.IndexOf(CarriedRoots, t.FullName) is var i && i >= 0 ? i : CarriedRoots.Length)
             .ThenBy(t => t.FullName, StringComparer.Ordinal).ToList();
+        publicReach = PublicReach();
         foreach (var root in roots) Need(root);
         if (errors.Count > 0) return "";
         AssignNames();
@@ -226,7 +237,7 @@ internal sealed class Generator
     // is runtime state: a Verse.Entity, a Verse.ILoadReferenceable, a delegate,
     // an interface, System.Object (untyped), a UnityEngine.Object (Material, Texture, ...)
     // or any other class outside the game's def assemblies (BCL, Unity, Steam).
-    private static Type? RuntimeState(Type t)
+    private Type? RuntimeState(Type t)
     {
         if (t.IsArray) return RuntimeState(t.GetElementType()!);
         if (t.IsInterface) return t;
@@ -236,12 +247,105 @@ internal sealed class Generator
             if (b.FullName is "Verse.Entity" or "System.MulticastDelegate" or "System.Delegate" or "UnityEngine.Object") return t;
         // A class of the BCL, Unity or Steam (a MaterialPropertyBlock, a StringBuilder): the game's def data never uses one.
         if (!t.IsGenericType && !t.IsValueType && ScalarOf(t) == null && !DefAssemblies.Contains(t.Assembly.GetName().Name)) return t;
+        // A class the loader cannot build, or one named in RuntimeClasses: not def data.
+        if (!t.IsGenericType && !IsDef(t) && (InDefAssembly(t) && !Loadable(t) || InRuntimeClasses(t))) return t;
         if (t.FullName == "Verse.ILoadReferenceable" || t.GetInterfaces().Any(i => i.FullName == "Verse.ILoadReferenceable")) return t;
         if (t.IsGenericType)
             foreach (var a in t.GetGenericArguments())
                 if (RuntimeState(a) is { } inner) return inner;
         return null;
     }
+
+    // Classes the loader can build: a concrete class with a public parameterless
+    // constructor, or a base class with such a subclass. A worker or handler built
+    // with its def or map as a constructor argument is runtime state.
+    private readonly Dictionary<Type, bool> loadable = new();
+
+    // Classes (and their subclasses) with no structural mark that are runtime
+    // state anyway, each with its reason. See the defs.proto header.
+    private static readonly SortedDictionary<string, string> RuntimeClasses = new(StringComparer.Ordinal)
+    {
+        ["RimWorld.Alert"] = "an alert instance a scenario part caches; the game builds it, XML never names one",
+        ["RimWorld.BossgroupWorker"] = "worker built from BossgroupDef.workerClass; no data of its own",
+        ["RimWorld.Difficulty"] = "the saved game's difficulty settings, cached by CostListForDifficulty",
+        ["RimWorld.Planet.SitePart"] = "a world site's part, created when a site spawns (GenStepParams.sitePart)",
+        ["RimWorld.Reward"] = "a quest reward generated at quest time (QuestNode_GiveRewards.generatedRewards)",
+        ["RimWorld.RoyalTitleInheritanceWorker"] = "worker built from RoyalTitleDef.inheritanceWorkerOverrideClass; no data of its own",
+        ["RimWorld.SketchThing"] = "a thing of the sketch being resolved (SketchResolver scratch collections)",
+        ["Steamworks.PublishedFileId_t"] = "the workshop id assigned at upload, not read from XML (Scenario.publishedFileIdInt)",
+        ["Verse.District"] = "a computed map district; no def data",
+        ["Verse.GenStepParams"] = "the parameters of the map generation in progress (GenStep_ConditionCauser.currentParams)",
+        ["Verse.PawnRenderSubWorker"] = "worker built from PawnRenderNodeProperties.subworkerClasses; no data of its own",
+        ["Verse.Room"] = "a computed map room; no def data",
+    };
+
+    private bool Loadable(Type t)
+    {
+        if (t.IsValueType) return true;
+        if (loadable.TryGetValue(t, out var known)) return known;
+        var has = subclasses.TryGetValue(t, out var subs);
+        // An abstract class nothing concrete in the game extends (ResearchMod, DefModExtension)
+        // is an extension point a mod fills, so XML can name it.
+        var ok = Instantiable(t) || (has && subs!.Any(Loadable)) || (t.IsAbstract && (!has || subs!.All(s => s.IsAbstract)));
+        return loadable[t] = ok;
+    }
+
+    // The non-def classes and structs the roots reach through public fields alone
+    // (a collection element, a generic argument and every mirrored subclass included).
+    private HashSet<Type> publicReach = new();
+
+    private HashSet<Type> PublicReach()
+    {
+        var reach = new HashSet<Type>();
+        var queue = new Queue<Type>();
+        void Visit(Type t)
+        {
+            if (t.IsArray) { Visit(t.GetElementType()!); return; }
+            if (t.IsGenericType) { foreach (var a in t.GetGenericArguments()) Visit(a); return; }
+            if (t.IsEnum || IsDef(t) || !InDefAssembly(t) || RuntimeState(t) != null || !reach.Add(t)) return;
+            queue.Enqueue(t);
+            foreach (var s in MirroredSubclasses(t)) Visit(s);
+        }
+        foreach (var root in roots)
+        {
+            queue.Enqueue(root);
+            foreach (var s in MirroredSubclasses(root)) queue.Enqueue(s);
+        }
+        while (queue.Count > 0)
+            foreach (var f in DataFields(queue.Dequeue()))
+                Visit(f.FieldType);
+        return reach;
+    }
+
+    // A non-public field holding one instance of a class family (abstract, or with
+    // mirrored subclasses) that no public field reaches: a lazily built worker, graphic
+    // or noise module that the game creates from a Type field, which XML never fills.
+    // Data held through a non-public field is a collection or a struct
+    // (SimpleCurve.points, ThingFilter.allowedQualities) or of a class XML names publicly.
+    private bool LazyInstance(FieldInfo f)
+    {
+        var t = f.FieldType;
+        return !f.IsPublic && !t.IsValueType && !t.IsGenericType && !t.IsArray && !IsDef(t) && InDefAssembly(t)
+            && (t.IsAbstract || MirroredSubclasses(t).Any()) && !publicReach.Contains(t);
+    }
+
+    private bool Instantiable(Type t) =>
+        t.IsValueType || (!t.IsAbstract && t.GetConstructors(BindingFlags.Instance | BindingFlags.Public).Any(c => c.GetParameters().Length == 0));
+
+    private bool IsMirrored(Type t)
+    {
+        return Loadable(t) && !InRuntimeClasses(t);
+    }
+
+    private static bool InRuntimeClasses(Type t)
+    {
+        for (var b = t; b != null; b = b.BaseType)
+            if (b.FullName != null && RuntimeClasses.ContainsKey(b.FullName)) return true;
+        return false;
+    }
+
+    private IEnumerable<Type> MirroredSubclasses(Type t) =>
+        subclasses.TryGetValue(t, out var subs) ? subs.Where(s => IsDef(s) || IsMirrored(s)) : Enumerable.Empty<Type>();
 
     private static string? ScalarOf(Type t) => t.FullName switch
     {
@@ -280,7 +384,7 @@ internal sealed class Generator
             return new Ref(null, t, false, false);
         }
         if (!InDefAssembly(t)) throw new Unsupported($"class {t.FullName} is outside the game's def assemblies");
-        var polymorphic = subclasses.ContainsKey(t);
+        var polymorphic = MirroredSubclasses(t).Any();
         if (!polymorphic && t.IsAbstract)
         {
             if (DataFields(t).Count > 0) throw new Unsupported($"abstract class {t.FullName} has fields but no concrete subclass");
@@ -299,7 +403,7 @@ internal sealed class Generator
         if (messages.ContainsKey(t)) return;
         messages[t] = new Message { Clr = t };
         Build(t);
-        if (t.IsClass && subclasses.TryGetValue(t, out var subs))
+        if (t.IsClass && MirroredSubclasses(t).ToList() is { Count: > 0 } subs)
         {
             anys.Add(t);
             foreach (var s in subs) Need(s);
@@ -338,12 +442,17 @@ internal sealed class Generator
         var number = 0;
         var keys = new Dictionary<string, string>();
         // An abstract class with no concrete subclass is never instantiated: its non-public fields are not data.
-        foreach (var f in DataFields(t, !t.IsAbstract || subclasses.ContainsKey(t)))
+        foreach (var f in DataFields(t, !t.IsAbstract || MirroredSubclasses(t).Any()))
         {
             var where = $"{f.DeclaringType!.FullName}.{f.Name}";
             if (RuntimeState(f.FieldType) is { } state)
             {
                 skipped.Add($"{where}: {TypeText(f.FieldType)} (runtime state {TypeText(state)})");
+                continue;
+            }
+            if (LazyInstance(f))
+            {
+                skipped.Add($"{where}: {TypeText(f.FieldType)} (runtime state: a lazily built instance of a class family)");
                 continue;
             }
             var key = char.ToUpperInvariant(f.Name[0]) + f.Name.Substring(1).Replace("_", "");
@@ -515,12 +624,17 @@ internal sealed class Generator
         L("// structs, enums and string-mapped elements (defName, Type) are not wrapped. All three");
         L("// carry the clr_synthetic option.");
         L("//");
+        L("// Runtime classes no structural rule separates (with their subclasses), the generator's");
+        L("// RuntimeClasses table; a field of one is skipped like any other runtime state:");
+        foreach (var (name, reason) in RuntimeClasses) L("//   " + name + ": " + reason);
+        L("//");
         L("// Abstract classes without fields or concrete subclass (empty messages):");
         foreach (var t in emptyAbstract.OrderBy(t => t.FullName, StringComparer.Ordinal)) L("//   " + t.FullName);
         L("//");
         L("// Fields skipped (runtime state, not def data): a type deriving from Verse.Entity or");
         L("// UnityEngine.Object, implementing Verse.ILoadReferenceable, a delegate, an interface or System.Object (untyped),");
-        L("// alone or as a collection element or generic argument.");
+        L("// alone or as a collection element or generic argument; a class the loader cannot build, one in the");
+        L("// RuntimeClasses table, or a lazily built instance of a class family held by a non-public field.");
         foreach (var s in skipped) L("//   " + s);
         L();
         L("syntax = \"proto3\";");
@@ -607,7 +721,7 @@ internal sealed class Generator
 
         foreach (var t in anys.OrderBy(t => names[t], StringComparer.Ordinal))
         {
-            var variants = new[] { t }.Concat(subclasses[t]).Where(v => !v.IsAbstract && messages.ContainsKey(v))
+            var variants = new[] { t }.Concat(subclasses[t]).Where(v => Instantiable(v) && messages.ContainsKey(v))
                 .OrderBy(v => names[v], StringComparer.Ordinal).ToList();
             L();
             L("// One " + t.FullName + " or a concrete subclass.");
