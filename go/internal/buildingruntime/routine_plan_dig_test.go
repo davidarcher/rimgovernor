@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -170,10 +169,9 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	}
 }
 
-// A dig plan that settles with rock still standing (native took the mine
-// order off a cell) is dug on in a follow-up round, never waited on forever;
-// after digRoundLimit rounds the step refuses naming the rock (#1588).
-func TestDigPlannedDigsOnAfterAPartialDigThenRefusesLoudly(t *testing.T) {
+// A dig plan that settled with rock still standing refuses at once, naming
+// the rock: no follow-up rounds (#1588).
+func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
 	t.Parallel()
 	p, db, _, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()
@@ -198,17 +196,6 @@ func TestDigPlannedDigsOnAfterAPartialDigThenRefusesLoudly(t *testing.T) {
 		t.Fatal("the open dig plan must be waited on, not doubled", again.Verdict)
 	}
 	completeRoutineBuildingMethod(t, db, first)
-	for round := 1; round < digRoundLimit; round++ {
-		result := dig()
-		if result.Verdict != BuildingReasonAdmitted {
-			t.Fatal("round", round, result.Verdict)
-		}
-		want := domain.MethodID(fmt.Sprintf("plan-dig-test-round-%d", round))
-		if !hasMethod(result.Decision.Goal.Methods, want) {
-			t.Fatal("follow-up round not named", want, result.Decision.Goal.Methods)
-		}
-		completeRoutineBuildingMethod(t, db, result)
-	}
 	stuck := dig()
 	if !stuck.Verdict.Is(RefusalRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
 		t.Fatal(stuck.Verdict)
@@ -216,13 +203,4 @@ func TestDigPlannedDigsOnAfterAPartialDigThenRefusesLoudly(t *testing.T) {
 	if text := stuck.Verdict.Text(); !strings.Contains(text, "still standing") || !strings.Contains(text, "plan dig test") {
 		t.Fatal(text)
 	}
-}
-
-func hasMethod(methods []domain.GoalMethod, want domain.MethodID) bool {
-	for _, m := range methods {
-		if m.Method == want {
-			return true
-		}
-	}
-	return false
 }

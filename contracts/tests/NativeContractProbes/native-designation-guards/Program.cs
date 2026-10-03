@@ -10,6 +10,7 @@ using HomeBridge.BridgeTools;
 internal static class NativeDesignationGuardsProbe
 {
     private sealed class Site { public string? Unsafe; public string? Waiting; }
+    private sealed class MineSite { public bool Collapse; public string? CellBlocker; public string? Support; }
 
     internal static void Invoke()
     {
@@ -32,6 +33,20 @@ internal static class NativeDesignationGuardsProbe
         Require(registry.Recheck(GuardNames.Enclosure, held, out var wait) == GuardVerdict.Wait && wait == "roof still up", "a wait holds without cancelling");
         held.Unsafe = "enclosing wall";
         Require(registry.Recheck(GuardNames.Enclosure, held, out _) == GuardVerdict.Cancel, "a failed check outranks a wait");
+        // mine_safety as the game registers it (#1588): a pending roof collapse
+        // holds the dig and keeps the designation; a real blocker cancels.
+        var mine = new GuardRegistry<MineSite>().Register(GuardNames.MineSafety,
+            s => MineSafetyRule.Check(s.Collapse, () => s.CellBlocker, () => s.Support), s => MineSafetyRule.Wait(s.Collapse));
+        var dig = new MineSite();
+        Require(mine.Recheck(GuardNames.MineSafety, dig, out _) == GuardVerdict.Proceed, "a safe mine cell proceeds");
+        dig.Collapse = true;
+        dig.Support = "Roof collapse is already pending";
+        Require(mine.Admit(GuardNames.MineSafety, dig) == null, "a pending collapse is no admission refusal");
+        Require(mine.Recheck(GuardNames.MineSafety, dig, out var collapse) == GuardVerdict.Wait && collapse == MineSafetyRule.CollapsePending, "a pending collapse waits, never cancels");
+        dig.Collapse = false;
+        Require(mine.Recheck(GuardNames.MineSafety, dig, out var unsupported) == GuardVerdict.Cancel && unsupported == "Roof collapse is already pending", "unsupported roof cancels once no collapse is pending");
+        dig.Support = null; dig.CellBlocker = "Excavation cell holds a protected structure"; dig.Collapse = true;
+        Require(mine.Recheck(GuardNames.MineSafety, dig, out _) == GuardVerdict.Cancel, "a protected cell cancels even while a collapse is pending");
         Require(registry.Admit("roof_support", new Site()) != null, "an unknown guard refuses");
         var duplicate = false;
         try { registry.Register(GuardNames.MineSafety, s => null); } catch (ArgumentException) { duplicate = true; }

@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
         internal static readonly GuardRegistry<GuardSubject> Registry = new GuardRegistry<GuardSubject>()
             .Register(GuardNames.Enclosure, s => s.Target is Building b ? Enclosure(b, s.Ground) : "The enclosure guard holds a building.",
                 s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
-            .Register(GuardNames.MineSafety, MineSafety)
+            .Register(GuardNames.MineSafety, MineSafety, s => MineSafetyRule.Wait(CollapsePending(s.Map)))
             .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null)
             .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall))
             .Register(GuardNames.Wastepack, Wastepack);
@@ -64,13 +64,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // ---- mine_safety ----
-        private static string? MineSafety(GuardSubject s)
-        {
-            if (s.Map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) return "Roof collapse is pending on this map.";
-            var blocker = ExcavationTools.CellBlocker(s.Cell, s.Map);
-            if (blocker == null && ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support, throughFog: true) != ExcavationSafety.Support.Supported) blocker = support ?? "Roof support is unproven.";
-            return blocker;
-        }
+        private static bool CollapsePending(Map map) => map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
+        private static string? MineSafety(GuardSubject s) => MineSafetyRule.Check(CollapsePending(s.Map), () => ExcavationTools.CellBlocker(s.Cell, s.Map),
+            () => ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support, throughFog: true) == ExcavationSafety.Support.Supported ? null : support ?? "Roof support is unproven.");
 
         // ---- enclosure ----
         private static string? Enclosure(Building target, HashSet<IntVec3>? ground) =>
@@ -163,21 +159,24 @@ namespace HomeBridge.BridgeTools
 
         // Hold is the in-progress re-check: true holds the job off the work.
         // A failed guard drops the designation; the record keeps the blocker.
-        internal static bool Hold(GuardedDesignation r)
+        internal static bool Hold(GuardedDesignation r) => Verdict(r) != GuardVerdict.Proceed;
+
+        private static GuardVerdict Verdict(GuardedDesignation r)
         {
-            if (!r.Open || !Supervisor.IsActive) return true;
+            if (!r.Open || !Supervisor.IsActive) return GuardVerdict.Wait;
             var subject = Subject(r);
-            if (subject == null) { r.Cancelled = true; return true; }
+            if (subject == null) { r.Cancelled = true; return GuardVerdict.Cancel; }
             if (r.Designation == DesignationDefOf.Deconstruct.defName && (subject.Target == null || subject.Target.Position != subject.Cell))
-            { Cancel(r, subject.Map, "Exact deconstruction occupant changed without an observed demolition."); return true; }
+            { Cancel(r, subject.Map, "Exact deconstruction occupant changed without an observed demolition."); return GuardVerdict.Cancel; }
             var verdict = Registry.Recheck(r.Guard, subject, out var blocker);
             if (verdict == GuardVerdict.Cancel) Cancel(r, subject.Map, blocker);
-            return verdict != GuardVerdict.Proceed;
+            return verdict;
         }
 
         private static void Cancel(GuardedDesignation r, Map map, string? blocker)
         {
             r.Blocker = blocker; r.Cancelled = true;
+            Log.Warning("[RimGovernor] " + r.Guard + " guard cancelled " + r.Designation + " at (" + r.X + "," + r.Z + ") on map " + r.MapId + ": " + blocker);
             var designation = Designation(r, map);
             if (designation != null) map.designationManager.RemoveDesignation(designation);
         }
@@ -285,8 +284,13 @@ namespace HomeBridge.BridgeTools
         {
             __state = target?.Map == null || Current.Game == null ? null : Open(target.Map, DesignationDefOf.Mine, target.Position, null);
             if (__state == null) return true;
-            if (Hold(__state)) { __state = null; __instance.EndJobWith(JobCondition.Incompletable); return false; }
-            return true;
+            // A wait holds the pick and keeps the designation and the job; only
+            // a cancel (designation dropped) ends the job.
+            var verdict = Verdict(__state);
+            if (verdict == GuardVerdict.Proceed) return true;
+            __state = null;
+            if (verdict == GuardVerdict.Cancel) __instance.EndJobWith(JobCondition.Incompletable);
+            return false;
         }
         private static void AfterPick(Thing target, GuardedDesignation? __state)
         {

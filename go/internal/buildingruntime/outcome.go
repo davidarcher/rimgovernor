@@ -56,8 +56,8 @@ const (
 	RefusalNoSpace RefusalKind = "no_space"
 	// RefusalSharedAdmission: the shared admission path turned the plan down.
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
-	// RefusalRockNotDug: planned rock still stands after the dig plans the
-	// step may spend; the subject names the dig, the detail the count.
+	// RefusalRockNotDug: planned rock still stands after its dig plan
+	// settled; the subject names the dig, the detail the count.
 	RefusalRockNotDug RefusalKind = "rock_not_dug"
 )
 

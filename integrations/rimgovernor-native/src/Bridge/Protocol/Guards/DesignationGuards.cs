@@ -48,6 +48,22 @@ namespace HomeBridge.BridgeTools
         }
     }
 
+    // The mine_safety rule apart from the game's reads, so the contract probe
+    // runs it. A pending roof collapse is transient and map-wide: it holds
+    // the dig (Wait) and is never a Check blocker, so it neither refuses
+    // admission nor cancels a job in progress. The cell and support rules are
+    // the permanent blockers; support is judged only while no collapse is
+    // pending (a pending collapse near the cell reads as unsupported).
+    internal static class MineSafetyRule
+    {
+        internal const string CollapsePending = "Roof collapse is pending on this map.";
+
+        internal static string? Check(bool collapsePending, Func<string?> cellBlocker, Func<string?> supportBlocker) =>
+            cellBlocker() ?? (collapsePending ? null : supportBlocker());
+
+        internal static string? Wait(bool collapsePending) => collapsePending ? CollapsePending : null;
+    }
+
     internal static class GuardNames
     {
         internal const string Enclosure = "enclosure", MineSafety = "mine_safety", WallUpgrade = "wall_upgrade", Acquisition = "acquisition", Wastepack = "wastepack";
