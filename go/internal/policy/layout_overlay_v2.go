@@ -40,6 +40,7 @@ var roomOverlay = map[ModuleRole]overlayStyle{
 	ModuleNursery:    {planGreen, "nursery"},
 	ModulePlayroom:   {planYellow, "playroom"},
 	ModuleClassroom:  {planWhite, "classroom"},
+	ModuleWorship:    {planAmber, "worship room"},
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{

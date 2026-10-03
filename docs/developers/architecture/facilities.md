@@ -91,7 +91,8 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | Nursery (Biotech) | implemented (own planned room, #1680) | | Crib, BabySleepingSpot |
 | Playroom (Biotech) | implemented (own planned room, #1680) | | ToyBox, BabyDecoration |
 | Classroom (Biotech) | implemented (own planned room, #1680) | | Blackboard, SchoolDesk |
-| WorshipRoom (Ideology), DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+| WorshipRoom (Ideology) | implemented (own planned room, #1658) | | the buildings the ideoligion requires, read from the game |
+| DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 ### Child rooms (Biotech)
 
@@ -116,6 +117,22 @@ one decoration, one blackboard and a desk per child.
    catalog's; a role whose furniture is unavailable or has no known size is
    passed over, and a baby sleeping spot answers an unresearched crib.
 3. Using the rooms (feeding, play, lessons) belongs to the next children.
+
+### Worship room (Ideology)
+
+An ideoligion that requires buildings is owed one worship room holding one of
+each. `Ideoligion.RequiredBuildings` names them (the ideology section:
+building precepts' ThingDefs and the held rituals' required buildings, from
+the game's defs; [ideology contracts](../contracts/ideology-contracts.md)),
+and `policy.WorshipRoomNeed` turns them into a child room need
+(`ChildRoomNeed`, one of each), so the room is grown, shelled and furnished
+exactly like the child rooms above, on the same template. The names are the
+ideoligion's and the footprints the definition catalog's: no def is listed
+in Go. The review names the required buildings for the catalog and
+remembers them for the planners' reads. Without Ideology or a primary
+ideoligion, or while any required building is unavailable or has no known
+size, no room is owed. The ideology read carries no room-quality
+requirement, so none is staged.
 
 ### Throne room
 

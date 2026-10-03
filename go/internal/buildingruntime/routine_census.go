@@ -55,6 +55,9 @@ type routineCensusStore struct {
 	// (#1601), served to planners the same way as the layout plan.
 	royalty      domain.Fact[policy.RoyaltyFacts]
 	royaltyScope observation.Identity
+	// worship is the ideoligion's required buildings the latest review
+	// named (#1658), which planners name in their own reads.
+	worship []string
 	// benches is the mirror version of the bench table the latest review
 	// refreshed (0: it read none), which planners of its census serve.
 	benches uint64
@@ -102,6 +105,20 @@ func (s *routineCensusStore) rememberRoyalty(identity observation.Identity, roya
 	s.mu.Lock()
 	s.royalty, s.royaltyScope = royalty, identity
 	s.mu.Unlock()
+}
+
+// rememberWorship keeps the required buildings the review named.
+func (s *routineCensusStore) rememberWorship(names []string) {
+	s.mu.Lock()
+	s.worship = names
+	s.mu.Unlock()
+}
+
+// rememberedWorship is the required buildings the latest review named.
+func (s *routineCensusStore) rememberedWorship() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.worship
 }
 
 // remembered is the latest royalty read, whatever its scope.

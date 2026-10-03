@@ -80,6 +80,8 @@ burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing t
 
 ## Not here
 
-Building and room planning (#1658), role
+Role
 assignment (#1661) and ritual intents (#1659) consume these facts; writes
-reuse the shared Assign and Ritual shapes.
+reuse the shared Assign and Ritual shapes. Building and room planning (#1658)
+consumes `RequiredBuildings`:
+[worship room](../architecture/facilities.md#worship-room-ideology).

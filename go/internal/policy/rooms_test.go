@@ -30,7 +30,7 @@ func TestFacilityCatalogIsTheCompleteRoomRoleMatrix(t *testing.T) {
 		seen[f.Role] = true
 		switch f.Status {
 		case FacilityImplemented:
-			if len(f.Furniture) == 0 {
+			if len(f.Furniture) == 0 && !f.FurnitureFromGame {
 				t.Fatal("implemented role without furniture", f)
 			}
 		case FacilityPending:

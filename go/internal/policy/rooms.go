@@ -164,6 +164,9 @@ type FacilityRequirement struct {
 	// Furniture lists the building definitions the implemented planner may
 	// place; an empty list marks a pending role.
 	Furniture []string
+	// FurnitureFromGame marks an implemented role whose furniture the
+	// planner reads from the game's definitions rather than listing here.
+	FurnitureFromGame bool
 }
 
 // Hosts reports whether a room of the given role can serve this function.
@@ -228,7 +231,11 @@ func FacilityCatalog() []FacilityRequirement {
 		// it sized to the next title's area, places a throne and furnishes it to
 		// the title's impressiveness; assigning the throne awaits an action kind.
 		{Role: RoomRoleThroneRoom, Status: FacilityImplemented, Content: "Royalty", Furniture: []string{"Throne", "GrandThrone"}},
-		{Role: RoomRoleWorshipRoom, Status: FacilityPending, Content: "Ideology"},
+		// A worship room is its own planned room (#1658), staged like the child
+		// rooms: MaintainHousing shells it and places the buildings the
+		// ideoligion requires, which the game's defs name (the ideology
+		// section), not this row.
+		{Role: RoomRoleWorshipRoom, Status: FacilityImplemented, Content: "Ideology", FurnitureFromGame: true},
 		// The child rooms are their own planned rooms (#1680): MaintainHousing
 		// shells each while a baby (nursery), baby or child (playroom) or child
 		// (classroom) lives and places the furniture the game scores the role

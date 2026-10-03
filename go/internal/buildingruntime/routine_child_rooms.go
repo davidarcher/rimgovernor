@@ -17,26 +17,46 @@ import (
 // (policy.ChildRoomsOwed). Nothing is owed without Biotech: the pawn rows
 // carry no developmental stage and the furniture definitions are absent.
 
-// reviewChildRooms adds the child room furniture definitions to the
-// projection so the planners size and place them from the catalog.
-func reviewChildRooms(reading *observation.RoutineReading) {
-	reading.Projection.AddDefinitions(reading.Frame, policy.ChildRoomDefinitions())
-}
-
-// childRoomNeeds are the child rooms the projection's pawns owe; unknown
-// pawns owe none.
-func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
-	pawns, known := facts.WorkPawns.Value()
+// worshipDefinitions are the buildings the ideoligion requires; none while
+// the ideoligion is unknown.
+func worshipDefinitions(facts observation.ColonyProjection) []string {
+	ideology, known := facts.Facts.Ideology.Value()
 	if !known {
 		return nil
 	}
-	return policy.ChildRoomNeeds(pawns)
+	return ideology.RequiredBuildings()
 }
 
-// furnitureDefinitions are the child room furniture the projection's
-// catalog describes.
+// reviewChildRooms adds the child room furniture and the worship room's
+// required buildings to the projection's definitions so the planners size and
+// place them from the catalog, and remembers the buildings for the planners'
+// own reads (#1658).
+func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) {
+	worship := worshipDefinitions(reading.Projection)
+	reading.Projection.AddDefinitions(reading.Frame, append(policy.ChildRoomDefinitions(), worship...))
+	r.census.rememberWorship(worship)
+}
+
+// childRoomNeeds are the rooms the projection owes: the child rooms its
+// pawns owe (unknown pawns owe none) and the ideoligion's worship room
+// (#1658; an unknown ideoligion owes none).
+func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
+	var needs []policy.ChildRoomNeed
+	if pawns, known := facts.WorkPawns.Value(); known {
+		needs = policy.ChildRoomNeeds(pawns)
+	}
+	if ideology, known := facts.Facts.Ideology.Value(); known {
+		if need, owed := policy.WorshipRoomNeed(ideology); owed {
+			needs = append(needs, need)
+		}
+	}
+	return needs
+}
+
+// furnitureDefinitions are the room furniture the projection's catalog
+// describes: the child rooms' and the worship room's.
 func furnitureDefinitions(facts observation.ColonyProjection) []policy.FurnitureDefinition {
-	names := policy.ChildRoomDefinitions()
+	names := append(policy.ChildRoomDefinitions(), worshipDefinitions(facts)...)
 	var defs []policy.FurnitureDefinition
 	for _, d := range facts.Definitions {
 		if slices.Contains(names, d.Name) {
