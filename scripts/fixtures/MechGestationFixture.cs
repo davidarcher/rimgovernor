@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
                 if (chargerPower == null || chargerPower.PowerNet != power.PowerNet)
                     return Refuse("The charger is not on the generator's power network.");
 
-                // The stock: for each affordable recipe, three times its
+                // The stock: for each affordable recipe, its
                 // ingredients for every gestation cycle, each ingredient the
                 // cheapest item its filter allows.
                 var totals = new Dictionary<ThingDef, int>();
@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
                         .OrderBy(d => d.BaseMarketValue).ThenBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
                     if (def == null) return Refuse("No item satisfies an ingredient of " + r.defName + ".");
                     totals[def] = totals.TryGetValue(def, out var have) ? have : 0;
-                    totals[def] += (int)Math.Ceiling(ingredient.GetBaseCount()) * Math.Max(1, r.gestationCycles) * 3;
+                    totals[def] += (int)Math.Ceiling(ingredient.GetBaseCount()) * Math.Max(1, r.gestationCycles);
                 }
                 var wood = ThingDefOf.WoodLog;
                 totals[wood] = totals.TryGetValue(wood, out var haveWood) ? haveWood + 150 : 150;
