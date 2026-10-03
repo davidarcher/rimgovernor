@@ -47,6 +47,8 @@ func LayoutModule(role RoomRole) (ModuleRole, bool) {
 		return ModuleDeathrestChamber, true
 	case RoomRoleContainmentCell:
 		return ModuleContainmentCell, true
+	case RoomRoleIsolationRoom:
+		return ModuleIsolationRoom, true
 	}
 	return "", false
 }

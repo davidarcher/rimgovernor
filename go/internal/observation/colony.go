@@ -72,6 +72,8 @@ type ColonyProjection struct {
 	Biotech       domain.Fact[BiotechColony]
 	Odyssey       domain.Fact[OdysseyColony]
 	Anomaly       domain.Fact[AnomalyColony]
+	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the routine review.
+	Isolation policy.IsolationPlanning
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
 	// (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero
 	// value without one.
@@ -382,6 +384,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoKillboxArea = allowedAreaID(r.Policies, policy.NoKillboxAreaLabel)
 	r.Facts.VetRoom.Area = allowedAreaID(r.Policies, policy.VetRoomAreaLabel)
+	r.Facts.IsolationArea = allowedAreaID(r.Policies, policy.IsolationAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()

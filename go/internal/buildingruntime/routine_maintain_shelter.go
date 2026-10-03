@@ -65,21 +65,29 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	if !known {
 		return domain.Unknown[bool](), nil
 	}
-	var killbox, vet []domain.Cell
+	var killbox, vet, isolation []domain.Cell
 	if plan, ok := projection.LayoutPlan.Value(); ok {
-		killbox, vet = plan.KillboxCells(), plan.VetRoomCells()
+		killbox, vet, isolation = plan.KillboxCells(), plan.VetRoomCells(), plan.IsolationRoomCells()
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
 	m.edits = nil
 	// The Safe area leaves the vet room out: an animal sheltered there
-	// would enter it, and only the sterilize flow lets one in.
-	if err := m.plan(policy.SafeAreaKey, policy.SafeAreaCells(rooms, append(slices.Clone(killbox), vet...))); err != nil {
+	// would enter it, and only the sterilize flow lets one in; nor does it
+	// hold the isolation room, which only an isolated creepjoiner is kept in.
+	if err := m.plan(policy.SafeAreaKey, policy.SafeAreaCells(rooms, slices.Concat(killbox, vet, isolation))); err != nil {
 		return domain.Unknown[bool](), err
 	}
 	if len(vet) > 0 {
 		if err := m.plan(policy.VetRoomAreaKey, vet); err != nil {
+			return domain.Unknown[bool](), err
+		}
+	}
+	// The isolation room's interior is the area a creepjoiner is held in
+	// (ManageCreepJoiners, #1740).
+	if len(isolation) > 0 {
+		if err := m.plan(policy.IsolationAreaKey, isolation); err != nil {
 			return domain.Unknown[bool](), err
 		}
 	}

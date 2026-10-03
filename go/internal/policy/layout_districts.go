@@ -29,7 +29,7 @@ const (
 func RoomDistrict(role RoomRole) District {
 	switch role {
 	case RoomRoleBedroom, RoomRoleBarracks, RoomRoleHospital, RoomRolePrisonCell, RoomRolePrisonBarracks,
-		RoomRoleNursery, RoomRoleDeathrestChamber, RoomRoleContainmentCell:
+		RoomRoleNursery, RoomRoleDeathrestChamber, RoomRoleContainmentCell, RoomRoleIsolationRoom:
 		return DistrictHousing
 	case RoomRoleWorkshop, RoomRoleLaboratory, RoomRoleKitchen:
 		return DistrictProduction
@@ -78,6 +78,7 @@ var roomDistricts = map[ModuleRole]District{
 	ModuleWorship:          DistrictPlaza,
 	ModuleDeathrestChamber: DistrictHousing,
 	ModuleContainmentCell:  DistrictHousing,
+	ModuleIsolationRoom:    DistrictHousing,
 }
 
 // DistrictAnchor is where a district's site search starts: the interior

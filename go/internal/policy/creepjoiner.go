@@ -87,6 +87,10 @@ type CreepJoinerHand struct {
 	Operations      domain.Fact[[]SurgeryOperation]
 	QueuedSurgeries domain.Fact[int]
 	QueuedRecipes   []string
+	// Area is the load id of the colonist's allowed area ("" when
+	// unrestricted); Hungry is whether it is below the game's fed band.
+	Area   domain.Fact[string]
+	Hungry domain.Fact[bool]
 }
 
 // WeaponDrop is one colonist ordered to drop the weapon it holds.

@@ -57,6 +57,11 @@ func containmentCellNeed(facts observation.ColonyProjection) (policy.ChildRoomNe
 	return policy.ContainmentCellNeed(facts.Facts.Containment, furnitureDefinitions(facts))
 }
 
+// isolationRoomNeed is the room the isolated creepjoiners owe (#1740).
+func isolationRoomNeed(facts observation.ColonyProjection) (policy.ChildRoomNeed, bool) {
+	return policy.IsolationRoomNeed(facts.Isolation, furnitureDefinitions(facts))
+}
+
 // childRoomNeeds are the rooms the projection owes: the child rooms its
 // pawns owe (unknown pawns owe none) and the ideoligion's worship room
 // (#1658; an unknown ideoligion owes none).
@@ -73,13 +78,16 @@ func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
 	if need, verdict := containmentCellNeed(facts); verdict.Owed {
 		needs = append(needs, need)
 	}
+	if need, owed := isolationRoomNeed(facts); owed {
+		needs = append(needs, need)
+	}
 	return needs
 }
 
 // furnitureDefinitions are the room furniture the projection's catalog
 // describes: the room-role furniture and the worship room's buildings.
 func furnitureDefinitions(facts observation.ColonyProjection) []policy.FurnitureDefinition {
-	names := slices.Concat(worshipDefinitions(facts), containmentDefinitions(facts))
+	names := slices.Concat(worshipDefinitions(facts), containmentDefinitions(facts), facts.Isolation.Beds)
 	var defs []policy.FurnitureDefinition
 	for _, d := range facts.Definitions {
 		if len(d.RoomRoles) > 0 || slices.Contains(names, d.Name) {

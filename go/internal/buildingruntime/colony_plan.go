@@ -125,7 +125,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 		rooms, rk := projection.Rooms.Value()
 		construction, ck := projection.Facts.CurrentConstruction.Value()
 		if rk && ck && construction.Colony {
-			ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, childRoomNeeds(*projection))
+			ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, childRoomNeeds(*projection))
 			if policy.RoomsOfRoles(layout.Plan, ended) > 0 {
 				growth.Ended = ended
 				growth.InUse = policy.RoomsInUse(layout.Plan, rooms, construction.Buildings, furnitureDefinitions(*projection))

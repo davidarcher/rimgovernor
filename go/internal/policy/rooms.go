@@ -41,6 +41,9 @@ const (
 	// Anomaly
 	RoomRoleContainmentCell   RoomRole = "ContainmentCell"
 	RoomRoleCeremonialChamber RoomRole = "CeremonialChamber"
+	// RoomRoleIsolationRoom is a plan role only (#1740), no game RoomRoleDef:
+	// the game scores the furnished room a bedroom, so it has no facility row.
+	RoomRoleIsolationRoom RoomRole = "IsolationRoom"
 )
 
 // Room is one proper indoor room from the same-tick native census. Only a

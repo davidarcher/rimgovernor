@@ -378,6 +378,15 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err = r.reviewRoyalty(ctx, state.Snapshot, &reading); err != nil {
 		return store.RoutineReviewResult{}, err
 	}
+	// A creepjoiner held apart owes the isolation room, so the census is read
+	// before the child rooms and the layout (#1740).
+	var creepRecord policy.CreepJoinerRecord
+	if r.creepJoiners != nil {
+		if creepRecord, err = creepJoinerRecord(ctx, p.journal); err != nil {
+			return store.RoutineReviewResult{}, err
+		}
+		reading.Projection.Isolation = creepJoinerIsolation(reading.Projection, reading.Frame, creepRecord)
+	}
 	if err = r.reviewChildRooms(&reading); err != nil {
 		return store.RoutineReviewResult{}, err
 	}
@@ -462,11 +471,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		psylinkCandidates, reading.Projection.Facts.PsylinkOwed = r.psylink.review(ctx, boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection)
 	}
 	if r.creepJoiners != nil {
-		record, err := creepJoinerRecord(ctx, p.journal)
-		if err != nil {
-			return store.RoutineReviewResult{}, err
-		}
-		reading.Projection.Facts.CreepJoinerOwed = r.creepJoiners.review(state.Snapshot, reading.Projection.Identity.Tick, reading.Frame, record)
+		reading.Projection.Facts.CreepJoinerOwed = r.creepJoiners.review(state.Snapshot, reading.Projection.Identity.Tick, reading.Projection, reading.Frame, creepRecord)
 	}
 	if r.methodEnabled(policy.MaintainIdeoRoles) {
 		reading.Projection.Facts.RolesOwed = policy.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns)

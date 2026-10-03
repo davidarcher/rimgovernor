@@ -349,6 +349,9 @@ type RoutineFacts struct {
 	NoKillboxArea  domain.Fact[string]
 	KillboxWindow  domain.Fact[bool]
 	KillboxHaulers domain.Fact[[]PawnID]
+	// IsolationArea is the Isolation allowed area's native load id, "" when
+	// the map has none (ManageCreepJoiners, #1740).
+	IsolationArea domain.Fact[string]
 	// SaleArt counts the packed art no owed room reserves (SaleSculptures);
 	// read only while the wealth headroom is negative, it opens a trade as
 	// the shed_art need (#1247).

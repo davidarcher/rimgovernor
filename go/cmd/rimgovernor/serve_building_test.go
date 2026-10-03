@@ -18,6 +18,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	"google.golang.org/protobuf/proto"
 )
@@ -74,6 +75,12 @@ type unusedBuildingCapabilities struct {
 	boundary.Native
 	buildingruntime.NativeAuthority
 	boundary.BuildingWriter
+}
+
+// The routine reviewer requires the bench census read; this fake answers it
+// as empty.
+func (*clockServiceFake) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
+	return nil, bridge.Result{}, nil
 }
 
 func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {

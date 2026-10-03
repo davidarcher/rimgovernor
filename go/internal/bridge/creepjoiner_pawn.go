@@ -82,6 +82,14 @@ func CreepJoinerHand(row *o.PawnState) policy.CreepJoinerHand {
 		hand.QueuedSurgeries = QueuedSurgeries(h)
 		hand.QueuedRecipes = QueuedSurgeryRecipes(h)
 	}
+	// An unset allowed area is an unrestricted pawn (native AllowedArea).
+	hand.Area, hand.Hungry = domain.Unknown[string](), domain.Unknown[bool]()
+	if s := row.Settings; s != nil && !failedFields(s.Issues)["allowed_area_id"] {
+		hand.Area = domain.Known(s.GetAllowedAreaId())
+	}
+	if n := row.Needs; n != nil && n.HungerCategory != nil && n.GetHungerCategory() != o.HungerCategory_HUNGER_CATEGORY_UNSPECIFIED && !failedFields(n.Issues)["hunger_category"] {
+		hand.Hungry = domain.Known(n.GetHungerCategory() != o.HungerCategory_HUNGER_CATEGORY_FED)
+	}
 	mental := CellPresence(row.MentalState, row.Issues, "mental_state", false)
 	if row.GetDead() || row.GetDowned() || row.GetDrafted() {
 		hand.Available = domain.Known(false)

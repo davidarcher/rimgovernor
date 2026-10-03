@@ -15,7 +15,7 @@ import (
 // entrance's column free the full depth so every band stays reachable.
 
 func init() {
-	for _, role := range []RoomRole{RoomRoleNursery, RoomRolePlayroom, RoomRoleClassroom, RoomRoleWorshipRoom, RoomRoleDeathrestChamber, RoomRoleContainmentCell} {
+	for _, role := range []RoomRole{RoomRoleNursery, RoomRolePlayroom, RoomRoleClassroom, RoomRoleWorshipRoom, RoomRoleDeathrestChamber, RoomRoleContainmentCell, RoomRoleIsolationRoom} {
 		RegisterInteriorTemplate(role, InteriorTemplate{Name: "child-room", Plan: planChildRoom})
 	}
 }

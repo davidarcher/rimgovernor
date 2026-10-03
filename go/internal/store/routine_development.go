@@ -192,7 +192,9 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 // and a hauler while logs and fish lay loose), or an apparel
 // policy write (one native settings write per pawn, no pawn work; #660:
 // eight colonists waited one slot per review round for their policies and
-// MaintainEquipment spent a whole window before its first wear order). An exempt
+// MaintainEquipment spent a whole window before its first wear order), or an
+// allowed-area move with no work priorities (one native settings write; a
+// creepjoiner's isolation, #1740). An exempt
 // method is admitted without a slot and, while open, holds none
 // (routineCommitments).
 func developmentExemptMethod(plan domain.PlanSpec) bool {
@@ -208,6 +210,11 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 		}
 		letter, isDialog := action.DialogAnswer()
 		husbandry, isHusbandry := action.Husbandry()
+		work, isWork := action.WorkAssignment()
+		if isWork && work.HasArea() && len(work.Settings()) == 0 && !work.HasSchedule() {
+			// An allowed-area move alone is one native settings write (#1740).
+			continue
+		}
 		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.RitualAction && action.Kind() != domain.RoyaltyAction && action.Kind() != domain.EquipAction && action.Kind() != domain.DropEquipmentAction && action.Kind() != domain.ZoneDeleteAction && action.Kind() != domain.AutoRefuelAction && action.Kind() != domain.AutoHomeAreaAction && action.Kind() != domain.AreaAction && action.Kind() != domain.PawnSettingsAction && action.Kind() != domain.ReadingPolicyAction && action.Kind() != domain.DrugPolicyAction && action.Kind() != domain.FoodPolicyAction && action.Kind() != domain.ZoneCreateAction && action.Kind() != domain.ZoneCellEditAction && action.Kind() != domain.StockpilePatchAction && action.Kind() != domain.ApparelPolicyAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
 			return false
 		}

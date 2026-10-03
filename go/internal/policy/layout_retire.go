@@ -9,7 +9,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // demolishes it as it does a dropped wing's. Rooms are never shrunk.
 
 // addOnRoomRoles are the roles holding at most one planned room.
-var addOnRoomRoles = []ModuleRole{ModuleWorship, ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleContainmentCell}
+var addOnRoomRoles = []ModuleRole{ModuleWorship, ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleContainmentCell, ModuleIsolationRoom}
 
 // ChildRoomShapes are the shapes of every need whose furniture resolves,
 // planned or not.
@@ -142,7 +142,7 @@ func withoutRooms(rooms []LayoutRoom, drop map[Rectangle]bool) []LayoutRoom {
 // owes the room; the ideoligion is known and requires no building; the
 // containment demand is known to be zero entities. needs are the rooms still
 // owed.
-func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligion], containment ContainmentPlanning, needs []ChildRoomNeed) []ModuleRole {
+func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligion], containment ContainmentPlanning, isolation IsolationPlanning, needs []ChildRoomNeed) []ModuleRole {
 	owed := map[ModuleRole]bool{}
 	for _, n := range needs {
 		owed[n.Module] = true
@@ -176,6 +176,8 @@ func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligi
 	add(ideoKnown, ModuleWorship)
 	demand, demandKnown := containment.Demand.Value()
 	add(demandKnown && demand.Entities == 0, ModuleContainmentCell)
+	isolated, isolatedKnown := isolation.Pawns.Value()
+	add(isolatedKnown && len(isolated) == 0, ModuleIsolationRoom)
 	return ended
 }
 

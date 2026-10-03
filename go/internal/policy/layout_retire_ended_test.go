@@ -8,7 +8,24 @@ import (
 )
 
 func endedRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligion], demand domain.Fact[ContainmentDemand], owed ...ChildRoomNeed) []ModuleRole {
-	return EndedRoomRoles(pawns, ideology, ContainmentPlanning{Demand: demand}, owed)
+	return EndedRoomRoles(pawns, ideology, ContainmentPlanning{Demand: demand}, IsolationPlanning{Pawns: domain.Known([]PawnID(nil))}, owed)
+}
+
+// The isolation room ends only when the isolated census is read and empty.
+func TestEndedRoomRolesIsolation(t *testing.T) {
+	pawns, ideo, none := domain.Known([]WorkPawn(nil)), domain.Known(Ideoligion{}), domain.Known(ContainmentDemand{})
+	ended := func(isolation IsolationPlanning, owed ...ChildRoomNeed) bool {
+		return slices.Contains(EndedRoomRoles(pawns, ideo, ContainmentPlanning{Demand: none}, isolation, owed), ModuleIsolationRoom)
+	}
+	if !ended(IsolationPlanning{Pawns: domain.Known([]PawnID(nil))}) {
+		t.Error("isolation room not ended with no isolated creepjoiner")
+	}
+	if ended(IsolationPlanning{Pawns: domain.Unknown[[]PawnID]()}) {
+		t.Error("isolation room ended on an unread census")
+	}
+	if ended(IsolationPlanning{Pawns: domain.Known([]PawnID{"7"})}, ChildRoomNeed{Module: ModuleIsolationRoom}) {
+		t.Error("isolation room ended while a creepjoiner is isolated")
+	}
 }
 
 // An ended need is only ever read from known facts (#1824).
@@ -21,7 +38,7 @@ func TestEndedRoomRolesNeedKnownFacts(t *testing.T) {
 	childRoles := []ModuleRole{ModuleNursery, ModulePlayroom, ModuleClassroom}
 
 	got := endedRoles(known, ideo, none)
-	for _, role := range []ModuleRole{ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleWorship, ModuleContainmentCell} {
+	for _, role := range []ModuleRole{ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleWorship, ModuleContainmentCell, ModuleIsolationRoom} {
 		if !slices.Contains(got, role) {
 			t.Errorf("%s not ended with every need gone: %v", role, got)
 		}
@@ -56,7 +73,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	if !ok {
 		t.Fatal("no plan")
 	}
-	roles := []ModuleRole{ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleWorship, ModuleContainmentCell}
+	roles := []ModuleRole{ModuleNursery, ModulePlayroom, ModuleClassroom, ModuleDeathrestChamber, ModuleWorship, ModuleContainmentCell, ModuleIsolationRoom}
 	var added []LayoutRoom
 	for i, role := range roles {
 		in := Rectangle{X: 20 + 12*int32(i%3), Z: 20 + 12*int32(i/3), Width: 4, Height: 4}

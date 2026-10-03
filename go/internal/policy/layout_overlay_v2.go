@@ -45,6 +45,7 @@ var roomOverlay = map[ModuleRole]overlayStyle{
 	ModuleDeathrestChamber: {planDarkPurple, "deathrest chamber"},
 	ModuleWorship:          {planAmber, "worship room"},
 	ModuleContainmentCell:  {planDarkPurple, "containment cell"},
+	ModuleIsolationRoom:    {planDarkPurple, "isolation room"},
 }
 
 var reservationOverlay = map[ReservationKind]overlayStyle{

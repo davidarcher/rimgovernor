@@ -132,7 +132,22 @@ Anomaly block is no creepjoiner.
   colony drop out of the record. An inspection that reveals nothing leaves the
   downside unrevealed.
 
-Open: the isolation room role and the prosthetic trick (dentures and wooden
+- **Isolation** (#1740): a creepjoiner held apart (downside known hidden and
+  no finished inspection in the record, `policy.CreepJoinerDownsides.Isolated`)
+  owes one isolation room, a planned child room (`policy.IsolationRoomNeed`,
+  role `RoomRoleIsolationRoom`, one bed) whose bed is the first
+  `bed_humanlike` def the furniture rules resolve. `MaintainShelter` plans a
+  bot-owned `Isolation` allowed area over its interior. Once the room stands the
+  `ManageCreepJoiners` plan moves the pawn into the area (an area-only
+  `WorkAssignment`, development-exempt) and releases it, by clearing the area,
+  when its downside shows, its inspection is done or it is hungry: the game
+  treats food outside an allowed area as forbidden with no starvation
+  exemption (`ForbidUtility.InAllowedArea`, decompile), so a hungry pawn is not
+  kept in. The `Safe` area excludes the room. Known edges: a threat's shelter
+  move may shuffle the pawn, another colonist may take the bed, and the room
+  needs `MaintainShelter` enabled.
+
+Open: the prosthetic trick (dentures and wooden
 hands, then removal); valuable apparel has no expressible rule yet. A downside
 trait or hediff that the colonist's benefit or form also grants counts as shown
 (the catalog rows do not tell the two apart): unverified in game, as the drop

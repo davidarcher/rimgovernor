@@ -25,12 +25,17 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	}
 	bound := false
 	areaOnly := false
+	// A creepjoiner's isolation is an area move among its drops and
+	// inspections (#1740): the other actions pass, each assignment is
+	// area-only.
+	isolation := false
 	need := policy.EnsureWorkAssignments
 	if served, ok := owner.ownerNeed(review); ok {
 		bound = served == need
 		areaOnly = served == policy.RecoverDisasterServices
+		isolation = served == policy.ManageCreepJoiners
 	}
-	if !bound && !areaOnly {
+	if !bound && !areaOnly && !isolation {
 		return ErrConflict
 	}
 	// The EnsureWorkAssignments plan also carries the pawn settings and
@@ -39,14 +44,14 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// work assignments. A disaster area plan carries assignments alone.
 	pawns := map[domain.PawnID]bool{}
 	for _, action := range plan.Actions() {
-		if !areaOnly && routineSettingsKinds[action.Kind()] {
+		if !areaOnly && routineSettingsKinds[action.Kind()] || isolation && action.Kind() != domain.WorkAssignmentAction {
 			continue
 		}
 		w, ok := action.WorkAssignment()
 		if !ok || pawns[w.Pawn()] || len(pawns) == 8 {
 			return ErrConflict
 		}
-		if areaOnly && (!w.HasArea() || w.HasSchedule() || len(w.Settings()) != 0) {
+		if (areaOnly || isolation) && (!w.HasArea() || w.HasSchedule() || len(w.Settings()) != 0) {
 			return ErrConflict
 		}
 		pawns[w.Pawn()] = true

@@ -104,6 +104,7 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | WorshipRoom (Ideology) | implemented (own planned room, #1658) | | the buildings the ideoligion requires, read from the game |
 | DeathrestChamber (Biotech) | implemented (own planned room, #1690) | | catalog roles DeathrestCasket, DeathrestAccelerator |
 | ContainmentCell (Anomaly) | implemented (own planned room, #1741) | | the holding platform the defs name |
+| IsolationRoom (Anomaly) | implemented (own planned room, #1740) | | plan role only; the bed is the `bed_humanlike` def |
 | CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 ### Child rooms (Biotech)

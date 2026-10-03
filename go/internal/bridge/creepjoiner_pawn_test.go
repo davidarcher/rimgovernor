@@ -100,4 +100,34 @@ func TestCreepJoinerPawnAndHandLift(t *testing.T) {
 		t.Fatal("an armed colonist with no primary id was taken as holding a known weapon")
 	}
 	var _ policy.CreepJoinerHand = hand
+
+	// An unset allowed area is an unrestricted pawn; a failed read is unknown.
+	if _, known := CreepJoinerHand(hidden).Area.Value(); known {
+		t.Fatal("a row with no settings has a known allowed area")
+	}
+	restricted := joinerRow(false, nil)
+	restricted.Settings = &o.PawnSettings{AllowedAreaId: proto.String("Area_Allowed_3")}
+	if area, known := CreepJoinerHand(restricted).Area.Value(); !known || area != "Area_Allowed_3" {
+		t.Fatal("allowed area", area, known)
+	}
+	restricted.Settings = &o.PawnSettings{}
+	if area, known := CreepJoinerHand(restricted).Area.Value(); !known || area != "" {
+		t.Fatal("an unset allowed area is not unrestricted", area, known)
+	}
+	restricted.Settings = &o.PawnSettings{Issues: []*o.ReadIssue{{Field: proto.String("allowed_area_id")}}}
+	if _, known := CreepJoinerHand(restricted).Area.Value(); known {
+		t.Fatal("a failed allowed area read is known")
+	}
+	hungry := joinerRow(false, nil)
+	hungry.Needs = &o.PawnNeeds{HungerCategory: o.HungerCategory_HUNGER_CATEGORY_HUNGRY.Enum()}
+	if v, known := CreepJoinerHand(hungry).Hungry.Value(); !known || !v {
+		t.Fatal("a hungry colonist is not hungry")
+	}
+	hungry.Needs = &o.PawnNeeds{HungerCategory: o.HungerCategory_HUNGER_CATEGORY_FED.Enum()}
+	if v, known := CreepJoinerHand(hungry).Hungry.Value(); !known || v {
+		t.Fatal("a fed colonist is hungry")
+	}
+	if _, known := CreepJoinerHand(hidden).Hungry.Value(); known {
+		t.Fatal("a row with no needs has known hunger")
+	}
 }

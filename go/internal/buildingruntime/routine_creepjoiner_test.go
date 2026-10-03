@@ -138,6 +138,40 @@ func TestCreepJoinerPlannerDropsTheHeldWeapon(t *testing.T) {
 	}
 }
 
+// TestCreepJoinerPlannerHoldsAndReleasesByAreaMove (#1740): the review's
+// isolation moves ride the creepjoiner plan as allowed-area assignments, a
+// hold naming the Isolation area and a release clearing it.
+func TestCreepJoinerPlannerHoldsAndReleasesByAreaMove(t *testing.T) {
+	ctx := context.Background()
+	reviewer, _ := creepJoinerFixture(t, func(row *o.PawnState) { creepJoinerRow(row, false, "club") }, policy.ManageCreepJoiners)
+	planner, err := NewRoutineCreepJoinerPlanner(reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// The joiner's drop claims it this round, so its own move waits.
+	reviewer.creepJoiners.work.isolation = []policy.IsolationMove{{Pawn: "joiner", Area: "Area_Allowed_9"}, {Pawn: "other", Area: "Area_Allowed_9"}}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := reviewer.player.journal.LoadPlan(ctx, result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moves := map[domain.PawnID]domain.WorkAssignment{}
+	for _, action := range plan.Spec.Actions() {
+		if w, ok := action.WorkAssignment(); ok {
+			moves[w.Pawn()] = w
+		}
+	}
+	if hold := moves["other"]; !hold.HasArea() || hold.AreaClear() || hold.Area() != "Area_Allowed_9" || len(moves) != 1 {
+		t.Fatal("hold", moves)
+	}
+}
+
 // TestCreepJoinerPlannerLeavesAShownDownsideAlone: a creepjoiner whose
 // downside has fired keeps its weapon, and so does a colonist that is none.
 func TestCreepJoinerPlannerLeavesAShownDownsideAlone(t *testing.T) {
