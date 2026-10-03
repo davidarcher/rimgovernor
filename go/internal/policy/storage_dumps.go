@@ -23,6 +23,9 @@ type DumpStore struct {
 	// general store: the rotten dump, the crematorium's feed, sits beside the
 	// crematorium (#1812), and the incinerator's dump will beside its room.
 	Anchors map[string]domain.Cell
+	// Incinerator is the planned incinerator room once its walls and door
+	// stand (#1814); nil before.
+	Incinerator *LayoutRoom
 }
 
 // CrematoriumFeedAnchor is a built crematorium's first cell, the lowest ID
@@ -79,15 +82,13 @@ func DumpNeeds(facts RoutineFacts) map[string]int {
 	return needs
 }
 
-// dumpSites is one keyed site per dump role with things waiting. Candidates are the nearest free 2x2 patches
-// (OutdoorDumpSites); the site room is every outdoor walkable cell clear of
-// living rooms, taken or not.
-func (r StorageRequest) dumpSites() []StockpileSite {
-	d := r.Dumps
-	if d == nil || len(d.Needs) == 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
-		return nil
+// dumpAnchor is the cell a dump role's patches are sited nearest: its own
+// anchor when it has one, else the first general store cell, else the
+// colony anchor.
+func (r StorageRequest) dumpAnchor(role string) domain.Cell {
+	if at, near := r.Dumps.Anchors[role]; near {
+		return at
 	}
-	anchor := d.Anchor
 	var store []domain.Cell
 	for _, z := range r.Zones {
 		if z.Role == domain.GeneralRole {
@@ -95,7 +96,18 @@ func (r StorageRequest) dumpSites() []StockpileSite {
 		}
 	}
 	if store = stockpileSorted(store); len(store) > 0 {
-		anchor = store[0]
+		return store[0]
+	}
+	return r.Dumps.Anchor
+}
+
+// dumpSites is one keyed site per dump role with things waiting. Candidates are the nearest free 2x2 patches
+// (OutdoorDumpSites); the site room is every outdoor walkable cell clear of
+// living rooms, taken or not.
+func (r StorageRequest) dumpSites() []StockpileSite {
+	d := r.Dumps
+	if d == nil || len(d.Needs) == 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
+		return nil
 	}
 	var room []domain.Cell
 	blocked := outdoorDumpBlocked(d.Rooms, r.Protected)
@@ -123,10 +135,7 @@ func (r StorageRequest) dumpSites() []StockpileSite {
 		if d.Needs[spec.Role] <= 0 {
 			continue
 		}
-		at, near := d.Anchors[spec.Role]
-		if !near {
-			at = anchor
-		}
+		at := r.dumpAnchor(spec.Role)
 		site := StockpileSite{Role: spec.Role, Room: room, Filter: spec.Filter, Priority: spec.Priority, Keyed: true}
 		for _, p := range patchesNear(at) {
 			site.Candidates = append(site.Candidates, stockpileSorted(rectCells(p)))

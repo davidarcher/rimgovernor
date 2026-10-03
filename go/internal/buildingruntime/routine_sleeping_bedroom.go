@@ -184,6 +184,24 @@ func bedroomShellReason(step policy.BedroomStep) string {
 // method; prefix names the plan (the tomb shares it, #832). reason is the
 // admission's short why for Operation.intent (#846).
 func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string) (RoutineBuildingResult, error) {
+	return b.shellRoomOf(call, epoch, state, review, goal, reading, room, method, reason, sharedShellStuff)
+}
+
+// shellStuff chooses the wall's and the door's stuff; refusal names what is
+// unavailable when it cannot.
+type shellStuff func(wall, door observation.PlanningDefinition) (wallStuff, doorStuff string, refusal Verdict, ok bool)
+
+// sharedShellStuff builds both from the one cheapest stuff they share.
+func sharedShellStuff(wall, door observation.PlanningDefinition) (string, string, Verdict, bool) {
+	stuff, known := animalContainmentStuff(wall, door)
+	if !known {
+		return "", "", fieldUnavailable("wall_door_stuff"), false
+	}
+	return stuff, stuff, Verdict{}, true
+}
+
+// shellRoomOf is shellRoom with the walls' and door's stuff chosen by stuff.
+func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, reading observation.ColonyReading, room policy.LayoutRoom, method domain.MethodID, reason string, choose shellStuff) (RoutineBuildingResult, error) {
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -199,9 +217,9 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	if !wak || !dak || !wa || !da {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_availability")}, nil
 	}
-	stuff, known := animalContainmentStuff(wallDef, doorDef)
+	wallStuff, doorStuff, refusal, known := choose(wallDef, doorDef)
 	if !known {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_stuff")}, nil
+		return RoutineBuildingResult{Verdict: refusal}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
@@ -233,9 +251,9 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		if err := check(); err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		definition := policy.ShellWallDefinition
+		definition, stuff := policy.ShellWallDefinition, wallStuff
 		if doors[cell] {
-			definition = policy.ShellDoorDefinition
+			definition, stuff = policy.ShellDoorDefinition, doorStuff
 		}
 		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
 		if err != nil {

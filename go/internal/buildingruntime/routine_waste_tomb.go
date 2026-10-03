@@ -37,7 +37,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	}
 	step := tombStep(reading.Projection)
 	if step.Kind == policy.TombNone {
-		return r.stageCremation(call, epoch, state, review, goal, reading)
+		return r.stageDisposal(call, epoch, state, review, goal, reading)
 	}
 	clockSchedulerLog("%s: tomb %s (dead %d, empty %d)", goal.Goal.ID, step.Kind, step.Dead, step.Empty)
 	var result RoutineBuildingResult
@@ -50,7 +50,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 		// The layout review grows another tomb; a grave only once a
 		// replan found no room for one; cremation goes on meanwhile.
 		if !r.reviewer.tombGrowthRefused(reading.Projection.Identity.Tick) {
-			return r.stageCremation(call, epoch, state, review, goal, reading)
+			return r.stageDisposal(call, epoch, state, review, goal, reading)
 		}
 		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
 	case policy.TombGrave:

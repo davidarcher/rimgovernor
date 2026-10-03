@@ -28,6 +28,8 @@ const (
 	WornDumpRole   = "dump:worn"
 	RottenDumpRole = "dump:rotten"
 	CorpseDumpRole = "dump:corpses"
+	// IncineratorRole is the walled incinerator's zone (#1814).
+	IncineratorRole = "incinerator"
 	// FoodRole is the opening food stockpile: Preferred, so an indoor food
 	// zone above it draws the food in once one stands.
 	FoodRole = "food"
@@ -118,6 +120,18 @@ func RottenDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing,
 		[]FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
 		[]FilterSelector{SpecialFilter("AllowFresh")}))
+}
+
+// IncineratorFilter is what the incinerator burns (#1814): the rotten dump's
+// rotten food and animal corpses and the worn dump's apparel and weapons.
+// The worn half is bounded to items below the gear hit-point floor, because
+// the zone outranks the Low general store and an unbounded weapon or apparel
+// filter would haul serviceable gear in to burn.
+func IncineratorFilter() StockpileFilter {
+	f := mustFilter(NewStockpileFilter(BaseNothing,
+		[]FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
+		[]FilterSelector{SpecialFilter("AllowFresh")}))
+	return mustFilter(f.WithHitPoints(0, GearHitPointFloor))
 }
 
 // CorpseDumpFilter takes humanlike corpses only, the ones with no better

@@ -19,6 +19,8 @@ type OutdoorDumpRequest struct {
 	// MinDistance, when set, keeps every site at least this Chebyshev
 	// distance from the anchor (the opening corpse dump, clear of the shelter).
 	MinDistance int32
+	// Limit, when set, replaces the default cap of eight sites returned.
+	Limit int
 }
 
 // outdoorDumpClearance is the Chebyshev distance an outdoor dump keeps from
@@ -95,8 +97,12 @@ func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
 		}
 		return cellLess(sites[i].cell, sites[j].cell)
 	})
-	if len(sites) > 8 {
-		sites = sites[:8]
+	limit := 8
+	if r.Limit > 0 {
+		limit = r.Limit
+	}
+	if len(sites) > limit {
+		sites = sites[:limit]
 	}
 	out := make([]Rectangle, len(sites))
 	for i, s := range sites {

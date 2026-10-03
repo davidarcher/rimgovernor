@@ -68,6 +68,9 @@ type GearRoomDemand struct {
 type StoragePlan struct {
 	Sites []StockpileSite
 	Gear  GearRoomDemand
+	// Incinerator is the site layout should reserve for the incinerator
+	// (#1814); zero when it stands, nothing waits or no ground fits.
+	Incinerator IncineratorSite
 }
 
 // PlanStorage returns the gear demand and the desired storage sites: the meal store, the
@@ -93,6 +96,8 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites()...)
+	plan.Sites = append(plan.Sites, r.incineratorSites()...)
+	plan.Incinerator = r.incineratorOwed()
 	return plan
 }
 

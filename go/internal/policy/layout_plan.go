@@ -76,6 +76,8 @@ type LayoutReservation struct {
 	Kind ReservationKind
 	Area Rectangle
 	Pair int32 `json:",omitempty"`
+	// Facing is the side a walled reservation's door faces (the incinerator).
+	Facing domain.Rotation `json:",omitempty"`
 }
 
 // LayoutPlan is the v2 colony layout.

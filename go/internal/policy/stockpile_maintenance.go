@@ -143,6 +143,9 @@ type StockpileRequest struct {
 	// Gear is the planner's gear-room demand for layout (#1773); the review
 	// itself does not read it.
 	Gear GearRoomDemand
+	// Incinerator is the planner's incinerator site for layout (#1814); the
+	// review itself does not read it.
+	Incinerator IncineratorSite
 	// Shells are the planned storage-planner rooms (the armory and wardrobe,
 	// #1774) not yet standing: each is a StockpileShell edit.
 	Shells []ModuleRole

@@ -57,6 +57,8 @@ type RoomGrowth struct {
 	ThroneArea int
 	Child      []ChildRoomShape
 	Gear       GearRoomDemand
+	// Incinerator is the site of the incinerator the plan lacks (#1814).
+	Incinerator IncineratorSite
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
@@ -102,6 +104,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	dropped = dropped || gear
 	next, storage := growStorageRooms(next, growth.Gear)
 	dropped = dropped || storage
+	next, incinerator := growIncinerator(next, growth.Incinerator)
+	dropped = dropped || incinerator
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))

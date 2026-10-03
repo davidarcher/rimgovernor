@@ -84,7 +84,7 @@ func cremationOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 func corpsesOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 	tomb, tk := tombOwed(facts).Value()
 	cremation, ck := cremationOwed(facts).Value()
-	if tk && tomb || ck && cremation {
+	if burn, known := incineratorOwed(facts).Value(); known && burn || tk && tomb || ck && cremation {
 		return domain.Known(true)
 	}
 	if tk && ck {

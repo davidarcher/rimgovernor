@@ -30,6 +30,27 @@ type stockpileMemory struct {
 	// layout reads it to add the armory and wardrobe (#1773).
 	gear      policy.GearRoomDemand
 	gearWorld string
+	// incinerator is the latest site the dump planner found for layout to
+	// reserve (#1814), for incineratorWorld.
+	incinerator      policy.IncineratorSite
+	incineratorWorld string
+}
+
+// setIncinerator records the incinerator site the planner wants reserved.
+func (m *stockpileMemory) setIncinerator(world string, site policy.IncineratorSite) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.incinerator, m.incineratorWorld = site, world
+}
+
+// incineratorSite is the recorded site; none for another world.
+func (m *stockpileMemory) incineratorSite(world string) policy.IncineratorSite {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.incineratorWorld != world {
+		return policy.IncineratorSite{}
+	}
+	return m.incinerator
 }
 
 // setGear records the planner's gear-room demand for world.
@@ -147,7 +168,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage.Gear = gear
 	storage.Zones = request.Zones
 	if rooms, ok := request.Rooms.Value(); ok {
-		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor}
+		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor, Incinerator: standingIncinerator(*projection)}
 		if built, ok := projection.Facts.CurrentConstruction.Value(); ok {
 			if feed, ok := policy.CrematoriumFeedAnchor(built.Buildings); ok {
 				storage.Dumps.Anchors = map[string]domain.Cell{domain.RottenDumpRole: feed}
@@ -156,7 +177,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
-	request.Sited, request.Gear = plan.Sites, plan.Gear
+	request.Sited, request.Gear, request.Incinerator = plan.Sites, plan.Gear, plan.Incinerator
 	return request
 }
 
@@ -174,6 +195,7 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
 	r.stockpiles.setGear(stockpileWorld(snapshot), request.Gear)
+	r.stockpiles.setIncinerator(stockpileWorld(snapshot), request.Incinerator)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {

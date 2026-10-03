@@ -82,6 +82,35 @@ func TestStuffChoiceUnstuffedDefIsPricedFromItsCosts(t *testing.T) {
 	}
 }
 
+// A wall or door that holds a fire in is made of the least flammable stuff
+// the game's rows offer, and a def whose every stuff burns is refused (#1814).
+func TestFireproofStuff(t *testing.T) {
+	burns := func(f float64) map[string]float64 { return map[string]float64{bridge.StatFlammability: f} }
+	wall := stuffedDef("Wall", option("WoodLog", 5, 2.5, burns(1)), option("Steel", 5, 10, burns(0)), option("BlocksGranite", 5, 3, burns(0)))
+	if got, err := wall.FireproofStuff(); err != nil || got != "BlocksGranite" {
+		t.Fatal(got, err)
+	}
+	// Flammable wall or door material is rejected, wood and cloth alike.
+	for name, def := range map[string]PlanningDefinition{
+		"wood wall": stuffedDef("Wall", option("WoodLog", 5, 2.5, burns(1))),
+		"wood door": stuffedDef("Door", option("WoodLog", 5, 2.5, burns(1)), option("Cloth", 5, 1, burns(1.2))),
+		"scorched":  stuffedDef("Door", option("Leather", 5, 1, burns(0.4))),
+	} {
+		if got, err := def.FireproofStuff(); !errors.Is(err, ErrFlammableStuff) || got != "" {
+			t.Errorf("%s: %q, %v", name, got, err)
+		}
+	}
+	// No flammability shown, or a def with no stuff, is no data.
+	for name, def := range map[string]PlanningDefinition{
+		"no stat":   stuffedDef("Wall", option("Steel", 5, 10, map[string]float64{bridge.StatMaxHitPoints: 300})),
+		"unstuffed": {Name: "Wall"},
+	} {
+		if _, err := def.FireproofStuff(); !errors.Is(err, ErrNoStuffData) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
 func TestSharedStuffAndBuildStuff(t *testing.T) {
 	wall := stuffedDef("Wall", option("Steel", 5, 10, nil), option("WoodLog", 5, 2.5, nil))
 	door := stuffedDef("Door", option("WoodLog", 25, 12.5, nil), option("Steel", 25, 50, nil))

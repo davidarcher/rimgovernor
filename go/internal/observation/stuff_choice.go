@@ -66,6 +66,31 @@ func (d PlanningDefinition) StuffChoice(criterion StuffCriterion, stock map[poli
 	return d.chooseStuff(criterion, func(option StuffOption) bool { return stocked(option.Costs, stock) })
 }
 
+// ErrFlammableStuff is FireproofStuff's refusal when even the least flammable
+// allowed stuff of the def burns.
+var ErrFlammableStuff = errors.New("every allowed stuff of the definition is flammable")
+
+// FireproofStuff is the allowed stuff with the least Flammability, read from
+// the game's stat table (#1814), and refused when that stuff still burns: a
+// wall or door that must hold a fire in is never wood. A def not made from
+// stuff has no stuff to choose and no flammability to read, so it is refused
+// as ErrNoStuffData.
+func (d PlanningDefinition) FireproofStuff() (string, error) {
+	if len(d.StuffOptions) == 0 {
+		return "", fmt.Errorf("%w: %s has no stuff options", ErrNoStuffData, d.Name)
+	}
+	price, err := d.UnstockedStuffChoice(LowestFlammability)
+	if err != nil {
+		return "", err
+	}
+	for _, option := range d.StuffOptions {
+		if option.Stuff == price.Stuff && option.Stats[bridge.StatFlammability] > 0 {
+			return "", fmt.Errorf("%w: %s, least flammable %s", ErrFlammableStuff, d.Name, price.Stuff)
+		}
+	}
+	return price.Stuff, nil
+}
+
 // UnstockedStuffChoice is StuffChoice over every allowed stuff, stocked or
 // not: the choice for a planner whose frame the game fills natively.
 func (d PlanningDefinition) UnstockedStuffChoice(criterion StuffCriterion) (StuffPrice, error) {
