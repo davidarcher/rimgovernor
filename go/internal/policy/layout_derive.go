@@ -109,16 +109,11 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	dropped = dropped || freed
 	if growth.Built != nil {
 		var retired bool
-		next, retired = retireDuplicateRooms(next, growth.Shapes, growth.Built)
-		dropped = dropped || retired
 		next, retired = retireSurplusRooms(next, growth, growth.Built)
 		dropped = dropped || retired
 	}
-	if growth.InUse != nil {
-		var retired bool
-		next, retired = retireEndedRooms(next, growth.Ended, growth.InUse)
-		dropped = dropped || retired
-	}
+	next, retired := retireAddOnRooms(next, growth)
+	dropped = dropped || retired
 	next, throne := growThroneRoom(next, growth.ThroneArea)
 	dropped = dropped || throne
 	for _, shape := range growth.Child {

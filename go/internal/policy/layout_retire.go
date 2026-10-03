@@ -54,11 +54,24 @@ func (p LayoutPlan) roomsOf(role ModuleRole) []LayoutRoom {
 	return out
 }
 
-// retireDuplicateRooms keeps one room of each add-on role: a built room
-// first, else the smallest that holds the role's shape (shapes), else the
-// smallest. It reports whether it dropped any.
-func retireDuplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangle]bool) (LayoutPlan, bool) {
+// retireAddOnRooms drops the add-on rooms the plan no longer needs: the
+// duplicates beyond one per role (when built is known) and the unbuilt rooms
+// of an ended role (when inUse is known). It reports whether it dropped any.
+func retireAddOnRooms(plan LayoutPlan, growth RoomGrowth) (LayoutPlan, bool) {
 	drop := map[Rectangle]bool{}
+	if growth.Built != nil {
+		duplicateRooms(plan, growth.Shapes, growth.Built, drop)
+	}
+	if growth.InUse != nil {
+		endedRooms(plan, growth.Ended, growth.InUse, drop)
+	}
+	return dropRooms(plan, drop)
+}
+
+// duplicateRooms adds to drop all but one room of each add-on role: a built
+// room first, else the smallest that holds the role.s shape (shapes), else
+// the smallest.
+func duplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Rectangle]bool, drop map[Rectangle]bool) {
 	for _, role := range addOnRoomRoles {
 		rooms := plan.roomsOf(role)
 		if len(rooms) < 2 {
@@ -80,7 +93,6 @@ func retireDuplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Re
 			}
 		}
 	}
-	return dropRooms(plan, drop)
 }
 
 func roleShape(shapes []ChildRoomShape, role ModuleRole) *ChildRoomShape {
@@ -183,10 +195,9 @@ func RoomsInUse(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding,
 	return inUse
 }
 
-// retireEndedRooms drops each planned room of an ended role that is not in
-// use. It reports whether it dropped any.
-func retireEndedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]bool) (LayoutPlan, bool) {
-	drop := map[Rectangle]bool{}
+// endedRooms adds to drop each planned room of an ended role that is not in
+// use.
+func endedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]bool, drop map[Rectangle]bool) {
 	for _, role := range ended {
 		for _, r := range plan.roomsOf(role) {
 			if !inUse[r.Interior] {
@@ -194,7 +205,6 @@ func retireEndedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]b
 			}
 		}
 	}
-	return dropRooms(plan, drop)
 }
 
 // dropRooms removes the rooms with the interiors in drop from plan and its
