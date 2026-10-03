@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
                 // The same classification AcceptTrade's economic floors refuse
                 // to export, so selection never stages what acceptance rejects.
-                ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn,
+                ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t),
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (!pawn)

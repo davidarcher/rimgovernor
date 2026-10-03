@@ -44,6 +44,11 @@ type TradeSheetRowFact struct {
 	// ThingID is a non-pawn row's first colony thing (#1194): a packed
 	// sculpture's row names its packed item.
 	ThingID string
+
+	// PawnID is a pawn row's load id (the animal census id for a colony
+	// animal): the key a live-animal sale matches (#1632) and a purchase
+	// can name (#1636).
+	PawnID string
 }
 
 // TradeSelectionFacts is everything SelectTrade reads: the complete unfiltered
@@ -73,6 +78,11 @@ type TradeSelectionFacts struct {
 	// the wealth headroom is negative.
 	SaleArt  map[string]bool
 	ArtFirst bool
+
+	// SaleAnimals are the colony animals the herd plan lets go (#1632,
+	// HerdSaleAnimals), by pawn id, set only while the colony wants silver.
+	// Each sells through its own pawn row.
+	SaleAnimals map[string]bool
 }
 
 // TradeSelectionLine is one selected row adjustment: the native line id
@@ -132,8 +142,8 @@ const (
 // buildingruntime/trade_economy.go).
 func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeSelection {
 	refuse := func(reason string) TradeSelection { return TradeSelection{Refused: true, Reason: reason} }
-	// Art alone (#1194) sells without a catalog target.
-	if len(p.Targets) > 0 || len(facts.SaleArt) == 0 {
+	// Art or animals alone (#1194, #1632) sell without a catalog target.
+	if len(p.Targets) > 0 || len(facts.SaleArt)+len(facts.SaleAnimals) == 0 {
 		if err := p.Validate(); err != nil {
 			return refuse(err.Error())
 		}
@@ -244,6 +254,7 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 	if !facts.ArtFirst {
 		sellArt(&out, facts, stopped, &traderCash)
 	}
+	sellAnimals(&out, facts, stopped, &traderCash)
 	return out
 }
 
@@ -256,19 +267,40 @@ func sellArt(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]
 	if len(facts.SaleArt) == 0 {
 		return
 	}
+	sellRows(out, facts.Rows, stopped, traderCash, false, func(row TradeSheetRowFact) bool {
+		return row.ThingID != "" && facts.SaleArt[row.ThingID]
+	})
+}
+
+// sellAnimals is the live-animal sale step (#1632): each pawn row whose
+// pawn id is a sale animal sells that one animal under the same rules. A
+// pawn row is always ProtectedExport natively; the herd plan that chose the
+// animal is the authorization, so the flag is not read.
+func sellAnimals(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
+	if len(facts.SaleAnimals) == 0 {
+		return
+	}
+	sellRows(out, facts.Rows, stopped, traderCash, true, func(row TradeSheetRowFact) bool {
+		return row.PawnID != "" && facts.SaleAnimals[row.PawnID]
+	})
+}
+
+// sellRows sells each wanted single-item row; pawns says the rows are pawn
+// rows.
+func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]bool, traderCash *float64, pawns bool, wanted func(TradeSheetRowFact) bool) {
 	selected := map[string]bool{}
 	for _, line := range out.Selected {
 		selected[line.LineID] = true
 	}
-	for _, row := range facts.Rows {
-		if row.ThingID == "" || !facts.SaleArt[row.ThingID] || selected[row.LineID] {
+	for _, row := range rows {
+		if !wanted(row) || selected[row.LineID] {
 			continue
 		}
 		evidence := TradeSelectionEvidence{Item: row.DefName}
 		switch {
-		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn || !row.CurrencyKnown || row.Currency || stopped[row.DefName]:
+		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn != pawns || !row.CurrencyKnown || row.Currency || stopped[row.DefName]:
 			evidence.Blocker = tradeBlockerRow
-		case !row.ProtectedExportKnown || row.ProtectedExport:
+		case !pawns && (!row.ProtectedExportKnown || row.ProtectedExport):
 			evidence.Blocker = tradeBlockerProtected
 		case row.ColonyCount < 1 || !row.SellPriceKnown || !finite(row.SellPrice) || row.SellPrice < 0:
 			evidence.Blocker = tradeBlockerUnknown

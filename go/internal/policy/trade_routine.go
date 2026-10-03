@@ -173,6 +173,10 @@ type TradeNeed struct {
 	// owed room reserves (SaleSculptures) while the wealth headroom is
 	// known and negative. The selection sells it first (ArtFirst).
 	ShedArt int64
+	// SurplusAnimals is the count of colony animals the herd plan lets go
+	// (HerdSaleAnimals) while the colony wants silver (#1632): a caravan
+	// is worth opening for them.
+	SurplusAnimals int64
 }
 
 // ShedArtNeed adds the shed_art reason to the need: known negative wealth
@@ -189,7 +193,7 @@ func ShedArtNeed(need domain.Fact[TradeNeed], headroom domain.Fact[float64], sal
 }
 
 func (n TradeNeed) Any() bool {
-	return n.ShedArt > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
+	return n.ShedArt > 0 || n.SurplusAnimals > 0 || n.Population || len(n.SurgeryParts) > 0 || n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || len(n.Shortfall) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other

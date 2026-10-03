@@ -31,6 +31,7 @@ type RoutineTradeSource interface {
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
+	AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error)
 }
 
 // RoutineTradePlanner drives TradeWithCaravan (#234) one phase edge per
@@ -397,7 +398,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	selection := policy.SelectTrade(economic, facts)
-	if len(economic.Targets) == 0 && len(facts.SaleArt) == 0 {
+	if len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals) == 0 {
 		// Nothing to buy or sell by the resource catalog: only a pawn
 		// purchase can still stage, against the same silver reserve.
 		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors["Silver"])}
@@ -414,7 +415,17 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		if selection.Refused || len(selection.Selected) == 0 {
 			return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 		}
-		value, err := domain.NewTradeSetLines(trader, negotiator, tradeLinesOf(selection), false)
+		// Selling an animal is a pawn give-away native refuses without
+		// allow_pawns (#1632); only a selected pawn sale asks for it.
+		pawnRows := map[string]bool{}
+		for _, row := range facts.Rows {
+			pawnRows[row.LineID] = row.PawnKnown && row.Pawn
+		}
+		sellsPawn := false
+		for _, line := range selection.Selected {
+			sellsPawn = sellsPawn || line.Count < 0 && pawnRows[line.LineID]
+		}
+		value, err := domain.NewTradeSetLines(trader, negotiator, tradeLinesOf(selection), sellsPawn)
 		if err != nil {
 			return RoutineTradeResult{}, err
 		}
@@ -522,7 +533,15 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if saleArt != nil {
 		artCount = domain.Known(int64(len(saleArt)))
 	}
-	need, known := policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount).Value()
+	// Surplus animals sell while the silver runway is short (#1632); the
+	// race catalog is the herd plan's, as the routine reading attaches it.
+	races, err := r.native.AnimalRaceCatalog(call, identity)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	projection.Facts.AnimalUpkeep.AnimalRaces = &races.AnimalRaceCatalog
+	saleAnimals := projection.Facts.SaleAnimals()
+	need, known := policy.AnimalSaleNeed(policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
@@ -532,6 +551,12 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
 	facts.SaleArt = saleArt
+	if need.SurplusAnimals > 0 {
+		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
+		for id := range saleAnimals {
+			facts.SaleAnimals[string(id)] = true
+		}
+	}
 	h, hk := headroom.Value()
 	facts.ArtFirst = hk && h < 0
 	capacity, _ := policy.JoinerCapacity(projection.Facts.JoinerCapacity()).Value()
@@ -609,7 +634,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact 
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID,
+			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, PawnID: row.PawnID,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
 	}
@@ -689,8 +714,11 @@ func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelec
 		}
 	}
 	out := make([]domain.TradeEconomicFloor, 0, len(selection.Selected)+1)
+	// Animals of one race sell on separate rows under one definition.
+	floored := map[string]bool{}
 	for _, line := range selection.Selected {
-		if line.Count < 0 {
+		if line.Count < 0 && !floored[line.DefName] {
+			floored[line.DefName] = true
 			out = append(out, domain.TradeEconomicFloor{DefName: line.DefName, Count: int32(stock[line.DefName])})
 		}
 	}

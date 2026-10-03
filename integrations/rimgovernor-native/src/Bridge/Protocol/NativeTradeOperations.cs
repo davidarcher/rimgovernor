@@ -100,6 +100,22 @@ namespace HomeBridge.BridgeTools
             try { return t.AnyThing is Pawn; } catch { return false; }
         }
 
+        // A colony animal row the economic policy may export (#1632): a
+        // player-faction animal with no bond. Humanlike pawns (slaves,
+        // prisoners) and bonded animals stay protected; which animal is
+        // surplus is the controller's herd plan, and the deal's economic
+        // floors must still name its definition.
+        internal static bool IsSellableAnimal(Tradeable t)
+        {
+            try
+            {
+                var pawn = t.thingsColony.FirstOrDefault() as Pawn;
+                return pawn != null && !pawn.Destroyed && pawn.RaceProps != null && pawn.RaceProps.Animal && pawn.Faction == Faction.OfPlayer
+                    && (pawn.relations == null || pawn.relations.GetFirstDirectRelationPawn(PawnRelationDefOf.Bond) == null);
+            }
+            catch { return false; }
+        }
+
         private static bool WouldGiveAway(Tradeable t, int target)
         {
             bool gift; try { gift = TradeSession.giftMode; } catch { gift = false; }
@@ -485,7 +501,7 @@ namespace HomeBridge.BridgeTools
                         || SafeInt(() => row.thingsColony.Where(t => !t.Destroyed).Sum(t => t.stackCount)) + SafeInt(() => row.CountToTransfer) < floor)
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic stock reserve would be violated."); return false; }
                     var cropSurplus = floor > 0 && proteinPurchase && NativeTradeFoodFacts.Crop(def);
-                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row)))
+                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row)))
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic export is protected."); return false; }
                 }
             }

@@ -66,6 +66,17 @@ derived state: no save, journal or per-animal copy.
   are what the taming, training, sterilize, sale, purchase and pen issues read;
   `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` goals
   execute.
+- **Sale (#1632).** `HerdSaleAnimals` lists the animals over a race's ceiling
+  (all of a retired race) that are known unbonded and, outside a retired race,
+  not trained for work; founders have no ceiling and never sell, and any
+  unknown designation or bond sells nothing. While `SilverShort` holds
+  (`AnimalSaleNeed` sets `TradeNeed.SurplusAnimals`, which opens a caravan),
+  `SelectTrade` sells each listed animal through its own pawn trade row
+  (`TradeSheetRowFact.PawnID`, line count -1) after the resource and art
+  lines; silver reserve rules are unchanged. Staging passes `allow_pawns`;
+  native `AcceptTrade` exports a pawn row only when it is an unbonded
+  player-faction animal and the deal's floors name its definition. Native's
+  preview stays the authority. Buying animals reuses the pawn row (#1636).
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideo neither venerates the race nor has an
