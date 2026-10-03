@@ -34,7 +34,7 @@ func baselineSurvey(t *testing.T) policy.MapSurvey {
 func TestRichSoilBaselinePlan(t *testing.T) {
 	s := baselineSurvey(t)
 	for _, pawns := range []int{8} {
-		plan, ok := policy.DeriveLayoutPlan(s, pawns, policy.BuildTierCamp, nil).Value()
+		plan, ok := policy.DeriveLayoutPlan(s, pawns, policy.BuildTierCamp, nil, 30).Value()
 		if !ok {
 			t.Fatal("no plan")
 		}

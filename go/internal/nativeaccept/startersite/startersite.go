@@ -74,7 +74,7 @@ func args(ctx context.Context, h *na.Harness, size int32, bedrooms bool) (map[st
 	}
 	pawns, _ := facts.Facts.Colonists.Value()
 	tier, _ := facts.BuildTier.Value()
-	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil).Value()
+	plan, known := policy.DeriveLayoutPlan(survey, int(pawns), tier, nil, 0).Value()
 	if !known {
 		return nil, fmt.Errorf("no layout plan on this map")
 	}

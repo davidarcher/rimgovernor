@@ -527,6 +527,20 @@ inside a suitable native pen. No breeding, bonding, master or removal setting is
 changed. Feed sufficiency is a separate observation and cannot be inferred from
 containment or grazing space.
 
+The layout plan reserves the herd's sites from the herd plan's target herd
+(`HerdPlan.PenAnimals`, the summed population ceilings, at least six):
+pens at 10 cells per animal, with one more pen added when the target
+outgrows them and no placed site ever moving; a roofed barn (2 cells per
+animal, at least 25); and a clean vet room beside the barn with medical
+animal beds (one per 10 animals, at least two). All sit inside the outer
+ring. Animal areas are the pens and the barn only; the vet room is closed
+to animals except for surgery or treatment. The reservations are sited
+once per herd size; furnishing them (animal beds, the medical flag),
+companion beds and pasture rotation are not built yet. Assumed natively
+and unverified: animal beds can be flagged medical and a colonist
+operates on an animal in one, and a clean room scores as its cleanliness
+stat says.
+
 `MaintainAnimalFeed` starts below two days of observed reachable feed per animal
 and recovers at four days, with configurable ordered thresholds. Each animal has
 its own latch; missing census, demand or access evidence cannot clear it. The

@@ -55,7 +55,7 @@ func TestDefenseRecutPerimeterOuterRing(t *testing.T) {
 	t.Parallel()
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
-	}), 3, policy.BuildTierCamp, nil).Value()
+	}), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

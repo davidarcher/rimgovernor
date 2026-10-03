@@ -19,9 +19,9 @@ import (
 // room, hallway and reservation is dropped, and the rooms pawns colonists
 // and tombs tomb rooms need re-grow around the kept ones, off every other
 // built cell; utilities and the perimeter are then laid again, as
-// DeriveLayoutPlan lays them. Nothing built moves or loses its room.
+// DeriveLayoutPlan lays them, the herd sites for animals animals included. Nothing built moves or loses its room.
 // Unknown when the survey holds no room for a core.
-func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns, tombs int, tier BuildTier, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
+func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	var rooms []LayoutRoom
 	for _, r := range plan.Rooms {
 		if rectHits(roomWalls(r), built) {
@@ -50,6 +50,7 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 		}
 	}
 	want := layoutUtilities
+	want.PenAnimals = animals
 	want.TurbinePairs = max(0, want.TurbinePairs-len(pairs))
 	var kept []LayoutReservation
 	for _, r := range plan.Reservations {

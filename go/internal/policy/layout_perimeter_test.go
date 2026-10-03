@@ -529,7 +529,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 // killbox keeps clear of every utility reservation.
 func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
+	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -548,7 +548,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 // the core instead of running out to the edge margin.
 func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil).Value()
+	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

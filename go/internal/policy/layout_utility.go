@@ -68,8 +68,10 @@ type UtilityWants struct {
 
 // penSide is the near-square rectangle holding at least animals x
 // penCellsPerAnimal cells.
-func penSide(animals int) (w, h int32) {
-	n := animals * penCellsPerAnimal
+func penSide(animals int) (w, h int32) { return squareSide(animals * penCellsPerAnimal) }
+
+// squareSide is the near-square rectangle holding at least n cells.
+func squareSide(n int) (w, h int32) {
 	w = int32(math.Ceil(math.Sqrt(float64(n))))
 	return w, int32((n + int(w) - 1) / int(w))
 }
@@ -191,15 +193,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: site})
 	}
-	if want.PenAnimals > 0 {
-		w, h := penSide(want.PenAnimals)
-		fx, fz := u.fieldCentre()
-		if site, ok := u.site(w, h, false, true, fx, fz); ok {
-			u.reserve(&plan, LayoutReservation{Kind: ReservePen, Area: site})
-		} else {
-			slog.Warn("layout: no room for the animal pen", "animals", want.PenAnimals, "width", w, "height", h)
-		}
-	}
+	planHerdSites(u, &plan, want.PenAnimals)
 	return plan
 }
 

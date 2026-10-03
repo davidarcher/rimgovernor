@@ -60,6 +60,9 @@ func (f RoutineFacts) HerdPlanInput() HerdPlanInput {
 // HerdPolicy is the population band of the herd plan of f.
 func (f RoutineFacts) HerdPolicy() HerdPolicy { return PlanHerd(f.HerdPlanInput()).Policy }
 
+// PenAnimals is the herd the layout's pens, barn and vet room are sized for.
+func (f RoutineFacts) PenAnimals() int { return PlanHerd(f.HerdPlanInput()).PenAnimals() }
+
 // HerdRole is one race's place in the plan. Consumers (taming, training,
 // sterilize, sell, buy, pens) read it; none of them owns a second copy.
 type HerdRole struct {

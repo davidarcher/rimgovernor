@@ -159,7 +159,7 @@ func TestOuterRingEnclosesTurbinePair(t *testing.T) {
 
 func turbinePairInsideOuterRing(t *testing.T, pawns int) {
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
-	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil).Value()
+	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -191,5 +191,34 @@ func turbinePairInsideOuterRing(t *testing.T, pawns int) {
 	}
 	if n != 5 {
 		t.Fatal("turbine reservations", n)
+	}
+}
+
+// The barn and vet room stand inside the outer ring with the pen (#1633).
+func TestOuterRingEnclosesBarnAndVetRoom(t *testing.T) {
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	plan, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	walls := reservedCells(plan, ReserveOuterWall)
+	if len(walls) == 0 {
+		t.Fatal("no outer ring")
+	}
+	seen := outerReach(walls)
+	n := 0
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveBarn && r.Kind != ReserveVetRoom {
+			continue
+		}
+		n++
+		for _, c := range rectCells(r.Area) {
+			if seen[c] {
+				t.Fatal(r.Kind, "outside the outer ring at", c)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatal("barn and vet room reservations", n)
 	}
 }

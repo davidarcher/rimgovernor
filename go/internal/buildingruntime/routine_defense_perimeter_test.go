@@ -63,7 +63,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 			return policy.SurveyCell{Walkable: true, Fertility: 1}
 		})
 	}
-	plan, ok := policy.DeriveLayoutPlan(survey(false), 3, policy.BuildTierCamp, nil).Value()
+	plan, ok := policy.DeriveLayoutPlan(survey(false), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -147,7 +147,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingLight, Bridgeable: true, Dries: true, Fertility: 1}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
-	}), 3, policy.BuildTierCamp, nil).Value()
+	}), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -186,7 +186,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 // layout is proposed afresh on the new one (#983).
 func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 	t.Parallel()
-	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, policy.BuildTierCamp, nil).Value()
+	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -211,7 +211,7 @@ func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
 			return policy.SurveyCell{Walkable: true, Footing: policy.FootingNone, Bridgeable: true}
 		}
 		return policy.SurveyCell{Walkable: true, Fertility: 1}
-	}), 3, policy.BuildTierCamp, nil).Value()
+	}), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

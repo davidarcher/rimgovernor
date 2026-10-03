@@ -54,7 +54,7 @@ func TestPlayerRequestsReplanApplyDiscard(t *testing.T) {
 	survey := openSurvey(200)
 	r := &RoutineReviewer{player: s.player, native: surveyNative{survey: survey}, layoutOverlay: true}
 	snapshot := s.player.session.State().Snapshot
-	plan, ok := policy.DeriveLayoutPlan(survey, 3, policy.BuildTierCamp, nil).Value()
+	plan, ok := policy.DeriveLayoutPlan(survey, 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
 		t.Fatal("no plan")
 	}

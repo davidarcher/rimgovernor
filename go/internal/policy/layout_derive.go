@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -13,18 +14,15 @@ import (
 // terrain no longer carries, and calls Grow. The core candidates are a
 // planning input, not part of the saved plan.
 
-// layoutUtilities is what a fresh plan reserves beside its core; the pen
-// holds a full herd (the wealth-budget herd cap, #1593).
-// layoutPenAnimals sizes the layout's pen until pens follow the herd plan
-// (#1633).
-const layoutPenAnimals = 30
-
-var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1, PenAnimals: layoutPenAnimals}
+// layoutUtilities is what a fresh plan reserves beside its core; the pens,
+// barn and vet room are sized by the herd plan's target herd (#1633).
+var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
 
 // DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser
-// (#834). Unknown when the survey holds no room for a core.
-func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser) domain.Fact[LayoutPlan] {
+// (#834) and pens, a barn and a vet room for a herd of animals
+// (HerdPlan.PenAnimals). Unknown when the survey holds no room for a core.
+func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGeyser, animals int) domain.Fact[LayoutPlan] {
 	zones := Zone(s)
 	footprints := geyserFootprints(geysers)
 	plan := SiteCore(LayoutPlan{Zones: coreWithout(zones, geothermalCells(footprints))}, s, pawns, 1, tier)
@@ -33,7 +31,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	}
 	plan.Zones = zones
 	want := layoutUtilities
-	want.Geysers = footprints
+	want.Geysers, want.PenAnimals = footprints, animals
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
 }
@@ -49,13 +47,15 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // wing it otherwise could not (dropEmptiedWings); else it stays as spare
 // beds.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
-	return ReplanLayoutWithThrone(plan, s, 0, pawns, tombs, tier, geysers, emptied, suites...)
+	return ReplanLayoutWithThrone(plan, s, 0, 0, pawns, tombs, tier, geysers, emptied, suites...)
 }
 
 // ReplanLayoutWithThrone is ReplanLayout that also keeps a throne room of at
 // least throneArea cells (#1601; 0 asks for none), added after the rest of
-// the rooms and before the perimeter is replanned around them.
-func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
+// the rooms and before the perimeter is replanned around them. A herd of
+// animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
+// the pens, barn and vet room it lacks (PlanHerdSites, #1633).
+func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
@@ -69,6 +69,7 @@ func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, pawns, tom
 			}
 		}
 	}
+	plan, sited := topUpHerdSites(plan, coreWithout(zones, vents), animals)
 	var kept []LayoutRoom
 	for _, r := range plan.Rooms {
 		if !rectHits(roomWalls(r), noGo) && !rectHits(roomWalls(r), vents) {
@@ -86,12 +87,35 @@ func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, pawns, tom
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
-		return fresh, !samePerimeter(plan, fresh)
+		return fresh, sited || !samePerimeter(plan, fresh)
 	}
 	if len(next.AllRooms()) == 0 {
 		return plan, false
 	}
 	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
+}
+
+// topUpHerdSites adds the herd sites animals needs to plan, sited over the
+// fresh core candidates and off the current perimeter (which is laid again
+// around them). It reports whether it added any.
+func topUpHerdSites(plan LayoutPlan, core []LayoutZone, animals int) (LayoutPlan, bool) {
+	if animals <= 0 {
+		return plan, false
+	}
+	var inner []LayoutReservation
+	for _, r := range plan.Reservations {
+		if !perimeterKinds[r.Kind] {
+			inner = append(inner, r)
+		}
+	}
+	sitePlan := plan
+	sitePlan.Zones, sitePlan.Reservations = core, inner
+	topped := PlanHerdSites(sitePlan, animals)
+	if len(topped.Reservations) == len(inner) {
+		return plan, false
+	}
+	plan.Reservations = append(slices.Clone(plan.Reservations), topped.Reservations[len(inner):]...)
+	return plan, true
 }
 
 // dropEmptiedWings grows plan, first dropping each emptied Retiring wing
