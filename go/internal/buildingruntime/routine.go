@@ -197,6 +197,9 @@ func NewRoutineReviewer(player *Player, native observation.RoutineSource, clock 
 	if player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > time.Minute {
 		return nil, fmt.Errorf("%w: NewRoutineReviewer: player == nil || native == nil || clock == nil || thresholds.Validate() != nil || maxAge <= 0 || maxAge > t", ErrControl)
 	}
+	if _, ok := native.(RoutineWorkBenchSource); !ok {
+		return nil, fmt.Errorf("%w: NewRoutineReviewer: native lacks the bench census read", ErrControl)
+	}
 	methods := domain.Unknown[[]policy.GoalID]()
 	reviewerOverlay := false
 	var undraftWriter boundary.ActionsWriter
@@ -463,7 +466,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			// Bench work (open bills, a deficit's standing benches) counts
 			// toward coverage here so the work goal assesses a deficit the
 			// planner then covers; a failed census leaves coverage unknown.
-			native, _ := r.native.(RoutineWorkBenchSource)
+			native := r.native.(RoutineWorkBenchSource)
 			benches := r.benchSource(native, expected, true)
 			recovered, _ := policy.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources)
 			deficit, deficitKnown := recovered.Value()

@@ -35,7 +35,7 @@ func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, erro
 	if reviewer == nil {
 		return nil, fmt.Errorf("%w: NewRoutineWorkPlanner: reviewer == nil", ErrControl)
 	}
-	benches, _ := reviewer.native.(RoutineWorkBenchSource)
+	benches := reviewer.native.(RoutineWorkBenchSource)
 	return &RoutineWorkPlanner{reviewer: reviewer, benches: benches}, nil
 }
 func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineWorkResult, error) {

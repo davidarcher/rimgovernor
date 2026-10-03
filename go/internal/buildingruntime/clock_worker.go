@@ -201,8 +201,7 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 // waits locally on scheduler completion (pollWake). A call that waited
 // (it returned no sooner than half of its wait), captured evidence or
 // applied anything is followed by the next poll at once; a call that
-// returned early against a native build that ignores wait_ms falls back
-// to the cadence, and a failed call backs off from 250 ms to 2 s.
+// returned early falls back to the cadence, and a failed call backs off from 250 ms to 2 s.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	backoff := time.Duration(0)
@@ -259,8 +258,7 @@ func (w *ClockWorker) pollLoop() {
 // wakePoll releases the between-window wait on every completed step, and
 // ends the cadence sleep when a held window starts. A running loop whose
 // last read was already held is left to its own cadence: it re-polls at
-// once after a wait, and a build that ignores wait_ms must not be spun by
-// every step.
+// once after a wait.
 func (w *ClockWorker) wakePoll() {
 	if (w.held == nil || w.held()) && (w.config.PollWait <= 0 || w.pollHeld.Load()) {
 		return

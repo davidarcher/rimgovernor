@@ -313,13 +313,9 @@ func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.Gene
 	return count, nil
 }
 
-// standingBenches is the bench census as a set of ids; unknown without
-// the read.
+// standingBenches is the bench census as a set of ids.
 func (r *RoutineReviewer) standingBenches(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) (domain.Fact[map[string]bool], error) {
-	native, ok := r.native.(RoutineWorkBenchSource)
-	if !ok {
-		return domain.Unknown[map[string]bool](), nil
-	}
+	native := r.native.(RoutineWorkBenchSource)
 	rows, _, err := r.benchSource(native, expected, false).ReadGearBenches(ctx, boundary.Identity(snapshot))
 	if err != nil {
 		return domain.Unknown[map[string]bool](), err

@@ -208,16 +208,19 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 
 // shellRuinHolds stamps the site cells with the clearance census holds a
 // claim honours (#718), so a ring never counts on claiming a ruin the claim
-// would leave alone. Without ruins on the site, a census source or a known
-// census, the cells are returned unchanged.
+// would leave alone. Without ruins on the site or a known census, the cells
+// are returned unchanged.
 func (r *RoutineBuildingPlanner) shellRuinHolds(call context.Context, facts observation.ColonyProjection, cells []policy.SiteCell, check func() error) ([]policy.SiteCell, error) {
 	ruins := false
 	for _, c := range cells {
 		ruins = ruins || positiveFact(c.Ruin)
 	}
-	source, ok := r.native.(observation.ClearanceSource)
-	if !ruins || !ok {
+	if !ruins {
 		return cells, nil
+	}
+	source, ok := r.native.(observation.ClearanceSource)
+	if !ok {
+		return nil, fmt.Errorf("%w: shellRuinHolds: native lacks the clearance census", ErrControl)
 	}
 	read, err := observation.ObserveClearanceCensus(call, source, facts.Identity, false)
 	if err != nil {
