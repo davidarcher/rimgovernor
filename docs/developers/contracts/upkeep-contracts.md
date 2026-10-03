@@ -971,6 +971,18 @@ The same shares are the read-only `share`, `spent` and `remaining` per roster
 row of `/api/player/colony` (`go-player-api.md`), taken from the held projection
 only while it is the current native generation.
 
+### Acceptance (#1847)
+
+`upkeep/personal-share-rich` and `upkeep/personal-share-poor` stage the same
+bare greedy bedroom and gear (`test/gear_fixture` `share_setup`: a flak vest
+worn, an excellent plate armor on the ground, a second colonist stripped with a
+basic shirt and pants on the ground) in a gold- and food-stocked colony and in
+one stripped of every loose item but wood and food. Shared thresholds: the rich
+colony reaches slightly impressive and the plate armor rung; the poor one
+reaches neither, yet its bare colonist is dressed and its bed stays owned
+(necessities are never charged). Written and registered without a local run;
+the next full tier runs them.
+
 ### Wealth probe finding
 
 Read from the decompiled `WealthWatcher` and `PriceUtility` (ilspycmd), not a
