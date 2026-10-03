@@ -36,7 +36,7 @@ func FieldCoverage(colonists domain.Fact[int64], crops domain.Fact[[]FieldCrop],
 		if !ck || count < 0 || !sk || cells < 0 || !dk || !gk || !yk || !fieldPositive(demand) || !fieldPositive(days) || !fieldPositive(yield) {
 			return domain.Unknown[float64]()
 		}
-		target := math.Max(float64(count)*10, math.Ceil(demand*(days*2.5+reserveDays)/yield))
+		target := fieldCoverageTarget(count, demand, days, yield, reserveDays)
 		if !fieldPositive(target) {
 			return domain.Unknown[float64]()
 		}
@@ -49,3 +49,25 @@ func FieldCoverage(colonists domain.Fact[int64], crops domain.Fact[[]FieldCrop],
 }
 
 func fieldPositive(v float64) bool { return v > 0 && !math.IsNaN(v) && !math.IsInf(v, 0) }
+
+func fieldCoverageTarget(count int64, demand, days, yield, reserveDays float64) float64 {
+	return math.Max(float64(count)*10, math.Ceil(demand*(days*2.5+reserveDays)/yield))
+}
+
+// FieldCapacityTarget is the cell count at which FieldCoverage reads 1 for
+// the crop: growth stops there, so a shrink target below it would trim cells
+// the planner keeps adding.
+func FieldCapacityTarget(colonists domain.Fact[int64], crop CropChoice, reserve float64) domain.Fact[int] {
+	count, ck := colonists.Value()
+	demand, dk := crop.Demand.Value()
+	days, gk := crop.GrowDays.Value()
+	yield, yk := crop.HarvestNutrition.Value()
+	if !ck || count < 0 || !dk || !gk || !yk || !fieldPositive(demand) || !fieldPositive(days) || !fieldPositive(yield) || !fieldPositive(reserve) {
+		return domain.Unknown[int]()
+	}
+	target := fieldCoverageTarget(count, demand, days, yield, reserve)
+	if !fieldPositive(target) || target > 65536 {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(target))
+}

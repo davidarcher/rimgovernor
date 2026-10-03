@@ -30,6 +30,10 @@ func fieldTargets(projection observation.ColonyProjection, field policy.FieldReq
 		if n, known := policy.FieldTarget(field.Colonists, crop, field.ReserveDays, field.Climate.DaysRemaining).Value(); known {
 			out[crop.Name] = n
 		}
+		// Growth runs to the capacity target, so shrink waits past it.
+		if n, known := policy.FieldCapacityTarget(field.Colonists, crop, field.ReserveDays).Value(); known {
+			out[crop.Name] = max(out[crop.Name], n)
+		}
 	}
 	if n, ok := hayTarget(projection); ok {
 		out["Plant_Haygrass"] = n
