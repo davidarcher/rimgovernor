@@ -31,7 +31,11 @@ func routineMechSettings(read observation.RoutineReading) ([]domain.PawnSettings
 		downed, _ := t.Downed.Value()
 		hostile = hostile || t.Kind == policy.Hostile && !dead && !downed
 	}
-	return policy.PlanMechControl(mechCatalog(read.Frame.Catalog), fleet.Mechanitors, fleet.Mechs, hostile)
+	chargerReady := false
+	if biotech, known := read.Projection.Biotech.Value(); known {
+		chargerReady = policy.MechChargerReady(biotech.MechChargerRows())
+	}
+	return policy.PlanMechControl(mechCatalog(read.Frame.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady)
 }
 
 // combatMechGuards are the drafts and attack orders for the combat frame's
