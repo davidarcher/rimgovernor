@@ -28,9 +28,11 @@ const (
 type ResearchProjectID string
 
 // ResearchProjectFacts mirrors the native research snapshot fields
-// prerequisite_queue inspects for one project. Hidden/knowledge-category
-// projects and anything with unknown prerequisite lists can never be treated
-// as an ordinary, selectable prerequisite.
+// prerequisite_queue inspects for one project. Hidden projects and anything
+// with unknown prerequisite lists can never be treated as a selectable
+// prerequisite. A knowledge-category project (Anomaly, #1745) is selectable
+// like any other: it fills its category's knowledge slot instead of the
+// ordinary one and progresses from study knowledge, not research work.
 type ResearchProjectFacts struct {
 	Name                ResearchProjectID
 	Hidden              domain.Fact[bool]
@@ -41,14 +43,24 @@ type ResearchProjectFacts struct {
 	// when the project names none; LockReasons are the native census's
 	// CanStartNow predicates the project fails (prerequisite:<name>,
 	// techprints, ResearchLockBench, ...), empty when it can start now.
+	// Census says the native census listed the project with its lock
+	// reasons: without it an empty LockReasons is unread, not startable.
 	RequiredBuilding string
 	LockReasons      []string
+	Census           bool
+	// Cost is the project's apparent cost (knowledge points for a
+	// knowledge-category project), from the definition catalog.
+	Cost float64
 }
 
 // ResearchLockBench is the native lock reason for a project whose required
 // research bench (or a facility on it) the colony does not have; native
 // SelectResearch refuses the project while it holds.
 const ResearchLockBench = "research_building_or_facilities"
+
+// ResearchLockHidden is the native lock reason for a project the entity
+// codex still hides (an Anomaly project before its entity is discovered).
+const ResearchLockHidden = "hidden"
 
 // ResearchBenchNeeded reports whether the bench lock is the only thing
 // keeping the project from starting: its prerequisites are done and no
@@ -97,7 +109,7 @@ func ResearchPrerequisiteQueue(projects map[ResearchProjectID]ResearchProjectFac
 			return fmt.Errorf("unavailable ordinary research prerequisite: %s", name)
 		}
 		hidden, hiddenKnown := row.Hidden.Value()
-		if !hiddenKnown || hidden || row.KnowledgeCategory != "" {
+		if !hiddenKnown || hidden {
 			return fmt.Errorf("unavailable ordinary research prerequisite: %s", name)
 		}
 		prerequisites, preKnown := row.Prerequisites.Value()

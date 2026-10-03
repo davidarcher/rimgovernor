@@ -1059,6 +1059,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
 	researchTarget, researchDerived := ResearchGoal(ArmorResearchPolicy(p, l.Soldiers), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
+	// An empty Anomaly knowledge slot with a project to fund is a spending
+	// need of its own (#1745); a disabled goal (no target, empty ladder)
+	// funds none.
+	if facts, known := f.Research.Value(); known && facts.KnowledgePick != "" && (len(researchNeeds) != 0 || len(ArmorResearchPolicy(p, l.Soldiers).ResearchLadder) != 0) {
+		deficit, _ := researchDeficit.Value()
+		researchRecovered, researchDeficit = domain.Known(false), domain.Known(max(deficit, 1.0))
+	}
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit

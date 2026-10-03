@@ -373,12 +373,15 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 			}
 		}
 		// The catalog does not carry native ResearchProjectDef.hidden (an
-		// anomaly codex state, not a static fact): every project is treated
-		// as not hidden, and a category-bound (anomaly) project is refused
-		// as an ordinary prerequisite by its category instead.
+		// anomaly codex state, not a static fact): every project starts as
+		// not hidden and the research read marks a codex-hidden one from
+		// its "hidden" lock reason (#1745).
 		// A project with no prerequisites is an absent repeated field on
 		// the wire, which is known-empty, not unread.
-		out.Research[name] = policy.ResearchProjectFacts{Name: policy.ResearchProjectID(name), Hidden: domain.Known(false), KnowledgeCategory: row.GetCategory(),
+		if row.GetCategory() != "" && (row.ApparentCost == nil || badNonNegative(row.ApparentCost) || row.GetApparentCost() <= 0) {
+			return nil, contract("catalog knowledge project %s lacks a finite cost", name)
+		}
+		out.Research[name] = policy.ResearchProjectFacts{Name: policy.ResearchProjectID(name), Hidden: domain.Known(false), KnowledgeCategory: row.GetCategory(), Cost: row.GetApparentCost(),
 			Prerequisites: domain.Known(toProjectIDs(row.GetPrerequisites())), HiddenPrerequisites: domain.Known(toProjectIDs(row.GetHiddenPrerequisites())), RequiredBuilding: row.GetRequiredBuilding()}
 	}
 	if out.Ideology, err = DecodeIdeologyCatalog(v.Ideology); err != nil {

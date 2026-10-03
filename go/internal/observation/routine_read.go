@@ -325,6 +325,7 @@ func frameResearch(read *bridge.ResearchRead) domain.Fact[policy.ResearchFacts] 
 	for _, name := range read.Finished {
 		facts.Finished = append(facts.Finished, policy.ResearchProjectID(name))
 	}
+	facts.KnowledgePick = policy.ResearchProjectID(policy.KnowledgePick(read.Projects, read.Finished, read.Knowledge))
 	return domain.Known(facts)
 }
 

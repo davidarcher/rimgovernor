@@ -172,6 +172,19 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if _, err = boundary.Context(read.Context, state.Snapshot); err != nil || read.Context.GetTick() < int64(review.Tick) {
 		return RoutineResearchResult{}, fmt.Errorf("%w: step: err != nil || read.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
+	inputs := snap.ResearchCall{Policy: policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), Needs: needs, Read: read}
+	if deficit {
+		snap.NoteResearch(call, inputs)
+		// A knowledge project fills its category's slot beside the ordinary
+		// one, so it is judged before the ordinary slot's current project.
+		knowledge, reason := researchKnowledgeNext(inputs)
+		if !reason.IsZero() {
+			return RoutineResearchResult{Verdict: reason}, nil
+		}
+		if knowledge != "" {
+			return r.admit(call, epoch, state, goal, knowledge)
+		}
+	}
 	if read.CurrentProject != "" {
 		// A current project finishes on native ticks alone: a derived or
 		// roadmap goal owes the window ticks until it does, whether the
@@ -188,8 +201,6 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !deficit {
 		return RoutineResearchResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	inputs := snap.ResearchCall{Policy: policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), Needs: needs, Read: read}
-	snap.NoteResearch(call, inputs)
 	next, reason := researchNext(inputs)
 	if !reason.IsZero() {
 		return RoutineResearchResult{Verdict: reason}, nil
@@ -201,9 +212,16 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if policy.ResearchBenchNeeded(read.Projects[next]) {
 		return r.bench(call, epoch, arbiter)
 	}
+	return r.admit(call, epoch, state, goal, next)
+}
+
+// admit records the one-action plan that selects next, unless this goal
+// epoch already tried it.
+func (r *RoutineResearchPlanner) admit(call, epoch context.Context, state ControlState, goal store.GoalState, next string) (RoutineResearchResult, error) {
+	p := r.reviewer.player
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineResearchResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
@@ -231,6 +249,36 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	return RoutineResearchResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+// researchKnowledgeNext is the knowledge project the step selects into its
+// category's slot (#1745): the head of the goal's prerequisite queue when
+// that head is a knowledge project, else the project an empty knowledge slot
+// should fund (policy.KnowledgePick). Empty with a zero reason when no
+// knowledge selection is owed; a head whose slot already holds another
+// project waits (the slot's current project is never replaced) and a head
+// native reports locked is an unavailable field, not a selection.
+func researchKnowledgeNext(in snap.ResearchCall) (string, Verdict) {
+	read := in.Read
+	if head, reason := researchNext(in); reason.IsZero() {
+		row := read.Projects[head]
+		if row.KnowledgeCategory != "" {
+			for _, slot := range read.Knowledge {
+				if slot.Category != row.KnowledgeCategory {
+					continue
+				}
+				if slot.Current != "" {
+					return "", BuildingReasonUsed
+				}
+				if !row.Census || len(row.LockReasons) != 0 {
+					return "", fieldUnavailable("research_knowledge_project")
+				}
+				return head, Verdict{}
+			}
+			return "", fieldUnavailable("research_knowledge_slot")
+		}
+	}
+	return policy.KnowledgePick(read.Projects, read.Finished, read.Knowledge), Verdict{}
 }
 
 // researchNext is the project a research step selects from its fresh

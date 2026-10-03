@@ -169,6 +169,9 @@ type ResearchFacts struct {
 	// research bench nobody has built, so it does not progress and the
 	// goal stays in deficit for the bench (#254).
 	CurrentBenchMissing bool
+	// KnowledgePick is the knowledge project an empty Anomaly knowledge
+	// slot should fund now (KnowledgePick, #1745), "" when none is owed.
+	KnowledgePick ResearchProjectID
 }
 
 // ResearchGoalTarget is the project EnsureResearch pursues: the configured

@@ -8,13 +8,18 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // ResearchIntent (#941): the ordinary research slot's current project,
-    // set through ResearchManager.SetCurrentProject. Native judges the
-    // project against live research state when it applies; a project that
-    // is already current applies again as it stands. Anomaly knowledge slots
-    // are not selected here.
+    // ResearchIntent (#941): the project's research slot's current project, set
+    // through ResearchManager.SetCurrentProject. An ordinary project fills the
+    // ordinary slot; an anomaly knowledge project (#1745) fills its category's
+    // knowledge slot, which SetCurrentProject picks by knowledgeCategory.
+    // Native judges the project against live research state when it applies
+    // (CanStartNow also refuses a project the entity codex still hides); a
+    // project that is already current in its slot applies again as it stands.
     internal sealed class ResearchActionHandler : IActionHandler
     {
+        private static ResearchProjectDef? Current(ResearchProjectDef def) =>
+            Find.ResearchManager.GetProject(def.knowledgeCategory);
+
         private static Common.Failure? Resolve(Operations.ResearchIntent? intent, out ResearchProjectDef project)
         {
             project = null!;
@@ -23,10 +28,10 @@ namespace HomeBridge.BridgeTools
             var def = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(intent.ProjectDef);
             if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Unknown research project.");
             project = def;
-            if (Find.ResearchManager.GetProject() == def) return null;
-            if (def.knowledgeCategory != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Anomaly knowledge projects are not selected through the ordinary slot.");
+            if (def.knowledgeCategory != null && !ModsConfig.AnomalyActive) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Anomaly knowledge projects need the Anomaly expansion.");
+            if (Current(def) == def) return null;
             if (def.IsFinished) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Project is already finished.");
-            if (!def.CanStartNow) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native research validation refuses the project: prerequisites, bench or requirements unmet.");
+            if (!def.CanStartNow) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native research validation refuses the project: prerequisites, bench, codex or requirements unmet.");
             return null;
         }
 
@@ -37,9 +42,9 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(action.Research, out var def);
             if (failure != null) throw new InvalidOperationException("Research prerequisites changed before apply: " + failure.Detail);
             var manager = Find.ResearchManager;
-            var previous = manager.GetProject()?.defName ?? "";
+            var previous = Current(def)?.defName ?? "";
             if (previous != def.defName) manager.SetCurrentProject(def);
-            var current = manager.GetProject()?.defName ?? "";
+            var current = Current(def)?.defName ?? "";
             if (current != def.defName) throw new InvalidOperationException("Research selection did not verify after SetCurrentProject.");
             var effect = new Receipts.ResearchEffect { CurrentProjectDef = current };
             if (previous.Length != 0) effect.PreviousProjectDef = previous;

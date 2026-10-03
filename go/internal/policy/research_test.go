@@ -68,19 +68,36 @@ func TestResearchPrerequisiteQueueRejectsUnknownProject(t *testing.T) {
 	}
 }
 
-func TestResearchPrerequisiteQueueRejectsHiddenOrKnowledgeCategory(t *testing.T) {
+func TestResearchPrerequisiteQueueRejectsHiddenProjects(t *testing.T) {
 	hidden := researchProject("H", nil, nil)
 	hidden.Hidden = domain.Known(true)
 	projects := map[ResearchProjectID]ResearchProjectFacts{"H": hidden}
 	if _, err := ResearchPrerequisiteQueue(projects, nil, []ResearchProjectID{"H"}); err == nil {
 		t.Fatalf("expected hidden-project error")
 	}
+}
 
-	anomaly := researchProject("Anomaly", nil, nil)
-	anomaly.KnowledgeCategory = "Sight"
-	projects = map[ResearchProjectID]ResearchProjectFacts{"Anomaly": anomaly}
-	if _, err := ResearchPrerequisiteQueue(projects, nil, []ResearchProjectID{"Anomaly"}); err == nil {
-		t.Fatalf("expected knowledge-category error")
+// A knowledge-category project is an ordinary node of the graph (#1745): the
+// queue orders it after its ordinary and knowledge prerequisites alike.
+func TestResearchPrerequisiteQueueAcceptsKnowledgeProjects(t *testing.T) {
+	extraction := researchProject("BioferriteExtraction", nil, nil)
+	extraction.KnowledgeCategory = "Basic"
+	shaping := researchProject("BioferriteShaping", []ResearchProjectID{"BioferriteExtraction", "Electricity"}, nil)
+	shaping.KnowledgeCategory = "Basic"
+	projects := map[ResearchProjectID]ResearchProjectFacts{
+		"Electricity":          researchProject("Electricity", nil, nil),
+		"BioferriteExtraction": extraction,
+		"BioferriteShaping":    shaping,
+	}
+	queue, err := ResearchPrerequisiteQueue(projects, nil, []ResearchProjectID{"BioferriteShaping"})
+	want := []ResearchProjectID{"BioferriteExtraction", "Electricity", "BioferriteShaping"}
+	if err != nil || len(queue) != len(want) {
+		t.Fatal(queue, err)
+	}
+	for i := range want {
+		if queue[i] != want[i] {
+			t.Fatal(queue, want)
+		}
 	}
 }
 

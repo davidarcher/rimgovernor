@@ -129,13 +129,17 @@ namespace HomeBridge.BridgeTools
                 if (request.ProgressOnly)
                 {
                     // The current projects, with their lock reasons, and the
-                    // started ones; the static fields are the catalog's.
+                    // started ones; the static fields are the catalog's. Every
+                    // unfinished anomaly knowledge project is listed with its
+                    // lock reasons too (hidden ones carry "hidden"): the
+                    // knowledge slots are filled from this list (#1745).
                     var selectedRow = selected.Contains(def);
-                    if (hidden || finished && !selectedRow || !selectedRow && reached <= 0) { filtered++; continue; }
+                    var knowledgeRow = anomaly && def.knowledgeCategory != null && !finished;
+                    if (hidden && !knowledgeRow || finished && !selectedRow || !selectedRow && !knowledgeRow && reached <= 0) { filtered++; continue; }
                     var slim = Project(def, manager, progress, knowledge, anomaly, player, reached, cost, finished, selectedRow);
                     var kept = new Obs.ResearchProject { Project = slim.Project, Finished = slim.Finished, Current = slim.Current, Progress = slim.Progress, ApparentCost = slim.ApparentCost };
                     if (slim.HasProgressFraction) kept.ProgressFraction = slim.ProgressFraction;
-                    if (selectedRow) { kept.LockReasons.Add(slim.LockReasons); kept.CanStart = slim.CanStart; kept.Available = slim.Available; kept.TechprintsApplied = slim.TechprintsApplied; }
+                    if (selectedRow || knowledgeRow) { kept.LockReasons.Add(slim.LockReasons); kept.CanStart = slim.CanStart; kept.Available = slim.Available; kept.TechprintsApplied = slim.TechprintsApplied; }
                     points[def.defName] = reached;
                     built.Add(kept);
                     continue;
@@ -194,7 +198,12 @@ namespace HomeBridge.BridgeTools
             // Native CanStartNow only demands a bench for a project that names
             // one, yet no project progresses without a bench the researcher can
             // work at: the lock is reported whenever none stands (#254).
-            if (!def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
+            // A knowledge project accrues from study, not bench work, so it
+            // needs a bench only when it names one (native CanStartNow).
+            if ((def.knowledgeCategory == null || def.requiredResearchBuilding != null) && !def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
+            // The entity codex hides a project until its entity is discovered
+            // (or the monolith reaches level 1); native CanStartNow refuses it.
+            if (anomaly && !finished && Find.EntityCodex.Hidden(def)) row.LockReasons.Add("hidden");
             foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
             if (!def.PlayerMechanitorRequirementMet) row.LockReasons.Add("mechanitor");
             if (!def.AnalyzedThingsRequirementsMet) row.LockReasons.Add("analysis");

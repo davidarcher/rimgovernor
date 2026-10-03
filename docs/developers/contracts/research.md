@@ -14,6 +14,23 @@ finishes. The ladder is only walked under a known research census and skips
 rungs the installed game does not list; an empty ladder with no target disables
 the goal. Advisory goals cannot create research orders.
 
+Anomaly knowledge (#1745): a knowledge-category project is selected through the same
+`ResearchIntent` into its category's slot (`ResearchManager.SetCurrentProject` picks the
+slot by `knowledgeCategory`) and progresses from study knowledge, not research work,
+so it needs no researcher, no clock ticks and no bench unless it names one. The
+research read lists every unfinished knowledge project with its lock reasons
+(`hidden` while the entity codex hides it) and every category's slot
+(`ResearchRead.Knowledge`); only the ordinary slot's project is the current project.
+An empty slot with a startable project of its own category is a deficit of
+`EnsureResearch` (knowledge that arrives for a category with no project is lost):
+the step fills it, before the ordinary slot is judged, with the head of the goal's
+prerequisite queue when that head is a knowledge project, else with the cheapest
+startable project of that category (`policy.KnowledgePick`, apparent cost then
+name). A filled slot is never replaced. Categories never substitute for each other:
+Advanced knowledge overflows into Basic, never the reverse
+(`ResearchManager.ApplyKnowledge`), so a Basic slot never stands in for an Advanced
+project. A disabled goal (no target, empty ladder) funds no slot.
+
 A goal whose only method is gated on research reports the project instead of
 no method: `EnsureBasicPower` with every generator definition unavailable and
 `MaintainStoneShell` with no replacement material report
@@ -22,8 +39,9 @@ no method: `EnsureBasicPower` with every generator definition unavailable and
 `Observations.ReadResearch` supplies the installed prerequisite graph; `include_unlocks` lists
 the definitions each project unlocks and `include_capability` adds research benches,
 their facilities and eligible researchers. Unknown or ambiguous definitions remain
-unknown. Both ordinary and hidden prerequisites participate in traversal; missing,
-hidden and knowledge-category projects block ordinary research. Traversal visits
+unknown. Both ordinary and hidden prerequisites participate in traversal; missing
+and hidden (entity-codex) projects block research, knowledge-category projects do
+not (below). Traversal visits
 at most 128 unfinished nodes and retains at most eight queued projects and eight
 capability inspections per review. Completed prerequisites are omitted, and stable
 native definition ordering resolves ties. Research uses the shared development

@@ -2,6 +2,9 @@ package bridge
 
 import (
 	"context"
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -20,6 +23,9 @@ type ResearchRead struct {
 	Projects       map[string]policy.ResearchProjectFacts
 	Finished       []string
 	Researchers    []string
+	// Knowledge is every Anomaly knowledge category's slot, sorted by
+	// category; empty when Anomaly is inactive (#1745).
+	Knowledge []policy.KnowledgeSlot
 }
 
 // researchRequest is the exact request ReadResearch issues, the key the
@@ -99,8 +105,18 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity, catalog *
 		// The census computes lock_reasons from the same predicates as the
 		// native CanStartNow; an absent list is a project that can start.
 		facts.LockReasons = append([]string(nil), row.GetLockReasons()...)
+		// A row carries can_start exactly when the census computed its
+		// lock reasons (current projects and unfinished knowledge ones).
+		facts.Census = row.CanStart != nil
+		for _, reason := range facts.LockReasons {
+			if reason == policy.ResearchLockHidden {
+				facts.Hidden = domain.Known(true)
+			}
+		}
 		out.Projects[name] = facts
-		if row.GetCurrent() {
+		// A knowledge project is current in its category slot, read below:
+		// only the ordinary slot's project is the current project.
+		if row.GetCurrent() && facts.KnowledgeCategory == "" {
 			if current != "" {
 				return ResearchRead{}, contract("multiple current research projects")
 			}
@@ -108,6 +124,27 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity, catalog *
 		}
 	}
 	out.CurrentProject = current
+	slotted := map[string]bool{}
+	for _, slot := range v.Slots {
+		if slot == nil {
+			return ResearchRead{}, contract("invalid research slot")
+		}
+		if slot.Category == nil {
+			continue
+		}
+		category := slot.GetCategory()
+		if validID(category) != nil || slotted[category] || slot.CurrentProject != nil && validID(slot.GetCurrentProject()) != nil {
+			return ResearchRead{}, contract("invalid research knowledge slot")
+		}
+		slotted[category] = true
+		if slot.CurrentProject != nil {
+			if project, ok := out.Projects[slot.GetCurrentProject()]; !ok || project.KnowledgeCategory != category {
+				return ResearchRead{}, contract("research slot %s holds project %s of another category", category, slot.GetCurrentProject())
+			}
+		}
+		out.Knowledge = append(out.Knowledge, policy.KnowledgeSlot{Category: category, Current: policy.ResearchProjectID(slot.GetCurrentProject())})
+	}
+	sort.Slice(out.Knowledge, func(i, j int) bool { return out.Knowledge[i].Category < out.Knowledge[j].Category })
 	for _, researcher := range v.Researchers {
 		if researcher == nil || validID(researcher.GetPawn().GetId()) != nil {
 			return ResearchRead{}, contract("invalid researcher identity")

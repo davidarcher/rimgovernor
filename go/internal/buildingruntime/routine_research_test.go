@@ -21,6 +21,9 @@ type researchNative struct {
 	finished []string
 	// benchMissing locks every project on the bench the colony lacks.
 	benchMissing bool
+	// knowledge adds the Anomaly knowledge slots and two startable basic
+	// projects and one advanced one to the census (#1745).
+	knowledge []policy.KnowledgeSlot
 }
 
 func (n *researchNative) ids() []string { return []string{"scholar-a", "scholar-b", "scholar-c"} }
@@ -46,6 +49,18 @@ func (n *researchNative) ReadResearch(ctx context.Context, _ *c.Identity) (bridg
 		"Electricity":  {Name: "Electricity", Hidden: domain.Known(false), Prerequisites: known(), HiddenPrerequisites: known()},
 		"Batteries":    {Name: "Batteries", Hidden: domain.Known(false), Prerequisites: known("Electricity"), HiddenPrerequisites: known()},
 	}}
+	if n.knowledge != nil {
+		read.Knowledge = n.knowledge
+		for name, row := range map[string]policy.ResearchProjectFacts{
+			"BioferriteExtraction": {KnowledgeCategory: "Basic", Cost: 5},
+			"BioferriteShaping":    {KnowledgeCategory: "Basic", Cost: 20},
+			"BioferriteGenerator":  {KnowledgeCategory: "Advanced", Cost: 40, LockReasons: []string{"prerequisite:Electroharvester"}},
+		} {
+			row.Name, row.Hidden, row.Census = policy.ResearchProjectID(name), domain.Known(false), true
+			row.Prerequisites, row.HiddenPrerequisites = known(), known()
+			read.Projects[name] = row
+		}
+	}
 	if n.benchMissing {
 		for name, facts := range read.Projects {
 			facts.RequiredBuilding, facts.LockReasons = "SimpleResearchBench", []string{policy.ResearchLockBench}
