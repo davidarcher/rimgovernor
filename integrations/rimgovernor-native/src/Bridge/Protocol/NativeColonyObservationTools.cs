@@ -247,7 +247,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             NativeUpkeepFacts.Populate(map, things, result);
-            foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "feed_definitions", "hauling", "wall_removal" })
+            foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected."));
             return new Obs.UpkeepSection { Observed = result };
         }

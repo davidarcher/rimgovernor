@@ -1163,7 +1163,6 @@ message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_n
 message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated rimgovernor.common.v1.Ref eaters = 3; }
 // reachable_benches lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
 // animal can eat it. reachable_storage lists the stockpile zones holding a
@@ -1327,7 +1326,7 @@ message UpkeepFacts {
   ComfortSection comfort = 1; repeated UpkeepItem items = 3;
   repeated UpkeepBed beds = 4; repeated StorageCell storage_cells = 5; repeated ItemStorageCapacity storage_capacity = 6;
   repeated UpkeepStructure structures = 7; repeated FireState fires = 8; repeated FilthState filth = 9;
-  repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11; repeated FeedDefinition feed_definitions = 12;
+  repeated ProtectedCell protected_cells = 10; repeated UpkeepPerson people = 11;
   repeated AnimalFeed animals = 13; repeated ReadIssue issues = 15;
   WallRemovalSection wall_removal = 17; HomeCoverageSection home_coverage = 18; LightingSection lighting = 19;
   repeated AnimalFeed wild_animals = 20; FlooringSection flooring = 21; RoutesSection routes = 22; /* rooms: the bundle rooms census */ repeated UpkeepPerson slaves = 24;
