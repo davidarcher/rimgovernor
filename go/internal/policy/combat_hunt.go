@@ -27,8 +27,16 @@ func huntFormation(view CombatView) []CombatRole {
 	for _, p := range view.Pawns {
 		state[p.ID] = p
 	}
+	// A gunner whose weapon is outranged by any prey stays out of the squad.
+	var preyRange float64
+	for _, p := range prey {
+		preyRange = math.Max(preyRange, p.WeaponRange)
+	}
 	var gunners []SquadDefenderFacts
 	for _, d := range view.Defenders {
+		if r := state[d.ID].WeaponRange; r > 0 && r < preyRange {
+			continue
+		}
 		if squadDefenderEligible(d) && positive(d.Armed) && positive(d.RangedEquipped) {
 			gunners = append(gunners, d)
 		}

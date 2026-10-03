@@ -19,6 +19,9 @@ const (
 	SquadHuntMaxGunners = 4
 	// squadHuntRadius links two animals into one group, in cells.
 	squadHuntRadius = 12.0
+	// squadSleepingWork scales the work of a sleeping animal: it stands still,
+	// so night is a soft preference and never a gate.
+	squadSleepingWork = 0.5
 )
 
 // SquadGunners counts the colonists a squad hunt may draft: ranged and
@@ -101,6 +104,9 @@ func SquadHunts(sources []AcquisitionSource, gunners int) ([]FoodChannel, []Acqu
 			grouped[s.ID] = true
 			nutrition += s.NutritionYield
 			w := FoodHuntWorkTicks / (1 + s.WeaponRange/25)
+			if s.Sleeping {
+				w *= squadSleepingWork
+			}
 			work += w
 			risk = math.Max(risk, s.HuntRevengeCost())
 			c.Prey = append(c.Prey, s.ID)
