@@ -137,7 +137,14 @@ namespace HomeBridge.BridgeTools
                 throw Fail(owner, field, $"{collection.GetType().FullName} is not a collection of the repeated field");
             foreach (var item in items)
             {
-                if (item == null) throw Fail(owner, field, "a collection element is null");
+                // A null message element holds its index (ThoughtDef.stages leaves a
+                // null for a stage no thought uses), so it mirrors as an empty message.
+                if (item == null)
+                {
+                    if (fd.FieldType != FieldType.Message) throw Fail(owner, field, "a collection element is null");
+                    target.Add(Create(fd.MessageType));
+                    continue;
+                }
                 target.Add(Value(fd, item, owner, field));
             }
         }
