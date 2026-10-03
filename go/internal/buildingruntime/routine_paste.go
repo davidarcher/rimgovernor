@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -81,4 +82,35 @@ func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot doma
 		out = append(out, v)
 	}
 	return out, stock, Verdict{}, nil
+}
+
+// digPaste mines the rock under the chosen dispenser or hopper cell ahead of
+// them: the paste site (policy.planPasteSite) lets those two cells stand on
+// natural rock or fogged mountain over an otherwise open apron, and the
+// shared rock step (admitRockStep) admits the digs and both buildings as one
+// method previewed over rock. Not handled when both cells are open ground.
+func (r *RoutineBuildingPlanner) digPaste(call, epoch context.Context, s excavationStep, protected []domain.Cell, check func() error) (RoutineBuildingResult, bool, error) {
+	var planned []policy.RoleCell
+	var buildings []domain.Building
+	for _, site := range r.paste {
+		if slices.Contains(protected, site.Cell) {
+			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
+		}
+		building, err := domain.NewBuilding(site.Definition, site.Cell, site.Rotation, "")
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		planned = append(planned, policy.RoleCell{Cell: site.Cell, Role: policy.RockNeedsFloor})
+		buildings = append(buildings, building)
+	}
+	dig := policy.RockStep(planned, s.facts.Cells).Dig
+	if len(dig) == 0 {
+		return RoutineBuildingResult{}, false, nil
+	}
+	access, ok := policy.RockAccess(dig, s.facts.Cells)
+	if !ok {
+		return RoutineBuildingResult{Verdict: rockNotDug(r.definition, "no_open_cell_beside_footprint")}, true, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("plan-dig-paste-%d-%d", dig[0].X, dig[0].Z))
+	return r.admitRockStep(call, epoch, s, planned, access, method, buildings, check)
 }

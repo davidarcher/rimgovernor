@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"slices"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 const SitePaste SiteKind = "nutrient-paste"
 
@@ -25,13 +29,18 @@ func planPasteSite(r SiteTypeRequest) (SiteTypePlan, bool) {
 		return SiteTypePlan{}, false
 	}
 	cells := map[domain.Cell]bool{}
+	listed := map[domain.Cell]bool{}
+	rock := map[domain.Cell]bool{}
 	for _, c := range r.Field.Site.Cells {
 		occupied, ok := c.Occupied.Value()
 		zone, zk := c.Zone.Value()
 		cells[c.Cell] = positive(c.Walkable) && ok && !occupied && zk && !zone
+		listed[c.Cell] = true
+		rock[c.Cell] = rockCell(c)
 	}
 	for _, c := range r.Field.Site.Protected {
 		cells[c] = false
+		rock[c] = false
 	}
 	for _, c := range r.Field.Site.Cells {
 		connected := false
@@ -42,18 +51,23 @@ func planPasteSite(r SiteTypeRequest) (SiteTypePlan, bool) {
 		if !connected {
 			continue
 		}
-		clear := true
-		for x := int32(-4); x <= 4; x++ {
-			for z := int32(-4); z <= 4; z++ {
-				clear = clear && cells[domain.Cell{X: c.Cell.X + x, Z: c.Cell.Z + z}]
-			}
-		}
-		if !clear {
-			continue
-		}
 		// RimWorld's north-facing footprint is centred with the even-size
 		// surplus on its positive edge. Hopper touches the west edge.
 		h := domain.Cell{X: c.Cell.X - (size.Width-1)/2 - 1, Z: c.Cell.Z}
+		// The dispenser's anchor and the hopper may stand on natural rock or
+		// fogged mountain, which the rock step mines first; the rest of the
+		// 9x9 must be open ground a pawn can work from.
+		minable := func(p domain.Cell) bool { return rock[p] || !listed[p] && p == h }
+		clear := true
+		for x := int32(-4); x <= 4; x++ {
+			for z := int32(-4); z <= 4; z++ {
+				p := domain.Cell{X: c.Cell.X + x, Z: c.Cell.Z + z}
+				clear = clear && (cells[p] || (p == c.Cell || p == h) && minable(p))
+			}
+		}
+		if !clear || slices.Contains(r.Field.Site.Protected, h) {
+			continue
+		}
 		infra, _ := v.Meals.Paste.Value()
 		buildings := []SiteBuilding{{Definition: infra.Name, Cell: c.Cell, Rotation: domain.North}, {Definition: hopper.Name, Cell: h, Rotation: domain.North}}
 		candidate := SiteTypeCandidate{Kind: SitePaste, Buildings: buildings, Cells: 2, Terms: []FarmSiteTerm{{Name: "power_w", Value: func() float64 { w, _ := infra.PowerW.Value(); return w }()}}}

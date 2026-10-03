@@ -129,3 +129,45 @@ func TestPasteSiteNeedsConnectedFirmNetworkAndHopper(t *testing.T) {
 		t.Fatal("unknown hopper admitted")
 	}
 }
+
+// The dispenser's cell and its hopper may stand on rock or fogged mountain
+// (the rock step mines them); rock anywhere else on the apron refuses the site.
+func TestPasteSiteAllowsRockOnlyUnderDispenserAndHopper(t *testing.T) {
+	meals := tierRequest()
+	meals.RawRunwayDays = domain.Known(1.0)
+	paste := PasteSiteRequest{Meals: meals, Benches: tierBenches(), Hopper: domain.Known(Infrastructure{Name: "Hopper", Available: domain.Known(true)}), Size: domain.Known(Bounds{Width: 3, Height: 4}), Power: domain.Known(PowerTopology{Buildings: []PowerSite{{Cell: domain.Cell{X: 15, Z: 10}, PowerBuilding: PowerBuilding{Network: domain.Known("grid"), Connected: domain.Known(true)}}}})}
+	build := func(rockAt, fogAt domain.Cell) (SiteTypePlan, bool) {
+		r := SiteTypeRequest{Paste: &paste}
+		for x := int32(6); x <= 14; x++ {
+			for z := int32(6); z <= 14; z++ {
+				cell := domain.Cell{X: x, Z: z}
+				switch cell {
+				case fogAt:
+					continue
+				case rockAt:
+					r.Field.Site.Cells = append(r.Field.Site.Cells, rockSite(x, z))
+				default:
+					r.Field.Site.Cells = append(r.Field.Site.Cells, SiteCell{Cell: cell, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+				}
+			}
+		}
+		return PlanSiteType(r)
+	}
+	none := domain.Cell{X: -1, Z: -1}
+	anchor, hopper, apron := domain.Cell{X: 10, Z: 10}, domain.Cell{X: 8, Z: 10}, domain.Cell{X: 7, Z: 10}
+	if plan, ok := build(anchor, none); !ok || plan.Buildings[0].Cell != anchor {
+		t.Fatal("rock under the dispenser", plan, ok)
+	}
+	if plan, ok := build(hopper, none); !ok || plan.Buildings[1].Cell != hopper {
+		t.Fatal("rock under the hopper", plan, ok)
+	}
+	if plan, ok := build(none, hopper); !ok || plan.Buildings[1].Cell != hopper {
+		t.Fatal("fogged hopper cell", plan, ok)
+	}
+	if _, ok := build(apron, none); ok {
+		t.Fatal("rock on the apron admitted")
+	}
+	if _, ok := build(none, apron); ok {
+		t.Fatal("fogged apron admitted")
+	}
+}

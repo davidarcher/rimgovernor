@@ -707,6 +707,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return result, err
 		}
 	}
+	if len(r.paste) > 0 {
+		if result, handled, err := r.digPaste(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+			return result, err
+		}
+	}
 	if r.shelter && r.phase == policy.HousingShelter {
 		// The starter shell is raised around its bunks (#612): the sleeping
 		// spots and then the beds are placed on the site first, each a rung
