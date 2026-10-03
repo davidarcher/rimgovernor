@@ -285,7 +285,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/lab_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#743): spawn one finished thing at a cell of the loaded map, the lab contract runner's single-building or single-pawn helper. def is a PawnKindDef (a generated pawn) or a ThingDef (a building, or an item stack of count). Replies the spawned thing's load id, kind and cell.")]
+        [Tool("test/lab_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#743): spawn one finished thing at a cell of the loaded map, the lab contract runner's single-building or single-pawn helper. def is a PawnKindDef (a generated pawn) or a ThingDef (a building, or an item stack of count). A pawn may be given a fixed gender and age. Replies the spawned thing's load id, kind and cell.")]
         public async Task<object> Spawn(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "PawnKindDef or ThingDef name.")] string def,
             [ToolParameter(Description = "Cell x.")] int x,
@@ -293,11 +293,15 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Stuff ThingDef for a stuffed building; empty takes the def's default stuff.")] string stuff = "",
             [ToolParameter(Description = "Rotation 0..3 (north, east, south, west).")] int rotation = 0,
             [ToolParameter(Description = "Item stack count (items only, clamped to the stack limit).")] int count = 1,
-            [ToolParameter(Description = "player (default) or none: the spawned thing's faction.")] string faction = "player")
+            [ToolParameter(Description = "player (default) or none: the spawned thing's faction.")] string faction = "player",
+            [ToolParameter(Description = "Pawn only: male or female; empty leaves it generated.")] string gender = "",
+            [ToolParameter(Description = "Pawn only: biological and chronological age in years; 0 leaves it generated.")] float age = 0f)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
                 if (faction != "player" && faction != "none") throw new ArgumentException("faction must be player or none.");
+                if (gender != "" && gender != "male" && gender != "female") throw new ArgumentException("gender must be male, female or empty.");
+                if (age < 0f) throw new ArgumentException("age must not be negative.");
                 if (rotation < 0 || rotation > 3) throw new ArgumentException("rotation must be within 0..3.");
                 var cell = new IntVec3(x, 0, z);
                 if (!cell.InBounds(map)) throw new ArgumentException($"Cell {x},{z} is out of bounds.");
@@ -308,7 +312,9 @@ namespace HomeBridge.BridgeTools
                 var pawnKind = DefDatabase<PawnKindDef>.GetNamedSilentFail(def ?? "");
                 if (pawnKind != null)
                 {
-                    thing = PawnGenerator.GeneratePawn(new PawnGenerationRequest(pawnKind, owner, forceGenerateNewPawn: true, canGeneratePawnRelations: false, allowAddictions: false));
+                    thing = PawnGenerator.GeneratePawn(new PawnGenerationRequest(pawnKind, owner, forceGenerateNewPawn: true, canGeneratePawnRelations: false, allowAddictions: false,
+                        fixedGender: gender == "" ? (Gender?)null : gender == "male" ? Gender.Male : Gender.Female,
+                        fixedBiologicalAge: age > 0f ? age : (float?)null, fixedChronologicalAge: age > 0f ? age : (float?)null));
                     kind = "pawn";
                 }
                 else

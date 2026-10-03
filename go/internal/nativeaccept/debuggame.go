@@ -32,6 +32,8 @@ const (
 // LabThing is one LabSpawn: Def names a PawnKindDef (a generated pawn) or a
 // ThingDef (a building, or an item stack of Count). Stuff empty takes the
 // def's default; Unowned spawns it factionless instead of the player's.
+// Gender ("male" or "female") and Age (years) fix a pawn's sex and age; zero
+// values leave them generated.
 type LabThing struct {
 	Def      string
 	Stuff    string
@@ -39,6 +41,8 @@ type LabThing struct {
 	Rotation int
 	Count    int
 	Unowned  bool
+	Gender   string
+	Age      float64
 }
 
 // LabSpawn spawns t through LabSpawnTool and returns the thing's load id
@@ -53,6 +57,12 @@ func LabSpawn(ctx context.Context, h *Harness, t LabThing) (string, map[string]a
 	}
 	if t.Unowned {
 		args["faction"] = "none"
+	}
+	if t.Gender != "" {
+		args["gender"] = t.Gender
+	}
+	if t.Age > 0 {
+		args["age"] = t.Age
 	}
 	reply, err := h.Call(ctx, "lab-spawn-"+t.Def, LabSpawnTool, args)
 	if err != nil {

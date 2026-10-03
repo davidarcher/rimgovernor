@@ -448,7 +448,7 @@ by review alone.
    history opens on the lab (`cases.Lab{Colonists: n}`, #743): a 100x100
    map wiped to bare Soil with `n` fixture colonists, the `test/lab_start`
    reply (centre, colonist ids) as `Prepared`, one `na.LabSpawn` per
-   building, item or pawn, `cases.LabBudget`; `lab/spawn` is the pattern
+   building, item or pawn (a pawn takes `Gender` and `Age`), `cases.LabBudget`; `lab/spawn` is the pattern
    (10 s). An `Owned` case loads it with `na.StartLab` (`authority/warm`,
    `lifecycle/reuse`). Every op/read contract case opens on the lab (#751).
    A lab op that uses existing starting resources and refuses to spawn them

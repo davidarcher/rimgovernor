@@ -250,8 +250,7 @@ exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
 areas, following, sterilization and breeding separation are ordinary game
 settings: while native authority reads Auto the controller may change any of
 them, including ones the player just set (see the working agreement). Masters,
-areas and following are written through the methods above; sterilization is
-not yet written.
+areas, following and sterilization are written through the methods above.
 
 Births are never counted as pending: a shortfall with no tameable wild animal
 of the race on the map simply reports no candidate until one appears. Renewing
@@ -296,6 +295,23 @@ stock does not establish that animals can reach or have consumed it.
 These are current-condition projections. Future births, changing temperatures,
 spoilage and native job selection require fresh review; a bounded acceptance run
 does not establish indefinite herd sustainability.
+
+## Acceptance
+
+`husbandry/dispatch` proves each method's native write on a fixture colony.
+`husbandry/plan` (#1638) proves the herd plan end to end on the lab: the race
+catalog read (cows with a milk product, wild and tame races, minimum handling
+skill); a lone cow founder kept beside an old milk race; the controller-built
+vet room (its planned ring is staged finished from `LayoutPlan.VetRoomCells`;
+beds, the medical flag, the `VetRoom` area and the sterilize writes are the
+controller's) and an old male read back sterilized; a wild bull tamed as the
+cow's mate, after which the old race retires one animal per review. Snapshot
+tests own the planner decisions; the case owns native bed and room use,
+surgery and the tame and designation ops. Its scope lists the native
+semantics still unconfirmed (wildness stat, combat power and trainables
+approximation, animal bed medical flag, surgery in the vet bed, bedroom role
+with a sleeping spot, the `VetRoom` area, native master ids equal pawn ids);
+a failure there names the one it hit.
 
 See husbandry acceptance for the native fixture
 and the distinction between setup, orders and pawn outcomes.
