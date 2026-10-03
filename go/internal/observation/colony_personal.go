@@ -56,6 +56,12 @@ func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.Paw
 	for _, row := range pawns.Pawns {
 		rows[row.GetPawn().GetId()] = row
 	}
+	parts := map[policy.PawnID]domain.Fact[[]policy.InstalledPart]{}
+	if care, ok := p.Facts.MedicalPawns.Value(); ok {
+		for _, c := range care {
+			parts[c.ID] = c.InstalledParts
+		}
+	}
 	spendPawns := make([]policy.PersonalSpendPawn, 0, len(profiles))
 	members := make([]policy.ShareMember, 0, len(profiles))
 	for _, profile := range profiles {
@@ -69,11 +75,12 @@ func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.Paw
 				gear = domain.Known(items)
 			}
 		}
-		spendPawns = append(spendPawns, policy.PersonalSpendPawn{ID: profile.ID, Free: free, Gear: gear})
+		installed, partsRead := parts[profile.ID].Value()
+		spendPawns = append(spendPawns, policy.PersonalSpendPawn{ID: profile.ID, Free: free, Gear: gear, Parts: installed, PartsUnread: !partsRead})
 		members = append(members, policy.ShareMember{Profile: profile, Free: free, Soldier: soldiers[profile.ID], Doctor: doctors[profile.ID], Spent: domain.Unknown[float64]()})
 	}
 	if sleepingKnown {
-		spent := policy.PersonalSpent(policy.PersonalSpendInput{Sleeping: sleeping, BedPrice: marketBedPrice(frame.Catalog), Pawns: spendPawns})
+		spent := policy.PersonalSpent(policy.PersonalSpendInput{Sleeping: sleeping, BedPrice: marketBedPrice(frame.Catalog), PartPrice: partPrice(p.Facts.Items), Pawns: spendPawns})
 		for i, m := range members {
 			if s, ok := spent[m.Profile.ID]; ok {
 				members[i].Spent = s
@@ -81,6 +88,16 @@ func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.Paw
 		}
 	}
 	p.PersonalShares = policy.PersonalShares(p.Facts.PersonalPool(), members)
+}
+
+// partPrice adapts ItemFacts.MarketValue to the (price, priced) lookup
+// PersonalSpent takes for installed part items; a def with no catalog value is
+// unpriced.
+func partPrice(items policy.ItemFacts) func(policy.Resource) (float64, bool) {
+	return func(item policy.Resource) (float64, bool) {
+		v, err := items.MarketValue(item)
+		return v, err == nil
+	}
 }
 
 // marketBedPrice prices a bed by (def, stuff) from the catalog's MarketValue

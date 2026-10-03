@@ -964,7 +964,8 @@ the catalog's MarketValue stat rows, worn apparel from the gear loadout model's
 `Worn` options, and the equipped primary weapon from the pawn row priced the
 same way (quality unobserved reads as Normal). Spent is unknown for everyone
 while the sleeping census is, and for a colonist whose worn gear model or
-weapon was not read. Installed parts join in #1839.
+weapon or installed parts (`CarePawn.InstalledParts`, priced from
+`ItemFacts.MarketValue` at the #1839 tier discount) was not read.
 
 The same shares are the read-only `share`, `spent` and `remaining` per roster
 row of `/api/player/colony` (`go-player-api.md`), taken from the held projection

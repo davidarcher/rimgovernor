@@ -36,6 +36,10 @@ func TestPersonalSharesKnownAndWeighted(t *testing.T) {
 		{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{Worn: []policy.GearOption{{Definition: "Apparel_Parka", Quality: 2, Condition: 1, Cost: 100}}})},
 		{Pawn: "b", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
 	}})
+	p.Facts.MedicalPawns = domain.Known([]policy.CarePawn{
+		{ID: "a", InstalledParts: domain.Known([]policy.InstalledPart{})},
+		{ID: "b", InstalledParts: domain.Known([]policy.InstalledPart{})},
+	})
 	personalShares(&p, bridge.RoutineFrame{}, unarmedRows("a", "b"))
 	// Pool 10000, f 0.2, a is the one doctor (weight 1.25) against b (1).
 	a, b := p.PersonalShareOf("a"), p.PersonalShareOf("b")
@@ -107,5 +111,32 @@ func TestPersonalShareOfMissingIsNecessitiesOnly(t *testing.T) {
 	}
 	if share, _ := q.PersonalShareOf("a").Share.Value(); share != 0.2*10000 {
 		t.Fatal(share)
+	}
+}
+
+func TestPersonalSharesInstalledPartsDiscountedAndUnreadUnknown(t *testing.T) {
+	build := func(parts domain.Fact[[]policy.InstalledPart]) ColonyProjection {
+		p := personalProjection(personalWorkPawn("a", 0))
+		p.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})}}})
+		p.Facts.Items = policy.ItemFacts{Market: map[policy.Resource]float64{"BionicArm": 1000}}
+		p.Facts.MedicalPawns = domain.Known([]policy.CarePawn{{ID: "a", InstalledParts: parts}})
+		personalShares(&p, bridge.RoutineFrame{}, unarmedRows("a"))
+		return p
+	}
+	arm := policy.InstalledPart{Hediff: "BionicArm", Item: domain.Known(policy.Resource("BionicArm")), Tier: 2}
+	p := build(domain.Known([]policy.InstalledPart{arm}))
+	if spent, ok := p.PersonalShareOf("a").Spent.Value(); !ok || spent != 1000*policy.PartUpgradeDiscount {
+		t.Fatal(p.PersonalShareOf("a"))
+	}
+	// An unread parts fact is Unknown, never zero.
+	q := build(domain.Unknown[[]policy.InstalledPart]())
+	if _, ok := q.PersonalShareOf("a").Spent.Value(); ok {
+		t.Fatal("spent with unread installed parts")
+	}
+	// A part whose item has no catalog price is Unknown too.
+	arm.Item = domain.Known(policy.Resource("Unpriced"))
+	r := build(domain.Known([]policy.InstalledPart{arm}))
+	if _, ok := r.PersonalShareOf("a").Spent.Value(); ok {
+		t.Fatal("spent with an unpriced part")
 	}
 }
