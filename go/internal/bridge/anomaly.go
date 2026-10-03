@@ -104,9 +104,19 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 					return nil, err
 				}
 			}
-			if s.FrequencyTicks != nil && s.GetFrequencyTicks() < 0 || s.MinMonolithLevelForStudy != nil && s.GetMinMonolithLevelForStudy() < 0 ||
-				s.StudyAmountToComplete != nil && s.GetStudyAmountToComplete() < 0 || s.AnomalyKnowledge != nil && s.GetAnomalyKnowledge() < 0 {
-				return nil, contract("negative anomaly studiable %s number", row.GetDefName())
+			for _, n := range []struct {
+				field string
+				value float64
+				set   bool
+			}{
+				{"frequencyTicks", float64(s.GetFrequencyTicks()), s.FrequencyTicks != nil},
+				{"minMonolithLevelForStudy", float64(s.GetMinMonolithLevelForStudy()), s.MinMonolithLevelForStudy != nil},
+				{"studyAmountToComplete", s.GetStudyAmountToComplete(), s.StudyAmountToComplete != nil},
+				{"anomalyKnowledge", s.GetAnomalyKnowledge(), s.AnomalyKnowledge != nil},
+			} {
+				if n.set && n.value < 0 {
+					return nil, contract("anomaly studiable %s of %s is negative (%v)", n.field, row.GetDefName(), n.value)
+				}
 			}
 		}
 		if t := row.HoldingTarget; t != nil {
