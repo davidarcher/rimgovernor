@@ -135,6 +135,10 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	} else if complete, known := emergency.ColonistsComplete.Value(); known && complete && len(emergency.Colonists) == 0 && colony.ColonistCount != nil && colony.GetColonistCount() == 0 {
 		p.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
 	}
+	p.Mechs = domain.Unknown[policy.MechFleet]()
+	if frame.Tables.Pawns.Len() > 0 {
+		p.Mechs = domain.Known(MechFleet(frame.Tables.Pawns.Values()))
+	}
 	p.Facts.RecoveryWorkers = recoveryWorkers(p.Facts.MoodPawns)
 	p.Facts.Gear = routineGear(p.Facts.Gear, emergency)
 	p.Facts.Research = frameResearch(frame.Research)

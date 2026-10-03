@@ -228,6 +228,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		care = care[:8]
 	}
 	settings = append(settings, care...)
+	// Mech control groups and work modes (#1736).
+	mechs, err := routineMechSettings(read)
+	if err != nil {
+		return RoutineWorkResult{}, err
+	}
+	settings = append(settings, mechs...)
 	// Per-pawn reading policies (#1306): the contents first, then the
 	// assignment, at most eight pawns per plan.
 	var reading []domain.ReadingPolicy
@@ -311,7 +317,9 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		book, _ := s.ReadingPolicy()
 		drug, _ := s.DrugPolicy()
 		diet, _ := s.FoodPolicy()
-		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%q/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, diet, len(goal.Methods))
+		mode, _ := s.MechWorkMode()
+		group, _ := s.MechControlGroup()
+		fmt.Fprintf(hash, "%s/%s/%s/%t/%q/%d/%s/%q/%q/%q/%q/%d/%d\n", s.Kind(), s.Pawn(), s.Hostility(), s.SelfTend(), s.LeaveName(), carry, s.MedicalCare(), book, drug, diet, mode, group, len(goal.Methods))
 	}
 	for _, d := range drugs {
 		data, _ := json.Marshal(d.Entries())

@@ -245,6 +245,14 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err = r.commitPermitCalls(call, epoch, incident, permits); err != nil {
 		return RoutineDefenseResult{}, err
 	}
+	// Guard mechs fight with the fight's stop (#1736): their drafts join the
+	// roster like any draft, so the undraft sweep releases them.
+	guards, err := combatMechGuards(combat, in.hostileIDs, in.rows)
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	drafts = append(drafts, guards.Drafts...)
+	orders = append(orders, guards.Orders...)
 	if len(orders)+len(drafts) == 0 && len(permits) > 0 {
 		if err = p.journal.SaveCombatMemory(call, id, next); err != nil {
 			return RoutineDefenseResult{}, err

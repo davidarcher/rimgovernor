@@ -69,11 +69,14 @@ type ColonyProjection struct {
 	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
-	MeditateAvailable                      domain.Fact[bool] // Meditate TimeAssignmentDef exists (#1313)
-	FieldCrops                             domain.Fact[[]policy.FieldCrop]
-	FieldCapacityCrops                     domain.Fact[[]policy.FieldCrop]
-	CookingBenches                         domain.Fact[[]CookingBench]
-	PowerPlanning                          domain.Fact[policy.PowerTopology]
+	// Mechs are the colony's mechanitors and mechs from the pawn table
+	// (#1736); unknown without a table.
+	Mechs              domain.Fact[policy.MechFleet]
+	MeditateAvailable  domain.Fact[bool] // Meditate TimeAssignmentDef exists (#1313)
+	FieldCrops         domain.Fact[[]policy.FieldCrop]
+	FieldCapacityCrops domain.Fact[[]policy.FieldCrop]
+	CookingBenches     domain.Fact[[]CookingBench]
+	PowerPlanning      domain.Fact[policy.PowerTopology]
 	// DefenseTurrets is every built turret gun in the power census with its
 	// observed damage per second (#1188).
 	DefenseTurrets domain.Fact[[]policy.DefenseTurretFacts]

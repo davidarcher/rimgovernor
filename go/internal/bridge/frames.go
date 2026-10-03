@@ -851,6 +851,9 @@ type Combat struct {
 	// HiveTemperatureC is the hottest live hive's temperature (#1073).
 	HiveTemperatureC domain.Fact[float64]
 	Frame            *o.BundleSnapshot
+	// Catalog is the definition catalog, read only when Detail holds a mech
+	// row (#1736).
+	Catalog *DefinitionCatalog
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -867,7 +870,21 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	if _, err := caller.frameReadKey(ctx, combatFrameMethod, readCacheKey{method: combatFrameMethod}, identity, true, reply); err != nil {
 		return Combat{}, err
 	}
-	return DecodeCombat(reply)
+	combat, err := DecodeCombat(reply)
+	if err != nil {
+		return Combat{}, err
+	}
+	// The mech guard orders resolve kinds against the Biotech catalog, read
+	// only when the frame holds a mech (#1736).
+	for row := range combat.Detail.Values() {
+		if row.GetBiotech().GetMech() != nil {
+			if combat.Catalog, err = caller.DefinitionCatalog(ctx, identity); err != nil {
+				return Combat{}, err
+			}
+			break
+		}
+	}
+	return combat, nil
 }
 
 // combatFrame is the part of frame v a combat read answers: its pawn
@@ -905,6 +922,21 @@ func censusPawns(v *o.BundleSnapshot, held *heldTables) *o.PawnSnapshot {
 			ids[row.GetSource().GetId()] = true
 		}
 	}
+	// A living mechanitor's or mech's row rides with the census (#1736):
+	// the guard orders read the mechs from the combat frame.
+	if held != nil {
+		for id, row := range held.pawns.All() {
+			if row != nil && isMechRow(row) {
+				ids[id] = true
+			}
+		}
+	} else {
+		for _, row := range v.Pawns.Pawns {
+			if isMechRow(row) {
+				ids[row.GetPawn().GetId()] = true
+			}
+		}
+	}
 	out := &o.PawnSnapshot{Context: v.Pawns.Context, Completeness: v.Pawns.Completeness, MeditateAssignmentAvailable: v.Pawns.MeditateAssignmentAvailable}
 	if held != nil {
 		for _, id := range slices.Sorted(maps.Keys(ids)) {
@@ -920,6 +952,12 @@ func censusPawns(v *o.BundleSnapshot, held *heldTables) *o.PawnSnapshot {
 		}
 	}
 	return out
+}
+
+// isMechRow reports a living pawn carrying a mechanitor or mech block.
+func isMechRow(row *o.PawnState) bool {
+	b := row.GetBiotech()
+	return !row.GetDead() && (b.GetMechanitor() != nil || b.GetMech() != nil)
 }
 
 // DecodeCombat validates and decodes a frame's combat part (ReadCombat,

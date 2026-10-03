@@ -192,8 +192,15 @@ otherwise.
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
 `MechanitorUtility.InMechanitorCommandRange` stays authoritative) of its
 overseer: the existing combat batch's draft (when undrafted) and `attack` order.
-Both are pure over recorded facts (`mech_control_test.go`). They are not yet
-fed by the routine read, which carries no mech rows.
+Both are pure over recorded facts (`mech_control_test.go`) and fed from the pawn
+table, which already holds every spawned pawn with its `PawnBiotech` block
+(`observation.MechFleet`: living colonist mechanitors, living mechs). The routine
+read carries the fleet as `Projection.Mechs`; `RoutineWorkPlanner` appends
+`PlanMechControl`'s settings to the work plan's `PawnSettingsAction`s, with the
+Biotech catalog from the frame. The combat frame's pawn cut keeps mechanitor and
+mech rows (and `Combat.Catalog` is read when one is present), so each fight stop
+appends `PlanMechGuards`'s drafts and attack orders to its `combat.orders` batch;
+the drafts join the fight roster and are undrafted when it closes.
 
 ## Acceptance
 

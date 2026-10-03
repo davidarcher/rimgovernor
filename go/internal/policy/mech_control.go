@@ -96,6 +96,12 @@ type MechInput struct {
 	Target PawnID
 }
 
+// MechFleet is the colony's mechanitors and mechs as one read recorded them.
+type MechFleet struct {
+	Mechanitors []MechanitorInput
+	Mechs       []MechInput
+}
+
 // PlanMechControl is the settings that bring each mechanitor's mechs into
 // role groups with the right modes: first every move, then every group
 // mode, so a mode lands on a group after its mechs are in it. hostile is a
