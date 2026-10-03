@@ -15,14 +15,15 @@ import (
 // observed state.
 const AbilityAction ActionKind = "ability"
 
-// AbilitySourceKind names where an ability comes from. The psycast source
-// (#1610) joins here as one more kind with its own target rule.
+// AbilitySourceKind names where an ability comes from.
 type AbilitySourceKind string
 
 const (
 	// AbilityPermit is an acting royal permit (royalAid) the pawn holds with a
 	// faction.
 	AbilityPermit AbilitySourceKind = "permit"
+	// AbilityPsycast is a psycast (AbilityDef) the pawn knows (#1610).
+	AbilityPsycast AbilitySourceKind = "psycast"
 )
 
 // AbilitySource is an immutable, comparable value. Def is the permit's
@@ -42,18 +43,31 @@ func PermitSource(faction, permit string) (AbilitySource, error) {
 	return AbilitySource{kind: AbilityPermit, faction: faction, def: permit}, nil
 }
 
+// PsycastSource is the psycast source for an AbilityDef defName.
+func PsycastSource(ability string) (AbilitySource, error) {
+	if !validID(ability) || strings.ContainsRune(ability, ':') {
+		return AbilitySource{}, errors.New("ability psycast source requires an ability def")
+	}
+	return AbilitySource{kind: AbilityPsycast, def: ability}, nil
+}
+
 func (s AbilitySource) Kind() AbilitySourceKind { return s.kind }
 
 // Faction is the faction def of a permit source, empty for other sources.
 func (s AbilitySource) Faction() string { return s.faction }
 
-// Def is the source's ability def: the permit def of a permit source.
+// Def is the source's ability def: the permit def of a permit source, the
+// AbilityDef of a psycast source.
 func (s AbilitySource) Def() string { return s.def }
 
-// Key is the source's stable single-string form, "permit:<faction>:<permit>".
+// Key is the source's stable single-string form, "permit:<faction>:<permit>"
+// or "psycast:<abilityDef>".
 func (s AbilitySource) Key() string {
-	if s.kind == AbilityPermit {
+	switch s.kind {
+	case AbilityPermit:
 		return string(s.kind) + ":" + s.faction + ":" + s.def
+	case AbilityPsycast:
+		return string(s.kind) + ":" + s.def
 	}
 	return ""
 }
@@ -64,15 +78,22 @@ func ParseAbilitySource(key string) (AbilitySource, error) {
 	if len(parts) == 3 && AbilitySourceKind(parts[0]) == AbilityPermit {
 		return PermitSource(parts[1], parts[2])
 	}
+	if len(parts) == 2 && AbilitySourceKind(parts[0]) == AbilityPsycast {
+		return PsycastSource(parts[1])
+	}
 	return AbilitySource{}, fmt.Errorf("invalid ability source %q", key)
 }
 
 // accepts reports whether the source can take a target of the kind. A permit
-// calls aid, a strike or a drop at a cell, or takes no target.
+// calls aid, a strike or a drop at a cell, or takes no target. A psycast
+// takes whichever arm the ability needs (none for a self-cast); native checks
+// that the arm is the one this ability takes.
 func (s AbilitySource) accepts(target AbilityTargetKind) bool {
 	switch s.kind {
 	case AbilityPermit:
 		return target == AbilityTargetNone || target == AbilityTargetCell
+	case AbilityPsycast:
+		return true
 	}
 	return false
 }

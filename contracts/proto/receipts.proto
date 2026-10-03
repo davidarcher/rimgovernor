@@ -213,7 +213,7 @@ message AbilityEffect {
   optional string pawn_id = 1;
   oneof outcome {
     PermitUseEffect permit = 2;
-    // 3 is the psycast outcome (#1610).
+    PsycastUseEffect psycast = 3;
   }
 }
 // cooldown_started_tick is FactionPermit.LastUsedTick read back after the use
@@ -227,6 +227,14 @@ message PermitUseEffect {
   optional int32 favor_before = 4;
   optional int32 favor_after = 5;
   optional int32 aid_things = 6;
+}
+// The psycast outcome (#1610): the cast order the game accepted. The pawn
+// holds the ability's cast job (job_def) as its current or queued job; the
+// cast itself, its psyfocus cost and its cooldown follow when the pawn
+// reaches it, so they are observed state, not receipt claims.
+message PsycastUseEffect {
+  optional string ability = 1;
+  optional string job_def = 2;
 }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }

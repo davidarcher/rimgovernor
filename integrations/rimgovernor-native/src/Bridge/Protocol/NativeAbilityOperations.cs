@@ -26,11 +26,11 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeAbilityOperations
     {
-        // One source per AbilityIntent.source arm; the psycast source (#1610)
-        // registers here with its own guards.
+        // One source per AbilityIntent.source arm, each with its own guards.
         private static readonly Dictionary<Operations.AbilityIntent.SourceOneofCase, IAbilitySource> Sources = new Dictionary<Operations.AbilityIntent.SourceOneofCase, IAbilitySource>
         {
             [Operations.AbilityIntent.SourceOneofCase.Permit] = new PermitAbilitySource(),
+            [Operations.AbilityIntent.SourceOneofCase.Psycast] = new PsycastAbilitySource(),
         };
 
         internal static Common.Failure Refuse(Common.FailureCode code, string guard, string detail) => ProtoBoundary.Fail(code, "Ability guard " + guard + ": " + detail);
@@ -206,6 +206,177 @@ namespace HomeBridge.BridgeTools
                         FactionDef = call.Faction.def.defName, Permit = call.Def.defName, CooldownStartedTick = call.Held.LastUsedTick,
                         FavorBefore = favorBefore, FavorAfter = favorAfter,
                     },
+                },
+            };
+        }
+    }
+
+    // The psycast source (#1610): a psycast the pawn knows, aimed at the arm the
+    // ability takes. The guards run in the order listed; target, cast, range and
+    // confirmation call the game's own validation (CanApplyOn,
+    // Verb.ValidateTarget, Ability.CanCast, GizmoDisabled, Verb.CanHitTarget),
+    // and psyfocus and entropy read the pawn's tracker live. The use is the
+    // game's own player order, Ability.QueueCastingJob, so the cast, its
+    // psyfocus cost and its cooldown follow when the cast job runs. The receipt
+    // asserts the read-back postcondition: the pawn holds the ability's cast job.
+    internal sealed class PsycastAbilitySource : IAbilitySource
+    {
+        private const float PsyfocusTolerance = 0.001f;
+
+        private sealed class Cast
+        {
+            internal Pawn Pawn = null!;
+            internal Ability Ability = null!;
+            internal Operations.AbilityIntent Intent = null!;
+            internal LocalTargetInfo Target;
+            internal bool SelfTarget;
+        }
+
+        private sealed class Guard
+        {
+            internal string Name = "";
+            internal Func<Cast, Common.Failure?> Check = null!;
+        }
+
+        private static Common.Failure Refuse(string guard, string detail, Common.FailureCode code = Common.FailureCode.InvalidRequest) => NativeAbilityOperations.Refuse(code, guard, detail);
+
+        private static bool SelfOnly(TargetingParameters t) => t.canTargetSelf && !t.canTargetPawns && !t.canTargetLocations && !t.canTargetBuildings && !t.canTargetItems;
+
+        private static bool Ordered(Cast c) => c.Ability.Casting || c.Pawn.jobs != null && c.Pawn.jobs.AllJobs().Any(j => j.ability == c.Ability);
+
+        // The named guard registry of the psycast source. Names lead the refusal
+        // detail and are documented in action-contracts.md.
+        private static readonly Guard[] Guards =
+        {
+            new Guard { Name = "cooldown", Check = c => c.Ability.OnCooldown
+                ? Refuse("cooldown", "The psycast is on cooldown.") : null },
+            new Guard { Name = "casting", Check = c => Ordered(c)
+                ? Refuse("casting", "The pawn is already ordered to cast this psycast.") : null },
+            new Guard { Name = "target", Check = ResolveTarget },
+            new Guard { Name = "psyfocus", Check = c =>
+            {
+                var tracker = c.Pawn.psychicEntropy;
+                if (tracker == null || tracker.Psylink == null)
+                    return Refuse("psyfocus", "The pawn has no psylink.");
+                return tracker.NeedsPsyfocus && tracker.CurrentPsyfocus < c.Ability.FinalPsyfocusCost(c.Target) - PsyfocusTolerance
+                    ? Refuse("psyfocus", "Psyfocus is below the psycast's cost.") : null;
+            } },
+            new Guard { Name = "entropy", Check = c => c.Pawn.psychicEntropy.WouldOverflowEntropy(c.Ability.def.EntropyGain)
+                ? Refuse("entropy", "The cast would overflow the pawn's neural heat.") : null },
+            new Guard { Name = "cast", Check = c =>
+            {
+                var can = c.Ability.CanCast;
+                if (!can.Accepted)
+                    return Refuse("cast", string.IsNullOrEmpty(can.Reason) ? "The game refuses the cast." : can.Reason);
+                return c.Ability.GizmoDisabled(out var reason)
+                    ? Refuse("cast", string.IsNullOrEmpty(reason) ? "The game disables this psycast." : reason) : null;
+            } },
+            new Guard { Name = "range", Check = c => c.SelfTarget || c.Ability.verb.CanHitTarget(c.Target)
+                ? null : Refuse("range", "The target is out of range or out of sight of the caster.") },
+            new Guard { Name = "confirmation", Check = c => c.Ability.ConfirmationDialog(c.Target, () => { }) != null
+                ? Refuse("confirmation", "The game asks for a confirmation for this cast.", Common.FailureCode.Unsupported) : null },
+        };
+
+        // The arm the ability takes, resolved to the game's target; the game's
+        // own CanApplyOn and ValidateTarget have the last word.
+        private static Common.Failure? ResolveTarget(Cast c)
+        {
+            var verb = c.Ability.verb;
+            var t = verb?.targetParams;
+            if (verb == null || t == null)
+                return Refuse("target", "The psycast has no targeting parameters.", Common.FailureCode.Unsupported);
+            if (c.Ability.def.targetWorldCell || c.Ability.EffectComps.Any(e => e is CompAbilityEffect_WithDest))
+                return Refuse("target", "A psycast with a destination or a world target is not supported.", Common.FailureCode.Unsupported);
+            var map = c.Pawn.Map;
+            switch (c.Intent.TargetCase)
+            {
+                case Operations.AbilityIntent.TargetOneofCase.NoTarget:
+                    if (!SelfOnly(t) && c.Ability.def.targetRequired)
+                        return Refuse("target", "This psycast needs a target (pawn, thing or cell).");
+                    c.Target = new LocalTargetInfo(c.Pawn);
+                    c.SelfTarget = true;
+                    break;
+                case Operations.AbilityIntent.TargetOneofCase.Pawn:
+                {
+                    if (!ProtoBoundary.IsIdentifier(c.Intent.Pawn))
+                        return Refuse("target", "The target pawn id is invalid.");
+                    var pawn = map.mapPawns.AllPawnsSpawned.ById(c.Intent.Pawn);
+                    if (pawn == null)
+                        return Refuse("target", "The target pawn is not spawned on the caster's map.", Common.FailureCode.NotFound);
+                    if (!t.canTargetPawns && !(t.canTargetSelf && pawn == c.Pawn))
+                        return Refuse("target", "This psycast does not take a pawn target.");
+                    c.Target = new LocalTargetInfo(pawn);
+                    c.SelfTarget = pawn == c.Pawn;
+                    break;
+                }
+                case Operations.AbilityIntent.TargetOneofCase.Thing:
+                {
+                    if (!ProtoBoundary.IsIdentifier(c.Intent.Thing))
+                        return Refuse("target", "The target thing id is invalid.");
+                    var thing = map.listerThings.AllThings.ById(c.Intent.Thing);
+                    if (thing == null || !thing.Spawned)
+                        return Refuse("target", "The target thing is not spawned on the caster's map.", Common.FailureCode.NotFound);
+                    if (thing is Pawn || !t.canTargetBuildings && !t.canTargetItems)
+                        return Refuse("target", "This psycast does not take a thing target.");
+                    c.Target = new LocalTargetInfo(thing);
+                    break;
+                }
+                case Operations.AbilityIntent.TargetOneofCase.Cell:
+                {
+                    if (c.Intent.Cell == null || !c.Intent.Cell.HasX || !c.Intent.Cell.HasZ)
+                        return Refuse("target", "The target cell is incomplete.");
+                    if (!t.canTargetLocations)
+                        return Refuse("target", "This psycast does not take a cell target.");
+                    var cell = new IntVec3(c.Intent.Cell.X, 0, c.Intent.Cell.Z);
+                    if (!cell.InBounds(map))
+                        return Refuse("target", "The target cell is outside the map.");
+                    if (cell.Fogged(map))
+                        return Refuse("target", "The target cell is fogged.");
+                    c.Target = new LocalTargetInfo(cell);
+                    break;
+                }
+                default:
+                    return Refuse("target", "A target arm is required.");
+            }
+            return c.Ability.CanApplyOn(c.Target) && verb.ValidateTarget(c.Target, false)
+                ? null : Refuse("target", "The game refuses this target for the psycast.");
+        }
+
+        public Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use)
+        {
+            use = null;
+            var source = intent.Psycast;
+            if (source == null || !source.HasAbility || !ProtoBoundary.IsIdentifier(source.Ability))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A psycast ability requires an ability def.");
+            var def = DefDatabase<AbilityDef>.GetNamedSilentFail(source.Ability);
+            if (def == null || !def.IsPsycast)
+                return Refuse("ability", "The ability is not a defined psycast.", Common.FailureCode.NotFound);
+            var ability = pawn.abilities?.GetAbility(def, false);
+            if (ability == null)
+                return Refuse("ability", "The pawn does not know this psycast.");
+            var cast = new Cast { Pawn = pawn, Ability = ability, Intent = intent };
+            foreach (var guard in Guards)
+            {
+                var refusal = guard.Check(cast);
+                if (refusal != null) return refusal;
+            }
+            use = () => Use(cast);
+            return null;
+        }
+
+        // The player's own order; the read-back is the postcondition.
+        private static Receipts.EffectEvidence Use(Cast cast)
+        {
+            cast.Ability.QueueCastingJob(cast.Target, LocalTargetInfo.Invalid);
+            var job = cast.Pawn.jobs?.AllJobs().FirstOrDefault(j => j.ability == cast.Ability);
+            if (job == null)
+                throw new InvalidOperationException("Psycast order readback found no cast job on the pawn.");
+            return new Receipts.EffectEvidence
+            {
+                Ability = new Receipts.AbilityEffect
+                {
+                    PawnId = cast.Pawn.GetUniqueLoadID(),
+                    Psycast = new Receipts.PsycastUseEffect { Ability = cast.Ability.def.defName, JobDef = job.def.defName },
                 },
             };
         }

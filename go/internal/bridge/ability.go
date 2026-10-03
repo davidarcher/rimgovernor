@@ -25,6 +25,8 @@ func abilityAction(action domain.Action) (*o.Action, error) {
 	switch source.Kind() {
 	case domain.AbilityPermit:
 		intent.Source = &o.AbilityIntent_Permit{Permit: &o.PermitAbility{FactionDef: proto.String(source.Faction()), Permit: proto.String(source.Def())}}
+	case domain.AbilityPsycast:
+		intent.Source = &o.AbilityIntent_Psycast{Psycast: &o.PsycastAbility{Ability: proto.String(source.Def())}}
 	default:
 		return nil, contract("unsupported ability source %q", source.Kind())
 	}

@@ -97,9 +97,35 @@ func TestAbilityRefusals(t *testing.T) {
 			t.Fatalf("permit accepted a %s target", target.Kind())
 		}
 	}
-	for _, key := range []string{"", "permit", "permit:Empire", "psycast:Skip", "permit:Empire:A:B"} {
+	for _, key := range []string{"", "permit", "permit:Empire", "psycast", "psycast:", "psycast:Skip:Extra", "permit:Empire:A:B"} {
 		if _, err := ParseAbilitySource(key); err == nil {
 			t.Fatalf("source key %q accepted", key)
+		}
+	}
+}
+
+// The psycast source (#1610) is keyed "psycast:<abilityDef>" and takes every
+// target arm; native decides which arm one ability needs.
+func TestAbilityPsycastSource(t *testing.T) {
+	source, err := PsycastSource("Skip")
+	if err != nil || source.Kind() != AbilityPsycast || source.Def() != "Skip" || source.Faction() != "" || source.Key() != "psycast:Skip" {
+		t.Fatal(source, err)
+	}
+	if back, err := ParseAbilitySource(source.Key()); err != nil || back != source {
+		t.Fatal(back, err)
+	}
+	cell, _ := AbilityCellTarget(Cell{X: 3, Z: 4})
+	pawn, _ := AbilityPawnTarget("pawn-2")
+	thing, _ := AbilityThingTarget("thing-1")
+	for _, target := range []AbilityTarget{NoAbilityTarget(), cell, pawn, thing} {
+		action := mustAbilityAction(t, source, target)
+		if got, ok := action.Ability(); !ok || got.Source() != source || got.Target() != target {
+			t.Fatal(target.Kind(), got)
+		}
+	}
+	for _, invalid := range []string{"", " ", "a:b", "x\x00y", strings.Repeat("x", 257)} {
+		if _, err := PsycastSource(invalid); err == nil {
+			t.Fatalf("psycast def %q accepted", invalid)
 		}
 	}
 }

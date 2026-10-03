@@ -318,7 +318,8 @@ message AbilityIntent {
   oneof source {
     // An acting royal permit (royalAid) the pawn holds with a faction.
     PermitAbility permit = 2;
-    // 3 is the psycast source (#1610): an Ability def the pawn knows.
+    // A psycast the pawn knows (#1610).
+    PsycastAbility psycast = 3;
   }
   oneof target {
     AbilityNoTarget no_target = 4;
@@ -338,6 +339,20 @@ message AbilityIntent {
 message PermitAbility {
   optional string faction_def = 1;
   optional string permit = 2;
+}
+// The psycast source (#1610): the AbilityDef defName of a psycast the pawn
+// knows. Native guards, in order, named in the refusal text: pawn, ability
+// (a defined psycast the pawn knows), cooldown, casting (the pawn is not
+// already ordered to cast it), target (the arm the ability takes: none for a
+// self-cast, else pawn, thing or cell, accepted by the ability's own
+// CanApplyOn and ValidateTarget; no destination or world target), psyfocus
+// (affordable now), entropy (the cast would not overflow neural heat), cast
+// (the game's own Ability.CanCast and GizmoDisabled), range (the game's own
+// Verb.CanHitTarget from where the pawn stands) and confirmation (the game
+// asks for none). Apply queues the cast through the game's own
+// Ability.QueueCastingJob, the order the player's targeter gives.
+message PsycastAbility {
+  optional string ability = 1;
 }
 message AbilityNoTarget {}
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic

@@ -111,3 +111,50 @@ func TestDecodeRoyaltyPermitCooldowns(t *testing.T) {
 		}
 	}
 }
+
+// A psycast ability builds the psycast source arm with every target arm (#1610).
+func TestAbilityBuildsPsycastIntent(t *testing.T) {
+	source, err := domain.PsycastSource("Skip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cell, _ := domain.AbilityCellTarget(domain.Cell{X: 5, Z: 6})
+	pawn, _ := domain.AbilityPawnTarget("Human13")
+	thing, _ := domain.AbilityThingTarget("Thing9")
+	for name, target := range map[string]domain.AbilityTarget{"none": domain.NoAbilityTarget(), "cell": cell, "pawn": pawn, "thing": thing} {
+		ability, err := domain.NewAbility("Human12", source, target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewAbilityAction("ability1", ability)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intent := wire.GetAbility()
+		if intent.GetPawnId() != "Human12" || intent.GetPsycast().GetAbility() != "Skip" || intent.GetPermit() != nil {
+			t.Fatalf("%s: %v", name, wire)
+		}
+		switch name {
+		case "none":
+			if intent.GetNoTarget() == nil {
+				t.Fatalf("none %v", wire)
+			}
+		case "cell":
+			if got := intent.GetCell(); got.GetX() != 5 || got.GetZ() != 6 {
+				t.Fatalf("cell %v", wire)
+			}
+		case "pawn":
+			if intent.GetPawn() != "Human13" {
+				t.Fatalf("pawn %v", wire)
+			}
+		case "thing":
+			if intent.GetThing() != "Thing9" {
+				t.Fatalf("thing %v", wire)
+			}
+		}
+	}
+}

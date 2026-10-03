@@ -21,10 +21,22 @@ func TestAbilityActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	psycast, err := domain.PsycastSource("Skip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pawnTarget, _ := domain.AbilityPawnTarget("Human13")
+	thingTarget, _ := domain.AbilityThingTarget("Thing9")
 	var want []domain.Ability
 	var actions []domain.Action
-	for i, target := range []domain.AbilityTarget{cell, domain.NoAbilityTarget()} {
-		ability, err := domain.NewAbility("Human12", source, target)
+	// Permit and psycast sources (#1610) share the row; the psycast key is
+	// "psycast:<abilityDef>" in the definition column.
+	for i, target := range []domain.AbilityTarget{cell, domain.NoAbilityTarget(), pawnTarget, thingTarget, cell, domain.NoAbilityTarget()} {
+		src := source
+		if i >= 2 {
+			src = psycast
+		}
+		ability, err := domain.NewAbility("Human12", src, target)
 		if err != nil {
 			t.Fatal(err)
 		}
