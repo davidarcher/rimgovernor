@@ -87,7 +87,15 @@ namespace HomeBridge.BridgeTools
             foreach (var field in Defs.DefSets.Descriptor.Fields.InFieldNumberOrder())
             {
                 var clr = mirror.ClrName(field.MessageType) ?? throw new InvalidOperationException($"DefSets.{field.Name} has no clr_type option.");
-                if (!types.TryGetValue(clr, out var type)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
+                if (!types.TryGetValue(clr, out var type))
+                {
+                    // A def class of an expansion that is not loaded has no def
+                    // database: its set is empty. A class the game does not
+                    // have at all is a stale mapping and fails the read.
+                    var known = GenTypes.GetTypeInAnyAssembly(clr);
+                    if (known == null || !typeof(Def).IsAssignableFrom(known)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
+                    continue;
+                }
                 mirrored.Add(type);
                 var list = (IList)field.Accessor.GetValue(sets);
                 foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(type).Where(d => d.GetType() == type).OrderBy(d => Named(d.defName, type.Name), StringComparer.Ordinal))
