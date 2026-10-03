@@ -24,7 +24,7 @@ var startingSupplyDefs = []string{"Pemmican", "WoodLog"}
 // The report keeps both either way.
 func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report na.Report) error {
 	identity := s.Identity()
-	reply, err := h.Wire(ctx, "audit-zones", "observations_list_zones", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+	reply, err := h.Wire(ctx, "audit-zones", "observations_list_zones", map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "includeFilter": true})
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,8 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 		if isFood {
 			food++
 		}
-		rows = append(rows, map[string]any{"id": row["id"], "label": row["label"], "priority": row["priority"], "bounds": row["bounds"], "food_storage": isFood})
+		filter, _ := na.AsMap(row["filter"])
+		rows = append(rows, map[string]any{"allowed": filter["allowedDefNames"], "id": row["id"], "label": row["label"], "priority": row["priority"], "bounds": row["bounds"], "food_storage": isFood})
 	}
 	defs := make([]any, len(startingSupplyDefs))
 	for i, d := range startingSupplyDefs {
