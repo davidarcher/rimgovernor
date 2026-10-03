@@ -1198,7 +1198,8 @@ func bedUseDefinition(b domain.BedUse) string {
 // pawnSettingDefinition is a pawn_settings row's definition column: the
 // hostility mode, "self_tend:<bool>" (#1305), "nickname:<name>" (#1310), a
 // MedicalCareCategory name (#1301), "reading_policy:<name>" (#1306),
-// "drug_policy:<name>" (#1537) or "food_policy:<name>" (#1541); the names
+// "drug_policy:<name>" (#1537), "food_policy:<name>" (#1541),
+// "mech_work_mode:<def>" or "mech_control_group:<index>" (#1685); the names
 // never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
@@ -1221,6 +1222,12 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	}
 	if name, ok := s.FoodPolicy(); ok {
 		return "food_policy:" + name
+	}
+	if mode, ok := s.MechWorkMode(); ok {
+		return "mech_work_mode:" + mode
+	}
+	if group, ok := s.MechControlGroup(); ok {
+		return "mech_control_group:" + strconv.Itoa(group)
 	}
 	return string(s.Hostility())
 }
@@ -1248,6 +1255,16 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 	}
 	if name, ok := strings.CutPrefix(def, "food_policy:"); ok {
 		return domain.NewFoodPolicySetting(pawn, name)
+	}
+	if mode, ok := strings.CutPrefix(def, "mech_work_mode:"); ok {
+		return domain.NewMechWorkModeSetting(pawn, mode)
+	}
+	if n, ok := strings.CutPrefix(def, "mech_control_group:"); ok {
+		group, err := strconv.Atoi(n)
+		if err != nil {
+			return domain.PawnSettings{}, err
+		}
+		return domain.NewMechControlGroupSetting(pawn, group)
 	}
 	if care := domain.MedicalCare(def); care.Valid() {
 		return domain.NewMedicalCareSetting(pawn, care)

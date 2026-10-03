@@ -52,3 +52,36 @@ func TestMedicalCareSettingTiers(t *testing.T) {
 		t.Fatal("raise")
 	}
 }
+
+// The mech arms (#1685) take a mech pawn and a def or a non-negative group,
+// and stay distinct values.
+func TestMechSettingsValidate(t *testing.T) {
+	if _, err := NewMechWorkModeSetting("", "Work"); err == nil {
+		t.Fatal("empty mech accepted")
+	}
+	if _, err := NewMechWorkModeSetting("Mech1", ""); err == nil {
+		t.Fatal("empty mode accepted")
+	}
+	if _, err := NewMechControlGroupSetting("Mech1", -1); err == nil {
+		t.Fatal("negative group accepted")
+	}
+	mode, err := NewMechWorkModeSetting("Mech1", "Work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := NewMechControlGroupSetting("Mech1", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := mode.MechWorkMode(); !ok || m != "Work" || mode == group {
+		t.Fatal(mode, group)
+	}
+	if g, ok := group.MechControlGroup(); !ok || g != 0 {
+		t.Fatal(group)
+	}
+	for _, v := range []PawnSettings{mode, group} {
+		if _, err := NewPawnSettingsAction("s1", v); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

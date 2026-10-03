@@ -119,7 +119,23 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading, drugWrite, drugNone, drug, foodWrite, diet})
+	mechMode, err := domain.NewMechWorkModeSetting("Mech1", "Work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mechModeAction, err := domain.NewPawnSettingsAction("mech-mode", mechMode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mechGroup, err := domain.NewMechControlGroupSetting("Mech1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mechGroupAction, err := domain.NewPawnSettingsAction("mech-group", mechGroup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := domain.NewPlan("settings-plan", 1, []domain.Action{a, b, n, c, carry, write, none, reading, drugWrite, drugNone, drug, foodWrite, diet, mechModeAction, mechGroupAction})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +149,7 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := loaded.Spec.Actions()
-	if len(got) != 13 {
+	if len(got) != 15 {
 		t.Fatal(got)
 	}
 	if v, ok := got[0].PawnSettings(); !ok || v != value {
@@ -174,5 +190,11 @@ func TestPawnSettingsActionRoundTrips(t *testing.T) {
 	}
 	if v, ok := got[12].PawnSettings(); !ok || v != dietValue {
 		t.Fatal(v, dietValue)
+	}
+	if v, ok := got[13].PawnSettings(); !ok || v != mechMode {
+		t.Fatal(v, mechMode)
+	}
+	if v, ok := got[14].PawnSettings(); !ok || v != mechGroup {
+		t.Fatal(v, mechGroup)
 	}
 }

@@ -27,7 +27,12 @@ namespace HomeBridge.BridgeTools
     // pawn of the colony with a reading tracker; drug_policy (#1537) the one
     // DrugPolicy carrying that label to one with a drug tracker; food_policy
     // (#1541) the one FoodPolicy carrying that label to one with a food
-    // restriction tracker.
+    // restriction tracker. mech_work_mode and mech_control_group (#1685) take
+    // a controllable mechanoid of the colony whose overseer is a living
+    // colonist with a mechanitor tracker (never a wild, hostile or
+    // unoverseen mech): the first sets the MechWorkModeDef of the mech's
+    // control group, the second moves the mech into one of its overseer's
+    // control groups; both read the group back.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -77,6 +82,8 @@ namespace HomeBridge.BridgeTools
                 return ResolveDrug(intent, context, out pawn, out _);
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
                 return ResolveFood(intent, context, out pawn, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || kind == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
+                return ResolveMech(intent, context, out pawn, out _, out _, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
@@ -119,6 +126,8 @@ namespace HomeBridge.BridgeTools
                 return ApplyDrug(intent, context);
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.FoodPolicy)
                 return ApplyFood(intent, context);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
+                return ApplyMech(intent, context);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -272,6 +281,79 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // mech_work_mode and mech_control_group (#1685): a controllable
+        // mechanoid of the colony that a living colonist mechanitor oversees.
+        // The mode def must exist and the group index must be one of the
+        // overseer's control groups.
+        private static Common.Failure? ResolveMech(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn,
+            out Pawn_MechanitorTracker? tracker, out MechWorkModeDef? mode, out MechanitorControlGroup? group)
+        {
+            pawn = null; tracker = null; mode = null; group = null;
+            if (!ModsConfig.BiotechActive)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech settings need the Biotech DLC.");
+            var wantMode = intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode;
+            if (wantMode)
+            {
+                if (!ProtoBoundary.IsIdentifier(intent.MechWorkMode))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech work mode names a MechWorkModeDef.");
+                mode = DefDatabase<MechWorkModeDef>.GetNamedSilentFail(intent.MechWorkMode);
+                if (mode == null)
+                    return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No MechWorkModeDef carries this name.");
+            }
+            var id = intent.PawnId;
+            var player = Faction.OfPlayerSilentFail;
+            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
+            if (pawn == null || pawn.Dead)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living mech is not spawned on this map.");
+            if (!pawn.RaceProps.IsMechanoid || !MechanitorUtility.EverControllable(pawn) || player == null || pawn.Faction != player)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a controllable mech of the colony has a work mode and control group.");
+            var overseer = MechanitorUtility.GetOverseer(pawn);
+            if (overseer == null || overseer.Dead || overseer.Faction != player || overseer.mechanitor == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The mech has no living colonist mechanitor as its overseer.");
+            tracker = overseer.mechanitor;
+            group = tracker.GetControlGroup(pawn);
+            if (!wantMode)
+            {
+                var index = intent.MechControlGroup;
+                if (index < 0 || index >= tracker.controlGroups.Count)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"The overseer has control groups 0-{tracker.controlGroups.Count - 1}.");
+                group = tracker.controlGroups[index];
+            }
+            else if (group == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The mech belongs to no control group.");
+            return null;
+        }
+
+        private static Receipts.EffectEvidence ApplyMech(Operations.PawnSettingsIntent intent, Common.ObservationContext context)
+        {
+            var failure = ResolveMech(intent, context, out var pawn, out var tracker, out var mode, out var group);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            bool unchanged;
+            Receipts.SettingsField field;
+            if (mode != null)
+            {
+                unchanged = group!.WorkMode == mode;
+                group.SetWorkMode(mode);
+                if (MechanitorUtility.GetMechWorkMode(pawn!) != mode) throw new InvalidOperationException("Native mech work mode requires readback.");
+                field = Receipts.SettingsField.MechWorkMode;
+            }
+            else
+            {
+                unchanged = tracker!.GetControlGroup(pawn!) == group;
+                if (!unchanged)
+                {
+                    tracker.UnassignPawnFromAnyControlGroup(pawn!);
+                    group!.Assign(pawn!);
+                }
+                if (tracker.GetControlGroup(pawn!) != group) throw new InvalidOperationException("Native mech control group requires readback.");
+                field = Receipts.SettingsField.MechControlGroup;
+            }
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = field,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 

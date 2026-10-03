@@ -379,7 +379,12 @@ message AbilityNoTarget {}
 // several carry it. medical_care (#1301) is
 // the pawn's MedicalCareCategory, any of the five tiers, on a living
 // colonist, slave, prisoner, guest or tame animal of the colony that has
-// medical care settings.
+// medical care settings. mech_work_mode (#1685) is the MechWorkModeDef the
+// pawn's control group runs, and mech_control_group (#1685) the index of the
+// overseer's control group the pawn belongs to. Both take a mechanoid the
+// colony owns whose overseer is a living colonist with a mechanitor tracker;
+// native refuses any other pawn, an unknown mode or an index past the
+// overseer's control groups, and reads the group back.
 message PawnSettingsIntent {
   optional string pawn_id = 1;
   oneof setting {
@@ -391,6 +396,8 @@ message PawnSettingsIntent {
     MedicalCare medical_care = 7;
     string drug_policy = 8;
     string food_policy = 9;
+    string mech_work_mode = 10;
+    int32 mech_control_group = 11;
   }
 }
 // Create, edit or delete one bot-owned allowed area, or edit the home area

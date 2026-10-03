@@ -91,3 +91,34 @@ func TestPawnSettingsBuildsMedicineCarryIntent(t *testing.T) {
 		t.Fatalf("%v", wire)
 	}
 }
+
+// The mech settings build the mech_work_mode and mech_control_group arms (#1685).
+func TestPawnSettingsBuildsMechIntents(t *testing.T) {
+	mode, err := domain.NewMechWorkModeSetting("Mech1", "Work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	group, err := domain.NewMechControlGroupSetting("Mech1", 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		v    domain.PawnSettings
+		want func(*op.PawnSettingsIntent) bool
+	}{
+		{mode, func(s *op.PawnSettingsIntent) bool { return s.GetMechWorkMode() == "Work" }},
+		{group, func(s *op.PawnSettingsIntent) bool { return s.GetMechControlGroup() == 2 && s.GetMechWorkMode() == "" }},
+	} {
+		action, err := domain.NewPawnSettingsAction("a1", c.v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wire, err := IntentAction("plan/1", action)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s := wire.GetPawnSettings(); s.GetPawnId() != "Mech1" || !c.want(s) {
+			t.Fatalf("%v", wire)
+		}
+	}
+}

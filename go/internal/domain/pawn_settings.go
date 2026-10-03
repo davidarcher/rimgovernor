@@ -9,8 +9,9 @@ import (
 // (#1299, epic #1292): a PawnSettingsIntent on Actions/Apply, one setting
 // per intent: hostility response (#1299), self-tend (#1305), nickname
 // (#1310), medicine carry (#1307), the medical care cap (#1301) and the
-// reading policy (#1306), the drug policy (#1537) and the food policy
-// (#1541). Native treats a setting that
+// reading policy (#1306), the drug policy (#1537), the food policy
+// (#1541) and a mech's work mode and control group (#1685, the one arm pair
+// whose pawn is a mechanoid, not a colonist). Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -50,6 +51,12 @@ const (
 	// SettingFoodPolicy assigns the food policy labelled with the pawn's
 	// short name (#1541).
 	SettingFoodPolicy SettingKind = "food_policy"
+	// SettingMechWorkMode sets the MechWorkModeDef a mech's control group
+	// runs (#1685).
+	SettingMechWorkMode SettingKind = "mech_work_mode"
+	// SettingMechControlGroup moves a mech into one of its overseer's
+	// control groups (#1685).
+	SettingMechControlGroup SettingKind = "mech_control_group"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -105,6 +112,38 @@ type PawnSettings struct {
 	reading   string
 	drug      string
 	food      string
+	mechMode  string
+	mechGroup int
+}
+
+// NewMechWorkModeSetting sets the work mode (a MechWorkModeDef name) of the
+// control group the mech pawn belongs to (#1685). Native refuses a pawn that
+// is no mech, has no colonist overseer or names no such mode.
+func NewMechWorkModeSetting(pawn PawnID, mode string) (PawnSettings, error) {
+	if !validID(string(pawn)) || !validID(mode) {
+		return PawnSettings{}, errors.New("a mech work mode setting requires a mech and a work mode def")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingMechWorkMode, mechMode: mode}, nil
+}
+
+// MechWorkMode is the work mode def, and whether this is the mech work mode arm.
+func (s PawnSettings) MechWorkMode() (string, bool) {
+	return s.mechMode, s.kind == SettingMechWorkMode
+}
+
+// NewMechControlGroupSetting moves the mech pawn into its overseer's control
+// group with the given index (#1685). Native refuses an index the overseer
+// has no group for.
+func NewMechControlGroupSetting(pawn PawnID, group int) (PawnSettings, error) {
+	if !validID(string(pawn)) || group < 0 {
+		return PawnSettings{}, errors.New("a mech control group setting requires a mech and a non-negative group index")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingMechControlGroup, mechGroup: group}, nil
+}
+
+// MechControlGroup is the group index, and whether this is the control group arm.
+func (s PawnSettings) MechControlGroup() (int, bool) {
+	return s.mechGroup, s.kind == SettingMechControlGroup
 }
 
 // NewDrugPolicySetting assigns the drug policy labelled name (#1537).
@@ -213,6 +252,10 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewDrugPolicySetting(s.pawn, s.drug)
 	case SettingFoodPolicy:
 		return NewFoodPolicySetting(s.pawn, s.food)
+	case SettingMechWorkMode:
+		return NewMechWorkModeSetting(s.pawn, s.mechMode)
+	case SettingMechControlGroup:
+		return NewMechControlGroupSetting(s.pawn, s.mechGroup)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

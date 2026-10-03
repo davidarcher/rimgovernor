@@ -63,6 +63,18 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("%v", err)
 		}
 		intent.Setting = &o.PawnSettingsIntent_FoodPolicy{FoodPolicy: name}
+	case domain.SettingMechWorkMode:
+		mode, _ := v.MechWorkMode()
+		if _, err := domain.NewMechWorkModeSetting(v.Pawn(), mode); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_MechWorkMode{MechWorkMode: mode}
+	case domain.SettingMechControlGroup:
+		group, _ := v.MechControlGroup()
+		if _, err := domain.NewMechControlGroupSetting(v.Pawn(), group); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_MechControlGroup{MechControlGroup: int32(group)}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

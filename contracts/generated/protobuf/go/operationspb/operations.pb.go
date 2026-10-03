@@ -4686,7 +4686,12 @@ func (*AbilityNoTarget) Descriptor() ([]byte, []int) {
 // several carry it. medical_care (#1301) is
 // the pawn's MedicalCareCategory, any of the five tiers, on a living
 // colonist, slave, prisoner, guest or tame animal of the colony that has
-// medical care settings.
+// medical care settings. mech_work_mode (#1685) is the MechWorkModeDef the
+// pawn's control group runs, and mech_control_group (#1685) the index of the
+// overseer's control group the pawn belongs to. Both take a mechanoid the
+// colony owns whose overseer is a living colonist with a mechanitor tracker;
+// native refuses any other pawn, an unknown mode or an index past the
+// overseer's control groups, and reads the group back.
 type PawnSettingsIntent struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
@@ -4700,6 +4705,8 @@ type PawnSettingsIntent struct {
 	//	*PawnSettingsIntent_MedicalCare
 	//	*PawnSettingsIntent_DrugPolicy
 	//	*PawnSettingsIntent_FoodPolicy
+	//	*PawnSettingsIntent_MechWorkMode
+	//	*PawnSettingsIntent_MechControlGroup
 	Setting       isPawnSettingsIntent_Setting `protobuf_oneof:"setting"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4821,6 +4828,24 @@ func (x *PawnSettingsIntent) GetFoodPolicy() string {
 	return ""
 }
 
+func (x *PawnSettingsIntent) GetMechWorkMode() string {
+	if x != nil {
+		if x, ok := x.Setting.(*PawnSettingsIntent_MechWorkMode); ok {
+			return x.MechWorkMode
+		}
+	}
+	return ""
+}
+
+func (x *PawnSettingsIntent) GetMechControlGroup() int32 {
+	if x != nil {
+		if x, ok := x.Setting.(*PawnSettingsIntent_MechControlGroup); ok {
+			return x.MechControlGroup
+		}
+	}
+	return 0
+}
+
 type isPawnSettingsIntent_Setting interface {
 	isPawnSettingsIntent_Setting()
 }
@@ -4857,6 +4882,14 @@ type PawnSettingsIntent_FoodPolicy struct {
 	FoodPolicy string `protobuf:"bytes,9,opt,name=food_policy,json=foodPolicy,proto3,oneof"`
 }
 
+type PawnSettingsIntent_MechWorkMode struct {
+	MechWorkMode string `protobuf:"bytes,10,opt,name=mech_work_mode,json=mechWorkMode,proto3,oneof"`
+}
+
+type PawnSettingsIntent_MechControlGroup struct {
+	MechControlGroup int32 `protobuf:"varint,11,opt,name=mech_control_group,json=mechControlGroup,proto3,oneof"`
+}
+
 func (*PawnSettingsIntent_HostilityResponse) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_SelfTend) isPawnSettingsIntent_Setting() {}
@@ -4872,6 +4905,10 @@ func (*PawnSettingsIntent_MedicalCare) isPawnSettingsIntent_Setting() {}
 func (*PawnSettingsIntent_DrugPolicy) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_FoodPolicy) isPawnSettingsIntent_Setting() {}
+
+func (*PawnSettingsIntent_MechWorkMode) isPawnSettingsIntent_Setting() {}
+
+func (*PawnSettingsIntent_MechControlGroup) isPawnSettingsIntent_Setting() {}
 
 type AreaIntent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -7781,7 +7818,7 @@ const file_operations_proto_rawDesc = "" +
 	"\aability\x18\x01 \x01(\tH\x00R\aability\x88\x01\x01B\n" +
 	"\n" +
 	"\b_ability\"\x11\n" +
-	"\x0fAbilityNoTarget\"\xca\x03\n" +
+	"\x0fAbilityNoTarget\"\xa2\x04\n" +
 	"\x12PawnSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12]\n" +
 	"\x12hostility_response\x18\x02 \x01(\x0e2,.rimgovernor.operations.v1.HostilityResponseH\x00R\x11hostilityResponse\x12\x1d\n" +
@@ -7793,7 +7830,10 @@ const file_operations_proto_rawDesc = "" +
 	"\vdrug_policy\x18\b \x01(\tH\x00R\n" +
 	"drugPolicy\x12!\n" +
 	"\vfood_policy\x18\t \x01(\tH\x00R\n" +
-	"foodPolicyB\t\n" +
+	"foodPolicy\x12&\n" +
+	"\x0emech_work_mode\x18\n" +
+	" \x01(\tH\x00R\fmechWorkMode\x12.\n" +
+	"\x12mech_control_group\x18\v \x01(\x05H\x00R\x10mechControlGroupB\t\n" +
 	"\asettingB\n" +
 	"\n" +
 	"\b_pawn_id\"\xdb\x01\n" +
@@ -8601,6 +8641,8 @@ func file_operations_proto_init() {
 		(*PawnSettingsIntent_MedicalCare)(nil),
 		(*PawnSettingsIntent_DrugPolicy)(nil),
 		(*PawnSettingsIntent_FoodPolicy)(nil),
+		(*PawnSettingsIntent_MechWorkMode)(nil),
+		(*PawnSettingsIntent_MechControlGroup)(nil),
 	}
 	file_operations_proto_msgTypes[42].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[43].OneofWrappers = []any{}

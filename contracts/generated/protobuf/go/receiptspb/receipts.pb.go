@@ -142,35 +142,37 @@ func (InstallationStage) EnumDescriptor() ([]byte, []int) {
 type SettingsField int32
 
 const (
-	SettingsField_SETTINGS_FIELD_UNSPECIFIED      SettingsField = 0
-	SettingsField_SETTINGS_FIELD_FORBIDDEN        SettingsField = 1
-	SettingsField_SETTINGS_FIELD_POWER            SettingsField = 2
-	SettingsField_SETTINGS_FIELD_TEMPERATURE      SettingsField = 3
-	SettingsField_SETTINGS_FIELD_MEDICAL_BED      SettingsField = 4
-	SettingsField_SETTINGS_FIELD_OWNER            SettingsField = 5
-	SettingsField_SETTINGS_FIELD_PRISONER_BED     SettingsField = 6
-	SettingsField_SETTINGS_FIELD_WORK             SettingsField = 7
-	SettingsField_SETTINGS_FIELD_SCHEDULE         SettingsField = 8
-	SettingsField_SETTINGS_FIELD_MEDICAL_CARE     SettingsField = 9
-	SettingsField_SETTINGS_FIELD_HOSTILITY        SettingsField = 10
-	SettingsField_SETTINGS_FIELD_SELF_TEND        SettingsField = 11
-	SettingsField_SETTINGS_FIELD_FOLLOW_DRAFTED   SettingsField = 12
-	SettingsField_SETTINGS_FIELD_FOLLOW_FIELDWORK SettingsField = 13
-	SettingsField_SETTINGS_FIELD_ALLOWED_AREA     SettingsField = 14
-	SettingsField_SETTINGS_FIELD_MASTER           SettingsField = 15
-	SettingsField_SETTINGS_FIELD_TRAINING         SettingsField = 16
-	SettingsField_SETTINGS_FIELD_SLAUGHTER        SettingsField = 17
-	SettingsField_SETTINGS_FIELD_RELEASE          SettingsField = 18
-	SettingsField_SETTINGS_FIELD_GROWER_CROP      SettingsField = 19
-	SettingsField_SETTINGS_FIELD_CLAIM            SettingsField = 20
-	SettingsField_SETTINGS_FIELD_FOOD_RESTRICTION SettingsField = 21
-	SettingsField_SETTINGS_FIELD_DRUG_POLICY      SettingsField = 22
-	SettingsField_SETTINGS_FIELD_SLAVE_BED        SettingsField = 23
-	SettingsField_SETTINGS_FIELD_AUTO_REFUEL      SettingsField = 24
-	SettingsField_SETTINGS_FIELD_AUTO_HOME_AREA   SettingsField = 25
-	SettingsField_SETTINGS_FIELD_NICKNAME         SettingsField = 26
-	SettingsField_SETTINGS_FIELD_MEDICINE_CARRY   SettingsField = 27
-	SettingsField_SETTINGS_FIELD_READING_POLICY   SettingsField = 28
+	SettingsField_SETTINGS_FIELD_UNSPECIFIED        SettingsField = 0
+	SettingsField_SETTINGS_FIELD_FORBIDDEN          SettingsField = 1
+	SettingsField_SETTINGS_FIELD_POWER              SettingsField = 2
+	SettingsField_SETTINGS_FIELD_TEMPERATURE        SettingsField = 3
+	SettingsField_SETTINGS_FIELD_MEDICAL_BED        SettingsField = 4
+	SettingsField_SETTINGS_FIELD_OWNER              SettingsField = 5
+	SettingsField_SETTINGS_FIELD_PRISONER_BED       SettingsField = 6
+	SettingsField_SETTINGS_FIELD_WORK               SettingsField = 7
+	SettingsField_SETTINGS_FIELD_SCHEDULE           SettingsField = 8
+	SettingsField_SETTINGS_FIELD_MEDICAL_CARE       SettingsField = 9
+	SettingsField_SETTINGS_FIELD_HOSTILITY          SettingsField = 10
+	SettingsField_SETTINGS_FIELD_SELF_TEND          SettingsField = 11
+	SettingsField_SETTINGS_FIELD_FOLLOW_DRAFTED     SettingsField = 12
+	SettingsField_SETTINGS_FIELD_FOLLOW_FIELDWORK   SettingsField = 13
+	SettingsField_SETTINGS_FIELD_ALLOWED_AREA       SettingsField = 14
+	SettingsField_SETTINGS_FIELD_MASTER             SettingsField = 15
+	SettingsField_SETTINGS_FIELD_TRAINING           SettingsField = 16
+	SettingsField_SETTINGS_FIELD_SLAUGHTER          SettingsField = 17
+	SettingsField_SETTINGS_FIELD_RELEASE            SettingsField = 18
+	SettingsField_SETTINGS_FIELD_GROWER_CROP        SettingsField = 19
+	SettingsField_SETTINGS_FIELD_CLAIM              SettingsField = 20
+	SettingsField_SETTINGS_FIELD_FOOD_RESTRICTION   SettingsField = 21
+	SettingsField_SETTINGS_FIELD_DRUG_POLICY        SettingsField = 22
+	SettingsField_SETTINGS_FIELD_SLAVE_BED          SettingsField = 23
+	SettingsField_SETTINGS_FIELD_AUTO_REFUEL        SettingsField = 24
+	SettingsField_SETTINGS_FIELD_AUTO_HOME_AREA     SettingsField = 25
+	SettingsField_SETTINGS_FIELD_NICKNAME           SettingsField = 26
+	SettingsField_SETTINGS_FIELD_MEDICINE_CARRY     SettingsField = 27
+	SettingsField_SETTINGS_FIELD_READING_POLICY     SettingsField = 28
+	SettingsField_SETTINGS_FIELD_MECH_WORK_MODE     SettingsField = 29
+	SettingsField_SETTINGS_FIELD_MECH_CONTROL_GROUP SettingsField = 30
 )
 
 // Enum value maps for SettingsField.
@@ -205,37 +207,41 @@ var (
 		26: "SETTINGS_FIELD_NICKNAME",
 		27: "SETTINGS_FIELD_MEDICINE_CARRY",
 		28: "SETTINGS_FIELD_READING_POLICY",
+		29: "SETTINGS_FIELD_MECH_WORK_MODE",
+		30: "SETTINGS_FIELD_MECH_CONTROL_GROUP",
 	}
 	SettingsField_value = map[string]int32{
-		"SETTINGS_FIELD_UNSPECIFIED":      0,
-		"SETTINGS_FIELD_FORBIDDEN":        1,
-		"SETTINGS_FIELD_POWER":            2,
-		"SETTINGS_FIELD_TEMPERATURE":      3,
-		"SETTINGS_FIELD_MEDICAL_BED":      4,
-		"SETTINGS_FIELD_OWNER":            5,
-		"SETTINGS_FIELD_PRISONER_BED":     6,
-		"SETTINGS_FIELD_WORK":             7,
-		"SETTINGS_FIELD_SCHEDULE":         8,
-		"SETTINGS_FIELD_MEDICAL_CARE":     9,
-		"SETTINGS_FIELD_HOSTILITY":        10,
-		"SETTINGS_FIELD_SELF_TEND":        11,
-		"SETTINGS_FIELD_FOLLOW_DRAFTED":   12,
-		"SETTINGS_FIELD_FOLLOW_FIELDWORK": 13,
-		"SETTINGS_FIELD_ALLOWED_AREA":     14,
-		"SETTINGS_FIELD_MASTER":           15,
-		"SETTINGS_FIELD_TRAINING":         16,
-		"SETTINGS_FIELD_SLAUGHTER":        17,
-		"SETTINGS_FIELD_RELEASE":          18,
-		"SETTINGS_FIELD_GROWER_CROP":      19,
-		"SETTINGS_FIELD_CLAIM":            20,
-		"SETTINGS_FIELD_FOOD_RESTRICTION": 21,
-		"SETTINGS_FIELD_DRUG_POLICY":      22,
-		"SETTINGS_FIELD_SLAVE_BED":        23,
-		"SETTINGS_FIELD_AUTO_REFUEL":      24,
-		"SETTINGS_FIELD_AUTO_HOME_AREA":   25,
-		"SETTINGS_FIELD_NICKNAME":         26,
-		"SETTINGS_FIELD_MEDICINE_CARRY":   27,
-		"SETTINGS_FIELD_READING_POLICY":   28,
+		"SETTINGS_FIELD_UNSPECIFIED":        0,
+		"SETTINGS_FIELD_FORBIDDEN":          1,
+		"SETTINGS_FIELD_POWER":              2,
+		"SETTINGS_FIELD_TEMPERATURE":        3,
+		"SETTINGS_FIELD_MEDICAL_BED":        4,
+		"SETTINGS_FIELD_OWNER":              5,
+		"SETTINGS_FIELD_PRISONER_BED":       6,
+		"SETTINGS_FIELD_WORK":               7,
+		"SETTINGS_FIELD_SCHEDULE":           8,
+		"SETTINGS_FIELD_MEDICAL_CARE":       9,
+		"SETTINGS_FIELD_HOSTILITY":          10,
+		"SETTINGS_FIELD_SELF_TEND":          11,
+		"SETTINGS_FIELD_FOLLOW_DRAFTED":     12,
+		"SETTINGS_FIELD_FOLLOW_FIELDWORK":   13,
+		"SETTINGS_FIELD_ALLOWED_AREA":       14,
+		"SETTINGS_FIELD_MASTER":             15,
+		"SETTINGS_FIELD_TRAINING":           16,
+		"SETTINGS_FIELD_SLAUGHTER":          17,
+		"SETTINGS_FIELD_RELEASE":            18,
+		"SETTINGS_FIELD_GROWER_CROP":        19,
+		"SETTINGS_FIELD_CLAIM":              20,
+		"SETTINGS_FIELD_FOOD_RESTRICTION":   21,
+		"SETTINGS_FIELD_DRUG_POLICY":        22,
+		"SETTINGS_FIELD_SLAVE_BED":          23,
+		"SETTINGS_FIELD_AUTO_REFUEL":        24,
+		"SETTINGS_FIELD_AUTO_HOME_AREA":     25,
+		"SETTINGS_FIELD_NICKNAME":           26,
+		"SETTINGS_FIELD_MEDICINE_CARRY":     27,
+		"SETTINGS_FIELD_READING_POLICY":     28,
+		"SETTINGS_FIELD_MECH_WORK_MODE":     29,
+		"SETTINGS_FIELD_MECH_CONTROL_GROUP": 30,
 	}
 )
 
@@ -5837,7 +5843,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x19INSTALLATION_STAGE_QUEUED\x10\x03\x12 \n" +
 	"\x1cINSTALLATION_STAGE_INSTALLED\x10\x04\x12!\n" +
 	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05\x12'\n" +
-	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\x93\a\n" +
+	"#INSTALLATION_STAGE_UNINSTALL_QUEUED\x10\x06*\xdd\a\n" +
 	"\rSettingsField\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_FORBIDDEN\x10\x01\x12\x18\n" +
@@ -5868,7 +5874,9 @@ const file_receipts_proto_rawDesc = "" +
 	"\x1dSETTINGS_FIELD_AUTO_HOME_AREA\x10\x19\x12\x1b\n" +
 	"\x17SETTINGS_FIELD_NICKNAME\x10\x1a\x12!\n" +
 	"\x1dSETTINGS_FIELD_MEDICINE_CARRY\x10\x1b\x12!\n" +
-	"\x1dSETTINGS_FIELD_READING_POLICY\x10\x1c*\x9b\x01\n" +
+	"\x1dSETTINGS_FIELD_READING_POLICY\x10\x1c\x12!\n" +
+	"\x1dSETTINGS_FIELD_MECH_WORK_MODE\x10\x1d\x12%\n" +
+	"!SETTINGS_FIELD_MECH_CONTROL_GROUP\x10\x1e*\x9b\x01\n" +
 	"\fFieldOutcome\x12\x1d\n" +
 	"\x19FIELD_OUTCOME_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17FIELD_OUTCOME_UNCHANGED\x10\x01\x12\x19\n" +
