@@ -1250,9 +1250,11 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		if !ok && preview.NativeWorkPending {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
-		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name)) {
+		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs) {
 			// A perimeter cell the game refuses (natural rock, a building
 			// in the way) is left out of the wall; the terrain holds it.
+			// An IED cell it refuses is left out too: one bad cell on the
+			// approach must not hold the whole tier (and the layout) open.
 			unfloorable[building.Cell()] = true
 			continue
 		}
@@ -1266,7 +1268,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		}
 	}
 	if len(unfloorable) > 0 {
-		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable, policy.IsPerimeterTier(tier.Name))
+		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable, policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs)
 		record.SetTier(tier)
 		clockSchedulerLog("defense-layout.admit: tier=%s placement refused natively on %v; left out of the tier", tier.Name, unfloorable)
 		if err := p.journal.SaveDefenseLayout(call, record); err != nil {
