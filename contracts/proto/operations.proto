@@ -164,7 +164,7 @@ message BillSettings {
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
-enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; }
+enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; FILTER_PRESET_INDOOR_ONLY = 7; }
 message StockpileSettings { optional StoragePriority priority = 1; optional FilterPreset preset = 2; FilterPatch filter = 3; }
 message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
 message FishingSettings { optional double population_floor = 1; }

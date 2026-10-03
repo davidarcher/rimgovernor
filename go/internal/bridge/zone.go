@@ -67,6 +67,8 @@ func StockpileSettings(filter domain.StockpileFilter, priority domain.StockpileP
 		preset = op.FilterPreset_FILTER_PRESET_NONPERISHABLES
 	case domain.BaseOutdoorSafe:
 		preset = op.FilterPreset_FILTER_PRESET_OUTDOOR_SAFE
+	case domain.BaseIndoorOnly:
+		preset = op.FilterPreset_FILTER_PRESET_INDOOR_ONLY
 	}
 	settings := &op.StockpileSettings{Priority: p.Enum(), Preset: preset.Enum()}
 	patch := &op.FilterPatch{Allow: filterSelectors(filter.Allow()), Disallow: filterSelectors(filter.Disallow())}

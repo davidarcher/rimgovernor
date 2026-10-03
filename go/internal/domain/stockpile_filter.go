@@ -18,6 +18,7 @@ const (
 	BasePerishables    FilterBase = "perishables"
 	BaseNonperishables FilterBase = "nonperishables"
 	BaseOutdoorSafe    FilterBase = "outdoor_safe"
+	BaseIndoorOnly     FilterBase = "indoor_only"
 )
 
 // SelectorKind names what a FilterSelector's name resolves against natively.
@@ -102,7 +103,7 @@ func canonicalSelectors(rows []FilterSelector) (string, []FilterSelector, error)
 // selectors. A selector may not be both allowed and disallowed.
 func NewStockpileFilter(base FilterBase, allow, disallow []FilterSelector) (StockpileFilter, error) {
 	switch base {
-	case BaseEverything, BaseNothing, BaseFood, BasePerishables, BaseNonperishables, BaseOutdoorSafe:
+	case BaseEverything, BaseNothing, BaseFood, BasePerishables, BaseNonperishables, BaseOutdoorSafe, BaseIndoorOnly:
 	default:
 		return StockpileFilter{}, errors.New("invalid filter base")
 	}

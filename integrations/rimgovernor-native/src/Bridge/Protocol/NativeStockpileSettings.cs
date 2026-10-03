@@ -44,6 +44,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.FilterPreset.Perishables: return "perishables";
                 case Operations.FilterPreset.Nonperishables: return "nonperishables";
                 case Operations.FilterPreset.OutdoorSafe: return "outdoorSafe";
+                case Operations.FilterPreset.IndoorOnly: return "indoorOnly";
                 default: return null;
             }
         }

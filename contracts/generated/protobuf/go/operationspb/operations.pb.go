@@ -598,6 +598,7 @@ const (
 	FilterPreset_FILTER_PRESET_PERISHABLES    FilterPreset = 4
 	FilterPreset_FILTER_PRESET_NONPERISHABLES FilterPreset = 5
 	FilterPreset_FILTER_PRESET_OUTDOOR_SAFE   FilterPreset = 6
+	FilterPreset_FILTER_PRESET_INDOOR_ONLY    FilterPreset = 7
 )
 
 // Enum value maps for FilterPreset.
@@ -610,6 +611,7 @@ var (
 		4: "FILTER_PRESET_PERISHABLES",
 		5: "FILTER_PRESET_NONPERISHABLES",
 		6: "FILTER_PRESET_OUTDOOR_SAFE",
+		7: "FILTER_PRESET_INDOOR_ONLY",
 	}
 	FilterPreset_value = map[string]int32{
 		"FILTER_PRESET_UNSPECIFIED":    0,
@@ -619,6 +621,7 @@ var (
 		"FILTER_PRESET_PERISHABLES":    4,
 		"FILTER_PRESET_NONPERISHABLES": 5,
 		"FILTER_PRESET_OUTDOOR_SAFE":   6,
+		"FILTER_PRESET_INDOOR_ONLY":    7,
 	}
 )
 
@@ -8288,7 +8291,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x17STORAGE_PRIORITY_NORMAL\x10\x02\x12\x1e\n" +
 	"\x1aSTORAGE_PRIORITY_PREFERRED\x10\x03\x12\x1e\n" +
 	"\x1aSTORAGE_PRIORITY_IMPORTANT\x10\x04\x12\x1d\n" +
-	"\x19STORAGE_PRIORITY_CRITICAL\x10\x05*\xdf\x01\n" +
+	"\x19STORAGE_PRIORITY_CRITICAL\x10\x05*\xfe\x01\n" +
 	"\fFilterPreset\x12\x1d\n" +
 	"\x19FILTER_PRESET_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FILTER_PRESET_EVERYTHING\x10\x01\x12\x19\n" +
@@ -8296,7 +8299,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x12FILTER_PRESET_FOOD\x10\x03\x12\x1d\n" +
 	"\x19FILTER_PRESET_PERISHABLES\x10\x04\x12 \n" +
 	"\x1cFILTER_PRESET_NONPERISHABLES\x10\x05\x12\x1e\n" +
-	"\x1aFILTER_PRESET_OUTDOOR_SAFE\x10\x06*H\n" +
+	"\x1aFILTER_PRESET_OUTDOOR_SAFE\x10\x06\x12\x1d\n" +
+	"\x19FILTER_PRESET_INDOOR_ONLY\x10\a*H\n" +
 	"\x04Need\x12\x14\n" +
 	"\x10NEED_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tNEED_FOOD\x10\x01\x12\r\n" +

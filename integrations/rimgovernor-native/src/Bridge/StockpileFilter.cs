@@ -127,6 +127,13 @@ namespace HomeBridge.BridgeTools
             return BridgeCommon.Try(() => def.GetStatValueAbstract(StatDefOf.DeteriorationRate, null), 1f) <= 0f;
         }
 
+        /// <summary>Non-perishable and not outdoor-safe: the complement of
+        /// IsOutdoorSafe within the nonperishables, so the two never overlap.</summary>
+        internal static bool IsIndoorOnly(ThingDef def)
+        {
+            return !IsRottable(def) && !IsOutdoorSafe(def);
+        }
+
         /// <summary>The defs a computed preset allows. Null for the two presets
         /// that are the game's own buttons rather than a def set.</summary>
         internal static List<ThingDef>? PresetDefs(string preset, List<ThingDef> universe)
@@ -139,6 +146,8 @@ namespace HomeBridge.BridgeTools
                 return universe.Where(d => !IsRottable(d)).ToList();
             if (preset == "outdoorSafe")
                 return universe.Where(IsOutdoorSafe).ToList();
+            if (preset == "indoorOnly")
+                return universe.Where(IsIndoorOnly).ToList();
             return null;
         }
 
@@ -168,6 +177,9 @@ namespace HomeBridge.BridgeTools
                     break;
                 case "outdoorSafe":
                     d["outdoorSafe"] = "Storable defs that neither rot nor weather: no CompRottable, and either ThingDef.CanEverDeteriorate is false or GetStatValueAbstract(StatDefOf.DeteriorationRate) is at most zero -- the game's own deterioration number. A subset of nonperishables.";
+                    break;
+                case "indoorOnly":
+                    d["indoorOnly"] = "Every storable def that is NOT perishable and NOT outdoorSafe: no CompRottable, and a deterioration rate above zero. The exact complement of outdoorSafe within nonperishables, so the two counts sum to the nonperishables count.";
                     break;
             }
             return d;

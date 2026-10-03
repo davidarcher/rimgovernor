@@ -301,6 +301,59 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("resend-patch: settings that already hold were written again")
 	}
 
+	// --- presets ---
+	//
+	// indoor_only and outdoor_safe partition the nonperishables (#1768): each
+	// preset is patched on and its allowed defs read back from the live game.
+	presetDefs := func(preset string) (map[string]bool, error) {
+		label := "preset-" + preset
+		if _, err := applied(label, label, "zone", map[string]any{
+			"zone":      map[string]any{"id": zoneID},
+			"stockpile": map[string]any{"preset": "FILTER_PRESET_" + strings.ToUpper(preset)},
+		}); err != nil {
+			return nil, err
+		}
+		row, err := zoneRow(label+"-readback", zoneID)
+		if err != nil {
+			return nil, err
+		}
+		filter, _ := na.AsMap(row["filter"])
+		defs := map[string]bool{}
+		for _, name := range na.AsSlice(filter["allowedDefNames"]) {
+			defs[na.AsString(name)] = true
+		}
+		return defs, nil
+	}
+	nonperishable, err := presetDefs("nonperishables")
+	if err != nil {
+		return err
+	}
+	outdoor, err := presetDefs("outdoor_safe")
+	if err != nil {
+		return err
+	}
+	indoor, err := presetDefs("indoor_only")
+	if err != nil {
+		return err
+	}
+	if len(outdoor) == 0 || len(indoor) == 0 {
+		return fmt.Errorf("presets: outdoor_safe has %d defs and indoor_only %d; both must be non-empty", len(outdoor), len(indoor))
+	}
+	for name := range indoor {
+		if outdoor[name] || !nonperishable[name] {
+			return fmt.Errorf("presets: %s must be nonperishable and in only one of indoor_only and outdoor_safe", name)
+		}
+	}
+	for name := range outdoor {
+		if !nonperishable[name] {
+			return fmt.Errorf("presets: outdoor_safe def %s is not nonperishable", name)
+		}
+	}
+	if len(indoor)+len(outdoor) != len(nonperishable) {
+		return fmt.Errorf("presets: indoor_only (%d) and outdoor_safe (%d) do not partition nonperishables (%d)", len(indoor), len(outdoor), len(nonperishable))
+	}
+	report["preset_partition"] = fmt.Sprintf("indoor_only %d + outdoor_safe %d = nonperishables %d", len(indoor), len(outdoor), len(nonperishable))
+
 	// --- cells ---
 	//
 	// cells[0] is one corner of the fixture's 2x2 interior. Removing it
