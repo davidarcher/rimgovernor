@@ -1,6 +1,10 @@
 package policy
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // WorldEvaluationPolicy is the bounded input to EvaluateWorld: the travel
 // food margin a caravan must keep in
@@ -155,7 +159,7 @@ func EvaluateWorld(p WorldEvaluationPolicy, facts WorldEvaluationFacts) WorldEva
 				break
 			}
 		}
-		stranded := home == nil || !caravan.FoodDaysKnown || caravan.FoodDays < float64(home.EstimatedTicks)/60000+p.TravelFoodMarginDays
+		stranded := home == nil || !caravan.FoodDaysKnown || caravan.FoodDays < float64(home.EstimatedTicks)/domain.TicksPerDay+p.TravelFoodMarginDays
 		recommendation := "Observed return route available"
 		if stranded || !healthy {
 			recommendation = "Player review: hold, resupply or explicit return"

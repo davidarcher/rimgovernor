@@ -72,7 +72,7 @@ func (s FoodStorageStock) warmAtRisk(p FoodStoragePolicy, limit float64) (bool, 
 	if !tmk || !roomKnown {
 		return false, false
 	}
-	return temperature > limit && float64(ticks) < p.SafeRotDays*ticksPerDay, true
+	return temperature > limit && float64(ticks) < p.SafeRotDays*domain.TicksPerDay, true
 }
 
 // ReviewRefrigeration enters on warm at-risk nutrition at or above

@@ -53,7 +53,7 @@ func runCombatDrug(ctx context.Context, s cases.Session) error {
 	}
 	var orders []any
 	for _, id := range colonists {
-		orders = append(orders, map[string]any{"pawn": map[string]any{"entityId": id}, "combatDrug": map[string]any{}})
+		orders = append(orders, map[string]any{"pawn": map[string]any{"entityId": id}, "combatDrug": "GoJuice"})
 	}
 	results, err := issue(ctx, h, identity, "combat-drug", orders)
 	if err != nil {

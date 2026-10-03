@@ -14,7 +14,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //
 // Material (#842): a room whose weakest stat is wealth or beauty gets its
 // bed rebuilt in a better stuff the colony has stock for, judged by the
-// stuff's beauty and market value factors (bedStuffScore). A quality
+// stuff's beauty and market value factors (ItemFacts.StuffScore). A quality
 // rebuild never builds in a worse stuff than the owned bed's.
 
 // bedQualityRank orders the native QualityCategory names.
@@ -23,30 +23,15 @@ var bedQualityRank = map[string]int{"Awful": 0, "Poor": 1, "Normal": 2, "Good": 
 // replacementBedSizes are the North footprints of the beds the closer builds.
 var replacementBedSizes = map[Resource]domain.Cell{"Bed": {X: 1, Z: 2}, "DoubleBed": {X: 2, Z: 2}, "RoyalBed": {X: 2, Z: 2}}
 
-// bedStuffFactors are the vanilla stuff beauty factor (stuffProps.statFactors
-// Beauty, 1 when absent; never the item's own statBases Beauty) and the
-// statBases MarketValue per unit of the stuffs a bed takes; a stuff missing
-// here (a mod's) is never built and scores as unknown. Source: RimWorld
-// Data/Core/Defs ThingDefs_Items/Items_Resource_Stuff.xml and
-// ThingDefs_Misc/Various_Stone.xml (blocks inherit MarketValue 0.9 from the
-// abstract StoneBlocksBase).
-var bedStuffFactors = map[Resource]struct{ Beauty, Value float64 }{
-	"WoodLog": {1, 1.2}, "Steel": {1, 1.9}, "Plasteel": {1, 9}, "Uranium": {0.5, 6},
-	"Silver": {2, 1}, "Gold": {4, 10}, "Jade": {2.5, 5},
-	"BlocksSandstone": {1.1, 0.9}, "BlocksGranite": {1, 0.9}, "BlocksLimestone": {1, 0.9}, "BlocksSlate": {1.1, 0.9}, "BlocksMarble": {1.35, 0.9},
-}
-
-// bedStuffScore ranks a bed's stuff: beauty factor times market value.
-func bedStuffScore(stuff Resource) (float64, bool) {
-	f, ok := bedStuffFactors[stuff]
-	return f.Beauty * f.Value, ok
-}
-
 // BedMaterials is what a material choice reads: the colony stock by
-// definition and the stuff units each bed definition takes.
+// definition, the stuff units each bed definition takes and the catalog's
+// item facts, which rank the stuffs a definition accepts (ItemFacts.StuffScore:
+// beauty factor times market value). A stuff the catalog cannot score is
+// never chosen.
 type BedMaterials struct {
 	Stock map[Resource]int64
 	Cost  map[Resource]int64
+	Items ItemFacts
 }
 
 // bestStuff is the best-scoring stocked stuff for def scoring above floor
@@ -58,9 +43,9 @@ func (m BedMaterials) bestStuff(def Resource, floor float64, orEqual bool) (Reso
 	}
 	var best Resource
 	bestScore := 0.0
-	for stuff := range bedStuffFactors {
-		score, _ := bedStuffScore(stuff)
-		if m.Stock[stuff] < cost || score < floor || score == floor && !orEqual {
+	for _, stuff := range m.Items.StuffsFor(def) {
+		score, err := m.Items.StuffScore(stuff)
+		if err != nil || m.Stock[stuff] < cost || score < floor || score == floor && !orEqual {
 			continue
 		}
 		if best == "" || score > bestScore || score == bestScore && stuff < best {
@@ -99,7 +84,7 @@ type BedReplacement struct {
 // definition want: the wanted definition first, then quality and stuff,
 // each no worse and one strictly better. A stuff unknown on either bed
 // compares equal.
-func bedBetter(x, b SleepingBed, want Resource) bool {
+func bedBetter(items ItemFacts, x, b SleepingBed, want Resource) bool {
 	if x.Definition != want {
 		return false
 	}
@@ -113,7 +98,7 @@ func bedBetter(x, b SleepingBed, want Resource) bool {
 	if !xk || !bk || !xok || !bok {
 		return false
 	}
-	xs, bs := bedScore(x), bedScore(b)
+	xs, bs := bedScore(items, x), bedScore(items, b)
 	xok, bok = xs >= 0, bs >= 0
 	if !xok || !bok {
 		xs, bs = 0, 0
@@ -122,13 +107,15 @@ func bedBetter(x, b SleepingBed, want Resource) bool {
 }
 
 // bedScore is the bed's stuff score, -1 when unknown.
-func bedScore(b SleepingBed) float64 {
+func bedScore(items ItemFacts, b SleepingBed) float64 {
 	stuff, ok := b.Stuff.Value()
 	if !ok {
 		return -1
 	}
-	score, ok := bedStuffScore(Resource(stuff))
-	if !ok {
+	// A stuff the catalog does not know, or a frame without a catalog, is an
+	// unknown score: such a bed is never judged better or worse by its stuff.
+	score, err := items.StuffScore(Resource(stuff))
+	if err != nil {
 		return -1
 	}
 	return score
@@ -181,12 +168,12 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 			}
 		}
 		for _, b := range spare {
-			if bedBetter(b, owned, want) {
+			if bedBetter(materials.Items, b, owned, want) {
 				return BedReplacement{Step: BedReplaceAssign, Room: s.room, Pawn: s.owner, Bed: b.ID, PreviousBed: owned.ID}, true
 			}
 		}
 		for _, b := range spare {
-			if !bedBetter(b, owned, want) {
+			if !bedBetter(materials.Items, b, owned, want) {
 				return BedReplacement{Step: BedReplaceRemove, Room: s.room, Bed: b.ID, Def: string(b.Definition), Cell: b.Cell}, true
 			}
 		}
@@ -212,7 +199,7 @@ func NextBedReplacement(obs SleepingObservation, targets map[string]RoomTarget, 
 		if !available(string(want)) {
 			continue
 		}
-		owns := bedScore(owned)
+		owns := bedScore(materials.Items, owned)
 		name, _ := owned.Quality.Value()
 		var stuff Resource
 		if rank, ok := bedQualityRank[name]; ok && rank < bedQualityRank["Normal"] {

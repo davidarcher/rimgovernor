@@ -123,21 +123,22 @@ func TestCorpseSupplyProjectionPreservesReserveAndYield(t *testing.T) {
 	}
 }
 
-func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
+func TestFoodReserveIsForbiddenReserveFood(t *testing.T) {
 	wire, things := foodFixture(t)
 	things.At("rice").Thing.DefName = proto.String("Pemmican")
-	wire.Stocks[0].Reserve = proto.Bool(true)
+	things.At("rice").Forbidden = proto.Bool(true)
 	supply, err := decodeFood(t, wire, things)
 	if err != nil || !supply.Stocks[0].Reserve {
 		t.Fatal(supply, err)
 	}
-	things.At("rice").Thing.DefName = proto.String("Rice")
-	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
-		t.Fatal("ordinary food accepted as reserve")
+	// Pemmican that is not forbidden is ordinary stock.
+	things.At("rice").Forbidden = proto.Bool(false)
+	if supply, err = decodeFood(t, wire, things); err != nil || supply.Stocks[0].Reserve {
+		t.Fatal(supply, err)
 	}
-	things.At("rice").Thing.DefName = proto.String("Pemmican")
-	wire.Stocks[0].Holder = wire.Stocks[0].Eaters[0]
-	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
-		t.Fatal("held inventory accepted as reserve")
+	// Any other forbidden food is not counted.
+	things.At("rice").Thing.DefName, things.At("rice").Forbidden = proto.String("Rice"), proto.Bool(true)
+	if supply, err = decodeFood(t, wire, things); err != nil || len(supply.Stocks) != 1 || supply.Stocks[0].ID != "pack" {
+		t.Fatal(supply, err)
 	}
 }

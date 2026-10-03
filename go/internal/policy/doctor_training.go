@@ -58,7 +58,7 @@ const (
 	wardenFeedCost         = 25.0
 	woodLogValue           = 1.2
 	maxSlotCycles          = 10.0
-	laborTicksPerHour      = 2500.0
+	laborTicksPerHour      = domain.TicksPerHour
 )
 
 // woodInstall maps a body part a wood part serves to its install recipe,

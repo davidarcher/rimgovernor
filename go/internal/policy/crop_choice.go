@@ -272,7 +272,7 @@ func BlockCropOrder(options []FieldBlockOption, neighbours map[string]bool) []Fi
 }
 
 // fieldYearDays is a RimWorld year: an indoor field's reserve spreads over it.
-const fieldYearDays = 60.0
+const fieldYearDays float64 = domain.DaysPerYear
 
 // FieldTarget is the cells of crop that feed the colony (#1252): each cell
 // harvests yield every GrowDays, so steady state is demand*days/yield

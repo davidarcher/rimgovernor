@@ -67,7 +67,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	add := func(name string) {
 		if name != "" && catalog.ThingDefs[name] == nil {
 			catalog.ThingDefs[name] = &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
-				Comps: []*d.CompPropertiesAny{{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}
+				Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}}
 		}
 	}
 	for row := range n.things.Values() {
@@ -155,7 +155,7 @@ func testCatalog(id *c.Identity, rows ...*o.PlanningDefinition) *bridge.Definiti
 	for _, row := range rows {
 		catalog.Definitions[row.GetDefinition().GetDefName()] = row
 	}
-	return catalog
+	return catalog.FixtureItemFacts(policy.CoreItemFacts())
 }
 
 // putCatalog replaces or appends catalog rows by name.

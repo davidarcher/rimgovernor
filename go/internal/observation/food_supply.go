@@ -71,11 +71,21 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 			return policy.FoodSupply{}, err
 		}
 		// A thing rots exactly while it has a rot deadline.
-		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: defFacts.class == policy.IngredientMeat, IsHumanlike: defFacts.humanlike, Vegetable: defFacts.vegetable, RawClass: domain.Known(defFacts.class), Reserve: s.GetReserve(), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: domain.Known(row.RotTicks != nil), RotTicks: optional(row.RotTicks), DefName: policy.Resource(def), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
+		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: defFacts.class == policy.IngredientMeat, IsHumanlike: defFacts.humanlike, Vegetable: defFacts.vegetable, RawClass: domain.Known(defFacts.class), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: domain.Known(row.RotTicks != nil), RotTicks: optional(row.RotTicks), DefName: policy.Resource(def), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
 		if row.StackCount != nil {
 			stock.Count = domain.Known(row.GetStackCount())
 		}
 		stock.Corpse = row.GetCorpse()
+		// A forbidden stack is the travel reserve when its def is one; any
+		// other forbidden stack has no eaters and counts only as human meat.
+		barred := false
+		if row.GetForbidden() && !stock.Corpse {
+			stock.Reserve = policy.ReserveFoodDefinition(stock.DefName)
+			barred = !stock.Reserve
+			if barred && !stock.IsHumanMeat {
+				continue
+			}
+		}
 		if stock.Corpse {
 			stock.Forbidden = optional(row.Forbidden)
 		}
@@ -83,6 +93,9 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 		stock.BodySize = optional(row.BodySize)
 		stock.TileFootprint = optional(row.TileFootprint)
 		for _, id := range bridge.RefIDs(s.Eaters) {
+			if barred {
+				break
+			}
 			stock.Eaters = append(stock.Eaters, policy.PawnID(id))
 		}
 		supply.Stocks = append(supply.Stocks, stock)

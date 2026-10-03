@@ -29,15 +29,9 @@ import (
 // mealShelfDefinitions are the cooked meals a cold meal spot accepts.
 var mealShelfDefinitions = []string{"MealFine", "MealLavish", "MealNutrientPaste", "MealSimple", "MealSurvivalPack"}
 
-// mealTierDefinitions is the one meal a warm spot by the table holds.
-var mealTierDefinitions = map[policy.MealTier]string{policy.MealSimple: "MealSimple", policy.MealFine: "MealFine", policy.MealLavish: "MealLavish", policy.MealPaste: "MealNutrientPaste"}
-
 // mealSpotMinPerDay is the fewest meals a day the colony eats before a
 // warm spot by the table pays: fewer, and the meals wait in the store.
 const mealSpotMinPerDay = 3.0
-
-// mealNutrition is one cooked meal's nutrition.
-const mealNutrition = 0.9
 
 func mealShelfFilter() domain.StockpileFilter {
 	return allowOnly(mealShelfDefinitions...)
@@ -104,20 +98,21 @@ func findMealSpot(projection *observation.ColonyProjection) (mealSpot, bool) {
 	if room.ID == "" {
 		return mealSpot{}, true
 	}
-	perDay, known := mealsPerDay(projection.FoodSupply)
+	benches, bk := projection.ProductionBenches.Value()
+	if !bk {
+		return mealSpot{}, false
+	}
+	// The meal is what the active bills cook; none cooked, no warm spot.
+	meal, nutrition, cooked := policy.ObservedMeal(benches)
+	if !cooked {
+		return mealSpot{}, true
+	}
+	perDay, known := mealsPerDay(projection.FoodSupply, nutrition)
 	if !known {
 		return mealSpot{}, false
 	}
 	if perDay < mealSpotMinPerDay {
 		return mealSpot{}, true
-	}
-	benches, bk := projection.ProductionBenches.Value()
-	if !bk {
-		return mealSpot{}, false
-	}
-	meal, ok := mealTierDefinitions[policy.ObservedMealTier(benches)]
-	if !ok {
-		return mealSpot{}, false
 	}
 	return mealSpot{room: room, filter: allowOnly(meal), size: 1, anchor: centroid(adjacent), avoid: adjacent}, true
 }
@@ -156,8 +151,8 @@ func coldMealSpot(plan policy.LayoutPlan, rooms policy.RoomObservation) (mealSpo
 }
 
 // mealsPerDay is the meals the colonists eat a day: their nutrition need
-// over one meal's; unknown while any colonist's need is.
-func mealsPerDay(supply domain.Fact[policy.FoodSupply]) (float64, bool) {
+// over one meal's (the cooked meal's nutrition); unknown while any colonist's need is.
+func mealsPerDay(supply domain.Fact[policy.FoodSupply], mealNutrition float64) (float64, bool) {
 	s, known := supply.Value()
 	if !known {
 		return 0, false

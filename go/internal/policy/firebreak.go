@@ -10,7 +10,7 @@ const FirebreakWidth int32 = 2
 
 // FirebreakSettleTicks is how long a cell stays in the ring before it may be
 // paved: five in-game days.
-const FirebreakSettleTicks domain.Tick = 5 * 60000
+const FirebreakSettleTicks domain.Tick = 5 * domain.TicksPerDay
 
 // FirebreakGround classifies what occupies a band cell.
 type FirebreakGround string

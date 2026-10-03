@@ -53,6 +53,10 @@ type DefinitionCatalog struct {
 	// statValues are the game's own stat values per (def, stuff) (#1759); nil
 	// in a reply that carries none.
 	statValues map[defStuff]*statRow
+	// items is the planner-facing item facts, built once on first use.
+	itemsOnce sync.Once
+	items     policy.ItemFacts
+	itemsErr  error
 }
 
 // defStuff keys a stat row: stuff is empty for a def not made from stuff.
@@ -249,6 +253,11 @@ func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 		if n <= 0 {
 			return nil, contract("catalog constant %s is %d", name, n)
 		}
+	}
+	// Go states the calendar once (domain.TicksPerDay); a game that differs
+	// is refused, never planned against.
+	if v.TicksPerHour != domain.TicksPerHour || v.TicksPerDay != domain.TicksPerDay || v.DaysPerYear != domain.DaysPerYear {
+		return nil, contract("catalog calendar %d ticks per hour, %d per day, %d days per year differs from the one Go plans with", v.TicksPerHour, v.TicksPerDay, v.DaysPerYear)
 	}
 	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
 		return nil, contract("catalog constant lit_glow_threshold is %v", g)

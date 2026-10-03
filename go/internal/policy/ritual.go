@@ -84,7 +84,7 @@ func ritualDue(def RitualDef, held HeldRitual, tick domain.Tick) bool {
 	if !def.CanStartAnytime && !def.AlwaysStartAnytime || held.RepeatPenaltyActive {
 		return false
 	}
-	return float64(int64(tick)-held.LastFinishedTick) >= def.IntervalDaysMin*ticksPerDay
+	return float64(int64(tick)-held.LastFinishedTick) >= def.IntervalDaysMin*domain.TicksPerDay
 }
 
 // PlanRituals are the rituals to begin now: each due held ritual (ritualDue)

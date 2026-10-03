@@ -515,6 +515,9 @@ type CombatOrder struct {
 	// A psycast_cast order (#1611) names the psycast in Permit and the arm
 	// it takes in Arm: self (no target), pawn (Target) or cell (Cell).
 	Arm PsycastTarget `json:",omitempty"`
+	// Drug is a drug order's drug def, the preferred combat drug (CombatDrugs);
+	// native validates it and the pawn carrying it.
+	Drug string `json:",omitempty"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.

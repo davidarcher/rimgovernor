@@ -20,13 +20,13 @@ func stableRoutine() RoutineFacts {
 		ConstructionClaims:  domain.Known([]ConstructionClaim{}), MapBounds: domain.Known(Bounds{Width: 250, Height: 250}),
 		HomeCoverage:      domain.Known(HomeCoverageObservation{Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)}),
 		SleepingRecovered: domain.Known(true), SculptureRoomsOwed: domain.Known(false), SafeAreaOwed: domain.Known(false), FirebreakOwed: domain.Known(false), MechGestationOwed: domain.Known(false), PsylinkOwed: domain.Known(false), CreepJoinerOwed: domain.Known(false), RolesOwed: domain.Known(false), MechChargerOwed: domain.Known(false), RitualsOwed: domain.Known(false), Royalty: domain.Known(RoyaltyFacts{}),
-		AnimalUpkeep:         AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{}), WildAnimals: domain.Known([]UpkeepAnimal{})},
-		Prisoners:            domain.Known([]PrisonerFacts{}),
-		Waste:                domain.Known([]WasteItem{}),
-		Blight:               domain.Known([]BlightedPlant{}),
-		LayoutTidy:           domain.Known(TidyReview{Known: true, Reason: "nothing off grid"}),
-		Stockpiles:           domain.Known(StockpileReview{Known: true, Reason: "stockpiles fit their contents"}),
-		MedicalReserve:       MedicalReserveObservation{Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},
+		AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{}), WildAnimals: domain.Known([]UpkeepAnimal{})},
+		Prisoners:    domain.Known([]PrisonerFacts{}),
+		Waste:        domain.Known([]WasteItem{}),
+		Blight:       domain.Known([]BlightedPlant{}),
+		LayoutTidy:   domain.Known(TidyReview{Known: true, Reason: "nothing off grid"}),
+		Stockpiles:   domain.Known(StockpileReview{Known: true, Reason: "stockpiles fit their contents"}),
+		Items:        CoreItemFacts(), MedicalReserve: MedicalReserveObservation{Catalog: CoreItemFacts(), Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},
 		FoodStorageUpkeep:    FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})},
 		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
@@ -303,7 +303,7 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 func TestMedicalCarePhaseKeepsRestocking(t *testing.T) {
 	f := stableRoutine()
 	f.MedicalCareRecovered = domain.Known(false)
-	f.MedicalReserve = MedicalReserveObservation{Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{})}
+	f.MedicalReserve = MedicalReserveObservation{Catalog: CoreItemFacts(), Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{})}
 	p := DefaultRoutinePolicy()
 	p.ColonyStage = StageStable
 	r, err := DetectRoutine(f, RoutineLatches{}, p)

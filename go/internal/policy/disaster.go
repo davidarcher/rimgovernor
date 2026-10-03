@@ -117,7 +117,7 @@ func GrowthPauseDays(conditions domain.Fact[[]DisasterCondition]) float64 {
 	if !known || ticks <= 0 {
 		return 0
 	}
-	return float64(ticks) / ticksPerDay
+	return float64(ticks) / domain.TicksPerDay
 }
 
 type DisasterEvidence struct {

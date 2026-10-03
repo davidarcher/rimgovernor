@@ -112,7 +112,7 @@ func TestShedArtNeedAloneSellsArtFirst(t *testing.T) {
 		t.Fatal("trade recovered with a shed_art need and a caravan")
 	}
 	rows := []TradeSheetRowFact{artRow("#1", "Thing_A", 150), artRow("#2", "Thing_B", 400)}
-	economic := RoutineTradeTargets(need, rows, nil, RoutineTradePolicy{}, domain.Known(int64(3)))
+	economic := RoutineTradeTargets(CoreItemFacts(), need, rows, nil, RoutineTradePolicy{}, domain.Known(int64(3)))
 	facts := tradeFacts(rows, 0, 1000, 0)
 	facts.SaleArt, facts.ArtFirst = map[string]bool{"Thing_A": true}, true
 	s := SelectTrade(economic, facts)

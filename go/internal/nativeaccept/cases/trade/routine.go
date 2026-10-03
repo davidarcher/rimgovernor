@@ -109,8 +109,9 @@ func init() {
 					}
 					count := func(name string) float64 { return resources[name] }
 					medicine := 0.0
-					for _, name := range policy.MedicineResources {
-						medicine += count(string(name))
+					// The Core medicines the lab's trader carries.
+					for _, name := range []string{"MedicineUltratech", "MedicineIndustrial", "MedicineHerbal"} {
+						medicine += count(name)
 					}
 					silver := count("Silver")
 					report["trade_census"] = map[string]any{"medicine": medicine, "silver": silver, "silver_spawned": routineSilver}

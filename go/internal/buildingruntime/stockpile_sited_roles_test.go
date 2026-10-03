@@ -36,7 +36,13 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 		consumers = append(consumers, policy.FoodConsumer{ID: policy.PawnID(rune('a' + i)), NutritionPerDay: domain.Known(need)})
 	}
 	projection.FoodSupply = domain.Known(policy.FoodSupply{Consumers: consumers})
-	projection.ProductionBenches = domain.Known([]policy.ProductionBench{})
+	// The colony cooks the simple meal (0.9 nutrition) on one bill.
+	cook := policy.ProductionBench{
+		ID: "Stove_1", Definition: "ElectricStove",
+		Recipes: []policy.ProductionRecipe{{Name: "CookMealSimple", Mood: domain.Known(0.0), Products: []policy.ProductionProduct{{Name: "MealSimple", Nutrition: domain.Known(0.9), Edible: domain.Known(true)}}}},
+		Bills:   []policy.ExistingProductionBill{{ID: "Bill_1", Recipe: "CookMealSimple", Active: domain.Known(true)}},
+	}
+	projection.ProductionBenches = domain.Known([]policy.ProductionBench{cook})
 	return projection, adjacent
 }
 

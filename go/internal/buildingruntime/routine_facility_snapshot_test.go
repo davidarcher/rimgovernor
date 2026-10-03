@@ -42,7 +42,7 @@ func TestSnapshotDiseaseRaisesCareCap(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "disease-plague-patients")
 	colonists, _ := r.Facts.MedicalPawns.Value()
-	base, ok := policy.ColonistCareBase(r.Facts.Resources, int64(len(colonists)), policy.DefaultMedicalReservePolicy())
+	base, ok := policy.ColonistCareBase(policy.CoreItemFacts(), r.Facts.Resources, int64(len(colonists)), policy.DefaultMedicalReservePolicy())
 	if !ok {
 		t.Fatal("standing cap unknown")
 	}

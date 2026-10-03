@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
                 var kibble = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.Kibble) != 0;
                 var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
                     && !(kibble && p.RaceProps.Humanlike)
-                    && p.WillEat(thing) && PolicyAllows(p, thing) && (IsReserve(thing) || !thing.IsForbidden(p))
+                    && p.WillEat(thing) && PolicyAllows(p, thing)
                     && p.CanReach(thing, PathEndMode.Touch, Danger.None)
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                         || p.playerSettings.AreaRestrictionInPawnCurrentMap[thing.Position])).ToList();
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
         // A stock's own facts are its thing's row (#1343); these are the
         // ones relative to its eaters.
         private static StockFacts Stock(Thing thing, List<Pawn> eaters, string? holder)
-            => new StockFacts { id = thing.GetUniqueLoadID(), thing = thing, holder = holder, reserve = IsReserve(thing),
+            => new StockFacts { id = thing.GetUniqueLoadID(), thing = thing, holder = holder,
                 nutrition = thing is Corpse ? 0 : thing.stackCount * (eaters.Count>0 ? eaters.Min(p => FoodUtility.NutritionForEater(p, thing)) : thing.def.GetStatValueAbstract(StatDefOf.Nutrition)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList() };
 
@@ -154,7 +154,6 @@ namespace HomeBridge.BridgeTools
             public string? holder { get; set; }
             public float nutrition { get; set; }
             public List<string>? eaters { get; set; }
-            public bool reserve { get; set; }
             public bool isHumanlike { get; set; }
             public bool corpse { get; set; }
             public float meatAmount { get; set; }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -32,7 +33,7 @@ func (client *Client) ReadFoodReserveSupplies(ctx context.Context, identity *c.I
 		return SupplyRead{}, Result{}, err
 	}
 	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}}
+		Filter: &o.StockFilter{DefNames: policy.ReserveFoodDefinitions(), Ownership: o.StockOwnership_STOCK_OWNERSHIP_OURS.Enum(), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {
@@ -40,7 +41,7 @@ func (client *Client) ReadFoodReserveSupplies(ctx context.Context, identity *c.I
 	}
 	result, err := decodeSupplyAccessAt(reply, identity, nil, forbid)
 	for _, target := range result.Targets {
-		if def := target.Supply.Definition(); def != "Pemmican" && def != "MealSurvivalPack" {
+		if def := target.Supply.Definition(); !policy.ReserveFoodDefinition(policy.Resource(def)) {
 			return SupplyRead{}, raw, contract("unexpected reserve definition")
 		}
 	}

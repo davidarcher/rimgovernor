@@ -18,6 +18,20 @@ import (
 
 // RoutineReviewer observes and journals needs under Player's existing gate.
 // It neither acquires authority nor creates methods or game orders.
+// itemFacts are the load's catalog item facts for a planner that holds no
+// frame; none when the reviewer's source serves no definitions.
+func (r *RoutineReviewer) itemFacts(ctx context.Context, snapshot domain.GenerationSnapshot) (policy.ItemFacts, error) {
+	source, ok := r.native.(observation.DefinitionSource)
+	if !ok {
+		return policy.ItemFacts{}, nil
+	}
+	catalog, err := source.DefinitionCatalog(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return policy.ItemFacts{}, err
+	}
+	return catalog.ItemFacts()
+}
+
 type RoutineReviewer struct {
 	methods domain.Fact[[]policy.GoalID]
 	player  *Player
@@ -456,7 +470,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	// The workshop ladder's recorded research rung is the derived
 	// EnsureResearch target; it is journal evidence, not a native read, so
 	// a review costs no extra call for it.
-	needs, err := routineResearchNeeds(ctx, p.journal, r.policy, state.Snapshot)
+	needs, err := routineResearchNeeds(ctx, p.journal, r.policy, reading.Projection.Facts.Items, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadProductionLadder err=%v", err)
 		return store.RoutineReviewResult{}, err
@@ -474,7 +488,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.MedicineCarryOwed = policy.MedicineCarryOwed(reading.Projection.WorkPawns, medicine)
-	reading.Projection.Facts.ResourceNeeds = policy.MedicineResourceNeeds(reading.Projection.Facts.ResourceNeeds, r.policy.MedicineReserveTarget(reading.Projection.Facts.Colonists, medicine.Active))
+	reading.Projection.Facts.ResourceNeeds = policy.MedicineResourceNeeds(reading.Projection.Facts.Items, reading.Projection.Facts.ResourceNeeds, r.policy.MedicineReserveTarget(reading.Projection.Facts.Colonists, medicine.Active))
 	// A prisoner surgery blocked only by the herbal care limit (#1239).
 	reading.Projection.Facts.ResourceNeeds = policy.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, policy.RoutineSilverShort(reading.Projection.Facts, r.policy, medicine.Active))
 	// A willing colonist's psylink neuroformer, bought or made by the resource ladder (#1609).

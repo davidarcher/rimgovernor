@@ -46,14 +46,11 @@ func (s FoodStorageStock) stored(p FoodStoragePolicy) domain.Fact[bool] {
 	if !tk || !kk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(temperature <= p.ChilledMaxC || float64(ticks) >= p.SafeRotDays*ticksPerDay)
+	return domain.Known(temperature <= p.ChilledMaxC || float64(ticks) >= p.SafeRotDays*domain.TicksPerDay)
 }
 
 // celsius accepts any finite temperature, below zero included.
 func celsius(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) }
-
-// ticksPerDay is RimWorld's fixed tick count per in-game day.
-const ticksPerDay = 60000
 
 // FoodStorageUnstored reports whether a stock is known perishable, not yet
 // rotted and known not adequately stored under p.

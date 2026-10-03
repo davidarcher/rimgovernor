@@ -28,7 +28,7 @@ import (
 // undesignating does not cause a loop.
 const (
 	maxFirebreakAttempts = 4
-	firebreakWindowTicks = 60000
+	firebreakWindowTicks = domain.TicksPerDay
 	firebreakPrefix      = "firebreak-"
 	// firebreakTile is the side of one defense-site read: the ring's
 	// bounding box is read in tiles, only those holding ring cells.

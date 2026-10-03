@@ -52,7 +52,7 @@ type DefenseApproaches struct {
 	Hold              string
 }
 
-const defenseArrivalWindow domain.Tick = 3 * 60000
+const defenseArrivalWindow domain.Tick = 3 * domain.TicksPerDay
 const defenseRouteTail = 6
 
 // defenseArrivalSnap bounds how far an arrival's crossing may lie from a

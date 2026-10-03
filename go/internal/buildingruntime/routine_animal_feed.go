@@ -203,7 +203,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 
 // animalFeedBillWorkTicks bounds one clock window spent letting a standing
 // kibble bill run; the next review re-measures the pet's reachable feed.
-const animalFeedBillWorkTicks = 2500
+const animalFeedBillWorkTicks = domain.TicksPerHour
 
 // completedBillPlan reports a plan whose every action is a production bill
 // that reached completed: native placed the bill (or found it standing).

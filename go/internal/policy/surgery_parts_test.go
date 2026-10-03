@@ -77,7 +77,7 @@ func TestSurgeryPartBillOrTrade(t *testing.T) {
 				{DefName: "BionicLeg", TraderCount: 1, BuyPriceKnown: true, BuyPrice: 1500},
 				{DefName: "BionicEye", TraderCount: 2, BuyPriceKnown: true, BuyPrice: 1400},
 			}
-			targets := routineTradeTargets(n, rows, nil, RoutineTradePolicy{}).Targets
+			targets := routineTradeTargets(CoreItemFacts(), n, rows, nil, RoutineTradePolicy{}).Targets
 			if len(targets) != len(c.trade) {
 				t.Fatalf("targets %+v", targets)
 			}
@@ -97,7 +97,7 @@ func TestSurgeryPartTradeFallsBackToCarriedItem(t *testing.T) {
 	if len(targets) != 1 || targets[0].Item != "SimpleProstheticLeg" {
 		t.Fatalf("targets %+v", targets)
 	}
-	if got := RoutineTradeTargets(TradeNeed{SurgeryParts: parts}, rows, nil, RoutineTradePolicy{}, domain.Known[int64](3)); got.Validate() != nil {
+	if got := RoutineTradeTargets(CoreItemFacts(), TradeNeed{SurgeryParts: parts}, rows, nil, RoutineTradePolicy{}, domain.Known[int64](3)); got.Validate() != nil {
 		t.Fatalf("invalid policy %+v: %v", got, got.Validate())
 	}
 }

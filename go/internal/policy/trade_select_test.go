@@ -25,7 +25,7 @@ func tradeTarget(item string, stock, buy, sell int64, maxBuy, minSell float64) d
 }
 
 func tradeFacts(rows []TradeSheetRowFact, colony, trader, spend int64) TradeSelectionFacts {
-	return TradeSelectionFacts{Complete: true, Rows: rows, ColonySilver: colony, TraderSilver: trader, SilverKnown: true, MaxSilverSpend: spend}
+	return TradeSelectionFacts{Complete: true, Rows: withCurrency(rows), ColonySilver: colony, TraderSilver: trader, SilverKnown: true, MaxSilverSpend: spend}
 }
 
 func selectedCounts(t *testing.T, s TradeSelection) map[string]int64 {
@@ -378,4 +378,12 @@ func TestEconomicReservesDoesNotAliasItsInputs(t *testing.T) {
 	if reserves["Steel"] != 100 || restricted[0] != "Wood" {
 		t.Fatalf("EconomicReserves handed back its own caller's storage: %v %v", reserves, restricted)
 	}
+}
+
+// withCurrency is the sheet with its silver currency row, which a real sheet
+// always carries and every price is in.
+func withCurrency(rows []TradeSheetRowFact) []TradeSheetRowFact {
+	coin := tradeRow("#silver", "Silver", 0, 0, 1, 1)
+	coin.Currency = true
+	return append(append([]TradeSheetRowFact(nil), rows...), coin)
 }

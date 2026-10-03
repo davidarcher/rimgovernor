@@ -129,12 +129,12 @@ func itoa(n int) string {
 func TestOrganSaleSurplus(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 0}})
-	got, _ := OrganSaleSurplus(need, stock, domain.Known[int64](3)).Value()
+	got, _ := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3)).Value()
 	if len(got.Surplus) != 1 || got.Surplus[0] != (Amount{Resource: "Kidney", Count: 1}) || got.Retained["Kidney"] != 0 {
 		t.Fatalf("short silver: %+v", got)
 	}
 	rich := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 100000}})
-	if got, _ := OrganSaleSurplus(need, rich, domain.Known[int64](3)).Value(); len(got.Surplus) != 0 {
+	if got, _ := OrganSaleSurplus(CoreItemFacts(), need, rich, domain.Known[int64](3)).Value(); len(got.Surplus) != 0 {
 		t.Fatalf("silver held: %+v", got)
 	}
 }
@@ -142,7 +142,7 @@ func TestOrganSaleSurplus(t *testing.T) {
 func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 1}, {Resource: "Silver", Count: 0}})
-	sale := OrganSaleSurplus(need, stock, domain.Known[int64](3))
+	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3))
 	pawn := surgeryPawn("a", 1, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))
 	pawn.QueuedRecipes = []string{"InstallNaturalKidney"}
 	got, _ := ReserveSurgeryStock(sale, domain.Known([]CarePawn{pawn})).Value()
@@ -154,7 +154,7 @@ func TestReserveSurgeryStockHoldsQueuedInstallPart(t *testing.T) {
 func TestReserveSurgeryStockKeepsOneKidneyPerWant(t *testing.T) {
 	need := domain.Known(TradeNeed{MedicineReplenish: 10})
 	stock := domain.Known([]Amount{{Resource: "Kidney", Count: 2}, {Resource: "Silver", Count: 0}})
-	sale := OrganSaleSurplus(need, stock, domain.Known[int64](3))
+	sale := OrganSaleSurplus(CoreItemFacts(), need, stock, domain.Known[int64](3))
 	pawns := domain.Known([]CarePawn{surgeryPawn("a", 0, restoreOp("InstallNaturalKidney", "Kidney", 20, 0.9, 0, true))})
 	got, _ := ReserveSurgeryStock(sale, pawns).Value()
 	if len(got.Surplus) != 1 || got.Surplus[0] != (Amount{Resource: "Kidney", Count: 1}) || got.Retained["Kidney"] != 1 {

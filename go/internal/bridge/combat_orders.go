@@ -195,8 +195,8 @@ func ValidateCombatOrders(command *o.CombatOrders) error {
 				return contract("combat order %d draft missing", i)
 			}
 		case *o.CombatOrder_CombatDrug:
-			if v.CombatDrug == nil {
-				return contract("combat order %d combat_drug missing", i)
+			if validID(v.CombatDrug) != nil {
+				return contract("combat order %d combat_drug is not a def name", i)
 			}
 		default:
 			return contract("combat order %d has no order", i)

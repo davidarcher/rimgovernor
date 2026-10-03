@@ -13,23 +13,23 @@ func TestMedicineReserveJoinsResourceFloors(t *testing.T) {
 	if got := p.MedicineReserveTarget(domain.Known(int64(8)), true); got != 24 {
 		t.Fatal(got)
 	}
-	merged := MedicineResourceNeeds(needs, 24)
+	merged := MedicineResourceNeeds(CoreItemFacts(), needs, 24)
 	if merged["Steel"] != 20 || merged["MedicineHerbal"] != 30 || len(needs) != 2 {
 		t.Fatal(merged, needs)
 	}
-	if got := MedicineResourceNeeds(nil, 24); got["MedicineHerbal"] != 24 {
+	if got := MedicineResourceNeeds(CoreItemFacts(), nil, 24); got["MedicineHerbal"] != 24 {
 		t.Fatal(got)
 	}
 	if got := p.MedicineReserveTarget(domain.Unknown[int64](), true); got != 0 {
 		t.Fatal(got)
 	}
-	if !p.TracksResource("MedicineHerbal") {
+	if !p.TracksResource(CoreItemFacts(), "MedicineHerbal") {
 		t.Fatal("medicine workshop research must remain tracked")
 	}
 }
 
 func TestGlitterworldDoesNotSatisfyAutonomousMedicineReserve(t *testing.T) {
-	f := MedicalReserveObservation{Colonists: domain.Known(int64(1)), Resources: domain.Known([]Amount{{Resource: "MedicineUltratech", Count: 10}}), Items: domain.Known([]MedicineStack{{ID: "glitterworld", Definition: "MedicineUltratech", Count: 10, Perishable: domain.Known(false)}})}
+	f := MedicalReserveObservation{Catalog: CoreItemFacts(), Colonists: domain.Known(int64(1)), Resources: domain.Known([]Amount{{Resource: "MedicineUltratech", Count: 10}}), Items: domain.Known([]MedicineStack{{ID: "glitterworld", Definition: "MedicineUltratech", Count: 10, Perishable: domain.Known(false)}})}
 	review, err := ReviewMedicalReserve(f, false, DefaultMedicalReservePolicy())
 	if err != nil || !review.Active || review.Stock != domain.Known(int64(0)) {
 		t.Fatal(review, err)
@@ -37,7 +37,7 @@ func TestGlitterworldDoesNotSatisfyAutonomousMedicineReserve(t *testing.T) {
 }
 
 func TestMedicineReserveHysteresisAndUsableStockCaps(t *testing.T) {
-	f := MedicalReserveObservation{Colonists: domain.Known(int64(3)), Resources: domain.Known([]Amount{{"MedicineHerbal", 20}})}
+	f := MedicalReserveObservation{Catalog: CoreItemFacts(), Colonists: domain.Known(int64(3)), Resources: domain.Known([]Amount{{"MedicineHerbal", 20}})}
 	active := false
 	for _, tc := range []struct {
 		count   int64
@@ -85,7 +85,7 @@ func TestMedicineReserveHysteresisAndUsableStockCaps(t *testing.T) {
 	}
 }
 func TestMedicineReserveRejectsDuplicateOrOverflowingFacts(t *testing.T) {
-	f := MedicalReserveObservation{Colonists: domain.Known(int64(3)), Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{{"MedicineHerbal", 1}, {"MedicineHerbal", 1}})}
+	f := MedicalReserveObservation{Catalog: CoreItemFacts(), Colonists: domain.Known(int64(3)), Items: domain.Known([]MedicineStack{}), Resources: domain.Known([]Amount{{"MedicineHerbal", 1}, {"MedicineHerbal", 1}})}
 	if _, err := ReviewMedicalReserve(f, false, DefaultMedicalReservePolicy()); err == nil {
 		t.Fatal("duplicate stock")
 	}

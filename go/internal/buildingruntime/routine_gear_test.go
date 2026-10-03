@@ -146,7 +146,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 		if err := db.SaveProductionLadder(context.Background(), ladder); err != nil {
 			t.Fatal(err)
 		}
-		if needs, err := routineResearchNeeds(context.Background(), db, policy.RoutinePolicy{}, snapshot); err != nil || !reflect.DeepEqual(needs, ladder.Research) {
+		if needs, err := routineResearchNeeds(context.Background(), db, policy.RoutinePolicy{}, policy.CoreItemFacts(), snapshot); err != nil || !reflect.DeepEqual(needs, ladder.Research) {
 			t.Fatal("equipment research lost without a resource target", needs, err)
 		}
 		planner, err := NewRoutineGearPlanner(reviewer, n)

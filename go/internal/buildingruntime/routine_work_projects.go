@@ -265,7 +265,7 @@ func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snaps
 // routineResearchNeeds is the research the workshop ladder recorded as gating
 // a bench for a still-targeted resource or active equipment deficit, the
 // derived EnsureResearch target when no operator target is configured.
-func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, snapshot domain.GenerationSnapshot) ([]string, error) {
+func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, items policy.ItemFacts, snapshot domain.GenerationSnapshot) ([]string, error) {
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map})
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 		}
 		return nil, nil
 	}
-	if !p.TracksResource(ladder.Resource) {
+	if !p.TracksResource(items, ladder.Resource) {
 		return nil, nil
 	}
 	return ladder.Research, nil

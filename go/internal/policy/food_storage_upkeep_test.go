@@ -31,7 +31,7 @@ func TestFoodStorageStoredNeedsCoverAndColdOrRunway(t *testing.T) {
 		{"unroofed", stock(false, -5, 1000), false},
 		{"warm-rotting-soon", stock(true, 20, 1000), false},
 		{"chilled", stock(true, 5, 1000), true},
-		{"warm-long-runway", stock(true, 20, 6*ticksPerDay), true},
+		{"warm-long-runway", stock(true, 20, 6*domain.TicksPerDay), true},
 	} {
 		if got, known := tc.stock.stored(p).Value(); !known || got != tc.want {
 			t.Fatalf("%s: stored = %v (known %v), want %v", tc.name, got, known, tc.want)

@@ -33,7 +33,7 @@ const proposalLayer = "proposal"
 
 // layoutNoteFor is how long a replan's outcome note stays on the panel
 // (one game hour).
-const layoutNoteFor domain.Tick = 2500
+const layoutNoteFor domain.Tick = domain.TicksPerHour
 
 // playerRequest is one button press.
 type playerRequest struct {

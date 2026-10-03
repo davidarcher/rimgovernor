@@ -74,5 +74,9 @@ func PrisonerHerbalNeeds(needs map[Resource]int64, f RoutineFacts, silverShort d
 	if _, ok := CareLimitedHarvest(f.Prisoners, f.PrisonerColony, sale, nil, nil); !ok {
 		return needs
 	}
-	return ResourceGoalTargets(needs, map[Resource]int64{"MedicineHerbal": PrisonerSurgeryHerbal})
+	herbal, err := f.Items.MedicineAt(0)
+	if err != nil {
+		return needs
+	}
+	return ResourceGoalTargets(needs, map[Resource]int64{herbal: PrisonerSurgeryHerbal})
 }

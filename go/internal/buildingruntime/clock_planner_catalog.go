@@ -111,8 +111,8 @@ func sectionFamilies(sections []facts.Section) []bridge.FactFamily {
 // (plannerEntry.every, #625). Evidence (an outcome of its kinds, a dirty
 // section it declares) re-runs it sooner.
 const (
-	reviewEveryUrgent  domain.Tick = 2500
-	reviewEveryRoutine domain.Tick = 2500
+	reviewEveryUrgent  domain.Tick = domain.TicksPerHour
+	reviewEveryRoutine domain.Tick = domain.TicksPerHour
 	reviewEveryComfort domain.Tick = 15000
 )
 

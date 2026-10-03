@@ -27,7 +27,7 @@ const NoKillboxAreaLabel = NoKillboxAreaKey
 
 // KillboxCooldown is how long after the last live, unrestrained hostile
 // haulers stay out of the killbox (one in-game hour).
-const KillboxCooldown domain.Tick = 2500
+const KillboxCooldown domain.Tick = domain.TicksPerHour
 
 // KillboxWindowOf reports whether haulers are kept out of the killbox: a
 // hostile is live (hostiles > 0) or the last one was seen (lastThreat, when

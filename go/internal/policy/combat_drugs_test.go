@@ -52,7 +52,7 @@ func TestDoseOrders(t *testing.T) {
 			if (len(got) == 1) != c.want {
 				t.Fatalf("orders %v, want dose %v", got, c.want)
 			}
-			if c.want && (got[0] != CombatOrder{Pawn: "d1", Kind: OrderDrug, Reason: ReasonDrug}) {
+			if c.want && (got[0] != CombatOrder{Pawn: "d1", Kind: OrderDrug, Drug: "GoJuice", Reason: ReasonDrug}) {
 				t.Fatalf("order %+v", got[0])
 			}
 			if again := doseOrders(view, &m, nil, orderable, state); len(again) != 0 {

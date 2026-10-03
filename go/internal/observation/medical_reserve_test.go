@@ -14,6 +14,7 @@ func TestMedicalReserveProjectionPreservesIndependentUnknowns(t *testing.T) {
 	tables := heads(&o.EntityRef{Id: proto.String("med"), DefName: proto.String("MedicineHerbal")})
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), Resources: []*o.Quantity{{DefName: proto.String("MedicineHerbal"), Units: proto.Int64(5)}}, Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	f := ColonyMedicalReserve(v, tables)
+	f.Catalog = policy.CoreItemFacts()
 	r, err := policy.ReviewMedicalReserve(f, true, policy.DefaultMedicalReservePolicy())
 	if err != nil || !r.Active {
 		t.Fatal(r, err)

@@ -49,6 +49,38 @@ func mealStockAvailable(c FoodChannel) bool {
 	return false
 }
 
+// ObservedMeal is the meal the colony's active bills cook and its nutrition:
+// the single product of the active bill's recipe with the highest mood
+// (ties by name), as the recipe row reports it. None when no active bill
+// cooks a known meal.
+func ObservedMeal(benches []ProductionBench) (string, float64, bool) {
+	var def string
+	var nutrition, best float64
+	var recipeName string
+	for _, bench := range benches {
+		for _, bill := range bench.Bills {
+			if !positive(bill.Active) {
+				continue
+			}
+			for _, recipe := range bench.Recipes {
+				mood, mk := recipe.Mood.Value()
+				if recipe.Name != bill.Recipe || !mk || len(recipe.Products) != 1 {
+					continue
+				}
+				product := recipe.Products[0]
+				n, nk := product.Nutrition.Value()
+				if !nk || !fieldPositive(n) || !positive(product.Edible) {
+					continue
+				}
+				if def == "" || mood > best || mood == best && recipe.Name < recipeName {
+					def, nutrition, best, recipeName = product.Name, n, mood, recipe.Name
+				}
+			}
+		}
+	}
+	return def, nutrition, def != ""
+}
+
 func ObservedMealTier(benches []ProductionBench) MealTier {
 	best := MealSimple
 	for _, bench := range benches {

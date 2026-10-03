@@ -23413,15 +23413,15 @@ func (x *FoodConsumer) GetHumanMeatAcceptable() bool {
 
 // A food stock references its thing's row in the bundle's things table
 // (#1343) and adds what is relative to its eaters: holder when only
-// that pawn eats it, the nutrition the stack gives them, who can eat it
-// and whether it is the forbidden reserve.
+// that pawn eats it, the nutrition the stack gives them and who can eat it
+// (the row's forbidden flag is the stack's; Go decides which forbidden food
+// is the travel reserve).
 type FoodStock struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Item          *commonpb.Ref          `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
 	Holder        *commonpb.Ref          `protobuf:"bytes,3,opt,name=holder,proto3" json:"holder,omitempty"`
 	Nutrition     *float64               `protobuf:"fixed64,4,opt,name=nutrition,proto3,oneof" json:"nutrition,omitempty"`
 	Eaters        []*commonpb.Ref        `protobuf:"bytes,5,rep,name=eaters,proto3" json:"eaters,omitempty"`
-	Reserve       *bool                  `protobuf:"varint,11,opt,name=reserve,proto3,oneof" json:"reserve,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -23482,13 +23482,6 @@ func (x *FoodStock) GetEaters() []*commonpb.Ref {
 		return x.Eaters
 	}
 	return nil
-}
-
-func (x *FoodStock) GetReserve() bool {
-	if x != nil && x.Reserve != nil {
-		return *x.Reserve
-	}
-	return false
 }
 
 type CorpseHandling struct {
@@ -48702,19 +48695,16 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_pawn_idB\x14\n" +
 	"\x12_nutrition_per_dayB\x18\n" +
-	"\x16_human_meat_acceptable\"\xdf\x02\n" +
+	"\x16_human_meat_acceptable\"\xba\x02\n" +
 	"\tFoodStock\x12.\n" +
 	"\x04item\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04item\x122\n" +
 	"\x06holder\x18\x03 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06holder\x12!\n" +
 	"\tnutrition\x18\x04 \x01(\x01H\x00R\tnutrition\x88\x01\x01\x122\n" +
-	"\x06eaters\x18\x05 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x06eaters\x12\x1d\n" +
-	"\areserve\x18\v \x01(\bH\x01R\areserve\x88\x01\x01B\f\n" +
+	"\x06eaters\x18\x05 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x06eatersB\f\n" +
 	"\n" +
-	"_nutritionB\n" +
-	"\n" +
-	"\b_reserveJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"_nutritionJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"\xbb\x01\n" +
+	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"\xbb\x01\n" +
 	"\x0eCorpseHandling\x12\x19\n" +
 	"\bstock_id\x18\x01 \x01(\tR\astockId\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12 \n" +

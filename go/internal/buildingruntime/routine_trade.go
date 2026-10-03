@@ -74,7 +74,7 @@ type RoutineTradeResult struct {
 
 // tradeArrivalTicks is the window lent while a caravan walks in or a
 // settled one lingers: one game hour, after which the census is read again.
-const tradeArrivalTicks = 2500
+const tradeArrivalTicks = domain.TicksPerHour
 
 // tradeWalkTicks is the window lent while a negotiator walks to open a
 // session, after which the session is read again.
@@ -401,7 +401,8 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals) == 0 {
 		// Nothing to buy or sell by the resource catalog: only a pawn
 		// purchase can still stage, against the same silver reserve.
-		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors["Silver"])}
+		currency, _ := policy.TradeCurrency(facts.Rows)
+		selection = policy.TradeSelection{SilverReserve: max(economic.SilverReserve, facts.Floors[currency])}
 	}
 	clockSchedulerLog("trade selection: phase=%v sale_art=%v refused=%v reason=%q selected=%+v evidence=%+v trader_silver=%d", phase, facts.SaleArt, selection.Refused, selection.Reason, selection.Selected, selection.Evidence, facts.TraderSilver)
 	r.bid(state, trader, selection, facts.Rows, review.Tick)
@@ -445,7 +446,8 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	if float64(facts.ColonySilver)+sheet.Balance < float64(selection.SilverReserve) {
 		return r.cancel(call, epoch, state, incident, trader, negotiator, started)
 	}
-	floors := tradeAcceptFloors(economic, selection)
+	currency, _ := policy.TradeCurrency(facts.Rows)
+	floors := tradeAcceptFloors(economic, selection, currency)
 	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, false, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
@@ -492,7 +494,12 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
 	medicalFacts := observation.ColonyMedicalReserve(observed, tables)
+	medicalFacts.Catalog = items
 	medical, err := policy.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
@@ -501,6 +508,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
+	projection.Facts.Items = items
 	zoneNative, _ := r.native.(observation.ZonesNative)
 	if err = observation.FillZones(call, zoneNative, observed.Context.Identity, projection.Identity, &projection); err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
@@ -552,11 +560,11 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	planInput.Offers = policy.HerdOffers(rows, races.AnimalRaceCatalog)
 	herd := policy.PlanHerd(planInput)
 	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
-	need, known := policy.AnimalSaleNeed(policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
+	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
-	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
+	economic := policy.RoutineTradeTargets(projection.Facts.Items, need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
@@ -664,7 +672,7 @@ func tradePawnSkills(skills []bridge.TradeSheetSkill) []policy.ProfileSkill {
 // currency row.
 func tradeSheetSilver(rows []bridge.TradeSheetRow) (int64, int64, bool) {
 	for _, row := range rows {
-		if row.DefName == "Silver" && row.CurrencyKnown && row.Currency {
+		if row.CurrencyKnown && row.Currency {
 			return row.ColonyCount, row.TraderCount, true
 		}
 	}
@@ -714,7 +722,7 @@ func sameTradeLines(left, right []domain.TradeLine) bool {
 // tradeAcceptFloors builds AcceptTrade's reserve guards: every sold
 // definition's retained target, plus the silver reserve. Native checks
 // floors only on rows the colony gives, so purchases carry none.
-func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelection) []domain.TradeEconomicFloor {
+func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelection, currency string) []domain.TradeEconomicFloor {
 	stock := map[string]int64{}
 	for _, target := range p.Targets {
 		stock[target.Item] = target.Stock
@@ -733,5 +741,5 @@ func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelec
 			out = append(out, domain.TradeEconomicFloor{DefName: line.DefName, Count: int32(stock[line.DefName])})
 		}
 	}
-	return append(out, domain.TradeEconomicFloor{DefName: "Silver", Count: int32(selection.SilverReserve)})
+	return append(out, domain.TradeEconomicFloor{DefName: currency, Count: int32(selection.SilverReserve)})
 }

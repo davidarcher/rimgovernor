@@ -7,7 +7,7 @@ import (
 )
 
 func warmStock(id, room string, nutrition, temperature float64) FoodStorageStock {
-	return FoodStorageStock{Stock: FoodStock{ID: id, Nutrition: domain.Known(nutrition), Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * ticksPerDay)),
+	return FoodStorageStock{Stock: FoodStock{ID: id, Nutrition: domain.Known(nutrition), Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * domain.TicksPerDay)),
 		Roofed: domain.Known(true), TemperatureC: domain.Known(temperature), Room: domain.Known(room)}}
 }
 
@@ -48,7 +48,7 @@ func TestRefrigerationReviewLatchesOnWarmRoofedStock(t *testing.T) {
 	}
 	// Warm stock with a long rot runway is not at risk.
 	long := warmStock("meat", "b", 40, 30)
-	long.Stock.RotTicks = domain.Known(int64(10 * ticksPerDay))
+	long.Stock.RotTicks = domain.Known(int64(10 * domain.TicksPerDay))
 	r, err = ReviewRefrigeration(obs(long), false, p)
 	if err != nil || r.Active {
 		t.Fatal(r, err)
@@ -243,7 +243,7 @@ func TestRefrigerationMethodReportsEnclosureAndUnknowns(t *testing.T) {
 func TestRefrigerationReviewIgnoresHeldStock(t *testing.T) {
 	p := DefaultFoodStoragePolicy()
 	held := FoodStorageStock{Stock: FoodStock{ID: "carried", Holder: domain.Known(PawnID("cook")), Nutrition: domain.Known(8.0),
-		Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * ticksPerDay))}}
+		Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * domain.TicksPerDay))}}
 	// A carried stack has no roof or room; it neither counts nor blanks the review.
 	r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 8, 20), held})}, false, p)
 	if err != nil || !r.Active || len(r.Rooms) != 1 || r.Rooms[0] != "b" {

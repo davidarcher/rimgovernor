@@ -65,7 +65,7 @@ func TestEffectiveResourceTargetsMergesStoneBlocks(t *testing.T) {
 	if err != nil || targets["BlocksGranite"] != 5 || targets["Chemfuel"] != 30 {
 		t.Fatalf("operator floor should win and derived needs merge: %v %v", targets, err)
 	}
-	if !p.ResourceGoalConfigured() || !p.TracksResource("BlocksSlate") || p.TracksResource("Steel") {
+	if !p.ResourceGoalConfigured() || !p.TracksResource(CoreItemFacts(), "BlocksSlate") || p.TracksResource(CoreItemFacts(), "Steel") {
 		t.Fatalf("configuration predicates disagree")
 	}
 	if err := p.Validate(); err != nil {

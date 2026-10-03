@@ -33,7 +33,7 @@ const (
 	// (unsupported, changed geometry, no way in) before the planner cancels
 	// it so the project can be reviewed against the geometry that changed
 	// under it; an in-flight stage otherwise reads as open work forever.
-	excavationStallTicks = 2500
+	excavationStallTicks = domain.TicksPerHour
 	excavationCandidates = 4
 )
 

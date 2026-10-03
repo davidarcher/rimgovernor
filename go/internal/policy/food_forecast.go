@@ -144,7 +144,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 			if !known || ticks < 0 {
 				return fail()
 			}
-			entry.expiry = float64(ticks) / 60000
+			entry.expiry = float64(ticks) / domain.TicksPerDay
 		}
 		for _, id := range input.Eaters {
 			if _, exists := demand[id]; !exists || entry.eaters[id] {

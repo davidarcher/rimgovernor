@@ -17,15 +17,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// medicineResourceDefinition is the one native resource definition
-// MaintainMedicalReserves replenishes: a hardcoded MedicineHerbal target. A
-// native policyResources presence check would be the right guard, but this
-// boundary has no decode for it yet -- PolicyResources stays deliberately
-// unread, see bridge.ValidateColonyFacts. Recipe-product matching in
-// policy.SelectMedicineMethod already refuses to guess when no bench
-// produces it.
-const medicineResourceDefinition = policy.Resource("MedicineHerbal")
-
 // RoutineMedicalSource is the native census RoutineMedicalPlanner reads
 // immediately before proposing a medicine-production method: a fresh colony
 // facts read for the current medicine stock (the top-level
@@ -116,6 +107,18 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
+	// The one definition MaintainMedicalReserves replenishes is the lowest
+	// potency medicine of the catalog (herbal in Core); recipe-product
+	// matching in policy.SelectMedicineMethod refuses to guess when no bench
+	// produces it.
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	medicineResource, err := items.MedicineAt(0)
+	if err != nil {
+		return RoutineMedicalResult{Verdict: fieldUnavailable("medicine_catalog")}, nil
+	}
 	// Stalls are read from the acquisition census (#1044): a designated,
 	// untaken plant past AcquisitionStallTicks since native first saw it.
 	sources := observation.ColonyAcquisition(observed, tables)
@@ -123,7 +126,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	// before anything else and using up this step's admission.
 	stalledSources := map[string]bool{}
 	medicine := func(row policy.AcquisitionSource) bool {
-		return policy.Resource(row.Resource) == medicineResourceDefinition
+		return policy.Resource(row.Resource) == medicineResource
 	}
 	for _, row := range stalledDesignations(sources, false, domain.Tick(observed.Context.GetTick()), r.reviewer.policy.AcquisitionProgress(), medicine) {
 		stalledSources[row.ID] = true
@@ -157,6 +160,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	facts := observation.ColonyMedicalReserve(observed, tables)
+	facts.Catalog = items
 	medicalReview, err := policy.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, r.reviewer.policy.MedicalReserve)
 	if err != nil {
 		return RoutineMedicalResult{}, err
@@ -178,7 +182,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
 	}
-	names := recipeIngredientNames(census, medicineResourceDefinition)
+	names := recipeIngredientNames(census, medicineResource)
 	var stock []policy.Stock
 	if len(names) > 0 {
 		stock, _, err = r.native.ReadSupplyStock(call, identity, names)
@@ -186,15 +190,15 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineMedicalResult{}, err
 		}
 	}
-	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResourceDefinition, Seen: seen, Benches: domain.Known(benches), Stock: stock})
+	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResource, Seen: seen, Benches: domain.Known(benches), Stock: stock})
 	if err != nil {
 		return RoutineMedicalResult{}, err
 	}
 	if choice.Kind == policy.MedicineBlocked {
-		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, facts, stalledSources, started)
+		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, facts, medicineResource, stalledSources, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
-		return RoutineMedicalResult{Verdict: medicineChoiceVerdict(choice.Kind, medicineResourceDefinition)}, nil
+		return RoutineMedicalResult{Verdict: medicineChoiceVerdict(choice.Kind, medicineResource)}, nil
 	}
 	_, ok := tokens[choice.Bench]
 	if !ok {
@@ -240,7 +244,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 // already designated. The same executor and native designation path
 // EnsureFoodSupply's berry harvest uses carry it out; recovery is still
 // only the observed reserve.
-func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, tables bridge.Tables, medicalReview policy.MedicalReserveReview, facts policy.MedicalReserveObservation, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, tables bridge.Tables, medicalReview policy.MedicalReserveReview, facts policy.MedicalReserveObservation, medicineResource policy.Resource, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	replenish, known := medicalReview.Replenish.Value()
 	if !known {
@@ -258,7 +262,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	// plant; counting its yield as pending would leave nothing to replenish.
 	pending := 0.0
 	for _, row := range rows {
-		if row.Designated && !row.Hunt && !stalledSources[row.ID] && policy.Resource(row.Resource) == medicineResourceDefinition {
+		if row.Designated && !row.Hunt && !stalledSources[row.ID] && policy.Resource(row.Resource) == medicineResource {
 			pending += row.Yield
 		}
 	}
@@ -274,7 +278,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 			}
 		}
 	}
-	selected, err := policy.SelectResourceAcquisition(sources, domain.Known(float64(replenish)), domain.Known(pending), medicineResourceDefinition, held)
+	selected, err := policy.SelectResourceAcquisition(sources, domain.Known(float64(replenish)), domain.Known(pending), medicineResource, held)
 	if err != nil {
 		// The census was read; a row in it is unusable.
 		return RoutineMedicalResult{Verdict: fieldUnavailable("acquisition_sources")}, nil
@@ -362,7 +366,7 @@ func medicineChoiceVerdict(kind policy.MedicineMethodKind, resource policy.Resou
 // amputationRequeueTicks window while the infection is still projected to
 // win; there is no attempt cap, only vanilla's success chance against the
 // projected death (policy.LifeSavingAmputations).
-const amputationRequeueTicks = 2500
+const amputationRequeueTicks = domain.TicksPerHour
 
 func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, state ControlState, review store.RoutineReview) (RoutineMedicalResult, error) {
 	p := r.reviewer.player

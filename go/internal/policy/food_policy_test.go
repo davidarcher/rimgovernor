@@ -60,7 +60,7 @@ func eater(id string, traits []string, precepts ...string) WorkPawn {
 func without(defs ...string) []string {
 	var out []string
 	for _, f := range testFoods {
-		if !slices.Contains(defs, f.Def) && !slices.Contains(travelReserve, f.Def) {
+		if !slices.Contains(defs, f.Def) && !ReserveFoodDefinition(Resource(f.Def)) {
 			out = append(out, f.Def)
 		}
 	}

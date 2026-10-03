@@ -16,8 +16,7 @@ import (
 
 // foodStorageResourceDefinition is the one native resource definition
 // MaintainFoodStorage's Produce fallback replenishes when no covered site has
-// spare capacity, matching medicineResourceDefinition's own single hardcoded
-// target: RimWorld's basic cooked meal, produced through the same generic
+// spare capacity: RimWorld's basic cooked meal, produced through the same generic
 // bench/recipe/StockTarget bill machinery SelectMedicineMethod already uses.
 const foodStorageResourceDefinition = policy.Resource("MealSimple")
 
@@ -259,8 +258,8 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	// planner's own job, the same deferral SelectMedicineMethod/GearProduce
 	// perform. SelectMedicineMethod's bench-walking loop is already
 	// generic-resource-shaped (its Resource field is not hardcoded to
-	// MedicineHerbal -- only its caller's medicineResourceDefinition
-	// constant is), so it is reused directly here rather than duplicated: a
+	// a medicine -- only its caller's medicine resource
+	// is), so it is reused directly here rather than duplicated: a
 	// synthetic MedicalReserveReview{Active: true, Target: choice.Target}
 	// stands in for the medicine-specific review SelectMedicineMethod
 	// otherwise expects, since it only reads Review.Active/Review.Target.

@@ -7,7 +7,7 @@ import (
 )
 
 const ResourceRunwayDays = 5.0
-const ResourceHistoryWindow domain.Tick = 15 * 60000
+const ResourceHistoryWindow domain.Tick = 15 * domain.TicksPerDay
 
 // ResourceUse is one journaled placement or completed production batch.
 // Unknown quantities retain missing or ambiguous recipe evidence.
@@ -42,7 +42,7 @@ func ForecastResourceRunway(resource Resource, stock, ore domain.Fact[int64], re
 	if start < 0 || history.End <= start || reserve < 0 || reserve > 10000 {
 		return out
 	}
-	out.WindowDays = float64(history.End-start) / 60000
+	out.WindowDays = float64(history.End-start) / domain.TicksPerDay
 	// Less than one day is too little evidence for a maintenance rate.
 	if out.WindowDays < 1 {
 		return out

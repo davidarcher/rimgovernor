@@ -55,7 +55,7 @@ func (s StartingSupplies) Validate() error {
 // a stack keeps looking: the scenario places and forbids its stacks over the
 // first moments, after the first review. One in-game day is long past that
 // and short of the point where a forbid is the player's own.
-const StartingSupplyWindow domain.Tick = 60000
+const StartingSupplyWindow domain.Tick = domain.TicksPerDay
 
 // ReviewStartingSuppliesAt is ReviewStartingSupplies at tick: inside the
 // window an empty cohort that never held a stack adopts what the census now

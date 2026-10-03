@@ -92,7 +92,7 @@ func TestDecideCombatNoAttackThroughColonist(t *testing.T) {
 		{Pawn: "a", Kind: OrderAttack, Target: "h4", Reason: ReasonFormation},
 		{Pawn: "c", Kind: OrderAttack, Target: "h5", Reason: ReasonFormation},
 		// b, outmatched with nothing to shoot, takes its combat drug (#1311).
-		{Pawn: "b", Kind: OrderDrug, Reason: ReasonDrug},
+		{Pawn: "b", Kind: OrderDrug, Drug: "GoJuice", Reason: ReasonDrug},
 	}
 	if again != nil || !reflect.DeepEqual(orders, want) {
 		t.Fatalf("%+v", orders)

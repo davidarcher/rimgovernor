@@ -94,8 +94,9 @@ const moodTierMargin = 0.1
 
 // travelReserve are the foods kept for caravans: not eaten at home while
 // the colony has other food (#1542); when it is short of food (Diet.Reserve)
-// they are the food.
-var travelReserve = []string{"Pemmican", "MealSurvivalPack"}
+// they are the food. The one list Go decides it by; native only reports defs
+// and forbidden state.
+var travelReserve = []Resource{"Pemmican", "MealSurvivalPack"}
 
 // fineMeals is the mood tier: near the minor break threshold or under high
 // expectations; unknown mood reads count as content.
@@ -200,7 +201,7 @@ func traitDiet(traits []string) Diet {
 // is short of other food (Diet.Reserve).
 func DietFoods(d Diet, foods []Food) []string {
 	allowed := func(f Food) bool {
-		if slices.Contains(travelReserve, f.Def) {
+		if ReserveFoodDefinition(Resource(f.Def)) {
 			return d.Reserve
 		}
 		switch f.Kind {

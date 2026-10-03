@@ -14,9 +14,9 @@ func TestBedStuffScoreUsesStuffFactors(t *testing.T) {
 		"Silver": 2, "Gold": 40, "Jade": 12.5, "Uranium": 3, "Plasteel": 9,
 		"BlocksSandstone": 0.99, "BlocksGranite": 0.9, "BlocksMarble": 1.215,
 	} {
-		got, ok := bedStuffScore(stuff)
-		if !ok || math.Abs(got-want) > 1e-9 {
-			t.Errorf("bedStuffScore(%s) = %v, %v; want %v", stuff, got, ok, want)
+		got, err := CoreItemFacts().StuffScore(stuff)
+		if err != nil || math.Abs(got-want) > 1e-9 {
+			t.Errorf("StuffScore(%s) = %v, %v; want %v", stuff, got, err, want)
 		}
 	}
 }
@@ -90,7 +90,7 @@ func TestBedReplacementUpgradesMaterial(t *testing.T) {
 	obs, rooms, _ := upgradeFixture(t, low)
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
 	all := func(string) bool { return true }
-	materials := BedMaterials{Stock: map[Resource]int64{"Silver": 100, "Steel": 100, "Gold": 10}, Cost: map[Resource]int64{"Bed": 45}}
+	materials := BedMaterials{Items: CoreItemFacts(), Stock: map[Resource]int64{"Silver": 100, "Steel": 100, "Gold": 10}, Cost: map[Resource]int64{"Bed": 45}}
 
 	obs.Beds = []SleepingBed{stuffBed("Bed_1", "Normal", "WoodLog", "a")}
 	u, ok := NextBedReplacement(obs, targets, rooms, all, materials)
@@ -135,11 +135,11 @@ func TestBedReplacementUpgradesMaterial(t *testing.T) {
 
 	// A poor-quality rebuild keeps at least the owned stuff.
 	obs.Beds = []SleepingBed{stuffBed("Bed_1", "Poor", "Steel", "a")}
-	steel := BedMaterials{Stock: map[Resource]int64{"Steel": 45}, Cost: map[Resource]int64{"Bed": 45}}
+	steel := BedMaterials{Items: CoreItemFacts(), Stock: map[Resource]int64{"Steel": 45}, Cost: map[Resource]int64{"Bed": 45}}
 	if u, ok := NextBedReplacement(obs, targets, rooms, all, steel); !ok || u.Stuff != "Steel" {
 		t.Fatalf("quality rebuild = %+v %v", u, ok)
 	}
-	wood := BedMaterials{Stock: map[Resource]int64{"WoodLog": 450}, Cost: map[Resource]int64{"Bed": 45}}
+	wood := BedMaterials{Items: CoreItemFacts(), Stock: map[Resource]int64{"WoodLog": 450}, Cost: map[Resource]int64{"Bed": 45}}
 	if u, ok := NextBedReplacement(obs, targets, rooms, all, wood); ok {
 		t.Fatalf("quality rebuild in worse stuff = %+v", u)
 	}

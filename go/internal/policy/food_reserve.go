@@ -2,6 +2,7 @@ package policy
 
 import (
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -10,7 +11,16 @@ import (
 const DefaultFoodReserveDays = 5.0
 
 func ReserveFoodDefinition(def Resource) bool {
-	return def == "MealSurvivalPack" || def == "Pemmican"
+	return slices.Contains(travelReserve, def)
+}
+
+// ReserveFoodDefinitions are the travel reserve's definition names.
+func ReserveFoodDefinitions() []string {
+	out := make([]string, len(travelReserve))
+	for i, def := range travelReserve {
+		out[i] = string(def)
+	}
+	return out
 }
 
 // DropReserveHeld removes supply rows the food reserve owns, so the supplies
@@ -116,7 +126,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 		amount, _ := stock.Nutrition.Value()
 		if perishable, _ := stock.Perishable.Value(); perishable {
 			ticks, _ := stock.RotTicks.Value()
-			if float64(ticks)/60000 <= reserveDays {
+			if float64(ticks)/domain.TicksPerDay <= reserveDays {
 				continue
 			}
 		}

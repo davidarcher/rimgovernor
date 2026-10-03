@@ -33,7 +33,7 @@ func siteFixture(outdoor float64) SiteTypeRequest {
 	lamp := Infrastructure{Name: "SunLamp", Available: domain.Known(true), PowerW: domain.Known(2900.0), Costs: domain.Known([]Amount{{"Steel", 40}})}
 	basin := Infrastructure{Name: "HydroponicsBasin", Available: domain.Known(true), PowerW: domain.Known(70.0), Fertility: domain.Known(2.8), Costs: domain.Known([]Amount{{"Steel", 100}, {"ComponentIndustrial", 1}})}
 	heater := Infrastructure{Name: "Heater", Available: domain.Known(true), PowerW: domain.Known(175.0), Costs: domain.Known([]Amount{{"Steel", 50}, {"ComponentIndustrial", 1}})}
-	return SiteTypeRequest{Field: f, Lamp: domain.Known(lamp), Basin: domain.Known(basin), Heater: domain.Known(heater), LampGrowthRadius: 5.8}
+	return SiteTypeRequest{Field: f, Lamp: domain.Known(lamp), Basin: domain.Known(basin), Heater: domain.Known(heater), Items: CoreItemFacts(), LampGrowthRadius: 5.8}
 }
 
 func siteNetwork(generation, solar, consumption float64) PowerHeadroom {

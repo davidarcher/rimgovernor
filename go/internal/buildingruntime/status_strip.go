@@ -17,7 +17,7 @@ import (
 
 // statusRedrawEvery is how often unchanged strip rows are resent (one game
 // hour).
-const statusRedrawEvery domain.Tick = 2500
+const statusRedrawEvery domain.Tick = domain.TicksPerHour
 
 // refusalLayer is the native overlay layer the refusal markers draw on.
 const refusalLayer = "refusals"

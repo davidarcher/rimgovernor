@@ -220,18 +220,20 @@ type ArtDemand struct {
 	Fits  int32
 	Stock map[Resource]int64
 	Skill map[PawnID]int
+	// Items rank the stuffs a sculpture takes and price a sale.
+	Items ItemFacts
 }
 
 // stuff is the best stocked stuff (beauty factor times market value, as
 // beds choose) with enough for one sculpture of size, false when none.
 func (d ArtDemand) stuff(size sculptureSize) (Resource, bool) {
-	return BedMaterials{Stock: d.Stock, Cost: map[Resource]int64{Resource(size.Def): size.Cost}}.bestStuff(Resource(size.Def), 0, true)
+	return BedMaterials{Stock: d.Stock, Cost: map[Resource]int64{Resource(size.Def): size.Cost}, Items: d.Items}.bestStuff(Resource(size.Def), 0, true)
 }
 
 // NewArtDemand reads the art demand from the first owed sculpture room and
 // the artists' profiles.
-func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []TidyRoom, stock map[Resource]int64, profiles []PawnProfile) ArtDemand {
-	d := ArtDemand{Stock: stock, Skill: map[PawnID]int{}}
+func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []TidyRoom, stock map[Resource]int64, profiles []PawnProfile, items ItemFacts) ArtDemand {
+	d := ArtDemand{Stock: stock, Skill: map[PawnID]int{}, Items: items}
 	for _, p := range profiles {
 		d.Skill[p.ID] = p.Skill(WorkSkillName(WorkArt)).Level
 	}

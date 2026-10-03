@@ -23,8 +23,8 @@ import (
 // hour per window follows the room closely enough while a two-day
 // allowance still elapses in a few dozen windows.
 const (
-	refrigerationCoolingTicks       = 2 * 60000
-	refrigerationCoolingWindowTicks = 2500
+	refrigerationCoolingTicks       = 2 * domain.TicksPerDay
+	refrigerationCoolingWindowTicks = domain.TicksPerHour
 )
 
 // NewRoutineRefrigerationPlanner composes MaintainRefrigeration's building

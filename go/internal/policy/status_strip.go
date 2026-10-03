@@ -130,7 +130,7 @@ const (
 )
 
 // RefusalMarkerTTL is how long a refusal marker stays drawn (one game day).
-const RefusalMarkerTTL domain.Tick = 60000
+const RefusalMarkerTTL domain.Tick = domain.TicksPerDay
 
 // StatusRows builds the strip rows: goal, pause, food, wood, medicine,
 // population, emergency, refusal, then one detail row per active goal. Pure; same

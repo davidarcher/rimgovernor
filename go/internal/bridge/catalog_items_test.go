@@ -9,7 +9,15 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func comps(values ...any) []*d.CompPropertiesAny {
+func comps(values ...any) []*d.Opt_CompPropertiesAny {
+	var wrapped []*d.Opt_CompPropertiesAny
+	for _, any := range compsAny(values...) {
+		wrapped = append(wrapped, &d.Opt_CompPropertiesAny{Value: any})
+	}
+	return wrapped
+}
+
+func compsAny(values ...any) []*d.CompPropertiesAny {
 	var out []*d.CompPropertiesAny
 	for _, v := range values {
 		switch v := v.(type) {
@@ -33,9 +41,9 @@ func itemCatalog() *DefinitionCatalog {
 	return &DefinitionCatalog{
 		ThingDefs: map[string]*d.ThingDef{
 			"Novel":    {DefName: "Novel", Comps: comps(&d.CompProperties_Book{})},
-			"Textbook": {DefName: "Textbook", Comps: comps(&d.CompProperties_Book{Doers: []*d.ReadingOutcomePropertiesAny{skill}})},
-			"Schema":   {DefName: "Schema", Comps: comps(&d.CompProperties_Book{Doers: []*d.ReadingOutcomePropertiesAny{research}})},
-			"Tome":     {DefName: "Tome", Comps: comps(&d.CompProperties_Book{Doers: []*d.ReadingOutcomePropertiesAny{skill, mental}})},
+			"Textbook": {DefName: "Textbook", Comps: comps(&d.CompProperties_Book{Doers: doers(skill)})},
+			"Schema":   {DefName: "Schema", Comps: comps(&d.CompProperties_Book{Doers: doers(research)})},
+			"Tome":     {DefName: "Tome", Comps: comps(&d.CompProperties_Book{Doers: doers(skill, mental)})},
 			"Rice": {DefName: "Rice", ThingCategories: []string{"Rice"}, Comps: comps(&d.CompProperties_Rottable{DaysToRotStart: 30}),
 				Ingestible: &d.IngestibleProperties{FoodType: d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT, BabiesCanIngest: true}},
 			"Steel":  {DefName: "Steel"},
@@ -126,4 +134,12 @@ func TestCatalogItemFactsRefuseMissingRows(t *testing.T) {
 	if _, err := none.Vegetable("Rice"); err == nil || none.Books() != nil {
 		t.Fatal("a nil catalog decided a fact")
 	}
+}
+
+func doers(values ...*d.ReadingOutcomePropertiesAny) []*d.Opt_ReadingOutcomePropertiesAny {
+	var out []*d.Opt_ReadingOutcomePropertiesAny
+	for _, v := range values {
+		out = append(out, &d.Opt_ReadingOutcomePropertiesAny{Value: v})
+	}
+	return out
 }

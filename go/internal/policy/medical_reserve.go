@@ -26,6 +26,8 @@ type MedicalReserveObservation struct {
 	// Resources is the complete usable native stock census, excluding inaccessible
 	// and forbidden stock. It is capped again against the actual medicine stacks.
 	Resources domain.Fact[[]Amount]
+	// Catalog ranks the medicines: the best one is no reserve.
+	Catalog ItemFacts
 }
 type MedicalReservePolicy struct{ MinimumPerColonist, TargetPerColonist int64 }
 type MedicalReserveReview struct {
@@ -49,11 +51,15 @@ func (p RoutinePolicy) MedicineReserveTarget(colonists domain.Fact[int64], activ
 	return count * p.MedicalReserve.TargetPerColonist
 }
 
-func MedicineResourceNeeds(needs map[Resource]int64, target int64) map[Resource]int64 {
-	if target <= 0 {
+// MedicineResourceNeeds asks for target units of the reserve medicine, the
+// lowest-potency one (herbal). Without the catalog's medicines it asks for
+// nothing.
+func MedicineResourceNeeds(items ItemFacts, needs map[Resource]int64, target int64) map[Resource]int64 {
+	herbal, err := items.MedicineAt(0)
+	if target <= 0 || err != nil {
 		return needs
 	}
-	return ResourceGoalTargets(needs, map[Resource]int64{"MedicineHerbal": target})
+	return ResourceGoalTargets(needs, map[Resource]int64{herbal: target})
 }
 
 // ReviewMedicalReserve preserves the latch through unavailable reads. Equal entry
@@ -71,7 +77,10 @@ func ReviewMedicalReserve(v MedicalReserveObservation, active bool, p MedicalRes
 	if pk && (people < 0 || people > 0 && p.TargetPerColonist > math.MaxInt64/people) {
 		return r, invalid
 	}
-	if !pk || !ik || !rk {
+	// The best medicine is no reserve; without the catalog's medicines the
+	// reserve is unknown like any unread fact.
+	best, err := v.Catalog.BestMedicine()
+	if !pk || !ik || !rk || err != nil {
 		return r, nil
 	}
 	stockByDefinition := map[Resource]int64{}
@@ -96,7 +105,7 @@ func ReviewMedicalReserve(v MedicalReserveObservation, active bool, p MedicalRes
 		if tk && ticks < 0 {
 			return r, invalid
 		}
-		if item.Definition == "MedicineUltratech" || item.Forbidden || !(known && !perishable || tk && ticks > 0) {
+		if item.Definition == best || item.Forbidden || !(known && !perishable || tk && ticks > 0) {
 			continue
 		}
 		if item.Count > math.MaxInt64-usable[item.Definition] {

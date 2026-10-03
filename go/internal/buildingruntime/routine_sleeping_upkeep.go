@@ -246,7 +246,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 // an assignment completed so the colonist's sleep in that bed can be
 // observed: one full day covers the next rest period, and the budget is not
 // renewed by later observations.
-const sleepingObservationBudget = 60000
+const sleepingObservationBudget = domain.TicksPerDay
 
 // sleepingObservationSlice is one clock window inside that budget.
 const sleepingObservationSlice = 600

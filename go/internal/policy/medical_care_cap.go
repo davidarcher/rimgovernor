@@ -86,15 +86,17 @@ func capped(base domain.MedicalCare, raise bool, conditions domain.Fact[[]CareCo
 }
 
 // ColonistCareBase is the colonists' standing cap: NormalOrWorse while
-// industrial stock meets the per-colonist target, else HerbalOrWorse.
-func ColonistCareBase(resources domain.Fact[[]Amount], colonists int64, p MedicalReservePolicy) (domain.MedicalCare, bool) {
+// stock of the normal-care medicine (potency rank 1) meets the per-colonist
+// target, else HerbalOrWorse. Unknown without the catalog's medicines.
+func ColonistCareBase(items ItemFacts, resources domain.Fact[[]Amount], colonists int64, p MedicalReservePolicy) (domain.MedicalCare, bool) {
 	rows, known := resources.Value()
-	if !known {
+	normal, err := items.MedicineAt(1)
+	if !known || err != nil {
 		return "", false
 	}
 	var industrial int64
 	for _, row := range rows {
-		if row.Resource == "MedicineIndustrial" {
+		if row.Resource == normal {
 			industrial += row.Count
 		}
 	}
@@ -171,7 +173,7 @@ func MedicalCareChanges(f RoutineFacts, p MedicalReservePolicy) []domain.PawnSet
 				living++
 			}
 		}
-		if base, ok := ColonistCareBase(f.Resources, living, p); ok {
+		if base, ok := ColonistCareBase(f.Items, f.Resources, living, p); ok {
 			for _, c := range colonists {
 				if dead, dk := c.Dead.Value(); !dk || dead {
 					continue

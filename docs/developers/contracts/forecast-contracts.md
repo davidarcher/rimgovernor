@@ -75,10 +75,12 @@ See native forecast acceptance for the bounded
 Docker probe and the distinction between forecast validation and pawn outcomes.
 ## Food reserve components
 
-`FoodStock.reserve` identifies forbidden shared pemmican or packaged survival
-meals. Native eligibility describes who could eat the stack after release;
-`ForecastFood` validates it but excludes it from runway and usable nutrition.
-Other forbidden food remains outside the food census.
+Native reports forbidden stacks (the thing row's `forbidden`) with their
+eligible eaters; Go decides the reserve (`policy.ReserveFoodDefinition`:
+forbidden shared pemmican or packaged survival meals). Native eligibility
+describes who could eat the stack after release; `ForecastFood` validates it
+but excludes it from runway and usable nutrition. Other forbidden food is
+dropped from the food census by the decoder.
 
 `ReviewFoodReserve` budgets `reserveDays × observed daily demand` (the default
 is `policy.DefaultFoodReserveDays`, five days). It proposes whole-stack holds

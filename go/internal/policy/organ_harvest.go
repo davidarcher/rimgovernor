@@ -298,10 +298,10 @@ func SaleHarvestWanted(f RoutineFacts, silverShort domain.Fact[bool]) bool {
 // OrganSaleSurplus adds each harvested organ in stock to the trade need's
 // surplus while the silver runway is short (#1169): the sale path's organ
 // sells through SelectTrade like any surplus, keeping none.
-func OrganSaleSurplus(need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
+func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
 	rows, rk := resources.Value()
-	if !nk || !rk || !positive(SilverShort(need, SilverStock(resources), colonists)) {
+	if !nk || !rk || !positive(SilverShort(items, need, SilverStock(resources), colonists)) {
 		return need
 	}
 	stock := map[Resource]int64{}

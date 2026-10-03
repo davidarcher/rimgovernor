@@ -21,10 +21,6 @@ import (
 // the resource family mines toward under RoutineTradePolicy.ComponentTarget.
 const ComponentResource Resource = "ComponentIndustrial"
 
-// MedicineResources are the vanilla medicine definitions a caravan may offer,
-// best first; the routine trade buys the cheapest one the trader carries.
-var MedicineResources = []Resource{"MedicineUltratech", "MedicineIndustrial", "MedicineHerbal"}
-
 // tradeBuyPriceCeiling bounds a routine purchase's unit price. Vanilla
 // medicine and components price under 100 silver; anything past this is a
 // sheet the colony should not be buying from.
@@ -306,9 +302,9 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 // the trader carries), then components, then each surplus sale. Purchases
 // are capped at tradeBuyPriceCeiling per unit; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
-func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
+func RoutineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
 	reserve, buy := TradeSilverReserve(colonists)
-	out := routineTradeTargets(need, rows, targets, p)
+	out := routineTradeTargets(items, need, rows, targets, p)
 	out.SilverReserve = reserve
 	for i := range out.Targets {
 		if !buy {
@@ -318,7 +314,7 @@ func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 	return out
 }
 
-func routineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
+func routineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
 	var out domain.TradeEconomicPolicy
 	// Leave room for medicine and components while prioritizing the food bridge.
 	foodTargets := tradeFoodTargets(need.Food, rows)
@@ -330,11 +326,7 @@ func routineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 		var pick *TradeSheetRowFact
 		for i := range rows {
 			row := &rows[i]
-			medicine := false
-			for _, name := range MedicineResources {
-				medicine = medicine || string(name) == row.DefName
-			}
-			if !medicine || row.TraderCount <= 0 || !row.BuyPriceKnown || !finite(row.BuyPrice) || row.BuyPrice <= 0 {
+			if !items.IsMedicine(Resource(row.DefName)) || row.TraderCount <= 0 || !row.BuyPriceKnown || !finite(row.BuyPrice) || row.BuyPrice <= 0 {
 				continue
 			}
 			if pick == nil || row.BuyPrice < pick.BuyPrice {

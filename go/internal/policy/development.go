@@ -87,7 +87,7 @@ type Commitment struct {
 
 // DevelopmentStallTicks: one game day, the unit colony-stage dwell times
 // are counted in.
-const DevelopmentStallTicks domain.Tick = 60000
+const DevelopmentStallTicks domain.Tick = domain.TicksPerDay
 
 // DevelopmentIdleTicks: one game hour. A commitment whose labor has idled
 // (laborIdle) across reviews spanning this long releases its slot; the
@@ -95,7 +95,7 @@ const DevelopmentStallTicks domain.Tick = 60000
 // after a finished frame, not a project nobody picks up (#445: tribal8
 // held both slots for days on a wood cut and a herbal bill while the
 // colonists built and hauled).
-const DevelopmentIdleTicks domain.Tick = 2500
+const DevelopmentIdleTicks domain.Tick = domain.TicksPerHour
 
 type DevelopmentReason string
 

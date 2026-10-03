@@ -37,7 +37,7 @@ var HelperConstructionDefinitions = map[string]bool{
 // ConstructionHelpHoldTicks: helpers stay one game hour after suitable
 // demand disappears, so a review between two walls does not rewrite work
 // settings.
-const ConstructionHelpHoldTicks domain.Tick = 2500
+const ConstructionHelpHoldTicks domain.Tick = domain.TicksPerHour
 
 // Helper reasons recorded on ConstructionHelpRecord.Reason.
 const (

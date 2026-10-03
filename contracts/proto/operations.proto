@@ -90,11 +90,12 @@ message CombatOrder {
     // Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
     EntityPrecondition release = 13;
     CombatAnimalArea animal_area = 14;
-    // CombatDrug (#1311): the drafted pawn ingests the combat drug it
-    // carries, go-juice before yayo, by the vanilla Ingest job. Refusals:
-    // no_drug (none carried), child, already_high, drug_risk (addicted to,
-    // in withdrawal from or highly tolerant of the drug's chemical).
-    Clear combat_drug = 17;
+    // CombatDrug (#1311): the drafted pawn ingests the carried drug of this
+    // def name (Go chooses it; native validates) by the vanilla Ingest job.
+    // Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
+    // child, already_high, drug_risk (addicted to, in withdrawal from or
+    // highly tolerant of the drug's chemical).
+    string combat_drug = 17;
   }
   reserved 12;
 }

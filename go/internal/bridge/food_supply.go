@@ -25,9 +25,6 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row == nil || !uniqueRef(row.Item, stocks) || !combatNumber(row.Nutrition, true) {
 			return contract("invalid food stock")
 		}
-		if row.GetReserve() && row.Holder != nil {
-			return contract("reserve must be shared")
-		}
 		if len(row.Eaters) > len(consumers) {
 			return contract("missing food eligibility")
 		}
@@ -64,7 +61,7 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 
 // JoinFoodSupply resolves v's stocks against things, a frame's things
 // table, and checks the facts that need a stock's row: eligibility for
-// any food but a corpse or human meat, the reserve's definition, and that
+// any food but a corpse or human meat and that
 // a larder corpse is a corpse with meat. It returns false, with nothing
 // checked, when the table misses a stock: the supply waits for a later
 // frame.
@@ -88,9 +85,6 @@ func JoinFoodSupply(v *o.FoodSupplyFacts, things Things) (map[string]*o.Thing, b
 		}
 		if len(stock.Eaters) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() {
 			return nil, false, contract("missing food eligibility")
-		}
-		if stock.GetReserve() && def != "Pemmican" && def != "MealSurvivalPack" {
-			return nil, false, contract("reserve must be shared pemmican or survival meals")
 		}
 		if row.GetCorpse() && row.GetMeatAmount() <= 0 {
 			return nil, false, contract("corpse stock without meat")

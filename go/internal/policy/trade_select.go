@@ -92,6 +92,18 @@ type TradeSelectionFacts struct {
 	HerdWants []HerdWant
 }
 
+// TradeCurrency is the definition of the sheet's currency row
+// (TradeRow.currency): the coin both sides' cash and every price are in. A
+// sheet with no known currency row has none.
+func TradeCurrency(rows []TradeSheetRowFact) (string, bool) {
+	for _, row := range rows {
+		if row.CurrencyKnown && row.Currency {
+			return row.DefName, true
+		}
+	}
+	return "", false
+}
+
 // TradeSelectionLine is one selected row adjustment: the native line id
 // SetTradeLines addresses, the definition it came from, and the signed count
 // (positive buys, negative sells) domain.TradeLine carries as its
@@ -160,16 +172,17 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 	if !facts.Complete {
 		return refuse("Economic selection requires an unfiltered complete trade sheet")
 	}
-	if !facts.SilverKnown || facts.ColonySilver < 0 || facts.TraderSilver < 0 || facts.MaxSilverSpend < 0 {
+	currency, hasCurrency := TradeCurrency(facts.Rows)
+	if !hasCurrency || !facts.SilverKnown || facts.ColonySilver < 0 || facts.TraderSilver < 0 || facts.MaxSilverSpend < 0 {
 		return refuse(tradeBlockerUnknown)
 	}
 	stopped := make(map[string]bool, len(facts.Stopped))
 	for _, item := range facts.Stopped {
 		stopped[item] = true
 	}
-	reserve := max(p.SilverReserve, facts.Floors["Silver"])
+	reserve := max(p.SilverReserve, facts.Floors[currency])
 	budgetCap := min(facts.MaxSilverSpend, max(0, facts.ColonySilver-reserve))
-	if stopped["Silver"] {
+	if stopped[currency] {
 		budgetCap = 0
 	}
 	// Budget and the trader's cash are carried as exact running floats, the

@@ -84,14 +84,14 @@ func TestArtBillSizeAndStuff(t *testing.T) {
 		demand        ArtDemand
 		recipe, stuff string
 	}{
-		{"big gap, space, stock and skill: grand in marble", ArtDemand{Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureGrand", "BlocksMarble"},
-		{"no 3x3 spot: large", ArtDemand{Gap: 30, Fits: 2, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
-		{"modest gap: large", ArtDemand{Gap: 15, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
-		{"mid skill: large at most", ArtDemand{Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 7}}, "Make_SculptureLarge", "BlocksMarble"},
-		{"passion without skill: small", ArtDemand{Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 3}}, SculptureRecipe, "Silver"},
-		{"small gap: small in the best stuff", ArtDemand{Gap: 5, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, SculptureRecipe, "Silver"},
-		{"stock short of grand: large", ArtDemand{Gap: 30, Fits: 3, Stock: map[Resource]int64{"WoodLog": 200}, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "WoodLog"},
-		{"no stock: small in any stuff", ArtDemand{Gap: 30, Fits: 3, Skill: map[PawnID]int{"a": 12}}, SculptureRecipe, ""},
+		{"big gap, space, stock and skill: grand in marble", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureGrand", "BlocksMarble"},
+		{"no 3x3 spot: large", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 2, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
+		{"modest gap: large", ArtDemand{Items: CoreItemFacts(), Gap: 15, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "BlocksMarble"},
+		{"mid skill: large at most", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 7}}, "Make_SculptureLarge", "BlocksMarble"},
+		{"passion without skill: small", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 3}}, SculptureRecipe, "Silver"},
+		{"small gap: small in the best stuff", ArtDemand{Items: CoreItemFacts(), Gap: 5, Fits: 3, Stock: stock, Skill: map[PawnID]int{"a": 12}}, SculptureRecipe, "Silver"},
+		{"stock short of grand: large", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Stock: map[Resource]int64{"WoodLog": 200}, Skill: map[PawnID]int{"a": 12}}, "Make_SculptureLarge", "WoodLog"},
+		{"no stock: small in any stuff", ArtDemand{Items: CoreItemFacts(), Gap: 30, Fits: 3, Skill: map[PawnID]int{"a": 12}}, SculptureRecipe, ""},
 	} {
 		got := SelectArtBills(domain.Known([]ProductionBench{sizedArtBench()}), domain.Known[int64](2), []PawnID{"a"}, tc.demand)
 		if len(got) != 1 || got[0].Recipe != tc.recipe || got[0].Worker != "a" {
@@ -113,11 +113,11 @@ func TestArtBillSizeAndStuff(t *testing.T) {
 func TestNewArtDemand(t *testing.T) {
 	obs, rooms, _ := upgradeFixture(t, RoomQuality{Wealth: 3000, Beauty: -1, Space: 25, Impressiveness: 35})
 	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: ImpressivenessSlightlyImpressive}}
-	d := NewArtDemand(domain.Known(obs), targets, rooms, nil, []PawnProfile{artProfile("a", 9, "")})
+	d := NewArtDemand(domain.Known(obs), targets, rooms, nil, []PawnProfile{artProfile("a", 9, "")}, CoreItemFacts())
 	if d.Gap != ImpressivenessSlightlyImpressive-35 || d.Fits < 2 || d.Skill["a"] != 9 {
 		t.Fatalf("demand = %+v", d)
 	}
-	if d := NewArtDemand(domain.Unknown[SleepingObservation](), targets, rooms, nil, nil); d.Gap != 0 || d.Fits != 0 {
+	if d := NewArtDemand(domain.Unknown[SleepingObservation](), targets, rooms, nil, nil, CoreItemFacts()); d.Gap != 0 || d.Fits != 0 {
 		t.Fatalf("unknown = %+v", d)
 	}
 }

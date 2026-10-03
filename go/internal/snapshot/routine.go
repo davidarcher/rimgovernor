@@ -90,6 +90,15 @@ func Load(path string) (Routine, error) {
 	if err != nil {
 		return Routine{}, fmt.Errorf("%s: %w", path, err)
 	}
+	// A recording from before the item facts (#1734) carries none: it
+	// replays with Core's numbers, the game it was recorded on.
+	if r.Facts.Items.Market == nil {
+		r.Facts.Items = policy.CoreItemFacts()
+		r.Facts.MedicalReserve.Catalog = r.Facts.Items
+		if r.Projection != nil {
+			r.Projection.Facts = r.Facts
+		}
+	}
 	return r, nil
 }
 

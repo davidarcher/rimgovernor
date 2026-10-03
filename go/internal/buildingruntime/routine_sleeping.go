@@ -821,7 +821,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 // about to unforbid is invisible to it; without ticks the haul never lands
 // and the refusal repeats until the clock parks on no_work. The next step
 // re-reads the census, so the wait is the window, not a belief about stock.
-const stockWaitTicks = 2500
+const stockWaitTicks = domain.TicksPerHour
 
 func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if r.power != nil && r.power.Method == policy.PowerShelter {

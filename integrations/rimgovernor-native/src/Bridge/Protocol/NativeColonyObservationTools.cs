@@ -640,7 +640,7 @@ namespace HomeBridge.BridgeTools
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });
             foreach (var stock in source.stocks) {
                 // The stock's thing is a things table row (#1343).
-                var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition), Reserve = stock.reserve };
+                var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition) };
                 row.Eaters.Add(NativeRef.All(stock.eaters!));
                 if (stock.holder != null) row.Holder = NativeRef.Of(stock.holder);
                 result.Stocks.Add(row);

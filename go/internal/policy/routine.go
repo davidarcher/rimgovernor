@@ -153,7 +153,7 @@ type RoutinePolicy struct {
 // bound planner cost only and distinct observed workers decide admission.
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays, PrisonerReleaseAfterDays: 15,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 30000, AcquisitionStallTicks: 60000, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: domain.TicksPerDay / 2, AcquisitionStallTicks: domain.TicksPerDay, GoalStallTicks: int64(DevelopmentStallTicks), ResearchLadder: DefaultResearchLadder(), ColonyStage: StageDevelopment}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -235,6 +235,9 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	// Items are the catalog's item numbers (market value, nutrition,
+	// medical potency, stuff factors); the zero value without a catalog.
+	Items ItemFacts `json:",omitzero"`
 	// VetRoom is the layout's vet room; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
 	VetRoom     VetRoom
@@ -1054,7 +1057,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// The wood latch is a WoodLog floor on MaintainResource (#728): below
 	// WoodMin it asks for WoodTarget until the latch recovers.
 	r.WoodFloor = WoodFloor(l.Wood, p)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(ResourceGoalTargets(MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(r.WoodFloor)))
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(ResourceGoalTargets(MedicineResourceNeeds(f.Items, ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(r.WoodFloor)))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -1096,7 +1099,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// conversation, not a development slot, and recovers by itself when
 	// the caravan leaves or nothing is left worth trading.
 	// Restore parts a bench could make do not stand the goal (#1255).
-	tradeNeed := AnimalSaleNeed(ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), TradeSurgeryParts(SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
+	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), TradeSurgeryParts(SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
 	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())))
 	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)

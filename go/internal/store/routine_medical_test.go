@@ -23,7 +23,7 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	r.Policy.Stage.Floor = policy.StageStable // the care phase is raised from StageStable
 	// A stocked reserve, so the care phase alone decides the merged goal.
 	r.Facts.Colonists = domain.Known(int64(1))
-	r.Facts.MedicalReserve = policy.MedicalReserveObservation{Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 100, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineHerbal", Count: 100}})}
+	r.Facts.MedicalReserve = policy.MedicalReserveObservation{Catalog: policy.CoreItemFacts(), Items: domain.Known([]policy.MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 100, Perishable: domain.Known(false)}}), Resources: domain.Known([]policy.Amount{{Resource: "MedicineHerbal", Count: 100}})}
 	r.Facts.MedicalPawns = domain.Known([]policy.CarePawn{medicalPawn(true)})
 	out := reviewRoutine(t, s, &r)
 	initial := routineGoal(t, out, policy.MaintainMedicalReserves)

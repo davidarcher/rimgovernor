@@ -10,9 +10,10 @@ import (
 // it carries (go-juice, or yayo; #1540) once per fight, when a hostile
 // comes within its weapon range plus doseMargin and the fight is worth the
 // drug: the squad is outmatched, or a mech or a go-juiced raider is in it.
-// A lone manhunter rat is fought sober. Native picks the carried drug and
-// refuses a child, a pawn already high, or one addicted to, in withdrawal
-// from or highly tolerant of its chemical.
+// A lone manhunter rat is fought sober. The order names the preferred
+// combat drug (CombatDrugs); native validates it and refuses a child, a
+// pawn already high, or one addicted to, in withdrawal from or highly
+// tolerant of its chemical.
 const (
 	OrderDrug  CombatOrderKind   = "drug"
 	ReasonDrug CombatOrderReason = "drug"
@@ -67,7 +68,7 @@ func doseOrders(view CombatView, m *CombatMemory, orders []CombatOrder, orderabl
 			continue
 		}
 		m.Dosed = append(m.Dosed, id)
-		doses = append(doses, CombatOrder{Pawn: id, Kind: OrderDrug, Reason: ReasonDrug})
+		doses = append(doses, CombatOrder{Pawn: id, Kind: OrderDrug, Drug: CombatDrugs[0].Def, Reason: ReasonDrug})
 	}
 	return doses
 }

@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             {
                 var remaining = item.Count;
                 var groups = built.transferables.Where(g => !(g.AnyThing is Pawn) && g.ThingDef.defName == item.DefName)
-                    .OrderByDescending(g => g.things.Any(FoodSupplyFacts.IsReserve)).ThenByDescending(ShelfDays).ToList();
+                    .OrderByDescending(g => g.things.Any(t => t.Spawned && t.IsForbidden(Faction.OfPlayer))).ThenByDescending(ShelfDays).ToList();
                 foreach (var group in groups)
                 {
                     if (remaining == 0) break;

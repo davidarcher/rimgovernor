@@ -36,7 +36,7 @@ const (
 	StockpileShrinkFill = 0.25
 	// StockpileShrinkAfter is how long a zone must sit mostly empty
 	// before it shrinks: one game day.
-	StockpileShrinkAfter domain.Tick = 60000
+	StockpileShrinkAfter domain.Tick = domain.TicksPerDay
 	// StockpileMinCells is the floor a shrink never goes under.
 	StockpileMinCells = 4
 	// foodStorageMinCells is the roofed cells one zone needs to count as the

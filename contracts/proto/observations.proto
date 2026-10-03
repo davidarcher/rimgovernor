@@ -1108,9 +1108,10 @@ message TradeSheetReply { oneof outcome { TradeSheet observed = 1; rimgovernor.c
 message FoodConsumer { optional string pawn_id = 1; optional double nutrition_per_day = 2; optional bool human_meat_acceptable = 3; }
 // A food stock references its thing's row in the bundle's things table
 // (#1343) and adds what is relative to its eaters: holder when only
-// that pawn eats it, the nutrition the stack gives them, who can eat it
-// and whether it is the forbidden reserve.
-message FoodStock { rimgovernor.common.v1.Ref item = 1; reserved 2, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; optional bool reserve = 11; }
+// that pawn eats it, the nutrition the stack gives them and who can eat it
+// (the row's forbidden flag is the stack's; Go decides which forbidden food
+// is the travel reserve).
+message FoodStock { rimgovernor.common.v1.Ref item = 1; reserved 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21; rimgovernor.common.v1.Ref holder = 3; optional double nutrition = 4; repeated rimgovernor.common.v1.Ref eaters = 5; }
 message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; }
 message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; reserved 3; FoodLarderFacts larder = 4; }

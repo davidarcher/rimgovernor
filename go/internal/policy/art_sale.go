@@ -28,58 +28,75 @@ func SilverStock(resources domain.Fact[[]Amount]) domain.Fact[int64] {
 // Silver is the colony silver stock (SilverStock over f.Resources).
 func (f RoutineFacts) Silver() domain.Fact[int64] { return SilverStock(f.Resources) }
 
-// Rough purchase prices in silver (vanilla base market values): industrial
-// medicine, a component, and a unit of nutrition as raw food (rice, 1.1
-// silver per 0.05 nutrition). A shortfall resource is priced at its stuff
-// market value, 1 when unlisted.
-const (
-	roughMedicinePrice  = 18
-	roughComponentPrice = 32
-	roughNutritionPrice = 22
-)
-
-// PurchasePrice is the rough silver the need's purchases cost, false when
-// it has none (a surplus or a pawn purchase alone is no silver need).
-func (n TradeNeed) PurchasePrice() (float64, bool) {
-	price := float64(n.MedicineReplenish*roughMedicinePrice + n.ComponentShortfall*roughComponentPrice)
-	price += (max(0, n.Food.Nutrition) + float64(len(n.Food.Missing))*max(0, n.Food.IngredientNutrition)) * roughNutritionPrice
+// PurchasePrice is the rough silver the need's purchases cost at the game's
+// market values (ItemFacts): the cheapest medicine a replenish buys, a
+// component, a unit of nutrition as the cheapest raw plant food, and each
+// shortfall resource. false when the need has no purchase (a surplus or a
+// pawn purchase alone is no silver need); a price the catalog lacks is an
+// error.
+func (n TradeNeed) PurchasePrice(items ItemFacts) (float64, bool, error) {
+	any := n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0 || len(n.Shortfall) > 0
+	price := 0.0
+	if n.MedicineReplenish > 0 {
+		_, medicine, err := items.CheapestMedicine()
+		if err != nil {
+			return 0, false, err
+		}
+		price += float64(n.MedicineReplenish) * medicine
+	}
+	if n.ComponentShortfall > 0 {
+		component, err := items.MarketValue(ComponentResource)
+		if err != nil {
+			return 0, false, err
+		}
+		price += float64(n.ComponentShortfall) * component
+	}
+	if nutrition := max(0, n.Food.Nutrition) + float64(len(n.Food.Missing))*max(0, n.Food.IngredientNutrition); nutrition > 0 {
+		perNutrition, err := items.RawFoodNutritionPrice()
+		if err != nil {
+			return 0, false, err
+		}
+		price += nutrition * perNutrition
+	}
 	for _, row := range n.Shortfall {
-		value := 1.0
-		if f, ok := bedStuffFactors[row.Resource]; ok {
-			value = f.Value
+		value, err := items.MarketValue(row.Resource)
+		if err != nil {
+			return 0, false, err
 		}
 		price += float64(row.Count) * value
 	}
-	any := n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0 || len(n.Shortfall) > 0
-	return price, any
+	return price, any, nil
 }
 
 // SilverShort is the silver runway deficit (#1169): a purchase need exists
 // and the silver on hand is below its rough price plus TradeSilverReserve.
 // Sale sculptures (#1193) and sale organ harvests (#1169) answer it; unknown
 // while any input is.
-func SilverShort(need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) domain.Fact[bool] {
+func SilverShort(items ItemFacts, need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) domain.Fact[bool] {
 	n, nk := need.Value()
 	s, sk := silver.Value()
 	reserve, rk := TradeSilverReserve(colonists)
 	if !nk || !sk || !rk {
 		return domain.Unknown[bool]()
 	}
-	price, any := n.PurchasePrice()
+	price, any, err := n.PurchasePrice(items)
+	if err != nil {
+		return domain.Unknown[bool]()
+	}
 	return domain.Known(any && float64(s) < price+float64(reserve))
 }
 
 // ArtSaleWanted reports whether sale sculpting runs: known positive wealth
 // headroom and a known SilverShort. Anything unknown wants nothing.
-func ArtSaleWanted(headroom domain.Fact[float64], need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
+func ArtSaleWanted(items ItemFacts, headroom domain.Fact[float64], need domain.Fact[TradeNeed], silver, colonists domain.Fact[int64]) bool {
 	h, hk := headroom.Value()
-	return hk && finite(h) && h > 0 && positive(SilverShort(need, silver, colonists))
+	return hk && finite(h) && h > 0 && positive(SilverShort(items, need, silver, colonists))
 }
 
 // reviewSilverShort is SilverShort over the review's trade need.
 func reviewSilverShort(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) domain.Fact[bool] {
 	need := ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
-	return SilverShort(need, f.Silver(), f.Colonists)
+	return SilverShort(f.Items, need, f.Silver(), f.Colonists)
 }
 
 // artForSale is ArtSaleWanted over the review's trade need.
@@ -127,12 +144,13 @@ func selectSaleSculpture(available map[string][]BillSelection, artist PawnID, de
 		if len(options) == 0 || demand.Skill[artist] < size.MinSkill {
 			continue
 		}
-		for stuff, f := range bedStuffFactors {
-			if demand.Stock[stuff] < size.Cost {
+		for _, stuff := range demand.Items.StuffsFor(Resource(size.Def)) {
+			value, err := demand.Items.MarketValue(stuff)
+			if err != nil || demand.Stock[stuff] < size.Cost {
 				continue
 			}
 			work := sculptureWork[size.Recipe]
-			score := (float64(size.Cost)*f.Value + work*valuePerWorkTick) / work
+			score := (float64(size.Cost)*value + work*valuePerWorkTick) / work
 			if score > bestScore || score == bestScore && best.Recipe == size.Recipe && Resource(best.Ingredients[0]) > stuff {
 				best, bestScore = options[0], score
 				best.Ingredients = []string{string(stuff)}

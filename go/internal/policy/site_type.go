@@ -75,32 +75,37 @@ const siteColdC = 6.0
 // hours. Basins and heaters draw all day.
 const siteLampDuty = 0.55
 
-// siteSteelEquivalents prices cost-list resources in steel by market value
-// (a component is 32 silver to steel's 1.9); unlisted resources count as
-// steel.
-var siteSteelEquivalents = map[Resource]float64{"Steel": 1, "ComponentIndustrial": 17}
+// siteSteelUnit is the construction material a building's cost is counted
+// in: each cost-list resource is worth its market value over steel's.
+const siteSteelUnit Resource = "Steel"
 
-// siteSteelEquivalent is a building's cost list in steel; an unknown list
-// prices as 100 steel so every kind still pays for what it builds.
-func siteSteelEquivalent(infra Infrastructure) float64 {
+// siteSteelEquivalent is a building's cost list in steel by the game's market
+// values; an unknown list prices as 100 steel so every kind still pays for
+// what it builds, and a resource the catalog does not price is an error.
+func siteSteelEquivalent(items ItemFacts, infra Infrastructure) (float64, error) {
 	costs, known := infra.Costs.Value()
 	if !known {
-		return 100
+		return 100, nil
+	}
+	steel, err := items.MarketValue(siteSteelUnit)
+	if err != nil {
+		return 0, err
 	}
 	total := 0.0
 	for _, c := range costs {
-		rate, listed := siteSteelEquivalents[c.Resource]
-		if !listed {
-			rate = 1
+		value, err := items.MarketValue(c.Resource)
+		if err != nil {
+			return 0, err
 		}
-		total += rate * float64(c.Count)
+		total += value / steel * float64(c.Count)
 	}
-	return total
+	return total, nil
 }
 
 // siteConstructionCharge is the daily unit cost of count new buildings.
-func siteConstructionCharge(w SiteTypeWeights, unit float64, infra Infrastructure, count int) float64 {
-	return -w.Construction * unit * siteSteelEquivalent(infra) / 100 * float64(count)
+func siteConstructionCharge(items ItemFacts, w SiteTypeWeights, unit float64, infra Infrastructure, count int) (float64, error) {
+	steel, err := siteSteelEquivalent(items, infra)
+	return -w.Construction * unit * steel / 100 * float64(count), err
 }
 
 // siteBasinCells is the native HydroponicsBasin footprint (1x4).
@@ -115,6 +120,8 @@ type SiteTypeRequest struct {
 	// LampGrowthRadius is the native Building_SunLamp growth radius in cells.
 	LampGrowthRadius float64
 	Weights          SiteTypeWeights
+	// Items price the cost lists (market values).
+	Items ItemFacts
 }
 
 // siteHydroponicTag is the native sow tag a HydroponicsBasin accepts. A new
@@ -369,7 +376,12 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			c.Reason = "no night power headroom for heating"
 			return false
 		}
-		charge("heating", -w.Power*unit*total/1000+siteConstructionCharge(w, unit, heater, coldRooms))
+		build, err := siteConstructionCharge(r.Items, w, unit, heater, coldRooms)
+		if err != nil {
+			c.Reason = err.Error()
+			return false
+		}
+		charge("heating", -w.Power*unit*total/1000+build)
 		return true
 	}
 	roofedIndoorSoil := func(s SiteCell) bool {
@@ -467,7 +479,12 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			return c
 		}
 		c.Terms = siteTerms(c.Sites)
-		charge("construction", siteConstructionCharge(w, unit, lamp, 1))
+		build, err := siteConstructionCharge(r.Items, w, unit, lamp, 1)
+		if err != nil {
+			c.Cells, c.Sites, c.Reason = 0, FarmSitePlan{}, err.Error()
+			return c
+		}
+		charge("construction", build)
 		charge("power", -w.Power*unit*draw*siteLampDuty/1000)
 		c.Buildings = []SiteBuilding{{Definition: lamp.Name, Cell: center, Rotation: domain.North}}
 		cold := 0
@@ -570,8 +587,13 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 		return c
 	}
 	n := len(c.Buildings)
+	build, err := siteConstructionCharge(r.Items, w, unit, basin, n)
+	if err != nil {
+		c.Buildings, c.Reason = nil, err.Error()
+		return c
+	}
 	c.Cells = n * siteBasinCells
-	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -siteTravelWeight * unit * float64(walk)}, {"construction", siteConstructionCharge(w, unit, basin, n)}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
+	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -siteTravelWeight * unit * float64(walk)}, {"construction", build}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
 	total := 0.0
 	for _, t := range c.Terms {
 		total += t.Value

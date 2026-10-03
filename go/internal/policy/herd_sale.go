@@ -42,9 +42,9 @@ func (f RoutineFacts) SaleAnimals() map[PawnID]bool {
 
 // AnimalSaleNeed adds the animal-sale reason to the need: sale animals and a
 // known silver shortfall (SilverShort). Anything unknown adds nothing.
-func AnimalSaleNeed(need domain.Fact[TradeNeed], sale map[PawnID]bool, silver, colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
+func AnimalSaleNeed(items ItemFacts, need domain.Fact[TradeNeed], sale map[PawnID]bool, silver, colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
 	n, known := need.Value()
-	if !known || len(sale) == 0 || !positive(SilverShort(need, silver, colonists)) {
+	if !known || len(sale) == 0 || !positive(SilverShort(items, need, silver, colonists)) {
 		return need
 	}
 	n.SurplusAnimals = int64(len(sale))

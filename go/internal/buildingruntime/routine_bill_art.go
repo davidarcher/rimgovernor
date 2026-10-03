@@ -94,10 +94,10 @@ func artDemand(facts observation.ColonyProjection, profiles []policy.PawnProfile
 	obs, sk := facts.Facts.Sleeping.Value()
 	traits := sleepingTraits(facts)
 	if !rk || !ck || !sk || !census.Colony || traits == nil {
-		return policy.NewArtDemand(domain.Unknown[policy.SleepingObservation](), nil, nil, stock, profiles)
+		return policy.NewArtDemand(domain.Unknown[policy.SleepingObservation](), nil, nil, stock, profiles, facts.Facts.Items)
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.NewArtDemand(facts.Facts.Sleeping, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), stock, profiles)
+	return policy.NewArtDemand(facts.Facts.Sleeping, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items)
 }
 
 // artBenches converts the gear benches offering a sculpture recipe into

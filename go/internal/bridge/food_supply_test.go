@@ -67,7 +67,6 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 	// The facts a stock's row decides are checked once it is joined.
 	for _, change := range []func(*o.FoodSupplyFacts, Things){
 		func(v *o.FoodSupplyFacts, _ Things) { v.Stocks[0].Eaters = nil },
-		func(v *o.FoodSupplyFacts, _ Things) { v.Stocks[0].Reserve = proto.Bool(true) },
 		func(v *o.FoodSupplyFacts, _ Things) {
 			v.Larder = &o.FoodLarderFacts{Corpses: []*o.CorpseHandling{{StockId: "rice"}}}
 		},

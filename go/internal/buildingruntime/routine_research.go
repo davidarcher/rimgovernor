@@ -137,7 +137,11 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	// The ladder is paced by the colony stage (#630): a Foothold colony
 	// walks its first rungs, a Development colony the whole ladder.
 	staged := r.reviewer.staged()
-	needs, err := routineResearchNeeds(call, p.journal, staged, state.Snapshot)
+	items, err := r.reviewer.itemFacts(call, state.Snapshot)
+	if err != nil {
+		return RoutineResearchResult{}, err
+	}
+	needs, err := routineResearchNeeds(call, p.journal, staged, items, state.Snapshot)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}

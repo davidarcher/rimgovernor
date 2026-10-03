@@ -51,7 +51,7 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
 	}
-	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}}
+	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}, Items: facts.Facts.Items}
 	materials.Stock, _ = facts.Resources.Value()
 	for _, d := range facts.Definitions {
 		stuff, sk := d.Stuff.Value()

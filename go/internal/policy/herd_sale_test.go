@@ -107,12 +107,12 @@ func TestSelectTradeSellsSurplusAnimals(t *testing.T) {
 	unknown := append([]TradeSheetRowFact(nil), rows...)
 	unknown[0].PawnKnown = false
 	unknown[1].SellPriceKnown = false
-	facts.Rows = unknown
+	facts.Rows = withCurrency(unknown)
 	if s := SelectTrade(domain.TradeEconomicPolicy{}, facts); len(s.Selected) != 0 {
 		t.Fatalf("unknown row facts sold: %+v", s.Selected)
 	}
 	// The trader's cash bounds the sale.
-	facts.Rows, facts.TraderSilver = rows, 50
+	facts.Rows, facts.TraderSilver = withCurrency(rows), 50
 	if s := SelectTrade(domain.TradeEconomicPolicy{}, facts); len(s.Selected) != 1 {
 		t.Fatalf("trader cash ignored: %+v", s.Selected)
 	}
@@ -139,17 +139,17 @@ func TestAnimalSaleNeedNeedsSilverShortage(t *testing.T) {
 	short := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(5))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{})
 	sale := map[PawnID]bool{"g1": true, "g2": true}
 	colonists := domain.Known(int64(3))
-	need, _ := AnimalSaleNeed(short, sale, domain.Known(int64(100)), colonists).Value()
+	need, _ := AnimalSaleNeed(CoreItemFacts(), short, sale, domain.Known(int64(100)), colonists).Value()
 	if need.SurplusAnimals != 2 || !need.Any() {
 		t.Fatalf("short silver: %+v", need)
 	}
-	if need, _ := AnimalSaleNeed(short, sale, domain.Known(int64(5000)), colonists).Value(); need.SurplusAnimals != 0 {
+	if need, _ := AnimalSaleNeed(CoreItemFacts(), short, sale, domain.Known(int64(5000)), colonists).Value(); need.SurplusAnimals != 0 {
 		t.Fatalf("silver not short: %+v", need)
 	}
-	if need, _ := AnimalSaleNeed(short, sale, domain.Unknown[int64](), colonists).Value(); need.SurplusAnimals != 0 {
+	if need, _ := AnimalSaleNeed(CoreItemFacts(), short, sale, domain.Unknown[int64](), colonists).Value(); need.SurplusAnimals != 0 {
 		t.Fatalf("unknown silver: %+v", need)
 	}
-	if need, _ := AnimalSaleNeed(short, nil, domain.Known(int64(100)), colonists).Value(); need.SurplusAnimals != 0 {
+	if need, _ := AnimalSaleNeed(CoreItemFacts(), short, nil, domain.Known(int64(100)), colonists).Value(); need.SurplusAnimals != 0 {
 		t.Fatalf("no sale animals: %+v", need)
 	}
 }

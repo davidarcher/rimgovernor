@@ -337,7 +337,7 @@ func prisonerIntent(row PrisonerFacts, colony PrisonerColony, food domain.Fact[f
 	if !hk {
 		return "", true
 	}
-	if float64(held) >= p.ReleaseAfterDays*60000 {
+	if float64(held) >= p.ReleaseAfterDays*domain.TicksPerDay {
 		return domain.PrisonerInteractionRelease, false
 	}
 	return "", false
