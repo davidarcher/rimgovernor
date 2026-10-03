@@ -398,7 +398,7 @@ func readyActionStage(a domain.Action) (readyStage, bool) {
 // the bench family the rest of the controller assumes.
 func billWork(recipe string) WorkType {
 	switch {
-	case strings.HasPrefix(recipe, "Cook") || recipe == "Make_Kibble" || recipe == "Make_Pemmican" || strings.HasPrefix(recipe, "Butcher"):
+	case strings.HasPrefix(recipe, "Cook") || strings.HasPrefix(recipe, "Make_Kibble") || strings.HasPrefix(recipe, "Make_Pemmican") || strings.HasPrefix(recipe, "Butcher"):
 		return WorkCooking
 	}
 	return WorkCrafting

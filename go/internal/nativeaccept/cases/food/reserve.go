@@ -248,9 +248,9 @@ func pemmicanUnits(probe map[string]any) (held, free int, err error) {
 func reserveBill(probe map[string]any) (map[string]any, error) {
 	for _, raw := range na.AsSlice(probe["bills"]) {
 		row, _ := na.AsMap(raw)
-		if row["recipe"] == "Make_Pemmican" {
+		if recipe := na.AsString(row["recipe"]); recipe == "Make_PemmicanBulk" || recipe == "Make_Pemmican" {
 			return row, nil
 		}
 	}
-	return nil, fmt.Errorf("native Make_Pemmican bill missing: %v", probe["bills"])
+	return nil, fmt.Errorf("native Make_Pemmican(Bulk) bill missing: %v", probe["bills"])
 }
