@@ -92,6 +92,12 @@ any time too, so every agent:
 
 Remote agents additionally:
 
+0. Cloud clones are shallow and local `main` is frozen at the container
+   snapshot, often hundreds of commits behind, while the session branch
+   starts from current `origin/main`. At session start run
+   `git fetch --unshallow origin main 2>/dev/null || git fetch origin main`
+   and `git branch -f main origin/main` (`cmd/test` diffs against `main`;
+   `cmd/land` does the same sync itself).
 1. Run no acceptance; say `Unverified: no acceptance run
    (remote agent)` in the commit body; the land-tier run on every push to
    `main` verifies it (its summary lists failing cases).
