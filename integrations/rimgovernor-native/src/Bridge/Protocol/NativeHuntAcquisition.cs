@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
                 && (bill.repeatMode == BillRepeatModeDefOf.Forever
                     || bill.repeatMode == BillRepeatModeDefOf.RepeatCount && bill.repeatCount > 0
                     || bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count && count < bill.targetCount))
-            && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
+            && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.InMentalState
                 && DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking") is WorkTypeDef cooking && p.workSettings?.WorkIsActive(cooking) == true && p.CanReach(b, PathEndMode.InteractionCell, Danger.None)));
         // Food prey is wild and edible. Revenge and predation are policy costs
         // (the census flags them; a lone hunter never designates either, a squad
@@ -75,7 +75,8 @@ namespace HomeBridge.BridgeTools
         // food; it never covers a pest or anything the safe-prey rule rejects.
         internal static bool Meleeable(Pawn prey) => SafePrey(prey) && !prey.RaceProps.predator && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
         private static bool MeleeArmed(Pawn p, Pawn prey) => Meleeable(prey) && (p.equipment?.Primary == null || p.equipment.Primary.def.IsMeleeWeapon);
-        // Hunter is the colonist rule: hunting enabled, an ordinary bullet
+        // Hunter is the colonist rule (a drafted squad still counts: its own
+        // draft must not withdraw the prey it is hunting): hunting enabled, an ordinary bullet
         // weapon (or a melee weapon or bare hands against meleeable prey),
         // within 100 cells over a safe route. A pest is hunted wherever it
         // is on the map (the pack arrives at the edge and works inward);
@@ -99,7 +100,7 @@ namespace HomeBridge.BridgeTools
             var colonists = prey.Map.mapPawns.FreeColonistsSpawned.ToList();
             if (colonists.Count == 0) return "no colonist";
             var reasons = colonists.Select(p =>
-                p.Downed ? "downed" : p.Drafted ? "drafted" : p.InMentalState ? "mental state"
+                p.Downed ? "downed" : p.InMentalState ? "mental state"
                 : p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) != true ? "hunting inactive"
                 : !OrdinaryWeapon(p) && !MeleeArmed(p, prey) ? "no ordinary ranged weapon (" + (p.equipment?.Primary?.def.defName ?? "unarmed") + ")" + (Meleeable(prey) ? "" : " and the prey is not meleeable")
                 : !(Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) ? "too far"
