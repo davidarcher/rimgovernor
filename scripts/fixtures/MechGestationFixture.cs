@@ -75,7 +75,11 @@ namespace HomeBridge.BridgeTools
                 var affordable = recipes.Where(r => Able(overseer, r) && Cost(r) > 0f && Cost(r) <= free).ToList();
                 if (affordable.Count == 0) return Refuse("No gestation recipe fits the mechanitor's free bandwidth " + free + ".");
 
-                foreach (var r in affordable) {
+                // Only the cheapest recipe is researched, so the controller's
+                // options (and the stock the fixture lays in) are the recipes
+                // available without further research.
+                var cheapest = affordable.OrderBy(r => r.ingredients.Sum(i => i.GetBaseCount()) * Math.Max(1, r.gestationCycles)).ThenBy(r => r.defName, StringComparer.Ordinal).First();
+                foreach (var r in new[] { cheapest }) {
                     if (r.researchPrerequisite != null) Find.ResearchManager.FinishProject(r.researchPrerequisite, false);
                     foreach (var research in r.researchPrerequisites ?? new List<ResearchProjectDef>()) Find.ResearchManager.FinishProject(research, false);
                     if (r.skillRequirements == null) continue;
@@ -85,6 +89,8 @@ namespace HomeBridge.BridgeTools
                     }
                 }
                 foreach (var research in gestatorDef.researchPrerequisites ?? new List<ResearchProjectDef>()) Find.ResearchManager.FinishProject(research, false);
+                affordable = affordable.Where(r => r.AvailableNow).ToList();
+                if (!affordable.Contains(cheapest)) return Refuse("The cheapest gestation recipe " + cheapest.defName + " is not available after its research.");
                 overseer.workSettings.EnableAndInitialize();
                 foreach (var work in affordable.Select(r => NativeBillsObservationTools.WorkType(gestatorDef, r)).Distinct())
                     overseer.workSettings.SetPriority(work, 1);
