@@ -31,14 +31,14 @@ const (
 // publishThings publishes the review frame's things table (#1343) as the
 // things section keyed by thing id.
 func publishThings(m *facts.Store, scope facts.Scope, things bridge.Things, tick int64) {
-	facts.PutTable(m, scope, bridge.ThingsSection, things.Map(), facts.At(tick))
+	facts.PutKeyed(m, scope, bridge.ThingsSection, things.Table, facts.At(tick))
 }
 
 // publishPawns publishes the review frame's pawn table (#1343) as the pawn
 // section keyed by pawn id; the recording keeps only the rows that
 // changed.
 func publishPawns(m *facts.Store, scope facts.Scope, pawns bridge.Pawns, tick int64) {
-	facts.PutTable(m, scope, pawnSectionName, pawns.Map(), facts.At(tick))
+	facts.PutKeyed(m, scope, pawnSectionName, pawns.Table, facts.At(tick))
 }
 
 // publishBenches reads the gear bench census (each bench's bill stack and

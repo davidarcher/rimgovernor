@@ -100,6 +100,9 @@ type recSection struct {
 	asOf    facts.Watermark
 	keys    map[string]json.RawMessage
 	rows    map[string]json.RawMessage
+	// prev is the persistent table version the section was last recorded
+	// from (recordKeyed), the base of the next delta.
+	prev facts.KeyedRows
 	// field caches the bound field built at version.
 	field      any
 	fieldBuilt bool
@@ -119,6 +122,10 @@ func MirrorRecorder(dir string) facts.Recorder {
 
 // recordSection appends p to dir's stream as a section line.
 func recordSection(dir string, p facts.Published) {
+	if kr, ok := p.Rows.(facts.KeyedRows); ok {
+		recordKeyed(dir, p, kr)
+		return
+	}
 	keys, rows, err := encodeRows(p.Rows)
 	streamsMu.Lock()
 	defer streamsMu.Unlock()
@@ -171,6 +178,81 @@ func recordSection(dir string, p facts.Published) {
 		return
 	}
 	rec.sections[p.Section] = &recSection{scope: p.Scope, version: p.Version, asOf: p.AsOf, keys: keys, rows: rows, grid: grid}
+}
+
+// recordKeyed is recordSection for a section published as a persistent
+// table version (facts.PutKeyed, #1578): after the keyframe, only the rows
+// that changed since the held version are encoded, so a line costs the
+// rows that changed, not the table. The lines are those recordSection
+// writes for the same rows.
+func recordKeyed(dir string, p facts.Published, kr facts.KeyedRows) {
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	rec, err := openStream(dir, domain.Tick(p.AsOf.Tick))
+	if err != nil {
+		if rec != nil {
+			delete(rec.sections, p.Section)
+		}
+		return
+	}
+	held := rec.sections[p.Section]
+	frame := sectionFrame{Name: p.Section, Version: p.Version, AsOf: p.AsOf, Scope: p.Scope}
+	var keys, rows map[string]json.RawMessage
+	var encodeErr error
+	encoded := func(id string, row any) (key, enc json.RawMessage) {
+		k, err := compactTree(reflect.ValueOf(id))
+		if err != nil {
+			encodeErr = errors.Join(encodeErr, err)
+			return nil, nil
+		}
+		r, err := compactTree(reflect.ValueOf(row))
+		if err != nil {
+			encodeErr = errors.Join(encodeErr, err)
+		}
+		return k, r
+	}
+	if held == nil || held.scope != p.Scope || held.prev == nil {
+		frame.Key = true
+		keys, rows = map[string]json.RawMessage{}, map[string]json.RawMessage{}
+		kr.Rows(func(id string, row any) {
+			k, r := encoded(id, row)
+			keys[string(k)], rows[string(k)] = k, r
+		})
+		for _, k := range sortedKeys(rows) {
+			frame.Upserts = append(frame.Upserts, [2]json.RawMessage{keys[k], rows[k]})
+		}
+	} else {
+		keys, rows = held.keys, held.rows
+		var removed []json.RawMessage
+		kr.ChangedSince(held.prev, func(id string, row any) {
+			k, r := encoded(id, row)
+			if old, ok := rows[string(k)]; !ok || string(old) != string(r) {
+				frame.Upserts = append(frame.Upserts, [2]json.RawMessage{k, r})
+				keys[string(k)], rows[string(k)] = k, r
+			}
+		}, func(id string) {
+			k, _ := compactTree(reflect.ValueOf(id))
+			removed = append(removed, k)
+			delete(keys, string(k))
+			delete(rows, string(k))
+		})
+		sort.Slice(frame.Upserts, func(i, j int) bool { return string(frame.Upserts[i][0]) < string(frame.Upserts[j][0]) })
+		sort.Slice(removed, func(i, j int) bool { return string(removed[i]) < string(removed[j]) })
+		frame.Removed = removed
+	}
+	if encodeErr != nil {
+		delete(rec.sections, p.Section)
+		return
+	}
+	if !frame.Key && len(frame.Upserts) == 0 && len(frame.Removed) == 0 && !bound(p.Section) {
+		return
+	}
+	frame.stamp()
+	if err := rec.append(streamLine{Tick: domain.Tick(p.AsOf.Tick), Section: &frame}); err != nil {
+		delete(rec.sections, p.Section)
+		return
+	}
+	rec.sections[p.Section] = &recSection{scope: p.Scope, version: p.Version, asOf: p.AsOf, keys: keys, rows: rows, prev: kr}
 }
 
 // encodeRows is a map[K]R's keys and rows as Encode's compact JSON, by

@@ -487,7 +487,13 @@ held beside the decoded sections and their invalidation versions. The
 store's scope is the load, map and native generation, so a reload, a map
 change or an authority generation flip empties both. Tables
 are immutable once published, and each goes to the snapshot recorder.
-The review publishes the frame's colony facts (one section per
+The pawn, building and thing tables are persistent (`bridge.Table`, a
+hash trie, #1578): the snapshot stream's hold applies each row delta to
+the held version in O(changed rows), consumers read the versions directly
+(a version never changes, so one may be kept across frames), and the pawn
+and thing sections publish as versions (`facts.PutKeyed`), which the
+recorder diffs against the last without walking shared rows. The review
+publishes the frame's colony facts (one section per
 `bridge.ColonySections` name), the frame's pawn table (section `pawns`,
 every spawned pawn keyed by pawn id, #1343), its things table (section
 `things`, every thing a food stock references, keyed by thing id) and the bench census (`benches`, each bench's

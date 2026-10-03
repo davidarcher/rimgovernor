@@ -33,13 +33,13 @@ func TestPawnSectionPublishesTable(t *testing.T) {
 		return out
 	}
 	publishPawns(m, scope, frame(pawnRow("Pawn_2", "a"), pawnRow("Pawn_1", "b")), 100)
-	table, ok := facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
-	if !ok || len(table.Rows) != 2 || table.AsOf != facts.At(100) {
+	table, ok := facts.GetKeyed(m, scope, pawnSectionName)
+	if !ok || table.Rows.(bridge.Table[*o.PawnState]).Len() != 2 || table.AsOf != facts.At(100) {
 		t.Fatalf("table = %+v ok=%v", table, ok)
 	}
 	publishPawns(m, scope, frame(pawnRow("Pawn_1", "c")), 130)
-	table, _ = facts.GetTable[string, *o.PawnState](m, scope, pawnSectionName)
-	if len(table.Rows) != 1 || table.Rows["Pawn_1"].GetKindDefName() != "c" || table.AsOf != facts.At(130) {
+	table, _ = facts.GetKeyed(m, scope, pawnSectionName)
+	if rows := table.Rows.(bridge.Table[*o.PawnState]); rows.Len() != 1 || rows.At("Pawn_1").GetKindDefName() != "c" || table.AsOf != facts.At(130) {
 		t.Fatalf("table after roster change = %+v", table)
 	}
 }

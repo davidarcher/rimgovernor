@@ -344,13 +344,13 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 }
 
 // frameRepliesWith is frameReplies for the live stream (#1578). Replies
-// are built when read, so a frame no consumer reads costs none. With hold,
-// v's keyed tables are views of the hold's persistent tables: the typed
-// table reads and the routine frame take them from the hold, and the
-// replies derived from them (the routine colonists, the built buildings,
-// the combat census) look rows up by id instead of walking the list. The
-// list reads that remain (the plain pawn and building lists, a combat
-// recording) marshal a table whole, and only when read. Combat rows
+// are built when read, so a frame no consumer reads costs none. With held
+// (the hold's persistent table versions at this frame), v's keyed tables
+// carry their envelope only: the typed table reads and the routine frame
+// read the versions directly, and the replies derived from them (the
+// routine colonists, the combat census) look rows up by id. The list
+// replies that remain (the plain pawn and building lists, a step snapshot)
+// build a whole list from the version, and only when read. Combat rows
 // (CombatPawns) are not keyed and native sends them whole.
 func frameRepliesWith(v *o.BundleSnapshot, emergency EmergencyObservation, held *heldTables, seedLazy func(method string, request proto.Message, reply func() proto.Message)) {
 	seed := func(method string, request, reply proto.Message) {
