@@ -27,10 +27,15 @@ when it needs another room.
 | Food store | `food` | Beside the kitchen | Preferred | Food, until a roofed food store stands |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | The storage room (apparel) and barracks (weapons) | Preferred | Clothing and armor, weapons |
+| Dumps | `dump:worn`, `dump:rotten`, `dump:corpses` | A free outdoor 2x2 patch clear of living rooms, nearest the warehouse; sited only while something waits for it (worn-out apparel, spoiled items and animal carcasses, human corpses) | Low | Worn gear, rotten items, corpses |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation, medicine and food stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
+
+A dump's site room is the outdoor ground at least six cells from every
+living room, so a dump a new bedroom or kitchen crowds is deleted and sited
+again. The opening corpse dump (no planner yet) stands from the first pass.
 
 ## Gear rooms
 

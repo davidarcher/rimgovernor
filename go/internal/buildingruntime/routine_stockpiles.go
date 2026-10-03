@@ -146,6 +146,9 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	storage := storageRequest(projection, request.Protected)
 	storage.Gear = gear
 	storage.Zones = request.Zones
+	if rooms, ok := request.Rooms.Value(); ok {
+		storage.Dumps = &policy.DumpStore{Needs: policy.DumpNeeds(projection.Facts), Rooms: rooms, Anchor: request.Anchor}
+	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
 	request.Sited, request.Gear = plan.Sites, plan.Gear
@@ -256,7 +259,6 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 			request.Shelves = append(request.Shelves, shelf)
 		}
 	}
-	request.Needs = stockpileNeeds(projection.Facts)
 	return request, "", nil
 }
 
@@ -286,45 +288,6 @@ func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.Generat
 		return nil, err
 	}
 	return &held, nil
-}
-
-// stockpileNeeds counts the things waiting for each dump (#724): poor stored
-// apparel and the worn-out garments pawns will shed for the worn dump,
-// spoiled items and rotting animal corpses for the rotten dump, humanlike
-// corpses for the corpse dump. An unknown census counts nothing.
-func stockpileNeeds(facts policy.RoutineFacts) map[string]int {
-	needs := map[string]int{}
-	if gear, ok := facts.Gear.Value(); ok {
-		if stored, ok := gear.Stored.Value(); ok {
-			for _, row := range stored {
-				if !row.Serviceable() {
-					needs[domain.WornDumpRole] += row.Count
-				}
-			}
-		}
-		for _, pawn := range gear.Pawns {
-			worn, _ := pawn.Apparel.Value()
-			for _, a := range worn {
-				if a.Condition < domain.GearHitPointFloor {
-					needs[domain.WornDumpRole]++
-				}
-			}
-		}
-	}
-	if waste, ok := facts.Waste.Value(); ok {
-		for _, item := range waste {
-			if item.State == policy.WasteBuried {
-				continue
-			}
-			switch {
-			case item.Kind == "spoiled", item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal:
-				needs[domain.RottenDumpRole]++
-			case item.Kind == "corpse" && (item.CorpseOf == domain.CorpseColonist || item.CorpseOf == domain.CorpseStranger):
-				needs[domain.CorpseDumpRole]++
-			}
-		}
-	}
-	return needs
 }
 
 // weaponCensus is the loose-weapon read the weapons role counts from.

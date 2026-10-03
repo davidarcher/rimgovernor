@@ -26,12 +26,24 @@ func stockpileCreateRequest() StockpileRequest {
 	return r
 }
 
+// sitedDumps plans the dump sites for needs the way the reviewer feeds them:
+// the planner's sites ride the maintenance request. A nil rooms is the
+// unknown census.
+func sitedDumps(r StockpileRequest, needs map[string]int, rooms []Room) StockpileRequest {
+	storage := StorageRequest{Bounds: r.Bounds, Cells: r.Cells, Protected: r.Protected, Zones: r.Zones}
+	if rooms != nil {
+		storage.Dumps = &DumpStore{Needs: needs, Rooms: rooms, Anchor: r.Anchor}
+	}
+	r.Sited = PlanStorage(storage).Sites
+	return r
+}
+
 // The colony has rotten items and a raider corpse and no zone for either:
 // the two dumps go outdoors on separate patches, and the worn dump (nothing
 // to store) gets none.
 func TestStockpileCreatesMissingRolesWithThings(t *testing.T) {
 	r := stockpileCreateRequest()
-	r.Needs = map[string]int{domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
+	r = sitedDumps(r, map[string]int{domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}, []Room{})
 	review := PlanStockpileMaintenance(r)
 	got := map[string]StockpileEdit{}
 	for _, e := range review.Edits {
@@ -93,16 +105,51 @@ func TestStockpileShelvesFollowTheirZone(t *testing.T) {
 	}
 }
 
-// A role with a zone, or with nothing waiting, is never created; dumps
-// wait on a known room census.
-func TestStockpileCreateSkipsCoveredRolesAndUnknownRooms(t *testing.T) {
+// Dumps wait on a known room census, and a role with nothing waiting is
+// never sited.
+func TestStockpileDumpsWaitOnRoomsAndThings(t *testing.T) {
 	r := stockpileCreateRequest()
-	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.WornDumpRole, Cells: []domain.Cell{{X: 12, Z: 6}}, Filter: domain.WornDumpFilter(), Priority: domain.LowPriority})
-	r.Needs = map[string]int{domain.WornDumpRole: 5, domain.CorpseDumpRole: 2}
-	r.Rooms = domain.Unknown[[]Room]()
-	for _, e := range PlanStockpileMaintenance(r).Edits {
-		if e.Kind == StockpileCreate {
-			t.Fatalf("created %+v", e)
+	unknown := sitedDumps(r, map[string]int{domain.WornDumpRole: 5, domain.CorpseDumpRole: 2}, nil)
+	nothing := sitedDumps(r, map[string]int{domain.WornDumpRole: 0}, []Room{})
+	for name, req := range map[string]StockpileRequest{"unknown rooms": unknown, "nothing waiting": nothing} {
+		for _, e := range PlanStockpileMaintenance(req).Edits {
+			if e.Kind == StockpileCreate {
+				t.Fatalf("%s: created %+v", name, e)
+			}
 		}
+	}
+}
+
+// A role with a zone clear of living rooms is left alone while another
+// waits; a zone a living room crowds is deleted so the planner sites it
+// again.
+func TestStockpileDumpZonesStayClearOfLivingRooms(t *testing.T) {
+	r := stockpileCreateRequest()
+	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.WornDumpRole, Cells: []domain.Cell{{X: 18, Z: 18}}, Filter: domain.WornDumpFilter(), Priority: domain.LowPriority})
+	needs := map[string]int{domain.WornDumpRole: 5, domain.CorpseDumpRole: 2}
+	creates := func(req StockpileRequest) (roles []string, deletes []string) {
+		for _, e := range PlanStockpileMaintenance(req).Edits {
+			switch e.Kind {
+			case StockpileCreate:
+				roles = append(roles, e.Role)
+			case StockpileDelete:
+				deletes = append(deletes, e.Zone)
+			}
+		}
+		return roles, deletes
+	}
+	roles, deletes := creates(sitedDumps(r, needs, []Room{}))
+	if len(roles) != 1 || roles[0] != domain.CorpseDumpRole || len(deletes) != 0 {
+		t.Fatalf("covered: creates %v deletes %v", roles, deletes)
+	}
+	var bedroom []domain.Cell
+	for x := int32(14); x < 17; x++ {
+		for z := int32(14); z < 17; z++ {
+			bedroom = append(bedroom, domain.Cell{X: x, Z: z})
+		}
+	}
+	_, deletes = creates(sitedDumps(r, needs, []Room{{ID: "Room_9", Cells: bedroom, Role: domain.Known(RoomRoleBedroom)}}))
+	if len(deletes) != 1 || deletes[0] != "Zone_2" {
+		t.Fatalf("crowded: deletes %v", deletes)
 	}
 }

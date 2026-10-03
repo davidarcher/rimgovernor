@@ -126,14 +126,3 @@ func openFree(open stockpileOpen, site Rectangle) bool {
 	}
 	return true
 }
-
-// openingRole reports a role the opening creates, so the need-driven
-// creation does not stand a second zone of it.
-func openingRole(edits []StockpileEdit, role string) bool {
-	for _, e := range edits {
-		if e.Role == role {
-			return true
-		}
-	}
-	return false
-}

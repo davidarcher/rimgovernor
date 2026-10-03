@@ -131,12 +131,9 @@ type StockpileRequest struct {
 	Protected []domain.Cell
 	// Colonists sizes the haul budget; unknown holds every edit.
 	Colonists domain.Fact[int64]
-	// Needs counts, per fixed role (#724: the dumps), the
-	// things waiting for it; a role with things and no zone is created.
-	Needs map[string]int
-	// Rooms sites the dumps clear of living rooms; unknown creates none.
+	// Rooms sites the opening corpse dump clear of living rooms.
 	Rooms domain.Fact[[]Room]
-	// Anchor sites the dumps when no general store stands.
+	// Anchor sites the opening stores.
 	Anchor domain.Cell
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
@@ -291,13 +288,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileShelfEdits(r.Roles, zones, r.Shelves) {
 		take(e, true)
 	}
-	opening := stockpileOpeningEdits(r, open)
-	candidates = append(candidates, opening...)
-	for _, e := range stockpileCreateEdits(r, open) {
-		if !openingRole(opening, e.Role) {
-			candidates = append(candidates, e)
-		}
-	}
+	candidates = append(candidates, stockpileOpeningEdits(r, open)...)
 	candidates = append(candidates, stockpileShellEdits(r)...)
 	candidates = append(candidates, stockpileSiteEdits(r, open)...)
 	for _, e := range stockpileSiteShrinks(r) {

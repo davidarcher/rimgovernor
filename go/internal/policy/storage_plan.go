@@ -49,6 +49,8 @@ type StorageRequest struct {
 	Gear *GearStore
 	// Zones are the standing stockpile zones, read for the warehouse siting.
 	Zones []StockpileZone
+	// Dumps is nil while the room census is unknown (see DumpStore).
+	Dumps *DumpStore
 }
 
 // GearRoomDemand is the planner's signal to layout that the gear held outgrew
@@ -72,7 +74,8 @@ type StoragePlan struct {
 // workstation stockpiles beside the benches, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
 // catch-all, the tomb's corpse store, and the food stockpile beside the
-// kitchen. The armory and wardrobe stores fill their standing rooms.
+// kitchen. The armory and wardrobe stores fill their standing rooms, and the
+// dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
 	plan := StoragePlan{Gear: r.Gear.demand()}
 	plan.Gear.Storage = r.storageRoomsWanted()
@@ -89,6 +92,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 		plan.Sites = append(plan.Sites, r.gearSites()...)
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
+	plan.Sites = append(plan.Sites, r.dumpSites()...)
 	return plan
 }
 

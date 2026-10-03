@@ -228,7 +228,7 @@ func TestStockpileNeedsFromColonyFacts(t *testing.T) {
 			{Kind: "corpse", CorpseOf: domain.CorpseColonist, State: policy.WasteBuried},
 		}),
 	}
-	needs := stockpileNeeds(facts)
+	needs := policy.DumpNeeds(facts)
 	want := map[string]int{domain.WornDumpRole: 2, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
 	for role, n := range want {
 		if needs[role] != n {

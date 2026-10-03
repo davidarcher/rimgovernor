@@ -55,23 +55,7 @@ func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
 		}
 		cells[c.Cell] = c
 	}
-	blocked := map[domain.Cell]bool{}
-	for _, c := range r.Protected {
-		blocked[c] = true
-	}
-	// Every cell within the clearance of a living room is blocked.
-	for _, room := range r.Rooms {
-		if role, known := room.Role.Value(); known && !livingRoomRoles[role] {
-			continue
-		}
-		for _, l := range room.Cells {
-			for dx := -outdoorDumpClearance + 1; dx < outdoorDumpClearance; dx++ {
-				for dz := -outdoorDumpClearance + 1; dz < outdoorDumpClearance; dz++ {
-					blocked[domain.Cell{X: l.X + dx, Z: l.Z + dz}] = true
-				}
-			}
-		}
-	}
+	blocked := outdoorDumpBlocked(r.Rooms, r.Protected)
 	free := func(p domain.Cell) bool {
 		c, ok := cells[p]
 		if !ok || blocked[p] {
@@ -119,4 +103,26 @@ func OutdoorDumpSites(r OutdoorDumpRequest) ([]Rectangle, error) {
 		out[i] = Rectangle{s.cell.X, s.cell.Z, r.Width, r.Height}
 	}
 	return out, nil
+}
+
+// outdoorDumpBlocked is every cell protected or within outdoorDumpClearance
+// of a living room.
+func outdoorDumpBlocked(rooms []Room, protected []domain.Cell) map[domain.Cell]bool {
+	blocked := map[domain.Cell]bool{}
+	for _, c := range protected {
+		blocked[c] = true
+	}
+	for _, room := range rooms {
+		if role, known := room.Role.Value(); known && !livingRoomRoles[role] {
+			continue
+		}
+		for _, l := range room.Cells {
+			for dx := -outdoorDumpClearance + 1; dx < outdoorDumpClearance; dx++ {
+				for dz := -outdoorDumpClearance + 1; dz < outdoorDumpClearance; dz++ {
+					blocked[domain.Cell{X: l.X + dx, Z: l.Z + dz}] = true
+				}
+			}
+		}
+	}
+	return blocked
 }
