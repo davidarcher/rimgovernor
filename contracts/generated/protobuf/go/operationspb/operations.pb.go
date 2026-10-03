@@ -3338,6 +3338,7 @@ type AcceptTrade struct {
 	EconomicFloors        []*DefCount            `protobuf:"bytes,3,rep,name=economic_floors,json=economicFloors,proto3" json:"economic_floors,omitempty"`
 	AllowEmpty            *bool                  `protobuf:"varint,4,opt,name=allow_empty,json=allowEmpty,proto3,oneof" json:"allow_empty,omitempty"`
 	ReceiveQuest          *bool                  `protobuf:"varint,5,opt,name=receive_quest,json=receiveQuest,proto3,oneof" json:"receive_quest,omitempty"`
+	ExportThingIds        []string               `protobuf:"bytes,8,rep,name=export_thing_ids,json=exportThingIds,proto3" json:"export_thing_ids,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -3398,6 +3399,13 @@ func (x *AcceptTrade) GetReceiveQuest() bool {
 		return *x.ReceiveQuest
 	}
 	return false
+}
+
+func (x *AcceptTrade) GetExportThingIds() []string {
+	if x != nil {
+		return x.ExportThingIds
+	}
+	return nil
 }
 
 // A cancel with no live session is a no-op, not a refusal.
@@ -7897,13 +7905,14 @@ const file_operations_proto_rawDesc = "" +
 	"\x05lines\x18\x02 \x03(\v2$.rimgovernor.operations.v1.TradeLineR\x05lines\x12$\n" +
 	"\vallow_pawns\x18\x03 \x01(\bH\x00R\n" +
 	"allowPawns\x88\x01\x01B\x0e\n" +
-	"\f_allow_pawnsJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"\xd2\x02\n" +
+	"\f_allow_pawnsJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"\xfc\x02\n" +
 	"\vAcceptTrade\x12;\n" +
 	"\x17expected_deal_signature\x18\x02 \x01(\tH\x00R\x15expectedDealSignature\x88\x01\x01\x12L\n" +
 	"\x0feconomic_floors\x18\x03 \x03(\v2#.rimgovernor.operations.v1.DefCountR\x0eeconomicFloors\x12$\n" +
 	"\vallow_empty\x18\x04 \x01(\bH\x01R\n" +
 	"allowEmpty\x88\x01\x01\x12(\n" +
-	"\rreceive_quest\x18\x05 \x01(\bH\x02R\freceiveQuest\x88\x01\x01B\x1a\n" +
+	"\rreceive_quest\x18\x05 \x01(\bH\x02R\freceiveQuest\x88\x01\x01\x12(\n" +
+	"\x10export_thing_ids\x18\b \x03(\tR\x0eexportThingIdsB\x1a\n" +
 	"\x18_expected_deal_signatureB\x0e\n" +
 	"\f_allow_emptyB\x10\n" +
 	"\x0e_receive_questJ\x04\b\x01\x10\x02J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\ttrader_idR\rnegotiator_id\"\xbd\x01\n" +

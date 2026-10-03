@@ -22150,6 +22150,8 @@ type TradeLine struct {
 	ThingId           *string                `protobuf:"bytes,26,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
 	Quality           *int32                 `protobuf:"varint,27,opt,name=quality,proto3,oneof" json:"quality,omitempty"`
 	PawnGender        *string                `protobuf:"bytes,28,opt,name=pawn_gender,json=pawnGender,proto3,oneof" json:"pawn_gender,omitempty"`
+	HitPointsFraction *float64               `protobuf:"fixed64,29,opt,name=hit_points_fraction,json=hitPointsFraction,proto3,oneof" json:"hit_points_fraction,omitempty"`
+	ZoneId            *string                `protobuf:"bytes,30,opt,name=zone_id,json=zoneId,proto3,oneof" json:"zone_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -22376,6 +22378,20 @@ func (x *TradeLine) GetQuality() int32 {
 func (x *TradeLine) GetPawnGender() string {
 	if x != nil && x.PawnGender != nil {
 		return *x.PawnGender
+	}
+	return ""
+}
+
+func (x *TradeLine) GetHitPointsFraction() float64 {
+	if x != nil && x.HitPointsFraction != nil {
+		return *x.HitPointsFraction
+	}
+	return 0
+}
+
+func (x *TradeLine) GetZoneId() string {
+	if x != nil && x.ZoneId != nil {
+		return *x.ZoneId
 	}
 	return ""
 }
@@ -47333,7 +47349,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.TradersSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd8\f\n" +
+	"\aoutcome\"\xcf\r\n" +
 	"\tTradeLine\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12J\n" +
 	"\n" +
@@ -47368,7 +47384,9 @@ const file_observations_proto_rawDesc = "" +
 	"\bthing_id\x18\x1a \x01(\tH\x15R\athingId\x88\x01\x01\x12\x1d\n" +
 	"\aquality\x18\x1b \x01(\x05H\x16R\aquality\x88\x01\x01\x12$\n" +
 	"\vpawn_gender\x18\x1c \x01(\tH\x17R\n" +
-	"pawnGender\x88\x01\x01B\b\n" +
+	"pawnGender\x88\x01\x01\x123\n" +
+	"\x13hit_points_fraction\x18\x1d \x01(\x01H\x18R\x11hitPointsFraction\x88\x01\x01\x12\x1c\n" +
+	"\azone_id\x18\x1e \x01(\tH\x19R\x06zoneId\x88\x01\x01B\b\n" +
 	"\x06_indexB\b\n" +
 	"\x06_stuffB\v\n" +
 	"\t_categoryB\x0f\n" +
@@ -47396,7 +47414,10 @@ const file_observations_proto_rawDesc = "" +
 	"\t_thing_idB\n" +
 	"\n" +
 	"\b_qualityB\x0e\n" +
-	"\f_pawn_gender\"\xe1\x01\n" +
+	"\f_pawn_genderB\x16\n" +
+	"\x14_hit_points_fractionB\n" +
+	"\n" +
+	"\b_zone_id\"\xe1\x01\n" +
 	"\fTradeSession\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12 \n" +
 	"\ttrader_id\x18\x02 \x01(\tH\x00R\btraderId\x88\x01\x01\x12(\n" +

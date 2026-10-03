@@ -44,6 +44,11 @@ type TradeSheetRowFact struct {
 	// ThingID is a non-pawn row's first colony thing (#1194): a packed
 	// sculpture's row names its packed item.
 	ThingID string
+	// HitPoints is a gear row's hit-point fraction and ZoneID the stockpile
+	// its thing lies in (#1831); what SaleGear matches.
+	HitPoints      float64
+	HitPointsKnown bool
+	ZoneID         string
 
 	// PawnID is a pawn row's load id (the animal census id for a colony
 	// animal): the key a live-animal sale matches (#1632) and a purchase
@@ -86,6 +91,10 @@ type TradeSelectionFacts struct {
 	// HerdSaleAnimals), by pawn id, set only while the colony wants silver.
 	// Each sells through its own pawn row.
 	SaleAnimals map[string]bool
+
+	// SaleGear is the worn-dump gear the colony sells (SaleGear, by thing id,
+	// #1831): protected natively, so the accept names these ids.
+	SaleGear map[string]bool
 
 	// HerdWants are the animals the herd plan lacks (HerdWants, #1636),
 	// best first: the pawn-purchase line buys the first affordable one.
@@ -162,7 +171,7 @@ const (
 func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeSelection {
 	refuse := func(reason string) TradeSelection { return TradeSelection{Refused: true, Reason: reason} }
 	// Art or animals alone (#1194, #1632) sell without a catalog target.
-	if len(p.Targets) > 0 || len(facts.SaleArt)+len(facts.SaleAnimals) == 0 {
+	if len(p.Targets) > 0 || len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0 {
 		if err := p.Validate(); err != nil {
 			return refuse(err.Error())
 		}
@@ -275,6 +284,7 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 		sellArt(&out, facts, stopped, &traderCash)
 	}
 	sellAnimals(&out, facts, stopped, &traderCash)
+	sellGear(&out, facts, stopped, &traderCash)
 	return out
 }
 
@@ -287,7 +297,7 @@ func sellArt(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]
 	if len(facts.SaleArt) == 0 {
 		return
 	}
-	sellRows(out, facts.Rows, stopped, traderCash, false, func(row TradeSheetRowFact) bool {
+	sellRows(out, facts.Rows, stopped, traderCash, false, false, func(row TradeSheetRowFact) bool {
 		return row.ThingID != "" && facts.SaleArt[row.ThingID]
 	})
 }
@@ -300,14 +310,40 @@ func sellAnimals(out *TradeSelection, facts TradeSelectionFacts, stopped map[str
 	if len(facts.SaleAnimals) == 0 {
 		return
 	}
-	sellRows(out, facts.Rows, stopped, traderCash, true, func(row TradeSheetRowFact) bool {
+	sellRows(out, facts.Rows, stopped, traderCash, true, false, func(row TradeSheetRowFact) bool {
 		return row.PawnID != "" && facts.SaleAnimals[row.PawnID]
 	})
 }
 
+// sellGear is the gear-sale step (#1831): each row whose thing is sale gear
+// sells that one piece under the same rules. Gear is ProtectedExport natively;
+// the accept names the thing ids it authorizes, so the flag is not read.
+func sellGear(out *TradeSelection, facts TradeSelectionFacts, stopped map[string]bool, traderCash *float64) {
+	if len(facts.SaleGear) == 0 {
+		return
+	}
+	sellRows(out, facts.Rows, stopped, traderCash, false, true, func(row TradeSheetRowFact) bool {
+		return row.ThingID != "" && facts.SaleGear[row.ThingID]
+	})
+}
+
+// SaleGear is the gear the colony sells: a thing lying in a worn dump (wornDumps,
+// by zone id) above the hit-point floor the incinerator burns below, so
+// serviceable-but-unwanted gear is sold, not burned. The trader's willingness
+// to trade a row (biocoded gear is refused natively) is checked at selection.
+func SaleGear(rows []TradeSheetRowFact, wornDumps map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, row := range rows {
+		if row.ThingID != "" && !row.Pawn && wornDumps[row.ZoneID] && row.HitPointsKnown && row.HitPoints > domain.GearHitPointFloor {
+			out[row.ThingID] = true
+		}
+	}
+	return out
+}
+
 // sellRows sells each wanted single-item row; pawns says the rows are pawn
-// rows.
-func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]bool, traderCash *float64, pawns bool, wanted func(TradeSheetRowFact) bool) {
+// rows and authorized that a protected row may sell.
+func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]bool, traderCash *float64, pawns, authorized bool, wanted func(TradeSheetRowFact) bool) {
 	selected := map[string]bool{}
 	for _, line := range out.Selected {
 		selected[line.LineID] = true
@@ -320,7 +356,7 @@ func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]
 		switch {
 		case !row.TraderWillTradeKnown || !row.TraderWillTrade || !row.PawnKnown || row.Pawn != pawns || !row.CurrencyKnown || row.Currency || stopped[row.DefName]:
 			evidence.Blocker = tradeBlockerRow
-		case !pawns && (!row.ProtectedExportKnown || row.ProtectedExport):
+		case !pawns && !authorized && (!row.ProtectedExportKnown || row.ProtectedExport):
 			evidence.Blocker = tradeBlockerProtected
 		case row.ColonyCount < 1 || !row.SellPriceKnown || !finite(row.SellPrice) || row.SellPrice < 0:
 			evidence.Blocker = tradeBlockerUnknown

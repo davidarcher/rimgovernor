@@ -253,6 +253,10 @@ nearest free outdoor 2x2 patch six cells clear of any living room
 (`policy.OutdoorDumpSites`), never while the room census is unknown. A create
 ranks after retargets and before grows; its hauls are the things waiting for
 it.
+Worn-dump gear above the incinerator's hit-point cap sells to traders: the
+trade sheet row carries the thing's `hit_points_fraction` and `zone_id`,
+`policy.SaleGear` selects the worn dump's rows, and the accept names them in
+`export_thing_ids` (#1831).
 
 Gear is stored in layout's armory and wardrobe rooms (#1774), not in fixed 2x2
 zones; until a room stands, gear stays in the general store, and a zone still

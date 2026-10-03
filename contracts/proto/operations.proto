@@ -219,7 +219,7 @@ enum PrisonerInteraction {
 message OpenTrade { reserved 1, 2, 4, 5; reserved "trader_id", "negotiator_id"; optional bool gift_mode = 3; }
 message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
 message SetTradeLines { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
-message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; }
+message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; repeated string export_thing_ids = 8; }
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
 // A cancel with no live session is a no-op, not a refusal.
 message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }

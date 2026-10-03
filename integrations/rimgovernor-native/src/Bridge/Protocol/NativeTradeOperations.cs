@@ -114,6 +114,18 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
+        // Gear the controller's gear-sale plan names by thing id (#1831): every
+        // colony thing of the row must be authorized, or the row stays protected.
+        private static bool AuthorizedGear(Tradeable t, HashSet<string> authorized)
+        {
+            try
+            {
+                var things = t.thingsColony.Where(x => !x.Destroyed).ToList();
+                return things.Count > 0 && things.All(x => authorized.Contains(x.GetUniqueLoadID()));
+            }
+            catch { return false; }
+        }
+
         private static bool WouldGiveAway(Tradeable t, int target)
         {
             bool gift; try { gift = TradeSession.giftMode; } catch { gift = false; }
@@ -488,6 +500,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!floors.ContainsKey("Silver") || SafeBool(() => TradeSession.giftMode))
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic policy requires a silver reserve and an ordinary trade."); return false; }
+                var exportThings = new HashSet<string>(command.ExportThingIds, StringComparer.Ordinal);
                 foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) < 0 || SafeBool(() => t.IsCurrency)))
                 {
                     var def = SafeDef(row);
@@ -497,7 +510,7 @@ namespace HomeBridge.BridgeTools
                     // A positive floor is Go's authorisation to sell a surplus of this
                     // food (the crop/protein rule lives in policy, from the def rows).
                     var cropSurplus = floor > 0;
-                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row)))
+                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon && !AuthorizedGear(row, exportThings) || def.IsApparel && !AuthorizedGear(row, exportThings) || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row)))
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic export is protected."); return false; }
                 }
             }

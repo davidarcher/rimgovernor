@@ -61,7 +61,7 @@ func tradeAction(action domain.Action) (*o.Action, error) {
 			floors = append(floors, &o.DefCount{DefName: proto.String(f.DefName), Count: proto.Int32(f.Count)})
 		}
 		intent.Step = &o.TradeIntent_Accept{Accept: &o.AcceptTrade{ExpectedDealSignature: proto.String(t.ExpectedDealSignature()),
-			EconomicFloors: floors, AllowEmpty: proto.Bool(t.AllowEmpty()), ReceiveQuest: proto.Bool(t.ReceiveQuest())}}
+			EconomicFloors: floors, ExportThingIds: t.ExportThings(), AllowEmpty: proto.Bool(t.AllowEmpty()), ReceiveQuest: proto.Bool(t.ReceiveQuest())}}
 	case domain.TradeEnd:
 		kind := o.EndTradeKind_END_TRADE_KIND_CANCEL
 		switch t.EndKind() {

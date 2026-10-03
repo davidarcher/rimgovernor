@@ -128,6 +128,16 @@ namespace HomeBridge.BridgeTools
                     var id = SafeText(() => thing.GetUniqueLoadID());
                     if (id != "") line.ThingId = id;
                     try { if (thing.GetInnerIfMinified().TryGetQuality(out var quality)) line.Quality = (int)quality; } catch { }
+                    // Gear sale (#1831): the thing's hit-point fraction and the
+                    // stockpile it lies in, so the controller sells only the worn
+                    // dump's gear above the incinerator's cap.
+                    try { if (thing.def.useHitPoints && thing.MaxHitPoints > 0) line.HitPointsFraction = (double)thing.HitPoints / thing.MaxHitPoints; } catch { }
+                    try
+                    {
+                        var zone = thing.Spawned ? thing.Map.zoneManager.ZoneAt(thing.Position) as Zone_Stockpile : null;
+                        if (zone != null) line.ZoneId = zone.GetUniqueLoadID();
+                    }
+                    catch { }
                 }
             }
             if (pawn)

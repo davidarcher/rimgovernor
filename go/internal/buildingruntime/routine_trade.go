@@ -397,7 +397,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		return RoutineTradeResult{}, err
 	}
 	selection := policy.SelectTrade(economic, facts)
-	if len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals) == 0 {
+	if len(economic.Targets) == 0 && len(facts.SaleArt)+len(facts.SaleAnimals)+len(facts.SaleGear) == 0 {
 		// Nothing to buy or sell by the resource catalog: only a pawn
 		// purchase can still stage, against the same silver reserve.
 		currency, _ := policy.TradeCurrency(facts.Rows)
@@ -447,7 +447,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 	}
 	currency, _ := policy.TradeCurrency(facts.Rows)
 	floors := tradeAcceptFloors(economic, selection, currency)
-	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, false, false)
+	value, err := domain.NewTradeAccept(trader, negotiator, sheet.DealSignature, floors, tradeExportThings(selection, facts), false, false)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
@@ -573,6 +573,19 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
 	facts.SaleArt = saleArt
+	// Worn-dump gear above the incinerator's cap sells (#1831).
+	claims, err := r.reviewer.player.journal.ZoneClaims(call, state.Snapshot, projection.Identity.Tick)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
+	}
+	wornDumps := map[string]bool{}
+	owned, _ := claims.Value()
+	for _, z := range owned {
+		if z.Role == domain.WornDumpRole {
+			wornDumps[z.ID] = true
+		}
+	}
+	facts.SaleGear = policy.SaleGear(rows, wornDumps)
 	facts.HerdWants = policy.HerdWants(herd)
 	if need.SurplusAnimals > 0 {
 		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
@@ -655,7 +668,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow, catalog *bridge.DefinitionC
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, PawnID: row.PawnID, PawnGender: row.PawnGender,
+			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, HitPoints: row.HitPoints, HitPointsKnown: row.HitPointsKnown, ZoneID: row.ZoneID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
 	}
@@ -719,6 +732,24 @@ func sameTradeLines(left, right []domain.TradeLine) bool {
 		}
 	}
 	return true
+}
+
+// tradeExportThings are the sale-gear thing ids the selection sells: the accept
+// authorizes them past the native gear protection (#1831).
+func tradeExportThings(selection policy.TradeSelection, facts policy.TradeSelectionFacts) []string {
+	lines := map[string]bool{}
+	for _, line := range selection.Selected {
+		if line.Count < 0 {
+			lines[line.LineID] = true
+		}
+	}
+	var out []string
+	for _, row := range facts.Rows {
+		if lines[row.LineID] && facts.SaleGear[row.ThingID] {
+			out = append(out, row.ThingID)
+		}
+	}
+	return out
 }
 
 // tradeAcceptFloors builds AcceptTrade's reserve guards: every sold

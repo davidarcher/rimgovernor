@@ -282,7 +282,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// is the exact observed option label.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,stuff) VALUES(?,?,?,'dialog_answer',?,?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex(), sql.NullString{String: dialog.LetterToken(), Valid: dialog.LetterToken() != ""})
 	} else if trade, ok := a.Trade(); ok {
-		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Trader(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
+		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Trader(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.ExportThings(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -607,7 +607,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		case domain.TradeSetLines:
 			value, valueErr = domain.NewTradeSetLines(payload.Trader, payload.Negotiator, payload.Lines, payload.AllowPawns)
 		case domain.TradeAccept:
-			value, valueErr = domain.NewTradeAccept(payload.Trader, payload.Negotiator, payload.ExpectedDealSignature, payload.EconomicFloors, payload.AllowEmpty, payload.ReceiveQuest)
+			value, valueErr = domain.NewTradeAccept(payload.Trader, payload.Negotiator, payload.ExpectedDealSignature, payload.EconomicFloors, payload.ExportThings, payload.AllowEmpty, payload.ReceiveQuest)
 		case domain.TradeEnd:
 			value, valueErr = domain.NewTradeEnd(payload.Trader, payload.Negotiator, payload.EndKind, payload.ReceiveQuest)
 		default:
@@ -1217,6 +1217,7 @@ type tradePayload struct {
 	AllowPawns            bool
 	ExpectedDealSignature string
 	EconomicFloors        []domain.TradeEconomicFloor
+	ExportThings          []string
 	AllowEmpty            bool
 	EndKind               domain.TradeEndKind
 	ReceiveQuest          bool

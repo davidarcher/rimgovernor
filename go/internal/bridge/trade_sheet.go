@@ -55,6 +55,11 @@ type TradeSheetRow struct {
 	ThingID      string
 	Quality      int32
 	QualityKnown bool
+	// HitPoints is the thing's hit-point fraction and ZoneID the stockpile
+	// it lies in (#1831): what a gear sale reads.
+	HitPoints      float64
+	HitPointsKnown bool
+	ZoneID         string
 }
 
 // TradeSheetSkill is one skill of an offered pawn.
@@ -190,7 +195,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "" || v.PawnGender != nil) {
 		return TradeSheetRow{}, contract("pawn facts on a non-pawn trade line")
 	}
-	if v.GetPawn() && (v.ThingId != nil || v.Quality != nil) || !diagnostic(v.ThingId) || v.Quality != nil && !validQuality(v.GetQuality()) {
+	if v.GetPawn() && (v.ThingId != nil || v.Quality != nil) || !diagnostic(v.ThingId) || v.Quality != nil && !validQuality(v.GetQuality()) || !diagnostic(v.ZoneId) || v.HitPointsFraction != nil && !(v.GetHitPointsFraction() >= 0 && v.GetHitPointsFraction() <= 1) {
 		return TradeSheetRow{}, contract("invalid trade sheet thing facts")
 	}
 	if !diagnostic(v.PawnId) || !diagnostic(v.PawnGender) {
@@ -205,7 +210,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	}
 	return TradeSheetRow{
 		PawnID: v.GetPawnId(), PawnGender: v.GetPawnGender(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
-		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil,
+		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil, HitPoints: v.GetHitPointsFraction(), HitPointsKnown: v.HitPointsFraction != nil, ZoneID: v.GetZoneId(),
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),
 		BuyPrice: v.GetBuyPrice(), SellPrice: v.GetSellPrice(), MarketValue: v.GetMarketValue(),
