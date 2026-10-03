@@ -103,21 +103,7 @@ current patch set. N01.05 owns capability health and idempotent retry acceptance
 | [PlayerUiRevision](../integrations/rimgovernor-native/src/Bridge/PlayerUiRevision.cs): `uiRevision`, `observingUi` | Process revision counter and one-time Root.OnGUI installation flag; qualifying mouse/keyboard events increment revision. No load reset. | Player input invalidates old frame revision. Test overflow/long reuse, missing patch and same-value UI state; revision alone is insufficient without frame Game/Map checks. | N01.05 input freshness |
 | [RenderDemandDriver](../integrations/rimgovernor-native/src/Bridge/RenderDemandTool.cs): `instance`, `until`, `Suspended` | Lazy persistent MonoBehaviour and map-draw patch; max-extension lease, quarter-second update. No Game/Map binding. OnDestroy clears suspension/restores cameras, but does not explicitly zero `until` or null `instance` (Unity destroyed-object semantics apply). | Visible/unknown window state renders; batch refuses. Expiry can suspend hidden-window cameras, remembered in an instance set. Restore re-enables those cameras without checking later player/other-mod changes. Test cross-load lease, object destruction/recreation, camera replacement and lost controller; no speed changes are intended. | N01.05 render lease |
 | `RenderDemandDriver`: `TestSuspendUntil` | Exists only with `THROUGHPUT_FIXTURE`; process absolute real-time deadline checked in Apply. | Fixture can force suspension on Linux independently of window APIs; production default parse has no field. Verify separately identified fixture artifacts and expiry. | N01.01 fixtures / N01.05 presentation |
-| [Watch](../integrations/rimgovernor-native/src/Bridge/Watch.cs): `Sync`, `Current` | Process lock and one decorative Session. New Open closes previous; Finish schedules bounded delayed close through main-thread queue with CancellationToken.None. Close marks session closed and clears Current if exact match. | Cleanup compares current tab type/Def and selected object, preserving visibly different player choices. Session has no Game/Map or UI revision: same tab in a new load or player close/reopen can match old cleanup. No shutdown drain; disconnected delay continues. Test cancellation before Finish, load before close and same-tab player override. Camera movement is not restored by Watch. | N01.05 watch/UI lifecycle |
 
-## Trade session and delayed dialog ownership
-
-Source: [TradeTool.cs](../integrations/rimgovernor-native/src/Bridge/TradeTool.cs), class
-`HomeTradeTools`. The fields below are process storage for a session, not saved
-authority. N01.04 owns trade operations; N01.05 owns delayed UI cleanup.
-
-| Actual fields | Lifetime/reset | Disconnect/player behavior and unresolved acceptance |
-| --- | --- | --- |
-| `_running` | Interlocked one-call gate, released in outer finally after scheduling emergency dialog cleanup. | Cleanup is queued without awaiting completion before gate release. Test a second trade call before previous cleanup callback runs. |
-| `_sessionTraderId`, `_sessionTraderName`, `_sessionNegotiatorName`, `_sessionOpenedTick`, `_sessionOpenedByUs`, `_sessionId` | Open fills receipt/presentation identity, generating GUID; CloseSession clears. No lease or independent load callback. | Disconnect retains staged state until explicit close/new session. RequireSession checks live identity before effects; stale metadata can still be emitted by AddSessionBlock. Verify stale status is not interpreted as executable authority. |
-| `_sessionMap`, `_sessionIdentity`, `_sessionDeal`, `_sessionTrader`, `_sessionNegotiator` | Open captures exact object identities; CloseSession clears references. RequireSession compares current colony component/map and native TradeSession objects. | Replaced player session or load fails closed; no automatic expiry/clear. Test disconnect, trader departure, old/new load and map return, preserving a player-opened trade. Retained references can prolong old Game objects. |
-| `_requireAdjacent` | Set on open; not reset in CloseSession, inert until next open/session validation. | Verify old adjacency configuration cannot bypass fresh session admission; disconnected staged trades still require current eligibility. |
-| `_ourTradeDialog`, `_ourDialogSignature` | Tool-owned window and staged contents signature. Normal and emergency close clear both; missing dispatcher clears references without closing window. | Signature detects changed player offer before acceptance. Emergency closure reads global current dialog when delayed callback runs, rather than capturing prior dialog identity. Test new dialog opened before old cleanup callback, player edits, cancelled caller and failed dispatcher; preserve newer UI ownership. |
 
 ## Readonly metadata and lookup collections
 
@@ -130,16 +116,9 @@ own typed boundary migration; N01.05 owns relevant watcher metadata health.
 
 | Source / class | Fields and classification |
 | --- | --- |
-| [BuildingConfigTool.cs](../integrations/rimgovernor-native/src/Bridge/BuildingConfigTool.cs), `HomeBuildingConfigTools` | `WantSwitchOnField`: readonly reflection handle. |
-| [CellsPlusTool.cs](../integrations/rimgovernor-native/src/Bridge/CellsPlusTool.cs), `HomeMapTools` | `CellFieldNames`, `ThingFieldNames`: initialized lookup arrays. |
-| `CellsPlusTool.cs`, `ReferenceComparer<T>` | `Instance`: stateless comparer singleton; no mutable instance fields. |
-| [DialogTextTool.cs](../integrations/rimgovernor-native/src/Bridge/DialogTextTool.cs), `HomeDialogTextTools` | `PreferredFieldNames`, `ContextTextFieldNames`, `ContextLabelFieldNames`: lookup arrays. |
-| [OrderTool.cs](../integrations/rimgovernor-native/src/Bridge/OrderTool.cs), `HomeOrderTools` | `Actions`, `Modes`: lookup arrays. |
+| `Protocol/NativeConstructionCausality.cs`, `ReferenceComparer<T>` | `Instance`: stateless comparer singleton; no mutable instance fields. |
 | `PawnSettingsRead.cs` | `SocialCacheField`, `SocialActiveField`, `SituationalCacheField`, `SituationalDirtyField`: readonly reflected fields; observed caches belong to pawns. |
-| [PlaceBuildingTool.cs](../integrations/rimgovernor-native/src/Bridge/PlaceBuildingTool.cs), `HomePlaceBuildingTools` | `RotationNames`: lookup array. |
-| [ResearchTool.cs](../integrations/rimgovernor-native/src/Bridge/ResearchTool.cs), `HomeResearchTools` | `ProgressField`, `AnomalyKnowledgeField`: readonly reflection handles. |
 | `SupervisedPlayTool.cs`, `Supervisor` | `BoostField`: readonly handle to external mutable static; `NonStoppingLetterDefs`, `NonStoppingMessageTypes`: initialized lookup sets, no Add/Remove/Clear sites. |
-| `TradeTool.cs`, `HomeTradeTools` | `LiveMessagesField`: readonly handle. |
 
 ## Excluded sources, fixture scope and headless effects
 

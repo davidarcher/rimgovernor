@@ -52,16 +52,8 @@ func TestConstructionStateMatchesWholeTable(t *testing.T) {
 			}
 		}
 		state = state.next(rows)
-		want, err := constructionRows(rows.Values(), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = want
-		built, err := ConstructionCensus(rows)
-		if err != nil {
-			t.Fatal(err)
-		}
-		whole, err := WithSiteRows(built, rows)
+		// No memo: the census projected from the whole table.
+		whole, wholeDeficit, err := ConstructionFromCensus(&bridge.BuildingCensus{Rows: rows})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -69,7 +61,7 @@ func TestConstructionStateMatchesWholeTable(t *testing.T) {
 		if !sameConstruction(state.census, whole) {
 			t.Fatalf("round %d: incremental census differs from the whole-table one", round)
 		}
-		if got, want := state.deficitFact, ConstructionDeficitRows(rows); !reflect.DeepEqual(got, want) {
+		if got, want := state.deficitFact, wholeDeficit; !reflect.DeepEqual(got, want) {
 			t.Fatalf("round %d: deficit %v, want %v", round, got, want)
 		}
 	}

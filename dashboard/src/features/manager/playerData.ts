@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 export type World = {colonyId: string; mapId: number; loadToken: string};
 export type Building = {defName: string; stuff: string; x: number; z: number; rotation: 'north' | 'east' | 'south' | 'west'};
 export type SubmissionRequest = {requestId: string; expected: World; building: Building};
@@ -52,7 +53,7 @@ function readControlRecord(value: unknown): ControlRecord {
 function readFailure(value: unknown): Failure {const v = object(value, ['code', 'detail']); return {code: id(v.code), detail: text(v.detail)};}
 export function readControl(value: unknown): ControlReply {const v = object(value, ['record', 'state', 'error']); return {record: v.record === null ? null : readControlRecord(v.record), state: readPlayerState(v.state), error: v.error === null ? null : readFailure(v.error)};}
 
-export class PlayerHTTPError extends Error {constructor(public status: number, message: string, public code: string | null = null) {super(message);}}
+export class PlayerHTTPError extends HTTPError {constructor(status: number, message: string, public code: string | null = null) {super(status, message);}}
 // Only explicit, validated server rejections prove that this POST was not admitted.
 export function definiteRejection(error: unknown): boolean {
   return error instanceof PlayerHTTPError && (error.status === 400 && error.code === 'invalid_request' || error.status === 403 && error.code === 'player_auth' || error.status === 409 && ['conflict', 'capacity'].includes(error.code ?? ''));

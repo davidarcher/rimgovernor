@@ -11,7 +11,6 @@ import (
 
 type envelope struct {
 	Choices []choice        `json:"choices"`
-	Usage   *Usage          `json:"usage"`
 	Error   json.RawMessage `json:"error"`
 }
 type choice struct {
@@ -46,13 +45,6 @@ func decodeEnvelope(data []byte) (envelope, error) {
 	}
 	if present(value.Error) {
 		return value, fmt.Errorf("%w: %s", ErrInvalidResponse, serverErrorMessage(data))
-	}
-	if value.Usage != nil {
-		for _, count := range []*int64{value.Usage.PromptTokens, value.Usage.CompletionTokens, value.Usage.TotalTokens} {
-			if count != nil && *count < 0 {
-				return value, fmt.Errorf("%w: negative token usage", ErrInvalidResponse)
-			}
-		}
 	}
 	return value, nil
 }
@@ -151,7 +143,6 @@ func decodeCompletion(data []byte) (Response, error) {
 	if selected.Message.Content == nil {
 		return Response{}, fmt.Errorf("%w: missing text content", ErrInvalidResponse)
 	}
-	result.Usage = value.Usage
 	result.FinishReason, err = finish(selected.FinishReason)
 	return result, err
 }

@@ -1,23 +1,12 @@
-import {useEffect, useState} from 'react';
-import {fetchThreatStatus, ThreatHTTPError, type ThreatStatus} from './threatData';
+import {useReading} from '../useReading';
+import {fetchThreatStatus} from './threatData';
 
 // Raid points and the wealth split the storyteller scales them by (#395):
 // evidence from the live colony census, read every few seconds while the
 // Colony view is open. Hidden when the service does not serve the census.
-type Reading = {value: ThreatStatus | null; stale: boolean; hidden: boolean; error: string};
 const silver = (v: number | null) => v === null ? '—' : Math.round(v).toLocaleString();
 export default function ThreatPanel({active}: {active: boolean}) {
-  const [state, setState] = useState<Reading>({value: null, stale: true, hidden: false, error: ''});
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      try {const value = await fetchThreatStatus(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])); if (!stopped) setState({value, stale: false, hidden: false, error: ''});}
-      catch (error) {if (!stopped) setState(previous => ({value: previous.value, stale: true, hidden: error instanceof ThreatHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Colony status unavailable'}));}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), 5000);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
+  const state = useReading(active, fetchThreatStatus, 5000, 'Colony status unavailable');
   if (state.hidden) return null;
   const v = state.value;
   return <section className="observation-panel" aria-label="Raid threat"><h2>Raid threat</h2>

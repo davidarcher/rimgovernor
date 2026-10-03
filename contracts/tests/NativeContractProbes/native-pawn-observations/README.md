@@ -23,4 +23,4 @@ work-priority initialization. Work snapshots bind pawn, priority mode, work rows
 world identity, allowed area (including unrestricted) and timetable contents.
 It makes no game-state or gameplay claim. Native
 acceptance must additionally verify paused tick/context invariance, actual pawn
-facts, dead-pawn scope, filter counts and complete typed readback in Docker.
+facts, dead-pawn scope, filter counts and complete typed readback.

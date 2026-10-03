@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 // Read-only view of /api/routines: the composed routine runtime and the
 // development ranking its last review recorded. Nulls are unknown facts.
 export const developmentReasons = ['', 'cancelled', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold', 'workers_overcommitted'] as const;
@@ -149,9 +150,8 @@ export function readRoutineStatus(value: unknown): RoutineStatus {
   const stage = v.stage === undefined ? null : nullable(v.stage, readColonyStage);
   return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, stage, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, layoutTidy};
 }
-export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {
   const response = await fetch('/api/routines', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
-  if (!response.ok) {let detail = `Routine diagnostics unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Retain local diagnostic for malformed errors. */ } throw new RoutineHTTPError(response.status, detail);}
+  if (!response.ok) {let detail = `Routine diagnostics unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Retain local diagnostic for malformed errors. */ } throw new HTTPError(response.status, detail);}
   const source = await response.text(); if (new TextEncoder().encode(source).length > 1048576) throw Error('Routine response exceeds size bound'); return readRoutineStatus(JSON.parse(source) as unknown);
 }

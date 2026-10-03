@@ -1,10 +1,11 @@
 // Polling state for the governor panel: the metrics block sampled on a
+import {HTTPError} from '../http';
 // cadence into a bounded series (the health strip's sparklines), and the
 // event ring paged by sequence into a bounded, newest-first buffer. Neither
 // route follows the tail, so the panel polls at its own cadence and keeps
 // the last good reading through a failed refresh.
 import {useEffect, useState} from 'react';
-import {fetchTelemetryEvents, fetchTelemetryMetrics, TelemetryHTTPError, type TelemetryEvent, type TelemetryMetrics} from './telemetryData';
+import {fetchTelemetryEvents, fetchTelemetryMetrics, type TelemetryEvent, type TelemetryMetrics} from './telemetryData';
 
 export const metricsInterval = 2000, eventsInterval = 2000, seriesLength = 150;
 // The buffer holds this many rows; the first read starts this far behind
@@ -30,7 +31,7 @@ export function useTelemetryMetrics(active: boolean): MetricsReading {
         const sample: Sample = {at: Date.now(), tps: value.tps, lastStepMs: value.lastStepMs, nativeErrors: value.metrics.native_errors ?? 0, readsPerStep: value.metrics.reads_per_step_mean ?? 0, nativeCalls: value.metrics.native_calls ?? 0};
         setReading(previous => ({value, series: [...previous.series, sample].slice(-seriesLength), stale: false, unavailable: false, error: ''}));
       } catch (error) {
-        if (!stopped) setReading(previous => ({...previous, stale: true, unavailable: error instanceof TelemetryHTTPError && error.status === 404, error: describe(error, 'Telemetry unavailable')}));
+        if (!stopped) setReading(previous => ({...previous, stale: true, unavailable: error instanceof HTTPError && error.status === 404, error: describe(error, 'Telemetry unavailable')}));
       } finally {if (!stopped) timer = setTimeout(() => void poll(), metricsInterval);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

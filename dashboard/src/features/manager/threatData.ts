@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 // The raid-threat slice of /api/player/colony (#395): the raid points the
 // storyteller would draw now and the wealth split behind them. Every figure
 // is null when the native census could not observe it.
@@ -8,7 +9,6 @@ export type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal
 // empty when ready, otherwise the hold (squad_too_small, no_traps, ...).
 export type ShrineStatus = {id: string; sealed: boolean; inHome: boolean; caskets: number; filledCaskets: number; guardsKnown: boolean; guardsAlive: boolean; breachWalls: number; ready: boolean | null; reason: string | null; squad: number; traps: number};
 
-export class ThreatHTTPError extends Error {constructor(public status: number, message: string) {super(message);}}
 
 function figure(value: unknown, field: string): number | null {
   if (value === null) return null;
@@ -54,7 +54,7 @@ export async function fetchThreatStatus(signal?: AbortSignal): Promise<ThreatSta
   const value: unknown = await response.json();
   if (!response.ok) {
     const detail = typeof value === 'object' && value !== null && typeof (value as Record<string, unknown>).detail === 'string' ? (value as Record<string, string>).detail : `Colony status unavailable (${response.status})`;
-    throw new ThreatHTTPError(response.status, detail);
+    throw new HTTPError(response.status, detail);
   }
   return readThreatStatus(value);
 }

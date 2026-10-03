@@ -5,8 +5,7 @@
 Run commands from `go/`. `cmd/remoteaccept` never publishes source, dispatches a
 workflow, uploads artifacts or downloads the licensed game bundle. Workflow
 collection and upload use the [remote Windows workflow](remote-workflow.md).
-[The handoff](remote-handoff.md) covers publication, dispatch and diagnostics;
-#382 records the real smoke imports and #383 owns the affected land rollout.
+[The handoff](remote-handoff.md) covers publication, dispatch and diagnostics.
 
 ## Aggregate a collected run
 

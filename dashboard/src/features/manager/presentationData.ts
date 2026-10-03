@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 export type PresentationWorld = {colonyId: string; mapId: number; loadToken: string};
 export type PresentationContext = {identity: PresentationWorld; tick: string; nativeGeneration: string | null};
 export type Listing = {totalCount: number | null; returnedCount: number | null; complete: boolean | null; truncated: boolean | null};
@@ -77,9 +78,8 @@ export function readRoster(value: unknown): Roster {
   unique(colonists.map(v => v.pawnId)); if (colonists.some(v => v.mapId !== null && v.mapId !== actual.identity.mapId)) throw Error('Roster belongs to another map'); return {context: actual, colonists, listing: optional(s.listing, v => listing(v, colonists.length))};
 }
 export function samePresentationWorld(a: PresentationWorld, b: PresentationWorld): boolean {return a.colonyId === b.colonyId && a.mapId === b.mapId && a.loadToken === b.loadToken;}
-export class PresentationHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchPresentation<T>(kind: 'camera' | 'selection' | 'colonists', read: (value: unknown) => T, signal: AbortSignal): Promise<T> {
   const response = await fetch(`/api/presentation/${kind}`, {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
-  if (!response.ok) {let detail = `Presentation unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Keep a bounded local diagnostic when error evidence is malformed. */ } throw new PresentationHTTPError(response.status, detail);}
+  if (!response.ok) {let detail = `Presentation unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Keep a bounded local diagnostic when error evidence is malformed. */ } throw new HTTPError(response.status, detail);}
   const source = await response.text(); if (new TextEncoder().encode(source).length > 1048576) throw Error('Presentation response exceeds size bound'); const value: unknown = JSON.parse(source); return read(value);
 }

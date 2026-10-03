@@ -74,18 +74,14 @@ func TestApplyEntityIDs(t *testing.T) {
 }
 
 // TestApplyRectangle: a rectangle drops the cell section when it
-// intersects its region and leaves it, at its version, when it does not
+// intersects its region and leaves it when it does not
 // (#656); an unknown region intersects every rectangle.
 func TestApplyRectangle(t *testing.T) {
 	s := fullColonyStore(t)
 	outside := Rect{MinX: 30, MinZ: 30, MaxX: 31, MaxZ: 31}
-	before := s.Versions()[string(PlanningCells)]
 	s.Apply(Invalidation{Families: []bridge.FactFamily{bridge.FactColony}, Rect: &outside})
 	if !fresh(s, PlanningCells) {
 		t.Fatal("a disjoint rectangle must leave the window held")
-	}
-	if after := s.Versions()[string(PlanningCells)]; after != before {
-		t.Fatalf("a disjoint rectangle moved the window version %d -> %d", before, after)
 	}
 	edge := Rect{MinX: 19, MinZ: 0, MaxX: 25, MaxZ: 10}
 	s.Apply(Invalidation{Families: []bridge.FactFamily{bridge.FactColony}, Rect: &edge})

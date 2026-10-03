@@ -13,15 +13,6 @@ people and field notes. Raw IDs, receipts and tool details stay behind closed di
 disclosures. Mounted views preserve drafts across navigation, and background refreshes
 preserve the last good data.
 
-## Local colony discovery
-
-`GET /api/colonies` lists running local Docker workers identified by the
-`io.rimgovernor.colony=1` label or the `rimgovernor.container_worker` entrypoint. It returns
-container ID, name, display mode, start time and a loopback URL for published
-container port 8787. Missing ports produce a null URL. Discovery errors return
-`colonies: null` and an error; an empty array means successful discovery of no workers.
-The standalone `--colonies` server exposes the directory without starting a runtime.
-Docker inspection is read-only and does not establish native game health.
 
 Scenario workers expose a separate observation-only app at `/scenario`, attached to
 the existing runtime on its event loop. `/api/state` returns retained public state

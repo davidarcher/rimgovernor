@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
             && ProtoBoundary.IsLoaded(building.Map) && !building.Position.Fogged(building.Map)
             && !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning();
 
-        // Mirrors RecoveryTools.Order's "observed service no longer needs this
+        // Refuses when the "observed service no longer needs this
         // method" refusal: repair only while under max HP, breakdown only while
         // broken, refuel only while under a quarter of the target fuel level,
         // the controller's own refuel threshold (policy.RecoveryWork orders a

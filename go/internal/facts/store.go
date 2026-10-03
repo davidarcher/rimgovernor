@@ -134,12 +134,6 @@ type Store struct {
 	mu    sync.RWMutex
 	scope Scope
 	rows  map[Section]row
-	// versions counts, per section, the invalidations the native
-	// fact-change stream has named it in (an ObservationInvalidated row, an
-	// operation outcome, a scope change): the per-section version a
-	// domain.ReadValidity carries (#624). A refresh at cadence does not
-	// move it; only evidence that the section changed does.
-	versions map[Section]uint64
 	// tables are the keyed tables by section name (tables.go), numbered
 	// by tableVersion and handed to recorder as published.
 	tables       map[string]any
@@ -175,7 +169,6 @@ func (s *Store) rescope(scope Scope) {
 	s.rows = map[Section]row{}
 	s.tables = map[string]any{}
 	s.scope = scope
-	s.bumpAll()
 }
 
 // Get returns the held section and false when none is held or it was put
@@ -229,40 +222,8 @@ func (s *Store) Invalidate(sections ...Section) {
 	}
 }
 
-// bump moves a section's version: the native said it changed.
-func (s *Store) bump(section Section) {
-	if s.versions == nil {
-		s.versions = map[Section]uint64{}
-	}
-	s.versions[section]++
-}
-
-// bumpAll moves every section's version (a scope change, a whole-view
-// invalidation).
-func (s *Store) bumpAll() {
-	for _, section := range Sections() {
-		s.bump(section)
-	}
-}
-
-// Versions is each section's version, keyed by name, for a
-// domain.ReadValidity; a section never invalidated is at zero.
-func (s *Store) Versions() map[string]uint64 {
-	if s == nil {
-		return nil
-	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make(map[string]uint64, len(Sections()))
-	for _, section := range Sections() {
-		out[string(section)] = s.versions[section]
-	}
-	return out
-}
-
-// drop forgets a section and moves its version.
+// drop forgets a section.
 func (s *Store) drop(section Section) {
-	s.bump(section)
 	delete(s.rows, section)
 }
 
@@ -394,7 +355,6 @@ func (s *Store) InvalidateAll() {
 	for section := range s.rows {
 		s.drop(section)
 	}
-	s.bumpAll()
 }
 
 // Status lists the held sections in Sections order.

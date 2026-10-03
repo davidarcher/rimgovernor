@@ -26,11 +26,6 @@ flowchart LR
 | Native colony bridge | Colony-specific observations, guarded operations and saved identity. |
 | RimWorld | Simulation, legal placement and ordinary pawn work. |
 
-Open [G01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22)
-and [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22)
-issues track remaining controller and native mod work; check them before changing
-runtime ownership.
-
 ## Execution rules
 
 - Validate resources, geometry and current context before issuing work.
@@ -44,5 +39,4 @@ runtime ownership.
 - Each fact has one home ([persistence contracts](../contracts/persistence-contracts.md)); goals live in the save.
 
 For implementation detail, follow the [component guides](../README.md#component-guides)
-and [subsystem contracts](../contracts/README.md). Docker isolates processes and
-inputs; gameplay validation still requires native outcome assertions.
+and [subsystem contracts](../contracts/README.md). Gameplay validation requires native outcome assertions.

@@ -15,13 +15,13 @@ import (
 
 var testRequest = Request{Messages: []Message{{Role: User, Content: "Describe the colony"}}, MaxOutputTokens: 32}
 
-const completeOK = `{"choices":[{"index":0,"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}],"usage":{"prompt_tokens":4,"completion_tokens":2,"total_tokens":6}}`
+const completeOK = `{"choices":[{"index":0,"message":{"role":"assistant","content":"Hello"},"finish_reason":"stop"}]}`
 
 func testClient(t *testing.T, handler http.HandlerFunc, edit func(*Config)) (*Client, *httptest.Server) {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	config := Config{Model: "local-test", BaseURL: server.URL + "/v1", Timeout: 2 * time.Second, MaxResponseBytes: 8192, MaxFrameBytes: 2048}
+	config := Config{Model: "local-test", BaseURL: server.URL + "/v1", Timeout: 2 * time.Second, MaxResponseBytes: 8192}
 	if edit != nil {
 		edit(&config)
 	}
@@ -42,14 +42,14 @@ func TestCompleteUsesExplicitLocalTextRequest(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		if body.Model != "local-test" || body.MaxTokens != 32 || body.N != 1 || body.Stream || body.StreamOptions != nil || len(body.Messages) != 1 || body.Messages[0] != testRequest.Messages[0] {
+		if body.Model != "local-test" || body.MaxTokens != 32 || body.N != 1 || len(body.Messages) != 1 || body.Messages[0] != testRequest.Messages[0] {
 			t.Errorf("unexpected request %#v", body)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, completeOK)
 	}, nil)
 	result, err := client.Complete(context.Background(), testRequest)
-	if err != nil || result.Text != "Hello" || result.FinishReason != Stop || result.Usage == nil || result.Usage.PromptTokens == nil || *result.Usage.PromptTokens != 4 {
+	if err != nil || result.Text != "Hello" || result.FinishReason != Stop {
 		t.Fatalf("result=%#v err=%v", result, err)
 	}
 }
@@ -61,8 +61,8 @@ func TestConfigRejectsNonlocalOrAmbiguousEndpoints(t *testing.T) {
 			t.Errorf("accepted %s", base)
 		}
 	}
-	for _, base := range []string{"http://localhost:1234/v1", "http://127.0.0.1:1234/v1", "http://[::1]:1234/v1", "http://host.docker.internal:1234/v1"} {
-		client, err := NewClient(Config{Model: "test", BaseURL: base, Timeout: time.Second, MaxResponseBytes: 100, AllowDockerHost: true})
+	for _, base := range []string{"http://localhost:1234/v1", "http://127.0.0.1:1234/v1", "http://[::1]:1234/v1"} {
+		client, err := NewClient(Config{Model: "test", BaseURL: base, Timeout: time.Second, MaxResponseBytes: 100})
 		if err != nil {
 			t.Errorf("refused %s: %v", base, err)
 		} else {
@@ -123,8 +123,6 @@ func TestCompleteRefusalsAndBounds(t *testing.T) {
 		{"duplicate", `{"choices":[],"choices":[]}`, 200, ErrInvalidResponse},
 		{"malformed", "{", 200, ErrInvalidResponse},
 		{"utf8", string([]byte{'"', 0xff, '"'}), 200, ErrInvalidResponse},
-		{"negative usage", strings.Replace(completeOK, `"prompt_tokens":4`, `"prompt_tokens":-1`, 1), 200, ErrInvalidResponse},
-		{"fraction usage", strings.Replace(completeOK, `"prompt_tokens":4`, `"prompt_tokens":1.5`, 1), 200, ErrInvalidResponse},
 		{"server error", `{"error":{"message":"loading failed"}}`, 200, ErrInvalidResponse},
 		{"too large", strings.Repeat("x", 9000), 200, ErrResponseTooLarge},
 	}
@@ -142,7 +140,7 @@ func TestCompleteRefusalsAndBounds(t *testing.T) {
 	}
 }
 
-func TestHTTPErrorAndUnknownUsage(t *testing.T) {
+func TestHTTPError(t *testing.T) {
 	var requests atomic.Int32
 	client, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
@@ -153,13 +151,6 @@ func TestHTTPErrorAndUnknownUsage(t *testing.T) {
 	var httpError *HTTPError
 	if !errors.As(err, &httpError) || httpError.StatusCode != 503 || httpError.Message != "model is loading" || requests.Load() != 1 {
 		t.Fatalf("%v", err)
-	}
-	unknown, _ := testClient(t, func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, `{"choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
-	}, nil)
-	value, err := unknown.Complete(context.Background(), testRequest)
-	if err != nil || value.Usage != nil {
-		t.Fatalf("unknown usage became zero: %#v %v", value, err)
 	}
 }
 

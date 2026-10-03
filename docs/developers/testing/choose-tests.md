@@ -321,17 +321,6 @@ lease lapses), `httpapi` chat and viewer tests (a dead chat model is a 502
 with no policy write, a viewer disconnecting and reconnecting issues no
 control operation).
 
-## Late-game material production
-
-The deep drill, drill removal and component fabrication decisions are
-colony snapshot tests (#894,
-`buildingruntime/routine_ladder_snapshot_test.go`): the deep drill step's
-own read sites the seeded steel lump and picks the depleted drill to
-deconstruct, and the resource step's recorded bench census funds a
-`Make_ComponentIndustrial` bill. The former `production/deepdrill`,
-`production/components` and `production/drillremoval` native cases are
-gone.
-
 ## Isolated food channels
 
 The `food/` area owns nutrition-channel acceptance. `food/empty-channels`
@@ -1219,8 +1208,6 @@ report.
 | Whether the cross-step fact cache is doing its job for a routine family | `acceptance run routinehaul/storage` or `light/dark`: every launch records a flight timeline and `result.json` summarizes it under `metrics` (`reads_per_step_mean`, `cache_hit_ratio`); the pawn outcome assertions are unchanged, so a run that passes with a lower reads/step than a run without the parent cache is the acceptance | Read-only diagnostics on top of the ordinary case; no extra game time. |
 | Where bridge call time goes (gate wait, bridge round trip, native main-thread queue wait, native tool execution, receipt decode, ProtoJSON decode) and wall TPS over a session | Run `serve` with `--flight-recorder <abs path>`, then `rimgovernor phases [--json] <abs path>` from `go/` (`go run ./cmd/rimgovernor phases ...`). Rows carry per-call `timing` phases and `native_decode` rows; the sampler aggregates per native tool, with describe (`games_tool_detail`) round trips listed separately (paid once per method per bridge session, not per call); the `cached` column counts reads the snapshot frame stream served without a round trip (`native_frame_hit` rows, #858). Each `ClockScheduler.Step` also publishes a `clock_step` row tallying the round trips it still issued by tool, which the report shows as reads/step (mean, max, per tool); `serve --debug` (every acceptance launch) prints the same tally per step on stderr (`[clock-scheduler] step reads: ...`) | Read-only over the recorder's retained segments; no game or authority access. The companion reports its own split beside the payload (`{"payload": ..., "timing": {"queueMs", "executeMs"}}`) for every `rimgovernor/*` tool whose single main-thread hop goes through `ProtoBoundary.OnMainThread`; the `queue ms`/`exec ms` columns are means over the calls that carried it and read `-` (absent, not zero) for an older companion or a multi-hop media capture. Sub-millisecond phases can read 0 on Windows' coarse monotonic clock. Wall TPS comes from reply ticks and includes paused time; tick decreases (load, rewind) are excluded as resets. Field meanings and how to read a report: [measure-throughput.md](measure-throughput.md). |
 | Harness waits, decoding, the authority ceremony or discovery against a recorded call sequence, without a game | `go test ./internal/nativeaccept -run TestReplay` from `go/` over the transcripts under `internal/nativeaccept/testdata/transcripts/`; record a fresh one from any case with `RIMGOVERNOR_ACCEPT_RECORD=<abs dir>` (`<dir>/transcript.jsonl`, one sequence across every session the run opens) and open it with `na.ReplayHarness(ctx, path, output)` | Replays receipts as the bridge returned them (refusals included) and fails on the first call the recording did not make, with the diff (`bridge.Replay.Err`). Establishes harness behaviour only, never a native one. |
-| Docker packaging of the Go controller | `docker build -f containers/Dockerfile --target go-controller`, `docker run --rm rimgovernor-go:local version`/`help` | Confirms the image builds and the binary starts without a licensed game; not gameplay evidence. See [go/README.md](../../../go/README.md#go-launch-and-packaging-the-production-default-g0111-g0112). |
-| The Go controller as a Linux worker container reaching a connected native session, and the worker storage contract (private volume, export after stop, database integrity, verified cleanup) | `go run ./internal/nativeaccept/docker/cmd/dockerworkeraccept` from `go/` with the Linux game/mods/profile inputs (`-storage bind` for the host-bind-mount comparison); `go test ./internal/nativeaccept/docker/` covers the stop/export/retain/release branches against a fake `docker` without an engine | Linux Docker engine, licensed Linux game build and prepared profile; one worker, no pawn work. A retained volume in `storage_evidence` is recovery evidence from a failed export, not a leak to sweep. |
 
 For agents: `go run ./cmd/affected` from `go/` prints the checks a change
 needs, one command per line: the `go test` line for the packages holding the

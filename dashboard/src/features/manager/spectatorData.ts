@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 // Read-only view of GET /api/spectator/now (#632): the watcher's one read of
 // what the colony is trying to do, why the clock runs as it does and the last
 // stop with its latency split. Nulls are unknown facts; nothing is derived
@@ -24,7 +25,6 @@ export type NowStop = {
 export type NowStops = {stops: number; budget: number; reactive: number};
 export type Now = {tick: number | null; stage: NowStage | null; goals: NowGoal[]; pacing: NowPacing; lastStop: NowStop | null; stops: NowStops};
 
-export class SpectatorHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 
 type Json = Record<string, unknown>;
 function isObject(v: unknown): v is Json {return typeof v === 'object' && v !== null && !Array.isArray(v);}
@@ -85,7 +85,7 @@ export async function fetchNow(signal: AbortSignal): Promise<Now> {
   if (!response.ok) {
     let detail = `The now panel is unavailable (${response.status})`;
     try {const error = object(await response.json(), ['code', 'detail']); detail = text(error.detail);} catch { /* Retain the local diagnostic for a malformed error. */ }
-    throw new SpectatorHTTPError(response.status, detail);
+    throw new HTTPError(response.status, detail);
   }
   const source = await response.text();
   if (new TextEncoder().encode(source).length > 262144) throw Error('Spectator response exceeds size bound');

@@ -4,10 +4,10 @@
 
 | View | Use it to |
 | --- | --- |
-| Watch | See the game and send chat requests. |
-| Priorities | Inspect colony needs, policy and stability checks. |
+| Watch | Pause or resume the colony, see what it is doing now, and send chat requests. |
 | Work | Follow plans, progress, blockers and development priorities. |
 | Colony | Inspect colonists, jobs, skills, gear, health and mood. |
+| Governor | Follow the controller's live telemetry. |
 | Help | Read the player guide, launch options and save instructions. |
 
 ## Automate or take control
@@ -17,9 +17,7 @@ then resumes supervised play. Routine control uses no model calls.
 
 Player time controls enter Manual. **Take control** stops automation before
 accepting dashboard input. Releasing control leaves the colony in Manual until
-you explicitly resume automation. Direct pointer and keyboard input is available
-in supported rendered Docker sessions; desktop sessions offer camera and
-colonist selection controls.
+you explicitly resume automation.
 
 Under automation, every colony's first shelter is a rectangular room; cramped
 terrain gets an L-shaped, two-chamber or irregular room that fits the ground.
@@ -44,7 +42,7 @@ Removing pending construction is a separate request; completed buildings remain.
 
 Work lists the optional projects the last routine review ranked: comfort, research,
 production targets, defense and expansion. Each row shows whether the project was
-selected, is in progress, or why it waits — for capacity, for free pawns of a named
+selected, is in progress, or why it waits - for capacity, for free pawns of a named
 work type, for a known deficit, or because outdoor work is unsafe. Emergencies are
 handled before this list and never appear in it. The panel is absent when routine
 reviews are disabled.

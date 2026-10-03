@@ -1,6 +1,7 @@
 import {useEffect, useState} from 'react';
+import {HTTPError} from '../http';
 import type {ObservationState} from './observationData';
-import {fetchPresentation, PresentationHTTPError, readCamera, readRoster, readSelection, samePresentationWorld, type Camera, type Dossier, type Listing, type PresentationContext, type Roster, type Selection} from './presentationData';
+import {fetchPresentation, readCamera, readRoster, readSelection, samePresentationWorld, type Camera, type Dossier, type Listing, type PresentationContext, type Roster, type Selection} from './presentationData';
 import type {PawnProfile, WorkRoster} from './routineData';
 import {useRoutineStatus} from './useRoutineStatus';
 
@@ -19,7 +20,7 @@ function useReading<T extends {context: PresentationContext}>(kind: 'camera' | '
         if (!samePresentationWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching data');
         if (!stopped) setState({key, value, fresh: true, hidden: false, error: ''});
       } catch (error) {
-        if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, fresh: false, hidden: error instanceof PresentationHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Presentation unavailable'}));
+        if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, fresh: false, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Presentation unavailable'}));
       } finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

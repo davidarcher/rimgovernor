@@ -107,20 +107,3 @@ overwrite a pinned manifest. Preserve old assets/identity access as needed for
 in-flight runs, then retire only the superseded cache/release material under
 the maintainer's retention policy. Import trust pins must identify the bundle
 and workflow actually reviewed for that run.
-
-## Rollout evidence
-
-[#382](https://github.com/davidarcher/rimgovernor/issues/382) records hosted
-cold/warm smoke, native failure and authenticated import proofs. The handoff evidence in [#383](https://github.com/davidarcher/rimgovernor/issues/383)
-records a manual cold run of 554 seconds and its warm run 532 seconds, each with two shards and
-six cases; final compressed artifacts were 943,002 and 977,243 bytes. Windows
-billed usage was reported as zero. These measurements support a bounded
-two-shard smoke default, not a land-tier throughput claim.
-[#383](https://github.com/davidarcher/rimgovernor/issues/383) owns the remaining
-affected land proof and operator measurements. Selection correctness fix
-[#366](https://github.com/davidarcher/rimgovernor/issues/366) landed as `200a3711`.
-[#348](https://github.com/davidarcher/rimgovernor/issues/348),
-[#333](https://github.com/davidarcher/rimgovernor/issues/333) and #271 remain
-independent selection, fixture and worker optimizations;
-[#387](https://github.com/davidarcher/rimgovernor/issues/387) owns nightly full
-rollout. Keep their evidence and completion criteria separate.

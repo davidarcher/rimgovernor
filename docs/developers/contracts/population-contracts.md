@@ -166,5 +166,5 @@ watchdog bounds stalled issued work. Patient-care, recruitment and integration a
 separate observed phases; voluntary joining after rescue remains RimWorld's decision.
 
 The optional `PopulationFixture` build prepares test-only starting conditions and is
-excluded from production and model execution. Docker evidence distinguishes this
+excluded from production and model execution. Acceptance evidence distinguishes this
 fixture's prerequisites from the ordinary pawn outcomes asserted afterward.

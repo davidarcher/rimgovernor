@@ -13,5 +13,5 @@ or network listener starts. Journal fixtures remain under `.rimgovernor/`.
 Coverage includes exact admission replay, ownership and cleanup after revocation,
 monotonic lease behavior across a UTC jump, failed pause, initial safety stops,
 event attribution, paging and missing history. Private game/SDK compilation and
-Docker gameplay acceptance are separate requirements; these fixtures do not prove
+native gameplay acceptance are separate requirements; these fixtures do not prove
 Harmony hooks or actual native tick behavior.

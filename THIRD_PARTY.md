@@ -3,15 +3,8 @@
 ## Go dependencies
 
 Pinned versions and hashes are in `go/go.mod` and `go/go.sum`. Retained notices
-in `third_party/` cover the MCP Go SDK, modernc SQLite, SQLite and sqlite-vec.
-Include applicable dependency notices with distributed binaries; the Go packaging
-gate remains in the [G01 issues](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AG01%22).
-
-## Dashboard
-
-The dashboard includes source derived from IlyaChichkov/rimapi-dashboard at
-`152454bbcc8ab7d2b3e6cfff797f6a1df03d36b1`. Its MIT notice is retained in
-[third_party/rimapi-dashboard-LICENSE](third_party/rimapi-dashboard-LICENSE).
+in `third_party/` cover modernc SQLite.
+Include applicable dependency notices with distributed binaries.
 
 ## Native integration and formatters
 
@@ -31,14 +24,3 @@ actual native loading remains part of N01 package acceptance.
 - [Headless adapter source notice](integrations/rimgovernor-native/Notices/headless/PROVENANCE.md) and GPL-3.0 license
 
 Game files, artwork and installed SDK assemblies are supplied separately.
-
-## Retired Python UI formatter notice
-
-The Python production runtime's `companion_ui.py` (removed in
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33)) retained
-`slim_surface` and its helpers from Snowstar38/rimworld-claude-harness,
-`instruments/ui.py`, revision `89c2e90fedd51419a3db55a7f9865b0aef29b270`.
-Transport, CLI, clicking, dismissal and timers were excluded. The reviewed
-upstream checkout supplied no license file; that research reuse never
-established redistribution permission. Kept here for the historical record
-now that the code itself is gone.

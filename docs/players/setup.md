@@ -4,7 +4,7 @@
 
 A clean checkout needs:
 
-- Go 1.27.1 (`.go-version`), Node.js 22+, pnpm and the .NET SDK (for the native
+- Go (`go/.go-version`), Node.js 22+, pnpm and the .NET SDK (for the native
   mod and the shared Protobuf contracts), all on `PATH`.
 - RimWorld 1.6 with Harmony and RimBridgeServer from Steam (the launcher finds
   them through Steam's libraries).
@@ -17,7 +17,7 @@ launcher's settings.
 ## Build the launcher once
 
 Double-click `RimGovernor.cmd` in the repository root. It builds the launcher
-(`RimGovernorLauncher.exe`, seconds when nothing changed) and opens it; Go 1.27 must be
+(`RimGovernorLauncher.exe`, seconds when nothing changed) and opens it; the pinned Go must be
 installed.
 
 ## What the launcher prepares

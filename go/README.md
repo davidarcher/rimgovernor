@@ -3,7 +3,7 @@
 `go/` is the RimGovernor runtime: it observes the colony over
 GABP from RimBridgeServer, runs deterministic routine policy, executes admitted work
 through Hands, and serves the dashboard and player API. The launcher
-(`cmd/launcher`, built as `RimGovernorLauncher.exe`) and the Docker `go-controller` target start this binary
+(`cmd/launcher`, built as `RimGovernorLauncher.exe`) starts this binary
 directly. Start from the [source map](../docs/developers/source-map.md) and
 [architecture overview](../docs/developers/architecture/overview.md); this page
 covers building, running and testing the module.
@@ -87,24 +87,9 @@ generation/goal-keyed.
 ([issue #45](https://github.com/davidarcher/rimgovernor/issues/45)) or restart
 in short thrashing bursts ([issue #42](https://github.com/davidarcher/rimgovernor/issues/42)).
 
-**Docker**: `containers/Dockerfile`'s `go-controller` target builds the binary
-and packages the dashboard assets:
-
-```powershell
-docker build -f containers/Dockerfile --target go-controller -t rimgovernor-go:local .
-docker run --rm rimgovernor-go:local version
-```
-
-`containers/go-controller.compose.yaml` runs a real `serve --observe` session
-with bind-mounted config/state inputs using `network_mode: host`, because
-`--listen` only accepts a loopback address (the compose file's comments cover
-the Docker Desktop caveat).
-
 **No licensed game files here**: without a real game install and prepared save,
 `serve` fails at the native bridge handshake (`bridge transport failure:
-initialize: ...`). That failure, `go build`, `go vet`, `go test ./cmd/...` and
-an image build reaching the same clean failure are compilation/protocol/wiring
-checks, not gameplay evidence.
+initialize: ...`). That failure, `go build`, `go vet` and `go test ./cmd/...` are compilation/protocol/wiring checks, not gameplay evidence.
 
 ## Player API and chat
 

@@ -16,7 +16,7 @@ const pages = [
   { id: "saves", file: "save-and-resume.md", label: "Save & resume", text: saves },
 ] as const;
 
-const source = "https://github.com/davidarcher/RimBot/blob/main/docs/players/";
+const source = "https://github.com/davidarcher/rimgovernor/blob/main/docs/players/";
 
 function currentPage() {
   return pages.find(page => location.hash === `#help/${page.id}`) ?? pages[0];

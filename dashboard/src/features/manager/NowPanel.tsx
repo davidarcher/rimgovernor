@@ -1,6 +1,6 @@
-import {useEffect, useState} from 'react';
+import {useReading, type Reading} from '../useReading';
 import {blockedLabel} from './DevelopmentPanel';
-import {fetchNow, SpectatorHTTPError, type Now, type NowStop, type PacingReason} from './spectatorData';
+import {fetchNow, type Now, type NowStop, type PacingReason} from './spectatorData';
 
 // The spectator "now" panel (#632): what the colony is trying to do, what it
 // last achieved, what blocks it and why the governor paced or stopped the
@@ -8,22 +8,9 @@ import {fetchNow, SpectatorHTTPError, type Now, type NowStop, type PacingReason}
 // a failed refresh; watching the panel never changes the simulation — no
 // journal row, no speed request, no native call.
 export const nowInterval = 2000;
-export type NowReading = {value: Now | null; stale: boolean; hidden: boolean; error: string};
+export type NowReading = Reading<Now>;
 
-export function useNow(active: boolean): NowReading {
-  const [state, setState] = useState<NowReading>({value: null, stale: true, hidden: false, error: ''});
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      try {const value = await fetchNow(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])); if (!stopped) setState({value, stale: false, hidden: false, error: ''});}
-      catch (error) {if (!stopped) setState(previous => ({value: previous.value, stale: true, hidden: error instanceof SpectatorHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'The now panel is unavailable'}));}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), nowInterval);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
-  return state;
-}
+export const useNow = (active: boolean): NowReading => useReading(active, fetchNow, nowInterval, 'The now panel is unavailable');
 
 // Pacing reasons as the controller records them (spectator.PacingReason); the
 // panel names the evidence, it does not advise.

@@ -31,9 +31,6 @@ Help remains reachable even before the controller is detected — the
 pre-connect screen carries its own Help link and plain-language launch
 instructions, not just a spinner.
 
-There is no multi-instance local colony directory (`--colonies`) or `/colonies`
-route; see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47).
-
 Colony also shows the food portfolio from `GET /api/player/colony`:
 channel bars use the plan's admitted nutrition/day, with Open/Hold/Close
 labels, a shared consumer-demand marker, hatched Reserve rows and unknown
@@ -165,14 +162,3 @@ as an acceptance run's `--listen 127.0.0.1:0` port.
 (`--chat-model`; the panel hides itself on the first 501). Each reply is an
 explanation plus at most one applied policy nudge, rendered in a short reply
 log; chat never authors orders (`playerData.ts` `ChatGuidance`).
-
-## Retired: notebook, player-authored projects, autopilot settings, visual review, local colony directory
-
-A colonist notebook/memories feature, a player-authored project list, savable
-autopilot settings, an automated visual-review reviewer and the local colony
-directory described above have no backend today, so the dashboard does not show
-them rather than fake the data. See issues
-[#47](https://github.com/davidarcher/rimgovernor/issues/47),
-[#49](https://github.com/davidarcher/rimgovernor/issues/49), and
-[#50](https://github.com/davidarcher/rimgovernor/issues/50) for the status
-of bringing these back on the Go controller.

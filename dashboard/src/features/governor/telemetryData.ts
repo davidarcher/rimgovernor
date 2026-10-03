@@ -1,3 +1,4 @@
+import {HTTPError} from '../http';
 // Read-only view of /api/telemetry/events and /api/telemetry/metrics (#299):
 // the flight-recorder rows serve keeps under the profile and the live
 // metrics block. Context and payload are the recorder's free-form objects;
@@ -15,7 +16,6 @@ export type TelemetryPage = {events: TelemetryEvent[]; nextSince: number; lastSe
 export type Authority = {colony: string; map: number; load: string; plan: string; revision: string; native: string};
 export type TelemetryMetrics = {tick: number | null; tps: number; authority: Authority | null; lastStepMs: number; run: string; metrics: Record<string, number>};
 
-export class TelemetryHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 
 function isObject(v: unknown): v is Json {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function record(v: unknown, what: string): Json {if (!isObject(v)) throw Error(`Invalid telemetry ${what}`); return v;}
@@ -74,7 +74,7 @@ async function get(path: string, signal: AbortSignal): Promise<unknown> {
   if (!response.ok) {
     let detail = `Telemetry unavailable (${response.status})`;
     try {const body: unknown = await response.json(); if (isObject(body) && typeof body.detail === 'string') detail = body.detail;} catch { /* keep the status text */ }
-    throw new TelemetryHTTPError(response.status, detail);
+    throw new HTTPError(response.status, detail);
   }
   return response.json();
 }

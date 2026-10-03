@@ -44,7 +44,7 @@ mistaken for the game) and speaks GABP to RimBridgeServer directly
 id, so a held `clock_read_events` long poll does not stall planner reads
 behind it (issue #115). The game is spawned detached and keeps running when
 the controller ends; a restarted controller reattaches through the endpoint
-record. On the game side RimBridgeServer would run each companion-mod
+record. On the game side RimBridgeServer ran each companion-mod
 tool on the GABP connection's reader thread; the companion re-registers its
 tools off that thread (`ExtensionDispatchPatch`, issue #227), so a held
 journal read no longer makes the routine worker's dispatch of the successor
@@ -71,15 +71,7 @@ See [save and resume](../../players/save-and-resume.md).
 
 Workers own their controller, private profile, database and game process. Cleanup
 stops owned processes only. Windows workers share installed DLLs, so all games must
-stop before replacing them. Docker workers stage private binary snapshots and
-keep their writable `/worker` tree (SQLite state, flight recorder, game log,
-profile) on a private Docker volume so no synchronous write crosses a host bind
-mount; the tree is exported to the host output directory only after the
-container has stopped, every exported database must pass `integrity_check`, and
-the volume is removed (and verified gone) only after a successful export --
-otherwise it is retained as recovery evidence and named in the report
-(`go/internal/nativeaccept/docker.Storage`). `-storage bind` keeps the
-host-bind-mount comparison mode.
+stop before replacing them.
 
 ## Uncertain writes and read retries
 

@@ -33,18 +33,9 @@ const (
 	Length FinishReason = "length"
 )
 
-// Unknown usage remains nil, including individual counts omitted by the server.
-// No character/byte count is reported as a token count.
-type Usage struct {
-	PromptTokens     *int64 `json:"prompt_tokens"`
-	CompletionTokens *int64 `json:"completion_tokens"`
-	TotalTokens      *int64 `json:"total_tokens"`
-}
-
 type Response struct {
 	Text         string
 	FinishReason FinishReason
-	Usage        *Usage
 }
 
 type Config struct {
@@ -52,16 +43,12 @@ type Config struct {
 	BaseURL          string
 	Timeout          time.Duration
 	MaxResponseBytes int64
-	// Zero selects min(64 KiB, MaxResponseBytes).
-	MaxFrameBytes   int64
-	AllowDockerHost bool
 }
 
 var (
 	ErrClosed           = errors.New("local model client is closed")
 	ErrInvalidResponse  = errors.New("invalid local model response")
 	ErrResponseTooLarge = errors.New("local model response exceeds byte limit")
-	ErrFrameTooLarge    = errors.New("local model stream frame exceeds byte limit")
 	ErrOutputLimit      = errors.New("local model output token limit reached")
 	ErrToolCalls        = errors.New("tool calls are unsupported by text transport")
 	ErrRefusal          = errors.New("local model refused the request")
