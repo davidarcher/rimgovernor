@@ -78,18 +78,13 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wall, gate, inner := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	wall, gate := map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for _, r := range reserved(p, ReservePerimeter) {
 		for _, c := range rectCells(r) {
 			wall[c] = true
 		}
 	}
-	for _, r := range reserved(p, ReserveInnerWall) {
-		for _, c := range rectCells(r) {
-			wall[c], inner[c] = true, true
-		}
-	}
-	for _, r := range append(reserved(p, ReserveGate), reserved(p, ReserveInnerGate)...) {
+	for _, r := range reserved(p, ReserveGate) {
 		cs := rectCells(r)
 		gate[cs[0]], gate[cs[len(cs)-1]] = true, true
 		for _, c := range cs[1 : len(cs)-1] {
@@ -126,7 +121,7 @@ func TestPerimeterSectionsCoverTheWallKillboxFirst(t *testing.T) {
 	}
 	first := squaredDistance(sections[0].Buildings[0].Cell(), centre)
 	for _, s := range sections[1:] {
-		if s.Name != TierGeothermal && !inner[s.Buildings[0].Cell()] && squaredDistance(s.Buildings[0].Cell(), centre)+900 < first {
+		if s.Name != TierGeothermal && squaredDistance(s.Buildings[0].Cell(), centre)+900 < first {
 			t.Fatal("a section nearer the killbox than the first", s.Name)
 		}
 	}

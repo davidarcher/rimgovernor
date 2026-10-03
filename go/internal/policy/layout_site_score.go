@@ -72,7 +72,7 @@ func SiteCore(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier) La
 	// only the best siteWallCandidates by core score are walled and reranked.
 	walled := scores[:min(siteWallCandidates, len(scores))]
 	eachParallel(len(walled), func(i int) {
-		walled[i].score += g.scoreWall(PlanPerimeter(walled[i].plan, s), ground)
+		walled[i].score += scoreWall(PlanPerimeter(walled[i].plan, s))
 	})
 	rankSites(walled)
 	var top []string
@@ -276,18 +276,8 @@ func union(a, b Rectangle) Rectangle {
 // quiet box), inside siteBudget.
 const siteWallCandidates = 8
 
-// Wall score weights (#1288): each wall cell is a build and defense cost,
-// soil inside the wall (rich weighted by soilCost) a gain, and soil left
-// outside it but within siteReach of the enclosure a loss.
-const (
-	siteWallWeight     = 2
-	siteEnclosedWeight = 2
-	siteOutsideWeight  = 1
-)
-
-// wallBarrier are the perimeter reservations a raider cannot walk
-// through; the flood that finds the enclosure stops at them.
-var wallBarrier = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveGate: true, ReserveKillbox: true}
+// siteWallWeight is the cost of each built wall cell (#1288).
+const siteWallWeight = 2
 
 // siteGround is the map's size and its impassable cells, shared by every
 // candidate's wall score.
@@ -307,95 +297,19 @@ func newSiteGround(s MapSurvey) siteGround {
 	return siteGround{w: w, h: h, blocked: b}
 }
 
-// scoreWall scores p's wall (p as PlanPerimeter returns it): the wall's
-// cells against it, the soil it encloses (off the rooms) for it, and the
-// soil outside it within siteReach of what it encloses against it. The
-// enclosure is every open cell a flood from the map edge cannot reach.
-func (g coreGrid) scoreWall(p LayoutPlan, ground siteGround) int {
-	w, h := ground.w, ground.h
-	if w < 1 || h < 1 {
-		return 0
-	}
-	idx := func(c domain.Cell) (int32, bool) {
-		if c.X < 0 || c.X >= w || c.Z < 0 || c.Z >= h {
-			return 0, false
-		}
-		return c.Z*w + c.X, true
-	}
-	wall := make([]bool, w*h)
-	walls := 0
+// scoreWall scores p's wall (p as PlanPerimeter returns it): each built
+// wall cell is a cost.
+func scoreWall(p LayoutPlan) int {
+	seen := map[domain.Cell]bool{}
 	for _, r := range p.Reservations {
-		if !wallBarrier[r.Kind] {
+		if r.Kind != ReservePerimeter && r.Kind != ReservePerimeterLight && r.Kind != ReserveBridge {
 			continue
 		}
-		built := r.Kind == ReservePerimeter || r.Kind == ReservePerimeterLight || r.Kind == ReserveBridge
 		for _, c := range rectCells(r.Area) {
-			if i, ok := idx(c); ok && !wall[i] {
-				wall[i] = true
-				if built {
-					walls++
-				}
-			}
+			seen[c] = true
 		}
 	}
-	if walls == 0 {
-		return 0
-	}
-	open := func(i int32) bool { return !wall[i] && !ground.blocked[i] }
-	reached := make([]bool, w*h)
-	var queue []int32
-	push := func(x, z int32) {
-		if i, ok := idx(domain.Cell{X: x, Z: z}); ok && open(i) && !reached[i] {
-			reached[i] = true
-			queue = append(queue, i)
-		}
-	}
-	for x := range w {
-		push(x, 0)
-		push(x, h-1)
-	}
-	for z := range h {
-		push(0, z)
-		push(w-1, z)
-	}
-	for len(queue) > 0 {
-		i := queue[len(queue)-1]
-		queue = queue[:len(queue)-1]
-		x, z := i%w, i/w
-		push(x+1, z)
-		push(x-1, z)
-		push(x, z+1)
-		push(x, z-1)
-	}
-	rooms := map[domain.Cell]bool{}
-	for _, r := range p.AllRooms() {
-		for _, c := range rectCells(r.Interior) {
-			rooms[c] = true
-		}
-	}
-	inside, outside := 0, 0
-	var box Rectangle
-	for i := range w * h {
-		if !open(i) || reached[i] {
-			continue
-		}
-		c := domain.Cell{X: i % w, Z: i / w}
-		cell := Rectangle{X: c.X, Z: c.Z, Width: 1, Height: 1}
-		if box.Width == 0 {
-			box = cell
-		} else {
-			box = union(box, cell)
-		}
-		if !rooms[c] {
-			inside += g.soil[c]
-		}
-	}
-	for _, c := range rectCells(pad(box, siteReach)) {
-		if i, ok := idx(c); ok && reached[i] {
-			outside += g.soil[c]
-		}
-	}
-	return siteEnclosedWeight*inside - siteOutsideWeight*outside - siteWallWeight*walls
+	return -siteWallWeight * len(seen)
 }
 
 // eachParallel runs f for 0..n-1 over the worker pool.

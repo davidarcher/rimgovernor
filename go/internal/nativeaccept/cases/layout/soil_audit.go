@@ -19,27 +19,18 @@ const richFertility = 1.0
 // not a ban, so a small overlap is allowed.
 const richOverlapBudget = 0.02
 
-// ringThick is the perimeter wall's thickness: a ring along the edge
-// margin line occupies the band LayoutEdgeMargin..LayoutEdgeMargin+ringThick
-// from the map edge.
-const ringThick int32 = 3
-
 // soilAudit is the three plan assertions' findings; each slice lists the
 // violations found (capped), empty when the assertion holds.
 type soilAudit struct {
-	RichCells     int      `json:"rich_cells"`
-	RichBuiltN    int      `json:"rich_built_cells"`
-	RichOverlap   float64  `json:"rich_overlap_fraction"`
-	Patches       int      `json:"patches"`
-	Inside        int      `json:"patches_inside"`
-	Outside       int      `json:"patches_outside"`
-	MarginSplit   int      `json:"patches_split_on_margin"`
-	WallCells     int      `json:"wall_cells"`
-	CropZones     int      `json:"crop_zones"`
-	RichBuilt     []string `json:"rich_built,omitempty"`
-	PatchSplit    []string `json:"patch_split,omitempty"`
-	WallOnFertile []string `json:"wall_on_fertile,omitempty"`
-	CropGaps      []string `json:"crop_gaps,omitempty"`
+	RichCells   int      `json:"rich_cells"`
+	RichBuiltN  int      `json:"rich_built_cells"`
+	RichOverlap float64  `json:"rich_overlap_fraction"`
+	Patches     int      `json:"patches"`
+	WallCells   int      `json:"wall_cells"`
+	CropZones   int      `json:"crop_zones"`
+	RichBuilt   []string `json:"rich_built,omitempty"`
+	PatchSplit  []string `json:"patch_split,omitempty"`
+	CropGaps    []string `json:"crop_gaps,omitempty"`
 }
 
 func (a soilAudit) err() error {
@@ -50,8 +41,8 @@ func (a soilAudit) err() error {
 	for _, v := range []struct {
 		what string
 		list []string
-	}{{"fertile patch split by the wall", a.PatchSplit},
-		{"wall on fertile soil", a.WallOnFertile}, {"crop zones in a patch not adjacent", a.CropGaps}} {
+	}{{"fertile patch not one block", a.PatchSplit},
+		{"crop zones in a patch not adjacent", a.CropGaps}} {
 		if len(v.list) > 0 {
 			return fmt.Errorf("%s: %v", v.what, v.list)
 		}
@@ -130,22 +121,16 @@ func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 // auditSoil checks the plan and crop zones against the survey:
 //  1. planned rooms and hallways cover at most richOverlapBudget of the
 //     rich cells;
-//  2. each rich patch of a field zone is wholly inside or wholly outside
-//     the traced ring, and no wall cell sits on it, except where the ring
-//     runs along the edge margin line (the band LayoutEdgeMargin..
-//     LayoutEdgeMargin+ringThick from the edge), where it may cross and
-//     split the patch;
+//  2. each rich patch of a field zone is one block and touches no other;
 //  3. the growing zones inside each field zone form one 4-connected
 //     block.
 func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell) soilAudit {
 	var a soilAudit
-	w, h := s.Bounds.Width, s.Bounds.Height
-	rich, open := map[domain.Cell]bool{}, map[domain.Cell]bool{}
+	rich := map[domain.Cell]bool{}
 	for _, c := range s.Cells {
 		if c.Fertility > richFertility {
 			rich[c.Cell] = true
 		}
-		open[c.Cell] = c.Walkable && !c.Rock
 	}
 	a.RichCells = len(rich)
 	built := builtCells(plan)
@@ -159,48 +144,16 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		a.RichOverlap = float64(a.RichBuiltN) / float64(a.RichCells)
 	}
 
-	band := func(c domain.Cell) bool {
-		return min(c.X, c.Z, w-1-c.X, h-1-c.Z) < policy.LayoutEdgeMargin+ringThick
-	}
 	wall := map[domain.Cell]bool{}
-	barrier := map[domain.Cell]bool{}
 	for _, r := range plan.Reservations {
 		switch r.Kind {
 		case policy.ReservePerimeter, policy.ReservePerimeterLight, policy.ReserveBridge, policy.ReservePerimeterGap, policy.ReserveGate:
 			for _, c := range rectCells(r.Area) {
-				wall[c], barrier[c] = true, true
-			}
-		case policy.ReserveKillbox:
-			for _, c := range rectCells(r.Area) {
-				barrier[c] = true
+				wall[c] = true
 			}
 		}
 	}
 	a.WallCells = len(wall)
-	// Inside is what the room interiors reach without crossing the ring,
-	// rock or impassable ground.
-	inside := map[domain.Cell]bool{}
-	var q []domain.Cell
-	seed := func(c domain.Cell) {
-		if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h && open[c] && !barrier[c] && !inside[c] {
-			inside[c] = true
-			q = append(q, c)
-		}
-	}
-	if len(wall) > 0 {
-		for _, r := range plan.AllRooms() {
-			for _, c := range rectCells(r.Interior) {
-				seed(c)
-			}
-		}
-	}
-	for len(q) > 0 {
-		c := q[0]
-		q = q[1:]
-		for _, d := range four {
-			seed(step(c, d))
-		}
-	}
 
 	// A turbine lane is zoned as a field of its own under the blades; it
 	// is a utility, not a fertile patch, and is left out.
@@ -257,48 +210,12 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 		if !connected(p) {
 			note(&a.PatchSplit, "field zone %d at %v is not one patch", i, first)
 		}
-		in, out, onMargin, offMargin := 0, 0, 0, 0
 		for c := range p {
-			if wall[c] {
-				if band(c) {
-					onMargin++
-				} else {
-					offMargin++
-				}
-				continue
-			}
 			for _, d := range four {
 				if n := step(c, d); owner[n] != 0 && owner[n] != i+1 {
 					note(&a.PatchSplit, "field zones %d and %d touch at %v", i, owner[n]-1, c)
 				}
-				if n := step(c, d); wall[n] && !p[n] {
-					if band(n) {
-						onMargin++
-					} else {
-						offMargin++
-					}
-				}
 			}
-			if inside[c] {
-				in++
-			} else {
-				out++
-			}
-		}
-		for _, c := range sortedCells(p) {
-			if wall[c] && !band(c) {
-				note(&a.WallOnFertile, "field zone %d at %v", i, c)
-			}
-		}
-		switch {
-		case in > 0 && out > 0 && offMargin == 0 && onMargin > 0:
-			a.MarginSplit++
-		case in > 0 && out > 0:
-			note(&a.PatchSplit, "field zone %d at %v: %d cells inside, %d outside, %d wall cells off the margin line", i, first, in, out, offMargin)
-		case in > 0:
-			a.Inside++
-		default:
-			a.Outside++
 		}
 	}
 

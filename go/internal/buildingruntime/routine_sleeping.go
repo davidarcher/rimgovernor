@@ -332,9 +332,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		observed = append(append([]string(nil), observed...), "Wall", "Door")
 	}
 	if r.shelter {
-	if r.goal == policy.MaintainButcherSpot {
-		observed = append(append([]string(nil), observed...), "TableButcher")
-	}
+		if r.goal == policy.MaintainButcherSpot {
+			observed = append(append([]string(nil), observed...), "TableButcher")
+		}
 		// The door ladder proposes an Autodoor only once the read shows it
 		// available (#610); the ring never waits on it.
 		observed = append(append([]string(nil), observed...), "Autodoor")

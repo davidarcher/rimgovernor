@@ -127,12 +127,12 @@ func LayoutKillbox(plan LayoutPlan, bounds Bounds) (k DefenseKillbox, region Rec
 // admission.
 func PerimeterSections(plan LayoutPlan, wall, door, bridge string, rock func(domain.Cell) bool) ([]PerimeterSection, error) {
 	gates, airlock, light, bridged := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
-	woodInner := map[domain.Cell]bool{} // inner wall cells: wood to start, doors left to the planner
-	var runs, innerRuns []Rectangle
+	woodInner := map[domain.Cell]bool{} // light-footing wall cells: wood to start
+	var runs []Rectangle
 	var killbox, geothermal Rectangle
 	for _, r := range plan.Reservations {
 		switch r.Kind {
-		case ReserveGate, ReserveInnerGate:
+		case ReserveGate:
 			// An airlock (#1060): a door on each face of the wall, the
 			// cells between left open, enclosed by the wall beside them.
 			ends := r.Area.Width
@@ -148,11 +148,6 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string, rock func(dom
 			}
 		case ReservePerimeter:
 			runs = append(runs, r.Area)
-		case ReserveInnerWall:
-			innerRuns = append(innerRuns, r.Area)
-			for _, c := range rectCells(r.Area) {
-				light[c] = true
-			}
 		case ReservePerimeterLight:
 			for _, c := range rectCells(r.Area) {
 				woodInner[c] = true
@@ -170,18 +165,14 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string, rock func(dom
 		}
 	}
 	type piece struct {
-		area  Rectangle
-		inner bool // the inner and cross walls are raised after the outer ring
-		dist  int64
+		area Rectangle
+		dist int64
 	}
 	centre := domain.Cell{X: killbox.X + killbox.Width/2, Z: killbox.Z + killbox.Height/2}
 	var pieces []piece
 	var ring Rectangle
-	for i, r := range append(append([]Rectangle(nil), runs...), innerRuns...) {
-		isInner := i >= len(runs)
-		if !isInner {
-			ring = unionRect(ring, r)
-		}
+	for _, r := range runs {
+		ring = unionRect(ring, r)
 		horizontal := r.Width >= r.Height
 		length := r.Height
 		if horizontal {
@@ -194,14 +185,11 @@ func PerimeterSections(plan LayoutPlan, wall, door, bridge string, rock func(dom
 				a = Rectangle{X: r.X + off, Z: r.Z, Width: n, Height: r.Height}
 			}
 			mid := domain.Cell{X: a.X + a.Width/2, Z: a.Z + a.Height/2}
-			pieces = append(pieces, piece{a, isInner, squaredDistance(mid, centre)})
+			pieces = append(pieces, piece{a, squaredDistance(mid, centre)})
 		}
 	}
 	sort.SliceStable(pieces, func(i, j int) bool {
 		a, b := pieces[i], pieces[j]
-		if a.inner != b.inner {
-			return b.inner
-		}
 		return a.dist < b.dist || a.dist == b.dist && (a.area.X < b.area.X || a.area.X == b.area.X && a.area.Z < b.area.Z)
 	})
 	var out []PerimeterSection

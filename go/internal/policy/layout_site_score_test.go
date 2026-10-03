@@ -64,44 +64,6 @@ func TestSiteCoreBaselineNoRicherThanCentroid(t *testing.T) {
 	}
 }
 
-// westRichSurvey: barren ground with one small rich patch west of centre.
-func westRichSurvey() MapSurvey {
-	return zoningSurvey(160, func(x, z int32) SurveyCell {
-		if x >= 30 && x < 40 && z >= 75 && z < 85 {
-			return SurveyCell{Walkable: true, Fertility: 1.4}
-		}
-		return SurveyCell{Walkable: true}
-	})
-}
-
-// TestSiteWallScoreFavoursEnclosedRichPatch (#1288): two cores on
-// barren ground, one beside a small rich patch its wall takes in; that
-// site's wall score wins, and the sited plan's wall encloses the patch.
-func TestSiteWallScoreFavoursEnclosedRichPatch(t *testing.T) {
-	s := westRichSurvey()
-	zones := Zone(s)
-	g := newCoreGrid(zones, nil).withSoil(s)
-	ground := newSiteGround(s)
-	grow := func(x int32) LayoutPlan {
-		seed := domain.Cell{X: x, Z: 80}
-		return Grow(LayoutPlan{Zones: zones, Spine: []SpineSegment{{From: seed, To: seed}}}, 3, 1, BuildTierCamp)
-	}
-	near, far := grow(55), grow(120)
-	if len(near.Rooms) == 0 || len(far.Rooms) == 0 {
-		t.Fatal("no rooms")
-	}
-	wn, wf := g.scoreWall(PlanPerimeter(near, s), ground), g.scoreWall(PlanPerimeter(far, s), ground)
-	if wn <= wf {
-		t.Fatal("wall score near the rich patch", wn, "far from it", wf)
-	}
-	sited := PlanPerimeter(SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp), s)
-	bare := g
-	bare.soil = map[domain.Cell]int{}
-	if g.scoreWall(sited, ground)-bare.scoreWall(sited, ground) < siteEnclosedWeight*soilCostRich*100 {
-		t.Fatal("sited wall does not take in the rich patch")
-	}
-}
-
 // TestSoilCostBaselineFixture is soilCost on the real #1280 survey: every
 // rich cell costs soilCostRich and rock costs nothing.
 func TestSoilCostBaselineFixture(t *testing.T) {

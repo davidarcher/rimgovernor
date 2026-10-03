@@ -2,17 +2,14 @@ package policy
 
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
-// The enclosure the wall is traced around (#1286). It is a region, not a
-// rectangle: the padded core box and every fertile patch taken in, whole,
-// grown by the yard (perimeterGap), closed by perimeterThick so the outline
-// has no notches, with its holes filled. The ring is every cell within
-// perimeterThick outside it. A field patch is never crossed: one within
-// perimeterFieldReach of the core is taken in, and so is any other the ring
-// would touch or come within a cell of. A geothermal enclosure the ring
-// would reach is taken in too (#834).
+// The enclosure the wall is traced around (#1286, #1591): the padded core
+// box grown by the yard (perimeterGap, which holds the killbox), closed by
+// perimeterThick so the outline has no notches, with its holes filled. The
+// ring is every cell within perimeterThick outside it. Field patches and
+// geothermal sites are left outside.
 type enclosure struct {
 	w, h int32
-	in   []bool  // the yard, core and enclosed patches
+	in   []bool  // the core and its yard
 	ring []bool  // within perimeterThick outside in
 	dist []int32 // Chebyshev distance from in, up to the cover band
 	bbox Rectangle
@@ -80,142 +77,36 @@ func chebyshevField(w, h int32, src []bool, limit int32) []int32 {
 	return d
 }
 
-// perimeterPatchMax is the largest rich patch the wall takes in: a bigger one
-// (a whole valley floor) would wall the map and is left outside (#1582).
-const perimeterPatchMax = 2500
-
-// planEnclosure traces the enclosure around core for plan's field patches
-// and geothermal sites on a w x h map. Only a field's rich cells (rich
-// reports them; nil takes every field cell) count: plain soil is
-// everywhere on most maps, so walling it would wall the map.
-func planEnclosure(plan LayoutPlan, core Rectangle, w, h int32, rich func(domain.Cell) bool) enclosure {
+// planEnclosure traces the enclosure around core on a w x h map: the core
+// box grown by the yard, closed so the outline has no notches.
+func planEnclosure(core Rectangle, w, h int32) enclosure {
 	region := make([]bool, w*h)
-	mark := func(c domain.Cell) {
+	for _, c := range rectCells(core) {
 		if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h {
 			region[c.Z*w+c.X] = true
 		}
 	}
-	for _, c := range rectCells(core) {
-		mark(c)
-	}
-	type unit struct {
-		cells []domain.Cell
-		clear int32 // taken in when within this of the yard
-		taken bool
-		near  bool // some cell within the chain reach of the core
-		skip  bool // too big to wall in: left outside the ring
-	}
-	var units []*unit
-	reach := pad(core, perimeterFieldReach)
-	// A patch the ring merely touches is taken in only within twice that, so
-	// a chain of neighbouring patches cannot walk the wall across the map.
-	chain := pad(core, 2*perimeterFieldReach)
-	for _, z := range plan.Zones {
-		if z.Kind != ZoneField {
-			continue
-		}
-		// One unit per 4-connected rich patch of the field.
-		in := make([]bool, w*h)
-		for _, r := range z.Runs {
-			for x := r.X; x < r.X+r.Length; x++ {
-				c := domain.Cell{X: x, Z: r.Z}
-				if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h && (rich == nil || rich(c)) {
-					in[c.Z*w+c.X] = true
-				}
-			}
-		}
-		for _, comp := range components(w, h, func(i int32) bool { return in[i] }) {
-			u := &unit{clear: perimeterThick + 1, skip: len(comp) > perimeterPatchMax}
-			for _, i := range comp {
-				c := domain.Cell{X: i % w, Z: i / w}
-				u.cells = append(u.cells, c)
-				u.near = u.near || contains(chain, c)
-				u.taken = u.taken || contains(reach, c)
-			}
-			units = append(units, u)
-		}
-	}
-	for _, r := range plan.Reservations {
-		if r.Kind == ReserveGeothermal {
-			units = append(units, &unit{cells: rectCells(r.Area), clear: perimeterThick})
-		}
-	}
-	for _, u := range units {
-		if u.taken && !u.skip {
-			for _, c := range u.cells {
-				mark(c)
-			}
-		}
-	}
 	m := LayoutEdgeMargin + perimeterThick
 	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
-	for {
-		in := encloseRegion(region, w, h, yard, pad(core, perimeterGap))
-		d := chebyshevField(w, h, in, perimeterThick+1)
-		grew := false
-		for _, u := range units {
-			if u.taken || u.skip || !u.near {
-				continue
-			}
-			for _, c := range u.cells {
-				if c.X < 0 || c.Z < 0 || c.X >= w || c.Z >= h {
-					continue
-				}
-				if v := d[c.Z*w+c.X]; v >= 0 && v <= u.clear {
-					u.taken, grew = true, true
-					break
-				}
-			}
-			if u.taken {
-				for _, c := range u.cells {
-					mark(c)
-				}
-			}
+	in := encloseRegion(region, w, h, yard)
+	e := enclosure{w: w, h: h, in: in, ring: make([]bool, w*h), dist: chebyshevField(w, h, in, perimeterThick+perimeterCoverBand)}
+	for i, v := range e.dist {
+		x, z := int32(i)%w, int32(i)/w
+		if in[i] {
+			e.bbox = unionRect(e.bbox, Rectangle{X: x, Z: z, Width: 1, Height: 1})
 		}
-		if grew {
-			continue
-		}
-		e := enclosure{w: w, h: h, in: in, ring: make([]bool, w*h), dist: chebyshevField(w, h, in, perimeterThick+perimeterCoverBand)}
-		for i, v := range e.dist {
-			x, z := int32(i)%w, int32(i)/w
-			if in[i] {
-				e.bbox = unionRect(e.bbox, Rectangle{X: x, Z: z, Width: 1, Height: 1})
-			}
-			e.ring[i] = v >= 1 && v <= perimeterThick
-		}
-		return e
+		e.ring[i] = v >= 1 && v <= perimeterThick
 	}
+	return e
 }
 
-// encloseRegion grows region by the yard within yard's bounds, squares off
-// what a patch adds beyond coreYard, closes it by perimeterThick and fills
-// its holes.
-func encloseRegion(region []bool, w, h int32, yard, coreYard Rectangle) []bool {
+// encloseRegion grows region by the yard within yard's bounds, closes it by
+// perimeterThick and fills its holes.
+func encloseRegion(region []bool, w, h int32, yard Rectangle) []bool {
 	d := chebyshevField(w, h, region, perimeterGap)
 	grown := make([]bool, len(region))
 	for i, v := range d {
 		grown[i] = v >= 0
-	}
-	// A patch's diagonal edge would trace a staircase of steps too short
-	// for a gate (#1287): past the core's yard the region fills whole
-	// perimeterStep blocks, aligned on that yard's corner, so each step is
-	// a straight side long enough to take one.
-	blocks := map[[2]int32]bool{}
-	for i, g := range grown {
-		c := domain.Cell{X: int32(i) % w, Z: int32(i) / w}
-		if g && !contains(coreYard, c) {
-			blocks[[2]int32{floorDiv(c.X-coreYard.X, perimeterStep), floorDiv(c.Z-coreYard.Z, perimeterStep)}] = true
-		}
-	}
-	for b := range blocks {
-		for dz := int32(0); dz < perimeterStep; dz++ {
-			for dx := int32(0); dx < perimeterStep; dx++ {
-				x, z := coreYard.X+b[0]*perimeterStep+dx, coreYard.Z+b[1]*perimeterStep+dz
-				if x >= 0 && z >= 0 && x < w && z < h {
-					grown[z*w+x] = true
-				}
-			}
-		}
 	}
 	for i := range grown {
 		grown[i] = grown[i] && contains(yard, domain.Cell{X: int32(i) % w, Z: int32(i) / w})
@@ -258,14 +149,6 @@ func encloseRegion(region []bool, w, h int32, yard, coreYard Rectangle) []bool {
 		out[i] = out[i] || !seen[i]
 	}
 	return out
-}
-
-func floorDiv(a, b int32) int32 {
-	q := a / b
-	if a%b != 0 && a < 0 {
-		q--
-	}
-	return q
 }
 
 // sides cuts the ring into straight sides, one per straight stretch of the

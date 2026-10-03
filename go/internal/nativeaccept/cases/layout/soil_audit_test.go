@@ -77,8 +77,8 @@ func TestRichOverlapBudget(t *testing.T) {
 	}
 }
 
-// A patch split off the margin line, a wall on fertile soil and crop
-// blocks with a gap are each caught.
+// Two field zones touching on one rich patch and crop blocks with a gap
+// are each caught.
 func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 	const n = 60
 	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
@@ -86,28 +86,25 @@ func TestAuditSoilCatchesSplitsAndGaps(t *testing.T) {
 		for x := int32(0); x < n; x++ {
 			fertility := 1.0
 			if x >= 20 && x < 30 && z >= 20 && z < 30 {
-				fertility = 1.4 // the patch is rich: the wall takes in only rich soil
+				fertility = 1.4
 			}
 			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: fertility})
 		}
 	}
-	field := policy.LayoutZone{Kind: policy.ZoneField}
+	north, south := policy.LayoutZone{Kind: policy.ZoneField}, policy.LayoutZone{Kind: policy.ZoneField}
 	for z := int32(20); z < 30; z++ {
-		field.Runs = append(field.Runs, policy.RowRun{Z: z, X: 20, Length: 10})
+		zone := &north
+		if z >= 25 {
+			zone = &south
+		}
+		zone.Runs = append(zone.Runs, policy.RowRun{Z: z, X: 20, Length: 10})
 	}
 	plan := policy.LayoutPlan{
 		Rooms: []policy.LayoutRoom{{Role: policy.ModuleStorage, Interior: policy.Rectangle{X: 22, Z: 22, Width: 2, Height: 2}}},
-		Zones: []policy.LayoutZone{field},
-		// A closed ring through the patch's middle column.
-		Reservations: []policy.LayoutReservation{
-			{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 15, Z: 15, Width: 11, Height: 1}},
-			{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 15, Z: 35, Width: 11, Height: 1}},
-			{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 15, Z: 15, Width: 1, Height: 21}},
-			{Kind: policy.ReservePerimeter, Area: policy.Rectangle{X: 25, Z: 15, Width: 1, Height: 21}},
-		},
+		Zones: []policy.LayoutZone{north, south},
 	}
 	a := auditSoil(plan, s, [][]domain.Cell{{{X: 20, Z: 20}}, {{X: 22, Z: 20}}})
-	if len(a.PatchSplit) == 0 || len(a.WallOnFertile) == 0 || len(a.CropGaps) == 0 {
+	if len(a.PatchSplit) == 0 || len(a.CropGaps) == 0 {
 		t.Fatalf("missed a violation: %+v", a)
 	}
 }

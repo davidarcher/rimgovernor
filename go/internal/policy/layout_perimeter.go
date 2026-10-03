@@ -44,24 +44,21 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveInnerWall: true, ReserveInnerGate: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
 
 const (
 	perimeterThick int32 = 3
 	// perimeterGap is the yard between the core and the wall; it holds
 	// the killbox and two cells behind its back wall.
 	perimeterGap = killboxDepth + 2
-	// perimeterFieldReach is how far from the core any cell of a field
-	// patch may lie and still take the whole patch inside the wall.
+	// perimeterFieldReach is how far from the core a field patch counts as
+	// near it when scoring sites (siteFieldReach).
 	perimeterFieldReach int32 = 15
 	perimeterGatePitch  int32 = 20
-	// perimeterStep is the block a patch's part of the enclosure is
-	// squared off in, so a diagonal edge steps in gateable sides.
-	perimeterStep      int32 = 10
-	perimeterCoverBand int32 = 30
-	killboxHalf        int32 = 7
-	killboxDepth             = killboxRows
-	approachLeg        int32 = 8
+	perimeterCoverBand  int32 = 30
+	killboxHalf         int32 = 7
+	killboxDepth              = killboxRows
+	approachLeg         int32 = 8
 	// perimeterDetour caps a shoreline detour's wall at this many times
 	// the straight stretch it replaces (#949).
 	perimeterDetour = 1.5
@@ -107,15 +104,9 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	for _, sg := range plan.Hallways() {
 		grow(pad(rectOf(sg.From, sg.To), SpineWidth/2))
 	}
-	// The enclosure: the core box and whole field patches, the yard
-	// around them; the ring traced outside it (#1286).
-	rich := map[domain.Cell]bool{}
-	for _, c := range s.Cells {
-		if c.Fertility > zoneRichFertility {
-			rich[c.Cell] = true
-		}
-	}
-	enc := planEnclosure(plan, core, w, h, func(c domain.Cell) bool { return rich[c] })
+	// The enclosure: the core box and its yard (killbox included); the ring
+	// traced outside it (#1286).
+	enc := planEnclosure(core, w, h)
 	if enc.bbox.Width == 0 {
 		return plan
 	}
@@ -552,29 +543,6 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		for _, r := range cellRects(set) {
 			add(kind, r)
 		}
-	}
-
-	// The inner ring and the walls cutting the ring (#1584): open ground
-	// inside the outer ring, the killbox and every
-	// reservation the perimeter does not own.
-	innerFree := func(c domain.Cell, strict bool) bool {
-		sc, read := cells[c]
-		if !read || !enc.inside(c) || impassable(c) || soft(c) || sc.Footing != FootingFirm || strict && fields[c] || contains(killbox, c) || detour[c] || shut[c] {
-			return false
-		}
-		for _, r := range plan.Reservations {
-			if !perimeterKinds[r.Kind] && contains(r.Area, c) {
-				return false
-			}
-		}
-		return true
-	}
-	inner, innerGates := innerWalls(core, enc.inside, innerFree)
-	for _, r := range cellRects(inner) {
-		add(ReserveInnerWall, r)
-	}
-	for _, g := range innerGates {
-		add(ReserveInnerGate, g)
 	}
 
 	// Moisture pumps (#954): sites inside the wall, greedily covering the
