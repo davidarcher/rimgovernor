@@ -165,6 +165,36 @@ priorities. Native (`WorkSettingsActionHandler`) requires every
 `Matches`. `RoutineFacts.WorkCoverage` is false while any planned timetable
 differs from the readback.
 
+## Mech control
+
+`policy.PlanMechControl` (`mech_control.go`, #1687) puts each mechanitor's
+mechs in role groups and sets each group's mode through the `mech_control_group`
+and `mech_work_mode` arms of `PawnSettingsAction`: every move first, then each
+group's mode (the mode is per group). A work mech (`MechKindRow.work_mech`) is a
+worker, any other kind a guard. With two or more control groups (vanilla default
+2) workers go to the group already holding most of them, guards to the busiest
+other group; workers run `Work`, guards `Escort` (the wiki's "do available work
+tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
+`Recharge` and `SelfShutdown`, unused here). The catalog must carry both modes
+and every mech's kind, else the plan fails. A mech with no overseer among the
+inputs, or an unread group, is left alone.
+
+Colonist need versus bandwidth, decided from the read: control never changes
+bandwidth, which only acquiring mechs spends (gestation, #1686). Colonist need
+decides what the next free bandwidth buys (`MechRoleNext`): a worker while a
+`WorkCoverage` has fewer owners than demand, no work mech of the mechanitor
+covers that work type and a catalog work mech kind lists it; a guard otherwise;
+nothing with no free bandwidth. With a single control group threat beats work:
+`Escort` while a hostile is on the map or the group holds only guards, `Work`
+otherwise.
+
+`policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
+among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
+`MechanitorUtility.InMechanitorCommandRange` stays authoritative) of its
+overseer: the existing combat batch's draft (when undrafted) and `attack` order.
+Both are pure over recorded facts (`mech_control_test.go`). They are not yet
+fed by the routine read, which carries no mech rows.
+
 ## Acceptance
 
 Planner behaviour is table-driven in `work_assignment_test.go`,

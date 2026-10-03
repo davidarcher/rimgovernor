@@ -282,6 +282,26 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 	return domain.Known(r)
 }
 
+// MechCatalog is the catalog's mech kinds and work mode names as the mech
+// planner reads them (#1687); the zero value without Biotech.
+func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
+	out := policy.MechCatalog{Kinds: map[string]policy.MechKind{}, Modes: map[string]bool{}}
+	if c == nil {
+		return out
+	}
+	for name, row := range c.MechKinds {
+		kind := policy.MechKind{Name: name, WorkMech: row.GetWorkMech(), BandwidthCost: row.GetBandwidthCost()}
+		for _, w := range row.WorkTypes {
+			kind.WorkTypes = append(kind.WorkTypes, policy.WorkType(w))
+		}
+		out.Kinds[name] = kind
+	}
+	for name := range c.MechWorkModes {
+		out.Modes[name] = true
+	}
+	return out
+}
+
 // GeneEffects resolves the active genes of a pawn into their combined typed
 // effects from the catalog's gene rows. A gene the catalog does not define is
 // a contract failure, never skipped.
