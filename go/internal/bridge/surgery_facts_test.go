@@ -55,3 +55,23 @@ func TestSurgeryKindsCoverEveryWireKind(t *testing.T) {
 		}
 	}
 }
+
+func TestInstalledPartsMapping(t *testing.T) {
+	arm := &o.InstalledPart{Definition: &o.DefinitionRef{DefName: proto.String("BionicArm")}, PartDefName: proto.String("Shoulder"), PartIndex: proto.Int32(12), SpawnThingDefName: proto.String("BionicArm")}
+	peg := &o.InstalledPart{Definition: &o.DefinitionRef{DefName: proto.String("PegLeg")}, PartDefName: proto.String("Leg"), PartIndex: proto.Int32(40)}
+	got := InstalledParts(&o.PawnHealth{InstalledParts: []*o.InstalledPart{arm, peg}})
+	want := domain.Known([]policy.InstalledPart{
+		{Hediff: "BionicArm", Part: domain.Known("Shoulder"), PartIndex: domain.Known(12), Item: domain.Known(policy.Resource("BionicArm")), Tier: 1.25},
+		{Hediff: "PegLeg", Part: domain.Known("Leg"), PartIndex: domain.Known(40), Item: domain.Unknown[policy.Resource](), Tier: 0.6},
+	})
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v", got)
+	}
+	if none := InstalledParts(&o.PawnHealth{}); !reflect.DeepEqual(none, domain.Known([]policy.InstalledPart{})) {
+		t.Fatalf("none %+v", none)
+	}
+	bad := InstalledParts(&o.PawnHealth{Issues: []*o.ReadIssue{{Field: proto.String("installed_parts")}}, InstalledParts: []*o.InstalledPart{arm}})
+	if _, known := bad.Value(); known {
+		t.Fatal("read issue must be unknown")
+	}
+}

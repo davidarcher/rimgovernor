@@ -27,6 +27,9 @@ type CarePawn struct {
 	// QueuedItems are the part items those bills install, by the catalog's
 	// recipe rows (#1721).
 	QueuedItems []Resource
+	// InstalledParts are the added parts the pawn carries (#1837); unknown when
+	// the native read failed.
+	InstalledParts domain.Fact[[]InstalledPart]
 }
 
 // MissingPart is a missing or destroyed body part at its common missing
@@ -181,3 +184,16 @@ const (
 // run in both phases: a sick colonist never pauses restocking. Only the
 // hospital and medicine-tier steps are care-only.
 func (p Phase) Restocks() bool { return p != "" }
+
+// InstalledPart is one installed added part (bionic, prosthetic, peg,
+// archotech) read natively (#1837). Hediff is the added-part hediff def, Part
+// the body part def and PartIndex its index; Item is the thing its removal
+// spawns, which prices it; Tier is PartTier of the hediff def. No price is
+// carried: the spent side prices Item.
+type InstalledPart struct {
+	Hediff    string
+	Part      domain.Fact[string]
+	PartIndex domain.Fact[int]
+	Item      domain.Fact[Resource]
+	Tier      float64
+}

@@ -252,7 +252,14 @@ message PawnHealth {
   // Surgery facts (#1161). Native computes every value through vanilla; Go
   // never recomputes them. Absent lists with a read issue are unknown.
   repeated MissingBodyPart missing_parts = 20; repeated SurgeryOperation operations = 21;
+  // Installed added parts (#1837): every Hediff_AddedPart on the pawn. A read
+  // failure is a read issue with field "installed_parts", never an empty list.
+  repeated InstalledPart installed_parts = 22;
 }
+// One installed added part (bionic, prosthetic, peg, archotech). definition is
+// the hediff def; spawn_thing_def_name is its spawnThingOnRemoved, absent when
+// the part spawns nothing. No price rides the wire.
+message InstalledPart { DefinitionRef definition = 1; optional string part_def_name = 2; optional int32 part_index = 3; optional string spawn_thing_def_name = 4; }
 // A missing or destroyed part at its common missing ancestor; descendants are implied.
 message MissingBodyPart { optional int32 part_index = 1; optional string part_def_name = 2; optional int32 parent_index = 3; optional string parent_def_name = 4; optional bool vital = 5; }
 enum SurgeryKind {

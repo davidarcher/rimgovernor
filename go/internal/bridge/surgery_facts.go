@@ -136,3 +136,28 @@ func surgeryIssue(issues []*o.ReadIssue, field string) bool {
 	}
 	return false
 }
+
+// InstalledParts maps the native installed added parts (#1837). A read issue
+// on installed_parts is unknown, never an empty list. The tier comes from the
+// hediff def name; the priced item is the hediff's spawnThingOnRemoved, unknown
+// when the part spawns nothing.
+func InstalledParts(h *o.PawnHealth) domain.Fact[[]policy.InstalledPart] {
+	if surgeryIssue(h.Issues, "installed_parts") {
+		return domain.Unknown[[]policy.InstalledPart]()
+	}
+	rows := make([]policy.InstalledPart, 0, len(h.InstalledParts))
+	for _, p := range h.InstalledParts {
+		if p == nil || p.GetDefinition().GetDefName() == "" {
+			continue
+		}
+		row := policy.InstalledPart{
+			Hediff: p.GetDefinition().GetDefName(), Part: surgeryFact(p.PartDefName), PartIndex: surgeryInt(p.PartIndex),
+			Tier: policy.PartTier(p.GetDefinition().GetDefName()),
+		}
+		if p.SpawnThingDefName != nil {
+			row.Item = domain.Known(policy.Resource(p.GetSpawnThingDefName()))
+		}
+		rows = append(rows, row)
+	}
+	return domain.Known(rows)
+}

@@ -199,7 +199,7 @@ namespace HomeBridge.BridgeTools
                     row.SurgeryBills.Add(b);
                 }
             }
-            if(pawn.Dead) {row.Issues.Add(Issue("missing_parts",Common.UnavailableReason.NotApplicable,"Dead pawn."));row.Issues.Add(Issue("operations",Common.UnavailableReason.NotApplicable,"Dead pawn."));}
+            if(pawn.Dead) {row.Issues.Add(Issue("missing_parts",Common.UnavailableReason.NotApplicable,"Dead pawn."));row.Issues.Add(Issue("operations",Common.UnavailableReason.NotApplicable,"Dead pawn."));row.Issues.Add(Issue("installed_parts",Common.UnavailableReason.NotApplicable,"Dead pawn."));}
             else Surgery(pawn,row);
             row.Snapshot=NativeObservationSnapshot.Snapshot("pawn-health",context,pawn.GetUniqueLoadID(),w => {
                 w.Write(row.Pain);w.Write(row.LifeThreatening);w.Write(row.BloodLoss);
@@ -219,6 +219,12 @@ namespace HomeBridge.BridgeTools
         internal static void Surgery(Pawn pawn,Obs.PawnHealth row)
         {
             var parts=pawn.RaceProps.body.AllParts;
+            foreach(var added in pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>()) {
+                var installed=new Obs.InstalledPart {Definition=Definition(added.def)};
+                if(added.Part!=null) {installed.PartIndex=parts.IndexOf(added.Part);installed.PartDefName=Id(added.Part.def.defName);}
+                if(added.def.spawnThingOnRemoved!=null) installed.SpawnThingDefName=Id(added.def.spawnThingOnRemoved.defName);
+                row.InstalledParts.Add(installed);
+            }
             foreach(var missing in pawn.health.hediffSet.GetMissingPartsCommonAncestors()) {
                 var part=missing.Part; if(part==null) continue;
                 var m=new Obs.MissingBodyPart {PartIndex=parts.IndexOf(part),PartDefName=Id(part.def.defName),
