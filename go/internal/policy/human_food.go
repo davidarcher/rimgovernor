@@ -12,7 +12,14 @@ type HumanButcherCandidate struct {
 	PreceptAcceptable, CanWork domain.Fact[bool]
 }
 
-func QualifyingHumanButcher(rows []HumanButcherCandidate) (PawnID, bool) {
+// ButcheredHumanEvent is the HistoryEventDef a butchered human raises
+// (HistoryEventDefOf.ButcheredHuman); the precept rule answers by it.
+const ButcheredHumanEvent = "ButcheredHuman"
+
+// QualifyingHumanButcher picks the lowest-id eligible worker whose
+// ideoligion does not forbid butchering humans (#1657). An unread
+// ideoligion forbids nothing: the native disposition still gates the worker.
+func QualifyingHumanButcher(rows []HumanButcherCandidate, ideology domain.Fact[Ideoligion]) (PawnID, bool) {
 	var selected PawnID
 	seen := map[PawnID]bool{}
 	for _, row := range rows {
@@ -20,7 +27,7 @@ func QualifyingHumanButcher(rows []HumanButcherCandidate) (PawnID, bool) {
 			return "", false
 		}
 		seen[row.ID] = true
-		if HumanButcherEligible(row.Traits, row.PreceptAcceptable, row.CanWork) && (selected == "" || row.ID < selected) {
+		if HumanButcherEligible(row.Traits, row.PreceptAcceptable, row.CanWork) && !butcherForbidden(ideology, row.Traits) && (selected == "" || row.ID < selected) {
 			selected = row.ID
 		}
 	}
@@ -29,7 +36,7 @@ func QualifyingHumanButcher(rows []HumanButcherCandidate) (PawnID, bool) {
 
 // Native candidates already establish disposition, assignment and reachability;
 // execution rechecks them before the write. Never substitute another worker.
-func SelectHumanButcher(benches domain.Fact[[]ProductionBench]) (BillSelection, bool) {
+func SelectHumanButcher(benches domain.Fact[[]ProductionBench], ideology domain.Fact[Ideoligion]) (BillSelection, bool) {
 	rows, known := benches.Value()
 	if !known {
 		return BillSelection{}, false
@@ -56,7 +63,7 @@ func SelectHumanButcher(benches domain.Fact[[]ProductionBench]) (BillSelection, 
 		if exists || !available {
 			continue
 		}
-		if worker, ok := QualifyingHumanButcher(b.HumanButchers); ok {
+		if worker, ok := QualifyingHumanButcher(b.HumanButchers, ideology); ok {
 			choices = append(choices, BillSelection{Bench: b.ID, Recipe: "ButcherCorpseFlesh", Token: token, Mode: domain.HumanButcherForever, Worker: string(worker)})
 		}
 	}
@@ -73,6 +80,18 @@ func SelectHumanButcher(benches domain.Fact[[]ProductionBench]) (BillSelection, 
 		return BillSelection{}, false
 	}
 	return choices[0], true
+}
+
+// butcherForbidden is whether the precept rule forbids the worker to butcher
+// a human. Traits cancel an unwilling effect; unknown traits cancel none.
+func butcherForbidden(ideology domain.Fact[Ideoligion], traits domain.Fact[[]PawnTrait]) bool {
+	subject := PreceptSubject{Pawn: true}
+	if rows, ok := traits.Value(); ok {
+		for _, t := range rows {
+			subject.Traits = append(subject.Traits, t.Name)
+		}
+	}
+	return ActionStance(ideology, PreceptAction{HistoryEvent: ButcheredHumanEvent}, subject).Stance == PreceptForbidden
 }
 
 // HumanButcherEligible separates the worker's disposition from the colony's

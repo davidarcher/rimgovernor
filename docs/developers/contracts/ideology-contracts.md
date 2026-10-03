@@ -73,6 +73,11 @@ traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPA
 payload on the wire), is `unknown`: callers hold. There is no `required` stance: no effect kind types
 a requirement.
 
+Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker the rule forbids for
+`HistoryEventDefOf.ButcheredHuman`; an unread ideoligion forbids nothing there, and the native
+disposition still gates the worker. The game raises no history event for burying, entombing or
+burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
+
 ## Not here
 
 Building and room planning (#1658), role

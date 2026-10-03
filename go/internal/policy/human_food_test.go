@@ -28,18 +28,48 @@ func TestHumanButcherGate(t *testing.T) {
 
 func TestHumanBillCoexistsWithAnimalBill(t *testing.T) {
 	b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: []HumanButcherCandidate{{ID: "z", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}, {ID: "a", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}}, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}, Bills: []ExistingProductionBill{{Recipe: "ButcherCorpseFlesh"}}}
-	got, ok := SelectHumanButcher(domain.Known([]ProductionBench{b}))
+	got, ok := SelectHumanButcher(domain.Known([]ProductionBench{b}), domain.Unknown[Ideoligion]())
 	if !ok || got.Worker != "a" || got.Mode != domain.HumanButcherForever {
 		t.Fatal(got, ok)
 	}
 	b.Bills = append(b.Bills, ExistingProductionBill{Recipe: "ButcherCorpseFlesh", Humanlike: true})
-	if _, ok = SelectHumanButcher(domain.Known([]ProductionBench{b})); ok {
+	if _, ok = SelectHumanButcher(domain.Known([]ProductionBench{b}), domain.Unknown[Ideoligion]()); ok {
 		t.Fatal("duplicate human bill")
 	}
 	b.Bills = nil
 	b.HumanButchers = nil
-	if _, ok = SelectHumanButcher(domain.Known([]ProductionBench{b})); ok {
+	if _, ok = SelectHumanButcher(domain.Known([]ProductionBench{b}), domain.Unknown[Ideoligion]()); ok {
 		t.Fatal("unqualified butcher")
+	}
+}
+
+// TestHumanButcherRespectsPrecepts (#1657): a precept that makes members
+// refuse butchering humans never yields a human bill, a trait that cancels
+// the refusal still qualifies its holder, and an accepting or unread
+// ideoligion keeps today's choice.
+func TestHumanButcherRespectsPrecepts(t *testing.T) {
+	bench := func(workers ...HumanButcherCandidate) domain.Fact[[]ProductionBench] {
+		return domain.Known([]ProductionBench{{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: workers, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Available: domain.Known(true)}}}})
+	}
+	worker := func(id string, trait string) HumanButcherCandidate {
+		return HumanButcherCandidate{ID: PawnID(id), Traits: domain.Known([]PawnTrait{{Name: trait}}), PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}
+	}
+	forbidding := domain.Known(ruleIdeoligion(PreceptDef{Name: "Butcher_Abhorrent", Effects: []PreceptEffect{unwilling(ButcheredHumanEvent, nil, "Psychopath")}}))
+	accepting := domain.Known(ruleIdeoligion(PreceptDef{Name: "Butcher_Approved", Effects: []PreceptEffect{took(ButcheredHumanEvent, 3)}}))
+	for name, tc := range map[string]struct {
+		ideology domain.Fact[Ideoligion]
+		workers  []HumanButcherCandidate
+		want     string
+	}{
+		"forbidding precept blocks every worker": {forbidding, []HumanButcherCandidate{worker("a", "Kind")}, ""},
+		"cancelling trait still qualifies":       {forbidding, []HumanButcherCandidate{worker("a", "Kind"), worker("b", "Psychopath")}, "b"},
+		"accepting ideoligion keeps the choice":  {accepting, []HumanButcherCandidate{worker("a", "Kind")}, "a"},
+		"unread ideoligion keeps the choice":     {domain.Unknown[Ideoligion](), []HumanButcherCandidate{worker("a", "Kind")}, "a"},
+	} {
+		got, ok := SelectHumanButcher(bench(tc.workers...), tc.ideology)
+		if tc.want == "" && ok || tc.want != "" && (!ok || got.Worker != tc.want) {
+			t.Fatalf("%s: got %+v %v", name, got, ok)
+		}
 	}
 }
 
@@ -116,7 +146,7 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 	kibble.DefName = "Kibble"
 	s.Stocks = append(s.Stocks, kibble)
 	b := ProductionBench{HumanButchers: []HumanButcherCandidate{{ID: "a", Traits: domain.Known([]PawnTrait{{Name: "Psychopath"}}), CanWork: domain.Known(true)}}, Usable: domain.Known(true)}
-	channel, ok := HumanFoodChannel([]ProductionBench{b}, s, []PawnID{"a"}, 3)
+	channel, ok := HumanFoodChannel([]ProductionBench{b}, s, []PawnID{"a"}, 3, domain.Unknown[Ideoligion]())
 	if !ok {
 		t.Fatal("qualified channel missing")
 	}
@@ -139,7 +169,7 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 		t.Fatal("eligible diners excluded")
 	}
 	b.HumanButchers = nil
-	if _, ok := HumanFoodChannel([]ProductionBench{b}, s, []PawnID{"a"}, 3); ok {
+	if _, ok := HumanFoodChannel([]ProductionBench{b}, s, []PawnID{"a"}, 3, domain.Unknown[Ideoligion]()); ok {
 		t.Fatal("channel opened without a butcher")
 	}
 	meat.Reserve = true
@@ -174,7 +204,7 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 		{Name: "CookMealSurvival", Available: domain.Known(true), NutrientEfficiency: domain.Known(1.), Products: []ProductionProduct{{Name: "MealSurvivalPack", Nutrition: domain.Known(.9), Edible: domain.Known(true)}}},
 	}}
 	benches := domain.Known([]ProductionBench{butcher, stove})
-	pick, ok := SelectHumanButcher(benches)
+	pick, ok := SelectHumanButcher(benches, domain.Unknown[Ideoligion]())
 	if !ok || pick.Bench != "butcher" || pick.Worker != "psycho" || pick.Mode != domain.HumanButcherForever {
 		t.Fatal("qualified psychopath not selected", pick, ok)
 	}
@@ -189,7 +219,7 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 		{ID: "herd1", NutritionPerDay: domain.Known(1.)},
 		{ID: "herd2", NutritionPerDay: domain.Known(1.)},
 	}}
-	channel, ok := HumanFoodChannel([]ProductionBench{butcher, stove}, supply, []PawnID{"psycho", "ordinary"}, 3)
+	channel, ok := HumanFoodChannel([]ProductionBench{butcher, stove}, supply, []PawnID{"psycho", "ordinary"}, 3, domain.Unknown[Ideoligion]())
 	if !ok {
 		t.Fatal("human food channel missing")
 	}
