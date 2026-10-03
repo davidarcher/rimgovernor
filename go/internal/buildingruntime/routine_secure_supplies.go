@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -239,7 +240,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		if fallback.Kind != "" {
 			return fallback, nil
 		}
-		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, item, started)
+		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, review, reading, item, started)
 		if err != nil {
 			return PlanResult{}, err
 		}
@@ -637,8 +638,9 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 // itself, its exact ring and its door onto the spine, at most once per goal
 // episode. A zero-value, empty-Reason result means the step did not apply,
 // and the caller reports its own exhaustion reason instead.
-func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, review store.RoutineReview, reading observation.ColonyReading, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
+	projection := reading.Projection
 	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
 	if err != nil {
 		return PlanResult{}, err
@@ -695,6 +697,58 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if !known {
 		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Verdict: fieldUnavailable("wall_door_stuff")}, nil
 	}
+	// Rock under the room is mined first through the shared rock step
+	// (#1754): the interior and the door are dug, then the ring is built;
+	// a ring cell on natural rock is left as the wall it already is. The
+	// dig is admitted here with the ring waiting on it.
+	rock := policy.RockStep(supplyRoomRoleCells(storage), projection.Cells)
+	if len(rock.Left) > 0 {
+		left := map[domain.Cell]bool{}
+		for _, cell := range rock.Left {
+			left[cell] = true
+		}
+		perimeter = slices.DeleteFunc(slices.Clone(perimeter), func(cell domain.Cell) bool { return left[cell] })
+	}
+	if len(rock.Dig) > 0 {
+		source, ok := r.native.(RoutineBuildingSource)
+		if !ok {
+			return PlanResult{Kind: PlanWaiting, Dependency: "storage room dig", Verdict: fieldUnavailable("excavation_source")}, nil
+		}
+		ring := make([]domain.Building, 0, len(perimeter))
+		for i, cell := range perimeter {
+			definition := "Wall"
+			if i == 0 {
+				definition = "Door"
+			}
+			building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
+			if err != nil {
+				return PlanResult{}, err
+			}
+			ring = append(ring, building)
+		}
+		dig := &RoutineBuildingPlanner{reviewer: r.reviewer, native: source, goal: policy.SecureSupplies}
+		if excavation, ok := r.native.(RoutineExcavationSource); ok {
+			dig.excavation = excavation
+		}
+		check := func() error {
+			if err := p.current(call, epoch); err != nil {
+				return err
+			}
+			if p.session.State() != state {
+				return fmt.Errorf("%w: supplyRoomFallback: session state changed", ErrControl)
+			}
+			return nil
+		}
+		step := excavationStep{state: state, review: review, goal: goal, facts: projection, read: reading}
+		result, handled, err := dig.admitRockStep(call, epoch, step, supplyRoomRoleCells(storage), storage.Door(), "plan-dig-supply-room", ring, check)
+		if err != nil {
+			return PlanResult{}, err
+		}
+		if handled {
+			return PlanResult{Kind: PlanWaiting, Dependency: "storage room dig", Verdict: result.Verdict}, nil
+		}
+		return PlanResult{Kind: PlanWaiting, Dependency: "storage room dig", Verdict: BuildingReasonNoSpace}, nil
+	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
 	snapshot.Plan = planID
@@ -716,6 +770,23 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
+}
+
+// supplyRoomRoleCells is the storage room's cells by what rock on them
+// means: the interior and the door need floor, the other ring cells are
+// walls, which natural rock already is.
+func supplyRoomRoleCells(room domain.RoomFootprint) []policy.RoleCell {
+	door := room.Door()
+	cells := []policy.RoleCell{{Cell: door, Role: policy.RockNeedsFloor}}
+	for _, cell := range room.Interior() {
+		cells = append(cells, policy.RoleCell{Cell: cell, Role: policy.RockNeedsFloor})
+	}
+	for _, cell := range room.Walls() {
+		if cell != door {
+			cells = append(cells, policy.RoleCell{Cell: cell, Role: policy.RockBlocks})
+		}
+	}
+	return cells
 }
 
 // plannedStorageRoom is the layout plan's storage room, the slot the
