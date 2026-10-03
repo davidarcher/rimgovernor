@@ -79,6 +79,11 @@ type PersonalSpendPawn struct {
 	// Free is a free colonist; slaves and prisoners are never charged.
 	Free bool
 	Gear domain.Fact[[]PersonalItem]
+	// Parts are the installed added parts (#1839). The zero value is a pawn
+	// with none; PartsUnread marks a failed native read, which leaves the
+	// pawn's spent Unknown.
+	Parts       []InstalledPart
+	PartsUnread bool
 }
 
 // BedPrice is a bed definition's MarketValue at Normal quality and full hit
@@ -91,7 +96,10 @@ type BedPrice func(def, stuff Resource) (float64, bool)
 type PersonalSpendInput struct {
 	Sleeping SleepingObservation
 	BedPrice BedPrice
-	Pawns    []PersonalSpendPawn
+	// PartPrice is an installed part item's market value (ItemFacts.MarketValue);
+	// nil prices nothing, so any installed part leaves its pawn Unknown.
+	PartPrice func(Resource) (float64, bool)
+	Pawns     []PersonalSpendPawn
 }
 
 // spendSum accumulates a spent; one unknown part makes the whole unknown.
@@ -118,8 +126,8 @@ func (s spendSum) fact() domain.Fact[float64] {
 // PersonalSpent derives what each free colonist holds now (#1838): their
 // share of the owned bed, of the contents of the bedroom they own, and their
 // worn apparel and equipped weapon, each at its quality and condition price.
-// Nothing is persisted, so a lost item frees budget. Installed parts are
-// added by #1839. Keyed by free colonists only; a slave or prisoner has no
+// Nothing is persisted, so a lost item frees budget. Installed parts add their
+// market price at a tier discount (#1839: PartDiscount). Keyed by free colonists only; a slave or prisoner has no
 // entry, and a colonist whose bed, room or gear is unread is Unknown (never
 // zero) so a gate on it refuses upgrades instead of guessing.
 //
@@ -200,6 +208,12 @@ func PersonalSpent(in PersonalSpendInput) map[PawnID]domain.Fact[float64] {
 			}
 			s.add(ItemMarketValue(base, it.Quality, it.Condition), 1)
 		}
+		if p.PartsUnread {
+			s.unknown = true
+		}
+		for _, part := range p.Parts {
+			s.add(in.partValue(part), 1)
+		}
 		out[p.ID] = s.fact()
 	}
 	return out
@@ -217,4 +231,38 @@ func (in PersonalSpendInput) bedValue(bed SleepingBed) domain.Fact[float64] {
 		return domain.Unknown[float64]()
 	}
 	return ItemMarketValue(base, q, 1)
+}
+
+// A hediff cannot tell a restore from an upgrade, so an installed part
+// counts only a fraction of its item's market price (#1839). PartBionicTier
+// is the PartTier from which a part is bionic or better: prosthetics, pegs
+// and unrecognised parts (tier <= 1) pay PartRestoreDiscount, bionic and
+// archotech parts (tier > 1) pay PartUpgradeDiscount. An installed part also
+// moves wealth from Items to Pawns, so every share shrinks slightly; accepted.
+const (
+	PartBionicTier      = 1.0
+	PartRestoreDiscount = 0.25
+	PartUpgradeDiscount = 0.75
+)
+
+// PartDiscount is the share of an installed part's price that counts as spent.
+func PartDiscount(tier float64) float64 {
+	if tier > PartBionicTier {
+		return PartUpgradeDiscount
+	}
+	return PartRestoreDiscount
+}
+
+// partValue is an installed part's discounted price; Unknown when the part
+// spawns no item or the item has no price.
+func (in PersonalSpendInput) partValue(p InstalledPart) domain.Fact[float64] {
+	item, ok := p.Item.Value()
+	if !ok || in.PartPrice == nil {
+		return domain.Unknown[float64]()
+	}
+	price, priced := in.PartPrice(item)
+	if !priced || !finite(price) || price < 0 {
+		return domain.Unknown[float64]()
+	}
+	return domain.Known(price * PartDiscount(p.Tier))
 }

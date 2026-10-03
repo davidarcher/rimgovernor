@@ -981,3 +981,12 @@ or price, gear) makes that colonist's spent Unknown, never zero.
   its beds' owners, as `RoomQualityTargets` groups them). No per-piece
   contract. Medical, prisoner and slave beds and owner-less rooms charge no
   free colonist.
+- Installed parts (#1839): each `InstalledPart` adds its `Item` market price
+  (`PersonalSpendInput.PartPrice`, i.e. `ItemFacts.MarketValue`) times
+  `PartDiscount(Tier)`, because a hediff cannot tell a restore from an
+  upgrade: tier <= `PartBionicTier` (prosthetic, peg, unrecognised) pays
+  `PartRestoreDiscount` 0.25, bionic and archotech pay `PartUpgradeDiscount`
+  0.75. A part with no item (hediff spawns nothing), no price, or a failed
+  read (`PartsUnread`) makes that pawn's spent Unknown, never zero. An
+  installed part moves wealth from Items (the pool) to Pawns, so every share
+  shrinks slightly; accepted.

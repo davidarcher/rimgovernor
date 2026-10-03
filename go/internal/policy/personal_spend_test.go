@@ -187,3 +187,49 @@ func TestPersonalItemOfPricesFromCost(t *testing.T) {
 		t.Errorf("good parka = %v, want 100", v)
 	}
 }
+
+func TestPartDiscountConstantsPinned(t *testing.T) {
+	if PartRestoreDiscount != .25 || PartUpgradeDiscount != .75 || PartBionicTier != 1 {
+		t.Fatalf("discount constants changed: %v %v %v", PartRestoreDiscount, PartUpgradeDiscount, PartBionicTier)
+	}
+}
+
+func TestPersonalSpentInstalledPartsTierDiscount(t *testing.T) {
+	prices := map[Resource]float64{"Peg": 100, "Prosthetic": 200, "Bionic": 400, "Archotech": 1000}
+	part := func(hediff string, item Resource) InstalledPart {
+		return InstalledPart{Hediff: hediff, Item: domain.Known(item), Tier: PartTier(hediff)}
+	}
+	for _, c := range []struct {
+		name  string
+		parts []InstalledPart
+		want  float64
+	}{
+		{"peg", []InstalledPart{part("PegLeg", "Peg")}, 25},
+		{"prosthetic", []InstalledPart{part("SimpleProstheticArm", "Prosthetic")}, 50},
+		{"bionic", []InstalledPart{part("BionicArm", "Bionic")}, 300},
+		{"archotech", []InstalledPart{part("ArchotechEye", "Archotech")}, 750},
+		{"several", []InstalledPart{part("PegLeg", "Peg"), part("BionicArm", "Bionic")}, 325},
+		{"none", nil, 0},
+	} {
+		in := spendInput(nil, []UpkeepRoom{}, spendPawn("ann"))
+		in.PartPrice = func(r Resource) (float64, bool) { v, ok := prices[r]; return v, ok }
+		in.Pawns[0].Parts = c.parts
+		t.Run(c.name, func(t *testing.T) { wantSpent(t, PersonalSpent(in), "ann", c.want) })
+	}
+}
+
+func TestPersonalSpentInstalledPartsUnknownNeverZero(t *testing.T) {
+	priced := func(Resource) (float64, bool) { return 100, true }
+	for name, mutate := range map[string]func(*PersonalSpendInput){
+		"no item":       func(in *PersonalSpendInput) { in.Pawns[0].Parts = []InstalledPart{{Hediff: "BionicArm", Tier: 1.25}} },
+		"missing price": func(in *PersonalSpendInput) { in.PartPrice = func(Resource) (float64, bool) { return 0, false } },
+		"no lookup":     func(in *PersonalSpendInput) { in.PartPrice = nil },
+		"unread":        func(in *PersonalSpendInput) { in.Pawns[0].Parts = nil; in.Pawns[0].PartsUnread = true },
+	} {
+		in := spendInput(nil, []UpkeepRoom{}, spendPawn("ann"))
+		in.PartPrice = priced
+		in.Pawns[0].Parts = []InstalledPart{{Hediff: "BionicArm", Item: domain.Known(Resource("Bionic")), Tier: 1.25}}
+		mutate(&in)
+		t.Run(name, func(t *testing.T) { wantUnknown(t, PersonalSpent(in), "ann") })
+	}
+}
