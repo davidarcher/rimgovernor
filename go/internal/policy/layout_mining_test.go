@@ -62,11 +62,11 @@ func TestPlannedDig(t *testing.T) {
 	var cells []SiteCell
 	for x := in.X - 2; x <= in.X+in.Width+1; x++ {
 		for z := in.Z - 2 - shaft.Height; z <= in.Z+in.Height+1+shaft.Height; z++ {
-			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, NaturalRock: domain.Known(true)})
+			cells = append(cells, rockSite(x, z))
 		}
 	}
 	dig := map[domain.Cell]bool{}
-	for _, c := range p.RoomDig(freezer, cells) {
+	for _, c := range p.RoomRock(freezer, cells).Dig {
 		dig[c] = true
 	}
 	want := RectangleCells(in)
@@ -80,24 +80,19 @@ func TestPlannedDig(t *testing.T) {
 			t.Fatalf("%v not dug", c)
 		}
 	}
-	// A rock back wall still lists the shaft; the cooler cell is left to
+	// A rock back wall puts the cooler cell first in the exhaust dig, for
 	// the plan that places the cooler (#874).
-	if !p.CoolerCellRock(freezer, cells) {
-		t.Fatal("rock cooler cell not reported")
-	}
-	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
-		t.Fatalf("rock back wall shaft dig %v, want %v", got, shaft)
+	exhaust, _ := p.ExhaustRock(freezer, cells)
+	if len(exhaust.Dig) != len(RectangleCells(shaft))+1 || exhaust.Dig[0] != site.Cell {
+		t.Fatalf("rock back wall exhaust dig %v, want cooler cell %v then %v", exhaust.Dig, site.Cell, shaft)
 	}
 	for i := range cells {
 		if cells[i].Cell == site.Cell {
-			cells[i].NaturalRock = domain.Known(false)
+			cells[i] = openSite(site.Cell.X, site.Cell.Z)
 		}
 	}
-	if p.CoolerCellRock(freezer, cells) {
-		t.Fatal("mined cooler cell reported rock")
-	}
-	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
-		t.Fatalf("shaft dig %v, want %v", got, shaft)
+	if exhaust, _ := p.ExhaustRock(freezer, cells); len(exhaust.Dig) != len(RectangleCells(shaft)) {
+		t.Fatalf("shaft dig %v, want %v", exhaust.Dig, shaft)
 	}
 }
 
@@ -111,9 +106,9 @@ func TestRoomDigIncludesFoggedCells(t *testing.T) {
 		break
 	}
 	open := room.Interior
-	cells := []SiteCell{{Cell: domain.Cell{X: open.X, Z: open.Z}, NaturalRock: domain.Known(false)}}
+	cells := []SiteCell{openSite(open.X, open.Z)}
 	dig := map[domain.Cell]bool{}
-	for _, c := range p.RoomDig(room, cells) {
+	for _, c := range p.RoomRock(room, cells).Dig {
 		dig[c] = true
 	}
 	if dig[domain.Cell{X: open.X, Z: open.Z}] {

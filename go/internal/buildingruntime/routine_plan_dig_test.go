@@ -21,6 +21,7 @@ type rockCoolerNative struct {
 	*refrigerationNative
 	rock      map[domain.Cell]bool
 	overRock  int
+	refuse    bool
 	overCells []domain.Cell
 }
 
@@ -42,7 +43,11 @@ func (n *rockCoolerNative) PreviewBuildingOverRock(ctx context.Context, action d
 	n.overRock++
 	b, _ := action.Building()
 	n.overCells = append(n.overCells, b.Cell())
-	return n.PreviewBuilding(ctx, action, s)
+	preview, raw, err := n.PreviewBuilding(ctx, action, s)
+	if n.refuse {
+		preview.Preview.CanPlace = domain.Known(false)
+	}
+	return preview, raw, err
 }
 
 // rockCoolerStep is the refrigeration fixture with rock on a planned cooler
@@ -93,9 +98,40 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	t.Parallel()
 	p, db, n, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()
+	coolerBuilding, err := domain.NewBuilding("Cooler", site.Cell, site.Rotation, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
 	method := domain.MethodID("plan-dig-exhaust-test")
-	result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{site.Cell, shaft}, cold, method, &site, func() error { return nil })
+	planned := []policy.RoleCell{{Cell: site.Cell, Role: policy.RockNeedsFloor}, {Cell: shaft, Role: policy.RockNeedsFloor}}
+	// Cells the frame lists open need no dig: nothing is admitted.
+	if _, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-open", []domain.Building{coolerBuilding}, func() error { return nil }); err != nil || handled {
+		t.Fatal("open ground handled", handled, err)
+	}
+	// A native refusal naming no blocker on a building cell the frame lists
+	// open is an error, not a retryable refusal.
+	n.refuse = true
+	open, err := domain.NewBuilding("Cooler", domain.Cell{X: 1, Z: 2}, site.Rotation, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rockOnly := []policy.RoleCell{{Cell: shaft, Role: policy.RockNeedsFloor}}
+	for i, c := range s.facts.Cells {
+		if c.Cell == shaft {
+			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+		}
+	}
+	if _, _, err := p.admitRockStep(ctx, ctx, s, rockOnly, cold, "plan-dig-refused", []domain.Building{open}, func() error { return nil }); err == nil {
+		t.Fatal("refusal on an open cell was not an error")
+	}
+	n.refuse, n.overRock, n.overCells = false, 0, nil
+	for i, c := range s.facts.Cells {
+		if c.Cell == site.Cell || c.Cell == shaft {
+			s.facts.Cells[i].Occupied, s.facts.Cells[i].Walkable, s.facts.Cells[i].Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+		}
+	}
+	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, method, []domain.Building{coolerBuilding}, func() error { return nil })
 	if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, handled, err)
 	}

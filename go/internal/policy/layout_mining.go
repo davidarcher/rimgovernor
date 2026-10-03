@@ -38,24 +38,16 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 	return MineTierStone
 }
 
-// RoomDig lists the natural rock a planned room's shell waits on (#836):
-// its interior and door cell and, for a cooled room, its cooler's wall cell
-// and exhaust shaft, mined before the ring so the ring walls the cooler cell
-// and the room is never left open. Rock on the rest of the ring stays and
-// walls the room.
-func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
-	// Priority order: the room (door and interior), the cooler shaft, the
-	// cell outside the door, then the corridor outward from it. Cells the
-	// census does not list are fogged mountain, which can be designated like
-	// any rock: the native read says whether each really is rock.
-	var order []domain.Cell
-	seen := map[domain.Cell]bool{}
-	add := func(c domain.Cell) {
-		if !seen[c] {
-			seen[c] = true
-			order = append(order, c)
-		}
-	}
+// RoomRock is the shared rock step (RockStep) over the cells a planned
+// room's shell waits on (#836): its door and interior and, for a cooled
+// room, its cooler's wall cell and exhaust shaft, mined before the ring so
+// the ring walls the cooler cell and the room is never left open, then the
+// cell outside the door and the corridor outward from it. All of them are
+// built on or walked, so each needs a floor; rock on the rest of the ring
+// stays and walls the room. Dig is in that priority order.
+func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
+	var planned []RoleCell
+	add := func(c domain.Cell) { planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor}) }
 	add(room.Door)
 	for _, c := range RectangleCells(room.Interior) {
 		add(c)
@@ -88,22 +80,7 @@ func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
 			add(c)
 		}
 	}
-	known := make(map[domain.Cell]bool, len(cells))
-	for _, c := range cells {
-		rock, isKnown := c.NaturalRock.Value()
-		known[c.Cell] = isKnown && rock
-		if !isKnown {
-			known[c.Cell] = true
-		}
-	}
-	var out []domain.Cell
-	for _, c := range order {
-		if rock, listed := known[c]; listed && !rock {
-			continue // a listed cell that is not rock
-		}
-		out = append(out, c)
-	}
-	return out
+	return RockStep(planned, cells)
 }
 
 func manhattan(a, b domain.Cell) int32 {
@@ -117,38 +94,20 @@ func manhattan(a, b domain.Cell) int32 {
 	return dx + dz
 }
 
-// ExhaustDig lists the rock in a standing room's planned exhaust shaft
-// (#836). When CoolerCellRock also holds, mining the wall cell would open
-// the room, so the caller mines it only in the plan that places the cooler
-// there (#874).
-func (p LayoutPlan) ExhaustDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
-	_, area, ok := p.CoolerExhaust(room)
+// ExhaustRock is the shared rock step over a standing room's planned cooler
+// wall cell and exhaust shaft (#836). The cooler cell is in Dig while the
+// room's back wall is still rock: mining it would open the room, so the
+// caller mines it only in the plan that places the cooler there (#874).
+func (p LayoutPlan) ExhaustRock(room LayoutRoom, cells []SiteCell) (RockStepResult, bool) {
+	site, area, ok := p.CoolerExhaust(room)
 	if !ok {
-		return nil
+		return RockStepResult{}, false
 	}
-	want := map[domain.Cell]bool{}
+	planned := []RoleCell{{Cell: site.Cell, Role: RockNeedsFloor}}
 	for _, c := range RectangleCells(area) {
-		want[c] = true
+		planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor})
 	}
-	return rockAmong(want, cells)
-}
-
-// CoolerCellRock reports that a room's planned cooler wall cell is known
-// natural rock (#874): a standing room whose back wall is still rock.
-func (p LayoutPlan) CoolerCellRock(room LayoutRoom, cells []SiteCell) bool {
-	site, _, ok := p.CoolerExhaust(room)
-	return ok && len(rockAmong(map[domain.Cell]bool{site.Cell: true}, cells)) > 0
-}
-
-// rockAmong is the cells of want known to be natural rock, in site order.
-func rockAmong(want map[domain.Cell]bool, cells []SiteCell) []domain.Cell {
-	var out []domain.Cell
-	for _, c := range cells {
-		if rock, known := c.NaturalRock.Value(); known && rock && want[c.Cell] {
-			out = append(out, c.Cell)
-		}
-	}
-	return out
+	return RockStep(planned, cells), true
 }
 
 func zoneHas(z LayoutZone, cell domain.Cell) bool {

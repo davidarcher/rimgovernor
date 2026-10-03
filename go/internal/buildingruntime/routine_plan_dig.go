@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -11,20 +12,27 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// digPlanned designates rock the layout plan wants gone before building:
-// a dug room's interior and door, or a cooler's wall cell and exhaust shaft
-// (#836). access is the walkable cell a miner reaches the rock from. It
-// reports handled=false when there is no rock left to dig, no excavation
-// read, or nothing the native side can dig now, so the caller builds as
-// before; while designations stand or the method already ran this epoch it
-// holds the build, since a shell or cooler cannot stand on rock. A dig plan
-// that settles with rock still standing is followed by another round
+// admitRockStep is the one dig path every planner shares: it runs the rock
+// step over the planner's role cells against the frame's terrain facts and,
+// when rock must go, admits the excavations as one method with every
+// building in buildings waiting on all of them (dig, then build). handled is
+// false when no cell needs digging, no excavation read exists or the native
+// side can dig nothing now, so the caller builds as before; while
+// designations stand or the method already ran this epoch it holds the
+// build. access is the walkable cell a miner reaches the rock from. A dig
+// plan that settles with rock still standing is followed by another round
 // (nextDigRound), up to digRoundLimit, then the step refuses naming the rock.
 //
-// A non-nil cooler is a planned cooler whose wall cell is among rock (#874):
-// the same plan places it, previewed as though the rock were mined and
-// depending on every excavation, so the room is never left open.
-func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excavationStep, rock []domain.Cell, access domain.Cell, method domain.MethodID, cooler *policy.PlannedCoolerSite, check func() error) (RoutineBuildingResult, bool, error) {
+// Each building is previewed over rock, since the rock on its footprint is
+// mined first. A native refusal of a building whose cell the frame lists as
+// open and that names no blocker is an error, not a refusal to retry.
+func (b *RoutineBuildingPlanner) admitRockStep(call, epoch context.Context, s excavationStep, planned []policy.RoleCell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
+	return b.digPlanned(call, epoch, s, policy.RockStep(planned, s.facts.Cells).Dig, access, method, buildings, check)
+}
+
+// digPlanned is admitRockStep's executor over an already classified dig
+// list; a planner calls admitRockStep, not this.
+func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excavationStep, rock []domain.Cell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
 	if len(rock) == 0 {
 		return RoutineBuildingResult{}, false, nil
 	}
@@ -73,24 +81,35 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	snapshot.Plan = domain.MintPlanID()
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
 	var previews []policy.Preview
-	actions := make([]domain.Action, 0, len(excavations)+1)
-	if cooler != nil {
-		// The cooler is action -0, as previewCoolerWall names it.
-		var reason Verdict
-		previews, stock, reason, err = b.previewCoolerWall(call, snapshot, s.facts, nil, check, cooler.Cell, cooler.Rotation, true)
+	actions := make([]domain.Action, 0, len(excavations)+len(buildings))
+	digging := make(map[domain.Cell]bool, len(rock))
+	for _, cell := range rock {
+		digging[cell] = true
+	}
+	_, overRock := b.native.(overRockPreviewer)
+	for i, building := range buildings {
+		if !overRock && digging[building.Cell()] {
+			return RoutineBuildingResult{Verdict: fieldUnavailable("over_rock_preview")}, true, nil
+		}
+		preview, next, reason, err := b.previewPlannedBuilding(call, snapshot, s.facts, building, i, overRock, !digging[building.Cell()])
 		if err != nil || !reason.IsZero() {
 			return RoutineBuildingResult{Verdict: reason}, !reason.IsZero(), err
 		}
-		actions = append(actions, previews[0].Action)
+		if err = mergeRoutineStock(&stock, next, i == 0); err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		previews = append(previews, preview...)
+		actions = append(actions, preview[0].Action)
 	}
+	built := actions[:len(actions):len(actions)]
 	var dependencies []domain.ActionDependency
 	for _, excavation := range excavations {
 		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), excavation)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		if cooler != nil {
-			dependencies = append(dependencies, domain.ActionDependency{Action: actions[0].ID(), Requires: action.ID()})
+		for _, building := range built {
+			dependencies = append(dependencies, domain.ActionDependency{Action: building.ID(), Requires: action.ID()})
 		}
 		actions = append(actions, action)
 	}
@@ -163,7 +182,7 @@ func (b *RoutineBuildingPlanner) digPlannedRoom(call, epoch context.Context, s e
 	if err != nil {
 		return RoutineBuildingResult{}, false, nil
 	}
-	return b.digPlanned(call, epoch, s, plan.RoomDig(room, s.facts.Cells), shell.Threshold(), digMethod("room", room), nil, check)
+	return b.digPlanned(call, epoch, s, plan.RoomRock(room, s.facts.Cells).Dig, shell.Threshold(), digMethod("room", room), nil, check)
 }
 
 // digExhaust mines the planned exhaust shaft of the room the refrigeration
@@ -186,13 +205,18 @@ func (b *RoutineBuildingPlanner) digExhaust(call, epoch context.Context, s excav
 			continue
 		}
 		cooler := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}
-		rock := plan.ExhaustDig(room, s.facts.Cells)
-		var place *policy.PlannedCoolerSite
-		if plan.CoolerCellRock(room, s.facts.Cells) {
+		step, _ := plan.ExhaustRock(room, s.facts.Cells)
+		rock := step.Dig
+		var place []domain.Building
+		if slices.Contains(rock, site.Cell) {
 			if _, ok := b.native.(overRockPreviewer); !ok {
 				return RoutineBuildingResult{}, false, nil
 			}
-			rock, place = append([]domain.Cell{site.Cell}, rock...), &site
+			building, err := domain.NewBuilding("Cooler", site.Cell, site.Rotation, "")
+			if err != nil {
+				return RoutineBuildingResult{}, false, err
+			}
+			place = []domain.Building{building}
 		}
 		return b.digPlanned(call, epoch, s, rock, cooler.Cold(), digMethod("exhaust", room), place, check)
 	}

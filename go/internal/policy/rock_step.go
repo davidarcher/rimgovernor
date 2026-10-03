@@ -30,8 +30,9 @@ type RockStepResult struct {
 	// Dig is the rock to excavate before building, in input order, each
 	// cell once.
 	Dig []domain.Cell
-	// Left is the listed wall-role cells on rock, kept as natural rock; they
-	// count as built.
+	// Left is the wall-role cells on rock, kept as natural rock; they count
+	// as built. An unlisted (fogged) wall-role cell is unseen mountain and
+	// is left too.
 	Left []domain.Cell
 }
 
@@ -39,7 +40,7 @@ type RockStepResult struct {
 // in the frame. A needs-floor cell on rock is dug; a blocks cell on rock is
 // left as rock. A cell the frame does not list is fogged mountain: when it
 // needs a floor it is dug, because roof support is read from the true map
-// when the dig is read, and when it blocks nothing is needed. A listed cell
+// when the dig is read, and when it blocks it is left as rock. A listed cell
 // that is not rock is open and needs nothing. Duplicate cells collapse, and
 // needs-floor wins over blocks for the same cell.
 func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
@@ -65,9 +66,7 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 			continue
 		}
 		if role[cell] == RockBlocks {
-			if listed {
-				out.Left = append(out.Left, cell)
-			}
+			out.Left = append(out.Left, cell)
 			continue
 		}
 		out.Dig = append(out.Dig, cell)

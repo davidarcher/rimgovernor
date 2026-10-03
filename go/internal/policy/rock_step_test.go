@@ -44,6 +44,12 @@ func TestRockStep(t *testing.T) {
 			t.Fatalf("got %+v", got)
 		}
 	})
+	t.Run("fogged wall-role cell is left as rock", func(t *testing.T) {
+		got := RockStep([]RoleCell{{cell(9, 9), RockBlocks}}, sites)
+		if len(got.Dig) != 0 || !reflect.DeepEqual(got.Left, []domain.Cell{cell(9, 9)}) {
+			t.Fatalf("got %+v", got)
+		}
+	})
 	t.Run("floor role wins over wall role for one cell", func(t *testing.T) {
 		got := RockStep([]RoleCell{{cell(1, 0), RockBlocks}, {cell(1, 0), RockNeedsFloor}}, sites)
 		if !reflect.DeepEqual(got.Dig, []domain.Cell{cell(1, 0)}) || len(got.Left) != 0 {

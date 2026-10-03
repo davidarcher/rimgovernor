@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -183,7 +184,24 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}
-	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
+	previews, stock, reason, err := r.previewPlannedBuilding(ctx, snapshot, facts, building, 0, overRock, false)
+	if err != nil || !reason.IsZero() {
+		return nil, stock, reason, err
+	}
+	if footprint, _ := previews[0].Footprint.Value(); len(footprint) != 1 || footprint[0] != cell {
+		return nil, stock, BuildingReasonNoSpace, nil
+	}
+	return previews, stock, Verdict{}, nil
+}
+
+// previewPlannedBuilding previews one planned building as action
+// "<plan>-<index>"; overRock previews it as though natural rock on its
+// footprint were mined. goOpen says Go's terrain facts read the building's
+// cell as open: a refusal then that names no blocking thing is rock or
+// terrain Go missed, an error rather than a refusal to retry.
+func (r *RoutineBuildingPlanner) previewPlannedBuilding(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, building domain.Building, index int, overRock, goOpen bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, index)), building)
 	if err != nil {
 		return nil, stock, Verdict{}, err
 	}
@@ -206,16 +224,19 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 	legal, lk := p.CanPlace.Value()
 	safe, sk := p.SafeToPlace.Value()
 	if !fk || !mk || !lk || !sk {
-		return nil, stock, fieldUnavailable("cooler_preview"), nil
+		return nil, stock, fieldUnavailable(building.Definition() + "_preview"), nil
 	}
-	if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
+	if goOpen && !legal && len(p.Blockers) == 0 {
+		return nil, stock, Verdict{}, fmt.Errorf("%w: rock step: native refused %s at %v that the frame lists open and names no blocker", ErrControl, building.Definition(), building.Cell())
+	}
+	if made != (building.Stuff() != "") || !slices.Contains(footprint, building.Cell()) || !legal || !safe {
 		return nil, stock, BuildingReasonNoSpace, nil
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, Verdict{}, err
 	}
 	if clockDebug() {
-		clockSchedulerLog("%s: cooler preview costs=%+v stock=%+v", r.goal, p.Costs, stock.Values)
+		clockSchedulerLog("%s: %s preview costs=%+v stock=%+v", r.goal, building.Definition(), p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, Verdict{}, nil
 }
