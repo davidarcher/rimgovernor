@@ -101,6 +101,12 @@ type ColonyProjection struct {
 	// PowerBattery); the power planner refuses a projection without them.
 	PowerSources map[string]policy.PowerSourceProfile
 	PowerBattery policy.PowerBattery
+	// RoofSupport is the game's roof support radius (the catalog constant
+	// roof_max_support_distance).
+	RoofSupport float64
+	// Impressiveness are the game's room impressiveness stage thresholds
+	// (the Impressiveness RoomStatDef's score stages).
+	Impressiveness policy.ImpressivenessLevels
 	// DefenseTurrets is every built turret gun in the power census with its
 	// observed damage per second (#1188).
 	DefenseTurrets domain.Fact[[]policy.DefenseTurretFacts]
@@ -338,6 +344,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.Policies = domain.Known(policies)
 	}
 	if tables.Catalog != nil {
+		r.RoofSupport = float64(tables.Catalog.Constants.RoofMaxSupportDistance)
+		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
+			return ColonyProjection{}, err
+		}
 		if r.PowerSources, err = tables.Catalog.PowerSources(); err != nil {
 			return ColonyProjection{}, err
 		}

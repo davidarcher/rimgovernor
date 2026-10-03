@@ -39,7 +39,7 @@ func TestRoomQualityTargets(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := RoomQualityTargets(SleepingObservation{People: c.people, Beds: beds, Rooms: rooms}, c.traits, c.tier)
+			got := RoomQualityTargets(SleepingObservation{People: c.people, Beds: beds, Rooms: rooms}, c.traits, c.tier, testImpressiveness)
 			if len(got) != 3 {
 				t.Fatalf("targets = %d, want 3", len(got))
 			}
@@ -48,12 +48,12 @@ func TestRoomQualityTargets(t *testing.T) {
 			}
 		})
 	}
-	if got := RoomQualityTargets(SleepingObservation{Beds: beds}, nil, BuildTierCamp); got != nil {
+	if got := RoomQualityTargets(SleepingObservation{Beds: beds}, nil, BuildTierCamp, testImpressiveness); got != nil {
 		t.Fatalf("unknown census = %v, want nil", got)
 	}
 	medical := bed("m", "r1", "a")
 	medical.Medical = domain.Known(true)
-	if got := RoomQualityTargets(SleepingObservation{Beds: []SleepingBed{medical}, Rooms: rooms}, nil, BuildTierCamp); len(got) != 0 {
+	if got := RoomQualityTargets(SleepingObservation{Beds: []SleepingBed{medical}, Rooms: rooms}, nil, BuildTierCamp, testImpressiveness); len(got) != 0 {
 		t.Fatalf("medical bed = %v, want none", got)
 	}
 }

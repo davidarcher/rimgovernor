@@ -22,8 +22,8 @@ func roomUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) 
 		return policy.RoomUpgrade{}, false
 	}
 	tier, _ := facts.BuildTier.Value()
-	targets := policy.RoomQualityTargets(obs, traits, tier)
-	for id, t := range policy.CommonRoomTargets(obs, tier) {
+	targets := policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
+	for id, t := range policy.CommonRoomTargets(obs, tier, facts.Impressiveness) {
 		if _, owned := targets[id]; !owned {
 			targets[id] = t
 		}
@@ -66,7 +66,7 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 			}
 		}
 	}
-	return policy.NextBedReplacement(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, materials)
+	return policy.NextBedReplacement(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, materials)
 }
 
 // titleFurniture is the next unmet royal bedroom thing (#815).
@@ -123,7 +123,7 @@ func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool
 	for _, d := range facts.Definitions {
 		floors.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
 	}
-	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
+	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors)
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.

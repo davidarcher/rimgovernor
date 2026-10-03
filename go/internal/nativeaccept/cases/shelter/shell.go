@@ -63,7 +63,7 @@ func (sh *shell) describe() map[string]any {
 		"plan": string(sh.planID), "goal": string(sh.goalID), "shape": sh.shape,
 		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
-		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
+		"bounds": sh.footprint.Bounds(),
 	}
 }
 

@@ -69,8 +69,16 @@ func runGreedyBedroom(ctx context.Context, s cases.Session) error {
 	}
 	report["status"] = status
 	impressiveness, _ := status["impressiveness"].(float64)
-	if impressiveness < policy.ImpressivenessSlightlyImpressive {
-		return fmt.Errorf("greedy bedroom impressiveness %.1f, want >= %.0f", impressiveness, policy.ImpressivenessSlightlyImpressive)
+	catalog, err := cases.Catalog(ctx, h.Client, identity)
+	if err != nil {
+		return err
+	}
+	levels, err := catalog.ImpressivenessLevels()
+	if err != nil {
+		return err
+	}
+	if impressiveness < levels.SlightlyImpressive {
+		return fmt.Errorf("greedy bedroom impressiveness %.1f, want >= %.0f", impressiveness, levels.SlightlyImpressive)
 	}
 	if active, _ := status["greedyThought"].(bool); active {
 		return fmt.Errorf("greedy thought still active at impressiveness %.1f", impressiveness)

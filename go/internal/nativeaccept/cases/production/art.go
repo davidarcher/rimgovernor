@@ -14,7 +14,7 @@ import (
 
 // production/art (#1195, epic #1172) runs the art family end to end on the
 // lab. test/art builds the artist's furnished bedroom A below its build
-// tier's impressiveness target (policy.RoomTargetBaseline) with beauty its
+// tier's impressiveness target (policy.ImpressivenessLevels.Baseline) with beauty its
 // weakest stat, and an ascetic neighbour's plain room B. Jade, a sculpting
 // table, a little silver and no medicine (a purchase need, so art for sale
 // is wanted) complete it.
@@ -58,7 +58,15 @@ func runArt(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	target := artTarget(prepared)
+	catalog, err := cases.Catalog(ctx, s.Harness().Client, s.Identity())
+	if err != nil {
+		return err
+	}
+	levels, err := catalog.ImpressivenessLevels()
+	if err != nil {
+		return err
+	}
+	target := artTarget(prepared, levels)
 	report["target"] = target
 	if target <= 0 || na.AsNumber(a["impressiveness"]) >= target {
 		return fmt.Errorf("room A is not below its target %v: %v", target, prepared["rooms"])
@@ -134,13 +142,13 @@ func artRooms(read map[string]any) (a, b map[string]any, err error) {
 
 // artTarget is room A's impressiveness target: the tier baseline from the
 // fixture's faction tech level and finished research.
-func artTarget(prepared map[string]any) float64 {
+func artTarget(prepared map[string]any, levels policy.ImpressivenessLevels) float64 {
 	var finished []policy.ResearchProjectID
 	for _, r := range na.AsSlice(prepared["research"]) {
 		finished = append(finished, policy.ResearchProjectID(na.AsString(r)))
 	}
 	tier, _ := policy.SelectBuildTier(domain.Known(finished), domain.Known(na.AsString(prepared["techLevel"]))).Value()
-	return policy.RoomTargetBaseline(tier)
+	return levels.Baseline(tier)
 }
 
 // artPackedIDs are the packed sculptures a fixture audit lists.

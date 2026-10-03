@@ -117,8 +117,8 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat"}
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
-	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}}
-	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}
+	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}, RoomStatDefs: FixtureRoomStats()}
+	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain"}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}
@@ -269,6 +269,16 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	}
 	slices.SortFunc(wire.ClassChains, func(a, b *o.ClassChain) int { return cmp.Compare(a.GetName(), b.GetName()) })
 	return wire
+}
+
+// FixtureRoomStats are the Impressiveness room stat's stages as Core's
+// RoomStats.xml states them, for a test catalog's def sets.
+func FixtureRoomStats() []*d.RoomStatDef {
+	stage := func(min float32, label string) *d.Opt_RoomStatScoreStage {
+		return &d.Opt_RoomStatScoreStage{Value: &d.RoomStatScoreStage{MinScore: min, Label: label}}
+	}
+	return []*d.RoomStatDef{{DefName: RoomStatImpressiveness, ScoreStages: []*d.Opt_RoomStatScoreStage{
+		stage(0, "awful"), stage(20, "dull"), stage(30, "mediocre"), stage(40, "decent"), stage(50, "slightly impressive"), stage(65, "somewhat impressive")}}}
 }
 
 func fixtureWork(v *float32) float32 {

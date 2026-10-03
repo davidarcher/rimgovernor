@@ -232,7 +232,10 @@ census coin; an empty value or a def with no row is refused). `full_rot_rate_c` 
 curve is literals inside the game function, so native bisects the function
 itself and throws naming it when the rate never reaches 1 or is not finite; Go
 reads it as `FoodStorageObservation.ChilledMaxC`, the limit for refrigerated
-food. Drugs, chemicals
+food. `roof_max_support_distance` is `RoofCollapseUtility.RoofMaxSupportDistance`,
+read by reflection from the public const so the assembly's value, not one inlined at
+compile time, is sent (the read throws naming the member when it is missing or not a
+float); Go measures roof support against it. Drugs, chemicals
 and the preventive drug are not constants: `ItemFacts` derives them from the
 `CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.

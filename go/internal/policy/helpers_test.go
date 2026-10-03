@@ -210,3 +210,14 @@ func testGeneratorOptions(available func(string) domain.Fact[bool], stock func(R
 	}
 	return options
 }
+
+// The Impressiveness room stat's stage scores of Core's RoomStats.xml, as the
+// catalog's ImpressivenessLevels reads them.
+const (
+	ImpressivenessDull               = 20.0
+	ImpressivenessMediocre           = 30.0
+	ImpressivenessDecent             = 40.0
+	ImpressivenessSlightlyImpressive = 50.0
+)
+
+var testImpressiveness = ImpressivenessLevels{Dull: ImpressivenessDull, Mediocre: ImpressivenessMediocre, Decent: ImpressivenessDecent, SlightlyImpressive: ImpressivenessSlightlyImpressive}

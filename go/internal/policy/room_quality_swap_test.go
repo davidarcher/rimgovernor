@@ -63,7 +63,7 @@ func TestSleepingAssignNeverUpgradesAscetic(t *testing.T) {
 		Targets:     domain.Known([]SleepingTarget{{Pawn: "a", Kind: SleepingUpgrade, PreviousBed: "b1", Available: []string{"v2", "v3"}}}),
 		Sleeping:    domain.Known(obs),
 		Traits:      traits,
-		RoomTargets: RoomQualityTargets(obs, traits, BuildTierSpacer),
+		RoomTargets: RoomQualityTargets(obs, traits, BuildTierSpacer, testImpressiveness),
 	}
 	choice, err := SelectSleepingMethod(request)
 	if err != nil || choice.Method == SleepingAssign {

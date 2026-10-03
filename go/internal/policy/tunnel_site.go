@@ -23,10 +23,6 @@ import (
 // constructed wall under a built roof is never mistaken for a rock face.
 var rockRoofs = map[string]bool{"RoofRockThin": true, "RoofRockThick": true}
 
-// excavationSupportDistance is RimWorld's roof support radius: every target
-// cell must lie within it of some non-target cell (excavationSupported).
-const excavationSupportDistance = 6
-
 // excavationMaxCells matches NativeExcavationSite.MaxCells so a whole target
 // fits in one site read.
 const excavationMaxCells = 64
@@ -41,6 +37,10 @@ type ExcavationSiteRequest struct {
 	Protected []domain.Cell
 	// MinCorridor..MaxCorridor bound the corridor length tried per face.
 	MinCorridor, MaxCorridor int32
+	// RoofSupport is the game's roof support radius (the catalog's
+	// roof_max_support_distance): every target cell must lie within it of
+	// some non-target cell.
+	RoofSupport float64
 }
 
 // ExcavationTarget is one proposed tunnel: Access is the walkable cell the
@@ -68,7 +68,8 @@ func (t ExcavationTarget) Key() string {
 }
 
 // ParseExcavationKey rebuilds a target from Key. It validates shape only;
-// the caller re-reads the site before trusting it.
+// the caller re-reads the site before trusting it, and the native site read
+// is the authority on roof support.
 func ParseExcavationKey(key string) (ExcavationTarget, error) {
 	invalid := errors.New("invalid excavation key")
 	parts := strings.Split(key, ".")
@@ -90,7 +91,7 @@ func ParseExcavationKey(key string) (ExcavationTarget, error) {
 		t.Corridor = append(t.Corridor, domain.Cell{X: t.Access.X + t.Direction.X*i, Z: t.Access.Z + t.Direction.Z*i})
 	}
 	t.Door = t.Corridor[len(t.Corridor)-1]
-	if t.Corridor[0].X < 0 || t.Corridor[0].Z < 0 || !excavationSupported(t.Cells()) {
+	if t.Corridor[0].X < 0 || t.Corridor[0].Z < 0 {
 		return ExcavationTarget{}, invalid
 	}
 	return t, nil
@@ -99,17 +100,17 @@ func ParseExcavationKey(key string) (ExcavationTarget, error) {
 // excavationSupported reports whether every target cell lies within
 // RimWorld's roof support radius of some cell outside the target, so the
 // rock left standing supports the roof over the whole dig.
-func excavationSupported(cells []domain.Cell) bool {
+func excavationSupported(cells []domain.Cell, support float64) bool {
 	inside := make(map[domain.Cell]bool, len(cells))
 	for _, c := range cells {
 		inside[c] = true
 	}
-	const r = excavationSupportDistance
+	r := int32(support)
 	for _, c := range cells {
 		held := false
-		for dz := int32(-r); dz <= r && !held; dz++ {
-			for dx := int32(-r); dx <= r; dx++ {
-				if dx*dx+dz*dz <= r*r && !inside[domain.Cell{X: c.X + dx, Z: c.Z + dz}] {
+		for dz := -r; dz <= r && !held; dz++ {
+			for dx := -r; dx <= r; dx++ {
+				if float64(dx*dx+dz*dz) <= support*support && !inside[domain.Cell{X: c.X + dx, Z: c.Z + dz}] {
 					held = true
 					break
 				}
@@ -154,6 +155,9 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 	}
 	if r.MinCorridor <= 0 || r.MaxCorridor < r.MinCorridor || r.MaxCorridor > excavationMaxCells {
 		return nil, errors.New("invalid excavation corridor")
+	}
+	if !(r.RoofSupport > 0) {
+		return nil, errors.New("invalid excavation roof support distance")
 	}
 	inBounds := func(c domain.Cell) bool { return c.X >= 0 && c.Z >= 0 && c.X < r.Bounds.Width && c.Z < r.Bounds.Height }
 	if r.Region.Width <= 0 || r.Region.Height <= 0 || !inBounds(domain.Cell{X: r.Region.X, Z: r.Region.Z}) || !inBounds(domain.Cell{X: r.Region.X + r.Region.Width - 1, Z: r.Region.Z + r.Region.Height - 1}) {
@@ -275,7 +279,7 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 				}
 				t := ExcavationTarget{Access: access, Direction: d, Corridor: corridor, Door: corridor[len(corridor)-1]}
 				dx, dz := t.Door.X-ore.X, t.Door.Z-ore.Z
-				if dx*dx+dz*dz != 1 || !excavationSupported(t.Corridor) {
+				if dx*dx+dz*dz != 1 || !excavationSupported(t.Corridor, r.RoofSupport) {
 					continue
 				}
 				if score, ok := judge(t); ok {

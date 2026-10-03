@@ -1958,6 +1958,10 @@ message CatalogConstants {
   // reaches its full rate of 1, found by evaluating the game's own function:
   // food stored at or below it rots slower than the full rate.
   float full_rot_rate_c = 8;
+  // RoofCollapseUtility.RoofMaxSupportDistance (a public const read from the
+  // assembly, not inlined): how far a roofed cell may lie from a roof holder
+  // before the game collapses it.
+  float roof_max_support_distance = 9;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a

@@ -48,7 +48,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 		return nil
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.RoomQualityTargets(obs, traits, tier)
+	return policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)
 }
 
 // suiteTargets is the suites Grow keeps and adds for plan (#1216) and the

@@ -29,12 +29,6 @@ type RoomFootprint struct {
 	entrance Rotation
 }
 
-// roofSupportDistance is RimWorld's RoofCollapseUtility support radius: a
-// roof cell further than this from any wall collapses. Autopilot shapes keep
-// every interior cell within it so a completed shell auto-roofs without
-// columns; see RoofSupported.
-const roofSupportDistance = 6
-
 // cellBefore orders cells z outer, x inner, the order RoomShell.Placements and
 // Python RoomBounds.cells() use.
 func cellBefore(a, b Cell) bool { return a.Z < b.Z || a.Z == b.Z && a.X < b.X }
@@ -107,16 +101,17 @@ func NewRoomFootprint(interior []Cell, door Cell, entrance Rotation) (RoomFootpr
 	return RoomFootprint{interior: held, walls: walls, door: door, entrance: entrance}, nil
 }
 
-// RoofSupported reports whether every interior cell lies within RimWorld's
-// roof support distance of some wall cell, so the game's automatic roofing
-// covers the completed shell without columns. A player may still request a
-// larger rectangle explicitly; the autopilot never proposes one.
-func (f RoomFootprint) RoofSupported() bool {
+// RoofSupported reports whether every interior cell lies within maxDistance
+// (the game's RoofCollapseUtility.RoofMaxSupportDistance, the catalog's
+// roof_max_support_distance) of some wall cell, so the game's automatic
+// roofing covers the completed shell without columns. A player may still
+// request a larger rectangle explicitly; the autopilot never proposes one.
+func (f RoomFootprint) RoofSupported(maxDistance float64) bool {
 	for _, cell := range f.interior {
 		supported := false
 		for _, w := range f.walls {
 			dx, dz := int64(cell.X)-int64(w.X), int64(cell.Z)-int64(w.Z)
-			if dx*dx+dz*dz <= roofSupportDistance*roofSupportDistance {
+			if float64(dx*dx+dz*dz) <= maxDistance*maxDistance {
 				supported = true
 				break
 			}
@@ -298,7 +293,7 @@ func RectangleFootprint(bounds RoomBounds, entrance Rotation) (RoomFootprint, er
 // z-outer, x-inner order, whose inward neighbour is interior and whose outward
 // neighbour is free. It reports false when no such room of at least nine
 // cells exists.
-func GrowFootprint(seed Cell, free func(Cell) bool, target int) (RoomFootprint, bool) {
+func GrowFootprint(seed Cell, free func(Cell) bool, target int, roofDistance float64) (RoomFootprint, bool) {
 	if free == nil || target < 9 || target > 3844 {
 		return RoomFootprint{}, false
 	}
@@ -355,7 +350,7 @@ func GrowFootprint(seed Cell, free func(Cell) bool, target int) (RoomFootprint, 
 				continue
 			}
 			footprint, err := NewRoomFootprint(interior, door, entrance)
-			if err != nil || !footprint.RoofSupported() {
+			if err != nil || !footprint.RoofSupported(roofDistance) {
 				continue
 			}
 			return footprint, true
@@ -442,7 +437,7 @@ func (r InteriorRect) cells() []Cell {
 // entrance axis and interior again behind it -- never a corner and never
 // the mouth or flank of a one-cell connector, which is the room's aisle --
 // and whose outward cell is clear.
-func UnionFootprint(parts []InteriorRect, entrance Rotation) (RoomFootprint, error) {
+func UnionFootprint(parts []InteriorRect, entrance Rotation, roofDistance float64) (RoomFootprint, error) {
 	if len(parts) == 0 || len(parts) > 8 {
 		return RoomFootprint{}, errors.New("a composite room takes one to eight parts")
 	}
@@ -467,7 +462,7 @@ func UnionFootprint(parts []InteriorRect, entrance Rotation) (RoomFootprint, err
 	if err != nil {
 		return RoomFootprint{}, err
 	}
-	if !footprint.RoofSupported() {
+	if !footprint.RoofSupported(roofDistance) {
 		return RoomFootprint{}, errors.New("composite room interior exceeds roof support")
 	}
 	return footprint, nil

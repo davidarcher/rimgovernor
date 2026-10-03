@@ -80,11 +80,11 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.CompProperties_Power"},
 			{Name: "RimWorld.CompProperties_Battery", Bases: []string{"RimWorld.CompProperties_Power"}},
 			{Name: "RimWorld.CompPowerPlant"}, {Name: "RimWorld.CompPowerPlantSolar", Bases: []string{"RimWorld.CompPowerPlant"}}, {Name: "RimWorld.CompPowerPlantWind", Bases: []string{"RimWorld.CompPowerPlant"}}},
-		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}},
+		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}, RoomStatDefs: bridge.FixtureRoomStats(),
 			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
 			JoyGiverDefs: []*d.JoyGiverDef{{DefName: "Play_Horseshoes", GiverClass: "RimWorld.JoyGiver_WatchBuilding", ThingDefs: []string{"HorseshoesPin"}, JobDef: "Play_Horseshoes"}}},
 		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
-		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}}
+		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}}
 	seen := map[string]bool{}
 	add := func(row *d.ThingDef) {
 		if row.DefName == "" || seen[row.DefName] {

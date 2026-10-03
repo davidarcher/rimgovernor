@@ -185,7 +185,23 @@ namespace HomeBridge.BridgeTools
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
             CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
             FullRotRateC = FullRotRateC(),
+            RoofMaxSupportDistance = RoofMaxSupportDistance(),
         };
+
+        // RoofCollapseUtility.RoofMaxSupportDistance is a public const, which the
+        // compiler would inline from the reference assembly: read the loaded
+        // assembly's value by name instead, and fail naming it when the game no
+        // longer has it or its type changed.
+        private static float RoofMaxSupportDistance()
+        {
+            const string member = "RoofCollapseUtility.RoofMaxSupportDistance";
+            var field = typeof(RoofCollapseUtility).GetField("RoofMaxSupportDistance", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field == null || !field.IsLiteral)
+                throw new InvalidOperationException($"{member} is not a constant of this game version.");
+            if (!(field.GetRawConstantValue() is float value))
+                throw new InvalidOperationException($"{member} is a {field.FieldType.FullName} constant, not a float.");
+            return value;
+        }
 
         // The game keeps its rot curve as literals inside
         // GenTemperature.RotRateAtTemperature, so evaluate that function: bisect the

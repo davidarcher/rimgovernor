@@ -33,7 +33,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		return domain.Unknown[bool]()
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
+	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
 }
 
 // sculptBedroom is the beauty lever after pots and floors (#830): a
@@ -62,7 +62,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	for _, item := range items {
 		inner[item.ID] = item
 	}
-	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
+	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed)
 	if !due {
 		if len(packed) > 0 {
 			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts))
@@ -161,7 +161,7 @@ func saleSculptures(call context.Context, native sculptureSource, identity *c.Id
 	}
 	clockSchedulerLog("sale art: packed=%+v", packedSculptures(items))
 	tier, _ := facts.BuildTier.Value()
-	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
+	return policy.SaleSculptures(obs, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packedSculptures(items)), nil
 }
 
 // reviewSaleArt is the review's shed_art input (#1247): the unreserved

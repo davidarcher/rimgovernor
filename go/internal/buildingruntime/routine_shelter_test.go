@@ -861,7 +861,7 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 	lit := func(c domain.Cell) bool {
 		return c.X >= 0 && c.Z >= 0 && c.X < 21 && c.Z < 21 && (c.X >= 8 && c.X <= 12 && c.Z >= 1 || c.Z >= 8 && c.Z <= 12 && c.X >= 8)
 	}
-	shell, ok := domain.GrowFootprint(domain.Cell{X: 10, Z: 10}, lit, 49)
+	shell, ok := domain.GrowFootprint(domain.Cell{X: 10, Z: 10}, lit, 49, 6.9)
 	if !ok {
 		t.Fatal("no grown shell over the strip")
 	}

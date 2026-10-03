@@ -13,7 +13,7 @@ import (
 // a one-cell connector, centred on c.
 func concaveClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
 	t.Helper()
-	shell, err := domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 5, Z: c.Z - 2, Width: 4, Height: 4}, {X: c.X - 1, Z: c.Z, Width: 3, Height: 1}, {X: c.X + 2, Z: c.Z - 2, Width: 4, Height: 4}}, domain.South)
+	shell, err := domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 5, Z: c.Z - 2, Width: 4, Height: 4}, {X: c.X - 1, Z: c.Z, Width: 3, Height: 1}, {X: c.X + 2, Z: c.Z - 2, Width: 4, Height: 4}}, domain.South, 6.9)
 	if err != nil {
 		t.Fatal(err)
 	}

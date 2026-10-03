@@ -64,7 +64,7 @@ func TestRoomUpgradeSmallBedroomSettledByAnyEndTable(t *testing.T) {
 	room := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{0, 0, 4, 3}, Doors: []domain.Cell{{X: 4, Z: 1}}}
 	tidy := TidyRoom{ID: "Room_1", Room: room, Pieces: []TidyPiece{{Thing: "Bed_1", Def: "Bed", Size: domain.Cell{X: 1, Z: 2}, Rot: domain.North, Rect: Rectangle{0, 1, 1, 2}}}}
 	obs := SleepingObservation{Rooms: domain.Known([]UpkeepRoom{{ID: "Room_1", Quality: domain.Known(RoomQuality{Wealth: 196, Beauty: -1.35, Space: 15, Cleanliness: -1, Impressiveness: -9.2})}})}
-	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: RoomTargetBaseline(BuildTierMasonry)}}
+	targets := map[string]RoomTarget{"Room_1": {Room: "Room_1", Min: testImpressiveness.Baseline(BuildTierMasonry)}}
 	all := func(string) bool { return true }
 	u, ok := NextRoomUpgrade(obs, targets, []TidyRoom{tidy}, all)
 	if !ok || u.Def != "EndTable" {

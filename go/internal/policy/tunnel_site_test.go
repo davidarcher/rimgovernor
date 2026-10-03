@@ -20,7 +20,7 @@ func mountainSite() ExcavationSiteRequest {
 			}
 		}
 	}
-	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Region: Rectangle{X: 0, Z: 0, Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, MinCorridor: 1, MaxCorridor: 4}
+	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Region: Rectangle{X: 0, Z: 0, Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, MinCorridor: 1, MaxCorridor: 4, RoofSupport: 6.9}
 }
 
 var mountainOre = domain.Cell{X: 14, Z: 15}
@@ -49,7 +49,7 @@ func TestCorridorExcavationSitesReachesBuriedOre(t *testing.T) {
 	}
 	for _, target := range targets {
 		dx, dz := target.Door.X-mountainOre.X, target.Door.Z-mountainOre.Z
-		if dx*dx+dz*dz != 1 || !excavationSupported(target.Cells()) {
+		if dx*dx+dz*dz != 1 || !excavationSupported(target.Cells(), 6.9) {
 			t.Fatal("not adjacent or unsupported", target)
 		}
 		for _, c := range target.Corridor {
@@ -113,7 +113,7 @@ func TestCorridorExcavationSupport(t *testing.T) {
 	for x := int32(0); x < 40; x++ {
 		long = append(long, domain.Cell{X: x})
 	}
-	if !excavationSupported(long) {
+	if !excavationSupported(long, 6.9) {
 		t.Fatal("1-wide corridor must be supported per cell")
 	}
 }

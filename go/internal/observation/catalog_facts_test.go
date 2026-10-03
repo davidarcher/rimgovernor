@@ -20,7 +20,8 @@ func decodeCatalog(t *testing.T, v *o.DefinitionCatalog) *bridge.DefinitionCatal
 		v.Defs = &d.DefSets{}
 	}
 	v.Defs.StatDefs = []*d.StatDef{{DefName: "MarketValue"}}
-	v.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}
+	v.Defs.RoomStatDefs = bridge.FixtureRoomStats()
+	v.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver"}
 	if len(v.TerrainDefs) == 0 {
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	}

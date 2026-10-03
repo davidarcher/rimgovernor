@@ -169,7 +169,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		protected = append(protected, h.Footprint...)
 	}
 	facts := reading.Projection
-	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor}
+	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor, RoofSupport: facts.RoofSupport}
 	snap.NoteExcavation(call, request)
 	targets, err := policy.CorridorExcavationSites(request, ore.Cell)
 	if err != nil {

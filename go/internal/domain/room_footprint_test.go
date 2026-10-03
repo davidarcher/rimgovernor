@@ -42,6 +42,9 @@ func assertEnclosed(t *testing.T, f RoomFootprint) {
 	}
 }
 
+// testRoofSupport is Core's RoofCollapseUtility.RoofMaxSupportDistance.
+const testRoofSupport = 6.9
+
 func TestRectangleFootprintIsThePerimeter(t *testing.T) {
 	bounds := RoomBounds{X: 3, Z: 5, Width: 9, Height: 7}
 	for _, entrance := range []Rotation{North, East, South, West} {
@@ -55,7 +58,7 @@ func TestRectangleFootprintIsThePerimeter(t *testing.T) {
 		if f.Bounds() != bounds {
 			t.Fatalf("bounds %v", f.Bounds())
 		}
-		if !f.RoofSupported() {
+		if !f.RoofSupported(testRoofSupport) {
 			t.Fatal("9x7 rectangle must be roof supported")
 		}
 		assertEnclosed(t, f)
@@ -118,13 +121,13 @@ func TestGrowFootprintHugsConstrainedTerrain(t *testing.T) {
 	// A three-wide corridor of free cells (x 4..6 inclusive is interior room,
 	// walls need x 3 and 7) running north from z 3, blocked elsewhere.
 	free := func(c Cell) bool { return c.X >= 3 && c.X <= 7 && c.Z >= 3 && c.Z <= 40 }
-	f, ok := GrowFootprint(Cell{5, 10}, free, 49)
+	f, ok := GrowFootprint(Cell{5, 10}, free, 49, testRoofSupport)
 	if !ok {
 		t.Fatal("corridor room not grown")
 	}
 	assertEnclosed(t, f)
-	if len(f.Interior()) != 49 || !f.RoofSupported() {
-		t.Fatalf("interior %d supported %v", len(f.Interior()), f.RoofSupported())
+	if len(f.Interior()) != 49 || !f.RoofSupported(testRoofSupport) {
+		t.Fatalf("interior %d supported %v", len(f.Interior()), f.RoofSupported(testRoofSupport))
 	}
 	for _, c := range f.Cells() {
 		if !free(c) {
@@ -141,14 +144,14 @@ func TestGrowFootprintHugsConstrainedTerrain(t *testing.T) {
 	}
 	// Deterministic: the same free set yields the same footprint regardless of
 	// call order or seed cell within the same region growth start.
-	again, _ := GrowFootprint(Cell{5, 10}, free, 49)
+	again, _ := GrowFootprint(Cell{5, 10}, free, 49, testRoofSupport)
 	if !SameRoomFootprint(f, again) {
 		t.Fatal("grow is not deterministic")
 	}
-	if _, ok := GrowFootprint(Cell{5, 10}, func(c Cell) bool { return free(c) && c.Z <= 6 }, 49); ok {
+	if _, ok := GrowFootprint(Cell{5, 10}, func(c Cell) bool { return free(c) && c.Z <= 6 }, 49, testRoofSupport); ok {
 		t.Fatal("room grown where fewer than nine admissible cells exist")
 	}
-	if _, ok := GrowFootprint(Cell{50, 50}, free, 49); ok {
+	if _, ok := GrowFootprint(Cell{50, 50}, free, 49, testRoofSupport); ok {
 		t.Fatal("room grown from a blocked seed")
 	}
 }
@@ -158,7 +161,7 @@ func TestGrowFootprintConcaveAroundObstacle(t *testing.T) {
 	// without placing a wall on rock.
 	rock := cellSet([]Cell{{12, 12}, {13, 12}, {12, 13}, {13, 13}})
 	free := func(c Cell) bool { return c.X >= 1 && c.Z >= 1 && c.X < 40 && c.Z < 40 && !rock[c] }
-	f, ok := GrowFootprint(Cell{10, 12}, free, 40)
+	f, ok := GrowFootprint(Cell{10, 12}, free, 40, testRoofSupport)
 	if !ok {
 		t.Fatal("room not grown around obstacle")
 	}
@@ -186,12 +189,12 @@ func TestGrowFootprintConcaveAroundObstacle(t *testing.T) {
 func TestUnionFootprintConcaveAndConnector(t *testing.T) {
 	// An L: a 7x3 arm along the bottom and a 3x7 arm up the left share their
 	// corner; the north-east notch stays outside.
-	l, err := UnionFootprint([]InteriorRect{{10, 10, 7, 3}, {10, 10, 3, 7}}, South)
+	l, err := UnionFootprint([]InteriorRect{{10, 10, 7, 3}, {10, 10, 3, 7}}, South, testRoofSupport)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assertEnclosed(t, l)
-	if len(l.Interior()) != 33 || !l.RoofSupported() || l.Bounds() != (RoomBounds{9, 9, 9, 9}) {
+	if len(l.Interior()) != 33 || !l.RoofSupported(testRoofSupport) || l.Bounds() != (RoomBounds{9, 9, 9, 9}) {
 		t.Fatalf("L interior %d bounds %v", len(l.Interior()), l.Bounds())
 	}
 	inside := cellSet(l.Interior())
@@ -206,7 +209,7 @@ func TestUnionFootprintConcaveAndConnector(t *testing.T) {
 	// Two 4x4 chambers joined by a one-cell connector: the door opens into a
 	// chamber, never into the connector's mouth, on the side nearer the
 	// smaller coordinate.
-	d, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, South)
+	d, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, South, testRoofSupport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,26 +224,26 @@ func TestUnionFootprintConcaveAndConnector(t *testing.T) {
 		}
 	}
 	// A north door on the connector room lands on a chamber's north wall.
-	n, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, North)
+	n, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, North, testRoofSupport)
 	if err != nil || n.Door() != (Cell{12, 14}) {
 		t.Fatalf("north door %v %v", n.Door(), err)
 	}
 	// Overlapping parts share cells once; disconnected parts are refused, as
 	// are parts against the map edge and an interior beyond roof support.
-	same, err := UnionFootprint([]InteriorRect{{10, 10, 5, 5}, {12, 12, 5, 5}, {10, 10, 7, 7}}, East)
+	same, err := UnionFootprint([]InteriorRect{{10, 10, 5, 5}, {12, 12, 5, 5}, {10, 10, 7, 7}}, East, testRoofSupport)
 	if err != nil || len(same.Interior()) != 49 {
 		t.Fatal(same, err)
 	}
-	if _, err := UnionFootprint([]InteriorRect{{10, 10, 3, 3}, {20, 20, 3, 3}}, South); err == nil {
+	if _, err := UnionFootprint([]InteriorRect{{10, 10, 3, 3}, {20, 20, 3, 3}}, South, testRoofSupport); err == nil {
 		t.Fatal("disconnected parts joined")
 	}
-	if _, err := UnionFootprint([]InteriorRect{{0, 10, 3, 3}}, South); err == nil {
+	if _, err := UnionFootprint([]InteriorRect{{0, 10, 3, 3}}, South, testRoofSupport); err == nil {
 		t.Fatal("part on the map edge accepted")
 	}
-	if _, err := UnionFootprint([]InteriorRect{{10, 10, 30, 30}}, South); err == nil {
+	if _, err := UnionFootprint([]InteriorRect{{10, 10, 30, 30}}, South, testRoofSupport); err == nil {
 		t.Fatal("unsupported roof accepted")
 	}
-	if _, err := UnionFootprint(nil, South); err == nil {
+	if _, err := UnionFootprint(nil, South, testRoofSupport); err == nil {
 		t.Fatal("empty composite accepted")
 	}
 }

@@ -294,6 +294,9 @@ func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 	if r := float64(v.FullRotRateC); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
 		return nil, contract("catalog constant full_rot_rate_c is %v", r)
 	}
+	if r := float64(v.RoofMaxSupportDistance); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
+		return nil, contract("catalog constant roof_max_support_distance is %v", r)
+	}
 	return v, nil
 }
 

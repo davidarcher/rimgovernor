@@ -46,7 +46,7 @@ func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 var suiteTraits = map[PawnID]TraitEffects{"a": {Greedy: true}}
 
 func suiteTargetsFor(sleeping SleepingObservation, traits map[PawnID]TraitEffects) map[string]RoomTarget {
-	return RoomQualityTargets(sleeping, traits, BuildTierMasonry)
+	return RoomQualityTargets(sleeping, traits, BuildTierMasonry, testImpressiveness)
 }
 
 func TestSuiteClaimsQualifyOnlyOutgrownRooms(t *testing.T) {

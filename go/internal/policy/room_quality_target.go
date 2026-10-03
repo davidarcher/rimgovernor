@@ -5,16 +5,31 @@ import (
 	"sort"
 )
 
-// Native impressiveness label thresholds: the scoreStages minScore values of
-// RoomStatDef Impressiveness in Core Defs/Rooms/RoomStats.xml (awful below
-// 20, dull 20, mediocre 30, decent 40, slightly impressive 50, somewhat 65,
-// very 85, extremely 120, unbelievably 170, wondrously 240).
-const (
-	ImpressivenessDull               = 20.0
-	ImpressivenessMediocre           = 30.0
-	ImpressivenessDecent             = 40.0
-	ImpressivenessSlightlyImpressive = 50.0
-)
+// ImpressivenessLevels are the minimum scores of the impressiveness stages
+// the planners aim at: the scoreStages minScore of the game's Impressiveness
+// RoomStatDef, read from the catalog (DefinitionCatalog.ImpressivenessLevels).
+// The stages run awful, dull, mediocre, decent, slightly impressive, and on
+// up; which stage a tier or trait asks for is the planner's choice.
+type ImpressivenessLevels struct {
+	Dull, Mediocre, Decent, SlightlyImpressive float64
+}
+
+// Baseline is the colony-wide floor by build tier (#610 style), one native
+// stage per tier: Camp asks nothing, Masonry dull, Powered mediocre,
+// Industrial decent, Spacer slightly impressive.
+func (l ImpressivenessLevels) Baseline(tier BuildTier) float64 {
+	switch {
+	case tier >= BuildTierSpacer:
+		return l.SlightlyImpressive
+	case tier >= BuildTierIndustrial:
+		return l.Decent
+	case tier >= BuildTierPowered:
+		return l.Mediocre
+	case tier >= BuildTierMasonry:
+		return l.Dull
+	}
+	return 0
+}
 
 // RoomTarget is the impressiveness one owned bedroom should reach (#811).
 // Consumers (the #813 ranking, the gap closer) compare it against the
@@ -35,34 +50,17 @@ type RoomTarget struct {
 	Reasons []string
 }
 
-// RoomTargetBaseline is the colony-wide floor by build tier (#610 style),
-// one native label per tier: Camp asks nothing, Masonry dull, Powered
-// mediocre, Industrial decent, Spacer slightly impressive.
-func RoomTargetBaseline(tier BuildTier) float64 {
-	switch {
-	case tier >= BuildTierSpacer:
-		return ImpressivenessSlightlyImpressive
-	case tier >= BuildTierIndustrial:
-		return ImpressivenessDecent
-	case tier >= BuildTierPowered:
-		return ImpressivenessMediocre
-	case tier >= BuildTierMasonry:
-		return ImpressivenessDull
-	}
-	return 0
-}
-
 // CommonRoomTargets returns a RoomTarget per dining and rec room (#816),
 // keyed by room id, or nil while the room census is unknown. Every colonist
 // eats and relaxes there, so no one's traits apply: the target is the
-// colony-wide tier baseline (RoomTargetBaseline), reason "common". A room
+// colony-wide tier baseline (ImpressivenessLevels.Baseline), reason "common". A room
 // holding colonist beds is left to RoomQualityTargets.
-func CommonRoomTargets(obs SleepingObservation, tier BuildTier) map[string]RoomTarget {
+func CommonRoomTargets(obs SleepingObservation, tier BuildTier, levels ImpressivenessLevels) map[string]RoomTarget {
 	rooms, ok := obs.Rooms.Value()
 	if !ok {
 		return nil
 	}
-	min := RoomTargetBaseline(tier)
+	min := levels.Baseline(tier)
 	targets := map[string]RoomTarget{}
 	for _, room := range rooms {
 		if len(room.Beds) > 0 || (room.Role != string(RoomRoleDiningRoom) && room.Role != string(RoomRoleRecRoom)) {
@@ -83,14 +81,14 @@ func CommonRoomTargets(obs SleepingObservation, tier BuildTier) map[string]RoomT
 // pawn's TraitEffects; a missing entry reads as no relevant trait.
 //
 // Per owner, the floor is the max of:
-//   - the tier baseline (RoomTargetBaseline), unless the owner is ascetic;
-//   - Greedy: slightly impressive (50), the first stage ThoughtWorker_Greedy
+//   - the tier baseline (ImpressivenessLevels.Baseline), unless the owner is ascetic;
+//   - Greedy: slightly impressive, the first stage ThoughtWorker_Greedy
 //     leaves null in Core ThoughtDefs/Thoughts_Situation_Traits.xml;
 //   - Jealous: the highest impressiveness among the colony's other owned
 //     bedrooms (ThoughtWorker_BedroomJealous fires on any better one);
 //   - a royal title's BedroomMinImpressiveness.
 //
-// An Ascetic owner caps the room below decent (40): ThoughtWorker_Ascetic's
+// An Ascetic owner caps the room below decent: ThoughtWorker_Ascetic's
 // mood bonus covers only awful, dull and mediocre.
 //
 // Several owners (a couple) combine as: Min is the largest owner floor; the
@@ -99,7 +97,7 @@ func CommonRoomTargets(obs SleepingObservation, tier BuildTier) map[string]RoomT
 // partner, and the demanded floor wins because a missed demand costs more
 // mood (-4 to -8, or a title's) than the lost ascetic bonus (+3 to +5).
 // NeverUpgrade holds only when the ceiling holds and Min is zero.
-func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects, tier BuildTier) map[string]RoomTarget {
+func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects, tier BuildTier, levels ImpressivenessLevels) map[string]RoomTarget {
 	rooms, ok := obs.Rooms.Value()
 	if !ok {
 		return nil
@@ -141,7 +139,7 @@ func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects,
 			// A trait or title names itself only when it asks above the
 			// tier baseline, so a suite claim can tell a raised target
 			// from a tier-only one (#1221).
-			if v > 0 && (why == "tier" || v > RoomTargetBaseline(tier)) {
+			if v > 0 && (why == "tier" || v > levels.Baseline(tier)) {
 				reasons[why] = true
 			}
 		}
@@ -150,10 +148,10 @@ func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects,
 			e := traits[pawn]
 			if !e.Ascetic {
 				allAscetic = false
-				raise(RoomTargetBaseline(tier), "tier")
+				raise(levels.Baseline(tier), "tier")
 			}
 			if e.Greedy {
-				raise(ImpressivenessSlightlyImpressive, "greedy")
+				raise(levels.SlightlyImpressive, "greedy")
 			}
 			if e.Jealous {
 				best := 0.0
@@ -168,8 +166,8 @@ func RoomQualityTargets(obs SleepingObservation, traits map[PawnID]TraitEffects,
 				raise(float64(title.BedroomMinImpressiveness), "title")
 			}
 		}
-		if allAscetic && t.Min < ImpressivenessDecent {
-			t.Max = ImpressivenessDecent
+		if allAscetic && t.Min < levels.Decent {
+			t.Max = levels.Decent
 			reasons["ascetic"] = true
 			t.NeverUpgrade = t.Min == 0
 		}

@@ -58,7 +58,7 @@ func sleepingRequest(facts observation.ColonyProjection, review store.RoutineRev
 	request := policy.SleepingRequest{Targets: sleeping.Targets, Sleeping: facts.Facts.Sleeping, Rooms: facts.Rooms, Definitions: definitions, Stocked: stocked, Traits: sleepingTraits(facts)}
 	if obs, known := facts.Facts.Sleeping.Value(); known {
 		tier, _ := facts.BuildTier.Value()
-		request.RoomTargets = policy.RoomQualityTargets(obs, request.Traits, tier)
+		request.RoomTargets = policy.RoomQualityTargets(obs, request.Traits, tier, facts.Impressiveness)
 	}
 	return request, nil
 }
