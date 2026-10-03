@@ -15,8 +15,10 @@ import (
 // ended its second day with about twenty.
 const colonyFoodZoneLimit = 6
 
-// startingSupplyDefs are the tribal start's stacks the scenario forbids; a
-// window of several days must leave every one of ours unforbidden (#1581).
+// startingSupplyDefs are the tribal start stacks the scenario forbids. Only
+// Pemmican gates: wood stacks outside the base stay forbidden on purpose
+// (ManageSupplySafety, outside_base:insufficient_defense), so wood is only
+// reported (#1581).
 var startingSupplyDefs = []string{"Pemmican", "WoodLog"}
 
 // AuditStockpiles counts the stockpile zones the window ended with, those
@@ -70,7 +72,7 @@ func AuditStockpiles(ctx context.Context, h *na.Harness, s cases.Session, report
 		ours, unforbidden := na.AsNumber(row["ours"]), na.AsNumber(row["oursUnforbidden"])
 		name := na.AsString(def["defName"])
 		stocks = append(stocks, map[string]any{"def": name, "ours": ours, "ours_unforbidden": unforbidden})
-		if ours > unforbidden {
+		if ours > unforbidden && name == "Pemmican" {
 			forbidden = append(forbidden, fmt.Sprintf("%s %v of %v still forbidden", name, ours-unforbidden, ours))
 		}
 	}
