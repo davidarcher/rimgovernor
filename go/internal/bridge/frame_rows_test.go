@@ -264,13 +264,13 @@ func TestFramesKeyedKeyframeOnSeqGap(t *testing.T) {
 	}
 	ring.publish(t, frame(12, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 1), rowBuilding("b", 2)}}, 1, false, 0), 0)
 	rows, _, err := client.ReadBuildings(context.Background(), pbIdentity())
-	if err != nil || len(rows.Rows) != 2 {
-		t.Fatalf("keyframe: %d rows, %v", len(rows.Rows), err)
+	if err != nil || rows.Rows.Len() != 2 {
+		t.Fatalf("keyframe: %d rows, %v", rows.Rows.Len(), err)
 	}
 	<-server.opens // the subscription's open
 	ring.publish(t, frame(13, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 10)}, Removed: []string{"b"}}, 2, true, 1), 0)
 	rows, _, err = client.ReadBuildings(context.Background(), pbIdentity())
-	if err != nil || len(rows.Rows) != 1 || rows.Rows["a"].GetHitPoints() != 10 {
+	if err != nil || rows.Rows.Len() != 1 || rows.Rows.At("a").GetHitPoints() != 10 {
 		t.Fatalf("delta: %v rows %v", err, rows.Rows)
 	}
 	ring.publish(t, frame(20, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 11)}}, 5, true, 4), 0)
@@ -288,7 +288,7 @@ func TestFramesKeyedKeyframeOnSeqGap(t *testing.T) {
 		t.Fatal("no keyframe requested")
 	}
 	ring.publish(t, frame(21, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 12), rowBuilding("z", 1)}}, 6, false, 0), 0)
-	if rows, _, err = client.ReadBuildings(context.Background(), pbIdentity()); err != nil || len(rows.Rows) != 2 {
-		t.Fatalf("after the keyframe: %d rows, %v", len(rows.Rows), err)
+	if rows, _, err = client.ReadBuildings(context.Background(), pbIdentity()); err != nil || rows.Rows.Len() != 2 {
+		t.Fatalf("after the keyframe: %d rows, %v", rows.Rows.Len(), err)
 	}
 }

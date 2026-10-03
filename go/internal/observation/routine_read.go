@@ -109,13 +109,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		if census.Invalid != nil {
 			return RoutineReading{}, census.Invalid
 		}
-		if p.Facts.CurrentConstruction, err = ConstructionCensus(census.Rows); err != nil {
+		if p.Facts.CurrentConstruction, p.Facts.ConstructionDeficit, err = ConstructionFromCensus(census); err != nil {
 			return RoutineReading{}, err
 		}
-		if p.Facts.CurrentConstruction, err = WithSiteRows(p.Facts.CurrentConstruction, census.Rows); err != nil {
-			return RoutineReading{}, err
-		}
-		p.Facts.ConstructionDeficit = ConstructionDeficitRows(census.Rows)
 	}
 	p.Facts.BillReservations = BillReservations(frame.Bills)
 	pawns, err := routinePawns(frame, id)

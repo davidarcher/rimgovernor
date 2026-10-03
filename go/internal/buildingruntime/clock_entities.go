@@ -22,7 +22,7 @@ type EntityNative interface {
 
 // EntitySection is one held entity section as the store keys it: the
 // rows by entity id.
-type EntitySection[T proto.Message] map[string]T
+type EntitySection[T proto.Message] = bridge.Table[T]
 
 // refreshEntitySections is the review step's refresher for the zones,
 // buildings and bills sections (#358). It runs once per full review step
@@ -58,6 +58,6 @@ func refreshEntitySection[T proto.Message](f *clockFacts, scope facts.Scope, ide
 		clockSchedulerLog("%s: read failed, keeping the held section: %v", section, err)
 		return
 	}
-	facts.PutTable(f.store, scope, string(section), full.Rows, facts.At(full.AsOf()))
+	facts.PutKeyed(f.store, scope, string(section), full.Rows, facts.At(full.AsOf()))
 	facts.Put(f.store, scope, section, facts.Held[EntitySection[T]]{Value: full.Rows, AsOf: full.AsOf(), Complete: true, Source: source})
 }

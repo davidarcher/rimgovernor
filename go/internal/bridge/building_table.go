@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"math"
+	"sync"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -55,6 +56,26 @@ type BuildingCensus struct {
 	Context *c.ObservationContext
 	Rows    Buildings
 	Invalid error
+	// Memo is the stream's memo for what a reader derives from the table
+	// between frames (observation's incremental construction census); nil
+	// for a census decoded from a recording.
+	Memo *Memo
+}
+
+// Memo holds one derived value a reader updates frame to frame: update
+// gets the last value (nil at first) and returns the next. Calls are
+// serialised.
+type Memo struct {
+	mu sync.Mutex
+	v  any
+}
+
+// Update replaces the memo's value with update(last) and returns it.
+func (m *Memo) Update(update func(last any) any) any {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.v = update(m.v)
+	return m.v
 }
 
 // BuildingTable indexes v's rows by id; a nil v is an empty table.

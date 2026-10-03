@@ -106,7 +106,9 @@ var keyedSections = map[string]keyedSection{
 		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.Buildings) },
 		set: func(v *o.BundleSnapshot, m proto.Message) { v.Buildings, _ = m.(*o.BuildingsSnapshot) },
 		table: func() keyedTable {
-			return &buildingTable{rows: newHeldRows(func(r *o.BuildingState) string { return r.GetBuilding().GetId() }, checkBuiltRow)}
+			rows := newHeldRows(func(r *o.BuildingState) string { return r.GetBuilding().GetId() }, checkBuiltRow)
+			rows.listCheck = checkBuildingListRow
+			return &buildingTable{rows: rows}
 		},
 	},
 	"things": {
@@ -203,26 +205,36 @@ func (t *thingTable) meta(ctx *c.ObservationContext) proto.Message {
 type heldRows[R any] struct {
 	id    func(*R) string
 	check func(*R, *c.ObservationContext) error
-	table Table[*R]
-	bad   map[string]error
+	// listCheck validates a row as the entity list read returns it; its
+	// failures are listBad, apart from check's.
+	listCheck func(*R) error
+	table     Table[*R]
+	bad       map[string]error
+	listBad   map[string]error
 }
 
 func newHeldRows[R any](id func(*R) string, check func(*R, *c.ObservationContext) error) *heldRows[R] {
-	return &heldRows[R]{id: id, check: check, bad: map[string]error{}}
+	return &heldRows[R]{id: id, check: check, bad: map[string]error{}, listBad: map[string]error{}}
 }
 
 func (t *heldRows[R]) checkRow(k string, r *R, ctx *c.ObservationContext) {
 	delete(t.bad, k)
+	delete(t.listBad, k)
 	if t.check != nil {
 		if err := t.check(r, ctx); err != nil {
 			t.bad[k] = err
+		}
+	}
+	if t.listCheck != nil {
+		if err := t.listCheck(r); err != nil {
+			t.listBad[k] = err
 		}
 	}
 }
 
 // load replaces the table with rows.
 func (t *heldRows[R]) load(rows []*R, ctx *c.ObservationContext) {
-	t.table, t.bad = Table[*R]{}, map[string]error{}
+	t.table, t.bad, t.listBad = Table[*R]{}, map[string]error{}, map[string]error{}
 	for _, r := range rows {
 		k := t.id(r)
 		if k != "" && t.table.Has(k) {
@@ -240,6 +252,7 @@ func (t *heldRows[R]) apply(changed []*R, removed []string, ctx *c.ObservationCo
 	for _, k := range removed {
 		t.table = t.table.Delete(k)
 		delete(t.bad, k)
+		delete(t.listBad, k)
 	}
 	for _, r := range changed {
 		k := t.id(r)
@@ -251,10 +264,12 @@ func (t *heldRows[R]) apply(changed []*R, removed []string, ctx *c.ObservationCo
 }
 
 // err is the first invalid row in id order, nil when all are valid.
-func (t *heldRows[R]) err() error {
+func (t *heldRows[R]) err() error { return firstError(t.bad) }
+
+func firstError(bad map[string]error) error {
 	var first string
 	var err error
-	for k, e := range t.bad {
+	for k, e := range bad {
 		if err == nil || k < first {
 			first, err = k, e
 		}
@@ -266,15 +281,17 @@ func (t *heldRows[R]) err() error {
 // reader may keep. A table the frame does not carry is empty; its meta is
 // nil. err is the first invalid pawn or thing row.
 type heldTables struct {
-	pawns      Pawns
-	pawnMeta   *o.PawnSnapshot
-	pawnErr    error
-	buildings  Buildings
-	buildMeta  *o.BuildingsSnapshot
-	buildErr   error
-	things     Things
-	thingsMeta *o.ThingsSnapshot
-	thingErr   error
+	pawns     Pawns
+	pawnMeta  *o.PawnSnapshot
+	pawnErr   error
+	buildings Buildings
+	buildMeta *o.BuildingsSnapshot
+	buildErr  error
+	// buildListErr is the first row the building list read would refuse.
+	buildListErr error
+	things       Things
+	thingsMeta   *o.ThingsSnapshot
+	thingErr     error
 }
 
 // err is the first invalid pawn or thing row.
@@ -292,7 +309,7 @@ func (h *sectionHold) heldAt(ctx *c.ObservationContext) heldTables {
 		out.pawns, out.pawnMeta, out.pawnErr = Pawns{t.rows.table}, t.envelope(ctx), t.err()
 	}
 	if t := h.buildingTable(); t != nil {
-		out.buildings, out.buildMeta, out.buildErr = Buildings{t.rows.table}, t.envelope(ctx), t.err()
+		out.buildings, out.buildMeta, out.buildErr, out.buildListErr = Buildings{t.rows.table}, t.envelope(ctx), t.err(), firstError(t.rows.listBad)
 	}
 	if t := h.thingTable(); t != nil {
 		out.things, out.thingsMeta, out.thingErr = Things{t.rows.table}, &o.ThingsSnapshot{Context: ctx}, t.err()

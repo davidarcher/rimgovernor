@@ -101,6 +101,15 @@ func (t Table[V]) Map() map[string]V {
 	return out
 }
 
+// TableOf is the table of a map's rows.
+func TableOf[V any](rows map[string]V) Table[V] {
+	var t Table[V]
+	for id, v := range rows {
+		t = t.Set(id, v)
+	}
+	return t
+}
+
 // Has reports whether the table holds id.
 func (t Table[V]) Has(id string) bool {
 	_, ok := t.Get(id)

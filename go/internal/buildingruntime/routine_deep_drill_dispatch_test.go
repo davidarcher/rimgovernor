@@ -30,7 +30,7 @@ func (n *drillNative) ReadBuildings(context.Context, *c.Identity) (bridge.Entity
 	for _, drill := range n.reply.GetObserved().GetDeepResources().GetObserved().GetDrills() {
 		rows[drill.GetBuildingId()] = &o.BuildingState{Building: &o.EntityRef{Id: proto.String(drill.GetBuildingId()), DefName: proto.String("DeepDrill")}}
 	}
-	return bridge.EntityRows[*o.BuildingState]{Context: n.reply.GetObserved().Context, Rows: rows}, bridge.Result{}, nil
+	return bridge.EntityRows[*o.BuildingState]{Context: n.reply.GetObserved().Context, Rows: bridge.TableOf(rows)}, bridge.Result{}, nil
 }
 
 type drillDispatch struct {

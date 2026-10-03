@@ -204,7 +204,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	// Any remaining drill or drill blueprint holds placement: a working drill
 	// is not multiplied, and an exhausted drill already designated for removal
 	// leaves the census once demolished.
-	for _, row := range buildings.Rows {
+	for row := range buildings.Rows.Values() {
 		if row.GetBuilding().GetDefName() == "DeepDrill" || row.GetBuildDefName() == "DeepDrill" {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
 		}

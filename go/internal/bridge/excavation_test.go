@@ -69,8 +69,8 @@ func TestReadExcavationSiteDecodesRowsInRequestOrderAndKeepsFogUnknown(t *testin
 func TestReadExcavationSiteRejectsInconsistentReplies(t *testing.T) {
 	cells := []domain.Cell{{X: 1, Z: 2}}
 	for name, edit := range map[string]func(*o.ExcavationSiteSnapshot){
-		"row order":         func(v *o.ExcavationSiteSnapshot) { v.Cells[0].Cell.X = proto.Int32(5) },
-		"row count":         func(v *o.ExcavationSiteSnapshot) { v.Cells = append(v.Cells, excavationSiteRow(2, 2, false)) },
+		"row order": func(v *o.ExcavationSiteSnapshot) { v.Cells[0].Cell.X = proto.Int32(5) },
+		"row count": func(v *o.ExcavationSiteSnapshot) { v.Cells = append(v.Cells, excavationSiteRow(2, 2, false)) },
 		"eligible blocked": func(v *o.ExcavationSiteSnapshot) {
 			v.Cells[0].Blocker = proto.String("Faction-owned excavation target is protected")
 		},

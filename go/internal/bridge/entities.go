@@ -12,7 +12,7 @@ import (
 // stacks) keyed by entity id, with the tick the reply described.
 type EntityRows[T proto.Message] struct {
 	Context *c.ObservationContext
-	Rows    map[string]T
+	Rows    Table[T]
 }
 
 // AsOf is the tick the reply described.
@@ -51,6 +51,21 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity) (Enti
 // ReadBuildings lists every built, pending or blueprint player building
 // (artificial) through observations_list_buildings in one complete reply.
 func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity) (EntityRows[*o.BuildingState], Result, error) {
+	if client.frames != nil {
+		// The stream's building table is the list: read the held version,
+		// with no encode round trip (#1641).
+		if err := authorityIdentity(identity); err != nil {
+			return EntityRows[*o.BuildingState]{}, Result{}, err
+		}
+		held, err := client.frameHeld(ctx, frameBuildingsMethod, identity)
+		if err == nil {
+			err = held.buildListErr
+		}
+		if err != nil {
+			return EntityRows[*o.BuildingState]{}, Result{}, err
+		}
+		return EntityRows[*o.BuildingState]{Context: held.buildMeta.Context, Rows: held.buildings.Table}, Result{}, nil
+	}
 	return readEntities(ctx, client, identity, "rimgovernor/observations_list_buildings",
 		func() proto.Message { return buildingsListRequest(identity) },
 		func() proto.Message { return &o.ListBuildingsReply{} },
@@ -138,7 +153,7 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 	if err := authorityIdentity(identity); err != nil {
 		return EntityRows[T]{}, Result{}, err
 	}
-	out := EntityRows[T]{Rows: map[string]T{}}
+	out := EntityRows[T]{}
 	message := reply()
 	raw, err := client.protoRead(ctx, method, request(), message)
 	if err != nil {
@@ -169,10 +184,10 @@ func readEntities[T proto.Message](ctx context.Context, client *Client, identity
 		if validID(id) != nil {
 			return EntityRows[T]{}, raw, contract("invalid entity identity")
 		}
-		if _, dup := out.Rows[id]; dup {
+		if out.Rows.Has(id) {
 			return EntityRows[T]{}, raw, contract("duplicate entity")
 		}
-		out.Rows[id] = row
+		out.Rows = out.Rows.Set(id, row)
 	}
 	return out, raw, nil
 }

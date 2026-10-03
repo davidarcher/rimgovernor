@@ -33,17 +33,17 @@ func (f *entityFake) ReadZones(context.Context, *c.Identity) (bridge.EntityRows[
 	if f.err != nil {
 		return bridge.EntityRows[*o.ZoneState]{}, bridge.Result{}, f.err
 	}
-	return bridge.EntityRows[*o.ZoneState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: f.full}, bridge.Result{}, nil
+	return bridge.EntityRows[*o.ZoneState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.TableOf(f.full)}, bridge.Result{}, nil
 }
 
 func (f *entityFake) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
 	f.ask(facts.Buildings)
-	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BuildingState{}}, bridge.Result{}, nil
+	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.Table[*o.BuildingState]{}}, bridge.Result{}, nil
 }
 
 func (f *entityFake) ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
 	f.ask(facts.Bills)
-	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: map[string]*o.BillStack{}}, bridge.Result{}, nil
+	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.Table[*o.BillStack]{}}, bridge.Result{}, nil
 }
 
 func zoneState(id, label string) *o.ZoneState {
@@ -59,20 +59,20 @@ func TestRefreshEntitySectionsWholeReads(t *testing.T) {
 	native := &entityFake{tick: 100, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a"), "Zone_2": zoneState("Zone_2", "b")}}
 	refreshEntitySections(context.Background(), native, f, identity, scope)
 	held, ok := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if !ok || len(held.Value) != 2 || held.AsOf != 100 || held.Source != "rimgovernor/observations_list_zones" || native.reads[facts.Buildings] != 1 || native.reads[facts.Bills] != 1 {
+	if !ok || held.Value.Len() != 2 || held.AsOf != 100 || held.Source != "rimgovernor/observations_list_zones" || native.reads[facts.Buildings] != 1 || native.reads[facts.Bills] != 1 {
 		t.Fatalf("%+v ok=%v reads=%v", held, ok, native.reads)
 	}
 	native.tick = 200
 	native.full = map[string]*o.ZoneState{"Zone_3": zoneState("Zone_3", "c")}
 	refreshEntitySections(context.Background(), native, f, identity, scope)
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if native.reads[facts.Zones] != 2 || held.AsOf != 200 || len(held.Value) != 1 || held.Value["Zone_3"] == nil {
+	if native.reads[facts.Zones] != 2 || held.AsOf != 200 || held.Value.Len() != 1 || held.Value.At("Zone_3") == nil {
 		t.Fatalf("%+v reads=%v", held.Value, native.reads)
 	}
 	native.err = errors.New("transport")
 	native.tick = 300
 	refreshEntitySections(context.Background(), native, f, identity, scope)
-	if held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones); held.AsOf != 200 || len(held.Value) != 1 {
+	if held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones); held.AsOf != 200 || held.Value.Len() != 1 {
 		t.Fatalf("a failed read must keep the held section: %+v", held)
 	}
 	native.err = nil

@@ -68,6 +68,7 @@ type frameStream struct {
 	table     map[readCacheKey]*frameReply
 	context   *c.ObservationContext // the decoded frame's
 	held      heldTables            // the keyed tables as of the decoded frame
+	census    Memo                  // the routine census readers derive from the building table
 	// hold keeps the sections native omits while unchanged (#1347);
 	// keyframe asks native for a frame carrying every section after a
 	// seq gap.
@@ -503,6 +504,9 @@ func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity
 		return RoutineFrame{}, err
 	}
 	s := caller.frames
+	if frame.Buildings != nil {
+		frame.Buildings.Memo = &s.census
+	}
 	s.mu.Lock()
 	held := s.grid
 	s.mu.Unlock()

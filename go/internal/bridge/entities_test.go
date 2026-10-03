@@ -52,10 +52,10 @@ func TestReadZonesKeysAFullRead(t *testing.T) {
 	}}
 	client := testClient(t, server, testBudget)
 	rows, _, err := client.ReadZones(context.Background(), pbIdentity())
-	if err != nil || calls != 1 || len(rows.Rows) != 3 || rows.AsOf() != pbContext().GetTick() {
+	if err != nil || calls != 1 || rows.Rows.Len() != 3 || rows.AsOf() != pbContext().GetTick() {
 		t.Fatalf("%+v %v calls=%d", rows, err, calls)
 	}
-	if rows.Rows["Zone_2"].GetLabel() != "zone Zone_2" {
+	if rows.Rows.At("Zone_2").GetLabel() != "zone Zone_2" {
 		t.Fatal(rows.Rows)
 	}
 }
@@ -91,7 +91,7 @@ func TestReadZonesRefusalsAndContractFaults(t *testing.T) {
 					t.Fatalf("%+v %v, want %v", rows, err, want)
 				}
 			}
-			if rows.Rows != nil {
+			if rows.Rows.Len() != 0 {
 				t.Fatal(rows)
 			}
 		})

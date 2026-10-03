@@ -87,6 +87,18 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 	return nil
 }
 
+// checkBuildingListRow is the per-row part of the building list read's
+// checks: a row with no unknown wire fields and a valid id.
+func checkBuildingListRow(row *o.BuildingState) error {
+	if err := buildingUnknown(row); err != nil {
+		return err
+	}
+	if row == nil || row.Building == nil || validID(row.Building.GetId()) != nil {
+		return contract("invalid entity identity")
+	}
+	return nil
+}
+
 // checkBuiltRow validates a building table row as the construction census
 // reads it: a built row against ValidateConstructionBuildings' row rules,
 // any other status unchecked.
