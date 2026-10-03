@@ -62,6 +62,12 @@ type GearRoomDemand struct {
 	// Storage is the storage rooms the plan should hold, 0 for no demand
 	// (a further warehouse, #1772; see storageRoomsWanted).
 	Storage int
+	// Known is set when the gear census was read, so a false Armory or
+	// Wardrobe is a reading and not a gap (#1825). StorageIdle is set when a
+	// standing storage room has warehouse space to spare: a true no-demand
+	// reading, unlike a Storage of 0 that waits on a planned room not yet
+	// built.
+	Known, StorageIdle bool
 }
 
 // StoragePlan is the desired storage, most important site first.
@@ -81,7 +87,8 @@ type StoragePlan struct {
 // dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
 	plan := StoragePlan{Gear: r.Gear.demand()}
-	plan.Gear.Storage = r.storageRoomsWanted()
+	plan.Gear.Known = r.Gear != nil
+	plan.Gear.Storage, plan.Gear.StorageIdle = r.storageRoomsWanted()
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}

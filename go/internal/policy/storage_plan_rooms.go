@@ -30,16 +30,21 @@ func isWarehouseRole(role string) bool { return stockpileRolePrefix(role) == dom
 // no demand, else the planned count plus one. Every planned storage room
 // must stand with a warehouse zone in it, every such zone must be at or over
 // StockpileGrowFill, and none may have a cell in its room left to grow onto.
-func (r StorageRequest) storageRoomsWanted() int {
+// idle reports a true no-demand reading (#1825): a standing room's zone is
+// under StockpileGrowFill or can still grow. A 0 without idle is only a
+// wait on a planned room not yet built or a zone not yet sited.
+func (r StorageRequest) storageRoomsWanted() (wanted int, idle bool) {
 	rooms := r.plannedStorageRooms()
 	if len(rooms) == 0 {
-		return 0
+		return 0, false
 	}
 	open := newStockpileOpen(StockpileRequest{Cells: r.Cells, Bounds: r.Bounds, Protected: r.Protected})
+	pending := false
 	for _, planned := range rooms {
 		room, ok := PlannedRoomStanding(planned, *r.Rooms)
 		if !ok {
-			return 0
+			pending = true
+			continue
 		}
 		inRoom := cellSet(room.Cells)
 		open.only = inRoom
@@ -50,17 +55,21 @@ func (r StorageRequest) storageRoomsWanted() int {
 			}
 			served = true
 			if z.Fill() < StockpileGrowFill {
-				return 0
+				idle = true
+				continue
 			}
 			if _, grows := stockpileGrowEdit(open, z); grows {
-				return 0
+				idle = true
 			}
 		}
 		if !served {
-			return 0
+			pending = true
 		}
 	}
-	return len(rooms) + 1
+	if idle || pending {
+		return 0, idle
+	}
+	return len(rooms) + 1, false
 }
 
 // StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.

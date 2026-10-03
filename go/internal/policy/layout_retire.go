@@ -202,6 +202,12 @@ func retireEndedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]b
 			}
 		}
 	}
+	return dropRooms(plan, drop)
+}
+
+// dropRooms removes the rooms with the interiors in drop from plan and its
+// wings. It reports whether there was any.
+func dropRooms(plan LayoutPlan, drop map[Rectangle]bool) (LayoutPlan, bool) {
 	if len(drop) == 0 {
 		return plan, false
 	}
@@ -211,6 +217,75 @@ func retireEndedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]b
 		plan.Wings[i].Rooms = withoutRooms(plan.Wings[i].Rooms, drop)
 	}
 	return plan, true
+}
+
+// Surplus rooms (#1825, epic #1819): a throne room the title outgrew, a gear
+// room whose demand is gone and an extra storage room with no demand leave
+// the plan while unbuilt. Rooms are never shrunk; a smaller built throne room
+// stays until a room holding the title's area is itself built, then goes to
+// clearance. The core storage room and built gear and storage rooms stay.
+
+// SurplusRoomsPossible reports whether retireSurplusRooms could drop a room
+// of plan: several throne rooms under a title that asks for one, a gear room
+// whose demand reads false, or an extra storage room under an idle reading.
+func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand GearRoomDemand) bool {
+	if throneMin > 0 && len(plan.roomsOf(ModuleThrone)) > 1 {
+		return true
+	}
+	if demand.Known && (!demand.Armory && len(plan.roomsOf(ModuleArmory)) > 0 || !demand.Wardrobe && len(plan.roomsOf(ModuleWardrobe)) > 0) {
+		return true
+	}
+	return demand.StorageIdle && len(plan.roomsOf(ModuleStorage)) > 1
+}
+
+// retireSurplusRooms drops the surplus rooms of growth that are unbuilt, plus
+// the built throne rooms a built larger one replaces. It reports whether it
+// dropped any.
+func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]bool) (LayoutPlan, bool) {
+	drop := map[Rectangle]bool{}
+	area := func(r LayoutRoom) int { return int(r.Interior.Width) * int(r.Interior.Height) }
+	if thrones := plan.roomsOf(ModuleThrone); growth.ThroneMin > 0 && len(thrones) > 1 {
+		// Keep a built room that holds the title's area, else the smallest.
+		keep := -1
+		for i, r := range thrones {
+			switch {
+			case area(r) < growth.ThroneMin:
+			case built[r.Interior]:
+				if keep < 0 || !built[thrones[keep].Interior] {
+					keep = i
+				}
+			case keep < 0 || !built[thrones[keep].Interior] && area(r) < area(thrones[keep]):
+				keep = i
+			}
+		}
+		if keep >= 0 {
+			for i, r := range thrones {
+				if i != keep && (built[thrones[keep].Interior] || !built[r.Interior]) {
+					drop[r.Interior] = true
+				}
+			}
+		}
+	}
+	if growth.Gear.Known {
+		for _, role := range gearRooms {
+			if role == ModuleArmory && growth.Gear.Armory || role == ModuleWardrobe && growth.Gear.Wardrobe {
+				continue
+			}
+			for _, r := range plan.roomsOf(role) {
+				if !built[r.Interior] {
+					drop[r.Interior] = true
+				}
+			}
+		}
+	}
+	if growth.Gear.StorageIdle {
+		for i, r := range plan.roomsOf(ModuleStorage) {
+			if i > 0 && !built[r.Interior] {
+				drop[r.Interior] = true
+			}
+		}
+	}
+	return dropRooms(plan, drop)
 }
 
 // RoomsOfRoles is how many planned rooms hold one of roles.

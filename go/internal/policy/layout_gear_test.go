@@ -98,11 +98,11 @@ func TestPlanStorageSignalsGearDemand(t *testing.T) {
 		weapons int
 		want    GearRoomDemand
 	}{
-		{"nothing", nil, 0, GearRoomDemand{}},
-		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, GearRoomDemand{}},
-		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, GearRoomDemand{Armory: true}},
-		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, GearRoomDemand{Wardrobe: true}},
-		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, GearRoomDemand{}},
+		{"nothing", nil, 0, GearRoomDemand{Known: true}},
+		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, GearRoomDemand{Known: true}},
+		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, GearRoomDemand{Known: true, Armory: true}},
+		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, GearRoomDemand{Known: true, Wardrobe: true}},
+		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, GearRoomDemand{Known: true}},
 	} {
 		gear, ok, err := NewGearStore(items, tc.stored, tc.weapons)
 		if err != nil || !ok {

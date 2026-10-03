@@ -55,8 +55,12 @@ func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier
 // rooms (#1680) the plan lacks and the gear rooms Gear asks for (#1773).
 type RoomGrowth struct {
 	ThroneArea int
-	Child      []ChildRoomShape
-	Gear       GearRoomDemand
+	// ThroneMin is the title's minimum throne room area, 0 when nobody is
+	// owed a throne room: smaller throne rooms retire once a room holding it
+	// exists (#1825).
+	ThroneMin int
+	Child     []ChildRoomShape
+	Gear      GearRoomDemand
 	// Incinerator is the site of the incinerator the plan lacks (#1814).
 	Incinerator IncineratorSite
 	// Shapes are every resolved child-room need and Built the planned rooms
@@ -106,6 +110,8 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	if growth.Built != nil {
 		var retired bool
 		next, retired = retireDuplicateRooms(next, growth.Shapes, growth.Built)
+		dropped = dropped || retired
+		next, retired = retireSurplusRooms(next, growth, growth.Built)
 		dropped = dropped || retired
 	}
 	if growth.InUse != nil {
