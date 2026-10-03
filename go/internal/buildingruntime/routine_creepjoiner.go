@@ -29,6 +29,7 @@ type creepJoinerWork struct {
 	drops       []policy.WeaponDrop
 	inspections policy.Inspections
 	isolation   []policy.IsolationMove
+	disarm      policy.DisarmWork
 }
 
 // creepJoinerMemory is the latest review's work for one world, in memory only.
@@ -80,6 +81,14 @@ func (m *creepJoinerMemory) review(current domain.GenerationSnapshot, tick domai
 		area, _ := facts.Facts.IsolationArea.Value()
 		work.isolation = downsides.IsolationMoves(hands, work.inspections.Record, area, isolationReady(facts))
 		if len(work.isolation) > 0 {
+			owed = domain.Known(true)
+		}
+	}
+	// Arrested creepjoiners are disarmed from the prisoner census.
+	if prisoners, known := facts.Facts.Prisoners.Value(); known {
+		if disarm, err := frame.Catalog.CreepJoinerDisarm(); err != nil {
+			clockSchedulerLog("creepjoiner disarm: %v", err)
+		} else if work.disarm = disarm.Orders(prisoners); len(work.disarm.Orders) > 0 {
 			owed = domain.Known(true)
 		}
 	}
@@ -257,7 +266,26 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 		}
 		actions = append(actions, action)
 	}
+	for _, order := range work.disarm.Orders {
+		pawn := domain.PawnID(order.Pawn)
+		if !arbiter.tryClaim([]domain.PawnID{pawn}) {
+			continue
+		}
+		claimed = append(claimed, pawn)
+		surgery, err := domain.NewSurgery(pawn, order.Recipe, order.Part, false)
+		if err != nil {
+			return RoutineCreepJoinerResult{}, err
+		}
+		action, err := domain.NewSurgeryAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), surgery)
+		if err != nil {
+			return RoutineCreepJoinerResult{}, err
+		}
+		actions = append(actions, action)
+	}
 	if len(actions) == 0 {
+		for _, why := range work.disarm.Waiting {
+			clockSchedulerLog("%s: %s", goal.Goal.ID, why)
+		}
 		// No order to place: an ended inspection bill still changes the record.
 		if ordered.Encode() != was.Encode() {
 			if err = p.current(call, epoch); err != nil {
@@ -285,7 +313,7 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineCreepJoinerResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := nextWaveMethod(goal, "creepjoiner-drop-")
-	reason := fmt.Sprintf("creepjoiner: %v are held back (weapon dropped, surgical inspection, isolation room) until their downside shows", claimed)
+	reason := fmt.Sprintf("creepjoiner: %v are held back (weapon dropped, surgical inspection, isolation room, arrested ones disarmed) until their downside shows", claimed)
 	if _, err = p.journal.CommitGoalMethodRecord(call, goal.Goal.ID, goal.Revision, method, reason, plan, ordered.Encode()); err != nil {
 		return RoutineCreepJoinerResult{}, err
 	}

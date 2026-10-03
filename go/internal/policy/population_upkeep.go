@@ -131,6 +131,10 @@ type PrisonerFacts struct {
 	// PolicyInputs is the prisoner's current drug policy and chemicals
 	// (#1554).
 	PolicyInputs domain.Fact[PawnPolicyInputs]
+	// CreepJoiner: the prisoner has a creepjoiner tracker (unknown while that
+	// read failed); Kind is its PawnKindDef name (#1740 disarming).
+	CreepJoiner domain.Fact[bool]
+	Kind        string
 }
 
 // PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did

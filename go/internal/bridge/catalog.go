@@ -78,6 +78,10 @@ type DefinitionCatalog struct {
 	racesOnce sync.Once
 	races     policy.AnimalRaceCatalog
 	racesErr  error
+	// disarm is CreepJoinerDisarm, built once on first use.
+	disarmOnce sync.Once
+	disarm     policy.CreepJoinerDisarm
+	disarmErr  error
 }
 
 // defStuff keys a stat row: stuff is empty for a def not made from stuff.

@@ -172,6 +172,39 @@ func TestCreepJoinerPlannerHoldsAndReleasesByAreaMove(t *testing.T) {
 	}
 }
 
+// TestCreepJoinerPlannerQueuesTheDisarmSurgery (#1740): an arrested
+// creepjoiner's disarm order rides the plan as the surgery it names, install
+// or removal, on the part index it names.
+func TestCreepJoinerPlannerQueuesTheDisarmSurgery(t *testing.T) {
+	ctx := context.Background()
+	reviewer, _ := creepJoinerFixture(t, func(row *o.PawnState) { creepJoinerRow(row, false, "club") }, policy.ManageCreepJoiners)
+	planner, err := NewRoutineCreepJoinerPlanner(reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	reviewer.creepJoiners.work.disarm = policy.DisarmWork{Orders: []policy.DisarmOrder{{Pawn: "prisoner", Recipe: "InstallDenture", Part: 5}}}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := reviewer.player.journal.LoadPlan(ctx, result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, action := range plan.Spec.Actions() {
+		if s, ok := action.Surgery(); ok && s.Pawn() == "prisoner" {
+			found = s.Recipe() == "InstallDenture" && s.Part() == 5
+		}
+	}
+	if !found {
+		t.Fatal("the plan has no denture install on the prisoner")
+	}
+}
+
 // TestCreepJoinerPlannerLeavesAShownDownsideAlone: a creepjoiner whose
 // downside has fired keeps its weapon, and so does a colonist that is none.
 func TestCreepJoinerPlannerLeavesAShownDownsideAlone(t *testing.T) {

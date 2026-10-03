@@ -147,8 +147,29 @@ Anomaly block is no creepjoiner.
   move may shuffle the pawn, another colonist may take the bed, and the room
   needs `MaintainShelter` enabled.
 
-Open: the prosthetic trick (dentures and wooden
-hands, then removal); valuable apparel has no expressible rule yet. A downside
+- **Disarming an arrested creepjoiner** (David 2026-10-03: dentures and wooden
+  hands, then remove them so it can only headbutt). Game rules (decompile):
+  a natural Hand or Jaw is offered no removal (`Recipe_RemoveBodyPart` offers a
+  part with an added part, a clean one whose def spawns a thing on removal, one
+  with a bad visible condition, or `forceAlwaysRemovable`; neither def does);
+  `Recipe_InstallArtificialBodyPart` installs over it with no violation on a
+  pawn of the doer's faction or of none, and the added part makes the part
+  removable; removing it leaves the part missing. The sites come from the def
+  mirror: the race's melee tools other than the `ensureLinkedBodyPartsGroupAlwaysUsable`
+  one (the head) each link a body part group, and the site is the lowest part
+  holding every part of that group in `BodyDef` pre-order index
+  (`bridge.CreepJoinerDisarm`, `policy.CreepJoinerDisarm`). For each colony
+  prisoner with a creepjoiner tracker (`PrisonerFacts.CreepJoiner`, `Kind`),
+  `ManageCreepJoiners` queues, one bill at a time, the removal of an installed
+  part first, else the cheapest install the game offers on a site that is no
+  violation with an eligible doctor and stocked ingredients. Price is the items
+  the recipe names singly (`IngredientCount.count` at market value, mirrored
+  since #1785) plus the operation's medicine value; a recipe with no known
+  price is refused with a log line. A site is done when its part or an
+  ancestor is missing, so the work carries no record. A recruited prisoner is a
+  colonist again and normal surgery care applies to it.
+
+Open: valuable apparel has no expressible rule yet (deferred to #1859). A downside
 trait or hediff that the colonist's benefit or form also grants counts as shown
 (the catalog rows do not tell the two apart): unverified in game, as the drop
 job's and the inspection's build and admission are (no acceptance run).

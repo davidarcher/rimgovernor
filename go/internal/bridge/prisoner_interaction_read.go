@@ -206,6 +206,11 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *Defi
 			f.QueuedSurgeries = QueuedSurgeries(h)
 			f.QueuedRecipes = QueuedSurgeryRecipes(h)
 		}
+		f.Kind = pawn.GetKindDefName()
+		f.CreepJoiner = domain.Unknown[bool]()
+		if joiner, known := CreepJoinerPawn(pawn).CreepJoiner.Value(); known {
+			f.CreepJoiner = domain.Known(joiner != nil)
+		}
 		f.Faction = person.GetFaction().GetId()
 		if person.HarvestGoodwillChange != nil {
 			f.HarvestGoodwill = domain.Known(int(person.GetHarvestGoodwillChange()))
