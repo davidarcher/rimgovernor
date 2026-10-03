@@ -148,7 +148,7 @@ func (a *app) view() View {
 		Message:    a.message,
 		URL:        a.url(a.activePort()),
 		GameUp:     a.gameUp,
-		Log:        append([]string(nil), a.log...),
+		Log:        append([]string{}, a.log...),
 		Settings:   a.settings,
 		Saves:      ListSaves(a.savesDir()),
 	}

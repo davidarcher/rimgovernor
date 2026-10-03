@@ -252,7 +252,7 @@ async function refresh() {
   $('status').innerHTML = v.artifacts.map(a =>
     `<li class="${a.state}"><span class="dot" aria-hidden="true"></span><span class="name">${esc(a.name)}</span><span class="detail">${esc(a.detail)}</span></li>`).join('');
   const log = $('log'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
-  const text = v.log.join('\n');
+  const text = (v.log || []).join('\n');
   if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
   fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
   if (!loaded) { fill(v.settings); loaded = true; }
