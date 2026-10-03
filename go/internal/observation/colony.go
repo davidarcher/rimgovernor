@@ -75,6 +75,8 @@ type ColonyProjection struct {
 	Acquisition                            domain.Fact[[]policy.AcquisitionSource]
 	PendingFoodNutrition, PendingWoodUnits domain.Fact[float64]
 	WorkPawns                              domain.Fact[[]policy.WorkPawn]
+	// MechCatalog is the Biotech catalog's mech kinds (#1686); the zero value without Biotech.
+	MechCatalog policy.MechCatalog
 	// Mechs are the colony's mechanitors and mechs from the pawn table
 	// (#1736); unknown without a table.
 	Mechs              domain.Fact[policy.MechFleet]

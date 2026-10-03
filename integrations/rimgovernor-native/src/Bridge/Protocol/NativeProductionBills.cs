@@ -187,6 +187,7 @@ namespace HomeBridge.BridgeTools {
   }
   public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context){
    if(action.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.ProductionBill,context);
+   if(NativeMechBills.Handles(action.ProductionBill))return NativeMechBills.Validate(action.ProductionBill!,context);
    var failure=Resolve(action.ProductionBill,context,out _);
    if(failure!=null)Log.Message("[RimGovernor] production bill "+action.ProductionBill?.RecipeDef+" on "+action.ProductionBill?.BenchId+" refused: "+failure.Detail);
    return failure;
@@ -194,6 +195,7 @@ namespace HomeBridge.BridgeTools {
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
    var intent=action.ProductionBill;
    if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
+   if(NativeMechBills.Handles(intent))return NativeMechBills.Apply(intent,context);
    var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new InvalidOperationException("Production bill prerequisites changed before apply: "+failure.Detail);
    var standing=t.Standing;

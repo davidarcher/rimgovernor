@@ -165,6 +165,8 @@ namespace HomeBridge.BridgeTools
             if (recipe.researchPrerequisite != null) row.ResearchPrerequisites.Add(Id(recipe.researchPrerequisite.defName));
             foreach (var project in recipe.researchPrerequisites ?? new List<ResearchProjectDef>())
                 if (project != null && !row.ResearchPrerequisites.Contains(Id(project.defName))) row.ResearchPrerequisites.Add(Id(project.defName));
+            var mech = NativeMechBills.Kind(recipe);
+            if (mech != null) row.MechKind = Id(mech);
             var work = WorkType(benchDef, recipe);
             if (work != null) row.WorkType = Id(work.defName);
             var skills = recipe.skillRequirements ?? new List<SkillRequirement>();

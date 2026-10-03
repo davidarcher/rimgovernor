@@ -522,6 +522,18 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			}
 		}
 	}
+	if r.methodEnabled(policy.MaintainMechs) {
+		gestation, known, err := mechGestation(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection)
+		if err != nil {
+			clockSchedulerLog("routine.step: mech gestation err=%v", err)
+			return store.RoutineReviewResult{}, err
+		}
+		if known {
+			if reading.Projection.Facts.MechGestationOwed, err = policy.MechGestationOwed(gestation); err != nil {
+				return store.RoutineReviewResult{}, err
+			}
+		}
+	}
 	reading.Projection.Facts.Upkeep.Rooms = reading.Projection.Rooms
 	reading.Projection.Facts.CleaningContext(reading.Projection.Identity.Tick)
 	if err = p.current(ctx, epoch); err != nil {

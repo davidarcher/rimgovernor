@@ -35,7 +35,9 @@ type ProductionProduct struct {
 	Storable domain.Fact[int64]
 }
 type ProductionRecipe struct {
-	Name                                       string
+	Name string
+	// MechKind is the PawnKindDef a gestation recipe makes (#1686), "" otherwise.
+	MechKind                                   string
 	Available                                  domain.Fact[bool]
 	Products                                   []ProductionProduct
 	Mood, NutrientEfficiency, WorkPerNutrition domain.Fact[float64]

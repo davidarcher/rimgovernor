@@ -218,6 +218,32 @@ mech rows (and `Combat.Catalog` is read when one is present), so each fight stop
 appends `PlanMechGuards`'s drafts and attack orders to its `combat.orders` batch;
 the drafts join the fight roster and are undrafted when it closes.
 
+## Mech gestation
+
+`MaintainMechs` (#1686, `policy/mech_gestation.go`, planner flag `mechs`) queues
+one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
+production bill on a gestator (the `mech` branch of the production bill write).
+`MechGestationOwed` raises the goal while a gestator is idle, no waste is
+uncleared and `NextMech` finds a kind a mechanitor can afford. The rules:
+
+- Bandwidth gates: a kind is built only when `TotalBandwidth - UsedBandwidth -
+  GestationBandwidth` (the pawn row's mechanitor block) covers its catalog
+  `bandwidth_cost`; native re-checks the game's `HasBandwidthForBill`.
+- Waste holds gestation: a gestator holding waste, or a wastepack stack that is
+  not frozen, not in an atomizer and not dissolved (count 0), or any unread
+  count or flag, blocks the next bill (the wastepack research in epic #1667;
+  cleanup is #1683).
+- Colonist need picks the role through `MechRoleNext` over the work roster and
+  the mechs the mechanitors control (`bridge.ReadMechs`, one pawn read by id);
+  a worker is bought only if it covers a short, uncovered work type, a guard
+  by combat power per bandwidth. Cost, then name, break ties; a bulk recipe
+  (`BulkRecipe`) wins among recipes of one kind.
+- A mech kind a gestation recipe makes that the catalog lacks is an error.
+
+Acceptance is table-driven in `mech_gestation_test.go`: every bandwidth
+combination stays inside free bandwidth, waste cases hold, one gestation at a
+time.
+
 ## Acceptance
 
 Planner behaviour is table-driven in `work_assignment_test.go`,

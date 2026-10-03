@@ -50,7 +50,7 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 	if err := ValidateIdentity(identity); err != nil {
 		return ExcavationSite{}, Result{}, err
 	}
-	if len(cells) == 0 ||!excavationCellValid(access) {
+	if len(cells) == 0 || !excavationCellValid(access) {
 		return ExcavationSite{}, Result{}, contract("invalid excavation site request")
 	}
 	request := &o.ExcavationSiteRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, AccessCell: &c.Cell{X: proto.Int32(access.X), Z: proto.Int32(access.Z)}}

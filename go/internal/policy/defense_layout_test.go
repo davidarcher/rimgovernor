@@ -43,6 +43,7 @@ func defenseFixture() DefenseRequest {
 	}
 	return r
 }
+
 // Rock across the corridor is dug, not routed around (#1588): DefenseDig
 // lists the rock on the lane and the defenders' ground, the layout waits on
 // it, and proceeds once it is open. Open ground needs no dig.

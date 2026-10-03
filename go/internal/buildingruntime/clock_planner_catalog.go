@@ -386,6 +386,16 @@ var plannerCatalog = []plannerEntry{
 			out.SurgeryPartBills = &method
 			return method.Verdict, nil
 		}},
+	{name: "mechBills", goal: policy.MaintainMechs, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, sections: sectionsBills,
+		configured: func(c *ClockSchedulerConfig) bool { return c.MechBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.MechBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.MechBills = &method
+			return method.Verdict, nil
+		}},
 	{name: "basicComfort", goal: policy.EnsureComfort, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

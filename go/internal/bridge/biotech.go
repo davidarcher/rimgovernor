@@ -277,7 +277,7 @@ func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
 		return out
 	}
 	for name, row := range c.MechKinds {
-		kind := policy.MechKind{Name: name, WorkMech: row.GetWorkMech(), BandwidthCost: row.GetBandwidthCost()}
+		kind := policy.MechKind{Name: name, WorkMech: row.GetWorkMech(), BandwidthCost: row.GetBandwidthCost(), CombatPower: row.GetCombatPower()}
 		for _, w := range row.WorkTypes {
 			kind.WorkTypes = append(kind.WorkTypes, policy.WorkType(w))
 		}

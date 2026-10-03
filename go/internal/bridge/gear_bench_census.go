@@ -128,6 +128,12 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		recipe.Products = products
 		recipe.Ingredients = GearRecipeIngredients(row.Ingredients)
 		recipe.RequiredWork = gearRecipeWork(row)
+		if row.MechKind != nil {
+			if validID(row.GetMechKind()) != nil {
+				return nil, contract("invalid gear recipe mech kind")
+			}
+			recipe.MechKind = row.GetMechKind()
+		}
 		out = append(out, recipe)
 	}
 	return out, nil

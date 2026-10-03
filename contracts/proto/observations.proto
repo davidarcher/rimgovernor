@@ -620,6 +620,8 @@ message RecipeState {
   optional double nutrient_efficiency = 15; // Total product nutrition / input nutrition, including batch size.
   optional double work_per_nutrition = 16; // Native work units / total product nutrition.
   optional bool needs_power = 17; // This bench's power requirement, not its current power state.
+  // PawnKindDef of the mech a Biotech gestation recipe makes (the produced race's AnyPawnKind, #1686); absent for every other recipe. Bandwidth cost is the catalog MechKindRow's.
+  optional string mech_kind = 18;
 }
 enum FoodIngredientClass {
   FOOD_INGREDIENT_CLASS_UNSPECIFIED = 0;

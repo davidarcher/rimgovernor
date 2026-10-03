@@ -296,6 +296,10 @@ type RoutineFacts struct {
 	// plant or an undesignated wooden ruin (FirebreakOwed, #1548); it holds
 	// MaintainFirebreak open. Unknown unless the method is composed.
 	FirebreakOwed domain.Fact[bool]
+	// MechGestationOwed: a mechanitor can afford the next mech, a gestator
+	// is idle and no waste is uncleared (MechGestationOwed, #1686); it holds
+	// MaintainMechs open. Unknown unless the method is composed.
+	MechGestationOwed domain.Fact[bool]
 	// HerdRoomsOwed: a barn or vet room step is due (NextHerdStep, #1633);
 	// it holds MaintainAnimalContainment open after the pen stands.
 	HerdRoomsOwed domain.Fact[bool]
@@ -1374,6 +1378,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainFirebreak, 3, measured(f.FirebreakOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.FirebreakOwed.Value(); known && owed {
 		addGoal(MaintainFirebreak, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainMechs (#1686): a mech is owed inside the bandwidth. Ranked with
+	// the upkeep projects; unknown raises nothing.
+	addAssessment(MaintainMechs, mechPriority, measured(f.MechGestationOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.MechGestationOwed.Value(); known && owed {
+		addGoal(MaintainMechs, mechPriority)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	// MaintainPsylink (#1609): a held neuroformer waits for a willing

@@ -17,7 +17,7 @@ var inlinePlannerSet = []struct {
 	{"resourceAcquisition", plannerMaintenance}, {"supplies", plannerCritical}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
 	{"temperature", plannerFoothold}, {"refrigeration", plannerMaintenance}, {"lighting", plannerMaintenance}, {"flooring", plannerMaintenance},
 	{"routes", plannerMaintenance}, {"cooking", plannerFoothold}, {"butcher", plannerFoothold}, {"cookingBills", plannerFoothold},
-	{"preservationBills", plannerFoothold}, {"butcherBills", plannerFoothold}, {"cookAheadBills", plannerFoothold}, {"artBills", plannerMaintenance}, {"babyFoodBills", plannerMaintenance}, {"surgeryPartBills", plannerMaintenance}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},
+	{"preservationBills", plannerFoothold}, {"butcherBills", plannerFoothold}, {"cookAheadBills", plannerFoothold}, {"artBills", plannerMaintenance}, {"babyFoodBills", plannerMaintenance}, {"surgeryPartBills", plannerMaintenance}, {"mechBills", plannerMaintenance}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},
 	{"hospital", plannerCritical}, {"sleepingUpkeep", plannerCritical}, {"expansion", plannerComfort}, {"defense", plannerPreempt}, {"medical", plannerCritical}, {"surgery", plannerCritical}, {"tend", plannerCritical},
 	{"rescue", plannerCritical}, {"equip", plannerMaintenance}, {"secureSupplies", plannerFoothold}, {"repair", plannerMaintenance},
 	{"fireSafety", plannerFoothold}, {"clearance", plannerMaintenance}, {"shrine", plannerMaintenance}, {"clean", plannerMaintenance}, {"pollution", plannerMaintenance}, {"blight", plannerMaintenance}, {"armory", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},

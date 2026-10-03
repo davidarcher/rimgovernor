@@ -129,6 +129,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		if frame.Catalog != nil {
 			biotech = frame.Catalog.Biotech
 		}
+		p.MechCatalog = biotech.MechCatalog()
 		if p.WorkPawns, err = routineWork(colony, emergency, pawns, biotech); err != nil {
 			return RoutineReading{}, err
 		}

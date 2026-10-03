@@ -35,9 +35,9 @@ type BillPlannerNative interface{}
 // EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, the
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408), and the
 // pinned sculpture bills MaintainArt (#1190), the part bills
-// MaintainSurgery (#1168), and the baby food bill MaintainBabyFeeding (#1681).
+// MaintainSurgery (#1168), the baby food bill MaintainBabyFeeding (#1681), and the mech gestation bills MaintainMechs (#1686).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood && purpose != policy.ArtBill && purpose != policy.SurgeryPartBill && purpose != policy.BabyFoodBill && purpose != policy.MechGestationBill) {
 		return nil, fmt.Errorf("%w: NewRoutineBillPlanner: reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpos", ErrControl)
 	}
 	need := policy.EnsureFoodSupply
@@ -54,6 +54,8 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 		need = policy.MaintainSurgery
 	case policy.BabyFoodBill:
 		need = policy.MaintainBabyFeeding
+	case policy.MechGestationBill:
+		need = policy.MaintainMechs
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -155,6 +157,18 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, art.finished[selected.Worker])
 		result.NativeWorkTicks = max(result.NativeWorkTicks, ticks)
 		return result, err
+	}
+	if r.purpose == policy.MechGestationBill {
+		selected, known, err := r.mechSelection(call, state, projection)
+		if err != nil {
+			return RoutineBillResult{}, err
+		}
+		if !known {
+			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
+		}
+		// Each gestation is a new method of the goal: the bill is the same
+		// bench, recipe and count as the one before it.
+		return r.admit(call, epoch, arbiter, state, goal, read, selected, len(goal.Methods))
 	}
 	if r.purpose == policy.SurgeryPartBill {
 		parts, benches, err := surgeryPartDemand(call, r.native, boundary.Identity(state.Snapshot), projection.Facts.MedicalPawns)

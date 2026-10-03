@@ -9744,8 +9744,10 @@ type RecipeState struct {
 	NutrientEfficiency    *float64                 `protobuf:"fixed64,15,opt,name=nutrient_efficiency,json=nutrientEfficiency,proto3,oneof" json:"nutrient_efficiency,omitempty"`  // Total product nutrition / input nutrition, including batch size.
 	WorkPerNutrition      *float64                 `protobuf:"fixed64,16,opt,name=work_per_nutrition,json=workPerNutrition,proto3,oneof" json:"work_per_nutrition,omitempty"`      // Native work units / total product nutrition.
 	NeedsPower            *bool                    `protobuf:"varint,17,opt,name=needs_power,json=needsPower,proto3,oneof" json:"needs_power,omitempty"`                           // This bench's power requirement, not its current power state.
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// PawnKindDef of the mech a Biotech gestation recipe makes (the produced race's AnyPawnKind, #1686); absent for every other recipe. Bandwidth cost is the catalog MechKindRow's.
+	MechKind      *string `protobuf:"bytes,18,opt,name=mech_kind,json=mechKind,proto3,oneof" json:"mech_kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RecipeState) Reset() {
@@ -9895,6 +9897,13 @@ func (x *RecipeState) GetNeedsPower() bool {
 		return *x.NeedsPower
 	}
 	return false
+}
+
+func (x *RecipeState) GetMechKind() string {
+	if x != nil && x.MechKind != nil {
+		return *x.MechKind
+	}
+	return ""
 }
 
 type FoodIngredientSlot struct {
@@ -46455,7 +46464,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05bills\x18\x06 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05billsB\t\n" +
 	"\a_usableB\x12\n" +
 	"\x10_unusable_reasonB\v\n" +
-	"\t_capacityJ\x04\b\a\x10\b\"\xd0\b\n" +
+	"\t_capacityJ\x04\b\a\x10\b\"\x80\t\n" +
 	"\vRecipeState\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12(\n" +
 	"\ravailable_now\x18\x02 \x01(\bH\x00R\favailableNow\x88\x01\x01\x121\n" +
@@ -46478,7 +46487,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13nutrient_efficiency\x18\x0f \x01(\x01H\x06R\x12nutrientEfficiency\x88\x01\x01\x121\n" +
 	"\x12work_per_nutrition\x18\x10 \x01(\x01H\aR\x10workPerNutrition\x88\x01\x01\x12$\n" +
 	"\vneeds_power\x18\x11 \x01(\bH\bR\n" +
-	"needsPower\x88\x01\x01B\x10\n" +
+	"needsPower\x88\x01\x01\x12 \n" +
+	"\tmech_kind\x18\x12 \x01(\tH\tR\bmechKind\x88\x01\x01B\x10\n" +
 	"\x0e_available_nowB\x15\n" +
 	"\x13_available_on_benchB\x0e\n" +
 	"\f_work_amountB\r\n" +
@@ -46488,7 +46498,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_moodB\x16\n" +
 	"\x14_nutrient_efficiencyB\x15\n" +
 	"\x13_work_per_nutritionB\x0e\n" +
-	"\f_needs_power\"j\n" +
+	"\f_needs_powerB\f\n" +
+	"\n" +
+	"_mech_kind\"j\n" +
 	"\x12FoodIngredientSlot\x12T\n" +
 	"\falternatives\x18\x01 \x03(\x0e20.rimgovernor.observations.v1.FoodIngredientClassR\falternatives\"`\n" +
 	"\x17RecipeIngredientClasses\x12E\n" +

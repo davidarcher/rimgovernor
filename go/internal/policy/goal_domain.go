@@ -75,6 +75,7 @@ var goalDomains = map[GoalID]Domain{
 	MaintainEssentialRepairs: DomainUpkeep,
 	MaintainFireSafety:       DomainUpkeep,
 	MaintainFirebreak:        DomainUpkeep,
+	MaintainMechs:            DomainIndustry,
 	MaintainRoutes:           DomainUpkeep,
 	MaintainPsylink:          DomainPeople,
 	MaintainPermits:          DomainPeople,

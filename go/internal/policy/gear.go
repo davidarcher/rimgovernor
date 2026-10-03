@@ -323,6 +323,9 @@ type GearRecipe struct {
 	Available, AvailableOn domain.Fact[bool]
 	Ingredients            domain.Fact[[][]Amount]
 	RequiredWork           domain.Fact[[]WorkRequirement]
+	// MechKind is the PawnKindDef of the mech a gestation recipe makes
+	// (#1686), "" for every other recipe.
+	MechKind string
 }
 type GearBench struct {
 	ID      string

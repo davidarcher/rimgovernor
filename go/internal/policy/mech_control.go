@@ -59,6 +59,8 @@ type MechKind struct {
 	WorkMech      bool
 	WorkTypes     []WorkType
 	BandwidthCost float64
+	// CombatPower is the kind's MechKindRow combat_power.
+	CombatPower float64
 }
 
 // Role is worker for a work mech, guard for a combat mech.
@@ -252,6 +254,23 @@ func MechRoleNext(catalog MechCatalog, m MechanitorInput, mechs []MechInput, cov
 	if !uk || !tk || total-used <= 0 {
 		return "", false, nil
 	}
+	short, err := shortUncoveredWork(catalog, m, mechs, coverage)
+	if err != nil {
+		return "", false, err
+	}
+	for work := range short {
+		for _, kind := range catalog.Kinds {
+			if kind.WorkMech && slices.Contains(kind.WorkTypes, work) {
+				return MechWorker, true, nil
+			}
+		}
+	}
+	return MechGuard, true, nil
+}
+
+// shortUncoveredWork is the work types with fewer colonist owners than
+// demand that none of the mechanitor's work mechs covers.
+func shortUncoveredWork(catalog MechCatalog, m MechanitorInput, mechs []MechInput, coverage []WorkCoverage) (map[WorkType]bool, error) {
 	covered := map[WorkType]bool{}
 	for _, mech := range mechs {
 		if mech.Overseer != string(m.ID) {
@@ -259,23 +278,19 @@ func MechRoleNext(catalog MechCatalog, m MechanitorInput, mechs []MechInput, cov
 		}
 		kind, known := catalog.Kinds[mech.Kind]
 		if !known {
-			return "", false, fmt.Errorf("mech %s kind %s is not in the catalog", mech.ID, mech.Kind)
+			return nil, fmt.Errorf("mech %s kind %s is not in the catalog", mech.ID, mech.Kind)
 		}
 		for _, w := range kind.WorkTypes {
 			covered[w] = true
 		}
 	}
+	short := map[WorkType]bool{}
 	for _, c := range coverage {
-		if c.Owners >= c.Demand || covered[c.Work] {
-			continue
-		}
-		for _, kind := range catalog.Kinds {
-			if kind.WorkMech && slices.Contains(kind.WorkTypes, c.Work) {
-				return MechWorker, true, nil
-			}
+		if c.Owners < c.Demand && !covered[c.Work] {
+			short[c.Work] = true
 		}
 	}
-	return MechGuard, true, nil
+	return short, nil
 }
 
 // MechHostile is a hostile a guard may be ordered at.

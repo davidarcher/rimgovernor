@@ -56,6 +56,7 @@ func TestFoodForecastExpiryInventoryDietAndCompetingDemand(t *testing.T) {
 		})
 	}
 }
+
 // A squad-kill corpse lies where the animal fell: no roof, room or stockpile
 // facts. The food supply still counts it (the butcher bill and haulers fetch
 // it from anywhere reachable) and its rot clock bounds the usable share; a
