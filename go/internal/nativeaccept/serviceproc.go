@@ -266,6 +266,7 @@ const keepAliveStaleGrace = 3 * time.Minute
 
 func (k *AuthorityKeepAlive) run(ctx context.Context) {
 	var waitingSince time.Time
+	var wasAutomate bool
 	for {
 		select {
 		case <-ctx.Done():
@@ -281,9 +282,10 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 		}
 		if AsString(state["mode"]) == "automate" {
 			waitingSince = time.Time{}
+			wasAutomate = true
 			continue
 		}
-		if status, _ := AsMap(state["status"]); AsString(status["label"]) == "Player control is waiting for current observations" {
+		if status, _ := AsMap(state["status"]); wasAutomate && AsString(status["label"]) == "Player control is waiting for current observations" {
 			if waitingSince.IsZero() {
 				waitingSince = time.Now()
 			}
