@@ -24,6 +24,11 @@ func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
 	if !known {
 		t.Fatal("unknown")
 	}
+	// The loadout model resolves each work row's skill from the catalog.
+	rows, _ := state.Role.Work.Work.Value()
+	for i := range rows {
+		rows[i].Skill = string(rows[i].Work)
+	}
 	if got := policy.DeriveGearRole(state.Role); got != policy.GearIndoor {
 		t.Fatal(got)
 	}

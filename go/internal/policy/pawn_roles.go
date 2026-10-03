@@ -55,7 +55,7 @@ func WardenFor(profiles []PawnProfile, execution bool) (PawnID, bool) {
 		if !p.Capable(WorkWarden, 0) {
 			continue
 		}
-		score := float64(p.Skill("Social").Level) + 5*float64(p.Effects.Sociable)
+		score := float64(p.SkillFor(WorkWarden).Level) + 5*float64(p.Effects.Sociable)
 		if execution && p.Effects.Execution {
 			score += 10
 		}
@@ -91,7 +91,7 @@ func TraderFor(profiles []PawnProfile) (PawnID, bool) {
 func TamerFor(profiles []PawnProfile, minimum int) (PawnID, bool) {
 	var candidates []roleCandidate
 	for _, p := range profiles {
-		s := p.Skill("Animals")
+		s := p.SkillFor(WorkHandling)
 		if !p.Capable(WorkHandling, minimum) {
 			continue
 		}
@@ -108,7 +108,7 @@ func HunterFor(profiles []PawnProfile) (PawnID, bool) {
 		if !p.Ranged || !p.Capable(WorkHunting, 0) {
 			continue
 		}
-		candidates = append(candidates, roleCandidate{p.ID, float64(p.Skill("Shooting").Level) + 5*p.Effects.MoveSpeed})
+		candidates = append(candidates, roleCandidate{p.ID, float64(p.SkillFor(WorkHunting).Level) + 5*p.Effects.MoveSpeed})
 	}
 	return bestRole(candidates)
 }

@@ -76,6 +76,16 @@ func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoad
 		traits = append(traits, trait)
 	}
 	in.Role.Work.Traits = domain.Known(traits)
+	if rows, ok := in.Role.Work.Work.Value(); ok {
+		resolved := make([]policy.WorkPriority, len(rows))
+		copy(resolved, rows)
+		for i := range resolved {
+			if err := defs.Catalog.ResolveWorkRow(&resolved[i]); err != nil {
+				return unknown, err
+			}
+		}
+		in.Role.Work.Work = domain.Known(resolved)
+	}
 	var allowed map[string]bool
 	if len(role.Definitions) > 0 {
 		allowed = map[string]bool{}

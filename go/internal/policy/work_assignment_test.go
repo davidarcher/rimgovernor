@@ -7,17 +7,67 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// testWorkRows are the WorkTypeDef-resolved skill and natural priority of the
+// work types the planner tests use (DefinitionCatalog.ResolveWorkRow, compared
+// with the full game recording in the bridge tests).
+var testWorkRows = map[WorkType]WorkPriority{
+	WorkDoctor: {Skill: "Medicine", Order: 1300}, WorkWarden: {Skill: "Social", Order: 1100}, WorkHandling: {Skill: "Animals", Order: 1050},
+	WorkCooking: {Skill: "Cooking", Order: 1000}, WorkHunting: {Skill: "Shooting", Order: 950}, WorkFishing: {Skill: "Animals", Order: 350},
+	WorkConstruction: {Skill: "Construction", Order: 900}, WorkGrowing: {Skill: "Plants", Order: 700}, WorkMining: {Skill: "Mining", Order: 600},
+	WorkPlantCutting: {Skill: "Plants", Order: 500}, WorkSmithing: {Skill: "Crafting", Order: 470}, WorkTailoring: {Skill: "Crafting", Order: 450},
+	WorkArt: {Skill: "Artistic", Order: 430}, WorkCrafting: {Skill: "Crafting", Order: 400}, WorkResearch: {Skill: "Intellectual", Order: 100},
+	WorkHauling: {Order: 300}, WorkCleaning: {Order: 200}, WorkBasic: {Order: 1150}, WorkFirefighter: {Order: 1400},
+}
+
+// testWorkRow is a work row with its skill and order resolved the way the pawn
+// read resolves them from the catalog.
+// testWorkSkill is the work-to-skill map a hand-built profile carries.
+var testWorkSkill = func() map[WorkType]string {
+	out := map[WorkType]string{}
+	for work, row := range testWorkRows {
+		out[work] = row.Skill
+	}
+	return out
+}()
+
+// testAllWork is every work type's resolved row, for a pawn read without a
+// narrower work list.
+func testAllWork() domain.Fact[[]WorkPriority] {
+	var rows []WorkPriority
+	for work := range testWorkRows {
+		rows = append(rows, testWorkRow(work))
+	}
+	return domain.Known(rows)
+}
+
+// testReadback is the priorities the planner wrote as the next read resolves
+// them: the rows with their skill and order from the catalog.
+func testReadback(rows []WorkPriority) []WorkPriority {
+	out := make([]WorkPriority, len(rows))
+	for i, row := range rows {
+		out[i] = testWorkRow(row.Work)
+		out[i].Priority, out[i].Disabled = row.Priority, row.Disabled
+	}
+	return out
+}
+
+func testWorkRow(work WorkType) WorkPriority {
+	row := testWorkRows[work]
+	row.Work = work
+	return row
+}
+
 var testWorkTypes = []WorkType{WorkConstruction, WorkGrowing, WorkCooking, WorkDoctor, WorkPlantCutting, WorkHunting, WorkMining, WorkSmithing, WorkResearch, WorkWarden, WorkHandling, WorkHauling, WorkCleaning, WorkFirefighter}
 
 func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
 	pawn := testWorkPawn("fisher", true, false, []WorkSkill{{Name: "Animals", Level: 12}})
 	work, _ := pawn.Work.Value()
-	pawn.Work = domain.Known(append(work, WorkPriority{Work: WorkFishing}))
+	pawn.Work = domain.Known(append(work, testWorkRow(WorkFishing)))
 	decision, err := AssignWork([]WorkPawn{pawn}, []WorkRequirement{{Work: WorkFishing, Skill: "Animals"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if WorkSkillName(WorkFishing) != "Animals" || coverageOf(t, decision, WorkFishing).Owners != 1 || workValue(t, decision, "fisher", WorkFishing) == 0 {
+	if coverageOf(t, decision, WorkFishing).Owners != 1 || workValue(t, decision, "fisher", WorkFishing) == 0 {
 		t.Fatal(decision)
 	}
 }
@@ -25,7 +75,7 @@ func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
 func testWorkPawn(id PawnID, manual, ranged bool, skills []WorkSkill, traits ...PawnTrait) WorkPawn {
 	work := make([]WorkPriority, 0, len(testWorkTypes))
 	for _, w := range testWorkTypes {
-		work = append(work, WorkPriority{Work: w})
+		work = append(work, testWorkRow(w))
 	}
 	return WorkPawn{ID: id, Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(manual), Ranged: domain.Known(ranged), Work: domain.Known(work), Skills: domain.Known(skills), Traits: domain.Known(traits), Incapable: domain.Known([]WorkType{}), Age: domain.Known(30.0)}
 }
@@ -84,7 +134,7 @@ func TestWorkAssignmentSpecialistsModesAndReadback(t *testing.T) {
 			t.Fatal("unassigned work matched", decision)
 		}
 		for i := range team {
-			values := append([]WorkPriority(nil), decision.Assignments[i].Priorities...)
+			values := testReadback(decision.Assignments[i].Priorities)
 			team[i].Work = domain.Known(values)
 		}
 		next, err := AssignWork(team, nil)
@@ -310,7 +360,7 @@ func TestWorkAssignmentCoverageAndStability(t *testing.T) {
 	previous := d
 	for round := 0; round < 3; round++ {
 		for i := range team {
-			team[i].Work = domain.Known(append([]WorkPriority(nil), previous.Assignments[i].Priorities...))
+			team[i].Work = domain.Known(testReadback(previous.Assignments[i].Priorities))
 		}
 		next, err := PlanWork(team, required, demand)
 		if err != nil {

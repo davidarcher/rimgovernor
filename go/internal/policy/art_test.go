@@ -19,7 +19,7 @@ func artBench(bills ...ExistingProductionBill) ProductionBench {
 }
 
 func artProfile(id PawnID, level int, passion string) PawnProfile {
-	return PawnProfile{ID: id, Skills: map[string]ProfileSkill{"Artistic": {Name: "Artistic", Level: level, Passion: passion}}, Incapable: map[WorkType]bool{}}
+	return PawnProfile{ID: id, Skills: map[string]ProfileSkill{"Artistic": {Name: "Artistic", Level: level, Passion: passion}}, Incapable: map[WorkType]bool{}, WorkSkill: testWorkSkill}
 }
 
 func TestSelectArtBills(t *testing.T) {

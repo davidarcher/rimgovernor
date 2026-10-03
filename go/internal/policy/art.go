@@ -26,7 +26,7 @@ func Artist(p PawnProfile) bool {
 	if p.Incapable[WorkArt] || p.Child {
 		return false
 	}
-	s := p.Skill(WorkSkillName(WorkArt))
+	s := p.Skill(p.WorkSkill[WorkArt])
 	// The wire names no passion "None" (Passion.ToString()).
 	return !s.Disabled && (s.Level > 6 || s.Passion != "" && s.Passion != "None")
 }
@@ -238,7 +238,7 @@ func (d ArtDemand) stuff(size Sculpture) (Resource, bool) {
 func NewArtDemand(obs domain.Fact[SleepingObservation], targets map[string]RoomTarget, rooms []TidyRoom, stock map[Resource]int64, profiles []PawnProfile, items ItemFacts) ArtDemand {
 	d := ArtDemand{Stock: stock, Skill: map[PawnID]int{}, Items: items}
 	for _, p := range profiles {
-		d.Skill[p.ID] = p.Skill(WorkSkillName(WorkArt)).Level
+		d.Skill[p.ID] = p.Skill(p.WorkSkill[WorkArt]).Level
 	}
 	o, known := obs.Value()
 	if !known || targets == nil {

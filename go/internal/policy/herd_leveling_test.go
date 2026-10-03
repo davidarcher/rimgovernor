@@ -7,7 +7,7 @@ import (
 )
 
 func handlerAt(level int) domain.Fact[[]PawnProfile] {
-	return domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "handler", Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: level}})})})
+	return domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "handler", Work: testAllWork(), Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: level}})})})
 }
 
 func levelingInput(level int, wild ...UpkeepAnimal) HerdPlanInput {

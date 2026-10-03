@@ -21,6 +21,12 @@ type WorkPriority struct {
 	Work     WorkType
 	Priority int
 	Disabled bool
+	// Skill is the work type's first relevant skill ("" for unskilled work)
+	// and Order its natural priority, both read from the WorkTypeDef when
+	// the row is read (the higher Order is filled first); zero on a row the
+	// planner writes back.
+	Skill string
+	Order int
 }
 type WorkPawn struct {
 	ID                                 PawnID
@@ -165,10 +171,6 @@ type WorkDemand struct {
 // with storage headroom that makes a haul backlog (#1278).
 const haulBacklogStacks = 20
 
-// Work types in native natural-priority order (WorkTypeDefs.naturalPriority),
-// the order the planner fills owners in so the scarcest roles pick first.
-var workOrder = []WorkType{WorkDoctor, WorkWarden, WorkHandling, WorkCooking, WorkHunting, WorkFishing, WorkConstruction, WorkGrowing, WorkMining, WorkPlantCutting, WorkSmithing, WorkTailoring, WorkArt, WorkCrafting, WorkResearch}
-
 const (
 	WorkDoctor  WorkType = "Doctor"
 	WorkWarden  WorkType = "Warden"
@@ -179,37 +181,6 @@ const (
 	WorkPatient WorkType = "Patient"
 	WorkBedRest WorkType = "PatientBedRest"
 )
-
-// WorkSkillName is the skill a Core work type is scored by (its first
-// relevantSkill); "" for unskilled work and work types the table does not
-// know.
-func WorkSkillName(work WorkType) string {
-	switch work {
-	case WorkDoctor:
-		return "Medicine"
-	case WorkWarden:
-		return "Social"
-	case WorkHandling, WorkFishing:
-		return "Animals"
-	case WorkCooking:
-		return "Cooking"
-	case WorkHunting:
-		return "Shooting"
-	case WorkConstruction:
-		return "Construction"
-	case WorkGrowing, WorkPlantCutting:
-		return "Plants"
-	case WorkMining:
-		return "Mining"
-	case WorkSmithing, WorkTailoring, WorkCrafting:
-		return "Crafting"
-	case WorkArt:
-		return "Artistic"
-	case WorkResearch:
-		return "Intellectual"
-	}
-	return ""
-}
 
 // workFloor is the skill level below which a pawn is not capable of the work
 // at all: a cook under 5 poisons meals, a doctor under 4 botches surgery, a
@@ -366,25 +337,27 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		return WorkDecision{}, nil
 	}
 	sort.Slice(workers, func(i, j int) bool { return workers[i].pawn.ID < workers[j].pawn.ID })
-	// Every work type native reports, in natural order first and any
-	// unlisted (DLC, mod) type after by name.
-	seenWork := map[WorkType]bool{}
+	// Every work type native reports, in WorkTypeDef natural-priority order
+	// (the order the planner fills owners in, so the scarcest roles pick
+	// first), ties by name; the skill of each is its row's.
+	rowSkill := map[WorkType]string{}
+	rowOrder := map[WorkType]int{}
 	var types []WorkType
-	for _, w := range workOrder {
-		seenWork[w] = true
-		types = append(types, w)
-	}
-	var extra []WorkType
 	for _, w := range workers {
-		for name := range w.work {
-			if !seenWork[name] && !pinnedWork(name) && !basicWork(name) {
-				seenWork[name] = true
-				extra = append(extra, name)
+		for name, row := range w.work {
+			if _, seenWork := rowOrder[name]; !seenWork && !pinnedWork(name) && !basicWork(name) {
+				types = append(types, name)
 			}
+			rowOrder[name] = row.Order
+			rowSkill[name] = row.Skill
 		}
 	}
-	sort.Slice(extra, func(i, j int) bool { return extra[i] < extra[j] })
-	types = append(types, extra...)
+	sort.Slice(types, func(i, j int) bool {
+		if rowOrder[types[i]] != rowOrder[types[j]] {
+			return rowOrder[types[i]] > rowOrder[types[j]]
+		}
+		return types[i] < types[j]
+	})
 	// able lists who can do a work type at all, at or above its floor (a
 	// requirement raises the floor); the incumbent bonus keeps owners stable
 	// across reviews when fitness is close.
@@ -392,7 +365,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 		if r, ok := requirements[work]; ok && r.Skill != "" {
 			return r.Skill
 		}
-		return WorkSkillName(work)
+		return rowSkill[work]
 	}
 	floorOf := func(work WorkType) int {
 		floor := workFloor(work)
@@ -574,7 +547,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, demand WorkDemand) (
 			if w.owns[WorkConstruction] != 0 || able(w, WorkConstruction) {
 				continue
 			}
-			if s := w.profile.Skill("Construction"); s.Passion != "" && ableAt(w, WorkConstruction, floorOf(WorkConstruction)-1) {
+			if s := w.profile.SkillFor(WorkConstruction); s.Passion != "" && ableAt(w, WorkConstruction, floorOf(WorkConstruction)-1) {
 				w.owns[WorkConstruction] = 4
 			}
 		}

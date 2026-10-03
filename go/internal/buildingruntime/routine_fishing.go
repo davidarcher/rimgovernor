@@ -19,7 +19,7 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 	}
 	for _, row := range plan.Portfolio {
 		if row.Channel.Kind == policy.FoodFishing && row.Decision != policy.FoodPlanClose && row.DeliveredPerDay > 0 {
-			return []policy.WorkRequirement{{Work: policy.WorkFishing, Skill: "Animals"}}
+			return []policy.WorkRequirement{{Work: policy.WorkFishing}}
 		}
 	}
 	return nil

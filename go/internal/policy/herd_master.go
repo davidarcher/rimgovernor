@@ -113,7 +113,7 @@ func herdBestMaster(roster []PawnProfile, fit map[PawnID]bool) (PawnID, bool) {
 	var candidates []roleCandidate
 	for _, p := range roster {
 		if fit[p.ID] {
-			candidates = append(candidates, roleCandidate{p.ID, float64(p.Skill("Animals").Level)})
+			candidates = append(candidates, roleCandidate{p.ID, float64(p.SkillFor(WorkHandling).Level)})
 		}
 	}
 	return bestRole(candidates)

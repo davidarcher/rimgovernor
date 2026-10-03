@@ -68,6 +68,13 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 // a trait the catalog lacks is an error, and a pawn with traits needs a catalog.
 func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog) (policy.WorkPawn, error) {
 	w := workPawnRow(row)
+	if rows, ok := w.Work.Value(); ok {
+		for i := range rows {
+			if err := catalog.ResolveWorkRow(&rows[i]); err != nil {
+				return policy.WorkPawn{}, err
+			}
+		}
+	}
 	if traits, ok := w.Traits.Value(); ok {
 		for i := range traits {
 			if err := resolveTrait(catalog, &traits[i]); err != nil {

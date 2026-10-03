@@ -24,7 +24,7 @@ func herd(populationMax map[Resource]int64) HerdPolicy {
 
 // anyTamer is a roster with one capable, unskilled handler: every tame
 // candidate without a minimum handling skill qualifies.
-var anyTamer = domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "handler", Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 0}})})})
+var anyTamer = domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "handler", Work: testAllWork(), Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 0}})})})
 
 func wildAnimal(id string, def Resource, tameable, designated bool) UpkeepAnimal {
 	return UpkeepAnimal{ID: PawnID(id), Definition: def, Release: domain.Known(false), Slaughter: domain.Known(false), Tameable: domain.Known(tameable), Tame: domain.Known(designated)}
@@ -215,7 +215,7 @@ func TestSelectHusbandryMethodTameNeedsAHandlerAtTheMinimum(t *testing.T) {
 	easy.MinimumHandlingSkill = domain.Known(3)
 	wild := domain.Known([]UpkeepAnimal{hard, easy})
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
-	novice := domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "novice", Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 5}})})})
+	novice := domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "novice", Work: testAllWork(), Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 5}})})})
 	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd, novice); choice.Method != domain.HusbandryTame || choice.Animal != "wild-2" {
 		t.Fatal("the first candidate the roster can handle is proposed", choice)
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestBuildProfile(t *testing.T) {
-	pawn := WorkPawn{ID: "p", Ranged: domain.Known(true),
+	pawn := WorkPawn{ID: "p", Work: testAllWork(), Ranged: domain.Known(true),
 		Skills:    domain.Known([]WorkSkill{{Name: "Cooking", Level: 7, Stored: 6, Passion: "Major"}, {Name: "Mining", Level: 0, Disabled: true}, {Name: "Plants", Level: 3}}),
 		Traits:    domain.Known([]PawnTrait{testTrait("Industriousness", 2), testTrait("FastLearner", 0), testTrait("TooSmart", 0), testTrait("Abrasive", 0), testTrait("Mod_Trait", 0)}),
 		Incapable: domain.Known([]WorkType{WorkMining, "Violent"}),
@@ -45,7 +45,7 @@ func roleProfile(id PawnID, ranged bool, skills map[string]ProfileSkill, traits 
 	for name, s := range skills {
 		rows = append(rows, WorkSkill{Name: name, Level: s.Level, Stored: s.Stored, Passion: s.Passion, Disabled: s.Disabled})
 	}
-	return BuildProfile(WorkPawn{ID: id, Ranged: domain.Known(ranged), Skills: domain.Known(rows), Traits: domain.Known(traits), Incapable: domain.Known([]WorkType{})})
+	return BuildProfile(WorkPawn{ID: id, Work: testAllWork(), Ranged: domain.Known(ranged), Skills: domain.Known(rows), Traits: domain.Known(traits), Incapable: domain.Known([]WorkType{})})
 }
 
 func TestSituationalRoles(t *testing.T) {

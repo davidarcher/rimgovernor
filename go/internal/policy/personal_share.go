@@ -134,7 +134,7 @@ func ShareDoctors(profiles []PawnProfile) map[PawnID]bool {
 		}
 	}
 	sort.SliceStable(able, func(i, j int) bool {
-		a, b := able[i].Skill("Medicine").Level, able[j].Skill("Medicine").Level
+		a, b := able[i].SkillFor(WorkDoctor).Level, able[j].SkillFor(WorkDoctor).Level
 		if a != b {
 			return a > b
 		}

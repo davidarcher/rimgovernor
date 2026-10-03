@@ -85,7 +85,7 @@ func TestRoutineProjectSkillRequirementsUseMaximumAndPreserveUnknown(t *testing.
 	t.Parallel()
 	defs := []observation.PlanningDefinition{{Name: "Wall", ConstructionSkill: domain.Known(int32(0))}, {Name: "HospitalBed", ConstructionSkill: domain.Known(int32(8))}}
 	got, known := routineProjectWork([]string{"Wall", "HospitalBed"}, defs).Value()
-	if !known || !reflect.DeepEqual(got, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: 8}}) {
+	if !known || !reflect.DeepEqual(got, []policy.WorkRequirement{{Work: "Construction", Minimum: 8}}) {
 		t.Fatal(got, known)
 	}
 	if _, known := routineProjectWork([]string{"Missing"}, defs).Value(); known {

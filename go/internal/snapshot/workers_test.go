@@ -32,6 +32,7 @@ func loadPawns(t *testing.T, name string) []policy.WorkPawn {
 	if len(pawns) != 3 {
 		t.Fatalf("%s: %d pawns, want 3", name, len(pawns))
 	}
+	resolveWorkRows(t, pawns)
 	return pawns
 }
 

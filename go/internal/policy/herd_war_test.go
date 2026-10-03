@@ -12,7 +12,7 @@ func warRace(def Resource, power, body float64, skill int) AnimalRace {
 }
 
 func animalsHandler(level int) domain.Fact[[]PawnProfile] {
-	return domain.Known([]PawnProfile{{ID: "h", Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}, Incapable: map[WorkType]bool{}}})
+	return domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}, Incapable: map[WorkType]bool{}}})
 }
 
 func warInput(headroom domain.Fact[float64], handler int, wild ...UpkeepAnimal) HerdPlanInput {

@@ -164,6 +164,10 @@ type PawnProfile struct {
 	Traits    []PawnTrait
 	Effects   TraitEffects
 	Incapable map[WorkType]bool
+	// WorkSkill is the skill each work type is scored by, from the pawn's work
+	// rows (the WorkTypeDef's first relevant skill); a work type absent or
+	// unskilled has none.
+	WorkSkill map[WorkType]string
 	// Age is the biological age in years; Child is a pre-adult developmental
 	// stage (Newborn, Baby, Child) when Biotech facts carry one, else age
 	// under 13 (the adult stage's start) and age-gates work.
@@ -194,6 +198,13 @@ func (p PawnProfile) Skill(name string) ProfileSkill {
 	return ProfileSkill{Name: name, Disabled: true}
 }
 
+// SkillFor is the pawn's row of the skill the work type is scored by; a work
+// type without one (unskilled, or absent from the pawn's work rows) reads as
+// a disabled skill.
+func (p PawnProfile) SkillFor(work WorkType) ProfileSkill {
+	return p.Skill(p.WorkSkill[work])
+}
+
 // Capable reports whether the pawn can do the work type at all: not
 // backstory-disabled, not trait-forbidden and, for skilled work, the skill
 // not disabled and at or above the floor.
@@ -201,7 +212,7 @@ func (p PawnProfile) Capable(work WorkType, floor int) bool {
 	if p.Incapable[work] || p.Forbidden(work) {
 		return false
 	}
-	skill := WorkSkillName(work)
+	skill := p.WorkSkill[work]
 	if skill == "" {
 		return true
 	}
@@ -255,7 +266,12 @@ func (p PawnProfile) ForbiddenWork() []WorkType {
 // rows or age leave those parts empty rather than making the profile unknown,
 // since the planner degrades to skill-only ordering without them.
 func BuildProfile(pawn WorkPawn) PawnProfile {
-	profile := PawnProfile{ID: pawn.ID, Skills: map[string]ProfileSkill{}, Incapable: map[WorkType]bool{}}
+	profile := PawnProfile{ID: pawn.ID, Skills: map[string]ProfileSkill{}, Incapable: map[WorkType]bool{}, WorkSkill: map[WorkType]string{}}
+	if rows, ok := pawn.Work.Value(); ok {
+		for _, row := range rows {
+			profile.WorkSkill[row.Work] = row.Skill
+		}
+	}
 	if skills, ok := pawn.Skills.Value(); ok {
 		for _, s := range skills {
 			profile.Skills[s.Name] = ProfileSkill{Name: s.Name, Level: s.Level, Stored: s.Stored, Passion: s.Passion, Disabled: s.Disabled}

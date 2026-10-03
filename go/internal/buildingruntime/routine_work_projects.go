@@ -161,7 +161,7 @@ func routineProjectWork(names []string, definitions []observation.PlanningDefini
 	if len(names) == 0 {
 		return domain.Known([]policy.WorkRequirement{})
 	}
-	return domain.Known([]policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: minimum}})
+	return domain.Known([]policy.WorkRequirement{{Work: "Construction", Minimum: minimum}})
 }
 
 // routineDeficitWork covers the work a pending resource deficit will need
@@ -322,5 +322,5 @@ func routineResearchWork(p policy.RoutinePolicy, needs []string, research domain
 			}
 		}
 	}
-	return []policy.WorkRequirement{{Work: policy.WorkResearch, Skill: "Intellectual"}}
+	return []policy.WorkRequirement{{Work: policy.WorkResearch}}
 }

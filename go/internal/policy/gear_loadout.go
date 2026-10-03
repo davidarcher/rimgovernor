@@ -88,7 +88,7 @@ func DeriveGearRole(p GearRoleInput) GearRole {
 		}
 		if w.Priority == best {
 			counts[r]++
-			skill[r] = max(skill[r], skills[WorkSkillName(w.Work)])
+			skill[r] = max(skill[r], skills[w.Skill])
 		}
 	}
 	role := GearWorker

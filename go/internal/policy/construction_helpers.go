@@ -186,7 +186,7 @@ func planConstructionHelp(h ConstructionHelp, workers, owners []*workWorker, eli
 			pool = append(pool, w)
 		}
 	}
-	level := func(w *workWorker) int { return w.profile.Skill("Construction").Level }
+	level := func(w *workWorker) int { return w.profile.SkillFor(WorkConstruction).Level }
 	sort.Slice(pool, func(i, j int) bool {
 		a, b := pool[i], pool[j]
 		if was[a.pawn.ID] != was[b.pawn.ID] {

@@ -114,7 +114,7 @@ func TestFoodOfferRetainsPendingSlaughterWithoutDuplicate(t *testing.T) {
 
 func TestPrioritizeSlaughterChoice(t *testing.T) {
 	handler := func(id PawnID, level int, incapable bool) PawnProfile {
-		p := PawnProfile{ID: id, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}}
+		p := PawnProfile{ID: id, WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}}
 		if incapable {
 			p.Incapable = map[WorkType]bool{WorkHandling: true}
 		}
@@ -165,7 +165,7 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 		t.Fatalf("sale = %v, want a2", sale)
 	}
 	bonded.Slaughter, free.Slaughter = domain.Known(true), domain.Known(true)
-	handlers := domain.Known([]PawnProfile{{ID: "h", Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 5}}}})
+	handlers := domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 5}}}})
 	if got := PrioritizeSlaughterChoice(domain.Known([]UpkeepAnimal{bonded, free}), handlers); got.Animal != "a2" {
 		t.Fatalf("prioritized slaughter = %+v, want a2", got)
 	}
@@ -184,7 +184,7 @@ func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	}
 	rows[1].Slaughter, rows[1].SafeToSlaughter = domain.Known(true), domain.Known(false)
 	animals := domain.Known(rows)
-	handler := domain.Known([]PawnProfile{{ID: "h", Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 9}}}})
+	handler := domain.Known([]PawnProfile{{ID: "h", WorkSkill: testWorkSkill, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: 9}}}})
 	if got := PrioritizeSlaughterChoice(animals, handler); got.Method != "" {
 		t.Fatal("prioritized a barred slaughter", got)
 	}

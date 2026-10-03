@@ -67,7 +67,9 @@ func TestGearRoles(t *testing.T) {
 	works := func(pairs ...any) GearRoleInput {
 		var ps []WorkPriority
 		for i := 0; i < len(pairs); i += 2 {
-			ps = append(ps, WorkPriority{Work: pairs[i].(WorkType), Priority: pairs[i+1].(int)})
+			row := testWorkRow(pairs[i].(WorkType))
+			row.Priority = pairs[i+1].(int)
+			ps = append(ps, row)
 		}
 		return GearRoleInput{Work: WorkPawn{Work: domain.Known(ps)}}
 	}
