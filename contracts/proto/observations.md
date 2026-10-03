@@ -212,6 +212,20 @@ Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
 returns as no facts. Reads are derived state (persistence-contracts.md); the
 read adds no store.
 
+## Animal race catalog
+
+`ReadAnimalRaceCatalog` (#1625) reports the static facts of every animal race
+the game knows, modded and DLC included, whether wild or tameable: carrying
+capacity, trainability and the trainables the race can learn, wildness, body
+size, combat power (the highest `PawnKindDef.combatPower` of the race), market
+value, minimum handling skill (the Animals level taming needs) and its
+periodic products (milk, wool, eggs and spawned items such as chemfuel, each
+with item and interval). The facts hold for a load, so the Go client reads the
+catalog once per load token and decodes it into `policy.AnimalRaceCatalog`
+(`bridge.AnimalRaces`), where an absent scalar is unknown, never zero. It is
+derived state held in Go memory (persistence-contracts.md); it adds no store
+and no per-animal rows.
+
 ## Quest census Empire fields
 
 `QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`

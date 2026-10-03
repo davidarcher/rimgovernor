@@ -5,6 +5,14 @@
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
 ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
+**Race catalog (#1625).** Static per-race facts (carrying capacity, trainability
+and trainables, wildness, body size, combat power, market value, minimum
+handling skill, and products with item and interval) come from one native read,
+`rimgovernor/observations_read_animal_race_catalog`, taken once per load token
+and held in Go memory as `policy.AnimalRaceCatalog`. It covers every animal race
+the game knows, wild or tame, and an unread fact is unknown, never zero. It is
+derived state: no save, journal or per-animal copy.
+
 - **Cap.** Every observed race is capped at the smaller of
   the wealth-budget cap (#1189) — 30 per race while `WealthBudget(raid
   points, defense capacity, wealth)` has non-negative headroom, else

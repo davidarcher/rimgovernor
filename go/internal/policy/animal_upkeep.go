@@ -354,3 +354,46 @@ func SelectAnimalContainmentMethod(animals []UpkeepAnimal, handlerAvailable doma
 	}
 	return AnimalContainmentMethod{Reason: ContainmentPlaceMarker, Animals: ids}, nil
 }
+
+// RaceProduct is one periodic yield of a race (#1625): Kind is milk, wool,
+// eggs or spawner (chemfuel and other periodic spawns), Amount the items per
+// yield and IntervalDays the days between yields at full growth.
+type RaceProduct struct {
+	Kind         string
+	Def          Resource
+	Amount       domain.Fact[float64]
+	IntervalDays domain.Fact[float64]
+}
+
+// AnimalRace is the static facts of one animal race (#1625), the same for
+// every animal of it and fixed for a map load. An unread value is unknown,
+// never zero.
+type AnimalRace struct {
+	Def                  Resource
+	CarryingCapacity     domain.Fact[float64]
+	Wildness             domain.Fact[float64]
+	BodySize             domain.Fact[float64]
+	CombatPower          domain.Fact[float64]
+	MarketValue          domain.Fact[float64]
+	MinimumHandlingSkill domain.Fact[int]
+	// Trainability is the native TrainabilityDef name (None, Simple,
+	// Intermediate, Advanced).
+	Trainability domain.Fact[string]
+	// Trainables are the training the race can ever learn (sorted).
+	Trainables []string
+	Products   []RaceProduct
+}
+
+// AnimalRaceCatalog is every race the game knows, by definition name.
+type AnimalRaceCatalog struct {
+	Races map[Resource]AnimalRace
+}
+
+// Race is def's facts, false when the catalog does not know the race.
+func (c *AnimalRaceCatalog) Race(def Resource) (AnimalRace, bool) {
+	if c == nil {
+		return AnimalRace{}, false
+	}
+	race, ok := c.Races[def]
+	return race, ok
+}

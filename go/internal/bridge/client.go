@@ -191,7 +191,9 @@ type Client struct {
 	catalog catalogCache
 	// royalty is the last royalty read (royalty.go).
 	royalty royaltyCache
-	replies *replySlots
+	// animalRaces is the load's race catalog (animal_races.go).
+	animalRaces animalRaceCache
+	replies     *replySlots
 
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any

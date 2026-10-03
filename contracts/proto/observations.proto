@@ -1116,6 +1116,22 @@ message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Re
 message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// Animal race catalog (#1625): the static facts of every animal race the game
+// knows (modded and DLC included, wild or tameable), fixed for a load. Each
+// scalar is absent when native could not read it. trainability is the
+// TrainabilityDef name; trainables are the TrainableDefs the race can ever
+// learn. carrying_capacity is the CarryingCapacity stat, wildness the Wildness stat
+// (0-1), combat_power the highest PawnKindDef.combatPower of the race, market_value the
+// MarketValue stat and minimum_handling_skill the Animals level taming it
+// needs (the MinimumHandlingSkill stat). products are what the race gives
+// from its comps: kind is milk, wool, eggs or spawner (periodic spawns such
+// as chemfuel); amount is items per yield, interval_days the days between
+// yields at full growth.
+message AnimalProduct { optional string kind = 1; optional string def_name = 2; optional double amount = 3; optional double interval_days = 4; }
+message AnimalRaceFacts { optional string def_name = 1; optional double carrying_capacity = 2; optional string trainability = 3; repeated string trainables = 4; optional double wildness = 5; optional double body_size = 6; optional double combat_power = 7; optional double market_value = 8; optional int32 minimum_handling_skill = 9; repeated AnimalProduct products = 10; }
+message AnimalRaceCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated AnimalRaceFacts races = 2; }
+message AnimalRaceCatalogRequest { ReadScope scope = 1; }
+message AnimalRaceCatalogReply { oneof outcome { AnimalRaceCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated rimgovernor.common.v1.Ref eaters = 3; }
 // reachable_benches lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
@@ -1664,6 +1680,7 @@ service Observations {
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
   rpc ReadRoyaltyFacts(RoyaltyFactsRequest) returns (RoyaltyFactsReply);
+  rpc ReadAnimalRaceCatalog(AnimalRaceCatalogRequest) returns (AnimalRaceCatalogReply);
   rpc ReadWaste(WasteRequest) returns (WasteReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);
