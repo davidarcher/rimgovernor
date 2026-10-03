@@ -358,6 +358,21 @@ a failed sub-read leaves its block absent and adds a `ReadIssue` named
 (persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
 no study state.
 
+## Room-role furniture
+
+`PlanningDefinition.room_roles` (#1728, #1690) lists the roles a building
+definition has as room furniture, sorted, computed natively from the game's own
+defs and empty for most rows: `BabyBed` (`building.bed_crib`), `Toy`,
+`Decoration`, `Board` and `Desk` (the game's `ThingDefOf` toy box, baby
+decoration, blackboard and school desk, the rows its baby and school jobs name),
+and `DeathrestCasket` or `DeathrestAccelerator` (a building carrying
+`CompProperties_DeathrestBindable`, a casket when its class is a bed).
+Go refuses an unknown, duplicate or unsorted role and plans child rooms and the
+deathrest chamber from the catalog rows carrying a role
+(`policy.FurnitureRole`, `bridge.DefinitionCatalog.RoomRoleDefinitions`). The
+reference assembly carries no method bodies, so the game's room role workers'
+own counting is unverified against these rules (native acceptance verifies).
+
 ## Biotech colony section
 
 `ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide

@@ -2,6 +2,7 @@ package observation
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"time"
 
@@ -97,7 +98,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p := &reading.Projection
 	colony, emergency := frame.Colony, frame.Emergency.Facts
 	if frame.Catalog != nil {
-		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, definitions)
+		// Room-role furniture rides every routine reading: the catalog
+		// names which definitions the planners furnish rooms from.
+		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, append(slices.Clone(definitions), frame.Catalog.RoomRoleDefinitions()...))
 	}
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
 		sleeping.BedBuildable = p.DefinitionAvailable(policy.SleepingBedDefinitions[0])

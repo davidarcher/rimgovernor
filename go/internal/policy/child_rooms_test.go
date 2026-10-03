@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -13,7 +14,7 @@ func stagePawn(stage string) WorkPawn {
 func furnitureDefs(sizes map[string]Bounds) []FurnitureDefinition {
 	var defs []FurnitureDefinition
 	for name, size := range sizes {
-		defs = append(defs, FurnitureDefinition{Name: name, Available: domain.Known(true), Size: domain.Known(size)})
+		defs = append(defs, FurnitureDefinition{Name: name, Available: domain.Known(true), Size: domain.Known(size), Roles: childRoles[name]})
 	}
 	return defs
 }
@@ -21,6 +22,12 @@ func furnitureDefs(sizes map[string]Bounds) []FurnitureDefinition {
 var childDefs = map[string]Bounds{
 	"Crib": {Width: 1, Height: 1}, "ToyBox": {Width: 1, Height: 1}, "BabyDecoration": {Width: 1, Height: 1},
 	"Blackboard": {Width: 2, Height: 1}, "SchoolDesk": {Width: 2, Height: 1},
+}
+
+// childRoles are the roles the native catalog assigns the fixture defs.
+var childRoles = map[string][]string{
+	"Crib": {"BabyBed"}, "ToyBox": {"Toy"}, "BabyDecoration": {"Decoration"}, "Blackboard": {"Board"}, "SchoolDesk": {"Desk"},
+	"DeathrestCasket": {"DeathrestCasket"}, "DeathrestAccelerator": {"DeathrestAccelerator"},
 }
 
 func TestChildRoomNeedsFollowDevelopmentalStages(t *testing.T) {
@@ -54,25 +61,69 @@ func TestChildRoomNeedsFollowDevelopmentalStages(t *testing.T) {
 }
 
 func TestChildRoomFurnitureIsTheFacilityRows(t *testing.T) {
-	for _, role := range []RoomRole{RoomRoleNursery, RoomRolePlayroom, RoomRoleClassroom} {
+	for _, role := range []RoomRole{RoomRoleNursery, RoomRolePlayroom, RoomRoleClassroom, RoomRoleDeathrestChamber} {
 		f, err := Facility(role)
-		if err != nil || f.Status != FacilityImplemented || len(f.Furniture) == 0 {
+		if err != nil || f.Status != FacilityImplemented || len(f.Roles) == 0 {
 			t.Fatalf("%s: %+v %v", role, f, err)
 		}
 	}
-	for _, n := range ChildRoomNeeds([]WorkPawn{stagePawn("Baby"), stagePawn("Child")}) {
+	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Baby"), stagePawn("Child"), deathresterPawn(2)})
+	if len(needs) != 4 {
+		t.Fatalf("a baby, a child and a deathrester owe four rooms: %+v", needs)
+	}
+	for _, n := range needs {
 		f, _ := Facility(n.Role)
 		for _, furniture := range n.Furniture {
-			for _, d := range furniture.Defs {
-				found := false
-				for _, row := range f.Furniture {
-					found = found || row == d
-				}
-				if !found {
-					t.Errorf("%s places %s, absent from its facility row %v", n.Role, d, f.Furniture)
-				}
+			if !slices.Contains(f.Roles, furniture.Role) {
+				t.Errorf("%s places role %s, absent from its facility row %v", n.Role, furniture.Role, f.Roles)
 			}
 		}
+	}
+}
+
+func deathresterPawn(capacity int) WorkPawn {
+	return WorkPawn{Biotech: domain.Known(PawnBiotech{Deathrest: domain.Known(&PawnDeathrest{Capacity: domain.Known(capacity)})})}
+}
+
+func TestDeathrestChamberFollowsDeathresters(t *testing.T) {
+	if got := ChildRoomNeeds([]WorkPawn{stagePawn("Adult")}); len(got) != 0 {
+		t.Fatalf("no deathrester owes no chamber: %+v", got)
+	}
+	needs := ChildRoomNeeds([]WorkPawn{deathresterPawn(3), deathresterPawn(1)})
+	if len(needs) != 1 || needs[0].Role != RoomRoleDeathrestChamber || needs[0].Module != ModuleDeathrestChamber {
+		t.Fatalf("deathresters owe a chamber: %+v", needs)
+	}
+	if f := needs[0].Furniture; f[0].Role != RoleDeathrestCasket || f[0].Count != 2 || f[1].Role != RoleDeathrestAccelerator || f[1].Count != 2 || !f[1].Optional {
+		t.Fatalf("a casket per deathrester, accelerators beyond capacity one: %+v", f)
+	}
+	plan, room := childRoomFixture(ModuleDeathrestChamber)
+	defs := furnitureDefs(map[string]Bounds{"DeathrestCasket": {Width: 1, Height: 2}})
+	// The accelerator is optional: the catalog lacking one still furnishes caskets.
+	if step := NextChildRoomStep(plan, RoomObservation{}, nil, needs, defs); step.Kind != ChildRoomShell || step.Room != room {
+		t.Fatalf("chamber shell: %+v", step)
+	}
+	rooms := tombStanding(room)
+	if step := NextChildRoomStep(plan, rooms, nil, needs, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "DeathrestCasket" {
+		t.Fatalf("casket placement: %+v", step)
+	}
+	// A required role the catalog does not carry leaves the room unowed.
+	if step := NextChildRoomStep(plan, rooms, nil, needs, furnitureDefs(map[string]Bounds{"DeathrestAccelerator": {Width: 1, Height: 1}})); step.Owed() {
+		t.Fatalf("no casket in the catalog: %+v", step)
+	}
+}
+
+func TestChildRoomFurnitureComesFromCatalogRoles(t *testing.T) {
+	// A def is furniture by its catalog role, not its name.
+	defs := furnitureDefs(map[string]Bounds{"CosyCot": {Width: 1, Height: 1}})
+	defs[0].Roles = []string{"BabyBed"}
+	plan, room := childRoomFixture(ModuleNursery)
+	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn"), stagePawn("Newborn")})[:1]
+	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "CosyCot" {
+		t.Fatalf("a role-carrying def is placed: %+v", step)
+	}
+	defs[0].Roles = nil
+	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Owed() {
+		t.Fatalf("a def without the role is not a baby bed: %+v", step)
 	}
 }
 
@@ -178,15 +229,15 @@ func TestNextChildRoomStepPlacesEachPieceTheRoleScores(t *testing.T) {
 func TestNextChildRoomStepWaitsOnTheCatalogAndThePlan(t *testing.T) {
 	plan, room := childRoomFixture(ModuleNursery)
 	needs := ChildRoomNeeds([]WorkPawn{stagePawn("Newborn")})[:1]
-	locked := []FurnitureDefinition{{Name: "Crib", Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
-	unknown := []FurnitureDefinition{{Name: "Crib", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
+	locked := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
+	unknown := []FurnitureDefinition{{Name: "Crib", Roles: []string{"BabyBed"}, Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
 	for name, defs := range map[string][]FurnitureDefinition{"locked": locked, "unknown size": unknown, "absent": nil} {
 		if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, defs); step.Kind != ChildRoomNone {
 			t.Errorf("%s crib: %+v", name, step)
 		}
 	}
 	// The baby sleeping spot answers when the crib is not researched.
-	spot := []FurnitureDefinition{locked[0], {Name: "BabySleepingSpot", Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
+	spot := []FurnitureDefinition{locked[0], {Name: "BabySleepingSpot", Roles: []string{"BabyBed"}, Available: domain.Known(true), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
 	if step := NextChildRoomStep(plan, tombStanding(room), nil, needs, spot); step.Kind != ChildRoomPlace || step.Piece.Def != "BabySleepingSpot" {
 		t.Fatalf("fallback bed: %+v", step)
 	}

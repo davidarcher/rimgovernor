@@ -1266,6 +1266,14 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   // True when the building pollutes or produces wastepacks: it has a
   // CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
   optional bool pollutes = 36;
+  // Room-role furniture (#1728, #1690): the roles the game scores this
+  // definition into a room for, computed natively from the game's own defs,
+  // sorted. BabyBed (building.bed_crib), Toy (ThingDefOf.ToyBox), Decoration
+  // (ThingDefOf.BabyDecoration), Board (ThingDefOf.Blackboard), Desk
+  // (ThingDefOf.SchoolDesk), DeathrestCasket (a CompProperties_DeathrestBindable
+  // building that is a Building_Bed) and DeathrestAccelerator (any other
+  // deathrest-bindable building). Empty for a definition with no role.
+  repeated string room_roles = 38;
 }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their

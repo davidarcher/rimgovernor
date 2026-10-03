@@ -88,11 +88,12 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
 | Barn | implemented (own planned room, #1633) | | AnimalSleepingSpot; the vet room (a controller role, natively scored Barn) takes AnimalBed |
 | Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb | pending | | |
-| Nursery (Biotech) | implemented (own planned room, #1680) | | Crib, BabySleepingSpot |
-| Playroom (Biotech) | implemented (own planned room, #1680) | | ToyBox, BabyDecoration |
-| Classroom (Biotech) | implemented (own planned room, #1680) | | Blackboard, SchoolDesk |
+| Nursery (Biotech) | implemented (own planned room, #1680) | | catalog role BabyBed |
+| Playroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Toy, Decoration |
+| Classroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Board, Desk |
 | WorshipRoom (Ideology) | implemented (own planned room, #1658) | | the buildings the ideoligion requires, read from the game |
-| DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+| DeathrestChamber (Biotech) | implemented (own planned room, #1690) | | catalog roles DeathrestCasket, DeathrestAccelerator |
+| ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 ### Child rooms (Biotech)
 
@@ -107,6 +108,16 @@ only while the room holds no humanlike bed. Furniture counts follow the
 pawns: a bed per newborn or baby (at least the game's two), one toy box and
 one decoration, one blackboard and a desk per child.
 
+Furniture is never a def-name list: the native definition catalog gives each
+`PlanningDefinition` its `room_roles` (`BabyBed`, `Toy`, `Decoration`, `Board`,
+`Desk`, `DeathrestCasket`, `DeathrestAccelerator`; see
+[observations.md](../../../contracts/proto/observations.md#room-role-furniture))
+and a room's pieces are the catalog definitions carrying the role, the first
+available by name placed. The same machinery owes a **deathrest chamber**
+while a deathrester lives: a casket per deathrester and, as an optional piece
+(left out when no accelerator is available), the accelerators its deathrest
+capacity beyond the casket allows.
+
 1. The layout review grows a `nursery`, `playroom` or `classroom` core room
    sized to hold the furniture (`policy.ChildRoomSizes`,
    `policy.ReplanLayoutWithRooms`); existing rooms never move or shrink.
@@ -114,8 +125,9 @@ one decoration, one blackboard and a desk per child.
    free slot of the child room template: bands of free floor as high as the
    piece, a free row between bands, the row inside the entrance and the
    entrance column kept free. Footprints are the native definition
-   catalog's; a role whose furniture is unavailable or has no known size is
-   passed over, and a baby sleeping spot answers an unresearched crib.
+   catalog's; a role whose required furniture is unavailable or has no known
+   size is passed over, and any available definition of the role answers an
+   unresearched one.
 3. Using the rooms (feeding, play, lessons) belongs to the next children.
 
 ### Polluting-machine siting (Biotech)

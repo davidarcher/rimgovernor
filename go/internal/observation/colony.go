@@ -47,6 +47,9 @@ type PlanningDefinition struct {
 	// StuffOptions are every native allowed stuff with its cost list,
 	// ordered by defName; empty for a definition not made from stuff.
 	StuffOptions []StuffOption
+	// RoomRoles are the room-role furniture roles the native catalog
+	// assigns the definition (policy.FurnitureRole names), sorted.
+	RoomRoles []string
 }
 
 // StuffOption is one material a stuffed definition may be built from.
@@ -548,6 +551,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 // facts, without availability or the map's crop facts.
 func planningDefinition(row *o.PlanningDefinition) PlanningDefinition {
 	d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), Pollutes: optional(row.Pollutes), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), ExplosiveRadius: optional(row.ExplosiveRadius), MechCharger: optional(row.MechCharger), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
+	d.RoomRoles = append([]string{}, row.RoomRoles...)
 	if row.GrowDays != nil {
 		d.SowTags = domain.Known(append([]string{}, row.SowTags...))
 	}

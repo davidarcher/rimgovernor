@@ -456,6 +456,7 @@ namespace HomeBridge.BridgeTools
             if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
             // Pollutes or produces wastepacks: the three Biotech comps, read from the def, never a name list (#1684).
             if (def.building != null) row.Pollutes = def.GetCompProperties<CompProperties_Toxifier>() != null || def.GetCompProperties<CompProperties_PolluteOverTime>() != null || def.GetCompProperties<CompProperties_WasteProducer>() != null;
+            row.RoomRoles.Add(RoomRoles(def));
             if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
             if (def.plant != null) {
                 row.HarvestWork = Finite(def.plant.harvestWork);
@@ -471,6 +472,28 @@ namespace HomeBridge.BridgeTools
                 }
             }
             return row;
+        }
+        // The room-role furniture roles of a definition (#1728, #1690), from the
+        // game's own defs: a baby bed is a building flagged bed_crib; the toy
+        // box, baby decoration, blackboard and school desk are the game's own
+        // ThingDefOf rows, the ones its baby and school jobs name; a
+        // deathrest-bindable building is one carrying
+        // CompProperties_DeathrestBindable, a casket when it is a bed.
+        // Biotech-less games define none of them, so the list is empty. The
+        // reference assembly carries no method bodies, so the room role
+        // workers' own counting is unverified against these rules.
+        private static IEnumerable<string> RoomRoles(ThingDef def)
+        {
+            var roles = new List<string>();
+            if (def.building?.bed_crib == true) roles.Add("BabyBed");
+            if (def == ThingDefOf.BabyDecoration) roles.Add("Decoration");
+            if (def == ThingDefOf.Blackboard) roles.Add("Board");
+            if (def == ThingDefOf.SchoolDesk) roles.Add("Desk");
+            if (def == ThingDefOf.ToyBox) roles.Add("Toy");
+            if (def.GetCompProperties<CompProperties_DeathrestBindable>() != null)
+                roles.Add(typeof(Building_Bed).IsAssignableFrom(def.thingClass) ? "DeathrestCasket" : "DeathrestAccelerator");
+            roles.Sort(StringComparer.Ordinal);
+            return roles;
         }
         // A floor definition: its research prerequisites, cost list and the
         // abstract stats a laid floor carries (MaintainFlooring scores these).

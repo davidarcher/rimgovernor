@@ -27,13 +27,13 @@ func worshipDefinitions(facts observation.ColonyProjection) []string {
 	return ideology.RequiredBuildings()
 }
 
-// reviewChildRooms adds the child room furniture and the worship room's
-// required buildings to the projection's definitions so the planners size and
-// place them from the catalog, and remembers the buildings for the planners'
-// own reads (#1658).
+// reviewChildRooms adds the worship room's required buildings to the
+// projection's definitions so the planners size and place them from the
+// catalog, and remembers the buildings for the planners' own reads (#1658).
+// Room-role furniture rides every routine reading (the catalog names it).
 func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) {
 	worship := worshipDefinitions(reading.Projection)
-	reading.Projection.AddDefinitions(reading.Frame, append(policy.ChildRoomDefinitions(), worship...))
+	reading.Projection.AddDefinitions(reading.Frame, worship)
 	r.census.rememberWorship(worship)
 }
 
@@ -54,13 +54,13 @@ func childRoomNeeds(facts observation.ColonyProjection) []policy.ChildRoomNeed {
 }
 
 // furnitureDefinitions are the room furniture the projection's catalog
-// describes: the child rooms' and the worship room's.
+// describes: the room-role furniture and the worship room's buildings.
 func furnitureDefinitions(facts observation.ColonyProjection) []policy.FurnitureDefinition {
-	names := append(policy.ChildRoomDefinitions(), worshipDefinitions(facts)...)
+	names := worshipDefinitions(facts)
 	var defs []policy.FurnitureDefinition
 	for _, d := range facts.Definitions {
-		if slices.Contains(names, d.Name) {
-			defs = append(defs, policy.FurnitureDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
+		if len(d.RoomRoles) > 0 || slices.Contains(names, d.Name) {
+			defs = append(defs, policy.FurnitureDefinition{Name: d.Name, Available: d.Available, Size: d.Size, Roles: d.RoomRoles})
 		}
 	}
 	return defs

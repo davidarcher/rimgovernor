@@ -20,15 +20,30 @@ import (
 // native definition catalog's, never constants here. Using the rooms
 // (feeding, play, lessons) is the next children's.
 
-// Child room furniture, by the game's definition names. A role's row in
-// FacilityCatalog lists them; the room scores any one of its role's defs.
-var (
-	NurseryBedDefinitions   = []string{"Crib", "BabySleepingSpot"}
-	PlayroomToyDefinitions  = []string{"ToyBox"}
-	PlayroomDecoDefinitions = []string{"BabyDecoration"}
-	ClassroomBoardDefs      = []string{"Blackboard"}
-	ClassroomDeskDefs       = []string{"SchoolDesk"}
+// FurnitureRole is a room-role furniture role the native definition catalog
+// assigns each definition from the game's own defs (PlanningDefinition
+// .room_roles); a room's furniture is whichever catalog definitions carry the
+// role, never a name list here.
+type FurnitureRole string
+
+// The roles the native catalog computes.
+const (
+	RoleBabyBed              FurnitureRole = "BabyBed"
+	RoleToy                  FurnitureRole = "Toy"
+	RoleDecoration           FurnitureRole = "Decoration"
+	RoleBoard                FurnitureRole = "Board"
+	RoleDesk                 FurnitureRole = "Desk"
+	RoleDeathrestCasket      FurnitureRole = "DeathrestCasket"
+	RoleDeathrestAccelerator FurnitureRole = "DeathrestAccelerator"
 )
+
+// FurnitureRoles are every role a planner places furniture by.
+var FurnitureRoles = []FurnitureRole{RoleBabyBed, RoleToy, RoleDecoration, RoleBoard, RoleDesk, RoleDeathrestCasket, RoleDeathrestAccelerator}
+
+// HasRole reports whether the catalog assigns the definition the role.
+func (d FurnitureDefinition) HasRole(role FurnitureRole) bool {
+	return slices.Contains(d.Roles, string(role))
+}
 
 // ModuleNursery, ModulePlayroom and ModuleClassroom are the child rooms'
 // plan roles.
@@ -36,17 +51,27 @@ const (
 	ModuleNursery   ModuleRole = "nursery"
 	ModulePlayroom  ModuleRole = "playroom"
 	ModuleClassroom ModuleRole = "classroom"
+	// ModuleDeathrestChamber is the deathrest chamber's plan role (#1690).
+	ModuleDeathrestChamber ModuleRole = "deathrest-chamber"
 )
 
 // minNurseryBeds is the baby bed count below which the game scores a room
 // no Nursery at all.
 const minNurseryBeds = 2
 
-// ChildFurniture is Count pieces of a role's furniture, each any one of
-// Defs (the first the catalog makes available is placed).
+// ChildFurniture is Count pieces of a role's furniture, each any one
+// definition the catalog gives Role, or any of Defs (the first available
+// with a known footprint, by name, is placed). An Optional entry the catalog has no
+// available definition for is left out; any other leaves the room unowed
+// until the catalog has one.
 type ChildFurniture struct {
-	Defs  []string
-	Count int
+	// Role selects the catalog definitions carrying the role; Defs instead
+	// names one definition the game itself requires (the worship room's
+	// buildings, read from the ideoligion).
+	Role     FurnitureRole
+	Defs     []string
+	Count    int
+	Optional bool
 }
 
 // ChildRoomNeed is the room one role is owed and what furnishes it.
@@ -56,32 +81,25 @@ type ChildRoomNeed struct {
 	Furniture []ChildFurniture
 }
 
-// ChildRoomDefinitions is every definition a child room names, sorted, for
-// the planning catalog read.
-func ChildRoomDefinitions() []string {
-	var out []string
-	for _, defs := range [][]string{NurseryBedDefinitions, PlayroomToyDefinitions, PlayroomDecoDefinitions, ClassroomBoardDefs, ClassroomDeskDefs} {
-		for _, d := range defs {
-			if !slices.Contains(out, d) {
-				out = append(out, d)
-			}
-		}
-	}
-	slices.Sort(out)
-	return out
-}
-
 // ChildRoomNeeds are the child rooms the pawns owe, in role order: a
 // nursery (beds for every newborn and baby, at least the game's two) while
 // one lives, a playroom while a baby or child does, a classroom (a desk per
-// child and one blackboard) while a child does. Pawns whose developmental
-// stage is unknown owe nothing.
+// child and one blackboard) while a child does, and a deathrest chamber (a
+// casket per deathrester, and the accelerators its deathrest capacity
+// beyond the casket allows) while a deathrester does. Pawns whose
+// developmental stage or deathrest is unknown owe nothing.
 func ChildRoomNeeds(pawns []WorkPawn) []ChildRoomNeed {
-	var babies, toddlers, children int
+	var babies, toddlers, children, caskets, accelerators int
 	for _, p := range pawns {
 		bt, ok := p.Biotech.Value()
 		if !ok {
 			continue
+		}
+		if d, known := bt.Deathrest.Value(); known && d != nil {
+			caskets++
+			if capacity, ok := d.Capacity.Value(); ok && capacity > 1 {
+				accelerators += capacity - 1
+			}
 		}
 		stage, ok := bt.DevelopmentalStage.Value()
 		if !ok {
@@ -100,13 +118,16 @@ func ChildRoomNeeds(pawns []WorkPawn) []ChildRoomNeed {
 	}
 	var out []ChildRoomNeed
 	if babies > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRoleNursery, Module: ModuleNursery, Furniture: []ChildFurniture{{NurseryBedDefinitions, max(babies, minNurseryBeds)}}})
+		out = append(out, ChildRoomNeed{Role: RoomRoleNursery, Module: ModuleNursery, Furniture: []ChildFurniture{{Role: RoleBabyBed, Count: max(babies, minNurseryBeds)}}})
 	}
 	if toddlers > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRolePlayroom, Module: ModulePlayroom, Furniture: []ChildFurniture{{PlayroomToyDefinitions, 1}, {PlayroomDecoDefinitions, 1}}})
+		out = append(out, ChildRoomNeed{Role: RoomRolePlayroom, Module: ModulePlayroom, Furniture: []ChildFurniture{{Role: RoleToy, Count: 1}, {Role: RoleDecoration, Count: 1}}})
 	}
 	if children > 0 {
-		out = append(out, ChildRoomNeed{Role: RoomRoleClassroom, Module: ModuleClassroom, Furniture: []ChildFurniture{{ClassroomBoardDefs, 1}, {ClassroomDeskDefs, children}}})
+		out = append(out, ChildRoomNeed{Role: RoomRoleClassroom, Module: ModuleClassroom, Furniture: []ChildFurniture{{Role: RoleBoard, Count: 1}, {Role: RoleDesk, Count: children}}})
+	}
+	if caskets > 0 {
+		out = append(out, ChildRoomNeed{Role: RoomRoleDeathrestChamber, Module: ModuleDeathrestChamber, Furniture: []ChildFurniture{{Role: RoleDeathrestCasket, Count: caskets}, {Role: RoleDeathrestAccelerator, Count: accelerators, Optional: true}}})
 	}
 	return out
 }
@@ -120,31 +141,35 @@ type childPiece struct {
 	Count int
 }
 
-// resolve picks each furniture entry's definition from the catalog; false
-// when an entry has none available with a known footprint (the room cannot
-// be sized or furnished from unknown facts).
+// resolve picks each furniture entry's definition from the catalog: the
+// first by name that carries the role, is available and has a known
+// footprint. False when a required entry has none (the room cannot be
+// sized or furnished from unknown facts).
 func (n ChildRoomNeed) resolve(defs []FurnitureDefinition) ([]childPiece, bool) {
 	out := make([]childPiece, 0, len(n.Furniture))
 	for _, f := range n.Furniture {
+		if f.Count <= 0 {
+			continue
+		}
+		var piece childPiece
 		found := false
-		for _, name := range f.Defs {
-			for _, d := range defs {
-				if d.Name != name {
-					continue
-				}
-				available, ak := d.Available.Value()
-				size, sk := d.Size.Value()
-				if ak && available && sk && size.Width > 0 && size.Height > 0 {
-					out = append(out, childPiece{Piece: InteriorPieceDef{Def: name, Size: domain.Cell{X: size.Width, Z: size.Height}}, Defs: f.Defs, Count: f.Count})
-					found = true
-				}
-				break
+		for _, d := range defs {
+			if f.Role != "" && !d.HasRole(f.Role) || f.Role == "" && !slices.Contains(f.Defs, d.Name) {
+				continue
 			}
-			if found {
-				break
+			piece.Defs = append(piece.Defs, d.Name)
+			available, ak := d.Available.Value()
+			size, sk := d.Size.Value()
+			if ak && available && sk && size.Width > 0 && size.Height > 0 && (!found || d.Name < piece.Piece.Def) {
+				piece.Piece = InteriorPieceDef{Def: d.Name, Size: domain.Cell{X: size.Width, Z: size.Height}}
+				found = true
 			}
 		}
-		if !found {
+		switch {
+		case found:
+			piece.Count = f.Count
+			out = append(out, piece)
+		case !f.Optional:
 			return nil, false
 		}
 	}

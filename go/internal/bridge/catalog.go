@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -43,6 +44,22 @@ func (catalog *DefinitionCatalog) Definition(name string) *o.PlanningDefinition 
 		return nil
 	}
 	return catalog.Definitions[name]
+}
+
+// RoomRoleDefinitions are the names of the definitions the native catalog
+// assigns a room-role furniture role, sorted.
+func (catalog *DefinitionCatalog) RoomRoleDefinitions() []string {
+	if catalog == nil {
+		return nil
+	}
+	var names []string
+	for name, row := range catalog.Definitions {
+		if len(row.RoomRoles) > 0 {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 // catalogCache holds the catalog of the newest load token read.

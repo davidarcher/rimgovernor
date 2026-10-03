@@ -117,6 +117,9 @@ type FurnitureDefinition struct {
 	Name      string
 	Available domain.Fact[bool]
 	Size      domain.Fact[Bounds]
+	// Roles are the room-role furniture roles the native catalog assigns the
+	// definition (PlanningDefinition.room_roles).
+	Roles []string
 }
 
 // ThroneStepKind is the next throne step.

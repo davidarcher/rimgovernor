@@ -2,7 +2,9 @@ package bridge
 
 import (
 	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"math"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -439,6 +441,13 @@ func validatePlanningDefinition(d *o.PlanningDefinition) error {
 	}
 	if !combatNumber(d.Flammability, true) || d.PathCost != nil && (d.GetPathCost() < 0 || d.GetPathCost() > 10000) {
 		return contract("invalid planning definition floor facts")
+	}
+	roles := map[string]bool{}
+	for _, role := range d.RoomRoles {
+		if !slices.Contains(policy.FurnitureRoles, policy.FurnitureRole(role)) || roles[role] || !slices.IsSorted(d.RoomRoles) {
+			return contract("invalid planning definition room roles for %s", d.Definition.GetDefName())
+		}
+		roles[role] = true
 	}
 	if d.SowTag != nil && validID(d.GetSowTag()) != nil {
 		return contract("invalid planning definition sow tags")

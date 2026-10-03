@@ -283,7 +283,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), append(r.reviewer.rememberedThrones(), append(policy.ChildRoomDefinitions(), r.reviewer.census.rememberedWorship()...)...)...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), append(r.reviewer.rememberedThrones(), r.reviewer.census.rememberedWorship()...)...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

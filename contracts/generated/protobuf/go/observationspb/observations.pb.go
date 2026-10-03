@@ -27890,7 +27890,15 @@ type PlanningDefinition struct {
 	MechCharger *bool `protobuf:"varint,37,opt,name=mech_charger,json=mechCharger,proto3,oneof" json:"mech_charger,omitempty"`
 	// True when the building pollutes or produces wastepacks: it has a
 	// CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
-	Pollutes      *bool `protobuf:"varint,36,opt,name=pollutes,proto3,oneof" json:"pollutes,omitempty"`
+	Pollutes *bool `protobuf:"varint,36,opt,name=pollutes,proto3,oneof" json:"pollutes,omitempty"`
+	// Room-role furniture (#1728, #1690): the roles the game scores this
+	// definition into a room for, computed natively from the game's own defs,
+	// sorted. BabyBed (building.bed_crib), Toy (ThingDefOf.ToyBox), Decoration
+	// (ThingDefOf.BabyDecoration), Board (ThingDefOf.Blackboard), Desk
+	// (ThingDefOf.SchoolDesk), DeathrestCasket (a CompProperties_DeathrestBindable
+	// building that is a Building_Bed) and DeathrestAccelerator (any other
+	// deathrest-bindable building). Empty for a definition with no role.
+	RoomRoles     []string `protobuf:"bytes,38,rep,name=room_roles,json=roomRoles,proto3" json:"room_roles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -28161,6 +28169,13 @@ func (x *PlanningDefinition) GetPollutes() bool {
 		return *x.Pollutes
 	}
 	return false
+}
+
+func (x *PlanningDefinition) GetRoomRoles() []string {
+	if x != nil {
+		return x.RoomRoles
+	}
+	return nil
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -48279,7 +48294,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\x90\x10\n" +
+	"\v_sowing_now\"\xaf\x10\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -48320,7 +48335,9 @@ const file_observations_proto_rawDesc = "" +
 	"\rstuff_options\x18\" \x03(\v2(.rimgovernor.observations.v1.StuffOptionR\fstuffOptions\x12.\n" +
 	"\x10explosive_radius\x18# \x01(\x01H\x18R\x0fexplosiveRadius\x88\x01\x01\x12&\n" +
 	"\fmech_charger\x18% \x01(\bH\x19R\vmechCharger\x88\x01\x01\x12\x1f\n" +
-	"\bpollutes\x18$ \x01(\bH\x1aR\bpollutes\x88\x01\x01B\b\n" +
+	"\bpollutes\x18$ \x01(\bH\x1aR\bpollutes\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"room_roles\x18& \x03(\tR\troomRolesB\b\n" +
 	"\x06_stuffB\x15\n" +
 	"\x13_construction_skillB\x15\n" +
 	"\x13_rest_effectivenessB\f\n" +

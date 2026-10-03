@@ -2,7 +2,6 @@ package policy
 
 import (
 	"errors"
-	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -167,6 +166,10 @@ type FacilityRequirement struct {
 	// FurnitureFromGame marks an implemented role whose furniture the
 	// planner reads from the game's definitions rather than listing here.
 	FurnitureFromGame bool
+	// Roles lists the catalog room-role furniture the planner places (the
+	// native definition catalog assigns each definition its roles); an
+	// implemented role names Furniture, Roles or FurnitureFromGame.
+	Roles []FurnitureRole
 }
 
 // Hosts reports whether a room of the given role can serve this function.
@@ -240,10 +243,13 @@ func FacilityCatalog() []FacilityRequirement {
 		// shells each while a baby (nursery), baby or child (playroom) or child
 		// (classroom) lives and places the furniture the game scores the role
 		// from (ChildRoomNeeds); a nursery room holds no other bed.
-		{Role: RoomRoleNursery, Status: FacilityImplemented, Content: "Biotech", Furniture: NurseryBedDefinitions},
-		{Role: RoomRolePlayroom, Status: FacilityImplemented, Content: "Biotech", Furniture: append(slices.Clone(PlayroomToyDefinitions), PlayroomDecoDefinitions...)},
-		{Role: RoomRoleClassroom, Status: FacilityImplemented, Content: "Biotech", Furniture: append(slices.Clone(ClassroomBoardDefs), ClassroomDeskDefs...)},
-		{Role: RoomRoleDeathrestChamber, Status: FacilityPending, Content: "Biotech"},
+		{Role: RoomRoleNursery, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleBabyBed}},
+		{Role: RoomRolePlayroom, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleToy, RoleDecoration}},
+		{Role: RoomRoleClassroom, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleBoard, RoleDesk}},
+		// A deathrest chamber is its own planned room (#1690): MaintainHousing
+		// shells it while a deathrester lives and places a casket per
+		// deathrester and the accelerators its capacity allows.
+		{Role: RoomRoleDeathrestChamber, Status: FacilityImplemented, Content: "Biotech", Roles: []FurnitureRole{RoleDeathrestCasket, RoleDeathrestAccelerator}},
 		{Role: RoomRoleContainmentCell, Status: FacilityPending, Content: "Anomaly"},
 		{Role: RoomRoleCeremonialChamber, Status: FacilityPending, Content: "Anomaly"},
 	}

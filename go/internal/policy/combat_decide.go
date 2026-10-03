@@ -37,6 +37,11 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	for _, id := range view.Orderable {
 		orderable[id] = true
 	}
+	for _, d := range view.Defenders {
+		if d.Deathresting {
+			delete(orderable, d.ID) // a deathrester takes no order
+		}
+	}
 	state := map[domain.PawnID]CombatPawnState{}
 	for _, p := range view.Pawns {
 		state[p.ID] = p
@@ -1057,12 +1062,14 @@ func sortRoles(roles []CombatRole) []CombatRole {
 	return slices.CompactFunc(roles, func(a, b CombatRole) bool { return a.Pawn == b.Pawn })
 }
 
-// live is every defender neither dead nor downed in the live state or the
-// formation facts.
+// live is every defender neither dead, downed nor deathresting (#1690) in
+// the live state or the formation facts. With the orderable set (which
+// DecideCombat strips of deathresters) it is the one fight availability
+// gate every planner draws its roster through.
 func (v CombatView) live() map[domain.PawnID]bool {
 	out := map[domain.PawnID]bool{}
 	for _, d := range v.Defenders {
-		out[d.ID] = !positive(d.Dead) && !positive(d.Downed)
+		out[d.ID] = !positive(d.Dead) && !positive(d.Downed) && !d.Deathresting
 	}
 	for _, p := range v.Pawns {
 		if p.Dead || p.Downed {
