@@ -978,8 +978,8 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		anchor := layoutAnchor(facts, r.district())
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
 	}
-	if r.goal == policy.EnsureCooking && r.definition == "Campfire" {
-		// The cooking campfire stands by the base, not the landing
+	if r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" {
+		// The cooking campfire and the butcher spot stand by the base, not the landing
 		// centroid (#1534).
 		anchor := planCore(facts)
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
