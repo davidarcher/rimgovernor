@@ -68,12 +68,28 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 		}
 		return &resolved, Verdict{}, nil
 	case policy.TemperatureUnknown:
-		return nil, fieldUnavailable("temperature"), nil
+		return nil, fieldUnavailable(temperatureGap(facts.Rooms)), nil
 	case policy.TemperatureNoMethod:
 		return nil, BuildingReasonNoDeficit, nil
+	case policy.TemperatureWait:
+		return nil, BuildingTemperatureWait, nil
+	case policy.TemperatureShelterNeeded:
+		return nil, awaitingPlan("enclosed_sleeping_room", ""), nil
 	default:
 		return nil, awaitingMethod(proposal.Method), nil
 	}
+}
+
+// temperatureGap names the room fact SelectTemperatureMethod found unknown.
+func temperatureGap(rooms domain.Fact[policy.RoomObservation]) string {
+	observed, known := rooms.Value()
+	if !known {
+		return "rooms"
+	}
+	if _, known := observed.EligibleBeds.Value(); !known {
+		return "eligible_beds"
+	}
+	return "room_temperatures"
 }
 
 // temperatureCooling assembles the powered cooler evidence from the rooms

@@ -56,26 +56,49 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 // behind an unrelated pawn's Cooking checkbox (#66). This comparison never
 // writes work settings.
 func comfortBuilderAvailable(facts observation.ColonyProjection, definition string) bool {
-	for _, d := range facts.Definitions {
-		if d.Name != definition {
-			continue
-		}
-		available, known := d.Available.Value()
-		minimum, skillKnown := d.ConstructionSkill.Value()
-		if !known || !available || !skillKnown || minimum < 0 {
-			return false
-		}
-		pawns, known := facts.WorkPawns.Value()
-		if !known {
-			return false
-		}
-		available = builderAvailable(pawns, int(minimum))
-		if clockDebug() && !available {
-			clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
-		}
-		return available
+	return comfortBuilderGate(facts, definition).IsZero()
+}
+
+// comfortBuilderGate is the verdict comfortBuilderAvailable reads: the zero
+// Verdict when the definition is buildable and some colonist can build it,
+// else the first thing missing, named.
+func comfortBuilderGate(facts observation.ColonyProjection, definition string) Verdict {
+	def, found := definitionRow(facts, definition)
+	if !found {
+		return fieldUnavailable(definition + "_definition")
 	}
-	return false
+	if v := definitionAvailability(def); !v.IsZero() {
+		return v
+	}
+	minimum, skillKnown := def.ConstructionSkill.Value()
+	if !skillKnown || minimum < 0 {
+		return fieldUnavailable(definition + "_construction_skill")
+	}
+	pawns, known := facts.WorkPawns.Value()
+	if !known {
+		return fieldUnavailable("work_pawns")
+	}
+	if builderAvailable(pawns, int(minimum)) {
+		return Verdict{}
+	}
+	if clockDebug() {
+		clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
+	}
+	need := "construction_work_enabled"
+	if minimum > 0 {
+		need = fmt.Sprintf("construction_skill_%d", minimum)
+	}
+	return refuse(RefusalNoWorker, "builder_for_"+definition, need)
+}
+
+// comfortAccessWait is the wait of a comfort facility that stands out of
+// some colonists' reach: the dining one when dining is short, else
+// recreation (the order both selectors check in).
+func comfortAccessWait(dining policy.ComfortNeed) Verdict {
+	if dining == policy.ComfortCapacity {
+		return waitFor(WaitFacilityAccess, "dining")
+	}
+	return waitFor(WaitFacilityAccess, "recreation")
 }
 
 func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjection, history policy.ComfortHistory) (*RoutineBuildingPlanner, Verdict, error) {
@@ -97,7 +120,7 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 	case policy.ComfortWait:
 		return nil, BuildingComfortWait, nil
 	case policy.ComfortAccessBlocked:
-		return nil, BuildingExistingFacility, nil
+		return nil, comfortAccessWait(review.Dining), nil
 	}
 	resolved := *r
 	resolved.definition = string(method)
@@ -263,7 +286,7 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 	case policy.ComfortNoMethod:
 		return nil, BuildingReasonNoDeficit, nil
 	case policy.ComfortAccessBlocked:
-		return nil, BuildingExistingFacility, nil
+		return nil, comfortAccessWait(review.Dining), nil
 	}
 	resolved := *r
 	resolved.definition = string(method)

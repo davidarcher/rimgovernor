@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 func TestVerdictRendersPerKind(t *testing.T) {
@@ -27,7 +29,12 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{awaitingFoodPlan("cooking-capacity"), "awaiting_plan:food_plan:cooking-capacity", "waiting on food plan (cooking capacity)"},
 		{researchWait("Electricity"), "awaiting_plan:research:Electricity", "waiting on research (Electricity)"},
 		{awaitingPlan("earlier_shell", ""), "awaiting_plan:earlier_shell", "waiting on earlier shell"},
-		{fieldUnavailable("builder_available"), "field_unavailable:builder_available", "the game did not report builder available"},
+		{fieldUnavailable("Hopper_availability"), "field_unavailable:Hopper_availability", "the game did not report Hopper availability"},
+		{refuse(RefusalNoWorker, "builder_for_Cooler", "construction_skill_6"), "no_worker:builder_for_Cooler:construction_skill_6", "no colonist free to do it (builder for Cooler: construction skill 6)"},
+		{excavationBlocked("way_in_closed"), "site_blocked:excavation_site:way_in_closed", "the excavation site is blocked (way in closed)"},
+		{refuse(RefusalRetriesSpent, "excavation_stage", ""), "retry_budget_spent:excavation_stage", "tried as often as it may (excavation stage)"},
+		{BuildingTemperatureWait, "waiting_for_native_temperature", "waiting for the room temperature to settle"},
+		{comfortAccessWait(policy.ComfortCapacity), "existing_facility_access_blocked:dining", "a facility stands but some colonists cannot reach it (dining)"},
 		{noSpace("verified_space"), "no_space:verified_space", "no space found for it (verified space)"},
 		{BuildingReasonRefused, "shared_admission_refused", "the shared admission check turned the plan down"},
 		{BuildingReasonExhausted, "retry_budget_spent", "tried as often as it may"},
@@ -70,7 +77,7 @@ func TestEveryKindHasASentence(t *testing.T) {
 }
 
 func TestEverySharedVerdictIsValid(t *testing.T) {
-	for _, v := range []Verdict{BuildingReasonAdmitted, BuildingReasonDisabled, BuildingReasonNoReview, BuildingReasonNoDeficit, BuildingReasonExpired, BuildingReasonExistingWork, BuildingReasonUsed, BuildingBunksOpen, BuildingReasonHoldFallback, BuildingReasonCombatOrders, BuildingReasonSeparation, BuildingReasonNotInteractive, BuildingReasonWaiting, BuildingReasonHeld, BuildingComfortWait, BuildingExistingFacility, BuildingHospitalConvert, BuildingSleepingUseNeeded, BuildingReasonNoSpace, BuildingReasonRefused, BuildingReasonExhausted, BuildingReasonNoSquad, BuildingShellBlocked, BuildingShelterPending, BuildingExcavationBlocked, BuildingSuiteStock, BuildingWorkshopUnavailable, BuildingWorkshopResearch, BuildingResearchBench, BuildingResearchBenchUnavailable, BuildingHospitalUnavailable, BuildingSleepingUnavailable, BuildingNoWeaponBench, BuildingReasonDemand, stoneShellUnstocked, defensePerimeterNoStone} {
+	for _, v := range []Verdict{BuildingReasonAdmitted, BuildingReasonDisabled, BuildingReasonNoReview, BuildingReasonNoDeficit, BuildingReasonExpired, BuildingReasonExistingWork, BuildingReasonUsed, BuildingBunksOpen, BuildingReasonHoldFallback, BuildingReasonCombatOrders, BuildingReasonSeparation, BuildingReasonNotInteractive, BuildingReasonWaiting, BuildingReasonHeld, BuildingComfortWait, BuildingExistingFacility, BuildingHospitalConvert, BuildingSleepingUseNeeded, BuildingReasonNoSpace, BuildingReasonRefused, BuildingReasonExhausted, BuildingReasonNoSquad, BuildingShellBlocked, BuildingShelterPending, excavationBlocked("roof_unsupported"), BuildingSuiteStock, BuildingWorkshopUnavailable, BuildingWorkshopResearch, BuildingResearchBench, BuildingResearchBenchUnavailable, BuildingHospitalUnavailable, BuildingSleepingUnavailable, BuildingNoWeaponBench, BuildingReasonDemand, stoneShellUnstocked, defensePerimeterNoStone} {
 		if err := v.Validate(); err != nil || v.IsZero() {
 			t.Fatalf("%+v: %v", v, err)
 		}

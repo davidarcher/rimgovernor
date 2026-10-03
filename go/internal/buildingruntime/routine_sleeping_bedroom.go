@@ -197,7 +197,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	wa, wak := wallDef.Available.Value()
 	da, dak := doorDef.Available.Value()
 	if !wak || !dak || !wa || !da {
-		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_definitions")}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_availability")}, nil
 	}
 	stuff, known := animalContainmentStuff(wallDef, doorDef)
 	if !known {

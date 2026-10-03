@@ -50,7 +50,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	// list and planning definition changed across projections.
 	f.Definitions[2].Available = domain.Known(false)
 	selected, reason, err := planner.selectBasicComfort(f)
-	if err != nil || selected != nil || reason != BuildingExistingFacility {
+	if err != nil || selected != nil || reason != comfortAccessWait(policy.ComfortRecovered) {
 		t.Fatal(selected, reason, err)
 	}
 }
@@ -90,7 +90,7 @@ func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	census.Recreation[0].AccessibleTo = nil
 	facts.Facts.BasicComfort = domain.Known(census)
 	selected, reason, err = planner.selectBasicComfort(facts)
-	if err != nil || reason != BuildingExistingFacility || selected != nil {
+	if err != nil || reason != comfortAccessWait(policy.ComfortRecovered) || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	facts.Facts.BasicComfort = domain.Unknown[policy.ComfortObservation]()

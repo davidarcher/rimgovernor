@@ -78,7 +78,7 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 				}
 				v.Cooking = []*o.CookingFacts{bench}
 			case "definition":
-				want = fieldUnavailable("builder_available")
+				want = fieldUnavailable("Campfire_availability")
 				native.catalog[0].ResearchPrerequisites = []string{"Unfinished"}
 			}
 			result, err := p.Step(context.Background())

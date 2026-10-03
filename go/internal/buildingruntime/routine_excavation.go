@@ -180,7 +180,7 @@ func excavationStates(site bridge.ExcavationSite) []policy.ExcavationCellState {
 // stepExcavation decides what the bound tunnel owes next from a fresh site
 // read: the next frontier stage while diggable rock remains, nothing once
 // every cell is cleared or kept. Three changes end the tunnel instead
-// (BuildingExcavationBlocked, after which the caller re-sites it): a roof no
+// (an excavationBlocked verdict, after which the caller re-sites it): a roof no
 // longer held once the remaining rock is gone, a
 // way in that closed (the access cell walled off, a corridor cell that
 // unfogged into something that cannot be mined), and a stage whose own
@@ -197,7 +197,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	}
 	_, stage := excavationProgress(methods)
 	if stage > excavationStageBound {
-		return RoutineBuildingResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineBuildingResult{Verdict: refuse(RefusalRetriesSpent, "excavation_stage", "")}, nil
 	}
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -241,7 +241,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 			if stageSite.CollapsePending {
 				return RoutineBuildingResult{Verdict: collapsePending("excavation_site")}, nil
 			}
-			return RoutineBuildingResult{Verdict: BuildingExcavationBlocked}, nil
+			return RoutineBuildingResult{Verdict: excavationBlocked("roof_unsupported")}, nil
 		default:
 			return RoutineBuildingResult{Verdict: fieldUnavailable("excavation_support")}, nil
 		}
@@ -269,6 +269,10 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	return r.admitExcavation(call, epoch, s, snapshot, excavationStageMethod(stage, s.target), plan, nil, policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}, check)
 }
 
+// excavationBlocked is the verdict of a tunnel that ends: the caller
+// re-sites it (routine_resource_tunnel.go).
+func excavationBlocked(why string) Verdict { return siteBlocked("excavation_site", why) }
+
 // excavationNext is stepExcavation's judgement of the project's site read:
 // done once the tunnel is complete, a reason that holds or ends the
 // project, or neither, when review.Stage is the next stage to designate
@@ -279,13 +283,15 @@ func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) 
 	case site.CollapsePending:
 		return review, collapsePending("excavation_site"), false
 	case !review.Corridor || !site.AccessReachable:
-		return review, BuildingExcavationBlocked, false
+		return review, excavationBlocked("way_in_closed"), false
 	case review.Complete:
 		return review, Verdict{}, true
 	case site.Support == policy.ExcavationSupportUnsupported:
-		return review, BuildingExcavationBlocked, false
+		return review, excavationBlocked("roof_unsupported"), false
+	case len(review.Stage) == 0 && review.Unknown:
+		return review, fieldUnavailable("excavation_cells"), false
 	case len(review.Stage) == 0:
-		return review, fieldUnavailable("excavation_stage"), false
+		return review, noSpace("excavation_next_stage"), false
 	}
 	return review, Verdict{}, false
 }

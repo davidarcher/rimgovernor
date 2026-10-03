@@ -399,7 +399,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// Time lent from the latch alone does not cover it: with no
 			// method in the epoch there is no cooler still settling (#202).
 			powerSettling := r.goal == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
-			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == awaitingMethod(policy.TemperatureWait) || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
+			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == BuildingTemperatureWait || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
 				if r.goal == policy.EnsureTemperatureSafety {
 					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else if r.goal == policy.MaintainRefrigeration {
@@ -537,15 +537,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			definitions = append(definitions, "Hopper")
 		}
 	}
-	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
+	gate := definitionsGate(facts, definitions, r.shelter)
 	if len(r.paste) > 0 {
-		available = true
+		gate = Verdict{}
 		for _, name := range definitions {
-			available = available && comfortBuilderAvailable(facts, name)
+			if gate = comfortBuilderGate(facts, name); !gate.IsZero() {
+				break
+			}
 		}
 	}
 	if r.definition == "TableButcher" || r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
-		available = comfortBuilderAvailable(facts, r.definition)
+		gate = comfortBuilderGate(facts, r.definition)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
 			// A generator no site accepts yields to the next ranked one a
 			// builder here can raise.
@@ -558,7 +560,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			r.power.Alternatives = alternatives
 		}
 	}
-	if !available {
+	if !gate.IsZero() {
 		if clockDebug() {
 			for _, d := range facts.Definitions {
 				if d.Name == r.definition {
@@ -566,7 +568,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				}
 			}
 		}
-		return RoutineBuildingResult{Verdict: fieldUnavailable("builder_available")}, nil
+		return RoutineBuildingResult{Verdict: gate}, nil
 	}
 	if r.shelter {
 		// A shell plan that settled with a cell unsuccessful (a wall the
@@ -942,7 +944,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				return nil, policy.StockObservation{}, Verdict{}, err
 			}
 			if !held.Complete {
-				return nil, policy.StockObservation{}, fieldUnavailable("held_reservations"), nil
+				return nil, policy.StockObservation{}, fieldUnavailable("planning_window"), nil
 			}
 			facts.Cells = held.Value.Cells
 		}
@@ -1047,8 +1049,11 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				return placementChoice{}, false, Verdict{}, nil
 			}
 		}
-		if !known || made != (r.stuff != "") {
-			return placementChoice{}, false, fieldUnavailable("placement_preview"), nil
+		if !known {
+			return placementChoice{}, false, fieldUnavailable("made_from_stuff"), nil
+		}
+		if made != (r.stuff != "") {
+			return placementChoice{}, false, siteBlocked(r.definition, "stuff_differs_from_native"), nil
 		}
 		if r.definition == policy.WindTurbineDefinition {
 			// Only a site whose native catch zone is clear makes the
@@ -1202,7 +1207,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	if int64(len(selected)) != missing {
 		if unknownWatch {
-			return nil, policy.StockObservation{}, fieldUnavailable("watch_preview"), nil
+			return nil, policy.StockObservation{}, fieldUnavailable("watch_cells_accessible"), nil
 		}
 		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.goal, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
 		if clockDebug() && restricted {

@@ -52,7 +52,7 @@ func (r *RoutineSleepingUpkeepPlanner) growSuite(call, epoch context.Context, st
 	case policy.SuiteGrowthRelocate:
 		return r.relocateSuite(call, epoch, state, goal, g)
 	}
-	return RoutineBuildingResult{Verdict: fieldUnavailable("suite_growth")}, nil
+	return RoutineBuildingResult{}, fmt.Errorf("unknown suite growth kind %q", g.Kind)
 }
 
 func (r *RoutineSleepingUpkeepPlanner) growthCheck(call, epoch context.Context, state ControlState) func() error {

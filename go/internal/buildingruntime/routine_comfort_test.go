@@ -21,7 +21,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 	}{
 		{"cramped then playable", []domain.Fact[bool]{domain.Known(false), domain.Known(true)}, Verdict{}, 2},
 		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, BuildingReasonNoSpace, 2},
-		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, fieldUnavailable("watch_preview"), 2},
+		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, fieldUnavailable("watch_cells_accessible"), 2},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)

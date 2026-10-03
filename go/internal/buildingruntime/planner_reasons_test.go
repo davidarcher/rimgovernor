@@ -50,7 +50,7 @@ func TestWavePlannerReasonsFilesSleepingRefusalOnHousing(t *testing.T) {
 	goals := map[string]policy.GoalID{"expansion": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing}
 	verdicts := map[string]Verdict{"expansion": BuildingReasonNoDeficit, "sleepingUpkeep": BuildingSleepingUnavailable}
 	got := wavePlannerReasons([]string{"expansion", "sleepingUpkeep"}, filingOf(goals, verdicts))
-	if got[policy.MaintainHousing].Text != "no space found for it (sleeping bed)" || got[policy.MaintainHousing].Waiting {
+	if got[policy.MaintainHousing].Text != "waiting on buildable bed" || got[policy.MaintainHousing].Waiting {
 		t.Fatalf("%v", got)
 	}
 }

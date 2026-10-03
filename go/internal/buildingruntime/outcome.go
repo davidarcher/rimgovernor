@@ -62,6 +62,9 @@ const (
 	// RefusalRockNotDug: planned rock still stands after its dig plan
 	// settled; the subject names the dig, the detail the count.
 	RefusalRockNotDug RefusalKind = "rock_not_dug"
+	// RefusalSiteBlocked: the site the step works at cannot be used; the
+	// subject names the site, the detail what blocks it.
+	RefusalSiteBlocked RefusalKind = "site_blocked"
 )
 
 // Wait kinds: what an OutcomeWaiting goal waits on.
@@ -94,11 +97,17 @@ const (
 	// WaitClaim: the coordinator gave a claim the planner needs to a
 	// higher-ranked proposal; the step row's proposal outcome names the claim.
 	WaitClaim RefusalKind = "waiting_on_claim"
+	// WaitFacilityAccess: a comfort facility stands but some colonists cannot
+	// reach it; the subject names which (dining or recreation).
+	WaitFacilityAccess RefusalKind = "existing_facility_access_blocked"
+	// WaitRoomTemperature: native room temperature has to settle after the
+	// last change before the goal judges it.
+	WaitRoomTemperature RefusalKind = "waiting_for_native_temperature"
 )
 
 var (
-	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRetriesSpent, RefusalRockNotDug}
-	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
+	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRetriesSpent, RefusalRockNotDug, RefusalSiteBlocked}
+	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim, WaitRoomTemperature, WaitFacilityAccess}
 )
 
 // Refusal says why an OutcomeRefused step stopped or what an OutcomeWaiting
@@ -128,6 +137,11 @@ func waitOn(kind RefusalKind) Verdict {
 	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: kind}})
 }
 
+// waitFor is a waiting Verdict that names what it concerns.
+func waitFor(kind RefusalKind, subject string) Verdict {
+	return mustValid(Verdict{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: kind, Subject: subject}})
+}
+
 func mustValid(v Verdict) Verdict {
 	if err := v.Validate(); err != nil {
 		panic(err)
@@ -139,6 +153,9 @@ func fieldUnavailable(field string) Verdict     { return refuse(RefusalFieldUnav
 func noSpace(subject string) Verdict            { return refuse(RefusalNoSpace, subject, "") }
 func rockNotDug(subject, detail string) Verdict { return refuse(RefusalRockNotDug, subject, detail) }
 func noWorker(subject string) Verdict           { return refuse(RefusalNoWorker, subject, "") }
+func siteBlocked(subject, detail string) Verdict {
+	return refuse(RefusalSiteBlocked, subject, detail)
+}
 func collapsePending(subject string) Verdict {
 	return refuse(RefusalCollapsePending, subject, "")
 }
@@ -284,6 +301,14 @@ func (v Verdict) kindText() string {
 		return aside("tried as often as it may")
 	case RefusalRockNotDug:
 		return aside("rock it needs dug is still standing")
+	case RefusalSiteBlocked:
+		if subject == "" {
+			subject = "site"
+		}
+		if detail != "" {
+			return "the " + subject + " is blocked (" + detail + ")"
+		}
+		return "the " + subject + " is blocked"
 	case WaitMethodUsed:
 		return aside("waiting for work it already started")
 	case WaitExistingWork:
@@ -306,6 +331,10 @@ func (v Verdict) kindText() string {
 		return aside("waiting for the choice dialog to accept an answer")
 	case WaitClaim:
 		return aside("waiting on a claim held by a higher-ranked proposal")
+	case WaitFacilityAccess:
+		return aside("a facility stands but some colonists cannot reach it")
+	case WaitRoomTemperature:
+		return aside("waiting for the room temperature to settle")
 	}
 	return ""
 }
@@ -350,6 +379,7 @@ var (
 	// shrine holds; RoutineShrineResult.Hold carries the reason.
 	BuildingReasonHeld               = waitOn(WaitBreachHeld)
 	BuildingComfortWait              = waitOn(WaitComfortUse)
+	BuildingTemperatureWait          = waitOn(WaitRoomTemperature)
 	BuildingExistingFacility         = waitOn(WaitFacility)
 	BuildingHospitalConvert          = waitOn(WaitHospitalConvert)
 	BuildingSleepingUseNeeded        = waitOn(WaitSleepingUse)
@@ -359,14 +389,13 @@ var (
 	BuildingReasonNoSquad            = noWorker("squad")
 	BuildingShellBlocked             = awaitingPlan("earlier_shell", "")
 	BuildingShelterPending           = awaitingPlan("initial_shelter", "")
-	BuildingExcavationBlocked        = collapsePending("ore_tunnel")
-	BuildingSuiteStock               = awaitingPlan("suite_materials", "")
+	BuildingSuiteStock               = awaitingPlan("suite_materials", "walls")
 	BuildingWorkshopUnavailable      = noWorker("workshop_bench")
 	BuildingWorkshopResearch         = awaitingPlan("research", "workshop")
 	BuildingResearchBench            = awaitingPlan("research_bench", "")
 	BuildingResearchBenchUnavailable = awaitingPlan("research_bench", "unbuildable")
 	BuildingHospitalUnavailable      = noSpace("hospital_bed")
-	BuildingSleepingUnavailable      = noSpace("sleeping_bed")
+	BuildingSleepingUnavailable      = awaitingPlan("buildable_bed", "")
 	BuildingNoWeaponBench            = awaitingPlan("weapon_bench", "")
 	// BuildingReasonDemand is a migrated planner's result when the step's
 	// stock, less the quantities earlier proposals claimed and admitted

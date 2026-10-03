@@ -110,7 +110,11 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	walls, known := targets.Value()
 	if !known {
-		return RoutineStoneShellResult{Verdict: fieldUnavailable("stone_shell_walls")}, nil
+		field := "stone_structures"
+		if _, owned := owned.Value(); !owned {
+			field = "current_construction"
+		}
+		return RoutineStoneShellResult{Verdict: fieldUnavailable(field)}, nil
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, method := range goal.Methods {
@@ -144,7 +148,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineStoneShellResult{Verdict: researchWait(gate)}, nil
 		}
 	}
-	return RoutineStoneShellResult{Verdict: fieldUnavailable("stone_shell")}, nil
+	return RoutineStoneShellResult{Verdict: noSpace("stone_wall_upgrade_site")}, nil
 }
 
 // propose builds and admits one candidate wall's bundle. ok is false only for

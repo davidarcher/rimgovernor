@@ -158,6 +158,8 @@ func sleepingBedOrder(r SleepingRequest, t SleepingTarget, beds []string) []stri
 
 type SleepingChoice struct {
 	Method SleepingMethod
+	// Missing names the unobserved fact behind SleepingUnknown.
+	Missing string
 	// Waiting counts the colonists still without observed use of a suitable
 	// owned bed; Unhoused counts those among them with no bed to be assigned,
 	// the number of beds still to stage.
@@ -183,7 +185,7 @@ type SleepingChoice struct {
 func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	targets, known := r.Targets.Value()
 	if !known {
-		return SleepingChoice{Method: SleepingUnknown}, nil
+		return SleepingChoice{Method: SleepingUnknown, Missing: "sleeping_targets"}, nil
 	}
 	choice := SleepingChoice{Waiting: len(targets)}
 	if choice.Waiting == 0 {
@@ -215,7 +217,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	needsBed, couple := false, false
 	sleeping, sk := r.Sleeping.Value()
 	if !sk {
-		choice.Method = SleepingUnknown
+		choice.Method, choice.Missing = SleepingUnknown, "sleeping_census"
 		return choice, nil
 	}
 	if pawn, bed, ok := slaveBedToMark(ordered, sleeping); ok {
@@ -239,7 +241,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		choice.Unhoused++
 		b, ok := band[t.Pawn]
 		if !ok {
-			choice.Method = SleepingUnknown
+			choice.Method, choice.Missing = SleepingUnknown, "sleeper_comfort_range"
 			return choice, nil
 		}
 		lo, hi = max(lo, b[0]), min(hi, b[1])
@@ -254,13 +256,13 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 	}
 	rooms, rk := r.Rooms.Value()
 	if !rk {
-		choice.Method = SleepingUnknown
+		choice.Method, choice.Missing = SleepingUnknown, "rooms"
 		return choice, nil
 	}
 	for _, room := range rooms.Rooms {
 		role, known := room.Role.Value()
 		if !known {
-			choice.Method = SleepingUnknown
+			choice.Method, choice.Missing = SleepingUnknown, "room_role"
 			return choice, nil
 		}
 		if !facility.Hosts(role) {
@@ -268,7 +270,7 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		}
 		temperature, known := room.Temperature.Value()
 		if !known {
-			choice.Method = SleepingUnknown
+			choice.Method, choice.Missing = SleepingUnknown, "room_temperature"
 			return choice, nil
 		}
 		if temperature < lo || temperature > hi {
@@ -277,6 +279,9 @@ func SelectSleepingMethod(r SleepingRequest) (SleepingChoice, error) {
 		choice.Cells = append(choice.Cells, room.Cells...)
 	}
 	choice.Definition, choice.Method = SleepingDefinition(r.Definitions, r.Stocked, couple, false)
+	if choice.Method == SleepingUnknown {
+		choice.Missing = "bed_definitions"
+	}
 	return choice, nil
 }
 

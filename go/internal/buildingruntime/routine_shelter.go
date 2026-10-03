@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -211,48 +212,68 @@ func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 	return uint32(budget - (tick - completed))
 }
 
+// routineDefinitionsAvailable reports whether every named definition can be
+// raised by any colonist now (no construction skill needed); a shell piece
+// also has to be a single cell.
 func routineDefinitionsAvailable(facts observation.ColonyProjection, names []string, shell bool) bool {
-	for _, name := range names {
-		available := false
-		for _, def := range facts.Definitions {
-			if def.Name != name {
-				continue
-			}
-			ready, known := def.Available.Value()
-			skill, skillKnown := def.ConstructionSkill.Value()
-			available = known && ready && skillKnown && skill == 0
-			if shell {
-				size, known := def.Size.Value()
-				available = available && known && size.Width == 1 && size.Height == 1
-			}
-		}
-		if !available {
-			return false
-		}
-	}
-	return true
+	return definitionsGate(facts, names, shell).IsZero()
 }
 
-// definitionRefusal names the field routineDefinitionsAvailable refused a
-// non-shell definition on, for the log (#1137).
-func definitionRefusal(facts observation.ColonyProjection, name string) string {
-	for _, def := range facts.Definitions {
-		if def.Name != name {
-			continue
+// definitionsGate is the verdict routineDefinitionsAvailable reads: the zero
+// Verdict when every named definition is buildable, else the first thing
+// missing, named.
+func definitionsGate(facts observation.ColonyProjection, names []string, shell bool) Verdict {
+	for _, name := range names {
+		def, found := definitionRow(facts, name)
+		if !found {
+			return fieldUnavailable(name + "_definition")
 		}
-		if ready, known := def.Available.Value(); !known {
-			return "availability unknown"
-		} else if !ready {
-			return fmt.Sprintf("unavailable (research %v)", def.Research)
+		if v := definitionAvailability(def); !v.IsZero() {
+			return v
 		}
-		if skill, known := def.ConstructionSkill.Value(); !known {
-			return "construction skill unknown"
-		} else if skill != 0 {
-			return fmt.Sprintf("construction skill %d", skill)
+		skill, known := def.ConstructionSkill.Value()
+		if !known {
+			return fieldUnavailable(name + "_construction_skill")
 		}
-		return "available"
+		if skill != 0 {
+			return refuse(RefusalNoWorker, "builder_for_"+name, fmt.Sprintf("construction_skill_%d", skill))
+		}
+		if shell {
+			size, known := def.Size.Value()
+			if !known {
+				return fieldUnavailable(name + "_size")
+			}
+			if size.Width != 1 || size.Height != 1 {
+				return noSpace(name + "_footprint")
+			}
+		}
 	}
-	return "no definition row"
+	return Verdict{}
+}
+
+func definitionRow(facts observation.ColonyProjection, name string) (observation.PlanningDefinition, bool) {
+	for _, def := range facts.Definitions {
+		if def.Name == name {
+			return def, true
+		}
+	}
+	return observation.PlanningDefinition{}, false
+}
+
+// definitionAvailability is the zero Verdict for a definition the game
+// reports buildable, else the missing fact or the research it waits on.
+func definitionAvailability(def observation.PlanningDefinition) Verdict {
+	ready, known := def.Available.Value()
+	if !known {
+		return fieldUnavailable(def.Name + "_availability")
+	}
+	if ready {
+		return Verdict{}
+	}
+	if len(def.Research) == 0 {
+		return awaitingPlan(def.Name, "unavailable")
+	}
+	return researchWait(strings.Join(def.Research, "+"))
 }
 
 // structureReader is the optional native census a shell planner uses to

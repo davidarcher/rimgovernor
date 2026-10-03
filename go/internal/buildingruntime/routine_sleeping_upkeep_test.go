@@ -341,7 +341,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	result, err := planner.Step(ctx)
-	if err != nil || (result.Verdict != BuildingShellBlocked && !result.Verdict.Is(RefusalFieldUnavailable)) || native.previews != 0 {
+	if err != nil || (result.Verdict != BuildingShellBlocked && !result.Verdict.Is(RefusalFieldUnavailable) && result.Verdict != awaitingPlan("Wall", "unavailable")) || native.previews != 0 {
 		t.Fatal(result, err, native.previews)
 	}
 }

@@ -120,6 +120,9 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 		}
 		if step.Kind == policy.BedroomFurnish {
 			definition, method := policy.SleepingDefinition(request.Definitions, request.Stocked, false, true)
+			if method == policy.SleepingUnknown {
+				return nil, fieldUnavailable("bed_definitions"), nil
+			}
 			if method != policy.SleepingBuild {
 				return nil, BuildingSleepingUnavailable, nil
 			}
@@ -133,11 +136,11 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
-		return nil, fieldUnavailable("sleeping"), nil
+		return nil, fieldUnavailable(choice.Missing), nil
 	case policy.SleepingNoDemand:
 		return nil, BuildingSleepingUseNeeded, nil
 	case policy.SleepingAssign:
-		return nil, BuildingExistingFacility, nil
+		return nil, awaitingPlan("bed_assignment", ""), nil
 	case policy.SleepingUnavailable:
 		return nil, BuildingSleepingUnavailable, nil
 	}
@@ -312,7 +315,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
-		return RoutineBuildingResult{Verdict: fieldUnavailable("sleeping")}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable(choice.Missing)}, nil
 	case policy.SleepingNoDemand:
 		// A bed replacement under way finishes first (#829): its new bed
 		// stands unowned until the owner moves.

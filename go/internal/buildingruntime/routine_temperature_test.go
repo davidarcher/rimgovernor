@@ -276,7 +276,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if err != nil || len(plans) != 2 {
 				t.Fatal(plans, err)
 			}
-			if mode == "existing" && result.Verdict != awaitingMethod(policy.TemperatureWait) {
+			if mode == "existing" && result.Verdict != BuildingTemperatureWait {
 				t.Fatal(result)
 			}
 			if mode == "unavailable" || mode == "recovered" {

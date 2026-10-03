@@ -64,9 +64,18 @@ func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection
 		resolved.definition = proposal.Definition
 		return &resolved, Verdict{}, nil
 	case policy.RoutesUnknown:
-		return nil, fieldUnavailable("routes"), nil
+		// The review is known by here, so the door's availability is what
+		// the game did not report.
+		return nil, fieldUnavailable(p.Door + "_availability"), nil
 	case policy.RoutesNoMethod:
 		return nil, BuildingReasonNoDeficit, nil
+	case policy.RoutesDoorUnavailable:
+		door, _ := definitionRow(facts, p.Door)
+		return nil, definitionAvailability(door), nil
+	case policy.RoutesDoorPending:
+		return nil, awaitingPlan("route_door", "ordered"), nil
+	case policy.RoutesNoBreach:
+		return nil, noSpace("route_breach"), nil
 	default:
 		return nil, awaitingMethod(proposal.Method), nil
 	}
@@ -98,7 +107,7 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 	for _, c := range protected {
 		guarded[c] = true
 	}
-	unknown := false
+	missing := ""
 	for _, cell := range r.routes.Breaches {
 		if guarded[cell] {
 			continue
@@ -122,7 +131,9 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 			legal, lk := p.CanPlace.Value()
 			safe, sk := p.SafeToPlace.Value()
 			if !fk || !mk || !lk || !sk {
-				unknown = true
+				if missing == "" {
+					missing = firstUnknown([]string{"preview_footprint", "preview_made_from_stuff", "preview_can_place", "preview_safe_to_place"}, fk, mk, lk, sk)
+				}
 				continue
 			}
 			if !safe && deliberateBreach(p) {
@@ -144,8 +155,18 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 			return []policy.Preview{p}, stock, Verdict{}, nil
 		}
 	}
-	if unknown {
-		return nil, stock, fieldUnavailable("routes_preview"), nil
+	if missing != "" {
+		return nil, stock, fieldUnavailable(missing), nil
 	}
 	return nil, stock, BuildingReasonNoSpace, nil
+}
+
+// firstUnknown names the first field whose known flag is false.
+func firstUnknown(names []string, known ...bool) string {
+	for i, ok := range known {
+		if !ok {
+			return names[i]
+		}
+	}
+	return ""
 }

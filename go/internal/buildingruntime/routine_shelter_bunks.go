@@ -328,8 +328,8 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 		clockSchedulerLog("%s: %s: no bunk fits the site", r.goal, method)
 		return RoutineBuildingResult{}, false, nil
 	}
-	if !routineDefinitionsAvailable(s.facts, []string{definition}, false) {
-		clockSchedulerLog("%s: %s: %s is not buildable now: %s", r.goal, method, definition, definitionRefusal(s.facts, definition))
+	if gate := definitionsGate(s.facts, []string{definition}, false); !gate.IsZero() {
+		clockSchedulerLog("%s: %s: %s is not buildable now: %s", r.goal, method, definition, gate.Text())
 		return RoutineBuildingResult{}, false, nil
 	}
 	stuff := bedStuff(s.facts, definition)

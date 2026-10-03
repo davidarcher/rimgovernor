@@ -95,7 +95,12 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	proposal := review.Layout.Proposal
 	if proposal == nil {
-		return RoutineTidyResult{Verdict: fieldUnavailable("tidy_proposal")}, nil
+		if !review.Layout.Known {
+			return RoutineTidyResult{Verdict: fieldUnavailable("build_tier")}, nil
+		}
+		// A known review with no proposal and the need still active is a
+		// re-site in flight (policy.PlanTidyLayout).
+		return RoutineTidyResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	for _, t := range tidies {
 		if t.Item == proposal.Item.ID {
@@ -111,7 +116,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if proposal.Item.Kind != policy.TidyFurniture {
-		return RoutineTidyResult{Verdict: fieldUnavailable("tidy_item")}, nil
+		return RoutineTidyResult{}, fmt.Errorf("unsupported tidy item kind %q", proposal.Item.Kind)
 	}
 	return r.move(call, epoch, state, goal, read, *proposal)
 }

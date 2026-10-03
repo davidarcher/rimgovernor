@@ -35,7 +35,7 @@ func (r *RoutineBuildingPlanner) selectPaste(p observation.ColonyProjection) (*R
 	}
 	site, ok := policy.PlanSiteType(policy.SiteTypeRequest{Paste: &request, Field: policy.FieldRequest{Site: policy.FarmSiteRequest{Cells: p.Cells, Bounds: p.Bounds, Anchor: p.Center}}})
 	if !ok {
-		return r, BuildingReasonNoSpace
+		return r, noSpace("paste_dispenser_site")
 	}
 	result := *r
 	result.paste = site.Buildings
