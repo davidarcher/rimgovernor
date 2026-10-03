@@ -18,10 +18,14 @@ const (
 	HusbandrySlaughter       HusbandryMethod = "slaughter"
 	HusbandryTame            HusbandryMethod = "tame"
 	HusbandryRelease         HusbandryMethod = "release"
-	HusbandryAllowedArea     HusbandryMethod = "allowed_area"
-	HusbandryMaster          HusbandryMethod = "master"
-	HusbandryFollowDrafted   HusbandryMethod = "follow_drafted"
-	HusbandryFollowFieldwork HusbandryMethod = "follow_fieldwork"
+	// HusbandryPrioritizeSlaughter orders the handler named by the argument
+	// to slaughter an already-designated animal (the game's Prioritize
+	// order, a GiveJobIntent on the wire); it writes no flag.
+	HusbandryPrioritizeSlaughter HusbandryMethod = "prioritize_slaughter"
+	HusbandryAllowedArea         HusbandryMethod = "allowed_area"
+	HusbandryMaster              HusbandryMethod = "master"
+	HusbandryFollowDrafted       HusbandryMethod = "follow_drafted"
+	HusbandryFollowFieldwork     HusbandryMethod = "follow_fieldwork"
 )
 
 // Husbandry is explicit intent to write one already-observed animal's
@@ -50,6 +54,10 @@ func NewHusbandry(animal PawnID, method HusbandryMethod, argument string) (Husba
 	case HusbandrySlaughter, HusbandryTame, HusbandryRelease, HusbandryCancelSlaughter, HusbandryCancelRelease:
 		if argument != "" {
 			return Husbandry{}, errors.New("husbandry designation does not take an argument")
+		}
+	case HusbandryPrioritizeSlaughter:
+		if !validID(argument) || argument == string(animal) {
+			return Husbandry{}, errors.New("prioritized slaughter requires a valid handler distinct from the animal")
 		}
 	case HusbandryAllowedArea, HusbandryMaster:
 		if argument != "" && !validID(argument) {

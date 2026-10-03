@@ -19,6 +19,9 @@ const (
 	JobArrest      = "Arrest"
 	JobAttackMelee = "AttackMelee"
 	JobUseItem     = "UseItem"
+	// JobSlaughter is the Handling giver's slaughter of a designated animal,
+	// ordered as a prioritized job.
+	JobSlaughter = "Slaughter"
 	// Recovery service and waste hauling (#1351).
 	JobFixBrokenDownBuilding = "FixBrokenDownBuilding"
 	JobRefuel                = "Refuel"

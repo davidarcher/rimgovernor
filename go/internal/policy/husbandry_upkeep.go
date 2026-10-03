@@ -47,6 +47,9 @@ type HusbandryChoice struct {
 	Animal       PawnID
 	Method       domain.HusbandryMethod
 	TrainableDef string
+	// Handler is the colonist ordered to slaughter, for
+	// HusbandryPrioritizeSlaughter only.
+	Handler PawnID
 }
 
 // AnimalHerdDeficit reports whether any observed animal still has an

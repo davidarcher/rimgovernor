@@ -1376,6 +1376,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	} else if choice.Reason == HusbandryUnknown {
 		herdRecovered = domain.Unknown[bool]()
 	}
+	// A standing designation with a capable handler is ordered to completion.
+	if PrioritizeSlaughterChoice(f.AnimalUpkeep.Animals, f.WorkProfiles).Method != "" {
+		herdRecovered = domain.Known(false)
+	}
 	addAssessment(MaintainHerd, 3, herdRecovered)
 	if !positive(herdRecovered) {
 		addGoal(MaintainHerd, 3)

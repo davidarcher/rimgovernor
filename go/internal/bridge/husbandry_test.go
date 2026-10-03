@@ -58,3 +58,17 @@ func mustHusbandry(t *testing.T, method domain.HusbandryMethod, argument string)
 	}
 	return a
 }
+
+func TestPrioritizeSlaughterIsAPrioritizedGiveJob(t *testing.T) {
+	wire, err := husbandryAction(mustHusbandry(t, domain.HusbandryPrioritizeSlaughter, "Human1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := wire.GetGiveJob()
+	if wire.GetHusbandry() != nil || got.GetPawn().GetId() != "Human1" || got.GetJob() != JobSlaughter || !got.GetOptions().GetPrioritized() || len(refIDs(got)) != 1 || refIDs(got)[0] != "animal" {
+		t.Fatalf("wire = %v", wire)
+	}
+	if _, err := domain.NewHusbandry("animal", domain.HusbandryPrioritizeSlaughter, ""); err == nil {
+		t.Fatal("prioritized slaughter without a handler accepted")
+	}
+}

@@ -110,3 +110,33 @@ func TestFoodOfferRetainsPendingSlaughterWithoutDuplicate(t *testing.T) {
 		t.Fatal("duplicate removal", got)
 	}
 }
+
+func TestPrioritizeSlaughterChoice(t *testing.T) {
+	handler := func(id PawnID, level int, incapable bool) PawnProfile {
+		p := PawnProfile{ID: id, Skills: map[string]ProfileSkill{"Animals": {Name: "Animals", Level: level}}}
+		if incapable {
+			p.Incapable = map[WorkType]bool{WorkHandling: true}
+		}
+		return p
+	}
+	v := animalFixture(0)
+	rows, _ := v.Animals.Value()
+	rows[0].Release, rows[0].Slaughter = domain.Known(false), domain.Known(true)
+	animals := domain.Known(rows)
+	two := domain.Known([]PawnProfile{handler("a", 4, false), handler("b", 9, false), handler("c", 15, true)})
+	got := PrioritizeSlaughterChoice(animals, two)
+	if got.Method != domain.HusbandryPrioritizeSlaughter || got.Animal != "muffalo" || got.Handler != "b" {
+		t.Fatal(got)
+	}
+	if got := PrioritizeSlaughterChoice(animals, domain.Known([]PawnProfile{handler("c", 15, true)})); got.Method != "" || got.Reason != HusbandryNoDeficit {
+		t.Fatal("no capable handler must leave the designation to native", got)
+	}
+	rows[0].Slaughter = domain.Known(false)
+	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
+		t.Fatal("an undesignated animal got an order", got)
+	}
+	rows[0].Slaughter, rows[0].Release = domain.Known(true), domain.Known(true)
+	if got := PrioritizeSlaughterChoice(domain.Known(rows), two); got.Method != "" {
+		t.Fatal("a release-marked animal got an order", got)
+	}
+}

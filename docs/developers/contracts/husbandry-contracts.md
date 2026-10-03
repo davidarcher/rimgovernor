@@ -62,6 +62,7 @@ receipt. `cancel_slaughter` and `cancel_release` remove a standing designation.
 | --- | --- | --- | --- |
 | `train` | player animal | `SetWantedRecursive` | trainable still wanted (learned state tracked separately) |
 | `slaughter` | player animal | `Slaughter` designation | designation present |
+| `prioritize_slaughter` | player animal with a standing slaughter designation | `GiveJobIntent` `Slaughter`, prioritized, by the best Animals-skilled Handling-capable colonist (argument: handler id); no draft, no flag write | handler takes the job; the designation is consumed by the slaughter |
 | `release` | player animal | `ReleaseAnimalToWild` designation | designation present |
 | `tame` | wild animal | `Tame` designation | designation present, or the animal now reads as a player animal (the taming job consumed it) |
 | `allowed_area` | player animal | `AreaRestrictionInPawnCurrentMap` (argument: area id, empty clears) | animal's allowed area reads back equal |
