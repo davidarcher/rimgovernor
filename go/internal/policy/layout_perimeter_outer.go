@@ -29,6 +29,11 @@ const (
 	perimeterOuterYard int32 = 1
 )
 
+// outerEnclosed are the reservation kinds the outer ring walls in whole: the
+// animal yards (a new yard kind, such as the barn, registers here) and the
+// geothermal enclosures.
+var outerEnclosed = map[ReservationKind]bool{ReservePen: true, ReserveGeothermal: true}
+
 // planOuterRing returns the outer ring's reservations: walls and gates around
 // the units within twice perimeterFieldReach of the core ring (the chain limit, so a
 // string of patches cannot walk the wall across the map). core is the core
@@ -83,11 +88,13 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 	pairs := map[int32][]domain.Cell{}
 	for _, r := range plan.Reservations {
 		switch r.Kind {
-		case ReservePen, ReserveGeothermal:
-			take(rectCells(r.Area))
 		case ReserveTurbine, ReserveTurbineLane:
 			// A turbine pair and its lanes stand whole inside the ring (#1597).
 			pairs[r.Pair] = append(pairs[r.Pair], rectCells(r.Area)...)
+		default:
+			if outerEnclosed[r.Kind] {
+				take(rectCells(r.Area))
+			}
 		}
 	}
 	for _, cells := range pairs {
