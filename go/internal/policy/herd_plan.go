@@ -416,6 +416,7 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		}
 		plan.Policy.PopulationMin[def] = max(plan.Policy.PopulationMin[def], floor)
 	}
+	plan.Policy.Roles = plan.Roles
 	for def, role := range plan.Roles {
 		switch {
 		case role.Retiring:

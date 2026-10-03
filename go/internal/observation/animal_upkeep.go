@@ -63,7 +63,7 @@ func colonyWildAnimals(v *o.ColonyFactsSnapshot, pawns bridge.Pawns) domain.Fact
 	rows := []policy.UpkeepAnimal{}
 	for _, pawn := range resolved {
 		state := pawn.AnimalState
-		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(pawn.Pawn.GetId()), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: domain.Known(false), Contained: domain.Known(false), Release: domain.Known(false), Slaughter: domain.Known(false), Pen: domain.Known(""), SuitablePen: domain.Known(""), Tameable: optional(state.Tameable), Tame: optional(state.Tame), MinimumHandlingSkill: minimumHandling(state), Herd: herdFacts(pawn)})
+		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(pawn.Pawn.GetId()), Definition: policy.Resource(pawn.Pawn.GetDefName()), RequiresPen: domain.Known(false), Contained: domain.Known(false), Release: domain.Known(false), Slaughter: domain.Known(false), Pen: domain.Known(""), SuitablePen: domain.Known(""), Gender: state.GetGender(), Tameable: optional(state.Tameable), Tame: optional(state.Tame), MinimumHandlingSkill: minimumHandling(state), Herd: herdFacts(pawn)})
 	}
 	return domain.Known(rows)
 }

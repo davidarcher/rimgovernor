@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -29,6 +30,9 @@ type HerdPolicy struct {
 	// breeding pair is kept.
 	Retired   map[Resource]bool
 	FeedShort bool
+	// Roles is the herd plan's role per race: taming ranks candidates by it
+	// (herdTameLess). Absent for a policy not built by PlanHerd.
+	Roles map[Resource]HerdRole
 }
 
 // HusbandryPlanReason names why RoutineHusbandryPlanner did or did not
@@ -125,8 +129,8 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 
 // herdTameCandidates computes each tracked race's shortfall
 // (shortfall = target.minimum - kept player animals - pending tame
-// designations) and returns the lowest-ID tameable wild animals of that
-// race, capped to the shortfall. Kept excludes release/slaughter-designated
+// designations) and returns the best tameable wild animals of that race
+// (herdTameLess), capped to the shortfall. Kept excludes release/slaughter-designated
 // animals, since those are leaving. A wild row with an unknown tameable or
 // tame-designation fact, or a player row with unknown designation facts,
 // makes the result unknown.
@@ -178,14 +182,60 @@ func herdTameCandidates(rows, wild []UpkeepAnimal, herd HerdPolicy) ([]UpkeepAni
 			continue
 		}
 		rows := append([]UpkeepAnimal{}, eligible[race]...)
-		sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
+		role := herd.Roles[race]
+		sort.Slice(rows, func(i, j int) bool { return herdTameLess(role, rows[i], rows[j]) })
 		if int64(len(rows)) > shortfall {
 			rows = rows[:shortfall]
 		}
 		candidates = append(candidates, rows...)
 	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
+	sort.Slice(candidates, func(i, j int) bool {
+		a, b := candidates[i], candidates[j]
+		if ra, rb := herdWantRank(herd.Roles[a.Definition]), herdWantRank(herd.Roles[b.Definition]); ra != rb {
+			return ra < rb
+		}
+		if a.Definition != b.Definition {
+			return a.Definition < b.Definition
+		}
+		return herdTameLess(herd.Roles[a.Definition], a, b)
+	})
 	return candidates, false
+}
+
+// herdWantRank orders races by how much the plan wants them: a preferred
+// race first, then by job (herdWorkJobs order), a race with no job last.
+func herdWantRank(role HerdRole) int {
+	rank := slices.Index(herdWorkJobs, role.Job)
+	if rank < 0 {
+		rank = len(herdWorkJobs)
+	}
+	if !role.Preferred {
+		rank += len(herdWorkJobs) + 1
+	}
+	return rank
+}
+
+// herdTameLess orders two wild animals of one race: the sex the plan is
+// missing first (the founder rule), then the lower tame-fail risk, then the
+// lower handling skill needed, then ID.
+func herdTameLess(role HerdRole, a, b UpkeepAnimal) bool {
+	wanted := func(u UpkeepAnimal) bool {
+		return role.WantMale && u.Gender == "Male" || role.WantFemale && u.Gender == "Female"
+	}
+	if wa, wb := wanted(a), wanted(b); wa != wb {
+		return wa
+	}
+	ra, _ := a.Herd.ManhunterOnTameFail.Value()
+	rb, _ := b.Herd.ManhunterOnTameFail.Value()
+	if ra != rb {
+		return ra < rb
+	}
+	sa, _ := a.MinimumHandlingSkill.Value()
+	sb, _ := b.MinimumHandlingSkill.Value()
+	if sa != sb {
+		return sa < sb
+	}
+	return a.ID < b.ID
 }
 
 // HerdFeedShort is the feed gate SelectHusbandryMethod's tame fallback
@@ -202,7 +252,8 @@ func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
 // SelectHusbandryMethod picks the lowest animal-ID, lowest-def-name available
 // untrained trainable to dispatch next, trying training first the same way
 // it always has. Only once no training candidate exists does it fall back to
-// the lowest-ID tame candidate for a race below its declared minimum that
+// the first tame candidate in herdTameLess order (the race the plan wants
+// most, its missing sex, then the safest and easiest) for a race below its declared minimum that
 // TamerFor finds a handler for at the animal's minimum handling skill (an
 // unknown minimum asks only for a capable handler; an unknown roster leaves
 // the choice unknown) -- and only while the herd's feed forecast is known

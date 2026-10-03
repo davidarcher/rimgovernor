@@ -29,8 +29,9 @@ derived state: no save, journal or per-animal copy.
 - **Floor.** The target race's floor is its head count: the larger of a
   breeding pair, the capacity the other holders give today (adult yield, or
   trained carrying capacity or combat power) and the food plan's
-  productive-animal terms, divided by one adult's yield. Below it, the
-  lowest-ID tameable wild animal of that race is designated (`tame`) while
+  productive-animal terms, divided by one adult's yield. Below it, a
+  tameable wild animal of that race is designated (`tame`; the pick is ranked
+  below) while
   `MaintainAnimalFeed`'s review reports no shortfall and a
   [handler](work-assignment.md#situational-roles) (`TamerFor`) clears its
   `minimum_handling_skill`. Predators and races with
@@ -105,6 +106,14 @@ Apply-time rules: `allowed_area` needs `SupportsAllowedAreas`; `master` and the
 follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
 area or master id the map does not carry is refused as not found. Each follow
 method writes only its own flag.
+
+**Tame ranking (#1629).** Candidates are ordered by the plan, not by ID: the race
+the plan wants most (a preferred race, then job order milk, wool, chemfuel,
+food, haul, war; a race with no job last), then within a race the sex a founder
+is missing (`WantMale`/`WantFemale`; the wild census carries `Gender`), then
+lower `manhunterOnTameFailChance`, then lower `minimum_handling_skill`, then ID.
+A candidate no handler can tame is skipped for the next. `HerdPolicy.Roles`
+carries the plan's roles to this ranking.
 
 Selection order each cycle is train, then tame, then surplus removal; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
