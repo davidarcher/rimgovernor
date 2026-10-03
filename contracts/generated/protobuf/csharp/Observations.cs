@@ -28572,8 +28572,8 @@ namespace RimGovernor.Protocol.Observations {
     private double lifeExpectancyYears_;
     /// <summary>
     /// Herd sizing facts (#875): RaceProps.lifeExpectancy in years, any hediff
-    /// that makes colonists feel sick, the player ideo bars slaughter by precept
-    /// or venerates this race, RaceProps.manhunterOnTameFailChance, and adult age stage.
+    /// that makes colonists feel sick, the player ideo venerates this race
+    /// (slaughter_barred is no longer written; precept effects decide, #1644), RaceProps.manhunterOnTameFailChance, and adult age stage.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

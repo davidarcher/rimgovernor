@@ -74,8 +74,9 @@ namespace HomeBridge.BridgeTools
 
         // Herd sizing facts (#875) MaintainHerd reads from the colony census:
         // age against RaceProps.lifeExpectancy, sickness, adulthood, tame
-        // danger, and whether the player's primary ideo venerates the race or
-        // carries any AnimalSlaughter precept (Disapproved/Horrible/Prohibited).
+        // danger, and whether the player's primary ideo venerates the race.
+        // What precepts make of slaughter and eating comes from the catalog's
+        // precept effects (policy.ActionStance), not from here.
         internal static void HerdFacts(Pawn animal, RimGovernor.Protocol.Observations.AnimalState state)
         {
             state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
@@ -89,8 +90,6 @@ namespace HomeBridge.BridgeTools
             state.SterilizeQueued = SterilizeBill(animal) != null;
             var ideo = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
             state.Venerated = ideo != null && ideo.IsVeneratedAnimal(animal);
-            state.SlaughterBarred = state.Venerated || ideo != null
-                && ideo.PreceptsListForReading.Any(p => p.def.issue?.defName == "AnimalSlaughter");
         }
 
         // The slaughter eligibility guard.

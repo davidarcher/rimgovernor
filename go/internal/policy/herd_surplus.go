@@ -24,14 +24,15 @@ func herdFertile(a UpkeepAnimal) bool {
 
 // HerdFacts are the per-animal facts MaintainHerd sizes and culls by
 // (#875). The census fills age, life expectancy, sickness, adulthood,
-// precepts and tame danger natively; MeatNutrition, FeedPerDay and Product
-// merge in from the colony food channels by animal ID. Unknown age or sickness
-// ranks an animal as ordinary (not old, not sick, adult); an unknown
-// SlaughterBarred (the precept read) leaves removal, sale and slaughter
-// unplanned.
+// veneration and tame danger natively; MeatNutrition, FeedPerDay and Product
+// merge in from the colony food channels by animal ID; SlaughterBarred and
+// EatingBarred merge in from the ideoligion (ApplyHerdPrecepts). Unknown age
+// or sickness ranks an animal as ordinary (not old, not sick, adult); an
+// unknown SlaughterBarred leaves removal, sale and slaughter unplanned, an
+// unknown EatingBarred food slaughter.
 type HerdFacts struct {
 	AgeYears, LifeExpectancy, ManhunterOnTameFail, MeatNutrition, FeedPerDay domain.Fact[float64]
-	Sick, Adult, SlaughterBarred, Venerated                                  domain.Fact[bool]
+	Sick, Adult, SlaughterBarred, EatingBarred, Venerated                    domain.Fact[bool]
 	// Predator is RaceProps.predator; Product is true for a milk, wool,
 	// chemfuel or egg producer (no longer read by the herd plan; kept so
 	// recorded snapshots still decode).
@@ -120,8 +121,7 @@ type herdRemoval struct {
 
 // herdRemovalMethod is none for a bonded animal (losing it is a large mood
 // penalty for its colonist), otherwise slaughter whenever native allows it and the player
-// ideo neither venerates the race nor carries an AnimalSlaughter precept,
-// else release when native allows that, else none. ok is false when a
+// ideo's precepts neither penalise nor forbid it (SlaughterBarred), else release when native allows that, else none. ok is false when a
 // needed native fact is unknown.
 func herdRemovalMethod(a UpkeepAnimal) (domain.HusbandryMethod, bool) {
 	if bonded, bk := a.Bonded.Value(); !bk {
@@ -283,9 +283,10 @@ func herdFoodLimits(rows []UpkeepAnimal, herd HerdPolicy) map[Resource]int64 {
 	return limits
 }
 
-// barredOrUnknown reports whether slaughter is barred by the player ideo or
-// the precept read is missing.
-func (h HerdFacts) barredOrUnknown() bool {
-	barred, known := h.SlaughterBarred.Value()
-	return barred || !known
+// foodBarredOrUnknown reports whether slaughter or eating the animal is
+// barred by the player ideo or the precept read is missing.
+func (h HerdFacts) foodBarredOrUnknown() bool {
+	slaughter, sk := h.SlaughterBarred.Value()
+	eating, ek := h.EatingBarred.Value()
+	return slaughter || eating || !sk || !ek
 }

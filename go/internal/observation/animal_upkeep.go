@@ -88,7 +88,7 @@ func animalRows(feed []*o.AnimalFeed, pawns bridge.Pawns) ([]*o.PawnState, bool)
 // and products merge in later through mergeHerdFoodFacts.
 func herdFacts(pawn *o.PawnState) policy.HerdFacts {
 	state := pawn.GetAnimalState()
-	return policy.HerdFacts{AgeYears: optional(state.AgeYears), LifeExpectancy: optional(state.LifeExpectancyYears), ManhunterOnTameFail: optional(state.ManhunterOnTameFail), Sick: optional(state.Sick), Adult: optional(state.Adult), SlaughterBarred: optional(state.SlaughterBarred), Venerated: optional(state.Venerated), Predator: pawn.GetPredator()}
+	return policy.HerdFacts{AgeYears: optional(state.AgeYears), LifeExpectancy: optional(state.LifeExpectancyYears), ManhunterOnTameFail: optional(state.ManhunterOnTameFail), Sick: optional(state.Sick), Adult: optional(state.Adult), Venerated: optional(state.Venerated), Predator: pawn.GetPredator()}
 }
 
 // mergeHerdFoodFacts copies each player animal's meat, grazing demand and

@@ -107,12 +107,19 @@ other required native read, and the herd plan never runs without it.
   selection.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
-  designated) and the player ideo neither venerates the race nor has an
-  `AnimalSlaughter` precept; otherwise by `release` when `SafeToRelease`
-  allows it (same exclusions). The same bar excludes the race from food
-  slaughter and from the Prioritize order. `AnimalState.slaughter_barred` is
-  read natively every census (`false` without Ideology); an unread value
-  fails the removal, sale, food and Prioritize choices (no fallback). Cull order: old (past 80% of
+  designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `SafeToRelease`
+  allows it (same exclusions). The bar is `policy.ActionStance` (#1644, [ideology contracts](ideology-contracts.md#precept-rule))
+  applied once per frame (`ApplyHerdPrecepts`) to the history events slaughter raises:
+  `SlaughteredAnimal`, plus `SlaughteredVeneratedAnimal` for a race `AnimalState.venerated` names.
+  Penalised or forbidden bars slaughter (`HerdFacts.SlaughterBarred`); the same bar excludes the race
+  from food slaughter and from the Prioritize order. Food slaughter also needs `EatingBarred` clear:
+  `AteMeat`, plus `AteVeneratedAnimalMeat` for a venerated race, must not be penalised or forbidden.
+  Event names are `HistoryEventDefOf` fields; effects come from the catalog's precepts. Without
+  Ideology defs nothing is barred; with them, an unread ideoligion or veneration leaves the bar
+  unknown and fails the removal, food and Prioritize choices (no fallback). Selling is not barred:
+  the game raises no history event for selling an animal. Per-race meat kinds (insect meat) have no
+  per-race eating read on the wire, so only `AteMeat` and venerated meat bind. `AnimalState.slaughter_barred`
+  is no longer written or read. Cull order: old (past 80% of
   `lifeExpectancy`) or sick; males beyond one per five females; untrained
   adults by highest grazing demand per meat; adults that learned Haul, Rescue
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties

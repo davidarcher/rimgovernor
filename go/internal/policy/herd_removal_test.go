@@ -50,9 +50,9 @@ func TestReconcileHerdRemoval(t *testing.T) {
 
 // cows is a herd of one bull and n cows, none designated.
 func cows(n int) []UpkeepAnimal {
-	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}}}
+	rows := []UpkeepAnimal{{ID: "bull", Definition: "Cow", Gender: "Male", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}}}
 	for i := range n {
-		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false)}})
+		rows = append(rows, UpkeepAnimal{ID: PawnID("cow" + string(rune('a'+i))), Definition: "Cow", Gender: "Female", Release: domain.Known(false), Bonded: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true), SafeToRelease: domain.Known(true), Herd: HerdFacts{SlaughterBarred: domain.Known(false), EatingBarred: domain.Known(false)}})
 	}
 	return rows
 }
@@ -123,7 +123,7 @@ func TestPrioritizeSlaughterChoice(t *testing.T) {
 	v := animalFixture(0)
 	rows, _ := v.Animals.Value()
 	rows[0].Release, rows[0].Slaughter = domain.Known(false), domain.Known(true)
-	rows[0].Herd.SlaughterBarred = domain.Known(false)
+	rows[0].Herd.SlaughterBarred, rows[0].Herd.EatingBarred = domain.Known(false), domain.Known(false)
 	animals := domain.Known(rows)
 	two := domain.Known([]PawnProfile{handler("a", 4, false), handler("b", 9, false), handler("c", 15, true)})
 	got := PrioritizeSlaughterChoice(animals, two)
@@ -208,5 +208,52 @@ func TestSaleIgnoresSlaughterBar(t *testing.T) {
 	rows, plan := retiredGoatsPlan([]UpkeepAnimal{g})
 	if got := HerdSaleAnimals(domain.Known(rows), plan.Policy); !got["g1"] {
 		t.Fatal("slaughter bar blocked a sale", got)
+	}
+}
+
+// ApplyHerdPrecepts binds slaughter and eating to the game's history events
+// and reads the stance from the shared rule (#1644).
+func TestApplyHerdPreceptsFromRule(t *testing.T) {
+	ideo := domain.Known(ruleIdeoligion(
+		PreceptDef{Name: "Venerated", Effects: []PreceptEffect{took(eventSlaughteredVeneratedAnimal, -8), took(eventAteVeneratedAnimalMeat, -6)}},
+		PreceptDef{Name: "Carnivore", Effects: []PreceptEffect{took(eventAteMeat, 2)}},
+	))
+	plain, venerated, unread := cows(1)[0], cows(1)[0], cows(1)[0]
+	plain.Herd.Venerated, venerated.Herd.Venerated = domain.Known(false), domain.Known(true)
+	rows := func(i domain.Fact[Ideoligion], active bool) []UpkeepAnimal {
+		got, _ := ApplyHerdPrecepts(domain.Known([]UpkeepAnimal{plain, venerated, unread}), i, active).Value()
+		return got
+	}
+	got := rows(ideo, true)
+	for i, want := range []struct{ slaughter, eating, known bool }{{false, false, true}, {true, true, true}, {false, false, false}} {
+		s, sk := got[i].Herd.SlaughterBarred.Value()
+		e, ek := got[i].Herd.EatingBarred.Value()
+		if sk != want.known || ek != want.known || (want.known && (s != want.slaughter || e != want.eating)) {
+			t.Fatalf("animal %d: slaughter %v/%v eating %v/%v, want %+v", i, s, sk, e, ek, want)
+		}
+	}
+	// An unread ideoligion holds; a load without Ideology bars nothing.
+	for _, a := range rows(domain.Unknown[Ideoligion](), true) {
+		if _, k := a.Herd.SlaughterBarred.Value(); k {
+			t.Fatal("unread ideoligion must hold", a.Herd)
+		}
+	}
+	for _, a := range rows(domain.Unknown[Ideoligion](), false) {
+		if b, k := a.Herd.SlaughterBarred.Value(); !k || b {
+			t.Fatal("no Ideology must bar nothing", a.Herd)
+		}
+	}
+}
+
+// A race the ideoligion dislikes eating is not a food source, though it may
+// still be slaughtered for removal.
+func TestEatingBarredRaceIsNotFood(t *testing.T) {
+	rows := cows(3)
+	for i := range rows {
+		rows[i].Herd.SlaughterBarred, rows[i].Herd.EatingBarred = domain.Known(false), domain.Known(true)
+	}
+	food := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
+	if got := SlaughterFoodChannels(food, domain.Known(rows), HerdPolicy{}); len(got) != 0 {
+		t.Fatal("eating-barred race offered as food", got)
 	}
 }

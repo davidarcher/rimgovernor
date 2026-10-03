@@ -84,7 +84,7 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	}
 	safe := map[PawnID]bool{}
 	for _, r := range candidates {
-		safe[r.animal.ID] = r.method == domain.HusbandrySlaughter
+		safe[r.animal.ID] = r.method == domain.HusbandrySlaughter && !r.animal.Herd.foodBarredOrUnknown()
 	}
 	counts := map[Resource]int64{}
 	for _, a := range observed {
@@ -93,7 +93,7 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 		}
 	}
 	for _, a := range observed {
-		if release, known := a.Release.Value(); pending[a.ID] && known && !release && counts[a.Definition] > floors[a.Definition] && !a.Herd.barredOrUnknown() {
+		if release, known := a.Release.Value(); pending[a.ID] && known && !release && counts[a.Definition] > floors[a.Definition] && !a.Herd.foodBarredOrUnknown() {
 			safe[a.ID] = true
 		}
 	}

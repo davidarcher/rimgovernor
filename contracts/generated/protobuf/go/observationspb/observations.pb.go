@@ -6367,8 +6367,8 @@ type AnimalState struct {
 	Obedient             *bool   `protobuf:"varint,25,opt,name=obedient,proto3,oneof" json:"obedient,omitempty"`
 	SupportsAllowedAreas *bool   `protobuf:"varint,26,opt,name=supports_allowed_areas,json=supportsAllowedAreas,proto3,oneof" json:"supports_allowed_areas,omitempty"`
 	// Herd sizing facts (#875): RaceProps.lifeExpectancy in years, any hediff
-	// that makes colonists feel sick, the player ideo bars slaughter by precept
-	// or venerates this race, RaceProps.manhunterOnTameFailChance, and adult age stage.
+	// that makes colonists feel sick, the player ideo venerates this race
+	// (slaughter_barred is no longer written; precept effects decide, #1644), RaceProps.manhunterOnTameFailChance, and adult age stage.
 	LifeExpectancyYears *float64 `protobuf:"fixed64,27,opt,name=life_expectancy_years,json=lifeExpectancyYears,proto3,oneof" json:"life_expectancy_years,omitempty"`
 	Sick                *bool    `protobuf:"varint,28,opt,name=sick,proto3,oneof" json:"sick,omitempty"`
 	SlaughterBarred     *bool    `protobuf:"varint,29,opt,name=slaughter_barred,json=slaughterBarred,proto3,oneof" json:"slaughter_barred,omitempty"`
