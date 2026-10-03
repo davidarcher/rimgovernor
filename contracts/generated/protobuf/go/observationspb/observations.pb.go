@@ -3847,25 +3847,26 @@ func (x *PawnNeeds) GetPsylinkLevel() int32 {
 }
 
 type Hediff struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	DefName            *string                `protobuf:"bytes,21,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
-	PartDefName        *string                `protobuf:"bytes,2,opt,name=part_def_name,json=partDefName,proto3,oneof" json:"part_def_name,omitempty"`
-	PartLabel          *string                `protobuf:"bytes,3,opt,name=part_label,json=partLabel,proto3,oneof" json:"part_label,omitempty"`
-	PartIndex          *int32                 `protobuf:"varint,4,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
-	Severity           *float64               `protobuf:"fixed64,5,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
-	SeverityLabel      *string                `protobuf:"bytes,6,opt,name=severity_label,json=severityLabel,proto3,oneof" json:"severity_label,omitempty"`
-	Visible            *bool                  `protobuf:"varint,7,opt,name=visible,proto3,oneof" json:"visible,omitempty"`
-	Bad                *bool                  `protobuf:"varint,8,opt,name=bad,proto3,oneof" json:"bad,omitempty"`
-	Permanent          *bool                  `protobuf:"varint,9,opt,name=permanent,proto3,oneof" json:"permanent,omitempty"`
-	LifeThreatening    *bool                  `protobuf:"varint,10,opt,name=life_threatening,json=lifeThreatening,proto3,oneof" json:"life_threatening,omitempty"`
-	TendableNow        *bool                  `protobuf:"varint,11,opt,name=tendable_now,json=tendableNow,proto3,oneof" json:"tendable_now,omitempty"`
-	Tended             *bool                  `protobuf:"varint,12,opt,name=tended,proto3,oneof" json:"tended,omitempty"`
-	TendQuality        *float64               `protobuf:"fixed64,13,opt,name=tend_quality,json=tendQuality,proto3,oneof" json:"tend_quality,omitempty"`
-	TendExpiresInTicks *int64                 `protobuf:"varint,14,opt,name=tend_expires_in_ticks,json=tendExpiresInTicks,proto3,oneof" json:"tend_expires_in_ticks,omitempty"`
-	NextTendInTicks    *int64                 `protobuf:"varint,15,opt,name=next_tend_in_ticks,json=nextTendInTicks,proto3,oneof" json:"next_tend_in_ticks,omitempty"`
-	Immunizable        *bool                  `protobuf:"varint,16,opt,name=immunizable,proto3,oneof" json:"immunizable,omitempty"`
-	Immunity           *float64               `protobuf:"fixed64,17,opt,name=immunity,proto3,oneof" json:"immunity,omitempty"`
-	FullyImmune        *bool                  `protobuf:"varint,18,opt,name=fully_immune,json=fullyImmune,proto3,oneof" json:"fully_immune,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The HediffDef is the catalog row by def_name; its label is the row's.
+	DefName            *string  `protobuf:"bytes,21,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	PartDefName        *string  `protobuf:"bytes,2,opt,name=part_def_name,json=partDefName,proto3,oneof" json:"part_def_name,omitempty"`
+	PartLabel          *string  `protobuf:"bytes,3,opt,name=part_label,json=partLabel,proto3,oneof" json:"part_label,omitempty"`
+	PartIndex          *int32   `protobuf:"varint,4,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
+	Severity           *float64 `protobuf:"fixed64,5,opt,name=severity,proto3,oneof" json:"severity,omitempty"`
+	SeverityLabel      *string  `protobuf:"bytes,6,opt,name=severity_label,json=severityLabel,proto3,oneof" json:"severity_label,omitempty"`
+	Visible            *bool    `protobuf:"varint,7,opt,name=visible,proto3,oneof" json:"visible,omitempty"`
+	Bad                *bool    `protobuf:"varint,8,opt,name=bad,proto3,oneof" json:"bad,omitempty"`
+	Permanent          *bool    `protobuf:"varint,9,opt,name=permanent,proto3,oneof" json:"permanent,omitempty"`
+	LifeThreatening    *bool    `protobuf:"varint,10,opt,name=life_threatening,json=lifeThreatening,proto3,oneof" json:"life_threatening,omitempty"`
+	TendableNow        *bool    `protobuf:"varint,11,opt,name=tendable_now,json=tendableNow,proto3,oneof" json:"tendable_now,omitempty"`
+	Tended             *bool    `protobuf:"varint,12,opt,name=tended,proto3,oneof" json:"tended,omitempty"`
+	TendQuality        *float64 `protobuf:"fixed64,13,opt,name=tend_quality,json=tendQuality,proto3,oneof" json:"tend_quality,omitempty"`
+	TendExpiresInTicks *int64   `protobuf:"varint,14,opt,name=tend_expires_in_ticks,json=tendExpiresInTicks,proto3,oneof" json:"tend_expires_in_ticks,omitempty"`
+	NextTendInTicks    *int64   `protobuf:"varint,15,opt,name=next_tend_in_ticks,json=nextTendInTicks,proto3,oneof" json:"next_tend_in_ticks,omitempty"`
+	Immunizable        *bool    `protobuf:"varint,16,opt,name=immunizable,proto3,oneof" json:"immunizable,omitempty"`
+	Immunity           *float64 `protobuf:"fixed64,17,opt,name=immunity,proto3,oneof" json:"immunity,omitempty"`
+	FullyImmune        *bool    `protobuf:"varint,18,opt,name=fully_immune,json=fullyImmune,proto3,oneof" json:"fully_immune,omitempty"`
 	// Instantaneous native rates per 60000 game ticks; absent when unavailable.
 	SeverityPerDay *float64 `protobuf:"fixed64,19,opt,name=severity_per_day,json=severityPerDay,proto3,oneof" json:"severity_per_day,omitempty"`
 	ImmunityPerDay *float64 `protobuf:"fixed64,20,opt,name=immunity_per_day,json=immunityPerDay,proto3,oneof" json:"immunity_per_day,omitempty"`
@@ -6250,10 +6251,15 @@ type AnimalState struct {
 	FollowFieldwork      *bool   `protobuf:"varint,24,opt,name=follow_fieldwork,json=followFieldwork,proto3,oneof" json:"follow_fieldwork,omitempty"`
 	Obedient             *bool   `protobuf:"varint,25,opt,name=obedient,proto3,oneof" json:"obedient,omitempty"`
 	SupportsAllowedAreas *bool   `protobuf:"varint,26,opt,name=supports_allowed_areas,json=supportsAllowedAreas,proto3,oneof" json:"supports_allowed_areas,omitempty"`
-	Sick                 *bool   `protobuf:"varint,28,opt,name=sick,proto3,oneof" json:"sick,omitempty"`
-	SlaughterBarred      *bool   `protobuf:"varint,29,opt,name=slaughter_barred,json=slaughterBarred,proto3,oneof" json:"slaughter_barred,omitempty"`
-	Venerated            *bool   `protobuf:"varint,30,opt,name=venerated,proto3,oneof" json:"venerated,omitempty"`
-	Adult                *bool   `protobuf:"varint,32,opt,name=adult,proto3,oneof" json:"adult,omitempty"`
+	// Herd sizing facts (#875): any hediff that makes colonists feel sick, the
+	// player ideo venerates this race (slaughter_barred is no longer written;
+	// precept effects decide, #1644), and adult age stage. The race's own
+	// numbers (body size, life expectancy, minimum handling skill, tame-failure
+	// manhunter chance) are the catalog's race rows (#1722).
+	Sick            *bool `protobuf:"varint,28,opt,name=sick,proto3,oneof" json:"sick,omitempty"`
+	SlaughterBarred *bool `protobuf:"varint,29,opt,name=slaughter_barred,json=slaughterBarred,proto3,oneof" json:"slaughter_barred,omitempty"`
+	Venerated       *bool `protobuf:"varint,30,opt,name=venerated,proto3,oneof" json:"venerated,omitempty"`
+	Adult           *bool `protobuf:"varint,32,opt,name=adult,proto3,oneof" json:"adult,omitempty"`
 	// Medical care cap inputs (#1301), for a player animal: its
 	// MedicalCareCategory name, a Bond relation to any living pawn, and the
 	// same conditions block PopulationPerson.conditions carries.
@@ -6572,8 +6578,9 @@ type PawnState struct {
 	NearestColonist         *commonpb.Ref          `protobuf:"bytes,31,opt,name=nearest_colonist,json=nearestColonist,proto3" json:"nearest_colonist,omitempty"`
 	NearestColonistDistance *float64               `protobuf:"fixed64,32,opt,name=nearest_colonist_distance,json=nearestColonistDistance,proto3,oneof" json:"nearest_colonist_distance,omitempty"`
 	Issues                  []*ReadIssue           `protobuf:"bytes,33,rep,name=issues,proto3" json:"issues,omitempty"`
-	OwnedBed                *commonpb.Ref          `protobuf:"bytes,35,opt,name=owned_bed,json=ownedBed,proto3" json:"owned_bed,omitempty"`
-	Snapshot                *SnapshotRef           `protobuf:"bytes,36,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	// Native draft claims were removed (#939): drafts are plan-owned.
+	OwnedBed *commonpb.Ref `protobuf:"bytes,35,opt,name=owned_bed,json=ownedBed,proto3" json:"owned_bed,omitempty"`
+	Snapshot *SnapshotRef  `protobuf:"bytes,36,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
 	// Native lord evidence for hostile groups: the LordJob and current LordToil
 	// class names (e.g. LordJob_AssaultColony / LordToil_AssaultColonySappers,
 	// LordJob_Siege). Absent when the pawn has no lord; never inferred.
@@ -18057,6 +18064,7 @@ type PopulationSnapshot struct {
 	AdjustedPopulation  *float64 `protobuf:"fixed64,10,opt,name=adjusted_population,json=adjustedPopulation,proto3,oneof" json:"adjusted_population,omitempty"`
 	DeathOnDownedChance *float64 `protobuf:"fixed64,11,opt,name=death_on_downed_chance,json=deathOnDownedChance,proto3,oneof" json:"death_on_downed_chance,omitempty"`
 	UnrecruitableChance *float64 `protobuf:"fixed64,12,opt,name=unrecruitable_chance,json=unrecruitableChance,proto3,oneof" json:"unrecruitable_chance,omitempty"`
+	// (Organ-use precepts ride the ideology section.)
 	// Owned-pawn names (#1310): every living named pawn the colony owns --
 	// player-faction colonists, slaves and animals, and colony prisoners --
 	// on any map, caravan or transporter; unnamed animals are absent.
@@ -36025,37 +36033,50 @@ func (*StatusReply_Failure) isStatusReply_Outcome() {}
 // A snapshot stream frame, and the scheduler's step read the controller
 // composes (clock_status is set only there: frames never carry it).
 type BundleSnapshot struct {
-	state            protoimpl.MessageState       `protogen:"open.v1"`
-	Context          *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	Paused           *bool                        `protobuf:"varint,2,opt,name=paused,proto3,oneof" json:"paused,omitempty"`
-	ClockStatus      *clockpb.Status              `protobuf:"bytes,3,opt,name=clock_status,json=clockStatus,proto3" json:"clock_status,omitempty"`
-	Emergency        *StatusSnapshot              `protobuf:"bytes,4,opt,name=emergency,proto3" json:"emergency,omitempty"`
-	ColonyFacts      *ColonyFactsSnapshot         `protobuf:"bytes,6,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
-	Population       *PopulationSnapshot          `protobuf:"bytes,7,opt,name=population,proto3" json:"population,omitempty"`
-	Research         *ResearchSnapshot            `protobuf:"bytes,8,opt,name=research,proto3" json:"research,omitempty"`
-	Buildings        *BuildingsSnapshot           `protobuf:"bytes,10,opt,name=buildings,proto3" json:"buildings,omitempty"`
-	Bills            *BillsSnapshot               `protobuf:"bytes,12,opt,name=bills,proto3" json:"bills,omitempty"`
-	Zones            *ZonesSnapshot               `protobuf:"bytes,13,opt,name=zones,proto3" json:"zones,omitempty"`
-	Traders          *TradersSnapshot             `protobuf:"bytes,14,opt,name=traders,proto3" json:"traders,omitempty"`
-	WorldProgression *WorldProgressionSnapshot    `protobuf:"bytes,15,opt,name=world_progression,json=worldProgression,proto3" json:"world_progression,omitempty"`
-	ResourceSources  []*ResourceSourcesSnapshot   `protobuf:"bytes,16,rep,name=resource_sources,json=resourceSources,proto3" json:"resource_sources,omitempty"`
+	state       protoimpl.MessageState       `protogen:"open.v1"`
+	Context     *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Paused      *bool                        `protobuf:"varint,2,opt,name=paused,proto3,oneof" json:"paused,omitempty"`
+	ClockStatus *clockpb.Status              `protobuf:"bytes,3,opt,name=clock_status,json=clockStatus,proto3" json:"clock_status,omitempty"`
+	Emergency   *StatusSnapshot              `protobuf:"bytes,4,opt,name=emergency,proto3" json:"emergency,omitempty"`
+	ColonyFacts *ColonyFactsSnapshot         `protobuf:"bytes,6,opt,name=colony_facts,json=colonyFacts,proto3" json:"colony_facts,omitempty"`
+	Population  *PopulationSnapshot          `protobuf:"bytes,7,opt,name=population,proto3" json:"population,omitempty"`
+	Research    *ResearchSnapshot            `protobuf:"bytes,8,opt,name=research,proto3" json:"research,omitempty"`
+	// The pawn table (35) replaces the colonist detail section (#1343).
+	Buildings        *BuildingsSnapshot         `protobuf:"bytes,10,opt,name=buildings,proto3" json:"buildings,omitempty"`
+	Bills            *BillsSnapshot             `protobuf:"bytes,12,opt,name=bills,proto3" json:"bills,omitempty"`
+	Zones            *ZonesSnapshot             `protobuf:"bytes,13,opt,name=zones,proto3" json:"zones,omitempty"`
+	Traders          *TradersSnapshot           `protobuf:"bytes,14,opt,name=traders,proto3" json:"traders,omitempty"`
+	WorldProgression *WorldProgressionSnapshot  `protobuf:"bytes,15,opt,name=world_progression,json=worldProgression,proto3" json:"world_progression,omitempty"`
+	ResourceSources  []*ResourceSourcesSnapshot `protobuf:"bytes,16,rep,name=resource_sources,json=resourceSources,proto3" json:"resource_sources,omitempty"`
+	// The planning window band (17) is cut from grid (#1345).
 	// Combat state (#851), while the map has an active hostile or a combat
 	// epoch runs, else empty: every spawned colonist, hostile and colony
 	// animal, and the native's retained event ring (the newest 1024
 	// events, oldest first). A reader merges events by their watermark, so
 	// a lapped or restarted reader resyncs from any frame.
-	CombatPawns       []*mirrorpb.CombatPawn     `protobuf:"bytes,20,rep,name=combat_pawns,json=combatPawns,proto3" json:"combat_pawns,omitempty"`
-	CombatEvents      []*mirrorpb.CombatEventRow `protobuf:"bytes,21,rep,name=combat_events,json=combatEvents,proto3" json:"combat_events,omitempty"`
-	CombatLinesOfFire *LinesOfFireSnapshot       `protobuf:"bytes,23,opt,name=combat_lines_of_fire,json=combatLinesOfFire,proto3" json:"combat_lines_of_fire,omitempty"`
+	CombatPawns  []*mirrorpb.CombatPawn     `protobuf:"bytes,20,rep,name=combat_pawns,json=combatPawns,proto3" json:"combat_pawns,omitempty"`
+	CombatEvents []*mirrorpb.CombatEventRow `protobuf:"bytes,21,rep,name=combat_events,json=combatEvents,proto3" json:"combat_events,omitempty"`
+	// The defense planner's other combat inputs (#853), in the same frame,
+	// while the emergency census lists a threat or a colonist in a mental
+	// state, else unset. The pawn table carries the combat detail (health,
+	// equipment, biography, animals) of every hostile and hunting predator
+	// (#1343). combat_lines_of_fire is read_lines_of_fire from every colonist cell
+	// with a ranged primary to every hostile building's occupied cells, at
+	// most 64 cells a side, unset when either side is empty.
+	CombatLinesOfFire *LinesOfFireSnapshot `protobuf:"bytes,23,opt,name=combat_lines_of_fire,json=combatLinesOfFire,proto3" json:"combat_lines_of_fire,omitempty"`
+	// Combat rooms (#897) are read from the rooms census (27).
 	// Every damaged spawned player door (#900), with the combat inputs, at most
 	// 64: the doors a fight may send a gunner to repair.
 	CombatDoors []*mirrorpb.CombatDoorRow `protobuf:"bytes,25,rep,name=combat_doors,json=combatDoors,proto3" json:"combat_doors,omitempty"`
+	// Planning definitions are the definition catalog's (#1340).
 	// list_rooms without outdoor rooms or boundary buildings, with cells:
 	// the room census temperature, comfort and hospital planning read (#944).
 	Rooms *RoomsSnapshot `protobuf:"bytes,27,opt,name=rooms,proto3" json:"rooms,omitempty"`
 	// Every spawned unroofed player mortar (#931), with the combat inputs, at
 	// most 16: the guns a fight may crew for counter-battery.
 	CombatMortars []*mirrorpb.CombatMortarRow `protobuf:"bytes,28,rep,name=combat_mortars,json=combatMortars,proto3" json:"combat_mortars,omitempty"`
+	// The outdoor temperature a fight shelters from (#1077) is
+	// colony_facts.outdoor_temperature_c.
 	// The hottest live hive's cell temperature in degrees Celsius (#1073),
 	// with the combat inputs: an infestation's heat-stroke hold and entry check.
 	CombatHiveTemperatureC *float32 `protobuf:"fixed32,30,opt,name=combat_hive_temperature_c,json=combatHiveTemperatureC,proto3,oneof" json:"combat_hive_temperature_c,omitempty"`
@@ -44461,17 +44482,17 @@ const file_observations_proto_rawDesc = "" +
 	"\x05token\x18\x03 \x01(\tH\x01R\x05token\x88\x01\x01B\f\n" +
 	"\n" +
 	"_entity_idB\b\n" +
-	"\x06_token\"Z\n" +
+	"\x06_token\"<\n" +
 	"\fCompleteness\x12\x1f\n" +
 	"\bfiltered\x18\x04 \x01(\x04H\x00R\bfiltered\x88\x01\x01B\v\n" +
-	"\t_filteredJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"v\n" +
+	"\t_filtered\"v\n" +
 	"\tReadIssue\x12\x19\n" +
 	"\x05field\x18\x01 \x01(\tH\x00R\x05field\x88\x01\x01\x12D\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableR\vunavailableB\b\n" +
 	"\x06_field\"y\n" +
 	"\tRectangle\x125\n" +
 	"\aminimum\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aminimum\x125\n" +
-	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xc3\x05\n" +
+	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xbd\x05\n" +
 	"\x0fClearanceTarget\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12B\n" +
@@ -44499,7 +44520,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_roof_blockerB\x11\n" +
 	"\x0f_ancient_dangerB\r\n" +
 	"\v_designatedB\x10\n" +
-	"\x0e_encloses_roomJ\x04\b\v\x10\f\"\xa2\x01\n" +
+	"\x0e_encloses_room\"\xa2\x01\n" +
 	"\x0eClearanceFloor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x00R\adefName\x88\x01\x01\x12#\n" +
@@ -44537,14 +44558,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x17ClearanceTargetsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12'\n" +
 	"\x0finclude_salvage\x18\x02 \x01(\bR\x0eincludeSalvage\x12M\n" +
-	"\x0eplanned_ground\x18\x03 \x03(\v2&.rimgovernor.observations.v1.RectangleR\rplannedGround\"\xf3\x02\n" +
+	"\x0eplanned_ground\x18\x03 \x03(\v2&.rimgovernor.observations.v1.RectangleR\rplannedGround\"\xed\x02\n" +
 	"\x18ClearanceTargetsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\atargets\x18\x02 \x03(\v2,.rimgovernor.observations.v1.ClearanceTargetR\atargets\x12C\n" +
 	"\x06chunks\x18\x04 \x03(\v2+.rimgovernor.observations.v1.ClearanceChunkR\x06chunks\x12:\n" +
 	"\n" +
 	"dump_sites\x18\x05 \x03(\v2\x1b.rimgovernor.common.v1.CellR\tdumpSites\x12C\n" +
-	"\x06floors\x18\x06 \x03(\v2+.rimgovernor.observations.v1.ClearanceFloorR\x06floorsJ\x04\b\x03\x10\x04\"\xfb\x01\n" +
+	"\x06floors\x18\x06 \x03(\v2+.rimgovernor.observations.v1.ClearanceFloorR\x06floors\"\xfb\x01\n" +
 	"\x15ClearanceTargetsReply\x12S\n" +
 	"\bobserved\x18\x01 \x01(\v25.rimgovernor.observations.v1.ClearanceTargetsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -44597,7 +44618,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bdef_name\x18\x04 \x01(\tH\x01R\adefName\x88\x01\x01B\f\n" +
 	"\n" +
 	"_entity_idB\v\n" +
-	"\t_def_name\"\xb0\x04\n" +
+	"\t_def_name\"\xaa\x04\n" +
 	"\rAncientShrine\x12 \n" +
 	"\tshrine_id\x18\x01 \x01(\tH\x00R\bshrineId\x88\x01\x01\x12:\n" +
 	"\x04room\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x04room\x12\x1b\n" +
@@ -44613,13 +44634,12 @@ const file_observations_proto_rawDesc = "" +
 	"\a_sealedB\n" +
 	"\n" +
 	"\b_in_homeB\x0f\n" +
-	"\r_guards_knownJ\x04\b\n" +
-	"\x10\v\"U\n" +
+	"\r_guards_known\"U\n" +
 	"\x15AncientShrinesRequest\x12<\n" +
-	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xa9\x01\n" +
+	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xa3\x01\n" +
 	"\x16AncientShrinesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12D\n" +
-	"\ashrines\x18\x02 \x03(\v2*.rimgovernor.observations.v1.AncientShrineR\ashrinesJ\x04\b\x03\x10\x04\"\xf7\x01\n" +
+	"\ashrines\x18\x02 \x03(\v2*.rimgovernor.observations.v1.AncientShrineR\ashrines\"\xf7\x01\n" +
 	"\x13AncientShrinesReply\x12Q\n" +
 	"\bobserved\x18\x01 \x01(\v23.rimgovernor.observations.v1.AncientShrinesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -44634,7 +44654,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
-	"\x06_label\"\x9a\x02\n" +
+	"\x06_label\"\xd9\x01\n" +
 	"\tEntityRef\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x19\n" +
@@ -44644,7 +44664,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x03_idB\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_labelB\t\n" +
-	"\a_map_idJ\x04\b\x06\x10\vR\bsnapshotR\binner_idR\x0einner_def_nameR\aqualityR\fmarket_value\"\xc6\x01\n" +
+	"\a_map_id\"\xc6\x01\n" +
 	"\tTargetRef\x124\n" +
 	"\x06entity\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefH\x00R\x06entity\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cell\x12F\n" +
@@ -44713,7 +44733,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x18_break_threshold_extremeB\v\n" +
 	"\t_psyfocusB\x12\n" +
 	"\x10_psyfocus_targetB\x10\n" +
-	"\x0e_psylink_level\"\xf0\b\n" +
+	"\x0e_psylink_level\"\xde\b\n" +
 	"\x06Hediff\x12\x1e\n" +
 	"\bdef_name\x18\x15 \x01(\tH\x00R\adefName\x88\x01\x01\x12'\n" +
 	"\rpart_def_name\x18\x02 \x01(\tH\x01R\vpartDefName\x88\x01\x01\x12\"\n" +
@@ -44760,8 +44780,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_immunityB\x0f\n" +
 	"\r_fully_immuneB\x13\n" +
 	"\x11_severity_per_dayB\x13\n" +
-	"\x11_immunity_per_dayJ\x04\b\x01\x10\x02R\n" +
-	"definition\"\xa2\x01\n" +
+	"\x11_immunity_per_day\"\xa2\x01\n" +
 	"\bCapacity\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x01H\x01R\x05level\x88\x01\x01\x12D\n" +
@@ -44883,7 +44902,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_yield_thing_defB\x18\n" +
 	"\x16_medicine_market_valueB\x18\n" +
 	"\x16_doctor_success_chanceB\x18\n" +
-	"\x16_medicine_care_limited\"\xd6\a\n" +
+	"\x16_medicine_care_limited\"\xe3\x06\n" +
 	"\bGearItem\x120\n" +
 	"\x05thing\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05thing\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12C\n" +
@@ -44918,9 +44937,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_insulation_coldB\x12\n" +
 	"\x10_insulation_heatB\x0e\n" +
 	"\f_biocoded_toB\v\n" +
-	"\t_biocodedJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14R\x0eapparel_layersR\x10body_part_groupsR\aapparelR\x06weaponR\x06rangedR\x05meleeR\x05range\"\xf6\x04\n" +
+	"\t_biocoded\"\xf6\x04\n" +
 	"\rPawnEquipment\x12\"\n" +
 	"\n" +
 	"primary_id\x18\x01 \x01(\tH\x00R\tprimaryId\x88\x01\x01\x12A\n" +
@@ -44941,7 +44958,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_armedB\r\n" +
 	"\v_ranged_dpsB\f\n" +
 	"\n" +
-	"_melee_dps\"\xa3\x02\n" +
+	"_melee_dps\"\x91\x02\n" +
 	"\x05Skill\x12\x1e\n" +
 	"\bdef_name\x18\x06 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x05H\x01R\x05level\x88\x01\x01\x12&\n" +
@@ -44953,8 +44970,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_stored_levelB\n" +
 	"\n" +
 	"\b_passionB\v\n" +
-	"\t_disabledJ\x04\b\x01\x10\x02R\n" +
-	"definition\"\\\n" +
+	"\t_disabled\"\\\n" +
 	"\x05Trait\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1b\n" +
 	"\x06degree\x18\x02 \x01(\x05H\x01R\x06degree\x88\x01\x01B\v\n" +
@@ -44971,7 +44987,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x04hour\x18\x01 \x01(\rH\x00R\x04hour\x88\x01\x01\x123\n" +
 	"\x13assignment_def_name\x18\x02 \x01(\tH\x01R\x11assignmentDefName\x88\x01\x01B\a\n" +
 	"\x05_hourB\x16\n" +
-	"\x14_assignment_def_name\"\x91\x06\n" +
+	"\x14_assignment_def_name\"\xef\x05\n" +
 	"\rPawnBiography\x125\n" +
 	"\x14biological_age_years\x18\x01 \x01(\x01H\x00R\x12biologicalAgeYears\x88\x01\x01\x12;\n" +
 	"\x17chronological_age_years\x18\x02 \x01(\x01H\x01R\x15chronologicalAgeYears\x88\x01\x01\x121\n" +
@@ -44991,7 +45007,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_childhood_def_nameB\x15\n" +
 	"\x13_adulthood_def_nameB\b\n" +
 	"\x06_titleB\x0f\n" +
-	"\r_title_sourceJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\tchildhoodR\tadulthood\"\xf3\x01\n" +
+	"\r_title_source\"\xe6\x01\n" +
 	"\aThought\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x03 \x01(\rH\x01R\x05count\x88\x01\x01\x12-\n" +
@@ -45000,7 +45016,7 @@ const file_observations_proto_rawDesc = "" +
 	"\t_def_nameB\b\n" +
 	"\x06_countB\x13\n" +
 	"\x11_mood_offset_eachB\x14\n" +
-	"\x12_mood_offset_totalJ\x04\b\x02\x10\x03R\x05label\"\x82\x02\n" +
+	"\x12_mood_offset_total\"\x82\x02\n" +
 	"\bRelation\x120\n" +
 	"\x05other\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05other\x12/\n" +
 	"\x11relation_def_name\x18\x02 \x01(\tH\x00R\x0frelationDefName\x88\x01\x01\x12\x1d\n" +
@@ -45019,7 +45035,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17situational_cache_stale\x18\x04 \x01(\bH\x01R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
 	"\x12_high_expectationsB\x1a\n" +
-	"\x18_situational_cache_stale\"\xe2\t\n" +
+	"\x18_situational_cache_stale\"\xe0\b\n" +
 	"\fPawnSettings\x12N\n" +
 	"\fmedical_care\x18\x02 \x01(\x0e2&.rimgovernor.operations.v1.MedicalCareH\x00R\vmedicalCare\x88\x01\x01\x12 \n" +
 	"\tself_tend\x18\x03 \x01(\bH\x01R\bselfTend\x88\x01\x01\x12`\n" +
@@ -45047,7 +45063,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\x0f\n" +
 	"\r_work_appliesB\x19\n" +
-	"\x17_manual_work_prioritiesJ\x04\b\x01\x10\x02J\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14R\bsnapshotR\x14medical_care_optionsR\x1ahostility_response_optionsR\x14drug_policy_writableR\x10drug_policy_name\"\x9d\t\n" +
+	"\x17_manual_work_priorities\"\x9d\t\n" +
 	"\x10PawnPolicyInputs\x12-\n" +
 	"\x10outfit_policy_id\x18\x01 \x01(\tH\x00R\x0eoutfitPolicyId\x88\x01\x01\x12)\n" +
 	"\x0edrug_policy_id\x18\x02 \x01(\tH\x01R\fdrugPolicyId\x88\x01\x01\x12/\n" +
@@ -45121,7 +45137,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_wantedB\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xbe\x0f\n" +
+	"\a_reason\"\xd4\x0e\n" +
 	"\vAnimalState\x12\x1b\n" +
 	"\x06gender\x18\x01 \x01(\tH\x00R\x06gender\x88\x01\x01\x12 \n" +
 	"\tage_years\x18\x02 \x01(\x01H\x01R\bageYears\x88\x01\x01\x12(\n" +
@@ -45199,7 +45215,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_medical_careB\t\n" +
 	"\a_bondedB\r\n" +
 	"\v_sterilizedB\x13\n" +
-	"\x11_sterilize_queuedJ\x04\b\x0f\x10\x10J\x04\b\x11\x10\x12J\x04\b\x1b\x10\x1cJ\x04\b\x1f\x10 R\x16minimum_handling_skillR\tbody_sizeR\x15life_expectancy_yearsR\x16manhunter_on_tame_fail\"\xf0\x14\n" +
+	"\x11_sterilize_queued\"\xab\x14\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x124\n" +
@@ -45279,7 +45295,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_mental_state_ticksB\r\n" +
 	"\v_raid_armorB\t\n" +
 	"\a_foggedB\x0e\n" +
-	"\f_inspirationJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fJ\x04\b\"\x10#R\bpredatorR\x1amanhunter_on_damage_chanceR\vdraft_claim\"\x8d\x01\n" +
+	"\f_inspiration\"\x8d\x01\n" +
 	"\bPawnGene\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1f\n" +
 	"\bxenogene\x18\x02 \x01(\bH\x01R\bxenogene\x88\x01\x01\x12\x1b\n" +
@@ -45429,18 +45445,18 @@ const file_observations_proto_rawDesc = "" +
 	"\x15_visible_hediffs_onlyB\a\n" +
 	"\x05_workB\v\n" +
 	"\t_scheduleB\a\n" +
-	"\x05_tend\"\xeb\x02\n" +
+	"\x05_tend\"\xe5\x02\n" +
 	"\fPawnSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05pawns\x18\x02 \x03(\v2&.rimgovernor.observations.v1.PawnStateR\x05pawns\x12M\n" +
 	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12G\n" +
 	"\x1dmeditate_assignment_available\x18\x05 \x01(\bH\x00R\x1bmeditateAssignmentAvailable\x88\x01\x01\x12\x18\n" +
 	"\aremoved\x18\x06 \x03(\tR\aremovedB \n" +
-	"\x1e_meditate_assignment_availableJ\x04\b\x04\x10\x05\"\xe1\x01\n" +
+	"\x1e_meditate_assignment_available\"\xd5\x01\n" +
 	"\x10ListPawnsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12?\n" +
 	"\x06filter\x18\x02 \x01(\v2'.rimgovernor.observations.v1.PawnFilterR\x06filter\x12B\n" +
-	"\adetails\x18\x03 \x01(\v2(.rimgovernor.observations.v1.PawnDetailsR\adetailsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\xe8\x01\n" +
+	"\adetails\x18\x03 \x01(\v2(.rimgovernor.observations.v1.PawnDetailsR\adetails\"\xe8\x01\n" +
 	"\x0eListPawnsReply\x12G\n" +
 	"\bobserved\x18\x01 \x01(\v2).rimgovernor.observations.v1.PawnSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -45478,8 +45494,7 @@ const file_observations_proto_rawDesc = "" +
 	"_humanlikeB\x0f\n" +
 	"\r_was_colonistB\f\n" +
 	"\n" +
-	"_rot_stage\"\xa8\n" +
-	"\n" +
+	"_rot_stage\"\xde\t\n" +
 	"\rResourceStock\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -45525,7 +45540,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_foggedB\v\n" +
 	"\t_reservedB\x0f\n" +
 	"\r_in_stockpileB\x0f\n" +
-	"\r_in_home_areaJ\x04\b\x11\x10\x12J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17J\x04\b\x19\x10\x1aJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cR\x0fweapon_by_tradeR\x06rangedR\x05melee\"\x84\x04\n" +
+	"\r_in_home_area\"\x84\x04\n" +
 	"\vStockFilter\x12\x1b\n" +
 	"\tdef_names\x18\x01 \x03(\tR\bdefNames\x12K\n" +
 	"\bcategory\x18\x02 \x01(\x0e2*.rimgovernor.observations.v1.StockCategoryH\x00R\bcategory\x88\x01\x01\x12N\n" +
@@ -45546,10 +45561,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x10SuppliesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12B\n" +
 	"\x06stocks\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\x06stocks\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\x9b\x01\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\x95\x01\n" +
 	"\x13ListSuppliesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12@\n" +
-	"\x06filter\x18\x02 \x01(\v2(.rimgovernor.observations.v1.StockFilterR\x06filterJ\x04\b\x03\x10\x04\"\xef\x01\n" +
+	"\x06filter\x18\x02 \x01(\v2(.rimgovernor.observations.v1.StockFilterR\x06filter\"\xef\x01\n" +
 	"\x11ListSuppliesReply\x12K\n" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.SuppliesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -45574,7 +45589,7 @@ const file_observations_proto_rawDesc = "" +
 	"\aallowed\x18\x02 \x01(\bH\x01R\aallowed\x88\x01\x01B\v\n" +
 	"\t_def_nameB\n" +
 	"\n" +
-	"\b_allowed\"\xef\x03\n" +
+	"\b_allowed\"\xe9\x03\n" +
 	"\x0fStockpileFilter\x12*\n" +
 	"\x11allowed_def_names\x18\x01 \x03(\tR\x0fallowedDefNames\x12S\n" +
 	"\rspecial_rules\x18\x02 \x03(\v2..rimgovernor.observations.v1.FilterSpecialRuleR\fspecialRules\x12)\n" +
@@ -45592,8 +45607,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_quality_minB\x0e\n" +
 	"\f_quality_maxB\x0e\n" +
 	"\f_allow_freshB\x0f\n" +
-	"\r_allow_rottenJ\x04\b\t\x10\n" +
-	"\"\xfb\f\n" +
+	"\r_allow_rotten\"\xee\f\n" +
 	"\tBillState\x124\n" +
 	"\x13default_ingredients\x18\x19 \x01(\bH\x00R\x12defaultIngredients\x88\x01\x01\x124\n" +
 	"\x13unrestricted_worker\x18\x1a \x01(\bH\x01R\x12unrestrictedWorker\x88\x01\x01\x120\n" +
@@ -45647,12 +45661,12 @@ const file_observations_proto_rawDesc = "" +
 	"_skill_maxB\x14\n" +
 	"\x12_ingredient_radiusB\r\n" +
 	"\v_store_modeB\x0e\n" +
-	"\f_can_run_nowJ\x04\b\x02\x10\x03R\x05index\"~\n" +
+	"\f_can_run_now\"~\n" +
 	"\x15IngredientReservation\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +
 	"\x05items\x18\x02 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05itemsB\n" +
 	"\n" +
-	"\b_pawn_id\"\x91\x03\n" +
+	"\b_pawn_id\"\x8b\x03\n" +
 	"\tBillStack\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x120\n" +
 	"\x05bench\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05bench\x12\x1b\n" +
@@ -45662,13 +45676,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x05bills\x18\x06 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05billsB\t\n" +
 	"\a_usableB\x12\n" +
 	"\x10_unusable_reasonB\v\n" +
-	"\t_capacityJ\x04\b\a\x10\b\"\xdd\x01\n" +
+	"\t_capacity\"\xd7\x01\n" +
 	"\vRecipeState\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12(\n" +
 	"\ravailable_now\x18\x02 \x01(\bH\x00R\favailableNow\x88\x01\x01\x121\n" +
 	"\x12available_on_bench\x18\x03 \x01(\bH\x01R\x10availableOnBench\x88\x01\x01B\x10\n" +
 	"\x0e_available_nowB\x15\n" +
-	"\x13_available_on_benchJ\x04\b\x04\x10\x13\"\x82\t\n" +
+	"\x13_available_on_bench\"\xfc\b\n" +
 	"\x10BuildingSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12!\n" +
@@ -45709,7 +45723,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17_maximum_assigned_pawnsB\x1a\n" +
 	"\x18_room_can_be_prison_cellB\x10\n" +
 	"\x0e_crop_def_nameB\x0f\n" +
-	"\r_player_ownedJ\x04\b\f\x10\r\"\xbb\x01\n" +
+	"\r_player_owned\"\xbb\x01\n" +
 	"\x0fMaterialDeficit\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x17\n" +
 	"\x04need\x18\x02 \x01(\x03H\x01R\x04need\x88\x01\x01\x12\x17\n" +
@@ -45776,7 +45790,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_target_fuelB\x0e\n" +
 	"\f_out_of_fuelB\x0e\n" +
 	"\f_broken_downB\x0f\n" +
-	"\r_power_net_id\"\xe4\v\n" +
+	"\r_power_net_id\"\xc8\v\n" +
 	"\rBuildingState\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12C\n" +
 	"\brotation\x18\x02 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x19\n" +
@@ -45811,8 +45825,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_inspect_textB\n" +
 	"\n" +
 	"\b_burningB\x12\n" +
-	"\x10_uses_hit_pointsJ\x04\b\n" +
-	"\x10\vJ\x04\b\x15\x10\x16R\x0eoccupied_cells\"\x87\x06\n" +
+	"\x10_uses_hit_points\"\x81\x06\n" +
 	"\fPowerNetwork\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12!\n" +
 	"\tproducers\x18\x02 \x01(\rH\x01R\tproducers\x88\x01\x01\x12!\n" +
@@ -45850,15 +45863,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\r\n" +
 	"\v_has_sourceB\x14\n" +
-	"\x12_has_active_sourceJ\x04\b\x10\x10\x11\"\xfb\x02\n" +
+	"\x12_has_active_source\"\xdd\x02\n" +
 	"\x11BuildingsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\tbuildings\x18\x02 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12P\n" +
 	"\x0epower_networks\x18\x03 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\rpowerNetworks\x12M\n" +
 	"\fcompleteness\x18\x04 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12\x18\n" +
 	"\aremoved\x18\n" +
-	" \x03(\tR\aremovedJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"\"\x95\x04\n" +
+	" \x03(\tR\aremoved\"\x89\x04\n" +
 	"\x14ListBuildingsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x10\n" +
 	"\x03ids\x18\x02 \x03(\tR\x03ids\x12\x1b\n" +
@@ -45877,7 +45889,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17_damaged_below_fractionB\n" +
 	"\n" +
 	"\b_inspectB\x13\n" +
-	"\x11_bill_ingredientsJ\x04\b\v\x10\fJ\x04\b\f\x10\r\"\xf1\x01\n" +
+	"\x11_bill_ingredients\"\xf1\x01\n" +
 	"\x12ListBuildingsReply\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.BuildingsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -45895,15 +45907,15 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_displayB\a\n" +
 	"\x05_unitB\a\n" +
-	"\x05_cost\"\xf8\x01\n" +
+	"\x05_cost\"\xf2\x01\n" +
 	"\x11RoomBedMembership\x126\n" +
 	"\bbuilding\x18\x05 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x122\n" +
 	"\x06owners\x18\x02 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x06owners\x120\n" +
 	"\x05users\x18\x03 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x05users\x12?\n" +
-	"\raccessible_to\x18\x04 \x03(\v2\x1a.rimgovernor.common.v1.RefR\faccessibleToJ\x04\b\x01\x10\x02\"\x93\x01\n" +
+	"\raccessible_to\x18\x04 \x03(\v2\x1a.rimgovernor.common.v1.RefR\faccessibleTo\"\x8d\x01\n" +
 	"\x13StockpileMembership\x12.\n" +
 	"\x04zone\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04zone\x12F\n" +
-	"\bcontents\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\bcontentsJ\x04\b\x03\x10\x04\"\xe6\v\n" +
+	"\bcontents\x18\x02 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\bcontents\"\xc7\v\n" +
 	"\tRoomState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x17\n" +
 	"\x04role\x18\x02 \x01(\tH\x01R\x04role\x88\x01\x01\x12\x19\n" +
@@ -45948,7 +45960,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_open_roof_countB\r\n" +
 	"\v_cell_countB\f\n" +
 	"\n" +
-	"_grid_roomJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x16\x10\x17R\x05cells\"\xa0\x01\n" +
+	"_grid_room\"\xa0\x01\n" +
 	"\bRoomDoor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x125\n" +
 	"\aoutside\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aoutside\x12\x1f\n" +
@@ -45957,7 +45969,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rRoomsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05rooms\x18\x02 \x03(\v2&.rimgovernor.observations.v1.RoomStateR\x05rooms\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\xd0\x02\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\xb5\x02\n" +
 	"\x10ListRoomsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12>\n" +
 	"\x06region\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x06region\x12.\n" +
@@ -45965,12 +45977,13 @@ const file_observations_proto_rawDesc = "" +
 	"\x10include_boundary\x18\x04 \x01(\bH\x01R\x0fincludeBoundary\x88\x01\x01\x12\x19\n" +
 	"\broom_ids\x18\x06 \x03(\tR\aroomIdsB\x13\n" +
 	"\x11_include_outdoorsB\x13\n" +
-	"\x11_include_boundaryJ\x04\b\x05\x10\x06J\x04\b\a\x10\bR\rinclude_cells\"\xe9\x01\n" +
+	"\x11_include_boundary\"\xe9\x01\n" +
 	"\x0eListRoomsReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.RoomsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xab\v\n" +
+	"\aoutcome\"\xe3\n" +
+	"\n" +
 	"\tZoneState\x12\x13\n" +
 	"\x02id\x18\x02 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x03 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x17\n" +
@@ -46021,12 +46034,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_impassable_cellsB\x1e\n" +
 	"\x1c_crop_plants_in_listed_cellsB\x1c\n" +
 	"\x1a_crop_plants_in_grid_cellsB\x0f\n" +
-	"\r_food_storageJ\x04\b\x01\x10\x02J\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x12\x10\x13J\x04\b\x19\x10\x1aJ\x04\b\x1a\x10\x1bR\bsnapshotR\flisted_cellsR\n" +
-	"grid_cells\"\x87\x02\n" +
+	"\r_food_storage\"\xe1\x01\n" +
 	"\rZonesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05zones\x18\x02 \x03(\v2&.rimgovernor.observations.v1.ZoneStateR\x05zones\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompletenessJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\fmap_snapshot\"\x83\x03\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\xe2\x02\n" +
 	"\x10ListZonesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x10\n" +
 	"\x03ids\x18\x02 \x03(\tR\x03ids\x12(\n" +
@@ -46036,13 +46048,12 @@ const file_observations_proto_rawDesc = "" +
 	"\x0einclude_filter\x18\a \x01(\bH\x02R\rincludeFilter\x88\x01\x01B\x10\n" +
 	"\x0e_name_containsB\x13\n" +
 	"\x11_include_contentsB\x11\n" +
-	"\x0f_include_filterJ\x04\b\x05\x10\x06J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\rinclude_cells\"\xe9\x01\n" +
+	"\x0f_include_filter\"\xe9\x01\n" +
 	"\x0eListZonesReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xdd\t\n" +
+	"\aoutcome\"\xf3\b\n" +
 	"\x05Thing\x12<\n" +
 	"\x05thing\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05thing\x12$\n" +
 	"\vstack_count\x18\x03 \x01(\x03H\x00R\n" +
@@ -46093,13 +46104,11 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_body_sizeB\x11\n" +
 	"\x0f_tile_footprintB\x10\n" +
-	"\x0e_is_human_meatJ\x04\b\x02\x10\x03J\x04\b\x0e\x10\x0fJ\x04\b\x18\x10\x19J\x04\b\x19\x10\x1aJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cR\n" +
-	"class_nameR\n" +
-	"perishableR\fis_humanlikeR\tvegetableR\braw_meatR\traw_class\"\xab\x01\n" +
+	"\x0e_is_human_meat\"\xab\x01\n" +
 	"\x0eThingsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12:\n" +
 	"\x06things\x18\x02 \x03(\v2\".rimgovernor.observations.v1.ThingR\x06things\x12\x18\n" +
-	"\aremoved\x18\x03 \x03(\tR\aremoved\"\xe2\x02\n" +
+	"\aremoved\x18\x03 \x03(\tR\aremoved\"\xa6\x02\n" +
 	"\rCellsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x123\n" +
@@ -46107,7 +46116,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"foundation\x18\f \x01(\fR\n" +
 	"foundation\x12:\n" +
-	"\x06things\x18\r \x03(\v2\".rimgovernor.observations.v1.ThingR\x06thingsJ\x04\b\x03\x10\vR\x06regionR\x05cellsR\x0eapplied_fieldsR\acompactR\fmap_snapshot\"\x95\x02\n" +
+	"\x06things\x18\r \x03(\v2\".rimgovernor.observations.v1.ThingR\x06things\"\xf1\x01\n" +
 	"\x0fGetCellsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12D\n" +
 	"\trectangle\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleR\trectangle\x12#\n" +
@@ -46116,7 +46125,7 @@ const file_observations_proto_rawDesc = "" +
 	"foundation\x88\x01\x01\x12\x1b\n" +
 	"\x06things\x18\t \x01(\bH\x01R\x06things\x88\x01\x01B\r\n" +
 	"\v_foundationB\t\n" +
-	"\a_thingsJ\x04\b\x03\x10\bR\vexact_cellsR\x06fieldsR\acompact\"\xe8\x01\n" +
+	"\a_things\"\xe8\x01\n" +
 	"\rGetCellsReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.CellsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -46129,7 +46138,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05label\x18\x03 \x01(\tH\x02R\x05label\x88\x01\x01B\v\n" +
 	"\t_def_nameB\x0e\n" +
 	"\f_native_typeB\b\n" +
-	"\x06_label\"\x9c\n" +
+	"\x06_label\"\x96\n" +
 	"\n" +
 	"\x0fResearchProject\x12D\n" +
 	"\aproject\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\aproject\x12\x15\n" +
@@ -46179,7 +46188,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_techprints_appliedB\x14\n" +
 	"\x12_techprints_neededB\x14\n" +
 	"\x12_required_buildingB\x0e\n" +
-	"\f_lock_detailJ\x04\b\x17\x10\x18\"\xaa\x02\n" +
+	"\f_lock_detail\"\xaa\x02\n" +
 	"\n" +
 	"Researcher\x12.\n" +
 	"\x04pawn\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12'\n" +
@@ -46199,13 +46208,13 @@ const file_observations_proto_rawDesc = "" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
 	"definition\x12\x1b\n" +
 	"\x06active\x18\x02 \x01(\bH\x00R\x06active\x88\x01\x01B\t\n" +
-	"\a_active\"\xdc\x01\n" +
+	"\a_active\"\xd6\x01\n" +
 	"\rResearchBench\x126\n" +
 	"\bbuilding\x18\x04 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12M\n" +
 	"\n" +
 	"facilities\x18\x02 \x03(\v2-.rimgovernor.observations.v1.ResearchFacilityR\n" +
 	"facilities\x12>\n" +
-	"\x06issues\x18\x03 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesJ\x04\b\x01\x10\x02\"~\n" +
+	"\x06issues\x18\x03 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\"~\n" +
 	"\fResearchSlot\x12\x1f\n" +
 	"\bcategory\x18\x01 \x01(\tH\x00R\bcategory\x88\x01\x01\x12,\n" +
 	"\x0fcurrent_project\x18\x02 \x01(\tH\x01R\x0ecurrentProject\x88\x01\x01B\v\n" +
@@ -46224,7 +46233,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bfinished\x18\n" +
 	" \x03(\tR\bfinishedB\x11\n" +
 	"\x0f_anomaly_activeB\x14\n" +
-	"\x12_player_tech_level\"\xde\x03\n" +
+	"\x12_player_tech_level\"\xd8\x03\n" +
 	"\x0fResearchRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12*\n" +
 	"\x0einclude_locked\x18\x02 \x01(\bH\x00R\rincludeLocked\x88\x01\x01\x12.\n" +
@@ -46238,7 +46247,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_include_unlocksB\x15\n" +
 	"\x13_include_capabilityB\x10\n" +
 	"\x0e_name_containsB\x10\n" +
-	"\x0e_progress_onlyJ\x04\b\a\x10\b\"\xeb\x01\n" +
+	"\x0e_progress_only\"\xeb\x01\n" +
 	"\rResearchReply\x12K\n" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.ResearchSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -46251,7 +46260,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fprojected_steps\x18\x04 \x01(\rH\x02R\x0eprojectedSteps\x88\x01\x01B\x13\n" +
 	"\x11_native_reachableB\x16\n" +
 	"\x14_projected_reachableB\x12\n" +
-	"\x10_projected_steps\"\x84\x04\n" +
+	"\x10_projected_steps\"\xf2\x03\n" +
 	"\n" +
 	"PawnAccess\x12.\n" +
 	"\x04pawn\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12(\n" +
@@ -46266,8 +46275,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_current_cellsB\x12\n" +
 	"\x10_projected_cellsB\x0f\n" +
 	"\r_egress_stepsB\x0f\n" +
-	"\r_loses_accessJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
-	"\"\xaa\x02\n" +
+	"\r_loses_access\"\xa4\x02\n" +
 	"\x15SpatialAccessSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12=\n" +
 	"\x05pawns\x18\x02 \x03(\v2'.rimgovernor.observations.v1.PawnAccessR\x05pawns\x12 \n" +
@@ -46275,7 +46283,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x17observed_walkable_cells\x18\x04 \x01(\rH\x01R\x15observedWalkableCells\x88\x01\x01B\f\n" +
 	"\n" +
 	"_map_cellsB\x1a\n" +
-	"\x18_observed_walkable_cellsJ\x04\b\x05\x10\x06\"\xf1\x01\n" +
+	"\x18_observed_walkable_cells\"\xf1\x01\n" +
 	"\x14SpatialAccessRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12@\n" +
 	"\rblocked_cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\fblockedCells\x12>\n" +
@@ -46285,7 +46293,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v22.rimgovernor.observations.v1.SpatialAccessSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xf7\t\n" +
+	"\aoutcome\"\xe4\t\n" +
 	"\vDefenseCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12\x1f\n" +
@@ -46332,7 +46340,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_cover_designatedB \n" +
 	"\x1e_foundation_removal_designatedB\x19\n" +
 	"\x17_edifice_stuff_def_nameB\t\n" +
-	"\a_roofedJ\x04\b\x12\x10\x13R\vcover_token\"\xdc\x02\n" +
+	"\a_roofed\"\xdc\x02\n" +
 	"\tRaidTrack\x12\x1c\n" +
 	"\alord_id\x18\x01 \x01(\tH\x00R\x06lordId\x88\x01\x01\x12$\n" +
 	"\vfaction_def\x18\x02 \x01(\tH\x01R\n" +
@@ -46349,7 +46357,7 @@ const file_observations_proto_rawDesc = "" +
 	"\v_spawn_tickB\t\n" +
 	"\a_groundB\f\n" +
 	"\n" +
-	"_last_tick\"\xa1\x03\n" +
+	"_last_tick\"\x9b\x03\n" +
 	"\x13DefenseSiteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x12>\n" +
@@ -46357,7 +46365,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05cells\x18\x04 \x03(\v2(.rimgovernor.observations.v1.DefenseCellR\x05cells\x12,\n" +
 	"\x0fcover_threshold\x18\x06 \x01(\x01H\x00R\x0ecoverThreshold\x88\x01\x01\x12<\n" +
 	"\x05raids\x18\a \x03(\v2&.rimgovernor.observations.v1.RaidTrackR\x05raidsB\x12\n" +
-	"\x10_cover_thresholdJ\x04\b\x05\x10\x06\"\x92\x01\n" +
+	"\x10_cover_threshold\"\x92\x01\n" +
 	"\x12DefenseSiteRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12>\n" +
 	"\x06region\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x06region\"\xf1\x01\n" +
@@ -46378,10 +46386,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_line_of_sightB\x0f\n" +
 	"\r_target_coverB\x10\n" +
 	"\x0e_shooter_coverB\v\n" +
-	"\t_distance\"\x9f\x01\n" +
+	"\t_distance\"\x99\x01\n" +
 	"\x13LinesOfFireSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12=\n" +
-	"\x05lines\x18\x02 \x03(\v2'.rimgovernor.observations.v1.LineOfFireR\x05linesJ\x04\b\x03\x10\x04\"\xd6\x01\n" +
+	"\x05lines\x18\x02 \x03(\v2'.rimgovernor.observations.v1.LineOfFireR\x05lines\"\xd6\x01\n" +
 	"\x12LinesOfFireRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12>\n" +
 	"\ffiring_cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\vfiringCells\x12B\n" +
@@ -46399,11 +46407,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_roof_def_nameB\x1b\n" +
 	"\x19_supported_without_targetB\n" +
 	"\n" +
-	"\b_blocker\"\xd8\x01\n" +
+	"\b_blocker\"\xd2\x01\n" +
 	"\x13RoofSupportSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x122\n" +
 	"\x06target\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06target\x12B\n" +
-	"\x05roofs\x18\x03 \x03(\v2,.rimgovernor.observations.v1.RoofSupportCellR\x05roofsJ\x04\b\x04\x10\x05\"\x82\x01\n" +
+	"\x05roofs\x18\x03 \x03(\v2,.rimgovernor.observations.v1.RoofSupportCellR\x05roofs\"\x82\x01\n" +
 	"\x12RoofSupportRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12 \n" +
 	"\ttarget_id\x18\x02 \x01(\tH\x00R\btargetId\x88\x01\x01B\f\n" +
@@ -46413,7 +46421,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.RoofSupportSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd6\x04\n" +
+	"\aoutcome\"\xd0\x04\n" +
 	"\x0eExcavationCell\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1b\n" +
 	"\x06fogged\x18\x02 \x01(\bH\x00R\x06fogged\x88\x01\x01\x12/\n" +
@@ -46440,7 +46448,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_mine_designatedB\v\n" +
 	"\t_eligibleB\n" +
 	"\n" +
-	"\b_blockerJ\x04\b\f\x10\r\"\x84\x05\n" +
+	"\b_blocker\"\xfe\x04\n" +
 	"\x16ExcavationSiteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x05cells\x18\x02 \x03(\v2+.rimgovernor.observations.v1.ExcavationCellR\x05cells\x12b\n" +
@@ -46456,8 +46464,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_support_blockerB\x13\n" +
 	"\x11_collapse_pendingB\x13\n" +
 	"\x11_worker_availableB\x13\n" +
-	"\x11_access_reachableJ\x04\b\n" +
-	"\x10\v\"\xc6\x01\n" +
+	"\x11_access_reachable\"\xc6\x01\n" +
 	"\x15ExcavationSiteRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x121\n" +
 	"\x05cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\x12<\n" +
@@ -46488,7 +46495,7 @@ const file_observations_proto_rawDesc = "" +
 	"\vStuffOption\x12\x19\n" +
 	"\x05stuff\x18\x01 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12;\n" +
 	"\x05costs\x18\x02 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costsB\b\n" +
-	"\x06_stuff\"\xe7\n" +
+	"\x06_stuff\"\xdb\n" +
 	"\n" +
 	"\x0fWallUpgradeSite\x122\n" +
 	"\x06target\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06target\x12*\n" +
@@ -46521,15 +46528,15 @@ const file_observations_proto_rawDesc = "" +
 	"\b_blockerB\r\n" +
 	"\v_designatedB\r\n" +
 	"\v_removal_idB\x11\n" +
-	"\x0f_completed_tickJ\x04\b\x03\x10\x04J\x04\b\x0e\x10\x13\"\xa4\x01\n" +
+	"\x0f_completed_tick\"\x9e\x01\n" +
 	"\x13WallUpgradeSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12B\n" +
-	"\x05sites\x18\x02 \x03(\v2,.rimgovernor.observations.v1.WallUpgradeSiteR\x05sitesJ\x04\b\x03\x10\x04\"\x8d\x01\n" +
+	"\x05sites\x18\x02 \x03(\v2,.rimgovernor.observations.v1.WallUpgradeSiteR\x05sites\"\x87\x01\n" +
 	"\x17WallUpgradeSitesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12 \n" +
 	"\ttarget_id\x18\x02 \x01(\tH\x00R\btargetId\x88\x01\x01B\f\n" +
 	"\n" +
-	"_target_idJ\x04\b\x03\x10\x04\"\xf6\x01\n" +
+	"_target_id\"\xf6\x01\n" +
 	"\x15WallUpgradeSitesReply\x12N\n" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.WallUpgradeSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -46637,7 +46644,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_stock_targetB\n" +
 	"\n" +
 	"\b_missingB\v\n" +
-	"\t_depleted\"\xdb\x04\n" +
+	"\t_depleted\"\xa4\x04\n" +
 	"\x15ExtractionDevelopment\x12G\n" +
 	"\bdeposits\x18\x03 \x03(\v2+.rimgovernor.observations.v1.ResourceSourceR\bdeposits\x12L\n" +
 	"\vdefinitions\x18\x04 \x03(\v2*.rimgovernor.observations.v1.DefinitionRefR\vdefinitions\x12;\n" +
@@ -46647,8 +46654,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05owned\x18\t \x03(\v2'.rimgovernor.observations.v1.OwnedDrillR\x05owned\x12,\n" +
 	"\x0fscanners_active\x18\v \x01(\bH\x00R\x0escannersActive\x88\x01\x01\x12W\n" +
 	"\x0fflick_work_type\x18\f \x01(\v2/.rimgovernor.observations.v1.ExtractionWorkTypeR\rflickWorkTypeB\x12\n" +
-	"\x10_scanners_activeJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\n" +
-	"\x10\vJ\x04\b\a\x10\bR\bscannersR\x06drillsR\vdrill_state\"\xc0\x03\n" +
+	"\x10_scanners_active\"\xc0\x03\n" +
 	"\x17ResourceSourcesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x12E\n" +
@@ -46656,13 +46662,13 @@ const file_observations_proto_rawDesc = "" +
 	"\astorage\x18\x04 \x01(\v2,.rimgovernor.observations.v1.StorageCapacityR\astorage\x12T\n" +
 	"\vdevelopment\x18\x05 \x01(\v22.rimgovernor.observations.v1.ExtractionDevelopmentR\vdevelopment\x12M\n" +
 	"\fcompleteness\x18\x06 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompletenessB\v\n" +
-	"\t_resource\"\xd8\x01\n" +
+	"\t_resource\"\xd2\x01\n" +
 	"\x16ResourceSourcesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x124\n" +
 	"\x13include_development\x18\x03 \x01(\bH\x01R\x12includeDevelopment\x88\x01\x01B\v\n" +
 	"\t_resourceB\x16\n" +
-	"\x14_include_developmentJ\x04\b\x04\x10\x05\"\xf9\x01\n" +
+	"\x14_include_development\"\xf9\x01\n" +
 	"\x14ResourceSourcesReply\x12R\n" +
 	"\bobserved\x18\x01 \x01(\v24.rimgovernor.observations.v1.ResourceSourcesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -46677,24 +46683,24 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_skillB\v\n" +
 	"\t_priorityB\v\n" +
 	"\t_eligibleB\t\n" +
-	"\a_reason\"\x80\x02\n" +
+	"\a_reason\"\xca\x01\n" +
 	"\x0fHusbandryAnimal\x12.\n" +
 	"\x04pawn\x18\x06 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12@\n" +
 	"\x06animal\x18\x03 \x01(\v2(.rimgovernor.observations.v1.AnimalStateR\x06animal\x12E\n" +
-	"\bhandlers\x18\x04 \x03(\v2).rimgovernor.observations.v1.HandlerStateR\bhandlersJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x05\x10\x06R\x11settings_snapshotR\x0fcensus_snapshot\"\xe8\x01\n" +
+	"\bhandlers\x18\x04 \x03(\v2).rimgovernor.observations.v1.HandlerStateR\bhandlers\"\xe2\x01\n" +
 	"\x11HusbandrySnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12@\n" +
 	"\x06census\x18\x02 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\x06census\x12F\n" +
-	"\aanimals\x18\x03 \x03(\v2,.rimgovernor.observations.v1.HusbandryAnimalR\aanimalsJ\x04\b\x04\x10\x05\"\x8f\x01\n" +
+	"\aanimals\x18\x03 \x03(\v2,.rimgovernor.observations.v1.HusbandryAnimalR\aanimals\"\x89\x01\n" +
 	"\x10HusbandryRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12&\n" +
 	"\finclude_wild\x18\x03 \x01(\bH\x00R\vincludeWild\x88\x01\x01B\x0f\n" +
-	"\r_include_wildJ\x04\b\x02\x10\x03\"\xed\x01\n" +
+	"\r_include_wild\"\xed\x01\n" +
 	"\x0eHusbandryReply\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.HusbandrySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x91\x05\n" +
+	"\aoutcome\"\x80\x05\n" +
 	"\tWasteItem\x120\n" +
 	"\x05thing\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05thing\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x00R\x05count\x88\x01\x01\x12E\n" +
@@ -46713,15 +46719,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_kindB\v\n" +
 	"\t_eligibleB\x13\n" +
 	"\x11_protected_reasonB\x0f\n" +
-	"\r_corpse_classJ\x04\b\n" +
-	"\x10\vR\tcorpse_of\"\x98\x01\n" +
+	"\r_corpse_class\"\x92\x01\n" +
 	"\rWasteSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
-	"\x05items\x18\x02 \x03(\v2&.rimgovernor.observations.v1.WasteItemR\x05itemsJ\x04\b\x03\x10\x04\"\x90\x01\n" +
+	"\x05items\x18\x02 \x03(\v2&.rimgovernor.observations.v1.WasteItemR\x05items\"\x8a\x01\n" +
 	"\fWasteRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12!\n" +
 	"\funwanted_ids\x18\x02 \x03(\tR\vunwantedIds\x12\x19\n" +
-	"\bbury_ids\x18\x03 \x03(\tR\aburyIdsJ\x04\b\x04\x10\x05\"\xe5\x01\n" +
+	"\bbury_ids\x18\x03 \x03(\tR\aburyIds\"\xe5\x01\n" +
 	"\n" +
 	"WasteReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.WasteSnapshotH\x00R\bobserved\x12F\n" +
@@ -46737,18 +46742,18 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_area_idB\t\n" +
 	"\a_leasedB\r\n" +
-	"\v_until_tick\"\x93\x02\n" +
+	"\v_until_tick\"\xe7\x01\n" +
 	"\x10RecoverySnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12T\n" +
 	"\frestrictions\x18\x04 \x03(\v20.rimgovernor.observations.v1.RecoveryRestrictionR\frestrictions\x128\n" +
-	"\tbuildings\x18\a \x03(\v2\x1a.rimgovernor.common.v1.RefR\tbuildingsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\vroof_hazardR\x05areas\"U\n" +
+	"\tbuildings\x18\a \x03(\v2\x1a.rimgovernor.common.v1.RefR\tbuildings\"O\n" +
 	"\x0fRecoveryRequest\x12<\n" +
-	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scopeJ\x04\b\x02\x10\x03\"\xeb\x01\n" +
+	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xeb\x01\n" +
 	"\rRecoveryReply\x12K\n" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xe7\v\n" +
+	"\aoutcome\"\xdb\v\n" +
 	"\x10PopulationPerson\x12.\n" +
 	"\x04pawn\x18\x18 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12M\n" +
 	"\rpawn_snapshot\x18\x19 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\fpawnSnapshot\x12\x1f\n" +
@@ -46798,7 +46803,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_wearing_apparelB\x1a\n" +
 	"\x18_harvest_goodwill_changeB\x0f\n" +
 	"\r_medical_careB\r\n" +
-	"\v_withdrawalJ\x04\b\x01\x10\x02J\x04\b\a\x10\b\"\xe3\x06\n" +
+	"\v_withdrawal\"\xd1\x06\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +
@@ -46819,7 +46824,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_population_intentB\x16\n" +
 	"\x14_adjusted_populationB\x19\n" +
 	"\x17_death_on_downed_chanceB\x17\n" +
-	"\x15_unrecruitable_chanceJ\x04\b\x04\x10\x05J\x04\b\b\x10\tJ\x04\b\r\x10\x0e\"\x95\x01\n" +
+	"\x15_unrecruitable_chance\"\x95\x01\n" +
 	"\tOwnedName\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -46828,9 +46833,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_pawn_idB\r\n" +
 	"\v_short_nameB\v\n" +
-	"\t_thing_id\"W\n" +
+	"\t_thing_id\"Q\n" +
 	"\x11PopulationRequest\x12<\n" +
-	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scopeJ\x04\b\x02\x10\x03\"\xef\x01\n" +
+	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xef\x01\n" +
 	"\x0fPopulationReply\x12M\n" +
 	"\bobserved\x18\x01 \x01(\v2/.rimgovernor.observations.v1.PopulationSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -46898,17 +46903,17 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_min_temperature_cB\x14\n" +
 	"\x12_max_temperature_cB\x18\n" +
 	"\x16_average_temperature_cB\x0f\n" +
-	"\r_growing_days\"\xe1\x01\n" +
+	"\r_growing_days\"\xdb\x01\n" +
 	"\rWorldSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12:\n" +
 	"\x04tile\x18\x02 \x01(\v2&.rimgovernor.observations.v1.WorldTileR\x04tile\x12I\n" +
-	"\vsettlements\x18\x03 \x03(\v2'.rimgovernor.observations.v1.SettlementR\vsettlementsJ\x04\b\x04\x10\x05\"\xbc\x01\n" +
+	"\vsettlements\x18\x03 \x03(\v2'.rimgovernor.observations.v1.SettlementR\vsettlements\"\xb6\x01\n" +
 	"\fWorldRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x17\n" +
 	"\x04tile\x18\x02 \x01(\x05H\x00R\x04tile\x88\x01\x01\x120\n" +
 	"\x11settlement_radius\x18\x03 \x01(\x01H\x01R\x10settlementRadius\x88\x01\x01B\a\n" +
 	"\x05_tileB\x14\n" +
-	"\x12_settlement_radiusJ\x04\b\x04\x10\x05\"\xe5\x01\n" +
+	"\x12_settlement_radius\"\xe5\x01\n" +
 	"\n" +
 	"WorldReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.WorldSnapshotH\x00R\bobserved\x12F\n" +
@@ -46935,7 +46940,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_temperature_cB\n" +
 	"\n" +
 	"\b_hostileB\v\n" +
-	"\t_goodwill\"\xdc\x05\n" +
+	"\t_goodwill\"\xd6\x05\n" +
 	"\fCaravanState\x12@\n" +
 	"\acaravan\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\acaravan\x12\x17\n" +
 	"\x04tile\x18\x02 \x01(\x05H\x00R\x04tile\x88\x01\x01\x12%\n" +
@@ -46964,7 +46969,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_mass_capacityB\f\n" +
 	"\n" +
 	"_food_daysB\x10\n" +
-	"\x0e_food_rot_daysJ\x04\b\x0e\x10\x0f\"\x9d\x01\n" +
+	"\x0e_food_rot_days\"\x9d\x01\n" +
 	"\x11QuestTradeRequest\x12\x1f\n" +
 	"\bresource\x18\x01 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x01R\x05count\x88\x01\x01\x12%\n" +
@@ -47030,7 +47035,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_hostileB\v\n" +
 	"\t_goodwillB\v\n" +
-	"\t_relation\"\xa2\x02\n" +
+	"\t_relation\"\x9c\x02\n" +
 	"\bWorldMap\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\x05H\x00R\x02id\x88\x01\x01\x12\x17\n" +
 	"\x04tile\x18\x02 \x01(\x05H\x01R\x04tile\x88\x01\x01\x12\x17\n" +
@@ -47041,7 +47046,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x03_idB\a\n" +
 	"\x05_tileB\a\n" +
 	"\x05_homeB\b\n" +
-	"\x06_labelJ\x04\b\a\x10\b\"\xf0\x01\n" +
+	"\x06_label\"\xf0\x01\n" +
 	"\x0fCaravanAssembly\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1a\n" +
 	"\x06map_id\x18\x02 \x01(\x05H\x01R\x05mapId\x88\x01\x01\x12\x1b\n" +
@@ -47051,7 +47056,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x03_idB\t\n" +
 	"\a_map_idB\t\n" +
 	"\a_statusB\x12\n" +
-	"\x10_gathering_items\"\xbd\x03\n" +
+	"\x10_gathering_items\"\xb7\x03\n" +
 	"\x18WorldProgressionSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x129\n" +
 	"\x04maps\x18\x02 \x03(\v2%.rimgovernor.observations.v1.WorldMapR\x04maps\x12E\n" +
@@ -47060,42 +47065,42 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"assemblies\x18\x05 \x03(\v2,.rimgovernor.observations.v1.CaravanAssemblyR\n" +
 	"assemblies\x12?\n" +
-	"\x06quests\x18\x06 \x03(\v2'.rimgovernor.observations.v1.QuestStateR\x06questsJ\x04\b\a\x10\b\"\x9f\x01\n" +
+	"\x06quests\x18\x06 \x03(\v2'.rimgovernor.observations.v1.QuestStateR\x06quests\"\x99\x01\n" +
 	"\x17WorldProgressionRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12,\n" +
 	"\x0finclude_storage\x18\x02 \x01(\bH\x00R\x0eincludeStorage\x88\x01\x01B\x12\n" +
-	"\x10_include_storageJ\x04\b\x03\x10\x04\"\xfb\x01\n" +
+	"\x10_include_storage\"\xfb\x01\n" +
 	"\x15WorldProgressionReply\x12S\n" +
 	"\bobserved\x18\x01 \x01(\v25.rimgovernor.observations.v1.WorldProgressionSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xae\x01\n" +
+	"\aoutcome\"\x96\x01\n" +
 	"\rBillsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12@\n" +
-	"\abenches\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStackR\abenchesJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"\xbe\x01\n" +
+	"\abenches\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStackR\abenches\"\xb2\x01\n" +
 	"\fBillsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1e\n" +
 	"\bbench_id\x18\x02 \x01(\tH\x00R\abenchId\x88\x01\x01\x12&\n" +
 	"\fall_factions\x18\x03 \x01(\bH\x01R\vallFactions\x88\x01\x01B\v\n" +
 	"\t_bench_idB\x0f\n" +
-	"\r_all_factionsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06\"\xe5\x01\n" +
+	"\r_all_factions\"\xe5\x01\n" +
 	"\n" +
 	"BillsReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BillsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x96\x02\n" +
+	"\aoutcome\"\x90\x02\n" +
 	"\x0fRecipesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12D\n" +
 	"\bsnapshot\x18\x02 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12B\n" +
 	"\arecipes\x18\x03 \x03(\v2(.rimgovernor.observations.v1.RecipeStateR\arecipes\x12 \n" +
 	"\tbench_def\x18\x05 \x01(\tH\x00R\bbenchDef\x88\x01\x01B\f\n" +
 	"\n" +
-	"_bench_defJ\x04\b\x04\x10\x05\"\x87\x01\n" +
+	"_bench_def\"{\n" +
 	"\x0eRecipesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1e\n" +
 	"\bbench_id\x18\x02 \x01(\tH\x00R\abenchId\x88\x01\x01B\v\n" +
-	"\t_bench_idJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"\xe9\x01\n" +
+	"\t_bench_id\"\xe9\x01\n" +
 	"\fRecipesReply\x12J\n" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.RecipesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -47119,14 +47124,14 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2).rimgovernor.observations.v1.PawnSettingsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd2\x01\n" +
+	"\aoutcome\"\xcc\x01\n" +
 	"\x15ResolveTargetSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\n" +
 	"candidates\x18\x02 \x03(\v2&.rimgovernor.observations.v1.TargetRefR\n" +
 	"candidates\x12\x1b\n" +
 	"\x06unique\x18\x03 \x01(\bH\x00R\x06unique\x88\x01\x01B\t\n" +
-	"\a_uniqueJ\x04\b\x04\x10\x05\"\xd0\x01\n" +
+	"\a_unique\"\xd0\x01\n" +
 	"\x14ResolveTargetRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1d\n" +
 	"\tentity_id\x18\x02 \x01(\tH\x00R\bentityId\x12\x1f\n" +
@@ -47147,7 +47152,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_gainB\t\n" +
 	"\a_reasonB\n" +
 	"\n" +
-	"\b_blocker\"\x92\a\n" +
+	"\b_blocker\"\xe4\x06\n" +
 	"\vGearLoadout\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12.\n" +
 	"\x04pawn\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12H\n" +
@@ -47169,8 +47174,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_blockerB\t\n" +
 	"\a_genderB\x16\n" +
-	"\x14_developmental_stageJ\x04\b\x05\x10\x06J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"R\x11replacement_needsR\adeficit\"\xb0\x05\n" +
+	"\x14_developmental_stage\"\xeb\x03\n" +
 	"\x11GearLoadoutOption\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x19\n" +
@@ -47194,14 +47198,11 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_taintedB\t\n" +
 	"\a_lockedB\v\n" +
-	"\t_smokepopJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0fJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\x0eapparel_layersR\x10body_part_groupsR\varmor_sharpR\varmor_bluntR\x0finsulation_coldR\x0finsulation_heatR\n" +
-	"move_speedR\fmarket_valueR\x06shieldR\apsychic\"\xea\x01\n" +
+	"\t_smokepop\"\xdc\x01\n" +
 	"\x10GearLoadoutModel\x12:\n" +
 	"\x06traits\x18\x02 \x03(\v2\".rimgovernor.observations.v1.TraitR\x06traits\x12B\n" +
 	"\x04worn\x18\x03 \x03(\v2..rimgovernor.observations.v1.GearLoadoutOptionR\x04worn\x12H\n" +
-	"\aoptions\x18\x04 \x03(\v2..rimgovernor.observations.v1.GearLoadoutOptionR\aoptionsJ\x04\b\x01\x10\x02R\x06female\"\xbf\x04\n" +
+	"\aoptions\x18\x04 \x03(\v2..rimgovernor.observations.v1.GearLoadoutOptionR\aoptions\"\x9a\x04\n" +
 	"\fGearSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12>\n" +
 	"\x05pawns\x18\x02 \x03(\v2(.rimgovernor.observations.v1.GearLoadoutR\x05pawns\x12F\n" +
@@ -47211,9 +47212,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0eactive_weather\x18\a \x01(\v21.rimgovernor.observations.v1.GearWeatherConditionR\ractiveWeather\x12O\n" +
 	"\x0estored_apparel\x18\b \x01(\v2(.rimgovernor.observations.v1.GearStorageR\rstoredApparelB\x12\n" +
 	"\x10_current_twelfthB\x18\n" +
-	"\x16_ticks_to_next_twelfthJ\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vR\x11finished_research\"\xd7\x01\n" +
+	"\x16_ticks_to_next_twelfth\"\xd7\x01\n" +
 	"\tGearStock\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x01R\x05stuff\x88\x01\x01\x12\x1d\n" +
@@ -47226,21 +47225,21 @@ const file_observations_proto_rawDesc = "" +
 	"\b_qualityB\n" +
 	"\n" +
 	"\b_hp_bandB\b\n" +
-	"\x06_count\"O\n" +
+	"\x06_count\"I\n" +
 	"\vGearStorage\x12:\n" +
-	"\x04rows\x18\x01 \x03(\v2&.rimgovernor.observations.v1.GearStockR\x04rowsJ\x04\b\x02\x10\x03\"\xd5\x01\n" +
+	"\x04rows\x18\x01 \x03(\v2&.rimgovernor.observations.v1.GearStockR\x04rows\"\xd5\x01\n" +
 	"\x14GearWeatherCondition\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12,\n" +
 	"\x0fremaining_ticks\x18\x02 \x01(\x03H\x01R\x0eremainingTicks\x88\x01\x01\x125\n" +
 	"\x14temperature_offset_c\x18\x03 \x01(\x02H\x02R\x12temperatureOffsetC\x88\x01\x01B\v\n" +
 	"\t_def_nameB\x12\n" +
 	"\x10_remaining_ticksB\x17\n" +
-	"\x15_temperature_offset_c\"{\n" +
+	"\x15_temperature_offset_c\"u\n" +
 	"\vGearRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1c\n" +
 	"\apawn_id\x18\x02 \x01(\tH\x00R\x06pawnId\x88\x01\x01B\n" +
 	"\n" +
-	"\b_pawn_idJ\x04\b\x03\x10\x04\"\xe3\x01\n" +
+	"\b_pawn_id\"\xe3\x01\n" +
 	"\tGearReply\x12G\n" +
 	"\bobserved\x18\x01 \x01(\v2).rimgovernor.observations.v1.GearSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -47268,13 +47267,13 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_orbitalB\x0f\n" +
 	"\r_goods_stacksB\r\n" +
-	"\v_travelling\"\xef\x01\n" +
+	"\v_travelling\"\xd3\x01\n" +
 	"\x0fTradersSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12=\n" +
 	"\atraders\x18\x02 \x03(\v2#.rimgovernor.observations.v1.TraderR\atraders\x12<\n" +
-	"\vnegotiators\x18\x03 \x03(\v2\x1a.rimgovernor.common.v1.RefR\vnegotiatorsJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\x0ecomms_consoles\"T\n" +
+	"\vnegotiators\x18\x03 \x03(\v2\x1a.rimgovernor.common.v1.RefR\vnegotiators\"N\n" +
 	"\x0eTradersRequest\x12<\n" +
-	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scopeJ\x04\b\x02\x10\x03\"\xe9\x01\n" +
+	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\"\xe9\x01\n" +
 	"\fTradersReply\x12J\n" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.TradersSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -47363,7 +47362,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2).rimgovernor.observations.v1.TradeSessionH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xfe\x05\n" +
+	"\aoutcome\"\xf8\x05\n" +
 	"\n" +
 	"TradeSheet\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\"\n" +
@@ -47391,7 +47390,7 @@ const file_observations_proto_rawDesc = "" +
 	"\b_balanceB\x14\n" +
 	"\x12_colony_can_affordB\x1b\n" +
 	"\x19_trader_has_enough_silverB\x11\n" +
-	"\x0f_deal_signatureJ\x04\b\f\x10\r\"\xcd\x02\n" +
+	"\x0f_deal_signature\"\xc7\x02\n" +
 	"\x11TradeSheetRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\"\n" +
 	"\n" +
@@ -47402,7 +47401,7 @@ const file_observations_proto_rawDesc = "" +
 	"\v_session_idB\x16\n" +
 	"\x14_include_untradeableB\x0f\n" +
 	"\r_only_changedB\x10\n" +
-	"\x0e_name_containsJ\x04\b\x06\x10\a\"\xe7\x01\n" +
+	"\x0e_name_contains\"\xe7\x01\n" +
 	"\x0fTradeSheetReply\x12E\n" +
 	"\bobserved\x18\x01 \x01(\v2'.rimgovernor.observations.v1.TradeSheetH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -47415,16 +47414,14 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_pawn_idB\x14\n" +
 	"\x12_nutrition_per_dayB\x18\n" +
-	"\x16_human_meat_acceptable\"\xba\x02\n" +
+	"\x16_human_meat_acceptable\"\xd4\x01\n" +
 	"\tFoodStock\x12.\n" +
 	"\x04item\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04item\x122\n" +
 	"\x06holder\x18\x03 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06holder\x12!\n" +
 	"\tnutrition\x18\x04 \x01(\x01H\x00R\tnutrition\x88\x01\x01\x122\n" +
 	"\x06eaters\x18\x05 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x06eatersB\f\n" +
 	"\n" +
-	"_nutritionJ\x04\b\x02\x10\x03J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
-	"J\x04\b\n" +
-	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16\"\xbb\x01\n" +
+	"_nutrition\"\xbb\x01\n" +
 	"\x0eCorpseHandling\x12\x19\n" +
 	"\bstock_id\x18\x01 \x01(\tR\astockId\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12 \n" +
@@ -47437,11 +47434,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x15cook_demand_nutrition\x18\x02 \x01(\x01R\x13cookDemandNutrition\x12E\n" +
 	"\acorpses\x18\x03 \x03(\v2+.rimgovernor.observations.v1.CorpseHandlingR\acorpses\x12:\n" +
 	"\n" +
-	"cold_sites\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\tcoldSites\"\xe6\x01\n" +
+	"cold_sites\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\tcoldSites\"\xe0\x01\n" +
 	"\x0fFoodSupplyFacts\x12G\n" +
 	"\tconsumers\x18\x01 \x03(\v2).rimgovernor.observations.v1.FoodConsumerR\tconsumers\x12>\n" +
 	"\x06stocks\x18\x02 \x03(\v2&.rimgovernor.observations.v1.FoodStockR\x06stocks\x12D\n" +
-	"\x06larder\x18\x04 \x01(\v2,.rimgovernor.observations.v1.FoodLarderFactsR\x06larderJ\x04\b\x03\x10\x04\"\xeb\x03\n" +
+	"\x06larder\x18\x04 \x01(\v2,.rimgovernor.observations.v1.FoodLarderFactsR\x06larder\"\xeb\x03\n" +
 	"\fCropForecast\x12.\n" +
 	"\x04zone\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04zone\x12\x17\n" +
 	"\x04crop\x18\x02 \x01(\tH\x00R\x04crop\x88\x01\x01\x12\x1e\n" +
@@ -47479,13 +47476,13 @@ const file_observations_proto_rawDesc = "" +
 	"\f_mood_targetB\x18\n" +
 	"\x16_minor_break_thresholdB\x18\n" +
 	"\x16_major_break_thresholdB\x1a\n" +
-	"\x18_extreme_break_threshold\"\x9f\x02\n" +
+	"\x18_extreme_break_threshold\"\x99\x02\n" +
 	"\rForecastFacts\x12\x1d\n" +
 	"\n" +
 	"animal_ids\x18\x01 \x03(\tR\tanimalIds\x12^\n" +
 	"\x14combined_food_supply\x18\x02 \x01(\v2,.rimgovernor.observations.v1.FoodSupplyFactsR\x12combinedFoodSupply\x12?\n" +
 	"\x05crops\x18\x03 \x03(\v2).rimgovernor.observations.v1.CropForecastR\x05crops\x12H\n" +
-	"\bpatients\x18\x04 \x03(\v2,.rimgovernor.observations.v1.PatientForecastR\bpatientsJ\x04\b\x05\x10\x06\"\x95\x01\n" +
+	"\bpatients\x18\x04 \x03(\v2,.rimgovernor.observations.v1.PatientForecastR\bpatients\"\x95\x01\n" +
 	"\x0eComfortSurface\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x127\n" +
 	"\badjacent\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\badjacent\x12.\n" +
@@ -47502,10 +47499,10 @@ const file_observations_proto_rawDesc = "" +
 	"\fJoyTolerance\x12\x12\n" +
 	"\x04pawn\x18\x01 \x01(\tR\x04pawn\x12\x1c\n" +
 	"\ttolerance\x18\x02 \x03(\x01R\ttolerance\x12\x14\n" +
-	"\x05bored\x18\x03 \x03(\bR\x05bored\"x\n" +
+	"\x05bored\x18\x03 \x03(\bR\x05bored\"i\n" +
 	"\x10RecreationCensus\x12\x14\n" +
 	"\x05kinds\x18\x01 \x03(\tR\x05kinds\x12?\n" +
-	"\x05pawns\x18\x02 \x03(\v2).rimgovernor.observations.v1.JoyToleranceR\x05pawnsJ\x04\b\x03\x10\x04R\amethods\"\xca\x02\n" +
+	"\x05pawns\x18\x02 \x03(\v2).rimgovernor.observations.v1.JoyToleranceR\x05pawns\"\xc4\x02\n" +
 	"\fComfortFacts\x12\x16\n" +
 	"\x06people\x18\x01 \x03(\tR\x06people\x12G\n" +
 	"\bsurfaces\x18\x02 \x03(\v2+.rimgovernor.observations.v1.ComfortSurfaceR\bsurfaces\x12D\n" +
@@ -47513,7 +47510,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"recreation\x18\x04 \x03(\v2,.rimgovernor.observations.v1.ComfortFacilityR\n" +
 	"recreation\x12?\n" +
-	"\x03joy\x18\x06 \x01(\v2-.rimgovernor.observations.v1.RecreationCensusR\x03joyJ\x04\b\x05\x10\x06\"\x99\x05\n" +
+	"\x03joy\x18\x06 \x01(\v2-.rimgovernor.observations.v1.RecreationCensusR\x03joy\"\xc0\x04\n" +
 	"\n" +
 	"UpkeepItem\x12.\n" +
 	"\x04item\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04item\x12\x19\n" +
@@ -47541,9 +47538,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_forbiddenB\n" +
 	"\n" +
-	"\b_burningJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vJ\x04\b\r\x10\x0eJ\x04\b\x0e\x10\x0fR\x17base_deterioration_rateR\n" +
-	"perishableR\bmedicineR\x10nutrition_giving\"\xf4\x05\n" +
+	"\b_burning\"\xf4\x05\n" +
 	"\tUpkeepBed\x12,\n" +
 	"\x03bed\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x03bed\x12\x19\n" +
 	"\x05slots\x18\x02 \x01(\rH\x00R\x05slots\x88\x01\x01\x12!\n" +
@@ -47589,7 +47584,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_item_idB\x1e\n" +
 	"\x1c_unreserved_covered_capacityB\x12\n" +
-	"\x10_accepting_cells\"\xc8\x02\n" +
+	"\x10_accepting_cells\"\xc2\x02\n" +
 	"\x0fUpkeepStructure\x126\n" +
 	"\bbuilding\x18\a \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12\x17\n" +
 	"\x04home\x18\x02 \x01(\bH\x00R\x04home\x88\x01\x01\x12\"\n" +
@@ -47602,7 +47597,7 @@ const file_observations_proto_rawDesc = "" +
 	"\v_holds_roofB\x12\n" +
 	"\x10_repair_priorityB\x0f\n" +
 	"\r_flammabilityB\t\n" +
-	"\a_roofedJ\x04\b\x01\x10\x02\"\xbe\x01\n" +
+	"\a_roofed\"\xbe\x01\n" +
 	"\tFireState\x12.\n" +
 	"\x04fire\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04fire\x12\x17\n" +
 	"\x04size\x18\x02 \x01(\x01H\x00R\x04size\x88\x01\x01\x12\x17\n" +
@@ -47630,7 +47625,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x04home\x18\x02 \x01(\bH\x00R\x04home\x88\x01\x01\x12\x1b\n" +
 	"\x06roofed\x18\x03 \x01(\bH\x01R\x06roofed\x88\x01\x01B\a\n" +
 	"\x05_homeB\t\n" +
-	"\a_roofed\"\x90\x04\n" +
+	"\a_roofed\"\x8a\x04\n" +
 	"\fUpkeepPerson\x12.\n" +
 	"\x04pawn\x18\t \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x127\n" +
 	"\towned_bed\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bownedBed\x12/\n" +
@@ -47643,7 +47638,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_comfortable_min_cB\x14\n" +
 	"\x12_comfortable_max_cB\x10\n" +
 	"\x0e_temperature_cB\x16\n" +
-	"\x14_bed_sharing_allowedJ\x04\b\x01\x10\x02\"U\n" +
+	"\x14_bed_sharing_allowed\"U\n" +
 	"\x17BedroomThingRequirement\x12\x15\n" +
 	"\x06any_of\x18\x01 \x03(\tR\x05anyOf\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x05H\x00R\x05count\x88\x01\x01B\b\n" +
@@ -47811,7 +47806,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_nutrition_per_item\"]\n" +
 	"\x11AnimalFeedStorage\x12.\n" +
 	"\x04zone\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04zone\x12\x18\n" +
-	"\aaccepts\x18\x02 \x03(\tR\aaccepts\"\xaa\x04\n" +
+	"\aaccepts\x18\x02 \x03(\tR\aaccepts\"\xa4\x04\n" +
 	"\n" +
 	"AnimalFeed\x12.\n" +
 	"\x04pawn\x18\t \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12\x17\n" +
@@ -47823,7 +47818,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11reachable_storage\x18\a \x03(\v2..rimgovernor.observations.v1.AnimalFeedStorageR\x10reachableStorage\x12J\n" +
 	"\x12storage_candidates\x18\b \x03(\v2\x1b.rimgovernor.common.v1.CellR\x11storageCandidatesB\a\n" +
 	"\x05_dietB\x0f\n" +
-	"\r_requires_penJ\x04\b\x01\x10\x02\"\xde\x02\n" +
+	"\r_requires_pen\"\xb3\x02\n" +
 	"\x10DevelopmentPower\x126\n" +
 	"\bbuilding\x18\b \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12-\n" +
 	"\x10stored_watt_days\x18\x03 \x01(\x01H\x00R\x0estoredWattDays\x88\x01\x01\x121\n" +
@@ -47834,7 +47829,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\t\n" +
 	"\a_roofedB\r\n" +
-	"\v_turret_dpsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x05\x10\x06R\x06base_wR\x0frain_vulnerable\"\x9e\x01\n" +
+	"\v_turret_dps\"\x9e\x01\n" +
 	"\x14DevelopmentFurniture\x126\n" +
 	"\bbuilding\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12\x1d\n" +
 	"\aindoors\x18\x02 \x01(\bH\x00R\aindoors\x88\x01\x01\x12\x19\n" +
@@ -47846,14 +47841,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x06geyser\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06geyser\x121\n" +
 	"\x05cells\x18\x02 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\x12\x1f\n" +
 	"\boccupied\x18\x03 \x01(\bH\x00R\boccupied\x88\x01\x01B\v\n" +
-	"\t_occupied\"\x89\x03\n" +
+	"\t_occupied\"\xfd\x02\n" +
 	"\x10DevelopmentFacts\x12C\n" +
 	"\x05power\x18\x01 \x03(\v2-.rimgovernor.observations.v1.DevelopmentPowerR\x05power\x12O\n" +
 	"\tfurniture\x18\x02 \x03(\v21.rimgovernor.observations.v1.DevelopmentFurnitureR\tfurniture\x12E\n" +
 	"\bnetworks\x18\x05 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\bnetworks\x121\n" +
 	"\x12short_circuit_tick\x18\x06 \x01(\x03H\x00R\x10shortCircuitTick\x88\x01\x01\x12B\n" +
 	"\ageysers\x18\a \x03(\v2(.rimgovernor.observations.v1.SteamGeyserR\ageysersB\x15\n" +
-	"\x13_short_circuit_tickJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05\"\xa8\x02\n" +
+	"\x13_short_circuit_tick\"\xa8\x02\n" +
 	"\x14EnvironmentCondition\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12+\n" +
@@ -47984,7 +47979,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_consumption_wB\x13\n" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\x14\n" +
-	"\x12_has_active_source\"\xc5\x03\n" +
+	"\x12_has_active_source\"\xb9\x03\n" +
 	"\x15ControlledEnvironment\x12>\n" +
 	"\x06lights\x18\x01 \x03(\v2&.rimgovernor.observations.v1.GrowLightR\x06lights\x12B\n" +
 	"\agrowers\x18\x02 \x03(\v2(.rimgovernor.observations.v1.PlantGrowerR\agrowers\x12;\n" +
@@ -47995,7 +47990,7 @@ const file_observations_proto_rawDesc = "" +
 	"\aweather\x18\t \x01(\tH\x01R\aweather\x88\x01\x01B\v\n" +
 	"\t_daylightB\n" +
 	"\n" +
-	"\b_weatherJ\x04\b\x05\x10\x06J\x04\b\a\x10\b\"\xcd\x01\n" +
+	"\b_weather\"\xcd\x01\n" +
 	"\n" +
 	"EdibleCrop\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12<\n" +
@@ -48003,12 +47998,12 @@ const file_observations_proto_rawDesc = "" +
 	"\fdiet_allowed\x18\x03 \x01(\bH\x02R\vdietAllowed\x88\x01\x01B\v\n" +
 	"\t_def_nameB\x1b\n" +
 	"\x19_nutrition_demand_per_dayB\x0f\n" +
-	"\r_diet_allowed\"\xe2\x02\n" +
+	"\r_diet_allowed\"\xa3\x02\n" +
 	"\rPlanningFacts\x12=\n" +
 	"\x04gear\x18\x03 \x01(\v2).rimgovernor.observations.v1.GearSnapshotR\x04gear\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12T\n" +
 	"\venvironment\x18\a \x01(\v22.rimgovernor.observations.v1.ControlledEnvironmentR\venvironment\x12=\n" +
-	"\x05crops\x18\b \x03(\v2'.rimgovernor.observations.v1.EdibleCropR\x05cropsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x06\x10\aR\vdefinitionsR\x05cellsR\x11zone_map_snapshot\"\xd6\x02\n" +
+	"\x05crops\x18\b \x03(\v2'.rimgovernor.observations.v1.EdibleCropR\x05crops\"\x90\x02\n" +
 	"\vFoodProduct\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x01R\x05count\x88\x01\x01\x12\x1b\n" +
@@ -48019,9 +48014,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_countB\t\n" +
 	"\a_edibleB\x1b\n" +
 	"\x19_nutrition_demand_per_dayB\v\n" +
-	"\t_storableJ\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\t\x10\n" +
-	"R\tnutritionR\brot_daysR\n" +
-	"perishableR\vbaby_edible\"\xaf\x01\n" +
+	"\t_storable\"\xaf\x01\n" +
 	"\x0eFoodProduction\x12\x1b\n" +
 	"\x06recipe\x18\x01 \x01(\tH\x00R\x06recipe\x88\x01\x01\x12!\n" +
 	"\tavailable\x18\x02 \x01(\bH\x01R\tavailable\x88\x01\x01\x12D\n" +
@@ -48113,7 +48106,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_usableB\x19\n" +
 	"\x17_human_corpse_nutritionB\x16\n" +
 	"\x14_human_storage_readyB\x13\n" +
-	"\x11_human_corpse_def\"\xfb\x01\n" +
+	"\x11_human_corpse_def\"\xed\x01\n" +
 	"\x15HumanButcherCandidate\x12\x17\n" +
 	"\apawn_id\x18\x01 \x01(\tR\x06pawnId\x122\n" +
 	"\x12precept_acceptable\x18\x03 \x01(\bH\x00R\x11preceptAcceptable\x88\x01\x01\x12\x1e\n" +
@@ -48121,7 +48114,7 @@ const file_observations_proto_rawDesc = "" +
 	"\vpawn_traits\x18\x05 \x03(\v2\".rimgovernor.observations.v1.TraitR\n" +
 	"pawnTraitsB\x15\n" +
 	"\x13_precept_acceptableB\v\n" +
-	"\t_can_workJ\x04\b\x02\x10\x03R\x06traits\"\x93\x02\n" +
+	"\t_can_work\"\x93\x02\n" +
 	"\n" +
 	"FoodCorpse\x12@\n" +
 	"\x06corpse\x18\x01 \x01(\v2(.rimgovernor.observations.v1.CorpseStateR\x06corpse\x12\x19\n" +
@@ -48190,7 +48183,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0fPlanningSection\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.PlanningFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xf6\x02\n" +
+	"\aoutcome\"\xea\x02\n" +
 	"\x11WallRemovalRecord\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12 \n" +
 	"\ttarget_id\x18\x02 \x01(\tH\x01R\btargetId\x88\x01\x01\x12\x1f\n" +
@@ -48209,10 +48202,10 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_blockerB\x11\n" +
 	"\x0f_target_presentB\r\n" +
-	"\v_designatedJ\x04\b\x06\x10\aJ\x04\b\a\x10\b\"\xa8\x01\n" +
+	"\v_designated\"\xa2\x01\n" +
 	"\x10WallRemovalFacts\x12H\n" +
 	"\arecords\x18\x01 \x03(\v2..rimgovernor.observations.v1.WallRemovalRecordR\arecords\x12D\n" +
-	"\bsnapshot\x18\x03 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotJ\x04\b\x02\x10\x03\"\xb4\x01\n" +
+	"\bsnapshot\x18\x03 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\"\xb4\x01\n" +
 	"\x12WallRemovalSection\x12K\n" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.WallRemovalFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48236,11 +48229,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_missing_cellsB\x11\n" +
 	"\x0f_excluded_cellsB\n" +
 	"\n" +
-	"\b_blocker\"\x92\x01\n" +
+	"\b_blocker\"\x8c\x01\n" +
 	"\x11HomeCoverageFacts\x12\x1f\n" +
 	"\brevision\x18\x01 \x01(\x03H\x00R\brevision\x88\x01\x01\x12I\n" +
 	"\atargets\x18\x02 \x03(\v2/.rimgovernor.observations.v1.HomeCoverageTargetR\atargetsB\v\n" +
-	"\t_revisionJ\x04\b\x03\x10\x04\"\xb6\x01\n" +
+	"\t_revision\"\xb6\x01\n" +
 	"\x13HomeCoverageSection\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.HomeCoverageFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48254,7 +48247,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0flight_sensitive\x18\x06 \x01(\bH\x02R\x0elightSensitive\x88\x01\x01B\a\n" +
 	"\x05_glowB\t\n" +
 	"\a_roofedB\x12\n" +
-	"\x10_light_sensitive\"\xce\x01\n" +
+	"\x10_light_sensitive\"\xc8\x01\n" +
 	"\tLampState\x126\n" +
 	"\bbuilding\x18\x05 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12$\n" +
 	"\vglow_radius\x18\x02 \x01(\x01H\x00R\n" +
@@ -48262,11 +48255,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x03lit\x18\x03 \x01(\bH\x01R\x03lit\x88\x01\x01\x12.\n" +
 	"\x04room\x18\x04 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04roomB\x0e\n" +
 	"\f_glow_radiusB\x06\n" +
-	"\x04_litJ\x04\b\x01\x10\x02\"\x9e\x01\n" +
+	"\x04_lit\"\x98\x01\n" +
 	"\rLightingFacts\x12I\n" +
 	"\n" +
 	"work_cells\x18\x01 \x03(\v2*.rimgovernor.observations.v1.WorkLightCellR\tworkCells\x12<\n" +
-	"\x05lamps\x18\x02 \x03(\v2&.rimgovernor.observations.v1.LampStateR\x05lampsJ\x04\b\x03\x10\x04\"\xae\x01\n" +
+	"\x05lamps\x18\x02 \x03(\v2&.rimgovernor.observations.v1.LampStateR\x05lamps\"\xae\x01\n" +
 	"\x0fLightingSection\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.LightingFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48278,14 +48271,14 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_terrainB\n" +
 	"\n" +
-	"\b_pending\"\xaa\x01\n" +
+	"\b_pending\"\x9b\x01\n" +
 	"\tFloorRoom\x12.\n" +
 	"\x04room\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04room\x12\x17\n" +
 	"\x04role\x18\x02 \x01(\tH\x00R\x04role\x88\x01\x01\x12<\n" +
 	"\x05cells\x18\x03 \x03(\v2&.rimgovernor.observations.v1.FloorCellR\x05cellsB\a\n" +
-	"\x05_roleJ\x04\b\x04\x10\x05R\aquality\"c\n" +
+	"\x05_role\"M\n" +
 	"\rFlooringFacts\x12<\n" +
-	"\x05rooms\x18\x01 \x03(\v2&.rimgovernor.observations.v1.FloorRoomR\x05roomsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\bterrains\"\xae\x01\n" +
+	"\x05rooms\x18\x01 \x03(\v2&.rimgovernor.observations.v1.FloorRoomR\x05rooms\"\xae\x01\n" +
 	"\x0fFlooringSection\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.FlooringFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48334,7 +48327,7 @@ const file_observations_proto_rawDesc = "" +
 	"\b_terrainB\a\n" +
 	"\x05_homeB\n" +
 	"\n" +
-	"\b_pending\"\xca\x02\n" +
+	"\b_pending\"\xc4\x02\n" +
 	"\vRoutesFacts\x12J\n" +
 	"\n" +
 	"facilities\x18\x01 \x03(\v2*.rimgovernor.observations.v1.RouteFacilityR\n" +
@@ -48344,11 +48337,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x0ftraffic_samples\x18\x04 \x01(\rH\x00R\x0etrafficSamples\x88\x01\x01\x121\n" +
 	"\x12traffic_since_tick\x18\x05 \x01(\x05H\x01R\x10trafficSinceTick\x88\x01\x01B\x12\n" +
 	"\x10_traffic_samplesB\x15\n" +
-	"\x13_traffic_since_tickJ\x04\b\x06\x10\a\"\xaa\x01\n" +
+	"\x13_traffic_since_tick\"\xaa\x01\n" +
 	"\rRoutesSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.RoutesFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xdd\f\n" +
+	"\aoutcome\"\xc5\f\n" +
 	"\vUpkeepFacts\x12E\n" +
 	"\acomfort\x18\x01 \x01(\v2+.rimgovernor.observations.v1.ComfortSectionR\acomfort\x12=\n" +
 	"\x05items\x18\x03 \x03(\v2'.rimgovernor.observations.v1.UpkeepItemR\x05items\x12:\n" +
@@ -48376,11 +48369,11 @@ const file_observations_proto_rawDesc = "" +
 	"\x0eauto_home_area\x18\x19 \x01(\bH\x00R\fautoHomeArea\x88\x01\x01\x12:\n" +
 	"\n" +
 	"home_cells\x18\x1a \x03(\v2\x1b.rimgovernor.common.v1.CellR\thomeCellsB\x11\n" +
-	"\x0f_auto_home_areaJ\x04\b\x02\x10\x03J\x04\b\x0e\x10\x0fJ\x04\b\x10\x10\x11J\x04\b\x17\x10\x18\"\xaa\x01\n" +
+	"\x0f_auto_home_area\"\xaa\x01\n" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xa4\x05\n" +
+	"\aoutcome\"\x9e\x05\n" +
 	"\vThreatFacts\x12&\n" +
 	"\fwealth_items\x18\x01 \x01(\x01H\x00R\vwealthItems\x88\x01\x01\x12.\n" +
 	"\x10wealth_buildings\x18\x02 \x01(\x01H\x01R\x0fwealthBuildings\x88\x01\x01\x12&\n" +
@@ -48401,8 +48394,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_raid_pointsB\x14\n" +
 	"\x12_adaptation_factorB\x1a\n" +
 	"\x18_difficulty_threat_scaleB\x11\n" +
-	"\x0f_colonist_countJ\x04\b\n" +
-	"\x10\v\"\xaa\x01\n" +
+	"\x0f_colonist_count\"\xaa\x01\n" +
 	"\rThreatSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.ThreatFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48555,7 +48547,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05_raceB\x11\n" +
 	"\x0f_meat_nutritionB\x0f\n" +
 	"\r_feed_per_dayB\x14\n" +
-	"\x12_reproduction_days\"\xef\x04\n" +
+	"\x12_reproduction_days\"\xe9\x04\n" +
 	"\x11FoodChannelsFacts\x12Q\n" +
 	"\x0efishable_water\x18\x01 \x01(\v2*.rimgovernor.observations.v1.FishableWaterR\rfishableWater\x12M\n" +
 	"\n" +
@@ -48567,7 +48559,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06forage\x18\x06 \x03(\v2(.rimgovernor.observations.v1.ForagePlantR\x06forage\x12A\n" +
 	"\agrazing\x18\b \x03(\v2'.rimgovernor.observations.v1.PenGrazingR\agrazing\x12N\n" +
 	"\tslaughter\x18\t \x03(\v20.rimgovernor.observations.v1.FoodSlaughterAnimalR\tslaughterB\x11\n" +
-	"\x0f_polluted_cellsJ\x04\b\a\x10\b\"\xb6\x01\n" +
+	"\x0f_polluted_cells\"\xb6\x01\n" +
 	"\x13FoodChannelsSection\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.FoodChannelsFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48599,7 +48591,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_workingB\x15\n" +
 	"\x13_ticks_to_next_findB\x12\n" +
-	"\x10_target_resource\"\x9e\x03\n" +
+	"\x10_target_resource\"\x98\x03\n" +
 	"\x0eDeepDrillState\x12$\n" +
 	"\vbuilding_id\x18\x01 \x01(\tH\x00R\n" +
 	"buildingId\x88\x01\x01\x12\x1e\n" +
@@ -48620,7 +48612,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_remainingB\v\n" +
 	"\t_depletedB\r\n" +
-	"\v_designatedJ\x04\b\b\x10\t\"\xdb\x02\n" +
+	"\v_designated\"\xdb\x02\n" +
 	"\x12DeepResourcesFacts\x12C\n" +
 	"\x05lumps\x18\x01 \x03(\v2-.rimgovernor.observations.v1.DeepResourceLumpR\x05lumps\x12Y\n" +
 	"\x0fground_scanners\x18\x02 \x03(\v20.rimgovernor.observations.v1.MineralScannerStateR\x0egroundScanners\x12`\n" +
@@ -48629,7 +48621,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x14DeepResourcesSection\x12M\n" +
 	"\bobserved\x18\x01 \x01(\v2/.rimgovernor.observations.v1.DeepResourcesFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xfb\x1c\n" +
+	"\aoutcome\"\xef\x1c\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -48704,7 +48696,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_pending_wood_unitsB\x10\n" +
 	"\x0e_pending_huntsB\x14\n" +
 	"\x12_player_tech_levelB\x15\n" +
-	"\x13_fermenting_barrelsJ\x04\b#\x10$J\x04\b0\x101\"\xb2\x01\n" +
+	"\x13_fermenting_barrels\"\xb2\x01\n" +
 	"\x0eOdysseySection\x12M\n" +
 	"\bobserved\x18\x01 \x01(\v2/.rimgovernor.observations.v1.OdysseyColonyFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -48867,7 +48859,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x19\n" +
 	"\bpawn_ids\x18\x03 \x03(\tR\apawnIdsB\x05\n" +
 	"\x03_idB\b\n" +
-	"\x06_label\"\xed\x03\n" +
+	"\x06_label\"\xd3\x03\n" +
 	"\vPolicyFacts\x12@\n" +
 	"\x06outfit\x18\x01 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\x06outfit\x12<\n" +
 	"\x04drug\x18\x02 \x03(\v2(.rimgovernor.observations.v1.PolicyEntryR\x04drug\x12<\n" +
@@ -48876,7 +48868,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rallowed_areas\x18\x05 \x03(\v2-.rimgovernor.observations.v1.AllowedAreaEntryR\fallowedAreas\x12%\n" +
 	"\x0ebiome_diseases\x18\a \x03(\tR\rbiomeDiseases\x12G\n" +
 	"\vfood_eaters\x18\t \x03(\v2&.rimgovernor.observations.v1.FoodEaterR\n" +
-	"foodEatersJ\x04\b\x06\x10\aJ\x04\b\b\x10\tR\x05booksR\x05foods\"\x85\x02\n" +
+	"foodEaters\"\xe4\x01\n" +
 	"\tFoodEater\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12C\n" +
 	"\x04kind\x18\x02 \x01(\x0e2*.rimgovernor.observations.v1.FoodEaterKindH\x01R\x04kind\x88\x01\x01\x12\x1a\n" +
@@ -48885,7 +48877,7 @@ const file_observations_proto_rawDesc = "" +
 	"pawnTraitsB\n" +
 	"\n" +
 	"\b_pawn_idB\a\n" +
-	"\x05_kindJ\x04\b\x03\x10\x04J\x04\b\x05\x10\x06R\x06traitsR\vedible_defs\"\xaa\x01\n" +
+	"\x05_kind\"\xaa\x01\n" +
 	"\rPolicySection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.PolicyFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
@@ -49066,16 +49058,16 @@ const file_observations_proto_rawDesc = "" +
 	"\r_expires_tickB\x0f\n" +
 	"\r_accept_labelB\r\n" +
 	"\v_can_acceptB\x0e\n" +
-	"\f_creepjoiner\"\xae\x01\n" +
+	"\f_creepjoiner\"\x80\x01\n" +
 	"\x12ColonyFactsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1f\n" +
 	"\bplanning\x18\x02 \x01(\bH\x00R\bplanning\x88\x01\x01B\v\n" +
-	"\t_planningJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\x1arequested_definition_names\"\xf1\x01\n" +
+	"\t_planning\"\xf1\x01\n" +
 	"\x10ColonyFactsReply\x12N\n" +
 	"\bobserved\x18\x01 \x01(\v20.rimgovernor.observations.v1.ColonyFactsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xfe\x05\n" +
+	"\aoutcome\"\xcc\x05\n" +
 	"\n" +
 	"ThreatPawn\x12.\n" +
 	"\x04prey\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04prey\x12%\n" +
@@ -49103,7 +49095,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_prison_breakB\x10\n" +
 	"\x0e_predator_huntB\v\n" +
 	"\t_predatorB\t\n" +
-	"\a_downedJ\x04\b\x01\x10\x02J\x04\b\x05\x10\x06J\x04\b\b\x10\tR\x0eignored_reasonR\x0ehostile_reason\"\xe7\x04\n" +
+	"\a_downed\"\xd1\x04\n" +
 	"\x0eThreatBuilding\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12U\n" +
 	"\x11building_snapshot\x18\n" +
@@ -49122,15 +49114,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x1a_nearest_colonist_distanceB\n" +
 	"\n" +
 	"\b_passiveB\t\n" +
-	"\a_mortarJ\x04\b\x06\x10\aR\x0eoccupied_cells\"\x80\x02\n" +
+	"\a_mortar\"\xaa\x01\n" +
 	"\x0fThreatsSnapshot\x12=\n" +
 	"\x05pawns\x18\b \x03(\v2'.rimgovernor.observations.v1.ThreatPawnR\x05pawns\x12X\n" +
-	"\x11hostile_buildings\x18\a \x03(\v2+.rimgovernor.observations.v1.ThreatBuildingR\x10hostileBuildingsJ\x04\b\x01\x10\aR\bhostilesR\x11hunting_predatorsR\x0fignored_huntersR\x13wild_predators_nearR\vdowned_near\"\x9d\x02\n" +
+	"\x11hostile_buildings\x18\a \x03(\v2+.rimgovernor.observations.v1.ThreatBuildingR\x10hostileBuildings\"\x97\x02\n" +
 	"\x0eStatusSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12F\n" +
 	"\athreats\x18\x03 \x01(\v2,.rimgovernor.observations.v1.ThreatsSnapshotR\athreats\x12>\n" +
 	"\x06issues\x18\x04 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x128\n" +
-	"\tcolonists\x18\x05 \x03(\v2\x1a.rimgovernor.common.v1.RefR\tcolonistsJ\x04\b\x02\x10\x03\"\x88\x02\n" +
+	"\tcolonists\x18\x05 \x03(\v2\x1a.rimgovernor.common.v1.RefR\tcolonists\"\xeb\x01\n" +
 	"\rStatusRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12!\n" +
 	"\tcolonists\x18\x02 \x01(\bH\x00R\tcolonists\x88\x01\x01\x12\x1d\n" +
@@ -49140,12 +49132,12 @@ const file_observations_proto_rawDesc = "" +
 	"_colonistsB\n" +
 	"\n" +
 	"\b_threatsB\x12\n" +
-	"\x10_predator_radiusJ\x04\b\x04\x10\x05J\x04\b\x06\x10\aR\x0fcolonist_detail\"\xe7\x01\n" +
+	"\x10_predator_radius\"\xe7\x01\n" +
 	"\vStatusReply\x12I\n" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.StatusSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xb1\x10\n" +
+	"\aoutcome\"\xc1\x0f\n" +
 	"\x0eBundleSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
 	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01\x12?\n" +
@@ -49182,8 +49174,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_pausedB\x1c\n" +
 	"\x1a_combat_hive_temperature_cB\x0f\n" +
 	"\r_keyframe_seqB\v\n" +
-	"\t_sky_glowJ\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\t\x10\n" +
-	"J\x04\b\x11\x10\x12J\x04\b\x16\x10\x17J\x04\b\x18\x10\x19J\x04\b\x1a\x10\x1bJ\x04\b\x1d\x10\x1eR\x0ecolonist_pawnsR\rcombat_detailR\x13project_definitions\"\xea\x01\n" +
+	"\t_sky_glow\"\xea\x01\n" +
 	"\x10SectionWatermark\x12\x1d\n" +
 	"\asection\x18\x01 \x01(\tH\x00R\asection\x88\x01\x01\x12\x15\n" +
 	"\x03seq\x18\x02 \x01(\x04H\x01R\x03seq\x88\x01\x01\x12(\n" +
@@ -49260,42 +49251,42 @@ const file_observations_proto_rawDesc = "" +
 	"\b_visibleB\n" +
 	"\n" +
 	"\b_enabledB\x12\n" +
-	"\x10_disabled_reason\"\xb8\x01\n" +
+	"\x10_disabled_reason\"\xb2\x01\n" +
 	"\x1bArchitectCategoriesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12N\n" +
 	"\n" +
 	"categories\x18\x02 \x03(\v2..rimgovernor.observations.v1.ArchitectCategoryR\n" +
-	"categoriesJ\x04\b\x03\x10\x04\"\xdb\x01\n" +
+	"categories\"\xd5\x01\n" +
 	"\x1aArchitectCategoriesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12(\n" +
 	"\rinclude_empty\x18\x02 \x01(\bH\x00R\fincludeEmpty\x88\x01\x01\x12*\n" +
 	"\x0einclude_hidden\x18\x03 \x01(\bH\x01R\rincludeHidden\x88\x01\x01B\x10\n" +
 	"\x0e_include_emptyB\x11\n" +
-	"\x0f_include_hiddenJ\x04\b\x04\x10\x05\"\x81\x02\n" +
+	"\x0f_include_hidden\"\x81\x02\n" +
 	"\x18ArchitectCategoriesReply\x12V\n" +
 	"\bobserved\x18\x01 \x01(\v28.rimgovernor.observations.v1.ArchitectCategoriesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xbd\x01\n" +
+	"\aoutcome\"\xb7\x01\n" +
 	"\x1cArchitectDesignatorsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12R\n" +
-	"\vdesignators\x18\x02 \x03(\v20.rimgovernor.observations.v1.ArchitectDesignatorR\vdesignatorsJ\x04\b\x03\x10\x04\"\xd6\x01\n" +
+	"\vdesignators\x18\x02 \x03(\v20.rimgovernor.observations.v1.ArchitectDesignatorR\vdesignators\"\xd0\x01\n" +
 	"\x1bArchitectDesignatorsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12$\n" +
 	"\vcategory_id\x18\x02 \x01(\tH\x00R\n" +
 	"categoryId\x88\x01\x01\x12*\n" +
 	"\x0einclude_hidden\x18\x03 \x01(\bH\x01R\rincludeHidden\x88\x01\x01B\x0e\n" +
 	"\f_category_idB\x11\n" +
-	"\x0f_include_hiddenJ\x04\b\x04\x10\x05\"\x83\x02\n" +
+	"\x0f_include_hidden\"\x83\x02\n" +
 	"\x19ArchitectDesignatorsReply\x12W\n" +
 	"\bobserved\x18\x01 \x01(\v29.rimgovernor.observations.v1.ArchitectDesignatorsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\x89\x01\n" +
+	"\aoutcome\"p\n" +
 	"\x15SnapshotStreamRequest\x12)\n" +
 	"\x10resource_sources\x18\x01 \x03(\tR\x0fresourceSources\x12\x1f\n" +
 	"\bkeyframe\x18\x04 \x01(\bH\x00R\bkeyframe\x88\x01\x01B\v\n" +
-	"\t_keyframeJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\vdefinitions\"\xba\a\n" +
+	"\t_keyframe\"\xa7\a\n" +
 	"\x11DefinitionCatalog\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\bresearch\x18\x03 \x03(\v2,.rimgovernor.observations.v1.ResearchProjectR\bresearch\x12E\n" +
@@ -49313,7 +49304,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x04defs\x18\f \x01(\v2\x1c.rimgovernor.defs.v1.DefSetsR\x04defs\x12J\n" +
 	"\fclass_chains\x18\r \x03(\v2'.rimgovernor.observations.v1.ClassChainR\vclassChains\x12K\n" +
 	"\vthing_facts\x18\x0e \x03(\v2*.rimgovernor.observations.v1.ThingDefFactsR\n" +
-	"thingFactsJ\x04\b\x02\x10\x03R\vdefinitions\"6\n" +
+	"thingFacts\"6\n" +
 	"\n" +
 	"ClassChain\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
@@ -50245,14 +50236,14 @@ const file_observations_proto_rawDesc = "" +
 	"\x12FlushSnapshotReply\x12\x1a\n" +
 	"\aflushed\x18\x01 \x01(\bH\x00R\aflushed\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"4\n" +
+	"\aoutcome\".\n" +
 	"\x0eTradeFoodFacts\x12\x1c\n" +
-	"\tnutrition\x18\x01 \x01(\x01R\tnutritionJ\x04\b\x02\x10\x06\"y\n" +
+	"\tnutrition\x18\x01 \x01(\x01R\tnutrition\"d\n" +
 	"\x0fFoodRestriction\x12 \n" +
 	"\tpolicy_id\x18\x01 \x01(\tH\x00R\bpolicyId\x88\x01\x01\x12!\n" +
 	"\fallowed_defs\x18\x02 \x03(\tR\vallowedDefsB\f\n" +
 	"\n" +
-	"_policy_idJ\x04\b\x03\x10\x04R\religible_defs\"\xad\a\n" +
+	"_policy_id\"\x94\a\n" +
 	"\x12ApparelPolicyState\x12\x19\n" +
 	"\x05token\x18\x01 \x01(\tH\x00R\x05token\x88\x01\x01\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x01R\x04name\x88\x01\x01\x12!\n" +
@@ -50291,8 +50282,7 @@ const file_observations_proto_rawDesc = "" +
 	"_pawn_nameB\f\n" +
 	"\n" +
 	"_policy_idB\a\n" +
-	"\x05_nudeJ\x04\b\x02\x10\x03J\x04\b\n" +
-	"\x10\vR\vdefinitions*\xb7\x01\n" +
+	"\x05_nude*\xb7\x01\n" +
 	"\x0eClearanceClass\x12\x1f\n" +
 	"\x1bCLEARANCE_CLASS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!CLEARANCE_CLASS_ANCIENT_WALL_DOOR\x10\x01\x12\x1e\n" +

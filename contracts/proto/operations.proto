@@ -97,7 +97,6 @@ message CombatOrder {
     // highly tolerant of the drug's chemical).
     string combat_drug = 17;
   }
-  reserved 12;
 }
 message CombatOrders { repeated CombatOrder orders = 1; }
 enum ThingDesignation {
@@ -161,7 +160,6 @@ message BillSettings {
   // (ButcherCorpseFlesh) takes. Required on corpse recipes,
   // refused on others; a butcher bill with a pinned worker is humanlike.
   optional rimgovernor.common.v1.CorpseClass corpse_class = 14;
-  reserved 15;
 }
 message DefinitionList { repeated string defs = 1; }
 enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
@@ -216,13 +214,13 @@ enum PrisonerInteraction {
 // applies and refuses with a reason when the session is gone or held by a
 // different trader or negotiator; repeating one is harmless. OpenTrade
 // reuses a matching open session or walk.
-message OpenTrade { reserved 1, 2, 4, 5; reserved "trader_id", "negotiator_id"; optional bool gift_mode = 3; }
+message OpenTrade { optional bool gift_mode = 3; }
 message TradeLine { optional string line_id = 1; optional int32 absolute_count = 2; }
-message SetTradeLines { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
-message AcceptTrade { reserved 1, 6, 7; reserved "trader_id", "negotiator_id"; optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; repeated string export_thing_ids = 8; }
+message SetTradeLines { repeated TradeLine lines = 2; optional bool allow_pawns = 3; }
+message AcceptTrade { optional string expected_deal_signature = 2; repeated DefCount economic_floors = 3; optional bool allow_empty = 4; optional bool receive_quest = 5; repeated string export_thing_ids = 8; }
 enum EndTradeKind { END_TRADE_KIND_UNSPECIFIED = 0; END_TRADE_KIND_CANCEL = 1; END_TRADE_KIND_CLOSE_DIALOG = 2; }
 // A cancel with no live session is a no-op, not a refusal.
-message EndTrade { reserved 1, 4, 5; reserved "trader_id", "negotiator_id"; optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
+message EndTrade { optional EndTradeKind kind = 2; optional bool receive_quest = 3; }
 
 // Zone siting (#1130): a plain read planners run per candidate zone. Native
 // checks the ground as a zone create Action would, creating nothing.
@@ -266,7 +264,6 @@ message Action {
   // "activity" overlay shows it over the pawn; it never changes the apply.
   optional string purpose = 2;
   // Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
-  reserved 14, 26, 27, 28, 29, 30, 31, 32, 34, 35, 36, 37, 40, 41, 42, 43, 46, 47; reserved "melee", "waste", "recover", "remove_wall", "acquire", "home", "remove_foundation", "cover", "deconstruct", "excavate", "create_zone", "delete_zone", "zone_cells", "stockpile", "pawn_order", "need_relief", "use_item", "surgery";
   oneof intent {
     TradeIntent trade = 10;
     BuildingIntent building = 11;
@@ -676,9 +673,6 @@ message WorkSettingsIntent {
   repeated WorkPriority work = 2;
   Assignment allowed_area = 3;
   Schedule schedule = 4;
-  reserved 5; reserved "medical_care";
-  reserved 6; reserved "food_allow";
-  reserved 7; reserved "drug_policy";
 }
 // Assign one free colonist to one assignable thing (a bed, a throne, a
 // sarcophagus: anything with CompAssignableToPawn), replacing the thing of

@@ -136,8 +136,6 @@ message WatchPolicy {
   repeated string medical_rest_ids = 10;
   // Watched attempts only ever named construction operations, which moved
   // to Actions/Apply (#856).
-  reserved 11;
-  reserved "watched_attempts";
   // Stored-resource levels the controller's planners act on (#670). When a
   // definition's colony stock crosses its level in either direction under a
   // running epoch the journal gets an observation_invalidated row for the
@@ -188,8 +186,6 @@ message StartRequest {
   // test_acceleration; absent is PACING_FIXED. Native paces it against its
   // own 30 ms frame budget (Epoch.frame_budget_ms).
   optional Pacing pacing = 9;
-  reserved 10;
-  reserved "frame_budget_ms";
 }
 message OwnedRequest {
   rimgovernor.common.v1.Identity identity = 1;
@@ -271,7 +267,6 @@ message Status {
   optional uint64 probe_count = 14;
   repeated Alert baseline_alerts = 15;
   repeated Injury suppressed_injuries = 16;
-  reserved 17;
   optional ObservedSpeed observed_speed = 18;
   optional bool actual_paused = 19;
   // The launch admits StartRequest.test_acceleration.
@@ -337,8 +332,6 @@ message UncertainControl { Status last_observed = 1; optional string detail = 2;
 message ControlReceipt {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   rimgovernor.common.v1.ObservationContext admitted_context = 2;
-  reserved 3;
-  reserved "authorizing_owner";
   oneof outcome {
     AppliedControl applied = 4;
     UncertainControl uncertain = 5;
@@ -388,7 +381,6 @@ message Notification {
 message NotificationBatch {
   repeated Letter letters = 1;
   repeated TransientMessage messages = 2;
-  reserved 3;
 }
 message Alert {
   optional string key = 1;
@@ -434,7 +426,6 @@ message HostilesCleared {
   repeated PawnEvent drafted_colonists = 2;
   optional int32 conscious_hostiles_before = 3;
   optional bool across_epoch_restart = 4;
-  reserved 5;
 }
 message BudgetReached {
   optional int64 start_tick = 1;

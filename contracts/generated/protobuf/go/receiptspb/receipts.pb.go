@@ -773,6 +773,9 @@ func (x *Uncertain) GetDetail() string {
 // Every evidence branch is concrete; none permits arbitrary named properties.
 type EffectEvidence struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Area and surgery effects went with RecoveryArea and QueueSurgery (#938).
+	// Revoking authority releases owned deconstructions natively (#940).
+	//
 	// Types that are valid to be assigned to Effect:
 	//
 	//	*EffectEvidence_Construction
@@ -5221,14 +5224,14 @@ var File_receipts_proto protoreflect.FileDescriptor
 
 const file_receipts_proto_rawDesc = "" +
 	"\n" +
-	"\x0ereceipts.proto\x12\x17rimgovernor.receipts.v1\x1a\fcommon.proto\x1a\x0fplacement.proto\"\x84\x03\n" +
+	"\x0ereceipts.proto\x12\x17rimgovernor.receipts.v1\x1a\fcommon.proto\x1a\x0fplacement.proto\"\xeb\x02\n" +
 	"\aReceipt\x12;\n" +
 	"\aattempt\x18\x01 \x01(\v2!.rimgovernor.common.v1.AttemptKeyR\aattempt\x12T\n" +
 	"\x10admitted_context\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x0fadmittedContext\x12@\n" +
 	"\tno_change\x18\x04 \x01(\v2!.rimgovernor.receipts.v1.NoChangeH\x00R\bnoChange\x12<\n" +
 	"\aapplied\x18\x05 \x01(\v2 .rimgovernor.receipts.v1.AppliedH\x00R\aapplied\x12B\n" +
 	"\tuncertain\x18\x06 \x01(\v2\".rimgovernor.receipts.v1.UncertainH\x00R\tuncertainB\t\n" +
-	"\aoutcomeJ\x04\b\x03\x10\x04R\x11authorizing_owner\"w\n" +
+	"\aoutcome\"w\n" +
 	"\bNoChange\x12C\n" +
 	"\bobserved\x18\x01 \x01(\v2'.rimgovernor.receipts.v1.EffectEvidenceR\bobserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
@@ -5238,7 +5241,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tUncertain\x12L\n" +
 	"\rlast_observed\x18\x01 \x01(\v2'.rimgovernor.receipts.v1.EffectEvidenceR\flastObserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\xed\x10\n" +
+	"\a_detail\"\xa1\x10\n" +
 	"\x0eEffectEvidence\x12Q\n" +
 	"\fconstruction\x18\x01 \x01(\v2+.rimgovernor.receipts.v1.ConstructionEffectH\x00R\fconstruction\x12Q\n" +
 	"\finstallation\x18\x02 \x01(\v2+.rimgovernor.receipts.v1.InstallationEffectH\x00R\finstallation\x12N\n" +
@@ -5273,8 +5276,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x06ritual\x18( \x01(\v2%.rimgovernor.receipts.v1.RitualEffectH\x00R\x06ritual\x12B\n" +
 	"\aability\x18  \x01(\v2&.rimgovernor.receipts.v1.AbilityEffectH\x00R\aability\x12B\n" +
 	"\aroyalty\x18) \x01(\v2&.rimgovernor.receipts.v1.RoyaltyEffectH\x00R\aroyaltyB\b\n" +
-	"\x06effectJ\x04\b\a\x10\bJ\x04\b\t\x10\n" +
-	"J\x04\b\f\x10\rJ\x04\b\x0e\x10\x0fJ\x04\b\x19\x10\x1aR\x04areaR\x04homeR\asurgeryR\x17release_deconstructions\"\xb1\x01\n" +
+	"\x06effect\"\xb1\x01\n" +
 	"\x10SnapshotEvidence\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12&\n" +
 	"\fbefore_token\x18\x02 \x01(\tH\x01R\vbeforeToken\x88\x01\x01\x12$\n" +
@@ -5432,15 +5434,14 @@ const file_receipts_proto_rawDesc = "" +
 	"\a_reason\"\x95\x01\n" +
 	"\x0eSettingsEffect\x12E\n" +
 	"\bsnapshot\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\bsnapshot\x12<\n" +
-	"\x06fields\x18\x02 \x03(\v2$.rimgovernor.receipts.v1.FieldResultR\x06fields\"\xa6\x02\n" +
+	"\x06fields\x18\x02 \x03(\v2$.rimgovernor.receipts.v1.FieldResultR\x06fields\"\xb0\x01\n" +
 	"\n" +
 	"BillEffect\x12?\n" +
 	"\x05stack\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x05stack\x12.\n" +
 	"\x04bill\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04bill\x12\"\n" +
 	"\n" +
 	"recipe_def\x18\x03 \x01(\tH\x00R\trecipeDef\x88\x01\x01B\r\n" +
-	"\v_recipe_defJ\x04\b\x04\x10\fR\apresentR\x05indexR\x10ordered_bill_idsR\x15configuration_matchesR\n" +
-	"iterationsR\x0foutput_completeR\x0foutput_observedR\aoutputs\"\xf4\x01\n" +
+	"\v_recipe_def\"\xf4\x01\n" +
 	"\x0eResearchEffect\x125\n" +
 	"\x14previous_project_def\x18\x01 \x01(\tH\x00R\x12previousProjectDef\x88\x01\x01\x123\n" +
 	"\x13current_project_def\x18\x02 \x01(\tH\x01R\x11currentProjectDef\x88\x01\x01\x12E\n" +
@@ -5500,7 +5501,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x0f_designation_idB\x16\n" +
 	"\x14_demolition_observedB\x13\n" +
 	"\x11_waiting_for_roofB\x11\n" +
-	"\x0f_replacement_id\"\xf8\x01\n" +
+	"\x0f_replacement_id\"\xe2\x01\n" +
 	"\x11CombatOrderResult\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12\x1c\n" +
 	"\apawn_id\x18\x02 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12\x1d\n" +
@@ -5515,7 +5516,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_refusalB\n" +
 	"\n" +
-	"\b_job_defJ\x04\b\x06\x10\aR\x0edraft_claim_id\"Z\n" +
+	"\b_job_def\"Z\n" +
 	"\x12CombatOrdersEffect\x12D\n" +
 	"\aresults\x18\x01 \x03(\v2*.rimgovernor.receipts.v1.CombatOrderResultR\aresults\"\x9b\x02\n" +
 	"\rSurgeryEffect\x12\x1c\n" +
@@ -5630,7 +5631,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_abilityB\n" +
 	"\n" +
-	"\b_job_def\"\xb1\x02\n" +
+	"\b_job_def\"\x9b\x02\n" +
 	"\n" +
 	"WallEffect\x12 \n" +
 	"\ttarget_id\x18\x01 \x01(\tH\x00R\btargetId\x88\x01\x01\x12\"\n" +
@@ -5643,11 +5644,11 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_target_idB\r\n" +
 	"\v_removal_idB\x16\n" +
-	"\x14_demolition_observedJ\x04\b\x04\x10\x05R\x0ereleased_count\"e\n" +
+	"\x14_demolition_observed\"e\n" +
 	"\tJobTarget\x12\x1b\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x121\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04cellB\b\n" +
-	"\x06target\"\xce\t\n" +
+	"\x06target\"\xb8\t\n" +
 	"\tJobEffect\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1a\n" +
 	"\x06job_id\x18\x02 \x01(\x05H\x01R\x05jobId\x88\x01\x01\x12\x1c\n" +
@@ -5699,7 +5700,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"\b_can_tryB\x1b\n" +
 	"\x19_resulting_snapshot_tokenB\x18\n" +
-	"\x16_target_snapshot_tokenJ\x04\b\x16\x10\x17R\x0edraft_claim_id\"\x95\x06\n" +
+	"\x16_target_snapshot_token\"\x81\x06\n" +
 	"\fAnimalEffect\x12A\n" +
 	"\x06animal\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x06animal\x12(\n" +
 	"\rtrainable_def\x18\x03 \x01(\tH\x00R\ftrainableDef\x88\x01\x01\x12\x1b\n" +
@@ -5728,7 +5729,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\r\n" +
 	"\v_sterilizedB\x13\n" +
-	"\x11_sterilize_queuedJ\x04\b\x02\x10\x03R\fcensus_token\"\xbc\x01\n" +
+	"\x11_sterilize_queued\"\xbc\x01\n" +
 	"\x0ePrisonerEffect\x12=\n" +
 	"\x04pawn\x18\x01 \x01(\v2).rimgovernor.receipts.v1.SnapshotEvidenceR\x04pawn\x12,\n" +
 	"\x0finteraction_def\x18\x02 \x01(\tH\x00R\x0einteractionDef\x88\x01\x01\x12\x1d\n" +

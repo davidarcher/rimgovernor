@@ -2183,7 +2183,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x10operations.proto\"\x91\x0e\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x10operations.proto\"\xe9\r\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2256,7 +2256,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\x0e_go_juice_highB\x16\n" +
 	"\x14_luciferium_addictedB\x12\n" +
 	"\x10_stun_ticks_leftB\x10\n" +
-	"\x0e_target_mortarJ\x04\b\x16\x10\x17J\x04\b\x19\x10\x1aR\fweapon_rangeR\fweapon_melee\"\xcd\x01\n" +
+	"\x0e_target_mortar\"\xcd\x01\n" +
 	"\rCombatDoorRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +

@@ -13,8 +13,6 @@ import "placement.proto";
 message Receipt {
   rimgovernor.common.v1.AttemptKey attempt = 1;
   rimgovernor.common.v1.ObservationContext admitted_context = 2;
-  reserved 3;
-  reserved "authorizing_owner";
   oneof outcome {
     NoChange no_change = 4;
     Applied applied = 5;
@@ -31,13 +29,8 @@ message Uncertain {
 // The admitted operation is recovered from the immutable request for this attempt.
 // Every evidence branch is concrete; none permits arbitrary named properties.
 message EffectEvidence {
-  reserved 7;
   // Area and surgery effects went with RecoveryArea and QueueSurgery (#938).
-  reserved 9, 12, 14;
-  reserved "area", "home", "surgery";
   // Revoking authority releases owned deconstructions natively (#940).
-  reserved 25;
-  reserved "release_deconstructions";
   oneof effect {
     ConstructionEffect construction = 1;
     InstallationEffect installation = 2;
@@ -169,7 +162,7 @@ message FieldResult {
 }
 message SettingsEffect { SnapshotEvidence snapshot = 1; repeated FieldResult fields = 2; }
 // The bill a production bill intent placed or found already standing.
-message BillEffect { SnapshotEvidence stack = 1; rimgovernor.common.v1.Ref bill = 2; optional string recipe_def = 3; reserved 4 to 11; reserved "present", "index", "ordered_bill_ids", "configuration_matches", "iterations", "output_complete", "output_observed", "outputs"; }
+message BillEffect { SnapshotEvidence stack = 1; rimgovernor.common.v1.Ref bill = 2; optional string recipe_def = 3; }
 message ResearchEffect { optional string previous_project_def = 1; optional string current_project_def = 2; SnapshotEvidence snapshot = 3; }
 message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted = 2; optional string reason = 3; optional string taken_from_zone_id = 4; }
 message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
@@ -180,7 +173,7 @@ message DeconstructEffect { optional string target_id = 1; optional string desig
 // AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
 // not_drafted, cannot_draft, stale_snapshot, not_found, unreachable,
 // cannot_hit, no_ground_verb, not_a_door, native_refused.
-message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; reserved 6; reserved "draft_claim_id"; }
+message CombatOrderResult { optional uint32 index = 1; optional string pawn_id = 2; optional bool applied = 3; optional string refusal = 4; optional string job_def = 5; }
 message CombatOrdersEffect { repeated CombatOrderResult results = 1; }
 // A queued medical operation bill (#1162): the patient, recipe, part index
 // (absent for a whole-body recipe) and the Bill_Medical id.
@@ -242,7 +235,7 @@ message PsycastUseEffect {
   optional string ability = 1;
   optional string job_def = 2;
 }
-message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
+message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {
   optional string pawn_id = 1;
@@ -266,13 +259,12 @@ message JobEffect {
   optional float need_before = 19;
   optional bool can_try = 20;
   optional string resulting_snapshot_token = 21;
-  reserved 22; reserved "draft_claim_id";
   // Fresh CAS token for the operation's non-pawn target (e.g. RecoverService's
   // building), populated only by an unconstrained preview discovery read;
   // distinct from resulting_snapshot_token's post-effect pawn meaning.
   optional string target_snapshot_token = 23;
 }
-message AnimalEffect { SnapshotEvidence animal = 1; reserved 2; reserved "census_token"; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; optional string allowed_area_id = 8; optional string master_id = 9; optional bool follow_drafted = 10; optional bool follow_fieldwork = 11; optional bool sterilized = 12; optional bool sterilize_queued = 13; }
+message AnimalEffect { SnapshotEvidence animal = 1; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; optional string allowed_area_id = 8; optional string master_id = 9; optional bool follow_drafted = 10; optional bool follow_fieldwork = 11; optional bool sterilized = 12; optional bool sterilize_queued = 13; }
 // outcome is the pawn's actual custody state read from native at observation:
 // held (still a colony prisoner), recruited, enslaved, converted, released,
 // escaped or died. It is the evidence a completed or unsuccessful progress

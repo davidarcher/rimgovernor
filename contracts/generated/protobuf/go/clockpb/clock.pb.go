@@ -710,6 +710,8 @@ type WatchPolicy struct {
 	InjuryStopCooldownMs           *uint32                `protobuf:"varint,8,opt,name=injury_stop_cooldown_ms,json=injuryStopCooldownMs,proto3,oneof" json:"injury_stop_cooldown_ms,omitempty"`
 	SurgicalRecoveryIds            []string               `protobuf:"bytes,9,rep,name=surgical_recovery_ids,json=surgicalRecoveryIds,proto3" json:"surgical_recovery_ids,omitempty"`
 	MedicalRestIds                 []string               `protobuf:"bytes,10,rep,name=medical_rest_ids,json=medicalRestIds,proto3" json:"medical_rest_ids,omitempty"`
+	// Watched attempts only ever named construction operations, which moved
+	// to Actions/Apply (#856).
 	// Stored-resource levels the controller's planners act on (#670). When a
 	// definition's colony stock crosses its level in either direction under a
 	// running epoch the journal gets an observation_invalidated row for the
@@ -5282,7 +5284,7 @@ var File_clock_proto protoreflect.FileDescriptor
 
 const file_clock_proto_rawDesc = "" +
 	"\n" +
-	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\xf3\x06\n" +
+	"\vclock.proto\x12\x14rimgovernor.clock.v1\x1a\fcommon.proto\x1a\x0fauthority.proto\x1a\x0ereceipts.proto\"\xdb\x06\n" +
 	"\vWatchPolicy\x128\n" +
 	"\x04mode\x18\x01 \x01(\x0e2\x1f.rimgovernor.clock.v1.WatchModeH\x00R\x04mode\x88\x01\x01\x125\n" +
 	"\x14health_drop_fraction\x18\x02 \x01(\x02H\x01R\x12healthDropFraction\x88\x01\x01\x123\n" +
@@ -5301,7 +5303,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x15_health_drop_fractionB\x16\n" +
 	"\x14_min_health_fractionB\x11\n" +
 	"\x0f_hostile_withinB\x1a\n" +
-	"\x18_injury_stop_cooldown_msJ\x04\b\v\x10\fR\x10watched_attempts\"e\n" +
+	"\x18_injury_stop_cooldown_ms\"e\n" +
 	"\x11ResourceThreshold\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x03H\x01R\x05level\x88\x01\x01B\v\n" +
@@ -5312,7 +5314,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +
 	"\x05epoch\x18\x02 \x01(\x03H\x01R\x05epoch\x88\x01\x01B\x18\n" +
 	"\x16_controller_session_idB\b\n" +
-	"\x06_epoch\"\xee\x04\n" +
+	"\x06_epoch\"\xd7\x04\n" +
 	"\fStartRequest\x12I\n" +
 	"\tauthority\x18\x01 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
 	"\x05speed\x18\x02 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x129\n" +
@@ -5330,8 +5332,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x12_test_accelerationB\x14\n" +
 	"\x12_blind_tick_budgetB\x17\n" +
 	"\x15_max_ticks_per_secondB\t\n" +
-	"\a_pacingJ\x04\b\n" +
-	"\x10\vR\x0fframe_budget_ms\"\x83\x01\n" +
+	"\a_pacing\"\x83\x01\n" +
 	"\fOwnedRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\"\xc0\x01\n" +
@@ -5409,7 +5410,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x10_pause_requestedB\x15\n" +
 	"\x13_stopped_at_unix_msB\x0f\n" +
 	"\r_combat_event\"\x0e\n" +
-	"\fNeverStarted\"\x95\x12\n" +
+	"\fNeverStarted\"\x8f\x12\n" +
 	"\x06Status\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x129\n" +
 	"\arunning\x18\x02 \x01(\v2\x1d.rimgovernor.clock.v1.RunningH\x00R\arunning\x12<\n" +
@@ -5473,7 +5474,7 @@ const file_clock_proto_rawDesc = "" +
 	"\r_paced_framesB\x1b\n" +
 	"\x19_paced_frames_over_budgetB\x15\n" +
 	"\x13_max_paced_frame_msB\x0f\n" +
-	"\r_player_speedJ\x04\b\x11\x10\x12\"\x89\x01\n" +
+	"\r_player_speed\"\x89\x01\n" +
 	"\tHazardGap\x12!\n" +
 	"\fhazard_class\x18\x01 \x01(\tR\vhazardClass\x12\x1f\n" +
 	"\vbound_ticks\x18\x02 \x01(\x03R\n" +
@@ -5493,13 +5494,13 @@ const file_clock_proto_rawDesc = "" +
 	"\x10UncertainControl\x12A\n" +
 	"\rlast_observed\x18\x01 \x01(\v2\x1c.rimgovernor.clock.v1.StatusR\flastObserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\xd1\x02\n" +
+	"\a_detail\"\xb8\x02\n" +
 	"\x0eControlReceipt\x12;\n" +
 	"\aattempt\x18\x01 \x01(\v2!.rimgovernor.common.v1.AttemptKeyR\aattempt\x12T\n" +
 	"\x10admitted_context\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x0fadmittedContext\x12@\n" +
 	"\aapplied\x18\x04 \x01(\v2$.rimgovernor.clock.v1.AppliedControlH\x00R\aapplied\x12F\n" +
 	"\tuncertain\x18\x05 \x01(\v2&.rimgovernor.clock.v1.UncertainControlH\x00R\tuncertainB\t\n" +
-	"\aoutcomeJ\x04\b\x03\x10\x04R\x11authorizing_owner\"\xef\x01\n" +
+	"\aoutcome\"\xef\x01\n" +
 	"\fControlReply\x12@\n" +
 	"\areceipt\x18\x01 \x01(\v2$.rimgovernor.clock.v1.ControlReceiptH\x00R\areceipt\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailure\x12V\n" +
@@ -5537,10 +5538,10 @@ const file_clock_proto_rawDesc = "" +
 	"\fNotification\x126\n" +
 	"\x06letter\x18\x01 \x01(\v2\x1c.rimgovernor.clock.v1.LetterH\x00R\x06letter\x12B\n" +
 	"\amessage\x18\x02 \x01(\v2&.rimgovernor.clock.v1.TransientMessageH\x00R\amessageB\b\n" +
-	"\x06source\"\x95\x01\n" +
+	"\x06source\"\x8f\x01\n" +
 	"\x11NotificationBatch\x126\n" +
 	"\aletters\x18\x01 \x03(\v2\x1c.rimgovernor.clock.v1.LetterR\aletters\x12B\n" +
-	"\bmessages\x18\x02 \x03(\v2&.rimgovernor.clock.v1.TransientMessageR\bmessagesJ\x04\b\x03\x10\x04\"y\n" +
+	"\bmessages\x18\x02 \x03(\v2&.rimgovernor.clock.v1.TransientMessageR\bmessages\"y\n" +
 	"\x05Alert\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x00R\x03key\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1f\n" +
@@ -5591,14 +5592,14 @@ const file_clock_proto_rawDesc = "" +
 	"\x10_health_at_startB\r\n" +
 	"\v_health_nowB\x16\n" +
 	"\x14_min_health_fractionB\x17\n" +
-	"\x15_health_drop_fraction\"\xde\x02\n" +
+	"\x15_health_drop_fraction\"\xd8\x02\n" +
 	"\x0fHostilesCleared\x12H\n" +
 	"\x0fdowned_hostiles\x18\x01 \x03(\v2\x1f.rimgovernor.clock.v1.PawnEventR\x0edownedHostiles\x12L\n" +
 	"\x11drafted_colonists\x18\x02 \x03(\v2\x1f.rimgovernor.clock.v1.PawnEventR\x10draftedColonists\x12?\n" +
 	"\x19conscious_hostiles_before\x18\x03 \x01(\x05H\x00R\x17consciousHostilesBefore\x88\x01\x01\x125\n" +
 	"\x14across_epoch_restart\x18\x04 \x01(\bH\x01R\x12acrossEpochRestart\x88\x01\x01B\x1c\n" +
 	"\x1a_conscious_hostiles_beforeB\x17\n" +
-	"\x15_across_epoch_restartJ\x04\b\x05\x10\x06\"\xb4\x01\n" +
+	"\x15_across_epoch_restart\"\xb4\x01\n" +
 	"\rBudgetReached\x12\"\n" +
 	"\n" +
 	"start_tick\x18\x01 \x01(\x03H\x00R\tstartTick\x88\x01\x01\x12(\n" +

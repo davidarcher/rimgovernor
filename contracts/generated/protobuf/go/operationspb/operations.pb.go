@@ -3728,6 +3728,8 @@ type Action struct {
 	// the jobs, blueprints and designations the apply places and the
 	// "activity" overlay shows it over the pawn; it never changes the apply.
 	Purpose *string `protobuf:"bytes,2,opt,name=purpose,proto3,oneof" json:"purpose,omitempty"`
+	// Melee attacks are combat orders; subdue is GiveJobIntent AttackMelee.
+	//
 	// Types that are valid to be assigned to Intent:
 	//
 	//	*Action_Trade
@@ -7758,7 +7760,7 @@ const file_operations_proto_rawDesc = "" +
 	"CombatDoor\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12B\n" +
 	"\x04mode\x18\x02 \x01(\x0e2).rimgovernor.operations.v1.CombatDoorModeH\x00R\x04mode\x88\x01\x01B\a\n" +
-	"\x05_mode\"\xb3\b\n" +
+	"\x05_mode\"\xad\b\n" +
 	"\vCombatOrder\x12A\n" +
 	"\x04pawn\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x121\n" +
 	"\x04move\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x00R\x04move\x12G\n" +
@@ -7781,7 +7783,7 @@ const file_operations_proto_rawDesc = "" +
 	"animalArea\x12!\n" +
 	"\vcombat_drug\x18\x11 \x01(\tH\x00R\n" +
 	"combatDrugB\a\n" +
-	"\x05orderJ\x04\b\f\x10\r\"N\n" +
+	"\x05order\"N\n" +
 	"\fCombatOrders\x12>\n" +
 	"\x06orders\x18\x01 \x03(\v2&.rimgovernor.operations.v1.CombatOrderR\x06orders\"w\n" +
 	"\fWorkPriority\x12'\n" +
@@ -7816,7 +7818,7 @@ const file_operations_proto_rawDesc = "" +
 	"\tBillStore\x12:\n" +
 	"\x04mode\x18\x01 \x01(\x0e2$.rimgovernor.operations.v1.StoreModeH\x00R\x04mode\x12\x19\n" +
 	"\azone_id\x18\x02 \x01(\tH\x00R\x06zoneIdB\r\n" +
-	"\vdestination\"\xc3\a\n" +
+	"\vdestination\"\xbd\a\n" +
 	"\fBillSettings\x12K\n" +
 	"\vrepeat_mode\x18\x01 \x01(\x0e2%.rimgovernor.operations.v1.RepeatModeH\x00R\n" +
 	"repeatMode\x88\x01\x01\x12&\n" +
@@ -7848,7 +7850,7 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"_skill_maxB\x0f\n" +
 	"\r_beer_reserveB\x0f\n" +
-	"\r_corpse_classJ\x04\b\x0f\x10\x10\"$\n" +
+	"\r_corpse_class\"$\n" +
 	"\x0eDefinitionList\x12\x12\n" +
 	"\x04defs\x18\x01 \x03(\tR\x04defs\"\xfe\x01\n" +
 	"\x11StockpileSettings\x12K\n" +
@@ -7890,22 +7892,22 @@ const file_operations_proto_rawDesc = "" +
 	"\x11RemoveFloorIntent\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x00R\adefName\x88\x01\x01B\v\n" +
-	"\t_def_name\"m\n" +
+	"\t_def_name\";\n" +
 	"\tOpenTrade\x12 \n" +
 	"\tgift_mode\x18\x03 \x01(\bH\x00R\bgiftMode\x88\x01\x01B\f\n" +
 	"\n" +
-	"_gift_modeJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"t\n" +
+	"_gift_mode\"t\n" +
 	"\tTradeLine\x12\x1c\n" +
 	"\aline_id\x18\x01 \x01(\tH\x00R\x06lineId\x88\x01\x01\x12*\n" +
 	"\x0eabsolute_count\x18\x02 \x01(\x05H\x01R\rabsoluteCount\x88\x01\x01B\n" +
 	"\n" +
 	"\b_line_idB\x11\n" +
-	"\x0f_absolute_count\"\xad\x01\n" +
+	"\x0f_absolute_count\"\x81\x01\n" +
 	"\rSetTradeLines\x12:\n" +
 	"\x05lines\x18\x02 \x03(\v2$.rimgovernor.operations.v1.TradeLineR\x05lines\x12$\n" +
 	"\vallow_pawns\x18\x03 \x01(\bH\x00R\n" +
 	"allowPawns\x88\x01\x01B\x0e\n" +
-	"\f_allow_pawnsJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"\xfc\x02\n" +
+	"\f_allow_pawns\"\xd0\x02\n" +
 	"\vAcceptTrade\x12;\n" +
 	"\x17expected_deal_signature\x18\x02 \x01(\tH\x00R\x15expectedDealSignature\x88\x01\x01\x12L\n" +
 	"\x0feconomic_floors\x18\x03 \x03(\v2#.rimgovernor.operations.v1.DefCountR\x0eeconomicFloors\x12$\n" +
@@ -7915,12 +7917,12 @@ const file_operations_proto_rawDesc = "" +
 	"\x10export_thing_ids\x18\b \x03(\tR\x0eexportThingIdsB\x1a\n" +
 	"\x18_expected_deal_signatureB\x0e\n" +
 	"\f_allow_emptyB\x10\n" +
-	"\x0e_receive_questJ\x04\b\x01\x10\x02J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\ttrader_idR\rnegotiator_id\"\xbd\x01\n" +
+	"\x0e_receive_quest\"\x91\x01\n" +
 	"\bEndTrade\x12@\n" +
 	"\x04kind\x18\x02 \x01(\x0e2'.rimgovernor.operations.v1.EndTradeKindH\x00R\x04kind\x88\x01\x01\x12(\n" +
 	"\rreceive_quest\x18\x03 \x01(\bH\x01R\freceiveQuest\x88\x01\x01B\a\n" +
 	"\x05_kindB\x10\n" +
-	"\x0e_receive_questJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\ttrader_idR\rnegotiator_id\"\x8c\x01\n" +
+	"\x0e_receive_quest\"\x8c\x01\n" +
 	"\x12ZonePreviewRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x129\n" +
 	"\x04zone\x18\x02 \x01(\v2%.rimgovernor.operations.v1.ZoneIntentR\x04zone\"\xa8\x01\n" +
@@ -7938,7 +7940,7 @@ const file_operations_proto_rawDesc = "" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
 	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\x12*\n" +
 	"\x0edefer_snapshot\x18\x03 \x01(\bH\x00R\rdeferSnapshot\x88\x01\x01B\x11\n" +
-	"\x0f_defer_snapshot\"\xb3\x18\n" +
+	"\x0f_defer_snapshot\"\x86\x16\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
 	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
@@ -7985,9 +7987,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x06intentB\x06\n" +
 	"\x04_keyB\n" +
 	"\n" +
-	"\b_purposeJ\x04\b\x0e\x10\x0fJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b \x10!J\x04\b\"\x10#J\x04\b#\x10$J\x04\b$\x10%J\x04\b%\x10&J\x04\b(\x10)J\x04\b)\x10*J\x04\b*\x10+J\x04\b+\x10,J\x04\b.\x10/J\x04\b/\x100R\x05meleeR\x05wasteR\arecoverR\vremove_wallR\aacquireR\x04homeR\x11remove_foundationR\x05coverR\vdeconstructR\bexcavateR\vcreate_zoneR\vdelete_zoneR\n" +
-	"zone_cellsR\tstockpileR\n" +
-	"pawn_orderR\vneed_reliefR\buse_itemR\asurgery\"i\n" +
+	"\b_purpose\"i\n" +
 	"\fIgniteIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cellB\n" +
@@ -8176,15 +8176,14 @@ const file_operations_proto_rawDesc = "" +
 	"\t_bench_idB\r\n" +
 	"\v_recipe_defB\r\n" +
 	"\v_part_indexB\x18\n" +
-	"\x16_acknowledge_violation\"\xbf\x02\n" +
+	"\x16_acknowledge_violation\"\x86\x02\n" +
 	"\x12WorkSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12;\n" +
 	"\x04work\x18\x02 \x03(\v2'.rimgovernor.operations.v1.WorkPriorityR\x04work\x12H\n" +
 	"\fallowed_area\x18\x03 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\vallowedArea\x12?\n" +
 	"\bschedule\x18\x04 \x01(\v2#.rimgovernor.operations.v1.ScheduleR\bscheduleB\n" +
 	"\n" +
-	"\b_pawn_idJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aJ\x04\b\a\x10\bR\fmedical_careR\n" +
-	"food_allowR\vdrug_policy\"\xdb\x01\n" +
+	"\b_pawn_id\"\xdb\x01\n" +
 	"\fAssignIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x1e\n" +
 	"\bthing_id\x18\x02 \x01(\tH\x01R\athingId\x88\x01\x01\x12R\n" +
