@@ -50,7 +50,59 @@ func defensePerimeterTiers(record *store.DefenseLayoutRecord, read observation.R
 		transmitters = q.Transmitters
 		spare, _ = q.SpareW.Value()
 	}
-	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defenseBlockedCells(projection), defensePrisonTurrets(plan, q)...)
+	return defenseRecutPerimeter(record, plan, projection.Bounds, defensePerimeterBridge(projection), transmitters, spare, defenseOuterRingOpen(*record, projection), defenseBlockedCells(projection), defensePrisonTurrets(plan, q)...)
+}
+
+// The outer ring (#1596) is planned up front and built late: its sections
+// join the record once the core ring stands and the colony is rich enough
+// to want a second wall. Wealth is the colony's total (items, buildings,
+// pawns); 60000 sits past the early-game plateau of a thriving colony, where
+// raid points have climbed enough for fields and pens outside the core to
+// matter. The stone floor is the block stock that carries a few sections
+// (a 20-cell, 3-thick section costs about 300 stone). Tune both from the
+// nightly colony week report.
+const (
+	defenseOuterRingWealth     = 60000.0
+	defenseOuterRingStoneFloor = int64(1000)
+)
+
+// defenseOuterRingOpen reports whether the outer ring is wanted: its
+// sections already stand in the record (once begun it is never withdrawn by
+// wealth falling), or the core ring's wall sections are all built with no
+// removal pending and wealth and the stone stock meet the gate.
+func defenseOuterRingOpen(record store.DefenseLayoutRecord, projection observation.ColonyProjection) bool {
+	for _, t := range record.Tiers {
+		if policy.IsOuterPerimeterTier(t.Name) && !t.Remove {
+			return true
+		}
+	}
+	core := false
+	for _, t := range record.Tiers {
+		switch {
+		case !policy.IsPerimeterTier(t.Name):
+		case t.Remove && !t.Built:
+			return false
+		case policy.IsCorePerimeterTier(t.Name):
+			if !t.Built {
+				return false
+			}
+			core = true
+		}
+	}
+	wealth, known := projection.Facts.Wealth.Value()
+	if !core || !known || wealth.Total < defenseOuterRingWealth {
+		return false
+	}
+	stock, known := projection.Resources.Value()
+	if !known {
+		return false
+	}
+	for resource, count := range stock {
+		if strings.HasPrefix(string(resource), "Blocks") && count >= defenseOuterRingStoneFloor {
+			return true
+		}
+	}
+	return false
 }
 
 // defenseBlockedCells is the planning window's observed unwalkable cells,
@@ -106,7 +158,7 @@ func defenseBuildingKey(b store.DefenseBuilding) string {
 // record's entry un-anchors the record, so the layout is proposed afresh
 // on the new one (#983). A pump not already in the record is planned only
 // while spare watts cover it.
-func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, rock func(domain.Cell) bool, prison ...policy.PerimeterSection) (bool, error) {
+func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.LayoutPlan, bounds policy.Bounds, bridge string, transmitters []domain.Cell, spare float64, outer bool, rock func(domain.Cell) bool, prison ...policy.PerimeterSection) (bool, error) {
 	var kept, old []store.DefenseTierRecord
 	standing := map[string]bool{}
 	for _, t := range record.Tiers {
@@ -150,6 +202,13 @@ func defenseRecutPerimeter(record *store.DefenseLayoutRecord, plan policy.Layout
 	bait, err := policy.BaitRoomSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, defenseDefinitions.Bait, false)
 	if err != nil {
 		return false, err
+	}
+	if outer {
+		ring, err := policy.PerimeterOuterSections(plan, defenseDefinitions.Wall, defenseDefinitions.Door, rock)
+		if err != nil {
+			return false, err
+		}
+		sections = append(sections, ring...)
 	}
 	sections = append(append(append(sections, pockets...), lights...), bait...)
 	// A later pump's run may ride an earlier one's, so the cut stops at the
