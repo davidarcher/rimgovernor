@@ -136,8 +136,17 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// target is the faction def, definition the permit, stuff the verb (#1606).
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,stuff) VALUES(?,?,?,'royalty',?,?,?,?)", a.ID(), plan, ordinal, royalty.Pawn(), royalty.Faction(), royalty.Permit(), string(royalty.Verb()))
 	} else if ritual, ok := a.Ritual(); ok {
-		// definition is the ritual, stuff the verb (#1639).
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,stuff) VALUES(?,?,?,'ritual',?,?,?)", a.ID(), plan, ordinal, ritual.Pawn(), string(ritual.Ritual()), string(ritual.Verb()))
+		// definition is the ritual, stuff the verb (#1639). A begin (#1659)
+		// also keeps its spot in x and z and its assignments in the payload.
+		if ritual.Verb() == domain.RitualBegin {
+			data, encodeErr := json.Marshal(ritualPayload{Slots: ritual.Slots(), Spectators: ritual.Spectators()})
+			if encodeErr != nil {
+				return encodeErr
+			}
+			_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,stuff,x,z,ritual_payload) VALUES(?,?,?,'ritual',?,?,?,?,?,?)", a.ID(), plan, ordinal, ritual.Pawn(), string(ritual.Ritual()), string(ritual.Verb()), ritual.Spot().X, ritual.Spot().Z, data)
+		} else {
+			_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,stuff) VALUES(?,?,?,'ritual',?,?,?)", a.ID(), plan, ordinal, ritual.Pawn(), string(ritual.Ritual()), string(ritual.Verb()))
+		}
 	} else if accept, ok := a.QuestAccept(); ok {
 		var accepter sql.NullString
 		if accept.AccepterPawn() != "" {
@@ -288,8 +297,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, wallRemoval, buildingTemperatureBlob, moodReliefBlob, tradeBlob, caravanBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &buildingTemperatureBlob, &moodReliefBlob, &tradeBlob, &caravanBlob, &ordinal); err != nil {
+	var work, zone, bill, wallRemoval, buildingTemperatureBlob, moodReliefBlob, tradeBlob, caravanBlob, ritualBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &buildingTemperatureBlob, &moodReliefBlob, &tradeBlob, &caravanBlob, &ritualBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -1023,7 +1032,23 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRoyaltyAction(id, royalty)
 		return a, ordinal, err
 	}
-	if kind == "ritual" && pawn.Valid && def.Valid && stuff.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
+	if kind == "ritual" && pawn.Valid && def.Valid && stuff.Valid && stuff.String == string(domain.RitualBegin) && x.Valid && z.Valid && ritualBlob != nil && !target.Valid && !rotation.Valid && !draftAction.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		var payload ritualPayload
+		if json.Unmarshal(ritualBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid ritual payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, ritualBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical ritual payload")
+		}
+		ritual, err := domain.NewRitualBegin(domain.PawnID(pawn.String), def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)}, payload.Slots, payload.Spectators)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewRitualAction(id, ritual)
+		return a, ordinal, err
+	}
+	if kind == "ritual" && pawn.Valid && def.Valid && stuff.Valid && !target.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && ritualBlob == nil {
 		ritual, err := domain.NewRitual(domain.PawnID(pawn.String), domain.RitualKind(def.String), domain.RitualVerb(stuff.String))
 		if err != nil {
 			return domain.Action{}, 0, err
@@ -1173,6 +1198,12 @@ type tradePayload struct {
 	AllowEmpty            bool
 	EndKind               domain.TradeEndKind
 	ReceiveQuest          bool
+}
+
+// ritualPayload is a ritual begin's assignments (#1659).
+type ritualPayload struct {
+	Slots      []domain.RitualSlot
+	Spectators []domain.PawnID
 }
 type moodReliefPayload struct {
 	Need domain.MoodReliefNeed

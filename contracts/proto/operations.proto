@@ -712,16 +712,34 @@ message AcceptQuestIntent {
   optional string accepter_pawn_id = 2;
   optional int32 reward_choice = 3;
 }
-// Command one ritual of one colonist (#1639, epic #1598): verb "start" begins
-// a ritual whose lord waits for the player. ritual "bestowing" is the Empire
-// bestowing ceremony of pawn_id (the colonist being bestowed): native finds
-// the waiting bestower and runs the action of its Command_BestowerCeremony
-// gizmo, refusing unless the bestower stands waiting and the game offers the
-// gizmo (the throne room stands). A ritual already started applies again.
+// Command one ritual (#1639, epic #1598; #1659, epic #1653): a closed verb set.
+// verb "start" begins a ritual whose lord waits for the player. ritual
+// "bestowing" is the Empire bestowing ceremony of pawn_id (the colonist being
+// bestowed): native finds the waiting bestower and runs the action of its
+// Command_BestowerCeremony gizmo, refusing unless the bestower stands waiting
+// and the game offers the gizmo (the throne room stands). A ritual already
+// started applies again.
+// verb "begin" starts a held ritual precept with no lord waiting, the way the
+// game's begin-ritual dialog does: ritual is the Precept_Ritual load id (the
+// ideology read's ritual id), pawn_id the organizer, spot the ritual's target
+// cell (the game's spotOverride; native takes the target the precept's filters
+// accept there). roles are the exact assignments, one entry per
+// RitualBehaviorDef role slot id (the catalog's RitualRoleSlot.id) with the
+// pawns that fill it, and spectator_pawn_ids the pawns that attend without a
+// role (RitualRoleAssignments.assignedRoles and spectators). Native applies
+// the game's own gizmo, assignment and blocking-issue checks and refuses with
+// the game's reason; the ritual's lord job already running applies again.
 message RitualIntent {
   optional string pawn_id = 1;
   optional string ritual = 2;
   optional string verb = 3;
+  rimgovernor.common.v1.Cell spot = 4;
+  repeated RitualRoleAssignment roles = 5;
+  repeated string spectator_pawn_ids = 6;
+}
+message RitualRoleAssignment {
+  optional string slot = 1;
+  repeated string pawn_ids = 2;
 }
 // One royalty write to one colonist's standing with one faction (#1606, epic
 // #1598): a closed verb set so later royalty verbs add an arm, not a kind.

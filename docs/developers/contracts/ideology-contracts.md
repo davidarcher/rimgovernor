@@ -105,7 +105,10 @@ tries per pawn and role per goal epoch. Composed by the `ideo-roles` routine fam
 
 ## Not here
 
-Ritual intents (#1659) consume these facts; writes reuse the shared Assign
-and Ritual shapes. Building and room planning (#1658)
+Ritual scheduling (#1660) consumes these facts; writes reuse the shared Assign
+and Ritual shapes. The Ritual `begin` verb (#1659,
+[action contracts](action-contracts.md)) names a held ritual by its
+`IdeoRitual.id` and fills the role slots the catalog's `RitualRoleSlot`s list.
+Building and room planning (#1658)
 consumes `RequiredBuildings`:
 [worship room](../architecture/facilities.md#worship-room-ideology).
