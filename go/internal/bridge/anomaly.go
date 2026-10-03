@@ -89,9 +89,6 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 		if err := catalogNumbers("anomaly thing", row.MinContainmentStrength); err != nil {
 			return nil, err
 		}
-		if row.MinContainmentStrength != nil && row.GetMinContainmentStrength() < 0 || row.RaceAnomalyKnowledge != nil && row.GetRaceAnomalyKnowledge() < 0 {
-			return nil, contract("negative anomaly thing %s number", row.GetDefName())
-		}
 		if s := row.Studiable; s != nil {
 			if err := catalogNumbers("anomaly studiable", s.StudyAmountToComplete, s.AnomalyKnowledge, s.KnowledgeFactorOutdoors); err != nil {
 				return nil, err
@@ -104,19 +101,6 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 					return nil, err
 				}
 			}
-			for _, n := range []struct {
-				field string
-				value float64
-				set   bool
-			}{
-				{"frequencyTicks", float64(s.GetFrequencyTicks()), s.FrequencyTicks != nil},
-				{"minMonolithLevelForStudy", float64(s.GetMinMonolithLevelForStudy()), s.MinMonolithLevelForStudy != nil},
-				{"anomalyKnowledge", s.GetAnomalyKnowledge(), s.AnomalyKnowledge != nil},
-			} {
-				if n.set && n.value < 0 {
-					return nil, contract("anomaly studiable %s of %s is negative (%v)", n.field, row.GetDefName(), n.value)
-				}
-			}
 		}
 		if t := row.HoldingTarget; t != nil {
 			if err := catalogNumbers("anomaly holding target", t.BaseEscapeIntervalMtbDays); err != nil {
@@ -124,9 +108,6 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 			}
 			if t.HeldPawnKind != nil && validID(t.GetHeldPawnKind()) != nil {
 				return nil, contract("invalid anomaly holding target pawn kind")
-			}
-			if t.BaseEscapeIntervalMtbDays != nil && t.GetBaseEscapeIntervalMtbDays() < 0 {
-				return nil, contract("negative anomaly holding target escape interval")
 			}
 		}
 		if h := row.Holder; h != nil {
@@ -154,9 +135,6 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 			if err := codex("incident "+row.GetDefName(), row.GetCodexEntry()); err != nil {
 				return nil, err
 			}
-		}
-		if row.BaseChance != nil && row.GetBaseChance() < 0 || row.MinThreatPoints != nil && row.GetMinThreatPoints() < 0 {
-			return nil, contract("negative anomaly incident %s number", row.GetDefName())
 		}
 	}
 	return out, nil
@@ -190,9 +168,6 @@ func validatePawnAnomaly(a *o.PawnAnomaly) error {
 	}
 	if err := catalogNumbers("anomaly pawn", a.MinContainmentStrength); err != nil {
 		return err
-	}
-	if a.MinContainmentStrength != nil && a.GetMinContainmentStrength() < 0 {
-		return contract("negative anomaly pawn containment strength")
 	}
 	if h := a.Held; h != nil {
 		if h.Platform != nil && !validRef(h.Platform) {

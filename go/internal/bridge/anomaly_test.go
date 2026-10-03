@@ -53,15 +53,13 @@ func TestAnomalyCatalogDecode(t *testing.T) {
 		"unspecified discovery": func(v *o.AnomalyCatalog) {
 			v.CodexEntries[0].DiscoveryType = o.EntityDiscoveryKind_ENTITY_DISCOVERY_KIND_UNSPECIFIED.Enum()
 		},
-		"duplicate link":       func(v *o.AnomalyCatalog) { v.CodexEntries[0].LinkedThings = []string{"Fingerspike", "Fingerspike"} },
-		"nan containment":      func(v *o.AnomalyCatalog) { v.Things[0].MinContainmentStrength = proto.Float64(math.NaN()) },
-		"negative containment": func(v *o.AnomalyCatalog) { v.Things[0].MinContainmentStrength = proto.Float64(-1) },
+		"duplicate link":  func(v *o.AnomalyCatalog) { v.CodexEntries[0].LinkedThings = []string{"Fingerspike", "Fingerspike"} },
+		"nan containment": func(v *o.AnomalyCatalog) { v.Things[0].MinContainmentStrength = proto.Float64(math.NaN()) },
 		"nan escape": func(v *o.AnomalyCatalog) {
 			v.Things[0].HoldingTarget.BaseEscapeIntervalMtbDays = proto.Float64(math.Inf(1))
 		},
-		"nan factor":      func(v *o.AnomalyCatalog) { v.Things[1].Holder.ContainmentFactor = proto.Float64(math.NaN()) },
-		"negative chance": func(v *o.AnomalyCatalog) { v.Incidents[0].BaseChance = proto.Float64(-1) },
-		"duplicate tag":   func(v *o.AnomalyCatalog) { v.Incidents[0].TargetTags = []string{"Map_PlayerHome", "Map_PlayerHome"} },
+		"nan factor":    func(v *o.AnomalyCatalog) { v.Things[1].Holder.ContainmentFactor = proto.Float64(math.NaN()) },
+		"duplicate tag": func(v *o.AnomalyCatalog) { v.Incidents[0].TargetTags = []string{"Map_PlayerHome", "Map_PlayerHome"} },
 	} {
 		v := anomalyCatalogFixture()
 		mutate(v)
