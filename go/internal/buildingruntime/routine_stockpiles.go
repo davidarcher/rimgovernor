@@ -184,6 +184,32 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 		zoneGoal[z.ID] = z.Goal
 	}
 	request := stockpileRequest(projection, owned, patches, benches)
+	// The planned base can stand past the landing-centred planning window:
+	// read the ground around its core so the opening zones site there, not
+	// at the colonists' start.
+	if source := observation.PlanningWindowFrom(ctx); source != nil && request.Anchor != projection.Center {
+		const reach = 10
+		core := request.Anchor
+		box := policy.Rectangle{X: core.X - reach, Z: core.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1}
+		if !windowHolds(request.Cells, map[domain.Cell]bool{core: true}) {
+			held, err := source.PlanningWindow(ctx, boundary.Identity(snapshot), box)
+			if err != nil {
+				return policy.StockpileRequest{}, false, err
+			}
+			if held.Complete {
+				seen := map[domain.Cell]bool{}
+				for _, c := range request.Cells {
+					seen[c.Cell] = true
+				}
+				request.Cells = append([]policy.SiteCell(nil), request.Cells...)
+				for _, c := range held.Value.Cells {
+					if !seen[c.Cell] {
+						request.Cells = append(request.Cells, c)
+					}
+				}
+			}
+		}
+	}
 	for _, z := range request.Zones {
 		shelves, _, err := zoneShelves(ctx, r.player.journal, zoneGoal[z.ID], z.ID, projection.Facts.CurrentConstruction)
 		if err != nil {
