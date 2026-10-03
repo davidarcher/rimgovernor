@@ -1059,3 +1059,24 @@ passed to `NextRoomUpgrade`, `NextBeautyUpgrade` and, through
   unknown remaining refuses the room.
 - A refused step is not due, so `bedroomsOwed` (`MaintainHousing`) closes once
   no affordable step is left; raising the share or the stage reopens it.
+
+### Suite and sculpture gates (#1841)
+
+`SuiteClaims` and `NextSculpture` take the same `RoomGate` (`bedroomGate`).
+
+- A suite is priced by its furnishing only: the new bed (`RoomGate.SuiteBed` in
+  `SuiteBedStuff`, the bed the furnish step stages) less the claimant's owned
+  bed, plus the template pieces (`RoomFurniture.BedroomUpgradePieces`, the
+  available ones, in `pieceStuff`). Walls, door ring and floor are not charged.
+- Claims are priced in `orderSuiteClaims` order against the vacant suite they
+  would take: a suite whose bed already stands has only the move left (free); an
+  unbuilt or empty one, and any claim past the vacant suites, is charged the
+  full furnishing. An unaffordable or unpriced claim is dropped, so
+  `SuiteTargets` grows nothing for it, `UpgradeTargets` leaves the owner's room
+  to the in-place ladder and `MaintainHousing` closes.
+- `SuiteClaims` covers solo bedrooms only, so the claimant is the lone owner.
+  `NextSuiteGrowth` and the royal-title and bed-replacement assign/remove steps
+  stay ungated; `RoomQualityTargets` Min is still the tier ceiling.
+- The sculpture install (`NextSculpture`) charges the packed item's `MarketValue`
+  against the room owners' combined share. `SculptureRoomsOwed`, `NewArtDemand`
+  and the art sale (`WealthBudget`) are unchanged.

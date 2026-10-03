@@ -24,7 +24,7 @@ var _ sculptureSource = (*bridge.Client)(nil)
 
 // sculptureRoomsOwed is the review's MaintainArt room input (#1190): a
 // bedroom below target, weakest in beauty, with a free cell.
-func sculptureRoomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
+func sculptureRoomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) domain.Fact[bool] {
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
 	obs, sk := facts.Facts.Sleeping.Value()
@@ -33,7 +33,7 @@ func sculptureRoomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		return domain.Unknown[bool]()
 	}
 	tier, _ := facts.BuildTier.Value()
-	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
+	return policy.SculptureRoomsOwed(facts.Facts.Sleeping, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells))
 }
 
 // sculptBedroom is the beauty lever after pots and floors (#830): a
@@ -62,10 +62,10 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	for _, item := range items {
 		inner[item.ID] = item
 	}
-	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items)
+	step, due := policy.NextSculpture(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), r.reviewer.stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), packed, facts.Facts.Items, bedroomGate(facts, r.reviewer.stage))
 	if !due {
 		if len(packed) > 0 {
-			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts))
+			clockSchedulerLog("%s: sculpture install: no room fits %d packed %v (owed %v)", goal.Goal.ID, len(packed), packed, sculptureRoomsOwed(facts, r.reviewer.stage))
 		}
 		return RoutineBuildingResult{}, false, nil
 	}

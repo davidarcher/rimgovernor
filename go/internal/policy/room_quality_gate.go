@@ -23,6 +23,65 @@ type RoomGate struct {
 	Items      ItemFacts
 	BedPrice   BedPrice
 	PiecePrice func(def string) (float64, bool)
+	// SuiteBed and SuiteBedStuff are the bed a new suite is furnished with and
+	// SuitePieces the template pieces it takes (#1841); a gated gate with no
+	// SuiteBed prices no suite and refuses its claims.
+	SuiteBed      Resource
+	SuiteBedStuff Resource
+	SuitePieces   []string
+}
+
+// furnishPrice is what furnishing a suite costs its claimant: the new bed's
+// delta over the bed they own plus the template pieces (walls, doors and
+// floor are not charged), false when any part is unpriced.
+func (g RoomGate) furnishPrice(owned SleepingBed) (float64, bool) {
+	total, ok := g.bedDelta(g.SuiteBed, g.SuiteBedStuff, owned)
+	if !ok || g.SuiteBed == "" {
+		return 0, false
+	}
+	for _, def := range g.SuitePieces {
+		if g.PiecePrice == nil {
+			return 0, false
+		}
+		price, ok := g.PiecePrice(def)
+		if !ok {
+			return 0, false
+		}
+		total += price
+	}
+	return total, true
+}
+
+// gateSuiteClaims drops the claims whose owner's remaining share does not pay
+// the furnishing left to do (#1841), keeping the order. The claims take the
+// vacant suites in order, so a claim is priced against the suite it would
+// take: one with a bed standing has only the move left (free), any other,
+// including a suite still to be built, is charged its furnishing. A gated
+// claim whose price is unknown is dropped, so MaintainHousing can recover.
+func gateSuiteClaims(claims []SuiteClaim, plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, gate RoomGate) []SuiteClaim {
+	if gate.Shares == nil {
+		return claims
+	}
+	beds := map[string]SleepingBed{}
+	for _, b := range sleeping.Beds {
+		beds[b.ID] = b
+	}
+	vacant := vacantSuites(plan, rooms, sleeping)
+	var out []SuiteClaim
+	for _, c := range claims {
+		if i := len(out); i < len(vacant) {
+			if room, ok := PlannedRoomStanding(vacant[i], rooms); ok && len(room.Beds) > 0 {
+				out = append(out, c)
+				continue
+			}
+		}
+		owned, known := beds[c.Bed]
+		price, priced := gate.furnishPrice(owned)
+		if known && priced && gate.Allows([]PawnID{c.Pawn}, price) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Allows is whether the owners may spend delta now.

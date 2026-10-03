@@ -31,7 +31,7 @@ func TestTribalSpotOwnersShellABedroom(t *testing.T) {
 		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{shell}}),
 	}
 	facts.Facts.Sleeping = domain.Known(sleeping)
-	if step := bedroomStep(facts); step.Kind != policy.BedroomShell || step.Unhoused != 5 {
+	if step := bedroomStep(facts, policy.StageReserves); step.Kind != policy.BedroomShell || step.Unhoused != 5 {
 		t.Fatalf("step = %+v, want the bedroom shelled for 5", step)
 	}
 	if owed, known := bedroomsOwed(facts, policy.StageReserves).Value(); !known || !owed {

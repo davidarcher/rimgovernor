@@ -21,7 +21,7 @@ func TestSaleSculpturesReserveTheBest(t *testing.T) {
 	if want := map[string]bool{"Thing_A": true, "Thing_C": true}; !reflect.DeepEqual(sale, want) {
 		t.Fatalf("sale = %v, want %v", sale, want)
 	}
-	if s, ok := NextSculpture(obs, targets, rooms, packed, CoreItemFacts()); !ok || s.Packed != "Thing_B" {
+	if s, ok := NextSculpture(obs, targets, rooms, packed, CoreItemFacts(), RoomGate{}); !ok || s.Packed != "Thing_B" {
 		t.Fatalf("install = %+v %v", s, ok)
 	}
 	// No owed room: everything sells.

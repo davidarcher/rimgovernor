@@ -107,9 +107,18 @@ func rankSculptures(packed []PackedSculpture) []PackedSculpture {
 // (rankSculptures) whose footprint has a free spot there (#1191: a large
 // sculpture needs a free multi-cell spot); the caller asks only once
 // NextBeautyUpgrade has nothing.
-func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture, items ItemFacts) (SculptureStep, bool) {
+func NextSculpture(obs SleepingObservation, targets map[string]RoomTarget, rooms []TidyRoom, packed []PackedSculpture, items ItemFacts, gate RoomGate) (SculptureStep, bool) {
 	for _, room := range sculptureRooms(obs, targets, rooms) {
-		if p, cell, rot, ok := fitSculpture(room.Room, rankSculptures(packed), nil, items); ok {
+		// The install is charged the sculpture's market value against the
+		// room's owners' share (#1841); the rooms owed and the art sale are
+		// not gated.
+		var affordable []PackedSculpture
+		for _, p := range packed {
+			if gate.Allows(targets[room.ID].Owners, p.MarketValue) {
+				affordable = append(affordable, p)
+			}
+		}
+		if p, cell, rot, ok := fitSculpture(room.Room, rankSculptures(affordable), nil, items); ok {
 			return SculptureStep{Room: room.ID, Packed: p.ID, Anchor: cell, Rot: rot}, true
 		}
 	}

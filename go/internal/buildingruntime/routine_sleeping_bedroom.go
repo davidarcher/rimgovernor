@@ -17,14 +17,14 @@ import (
 // bedroomStep is the projection's next bedroom step: none without the
 // layout plan, the room census or the sleeping census. A tribe builds its
 // wood bedrooms at Camp tier too (#1182).
-func bedroomStep(facts observation.ColonyProjection) policy.BedroomStep {
+func bedroomStep(facts observation.ColonyProjection, stage policy.ColonyStage) policy.BedroomStep {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
 	if !pk || !rk || !sk {
 		return policy.BedroomStep{}
 	}
-	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
+	return policy.NextBedroomStep(plan, rooms, sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts), bedroomGate(facts, stage))
 }
 
 // migrateStep is the projection's next wing migration step (#1219): none
@@ -54,7 +54,7 @@ func bedroomTargets(facts observation.ColonyProjection) map[string]policy.RoomTa
 // suiteTargets is the suites Grow keeps and adds for plan (#1216) and the
 // claims behind them; nil while the room, sleeping or work census is
 // unknown.
-func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) ([]float64, []policy.SuiteClaim) {
+func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan, stage policy.ColonyStage) ([]float64, []policy.SuiteClaim) {
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
 	traits := sleepingTraits(facts)
@@ -62,13 +62,13 @@ func suiteTargets(facts observation.ColonyProjection, plan policy.LayoutPlan) ([
 		return nil, nil
 	}
 	targets := bedroomTargets(facts)
-	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts))
+	claims := policy.SuiteClaims(plan, rooms, sleeping, targets, traits, suitePressure(facts), bedroomGate(facts, stage))
 	return policy.SuiteTargets(plan, rooms, sleeping, targets, claims), claims
 }
 
 // upgradeTargets is targets less the rooms of pawns owed a suite (#1257,
 // suite first): those rooms get no in-place quality upgrade.
-func upgradeTargets(facts observation.ColonyProjection, targets map[string]policy.RoomTarget) map[string]policy.RoomTarget {
+func upgradeTargets(facts observation.ColonyProjection, targets map[string]policy.RoomTarget, stage policy.ColonyStage) map[string]policy.RoomTarget {
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
@@ -76,7 +76,7 @@ func upgradeTargets(facts observation.ColonyProjection, targets map[string]polic
 	if !pk || !rk || !sk || traits == nil {
 		return targets
 	}
-	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits, suitePressure(facts))
+	claims := policy.SuiteClaims(plan, rooms, sleeping, bedroomTargets(facts), traits, suitePressure(facts), bedroomGate(facts, stage))
 	return policy.UpgradeTargets(targets, sleeping, claims)
 }
 
@@ -84,7 +84,7 @@ func upgradeTargets(facts observation.ColonyProjection, targets map[string]polic
 // A due room quality swap (#813) or wing migration (#1244) owes a bedroom
 // too, so MaintainHousing stays open until it is done.
 func bedroomsOwed(facts observation.ColonyProjection, stage policy.ColonyStage) domain.Fact[bool] {
-	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts))
+	owed := policy.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, bedroomTargets(facts), sleepingTraits(facts), suitePressure(facts), bedroomGate(facts, stage))
 	if v, known := owed.Value(); known && !v {
 		if _, swap := bedroomSwap(facts); swap {
 			return domain.Known(true)

@@ -24,6 +24,20 @@ func bedroomGate(facts observation.ColonyProjection, stage policy.ColonyStage) p
 		}
 		return facts.BedPrice(policy.Resource(def), policy.Resource(pieceStuff(facts, def)))
 	}
+	// A suite is furnished with the bed the furnish step stages and the
+	// template pieces the closer fills (#1841), priced in their stuffs.
+	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
+	for _, d := range facts.Definitions {
+		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available})
+	}
+	if bed, method := policy.SleepingDefinition(facts.Shapes.Furniture, definitions, nil, false, true); method == policy.SleepingBuild {
+		gate.SuiteBed, gate.SuiteBedStuff = policy.Resource(bed), policy.Resource(pieceStuff(facts, bed))
+	}
+	for _, def := range facts.Shapes.Furniture.BedroomUpgradePieces() {
+		if v, known := facts.DefinitionAvailable(def).Value(); def != "" && known && v {
+			gate.SuitePieces = append(gate.SuitePieces, def)
+		}
+	}
 	return gate
 }
 
@@ -63,7 +77,7 @@ func roomUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage) (
 		v, known := facts.DefinitionAvailable(def).Value()
 		return known && v
 	}
-	return policy.NextRoomUpgrade(obs, upgradeTargets(facts, targets), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, bedroomGate(facts, stage))
+	return policy.NextRoomUpgrade(obs, upgradeTargets(facts, targets, stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, bedroomGate(facts, stage))
 }
 
 // bedReplacement is the next bed replacement step (#829), read from the
@@ -96,7 +110,7 @@ func bedReplacement(facts observation.ColonyProjection, stage policy.ColonyStage
 			}
 		}
 	}
-	return policy.NextBedReplacement(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, materials)
+	return policy.NextBedReplacement(obs, upgradeTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, materials)
 }
 
 // titleFurniture is the next unmet royal bedroom thing (#815).
@@ -153,7 +167,7 @@ func beautyUpgrade(facts observation.ColonyProjection, stage policy.ColonyStage)
 	for _, d := range facts.Definitions {
 		floors.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs, WorkToBuild: d.WorkToBuild}
 	}
-	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness))), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors, bedroomGate(facts, stage))
+	return policy.NextBeautyUpgrade(obs, upgradeTargets(facts, withThroneTargets(facts, policy.RoomQualityTargets(obs, traits, tier, facts.Impressiveness)), stage), policy.TidyFurnitureRooms(rooms, census, facts.Cells), available, facts.Facts.Upkeep.Flooring, floors, bedroomGate(facts, stage))
 }
 
 // removeOldBed deconstructs a replaced bed, once per bed per goal epoch.

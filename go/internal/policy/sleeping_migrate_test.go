@@ -78,7 +78,7 @@ func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 // deficit (#1219).
 func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	plan, rooms, sleeping := migrateFixture()
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomNone || got.Unhoused != 0 {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind != BedroomNone || got.Unhoused != 0 {
 		t.Fatalf("bedroom step %+v, want none: retiring rooms house their pawns", got)
 	}
 	if got := NextMigrateStep(plan, rooms, sleeping); got.Kind != BedroomFurnish || got.Room.Interior.X != 20 || len(got.Cells) != 1 || got.Cells[0] != (domain.Cell{X: 22, Z: 2}) {
@@ -97,7 +97,7 @@ func TestMigrateStepMovesOnePawnAtATime(t *testing.T) {
 	}
 	// A vacated retiring bed takes no one new.
 	sleeping.People[1].OwnedBed = domain.Known("barracks")
-	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind == BedroomMove && got.Bed == "ob1" {
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil, RoomGate{}); got.Kind == BedroomMove && got.Bed == "ob1" {
 		t.Fatal("unhoused pawn moved into a retiring room")
 	}
 	sleeping.People[1].OwnedBed = domain.Known("nb2")

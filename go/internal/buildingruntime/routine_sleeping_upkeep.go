@@ -114,7 +114,7 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 		// A planned bedroom standing empty takes one bed (#786): the best
 		// on the ladder, else a spot its owner moves into (#1182).
 		// A wing migration furnishes its active-wing room the same way (#1244).
-		step := bedroomStep(facts)
+		step := bedroomStep(facts, r.reviewer.stage)
 		if step.Kind == policy.BedroomNone && choice.Method == policy.SleepingNoDemand {
 			step = migrateStep(facts)
 		}
@@ -303,7 +303,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			return result, err
 		}
 	}
-	if bedroomsFirst(choice.Method) && bedroomStep(facts).Kind != policy.BedroomNone {
+	if bedroomsFirst(choice.Method) && bedroomStep(facts, r.reviewer.stage).Kind != policy.BedroomNone {
 		choice.Method = policy.SleepingNoDemand
 	}
 	switch choice.Method {
@@ -319,7 +319,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			return r.removeOldBed(call, epoch, state, review, goal, reading, rep)
 		}
 		// Everyone owns a bed: walk them into planned bedrooms (#786).
-		step := bedroomStep(facts)
+		step := bedroomStep(facts, r.reviewer.stage)
 		if step.Kind == policy.BedroomNone {
 			// Then pawns leave a Retiring wing, one per step (#1219).
 			step = migrateStep(facts)

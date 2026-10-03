@@ -96,7 +96,7 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	var suites []float64
 	if haveLayout {
 		var claims []policy.SuiteClaim
-		suites, claims = suiteTargets(*projection, layout.Plan)
+		suites, claims = suiteTargets(*projection, layout.Plan, r.stage)
 		r.logSuiteClaims(ctx, claims)
 	}
 	suite := haveLayout && policy.SuitesOwed(layout.Plan, suites) && hourly

@@ -95,7 +95,7 @@ func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservat
 func TestSuiteGrowsOutwardInThePlan(t *testing.T) {
 	plan, rooms, sleeping, targets := suiteOwnerCase(t)
 	before := plan.Wings[wingOf(plan.Wings, WingSuites)].Rooms[0]
-	if claims := SuiteClaims(plan, rooms, sleeping, targets, nil, nil); len(claims) != 0 {
+	if claims := SuiteClaims(plan, rooms, sleeping, targets, nil, nil, RoomGate{}); len(claims) != 0 {
 		t.Fatalf("a growable suite claims %+v", claims)
 	}
 	suites := SuiteTargets(plan, rooms, sleeping, targets, nil)
@@ -123,7 +123,7 @@ func TestBlockedSuiteFallsBackToANewSuite(t *testing.T) {
 		block.Interior.X = s.Interior.X - 3
 	}
 	plan.Rooms = append(plan.Rooms, block)
-	claims := SuiteClaims(plan, rooms, sleeping, targets, nil, nil)
+	claims := SuiteClaims(plan, rooms, sleeping, targets, nil, nil, RoomGate{})
 	if len(claims) != 1 || claims[0].Pawn != "a" || claims[0].Bed != "sb" {
 		t.Fatalf("blocked suite claims = %+v, want a's", claims)
 	}

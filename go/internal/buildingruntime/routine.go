@@ -392,7 +392,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	if r.methodEnabled(policy.MaintainArt) {
-		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection)
+		reading.Projection.Facts.SculptureRoomsOwed = sculptureRoomsOwed(reading.Projection, r.stage)
 	}
 	if reading.Projection.Facts.SaleArt, err = reviewSaleArt(ctx, r.native, boundary.Identity(state.Snapshot), reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: sale art err=%v", err)

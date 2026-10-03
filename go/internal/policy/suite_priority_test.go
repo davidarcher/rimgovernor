@@ -26,12 +26,12 @@ func TestSuiteClaimsOrderByPressure(t *testing.T) {
 		{ID: "a", Thoughts: domain.Known([]MoodThought{{Def: "Hungry", Offset: -20}})},
 		{ID: "b", Thoughts: domain.Known([]MoodThought{{Def: "SleptInBedroom", Offset: -4}})},
 	})
-	got := SuiteClaims(plan, rooms, sleeping, targets, nil, pressure)
+	got := SuiteClaims(plan, rooms, sleeping, targets, nil, pressure, RoomGate{})
 	if len(got) != 2 || got[0].Pawn != "b" || got[1].Pawn != "a" {
 		t.Fatalf("claims = %+v, want b (bedroom thought) before a", got)
 	}
 	// Without pressure the queue falls back to pawn id.
-	if plain := SuiteClaims(plan, rooms, sleeping, targets, nil, nil); plain[0].Pawn != "a" {
+	if plain := SuiteClaims(plan, rooms, sleeping, targets, nil, nil, RoomGate{}); plain[0].Pawn != "a" {
 		t.Fatalf("no-pressure claims = %+v", plain)
 	}
 	// The first claim in priority order is walked into the next suite.

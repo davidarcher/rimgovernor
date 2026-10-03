@@ -143,3 +143,10 @@ func roomPieceOverlaps(pieces []TidyPiece, r Rectangle) bool {
 	}
 	return false
 }
+
+// BedroomUpgradePieces are the definitions the closer's slots place in a
+// bedroom: end table, dresser and the standing lamp (#1841 prices a suite's
+// furnishing by them).
+func (f RoomFurniture) BedroomUpgradePieces() []string {
+	return []string{f.EndTable.Def, f.Dresser.Def, standingLampDef}
+}

@@ -111,8 +111,9 @@ func SuiteRoomIDs(plan LayoutPlan, rooms RoomObservation) map[string]bool {
 // standing planned standard bedroom below its target's Min whose space is
 // the weakest stat, or whose target needs more floor than the room has
 // (Greedy, Jealous of a suite, a title), and the owner of a suite that
-// cannot grow outward to its target (#1218). An ascetic never gets one.
-func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects, pressure map[PawnID]float64) []SuiteClaim {
+// cannot grow outward to its target (#1218). An ascetic never gets one. A claim
+// the owner's remaining share cannot furnish is dropped (#1841, RoomGate).
+func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObservation, targets map[string]RoomTarget, traits map[PawnID]TraitEffects, pressure map[PawnID]float64, gate RoomGate) []SuiteClaim {
 	census, ok := sleeping.Rooms.Value()
 	if !ok {
 		return nil
@@ -164,7 +165,7 @@ func SuiteClaims(plan LayoutPlan, rooms RoomObservation, sleeping SleepingObserv
 		out = append(out, SuiteClaim{Pawn: s.owner, Bed: s.bed, Target: t.Min, Reason: reason})
 	}
 	orderSuiteClaims(out, pressure)
-	return out
+	return gateSuiteClaims(out, plan, rooms, sleeping, gate)
 }
 
 // raisedTarget is whether Greedy, Jealous or a title raised the target above
