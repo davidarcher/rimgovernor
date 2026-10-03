@@ -182,3 +182,20 @@ func TestStockpileShrinkKeepsFoodZoneAtStorageMinimum(t *testing.T) {
 		t.Fatalf("shrank a food zone below the storage minimum %+v", review)
 	}
 }
+
+// Role-less zones are the resource and chunk planners'; folding a wood zone
+// into a steel one deleted its cells, and the planner raised another the next
+// pass (#1581).
+func TestStockpileMergeNeverFoldsDifferentFilters(t *testing.T) {
+	wood, _ := domain.AllowOnlyFilter([]string{"WoodLog"})
+	steel, _ := domain.AllowOnlyFilter([]string{"Steel"})
+	big := StockpileZone{ID: "Zone_1", Cells: stockpileRect(0, 0, 4, 4), Filter: steel}
+	frag := StockpileZone{ID: "Zone_2", Cells: stockpileRect(20, 20, 1, 1), Filter: wood}
+	if review := PlanStockpileMaintenance(stockpileField(big, frag)); review.Active {
+		t.Fatalf("merged a wood fragment into a steel zone %+v", review)
+	}
+	frag.Filter = steel
+	if review := PlanStockpileMaintenance(stockpileField(big, frag)); len(review.Edits) != 1 || review.Edits[0].Kind != StockpileMerge {
+		t.Fatalf("same-filter fragment not merged %+v", review)
+	}
+}

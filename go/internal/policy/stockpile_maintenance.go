@@ -377,7 +377,7 @@ func stockpileGrowEdit(open stockpileOpen, z StockpileZone) (StockpileEdit, bool
 		Explanation: fmt.Sprintf("stockpile %s (%s): %d/%d cells used, grow by %d", z.ID, z.Role, z.Used(), len(z.Cells), len(added))}, true
 }
 
-// stockpileMergeEdits deletes a same-role fragment (at most half its
+// stockpileMergeEdits deletes a same-role, same-filter fragment (at most half its
 // sibling's size) whose used cells fit in the sibling's free cells; the
 // sibling grows back into the space on later cycles. Role-less zones merge
 // only with each other.
@@ -394,7 +394,7 @@ func stockpileMergeEdits(zones []StockpileZone, edited map[string]bool) []Stockp
 		var into *StockpileZone
 		for i := range zones {
 			other := &zones[i]
-			if other.ID == frag.ID || other.Role != frag.Role || touched[other.ID] || len(other.Cells) < 2*len(frag.Cells) || len(other.Cells)-other.Used() < frag.Used() {
+			if other.ID == frag.ID || other.Role != frag.Role || other.Filter != frag.Filter || touched[other.ID] || len(other.Cells) < 2*len(frag.Cells) || len(other.Cells)-other.Used() < frag.Used() {
 				continue
 			}
 			if into == nil || len(other.Cells) > len(into.Cells) {
