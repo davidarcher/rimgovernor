@@ -115,7 +115,7 @@ func catalogReply(context *c.ObservationContext) *o.DefinitionCatalogReply {
 		return &o.ResearchProject{Project: &o.DefinitionRef{DefName: proto.String(name)}, Prerequisites: prerequisites}
 	}
 	return &o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: &o.DefinitionCatalog{Context: proto.Clone(context).(*c.ObservationContext),
-		Definitions: []*o.PlanningDefinition{definition("Bed", "Beds"), definition("Wall")}, ThingDefs: []*d.ThingDef{{DefName: "Bed"}, {DefName: "Wall"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Constants: catalogConstants(), Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
+		Definitions: []*o.PlanningDefinition{definition("Bed", "Beds"), definition("Wall")}, ThingDefs: []*d.ThingDef{{DefName: "Bed"}, {DefName: "Wall"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Constants: catalogConstants(), Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
 }
 
 var bundleFamilyTools = []string{"rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population", "rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns"}

@@ -16,7 +16,8 @@ namespace HomeBridge.BridgeTools
     //   * a message mirrors the CLR class named by its clr_type option, and a
     //     field's name is the CLR field's name;
     //   * a def reference is the def's defName, a System.Type its full name, an
-    //     enum its numeric value, a Nullable<T> an optional field;
+    //     enum its numeric value, a Nullable<T> an optional field, a SlateRef<T>
+    //     its XML text;
     //   * a List, array or HashSet is a repeated field, a Dictionary repeated
     //     "entry" messages (key, value), a nested collection a "list" message
     //     (items);
@@ -46,6 +47,17 @@ namespace HomeBridge.BridgeTools
             Fill(message, source, message.Descriptor.Name, "(root)");
             return message;
         }
+
+        // The message of descriptor mirroring source.
+        internal IMessage Build(MessageDescriptor descriptor, object source)
+        {
+            var message = Create(descriptor);
+            Fill(message, source, descriptor.Name, "(root)");
+            return message;
+        }
+
+        // The CLR class a message mirrors, null for a wrapper or synthetic message.
+        internal string? ClrName(MessageDescriptor descriptor) => Clr(descriptor);
 
         private readonly Dictionary<MessageDescriptor, (string? Clr, string? Synthetic)> options = new Dictionary<MessageDescriptor, (string?, string?)>();
 
@@ -146,6 +158,10 @@ namespace HomeBridge.BridgeTools
                     if (value is string text) return text;
                     if (value is Type type) return type.FullName ?? throw Fail(owner, field, $"type {type} has no full name");
                     if (value is Verse.Def def) return def.defName ?? "";
+                    // SlateRef<T> is the XML text of the field: its one private string.
+                    if (value.GetType() is { IsGenericType: true } generic && generic.GetGenericTypeDefinition() == typeof(RimWorld.QuestGen.SlateRef<>))
+                        return (generic.GetField("slateRef", BindingFlags.Instance | BindingFlags.NonPublic)
+                            ?? throw Fail(owner, field, $"{generic.FullName} has no slateRef field")).GetValue(value) as string ?? "";
                     throw Fail(owner, field, $"{value.GetType().FullName} is not a string, Type or def");
                 case FieldType.Enum: return Enum.ToObject(fd.EnumType.ClrType, Convert.ToInt32(value));
                 case FieldType.Message: return MessageOf(fd.MessageType, value, owner, field);

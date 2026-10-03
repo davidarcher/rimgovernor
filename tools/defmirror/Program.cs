@@ -1,5 +1,5 @@
-// Emits contracts/proto/defs.proto: typed messages mirroring RimWorld's ThingDef
-// and TerrainDef, every class their fields reach, and every subclass of a
+// Emits contracts/proto/defs.proto: typed messages mirroring every concrete
+// Verse.Def class of the game, every class their fields reach, and every subclass of a
 // polymorphic field type (every CompProperties, ...), by reflecting the game's
 // managed assemblies. See contracts/schema-generation.md.
 //
@@ -7,11 +7,15 @@
 //   * A message holds every public instance field of the class and its bases,
 //     except [Unsaved] fields and fields typed as runtime state (a type deriving
 //     from Verse.Entity or UnityEngine.Object, implementing Verse.ILoadReferenceable,
-//     a delegate or an interface, alone or as a collection element or generic
-//     argument). Each such field is listed in the output header. Field names are the
-//     CLR names, so native fills a message by protobuf reflection by name alone.
+//     a delegate, an interface or System.Object (untyped), alone or as a collection
+//     element or generic argument). Each such field is listed in the output header.
+//     Field names are the CLR names, so native fills a message by protobuf
+//     reflection by name alone.
 //   * Def references become the def's defName (string); System.Type becomes its
-//     full name; enums keep their numeric values.
+//     full name; enums keep their numeric values; RimWorld.QuestGen.SlateRef<T>
+//     becomes the string it holds (its XML text, a literal or a "$variable").
+//   * Every concrete Verse.Def class is a root. DefSets holds one repeated field
+//     per root, but ThingDef and TerrainDef (DefinitionCatalog fields 8 and 9).
 //   * Nullable<T> becomes a proto3 optional field. List, array and HashSet become
 //     repeated fields; a Dictionary becomes repeated key/value entry messages; a
 //     collection nested in a collection becomes a synthetic wrapper message with
@@ -21,7 +25,8 @@
 //     and no concrete subclass (DefModExtension in vanilla) becomes an empty
 //     message and is listed in the header.
 //   * A field that closes a reference cycle is skipped and listed in the header:
-//     the graph is walked depth-first from the roots (ThingDef, TerrainDef) with
+//     the graph is walked depth-first from the roots (ThingDef, TerrainDef, then every
+//     other concrete Verse.Def class in ordinal order) with
 //     fields in declaration order and subclasses in ordinal order, and a field whose
 //     type (or any subclass of it) is still being built is the back edge.
 //   * Any other field type the tool cannot represent fails the run
@@ -55,7 +60,7 @@ internal static class Program
         var resolver = new PathAssemblyResolver(paths);
         using var context = new MetadataLoadContext(resolver, "mscorlib");
         var generator = new Generator(context, managed);
-        var text = generator.Run(new[] { "Verse.ThingDef", "Verse.TerrainDef" });
+        var text = generator.Run();
         if (generator.Errors.Count > 0)
         {
             Console.Error.WriteLine($"defmirror: {generator.Errors.Count} field(s) could not be represented; nothing written:");
@@ -137,6 +142,7 @@ internal sealed class Generator
     private readonly SortedSet<string> errors = new(StringComparer.Ordinal);
     private readonly SortedSet<string> skipped = new(StringComparer.Ordinal);
     private Dictionary<Type, string> names = new();
+    private List<Type> roots = new();
 
     public Generator(MetadataLoadContext context, string managed)
     {
@@ -149,7 +155,12 @@ internal sealed class Generator
     public int EnumCount => enums.Count;
     public int SkippedCount => skipped.Count;
 
-    public string Run(string[] roots)
+    // DefinitionCatalog carries these two roots in its own fields (8 and 9, #1730);
+    // every other root is a repeated field of DefSets. They walk first, so the
+    // cycle skips of the first mirror stay as they were.
+    private static readonly string[] CarriedRoots = { "Verse.ThingDef", "Verse.TerrainDef" };
+
+    public string Run()
     {
         var assemblies = DefAssemblies.Select(n => context.LoadFromAssemblyPath(Path.Combine(managed, n + ".dll"))).ToArray();
         foreach (var assembly in assemblies)
@@ -164,12 +175,16 @@ internal sealed class Generator
             }
 
         foreach (var list in subclasses.Values) list.Sort((a, b) => string.CompareOrdinal(a.FullName, b.FullName));
-        foreach (var root in roots)
-        {
-            var type = assemblies.Select(a => a.GetType(root)).FirstOrDefault(t => t != null)
-                ?? throw new InvalidOperationException($"{root} not found in {string.Join(", ", DefAssemblies)}");
-            Need(type);
-        }
+        // Every concrete Verse.Def class is a root; the abstract ones are reached
+        // through their subclasses' bases only.
+        var defs = assemblies.SelectMany(a => a.GetTypes())
+            .Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericTypeDefinition && IsDef(t) && t.FullName != "Verse.Def")
+            .OrderBy(t => t.FullName, StringComparer.Ordinal).ToList();
+        foreach (var carried in CarriedRoots)
+            if (!defs.Any(t => t.FullName == carried)) throw new InvalidOperationException($"{carried} not found in {string.Join(", ", DefAssemblies)}");
+        roots = defs.OrderBy(t => Array.IndexOf(CarriedRoots, t.FullName) is var i && i >= 0 ? i : CarriedRoots.Length)
+            .ThenBy(t => t.FullName, StringComparer.Ordinal).ToList();
+        foreach (var root in roots) Need(root);
         if (errors.Count > 0) return "";
         AssignNames();
         if (errors.Count > 0) return "";
@@ -186,6 +201,11 @@ internal sealed class Generator
         return false;
     }
 
+    // RimWorld.QuestGen.SlateRef<T>: a struct whose only data is the private
+    // string slateRef, the field's XML text (a literal or a "$variable").
+    private static bool IsSlateRef(Type t) =>
+        t.IsGenericType && t.GetGenericTypeDefinition().FullName == "RimWorld.QuestGen.SlateRef`1";
+
     private static bool IsNullable(Type t) =>
         t.IsGenericType && t.GetGenericTypeDefinition().FullName == "System.Nullable`1";
 
@@ -195,11 +215,13 @@ internal sealed class Generator
 
     // The first type in t (itself, an array element or a generic argument) that
     // is runtime state: a Verse.Entity, a Verse.ILoadReferenceable, a delegate,
-    // an interface or a UnityEngine.Object (Material, Texture, ...).
+    // an interface, System.Object (untyped) or a UnityEngine.Object (Material, Texture, ...).
     private static Type? RuntimeState(Type t)
     {
         if (t.IsArray) return RuntimeState(t.GetElementType()!);
         if (t.IsInterface) return t;
+        if (t.FullName == "System.Object") return t; // untyped: no message can hold it
+        if (IsSlateRef(t)) return null; // its XML text, whatever it is typed to hold
         for (var b = t; b != null; b = b.BaseType)
             if (b.FullName is "Verse.Entity" or "System.MulticastDelegate" or "System.Delegate" or "UnityEngine.Object") return t;
         if (t.FullName == "Verse.ILoadReferenceable" || t.GetInterfaces().Any(i => i.FullName == "Verse.ILoadReferenceable")) return t;
@@ -235,6 +257,7 @@ internal sealed class Generator
         }
         if (t.IsPointer || t.IsByRef) throw new Unsupported($"{t} is a pointer or reference");
         if (t.IsGenericParameter) throw new Unsupported($"{t} is an open generic parameter");
+        if (IsSlateRef(t)) return new Ref("string", null, false, false);
         if (t.IsGenericType) throw new Unsupported($"unsupported generic {t}");
         if (t.IsArray) throw new Unsupported($"{t} is a multidimensional array");
         if (IsDef(t)) return new Ref("string", null, false, false); // defName
@@ -281,6 +304,7 @@ internal sealed class Generator
     private IEnumerable<Type> MessageTargets(Type t)
     {
         if (t.IsArray) return MessageTargets(t.GetElementType()!);
+        if (IsSlateRef(t)) return Enumerable.Empty<Type>();
         if (t.IsGenericType) return t.GetGenericArguments().SelectMany(MessageTargets);
         if (ScalarOf(t) != null || t.IsEnum || t.IsPointer || t.IsByRef || t.IsGenericParameter || IsDef(t)) return Enumerable.Empty<Type>();
         if (t.IsValueType ? t.FullName!.StartsWith("System.", StringComparison.Ordinal) : !InDefAssembly(t)) return Enumerable.Empty<Type>();
@@ -477,9 +501,9 @@ internal sealed class Generator
         foreach (var t in emptyAbstract.OrderBy(t => t.FullName, StringComparer.Ordinal)) L("//   " + t.FullName);
         L("//");
         L("// Fields skipped (runtime state, not def data): a type deriving from Verse.Entity or");
-        L("// UnityEngine.Object, implementing Verse.ILoadReferenceable, or a delegate or interface,");
+        L("// UnityEngine.Object, implementing Verse.ILoadReferenceable, a delegate, an interface or System.Object (untyped),");
         L("// alone or as a collection element or generic argument; or a field that closes a");
-        L("// reference cycle in the type graph (depth-first from ThingDef, TerrainDef; a");
+        L("// reference cycle in the type graph (depth-first from the roots, ThingDef and TerrainDef first; a");
         L("// polymorphic class holds its subclasses), which protobuf could only mirror as a");
         L("// recursive message.");
         foreach (var s in skipped) L("//   " + s);
@@ -568,6 +592,17 @@ internal sealed class Generator
             L("  }");
             L("}");
         }
+
+        // One repeated field per root class but the carried two, in root order.
+        L();
+        L("// Every def of each root class the catalog has no field of its own for");
+        L("// (DefinitionCatalog carries " + string.Join(" and ", CarriedRoots) + "): one repeated field per");
+        L("// concrete Verse.Def class, numbered in root order (ordinal by full name).");
+        L("message DefSets {");
+        var set = 0;
+        foreach (var t in roots.Where(t => !CarriedRoots.Contains(t.FullName)))
+            L($"  repeated {names[t]} {UpperSnake(names[t]).ToLowerInvariant()}s = {++set};");
+        L("}");
         return sb.ToString();
     }
 }

@@ -12,6 +12,7 @@ import (
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // The definition catalog (#1340): the static planning facts of every
@@ -42,6 +43,10 @@ type DefinitionCatalog struct {
 	// by defName: the generated messages of defs.proto, unfiltered.
 	ThingDefs   map[string]*d.ThingDef
 	TerrainDefs map[string]*d.TerrainDef
+	// Defs are the defs of every other concrete Def class (#1761): the
+	// generated rows of defs.proto's DefSets by message full name, then
+	// defName. Read them with DefRow.
+	Defs map[protoreflect.FullName]map[string]proto.Message
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants
@@ -86,6 +91,17 @@ func (catalog *DefinitionCatalog) TerrainDef(name string) *d.TerrainDef {
 		return nil
 	}
 	return catalog.TerrainDefs[name]
+}
+
+// DefRow is name's generated row of def class T (a message of defs.proto
+// other than ThingDef and TerrainDef), nil when the catalog has none.
+func DefRow[T proto.Message](catalog *DefinitionCatalog, name string) T {
+	var zero T
+	if catalog == nil {
+		return zero
+	}
+	row, _ := catalog.Defs[zero.ProtoReflect().Descriptor().FullName()][name].(T)
+	return row
 }
 
 // Definition is name's catalog row, nil when the catalog has none.
@@ -176,6 +192,47 @@ func defRows[T any](rows []*T, name func(*T) string, kind string) (map[string]*T
 	return out, nil
 }
 
+// defSetRows keys every row of the DefSets fields by message and defName,
+// reading the repeated fields by protobuf reflection so a class added to the
+// generator needs no code here. An absent set, a row without a valid name or
+// a repeated name is a contract violation.
+func defSetRows(sets *d.DefSets) (map[protoreflect.FullName]map[string]proto.Message, error) {
+	if sets == nil {
+		return nil, contract("catalog carries no def sets")
+	}
+	out := map[protoreflect.FullName]map[string]proto.Message{}
+	var err error
+	sets.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		class := fd.Message().FullName()
+		nameField := fd.Message().Fields().ByName("defName")
+		if !fd.IsList() || nameField == nil || nameField.Kind() != protoreflect.StringKind {
+			err = contract("def set %s is not a list of rows with a defName", fd.Name())
+			return false
+		}
+		list := value.List()
+		rows := make(map[string]proto.Message, list.Len())
+		for i := range list.Len() {
+			row := list.Get(i).Message()
+			name := row.Get(nameField).String()
+			if !row.IsValid() || validID(name) != nil {
+				err = contract("invalid catalog %s def", class)
+				return false
+			}
+			if rows[name] != nil {
+				err = contract("duplicate catalog %s def %s", class, name)
+				return false
+			}
+			rows[name] = row.Interface()
+		}
+		out[class] = rows
+		return true
+	})
+	if err == nil && len(out) == 0 {
+		err = contract("catalog carries no def sets")
+	}
+	return out, err
+}
+
 // validateConstants refuses an absent constants block and one with a
 // non-positive or non-finite value.
 func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
@@ -216,6 +273,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.TerrainDefs, err = defRows(v.TerrainDefs, (*d.TerrainDef).GetDefName, "terrain"); err != nil {
+		return nil, err
+	}
+	if out.Defs, err = defSetRows(v.Defs); err != nil {
 		return nil, err
 	}
 	if out.Constants, err = validateConstants(v.Constants); err != nil {

@@ -1909,6 +1909,9 @@ message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1
   // The game's own stat values per def and stuff (#1759); absent in a reply
   // that carries none.
   DefStatTable stat_values = 11;
+  // Every def of every other concrete Verse.Def class (#1761), one repeated
+  // field per class, filled the same way.
+  rimgovernor.defs.v1.DefSets defs = 12;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once

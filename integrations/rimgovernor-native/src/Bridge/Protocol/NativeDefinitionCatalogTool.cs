@@ -1,5 +1,7 @@
 #nullable enable
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -64,6 +66,7 @@ namespace HomeBridge.BridgeTools
                 catalog.ThingDefs.Add(mirror.Build<Defs.ThingDef>(def));
             foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
+            catalog.Defs = DefSets(mirror);
             catalog.Constants = Constants();
             catalog.StatValues = StatValues();
             catalog.Biotech = NativeBiotechFacts.Catalog();
@@ -71,6 +74,28 @@ namespace HomeBridge.BridgeTools
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
             catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
+        }
+
+        // Every def of each class DefSets mirrors (#1761), by exact class and in
+        // defName order. A concrete def class the mirror has no field for (a mod's)
+        // fails the read naming it.
+        private static Defs.DefSets DefSets(DefMirrorFill mirror)
+        {
+            var types = GenDefDatabase.AllDefTypesWithDatabases().Where(t => !t.IsAbstract).ToDictionary(t => t.FullName ?? t.Name, StringComparer.Ordinal);
+            var mirrored = new HashSet<Type> { typeof(ThingDef), typeof(TerrainDef) };
+            var sets = new Defs.DefSets();
+            foreach (var field in Defs.DefSets.Descriptor.Fields.InFieldNumberOrder())
+            {
+                var clr = mirror.ClrName(field.MessageType) ?? throw new InvalidOperationException($"DefSets.{field.Name} has no clr_type option.");
+                if (!types.TryGetValue(clr, out var type)) throw new InvalidOperationException($"DefSets.{field.Name}: the game has no def class {clr}.");
+                mirrored.Add(type);
+                var list = (IList)field.Accessor.GetValue(sets);
+                foreach (var def in GenDefDatabase.GetAllDefsInDatabaseForDef(type).Where(d => d.GetType() == type).OrderBy(d => Named(d.defName, type.Name), StringComparer.Ordinal))
+                    list.Add(mirror.Build(field.MessageType, def));
+            }
+            var missing = types.Values.Where(t => !mirrored.Contains(t)).Select(t => t.FullName).OrderBy(n => n, StringComparer.Ordinal).ToList();
+            if (missing.Count > 0) throw new InvalidOperationException("Def classes the mirror has no field for: " + string.Join(", ", missing));
+            return sets;
         }
 
         // The game's own GetStatValueAbstract(stat, stuff) (#1759) for every

@@ -225,12 +225,41 @@ def carries `growMinGlow`.
 
 `bridge.DecodeDefinitionCatalog` keys the rows by def name in the per-load-token
 cache (`DefinitionCatalog.ThingDef`, `TerrainDef`; a thing and a terrain may
-share a name) and refuses a missing or repeated name and a non-positive or
-nonfinite constant. A reply without rows or constants decodes with them empty;
-a consumer that needs a row or constant treats its absence as an error. The
-reply stays under the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a
-decompression guard, not a row cap); a synthesized reply of about 3000 defs is
-9 MB.
+share a name) and refuses a missing or repeated name, absent def rows, sets or
+constants, and a non-positive or nonfinite constant. The reply must stay under
+the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a decompression guard,
+not a row cap).
+
+### Every other def class
+
+`DefinitionCatalog.defs` (`DefSets`, #1761) carries the defs of every other
+concrete `Verse.Def` class (251 in the game and its DLCs, so the catalog holds
+every def the game loads): one repeated field per class, named by the class
+(`stat_defs`, `recipe_defs`, ...) and numbered in ordinal order of the class's
+full name. `ThingDef` and `TerrainDef` keep `thing_defs` (8) and `terrain_defs`
+(9). One generated message with a field per class costs the least generated
+code: a field per class on the catalog would mean hand-written proto that the
+generator could not keep in step, and a oneof row wrapper adds a message per
+class and a second encoding layer.
+
+Native fills each field from the game's def database for that exact class
+(a def of a subclass is in its own field), sorted by `defName`, by the same
+walker. The class list is the `DefSets` descriptor itself, so a new class needs
+no native code. A concrete def class the game has and `DefSets` lacks (a mod's)
+fails the read naming it, as a mod subclass of a mirrored class does.
+`QuestGen.SlateRef<T>` fields are mirrored as the field's XML text, a literal
+or a `$variable` held in the struct's one private string.
+
+`bridge.DecodeDefinitionCatalog` reads the `DefSets` fields by protobuf
+reflection into `DefinitionCatalog.Defs` (message full name, then `defName`);
+`bridge.DefRow[*defspb.StatDef](catalog, name)` is the typed lookup. A set
+that is absent or empty, an invalid `defName` and a repeated `defName` within
+a class are contract violations.
+
+Cycle rule consequence: a def class whose fields nest its own kind (quest
+nodes, think nodes, thing set makers) mirrors those nesting fields as skipped,
+listed in the `defs.proto` header; see
+[schema generation](../schema-generation.md#def-mirror).
 
 ### Stat values and adjusted costs
 

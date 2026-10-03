@@ -26,6 +26,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 		v.ThingDefs = []*d.ThingDef{{DefName: "Wall", Label: "wall", StackLimit: 1, Comps: []*d.CompPropertiesAny{{Value: &d.CompPropertiesAny_CompProperties{CompProperties: &d.CompProperties{CompClass: "Verse.CompForbiddable"}}}}}, {DefName: "Bed"}}
 		v.TerrainDefs = []*d.TerrainDef{{DefName: "Wall", Label: "floor"}}
 		v.Constants = catalogConstants()
+		v.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: "Wall", Label: "stat"}}, RecipeDefs: []*d.RecipeDef{{DefName: "Wall"}, {DefName: "Bed"}}}
 		return v
 	}
 	catalog, err := DecodeDefinitionCatalog(build(), pbIdentity())
@@ -38,10 +39,13 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	if row := catalog.TerrainDef("Wall"); row == nil || row.Label != "floor" {
 		t.Fatalf("terrain row %+v", row)
 	}
+	if row := DefRow[*d.StatDef](catalog, "Wall"); row == nil || row.Label != "stat" || DefRow[*d.RecipeDef](catalog, "Bed") == nil || DefRow[*d.RecipeDef](catalog, "Missing") != nil || DefRow[*d.TraitDef](catalog, "Wall") != nil {
+		t.Fatalf("def set rows %+v", catalog.Defs)
+	}
 	if catalog.ThingDef("Missing") != nil || catalog.TerrainDef("Bed") != nil || catalog.Constants.TicksPerDay != 60000 {
 		t.Fatalf("lookup %+v", catalog)
 	}
-	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-thing-defs", "no-terrain-defs", "no-constants"} {
+	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-thing-defs", "no-terrain-defs", "no-constants", "no-def-sets", "empty-def-sets", "duplicate-def-row", "unnamed-def-row"} {
 		t.Run(change, func(t *testing.T) {
 			v := build()
 			switch change {
@@ -61,6 +65,14 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 				v.TerrainDefs = nil
 			case "no-constants":
 				v.Constants = nil
+			case "no-def-sets":
+				v.Defs = nil
+			case "empty-def-sets":
+				v.Defs = &d.DefSets{}
+			case "duplicate-def-row":
+				v.Defs.RecipeDefs = append(v.Defs.RecipeDefs, &d.RecipeDef{DefName: "Bed"})
+			case "unnamed-def-row":
+				v.Defs.StatDefs[0].DefName = ""
 			case "nan-glow":
 				v.Constants.LitGlowThreshold = float32(math.NaN())
 			}
@@ -129,23 +141,37 @@ func fillDef(m protoreflect.Message, depth, stride int, seed *int) {
 }
 
 // syntheticCatalog is a reply sized like the game's: about 2900 thing defs and
-// 120 terrain defs, each a third filled to a depth of three messages. The game
+// 120 terrain defs plus perClass defs of each of the other def classes (#1761),
+// each filled in every stride-th field to a depth of three messages. The game
 // is not available to the test; the numbers are an estimate of the order, not a
 // measurement of the real reply.
-func syntheticCatalog() *o.DefinitionCatalog {
+func syntheticCatalog(stride, perClass int) *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
 	seed := 0
+	v.ThingDefs, v.TerrainDefs = nil, nil
 	for i := range 2900 {
 		row := &d.ThingDef{}
-		fillDef(row.ProtoReflect(), 3, 3, &seed)
+		fillDef(row.ProtoReflect(), 3, stride, &seed)
 		row.DefName = fmt.Sprintf("Thing%d", i)
 		v.ThingDefs = append(v.ThingDefs, row)
 	}
 	for i := range 120 {
 		row := &d.TerrainDef{}
-		fillDef(row.ProtoReflect(), 3, 3, &seed)
+		fillDef(row.ProtoReflect(), 3, stride, &seed)
 		row.DefName = fmt.Sprintf("Terrain%d", i)
 		v.TerrainDefs = append(v.TerrainDefs, row)
+	}
+	v.Defs = &d.DefSets{}
+	sets := v.Defs.ProtoReflect()
+	for i := range sets.Descriptor().Fields().Len() {
+		fd := sets.Descriptor().Fields().Get(i)
+		list := sets.Mutable(fd).List()
+		for j := range perClass {
+			row := list.NewElement()
+			fillDef(row.Message(), 3, stride, &seed)
+			row.Message().Set(fd.Message().Fields().ByName("defName"), protoreflect.ValueOfString(fmt.Sprintf("%s%d", fd.Message().Name(), j)))
+			list.Append(row)
+		}
 	}
 	v.Constants = catalogConstants()
 	return v
@@ -155,26 +181,35 @@ func syntheticCatalog() *o.DefinitionCatalog {
 // the binary reply is parsed, validated and indexed within the accepted
 // maximum, and the size and time are logged for the commit record.
 func TestDefinitionCatalogDecodeTime(t *testing.T) {
-	v := syntheticCatalog()
-	raw, err := proto.Marshal(&o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: v}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(raw) >= maxReplyProtoBytes {
-		t.Fatalf("synthetic reply %d bytes exceeds the reply guard %d", len(raw), maxReplyProtoBytes)
-	}
-	began := time.Now()
-	reply := &o.DefinitionCatalogReply{}
-	if err := proto.Unmarshal(raw, reply); err != nil {
-		t.Fatal(err)
-	}
-	parsed := time.Since(began)
-	catalog, err := DecodeDefinitionCatalog(reply.GetObserved(), pbIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("reply %d bytes, %d thing and %d terrain defs: parse %v, decode %v", len(raw), len(catalog.ThingDefs), len(catalog.TerrainDefs), parsed, time.Since(began)-parsed)
-	if catalog.ThingDef("Thing2899") == nil || catalog.TerrainDef("Terrain119") == nil {
-		t.Fatal("rows missing")
+	// A third of every def filled, 40 defs of each other class.
+	for _, shape := range []struct{ stride, perClass int }{{3, 40}} {
+		t.Run(fmt.Sprintf("stride%d-per%d", shape.stride, shape.perClass), func(t *testing.T) {
+			v := syntheticCatalog(shape.stride, shape.perClass)
+			raw, err := proto.Marshal(&o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: v}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(raw) >= maxReplyProtoBytes {
+				t.Fatalf("synthetic reply %d bytes exceeds the reply guard %d", len(raw), maxReplyProtoBytes)
+			}
+			began := time.Now()
+			reply := &o.DefinitionCatalogReply{}
+			if err := proto.Unmarshal(raw, reply); err != nil {
+				t.Fatal(err)
+			}
+			parsed := time.Since(began)
+			catalog, err := DecodeDefinitionCatalog(reply.GetObserved(), pbIdentity())
+			if err != nil {
+				t.Fatal(err)
+			}
+			classes, rows := len(catalog.Defs), 0
+			for _, byName := range catalog.Defs {
+				rows += len(byName)
+			}
+			t.Logf("reply %d bytes, %d thing, %d terrain and %d other defs of %d classes: parse %v, decode %v", len(raw), len(catalog.ThingDefs), len(catalog.TerrainDefs), rows, classes, parsed, time.Since(began)-parsed)
+			if catalog.ThingDef("Thing2899") == nil || catalog.TerrainDef("Terrain119") == nil || DefRow[*d.StatDef](catalog, fmt.Sprintf("StatDef%d", shape.perClass-1)) == nil {
+				t.Fatal("rows missing")
+			}
+		})
 	}
 }
