@@ -62,8 +62,19 @@ through as read: Go interprets no never-performed sentinel.
 `RequiredBuildings` (building precepts' ThingDefs and the held rituals'
 required buildings).
 
+## Precept rule
+
+`policy.ActionStance(facts.Ideology, action, subject)` (#1655) answers whether the precepts in force
+allow, approve, penalise or forbid an action, for the colony or one pawn. The action is the
+`HistoryEventDef` it raises (callers bind their action to the event; no def is listed in policy), or
+`Apparel`. The verdict carries the stance, the doer's and witnesses' mood cost (worst stage of each
+penalising thought), the refusal chance of unwilling effects (cancelled by the pawn's nullifying
+traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPAREL` effect (no
+payload on the wire), is `unknown`: callers hold. There is no `required` stance: no effect kind types
+a requirement.
+
 ## Not here
 
-The shared precept rule (#1655), building and room planning (#1658), role
+Building and room planning (#1658), role
 assignment (#1661) and ritual intents (#1659) consume these facts; writes
 reuse the shared Assign and Ritual shapes.
