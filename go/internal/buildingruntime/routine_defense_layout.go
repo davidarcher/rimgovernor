@@ -1186,6 +1186,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
+		clockSchedulerLog("defense-layout: site map (F fogged, # impassable, . passable, d door):\n%s", defenseSiteMap(request))
 		return policy.DefenseLayout{}, nil, false, nil
 	}
 	firing, approach := layout.Probe()
@@ -1625,3 +1626,32 @@ func defenseIEDRequest(read observation.RoutineReading, request *policy.DefenseR
 	}
 	request.FlammableStorage = domain.Known(storage)
 }
+
+func defenseSiteMap(request policy.DefenseRequest) string {
+	by := map[domain.Cell]policy.DefenseCell{}
+	for _, c := range request.Cells {
+		by[c.Cell] = c
+	}
+	var b strings.Builder
+	reg := request.Region
+	for z := reg.Z + reg.Height - 1; z >= reg.Z; z-- {
+		fmt.Fprintf(&b, "%3d ", z)
+		for x := reg.X; x < reg.X+reg.Width; x++ {
+			c, ok := by[domain.Cell{X: x, Z: z}]
+			v, known := c.Passable.Value()
+			switch {
+			case !ok || !known:
+				b.WriteByte('F')
+			case !v:
+				b.WriteByte('#')
+			case positiveFact(c.Door):
+				b.WriteByte('d')
+			default:
+				b.WriteByte('.')
+			}
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
