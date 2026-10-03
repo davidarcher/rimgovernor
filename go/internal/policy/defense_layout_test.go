@@ -44,13 +44,29 @@ func defenseFixture() DefenseRequest {
 	return r
 }
 
-// Rock across the corridor is dug, not routed around (#1588): DefenseDig
-// lists the rock on the lane and the defenders' ground, the layout waits on
-// it, and proceeds once it is open. Open ground needs no dig.
+// Rock across the corridor is dug, not routed around (#1588, #1701): the
+// killbox's role cells through the shared rock step list the rock on the
+// lane and the defenders' ground, the layout waits on it, and proceeds once
+// it is open. Open ground needs no dig; rock on a wall cell stays.
 func TestDefenseDigListsRockOnTheCorridor(t *testing.T) {
 	r := defenseFixture()
-	if dig, err := DefenseDig(r); err != nil || len(dig) != 0 {
-		t.Fatal("open ground dug", dig, err)
+	dug := func(rock func(domain.Cell) bool) []domain.Cell {
+		planned, err := DefenseRockCells(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var site []SiteCell
+		for _, c := range r.Cells {
+			cell := SiteCell{Cell: c.Cell, Occupied: domain.Known(false), Walkable: domain.Known(true), Roof: domain.Known("")}
+			if rock(c.Cell) {
+				cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
+			}
+			site = append(site, cell)
+		}
+		return RockStep(planned, site).Dig
+	}
+	if dig := dug(func(domain.Cell) bool { return false }); len(dig) != 0 {
+		t.Fatal("open ground dug", dig)
 	}
 	inRock := func(c domain.Cell) bool { return c.X >= 11 && c.X <= 19 && c.Z >= 8 && c.Z <= 10 }
 	for i, c := range r.Cells {
@@ -62,9 +78,9 @@ func TestDefenseDigListsRockOnTheCorridor(t *testing.T) {
 	if _, err := DefenseLayouts(r); err == nil {
 		t.Fatal("layout stood on rock")
 	}
-	dig, err := DefenseDig(r)
-	if err != nil || len(dig) == 0 {
-		t.Fatal("no dig for rock on the corridor", dig, err)
+	dig := dug(inRock)
+	if len(dig) == 0 {
+		t.Fatal("no dig for rock on the corridor")
 	}
 	for _, c := range dig {
 		if !inRock(c) {
@@ -77,10 +93,10 @@ func TestDefenseDigListsRockOnTheCorridor(t *testing.T) {
 			r.Cells[i] = c
 		}
 	}
-	if dig, _ = DefenseDig(r); len(dig) != 0 {
+	if dig = dug(func(domain.Cell) bool { return false }); len(dig) != 0 {
 		t.Fatal("dug after the rock was cleared", dig)
 	}
-	if _, err = DefenseLayouts(r); err != nil {
+	if _, err := DefenseLayouts(r); err != nil {
 		t.Fatal("layout waits after the dig:", err)
 	}
 }

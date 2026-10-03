@@ -417,15 +417,17 @@ func defenseShape(r DefenseRequest) (half, legs int32, err error) {
 	return half, legs, nil
 }
 
-// DefenseDig lists the natural rock the killbox needs mined before the
-// layout can stand (#1588): the raiders' lane from the ring opening to the
-// kill zone, and the defenders' ground below it (kill row, fence bar,
-// firing cells and the doorway through the back wall). Rock beside the
-// lane stays: raiders do not mine, and the funnel leaves rock cells
-// unwalled. A cell the census holds as fogged counts as rock; the native
-// excavation read says whether it is. Cells come in lane order, then rows
-// inward.
-func DefenseDig(r DefenseRequest) ([]domain.Cell, error) {
+// DefenseRockCells is the killbox's role cells for the shared rock step
+// (#1701, RockStep): the raiders' lane from the ring opening to the kill
+// zone and the defenders' ground below it (kill row, fence bar, firing
+// cells and the doorway through the back wall) need a floor, so rock on them
+// is dug before the layout stands (#1588); the walls beside the lane and
+// around the kill zone block, so rock there stays (raiders do not mine, and
+// the funnel leaves rock cells unwalled). Cells outside the site, passable
+// cells, and cells the site reads as a wall or building rather than natural
+// rock are left out; a fogged cell counts as rock, and the native excavation
+// read says whether it is. Floor cells come in lane order, then rows inward.
+func DefenseRockCells(r DefenseRequest) ([]RoleCell, error) {
 	s, err := newDefenseSite(r)
 	if err != nil {
 		return nil, err
@@ -444,26 +446,35 @@ func DefenseDig(r DefenseRequest) ([]domain.Cell, error) {
 		return addCell(kb.Entry, addCell(scale(d, perimeterThick+k), scale(p, a)))
 	}
 	hall := snakeCorridor(half, legs)
-	var want []domain.Cell
+	var want []RoleCell
 	for _, c := range hall.lane {
-		want = append(want, at(c.Z, c.X))
+		want = append(want, RoleCell{Cell: at(c.Z, c.X), Role: RockNeedsFloor})
+	}
+	for _, c := range hall.walls {
+		want = append(want, RoleCell{Cell: at(c.Z, c.X), Role: RockBlocks})
 	}
 	fenceRow := hall.rows + 1
 	backWall := fenceRow + 4
 	for k := hall.rows; k < backWall; k++ {
 		for a := -half; a <= half; a++ {
-			want = append(want, at(k, a))
+			want = append(want, RoleCell{Cell: at(k, a), Role: RockNeedsFloor})
+		}
+		want = append(want, RoleCell{Cell: at(k, -half-1), Role: RockBlocks}, RoleCell{Cell: at(k, half+1), Role: RockBlocks})
+	}
+	want = append(want, RoleCell{Cell: at(backWall, 0), Role: RockNeedsFloor}, RoleCell{Cell: at(backWall+1, 0), Role: RockNeedsFloor})
+	for k := backWall; k < backWall+2; k++ {
+		for a := -half - 1; a <= half+1; a++ {
+			if a != 0 {
+				want = append(want, RoleCell{Cell: at(k, a), Role: RockBlocks})
+			}
 		}
 	}
-	want = append(want, at(backWall, 0), at(backWall+1, 0))
-	seen := map[domain.Cell]bool{}
-	var out []domain.Cell
+	var out []RoleCell
 	for _, c := range want {
-		row, ok := s.cells[c]
-		if !ok || seen[c] || positive(row.Passable) {
+		row, ok := s.cells[c.Cell]
+		if !ok || positive(row.Passable) {
 			continue
 		}
-		seen[c] = true
 		if _, known := row.Passable.Value(); known && !positive(row.NaturalRock) {
 			continue // a wall or building, not rock
 		}

@@ -1186,17 +1186,16 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	request.Definitions = policy.DefenseCoverChoice(request.Definitions, stock, stockKnown,
 		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
 	defenseIEDRequest(read, &request)
-	// Rock on the corridor and the defenders' ground is mined first, as a
-	// room's is (#1588); the layout waits on that dig.
-	if rock, digErr := policy.DefenseDig(request); digErr == nil && len(rock) > 0 {
+	// Rock on the corridor and the defenders' ground is mined first through
+	// the shared rock step (#1701, #1588); the layout waits on that dig.
+	if rock, digErr := policy.DefenseRockCells(request); digErr == nil {
 		result, handled, err := r.digKillbox(call, epoch, goal, review, state, read, request.Home, rock)
 		if err != nil || handled {
 			if err == nil {
-				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (%d rock cells, reason=%s)", len(rock), result.Verdict)
+				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (reason=%s)", result.Verdict)
 			}
 			return policy.DefenseLayout{}, nil, result.Verdict, false, err
 		}
-		clockSchedulerLog("defense-layout: %d killbox cells in rock are not diggable now; the layout waits (first %v)", len(rock), rock[0])
 	}
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
@@ -1231,10 +1230,11 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	return layout, request.Entrances, Verdict{}, true, nil
 }
 
-// digKillbox designates the rock the killbox corridor stands on through the
-// plan-dig path rooms use, reached from the yard behind the killbox. handled
-// is false when the native side has nothing to dig (or no excavation read).
-func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading, access domain.Cell, rock []domain.Cell) (RoutineBuildingResult, bool, error) {
+// digKillbox admits the rock the killbox's role cells stand on through the
+// shared rock step (admitRockStep), reached from the yard behind the
+// killbox. handled is false when nothing needs digging or the native side
+// has nothing to dig (or no excavation read).
+func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading, access domain.Cell, planned []policy.RoleCell) (RoutineBuildingResult, bool, error) {
 	source, ok := r.native.(RoutineExcavationSource)
 	if !ok {
 		return RoutineBuildingResult{}, false, nil
@@ -1251,7 +1251,7 @@ func (r *RoutineDefenseLayoutPlanner) digKillbox(call, epoch context.Context, go
 		}
 		return nil
 	}
-	return dig.digPlanned(call, epoch, step, rock, access, "plan-dig-killbox", nil, check)
+	return dig.admitRockStep(call, epoch, step, planned, access, "plan-dig-killbox", nil, check)
 }
 
 // admit previews one tier's placements, audits colonist access with every
