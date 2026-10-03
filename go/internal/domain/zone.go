@@ -223,10 +223,10 @@ func stockpileLabel(f StockpileFilter, priority StockpilePriority) string {
 		return "Perishables"
 	case f == TombCorpsesFilter():
 		return "Tomb corpses"
-	case f == ApparelFilter():
-		return "Apparel"
-	case f == WeaponsFilter():
-		return "Weapons"
+	case IsArmoryFilter(f):
+		return "Armory"
+	case IsWardrobeFilter(f):
+		return "Wardrobe"
 	case f == WornDumpFilter():
 		return "Worn gear dump"
 	case f == RottenDumpFilter():

@@ -244,17 +244,28 @@ shelf whose last applied patch differs from its zone's desired settings
 `shelf:<buildingID>`, ranked with retargets and costing three hauls per
 shelf cell.
 
-The fixed roles (#724) are created when the colony has things for one and
-no zone of it: serviceable stored apparel (apparel), unbiocoded weapons by
-trade on the map (weapons), poor stored apparel and worn-out garments on
-pawns (`dump:worn`, Low), spoiled items and rotting animal corpses
-(`dump:rotten`, Low), unburied humanlike corpses (`dump:corpses`, Low). A
-gear stockpile takes the free indoor roofed 2x2 patch cheapest to haul to
-from the general store (`policy.RankSitesByHaul`); a dump takes the nearest
-free outdoor 2x2 patch six cells clear of any living room
-(`policy.OutdoorDumpSites`), never while the room census is unknown. A
-create ranks after retargets and before grows; its hauls are the things
-waiting for it.
+The fixed dump roles (#724) are created when the colony has things for one
+and no zone of it: poor stored apparel and worn-out garments on pawns
+(`dump:worn`, Low), spoiled items and rotting animal corpses (`dump:rotten`,
+Low), unburied humanlike corpses (`dump:corpses`, Low). A dump takes the
+nearest free outdoor 2x2 patch six cells clear of any living room
+(`policy.OutdoorDumpSites`), never while the room census is unknown. A create
+ranks after retargets and before grows; its hauls are the things waiting for
+it.
+
+Gear is stored in layout's armory and wardrobe rooms (#1774), not in fixed 2x2
+zones; until a room stands, gear stays in the general store, and a zone still
+claimed under the retired `apparel`/`weapons` roles is deleted. A standing
+armory is one `armory:<roomID>` zone over its free cells holding weapons and
+armor, the wardrobe one `wardrobe:<roomID>` zone holding clothing, both
+Preferred and above the gear floors (hit points over half, Normal quality or
+better); armor is every apparel def the catalog tags for the Soldier outfit
+without Worker (`ItemFacts.Armor`, `bridge.ApparelIsArmor`), clothing the rest.
+The armory leaves out cells within six of a prison. The planner signals layout
+for a room once four serviceable items of its kind are held (`GearStore`: stored
+apparel from the gear census, weapons on the map); a planned room not yet
+standing is a `shell` edit, which `RoutineStockpilePlanner` raises through the
+planned-room shell path ahead of the zone edits.
 
 `RoutineStockpilePlanner` commits the edits as one plan per cycle, each
 action under its target's fresh CAS token: `zone_cell_edit`,

@@ -101,7 +101,7 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput) policy.StockpileRequest {
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore) policy.StockpileRequest {
 	type cells struct{ all, stored []domain.Cell }
 	byZone := map[string]*cells{}
 	for _, cell := range projection.Cells {
@@ -123,9 +123,10 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
-	request.GearRooms = stockpileGearRooms(projection)
-	if plan, known := projection.LayoutPlan.Value(); known {
-		request.Prisons = policy.PrisonCells(plan)
+	for _, module := range []policy.ModuleRole{policy.ModuleArmory, policy.ModuleWardrobe} {
+		if _, owed := plannedRoomOwed(*projection, module); owed {
+			request.Shells = append(request.Shells, module)
+		}
 	}
 	request.Opening = true
 	for _, z := range owned {
@@ -143,6 +144,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		request.Zones = append(request.Zones, zone)
 	}
 	storage := storageRequest(projection, request.Protected)
+	storage.Gear = gear
 	storage.Zones = request.Zones
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
@@ -207,7 +209,11 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	for _, z := range owned {
 		zoneGoal[z.ID] = z.Goal
 	}
-	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection))
+	gear, err := r.gearStore(ctx, snapshot, projection)
+	if err != nil {
+		return policy.StockpileRequest{}, "", err
+	}
+	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear)
 	// The planned base can stand past the landing-centred planning window:
 	// read the ground around its core so the opening zones site there, not
 	// at the colonists' start.
@@ -250,30 +256,48 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 			request.Shelves = append(request.Shelves, shelf)
 		}
 	}
-	weapons := 0
-	if !roles[domain.WeaponsRole] {
-		if weapons, err = r.looseWeapons(ctx, snapshot, projection.Bounds); err != nil {
-			return policy.StockpileRequest{}, "", err
-		}
-	}
-	request.Needs = stockpileNeeds(projection.Facts, weapons)
+	request.Needs = stockpileNeeds(projection.Facts)
 	return request, "", nil
 }
 
-// stockpileNeeds counts the things waiting for each fixed role (#724):
-// serviceable stored apparel (hit points and quality over the gear floors)
-// for apparel, the loose weapons for weapons, poor stored apparel and the
-// worn-out garments pawns will shed for the worn dump, spoiled items and
-// rotting animal corpses for the rotten dump, humanlike corpses for the
-// corpse dump. An unknown census counts nothing.
-func stockpileNeeds(facts policy.RoutineFacts, weapons int) map[string]int {
-	needs := map[string]int{domain.WeaponsRole: weapons}
+// gearStore is the serviceable gear the colony holds for the armory and
+// wardrobe (#1774): the stored apparel the gear census counts, split into
+// armor and clothing by the catalog (ItemFacts.Armor), and the weapons lying
+// on the map. The weapons read is skipped once layout plans the armory, which
+// no longer needs the count. Nil while the catalog names no armor; an unknown
+// stored census counts nothing.
+func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (*policy.GearStore, error) {
+	if len(projection.Facts.Items.Armor) == 0 {
+		return nil, nil
+	}
+	weapons := 0
+	if plan, known := projection.LayoutPlan.Value(); !known || len(policy.GearRoomsOwed(plan, policy.GearRoomDemand{Armory: true})) > 0 {
+		var err error
+		if weapons, err = r.looseWeapons(ctx, snapshot, projection.Bounds); err != nil {
+			return nil, err
+		}
+	}
+	var stored []policy.GearStock
+	if gear, ok := projection.Facts.Gear.Value(); ok {
+		stored, _ = gear.Stored.Value()
+	}
+	held, ok, err := policy.NewGearStore(projection.Facts.Items, stored, weapons)
+	if err != nil || !ok {
+		return nil, err
+	}
+	return &held, nil
+}
+
+// stockpileNeeds counts the things waiting for each dump (#724): poor stored
+// apparel and the worn-out garments pawns will shed for the worn dump,
+// spoiled items and rotting animal corpses for the rotten dump, humanlike
+// corpses for the corpse dump. An unknown census counts nothing.
+func stockpileNeeds(facts policy.RoutineFacts) map[string]int {
+	needs := map[string]int{}
 	if gear, ok := facts.Gear.Value(); ok {
 		if stored, ok := gear.Stored.Value(); ok {
 			for _, row := range stored {
-				if float64(row.HPBand) >= domain.GearHitPointFloor*10 && row.Quality >= 2 {
-					needs[domain.ApparelRole] += row.Count
-				} else {
+				if !row.Serviceable() {
 					needs[domain.WornDumpRole] += row.Count
 				}
 			}
@@ -341,20 +365,17 @@ func (r *RoutineReviewer) benchCensus(ctx context.Context, snapshot domain.Gener
 	return rows, err
 }
 
-// The gear stockpiles and dumps are MaintainStockpiles' own roles (#724):
-// fixed settings, never retired.
+// The dumps are MaintainStockpiles' own roles (#724): fixed settings, never
+// retired.
 func init() {
 	specs := map[string]domain.StockpileRoleSpec{}
-	for _, spec := range domain.GearAndDumpRoles() {
+	for _, spec := range domain.DumpRoles() {
 		specs[spec.Role] = spec
 	}
-	source := func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
+	RegisterStockpileRole("dump", func(_ StockpileRoleInput, role string) (policy.StockpileRoleState, bool) {
 		spec, ok := specs[role]
 		return policy.StockpileRoleState{Filter: spec.Filter, Priority: spec.Priority}, ok
-	}
-	for _, prefix := range []string{domain.ApparelRole, domain.WeaponsRole, "dump"} {
-		RegisterStockpileRole(prefix, source)
-	}
+	})
 }
 
 // RoutineStockpileSource refreshes one zone's presence and CAS token for
@@ -373,6 +394,9 @@ type RoutineStockpileSource interface {
 type RoutineStockpilePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineStockpileSource
+	// building shells the planned armory and wardrobe (#1774); nil for a
+	// source that cannot preview buildings.
+	building *RoutineBuildingPlanner
 }
 
 type RoutineStockpileResult struct {
@@ -385,7 +409,31 @@ func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpi
 	if reviewer == nil || native == nil || reviewer.native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineStockpilePlanner: reviewer == nil || native == nil || reviewer.native == nil", ErrControl)
 	}
-	return &RoutineStockpilePlanner{reviewer, native}, nil
+	planner := &RoutineStockpilePlanner{reviewer: reviewer, native: native}
+	if source, ok := reviewer.native.(RoutineBuildingSource); ok {
+		planner.building = &RoutineBuildingPlanner{reviewer: reviewer, native: source, goal: policy.MaintainStockpiles, definition: policy.ShellWallDefinition}
+	}
+	return planner, nil
+}
+
+// shell raises the planned gear room of edit through the planned-room shell
+// path. handled is false when nothing was admitted (the room stands, its
+// shell was tried this goal epoch, no space, refused or a fact is missing),
+// with the verdict saying why.
+func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, read observation.RoutineReading, edit policy.StockpileEdit) (RoutineStockpileResult, bool, error) {
+	if r.building == nil {
+		return RoutineStockpileResult{Verdict: fieldUnavailable("building_source")}, false, nil
+	}
+	room, owed := plannedRoomOwed(read.Projection, policy.ModuleRole(edit.Role))
+	if !owed {
+		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, false, nil
+	}
+	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "gear room")
+	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
+	if err != nil || result.Verdict == BuildingReasonUsed || result.Verdict == BuildingReasonNoSpace || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict == BuildingReasonRefused {
+		return RoutineStockpileResult{Verdict: result.Verdict}, false, err
+	}
+	return RoutineStockpileResult{Verdict: result.Verdict}, true, nil
 }
 
 func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbiter) (RoutineStockpileResult, error) {
@@ -436,7 +484,9 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		observe = r.reviewer.observeRooms
 	}
 	// The medicine store reads the medical beds, so the census carries them.
-	read, err := observe(call, r.reviewer.native, expected, claims, policy.HospitalBedDefinitions...)
+	// The gear rooms are shelled from the same reading, so the census carries
+	// the wall and door definitions.
+	read, err := observe(call, r.reviewer.native, expected, claims, append([]string{policy.ShellWallDefinition, policy.ShellDoorDefinition}, policy.HospitalBedDefinitions...)...)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
@@ -452,6 +502,29 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	proposal := policy.PlanStockpileMaintenance(request)
 	if !proposal.Active {
 		return RoutineStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
+	}
+	// A planned gear room not yet standing is raised first; while its shell
+	// waits (already tried, no space, refused) the zone edits go on.
+	var edits []policy.StockpileEdit
+	var shells []policy.StockpileEdit
+	for _, e := range proposal.Edits {
+		if e.Kind == policy.StockpileShell {
+			shells = append(shells, e)
+		} else {
+			edits = append(edits, e)
+		}
+	}
+	proposal.Edits = edits
+	var waiting Verdict
+	if len(shells) > 0 {
+		result, handled, err := r.shell(call, epoch, state, review, goal, read, shells[0])
+		if err != nil || handled {
+			return result, err
+		}
+		waiting = result.Verdict
+	}
+	if len(edits) == 0 {
+		return RoutineStockpileResult{Verdict: waiting}, nil
 	}
 	tick := projection.Identity.Tick
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))

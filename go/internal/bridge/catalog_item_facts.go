@@ -57,6 +57,9 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 		if len(def.StuffCategories) > 0 {
 			items.AcceptedStuff[resource] = def.StuffCategories
 		}
+		if a := def.GetApparel(); a != nil && ApparelIsArmor(a) {
+			items.Armor = append(items.Armor, resource)
+		}
 		// A medicine is a def whose base stats carry a medical potency
 		// (ThingDef.IsMedicine).
 		for _, mod := range def.StatBases {
@@ -73,6 +76,7 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 			}
 		}
 	}
+	slices.Sort(items.Armor)
 	items.Currency = policy.Resource(catalog.Constants.CurrencyDef)
 	if catalog.ThingDefs[catalog.Constants.CurrencyDef] == nil {
 		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Constants.CurrencyDef)
@@ -81,6 +85,16 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 		return policy.ItemFacts{}, err
 	}
 	return items, nil
+}
+
+// ApparelIsArmor is the apparel policy's armor rule on a def's apparel
+// properties: only the game's Soldier outfit tag names it, not Worker too
+// (the Soldier outfit wears it, the Worker outfit does not). The rule reads
+// ApparelProperties.defaultOutfitTags, the tags the game's own Worker and
+// Soldier outfit filters select apparel by.
+func ApparelIsArmor(a *d.ApparelProperties) bool {
+	tags := a.GetDefaultOutfitTags()
+	return slices.Contains(tags, "Soldier") && !slices.Contains(tags, "Worker")
 }
 
 // FixtureItemFacts fixes the catalog's item facts for a test catalog that

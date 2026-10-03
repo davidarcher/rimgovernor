@@ -187,3 +187,26 @@ func TestDefinitionCatalogRefusesADifferentCalendar(t *testing.T) {
 	}
 	_ = proto.Int32
 }
+
+// The armory-versus-wardrobe split is the catalog's: an apparel def only the
+// Soldier outfit tag names (not Worker too) is armor, sorted by name.
+func TestDefinitionCatalogItemFactsArmorSplit(t *testing.T) {
+	v := itemTestCatalog()
+	apparel := func(name string, tags ...string) *d.ThingDef {
+		return &d.ThingDef{DefName: name, Apparel: &d.ApparelProperties{DefaultOutfitTags: tags}}
+	}
+	v.ThingDefs = append(v.ThingDefs,
+		apparel("Apparel_PlateArmor", "Soldier"), apparel("Apparel_FlakVest", "Soldier"),
+		apparel("Apparel_Parka", "Soldier", "Worker"), apparel("Apparel_TShirt", "Worker"), apparel("Apparel_Robe"))
+	catalog, err := DecodeDefinitionCatalog(v, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.ItemFacts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := items.Armor; len(got) != 2 || got[0] != "Apparel_FlakVest" || got[1] != "Apparel_PlateArmor" {
+		t.Fatalf("armor %v", got)
+	}
+}

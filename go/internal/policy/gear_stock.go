@@ -1,12 +1,23 @@
 package policy
 
-import "math"
+import (
+	"math"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // GearStock is a bounded aggregate of usable apparel in native storage.
 type GearStock struct {
 	Definition, Stuff      Resource
 	Quality, HPBand, Count int
 }
+
+// Serviceable reports stock over the gear floors (domain.GearHitPointFloor,
+// Normal quality): what the gear stores keep; the rest is for the worn dump.
+func (s GearStock) Serviceable() bool {
+	return float64(s.HPBand) >= domain.GearHitPointFloor*10 && s.Quality >= 2
+}
+
 type gearStockKey struct{ definition, stuff Resource }
 
 // Stored options assigned by the ensemble planner already satisfied one gap.

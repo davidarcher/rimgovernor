@@ -235,30 +235,3 @@ func cookingSpot(projection *observation.ColonyProjection) (domain.Cell, bool) {
 	}
 	return domain.Cell{}, false
 }
-
-// stockpileGearRooms are the standing planned rooms the gear stockpiles
-// belong in: apparel in the storage room, weapons in the barracks when one
-// stands, else the storage room.
-func stockpileGearRooms(projection *observation.ColonyProjection) map[string][]domain.Cell {
-	plan, rooms, known := plannedLayout(*projection)
-	if !known {
-		return nil
-	}
-	standing := func(role policy.ModuleRole) []domain.Cell {
-		for _, planned := range plan.AllRooms() {
-			if planned.Role != role {
-				continue
-			}
-			if room, ok := policy.PlannedRoomStanding(planned, rooms); ok && len(room.Cells) > 0 {
-				return room.Cells
-			}
-		}
-		return nil
-	}
-	storage := standing(policy.ModuleStorage)
-	weapons := standing(policy.ModuleBarracks)
-	if weapons == nil {
-		weapons = storage
-	}
-	return map[string][]domain.Cell{domain.ApparelRole: storage, domain.WeaponsRole: weapons}
-}

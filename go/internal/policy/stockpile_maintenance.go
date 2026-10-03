@@ -131,16 +131,13 @@ type StockpileRequest struct {
 	Protected []domain.Cell
 	// Colonists sizes the haul budget; unknown holds every edit.
 	Colonists domain.Fact[int64]
-	// Needs counts, per fixed role (#724: apparel, weapons, dumps), the
+	// Needs counts, per fixed role (#724: the dumps), the
 	// things waiting for it; a role with things and no zone is created.
 	Needs map[string]int
 	// Rooms sites the dumps clear of living rooms; unknown creates none.
 	Rooms domain.Fact[[]Room]
-	// Anchor sites the gear stockpiles when no general store stands.
+	// Anchor sites the dumps when no general store stands.
 	Anchor domain.Cell
-	// Prisons are the planned prisons' cells (#1081): a weapons stockpile
-	// never stands near one.
-	Prisons []domain.Cell
 	// Shelves are the built shelves inside the zones (#721): each carries
 	// its zone's desired settings, patched until it does.
 	Shelves []StockpileShelf
@@ -149,10 +146,9 @@ type StockpileRequest struct {
 	// Gear is the planner's gear-room demand for layout (#1773); the review
 	// itself does not read it.
 	Gear GearRoomDemand
-	// GearRooms are the cells of the standing planned room each gear role
-	// belongs in (apparel: storage; weapons: the barracks, else storage); a
-	// gear zone is sited there before anywhere else.
-	GearRooms map[string][]domain.Cell
+	// Shells are the planned storage-planner rooms (the armory and wardrobe,
+	// #1774) not yet standing: each is a StockpileShell edit.
+	Shells []ModuleRole
 	// Opening stands the opening stockpiles (general store, corpse dump)
 	// while no owned zone of their kind stands; the runtime always sets it.
 	Opening bool
@@ -289,9 +285,6 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 	for _, e := range stockpileSupersededDeletes(r) {
 		take(e, true)
 	}
-	for _, e := range stockpileGearMoves(r) {
-		take(e, true)
-	}
 	for _, z := range zones {
 		take(stockpileSettingsEdit(r.Roles, z))
 	}
@@ -305,6 +298,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 			candidates = append(candidates, e)
 		}
 	}
+	candidates = append(candidates, stockpileShellEdits(r)...)
 	candidates = append(candidates, stockpileSiteEdits(r, open)...)
 	for _, e := range stockpileSiteShrinks(r) {
 		take(e, true)
@@ -329,7 +323,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 			take(stockpileShrinkEdit(r.Tick, z))
 		}
 	}
-	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2, StockpileGrow: 3, StockpileMerge: 4, StockpileShrink: 5}
+	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2, StockpileShell: 2, StockpileGrow: 3, StockpileMerge: 4, StockpileShrink: 5}
 	sort.SliceStable(candidates, func(i, j int) bool { return rank[candidates[i].Kind] < rank[candidates[j].Kind] })
 	spent := 0
 	for _, e := range candidates {

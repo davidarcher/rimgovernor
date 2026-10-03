@@ -69,7 +69,7 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	t.Parallel()
 	projection, adjacent := mealSpotColony(1.6, 1.6)
 	simple := allowOnly("MealSimple")
-	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil)))
+	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, nil)))
 	if len(review.Edits) != 1 {
 		t.Fatalf("review %+v", review)
 	}
@@ -91,12 +91,12 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 	zoneOn(projection, "Zone_7", false, shelf...)
 	zoneOn(projection, "Zone_7", true, shelf[0])
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: mealShelfFilter(), Priority: domain.CriticalPriority}}
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil)))
+	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil)))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileRetarget || review.Edits[0].Filter != simple || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("shelf not retargeted: %+v", review)
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_7": {Target: "Zone_7", Kind: domain.StorageZoneTarget, Filter: simple, Priority: domain.CriticalPriority, Role: "meals:Room_4"}}
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil)))
+	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil)))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileShrink || len(review.Edits[0].Cells) != 3 {
 		t.Fatalf("shelf not shrunk to one cell: %+v", review)
 	}
@@ -108,12 +108,12 @@ func TestMealSpotByTheTableIsOneCellOfOneMeal(t *testing.T) {
 
 	few, _ := mealSpotColony(1.6)
 	zoneOn(few, "Zone_7", false, shelf...)
-	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil)))
+	review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil)))
 	if len(review.Edits) != 1 || review.Edits[0].Kind != policy.StockpileDelete || review.Edits[0].Zone != "Zone_7" {
 		t.Fatalf("under 3 meals a day the shelf stays: %+v", review)
 	}
 	few.FoodSupply = domain.Unknown[policy.FoodSupply]()
-	if review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil))); review.Active {
+	if review = policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(few, owned, patches, domain.Unknown[map[string]bool](), nil, nil))); review.Active {
 		t.Fatalf("unknown demand edited: %+v", review)
 	}
 }
@@ -133,7 +133,7 @@ func TestMealSpotMovesIntoTheStandingCloset(t *testing.T) {
 	projection.Rooms = domain.Known(rooms)
 	zoneOn(projection, "Zone_7", true, domain.Cell{X: 13, Z: 15})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: "meals:Room_4", Filter: allowOnly("MealSimple"), Priority: domain.CriticalPriority}}
-	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil)))
+	review := policy.PlanStockpileMaintenance(withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, nil)))
 	var deleted, created bool
 	for _, e := range review.Edits {
 		switch {

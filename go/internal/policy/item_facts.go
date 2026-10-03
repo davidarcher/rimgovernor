@@ -25,6 +25,11 @@ type ItemFacts struct {
 	StuffCategories, AcceptedStuff map[Resource][]string
 	// Categories are every item def's thing categories.
 	Categories map[Resource][]string
+	// Armor are the apparel defs the apparel policy counts as armor (the
+	// Soldier outfit tag without Worker), sorted: the armory's apparel. Every
+	// other apparel def is clothing for the wardrobe. Empty on a frame whose
+	// stat table is missing or whose catalog names no armor.
+	Armor []Resource
 	// Currency is the coin every price is in and the census counts: the
 	// def Tradeable.IsCurrency tests (ThingDefOf.Silver).
 	Currency Resource

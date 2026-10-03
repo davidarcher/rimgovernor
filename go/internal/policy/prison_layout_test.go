@@ -77,28 +77,4 @@ func TestNoWeaponsNearPrison(t *testing.T) {
 	if nearPrison([]domain.Cell{{X: 32, Z: 23}}, prisons) {
 		t.Fatal("a cell seven from the wall is clear")
 	}
-	// The creation pass moves the weapons stockpile off the site it takes
-	// without a prison once a prison stands there; apparel keeps it.
-	r := stockpileCreateRequest()
-	r.Needs = map[string]int{domain.WeaponsRole: 3}
-	site := func(r StockpileRequest, role string) []domain.Cell {
-		for _, e := range PlanStockpileMaintenance(r).Edits {
-			if e.Kind == StockpileCreate && e.Role == role {
-				return e.Cells
-			}
-		}
-		return nil
-	}
-	free := site(r, domain.WeaponsRole)
-	if len(free) == 0 {
-		t.Fatal("no weapons stockpile without a prison")
-	}
-	r.Prisons = []domain.Cell{free[0]}
-	if moved := site(r, domain.WeaponsRole); nearPrison(moved, r.Prisons) {
-		t.Fatal("weapons stockpile beside the prison", moved)
-	}
-	r.Needs = map[string]int{domain.ApparelRole: 3}
-	if len(site(r, domain.ApparelRole)) == 0 {
-		t.Fatal("apparel refused near the prison")
-	}
 }

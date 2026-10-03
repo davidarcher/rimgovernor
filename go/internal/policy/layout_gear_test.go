@@ -1,10 +1,6 @@
 package policy
 
-import (
-	"testing"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-)
+import "testing"
 
 func gearTestPlan() LayoutPlan {
 	return Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
@@ -92,23 +88,34 @@ func TestGearRoomRolesAreRegistered(t *testing.T) {
 
 func TestPlanStorageSignalsGearDemand(t *testing.T) {
 	t.Parallel()
-	cells := []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}
-	zone := func(role string, stored int) StockpileZone {
-		return StockpileZone{ID: role, Role: role, Cells: cells, Stored: cells[:stored]}
+	items := ItemFacts{Armor: []Resource{"Apparel_FlakVest"}}
+	stock := func(def Resource, quality, hp, count int) GearStock {
+		return GearStock{Definition: def, Quality: quality, HPBand: hp, Count: count}
 	}
 	for _, tc := range []struct {
-		name  string
-		zones []StockpileZone
-		want  GearRoomDemand
+		name    string
+		stored  []GearStock
+		weapons int
+		want    GearRoomDemand
 	}{
-		{"no zones", nil, GearRoomDemand{}},
-		{"room to spare", []StockpileZone{zone(domain.WeaponsRole, 1), zone(domain.ApparelRole, 0)}, GearRoomDemand{}},
-		{"weapons full", []StockpileZone{zone(domain.WeaponsRole, 2), zone(domain.ApparelRole, 1)}, GearRoomDemand{Armory: true}},
-		{"apparel full", []StockpileZone{zone(domain.ApparelRole, 2)}, GearRoomDemand{Wardrobe: true}},
-		{"other full", []StockpileZone{zone(domain.GeneralRole, 2)}, GearRoomDemand{}},
+		{"nothing", nil, 0, GearRoomDemand{}},
+		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, GearRoomDemand{}},
+		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, GearRoomDemand{Armory: true}},
+		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, GearRoomDemand{Wardrobe: true}},
+		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, GearRoomDemand{}},
 	} {
-		if got := PlanStorage(StorageRequest{Zones: tc.zones}).Gear; got != tc.want {
+		gear, ok, err := NewGearStore(items, tc.stored, tc.weapons)
+		if err != nil || !ok {
+			t.Fatalf("%s: store %v %v", tc.name, ok, err)
+		}
+		if got := PlanStorage(StorageRequest{Gear: &gear}).Gear; got != tc.want {
 			t.Errorf("%s: %+v, want %+v", tc.name, got, tc.want)
 		}
+	}
+	if _, ok, err := NewGearStore(ItemFacts{}, nil, 9); ok || err != nil {
+		t.Errorf("a catalog without armor must give no store: %v %v", ok, err)
+	}
+	if got := PlanStorage(StorageRequest{}).Gear; got != (GearRoomDemand{}) {
+		t.Errorf("no gear store asks for rooms: %+v", got)
 	}
 }

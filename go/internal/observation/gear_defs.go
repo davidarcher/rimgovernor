@@ -94,7 +94,7 @@ func apparelDefinitions(catalog *bridge.DefinitionCatalog, w gearWearer) []polic
 		}
 		stage := int32(a.GetDevelopmentalStageFilter())
 		out = append(out, policy.ApparelDefinition{Name: name,
-			Armor:      slices.Contains(a.GetDefaultOutfitTags(), "Soldier") && !slices.Contains(a.GetDefaultOutfitTags(), "Worker"),
+			Armor:      bridge.ApparelIsArmor(a),
 			Child:      stage&int32(d.DevelopmentalStage_DEVELOPMENTAL_STAGE_CHILD) != 0,
 			Adult:      stage&int32(d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT) != 0,
 			CoversBody: slices.Contains(a.GetBodyPartGroups(), "Torso") || slices.Contains(a.GetBodyPartGroups(), "Legs")})

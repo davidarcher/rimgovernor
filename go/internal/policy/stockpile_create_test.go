@@ -26,13 +26,12 @@ func stockpileCreateRequest() StockpileRequest {
 	return r
 }
 
-// The colony has apparel, rotten items and a raider corpse and no zone for
-// any: the apparel stockpile goes indoors beside the general store, the two
-// dumps outdoors on separate patches, and the weapons role (nothing to
-// store) gets none.
+// The colony has rotten items and a raider corpse and no zone for either:
+// the two dumps go outdoors on separate patches, and the worn dump (nothing
+// to store) gets none.
 func TestStockpileCreatesMissingRolesWithThings(t *testing.T) {
 	r := stockpileCreateRequest()
-	r.Needs = map[string]int{domain.ApparelRole: 3, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
+	r.Needs = map[string]int{domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
 	review := PlanStockpileMaintenance(r)
 	got := map[string]StockpileEdit{}
 	for _, e := range review.Edits {
@@ -41,17 +40,8 @@ func TestStockpileCreatesMissingRolesWithThings(t *testing.T) {
 		}
 		got[e.Role] = e
 	}
-	if len(got) != 3 || !review.Active {
+	if len(got) != 2 || !review.Active {
 		t.Fatalf("creates %+v", review.Edits)
-	}
-	apparel := got[domain.ApparelRole]
-	if apparel.Filter != domain.ApparelFilter() || apparel.Priority != domain.PreferredPriority || apparel.Hauls != 3 || len(apparel.Cells) != 4 {
-		t.Fatalf("apparel %+v", apparel)
-	}
-	for _, c := range apparel.Cells {
-		if c.X >= 10 || c.X > 6 || c.Z > 6 {
-			t.Fatalf("apparel not indoors near the store: %+v", apparel.Cells)
-		}
 	}
 	taken := map[domain.Cell]string{}
 	for _, role := range []string{domain.RottenDumpRole, domain.CorpseDumpRole} {
@@ -107,70 +97,12 @@ func TestStockpileShelvesFollowTheirZone(t *testing.T) {
 // wait on a known room census.
 func TestStockpileCreateSkipsCoveredRolesAndUnknownRooms(t *testing.T) {
 	r := stockpileCreateRequest()
-	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.ApparelRole, Cells: []domain.Cell{{X: 6, Z: 6}}, Filter: domain.ApparelFilter(), Priority: domain.PreferredPriority})
-	r.Needs = map[string]int{domain.ApparelRole: 5, domain.CorpseDumpRole: 2}
+	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.WornDumpRole, Cells: []domain.Cell{{X: 12, Z: 6}}, Filter: domain.WornDumpFilter(), Priority: domain.LowPriority})
+	r.Needs = map[string]int{domain.WornDumpRole: 5, domain.CorpseDumpRole: 2}
 	r.Rooms = domain.Unknown[[]Room]()
 	for _, e := range PlanStockpileMaintenance(r).Edits {
 		if e.Kind == StockpileCreate {
 			t.Fatalf("created %+v", e)
 		}
-	}
-}
-
-// The apparel zone goes inside the storage room when one stands, even though
-// the store's own neighbourhood is nearer.
-func TestStockpileGearZoneGoesInItsRoom(t *testing.T) {
-	r := stockpileCreateRequest()
-	r.Needs = map[string]int{domain.ApparelRole: 3}
-	var room []domain.Cell
-	for x := int32(6); x < 10; x++ {
-		for z := int32(12); z < 16; z++ {
-			room = append(room, domain.Cell{X: x, Z: z})
-		}
-	}
-	r.GearRooms = map[string][]domain.Cell{domain.ApparelRole: room}
-	var apparel StockpileEdit
-	for _, e := range PlanStockpileMaintenance(r).Edits {
-		if e.Kind == StockpileCreate && e.Role == domain.ApparelRole {
-			apparel = e
-		}
-	}
-	if len(apparel.Cells) != 4 {
-		t.Fatalf("apparel create = %+v", apparel)
-	}
-	for _, c := range apparel.Cells {
-		if c.Z < 12 {
-			t.Fatalf("apparel zone outside its room: %v", apparel.Cells)
-		}
-	}
-}
-
-// An apparel zone standing outside its room is deleted once the room has a
-// free patch; one already inside stays.
-func TestStockpileGearZoneOutsideItsRoomIsDeleted(t *testing.T) {
-	r := stockpileCreateRequest()
-	var room []domain.Cell
-	for x := int32(6); x < 10; x++ {
-		for z := int32(12); z < 16; z++ {
-			room = append(room, domain.Cell{X: x, Z: z})
-		}
-	}
-	r.GearRooms = map[string][]domain.Cell{domain.ApparelRole: room}
-	stray := []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}, {X: 4, Z: 7}, {X: 5, Z: 7}}
-	r.Zones = append(r.Zones, StockpileZone{ID: "Zone_2", Role: domain.ApparelRole, Cells: stray, Filter: domain.GeneralFilter(), Priority: domain.NormalPriority})
-	deleted := func() bool {
-		for _, e := range PlanStockpileMaintenance(r).Edits {
-			if e.Kind == StockpileDelete && e.Zone == "Zone_2" {
-				return true
-			}
-		}
-		return false
-	}
-	if !deleted() {
-		t.Fatalf("apparel zone outside its room kept")
-	}
-	r.Zones[1].Cells = room[:4]
-	if deleted() {
-		t.Fatalf("apparel zone inside its room deleted")
 	}
 }

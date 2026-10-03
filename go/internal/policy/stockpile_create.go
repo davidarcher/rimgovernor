@@ -11,14 +11,12 @@ import (
 // StockpileCreate places a missing fixed-role zone (#724).
 const StockpileCreate StockpileEditKind = "create"
 
-// stockpileCreateEdits proposes one zone for each fixed role
-// (domain.GearAndDumpRoles) the colony has things for (Needs) and no zone
-// of: the gear stockpiles on the free indoor roofed 2x2 patch cheapest to
-// haul to from the general store (nearest the anchor without one), the
-// dumps on the nearest free outdoor 2x2 patch clear of living rooms (never
-// while the room census is unknown). The role's registered state, when
-// published, supplies its settings; a retired role is never created. Its
-// hauls are the things waiting for it. Cells taken are marked in open.
+// stockpileCreateEdits proposes one zone for each dump role
+// (domain.DumpRoles) the colony has things for (Needs) and no zone of, on the
+// free outdoor 2x2 patch clear of living rooms nearest the general store (never
+// while the room census is unknown). The role's registered state, when published, supplies
+// its settings; a retired role is never created. Its hauls are the things
+// waiting for it. Cells taken are marked in open.
 func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit {
 	if len(r.Needs) == 0 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return nil
@@ -37,7 +35,7 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 		anchor = store[0]
 	}
 	var out []StockpileEdit
-	for _, spec := range domain.GearAndDumpRoles() {
+	for _, spec := range domain.DumpRoles() {
 		count := r.Needs[spec.Role]
 		if count <= 0 || have[spec.Role] {
 			continue
@@ -51,18 +49,11 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 				filter, priority = state.Filter, state.Priority
 			}
 		}
-		var sites []Rectangle
-		var err error
-		dump := spec.Priority == domain.LowPriority
-		if dump {
-			rooms, known := r.Rooms.Value()
-			if !known {
-				continue
-			}
-			sites, err = OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: anchor, Cells: r.Cells, Rooms: rooms, Protected: r.Protected, Width: 2, Height: 2})
-		} else {
-			sites, err = stockpileGearSites(r, anchor, store, r.GearRooms[spec.Role])
+		rooms, known := r.Rooms.Value()
+		if !known {
+			continue
 		}
+		sites, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: anchor, Cells: r.Cells, Rooms: rooms, Protected: r.Protected, Width: 2, Height: 2})
 		if err != nil {
 			continue
 		}
@@ -72,18 +63,14 @@ func stockpileCreateEdits(r StockpileRequest, open stockpileOpen) []StockpileEdi
 			for _, c := range cells {
 				free = free && open.ok(c)
 			}
-			if !free || spec.Role == domain.WeaponsRole && nearPrison(cells, r.Prisons) {
+			if !free {
 				continue
 			}
 			for _, c := range cells {
 				open.taken[c] = true
 			}
-			where := "indoors near the store"
-			if dump {
-				where = "outdoors clear of living rooms"
-			}
 			out = append(out, StockpileEdit{Kind: StockpileCreate, Role: spec.Role, Cells: stockpileSorted(cells), Filter: filter, Priority: priority, Hauls: count,
-				Explanation: fmt.Sprintf("stockpile role %s: %d things and no zone, create %dx%d at (%d,%d) %s", spec.Role, count, site.Width, site.Height, site.X, site.Z, where)})
+				Explanation: fmt.Sprintf("stockpile role %s: %d things and no zone, create %dx%d at (%d,%d) outdoors clear of living rooms", spec.Role, count, site.Width, site.Height, site.X, site.Z)})
 			break
 		}
 	}
@@ -272,95 +259,4 @@ func stockpileRoleState(roles StockpileRoles, role string) (StockpileRoleState, 
 		return StockpileRoleState{}, false
 	}
 	return roles(role)
-}
-
-// stockpileGearSites are the free indoor roofed 2x2 patches nearest anchor,
-// cheapest walking distance to the general store first.
-func stockpileGearSites(r StockpileRequest, anchor domain.Cell, store, room []domain.Cell) ([]Rectangle, error) {
-	// The role's own standing room takes the zone before the walk to the
-	// general store decides; no free patch there falls back to anywhere indoors.
-	cells := r.Cells
-	if inRoom := cellSet(room); len(inRoom) > 0 {
-		cells = nil
-		for _, c := range r.Cells {
-			if inRoom[c.Cell] {
-				cells = append(cells, c)
-			}
-		}
-	}
-	covered, err := CoveredStorageSites(CoveredStorageRequest{Bounds: r.Bounds, Anchor: anchor, Cells: cells, Protected: r.Protected})
-	if err != nil {
-		return nil, err
-	}
-	if len(cells) < len(r.Cells) && len(covered) == 0 {
-		return stockpileGearSites(r, anchor, store, nil)
-	}
-	indoors := map[domain.Cell]bool{}
-	for _, c := range r.Cells {
-		indoors[c.Cell] = positive(c.Indoors)
-	}
-	var sites []Rectangle
-	for _, site := range covered {
-		ok := true
-		for _, c := range rectCells(site) {
-			ok = ok && indoors[c]
-		}
-		if ok {
-			sites = append(sites, site)
-		}
-	}
-	if len(store) == 0 || len(sites) < 2 {
-		return sites, nil
-	}
-	costs, err := HaulCosts(r.Cells, []HaulConsumer{{Cells: store[:min(len(store), 256)], Weight: 1}})
-	if err != nil {
-		return nil, err
-	}
-	return RankSitesByHaul(sites, costs), nil
-}
-
-// stockpileGearMoves deletes a gear zone standing outside its role's room
-// (the storage room or barracks) once a free patch in that room can take
-// its replacement, which the create step then raises there; the things
-// stored in it rehome like a moved meal site's.
-func stockpileGearMoves(r StockpileRequest) []StockpileEdit {
-	var out []StockpileEdit
-	var store []domain.Cell
-	for _, z := range r.Zones {
-		if z.Role == domain.GeneralRole {
-			store = append(store, z.Cells...)
-		}
-	}
-	store = stockpileSorted(store)
-	anchor := r.Anchor
-	if len(store) > 0 {
-		anchor = store[0]
-	}
-	for _, spec := range domain.GearAndDumpRoles() {
-		room := r.GearRooms[spec.Role]
-		if spec.Priority == domain.LowPriority || len(room) == 0 {
-			continue
-		}
-		inRoom := cellSet(room)
-		sites, err := stockpileGearSites(r, anchor, store, room)
-		fits := false
-		for _, site := range sites {
-			all := true
-			for _, c := range rectCells(site) {
-				all = all && inRoom[c]
-			}
-			fits = fits || all
-		}
-		if err != nil || !fits {
-			continue
-		}
-		for _, z := range r.Zones {
-			if z.Role != spec.Role || stockpileTouches(z.Cells, inRoom) {
-				continue
-			}
-			out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
-				Explanation: fmt.Sprintf("stockpile %s (%s): outside its room, delete; %d used cells rehome", z.ID, z.Role, z.Used())})
-		}
-	}
-	return out
 }

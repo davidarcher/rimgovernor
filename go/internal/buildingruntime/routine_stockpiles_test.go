@@ -47,7 +47,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		{ID: "Zone_9", Kind: domain.StockpileZone, Role: "general"},
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_2": {Target: "Zone_2", Kind: domain.StorageZoneTarget, Filter: food, Priority: domain.PreferredPriority, Role: "kitchen", Tick: 10}}
-	request := stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil)
+	request := stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil)
 	if len(request.Zones) != 2 || request.Tick != 5000 {
 		t.Fatalf("request zones %+v", request.Zones)
 	}
@@ -184,10 +184,13 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 		{"ingredients:Bench_2", true, true, domain.StockpileFilter{}, ""},
 		{domain.GeneralRole, true, false, domain.GeneralFilter(), domain.LowPriority},
 		{domain.OpeningGeneralRole, true, false, domain.OpeningStoreFilter(), domain.NormalPriority},
+		// The 2x2 gear zones the armory and wardrobe replaced retire (#1774); with
+		// no armor in the catalog the new stores publish nothing.
+		{domain.ApparelRole, true, true, domain.StockpileFilter{}, ""},
+		{domain.WeaponsRole, true, true, domain.StockpileFilter{}, ""},
+		{"armory:Room_1", false, false, domain.StockpileFilter{}, ""},
 		// A zone left by the removed covered fallback retires (#1778).
 		{"covered:WoodLog", true, true, domain.StockpileFilter{}, ""},
-		{domain.ApparelRole, true, false, domain.ApparelFilter(), domain.PreferredPriority},
-		{domain.WeaponsRole, true, false, domain.WeaponsFilter(), domain.PreferredPriority},
 		{domain.WornDumpRole, true, false, domain.WornDumpFilter(), domain.LowPriority},
 		{domain.RottenDumpRole, true, false, domain.RottenDumpFilter(), domain.LowPriority},
 		{domain.CorpseDumpRole, true, false, domain.CorpseDumpFilter(), domain.LowPriority},
@@ -209,8 +212,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 	}
 }
 
-// Needs count serviceable stored apparel for the apparel role, poor stored
-// apparel and worn-out garments for the worn dump, spoiled items and
+// Needs count poor stored apparel and worn-out garments for the worn dump, spoiled items and
 // rotting animal corpses for the rotten dump and humanlike corpses for the
 // corpse dump; buried corpses wait for nothing.
 func TestStockpileNeedsFromColonyFacts(t *testing.T) {
@@ -226,11 +228,29 @@ func TestStockpileNeedsFromColonyFacts(t *testing.T) {
 			{Kind: "corpse", CorpseOf: domain.CorpseColonist, State: policy.WasteBuried},
 		}),
 	}
-	needs := stockpileNeeds(facts, 4)
-	want := map[string]int{domain.ApparelRole: 2, domain.WeaponsRole: 4, domain.WornDumpRole: 2, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
+	needs := stockpileNeeds(facts)
+	want := map[string]int{domain.WornDumpRole: 2, domain.RottenDumpRole: 2, domain.CorpseDumpRole: 1}
 	for role, n := range want {
 		if needs[role] != n {
 			t.Errorf("%s: %d, want %d (%v)", role, needs[role], n, needs)
+		}
+	}
+}
+
+// The armory and wardrobe publish the catalog-split gear filters at Preferred
+// once the catalog names armor (#1774).
+func TestGearStoreRolesPublishTheCatalogSplit(t *testing.T) {
+	projection := &observation.ColonyProjection{}
+	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
+	armory, wardrobe, err := policy.GearFilters(projection.Facts.Items.Armor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roles := stockpileRoles(StockpileRoleInput{Projection: projection})
+	for role, want := range map[string]domain.StockpileFilter{"armory:Room_1": armory, "wardrobe:Room_2": wardrobe} {
+		state, ok := roles(role)
+		if !ok || state.Retired || !state.Fixed || state.Filter != want || state.Priority != domain.PreferredPriority {
+			t.Errorf("%s: %+v %v", role, state, ok)
 		}
 	}
 }
