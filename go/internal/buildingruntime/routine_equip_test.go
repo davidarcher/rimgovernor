@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -251,6 +252,24 @@ func TestEquipPlannerOneWave(t *testing.T) {
 	}
 	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
 		t.Fatal("duplicated open wave", next, err)
+	}
+}
+
+// The live run (#1674) retired the first wave's plan; the goal then listed no
+// methods, so the next wave reused "equip-wave-0" and the store refused it on
+// every step while colonists stayed disarmed.
+func TestNextEquipWaveMethodSkipsRetiredWaves(t *testing.T) {
+	var goal store.GoalState
+	if got := nextEquipWaveMethod(goal); got != "equip-wave-0" {
+		t.Fatal(got)
+	}
+	goal.History = []domain.GoalMethod{{Method: "equip-wave-0"}, {Method: "equip-wave-1"}}
+	if got := nextEquipWaveMethod(goal); got != "equip-wave-2" {
+		t.Fatal(got)
+	}
+	goal.Methods = []domain.GoalMethod{{Method: "equip-wave-2"}}
+	if got := nextEquipWaveMethod(goal); got != "equip-wave-3" {
+		t.Fatal(got)
 	}
 }
 

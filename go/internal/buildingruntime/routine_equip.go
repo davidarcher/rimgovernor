@@ -37,6 +37,26 @@ func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource
 	}
 	return &RoutineEquipPlanner{reviewer: reviewer, native: native}, nil
 }
+
+// nextEquipWaveMethod names the next wave after every wave this epoch bound,
+// settled and retired ones included: goal.Methods lists only the unretired
+// plans, so counting it reused "equip-wave-0" once the first wave retired and
+// the goal_methods key refused every later wave (#1674).
+func nextEquipWaveMethod(goal store.GoalState) domain.MethodID {
+	bound := map[domain.MethodID]bool{}
+	for _, m := range goal.History {
+		bound[m.Method] = true
+	}
+	for _, m := range goal.Methods {
+		bound[m.Method] = true
+	}
+	for i := 0; ; i++ {
+		if method := domain.MethodID(fmt.Sprintf("equip-wave-%d", i)); !bound[method] {
+			return method
+		}
+	}
+}
+
 func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineEquipResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
@@ -189,7 +209,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.
-	method := domain.MethodID(fmt.Sprintf("equip-wave-%d", len(goal.Methods)))
+	method := nextEquipWaveMethod(goal)
 	id := domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(assignments))
 	for i, pair := range assignments {
