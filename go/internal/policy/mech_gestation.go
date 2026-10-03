@@ -34,6 +34,10 @@ const MechGestationBill BillPurpose = "mech_gestation"
 //   - Colonist need decides what the free bandwidth buys (MechRoleNext): a
 //     worker while a work type is short of owners and no mech of the
 //     mechanitor covers it, a guard otherwise.
+//   - Chargers come before more mechs (epic #1667 research: guides recommend a
+//     recharger before more mechs): no gestation while no charger is ready,
+//     powered and not full of waste (MechChargerReady), so the colony never
+//     builds a mech it cannot charge. EnsureMechCharger builds the charger.
 //   - One gestation at a time: a standing gestation bill, or a gestator
 //     with an active bill, is in production and gets no sibling, so the
 //     bandwidth the next bill spends is never spent twice.
@@ -55,7 +59,7 @@ type WastepackFact struct {
 
 // MechGestation is what the gestation goal decides from: the catalog, the
 // colony's mechanitors and mechs, the work coverage, and the gestators and
-// wastepacks of the Biotech colony section.
+// wastepacks of the Biotech colony section, and the chargers.
 type MechGestation struct {
 	Catalog     MechCatalog
 	Mechanitors []MechanitorInput
@@ -63,6 +67,7 @@ type MechGestation struct {
 	Coverage    []WorkCoverage
 	Gestators   []GestatorFact
 	Wastepacks  []WastepackFact
+	Chargers    []MechCharger
 }
 
 // UnclearedWaste reports whether new gestation must wait on waste: a
@@ -183,12 +188,12 @@ func NextMech(g MechGestation, offered func(kind string) bool) (MechChoice, bool
 }
 
 // MechGestationOwed is the goal's deficit: false while waste is uncleared
-// (or unread), a gestator is forming a mech, or no gestator exists; true
+// (or unread), no charger is ready, a gestator is forming a mech, or no gestator exists; true
 // when NextMech finds an affordable mech of the needed role. The catalog's
 // kinds stand in for the recipes a gestator offers here; the bill planner
 // narrows to the recipes it can actually queue.
 func MechGestationOwed(g MechGestation) (domain.Fact[bool], error) {
-	if len(g.Gestators) == 0 || UnclearedWaste(g) {
+	if len(g.Gestators) == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers) {
 		return domain.Known(false), nil
 	}
 	for _, gestator := range g.Gestators {
@@ -207,7 +212,7 @@ func MechGestationOwed(g MechGestation) (domain.Fact[bool], error) {
 // gestator: the recipe whose MechKind is the choice, bulk recipes first,
 // then by recipe and bench name.
 func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSelection, bool, error) {
-	if UnclearedWaste(g) {
+	if UnclearedWaste(g) || !MechChargerReady(g.Chargers) {
 		return BillSelection{}, false, nil
 	}
 	gestation := map[string]bool{}

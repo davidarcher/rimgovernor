@@ -79,6 +79,7 @@ func TestMechChargerReadyAndOwed(t *testing.T) {
 		{"all busy", 1, domain.Known([]MechCharger{busy, busy}), true},
 		{"one idle", 1, domain.Known([]MechCharger{busy, idle}), false},
 		{"full of waste is #1683's", 1, domain.Known([]MechCharger{busy, full}), false},
+		{"idle unpowered is the power goal's", 1, domain.Known([]MechCharger{busy, dark}), false},
 		{"no mechanitor", 0, domain.Known([]MechCharger{}), false},
 		{"unread list", 1, domain.Unknown[[]MechCharger](), false},
 		{"unread charging", 1, domain.Known([]MechCharger{{Powered: yes, FullOfWaste: no}}), false},

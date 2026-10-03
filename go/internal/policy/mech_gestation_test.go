@@ -30,6 +30,7 @@ func gestation(m MechanitorInput, coverage ...WorkCoverage) MechGestation {
 		Mechanitors: []MechanitorInput{m},
 		Coverage:    coverage,
 		Gestators:   []GestatorFact{{ID: "G", Active: domain.Known(false), WasteCount: domain.Known(int32(0))}},
+		Chargers:    []MechCharger{{Powered: domain.Known(true), FullOfWaste: domain.Known(false), Charging: domain.Known(false)}},
 	}
 }
 
@@ -174,5 +175,33 @@ func TestGestationGoalRaisedOnlyWhenOwed(t *testing.T) {
 	}
 	if got := GoalConcept(MaintainMechs); got != ConceptStandard {
 		t.Fatalf("concept %v", got)
+	}
+}
+
+func TestGestationWaitsForAReadyCharger(t *testing.T) {
+	yes, no := domain.Known(true), domain.Known(false)
+	charger := func(powered, full domain.Fact[bool]) []MechCharger {
+		return []MechCharger{{Powered: powered, FullOfWaste: full, Charging: no}}
+	}
+	cases := []struct {
+		name     string
+		chargers []MechCharger
+		hold     bool
+	}{
+		{"ready", charger(yes, no), false},
+		{"none", nil, true},
+		{"unpowered", charger(no, no), true},
+		{"full of waste", charger(yes, yes), true},
+		{"unread power", charger(domain.Fact[bool]{}, no), true},
+		{"one of two ready", append(charger(no, no), charger(yes, no)...), false},
+	}
+	for _, c := range cases {
+		g := gestation(gestMechanitor(6, 1, 0))
+		g.Chargers = c.chargers
+		_, ok, err := SelectMechGestationBill([]ProductionBench{gestBench()}, g)
+		owed, _ := MechGestationOwed(g)
+		if o, _ := owed.Value(); err != nil || ok == c.hold || o == c.hold {
+			t.Errorf("%s: selected %v owed %v, want hold=%v", c.name, ok, o, c.hold)
+		}
 	}
 }

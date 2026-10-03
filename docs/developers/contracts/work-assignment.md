@@ -206,8 +206,9 @@ every mech is at the upper bound it returns to its role mode, as after a charge
 the bot started. The system keeps no per-setting player-owned state, so none is
 added here.
 `MechChargerOwed` is the build side: a mechanitor exists and every standing
-charger is busy (a charger full of waste is #1683's), so gestation (#1686)
-should not add a mech first. The charger definitions are the catalog rows with
+charger is busy (a charger full of waste is #1683's; an idle unpowered one is the
+power planner's, which wires every power consumer), so gestation (#1686) should
+not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.mech_charger` (`Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
@@ -245,7 +246,8 @@ the drafts join the fight roster and are undrafted when it closes.
 one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
 production bill on a gestator (the `mech` branch of the production bill write).
 `MechGestationOwed` raises the goal while a gestator is idle, no waste is
-uncleared and `NextMech` finds a kind a mechanitor can afford. The rules:
+uncleared, a charger is ready (`MechChargerReady`: chargers before more mechs)
+and `NextMech` finds a kind a mechanitor can afford. The rules:
 
 - Bandwidth gates: a kind is built only when `TotalBandwidth - UsedBandwidth -
   GestationBandwidth` (the pawn row's mechanitor block) covers its catalog

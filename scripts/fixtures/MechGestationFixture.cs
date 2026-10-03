@@ -42,6 +42,10 @@ namespace HomeBridge.BridgeTools
                     .Where(d => d.category == ThingCategory.Building && typeof(Building_MechGestator).IsAssignableFrom(d.thingClass) && d.BuildableByPlayer)
                     .OrderBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
                 if (gestatorDef == null) return Refuse("No player-buildable mech gestator def.");
+                var chargerDef = DefDatabase<ThingDef>.AllDefsListForReading
+                    .Where(d => d.category == ThingCategory.Building && typeof(Building_MechCharger).IsAssignableFrom(d.thingClass) && d.BuildableByPlayer)
+                    .OrderBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
+                if (chargerDef == null) return Refuse("No player-buildable mech charger def.");
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
                 var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("HiddenConduit");
                 if (generatorDef == null || conduitDef == null) return Refuse("WoodFiredGenerator or HiddenConduit unavailable in this ruleset.");
@@ -108,10 +112,15 @@ namespace HomeBridge.BridgeTools
                 for (var x = 0; x < width; x++) Spawn(conduitDef, x, line);
                 var generator = Spawn(generatorDef, 2, line - generatorDef.size.z);
                 var gestator = Spawn(gestatorDef, 8, line + 1);
+                if (8 + gestatorDef.size.x + chargerDef.size.x > width || line + 1 + chargerDef.size.z > height - 2) return Refuse("The clearing is too small for the charger.");
+                var charger = Spawn(chargerDef, 8 + gestatorDef.size.x, line + 1);
                 generator.TryGetComp<CompRefuelable>().Refuel(generator.TryGetComp<CompRefuelable>().Props.fuelCapacity);
                 var power = gestator.TryGetComp<CompPowerTrader>();
                 if (power == null || power.PowerNet == null || !power.PowerNet.powerComps.Any(c => c.parent == generator))
                     return Refuse("The gestator is not on the generator's power network.");
+                var chargerPower = charger.TryGetComp<CompPowerTrader>();
+                if (chargerPower == null || chargerPower.PowerNet != power.PowerNet)
+                    return Refuse("The charger is not on the generator's power network.");
 
                 // The stock: for each affordable recipe, three times its
                 // ingredients for every gestation cycle, each ingredient the
@@ -146,7 +155,7 @@ namespace HomeBridge.BridgeTools
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame,
-                    mechanitorId = overseer.GetUniqueLoadID(), gestatorId = gestator.GetUniqueLoadID(), generatorId = generator.GetUniqueLoadID(),
+                    mechanitorId = overseer.GetUniqueLoadID(), gestatorId = gestator.GetUniqueLoadID(), chargerId = charger.GetUniqueLoadID(), generatorId = generator.GetUniqueLoadID(),
                     totalBandwidth = tracker.TotalBandwidth, usedBandwidth = tracker.UsedBandwidth, freeBandwidth = free,
                     parkedMode = tracker.controlGroups[0].WorkMode.defName,
                     recipes = affordable.Select(r => (object)new { recipe = r.defName, mechKind = NativeMechBills.Kind(r), bandwidth = Cost(r), gestationCycles = r.gestationCycles }).ToList(),

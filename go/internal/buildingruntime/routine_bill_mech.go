@@ -63,6 +63,7 @@ func mechGestation(call context.Context, native any, identity *c.Identity, proje
 	for _, x := range colony.Wastepacks {
 		g.Wastepacks = append(g.Wastepacks, policy.WastepackFact{Count: x.Count, Frozen: x.Frozen, InAtomizer: x.InAtomizer})
 	}
+	g.Chargers = colony.MechChargerRows()
 	return g, true, nil
 }
 

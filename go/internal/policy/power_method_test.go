@@ -104,6 +104,24 @@ func TestPowerRouteExtendsFromProducerAndSkipsNativeFootprints(t *testing.T) {
 	}
 }
 
+// A mech charger (#1688) is an ordinary power consumer: native lists every
+// CompPowerTrader building, and the planner wires it by its negative BaseW
+// alone, never by definition, so no charger-specific power goal exists.
+func TestPowerRouteWiresAnUnpoweredMechChargerLikeAnyConsumer(t *testing.T) {
+	charger := powerSite("charger", 1, -400, 0, "")
+	charger.Definition = "MechCharger"
+	v := PowerTopology{Buildings: []PowerSite{charger, powerSite("generator", 14, 1000, 1000, "b")}, Blackout: domain.Known(false)}
+	v.Conduits = []domain.Cell{{X: 12, Z: 2}}
+	var cells []SiteCell
+	for x := int32(1); x <= 14; x++ {
+		cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: 2}, SupportsLight: domain.Known(true), Occupied: domain.Known(true)})
+	}
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, cells, nil, DefaultPowerPlanning())
+	if err != nil || p.Method != PowerConnect || len(p.Cells) == 0 {
+		t.Fatal(p, err)
+	}
+}
+
 func TestPowerMethodIdentityIgnoresOutputAndInputRejectsAmbiguity(t *testing.T) {
 	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a"), powerSite("generator", 5, 100, 100, "a")}, Blackout: domain.Known(false)}
 	first, err := SelectPowerMethod(domain.Known(v), Bounds{20, 20}, nil, nil, DefaultPowerPlanning())

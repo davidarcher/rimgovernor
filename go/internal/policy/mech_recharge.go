@@ -72,7 +72,11 @@ func MechChargerReady(chargers []MechCharger) bool {
 // mechanitor exists and every standing charger is charging a mech (none
 // standing counts as all busy). An unread charger list or charging state
 // owes nothing, and neither does a charger full of waste: emptying it is
-// #1683's, not a reason to build.
+// #1683's, not a reason to build. An idle unpowered charger owes nothing
+// either, though MechChargerReady does not count it ready: the power planner
+// covers every power consumer (PowerCoverage, connectLiveBeforeUpgrade), so
+// wiring it is the power goal's and a second charger would stand unpowered
+// too. Gestation waits on MechChargerReady meanwhile.
 func MechChargerOwed(mechanitors int, chargers domain.Fact[[]MechCharger]) bool {
 	rows, known := chargers.Value()
 	if !known || mechanitors == 0 {
