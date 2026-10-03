@@ -22,6 +22,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/observations_list_rooms | rimgovernor.observations.v1.Observations/ListRooms | Protocol/NativeRoomObservationTools.cs |
 | rimgovernor/observations_read_research | rimgovernor.observations.v1.Observations/ReadResearch | Protocol/NativeResearchObservationTools.cs |
 | rimgovernor/observations_read_definition_catalog | rimgovernor.observations.v1.Observations/ReadDefinitionCatalog | Protocol/NativeDefinitionCatalogTool.cs |
+| rimgovernor/observations_read_royalty_facts | rimgovernor.observations.v1.Observations/ReadRoyaltyFacts | Protocol/NativeRoyaltyTool.cs |
 | rimgovernor/observations_read_bills | rimgovernor.observations.v1.Observations/ReadBills | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/observations_read_recipes | rimgovernor.observations.v1.Observations/ReadRecipes | Protocol/NativeBillsObservationTools.cs |
 | rimgovernor/zones_preview | rimgovernor.operations.v1.Zones/Preview | Protocol/NativeOperationTools.cs |

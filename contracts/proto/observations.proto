@@ -1075,6 +1075,20 @@ message UpkeepPerson { reserved 1; rimgovernor.common.v1.Ref pawn = 9; rimgovern
 // things: each row is one requirement met by count of any listed def.
 message BedroomThingRequirement { repeated string any_of = 1; optional int32 count = 2; }
 message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority = 2; optional int32 bedroom_min_area = 3; optional int32 bedroom_min_impressiveness = 4; optional bool bedroom_floored = 5; repeated BedroomThingRequirement bedroom_things = 6; }
+// Royalty read (#1599): the title ladder, the permit catalog and each
+// colonist's holdings. Slow-changing; read on its own, not with the pawn
+// rows. ladder: every RoyalTitleDef by seniority, favor_needed the favor
+// that earns it. permits: every RoyalTitlePermitDef; acts is true when the
+// permit is a call (it carries a royal aid) and favor_cost is then the favor
+// a call spends. pawns: colonists holding a title or favor, one holding per
+// faction. Royalty inactive is Unavailable(NOT_APPLICABLE).
+message RoyalTitleRung { optional string def_name = 1; optional int32 seniority = 2; optional int32 favor_needed = 3; }
+message RoyalPermitDef { optional string def_name = 1; optional string min_title = 2; optional int32 permit_points = 3; optional bool acts = 4; optional int32 favor_cost = 5; optional double cooldown_days = 6; }
+message PawnRoyalHolding { optional string faction_def = 1; optional string title = 2; optional int32 favor = 3; optional int32 permit_points = 4; repeated string permits = 5; }
+message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHolding holdings = 2; }
+message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; }
+message RoyaltyFactsRequest { ReadScope scope = 1; }
+message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated rimgovernor.common.v1.Ref eaters = 3; }
 // reachable_benches lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
@@ -1622,6 +1636,7 @@ service Observations {
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
+  rpc ReadRoyaltyFacts(RoyaltyFactsRequest) returns (RoyaltyFactsReply);
   rpc ReadWaste(WasteRequest) returns (WasteReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);

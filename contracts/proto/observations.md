@@ -192,6 +192,18 @@ a depleted drill for removal from the deep drill step's recorded read.
   text, lock/refusal reasons, hidden/read failures, thermal sides and ingredients)
   remain typed facts or bounded diagnostic strings.
 
+## Royalty facts
+
+`ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed),
+the permit catalog (minimum title, permit points, whether the permit acts and
+the favor a call spends) and each colonist's holdings per faction (title,
+favor, permit points, taken permits). It is separate from the pawn row and
+slow-changing: the Go client reuses a read for `RoyaltyRefreshTicks` and
+decodes it into `policy.RoyaltyFacts`, where an absent scalar is unknown.
+Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
+returns as no facts. Reads are derived state (persistence-contracts.md); the
+read adds no store.
+
 ## Obtainable operation preconditions
 
 References are `Ref {id}` (#1342); an `EntityRef` is only a row head (id,
