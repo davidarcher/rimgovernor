@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -94,6 +95,9 @@ func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {
 func squadDefenderFacts(row *n.PawnState, needed map[domain.PawnID]bool) policy.SquadDefenderFacts {
 	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
 	facts.DraftOwned = domain.Known(needed[facts.ID])
+	if bt, ok := bridge.PawnBiotech(row.Biotech).Value(); ok {
+		facts.Deathresting = bt.IsDeathresting()
+	}
 	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") {
 		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 	}

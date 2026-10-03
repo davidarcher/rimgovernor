@@ -44,7 +44,10 @@ type SquadDefenderFacts struct {
 	// drafted pawn a plan needs is busy elsewhere; a drafted pawn no plan
 	// needs is a candidate like any
 	// undrafted colonist and the draft adopts it (#461).
-	DraftOwned                           domain.Fact[bool]
+	DraftOwned domain.Fact[bool]
+	// Deathresting is a pawn known to be in deathrest (#1690): never a
+	// defender.
+	Deathresting                         bool
 	QueuedJobs                           domain.Fact[uint32]
 	ViolenceCapable, NeedsTend           domain.Fact[bool]
 	HealthFraction                       domain.Fact[float64]
@@ -149,7 +152,7 @@ func squadDefenderEligible(d SquadDefenderFacts) bool {
 	if !dk || !wk || !tk || !mk || !vk || !nk || !hk {
 		return false
 	}
-	if dead || downed || busy || mental || !violent || needsTend {
+	if dead || downed || busy || mental || !violent || needsTend || d.Deathresting {
 		return false
 	}
 	return health > float64(float32(0.5005))
@@ -356,7 +359,7 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 		if !dk || !wk || !tk || !mk || !vk || !nk || !hk2 || !ak {
 			return false
 		}
-		if dead || downed || drafted || mental || !violent || needsTend || !armed {
+		if dead || downed || drafted || mental || !violent || needsTend || !armed || d.Deathresting {
 			return false
 		}
 		return health >= 0.85

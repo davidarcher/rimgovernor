@@ -140,6 +140,9 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 	}
 	w.Inspiration = optional(row.Inspiration)
 	w.Biotech = bridge.PawnBiotech(row.Biotech)
+	if bt, ok := w.Biotech.Value(); ok && bt.IsDeathresting() {
+		w.Available = domain.Known(false)
+	}
 	if s := row.Settings; s != nil && s.HostilityResponse != nil && !hasIssue(s.Issues, "hostility_response") {
 		w.Hostility = domain.Known(bridge.HostilityName(s.GetHostilityResponse()))
 	}

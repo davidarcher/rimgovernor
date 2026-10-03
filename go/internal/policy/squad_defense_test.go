@@ -287,3 +287,12 @@ func TestSquadAdoptsDraftWithForcedQueuedWork(t *testing.T) {
 		t.Fatal("stole active draft claim")
 	}
 }
+
+func TestSelectSquadDefenseExcludesDeathresting(t *testing.T) {
+	resting := squadDefender("resting", false)
+	resting.Deathresting = true
+	live := []SquadThreatFacts{squadThreat("live", false)}
+	if _, ok := SelectSquadDefense(live, []SquadDefenderFacts{resting, squadDefender("a", false)}); ok {
+		t.Fatal("assigned a deathresting defender")
+	}
+}

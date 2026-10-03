@@ -75,3 +75,15 @@ func (b PawnBiotech) IsChild() (child, known bool) {
 	}
 	return false, true
 }
+
+// IsDeathresting reports whether the pawn is known to be deathresting: a
+// pawn in deathrest takes neither work nor fights (#1690). An unknown
+// deathrest read counts as not resting.
+func (b PawnBiotech) IsDeathresting() bool {
+	d, ok := b.Deathrest.Value()
+	if !ok || d == nil {
+		return false
+	}
+	resting, ok := d.Deathresting.Value()
+	return ok && resting
+}

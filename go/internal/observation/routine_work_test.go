@@ -172,3 +172,18 @@ func TestWorkPawnRowBiotech(t *testing.T) {
 		t.Fatal("Core-only row has biotech facts")
 	}
 }
+
+// TestWorkPawnRowDeathrestingUnavailable (#1690): a deathresting pawn takes
+// no work; an awake deathrester does.
+func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
+	row := func(resting bool) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("sang")}, Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
+			Biotech: &o.PawnBiotech{Deathrest: &o.PawnDeathrest{Deathresting: proto.Bool(resting)}}}
+	}
+	if avail, ok := WorkPawnRow(row(true)).Available.Value(); !ok || avail {
+		t.Fatal("deathresting pawn is available for work")
+	}
+	if avail, ok := WorkPawnRow(row(false)).Available.Value(); ok && !avail {
+		t.Fatal("awake deathrester is known unavailable")
+	}
+}

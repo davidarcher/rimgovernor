@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -81,6 +82,9 @@ func routineDefenders(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyF
 			return unknown
 		}
 		d := policy.SquadDefenderFacts{ID: domain.PawnID(pawn.ID), Dead: pawn.Dead, Downed: pawn.Downed}
+		if bt, ok := bridge.PawnBiotech(row.Biotech).Value(); ok {
+			d.Deathresting = bt.IsDeathresting()
+		}
 		if row.Biography != nil && !hasIssue(row.Biography.GetIssues(), "disabled_work_tags") {
 			violent := true
 			for _, tag := range row.Biography.GetDisabledWorkTags() {
