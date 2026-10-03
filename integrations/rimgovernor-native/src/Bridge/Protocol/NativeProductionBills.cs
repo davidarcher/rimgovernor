@@ -185,7 +185,12 @@ namespace HomeBridge.BridgeTools {
    var definitions=intent.Settings.Ingredients.Replace.Selectors.Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.ThingDef)).ToArray();
    return !definitions.Any(d=>d==null||recipe.fixedIngredientFilter!=null&&!recipe.fixedIngredientFilter.Allows(d)||!recipe.ingredients.Any(i=>i.filter.Allows(d)))&&recipe.ingredients.All(i=>definitions.Any(d=>i.filter.Allows(d)));
   }
-  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>action.ProductionBill?.Patient!=null?NativeSurgery.Validate(action.ProductionBill,context):Resolve(action.ProductionBill,context,out _);
+  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context){
+   if(action.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.ProductionBill,context);
+   var failure=Resolve(action.ProductionBill,context,out _);
+   if(failure!=null)Log.Message("[RimGovernor] production bill "+action.ProductionBill?.RecipeDef+" on "+action.ProductionBill?.BenchId+" refused: "+failure.Detail);
+   return failure;
+  }
   public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
    var intent=action.ProductionBill;
    if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
