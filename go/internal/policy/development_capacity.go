@@ -166,31 +166,6 @@ func developmentFit(census domain.Fact[[]DevelopmentWorker], labor domain.Fact[m
 	return fits, bottlenecks
 }
 
-// holdsFit fits the holds and then each of rows in order; overcommitted
-// reports a hold that did not fit (open work already exceeds the census).
-func holdsFit(s DevelopmentState, rows []LaborProfile) (fits []bool, bottlenecks []WorkType, overcommitted bool) {
-	demands := make([]LaborProfile, 0, len(s.Holds)+len(rows))
-	for _, h := range s.Holds {
-		demands = append(demands, h.Labor)
-	}
-	demands = append(demands, rows...)
-	all, necks := developmentFit(s.Census, s.Labor, demands)
-	for _, ok := range all[:len(s.Holds)] {
-		overcommitted = overcommitted || !ok
-	}
-	return all[len(s.Holds):], necks[len(s.Holds):], overcommitted
-}
-
-func slotHolds(holds []DevelopmentHold) int {
-	n := 0
-	for _, h := range holds {
-		if h.Slot {
-			n++
-		}
-	}
-	return n
-}
-
 // AdmitDevelopment revalidates, inside method admission, the slot the
 // review granted need: the row is still selected, the slots held now
 // (holds, recomputed from current commitments with CommitmentHolds) leave

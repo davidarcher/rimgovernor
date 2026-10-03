@@ -155,17 +155,6 @@ func equipmentRanked(review store.RoutineReview) bool {
 	return false
 }
 
-func apparelPolicyPlan(spec domain.PlanSpec) bool {
-	for _, action := range spec.Actions() {
-		_, write := action.ApparelPolicy()
-		_, prune := action.PolicyPrune()
-		if !write && !prune {
-			return false
-		}
-	}
-	return len(spec.Actions()) > 0
-}
-
 func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
