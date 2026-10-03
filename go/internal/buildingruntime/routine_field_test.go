@@ -40,7 +40,7 @@ func TestFieldPlannerReservationsAndGrowthBudget(t *testing.T) {
 	}
 	v.Issues = issues
 	planning := v.Planning.GetObserved()
-	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, Edible: proto.Bool(true), GrowDays: proto.Float64(3), FertilityMin: proto.Float64(.7), FertilitySensitivity: proto.Float64(1), HarvestNutrition: proto.Float64(1)}}
+	n.catalog = []bridge.FixtureDef{{Name: "Plant_Rice", Plant: &bridge.FixturePlant{Edible: true, GrowMinGlow: .5, GrowDays: 3, FertilityMin: .7, FertilitySensitivity: 1, HarvestNutrition: 1}}}
 	planning.Crops = []*o.EdibleCrop{{DefName: proto.String("Plant_Rice"), NutritionDemandPerDay: proto.Float64(5), DietAllowed: proto.Bool(true)}}
 	for i := range n.cells.Cells {
 		cell := &n.cells.Cells[i]

@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var stuff in GenStuff.AllowedStuffsFor(def).OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
                     table.Rows.Add(StatRow(def, stuff, stats));
             }
-            // Every TerrainDef the same way, with no stuff and no cost list.
+            // Every TerrainDef the same way, with no stuff, and its adjusted cost list.
             foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 table.TerrainRows.Add(StatRow(def, null, stats));
             return table;
@@ -164,7 +164,6 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException($"Stat {stat.defName} of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
                 }
             }
-            if (def is not ThingDef) return row;
             try
             {
                 foreach (var cost in def.CostListAdjusted(stuff, false))

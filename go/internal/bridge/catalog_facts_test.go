@@ -25,9 +25,15 @@ func planningRow(name string, powerW float64) *o.PlanningDefinition {
 func factsReply() *o.DefinitionCatalog {
 	v := catalogReply(authorityTestContext(7)).GetObserved()
 	building := func(name, kind string) *d.ThingDef {
-		return &d.ThingDef{DefName: name, Building: &d.BuildingProperties{JoyKind: kind}}
+		return &d.ThingDef{DefName: name, DesignationCategory: "Joy", Building: &d.BuildingProperties{JoyKind: kind}}
 	}
-	v.ThingDefs = []*d.ThingDef{building("Chess", "Cerebral"), building("Pin", "Dexterity"), building("Steel", ""), building("Television", "Television"), {DefName: "Wall"}, {DefName: "MeatRaw"}, {DefName: "Meal"}}
+	television := building("Television", "Television")
+	television.Comps = []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: 100}}}}}
+	powerClass, _ := proto.GetExtension((&d.CompProperties_Power{}).ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
+	v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: powerClass})
+	steel := building("Steel", "")
+	steel.DesignationCategory = ""
+	v.ThingDefs = []*d.ThingDef{building("Chess", "Cerebral"), building("Pin", "Dexterity"), steel, television, {DefName: "Wall"}, {DefName: "MeatRaw"}, {DefName: "Meal"}}
 	v.TerrainDefs = []*d.TerrainDef{{DefName: "Soil", PathCost: 2, Natural: true}, {DefName: "Lava"}}
 	v.Definitions = []*o.PlanningDefinition{planningRow("Chess", 0), planningRow("Pin", 0), planningRow("Television", 100), planningRow("Wall", 0)}
 	job := func(name string, rate float32, duration int32) *d.JobDef {
@@ -131,9 +137,6 @@ func TestCatalogFloorTerrain(t *testing.T) {
 		"unknown terrain":    func(v *o.DefStatTable) { v.TerrainRows = append(v.TerrainRows, &o.DefStatRow{DefName: "Ghost"}) },
 		"repeated terrain":   func(v *o.DefStatTable) { v.TerrainRows = append(v.TerrainRows, &o.DefStatRow{DefName: "Soil"}) },
 		"terrain with stuff": func(v *o.DefStatTable) { v.TerrainRows[0].StuffName = "Steel" },
-		"terrain with cost": func(v *o.DefStatTable) {
-			v.TerrainRows[0].Costs = []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(1)}}
-		},
 	} {
 		v := factsReply()
 		mutate(v.StatValues)
@@ -190,7 +193,7 @@ func TestCatalogJoyBuildingsRankByJoyThenCost(t *testing.T) {
 func TestCatalogRecreationFootholdAndWatchBuildings(t *testing.T) {
 	build := func(mutate func(*o.DefinitionCatalog)) *DefinitionCatalog {
 		v := factsReply()
-		v.ClassChains = []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.JoyGiver_Other", Bases: []string{"RimWorld.JoyGiver"}}}
+		v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, &o.ClassChain{Name: "RimWorld.JoyGiver_Other", Bases: []string{"RimWorld.JoyGiver"}})
 		for _, giver := range v.Defs.JoyGiverDefs {
 			switch giver.DefName {
 			case "PlayPin", "WatchTelevision":

@@ -9,11 +9,11 @@ import (
 )
 
 func TestSarcophagusWithoutStuffFallsBackToAGrave(t *testing.T) {
-	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: policy.SarcophagusDefinition, Available: domain.Known(true), Stuff: domain.Known("")}}}
+	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: policy.SarcophagusDefinition, Available: domain.Known(true), Stuffed: true}}}
 	if v, known := sarcophagusAvailable(facts).Value(); !known || v {
 		t.Fatalf("no stuff: %v %v", v, known)
 	}
-	facts.Definitions[0].Stuff = domain.Known("BlocksGranite")
+	facts.Definitions[0].Stuffed, facts.Definitions[0].StuffOptions = true, madeOf("BlocksGranite")
 	if v, known := sarcophagusAvailable(facts).Value(); !known || !v {
 		t.Fatalf("stuff: %v %v", v, known)
 	}

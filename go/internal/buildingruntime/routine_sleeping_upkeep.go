@@ -167,21 +167,14 @@ func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProject
 }
 
 // bedStuff is the stuff a bed step builds definition from: a bedroll's
-// first stuff option in stock (#1181), else the row's native stuff.
+// first stuff option in stock (#1181), else the cheapest the rows allow.
 func bedStuff(facts observation.ColonyProjection, definition string) string {
 	if definition == policy.SleepingBedrollDefinition || definition == policy.SleepingCoupleBedrollDefinition {
 		if stuff, _, ok := facts.StockedStuff(definition); ok {
 			return stuff
 		}
 	}
-	for _, d := range facts.Definitions {
-		if d.Name == definition {
-			if stuff, known := d.Stuff.Value(); known {
-				return stuff
-			}
-		}
-	}
-	return ""
+	return facts.BuildStuff(definition)
 }
 
 func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {

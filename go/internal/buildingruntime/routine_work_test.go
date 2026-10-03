@@ -31,17 +31,14 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 	}
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
-	for _, phase := range []string{"numbered", "project-skill", "unknown-project", "restored-project", "mismatch", "unknown", "checkbox"} {
+	for _, phase := range []string{"numbered", "project-skill", "restored-project", "mismatch", "unknown", "checkbox"} {
 		want := domain.NeedRecovered
 		switch phase {
 		case "project-skill":
-			n.catalog[0].ConstructionSkill = proto.Int32(11)
+			n.catalog[0].ConstructionSkill = 11
 			want = domain.NeedDeficit
-		case "unknown-project":
-			n.catalog[0].ConstructionSkill = nil
-			want = domain.NeedUnknown
 		case "restored-project":
-			n.catalog[0].ConstructionSkill = proto.Int32(0)
+			n.catalog[0].ConstructionSkill = 0
 		case "mismatch":
 			row.Settings.Work[0].Priority = proto.Int32(3)
 			want = domain.NeedDeficit

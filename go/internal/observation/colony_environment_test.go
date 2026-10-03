@@ -19,10 +19,10 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 		Growers:  []*o.PlantGrower{{Building: &c.Ref{Id: proto.String("basin-1")}, Fertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic"), CanSow: proto.Bool(true), PowerNetId: proto.String("net-a"), PlantCells: []*c.Cell{{X: proto.Int32(20), Z: proto.Int32(10)}, {X: proto.Int32(20), Z: proto.Int32(11)}, {X: proto.Int32(20), Z: proto.Int32(12)}, {X: proto.Int32(20), Z: proto.Int32(13)}}}},
 		Rooms:    []*o.GrowRoom{{Room: &c.Ref{Id: proto.String("7")}, TemperatureC: proto.Float64(21), CellCount: proto.Uint32(36), OpenRoofCount: proto.Uint32(0), ProperRoom: proto.Bool(true), PsychologicallyOutdoors: proto.Bool(false), LitCells: proto.Uint32(30)}},
 		Networks: []*o.PowerHeadroom{{Id: proto.String("net-a"), GenerationW: proto.Float64(3000), SolarW: proto.Float64(1700), WindW: proto.Float64(300), ConsumptionW: proto.Float64(600), StoredWattDays: proto.Float64(400), CapacityWattDays: proto.Float64(600), HasActiveSource: proto.Bool(true)}}}
-	definitions := []*o.PlanningDefinition{
-		{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, GrowDays: proto.Float64(3), GrowMinGlow: proto.Float64(0.3), SowTags: []string{"Ground", "Hydroponic"}, HarvestWork: proto.Float64(200), RawPreferred: proto.Bool(false), RequiresPollution: proto.Bool(false), RequiresCleanSoil: proto.Bool(true)},
-		{Definition: &o.DefinitionRef{DefName: proto.String("SunLamp")}, PowerW: proto.Float64(2900), GlowRadius: proto.Float64(14)},
-		{Definition: &o.DefinitionRef{DefName: proto.String("HydroponicsBasin")}, PowerW: proto.Float64(70), GrowerFertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic")},
+	definitions := []bridge.FixtureDef{
+		{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, GrowMinGlow: 0.3, SowTags: []string{"Ground", "Hydroponic"}, HarvestWork: 200, RequiresClean: true}},
+		{Name: "SunLamp", PowerW: proto.Float64(2900), GlowRadius: proto.Float64(14)},
+		{Name: "HydroponicsBasin", PowerW: proto.Float64(70), GrowerFertility: proto.Float64(2.8), SowTag: "Hydroponic"},
 	}
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
@@ -46,7 +46,9 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Definitions = definitionFacts{catalog: testCatalog(definitions...), crops: cropRows(planning)}.appendDefinitions(nil, []string{"Plant_Rice", "SunLamp", "HydroponicsBasin"})
+	if p.Definitions, err = (definitionFacts{catalog: testCatalog(definitions...), crops: cropRows(planning)}).appendDefinitions(nil, []string{"Plant_Rice", "SunLamp", "HydroponicsBasin"}); err != nil {
+		t.Fatal(err)
+	}
 	e, known := p.Environment.Value()
 	if !known || len(e.Lights) != 1 || len(e.Growers) != 1 || len(e.Rooms) != 1 || len(e.Networks) != 1 {
 		t.Fatal(p.Environment)
@@ -79,7 +81,7 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 	if _, known := lamp.DietAllowed.Value(); known {
 		t.Fatal("absent crop facts became known")
 	}
-	if !policy.GrowerAccepts(e.Growers[0], crop) || policy.GrowsInDark(crop) || lamp.PowerW != domain.Known(2900.0) || basin.SowTag != domain.Known("Hydroponic") || basin.GrowerFertility != domain.Known(2.8) {
+	if !policy.GrowerAccepts(e.Growers[0], crop) || policy.GrowsInDark(crop) || lamp.PowerW != domain.Known(2900.0) || basin.SowTag != domain.Known("Hydroponic") || basin.GrowerFertility != domain.Known(float64(float32(2.8))) {
 		t.Fatal(rice, lamp, basin)
 	}
 	// A missing sow-tag list on a non-plant row stays unknown, and a section

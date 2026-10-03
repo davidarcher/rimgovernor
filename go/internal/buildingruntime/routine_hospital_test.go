@@ -181,7 +181,7 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	ladder := &RoutineBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
 	patient := policy.CarePawn{ID: "p", Dead: domain.Known(false), NeedsRest: domain.Known(true), NeedsTend: domain.Known(false), BadConditions: domain.Known(false)}
 	definition := func(name string, available bool) observation.PlanningDefinition {
-		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}
+		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}
 	}
 	rooms := domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Beds: []string{"bed"}}}})
 	bed := func(medical bool) domain.Fact[policy.SleepingObservation] {

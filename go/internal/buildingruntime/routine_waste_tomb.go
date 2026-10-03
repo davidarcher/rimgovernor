@@ -92,12 +92,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
-	stuff := ""
-	for _, d := range facts.Definitions {
-		if d.Name == piece.Def {
-			stuff, _ = d.Stuff.Value()
-		}
-	}
+	stuff := facts.BuildStuff(piece.Def)
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1

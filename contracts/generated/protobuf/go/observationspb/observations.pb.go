@@ -38959,7 +38959,10 @@ func (x *ClassChain) GetBases() []string {
 // .GetMeatSourceCategory, IsFungus, IsAnimalProduct, a vegetable or fruit food
 // type, else other. `meal_ingredients` is set on meals only
 // (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
-// ThingDef.IsMedicine.
+// ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
+// room-role code scores the def for by name (#1731): Toy (ThingDefOf.ToyBox),
+// Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
+// the roles the rows derive (baby beds, deathrest) are Go's.
 type ThingDefFacts struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	DefName         string                 `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3" json:"def_name,omitempty"`
@@ -38967,6 +38970,7 @@ type ThingDefFacts struct {
 	MealIngredients *MealIngredients       `protobuf:"varint,3,opt,name=meal_ingredients,json=mealIngredients,proto3,enum=rimgovernor.observations.v1.MealIngredients,oneof" json:"meal_ingredients,omitempty"`
 	RawMeat         bool                   `protobuf:"varint,4,opt,name=raw_meat,json=rawMeat,proto3" json:"raw_meat,omitempty"`
 	Medicine        bool                   `protobuf:"varint,5,opt,name=medicine,proto3" json:"medicine,omitempty"`
+	RoomRoles       []string               `protobuf:"bytes,6,rep,name=room_roles,json=roomRoles,proto3" json:"room_roles,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -39036,6 +39040,13 @@ func (x *ThingDefFacts) GetMedicine() bool {
 	return false
 }
 
+func (x *ThingDefFacts) GetRoomRoles() []string {
+	if x != nil {
+		return x.RoomRoles
+	}
+	return nil
+}
+
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
 // with no stuff otherwise (#1759). Stat rules are game code; Go looks values up
@@ -39045,7 +39056,8 @@ type DefStatTable struct {
 	Stats []string               `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
 	Rows  []*DefStatRow          `protobuf:"bytes,2,rep,name=rows,proto3" json:"rows,omitempty"`
 	// The same rows for every TerrainDef, `stuff_name` empty (a terrain defName
-	// may also name a ThingDef, so the two are kept apart). `costs` is empty.
+	// may also name a ThingDef, so the two are kept apart). `costs` is the terrain's
+	// adjusted cost list (BuildableDef.CostListAdjusted(null)), empty for a free floor.
 	TerrainRows   []*DefStatRow `protobuf:"bytes,3,rep,name=terrain_rows,json=terrainRows,proto3" json:"terrain_rows,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -50776,13 +50788,15 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"ClassChain\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05bases\x18\x02 \x03(\tR\x05bases\"\xab\x02\n" +
+	"\x05bases\x18\x02 \x03(\tR\x05bases\"\xca\x02\n" +
 	"\rThingDefFacts\x12\x19\n" +
 	"\bdef_name\x18\x01 \x01(\tR\adefName\x12G\n" +
 	"\tfood_kind\x18\x02 \x01(\x0e2%.rimgovernor.observations.v1.FoodKindH\x00R\bfoodKind\x88\x01\x01\x12\\\n" +
 	"\x10meal_ingredients\x18\x03 \x01(\x0e2,.rimgovernor.observations.v1.MealIngredientsH\x01R\x0fmealIngredients\x88\x01\x01\x12\x19\n" +
 	"\braw_meat\x18\x04 \x01(\bR\arawMeat\x12\x1a\n" +
-	"\bmedicine\x18\x05 \x01(\bR\bmedicineB\f\n" +
+	"\bmedicine\x18\x05 \x01(\bR\bmedicine\x12\x1d\n" +
+	"\n" +
+	"room_roles\x18\x06 \x03(\tR\troomRolesB\f\n" +
 	"\n" +
 	"_food_kindB\x13\n" +
 	"\x11_meal_ingredients\"\xad\x01\n" +

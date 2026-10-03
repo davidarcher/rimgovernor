@@ -160,18 +160,26 @@ func firebreakTiles(cells []domain.Cell) []bridge.CellRect {
 }
 
 // firebreakClaimed is the material queued construction claims, priced by
-// each claimed definition's planning cost list; an unpriced one adds none.
+// each claimed definition's planning cost list at the claim's own stuff; a
+// claim with no stuff of a stuffed definition is priced at its lowest
+// flammability stuff (#1731); an unpriced one adds none.
 func firebreakClaimed(projection observation.ColonyProjection) map[policy.Resource]int64 {
-	costs := map[string][]policy.Amount{}
-	for _, d := range projection.Definitions {
-		if v, ok := d.Costs.Value(); ok {
-			costs[d.Name] = v
-		}
-	}
 	claimed := map[policy.Resource]int64{}
 	claims, _ := projection.Facts.ConstructionClaims.Value()
 	for _, claim := range claims {
-		for _, a := range costs[claim.Building.Definition()] {
+		d, ok := projection.Definition(claim.Building.Definition())
+		if !ok {
+			continue
+		}
+		costs, priced := d.CostsMadeOf(claim.Building.Stuff())
+		if !priced {
+			price, err := d.UnstockedStuffChoice(observation.LowestFlammability)
+			if err != nil {
+				continue
+			}
+			costs = price.Costs
+		}
+		for _, a := range costs {
 			claimed[a.Resource] += a.Count
 		}
 	}

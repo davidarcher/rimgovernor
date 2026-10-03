@@ -113,7 +113,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 		}
 	}
 	v.Issues = issues
-	n.catalog[0].Definition.DefName = proto.String("Campfire")
+	n.catalog[0].Name = "Campfire"
 	config := s.config
 	config.Sleeping = nil
 	var err error

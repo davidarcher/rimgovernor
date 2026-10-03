@@ -14,7 +14,7 @@ import (
 func turretReading() observation.RoutineReading {
 	var read observation.RoutineReading
 	read.Projection.Definitions = []observation.PlanningDefinition{
-		{Name: defenseTurretDefinition, Available: domain.Known(true), Stuff: domain.Known("Steel"), Research: []string{"GunTurrets"}, PowerW: domain.Known(80.0), Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 70}, {Resource: "ComponentIndustrial", Count: 3}})},
+		{Name: defenseTurretDefinition, Available: domain.Known(true), Stuffed: true, StuffOptions: []observation.StuffOption{{Stuff: "Steel", Costs: []policy.Amount{{Resource: "Steel", Count: 70}, {Resource: "ComponentIndustrial", Count: 3}}, Value: 100, Stats: map[string]float64{"MaxHitPoints": 200}}}, Research: []string{"GunTurrets"}, PowerW: domain.Known(80.0), Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 70}, {Resource: "ComponentIndustrial", Count: 3}})},
 		{Name: defenseConduitDefinition, Available: domain.Known(true), Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 1}})},
 		{Name: "Wall", Available: domain.Known(true)},
 	}
@@ -293,7 +293,7 @@ func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
 func TestDefenseMortarRequestOpensAfterResearchAtRaidPoints(t *testing.T) {
 	t.Parallel()
 	read := turretReading()
-	read.Projection.Definitions = append(read.Projection.Definitions, observation.PlanningDefinition{Name: defenseMortarDefinition, Available: domain.Known(true), Stuff: domain.Known("Steel"), Research: []string{"Mortars"}, Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 110}})})
+	read.Projection.Definitions = append(read.Projection.Definitions, observation.PlanningDefinition{Name: defenseMortarDefinition, Available: domain.Known(true), Stuffed: true, StuffOptions: []observation.StuffOption{{Stuff: "Steel", Costs: []policy.Amount{{Resource: "Steel", Count: 110}}, Value: 110, Stats: map[string]float64{"MaxHitPoints": 300}}}, Research: []string{"Mortars"}, Costs: domain.Known([]policy.Amount{{Resource: "Steel", Count: 110}})})
 	read.Projection.Facts.RaidPoints = domain.Known(1200.0)
 	if defenseMortarRequest(read).MortarGatesOpen() {
 		t.Fatal("open before research")

@@ -12,6 +12,9 @@ import (
 type statTable struct {
 	things   map[defStuff]*statRow
 	terrains map[string]*statRow
+	// stuffs are the allowed stuffs of each stuffed def, in row order (the
+	// native defName order).
+	stuffs map[string][]string
 }
 
 // decodeStatTable indexes the stat table by (def, stuff) then stat name. A
@@ -29,7 +32,7 @@ func decodeStatTable(v *o.DefStatTable, things map[string]*d.ThingDef, terrains 
 		}
 		seen[name] = true
 	}
-	out := &statTable{things: make(map[defStuff]*statRow, len(v.Rows)), terrains: make(map[string]*statRow, len(v.TerrainRows))}
+	out := &statTable{things: make(map[defStuff]*statRow, len(v.Rows)), terrains: make(map[string]*statRow, len(v.TerrainRows)), stuffs: map[string][]string{}}
 	for _, row := range v.Rows {
 		key := defStuff{row.GetDefName(), row.GetStuffName()}
 		if things[key.def] == nil || (key.stuff != "" && things[key.stuff] == nil) {
@@ -42,18 +45,19 @@ func decodeStatTable(v *o.DefStatTable, things map[string]*d.ThingDef, terrains 
 		if err != nil {
 			return nil, err
 		}
-		for _, cost := range row.Costs {
-			if validID(cost.GetDefName()) != nil || things[cost.GetDefName()] == nil || cost.GetUnits() <= 0 {
-				return nil, contract("catalog cost of %s/%q names %q x %d", key.def, key.stuff, cost.GetDefName(), cost.GetUnits())
-			}
+		if err := checkCosts(row, things); err != nil {
+			return nil, err
 		}
 		decoded.costs = row.Costs
 		out.things[key] = decoded
+		if key.stuff != "" {
+			out.stuffs[key.def] = append(out.stuffs[key.def], key.stuff)
+		}
 	}
 	for _, row := range v.TerrainRows {
 		name := row.GetDefName()
-		if terrains[name] == nil || row.GetStuffName() != "" || len(row.Costs) > 0 {
-			return nil, contract("catalog terrain stat row for unknown terrain %s, or with stuff %q or costs", name, row.GetStuffName())
+		if terrains[name] == nil || row.GetStuffName() != "" {
+			return nil, contract("catalog terrain stat row for unknown terrain %s, or with stuff %q", name, row.GetStuffName())
 		}
 		if out.terrains[name] != nil {
 			return nil, contract("duplicate catalog stat row for terrain %s", name)
@@ -62,9 +66,24 @@ func decodeStatTable(v *o.DefStatTable, things map[string]*d.ThingDef, terrains 
 		if err != nil {
 			return nil, err
 		}
+		if err := checkCosts(row, things); err != nil {
+			return nil, err
+		}
+		decoded.costs = row.Costs
 		out.terrains[name] = decoded
 	}
 	return out, nil
+}
+
+// checkCosts refuses an adjusted cost entry that names no known ThingDef or
+// has no units.
+func checkCosts(row *o.DefStatRow, things map[string]*d.ThingDef) error {
+	for _, cost := range row.Costs {
+		if validID(cost.GetDefName()) != nil || things[cost.GetDefName()] == nil || cost.GetUnits() <= 0 {
+			return contract("catalog cost of %s/%q names %q x %d", row.GetDefName(), row.GetStuffName(), cost.GetDefName(), cost.GetUnits())
+		}
+	}
+	return nil
 }
 
 // decodeStatRow is a row's finite values by stat name.
@@ -109,6 +128,59 @@ func (catalog *DefinitionCatalog) AdjustedCosts(def, stuff string) ([]*o.Quantit
 		return nil, contract("no stat values for def %s with stuff %q", def, stuff)
 	}
 	return row.costs, nil
+}
+
+// AllowedStuffs is the game's GenStuff.AllowedStuffsFor(def): the stuffs the
+// def can be made from, by name, empty for a def not made from stuff. A
+// catalog without the stat table is an error.
+func (catalog *DefinitionCatalog) AllowedStuffs(def string) ([]string, error) {
+	if catalog == nil || catalog.statValues == nil {
+		return nil, contract("definition catalog carries no stat values")
+	}
+	return catalog.statValues.stuffs[def], nil
+}
+
+// TerrainAdjustedCosts is the game's CostListAdjusted(null) of a TerrainDef;
+// an empty list is a free floor.
+func (catalog *DefinitionCatalog) TerrainAdjustedCosts(terrain string) ([]*o.Quantity, error) {
+	if catalog == nil || catalog.statValues == nil {
+		return nil, contract("definition catalog carries no stat values")
+	}
+	row, ok := catalog.statValues.terrains[terrain]
+	if !ok {
+		return nil, contract("no stat values for terrain %s", terrain)
+	}
+	return row.costs, nil
+}
+
+// TerrainWorkToBuild is the game's GetStatValueAbstract(WorkToBuild) of a
+// TerrainDef. The stat table does not show WorkToBuild for terrain, so it
+// is the value the game itself computes: the def's own statBases entry, else
+// the stat def's default. A stat table row that does show it wins.
+func (catalog *DefinitionCatalog) TerrainWorkToBuild(terrain string) (float32, error) {
+	if value, err := catalog.TerrainStatValue(terrain, StatWorkToBuild); err == nil {
+		return value, nil
+	}
+	if catalog.statValues == nil {
+		return 0, contract("definition catalog carries no stat values")
+	}
+	if _, ok := catalog.statValues.terrains[terrain]; !ok {
+		return 0, contract("no stat values for terrain %s", terrain)
+	}
+	row := catalog.TerrainDef(terrain)
+	if row == nil {
+		return 0, contract("catalog has no def row for terrain %s", terrain)
+	}
+	for _, m := range row.GetStatBases() {
+		if m.GetValue().GetStat() == StatWorkToBuild {
+			return m.GetValue().GetValue(), nil
+		}
+	}
+	stat := DefRow[*d.StatDef](catalog, StatWorkToBuild)
+	if stat == nil {
+		return 0, contract("catalog has no %s stat def", StatWorkToBuild)
+	}
+	return stat.GetDefaultBaseValue(), nil
 }
 
 // TerrainStatValue is the game's GetStatValueAbstract(stat) of a TerrainDef.

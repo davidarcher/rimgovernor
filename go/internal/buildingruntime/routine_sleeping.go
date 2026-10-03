@@ -494,13 +494,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// planned butchery) once the wood is in stock.
 		table := *r
 		table.definition = "TableButcher"
-		for _, d := range facts.Definitions {
-			if d.Name == table.definition {
-				if stuff, known := d.Stuff.Value(); known {
-					table.stuff = stuff
-				}
-			}
-		}
+		table.stuff = facts.BuildStuff(table.definition)
 		r = &table
 	}
 	if reason == BuildingExistingFacility {

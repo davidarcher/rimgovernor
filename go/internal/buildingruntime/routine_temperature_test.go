@@ -153,7 +153,7 @@ func temperatureFixture(t *testing.T, hot bool) (*RoutineBuildingPlanner, *store
 	// Safe reachable bed temperature can disappear while the actual room persists.
 	v.SleepingTemperatureMinC, v.SleepingTemperatureMaxC = nil, nil
 	for _, name := range []string{"Campfire", "PassiveCooler"} {
-		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+		n.putCatalog(buildable(name, 4, 1, 1))
 	}
 	base.reviewer.native = n
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureTemperatureSafety})

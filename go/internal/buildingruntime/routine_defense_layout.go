@@ -567,14 +567,28 @@ func defenseMortarRequest(read observation.RoutineReading) policy.DefenseRequest
 		if d.Name != defenseMortarDefinition {
 			continue
 		}
-		if costs, known := d.Costs.Value(); known {
-			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
-		}
-		if stuff, known := d.Stuff.Value(); known {
-			request.Mortar.Stuff = stuff
+		if price, ok := defenseUnitPrice(projection, d); ok {
+			request.UnitCosts[d.Name] = price.Costs
+			request.Mortar.Stuff = price.Stuff
 		}
 	}
 	return request
+}
+
+// defenseUnitPrice prices a defense unit (#1731): a def not made from stuff
+// from its cost list, a stuffed one from the allowed stocked stuff with the
+// most hit points per cost (a rich colony's plasteel falls out of this). Not
+// ok when a stuffed def has nothing stocked (an unknown stock stocks nothing)
+// or the rows cannot state the choice: the unit is then unpriced and the tier
+// does not place it.
+func defenseUnitPrice(projection observation.ColonyProjection, d observation.PlanningDefinition) (observation.StuffPrice, bool) {
+	stock, _ := projection.Stock()
+	price, err := d.StuffChoice(observation.MaxHitPointsPerCost, stock)
+	if err != nil {
+		clockSchedulerLog("defense-layout: %s unpriced: %v", d.Name, err)
+		return observation.StuffPrice{}, false
+	}
+	return price, true
 }
 
 // proposeMortars reads the census around the colony and sites the mortar
@@ -670,8 +684,9 @@ func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest
 		if d.Name != request.Turret.Definition && d.Name != defenseConduitDefinition {
 			continue
 		}
-		if costs, known := d.Costs.Value(); known {
-			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
+		price, priced := defenseUnitPrice(projection, d)
+		if priced {
+			request.UnitCosts[d.Name] = price.Costs
 		}
 		if d.Name != request.Turret.Definition {
 			continue
@@ -686,8 +701,8 @@ func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest
 			available = domain.Unknown[bool]()
 		}
 		request.Turret.Available = available
-		if stuff, known := d.Stuff.Value(); known {
-			request.Turret.Stuff = stuff
+		if priced {
+			request.Turret.Stuff = price.Stuff
 		}
 		if w, known := d.PowerW.Value(); known && w >= 0 {
 			request.Turret.DrawW = domain.Known(w)
@@ -1648,8 +1663,8 @@ func defenseIEDRequest(read observation.RoutineReading, request *policy.DefenseR
 			continue
 		}
 		request.IEDs = append(request.IEDs, policy.DefenseIED{Definition: d.Name, Radius: radius, Incendiary: d.Name == defenseIEDIncendiary})
-		if costs, known := d.Costs.Value(); known {
-			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
+		if price, ok := defenseUnitPrice(projection, d); ok {
+			request.UnitCosts[d.Name] = price.Costs
 		}
 	}
 	// The high-explosive IED is preferred where both fit.

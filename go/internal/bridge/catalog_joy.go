@@ -15,11 +15,11 @@ const StatMarketValue = "MarketValue"
 // JoyBuildings are the joy buildings the colony can build for recreation,
 // chosen by a rule over the catalog rows and never by name: a buildable
 // definition whose ThingDef gives a joy kind (BuildingProperties.joyKind),
-// with the power its planning row draws. The preference order is the joy one
+// with the power its power comp draws. The preference order is the joy one
 // session gives, most first: the JobDef joyGainRate times joyDuration of the
 // JoyGiverDef that offers the building (the best giver when several do);
 // ties go to the cheaper building (the market value of its adjusted costs
-// at the planning row's stuff), then to the name. A joy building no
+// at its cheapest stuff), then to the name. A joy building no
 // JoyGiverDef offers, a giver without its job row and a cost the stat table
 // cannot value are contract errors. Research and builders are the planner's
 // to check.
@@ -55,27 +55,24 @@ func (catalog *DefinitionCatalog) rankedJoyBuildings() ([]rankedJoyBuilding, err
 		return nil, err
 	}
 	var found []rankedJoyBuilding
-	for name, planning := range catalog.Definitions {
-		row := catalog.ThingDefs[name]
-		if row == nil {
-			if planning.GetTerrain() {
-				continue
-			}
-			return nil, contract("catalog has no def row for %s", name)
-		}
+	for name, row := range catalog.ThingDefs {
 		kind := row.GetBuilding().GetJoyKind()
-		if kind == "" {
+		if kind == "" || !Buildable(row) {
 			continue
 		}
 		joy, offered := sessions[name]
 		if !offered {
 			return nil, contract("joy building %s is offered by no joy giver", name)
 		}
-		cost, err := catalog.costValue(name, planning.GetStuff())
+		cost, err := catalog.CheapestCostValue(name)
 		if err != nil {
 			return nil, err
 		}
-		found = append(found, rankedJoyBuilding{policy.JoyBuildingMethod{Definition: name, Kind: kind, PowerW: math.Max(0, planning.GetPowerW())}, row, joy, cost})
+		watts, _, err := catalog.PowerDraw(row)
+		if err != nil {
+			return nil, err
+		}
+		found = append(found, rankedJoyBuilding{policy.JoyBuildingMethod{Definition: name, Kind: kind, PowerW: math.Max(0, watts)}, row, joy, cost})
 	}
 	slices.SortFunc(found, func(a, b rankedJoyBuilding) int {
 		return cmp.Or(cmp.Compare(b.joy, a.joy), cmp.Compare(a.cost, b.cost), cmp.Compare(a.method.Definition, b.method.Definition))
@@ -156,6 +153,9 @@ func (catalog *DefinitionCatalog) joyPerSession() (map[string]float64, error) {
 		}
 		joy := float64(job.GetJoyGainRate()) * float64(job.GetJoyDuration())
 		for _, building := range row.GetThingDefs() {
+			if catalog.ThingDefs[building] == nil {
+				return nil, contract("joy giver %s offers %s, which the catalog has no def row for", name, building)
+			}
 			if best, seen := out[building]; !seen || joy > best {
 				out[building] = joy
 			}

@@ -186,7 +186,7 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	t.Parallel()
 	ladder := &RoutineBuildingPlanner{goal: policy.EnsureResearch, definition: "Wall", shelter: true}
 	definition := func(available domain.Fact[bool]) []observation.PlanningDefinition {
-		return []observation.PlanningDefinition{{Name: policy.ResearchBenchDefinition, Available: available, NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}}
+		return []observation.PlanningDefinition{{Name: policy.ResearchBenchDefinition, Available: available, NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}
 	}
 	for _, test := range []struct {
 		name   string

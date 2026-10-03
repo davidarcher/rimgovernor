@@ -15,7 +15,6 @@ type PlanningDefinition struct {
 	RawPreferred, DietAllowed, RequiresPollution, RequiresCleanSoil domain.Fact[bool]
 	Name                                                            string
 	Edible                                                          domain.Fact[bool]
-	Stuff                                                           domain.Fact[string]
 	Available                                                       domain.Fact[bool]
 	ConstructionSkill                                               domain.Fact[int32]
 	NeedsPower                                                      domain.Fact[bool]
@@ -44,8 +43,13 @@ type PlanningDefinition struct {
 	// WorkToBuild is the native WorkToBuild stat (work ticks) for the row's
 	// stuff (#950).
 	WorkToBuild domain.Fact[float64]
-	// StuffOptions are every native allowed stuff with its cost list,
-	// ordered by defName; empty for a definition not made from stuff.
+	// Stuffed is whether the def is made from stuff (it has stuff
+	// categories). A stuffed def has no single cost list: Costs is unknown
+	// and StuffChoice prices it from StuffOptions.
+	Stuffed bool
+	// StuffOptions are every allowed stuff with its cost list and stat
+	// values, ordered by defName; empty for a definition not made from
+	// stuff, and for a stuffed one nothing is allowed to make it from.
 	StuffOptions []StuffOption
 	// RoomRoles are the room-role furniture roles the native catalog
 	// assigns the definition (policy.FurnitureRole names), sorted.
@@ -56,6 +60,11 @@ type PlanningDefinition struct {
 type StuffOption struct {
 	Stuff string
 	Costs []policy.Amount
+	// Value is the market value of Costs: what the cheapest criterion ranks by.
+	Value float64
+	// Stats are the stat values the game shows for the def made of this stuff
+	// (the StuffChoice criteria); a stat the game does not show is absent.
+	Stats map[string]float64
 }
 type ColonyProjection struct {
 	DeepResources domain.Fact[DeepResources]
@@ -576,38 +585,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	// r.Facts.Gear needs the catalog: ObserveColony fills it (#1732).
 	return r, nil
-}
-
-// planningDefinition decodes one catalog definition row: its static
-// facts, without availability or the map's crop facts.
-func planningDefinition(row *o.PlanningDefinition) PlanningDefinition {
-	d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), Pollutes: optional(row.Pollutes), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), ExplosiveRadius: optional(row.ExplosiveRadius), MechCharger: optional(row.MechCharger), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
-	d.RoomRoles = append([]string{}, row.RoomRoles...)
-	if row.GrowDays != nil {
-		d.SowTags = domain.Known(append([]string{}, row.SowTags...))
-	}
-	if row.Size != nil {
-		d.Size = domain.Known(policy.Bounds{Width: int32(row.Size.GetWidth()), Height: int32(row.Size.GetHeight())})
-	}
-	known := !hasIssue(row.Issues, "costs")
-	var costs []policy.Amount
-	for _, q := range row.Costs {
-		if q.Units == nil {
-			known = false
-		}
-		costs = append(costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
-	}
-	if known {
-		d.Costs = domain.Known(costs)
-	}
-	for _, option := range row.StuffOptions {
-		entry := StuffOption{Stuff: option.GetStuff()}
-		for _, q := range option.Costs {
-			entry.Costs = append(entry.Costs, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
-		}
-		d.StuffOptions = append(d.StuffOptions, entry)
-	}
-	return d
 }
 
 func cellsOf(rows []*c.Cell) []domain.Cell {

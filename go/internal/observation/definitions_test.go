@@ -3,6 +3,7 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -14,13 +15,16 @@ import (
 // is unavailable.
 func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
 	catalog := testCatalog(
-		&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}},
-		&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Battery")}, ResearchPrerequisites: []string{"Batteries"}},
-		&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, GrowDays: proto.Float64(3)},
+		bridge.FixtureDef{Name: "Wall"},
+		bridge.FixtureDef{Name: "Battery", Research: []string{"Batteries"}},
+		bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, SowTags: []string{"Ground"}}},
 	)
 	crops := map[string]*o.EdibleCrop{"Plant_Rice": {DefName: proto.String("Plant_Rice"), NutritionDemandPerDay: proto.Float64(4), DietAllowed: proto.Bool(true)}}
 	names := []string{"Wall", "Battery", "Plant_Rice", "Missing", "Wall"}
-	unknown := definitionFacts{catalog: catalog, crops: crops}.appendDefinitions(nil, names)
+	unknown, err := definitionFacts{catalog: catalog, crops: crops}.appendDefinitions(nil, names)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(unknown) != 4 || unknown[0].Available != domain.Known(true) || unknown[1].Available != domain.Unknown[bool]() || unknown[3].Available != domain.Known(false) {
 		t.Fatalf("without research: %+v", unknown)
 	}
@@ -28,23 +32,23 @@ func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
 		t.Fatalf("crop facts: %+v", unknown[2])
 	}
 	for finished, want := range map[string]bool{"": false, "Batteries": true} {
-		got := definitionFacts{catalog: catalog, finished: finishedSet([]string{finished})}.resolve("Battery")
+		got, err := definitionFacts{catalog: catalog, finished: finishedSet([]string{finished})}.resolve("Battery")
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got.Available != domain.Known(want) {
 			t.Fatalf("finished %q: %v", finished, got.Available)
 		}
 	}
 }
 
-// TestPlanningDefinitionDecodesPollutes (#1684): the native pollutes flag is
-// a known fact when present and unknown when absent.
-func TestPlanningDefinitionDecodesPollutes(t *testing.T) {
-	yes := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Toxifier")}, Pollutes: proto.Bool(true)})
-	no := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Pollutes: proto.Bool(false)})
-	absent := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Rice")}})
-	if yes.Pollutes != domain.Known(true) || no.Pollutes != domain.Known(false) {
-		t.Fatalf("known flags: %+v %+v", yes.Pollutes, no.Pollutes)
-	}
-	if _, known := absent.Pollutes.Value(); known {
-		t.Fatal("absent flag decoded as known")
+// A row the view needs and the catalog lacks fails the resolve (#1731): a
+// plant whose harvested product the catalog has no row for is no default.
+func TestDefinitionsFailWhenARowTheViewNeedsIsMissing(t *testing.T) {
+	catalog := testCatalog(bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, SowTags: []string{"Ground"}}})
+	wire := catalog.ThingDefs["Plant_Rice"]
+	wire.Plant.HarvestedThingDef = "Rice_Missing"
+	if _, err := (definitionFacts{catalog: catalog}).resolve("Plant_Rice"); err == nil {
+		t.Fatal("a plant harvesting a def with no row resolved")
 	}
 }

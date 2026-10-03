@@ -28,9 +28,11 @@ func shelterSiteFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *s
 		}
 	}
 	for _, name := range []string{"Wall", "Door"} {
-		n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
+		n.putCatalog(buildable(name, 0, 1, 1))
 	}
-	n.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
+	bed := buildable("Bed", 0, 1, 2)
+	bed.Stuffs = []bridge.FixtureStuff{{Stuff: "WoodLog"}}
+	n.putCatalog(bed)
 	n.cells.Region = policy.Rectangle{Width: 9, Height: 9}
 	n.cells.Cells = nil
 	for x := int32(0); x < 9; x++ {
@@ -249,7 +251,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 			}
 			switch change {
 			case "definition":
-				n.catalogRow("Door").Size.Width = proto.Uint32(2)
+				n.catalogRow("Door").Width = 2
 			case "room-unknown":
 				n.cells.Cells[40].Indoors = domain.Unknown[bool]()
 			case "terrain":

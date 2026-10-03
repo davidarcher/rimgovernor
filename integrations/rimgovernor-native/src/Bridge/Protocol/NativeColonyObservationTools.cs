@@ -484,14 +484,22 @@ namespace HomeBridge.BridgeTools
         // Biotech-less games define none of them, so the list is empty. The
         // reference assembly carries no method bodies, so the room role
         // workers' own counting is unverified against these rules.
-        private static IEnumerable<string> RoomRoles(ThingDef def)
+        // The roles the game's room-role workers score by ThingDefOf name (#1731),
+        // sorted: the part of the room roles Go cannot derive from the def rows.
+        internal static IEnumerable<string> GameRoomRoles(ThingDef def)
         {
             var roles = new List<string>();
-            if (def.building?.bed_crib == true) roles.Add("BabyBed");
             if (def == ThingDefOf.BabyDecoration) roles.Add("Decoration");
             if (def == ThingDefOf.Blackboard) roles.Add("Board");
             if (def == ThingDefOf.SchoolDesk) roles.Add("Desk");
             if (def == ThingDefOf.ToyBox) roles.Add("Toy");
+            roles.Sort(StringComparer.Ordinal);
+            return roles;
+        }
+        private static IEnumerable<string> RoomRoles(ThingDef def)
+        {
+            var roles = new List<string>(GameRoomRoles(def));
+            if (def.building?.bed_crib == true) roles.Add("BabyBed");
             if (def.GetCompProperties<CompProperties_DeathrestBindable>() != null)
                 roles.Add(typeof(Building_Bed).IsAssignableFrom(def.thingClass) ? "DeathrestCasket" : "DeathrestAccelerator");
             roles.Sort(StringComparer.Ordinal);

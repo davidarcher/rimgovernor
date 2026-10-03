@@ -227,12 +227,7 @@ func zoneShelves(ctx context.Context, journal *store.Store, goal domain.GoalID, 
 func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, need policy.GoalID, reading observation.RoutineReading, step policy.ShelfStep, index int) (RoutineStorageShelvesResult, error) {
 	p := r.reviewer.player
 	facts := reading.Projection
-	stuff := ""
-	for _, d := range facts.Definitions {
-		if d.Name == policy.ShelfDefinition {
-			stuff, _ = d.Stuff.Value()
-		}
-	}
+	stuff := facts.BuildStuff(policy.ShelfDefinition)
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1

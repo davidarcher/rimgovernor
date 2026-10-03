@@ -148,16 +148,7 @@ func animalContainmentDefinition(definitions []observation.PlanningDefinition, n
 // animalContainmentStuff ports enclosure_site's shared-material requirement:
 // Fence and FenceGate must observe the same optional stuff, known or not.
 func animalContainmentStuff(a, b observation.PlanningDefinition) (string, bool) {
-	as, ak := a.Stuff.Value()
-	bs, bk := b.Stuff.Value()
-	switch {
-	case ak && bk:
-		return as, as == bs
-	case !ak && !bk:
-		return "", true
-	default:
-		return "", false
-	}
+	return observation.SharedStuff(a, b)
 }
 
 // animalContainmentDevelopmentGated reports whether an unselected
@@ -538,10 +529,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	if !avail {
 		return RoutineAnimalContainmentResult{Verdict: awaitingPlan("pen_marker", "unbuildable")}, nil
 	}
-	stuff := ""
-	if s, sk := markerDef.Stuff.Value(); sk {
-		stuff = s
-	}
+	stuff := facts.BuildStuff("PenMarker")
 	var cells []policy.SiteCell
 	for _, c := range facts.Cells {
 		if c.Cell.X > room.X && c.Cell.X < room.X+room.Width-1 && c.Cell.Z > room.Z && c.Cell.Z < room.Z+room.Height-1 {

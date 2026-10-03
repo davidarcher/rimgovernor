@@ -52,6 +52,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.ThingDefFacts Facts(ThingDef d)
         {
             var row = new Obs.ThingDefFacts { DefName = d.defName, RawMeat = d.IsMeat, Medicine = d.IsMedicine };
+            row.RoomRoles.Add(NativeColonyObservationTools.GameRoomRoles(d));
             if (!IsFood(d)) return row;
             var kind = Kind(d);
             row.FoodKind = kind;

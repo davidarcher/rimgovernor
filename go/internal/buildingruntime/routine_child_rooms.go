@@ -31,13 +31,16 @@ func worshipDefinitions(facts observation.ColonyProjection) []string {
 // projection's definitions so the planners size and place them from the
 // catalog, and remembers the buildings for the planners' own reads (#1658).
 // Room-role furniture rides every routine reading (the catalog names it).
-func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) {
+func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) error {
 	worship := worshipDefinitions(reading.Projection)
-	reading.Projection.AddDefinitions(reading.Frame, slices.Concat(worship, containmentDefinitions(reading.Projection)))
+	if err := reading.Projection.AddDefinitions(reading.Frame, slices.Concat(worship, containmentDefinitions(reading.Projection))); err != nil {
+		return err
+	}
 	r.census.rememberWorship(worship)
 	if _, verdict := containmentCellNeed(reading.Projection); verdict.Reason != "" {
 		clockSchedulerLog("containment cell not planned: %s", verdict.Reason)
 	}
+	return nil
 }
 
 // containmentDefinitions are the holding platform the containment cell

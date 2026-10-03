@@ -27,7 +27,7 @@ func (r *RoutineBuildingPlanner) selectPaste(p observation.ColonyProjection) (*R
 	request := policy.PasteSiteRequest{Meals: meals, Benches: p.ProductionBenches, Power: p.PowerPlanning}
 	for _, d := range p.Definitions {
 		if d.Name == "Hopper" {
-			request.Hopper = domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, Costs: d.Costs})
+			request.Hopper = domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, Costs: d.CheapestCosts()})
 		}
 		if d.Name == "NutrientPasteDispenser" {
 			request.Size = d.Size

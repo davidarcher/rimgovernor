@@ -91,13 +91,7 @@ func (r *RoutineBuildingPlanner) selectHospital(facts observation.ColonyProjecti
 	resolved.definition = choice.Definition
 	resolved.environment = policy.PlacementIndoors
 	resolved.facility = &facility
-	for _, d := range facts.Definitions {
-		if d.Name == resolved.definition {
-			if stuff, known := d.Stuff.Value(); known {
-				resolved.stuff = stuff
-			}
-		}
-	}
+	resolved.stuff = facts.BuildStuff(resolved.definition)
 	return &resolved, Verdict{}, nil
 }
 

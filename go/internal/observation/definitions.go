@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -85,25 +86,32 @@ func cropRows(planning *o.PlanningFacts) map[string]*o.EdibleCrop {
 
 // appendDefinitions appends to held the resolved row of every name it
 // does not already hold.
-func (f definitionFacts) appendDefinitions(held []PlanningDefinition, names []string) []PlanningDefinition {
+func (f definitionFacts) appendDefinitions(held []PlanningDefinition, names []string) ([]PlanningDefinition, error) {
 	for _, name := range names {
 		if slices.ContainsFunc(held, func(d PlanningDefinition) bool { return d.Name == name }) {
 			continue
 		}
-		held = append(held, f.resolve(name))
+		row, err := f.resolve(name)
+		if err != nil {
+			return held, err
+		}
+		held = append(held, row)
 	}
-	return held
+	return held, nil
 }
 
-// resolve is name's planning row: the catalog's static facts, available
-// when every research prerequisite is finished, with the map's crop facts.
-// A name the catalog lacks is unavailable.
-func (f definitionFacts) resolve(name string) PlanningDefinition {
-	row := f.catalog.Definition(name)
-	if row == nil {
-		return PlanningDefinition{Name: name, Available: domain.Known(false)}
+// resolve is name's planning row: the view over the catalog's def rows,
+// available when every research prerequisite is finished, with the map's crop
+// facts. A name the catalog does not list as buildable or sowable is
+// unavailable; a row the view needs and the catalog lacks is an error.
+func (f definitionFacts) resolve(name string) (PlanningDefinition, error) {
+	d, listed, err := planningView(f.catalog, name)
+	if err != nil {
+		return PlanningDefinition{}, fmt.Errorf("planning definition %s: %w", name, err)
 	}
-	d := planningDefinition(row)
+	if !listed {
+		return PlanningDefinition{Name: name, Available: domain.Known(false)}, nil
+	}
 	if finished, known := f.finished.Value(); known {
 		available := true
 		for _, prerequisite := range d.Research {
@@ -117,5 +125,5 @@ func (f definitionFacts) resolve(name string) PlanningDefinition {
 		d.NutritionDemandPerDay = optional(crop.NutritionDemandPerDay)
 		d.DietAllowed = optional(crop.DietAllowed)
 	}
-	return d
+	return d, nil
 }

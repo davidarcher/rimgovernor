@@ -76,7 +76,7 @@ func sleepingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *play
 func sleepingFacts(n *routineNative) {
 	v := n.reply.GetObserved()
 	v.Center = &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
-	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("SleepingSpot")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}}}
+	n.catalog = []bridge.FixtureDef{buildable("SleepingSpot", 0, 1, 2)}
 	cells := n.cells
 	cells.Region = policy.Rectangle{Width: 5, Height: 5}
 	cells.Cells = nil
@@ -138,7 +138,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
 			switch change {
 			case "prerequisite":
-				n.catalog[0].ConstructionSkill = nil
+				n.catalog[0].ConstructionSkill = 20 // beyond every builder
 			case "unknown-room":
 				for i := range n.cells.Cells {
 					n.cells.Cells[i].Indoors = domain.Unknown[bool]()

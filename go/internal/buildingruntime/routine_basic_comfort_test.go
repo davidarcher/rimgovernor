@@ -16,7 +16,7 @@ func TestRecreationVarietyUsesComfortLayoutAndPowerAtSite(t *testing.T) {
 	}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known[int64](2), BasicComfort: domain.Known(v)}, WorkPawns: domain.Known([]policy.WorkPawn{{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}})}})}
 	for _, name := range []string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"} {
-		f.Definitions = append(f.Definitions, observation.PlanningDefinition{Name: name, Available: domain.Known(true), ConstructionSkill: domain.Known[int32](0), Stuff: domain.Known("WoodLog")})
+		f.Definitions = append(f.Definitions, observation.PlanningDefinition{Name: name, Available: domain.Known(true), ConstructionSkill: domain.Known[int32](0), Stuffed: true, StuffOptions: madeOf("WoodLog")})
 	}
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortBasic}
 	check := func(want string) {
@@ -62,7 +62,7 @@ func TestBasicComfortFurnishesAnyRoomAndSitesRecreationAnywhere(t *testing.T) {
 	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin"}
 	// The hosted census is empty (the hut is a barracks); the foothold goal
 	// reads the unfiltered one.
-	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(policy.ComfortObservation{People: people}), BasicComfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}
+	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(policy.ComfortObservation{People: people}), BasicComfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuffed: true, StuffOptions: madeOf("WoodLog")}, {Name: "DiningChair", Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
 	selected, reason, err := planner.selectBasicComfort(facts)
 	if err != nil || !reason.IsZero() || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility != nil {
 		t.Fatal(selected, reason, err)

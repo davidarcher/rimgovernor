@@ -20,20 +20,20 @@ import (
 // research) that is the recreation foothold.
 func joyCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	t.Helper()
-	building := func(name, kind string, research ...string) *d.ThingDef {
-		return &d.ThingDef{DefName: name, Building: &d.BuildingProperties{JoyKind: kind}, ResearchPrerequisites: research}
-	}
-	planning := func(name string, powerW float64) *o.PlanningDefinition {
-		row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}
+	building := func(name, kind string, powerW float32, research ...string) *d.ThingDef {
+		row := &d.ThingDef{DefName: name, DesignationCategory: "Joy", Building: &d.BuildingProperties{JoyKind: kind}, ResearchPrerequisites: research}
+		if name == "BilliardsTable" {
+			row.DesignationCategory = ""
+		}
 		if powerW > 0 {
-			row.PowerW = proto.Float64(powerW)
+			row.Comps = []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{BasePowerConsumption: powerW}}}}}
 		}
 		return row
 	}
+	powerClass, _ := proto.GetExtension((&d.CompProperties_Power{}).ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 	v := &o.DefinitionCatalog{
-		ThingDefs:   []*d.ThingDef{building("TubeTelevision", "Television", "TubeTelevision"), building("ChessTable", "Cerebral", "ComplexFurniture"), building("BilliardsTable", "Dexterity"), building("HorseshoesPin", "Dexterity")},
-		Definitions: []*o.PlanningDefinition{planning("TubeTelevision", 100), planning("ChessTable", 0), planning("HorseshoesPin", 0)},
-		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.JoyGiver_InteractBuildingSitAdjacent", Bases: []string{"RimWorld.JoyGiver"}}},
+		ThingDefs:   []*d.ThingDef{building("TubeTelevision", "Television", 100, "TubeTelevision"), building("ChessTable", "Cerebral", 0, "ComplexFurniture"), building("BilliardsTable", "Dexterity", 0), building("HorseshoesPin", "Dexterity", 0)},
+		ClassChains: []*o.ClassChain{{Name: powerClass}, {Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}, {Name: "RimWorld.JoyGiver_InteractBuildingSitAdjacent", Bases: []string{"RimWorld.JoyGiver"}}},
 		StatValues:  &o.DefStatTable{Rows: []*o.DefStatRow{{DefName: "TubeTelevision"}, {DefName: "ChessTable"}, {DefName: "BilliardsTable"}, {DefName: "HorseshoesPin"}}},
 	}
 	v.Defs = &d.DefSets{

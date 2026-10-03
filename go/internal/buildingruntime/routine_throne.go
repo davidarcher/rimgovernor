@@ -32,23 +32,26 @@ type RoyaltyNative interface {
 // client holds them for RoyaltyRefreshTicks), resolves the ladder's throne
 // definitions from the review's catalog and remembers the read for the
 // planners. A failed read leaves royalty unknown.
-func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) {
+func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) error {
 	projection := &reading.Projection
 	native, ok := r.native.(RoyaltyNative)
 	if !ok || !r.methodEnabled(policy.MaintainHousing) && !r.methodEnabled(policy.MaintainPsylink) && !r.moodCasts {
-		return
+		return nil
 	}
 	facts, err := native.RoyaltyFacts(ctx, controlIdentity(snapshot), int64(projection.Identity.Tick))
 	if err != nil {
 		clockSchedulerLog("royalty read deferred: %v", err)
-		return
+		return nil
 	}
 	if facts == nil {
-		return
+		return nil
 	}
 	projection.Royalty = domain.Known(*facts)
-	projection.AddDefinitions(reading.Frame, throneThings(*facts))
+	if err := projection.AddDefinitions(reading.Frame, throneThings(*facts)); err != nil {
+		return err
+	}
 	r.census.rememberRoyalty(projection.Identity, projection.Royalty)
+	return nil
 }
 
 // throneThings is every throne definition the ladder names, sorted.

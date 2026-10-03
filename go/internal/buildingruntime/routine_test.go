@@ -41,7 +41,7 @@ type routineNative struct {
 	cells *bridge.PlanningWindow
 	// catalog is the definition catalog's rows (#1340); finished, when
 	// set, is the frame's finished research.
-	catalog  []*o.PlanningDefinition
+	catalog  []bridge.FixtureDef
 	finished []string
 	// recipes are the def mirror's RecipeDef rows.
 	recipes []*d.RecipeDef
@@ -77,7 +77,6 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 		// The one joy building every fake colony can build: a watch-building
 		// pin that draws no power and needs no research, the recreation
 		// foothold.
-		Definitions: []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("HorseshoesPin")}, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}},
 		ClassChains: []*o.ClassChain{{Name: "RimWorld.JoyGiver_WatchBuilding", Bases: []string{"RimWorld.JoyGiver"}}},
 		Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}},
 			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
@@ -171,16 +170,16 @@ func (n *routineNative) finishedResearch() []string { return n.finished }
 
 // DefinitionCatalog serves the fake's catalog rows under the asked load.
 func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
-	// The decoded frame catalog (the joy foothold and its giver, the stat
-	// table) under the fake's planning rows.
-	catalog := n.thingCatalog().FixtureItemFacts(policy.CoreItemFacts())
-	catalog.LoadToken = id.GetLoadToken()
-	for _, row := range n.catalog {
-		catalog.Definitions[row.GetDefinition().GetDefName()] = row
-	}
+	// The fake's rows beside the one joy building every fake colony can
+	// build: a watch-building pin that draws no power and needs no research,
+	// the recreation foothold.
+	foothold := bridge.FixtureDef{Name: "HorseshoesPin", Joy: &bridge.FixtureJoy{Kind: "Gaming_Dexterity", WatchGiver: true}}
+	catalog := testCatalog(id, append([]bridge.FixtureDef{foothold}, n.catalog...)...)
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
 	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {
-		catalog.ThingDefs[row.DefName] = row
+		if catalog.ThingDefs[row.DefName] == nil {
+			catalog.ThingDefs[row.DefName] = row
+		}
 	}
 	if len(n.recipes) > 0 {
 		rows := map[string]proto.Message{}
@@ -192,37 +191,39 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 	return catalog, nil
 }
 
-// testCatalog is a definition catalog of rows under id's load.
-func testCatalog(id *c.Identity, rows ...*o.PlanningDefinition) *bridge.DefinitionCatalog {
-	catalog := &bridge.DefinitionCatalog{LoadToken: id.GetLoadToken(), Definitions: map[string]*o.PlanningDefinition{}}
-	for _, row := range rows {
-		catalog.Definitions[row.GetDefinition().GetDefName()] = row
-	}
-	return catalog.FixtureItemFacts(policy.CoreItemFacts())
+// testCatalog is a definition catalog of fixture defs under id's load.
+func testCatalog(id *c.Identity, rows ...bridge.FixtureDef) *bridge.DefinitionCatalog {
+	return bridge.FixtureCatalog(id.GetLoadToken(), rows...).FixtureItemFacts(policy.CoreItemFacts())
+}
+
+// madeOf is the stuff options of a def built from one stuff.
+func madeOf(stuff string) []observation.StuffOption {
+	return []observation.StuffOption{{Stuff: stuff}}
+}
+
+// buildable is a plain buildable fixture def of the given construction skill
+// and size.
+func buildable(name string, skill, width, height int32) bridge.FixtureDef {
+	return bridge.FixtureDef{Name: name, ConstructionSkill: skill, Width: width, Height: height}
 }
 
 // putCatalog replaces or appends catalog rows by name.
-func (n *routineNative) putCatalog(rows ...*o.PlanningDefinition) {
+func (n *routineNative) putCatalog(rows ...bridge.FixtureDef) {
 	for _, row := range rows {
-		n.catalogRow(row.GetDefinition().GetDefName())
-		for i, held := range n.catalog {
-			if held.GetDefinition().GetDefName() == row.GetDefinition().GetDefName() {
-				n.catalog[i] = row
-			}
-		}
+		*n.catalogRow(row.Name) = row
 	}
 }
 
-// catalogRow is a catalog row by name, appended when absent.
-func (n *routineNative) catalogRow(name string) *o.PlanningDefinition {
-	for _, row := range n.catalog {
-		if row.GetDefinition().GetDefName() == name {
-			return row
+// catalogRow is a catalog row by name, appended when absent; the pointer is
+// good until the next append.
+func (n *routineNative) catalogRow(name string) *bridge.FixtureDef {
+	for i := range n.catalog {
+		if n.catalog[i].Name == name {
+			return &n.catalog[i]
 		}
 	}
-	row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}}
-	n.catalog = append(n.catalog, row)
-	return row
+	n.catalog = append(n.catalog, bridge.FixtureDef{Name: name})
+	return &n.catalog[len(n.catalog)-1]
 }
 
 // ReadPlanningWindow serves the fake's planning window whatever region is
@@ -450,9 +451,7 @@ func TestRoutineReviewerUsesConfiguredFieldReserve(t *testing.T) {
 	v := n.reply.GetObserved()
 	v.Issues = v.Issues[1:] // Complete native farm census replaces its unavailable issue.
 	v.Farms = []*o.FarmFacts{{Zone: &c.Ref{Id: proto.String("farm")}, Crop: proto.String("Plant_Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73), PlantedCells: proto.Uint32(73), UsableCells: proto.Uint32(73)}}
-	d := n.catalog[0]
-	d.Definition.DefName = proto.String("Plant_Rice")
-	d.GrowDays, d.HarvestNutrition = proto.Float64(3), proto.Float64(1)
+	n.catalog[0] = bridge.FixtureDef{Name: "Plant_Rice", Plant: &bridge.FixturePlant{GrowDays: 3, HarvestNutrition: 1}}
 	for _, reserve := range []float64{7, 14, 7} {
 		r.policy.FoodTargetDays = reserve
 		out, err := r.Step(context.Background())
@@ -505,7 +504,7 @@ func colonyCoreNative(t *testing.T) *routineNative {
 		t.Fatal(err)
 	}
 	n.cells = fixtureCells(t)
-	n.catalog = []*o.PlanningDefinition{{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}, Costs: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(5)}}}}
+	n.catalog = []bridge.FixtureDef{{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}}
 	return n
 }
 

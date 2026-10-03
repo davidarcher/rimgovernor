@@ -179,7 +179,7 @@ func TestAnimalHandlerAvailableUnknownOnUnresolvedFacts(t *testing.T) {
 
 func TestAnimalContainmentStuffRequiresSharedOrBothAbsentMaterial(t *testing.T) {
 	known := func(v string) observation.PlanningDefinition {
-		return observation.PlanningDefinition{Stuff: domain.Known(v)}
+		return observation.PlanningDefinition{Stuffed: true, StuffOptions: madeOf(v)}
 	}
 	unknown := observation.PlanningDefinition{}
 	if stuff, ok := animalContainmentStuff(known("WoodLog"), known("WoodLog")); !ok || stuff != "WoodLog" {

@@ -54,10 +54,14 @@ func bedReplacement(facts observation.ColonyProjection) (policy.BedReplacement, 
 	materials := policy.BedMaterials{Cost: map[policy.Resource]int64{}, Items: facts.Facts.Items}
 	materials.Stock, _ = facts.Resources.Value()
 	for _, d := range facts.Definitions {
-		stuff, sk := d.Stuff.Value()
-		costs, ck := d.Costs.Value()
-		for _, c := range costs {
-			if sk && ck && c.Resource == policy.Resource(stuff) {
+		// A bed's stuff is the allowed stocked one with the best rest
+		// effectiveness (#1731); a def with no rest effectiveness is no bed.
+		price, err := d.StuffChoice(observation.MaxRestEffectiveness, materials.Stock)
+		if err != nil || price.Stuff == "" {
+			continue
+		}
+		for _, c := range price.Costs {
+			if c.Resource == policy.Resource(price.Stuff) {
 				materials.Cost[policy.Resource(d.Name)] = c.Count
 			}
 		}
@@ -189,9 +193,13 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	stuff := u.Stuff
-	for _, d := range facts.Definitions {
-		if stuff == "" && d.Name == u.Def {
-			stuff, _ = d.Stuff.Value()
+	if stuff == "" {
+		stuff = facts.BuildStuff(u.Def)
+		if d, found := facts.Definition(u.Def); found {
+			stock, _ := facts.Stock()
+			if price, err := d.StuffChoice(observation.MaxRestEffectiveness, stock); err == nil {
+				stuff = price.Stuff
+			}
 		}
 	}
 	snapshot := state.Snapshot

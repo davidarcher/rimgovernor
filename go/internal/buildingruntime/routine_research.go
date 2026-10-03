@@ -97,9 +97,7 @@ func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyPro
 	resolved.definition = policy.ResearchBenchDefinition
 	resolved.environment = policy.PlacementIndoors
 	resolved.facility = &facility
-	if stuff, known := definition.Stuff.Value(); known {
-		resolved.stuff = stuff
-	}
+	resolved.stuff = facts.BuildStuff(policy.ResearchBenchDefinition)
 	return &resolved, Verdict{}, nil
 }
 

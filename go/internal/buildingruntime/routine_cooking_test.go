@@ -23,7 +23,7 @@ func cookingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 		}
 	}
 	v.Issues = issues
-	native.catalog[0].Definition.DefName = proto.String("Campfire")
+	native.catalog[0].Name = "Campfire"
 	if _, err := sleeping.reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 				v.Cooking = []*o.CookingFacts{bench}
 			case "definition":
 				want = fieldUnavailable("Campfire_availability")
-				native.catalog[0].ResearchPrerequisites = []string{"Unfinished"}
+				native.catalog[0].Research = []string{"Unfinished"}
 			}
 			result, err := p.Step(context.Background())
 			if err != nil || result.Verdict != want || result.Decision.Admitted {

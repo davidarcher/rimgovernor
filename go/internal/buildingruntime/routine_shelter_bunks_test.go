@@ -102,11 +102,7 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
-	for _, d := range n.catalog {
-		if d.Definition.GetDefName() == "Bed" {
-			d.ResearchPrerequisites = []string{"Beds"}
-		}
-	}
+	n.catalogRow("Bed").Research = []string{"Beds"}
 	first, err := r.Step(ctx)
 	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)

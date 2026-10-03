@@ -11,11 +11,7 @@ import (
 func TestRoutinePowerReportsTheResearchItWaitsOn(t *testing.T) {
 	t.Parallel()
 	p, _, n, _ := powerFixture(t, false)
-	for _, d := range n.catalog {
-		if d.Definition.GetDefName() == "WoodFiredGenerator" {
-			d.ResearchPrerequisites = []string{"Electricity"}
-		}
-	}
+	n.catalogRow("WoodFiredGenerator").Research = []string{"Electricity"}
 	n.finished = []string{}
 	result, err := p.Step(context.Background())
 	if err != nil || result.Verdict != researchWait("Electricity") {

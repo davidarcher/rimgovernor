@@ -65,7 +65,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	}
 	planner.workshop = selection
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{
-		{Name: "FabricationBench", Available: domain.Known(true), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("")},
+		{Name: "FabricationBench", Available: domain.Known(true), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(0))},
 		{Name: "WoodFiredGenerator", Available: domain.Known(true)},
 	}}
 	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
@@ -87,7 +87,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 		t.Fatal(selection, reason, err)
 	}
 	planner.workshop = selection
-	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}}}
+	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
 	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
 	if err != nil || !reason.IsZero() || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
 		t.Fatal(bench, reason, err)
@@ -191,7 +191,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	planner, session, _ := workshopFixture(t)
 	planner.workshop = &workshopSelection{resource: "MeleeWeapon_Club", hosts: []policy.RecipeHost{clubRecipe, {Definition: "Make_Club_Powered", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: true, Benches: []string{"FabricationBench"}}}, candidates: []string{"CraftingSpot", "FabricationBench"}}
 	definition := func(name string, available, powered bool) observation.PlanningDefinition {
-		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(powered), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("")}
+		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(powered), ConstructionSkill: domain.Known(int32(0))}
 	}
 	ctx := context.Background()
 	state := session.State()

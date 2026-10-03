@@ -20,26 +20,24 @@ func containmentPlanning(frame bridge.RoutineFrame, definitions []PlanningDefini
 	}
 	out.Demand = containmentDemand(frame.Tables.Pawns.Values())
 	out.Holders = builtHolders(frame.Tables.Buildings.Values())
-	definition := func(name string) (stuff string, reason string) {
+	definition := func(name string) (PlanningDefinition, string) {
 		for _, d := range definitions {
-			if d.Name != name {
-				continue
+			if d.Name == name {
+				return d, ""
 			}
-			s, known := d.Stuff.Value()
-			if !known {
-				s = ""
-			}
-			return s, ""
 		}
-		return "", name + " is not among the planning definitions"
+		return PlanningDefinition{}, name + " is not among the planning definitions"
 	}
-	wallStuff, reason := definition(policy.ShellWallDefinition)
+	wall, reason := definition(policy.ShellWallDefinition)
 	if reason == "" {
-		var doorStuff string
-		if doorStuff, reason = definition(policy.ShellDoorDefinition); reason == "" {
-			if wallStuff != doorStuff {
+		var door PlanningDefinition
+		if door, reason = definition(policy.ShellDoorDefinition); reason == "" {
+			// The shell is one stuff: the wall's cheapest, which the door must
+			// be makeable from too (an unstuffed pair has no stuff).
+			stuff, shared := SharedStuff(wall, door)
+			if !shared {
 				reason = "the shell's wall and door are built from different stuff"
-			} else if defs, err := frame.Catalog.ContainmentDefs(policy.ShellWallDefinition, wallStuff, policy.ShellDoorDefinition, doorStuff); err != nil {
+			} else if defs, err := frame.Catalog.ContainmentDefs(policy.ShellWallDefinition, stuff, policy.ShellDoorDefinition, stuff); err != nil {
 				reason = err.Error()
 			} else {
 				out.Defs = domain.Known(defs)

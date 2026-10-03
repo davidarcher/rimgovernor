@@ -22,20 +22,16 @@ import (
 type projectSource struct {
 	*colonySource
 	// extra is the definition catalog the frame carries, nil for none.
-	extra   []*o.PlanningDefinition
+	extra   []bridge.FixtureDef
 	onFrame func()
 	frame   bridge.RoutineFrame
 	// racesErr fails the race catalog read.
 	racesErr error
 }
 
-// testCatalog is a definition catalog of rows.
-func testCatalog(rows ...*o.PlanningDefinition) *bridge.DefinitionCatalog {
-	catalog := &bridge.DefinitionCatalog{Definitions: map[string]*o.PlanningDefinition{}}
-	for _, row := range rows {
-		catalog.Definitions[row.GetDefinition().GetDefName()] = row
-	}
-	return catalog
+// testCatalog is a definition catalog of fixture defs.
+func testCatalog(rows ...bridge.FixtureDef) *bridge.DefinitionCatalog {
+	return bridge.FixtureCatalog("load", rows...)
 }
 
 // ReadRoutineFrame is the frame over the colony reply, with the sections
@@ -79,9 +75,9 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			identity := func() *l.IdentityReply {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
-			wall := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Stuff: proto.String("WoodLog"), ConstructionSkill: proto.Int32(0)}
-			row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("HospitalBed")}, ConstructionSkill: proto.Int32(8), ResearchPrerequisites: []string{"Medicine"}}
-			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []*o.PlanningDefinition{wall, row}}
+			wall := bridge.FixtureDef{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}
+			row := bridge.FixtureDef{Name: "HospitalBed", ConstructionSkill: 8, Research: []string{"Medicine"}}
+			s := &projectSource{colonySource: &colonySource{reply: base}, extra: []bridge.FixtureDef{wall, row}}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
 				t.Fatal(err)
@@ -98,7 +94,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			case "cancelled":
 				s.onFrame = cancel
 			case "uncataloged":
-				row.Definition.DefName = proto.String("Door")
+				s.extra[1].Name = "Door"
 			case "races-unread":
 				s.racesErr = bridge.ErrUnavailable
 			}
@@ -130,7 +126,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 					bedRow = d
 				}
 			}
-			if wallRow.Available != domain.Known(true) || wallRow.Stuff != domain.Known("WoodLog") {
+			if wallRow.Available != domain.Known(true) || len(wallRow.StuffOptions) != 1 || wallRow.StuffOptions[0].Stuff != "WoodLog" {
 				t.Fatal(wallRow)
 			}
 			want := domain.Unknown[bool]()

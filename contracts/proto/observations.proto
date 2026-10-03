@@ -1936,13 +1936,17 @@ message ClassChain { string name = 1; repeated string bases = 2; }
 // .GetMeatSourceCategory, IsFungus, IsAnimalProduct, a vegetable or fruit food
 // type, else other. `meal_ingredients` is set on meals only
 // (FoodUtility.GetFoodKind). `raw_meat` is ThingDef.IsMeat and `medicine` is
-// ThingDef.IsMedicine.
+// ThingDef.IsMedicine. `room_roles` are the furniture roles the game's own
+// room-role code scores the def for by name (#1731): Toy (ThingDefOf.ToyBox),
+// Decoration (BabyDecoration), Board (Blackboard) and Desk (SchoolDesk), sorted;
+// the roles the rows derive (baby beds, deathrest) are Go's.
 message ThingDefFacts {
   string def_name = 1;
   optional FoodKind food_kind = 2;
   optional MealIngredients meal_ingredients = 3;
   bool raw_meat = 4;
   bool medicine = 5;
+  repeated string room_roles = 6;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
@@ -1952,7 +1956,8 @@ message DefStatTable {
   repeated string stats = 1;
   repeated DefStatRow rows = 2;
   // The same rows for every TerrainDef, `stuff_name` empty (a terrain defName
-  // may also name a ThingDef, so the two are kept apart). `costs` is empty.
+  // may also name a ThingDef, so the two are kept apart). `costs` is the terrain's
+  // adjusted cost list (BuildableDef.CostListAdjusted(null)), empty for a free floor.
   repeated DefStatRow terrain_rows = 3;
 }
 // One (def, stuff) pair: `stat[i]` indexes DefStatTable.stats and `value[i]` is

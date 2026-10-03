@@ -36,7 +36,7 @@ func sarcophagusAvailable(facts observation.ColonyProjection) domain.Fact[bool] 
 		if d.Name != policy.SarcophagusDefinition {
 			continue
 		}
-		if stuff, known := d.Stuff.Value(); known && stuff == "" {
+		if d.Stuffed && len(d.StuffOptions) == 0 {
 			return domain.Known(false)
 		}
 		return d.Available

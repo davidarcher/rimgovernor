@@ -47,10 +47,9 @@ func mechChargerFixture(t *testing.T, chargers []*o.MechChargerState, mechanitor
 	base.reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureMechCharger})
 	v := sleeping.reply.GetObserved()
 	v.Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: &o.BiotechColonyFacts{Chargers: chargers}}}
-	sleeping.catalog = []*o.PlanningDefinition{
-		{Definition: &o.DefinitionRef{DefName: proto.String("Recharger_Test")}, MechCharger: proto.Bool(true), ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}},
-		{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}},
-	}
+	charger := buildable("Recharger_Test", 0, 1, 2)
+	charger.MechCharger = true
+	sleeping.catalog = []bridge.FixtureDef{charger, buildable("Wall", 0, 1, 1)}
 	for i := range sleeping.cells.Cells {
 		sleeping.cells.Cells[i].Doorway = domain.Known(false)
 	}

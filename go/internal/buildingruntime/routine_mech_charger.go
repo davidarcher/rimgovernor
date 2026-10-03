@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -34,25 +33,24 @@ func NewRoutineMechChargerPlanner(reviewer *RoutineReviewer, native RoutineBuild
 
 // mechChargerDefinitions are the available mech charger definitions in
 // catalog order (sorted by name), resolved into the projection.
-func mechChargerDefinitions(read *observation.RoutineReading) []observation.PlanningDefinition {
+func mechChargerDefinitions(read *observation.RoutineReading) ([]observation.PlanningDefinition, error) {
 	if read.Frame.Catalog == nil {
-		return nil
+		return nil, nil
 	}
-	var names []string
-	for name, row := range read.Frame.Catalog.Definitions {
-		if row.GetMechCharger() {
-			names = append(names, name)
-		}
+	names, err := read.Frame.Catalog.MechChargers()
+	if err != nil {
+		return nil, err
 	}
-	sort.Strings(names)
-	read.Projection.AddDefinitions(read.Frame, names)
+	if err := read.Projection.AddDefinitions(read.Frame, names); err != nil {
+		return nil, err
+	}
 	var out []observation.PlanningDefinition
 	for _, d := range observation.MechChargerDefs(read.Projection.Definitions) {
 		if available, ok := d.Available.Value(); ok && available {
 			out = append(out, d)
 		}
 	}
-	return out
+	return out, nil
 }
 
 func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
@@ -124,7 +122,10 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 	if !biotechKnown {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("biotech")}, nil
 	}
-	defs := mechChargerDefinitions(&read)
+	defs, err := mechChargerDefinitions(&read)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
 	if len(defs) == 0 {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_charger_definition")}, nil
 	}

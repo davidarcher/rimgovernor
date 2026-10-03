@@ -41,7 +41,7 @@ func sleepingUpkeepFixture(t *testing.T) (*RoutineSleepingUpkeepPlanner, *store.
 	// The shelter stands (both beds indoors): MaintainHousing is on its
 	// bedroom phase.
 	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
-	native.putCatalog(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Bed")}, ConstructionSkill: proto.Int32(0), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(2)}})
+	native.putCatalog(buildable("Bed", 0, 1, 2))
 	missing := func(field string) *o.ReadIssue {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}

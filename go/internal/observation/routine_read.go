@@ -100,7 +100,13 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if frame.Catalog != nil {
 		// Room-role furniture rides every routine reading: the catalog
 		// names which definitions the planners furnish rooms from.
-		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, append(slices.Clone(definitions), frame.Catalog.RoomRoleDefinitions()...))
+		roleRows, err := frame.Catalog.RoomRoleRows()
+		if err != nil {
+			return RoutineReading{}, err
+		}
+		if p.Definitions, err = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, append(slices.Clone(definitions), roleRows...)); err != nil {
+			return RoutineReading{}, err
+		}
 	}
 	if frame.Catalog != nil {
 		if p.Facts.Items, err = frame.Catalog.ItemFacts(); err != nil {
@@ -353,8 +359,11 @@ func FinishedResearch(research domain.Fact[policy.ResearchFacts]) domain.Fact[[]
 // AddDefinitions appends to p the planning rows of names the frame's
 // catalog describes and p does not hold yet (a definition only a later
 // read names, such as a title's throne).
-func (p *ColonyProjection) AddDefinitions(frame bridge.RoutineFrame, names []string) {
-	if frame.Catalog != nil {
-		p.Definitions = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, names)
+func (p *ColonyProjection) AddDefinitions(frame bridge.RoutineFrame, names []string) error {
+	if frame.Catalog == nil {
+		return nil
 	}
+	var err error
+	p.Definitions, err = frameDefinitionFacts(frame).appendDefinitions(p.Definitions, names)
+	return err
 }

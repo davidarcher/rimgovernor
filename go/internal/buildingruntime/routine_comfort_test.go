@@ -168,7 +168,7 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	planner := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked}
 	people := []policy.PawnID{"pawn"}
 	census := policy.ComfortObservation{People: people, RecreationFoothold: "HorseshoesPin"}
-	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}
+	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuffed: true, StuffOptions: madeOf("WoodLog")}, {Name: "DiningChair", Stuffed: true, StuffOptions: madeOf("WoodLog")}}}
 	selected, reason, err := planner.selectComfort(facts, policy.ComfortHistory{})
 	if err != nil || !reason.IsZero() || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {
 		t.Fatal(selected, reason, err)

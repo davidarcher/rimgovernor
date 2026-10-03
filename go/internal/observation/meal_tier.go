@@ -104,7 +104,7 @@ func (p ColonyProjection) MealRequest(minDays, targetDays float64) policy.MealTi
 	}
 	for _, d := range p.Definitions {
 		if d.Name == "NutrientPasteDispenser" {
-			r.Paste = domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Costs: d.Costs})
+			r.Paste = domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Costs: d.CheapestCosts()})
 		}
 	}
 	return r

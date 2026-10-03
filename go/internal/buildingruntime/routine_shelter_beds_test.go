@@ -12,7 +12,7 @@ import (
 // shelter-beds rung (#1181), as many as the leather covers, in the first
 // stuff option in stock.
 func TestShelterBedsStageBedrollsFromStockedLeather(t *testing.T) {
-	bedroll := observation.PlanningDefinition{Name: "Bedroll", Available: domain.Known(true), Stuff: domain.Known("Cloth"), StuffOptions: []observation.StuffOption{
+	bedroll := observation.PlanningDefinition{Name: "Bedroll", Available: domain.Known(true), Stuffed: true, StuffOptions: []observation.StuffOption{
 		{Stuff: "Cloth", Costs: []policy.Amount{{Resource: "Cloth", Count: 40}}},
 		{Stuff: "Leather_Plain", Costs: []policy.Amount{{Resource: "Leather_Plain", Count: 40}}},
 	}}

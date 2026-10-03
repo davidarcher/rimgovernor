@@ -82,7 +82,9 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 			return result, err
 		}
 		if ok {
-			projection.Definitions = facts.appendDefinitions(projection.Definitions, StarterDefinitions)
+			if projection.Definitions, err = facts.appendDefinitions(projection.Definitions, StarterDefinitions); err != nil {
+				return result, err
+			}
 			projection.Facts.Gear = colonyGear(reply.GetObserved(), tables, GearDefinitions{Catalog: facts.catalog, Finished: facts.finished})
 		}
 	}
