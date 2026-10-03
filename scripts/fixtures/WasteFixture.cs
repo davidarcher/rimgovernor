@@ -121,6 +121,144 @@ namespace HomeBridge.BridgeTools
                     unwantedCell = BridgeCommon.Pos(unwantedCell), protectedCell = BridgeCommon.Pos(protectedCell) };
             }, cancellationToken);
 
+        // Corpse disposal acceptance (#1817), staged on the tribal baseline
+        // colony: a rotten animal corpse, a rotten and a fresh stranger
+        // corpse, one worn apparel and stone blocks for the walls, each on its
+        // own free open cell near the first colonist. Strangers are humanlike
+        // corpses of no faction.
+        [Tool("test/disposal_stage", Description = "Disposable fixture (#1817): stage rotten and fresh corpses, a worn apparel and stone blocks near the first colonist. Test builds only.")]
+        public async Task<object> DisposalStage(IRimBridgeContext ctx, CancellationToken cancellationToken, int blocks = 225)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
+                var candidates = GenRadial.RadialCellsAround(pawn.Position, 16, true).Where(c => c.InBounds(map)
+                    && !c.Fogged(map) && c.Standable(map) && !c.Roofed(map) && c.GetEdifice(map) == null && c.GetZone(map) == null
+                    && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item) && c.GetFirstBuilding(map) == null
+                    && c.GetTerrain(map).passability == Traversability.Standable).Distinct().ToList();
+                if (candidates.Count < 16) throw new System.InvalidOperationException("Not enough empty open cells near the first colonist.");
+                var next = 0;
+                Thing Place(Thing thing)
+                {
+                    while (next < candidates.Count)
+                    {
+                        var cell = candidates[next++];
+                        if (cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
+                        if (!GenPlace.TryPlaceThing(thing, cell, map, ThingPlaceMode.Direct, out var placed)) continue;
+                        if (placed != thing || !thing.Spawned || thing.Position != cell)
+                            throw new System.InvalidOperationException($"Fixture {thing.def.defName} was absorbed or displaced at {cell}.");
+                        thing.SetForbidden(false, false);
+                        return thing;
+                    }
+                    throw new System.InvalidOperationException($"Could not place a fixture {thing.def.defName} on any open cell.");
+                }
+                Corpse MakeCorpse(PawnKindDef kind, float rotProgress)
+                {
+                    var dead = PawnGenerator.GeneratePawn(kind, null);
+                    GenSpawn.Spawn(dead, pawn.Position, map);
+                    dead.Kill(null);
+                    var corpse = dead.Corpse;
+                    if (corpse.Spawned) corpse.DeSpawn(DestroyMode.Vanish);
+                    Place(corpse);
+                    corpse.GetComp<CompRottable>().RotProgress = rotProgress;
+                    return corpse;
+                }
+                var squirrel = DefDatabase<PawnKindDef>.AllDefsListForReading.First(k => k.race.defName == "Squirrel");
+                var animal = MakeCorpse(squirrel, 200000f);
+                var rottenStranger = MakeCorpse(PawnKindDefOf.Villager, 200000f);
+                var freshStranger = MakeCorpse(PawnKindDefOf.Villager, 0f);
+                var pants = DefDatabase<ThingDef>.GetNamed("Apparel_Pants");
+                var worn = Place(ThingMaker.MakeThing(pants, GenStuff.DefaultStuffFor(pants)));
+                worn.HitPoints = worn.MaxHitPoints / 5;
+                var stone = DefDatabase<ThingDef>.GetNamed("BlocksGranite");
+                for (var left = blocks; left > 0; left -= stone.stackLimit)
+                {
+                    var stack = ThingMaker.MakeThing(stone);
+                    stack.stackCount = System.Math.Min(left, stone.stackLimit);
+                    Place(stack);
+                }
+                var identity = Current.Game.GetComponent<ColonyIdentity>();
+                return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
+                    mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
+                    animal = animal.GetUniqueLoadID(), animalDef = animal.def.defName, rottenStranger = rottenStranger.GetUniqueLoadID(),
+                    freshStranger = freshStranger.GetUniqueLoadID(), worn = worn.GetUniqueLoadID(), wornDef = worn.def.defName };
+            }, cancellationToken);
+
+        // Worn apparel (a fifth of its hit points) on each cell ("x,z;x,z"):
+        // what the incinerator zone takes, enough to fill a batch.
+        [Tool("test/disposal_seed", Description = "Disposable fixture (#1817): spawn one worn apparel on each listed free cell and molotovs loose near the first colonist. Test builds only.")]
+        public async Task<object> DisposalSeed(IRimBridgeContext ctx, CancellationToken cancellationToken, string cells, int molotovs = 0)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var parsed = (cells ?? "").Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries).Select(pair => pair.Split(','))
+                    .Select(p => new IntVec3(int.Parse(p[0]), 0, int.Parse(p[1]))).ToList();
+                var pants = DefDatabase<ThingDef>.GetNamed("Apparel_Pants");
+                var ids = new System.Collections.Generic.List<string>();
+                foreach (var cell in parsed)
+                {
+                    if (!cell.InBounds(map) || cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item))
+                        throw new System.InvalidOperationException($"Cell {cell} is out of bounds or already holds an item.");
+                    var thing = ThingMaker.MakeThing(pants, GenStuff.DefaultStuffFor(pants));
+                    thing.HitPoints = thing.MaxHitPoints / 5;
+                    GenSpawn.Spawn(thing, cell, map);
+                    thing.SetForbidden(false, false);
+                    ids.Add(thing.GetUniqueLoadID());
+                }
+                // Loose molotovs near the first colonist: the burner's weapon.
+                var near = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First().Position;
+                for (var i = 0; i < molotovs; i++)
+                {
+                    var molotov = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Weapon_GrenadeMolotov"));
+                    if (!GenPlace.TryPlaceThing(molotov, near, map, ThingPlaceMode.Near)) throw new System.InvalidOperationException("Could not place a molotov.");
+                    molotov.SetForbidden(false, false);
+                    ids.Add(molotov.GetUniqueLoadID());
+                }
+                return (object)new { success = true, ids };
+            }, cancellationToken);
+
+        // The incinerator as the game sees it (#1817): each listed thing, the
+        // interior cells with the room cell.GetRoom resolves them to, the
+        // walled ring's edifices with their flammability, the ash and the
+        // fires. door is the ring's door cell; the cell beyond it is outside.
+        [Tool("test/disposal_read", Description = "Disposable fixture (#1817): read the staged things and the incinerator room, ring, ash and fires. Test builds only.")]
+        public async Task<object> DisposalRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string ids, int minX, int minZ, int maxX, int maxZ, int doorX, int doorZ)
+            => await ctx.MainThread.InvokeAsync(() =>
+            {
+                var map = Find.CurrentMap;
+                var rect = CellRect.FromLimits(minX, minZ, maxX, maxZ);
+                var things = (ids ?? "").Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries).Select(id =>
+                {
+                    var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+                    var carried = map.mapPawns.AllPawns.Any(p => p.carryTracker?.CarriedThing?.GetUniqueLoadID() == id);
+                    return (object)new { id, spawned = thing != null && thing.Spawned, carried,
+                        x = thing?.Position.x ?? -1, z = thing?.Position.z ?? -1,
+                        rot = thing?.TryGetComp<CompRottable>()?.Stage.ToString() ?? "",
+                        inside = thing != null && thing.Spawned && rect.Contains(thing.Position) };
+                }).ToList();
+                var interior = rect.Cells.Select(c =>
+                {
+                    var room = c.GetRoom(map);
+                    return new { x = c.x, z = c.z, room = room?.ID ?? -1, roofed = c.Roofed(map),
+                        items = c.GetThingList(map).Where(t => t.def.category == ThingCategory.Item).Select(t => t.def.defName).ToList() };
+                }).ToList();
+                var first = rect.CenterCell.GetRoom(map);
+                var door = new IntVec3(doorX, 0, doorZ);
+                var step = new IntVec3(System.Math.Sign(doorX - rect.CenterCell.x), 0, System.Math.Sign(doorZ - rect.CenterCell.z));
+                var beyond = door + step;
+                var ring = rect.ExpandedBy(1).EdgeCells.Select(c =>
+                {
+                    var edifice = c.GetEdifice(map);
+                    return new { x = c.x, z = c.z, def = edifice?.def.defName ?? "", stuff = edifice?.Stuff?.defName ?? "",
+                        door = edifice is Building_Door, flammability = edifice == null ? 0f : edifice.GetStatValue(StatDefOf.Flammability) };
+                }).ToList();
+                var ash = rect.Cells.SelectMany(c => c.GetThingList(map)).Count(t => t.def.defName == "Filth_Ash");
+                var fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count;
+                return (object)new { success = true, tick = Find.TickManager.TicksGame, things, interior, ring, ash, fires,
+                    room = new { id = first?.ID ?? -1, cellCount = first?.CellCount ?? 0, outdoorTemperature = first?.UsesOutdoorTemperature ?? false, properRoom = first?.ProperRoom ?? false },
+                    beyondDoorRoom = beyond.InBounds(map) ? (beyond.GetRoom(map)?.ID ?? -1) : -1, doorRoom = door.GetRoom(map)?.ID ?? -1 };
+            }, cancellationToken);
+
         // The permanent ColonyFacts equality probe (#1296): the snapshot read
         // with every read optimization off and then on, in one game-thread
         // call so no tick passes between them, must be byte-identical (row
