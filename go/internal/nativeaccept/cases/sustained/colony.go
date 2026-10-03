@@ -2,6 +2,7 @@ package sustained
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -87,7 +88,7 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 					if err := auditReacquisitions(ctx, h, report); err != nil {
 						return err
 					}
-					return AuditNutrition(ctx, h, report)
+					return errors.Join(AuditNutrition(ctx, h, report), AuditStockpiles(ctx, h, s, report))
 				},
 			})
 			return err
