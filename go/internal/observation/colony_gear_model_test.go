@@ -347,11 +347,6 @@ func TestColonyGearLoadoutModelRefusalNamesTheCause(t *testing.T) {
 	})
 }
 
-func isKnown[T any](f domain.Fact[T]) bool {
-	_, known := f.Value()
-	return known
-}
-
 // gearModelTables holds the worn tribal wear gearModelCensus references.
 func gearModelTables() bridge.Tables {
 	things := bridge.Things{}
