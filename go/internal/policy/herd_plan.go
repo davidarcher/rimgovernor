@@ -33,9 +33,6 @@ const (
 	herdWarTraining  = "Release"
 )
 
-// herdMilkFirst is the tie-break for equally scored milk races.
-const herdMilkFirst Resource = "Cow"
-
 // HerdPlanInput is every fact the herd plan derives from. Unknown facts leave
 // the plan unchanged: a race whose yield, size or capacity is unread cannot
 // hold or be ranked for the job that needs it. The catalog is required.
@@ -427,15 +424,13 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 	return plan
 }
 
-// herdEasyRaces are the quick levellers of the Animals skill: low minimum
-// handling skill and easy to tame.
-var herdEasyRaces = []Resource{"Alpaca", "Boar", "Hare", "Husky", "LabradorRetriever"}
-
 // herdLevelingRace is the easy race to tame while a wanted race's head
 // count is short and its minimum handling skill is above what every handler
-// has (TamerFor). It is the first easy race with a tameable wild animal on
-// the map that a handler already clears, and empty once a handler clears
-// the wanted race (the leveling stops) or no such animal is on the map.
+// has (TamerFor). It is the quickest leveller among the tameable wild races
+// on the map that a handler already clears: lowest minimum handling skill,
+// then lowest wildness, both read from the race catalog (an unread wildness
+// ranks last), then definition name. Empty once a handler clears the wanted
+// race (the leveling stops) or no such animal is on the map.
 func herdLevelingRace(in HerdPlanInput, stats map[Resource]*herdRace, targets map[Resource]int64) Resource {
 	profiles, ok := in.Handlers.Value()
 	if !ok {
@@ -456,19 +451,25 @@ func herdLevelingRace(in HerdPlanInput, stats map[Resource]*herdRace, targets ma
 		return ""
 	}
 	wild, _ := in.Wild.Value()
-	for _, easy := range herdEasyRaces {
-		race, _ := in.Races.Race(easy)
+	best, bestSkill, bestWild := Resource(""), 0, 0.0
+	for _, a := range wild {
+		if tameable, ok := a.Tameable.Value(); !ok || !tameable || herdDangerous(a) {
+			continue
+		}
+		race, _ := in.Races.Race(a.Definition)
 		minimum, known := race.MinimumHandlingSkill.Value()
 		if _, handled := TamerFor(profiles, minimum); !known || !handled {
 			continue
 		}
-		for _, a := range wild {
-			if tameable, ok := a.Tameable.Value(); a.Definition == easy && ok && tameable && !herdDangerous(a) {
-				return easy
-			}
+		wildness, wk := race.Wildness.Value()
+		if !wk {
+			wildness = math.MaxFloat64
+		}
+		if best == "" || minimum < bestSkill || minimum == bestSkill && (wildness < bestWild || wildness == bestWild && a.Definition < best) {
+			best, bestSkill, bestWild = a.Definition, minimum, wildness
 		}
 	}
-	return ""
+	return best
 }
 
 func herdKeep(keeps map[Resource]map[HerdJob]bool, def Resource, job HerdJob) {
@@ -583,9 +584,6 @@ func herdRank(job HerdJob, catalog AnimalRaceCatalog, obtainable map[Resource]bo
 		a, b := rows[i], rows[j]
 		if math.Abs(a.score-b.score) > 1e-9*math.Max(a.score, b.score) {
 			return a.score > b.score
-		}
-		if job == HerdJobMilk && (a.def == herdMilkFirst) != (b.def == herdMilkFirst) {
-			return a.def == herdMilkFirst
 		}
 		if a.skill != b.skill {
 			return a.skill < b.skill
