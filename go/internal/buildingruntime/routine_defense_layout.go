@@ -1173,6 +1173,9 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	}
 	defenders, minRange, ok, err := r.defenderRange(call, state, read)
 	if err != nil || !ok {
+		if err == nil {
+			clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
+		}
 		return policy.DefenseLayout{}, nil, false, err
 	}
 	request.Defenders, request.MinRange = defenders, minRange
@@ -1182,10 +1185,12 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	defenseIEDRequest(read, &request)
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
+		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
 		return policy.DefenseLayout{}, nil, false, nil
 	}
 	firing, approach := layout.Probe()
 	if len(firing) == 0 {
+		clockSchedulerLog("defense-layout: the layout has no firing cell to probe")
 		return policy.DefenseLayout{}, nil, false, nil
 	}
 	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
@@ -1205,6 +1210,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
 	layout, err = policy.DefenseLayouts(request)
 	if err != nil || !layout.LinesVerified {
+		clockSchedulerLog("defense-layout: lines of fire not verified (err=%v verified=%v)", err, layout.LinesVerified)
 		return policy.DefenseLayout{}, nil, false, nil
 	}
 	return layout, request.Entrances, true, nil
