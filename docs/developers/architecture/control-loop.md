@@ -249,6 +249,25 @@ commits it as an `ability` action (permit source, cell target) on its own
 incident method, and the fight's stops wait while it is open. The admission
 stop makes no call.
 
+A psycaster casts its known combat psycasts in a fight (#1611,
+`combat_cast.go`): with the royalty read known and a live hostile, each
+standing colonist yields at most one `psycast_cast` order per stop, the
+ready psycast of the highest family (heal, then stun, burst, defensive). A
+psycast is ready when its psyfocus cost fits the caster's psyfocus, its neural
+heat fits under the ceiling and its cooldown has run out, all read from the
+royalty read (`PsycasterState`, `Psycast.CooldownRemaining`); an unread fact
+holds the cast. The read is slow, so each cast is remembered for the fight
+(`CombatMemory.Casts`): its cooldown, psyfocus cost and heat still count
+against the caster until the fight ends. The read carries no effect
+category, so `psycastFamilies` classifies by vanilla def name and never casts
+an unlisted def. The target is the arm the ability takes (its target kind),
+within reach of the caster: heal a defender under 60% health, stun and
+pawn-targeted burst the nearest hostile, area burst the densest hostile clump
+no colonist stands near (the strike rule), defensive the caster (a self-cast,
+or the caster as the pawn target) while a hostile is in reach. The order is no
+`combat.orders` entry: it commits as an `ability` action (psycast source) on
+the permit calls' incident method, native owning the guards.
+
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open

@@ -13,6 +13,9 @@ type RoyaltyFacts struct {
 	Holders map[PawnID][]RoyalHolding
 	// Psycasts maps a psycaster to its known psycasts (#1600).
 	Psycasts map[PawnID][]Psycast
+	// Casters maps a psycaster to its psyfocus and neural heat at the read
+	// (#1611).
+	Casters map[PawnID]PsycasterState
 	// Neuroformers is the colony's neuroformer stock by def (#1600).
 	Neuroformers map[string]Neuroformer
 	// Ceremonies are the pending bestowing ceremonies (#1602), by pawn.
@@ -26,6 +29,13 @@ type RoyaltyFacts struct {
 type RoyalThrone struct {
 	ID, Def string
 	Owner   PawnID
+}
+
+// PsycasterState is a psycaster's 0-1 psyfocus and neural heat against its
+// ceiling at the read's tick; each is unknown when the read left it absent
+// (a pawn that needs no psyfocus has none).
+type PsycasterState struct {
+	Psyfocus, Entropy, EntropyMax domain.Fact[float64]
 }
 
 // PsycastTarget is what a psycast aims at.
@@ -48,6 +58,8 @@ type Psycast struct {
 	Entropy       domain.Fact[float64]
 	Target        PsycastTarget
 	CooldownTicks domain.Fact[int]
+	// CooldownRemaining is the ticks left of the cooldown at the read (#1611).
+	CooldownRemaining domain.Fact[int]
 }
 
 // Neuroformer is the stock of one neuroformer def: the psylink neuroformer or

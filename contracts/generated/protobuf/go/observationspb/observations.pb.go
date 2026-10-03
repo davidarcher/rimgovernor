@@ -1181,7 +1181,9 @@ func (PriceType) EnumDescriptor() ([]byte, []int) {
 // and each psycast neurotrainer, with held (unforbidden spawned stacks on the
 // player's home maps), craftable (a recipe that is available now makes it)
 // and tradeable (a trader can sell it). teaches_psycast is the trainer's
-// ability def.
+// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+// psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
+// entropy_max are read at the read's tick; each is absent when unread.
 type PsycastTargetKind int32
 
 const (
@@ -25170,15 +25172,16 @@ func (x *PawnRoyalHolding) GetPermitCooldowns() []*PermitCooldown {
 }
 
 type PawnPsycast struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DefName       *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
-	Level         *int32                 `protobuf:"varint,2,opt,name=level,proto3,oneof" json:"level,omitempty"`
-	PsyfocusCost  *float64               `protobuf:"fixed64,3,opt,name=psyfocus_cost,json=psyfocusCost,proto3,oneof" json:"psyfocus_cost,omitempty"`
-	Entropy       *float64               `protobuf:"fixed64,4,opt,name=entropy,proto3,oneof" json:"entropy,omitempty"`
-	TargetKind    PsycastTargetKind      `protobuf:"varint,5,opt,name=target_kind,json=targetKind,proto3,enum=rimgovernor.observations.v1.PsycastTargetKind" json:"target_kind,omitempty"`
-	CooldownTicks *int32                 `protobuf:"varint,6,opt,name=cooldown_ticks,json=cooldownTicks,proto3,oneof" json:"cooldown_ticks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	DefName                *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Level                  *int32                 `protobuf:"varint,2,opt,name=level,proto3,oneof" json:"level,omitempty"`
+	PsyfocusCost           *float64               `protobuf:"fixed64,3,opt,name=psyfocus_cost,json=psyfocusCost,proto3,oneof" json:"psyfocus_cost,omitempty"`
+	Entropy                *float64               `protobuf:"fixed64,4,opt,name=entropy,proto3,oneof" json:"entropy,omitempty"`
+	TargetKind             PsycastTargetKind      `protobuf:"varint,5,opt,name=target_kind,json=targetKind,proto3,enum=rimgovernor.observations.v1.PsycastTargetKind" json:"target_kind,omitempty"`
+	CooldownTicks          *int32                 `protobuf:"varint,6,opt,name=cooldown_ticks,json=cooldownTicks,proto3,oneof" json:"cooldown_ticks,omitempty"`
+	CooldownRemainingTicks *int32                 `protobuf:"varint,7,opt,name=cooldown_remaining_ticks,json=cooldownRemainingTicks,proto3,oneof" json:"cooldown_remaining_ticks,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *PawnPsycast) Reset() {
@@ -25249,6 +25252,13 @@ func (x *PawnPsycast) GetTargetKind() PsycastTargetKind {
 func (x *PawnPsycast) GetCooldownTicks() int32 {
 	if x != nil && x.CooldownTicks != nil {
 		return *x.CooldownTicks
+	}
+	return 0
+}
+
+func (x *PawnPsycast) GetCooldownRemainingTicks() int32 {
+	if x != nil && x.CooldownRemainingTicks != nil {
+		return *x.CooldownRemainingTicks
 	}
 	return 0
 }
@@ -25334,6 +25344,9 @@ type PawnRoyalty struct {
 	Pawn          *commonpb.Ref          `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
 	Holdings      []*PawnRoyalHolding    `protobuf:"bytes,2,rep,name=holdings,proto3" json:"holdings,omitempty"`
 	Psycasts      []*PawnPsycast         `protobuf:"bytes,3,rep,name=psycasts,proto3" json:"psycasts,omitempty"`
+	Psyfocus      *float64               `protobuf:"fixed64,4,opt,name=psyfocus,proto3,oneof" json:"psyfocus,omitempty"`
+	Entropy       *float64               `protobuf:"fixed64,5,opt,name=entropy,proto3,oneof" json:"entropy,omitempty"`
+	EntropyMax    *float64               `protobuf:"fixed64,6,opt,name=entropy_max,json=entropyMax,proto3,oneof" json:"entropy_max,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -25387,6 +25400,27 @@ func (x *PawnRoyalty) GetPsycasts() []*PawnPsycast {
 		return x.Psycasts
 	}
 	return nil
+}
+
+func (x *PawnRoyalty) GetPsyfocus() float64 {
+	if x != nil && x.Psyfocus != nil {
+		return *x.Psyfocus
+	}
+	return 0
+}
+
+func (x *PawnRoyalty) GetEntropy() float64 {
+	if x != nil && x.Entropy != nil {
+		return *x.Entropy
+	}
+	return 0
+}
+
+func (x *PawnRoyalty) GetEntropyMax() float64 {
+	if x != nil && x.EntropyMax != nil {
+		return *x.EntropyMax
+	}
+	return 0
 }
 
 // Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
@@ -40390,7 +40424,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_faction_defB\b\n" +
 	"\x06_titleB\b\n" +
 	"\x06_favorB\x10\n" +
-	"\x0e_permit_points\"\xd6\x02\n" +
+	"\x0e_permit_points\"\xb2\x03\n" +
 	"\vPawnPsycast\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x05H\x01R\x05level\x88\x01\x01\x12(\n" +
@@ -40398,13 +40432,15 @@ const file_observations_proto_rawDesc = "" +
 	"\aentropy\x18\x04 \x01(\x01H\x03R\aentropy\x88\x01\x01\x12O\n" +
 	"\vtarget_kind\x18\x05 \x01(\x0e2..rimgovernor.observations.v1.PsycastTargetKindR\n" +
 	"targetKind\x12*\n" +
-	"\x0ecooldown_ticks\x18\x06 \x01(\x05H\x04R\rcooldownTicks\x88\x01\x01B\v\n" +
+	"\x0ecooldown_ticks\x18\x06 \x01(\x05H\x04R\rcooldownTicks\x88\x01\x01\x12=\n" +
+	"\x18cooldown_remaining_ticks\x18\a \x01(\x05H\x05R\x16cooldownRemainingTicks\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_levelB\x10\n" +
 	"\x0e_psyfocus_costB\n" +
 	"\n" +
 	"\b_entropyB\x11\n" +
-	"\x0f_cooldown_ticks\"\x85\x02\n" +
+	"\x0f_cooldown_ticksB\x1b\n" +
+	"\x19_cooldown_remaining_ticks\"\x85\x02\n" +
 	"\x10NeuroformerStock\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12,\n" +
 	"\x0fteaches_psycast\x18\x02 \x01(\tH\x01R\x0eteachesPsycast\x88\x01\x01\x12\x17\n" +
@@ -40417,11 +40453,19 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_craftableB\f\n" +
 	"\n" +
-	"_tradeable\"\xce\x01\n" +
+	"_tradeable\"\xdd\x02\n" +
 	"\vPawnRoyalty\x12.\n" +
 	"\x04pawn\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04pawn\x12I\n" +
 	"\bholdings\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PawnRoyalHoldingR\bholdings\x12D\n" +
-	"\bpsycasts\x18\x03 \x03(\v2(.rimgovernor.observations.v1.PawnPsycastR\bpsycasts\"\x84\x04\n" +
+	"\bpsycasts\x18\x03 \x03(\v2(.rimgovernor.observations.v1.PawnPsycastR\bpsycasts\x12\x1f\n" +
+	"\bpsyfocus\x18\x04 \x01(\x01H\x00R\bpsyfocus\x88\x01\x01\x12\x1d\n" +
+	"\aentropy\x18\x05 \x01(\x01H\x01R\aentropy\x88\x01\x01\x12$\n" +
+	"\ventropy_max\x18\x06 \x01(\x01H\x02R\n" +
+	"entropyMax\x88\x01\x01B\v\n" +
+	"\t_psyfocusB\n" +
+	"\n" +
+	"\b_entropyB\x0e\n" +
+	"\f_entropy_max\"\x84\x04\n" +
 	"\x11BestowingCeremony\x12\x19\n" +
 	"\x05quest\x18\n" +
 	" \x01(\tH\x00R\x05quest\x88\x01\x01\x12.\n" +
@@ -43932,6 +43976,7 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[250].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[251].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[252].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[253].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[254].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[255].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[258].OneofWrappers = []any{

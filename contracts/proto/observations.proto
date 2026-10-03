@@ -1103,11 +1103,13 @@ message PawnRoyalHolding { optional string faction_def = 1; optional string titl
 // and each psycast neurotrainer, with held (unforbidden spawned stacks on the
 // player's home maps), craftable (a recipe that is available now makes it)
 // and tradeable (a trader can sell it). teaches_psycast is the trainer's
-// ability def.
+// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+// psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
+// entropy_max are read at the read's tick; each is absent when unread.
 enum PsycastTargetKind { PSYCAST_TARGET_KIND_UNSPECIFIED = 0; PSYCAST_TARGET_KIND_SELF = 1; PSYCAST_TARGET_KIND_PAWN = 2; PSYCAST_TARGET_KIND_THING = 3; PSYCAST_TARGET_KIND_CELL = 4; }
-message PawnPsycast { optional string def_name = 1; optional int32 level = 2; optional double psyfocus_cost = 3; optional double entropy = 4; PsycastTargetKind target_kind = 5; optional int32 cooldown_ticks = 6; }
+message PawnPsycast { optional string def_name = 1; optional int32 level = 2; optional double psyfocus_cost = 3; optional double entropy = 4; PsycastTargetKind target_kind = 5; optional int32 cooldown_ticks = 6; optional int32 cooldown_remaining_ticks = 7; }
 message NeuroformerStock { optional string def_name = 1; optional string teaches_psycast = 2; optional int32 held = 3; optional bool craftable = 4; optional bool tradeable = 5; }
-message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; }
+message PawnRoyalty { rimgovernor.common.v1.Ref pawn = 1; repeated PawnRoyalHolding holdings = 2; repeated PawnPsycast psycasts = 3; optional double psyfocus = 4; optional double entropy = 5; optional double entropy_max = 6; }
 // Pending bestowing ceremonies (#1602): one per colonist holding an ongoing or
 // offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
 // quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, bestower the Empire pawn, title the def

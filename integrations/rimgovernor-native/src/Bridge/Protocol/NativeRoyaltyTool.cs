@@ -128,7 +128,15 @@ namespace HomeBridge.BridgeTools
                 if (pawn.abilities != null)
                     foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
                         .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
-                        row.Psycasts.Add(Psycast(ability.def));
+                        row.Psycasts.Add(Psycast(ability.def, ability.CooldownTicksRemaining));
+                // The caster's psyfocus and neural heat at the read (#1611): combat casts hold on them.
+                var tracker = pawn.psychicEntropy;
+                if (tracker != null && tracker.Psylink != null)
+                {
+                    if (tracker.NeedsPsyfocus) row.Psyfocus = tracker.CurrentPsyfocus;
+                    row.Entropy = tracker.EntropyValue;
+                    row.EntropyMax = tracker.MaxEntropy;
+                }
                 if (row.Holdings.Count > 0 || row.Psycasts.Count > 0) facts.Pawns.Add(row);
             }
             ReadThrones(facts);
@@ -191,9 +199,9 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Obs.PawnPsycast Psycast(AbilityDef def)
+        private static Obs.PawnPsycast Psycast(AbilityDef def, int cooldownRemaining)
         {
-            var cast = new Obs.PawnPsycast { DefName = def.defName, Level = def.level, PsyfocusCost = def.PsyfocusCost, Entropy = def.EntropyGain, CooldownTicks = def.cooldownTicksRange.max };
+            var cast = new Obs.PawnPsycast { DefName = def.defName, Level = def.level, PsyfocusCost = def.PsyfocusCost, Entropy = def.EntropyGain, CooldownTicks = def.cooldownTicksRange.max, CooldownRemainingTicks = Math.Max(0, cooldownRemaining) };
             var target = def.verbProperties?.targetParams;
             if (target == null) return cast;
             cast.TargetKind = target.canTargetSelf && !target.canTargetPawns && !target.canTargetLocations && !target.canTargetBuildings && !target.canTargetItems ? Obs.PsycastTargetKind.Self

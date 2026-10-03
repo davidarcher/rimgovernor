@@ -81,7 +81,7 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		return nil, contract("invalid royalty context")
 	}
 	out := &policy.RoyaltyFacts{Permits: map[string]policy.RoyalPermit{}, Holders: map[policy.PawnID][]policy.RoyalHolding{},
-		Psycasts: map[policy.PawnID][]policy.Psycast{}, Neuroformers: map[string]policy.Neuroformer{}}
+		Psycasts: map[policy.PawnID][]policy.Psycast{}, Casters: map[policy.PawnID]policy.PsycasterState{}, Neuroformers: map[string]policy.Neuroformer{}}
 	titles := map[string]bool{}
 	for _, row := range v.Ladder {
 		if validID(row.GetDefName()) != nil || titles[row.GetDefName()] {
@@ -167,9 +167,13 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 				return nil, contract("invalid royalty psycast target")
 			}
 			casts = append(casts, policy.Psycast{Def: name, Level: optionalFact(intPtr(cast.Level)), PsyfocusCost: optionalFact(cast.PsyfocusCost), Entropy: optionalFact(cast.Entropy),
-				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks))})
+				Target: target, CooldownTicks: optionalFact(intPtr(cast.CooldownTicks)), CooldownRemaining: optionalFact(intPtr(cast.CooldownRemainingTicks))})
 		}
 		out.Psycasts[policy.PawnID(id)] = casts
+		if row.GetPsyfocus() < 0 || row.GetPsyfocus() > 1 || row.GetEntropy() < 0 || row.GetEntropyMax() < 0 {
+			return nil, contract("invalid royalty psycaster state")
+		}
+		out.Casters[policy.PawnID(id)] = policy.PsycasterState{Psyfocus: optionalFact(row.Psyfocus), Entropy: optionalFact(row.Entropy), EntropyMax: optionalFact(row.EntropyMax)}
 	}
 	for _, row := range v.Neuroformers {
 		name := row.GetDefName()

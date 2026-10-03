@@ -27,9 +27,9 @@ func royaltyRead() *o.RoyaltyFacts {
 			{FactionDef: proto.String("Empire"), Title: proto.String("Knight"), Favor: proto.Int32(3), PermitPoints: proto.Int32(0), Permits: []string{"CallLaborerPack"}, PermitCooldowns: []*o.PermitCooldown{{Permit: proto.String("CallLaborerPack"), LastUsedTick: proto.Int32(100), CooldownRemainingTicks: proto.Int32(500)}}},
 			{FactionDef: proto.String("Other")},
 		}, Psycasts: []*o.PawnPsycast{
-			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900)},
+			{DefName: proto.String("Skip"), Level: proto.Int32(1), PsyfocusCost: proto.Float64(0.1), Entropy: proto.Float64(12), TargetKind: o.PsycastTargetKind_PSYCAST_TARGET_KIND_CELL, CooldownTicks: proto.Int32(900), CooldownRemainingTicks: proto.Int32(40)},
 			{DefName: proto.String("Burden")},
-		}}},
+		}, Psyfocus: proto.Float64(0.6), Entropy: proto.Float64(10), EntropyMax: proto.Float64(100)}},
 		Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}, DefName: proto.String("Throne"), Owner: &c.Ref{Id: proto.String("Human12")}}, {Thing: &c.Ref{Id: proto.String("Throne_2")}, DefName: proto.String("Throne")}},
 		Neuroformers: []*o.NeuroformerStock{
 			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
@@ -93,6 +93,19 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	}
 	if n, ok := casts[0].CooldownTicks.Value(); !ok || n != 900 {
 		t.Fatalf("cooldown %v %v", n, ok)
+	}
+	if n, ok := casts[0].CooldownRemaining.Value(); !ok || n != 40 {
+		t.Fatalf("cooldown remaining %v %v", n, ok)
+	}
+	if _, ok := casts[1].CooldownRemaining.Value(); ok {
+		t.Fatal("absent cooldown remaining read as known")
+	}
+	state := facts.Casters[policy.PawnID("Human12")]
+	if f, ok := state.Psyfocus.Value(); !ok || f != 0.6 {
+		t.Fatalf("psyfocus %v %v", f, ok)
+	}
+	if m, ok := state.EntropyMax.Value(); !ok || m != 100 {
+		t.Fatalf("entropy max %v %v", m, ok)
 	}
 	if _, ok := casts[1].PsyfocusCost.Value(); ok || casts[1].Target != "" {
 		t.Fatalf("absent psycast facts read as known: %+v", casts[1])

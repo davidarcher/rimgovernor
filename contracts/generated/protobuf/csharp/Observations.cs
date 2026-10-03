@@ -1851,22 +1851,26 @@ namespace RimGovernor.Protocol.Observations {
             "B3Blcm1pdHMYBSADKAkSRQoQcGVybWl0X2Nvb2xkb3ducxgGIAMoCzIrLnJp",
             "bWdvdmVybm9yLm9ic2VydmF0aW9ucy52MS5QZXJtaXRDb29sZG93bkIOCgxf",
             "ZmFjdGlvbl9kZWZCCAoGX3RpdGxlQggKBl9mYXZvckIQCg5fcGVybWl0X3Bv",
-            "aW50cyKUAgoLUGF3blBzeWNhc3QSFQoIZGVmX25hbWUYASABKAlIAIgBARIS",
+            "aW50cyLYAgoLUGF3blBzeWNhc3QSFQoIZGVmX25hbWUYASABKAlIAIgBARIS",
             "CgVsZXZlbBgCIAEoBUgBiAEBEhoKDXBzeWZvY3VzX2Nvc3QYAyABKAFIAogB",
             "ARIUCgdlbnRyb3B5GAQgASgBSAOIAQESQwoLdGFyZ2V0X2tpbmQYBSABKA4y",
             "Li5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuUHN5Y2FzdFRhcmdldEtp",
-            "bmQSGwoOY29vbGRvd25fdGlja3MYBiABKAVIBIgBAUILCglfZGVmX25hbWVC",
-            "CAoGX2xldmVsQhAKDl9wc3lmb2N1c19jb3N0QgoKCF9lbnRyb3B5QhEKD19j",
-            "b29sZG93bl90aWNrcyLQAQoQTmV1cm9mb3JtZXJTdG9jaxIVCghkZWZfbmFt",
-            "ZRgBIAEoCUgAiAEBEhwKD3RlYWNoZXNfcHN5Y2FzdBgCIAEoCUgBiAEBEhEK",
-            "BGhlbGQYAyABKAVIAogBARIWCgljcmFmdGFibGUYBCABKAhIA4gBARIWCgl0",
-            "cmFkZWFibGUYBSABKAhIBIgBAUILCglfZGVmX25hbWVCEgoQX3RlYWNoZXNf",
-            "cHN5Y2FzdEIHCgVfaGVsZEIMCgpfY3JhZnRhYmxlQgwKCl90cmFkZWFibGUi",
-            "tAEKC1Bhd25Sb3lhbHR5EigKBHBhd24YASABKAsyGi5yaW1nb3Zlcm5vci5j",
-            "b21tb24udjEuUmVmEj8KCGhvbGRpbmdzGAIgAygLMi0ucmltZ292ZXJub3Iu",
-            "b2JzZXJ2YXRpb25zLnYxLlBhd25Sb3lhbEhvbGRpbmcSOgoIcHN5Y2FzdHMY",
-            "AyADKAsyKC5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuUGF3blBzeWNh",
-            "c3QipQMKEUJlc3Rvd2luZ0NlcmVtb255EhIKBXF1ZXN0GAogASgJSACIAQES",
+            "bmQSGwoOY29vbGRvd25fdGlja3MYBiABKAVIBIgBARIlChhjb29sZG93bl9y",
+            "ZW1haW5pbmdfdGlja3MYByABKAVIBYgBAUILCglfZGVmX25hbWVCCAoGX2xl",
+            "dmVsQhAKDl9wc3lmb2N1c19jb3N0QgoKCF9lbnRyb3B5QhEKD19jb29sZG93",
+            "bl90aWNrc0IbChlfY29vbGRvd25fcmVtYWluaW5nX3RpY2tzItABChBOZXVy",
+            "b2Zvcm1lclN0b2NrEhUKCGRlZl9uYW1lGAEgASgJSACIAQESHAoPdGVhY2hl",
+            "c19wc3ljYXN0GAIgASgJSAGIAQESEQoEaGVsZBgDIAEoBUgCiAEBEhYKCWNy",
+            "YWZ0YWJsZRgEIAEoCEgDiAEBEhYKCXRyYWRlYWJsZRgFIAEoCEgEiAEBQgsK",
+            "CV9kZWZfbmFtZUISChBfdGVhY2hlc19wc3ljYXN0QgcKBV9oZWxkQgwKCl9j",
+            "cmFmdGFibGVCDAoKX3RyYWRlYWJsZSKkAgoLUGF3blJveWFsdHkSKAoEcGF3",
+            "bhgBIAEoCzIaLnJpbWdvdmVybm9yLmNvbW1vbi52MS5SZWYSPwoIaG9sZGlu",
+            "Z3MYAiADKAsyLS5yaW1nb3Zlcm5vci5vYnNlcnZhdGlvbnMudjEuUGF3blJv",
+            "eWFsSG9sZGluZxI6Cghwc3ljYXN0cxgDIAMoCzIoLnJpbWdvdmVybm9yLm9i",
+            "c2VydmF0aW9ucy52MS5QYXduUHN5Y2FzdBIVCghwc3lmb2N1cxgEIAEoAUgA",
+            "iAEBEhQKB2VudHJvcHkYBSABKAFIAYgBARIYCgtlbnRyb3B5X21heBgGIAEo",
+            "AUgCiAEBQgsKCV9wc3lmb2N1c0IKCghfZW50cm9weUIOCgxfZW50cm9weV9t",
+            "YXgipQMKEUJlc3Rvd2luZ0NlcmVtb255EhIKBXF1ZXN0GAogASgJSACIAQES",
             "KAoEcGF3bhgBIAEoCzIaLnJpbWdvdmVybm9yLmNvbW1vbi52MS5SZWYSLAoI",
             "YmVzdG93ZXIYAiABKAsyGi5yaW1nb3Zlcm5vci5jb21tb24udjEuUmVmEhgK",
             "C2ZhY3Rpb25fZGVmGAMgASgJSAGIAQESEgoFdGl0bGUYBCABKAlIAogBARIV",
@@ -3209,9 +3213,9 @@ namespace RimGovernor.Protocol.Observations {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.RoyalPermitDef), global::RimGovernor.Protocol.Observations.RoyalPermitDef.Parser, new[]{ "DefName", "MinTitle", "PermitPoints", "Acts", "FavorCost", "CooldownDays" }, new[]{ "DefName", "MinTitle", "PermitPoints", "Acts", "FavorCost", "CooldownDays" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PermitCooldown), global::RimGovernor.Protocol.Observations.PermitCooldown.Parser, new[]{ "Permit", "LastUsedTick", "CooldownRemainingTicks" }, new[]{ "Permit", "LastUsedTick", "CooldownRemainingTicks" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnRoyalHolding), global::RimGovernor.Protocol.Observations.PawnRoyalHolding.Parser, new[]{ "FactionDef", "Title", "Favor", "PermitPoints", "Permits", "PermitCooldowns" }, new[]{ "FactionDef", "Title", "Favor", "PermitPoints" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnPsycast), global::RimGovernor.Protocol.Observations.PawnPsycast.Parser, new[]{ "DefName", "Level", "PsyfocusCost", "Entropy", "TargetKind", "CooldownTicks" }, new[]{ "DefName", "Level", "PsyfocusCost", "Entropy", "CooldownTicks" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnPsycast), global::RimGovernor.Protocol.Observations.PawnPsycast.Parser, new[]{ "DefName", "Level", "PsyfocusCost", "Entropy", "TargetKind", "CooldownTicks", "CooldownRemainingTicks" }, new[]{ "DefName", "Level", "PsyfocusCost", "Entropy", "CooldownTicks", "CooldownRemainingTicks" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.NeuroformerStock), global::RimGovernor.Protocol.Observations.NeuroformerStock.Parser, new[]{ "DefName", "TeachesPsycast", "Held", "Craftable", "Tradeable" }, new[]{ "DefName", "TeachesPsycast", "Held", "Craftable", "Tradeable" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnRoyalty), global::RimGovernor.Protocol.Observations.PawnRoyalty.Parser, new[]{ "Pawn", "Holdings", "Psycasts" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.PawnRoyalty), global::RimGovernor.Protocol.Observations.PawnRoyalty.Parser, new[]{ "Pawn", "Holdings", "Psycasts", "Psyfocus", "Entropy", "EntropyMax" }, new[]{ "Psyfocus", "Entropy", "EntropyMax" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.BestowingCeremony), global::RimGovernor.Protocol.Observations.BestowingCeremony.Parser, new[]{ "Quest", "Pawn", "Bestower", "FactionDef", "Title", "Accepted", "BestowerWaiting", "Started", "Spot", "Attendees" }, new[]{ "Quest", "FactionDef", "Title", "Accepted", "BestowerWaiting", "Started" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.RoyalThrone), global::RimGovernor.Protocol.Observations.RoyalThrone.Parser, new[]{ "Thing", "DefName", "Owner" }, new[]{ "DefName" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Observations.RoyaltyFacts), global::RimGovernor.Protocol.Observations.RoyaltyFacts.Parser, new[]{ "Context", "Ladder", "Permits", "Pawns", "Neuroformers", "Ceremonies", "Thrones" }, null, null, null, null),
@@ -3597,7 +3601,9 @@ namespace RimGovernor.Protocol.Observations {
   /// and each psycast neurotrainer, with held (unforbidden spawned stacks on the
   /// player's home maps), craftable (a recipe that is available now makes it)
   /// and tradeable (a trader can sell it). teaches_psycast is the trainer's
-  /// ability def.
+  /// ability def. For combat casts (#1611) cooldown_remaining_ticks is the
+  /// psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
+  /// entropy_max are read at the read's tick; each is absent when unread.
   /// </summary>
   public enum PsycastTargetKind {
     [pbr::OriginalName("PSYCAST_TARGET_KIND_UNSPECIFIED")] Unspecified = 0,
@@ -121026,6 +121032,7 @@ namespace RimGovernor.Protocol.Observations {
       entropy_ = other.entropy_;
       targetKind_ = other.targetKind_;
       cooldownTicks_ = other.cooldownTicks_;
+      cooldownRemainingTicks_ = other.cooldownRemainingTicks_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -121181,6 +121188,33 @@ namespace RimGovernor.Protocol.Observations {
       _hasBits0 &= ~8;
     }
 
+    /// <summary>Field number for the "cooldown_remaining_ticks" field.</summary>
+    public const int CooldownRemainingTicksFieldNumber = 7;
+    private readonly static int CooldownRemainingTicksDefaultValue = 0;
+
+    private int cooldownRemainingTicks_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public int CooldownRemainingTicks {
+      get { if ((_hasBits0 & 16) != 0) { return cooldownRemainingTicks_; } else { return CooldownRemainingTicksDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        cooldownRemainingTicks_ = value;
+      }
+    }
+    /// <summary>Gets whether the "cooldown_remaining_ticks" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasCooldownRemainingTicks {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "cooldown_remaining_ticks" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearCooldownRemainingTicks() {
+      _hasBits0 &= ~16;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -121202,6 +121236,7 @@ namespace RimGovernor.Protocol.Observations {
       if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Entropy, other.Entropy)) return false;
       if (TargetKind != other.TargetKind) return false;
       if (CooldownTicks != other.CooldownTicks) return false;
+      if (CooldownRemainingTicks != other.CooldownRemainingTicks) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -121215,6 +121250,7 @@ namespace RimGovernor.Protocol.Observations {
       if (HasEntropy) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Entropy);
       if (TargetKind != global::RimGovernor.Protocol.Observations.PsycastTargetKind.Unspecified) hash ^= TargetKind.GetHashCode();
       if (HasCooldownTicks) hash ^= CooldownTicks.GetHashCode();
+      if (HasCooldownRemainingTicks) hash ^= CooldownRemainingTicks.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -121257,6 +121293,10 @@ namespace RimGovernor.Protocol.Observations {
         output.WriteRawTag(48);
         output.WriteInt32(CooldownTicks);
       }
+      if (HasCooldownRemainingTicks) {
+        output.WriteRawTag(56);
+        output.WriteInt32(CooldownRemainingTicks);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -121291,6 +121331,10 @@ namespace RimGovernor.Protocol.Observations {
         output.WriteRawTag(48);
         output.WriteInt32(CooldownTicks);
       }
+      if (HasCooldownRemainingTicks) {
+        output.WriteRawTag(56);
+        output.WriteInt32(CooldownRemainingTicks);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -121318,6 +121362,9 @@ namespace RimGovernor.Protocol.Observations {
       }
       if (HasCooldownTicks) {
         size += 1 + pb::CodedOutputStream.ComputeInt32Size(CooldownTicks);
+      }
+      if (HasCooldownRemainingTicks) {
+        size += 1 + pb::CodedOutputStream.ComputeInt32Size(CooldownRemainingTicks);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -121348,6 +121395,9 @@ namespace RimGovernor.Protocol.Observations {
       }
       if (other.HasCooldownTicks) {
         CooldownTicks = other.CooldownTicks;
+      }
+      if (other.HasCooldownRemainingTicks) {
+        CooldownRemainingTicks = other.CooldownRemainingTicks;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -121392,6 +121442,10 @@ namespace RimGovernor.Protocol.Observations {
             CooldownTicks = input.ReadInt32();
             break;
           }
+          case 56: {
+            CooldownRemainingTicks = input.ReadInt32();
+            break;
+          }
         }
       }
     #endif
@@ -121433,6 +121487,10 @@ namespace RimGovernor.Protocol.Observations {
           }
           case 48: {
             CooldownTicks = input.ReadInt32();
+            break;
+          }
+          case 56: {
+            CooldownRemainingTicks = input.ReadInt32();
             break;
           }
         }
@@ -121871,6 +121929,7 @@ namespace RimGovernor.Protocol.Observations {
   {
     private static readonly pb::MessageParser<PawnRoyalty> _parser = new pb::MessageParser<PawnRoyalty>(() => new PawnRoyalty());
     private pb::UnknownFieldSet _unknownFields;
+    private int _hasBits0;
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public static pb::MessageParser<PawnRoyalty> Parser { get { return _parser; } }
@@ -121898,9 +121957,13 @@ namespace RimGovernor.Protocol.Observations {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public PawnRoyalty(PawnRoyalty other) : this() {
+      _hasBits0 = other._hasBits0;
       pawn_ = other.pawn_ != null ? other.pawn_.Clone() : null;
       holdings_ = other.holdings_.Clone();
       psycasts_ = other.psycasts_.Clone();
+      psyfocus_ = other.psyfocus_;
+      entropy_ = other.entropy_;
+      entropyMax_ = other.entropyMax_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -121944,6 +122007,87 @@ namespace RimGovernor.Protocol.Observations {
       get { return psycasts_; }
     }
 
+    /// <summary>Field number for the "psyfocus" field.</summary>
+    public const int PsyfocusFieldNumber = 4;
+    private readonly static double PsyfocusDefaultValue = 0D;
+
+    private double psyfocus_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double Psyfocus {
+      get { if ((_hasBits0 & 1) != 0) { return psyfocus_; } else { return PsyfocusDefaultValue; } }
+      set {
+        _hasBits0 |= 1;
+        psyfocus_ = value;
+      }
+    }
+    /// <summary>Gets whether the "psyfocus" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasPsyfocus {
+      get { return (_hasBits0 & 1) != 0; }
+    }
+    /// <summary>Clears the value of the "psyfocus" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearPsyfocus() {
+      _hasBits0 &= ~1;
+    }
+
+    /// <summary>Field number for the "entropy" field.</summary>
+    public const int EntropyFieldNumber = 5;
+    private readonly static double EntropyDefaultValue = 0D;
+
+    private double entropy_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double Entropy {
+      get { if ((_hasBits0 & 2) != 0) { return entropy_; } else { return EntropyDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        entropy_ = value;
+      }
+    }
+    /// <summary>Gets whether the "entropy" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasEntropy {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "entropy" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearEntropy() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "entropy_max" field.</summary>
+    public const int EntropyMaxFieldNumber = 6;
+    private readonly static double EntropyMaxDefaultValue = 0D;
+
+    private double entropyMax_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public double EntropyMax {
+      get { if ((_hasBits0 & 4) != 0) { return entropyMax_; } else { return EntropyMaxDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        entropyMax_ = value;
+      }
+    }
+    /// <summary>Gets whether the "entropy_max" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasEntropyMax {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "entropy_max" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearEntropyMax() {
+      _hasBits0 &= ~4;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -121962,6 +122106,9 @@ namespace RimGovernor.Protocol.Observations {
       if (!object.Equals(Pawn, other.Pawn)) return false;
       if(!holdings_.Equals(other.holdings_)) return false;
       if(!psycasts_.Equals(other.psycasts_)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Psyfocus, other.Psyfocus)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Entropy, other.Entropy)) return false;
+      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(EntropyMax, other.EntropyMax)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -121972,6 +122119,9 @@ namespace RimGovernor.Protocol.Observations {
       if (pawn_ != null) hash ^= Pawn.GetHashCode();
       hash ^= holdings_.GetHashCode();
       hash ^= psycasts_.GetHashCode();
+      if (HasPsyfocus) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Psyfocus);
+      if (HasEntropy) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Entropy);
+      if (HasEntropyMax) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(EntropyMax);
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -121996,6 +122146,18 @@ namespace RimGovernor.Protocol.Observations {
       }
       holdings_.WriteTo(output, _repeated_holdings_codec);
       psycasts_.WriteTo(output, _repeated_psycasts_codec);
+      if (HasPsyfocus) {
+        output.WriteRawTag(33);
+        output.WriteDouble(Psyfocus);
+      }
+      if (HasEntropy) {
+        output.WriteRawTag(41);
+        output.WriteDouble(Entropy);
+      }
+      if (HasEntropyMax) {
+        output.WriteRawTag(49);
+        output.WriteDouble(EntropyMax);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -122012,6 +122174,18 @@ namespace RimGovernor.Protocol.Observations {
       }
       holdings_.WriteTo(ref output, _repeated_holdings_codec);
       psycasts_.WriteTo(ref output, _repeated_psycasts_codec);
+      if (HasPsyfocus) {
+        output.WriteRawTag(33);
+        output.WriteDouble(Psyfocus);
+      }
+      if (HasEntropy) {
+        output.WriteRawTag(41);
+        output.WriteDouble(Entropy);
+      }
+      if (HasEntropyMax) {
+        output.WriteRawTag(49);
+        output.WriteDouble(EntropyMax);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -122027,6 +122201,15 @@ namespace RimGovernor.Protocol.Observations {
       }
       size += holdings_.CalculateSize(_repeated_holdings_codec);
       size += psycasts_.CalculateSize(_repeated_psycasts_codec);
+      if (HasPsyfocus) {
+        size += 1 + 8;
+      }
+      if (HasEntropy) {
+        size += 1 + 8;
+      }
+      if (HasEntropyMax) {
+        size += 1 + 8;
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -122047,6 +122230,15 @@ namespace RimGovernor.Protocol.Observations {
       }
       holdings_.Add(other.holdings_);
       psycasts_.Add(other.psycasts_);
+      if (other.HasPsyfocus) {
+        Psyfocus = other.Psyfocus;
+      }
+      if (other.HasEntropy) {
+        Entropy = other.Entropy;
+      }
+      if (other.HasEntropyMax) {
+        EntropyMax = other.EntropyMax;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -122081,6 +122273,18 @@ namespace RimGovernor.Protocol.Observations {
             psycasts_.AddEntriesFrom(input, _repeated_psycasts_codec);
             break;
           }
+          case 33: {
+            Psyfocus = input.ReadDouble();
+            break;
+          }
+          case 41: {
+            Entropy = input.ReadDouble();
+            break;
+          }
+          case 49: {
+            EntropyMax = input.ReadDouble();
+            break;
+          }
         }
       }
     #endif
@@ -122113,6 +122317,18 @@ namespace RimGovernor.Protocol.Observations {
           }
           case 26: {
             psycasts_.AddEntriesFrom(ref input, _repeated_psycasts_codec);
+            break;
+          }
+          case 33: {
+            Psyfocus = input.ReadDouble();
+            break;
+          }
+          case 41: {
+            Entropy = input.ReadDouble();
+            break;
+          }
+          case 49: {
+            EntropyMax = input.ReadDouble();
             break;
           }
         }

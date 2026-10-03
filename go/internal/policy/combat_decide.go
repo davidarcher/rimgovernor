@@ -216,12 +216,14 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	// An outmatched fight calls its held permits (#1608); a call names no
 	// drafted pawn and leaves its holder's other orders alone.
 	orders = append(orders, permitCalls(view, &next)...)
+	// A psycaster casts its ready combat psycast (#1611), one per caster.
+	orders = append(orders, castCalls(view, &next)...)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	// The colony animals' orders (#1058) name no drafted pawn.
 	orders = append(orders, animalStep(view, &next)...)
 	for _, o := range orders {
-		if o.Pawn != "" && o.Kind != OrderPermit {
+		if o.Pawn != "" && o.Kind != OrderPermit && o.Kind != OrderCast {
 			next.issue(o, view.Tick)
 		}
 	}
@@ -505,6 +507,9 @@ type CombatOrder struct {
 	// its target and Pawn the holder.
 	Faction string `json:",omitempty"`
 	Permit  string `json:",omitempty"`
+	// A psycast_cast order (#1611) names the psycast in Permit and the arm
+	// it takes in Arm: self (no target), pawn (Target) or cell (Cell).
+	Arm PsycastTarget `json:",omitempty"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -602,6 +607,8 @@ type CombatMemory struct {
 	// Permitted are the permits called this fight, "pawn/faction/permit"
 	// (#1608): the royalty read is slow, so a call is not repeated.
 	Permitted []string `json:",omitempty"`
+	// Casts are the psycasts cast this fight (#1611).
+	Casts []CastMark `json:",omitempty"`
 	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
 	// ends (#1050), sorted by pawn.
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
@@ -722,6 +729,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.NoShells = slices.Clone(m.NoShells)
 	m.Dosed = slices.Clone(m.Dosed)
 	m.Permitted = slices.Clone(m.Permitted)
+	m.Casts = slices.Clone(m.Casts)
 	m.Flank = m.Flank.clone()
 	m.Groups = slices.Clone(m.Groups)
 	for i := range m.Groups {

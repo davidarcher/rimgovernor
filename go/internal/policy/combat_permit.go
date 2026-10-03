@@ -111,17 +111,12 @@ func outmatchedKnown(view CombatView) bool {
 	return slices.ContainsFunc(view.Defenders, func(d SquadDefenderFacts) bool { return squadDefenderEligible(d) && positive(d.Armed) }) && outmatched(view)
 }
 
-// liveHostileCells are the cells of the live hostile pawns, in id order.
+// liveHostileCells are the cells of the live hostile pawns, in view order.
 func liveHostileCells(view CombatView) []domain.Cell {
-	hostile := map[domain.PawnID]bool{}
-	for _, t := range view.Threats {
-		hostile[domain.PawnID(t.ID)] = !t.Building && !positive(t.Dead) && !positive(t.Downed)
-	}
 	var cells []domain.Cell
-	for _, p := range view.Pawns {
-		if c, ok := p.Cell.Value(); ok && hostile[p.ID] && !p.Dead && !p.Downed {
-			cells = append(cells, c)
-		}
+	for _, p := range liveHostiles(view) {
+		c, _ := p.Cell.Value()
+		cells = append(cells, c)
 	}
 	return cells
 }
