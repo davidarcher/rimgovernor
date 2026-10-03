@@ -232,6 +232,39 @@ catalog once per load token and decodes it into `policy.AnimalRaceCatalog`
 derived state held in Go memory (persistence-contracts.md); it adds no store
 and no per-animal rows.
 
+## Biotech defs and pawn facts
+
+Biotech facts follow the shared wire pattern (#1333): static defs ride the
+definition catalog and per-pawn facts ride the canonical pawn row. There is no
+separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`).
+
+`DefinitionCatalog.biotech` (#1678) holds, each sorted by name: `LifeStageDef`
+rows (developmental stage, flags, stat effects); `RaceLifeStages` for every
+humanlike race (`lifeStageAges` with the age each stage begins and
+`lifeStageWorkSettings`, the minimum age per work type); `GeneDef` rows with
+typed effects read from the def (disabled work tags, stat offsets and factors,
+aptitudes, passion mods, capacity mods, enabled and disabled needs, forced and
+suppressed traits, immunities, chemical dependency and tolerance factors,
+biostats, exclusion tags); `XenotypeDef` rows with their genes; controllable
+mech kinds (`PawnKindDef` of a mechanoid race with an overseer-subject comp:
+weight class, bandwidth cost, work types and priorities); and
+`MechWorkModeDef` rows. Effects come from the game defs, never Go name lists.
+The Go client decodes the section into `bridge.BiotechCatalog` (rows by name,
+refusing duplicates, unknown cross references and nonfinite numbers) with the
+rest of the catalog, once per load token.
+
+`PawnState.biotech` (`PawnBiotech`) carries a pawn's life stage and
+developmental stage, learning need level and category, genes (endogene or
+xenogene, active or overridden), xenotype, mechanitor bandwidth and controlled
+mechs, a mech's overseer, work mode and control group index, and deathrest
+state. An absent scalar is unknown, never zero; a failed sub-read leaves its
+fields absent and adds a `ReadIssue` named `life_stage`, `developmental_stage`,
+`learning`, `genes`, `mechanitor`, `mech` or `deathrest`. Go lifts the block into
+`policy.PawnBiotech` on the work pawn (`WorkPawn.Biotech`) and the pawn
+profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
+Child) when it is known and the age rule otherwise. Both are derived state held
+in Go memory (persistence-contracts.md); they add no store.
+
 ## Quest census Empire fields
 
 `QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`

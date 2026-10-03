@@ -312,6 +312,7 @@ namespace HomeBridge.BridgeTools
             if (lord?.LordJob != null) { row.LordJobClass=Identifier(lord.LordJob.GetType().Name); if (lord.CurLordToil != null) row.LordToilClass=Identifier(lord.CurLordToil.GetType().Name); }
             if (pawn.jobs?.jobQueue != null) row.Job=JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count);
             else row.Issues.Add(Issue("job",Common.UnavailableReason.NativeComponentMissing,"Pawn job tracker or queue is unavailable."));
+            row.Biotech = NativeBiotechFacts.Pawn(pawn);
             NativePawnControlObservation.Apply(pawn, row, context);
             var needs=new Obs.PawnNeeds(); row.Needs=needs;
             if (pawn.needs?.mood != null) needs.Mood=Finite(pawn.needs.mood.CurLevelPercentage);

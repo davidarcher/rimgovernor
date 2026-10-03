@@ -129,6 +129,7 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		w.Age = optional(b.BiologicalAgeYears)
 	}
 	w.Inspiration = optional(row.Inspiration)
+	w.Biotech = bridge.PawnBiotech(row.Biotech)
 	if s := row.Settings; s != nil && s.HostilityResponse != nil && !hasIssue(s.Issues, "hostility_response") {
 		w.Hostility = domain.Known(bridge.HostilityName(s.GetHostilityResponse()))
 	}

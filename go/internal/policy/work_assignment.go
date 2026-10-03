@@ -48,6 +48,8 @@ type WorkPawn struct {
 	// Inspiration is the current InspirationDef defName (#1187); known "" is
 	// no inspiration, unknown is a read that did not carry it.
 	Inspiration domain.Fact[string]
+	// Biotech is the pawn's Biotech facts (#1678); unknown without Biotech.
+	Biotech domain.Fact[PawnBiotech]
 	// Hostility inputs (#1299): the Assign-tab response (unknown where the
 	// pawn has none to configure), violence from the disabled work tags,
 	// BloodLoss severity and summary health.

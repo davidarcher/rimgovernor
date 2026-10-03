@@ -150,3 +150,21 @@ func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
 	}
 	return &o.PawnState{}
 }
+
+// TestWorkPawnRowBiotech (#1678): the row's Biotech block reaches the work
+// pawn and the profile's Child flag; a Core-only row stays unknown.
+func TestWorkPawnRowBiotech(t *testing.T) {
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Child"), LifeStage: proto.String("HumanlikeChild"),
+		Genes: []*o.PawnGene{{DefName: proto.String("Robust"), Xenogene: proto.Bool(false), Active: proto.Bool(true)}}, XenotypeName: proto.String("Baseliner")}}
+	w := WorkPawnRow(row)
+	bt, known := w.Biotech.Value()
+	if stage, _ := bt.LifeStage.Value(); !known || stage != "HumanlikeChild" {
+		t.Fatal("biotech block not lifted", bt)
+	}
+	if !policy.BuildProfile(w).Child {
+		t.Fatal("a Child developmental stage must make the profile a child")
+	}
+	if _, known := WorkPawnRow(&o.PawnState{Pawn: &o.EntityRef{Id: proto.String("core")}}).Biotech.Value(); known {
+		t.Fatal("Core-only row has biotech facts")
+	}
+}

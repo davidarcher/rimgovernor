@@ -27,6 +27,8 @@ type DefinitionCatalog struct {
 	Definitions map[string]*o.PlanningDefinition
 	// Research is every research project's static facts by name.
 	Research map[string]policy.ResearchProjectFacts
+	// Biotech is the Biotech defs (#1678); nil without Biotech.
+	Biotech *BiotechCatalog
 }
 
 // Definition is name's catalog row, nil when the catalog has none.
@@ -89,6 +91,10 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Definitions: make(map[string]*o.PlanningDefinition, len(v.Definitions)), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
+	var err error
+	if out.Biotech, err = DecodeBiotechCatalog(v.Biotech); err != nil {
+		return nil, err
+	}
 	for _, row := range v.Definitions {
 		if err := validatePlanningDefinition(row); err != nil {
 			return nil, err

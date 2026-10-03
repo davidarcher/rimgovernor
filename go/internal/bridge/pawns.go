@@ -171,6 +171,9 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if row.NearestColonist != nil && !validRef(row.NearestColonist) {
 			return contract("invalid nearest colonist")
 		}
+		if err := validatePawnBiotech(row.Biotech); err != nil {
+			return err
+		}
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
 			return err
 		}

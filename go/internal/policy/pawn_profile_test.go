@@ -150,3 +150,26 @@ func TestSituationalRoles(t *testing.T) {
 		t.Fatal(front, rear)
 	}
 }
+
+// TestProfileChildFromDevelopmentalStage (#1678): a known developmental
+// stage decides Child; without Biotech facts the age rule stays.
+func TestProfileChildFromDevelopmentalStage(t *testing.T) {
+	stage := func(name string) domain.Fact[PawnBiotech] {
+		return domain.Known(PawnBiotech{DevelopmentalStage: domain.Known(name)})
+	}
+	for _, c := range []struct {
+		name  string
+		pawn  WorkPawn
+		child bool
+	}{
+		{"baby", WorkPawn{Age: domain.Known(15.0), Biotech: stage("Baby")}, true},
+		{"child", WorkPawn{Age: domain.Known(30.0), Biotech: stage("Child")}, true},
+		{"adult below the age rule", WorkPawn{Age: domain.Known(11.0), Biotech: stage("Adult")}, false},
+		{"unread stage keeps the age rule", WorkPawn{Age: domain.Known(11.0), Biotech: domain.Known(PawnBiotech{})}, true},
+		{"core only", WorkPawn{Age: domain.Known(11.0)}, true},
+	} {
+		if got := BuildProfile(c.pawn).Child; got != c.child {
+			t.Errorf("%s: child = %v", c.name, got)
+		}
+	}
+}

@@ -447,6 +447,40 @@ message PawnState {
   optional string inspiration = 44;
   // The pawn control CAS token, on reads that admit a pawn order (#1342).
   SnapshotRef pawn_snapshot = 45;
+  // Biotech pawn facts (#1678); absent without Biotech, so absent is not
+  // applicable, never a gene-less pawn.
+  PawnBiotech biotech = 46;
+}
+// Biotech facts of one pawn (#1678). Each scalar is absent when native could
+// not read it (unknown, not zero); a failed sub-read adds a ReadIssue named
+// for its field (genes, mechanitor, mech, deathrest). Defs are the
+// DefinitionCatalog.biotech rows' names.
+// life_stage is the pawn's LifeStageDef (Pawn_AgeTracker.CurLifeStage) and
+// developmental_stage the DevelopmentalStage name (Newborn, Baby, Child,
+// Adult; None for a race with no stages). learning is Need_Learning's level
+// (0-1) with its LearningCategory name; absent for a pawn with no learning
+// need. genes: every gene of Pawn_GeneTracker (endogenes and xenogenes).
+// xenotype is the XenotypeDef name, absent for a custom xenotype or none;
+// xenotype_name is the pawn's xenotype label (named custom xenotypes
+// included) and hybrid the Pawn_GeneTracker.hybrid flag. mechanitor is set
+// for a pawn with a Pawn_MechanitorTracker; mech for a mechanoid the player
+// can ever control. deathrest is set for a pawn with a deathrest gene.
+message PawnGene { optional string def_name = 1; optional bool xenogene = 2; optional bool active = 3; }
+message PawnMechanitor {
+  optional int32 used_bandwidth = 1; optional int32 total_bandwidth = 2; optional int32 used_bandwidth_from_gestation = 3; optional int32 control_groups = 4;
+  repeated rimgovernor.common.v1.Ref controlled_mechs = 5;
+}
+message PawnMech { rimgovernor.common.v1.Ref overseer = 1; optional string work_mode = 2; optional int32 control_group = 3; }
+message PawnDeathrest {
+  optional bool deathresting = 1; optional double level = 2; optional int32 last_deathrest_tick = 3; optional double deathrest_percent = 4;
+  optional int32 capacity = 5; optional int32 bound_buildings = 6; optional bool auto_wake = 7;
+}
+message PawnBiotech {
+  optional string life_stage = 1; optional string developmental_stage = 2;
+  optional double learning = 3; optional string learning_category = 4;
+  repeated PawnGene genes = 5; optional string xenotype = 6; optional string xenotype_name = 7; optional bool hybrid = 8;
+  PawnMechanitor mechanitor = 9; PawnMech mech = 10; PawnDeathrest deathrest = 11;
+  repeated ReadIssue issues = 12;
 }
 message PawnTendDoctor {
   // NativePawnControlState eligibility: a drafter exists, the pawn is spawned,
@@ -1661,7 +1695,80 @@ message SnapshotStreamRequest {
 // by name, and every research project with its static facts (costs,
 // prerequisites, tab, tech level, required bench). It is fixed for a load:
 // the controller reads it once per load token.
-message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated PlanningDefinition definitions = 2; repeated ResearchProject research = 3; }
+message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated PlanningDefinition definitions = 2; repeated ResearchProject research = 3;
+  // Biotech defs (#1678); absent without Biotech.
+  BiotechCatalog biotech = 4;
+}
+// The static Biotech defs, each list sorted by name (#1678). A stat effect is
+// a StatModifier of the def: stat is the StatDef name; factor and offset are
+// set for the side it carries. Scalars are absent when native could not read
+// them. Effects are the game defs' own (never Go name lists): the controller
+// reads them once per load token.
+message StatEffect { optional string stat = 1; optional double factor = 2; optional double offset = 3; }
+message SkillLevel { optional string skill = 1; optional int32 level = 2; }
+message CapacityEffect { optional string capacity = 1; optional double offset = 2; optional double set_max = 3; optional double post_factor = 4; }
+// LifeStageDef: developmental_stage is the DevelopmentalStage name,
+// reproductive/always_downed/claimable/can_voluntarily_sleep and
+// involuntary_sleep_is_negative_event are the def's flags, and effects its
+// statOffsets and statFactors.
+message LifeStageRow {
+  optional string def_name = 1; optional string label = 2; optional string developmental_stage = 3;
+  optional bool reproductive = 4; optional bool always_downed = 5; optional bool claimable = 6; optional bool can_voluntarily_sleep = 7;
+  optional bool involuntary_sleep_is_negative_event = 8; repeated StatEffect effects = 9;
+  optional double hunger_rate_factor = 10; optional double body_size_factor = 11; optional double health_scale_factor = 12;
+}
+// RaceProperties.lifeStageAges of a humanlike race: each stage with the age
+// (years) it begins, ascending, and lifeStageWorkSettings: the minimum age of
+// each work type a young pawn may do (a work type missing from the list has
+// no minimum).
+message LifeStageAgeRow { optional string life_stage = 1; optional double min_age_years = 2; }
+message WorkMinAge { optional string work_type = 1; optional int32 min_age = 2; }
+message RaceLifeStages { optional string race = 1; repeated LifeStageAgeRow stages = 2; repeated WorkMinAge work_min_ages = 3; }
+// GeneDef: complexity, metabolism and archite are biostatCpx, biostatMet and
+// biostatArc; disabled_work_tags are the WorkTags names the gene disables;
+// effects its statOffsets and statFactors; aptitudes the skill levels it
+// adds; passion_mods the skills whose passion it changes (mod_type is the
+// PassionModType name); capacity_effects its capMods; enables_needs and
+// disables_needs the NeedDefs it turns on or off; forced_traits and
+// suppressed_traits the TraitDefs; make_immune_to the HediffDefs it
+// immunizes against. Chemical tolerance: chemical is the ChemicalDef of a
+// dependency or tolerance gene with the three chance factors; the rest are
+// the def's own fields (min_age_active years, pain_offset and pain_factor,
+// exclusion_tags).
+message GeneRow {
+  optional string def_name = 1; optional string label = 2; optional string category = 3;
+  optional int32 complexity = 4; optional int32 metabolism = 5; optional int32 archite = 6;
+  repeated string disabled_work_tags = 7; repeated StatEffect effects = 8; repeated SkillLevel aptitudes = 9;
+  repeated PassionEffect passion_mods = 10; repeated CapacityEffect capacity_effects = 11;
+  repeated string enables_needs = 12; repeated string disables_needs = 13;
+  repeated string forced_traits = 14; repeated string suppressed_traits = 15; repeated string make_immune_to = 16;
+  optional string chemical = 17; optional double addiction_chance_factor = 18; optional double overdose_chance_factor = 19; optional double tolerance_buildup_factor = 20;
+  optional double min_age_active = 21; optional double pain_offset = 22; optional double pain_factor = 23;
+  repeated string exclusion_tags = 24;
+}
+message PassionEffect { optional string skill = 1; optional string mod_type = 2; }
+// XenotypeDef: genes are the GeneDef names it carries.
+message XenotypeRow { optional string def_name = 1; optional string label = 2; optional bool inheritable = 3; repeated string genes = 4; }
+message MechWorkPriority { optional string work_type = 1; optional int32 priority = 2; }
+// A controllable mech kind: a PawnKindDef whose race is a mechanoid with an
+// overseer-subject comp. weight_class is the MechWeightClassDef;
+// bandwidth_cost the BandwidthCost stat of the race; max_energy and
+// fixed_skill_level the race's maxMechEnergy and mechFixedSkillLevel;
+// work_types the mechEnabledWorkTypes and work_priorities the
+// mechWorkTypePriorities (priority per work type); work_mech whether the race
+// does work.
+message MechKindRow {
+  optional string def_name = 1; optional string label = 2; optional string race = 3; optional string weight_class = 4;
+  optional double bandwidth_cost = 5; optional int32 max_energy = 6; optional int32 fixed_skill_level = 7;
+  repeated string work_types = 8; repeated MechWorkPriority work_priorities = 9; optional bool work_mech = 10; optional double body_size = 11; optional double combat_power = 12;
+}
+// MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
+// the def's flag.
+message MechWorkModeRow { optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4; }
+message BiotechCatalog {
+  repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
+  repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;
+}
 message DefinitionCatalogRequest { ReadScope scope = 1; }
 message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message SnapshotStreamOpened {

@@ -55,6 +55,7 @@ namespace HomeBridge.BridgeTools
                 catalog.Definitions.Add(row);
             foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
+            catalog.Biotech = NativeBiotechFacts.Catalog();
             return catalog;
         }
     }
