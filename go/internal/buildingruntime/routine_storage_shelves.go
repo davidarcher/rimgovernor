@@ -246,6 +246,34 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		if err != nil {
 			return RoutineStorageShelvesResult{}, err
 		}
+		// A footprint on rock or fogged mountain is mined and the shelf
+		// built in one method through the shared rock step.
+		var planned []policy.RoleCell
+		for x := piece.Rect.X; x < piece.Rect.X+piece.Rect.Width; x++ {
+			for z := piece.Rect.Z; z < piece.Rect.Z+piece.Rect.Height; z++ {
+				planned = append(planned, policy.RoleCell{Cell: domain.Cell{X: x, Z: z}, Role: policy.RockNeedsFloor})
+			}
+		}
+		if dig := policy.RockStep(planned, facts.Cells).Dig; len(dig) > 0 {
+			access, ok := policy.RockAccess(dig, facts.Cells)
+			if !ok {
+				return RoutineStorageShelvesResult{Verdict: rockNotDug(policy.ShelfDefinition, "no_open_cell_beside_footprint")}, nil
+			}
+			method := shelfMethod(step.Zone.Zone, index)
+			dug, handled, err := building.admitRockStep(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading.ColonyReading}, planned, access, method, []domain.Building{value}, check)
+			if err != nil {
+				return RoutineStorageShelvesResult{}, err
+			}
+			if handled {
+				out := RoutineStorageShelvesResult{Verdict: dug.Verdict}
+				for _, m := range dug.Decision.Goal.Methods {
+					if m.Method == method {
+						out.Plan = m.Plan
+					}
+				}
+				return out, nil
+			}
+		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), value)
 		if err != nil {
 			return RoutineStorageShelvesResult{}, err

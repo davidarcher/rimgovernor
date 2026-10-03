@@ -109,6 +109,23 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 	for _, c := range protected {
 		guarded[c] = true
 	}
+	// Listed natural rock on a floor cell is the floor already: the rock step
+	// leaves it, so no floor is ordered or previewed. A cell the census does
+	// not list is the native preview's to judge (the census is a window, not
+	// the whole map), so it is not classified here.
+	listed := make(map[domain.Cell]bool, len(facts.Cells))
+	for _, c := range facts.Cells {
+		listed[c.Cell] = true
+	}
+	var role []policy.RoleCell
+	for _, cell := range r.flooring.Cells {
+		if listed[cell] {
+			role = append(role, policy.RoleCell{Cell: cell, Role: policy.RockBlocks})
+		}
+	}
+	for _, cell := range policy.RockStep(role, facts.Cells).Left {
+		guarded[cell] = true
+	}
 	var selected []policy.Preview
 	unknown := false
 	for _, cell := range r.flooring.Cells {
