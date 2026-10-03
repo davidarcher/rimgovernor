@@ -44,7 +44,7 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 		if row == nil || row.Pawn == nil {
 			continue
 		}
-		facts, err := equipCandidatePawnFacts(row, catalog)
+		facts, err := equipCandidatePawnFacts(row, catalog, things)
 		if err != nil {
 			slog.Default().InfoContext(call, "fight loadout pawn: "+err.Error(), telemetry.ComponentKey, "routine-defense")
 			return nil

@@ -100,6 +100,16 @@ func (f framed) ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (
 	return bridge.DefenseSite{}, bridge.Result{}, nil
 }
 
+// FrameThings and DefinitionCatalog pass the fake's tables through, as the
+// live native serves them beside the combat frame.
+func (f framed) FrameThings(ctx context.Context, identity *c.Identity) (bridge.Things, error) {
+	return frameThings(ctx, f.legacyDefense, identity)
+}
+
+func (f framed) DefinitionCatalog(ctx context.Context, identity *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return pawnCatalog(ctx, f.legacyDefense, identity)
+}
+
 func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Combat, error) {
 	emergency, _, err := f.ReadEmergency(ctx, identity)
 	if err != nil {
@@ -129,7 +139,7 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		}
 	}
 	if len(ids) == 0 || len(emergency.Facts.Colonists) == 0 || len(hostiles)+len(buildings) == 0 && !hasAggressiveBreak(emergency.Facts) {
-		return decodeCombatWithCatalog(frame)
+		return f.decode(ctx, identity, frame)
 	}
 	reply, _, err := f.ReadCombatPawns(ctx, identity, ids)
 	if err != nil {
@@ -164,8 +174,17 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		}
 	}
 	var firing, approach []domain.Cell
+	arms, err := readArmament(ctx, f.legacyDefense, identity)
+	if err != nil {
+		return bridge.Combat{}, err
+	}
 	for _, row := range detailRows {
-		if !seen[row.GetPawn().GetId()] || row.Pawn.Position == nil || primaryRange(row.Equipment) <= 0 {
+		if !seen[row.GetPawn().GetId()] || row.Pawn.Position == nil {
+			continue
+		}
+		if reach, err := arms.primaryRange(row.Equipment); err != nil {
+			return bridge.Combat{}, err
+		} else if reach <= 0 {
 			continue
 		}
 		firing = append(firing, domain.Cell{X: row.Pawn.Position.GetX(), Z: row.Pawn.Position.GetZ()})
@@ -190,7 +209,28 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		}
 		frame.CombatLinesOfFire = snapshot
 	}
-	return decodeCombatWithCatalog(frame)
+	return f.decode(ctx, identity, frame)
+}
+
+// decode is decodeCombatWithCatalog with the fake's frame things table, which
+// the live read takes from the held frame.
+func (f framed) decode(ctx context.Context, identity *c.Identity, frame *o.BundleSnapshot) (bridge.Combat, error) {
+	var extra []bridge.FixtureDef
+	if source, ok := f.legacyDefense.(interface{ recordedWeaponDefs() []bridge.FixtureDef }); ok {
+		extra = source.recordedWeaponDefs()
+	}
+	// The cut frame carries the primary weapons' rows of the things table.
+	things, err := frameThings(ctx, f.legacyDefense, identity)
+	if err != nil {
+		return bridge.Combat{}, err
+	}
+	frame.Things = &o.ThingsSnapshot{Context: frame.Context}
+	for _, row := range frame.GetPawns().GetPawns() {
+		if held, ok := things.Get(row.GetEquipment().GetPrimaryId()); ok {
+			frame.Things.Things = append(frame.Things.Things, held)
+		}
+	}
+	return decodeCombatWithCatalog(frame, extra...)
 }
 
 // scopeRefs scopes every CAS snapshot ref in m to the frame's context, as

@@ -110,6 +110,9 @@ type FixtureWeapon struct {
 	// VerbClass is the ranged verb's class ("Verse.Verb_Shoot"); empty makes
 	// the weapon a melee one.
 	VerbClass string
+	// Makeshift keeps the weapon out of the Weapons thing category: a def that
+	// is a club by its tools alone (WoodLog).
+	Makeshift bool
 	// Market is the weapon's MarketValue at Normal quality; zero reads as 1.
 	Market float32
 	// Range and ForcedMissRadius are the verb's; ExplosionRadius, DamageDef
@@ -183,7 +186,7 @@ func CoreWeaponFixtures() []FixtureDef {
 		{Name: "MeleeWeapon_Knife", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Cut"}, Power: 12, Cooldown: 1.5}, {Capacities: []string{"Stab"}, Power: 13, Cooldown: 2}}}},
 		{Name: "MeleeWeapon_Spear", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt", "Poke"}, Power: 13, Cooldown: 2.6}, {Capacities: []string{"Stab"}, Power: 23, Cooldown: 2.6, AP: ptr(float32(.5))}}}},
 		{Name: "MeleeWeapon_LongSword", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 9, Cooldown: 2}, {Capacities: []string{"Stab"}, Power: 23, Cooldown: 2.6}, {Capacities: []string{"Cut"}, Power: 23, Cooldown: 2.6}}}},
-		{Name: "WoodLog", Weapon: &FixtureWeapon{Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 10, Cooldown: 2}}}},
+		{Name: "WoodLog", Weapon: &FixtureWeapon{Makeshift: true, Tools: []FixtureTool{{Capacities: []string{"Blunt"}, Power: 10, Cooldown: 2}}}},
 		// The mortar shells of Core, Biotech and Anomaly (every def with a
 		// projectileWhenLoaded), by their projectile's damage def and radius.
 		{Name: "Shell_HighExplosive", Shell: &FixtureShell{DamageDef: "Bomb", ExplosionRadius: 2.9}},
@@ -342,7 +345,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	stats := []string{StatMaxHitPoints, StatFlammability, StatBedRestEffectiveness, StatWorkToBuild, StatMarketValue, StatNutrition, StatCleanliness, StatBeauty, "ArmorRating_Sharp", "ArmorRating_Blunt", "Insulation_Cold", "Insulation_Heat", StatComfort}
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
-	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}, {DefName: statRangedCooldown, DefaultBaseValue: 1}, {DefName: statRangedDamageMult, DefaultBaseValue: 1}, {DefName: statRangedPenMult, DefaultBaseValue: 1}, {DefName: statMeleeCooldown, DefaultBaseValue: 1}, {DefName: statMeleeDamageMult, DefaultBaseValue: 1}}, RoomStatDefs: FixtureRoomStats()}
+	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}, {DefName: statRangedCooldown, DefaultBaseValue: 1}, {DefName: statRangedDamageMult, DefaultBaseValue: 1}, {DefName: statRangedPenMult, DefaultBaseValue: 1}, {DefName: statMeleeCooldown, DefaultBaseValue: 1}, {DefName: statMeleeDamageMult, DefaultBaseValue: 1}}, RoomStatDefs: FixtureRoomStats(), ThingCategoryDefs: []*d.ThingCategoryDef{{DefName: categoryWeapons}}}
 	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
@@ -516,6 +519,9 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			row(projectile, "", nil, nil)
 		}
 		if w := def.Weapon; w != nil {
+			if !w.Makeshift {
+				t.ThingCategories = []string{categoryWeapons}
+			}
 			if w.VerbClass != "" {
 				projectile := def.Name + "_Projectile"
 				burst := w.Burst
@@ -659,7 +665,7 @@ func fixtureDamageDefs(v *o.DefinitionCatalog) {
 		{DefName: "Blunt", HarmsHealth: true, ArmorCategory: "Blunt"}, {DefName: "Poke", HarmsHealth: true, ArmorCategory: "Blunt"},
 	}...)
 	for _, capacity := range []string{"Cut", "Stab", "Blunt", "Poke"} {
-		v.Defs.ManeuverDefs = append(v.Defs.ManeuverDefs, &d.ManeuverDef{DefName: capacity + "Maneuver", RequiredCapacity: capacity, Verb: &d.VerbProperties{MeleeDamageDef: capacity, Commonality: 1, AccuracyTouch: 1, BurstShotCount: 1}})
+		v.Defs.ManeuverDefs = append(v.Defs.ManeuverDefs, &d.ManeuverDef{DefName: capacity + "Maneuver", RequiredCapacity: capacity, Verb: &d.VerbProperties{MeleeDamageDef: capacity, Range: 1.42, Commonality: 1, AccuracyTouch: 1, BurstShotCount: 1}})
 	}
 }
 

@@ -131,8 +131,13 @@ namespace HomeBridge.BridgeTools
             foreach (var row in colonists)
             {
                 if (row.Pawn?.Position == null || row.Equipment == null || !row.Equipment.HasPrimaryId) continue;
-                var primary = row.Equipment.Equipped.FirstOrDefault(g => g.Thing?.Id == row.Equipment.PrimaryId);
-                if (primary == null || !primary.Ranged || !primary.HasRange || primary.Range <= 0) continue;
+                // The shooter's primary weapon is the live one: the wire rows no
+                // longer carry its class or range (#1723), the catalog does.
+                var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == row.Pawn.Id);
+                var weapon = shooter?.equipment?.Primary;
+                if (weapon == null || weapon.GetUniqueLoadID() != row.Equipment.PrimaryId || !weapon.def.IsRangedWeapon) continue;
+                var gun = weapon.def.Verbs?.FirstOrDefault(v => !v.IsMeleeAttack && v.range > 0);
+                if (gun == null || float.IsNaN(gun.range) || float.IsInfinity(gun.range)) continue;
                 var cell = new IntVec3(row.Pawn.Position.X, 0, row.Pawn.Position.Z);
                 if (!firing.Contains(cell) && firing.Count < NativeDefenseObservationTools.MaximumLineCells) firing.Add(cell);
             }

@@ -14,7 +14,7 @@ import (
 func gearColonyFixture(t *testing.T) *o.ColonyFactsSnapshot {
 	v := colonyFixture(t).GetObserved()
 	ctx := v.Context
-	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Weapon: proto.Bool(false)}}}, Gender: d.Gender_GENDER_FEMALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso"}, ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
+	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}}}}, Gender: d.Gender_GENDER_FEMALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso"}, ComfortableMinC: proto.Float64(10), ComfortableMaxC: proto.Float64(30)}
 	p.LoadoutModel = &o.GearLoadoutModel{Options: []*o.GearLoadoutOption{{Id: proto.String("bill:Apparel_FlakVest/"), DefName: proto.String("Apparel_FlakVest"), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), Research: []string{"FlakArmor"}, Ingredients: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(60)}}}}}
 	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}}
 	return v
@@ -32,7 +32,6 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		"other pawn token":   func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
 		"blocked eligible":   func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
 		"nan gain":           func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
-		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Weapon = nil },
 		"no wearer stage":    func(g *o.GearSnapshot) { g.Pawns[0].DevelopmentalStage = nil },
 		"mixed wearer stage": func(g *o.GearSnapshot) { g.Pawns[0].DevelopmentalStage = d.DevelopmentalStage(12).Enum() },
 		"no wearer gender":   func(g *o.GearSnapshot) { g.Pawns[0].Gender = nil },

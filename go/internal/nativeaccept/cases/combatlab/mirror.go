@@ -179,9 +179,21 @@ func runMirror(ctx context.Context, s cases.Session) error {
 	for _, row := range state.Pawns {
 		rows[row.GetId()] = row
 	}
+	// The weapon's range and class are the def rows' (#1723), not the frame's.
+	catalog, err := h.Client.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return err
+	}
+	rifleFacts, err := catalog.WeaponOf(rifle)
+	if err != nil {
+		return err
+	}
+	if !rifleFacts.Ranged || rifleFacts.Range <= 0 {
+		return fmt.Errorf("catalog rows give %s no ranged verb: %+v", rifle, rifleFacts)
+	}
 	for _, id := range append(staged.Colonists(), staged.Hostiles()...) {
 		row := rows[id]
-		if row == nil || row.GetWeapon() != rifle || row.GetWeaponMelee() || row.GetWeaponRange() <= 0 {
+		if row == nil || row.GetWeapon() != rifle {
 			return fmt.Errorf("combat_pawns row for %s: %v (frame %d rows)", id, row, len(rows))
 		}
 	}

@@ -42,11 +42,11 @@ func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {
 	r, db, session, _, n := routineFixture(t)
 	ctx := context.Background()
 	equip := &equipTestNative{routineNative: n, ids: []string{"a", "b"},
-		weapons: []bridge.EquipCandidate{{Thing: "shotgun", Definition: "Gun_PumpShotgun", Cell: domain.Cell{X: 4, Z: 4}, ByTrade: true, Ranged: true}},
+		weapons: []bridge.EquipCandidate{{Thing: "shotgun", Definition: "Gun_PumpShotgun", Cell: domain.Cell{X: 4, Z: 4}}},
 		editPawn: func(row *o.PawnState) {
 			row.Biography = &o.PawnBiography{DisabledWorkTags: []string{}}
 		}}
-	raid := &raidTestNative{equipTestNative: equip, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony"}
+	raid := &raidTestNative{equipTestNative: equip, raider: domain.Cell{X: 9, Z: 5}, toil: "LordToil_AssaultColony", weapon: "Gun_Revolver"}
 	native := podLoadoutNative{framed: framed{raid}, weapons: equip}
 	planner, err := NewRoutineDefensePlanner(r, native)
 	if err != nil {

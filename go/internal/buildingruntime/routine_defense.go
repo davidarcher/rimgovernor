@@ -329,16 +329,21 @@ type combatInputs struct {
 	// weapons are the def rows' facts (#1723) of every weapon the frame's
 	// combat pawns hold.
 	weapons map[string]policy.WeaponDef
+	// ranged is each detail row's ranged-weapon fact and reach the range of
+	// its primary ranged weapon, read from the weapon's def rows (#1723);
+	// a row whose primary is not yet resolved has neither.
+	ranged map[string]domain.Fact[bool]
+	reach  map[string]float64
 	// profiles are the census colonists' profiles, traits resolved against
 	// the catalog (resolveProfiles).
 	profiles map[domain.PawnID]policy.PawnProfile
 }
 
 // resolveProfiles builds every census colonist's profile from its detail row.
-func (in *combatInputs) resolveProfiles(colonists []policy.EmergencyPawn, catalog *bridge.DefinitionCatalog) error {
+func (in *combatInputs) resolveProfiles(colonists []policy.EmergencyPawn, arms armament) error {
 	in.profiles = map[domain.PawnID]policy.PawnProfile{}
 	for _, pawn := range colonists {
-		work, err := observation.WorkPawnRow(in.rows[string(pawn.ID)], catalog)
+		work, err := observation.WorkPawnRow(in.rows[string(pawn.ID)], arms.catalog, arms.things)
 		if err != nil {
 			return err
 		}
@@ -384,8 +389,23 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 			return combatInputs{}, Verdict{}, fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
 		}
 	}
-	if err := in.resolveProfiles(facts.Colonists, combat.Catalog); err != nil {
+	arms := armament{catalog: combat.Catalog, things: combat.Things}
+	if err := in.resolveProfiles(facts.Colonists, arms); err != nil {
 		return combatInputs{}, Verdict{}, err
+	}
+	in.ranged, in.reach = map[string]domain.Fact[bool]{}, map[string]float64{}
+	for id, row := range in.rows {
+		weapon, known, err := arms.primary(row.GetEquipment())
+		if err != nil {
+			return combatInputs{}, Verdict{}, err
+		}
+		if !known {
+			continue
+		}
+		in.ranged[id] = domain.Known(weapon.Ranged)
+		if weapon.Ranged {
+			in.reach[id] = weapon.Range
+		}
 	}
 	in.weapons = map[string]policy.WeaponDef{}
 	for _, pawn := range combat.Pawns {
@@ -428,7 +448,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	var profiles []policy.PawnProfile
 	for _, pawn := range combat.Emergency.Facts.Colonists {
 		row := in.rows[string(pawn.ID)]
-		d := squadDefenderFacts(row, in.needed)
+		d := squadDefenderFacts(row, in.needed, in.ranged[string(pawn.ID)])
 		if a, ok := armor[d.ID]; ok {
 			d.Armor = domain.Known(a)
 		}
@@ -458,7 +478,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	positional := make([]policy.DefensiveThreatFacts, 0, len(in.hostileIDs))
 	for _, id := range in.hostileIDs {
 		row := in.rows[id]
-		facts := squadThreatFacts(row, races)
+		facts := squadThreatFacts(row, races, in.ranged[id])
 		facts.Hunting = domain.Known(in.hunting[id])
 		facts.MeleePower = melee[domain.PawnID(id)]
 		threats = append(threats, facts)
@@ -466,9 +486,9 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	}
 	// A hunt origin's prey are threats the squad answers (#1617).
 	for _, id := range in.prey {
-		threats = append(threats, squadThreatFacts(in.rows[id], races))
+		threats = append(threats, squadThreatFacts(in.rows[id], races, in.ranged[id]))
 	}
-	lines := buildingLinesOfFire(combat.Lines, in.buildings, defenders, in.rows)
+	lines := buildingLinesOfFire(combat.Lines, in.buildings, defenders, in.rows, in.reach)
 	for _, building := range in.buildings {
 		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
 	}
@@ -534,7 +554,7 @@ func podArrival(combat bridge.Combat) domain.Fact[policy.PodArrival] {
 // defender who could not shoot from being planned as a shooter (#327).
 // The frame carries at most 64 cells a side; a defender or building cell
 // it leaves out has no line, and that defender walks in.
-func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState) map[policy.PawnID]map[domain.PawnID]bool {
+func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState, reaches map[string]float64) map[policy.PawnID]map[domain.PawnID]bool {
 	lines := map[policy.PawnID]map[domain.PawnID]bool{}
 	shooters := map[domain.Cell][]domain.PawnID{}
 	weaponRange := map[domain.PawnID]float64{}
@@ -544,7 +564,7 @@ func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyT
 		if !known || !ranged || row == nil || row.Pawn.Position == nil {
 			continue
 		}
-		reach := primaryRange(row.Equipment)
+		reach := reaches[string(d.ID)]
 		if reach <= 0 {
 			continue
 		}
@@ -577,16 +597,12 @@ func buildingLinesOfFire(read []bridge.LineOfFire, buildings []policy.EmergencyT
 
 // primaryRange is the range of the pawn's primary ranged weapon in cells;
 // zero when unarmed, melee-armed or unknown.
-func primaryRange(equipment *n.PawnEquipment) float64 {
-	if equipment == nil || equipment.PrimaryId == nil {
-		return 0
+func (a armament) primaryRange(equipment *n.PawnEquipment) (float64, error) {
+	weapon, known, err := a.primary(equipment)
+	if err != nil || !known || !weapon.Ranged {
+		return 0, err
 	}
-	for _, item := range equipment.Equipped {
-		if item.GetThing().GetId() == equipment.GetPrimaryId() && item.GetRanged() && item.Range != nil && item.GetRange() > 0 {
-			return item.GetRange()
-		}
-	}
-	return 0
+	return weapon.Range, nil
 }
 
 // defensiveThreatFacts reads the lord, distance and position evidence a hostile row

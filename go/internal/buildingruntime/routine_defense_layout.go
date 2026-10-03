@@ -1623,29 +1623,27 @@ func defenseCellFacts(cell bridge.DefenseCell) policy.DefenseCell {
 
 // defenderRange counts colonists whose primary weapon is ranged and returns
 // the shortest such range, unknown when nobody carries one.
-func defenderRange(rows []*o.PawnState) (int, domain.Fact[float64]) {
+func defenderRange(rows []*o.PawnState, arms armament) (int, domain.Fact[float64], error) {
 	count := 0
 	shortest := math.Inf(1)
 	for _, row := range rows {
-		equipment := row.GetEquipment()
-		if equipment == nil || equipment.PrimaryId == nil {
+		reach, err := arms.primaryRange(row.GetEquipment())
+		if err != nil {
+			return 0, domain.Unknown[float64](), err
+		}
+		if reach <= 0 {
 			continue
 		}
-		for _, item := range equipment.Equipped {
-			if item.GetThing().GetId() != equipment.GetPrimaryId() || !item.GetRanged() || item.Range == nil || item.GetRange() <= 0 {
-				continue
-			}
-			count++
-			shortest = math.Min(shortest, item.GetRange())
-		}
+		count++
+		shortest = math.Min(shortest, reach)
 	}
 	if count == 0 {
-		return 0, domain.Unknown[float64]()
+		return 0, domain.Unknown[float64](), nil
 	}
 	if count > 8 {
 		count = 8
 	}
-	return count, domain.Known(shortest)
+	return count, domain.Known(shortest), nil
 }
 
 // defenseIEDRequest adds the approach IEDs (#1209) the census allows, each

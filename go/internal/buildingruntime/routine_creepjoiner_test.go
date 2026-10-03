@@ -45,8 +45,8 @@ func creepJoinerFixture(t *testing.T, edit func(*o.PawnState), goal policy.GoalI
 			edit(row)
 		}
 	}, weapons: []bridge.EquipCandidate{
-		{Thing: "bow1", Definition: "Bow_Short", Ranged: true, ByTrade: true},
-		{Thing: "bow2", Definition: "Bow_Short", Ranged: true, ByTrade: true},
+		{Thing: "bow1", Definition: "Bow_Short"},
+		{Thing: "bow2", Definition: "Bow_Short"},
 	}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{goal})

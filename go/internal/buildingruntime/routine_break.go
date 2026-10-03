@@ -7,26 +7,21 @@ import (
 	"sort"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func breakMelee(row *n.PawnState) domain.Fact[bool] {
-	e := row.GetEquipment()
-	if e == nil || e.Armed == nil {
-		return domain.Unknown[bool]()
+// breakMelee is whether the pawn's primary is a melee weapon; unarmed is
+// known false, an unresolved primary unknown.
+func breakMelee(row *n.PawnState, arms armament) (domain.Fact[bool], error) {
+	weapon, known, err := arms.primary(row.GetEquipment())
+	if err != nil || !known {
+		return domain.Unknown[bool](), err
 	}
-	if !e.GetArmed() {
-		return domain.Known(false)
-	}
-	for _, item := range e.Equipped {
-		if item.GetThing().GetId() == e.GetPrimaryId() && item.Melee != nil && item.Ranged != nil {
-			return domain.Known(item.GetMelee() && !item.GetRanged())
-		}
-	}
-	return domain.Unknown[bool]()
+	return domain.Known(weapon.Melee), nil
 }
 func hasAggressiveBreak(f policy.EmergencyFacts) bool {
 	for _, p := range f.Colonists {
@@ -53,10 +48,20 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 		return RoutineDefenseResult{}, err
 	}
 	var responders []policy.BreakResponder
+	arms, err := readArmament(call, r.native, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return RoutineDefenseResult{}, err
+	}
 	for _, p := range f.Colonists {
 		row := rows[string(p.ID)]
-		d := squadDefenderFacts(row, needed)
-		d.MeleeEquipped = breakMelee(row)
+		ranged, err := rangedWeaponEquipped(row.Equipment, arms)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		d := squadDefenderFacts(row, needed, ranged)
+		if d.MeleeEquipped, err = breakMelee(row, arms); err != nil {
+			return RoutineDefenseResult{}, err
+		}
 		responders = append(responders, policy.BreakResponder{SquadDefenderFacts: d, Cell: breakCell(row)})
 	}
 	var actions []domain.Action

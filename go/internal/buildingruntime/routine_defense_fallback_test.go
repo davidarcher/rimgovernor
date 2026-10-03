@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"testing"
@@ -21,6 +22,8 @@ type raidTestNative struct {
 	*equipTestNative
 	raider domain.Cell
 	toil   string
+	// weapon is the colonists' rifle def; empty is an assault rifle.
+	weapon string
 }
 
 func (n *raidTestNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -32,8 +35,9 @@ func (n *raidTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, id
 	reply, r, err := n.equipTestNative.ReadCombatPawns(ctx, id, ids)
 	observed := reply.GetObserved()
 	for _, row := range observed.GetPawns() {
-		rifle := &c.Ref{Id: proto.String("rifle-" + row.Pawn.GetId())}
-		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: rifle.Id, Equipped: []*o.GearItem{{Thing: rifle, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Range: proto.Float64(30)}}}
+		def := cmp.Or(n.weapon, "Gun_AssaultRifle")
+		rifle := n.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("rifle-" + row.Pawn.GetId()), DefName: proto.String(def)}})
+		row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: rifle.Id, Equipped: []*o.GearItem{{Thing: rifle}}}
 		row.Health = &o.PawnHealth{NeedsTend: proto.Bool(false), SummaryFraction: proto.Float64(1)}
 		row.Job = &o.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}
 	}

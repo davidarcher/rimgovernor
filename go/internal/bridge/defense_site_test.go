@@ -237,10 +237,8 @@ func TestLinesOfFireRejectsMalformed(t *testing.T) {
 	}
 }
 
-func TestCombatPawnsGearRangeAndLord(t *testing.T) {
+func TestCombatPawnsLord(t *testing.T) {
 	snapshot := combatPawnsFixture()
-	rifle := &o.GearItem{Thing: &c.Ref{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
-	snapshot.Pawns[0].Equipment.Equipped = append(snapshot.Pawns[0].Equipment.Equipped, rifle)
 	snapshot.Pawns[0].LordJobClass, snapshot.Pawns[0].LordToilClass = proto.String("LordJob_AssaultColony"), proto.String("LordToil_AssaultColonySappers")
 	identity := pbIdentity()
 	serve := func() *Client {
@@ -249,18 +247,13 @@ func TestCombatPawnsGearRangeAndLord(t *testing.T) {
 		}}, time.Second)
 	}
 	reply, _, err := serve().ReadCombatPawns(context.Background(), identity, []string{"pawn-1", "missing"})
-	if err != nil || reply.GetObserved().Pawns[0].GetLordToilClass() != "LordToil_AssaultColonySappers" || reply.GetObserved().Pawns[0].Equipment.Equipped[1].GetRange() != 30.9 {
+	if err != nil || reply.GetObserved().Pawns[0].GetLordToilClass() != "LordToil_AssaultColonySappers" {
 		t.Fatal(reply, err)
 	}
 	for name, edit := range map[string]func(){
-		"melee range":    func() { snapshot.Pawns[0].Equipment.Equipped[0].Range = proto.Float64(1) },
-		"zero range":     func() { rifle.Range = proto.Float64(0) },
-		"nan range":      func() { rifle.Range = proto.Float64(math.NaN()) },
 		"blank lord job": func() { snapshot.Pawns[0].LordJobClass = proto.String(" ") },
 	} {
 		snapshot = combatPawnsFixture()
-		rifle = &o.GearItem{Thing: &c.Ref{Id: proto.String("rifle")}, Weapon: proto.Bool(true), Ranged: proto.Bool(true), Melee: proto.Bool(false), Range: proto.Float64(30.9)}
-		snapshot.Pawns[0].Equipment.Equipped = append(snapshot.Pawns[0].Equipment.Equipped, rifle)
 		edit()
 		if _, _, err := serve().ReadCombatPawns(context.Background(), identity, []string{"pawn-1", "missing"}); !errors.Is(err, ErrContract) {
 			t.Fatalf("%s accepted: %v", name, err)

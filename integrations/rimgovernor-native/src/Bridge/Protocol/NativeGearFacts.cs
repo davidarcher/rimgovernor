@@ -261,13 +261,11 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.GearItem Gear(Thing thing)
         {
-            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing), Weapon = thing.def.IsWeapon,
-                Ranged = thing.def.IsRangedWeapon, Melee = thing.def.IsMeleeWeapon,
+            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing),
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
             Biocode(thing, row);
             if (thing.Stuff != null) row.Stuff = Id(thing.Stuff.defName);
-            var range = NativePawnDetails.WeaponRange(thing); if (range.HasValue) row.Range = range.Value;
             if (thing.TryGetQuality(out var quality)) row.Quality = NativeEnums.Quality(quality);
             if (thing.def.useHitPoints) {
                 row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;

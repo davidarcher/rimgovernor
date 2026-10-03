@@ -78,9 +78,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 				return contract("invalid eligible gear candidate")
 			}
 			item := candidate.Item
-			if item.Weapon == nil {
-				return contract("unknown gear candidate kind")
-			}
 			candidates = append(candidates, item)
 		}
 		if err := combatDetails(&o.PawnState{Equipment: &o.PawnEquipment{Equipped: candidates}}, ctx); err != nil {

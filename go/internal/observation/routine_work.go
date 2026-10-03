@@ -11,7 +11,7 @@ import (
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 )
 
-func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.WorkPawn], error) {
+func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts, snapshot *o.PawnSnapshot, catalog *bridge.DefinitionCatalog, things bridge.Things) (domain.Fact[[]policy.WorkPawn], error) {
 	if colony == nil || colony.ColonistCount == nil || int(colony.GetColonistCount()) != len(emergency.Colonists) || len(snapshot.Pawns) != len(emergency.Colonists) {
 		return domain.Unknown[[]policy.WorkPawn](), nil
 	}
@@ -31,7 +31,7 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		if row == nil || !dk || !nk || row.Dead == nil || row.Downed == nil || row.GetDead() != dead || row.GetDowned() != downed || row.Colonist == nil || !row.GetColonist() {
 			return domain.Unknown[[]policy.WorkPawn](), nil
 		}
-		w, err := WorkPawnRow(row, catalog)
+		w, err := WorkPawnRow(row, catalog, things)
 		if err != nil {
 			return domain.Unknown[[]policy.WorkPawn](), err
 		}
@@ -61,13 +61,23 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 // WorkPawnRow lifts one pawn row into the planner's WorkPawn: availability
 // from the vital flags, the work snapshot token, manual mode, timetable and
 // priorities from the settings block, skills, traits, incapable work types
-// and age from the biography, and whether the primary weapon is ranged. A
-// missing or issued block leaves its facts unknown.
+// and age from the biography, and whether the primary weapon is ranged (its
+// def rows, found through the frame's things table: unknown until the table
+// holds the weapon). A missing or issued block leaves its facts unknown.
 //
 // The pawn's traits are resolved against the catalog (DefinitionCatalog.TraitEffects);
 // a trait the catalog lacks is an error, and a pawn with traits needs a catalog.
-func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog) (policy.WorkPawn, error) {
+func WorkPawnRow(row *o.PawnState, catalog *bridge.DefinitionCatalog, things bridge.Things) (policy.WorkPawn, error) {
 	w := workPawnRow(row)
+	if e := row.Equipment; e != nil {
+		weapon, known, err := catalog.PrimaryWeapon(e, things)
+		if err != nil {
+			return policy.WorkPawn{}, err
+		}
+		if known {
+			w.Ranged = domain.Known(weapon.Ranged)
+		}
+	}
 	if rows, ok := w.Work.Value(); ok {
 		for i := range rows {
 			if err := catalog.ResolveWorkRow(&rows[i]); err != nil {
@@ -221,17 +231,6 @@ func workPawnRow(row *o.PawnState) policy.WorkPawn {
 	}
 	if n := row.Needs; n != nil && n.Psyfocus != nil && n.PsyfocusTarget != nil && n.PsylinkLevel != nil {
 		w.Psyfocus, w.PsyfocusTarget, w.PsylinkLevel = domain.Known(n.GetPsyfocus()), domain.Known(n.GetPsyfocusTarget()), domain.Known(int(n.GetPsylinkLevel()))
-	}
-	if e := row.Equipment; e != nil {
-		if e.Armed != nil && !e.GetArmed() {
-			w.Ranged = domain.Known(false)
-		} else {
-			for _, gear := range e.Equipped {
-				if gear.Thing.GetId() == e.GetPrimaryId() {
-					w.Ranged = optional(gear.Ranged)
-				}
-			}
-		}
 	}
 	return w
 }

@@ -13,12 +13,13 @@ import (
 
 func TestArmoryPrimary(t *testing.T) {
 	id, def, q := "r1", "Gun_Revolver", o.Quality_QUALITY_GOOD
-	ranged := true
-	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &c.Ref{Id: &id}, Quality: &q, Ranged: &ranged}}}}
-	if got, ok := armoryPrimary(row, bridge.NewThings(&o.Thing{Thing: &o.EntityRef{Id: &id, DefName: &def}})); !ok || got != (policy.ArmoryPrimary{Definition: def, Ranged: true, Quality: 3}) {
-		t.Fatal(got, ok)
+	catalog := bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...)
+	row := &o.PawnState{Equipment: &o.PawnEquipment{PrimaryId: &id, Equipped: []*o.GearItem{{Thing: &c.Ref{Id: &id}, Quality: &q}}}}
+	got, ok, err := armoryPrimary(row, bridge.NewThings(&o.Thing{Thing: &o.EntityRef{Id: &id, DefName: &def}}), catalog)
+	if err != nil || !ok || got.Definition != def || !got.Ranged || got.Quality != 3 || !got.Facts.Ranged {
+		t.Fatal(got, ok, err)
 	}
-	if _, ok := armoryPrimary(&o.PawnState{}, bridge.Things{}); ok {
+	if _, ok, _ := armoryPrimary(&o.PawnState{}, bridge.Things{}, catalog); ok {
 		t.Fatal("unarmed pawn has a primary")
 	}
 }

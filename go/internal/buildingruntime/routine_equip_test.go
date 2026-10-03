@@ -85,7 +85,7 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			reviewer, db, _, _, native := routineFixture(t)
-			n := &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_BoltActionRifle", ByTrade: true, Ranged: true, BiocodedTo: tc.owner, Biocoded: tc.coded}}}
+			n := &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_BoltActionRifle", BiocodedTo: tc.owner, Biocoded: tc.coded}}}
 			v := native.reply.GetObserved()
 			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
@@ -135,7 +135,7 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
 			reviewer, db, _, _, native := routineFixture(t)
-			n := &equipTestNative{routineNative: native, ids: []string{"a"}, weapons: []bridge.EquipCandidate{{Thing: "log", Definition: "WoodLog", Melee: true}}}
+			n := &equipTestNative{routineNative: native, ids: []string{"a"}, weapons: []bridge.EquipCandidate{{Thing: "log", Definition: "WoodLog"}}}
 			v := native.reply.GetObserved()
 			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
 			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
@@ -171,13 +171,13 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 				t.Fatal(err)
 			}
 			n.editPawn = func(row *o.PawnState) {
-				item := &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog")}), Melee: proto.Bool(true), Biocoded: proto.Bool(tc.coded)}
+				item := &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog")}), Biocoded: proto.Bool(tc.coded)}
 				if tc.owner != "" {
 					item.BiocodedTo = proto.String(tc.owner)
 				}
 				row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("log"), Equipped: []*o.GearItem{item}}
 			}
-			n.weapons = []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_AssaultRifle", ByTrade: true, Ranged: true}}
+			n.weapons = []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_AssaultRifle"}}
 			next, err := planner.Step(ctx)
 			want := BuildingReasonAdmitted
 			if tc.coded {
@@ -217,9 +217,9 @@ func TestEquipPlannerOneWave(t *testing.T) {
 	v.WorkerCount = proto.Uint32(3)
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	n := &equipTestNative{routineNative: native, ids: []string{"a", "b", "c"}, weapons: []bridge.EquipCandidate{
-		{Thing: "bow1", Definition: "Bow_Short", Ranged: true, ByTrade: true},
-		{Thing: "bow2", Definition: "Bow_Short", Ranged: true, ByTrade: true},
-		{Thing: "bow3", Definition: "Bow_Short", Ranged: true, ByTrade: true},
+		{Thing: "bow1", Definition: "Bow_Short"},
+		{Thing: "bow2", Definition: "Bow_Short"},
+		{Thing: "bow3", Definition: "Bow_Short"},
 	}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
@@ -342,7 +342,7 @@ func (n *equipTestNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) 
 // mustEquipFacts is equipCandidatePawnFacts over a row whose traits need no catalog.
 func mustEquipFacts(t *testing.T, row *o.PawnState) policy.EquipCandidatePawn {
 	t.Helper()
-	facts, err := equipCandidatePawnFacts(row, nil)
+	facts, err := equipCandidatePawnFacts(row, nil, bridge.Things{})
 	if err != nil {
 		t.Fatal(err)
 	}

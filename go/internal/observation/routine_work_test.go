@@ -54,7 +54,7 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 	if err := bridge.ValidateRoutinePawnSnapshot(p, v.Context.Identity, ids); err != nil {
 		t.Fatal(err)
 	}
-	work, err := routineWork(v, e, p, nil)
+	work, err := routineWork(v, e, p, nil, bridge.Things{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
 // workRow is WorkPawnRow over a pawn row whose traits need no catalog.
 func workRow(t *testing.T, row *o.PawnState) policy.WorkPawn {
 	t.Helper()
-	w, err := WorkPawnRow(row, nil)
+	w, err := WorkPawnRow(row, nil, bridge.Things{})
 	if err != nil {
 		t.Fatal(err)
 	}

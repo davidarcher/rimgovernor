@@ -202,13 +202,25 @@ func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.
 	if err != nil {
 		return nil, err
 	}
+	arms, err := readArmament(ctx, native, identity)
+	if err != nil {
+		return nil, err
+	}
 	var squad []policy.ShrineDefenderFacts
 	for _, row := range pawns.GetObserved().GetPawns() {
 		if row == nil || row.Pawn == nil {
 			continue
 		}
-		facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row, needed)}
-		if reach := primaryRange(row.Equipment); reach > 0 {
+		ranged, err := rangedWeaponEquipped(row.Equipment, arms)
+		if err != nil {
+			return nil, err
+		}
+		facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row, needed, ranged)}
+		reach, err := arms.primaryRange(row.Equipment)
+		if err != nil {
+			return nil, err
+		}
+		if reach > 0 {
 			facts.WeaponRange = domain.Known(reach)
 		}
 		squad = append(squad, facts)

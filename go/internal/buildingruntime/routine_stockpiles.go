@@ -311,9 +311,20 @@ func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.Gene
 	if _, err = boundary.Context(read.Context, snapshot); err != nil {
 		return 0, fmt.Errorf("%w: looseWeapons: err != nil", ErrControl)
 	}
+	catalog, err := pawnCatalog(ctx, r.native, boundary.Identity(snapshot))
+	if err != nil {
+		return 0, err
+	}
 	count := 0
 	for _, w := range read.Targets {
-		if !w.Biocoded && policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee) != policy.WeaponMakeshift {
+		if w.Biocoded {
+			continue
+		}
+		facts, err := catalog.WeaponOf(w.Definition)
+		if err != nil {
+			return 0, err
+		}
+		if policy.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee) != policy.WeaponMakeshift {
 			count++
 		}
 	}

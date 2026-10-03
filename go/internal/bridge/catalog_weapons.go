@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // Classes and names the weapon rows are read against (#1723).
@@ -15,11 +16,14 @@ const (
 	shootVerbClass  = "Verse.Verb_Shoot"
 	oneUseVerbClass = "RimWorld.Verb_ShootOneUse"
 	bluntArmorCat   = "Blunt"
+	// categoryWeapons is the thing category a stockpile calls a weapon (what
+	// a def sits within, parents included).
+	categoryWeapons = "Weapons"
 )
 
 // WeaponOf is what the def rows say of weapon def name: its ranged verb's
-// range, its projectile's explosion, damage and fire, and whether every
-// melee tool hits blunt. "" is no weapon and is the zero WeaponDef; a def
+// range, its projectile's explosion, damage and fire, whether every melee
+// tool hits blunt, and whether it sits in the Weapons thing category. "" is no weapon and is the zero WeaponDef; a def
 // without a row, a verb class, a projectile or a damage def row is a
 // contract error.
 func (catalog *DefinitionCatalog) WeaponOf(name string) (policy.WeaponDef, error) {
@@ -31,6 +35,11 @@ func (catalog *DefinitionCatalog) WeaponOf(name string) (policy.WeaponDef, error
 	if err != nil {
 		return out, err
 	}
+	within, err := catalog.categoriesWithin(name, row)
+	if err != nil {
+		return out, err
+	}
+	out.ByTrade = within[categoryWeapons]
 	ranged := false
 	for _, entry := range row.GetVerbs() {
 		verb := entry.GetValue()
@@ -43,6 +52,7 @@ func (catalog *DefinitionCatalog) WeaponOf(name string) (policy.WeaponDef, error
 		}
 		ranged, out.Ranged = true, true
 		out.Range = float64(verb.GetRange())
+		out.Reach = out.Range
 		if out.OneUse, err = catalog.ClassIsA(verb.GetVerbClass(), oneUseVerbClass); err != nil {
 			return out, err
 		}
@@ -60,6 +70,11 @@ func (catalog *DefinitionCatalog) WeaponOf(name string) (policy.WeaponDef, error
 		properties := projectile.GetProjectile()
 		if properties == nil {
 			return out, contract("catalog def %s is the projectile of %s but has no projectile properties", projectile.GetDefName(), name)
+		}
+		if properties.GetDamageDef() == "" {
+			// A projectile that states no damage def (the turret and drone
+			// packs' verbs) has no damage to read.
+			continue
 		}
 		damage := DefRow[*d.DamageDef](catalog, properties.GetDamageDef())
 		if damage == nil {
@@ -229,6 +244,7 @@ func (catalog *DefinitionCatalog) meleeThroughput(row *d.ThingDef, out *policy.W
 			}
 			for _, maneuver := range maneuvers {
 				verb := maneuver.GetVerb()
+				out.Reach = max(out.Reach, float64(verb.GetRange()))
 				burst := max(1, float64(verb.GetBurstShotCount()))
 				cycle := float64(verb.GetWarmupTime()) + float64(tool.GetCooldownTime())*cooldownFactor + (burst-1)*float64(verb.GetTicksBetweenBurstShots())/ticksPerSecond
 				if cycle <= 0 {
@@ -286,4 +302,34 @@ func (catalog *DefinitionCatalog) bluntCapacity(capacity string) (bool, error) {
 		return false, contract("catalog has no maneuver for tool capacity %s", capacity)
 	}
 	return blunt, nil
+}
+
+// PrimaryWeapon is the def facts of the primary weapon a pawn's equipment
+// names. A gear reference carries no def name, so the weapon resolves through
+// the frame's things table; known is false while the equipment does not say
+// (no armed flag, no primary id), the primary is not among the equipped
+// items, or the table does not hold its row yet. An unarmed pawn is known
+// with the zero WeaponDef.
+func (catalog *DefinitionCatalog) PrimaryWeapon(equipment *o.PawnEquipment, things Things) (weapon policy.WeaponDef, known bool, err error) {
+	if equipment == nil || equipment.Armed == nil {
+		return weapon, false, nil
+	}
+	if !equipment.GetArmed() {
+		return weapon, true, nil
+	}
+	if equipment.PrimaryId == nil {
+		return weapon, false, nil
+	}
+	for _, item := range equipment.Equipped {
+		if item.GetThing().GetId() != equipment.GetPrimaryId() {
+			continue
+		}
+		row, ok := things.Row(item.GetThing())
+		if !ok || row.GetThing().GetDefName() == "" {
+			return weapon, false, nil
+		}
+		weapon, err = catalog.WeaponOf(row.GetThing().GetDefName())
+		return weapon, err == nil, err
+	}
+	return weapon, false, nil
 }

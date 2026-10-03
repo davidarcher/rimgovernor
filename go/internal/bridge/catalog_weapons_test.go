@@ -15,28 +15,29 @@ func TestWeaponOfReadsTheDefRows(t *testing.T) {
 		def  string
 		want policy.WeaponDef
 	}{
-		{"Weapon_GrenadeFrag", policy.WeaponDef{Ranged: true, Range: 12.9, Explosive: true, Blast: 1.9}},
-		{"Weapon_GrenadeMolotov", policy.WeaponDef{Ranged: true, Range: 12.9, Explosive: true, Blast: 1.1, Incendiary: true}},
-		{"Weapon_GrenadeEMP", policy.WeaponDef{Ranged: true, Range: 12.9, Explosive: true, Blast: 3.5, EMP: true}},
-		{"Gun_EmpLauncher", policy.WeaponDef{Ranged: true, Range: 23.9, Explosive: true, Launcher: true, Blast: 1.1, EMP: true}},
-		{"Gun_IncendiaryLauncher", policy.WeaponDef{Ranged: true, Range: 23.9, Explosive: true, Launcher: true, Blast: 1.1, Incendiary: true}},
-		{"Gun_SmokeLauncher", policy.WeaponDef{Ranged: true, Range: 23.9, Explosive: true, Launcher: true}},
-		{"Gun_TripleRocket", policy.WeaponDef{Ranged: true, Range: 35.9, Explosive: true, Launcher: true, OneUse: true}},
-		{"Gun_AssaultRifle", policy.WeaponDef{Ranged: true, Range: 30.9}},
-		{"MeleeWeapon_Club", policy.WeaponDef{Melee: true, Blunt: true}},
-		{"MeleeWeapon_Warhammer", policy.WeaponDef{Melee: true, Blunt: true}},
-		{"MeleeWeapon_Spear", policy.WeaponDef{Melee: true}},
-		{"MeleeWeapon_Knife", policy.WeaponDef{Melee: true}},
+		{"Weapon_GrenadeFrag", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 12.9, Reach: 12.9, Explosive: true, Blast: 1.9}},
+		{"Weapon_GrenadeMolotov", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 12.9, Reach: 12.9, Explosive: true, Blast: 1.1, Incendiary: true}},
+		{"Weapon_GrenadeEMP", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 12.9, Reach: 12.9, Explosive: true, Blast: 3.5, EMP: true}},
+		{"Gun_EmpLauncher", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 23.9, Reach: 23.9, Explosive: true, Launcher: true, Blast: 1.1, EMP: true}},
+		{"Gun_IncendiaryLauncher", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 23.9, Reach: 23.9, Explosive: true, Launcher: true, Blast: 1.1, Incendiary: true}},
+		{"Gun_SmokeLauncher", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 23.9, Reach: 23.9, Explosive: true, Launcher: true}},
+		{"Gun_TripleRocket", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 35.9, Reach: 35.9, Explosive: true, Launcher: true, OneUse: true}},
+		{"Gun_AssaultRifle", policy.WeaponDef{ByTrade: true, Ranged: true, Range: 30.9, Reach: 30.9}},
+		{"MeleeWeapon_Club", policy.WeaponDef{ByTrade: true, Melee: true, Reach: 1.42, Blunt: true}},
+		{"MeleeWeapon_Warhammer", policy.WeaponDef{ByTrade: true, Melee: true, Reach: 1.42, Blunt: true}},
+		{"MeleeWeapon_Spear", policy.WeaponDef{ByTrade: true, Melee: true, Reach: 1.42}},
+		{"MeleeWeapon_Knife", policy.WeaponDef{ByTrade: true, Melee: true, Reach: 1.42}},
+		{"WoodLog", policy.WeaponDef{Melee: true, Reach: 1.42, Blunt: true}},
 		{"", policy.WeaponDef{}},
 	} {
 		got, err := catalog.WeaponOf(c.def)
 		if err != nil {
 			t.Fatalf("%s: %v", c.def, err)
 		}
-		if !approx(got.Range, c.want.Range) || !approx(got.Blast, c.want.Blast) {
+		if !approx(got.Range, c.want.Range) || !approx(got.Blast, c.want.Blast) || !approx(got.Reach, c.want.Reach) {
 			t.Fatalf("%s: got %+v, want %+v", c.def, got, c.want)
 		}
-		got.Range, got.Blast, c.want.Range, c.want.Blast = 0, 0, 0, 0
+		got.Range, got.Blast, c.want.Range, c.want.Blast, got.Reach, c.want.Reach = 0, 0, 0, 0, 0, 0
 		got.DPS, got.AP, got.Precision, got.ForcedMiss = 0, 0, false, false
 		if got != c.want {
 			t.Fatalf("%s: got %+v, want %+v", c.def, got, c.want)

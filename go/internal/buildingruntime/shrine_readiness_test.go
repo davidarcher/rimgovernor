@@ -17,6 +17,7 @@ type shrineTestNative struct {
 	threats  []policy.EmergencyThreat
 	regions  []bridge.CellRect
 	pawnRead int
+	things   bridge.Things
 }
 
 func (n *shrineTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
@@ -29,12 +30,31 @@ func (n *shrineTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, i
 		ranged := i%2 == 0
 		row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
 			Job: &o.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}, Health: &o.PawnHealth{NeedsTend: proto.Bool(false), SummaryFraction: proto.Float64(1)}, Biography: &o.PawnBiography{},
-			Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("w" + id), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("w" + id)}, Ranged: proto.Bool(ranged), Range: proto.Float64(25.9)}}},
+			Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("w" + id), Equipped: []*o.GearItem{{Thing: n.weapon("w"+id, ranged)}}},
 			Issues:    []*o.ReadIssue{missing("mental_state")}}
 		rows = append(rows, row)
 	}
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Pawns: rows, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
 }
+// weapon puts a 25.9-cell gun or a club in the frame's things table and
+// returns the reference a gear item carries to it.
+func (n *shrineTestNative) weapon(id string, ranged bool) *c.Ref {
+	def := "MeleeWeapon_Club"
+	if ranged {
+		def = "Gun_LMG"
+	}
+	n.things = n.things.With(id, &o.Thing{Thing: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def)}})
+	return &c.Ref{Id: proto.String(id)}
+}
+
+func (n *shrineTestNative) FrameThings(context.Context, *c.Identity) (bridge.Things, error) {
+	return n.things, nil
+}
+
+func (n *shrineTestNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...), nil
+}
+
 func (n *shrineTestNative) ReadDefenseSite(ctx context.Context, _ *c.Identity, region bridge.CellRect) (bridge.DefenseSite, bridge.Result, error) {
 	n.regions = append(n.regions, region)
 	site := bridge.DefenseSite{Region: region}

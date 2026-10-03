@@ -26,10 +26,29 @@ type defenseReplayNative struct {
 	step     snapshot.Defense
 	orders   combatOrdersFake
 	frame    replayFrame
+	weapons  recordedWeapons
 }
 
 func (n *defenseReplayNative) combatMirror() []*mp.CombatPawn       { return n.frame.mirror }
 func (n *defenseReplayNative) combatMortars() []*mp.CombatMortarRow { return n.frame.mortars }
+
+func (n *defenseReplayNative) recordedWeaponDefs() []bridge.FixtureDef { return n.weapons.fixtures() }
+
+func (n *defenseReplayNative) FrameThings(context.Context, *c.Identity) (bridge.Things, error) {
+	return n.weapons.things(), nil
+}
+
+func (n *defenseReplayNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	catalog := bridge.FixtureCatalog("load", append(bridge.CoreWeaponFixtures(), n.weapons.fixtures()...)...)
+	recorded, err := fullCatalogRows()
+	if err != nil {
+		return nil, err
+	}
+	for class, rows := range recorded {
+		catalog.Defs[class] = rows
+	}
+	return catalog, nil
+}
 
 func (n *defenseReplayNative) context(raw []byte) *c.ObservationContext {
 	n.t.Helper()
@@ -51,7 +70,11 @@ func (n *defenseReplayNative) ReadCombatPawns(ctx context.Context, _ *c.Identity
 		n.t.Fatal("the recorded step never read the combat pawns")
 	}
 	reply := &o.ListPawnsReply{}
-	if err := protojson.Unmarshal(n.step.CombatPawns, reply); err != nil {
+	raw, err := n.weapons.upgrade(n.step.CombatPawns)
+	if err != nil {
+		n.t.Fatal(err)
+	}
+	if err := protojson.Unmarshal(raw, reply); err != nil {
 		n.t.Fatal(err)
 	}
 	if observed := reply.GetObserved(); observed != nil && observed.Context != nil {

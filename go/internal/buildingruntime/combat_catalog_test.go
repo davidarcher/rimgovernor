@@ -8,26 +8,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 // decodeCombatWithCatalog is bridge.DecodeCombat with a catalog standing in
 // for the load's (#1723): the Core weapons the planning tests name, and a
 // plain ranged or melee weapon row for every other def a combat pawn holds.
-func decodeCombatWithCatalog(frame *o.BundleSnapshot) (bridge.Combat, error) {
+func decodeCombatWithCatalog(frame *o.BundleSnapshot, extra ...bridge.FixtureDef) (bridge.Combat, error) {
 	combat, err := bridge.DecodeCombat(frame)
 	if err != nil {
 		return combat, err
 	}
-	defs := bridge.CoreWeaponFixtures()
+	// Recordings made before the frames carried their gear in the things
+	// table name each primary weapon only on the pawn's mirror row (its def);
+	// the gear ref joins that def here.
+	for _, pawn := range combat.Pawns {
+		for _, row := range frame.GetPawns().GetPawns() {
+			equipment := row.GetEquipment()
+			if row.GetPawn().GetId() != pawn.GetId() || equipment.GetPrimaryId() == "" || pawn.GetWeapon() == "" || combat.Things.Has(equipment.GetPrimaryId()) {
+				continue
+			}
+			combat.Things = combat.Things.With(equipment.GetPrimaryId(), &o.Thing{Thing: &o.EntityRef{Id: proto.String(equipment.GetPrimaryId()), DefName: proto.String(pawn.GetWeapon())}})
+		}
+	}
+	defs := append(bridge.CoreWeaponFixtures(), extra...)
 	for _, pawn := range combat.Pawns {
 		name := pawn.GetWeapon()
 		if name == "" || slices.ContainsFunc(defs, func(d bridge.FixtureDef) bool { return d.Name == name }) {
 			continue
 		}
-		weapon := &bridge.FixtureWeapon{VerbClass: "Verse.Verb_Shoot", Range: float32(pawn.GetWeaponRange()), DamageDef: "Bullet"}
-		if pawn.GetWeaponMelee() {
-			weapon = &bridge.FixtureWeapon{Capacities: []string{"Cut"}}
-		}
+		// The recordings no longer carry the weapon's class or range (#1723),
+		// so an unnamed recorded weapon is a plain 25-cell rifle.
+		weapon := &bridge.FixtureWeapon{VerbClass: "Verse.Verb_Shoot", Range: 25, DamageDef: "Bullet"}
 		defs = append(defs, bridge.FixtureDef{Name: name, Weapon: weapon})
 	}
 	// The race rows a live read would carry (#1722): the recordings hold pawn

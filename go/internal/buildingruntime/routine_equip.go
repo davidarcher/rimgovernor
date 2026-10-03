@@ -32,7 +32,7 @@ func equipCandidateWeapon(catalog *bridge.DefinitionCatalog, w bridge.EquipCandi
 	if err != nil {
 		return policy.EquipCandidateWeapon{}, err
 	}
-	return policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded, Facts: facts}, nil
+	return policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded, Facts: facts}, nil
 }
 
 type RoutineEquipPlanner struct {
@@ -145,7 +145,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineEquipResult{}, fmt.Errorf("%w: step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]", ErrControl)
 		}
 		seen[row.Pawn.GetId()] = true
-		facts, err := equipCandidatePawnFacts(row, catalog)
+		facts, err := equipCandidatePawnFacts(row, catalog, things)
 		if err != nil {
 			return RoutineEquipResult{}, err
 		}
@@ -157,7 +157,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 					if err != nil {
 						return RoutineEquipResult{}, err
 					}
-					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: def, Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded(), Facts: rows}
+					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: def, Class: policy.ClassifyWeapon(true, rows.Ranged, rows.Melee), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded(), Facts: rows}
 				}
 			}
 		}

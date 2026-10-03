@@ -51,10 +51,9 @@ message CombatPawn {
   optional double shield_energy = 19; // fraction of max, absent without a shield
   optional bool shield_broken = 20;
   optional string weapon = 21; // def name, absent when unarmed
-  optional double weapon_range = 22;
   optional int32 weapon_warmup_ticks = 23;
   optional int32 weapon_cooldown_ticks = 24;
-  optional bool weapon_melee = 25;
+  reserved 22, 25; reserved "weapon_range", "weapon_melee";
   // Colonists (#881): worn sharp armor, the stronger of natural armor and
   // the best worn layer (the raid_armor rule per pawn), to 0.05.
   optional double armor = 29;

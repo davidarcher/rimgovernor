@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -47,7 +48,7 @@ func inspiration(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	work, err := observation.WorkPawnRow(rows[0], catalog)
+	work, err := observation.WorkPawnRow(rows[0], catalog, bridge.Things{})
 	if err != nil {
 		return err
 	}

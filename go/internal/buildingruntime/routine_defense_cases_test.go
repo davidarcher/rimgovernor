@@ -57,7 +57,7 @@ func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 		t.Fatal(err)
 	}
 	reply := &o.ListPawnsReply{}
-	if err = protojson.Unmarshal(step.CombatPawns, reply); err != nil {
+	if err = (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(step.CombatPawns, reply); err != nil {
 		t.Fatal(err)
 	}
 	var mirror []*mp.CombatPawn
@@ -66,14 +66,14 @@ func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 			Downed: proto.Bool(p.GetDowned()), Dead: proto.Bool(p.GetDead()), Health: proto.Float64(1), MeleePower: proto.Float64(5)}
 		if p.GetHostile() {
 			row.Side, row.MeleePower = mp.CombatSide_COMBAT_SIDE_HOSTILE.Enum(), proto.Float64(foe)
-		} else {
-			for _, item := range p.GetEquipment().GetEquipped() {
-				item.Ranged, item.Range = proto.Bool(false), nil
-			}
 		}
 		mirror = append(mirror, row)
 	}
-	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
+	if step.CombatPawns, err = editRecordedPawns(step.CombatPawns, func(p map[string]any) {
+		if hostile, _ := p["hostile"].(bool); !hostile {
+			recordedMeleeGear(p)
+		}
+	}); err != nil {
 		t.Fatal(err)
 	}
 	return step, mirror
@@ -121,16 +121,11 @@ func TestDefenseSnapshotMechWithoutLayoutIsSquadDefense(t *testing.T) {
 		t.Fatal(err)
 	}
 	step.Layout = nil
-	reply := &o.ListPawnsReply{}
-	if err = protojson.Unmarshal(step.CombatPawns, reply); err != nil {
-		t.Fatal(err)
-	}
-	for _, p := range reply.GetObserved().GetPawns() {
-		if p.GetHostile() {
-			p.KindDefName, p.Humanlike, p.Mechanoid = proto.String("Mech_Scyther"), proto.Bool(false), proto.Bool(true)
+	if step.CombatPawns, err = editRecordedPawns(step.CombatPawns, func(p map[string]any) {
+		if hostile, _ := p["hostile"].(bool); hostile {
+			p["kindDefName"], p["humanlike"], p["mechanoid"] = "Mech_Scyther", false, true
 		}
-	}
-	if step.CombatPawns, err = protojson.Marshal(reply); err != nil {
+	}); err != nil {
 		t.Fatal(err)
 	}
 	results, methods, db := replayDefenseSteps(t, replayFrame{}, step)

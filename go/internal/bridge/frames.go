@@ -856,6 +856,10 @@ type Combat struct {
 	Catalog *DefinitionCatalog
 	// Shells are the load's mortar shells by kind (#1723), read off Catalog.
 	Shells policy.MortarShells
+	// Things is the frame's things table cut to the census pawns' primary
+	// weapons: a gear reference carries no def name, so the weapons resolve
+	// through it (#1723).
+	Things Things
 }
 
 // ReadCombat reads the combat state from the newest frame past this
@@ -903,6 +907,28 @@ func combatFrameHeld(v *o.BundleSnapshot, held *heldTables) *o.BundleSnapshot {
 	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v, held), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
+	}
+	out.Things = primaryWeaponThings(v.Things, out.Pawns)
+	return out
+}
+
+// primaryWeaponThings is the rows of things the census pawns' primary
+// weapons name, so a fight's frame resolves their defs on its own (#1723).
+func primaryWeaponThings(things *o.ThingsSnapshot, pawns *o.PawnSnapshot) *o.ThingsSnapshot {
+	if things == nil || pawns == nil {
+		return nil
+	}
+	ids := map[string]bool{}
+	for _, pawn := range pawns.Pawns {
+		if id := pawn.GetEquipment().GetPrimaryId(); id != "" {
+			ids[id] = true
+		}
+	}
+	out := &o.ThingsSnapshot{Context: things.Context}
+	for _, row := range things.Things {
+		if ids[row.GetThing().GetId()] {
+			out.Things = append(out.Things, row)
+		}
 	}
 	return out
 }
@@ -982,6 +1008,9 @@ func DecodeCombat(v *o.BundleSnapshot) (Combat, error) {
 		return Combat{}, err
 	}
 	out.Detail = pawns
+	if out.Things, err = ThingTable(v.Things, identity); err != nil {
+		return Combat{}, err
+	}
 	if v.Emergency != nil {
 		emergency, err := DecodeEmergencyStatus(v.Emergency, pawns, identity)
 		if err != nil {
@@ -1080,7 +1109,7 @@ func validateCombat(v *o.BundleSnapshot) error {
 		if validID(row.GetId()) != nil || row.GetSide() == mp.CombatSide_COMBAT_SIDE_UNSPECIFIED || row.Cell == nil {
 			return contract("combat pawn without id, side or cell")
 		}
-		for _, n := range []*float64{row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.WeaponRange, row.MeleePower} {
+		for _, n := range []*float64{row.Health, row.BleedRate, row.Pain, row.MoveSpeed, row.ShieldEnergy, row.MeleePower} {
 			if !combatNumber(n, true) {
 				return contract("combat pawn number")
 			}

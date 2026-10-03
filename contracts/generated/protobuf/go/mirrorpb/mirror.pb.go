@@ -254,10 +254,8 @@ type CombatPawn struct {
 	ShieldEnergy        *float64                     `protobuf:"fixed64,19,opt,name=shield_energy,json=shieldEnergy,proto3,oneof" json:"shield_energy,omitempty"` // fraction of max, absent without a shield
 	ShieldBroken        *bool                        `protobuf:"varint,20,opt,name=shield_broken,json=shieldBroken,proto3,oneof" json:"shield_broken,omitempty"`
 	Weapon              *string                      `protobuf:"bytes,21,opt,name=weapon,proto3,oneof" json:"weapon,omitempty"` // def name, absent when unarmed
-	WeaponRange         *float64                     `protobuf:"fixed64,22,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
 	WeaponWarmupTicks   *int32                       `protobuf:"varint,23,opt,name=weapon_warmup_ticks,json=weaponWarmupTicks,proto3,oneof" json:"weapon_warmup_ticks,omitempty"`
 	WeaponCooldownTicks *int32                       `protobuf:"varint,24,opt,name=weapon_cooldown_ticks,json=weaponCooldownTicks,proto3,oneof" json:"weapon_cooldown_ticks,omitempty"`
-	WeaponMelee         *bool                        `protobuf:"varint,25,opt,name=weapon_melee,json=weaponMelee,proto3,oneof" json:"weapon_melee,omitempty"`
 	// Colonists (#881): worn sharp armor, the stronger of natural armor and
 	// the best worn layer (the raid_armor rule per pawn), to 0.05.
 	Armor *float64 `protobuf:"fixed64,29,opt,name=armor,proto3,oneof" json:"armor,omitempty"`
@@ -463,13 +461,6 @@ func (x *CombatPawn) GetWeapon() string {
 	return ""
 }
 
-func (x *CombatPawn) GetWeaponRange() float64 {
-	if x != nil && x.WeaponRange != nil {
-		return *x.WeaponRange
-	}
-	return 0
-}
-
 func (x *CombatPawn) GetWeaponWarmupTicks() int32 {
 	if x != nil && x.WeaponWarmupTicks != nil {
 		return *x.WeaponWarmupTicks
@@ -482,13 +473,6 @@ func (x *CombatPawn) GetWeaponCooldownTicks() int32 {
 		return *x.WeaponCooldownTicks
 	}
 	return 0
-}
-
-func (x *CombatPawn) GetWeaponMelee() bool {
-	if x != nil && x.WeaponMelee != nil {
-		return *x.WeaponMelee
-	}
-	return false
 }
 
 func (x *CombatPawn) GetArmor() float64 {
@@ -2199,7 +2183,7 @@ var File_mirror_proto protoreflect.FileDescriptor
 
 const file_mirror_proto_rawDesc = "" +
 	"\n" +
-	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x10operations.proto\"\xdb\x0e\n" +
+	"\fmirror.proto\x12\x15rimgovernor.mirror.v1\x1a\fcommon.proto\x1a\vclock.proto\x1a\x10operations.proto\"\x91\x0e\n" +
 	"\n" +
 	"CombatPawn\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12:\n" +
@@ -2226,22 +2210,20 @@ const file_mirror_proto_rawDesc = "" +
 	"move_speed\x18\x12 \x01(\x01H\x0fR\tmoveSpeed\x88\x01\x01\x12(\n" +
 	"\rshield_energy\x18\x13 \x01(\x01H\x10R\fshieldEnergy\x88\x01\x01\x12(\n" +
 	"\rshield_broken\x18\x14 \x01(\bH\x11R\fshieldBroken\x88\x01\x01\x12\x1b\n" +
-	"\x06weapon\x18\x15 \x01(\tH\x12R\x06weapon\x88\x01\x01\x12&\n" +
-	"\fweapon_range\x18\x16 \x01(\x01H\x13R\vweaponRange\x88\x01\x01\x123\n" +
-	"\x13weapon_warmup_ticks\x18\x17 \x01(\x05H\x14R\x11weaponWarmupTicks\x88\x01\x01\x127\n" +
-	"\x15weapon_cooldown_ticks\x18\x18 \x01(\x05H\x15R\x13weaponCooldownTicks\x88\x01\x01\x12&\n" +
-	"\fweapon_melee\x18\x19 \x01(\bH\x16R\vweaponMelee\x88\x01\x01\x12\x19\n" +
-	"\x05armor\x18\x1d \x01(\x01H\x17R\x05armor\x88\x01\x01\x12:\n" +
+	"\x06weapon\x18\x15 \x01(\tH\x12R\x06weapon\x88\x01\x01\x123\n" +
+	"\x13weapon_warmup_ticks\x18\x17 \x01(\x05H\x13R\x11weaponWarmupTicks\x88\x01\x01\x127\n" +
+	"\x15weapon_cooldown_ticks\x18\x18 \x01(\x05H\x14R\x13weaponCooldownTicks\x88\x01\x01\x12\x19\n" +
+	"\x05armor\x18\x1d \x01(\x01H\x15R\x05armor\x88\x01\x01\x12:\n" +
 	"\achanged\x18\x1a \x01(\v2 .rimgovernor.mirror.v1.WatermarkR\achanged\x12$\n" +
-	"\vshield_belt\x18\x1b \x01(\bH\x18R\n" +
+	"\vshield_belt\x18\x1b \x01(\bH\x16R\n" +
 	"shieldBelt\x88\x01\x01\x12(\n" +
-	"\rmedical_skill\x18\x1c \x01(\x05H\x19R\fmedicalSkill\x88\x01\x01\x12$\n" +
-	"\vmelee_power\x18\x1e \x01(\x01H\x1aR\n" +
+	"\rmedical_skill\x18\x1c \x01(\x05H\x17R\fmedicalSkill\x88\x01\x01\x12$\n" +
+	"\vmelee_power\x18\x1e \x01(\x01H\x18R\n" +
 	"meleePower\x88\x01\x01\x12'\n" +
-	"\rgo_juice_high\x18\x1f \x01(\bH\x1bR\vgoJuiceHigh\x88\x01\x01\x124\n" +
-	"\x13luciferium_addicted\x18  \x01(\bH\x1cR\x12luciferiumAddicted\x88\x01\x01\x12+\n" +
-	"\x0fstun_ticks_left\x18! \x01(\x05H\x1dR\rstunTicksLeft\x88\x01\x01\x12(\n" +
-	"\rtarget_mortar\x18\" \x01(\bH\x1eR\ftargetMortar\x88\x01\x01B\x05\n" +
+	"\rgo_juice_high\x18\x1f \x01(\bH\x19R\vgoJuiceHigh\x88\x01\x01\x124\n" +
+	"\x13luciferium_addicted\x18  \x01(\bH\x1aR\x12luciferiumAddicted\x88\x01\x01\x12+\n" +
+	"\x0fstun_ticks_left\x18! \x01(\x05H\x1bR\rstunTicksLeft\x88\x01\x01\x12(\n" +
+	"\rtarget_mortar\x18\" \x01(\bH\x1cR\ftargetMortar\x88\x01\x01B\x05\n" +
 	"\x03_idB\a\n" +
 	"\x05_sideB\n" +
 	"\n" +
@@ -2264,11 +2246,9 @@ const file_mirror_proto_rawDesc = "" +
 	"\v_move_speedB\x10\n" +
 	"\x0e_shield_energyB\x10\n" +
 	"\x0e_shield_brokenB\t\n" +
-	"\a_weaponB\x0f\n" +
-	"\r_weapon_rangeB\x16\n" +
+	"\a_weaponB\x16\n" +
 	"\x14_weapon_warmup_ticksB\x18\n" +
-	"\x16_weapon_cooldown_ticksB\x0f\n" +
-	"\r_weapon_meleeB\b\n" +
+	"\x16_weapon_cooldown_ticksB\b\n" +
 	"\x06_armorB\x0e\n" +
 	"\f_shield_beltB\x10\n" +
 	"\x0e_medical_skillB\x0e\n" +
@@ -2276,7 +2256,7 @@ const file_mirror_proto_rawDesc = "" +
 	"\x0e_go_juice_highB\x16\n" +
 	"\x14_luciferium_addictedB\x12\n" +
 	"\x10_stun_ticks_leftB\x10\n" +
-	"\x0e_target_mortar\"\xcd\x01\n" +
+	"\x0e_target_mortarJ\x04\b\x16\x10\x17J\x04\b\x19\x10\x1aR\fweapon_rangeR\fweapon_melee\"\xcd\x01\n" +
 	"\rCombatDoorRow\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\"\n" +

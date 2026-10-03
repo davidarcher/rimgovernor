@@ -25,7 +25,7 @@ namespace RimGovernor.Protocol.Mirror {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CgxtaXJyb3IucHJvdG8SFXJpbWdvdmVybm9yLm1pcnJvci52MRoMY29tbW9u",
-            "LnByb3RvGgtjbG9jay5wcm90bxoQb3BlcmF0aW9ucy5wcm90byLmCwoKQ29t",
+            "LnByb3RvGgtjbG9jay5wcm90bxoQb3BlcmF0aW9ucy5wcm90byK2CwoKQ29t",
             "YmF0UGF3bhIPCgJpZBgBIAEoCUgAiAEBEjQKBHNpZGUYAiABKA4yIS5yaW1n",
             "b3Zlcm5vci5taXJyb3IudjEuQ29tYmF0U2lkZUgBiAEBEisKB2ZhY3Rpb24Y",
             "AyABKAsyGi5yaW1nb3Zlcm5vci5jb21tb24udjEuUmVmEhQKB2xvcmRfaWQY",
@@ -40,150 +40,149 @@ namespace RimGovernor.Protocol.Mirror {
             "AQESFwoKYmxlZWRfcmF0ZRgQIAEoAUgNiAEBEhEKBHBhaW4YESABKAFIDogB",
             "ARIXCgptb3ZlX3NwZWVkGBIgASgBSA+IAQESGgoNc2hpZWxkX2VuZXJneRgT",
             "IAEoAUgQiAEBEhoKDXNoaWVsZF9icm9rZW4YFCABKAhIEYgBARITCgZ3ZWFw",
-            "b24YFSABKAlIEogBARIZCgx3ZWFwb25fcmFuZ2UYFiABKAFIE4gBARIgChN3",
-            "ZWFwb25fd2FybXVwX3RpY2tzGBcgASgFSBSIAQESIgoVd2VhcG9uX2Nvb2xk",
-            "b3duX3RpY2tzGBggASgFSBWIAQESGQoMd2VhcG9uX21lbGVlGBkgASgISBaI",
-            "AQESEgoFYXJtb3IYHSABKAFIF4gBARIxCgdjaGFuZ2VkGBogASgLMiAucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLldhdGVybWFyaxIYCgtzaGllbGRfYmVsdBgb",
-            "IAEoCEgYiAEBEhoKDW1lZGljYWxfc2tpbGwYHCABKAVIGYgBARIYCgttZWxl",
-            "ZV9wb3dlchgeIAEoAUgaiAEBEhoKDWdvX2p1aWNlX2hpZ2gYHyABKAhIG4gB",
-            "ARIgChNsdWNpZmVyaXVtX2FkZGljdGVkGCAgASgISByIAQESHAoPc3R1bl90",
-            "aWNrc19sZWZ0GCEgASgFSB2IAQESGgoNdGFyZ2V0X21vcnRhchgiIAEoCEge",
-            "iAEBQgUKA19pZEIHCgVfc2lkZUIKCghfbG9yZF9pZEIJCgdfZG93bmVkQgcK",
-            "BV9kZWFkQg8KDV9tZW50YWxfc3RhdGVCCgoIX2RyYWZ0ZWRCDAoKX2ZpcmVf",
-            "bW9kZUIGCgRfam9iQgwKCl90YXJnZXRfaWRCCQoHX3N0YW5jZUIUChJfc3Rh",
-            "bmNlX3RpY2tzX2xlZnRCCQoHX2hlYWx0aEINCgtfYmxlZWRfcmF0ZUIHCgVf",
-            "cGFpbkINCgtfbW92ZV9zcGVlZEIQCg5fc2hpZWxkX2VuZXJneUIQCg5fc2hp",
-            "ZWxkX2Jyb2tlbkIJCgdfd2VhcG9uQg8KDV93ZWFwb25fcmFuZ2VCFgoUX3dl",
-            "YXBvbl93YXJtdXBfdGlja3NCGAoWX3dlYXBvbl9jb29sZG93bl90aWNrc0IP",
-            "Cg1fd2VhcG9uX21lbGVlQggKBl9hcm1vckIOCgxfc2hpZWxkX2JlbHRCEAoO",
-            "X21lZGljYWxfc2tpbGxCDgoMX21lbGVlX3Bvd2VyQhAKDl9nb19qdWljZV9o",
-            "aWdoQhYKFF9sdWNpZmVyaXVtX2FkZGljdGVkQhIKEF9zdHVuX3RpY2tzX2xl",
-            "ZnRCEAoOX3RhcmdldF9tb3J0YXIiqgEKDUNvbWJhdERvb3JSb3cSDwoCaWQY",
-            "ASABKAlIAIgBARIpCgRjZWxsGAIgASgLMhsucmltZ292ZXJub3IuY29tbW9u",
-            "LnYxLkNlbGwSFwoKaGl0X3BvaW50cxgDIAEoBUgBiAEBEhsKDm1heF9oaXRf",
-            "cG9pbnRzGAQgASgFSAKIAQFCBQoDX2lkQg0KC19oaXRfcG9pbnRzQhEKD19t",
-            "YXhfaGl0X3BvaW50cyLMAQoPQ29tYmF0TW9ydGFyUm93Eg8KAmlkGAEgASgJ",
-            "SACIAQESKQoEY2VsbBgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5D",
-            "ZWxsEhYKCW1pbl9yYW5nZRgDIAEoAkgBiAEBEhYKCW1heF9yYW5nZRgEIAEo",
-            "AkgCiAEBEhkKDGxvYWRlZF9zaGVsbBgFIAEoCUgDiAEBQgUKA19pZEIMCgpf",
-            "bWluX3JhbmdlQgwKCl9tYXhfcmFuZ2VCDwoNX2xvYWRlZF9zaGVsbCKABAoO",
-            "Q29tYmF0RXZlbnRSb3cSLAoCYXQYASABKAsyIC5yaW1nb3Zlcm5vci5taXJy",
-            "b3IudjEuV2F0ZXJtYXJrEjcKBGtpbmQYAiABKA4yJC5yaW1nb3Zlcm5vci5t",
-            "aXJyb3IudjEuQ29tYmF0TG9nS2luZEgAiAEBEjQKBHN0b3AYAyABKA4yIS5y",
-            "aW1nb3Zlcm5vci5jbG9jay52MS5Db21iYXRFdmVudEgBiAEBEhUKCHRoaW5n",
-            "X2lkGAQgASgJSAKIAQESFgoJdGFyZ2V0X2lkGAUgASgJSAOIAQESFQoIZGVm",
-            "X25hbWUYBiABKAlIBIgBARIpCgRjZWxsGAcgASgLMhsucmltZ292ZXJub3Iu",
-            "Y29tbW9uLnYxLkNlbGwSEwoGZGV0YWlsGAggASgJSAWIAQESGgoNcmFpZF9z",
-            "dHJhdGVneRgJIAEoCUgGiAEBEhYKCW9wZW5fdGljaxgKIAEoBUgHiAEBEjIK",
-            "DWxhbmRpbmdfY2VsbHMYCyADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEu",
-            "Q2VsbEIHCgVfa2luZEIHCgVfc3RvcEILCglfdGhpbmdfaWRCDAoKX3Rhcmdl",
-            "dF9pZEILCglfZGVmX25hbWVCCQoHX2RldGFpbEIQCg5fcmFpZF9zdHJhdGVn",
-            "eUIMCgpfb3Blbl90aWNrIuwBChVDb21iYXRHZW9tZXRyeVJlcXVlc3QSMQoI",
-            "aWRlbnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRp",
-            "dHkSKgoFY2VsbHMYAiADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2Vs",
-            "bBITCgtob3N0aWxlX2lkcxgDIAMoCRIUCgdwYXduX2lkGAQgASgJSACIAQES",
-            "PQoHcHJvcG9zZRgFIAEoCzIsLnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21i",
-            "YXRHZW9tZXRyeVByb3Bvc2VCCgoIX3Bhd25faWQitwIKFUNvbWJhdEdlb21l",
-            "dHJ5UHJvcG9zZRJJChFjb3Zlcl9iZWhpbmRfbGluZRgBIAEoCzIsLnJpbWdv",
-            "dmVybm9yLm1pcnJvci52MS5Db21iYXRDb3ZlckJlaGluZExpbmVIABJJChFh",
-            "ZGphY2VudF90b19jaG9rZRgCIAEoCzIsLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5Db21iYXRBZGphY2VudFRvQ2hva2VIABJACgxmaXJpbmdfY2VsbHMYAyAB",
-            "KAsyKC5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0RmlyaW5nQ2VsbHNI",
-            "ABI+CgtyZXNjdWVfcGF0aBgEIAEoCzInLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5Db21iYXRSZXNjdWVQYXRoSABCBgoEcm9sZSI7ChBDb21iYXRSZXNjdWVQ",
-            "YXRoEicKAnRvGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwi",
-            "QgoVQ29tYmF0Q292ZXJCZWhpbmRMaW5lEikKBGxpbmUYASADKAsyGy5yaW1n",
-            "b3Zlcm5vci5jb21tb24udjEuQ2VsbCJyChVDb21iYXRBZGphY2VudFRvQ2hv",
-            "a2USKgoFY2hva2UYASABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2Vs",
-            "bBItCghvdXJfc2lkZRgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5D",
-            "ZWxsIowBChFDb21iYXRGaXJpbmdDZWxscxIsCgd0YXJnZXRzGAEgAygLMhsu",
-            "cmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSKQoEZnJvbRgCIAEoCzIbLnJp",
-            "bWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEhMKBnJhZGl1cxgDIAEoBUgAiAEB",
-            "QgkKB19yYWRpdXMi5QEKD0NvbWJhdFNpZ2h0TGluZRIXCgpob3N0aWxlX2lk",
-            "GAEgASgJSACIAQESEgoFY292ZXIYAiABKAFIAYgBARIZCgxsaW5lX29mX2Zp",
-            "cmUYAyABKAhIAogBARIdChBjb2xvbmlzdF9pbl9wYXRoGAQgASgISAOIAQES",
-            "GgoNaG9zdGlsZV9jb3ZlchgFIAEoAUgEiAEBQg0KC19ob3N0aWxlX2lkQggK",
-            "Bl9jb3ZlckIPCg1fbGluZV9vZl9maXJlQhMKEV9jb2xvbmlzdF9pbl9wYXRo",
-            "QhAKDl9ob3N0aWxlX2NvdmVyIpwCChJDb21iYXRHZW9tZXRyeUNlbGwSKQoE",
-            "Y2VsbBgBIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEjUKBWxp",
-            "bmVzGAIgAygLMiYucmltZ292ZXJub3IubWlycm9yLnYxLkNvbWJhdFNpZ2h0",
-            "TGluZRIXCgpwYXRoX3RpY2tzGAMgASgFSACIAQESFgoJc3RhbmRhYmxlGAQg",
-            "ASgISAGIAQESIQoUaG9zdGlsZV9saW5lX29mX2ZpcmUYBSABKAhIAogBARIR",
-            "CgRkb29yGAYgASgISAOIAQFCDQoLX3BhdGhfdGlja3NCDAoKX3N0YW5kYWJs",
-            "ZUIXChVfaG9zdGlsZV9saW5lX29mX2ZpcmVCBwoFX2Rvb3Ii8wEKDkNvbWJh",
-            "dEdlb21ldHJ5EjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21t",
-            "b24udjEuT2JzZXJ2YXRpb25Db250ZXh0EjgKBWNlbGxzGAIgAygLMikucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21ldHJ5Q2VsbBIbCg5tYWlu",
-            "X3RocmVhZF9tcxgDIAEoAUgAiAEBEjsKCHByb3Bvc2VkGAQgAygLMikucmlt",
-            "Z292ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21ldHJ5Q2VsbEIRCg9fbWFp",
-            "bl90aHJlYWRfbXMijgEKE0NvbWJhdEdlb21ldHJ5UmVwbHkSOQoIb2JzZXJ2",
-            "ZWQYASABKAsyJS5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0R2VvbWV0",
-            "cnlIABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYx",
-            "LkZhaWx1cmVIAEIJCgdvdXRjb21lIkEKCVdhdGVybWFyaxIRCgR0aWNrGAEg",
-            "ASgDSACIAQESEAoDc2VxGAIgASgNSAGIAQFCBwoFX3RpY2tCBgoEX3NlcSJ0",
-            "CghDZWxsUmVjdBIOCgF4GAEgASgFSACIAQESDgoBehgCIAEoBUgBiAEBEhIK",
-            "BXdpZHRoGAMgASgFSAKIAQESEwoGaGVpZ2h0GAQgASgFSAOIAQFCBAoCX3hC",
-            "BAoCX3pCCAoGX3dpZHRoQgkKB19oZWlnaHQiywEKCkZpZWxkQXJyYXkSDwoF",
-            "Y29kZXMYASABKAxIABI2CgdpbmRleGVzGAIgASgLMiMucmltZ292ZXJub3Iu",
-            "bWlycm9yLnYxLlBhY2tlZFVpbnQzMkgAEjYKB251bWJlcnMYAyABKAsyIy5y",
-            "aW1nb3Zlcm5vci5taXJyb3IudjEuUGFja2VkRG91YmxlSAASNAoGc3BhcnNl",
-            "GAQgASgLMiIucmltZ292ZXJub3IubWlycm9yLnYxLlNwYXJzZUFycmF5SABC",
-            "BgoEZm9ybSIeCgxQYWNrZWRVaW50MzISDgoGdmFsdWVzGAEgAygNIh4KDFBh",
-            "Y2tlZERvdWJsZRIOCgZ2YWx1ZXMYASADKAEiOgoLU3BhcnNlQXJyYXkSDQoF",
-            "aW5kZXgYASADKA0SDAoEY29kZRgCIAMoDRIOCgZudW1iZXIYAyADKAEi7ggK",
-            "CENlbGxHcmlkEi0KBHJlY3QYASABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3Iu",
-            "djEuQ2VsbFJlY3QSDwoHc3RyaW5ncxgCIAMoCRIvCgRjZWxsGAMgASgLMiEu",
-            "cmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMwoId2Fsa2FibGUY",
-            "BCABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghv",
-            "Y2N1cGllZBgFIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFy",
-            "cmF5Ei8KBHpvbmUYBiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmll",
-            "bGRBcnJheRIxCgZyb29mZWQYByABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3Iu",
-            "djEuRmllbGRBcnJheRIyCgdpbmRvb3JzGAggASgLMiEucmltZ292ZXJub3Iu",
-            "bWlycm9yLnYxLkZpZWxkQXJyYXkSOQoOc3VwcG9ydHNfbGlnaHQYCSABKAsy",
-            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI4Cg1zdG9yYWdl",
-            "X2VtcHR5GAogASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJy",
-            "YXkSMgoHZG9vcndheRgLIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5G",
-            "aWVsZEFycmF5EjQKCWZlcnRpbGl0eRgMIAEoCzIhLnJpbWdvdmVybm9yLm1p",
-            "cnJvci52MS5GaWVsZEFycmF5EjMKCHBvbGx1dGVkGA0gASgLMiEucmltZ292",
-            "ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSLwoEZ2xvdxgOIAEoCzIhLnJp",
-            "bWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJvb2YYDyABKAsy",
-            "IS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIyCgd6b25lX2lk",
-            "GBAgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSNwoM",
-            "bmF0dXJhbF9yb2NrGBEgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZp",
-            "ZWxkQXJyYXkSLwoEcnVpbhgSIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52",
-            "MS5GaWVsZEFycmF5EjkKDnBsYXllcl9lZGlmaWNlGBMgASgLMiEucmltZ292",
-            "ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSOQoOY2xhaW1hYmxlX3J1aW4Y",
-            "FCABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0Cgly",
-            "dWluX2hvbGQYFSABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRB",
-            "cnJheRIvCgRyb29tGBYgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZp",
-            "ZWxkQXJyYXkqsgEKCkNvbWJhdFNpZGUSGwoXQ09NQkFUX1NJREVfVU5TUEVD",
-            "SUZJRUQQABIYChRDT01CQVRfU0lERV9DT0xPTklTVBABEhcKE0NPTUJBVF9T",
-            "SURFX0hPU1RJTEUQAhIdChlDT01CQVRfU0lERV9DT0xPTllfQU5JTUFMEAMS",
-            "GAoUQ09NQkFUX1NJREVfUFJJU09ORVIQBBIbChdDT01CQVRfU0lERV9XSUxE",
-            "X0FOSU1BTBAFKq4BCgxDb21iYXRTdGFuY2USHQoZQ09NQkFUX1NUQU5DRV9V",
-            "TlNQRUNJRklFRBAAEhYKEkNPTUJBVF9TVEFOQ0VfSURMRRABEhgKFENPTUJB",
-            "VF9TVEFOQ0VfV0FSTVVQEAISGgoWQ09NQkFUX1NUQU5DRV9DT09MRE9XThAD",
-            "EhgKFENPTUJBVF9TVEFOQ0VfTU9WSU5HEAQSFwoTQ09NQkFUX1NUQU5DRV9N",
-            "RUxFRRAFKoIECg1Db21iYXRMb2dLaW5kEh8KG0NPTUJBVF9MT0dfS0lORF9V",
-            "TlNQRUNJRklFRBAAEhoKFkNPTUJBVF9MT0dfS0lORF9ET1dORUQQARIaChZD",
-            "T01CQVRfTE9HX0tJTkRfS0lMTEVEEAISGwoXQ09NQkFUX0xPR19LSU5EX0RB",
-            "TUFHRUQQAxIhCh1DT01CQVRfTE9HX0tJTkRfU0hJRUxEX0JST0tFThAEEh4K",
-            "GkNPTUJBVF9MT0dfS0lORF9TSE9UX0ZJUkVEEAUSJwojQ09NQkFUX0xPR19L",
-            "SU5EX1BST0pFQ1RJTEVfTEFVTkNIRUQQBhIdChlDT01CQVRfTE9HX0tJTkRf",
-            "RVhQTE9TSU9OEAcSIAocQ09NQkFUX0xPR19LSU5EX0ZJUkVfU1RBUlRFRBAI",
-            "Eh8KG0NPTUJBVF9MT0dfS0lORF9ET09SX09QRU5FRBAJEh8KG0NPTUJBVF9M",
-            "T0dfS0lORF9ET09SX0NMT1NFRBAKEiYKIkNPTUJBVF9MT0dfS0lORF9CVUlM",
-            "RElOR19ERVNUUk9ZRUQQCxIdChlDT01CQVRfTE9HX0tJTkRfTE9SRF9UT0lM",
-            "EAwSIAocQ09NQkFUX0xPR19LSU5EX01FTlRBTF9TVEFURRANEiMKH0NPTUJB",
-            "VF9MT0dfS0lORF9IT1NUSUxFX0FSUklWRUQQDkJlWkVnaXRodWIuY29tL2Rh",
-            "dmlkYXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFsL3dpcmUvbWlycm9y",
-            "cGI7bWlycm9ycGKqAhtSaW1Hb3Zlcm5vci5Qcm90b2NvbC5NaXJyb3JiBnBy",
-            "b3RvMw=="));
+            "b24YFSABKAlIEogBARIgChN3ZWFwb25fd2FybXVwX3RpY2tzGBcgASgFSBOI",
+            "AQESIgoVd2VhcG9uX2Nvb2xkb3duX3RpY2tzGBggASgFSBSIAQESEgoFYXJt",
+            "b3IYHSABKAFIFYgBARIxCgdjaGFuZ2VkGBogASgLMiAucmltZ292ZXJub3Iu",
+            "bWlycm9yLnYxLldhdGVybWFyaxIYCgtzaGllbGRfYmVsdBgbIAEoCEgWiAEB",
+            "EhoKDW1lZGljYWxfc2tpbGwYHCABKAVIF4gBARIYCgttZWxlZV9wb3dlchge",
+            "IAEoAUgYiAEBEhoKDWdvX2p1aWNlX2hpZ2gYHyABKAhIGYgBARIgChNsdWNp",
+            "ZmVyaXVtX2FkZGljdGVkGCAgASgISBqIAQESHAoPc3R1bl90aWNrc19sZWZ0",
+            "GCEgASgFSBuIAQESGgoNdGFyZ2V0X21vcnRhchgiIAEoCEgciAEBQgUKA19p",
+            "ZEIHCgVfc2lkZUIKCghfbG9yZF9pZEIJCgdfZG93bmVkQgcKBV9kZWFkQg8K",
+            "DV9tZW50YWxfc3RhdGVCCgoIX2RyYWZ0ZWRCDAoKX2ZpcmVfbW9kZUIGCgRf",
+            "am9iQgwKCl90YXJnZXRfaWRCCQoHX3N0YW5jZUIUChJfc3RhbmNlX3RpY2tz",
+            "X2xlZnRCCQoHX2hlYWx0aEINCgtfYmxlZWRfcmF0ZUIHCgVfcGFpbkINCgtf",
+            "bW92ZV9zcGVlZEIQCg5fc2hpZWxkX2VuZXJneUIQCg5fc2hpZWxkX2Jyb2tl",
+            "bkIJCgdfd2VhcG9uQhYKFF93ZWFwb25fd2FybXVwX3RpY2tzQhgKFl93ZWFw",
+            "b25fY29vbGRvd25fdGlja3NCCAoGX2FybW9yQg4KDF9zaGllbGRfYmVsdEIQ",
+            "Cg5fbWVkaWNhbF9za2lsbEIOCgxfbWVsZWVfcG93ZXJCEAoOX2dvX2p1aWNl",
+            "X2hpZ2hCFgoUX2x1Y2lmZXJpdW1fYWRkaWN0ZWRCEgoQX3N0dW5fdGlja3Nf",
+            "bGVmdEIQCg5fdGFyZ2V0X21vcnRhckoECBYQF0oECBkQGlIMd2VhcG9uX3Jh",
+            "bmdlUgx3ZWFwb25fbWVsZWUiqgEKDUNvbWJhdERvb3JSb3cSDwoCaWQYASAB",
+            "KAlIAIgBARIpCgRjZWxsGAIgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYx",
+            "LkNlbGwSFwoKaGl0X3BvaW50cxgDIAEoBUgBiAEBEhsKDm1heF9oaXRfcG9p",
+            "bnRzGAQgASgFSAKIAQFCBQoDX2lkQg0KC19oaXRfcG9pbnRzQhEKD19tYXhf",
+            "aGl0X3BvaW50cyLMAQoPQ29tYmF0TW9ydGFyUm93Eg8KAmlkGAEgASgJSACI",
+            "AQESKQoEY2VsbBgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxs",
+            "EhYKCW1pbl9yYW5nZRgDIAEoAkgBiAEBEhYKCW1heF9yYW5nZRgEIAEoAkgC",
+            "iAEBEhkKDGxvYWRlZF9zaGVsbBgFIAEoCUgDiAEBQgUKA19pZEIMCgpfbWlu",
+            "X3JhbmdlQgwKCl9tYXhfcmFuZ2VCDwoNX2xvYWRlZF9zaGVsbCKABAoOQ29t",
+            "YmF0RXZlbnRSb3cSLAoCYXQYASABKAsyIC5yaW1nb3Zlcm5vci5taXJyb3Iu",
+            "djEuV2F0ZXJtYXJrEjcKBGtpbmQYAiABKA4yJC5yaW1nb3Zlcm5vci5taXJy",
+            "b3IudjEuQ29tYmF0TG9nS2luZEgAiAEBEjQKBHN0b3AYAyABKA4yIS5yaW1n",
+            "b3Zlcm5vci5jbG9jay52MS5Db21iYXRFdmVudEgBiAEBEhUKCHRoaW5nX2lk",
+            "GAQgASgJSAKIAQESFgoJdGFyZ2V0X2lkGAUgASgJSAOIAQESFQoIZGVmX25h",
+            "bWUYBiABKAlIBIgBARIpCgRjZWxsGAcgASgLMhsucmltZ292ZXJub3IuY29t",
+            "bW9uLnYxLkNlbGwSEwoGZGV0YWlsGAggASgJSAWIAQESGgoNcmFpZF9zdHJh",
+            "dGVneRgJIAEoCUgGiAEBEhYKCW9wZW5fdGljaxgKIAEoBUgHiAEBEjIKDWxh",
+            "bmRpbmdfY2VsbHMYCyADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2Vs",
+            "bEIHCgVfa2luZEIHCgVfc3RvcEILCglfdGhpbmdfaWRCDAoKX3RhcmdldF9p",
+            "ZEILCglfZGVmX25hbWVCCQoHX2RldGFpbEIQCg5fcmFpZF9zdHJhdGVneUIM",
+            "Cgpfb3Blbl90aWNrIuwBChVDb21iYXRHZW9tZXRyeVJlcXVlc3QSMQoIaWRl",
+            "bnRpdHkYASABKAsyHy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkS",
+            "KgoFY2VsbHMYAiADKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBIT",
+            "Cgtob3N0aWxlX2lkcxgDIAMoCRIUCgdwYXduX2lkGAQgASgJSACIAQESPQoH",
+            "cHJvcG9zZRgFIAEoCzIsLnJpbWdvdmVybm9yLm1pcnJvci52MS5Db21iYXRH",
+            "ZW9tZXRyeVByb3Bvc2VCCgoIX3Bhd25faWQitwIKFUNvbWJhdEdlb21ldHJ5",
+            "UHJvcG9zZRJJChFjb3Zlcl9iZWhpbmRfbGluZRgBIAEoCzIsLnJpbWdvdmVy",
+            "bm9yLm1pcnJvci52MS5Db21iYXRDb3ZlckJlaGluZExpbmVIABJJChFhZGph",
+            "Y2VudF90b19jaG9rZRgCIAEoCzIsLnJpbWdvdmVybm9yLm1pcnJvci52MS5D",
+            "b21iYXRBZGphY2VudFRvQ2hva2VIABJACgxmaXJpbmdfY2VsbHMYAyABKAsy",
+            "KC5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0RmlyaW5nQ2VsbHNIABI+",
+            "CgtyZXNjdWVfcGF0aBgEIAEoCzInLnJpbWdvdmVybm9yLm1pcnJvci52MS5D",
+            "b21iYXRSZXNjdWVQYXRoSABCBgoEcm9sZSI7ChBDb21iYXRSZXNjdWVQYXRo",
+            "EicKAnRvGAEgASgLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwiQgoV",
+            "Q29tYmF0Q292ZXJCZWhpbmRMaW5lEikKBGxpbmUYASADKAsyGy5yaW1nb3Zl",
+            "cm5vci5jb21tb24udjEuQ2VsbCJyChVDb21iYXRBZGphY2VudFRvQ2hva2US",
+            "KgoFY2hva2UYASABKAsyGy5yaW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbBIt",
+            "CghvdXJfc2lkZRgCIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxs",
+            "IowBChFDb21iYXRGaXJpbmdDZWxscxIsCgd0YXJnZXRzGAEgAygLMhsucmlt",
+            "Z292ZXJub3IuY29tbW9uLnYxLkNlbGwSKQoEZnJvbRgCIAEoCzIbLnJpbWdv",
+            "dmVybm9yLmNvbW1vbi52MS5DZWxsEhMKBnJhZGl1cxgDIAEoBUgAiAEBQgkK",
+            "B19yYWRpdXMi5QEKD0NvbWJhdFNpZ2h0TGluZRIXCgpob3N0aWxlX2lkGAEg",
+            "ASgJSACIAQESEgoFY292ZXIYAiABKAFIAYgBARIZCgxsaW5lX29mX2ZpcmUY",
+            "AyABKAhIAogBARIdChBjb2xvbmlzdF9pbl9wYXRoGAQgASgISAOIAQESGgoN",
+            "aG9zdGlsZV9jb3ZlchgFIAEoAUgEiAEBQg0KC19ob3N0aWxlX2lkQggKBl9j",
+            "b3ZlckIPCg1fbGluZV9vZl9maXJlQhMKEV9jb2xvbmlzdF9pbl9wYXRoQhAK",
+            "Dl9ob3N0aWxlX2NvdmVyIpwCChJDb21iYXRHZW9tZXRyeUNlbGwSKQoEY2Vs",
+            "bBgBIAEoCzIbLnJpbWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEjUKBWxpbmVz",
+            "GAIgAygLMiYucmltZ292ZXJub3IubWlycm9yLnYxLkNvbWJhdFNpZ2h0TGlu",
+            "ZRIXCgpwYXRoX3RpY2tzGAMgASgFSACIAQESFgoJc3RhbmRhYmxlGAQgASgI",
+            "SAGIAQESIQoUaG9zdGlsZV9saW5lX29mX2ZpcmUYBSABKAhIAogBARIRCgRk",
+            "b29yGAYgASgISAOIAQFCDQoLX3BhdGhfdGlja3NCDAoKX3N0YW5kYWJsZUIX",
+            "ChVfaG9zdGlsZV9saW5lX29mX2ZpcmVCBwoFX2Rvb3Ii8wEKDkNvbWJhdEdl",
+            "b21ldHJ5EjoKB2NvbnRleHQYASABKAsyKS5yaW1nb3Zlcm5vci5jb21tb24u",
+            "djEuT2JzZXJ2YXRpb25Db250ZXh0EjgKBWNlbGxzGAIgAygLMikucmltZ292",
+            "ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21ldHJ5Q2VsbBIbCg5tYWluX3Ro",
+            "cmVhZF9tcxgDIAEoAUgAiAEBEjsKCHByb3Bvc2VkGAQgAygLMikucmltZ292",
+            "ZXJub3IubWlycm9yLnYxLkNvbWJhdEdlb21ldHJ5Q2VsbEIRCg9fbWFpbl90",
+            "aHJlYWRfbXMijgEKE0NvbWJhdEdlb21ldHJ5UmVwbHkSOQoIb2JzZXJ2ZWQY",
+            "ASABKAsyJS5yaW1nb3Zlcm5vci5taXJyb3IudjEuQ29tYmF0R2VvbWV0cnlI",
+            "ABIxCgdmYWlsdXJlGAIgASgLMh4ucmltZ292ZXJub3IuY29tbW9uLnYxLkZh",
+            "aWx1cmVIAEIJCgdvdXRjb21lIkEKCVdhdGVybWFyaxIRCgR0aWNrGAEgASgD",
+            "SACIAQESEAoDc2VxGAIgASgNSAGIAQFCBwoFX3RpY2tCBgoEX3NlcSJ0CghD",
+            "ZWxsUmVjdBIOCgF4GAEgASgFSACIAQESDgoBehgCIAEoBUgBiAEBEhIKBXdp",
+            "ZHRoGAMgASgFSAKIAQESEwoGaGVpZ2h0GAQgASgFSAOIAQFCBAoCX3hCBAoC",
+            "X3pCCAoGX3dpZHRoQgkKB19oZWlnaHQiywEKCkZpZWxkQXJyYXkSDwoFY29k",
+            "ZXMYASABKAxIABI2CgdpbmRleGVzGAIgASgLMiMucmltZ292ZXJub3IubWly",
+            "cm9yLnYxLlBhY2tlZFVpbnQzMkgAEjYKB251bWJlcnMYAyABKAsyIy5yaW1n",
+            "b3Zlcm5vci5taXJyb3IudjEuUGFja2VkRG91YmxlSAASNAoGc3BhcnNlGAQg",
+            "ASgLMiIucmltZ292ZXJub3IubWlycm9yLnYxLlNwYXJzZUFycmF5SABCBgoE",
+            "Zm9ybSIeCgxQYWNrZWRVaW50MzISDgoGdmFsdWVzGAEgAygNIh4KDFBhY2tl",
+            "ZERvdWJsZRIOCgZ2YWx1ZXMYASADKAEiOgoLU3BhcnNlQXJyYXkSDQoFaW5k",
+            "ZXgYASADKA0SDAoEY29kZRgCIAMoDRIOCgZudW1iZXIYAyADKAEi7ggKCENl",
+            "bGxHcmlkEi0KBHJlY3QYASABKAsyHy5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
+            "Q2VsbFJlY3QSDwoHc3RyaW5ncxgCIAMoCRIvCgRjZWxsGAMgASgLMiEucmlt",
+            "Z292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSMwoId2Fsa2FibGUYBCAB",
+            "KAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIzCghvY2N1",
+            "cGllZBgFIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5",
+            "Ei8KBHpvbmUYBiABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRB",
+            "cnJheRIxCgZyb29mZWQYByABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEu",
+            "RmllbGRBcnJheRIyCgdpbmRvb3JzGAggASgLMiEucmltZ292ZXJub3IubWly",
+            "cm9yLnYxLkZpZWxkQXJyYXkSOQoOc3VwcG9ydHNfbGlnaHQYCSABKAsyIS5y",
+            "aW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI4Cg1zdG9yYWdlX2Vt",
+            "cHR5GAogASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkS",
+            "MgoHZG9vcndheRgLIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5GaWVs",
+            "ZEFycmF5EjQKCWZlcnRpbGl0eRgMIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJv",
+            "ci52MS5GaWVsZEFycmF5EjMKCHBvbGx1dGVkGA0gASgLMiEucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSLwoEZ2xvdxgOIAEoCzIhLnJpbWdv",
+            "dmVybm9yLm1pcnJvci52MS5GaWVsZEFycmF5Ei8KBHJvb2YYDyABKAsyIS5y",
+            "aW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRIyCgd6b25lX2lkGBAg",
+            "ASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxkQXJyYXkSNwoMbmF0",
+            "dXJhbF9yb2NrGBEgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkSLwoEcnVpbhgSIAEoCzIhLnJpbWdvdmVybm9yLm1pcnJvci52MS5G",
+            "aWVsZEFycmF5EjkKDnBsYXllcl9lZGlmaWNlGBMgASgLMiEucmltZ292ZXJu",
+            "b3IubWlycm9yLnYxLkZpZWxkQXJyYXkSOQoOY2xhaW1hYmxlX3J1aW4YFCAB",
+            "KAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJheRI0CglydWlu",
+            "X2hvbGQYFSABKAsyIS5yaW1nb3Zlcm5vci5taXJyb3IudjEuRmllbGRBcnJh",
+            "eRIvCgRyb29tGBYgASgLMiEucmltZ292ZXJub3IubWlycm9yLnYxLkZpZWxk",
+            "QXJyYXkqsgEKCkNvbWJhdFNpZGUSGwoXQ09NQkFUX1NJREVfVU5TUEVDSUZJ",
+            "RUQQABIYChRDT01CQVRfU0lERV9DT0xPTklTVBABEhcKE0NPTUJBVF9TSURF",
+            "X0hPU1RJTEUQAhIdChlDT01CQVRfU0lERV9DT0xPTllfQU5JTUFMEAMSGAoU",
+            "Q09NQkFUX1NJREVfUFJJU09ORVIQBBIbChdDT01CQVRfU0lERV9XSUxEX0FO",
+            "SU1BTBAFKq4BCgxDb21iYXRTdGFuY2USHQoZQ09NQkFUX1NUQU5DRV9VTlNQ",
+            "RUNJRklFRBAAEhYKEkNPTUJBVF9TVEFOQ0VfSURMRRABEhgKFENPTUJBVF9T",
+            "VEFOQ0VfV0FSTVVQEAISGgoWQ09NQkFUX1NUQU5DRV9DT09MRE9XThADEhgK",
+            "FENPTUJBVF9TVEFOQ0VfTU9WSU5HEAQSFwoTQ09NQkFUX1NUQU5DRV9NRUxF",
+            "RRAFKoIECg1Db21iYXRMb2dLaW5kEh8KG0NPTUJBVF9MT0dfS0lORF9VTlNQ",
+            "RUNJRklFRBAAEhoKFkNPTUJBVF9MT0dfS0lORF9ET1dORUQQARIaChZDT01C",
+            "QVRfTE9HX0tJTkRfS0lMTEVEEAISGwoXQ09NQkFUX0xPR19LSU5EX0RBTUFH",
+            "RUQQAxIhCh1DT01CQVRfTE9HX0tJTkRfU0hJRUxEX0JST0tFThAEEh4KGkNP",
+            "TUJBVF9MT0dfS0lORF9TSE9UX0ZJUkVEEAUSJwojQ09NQkFUX0xPR19LSU5E",
+            "X1BST0pFQ1RJTEVfTEFVTkNIRUQQBhIdChlDT01CQVRfTE9HX0tJTkRfRVhQ",
+            "TE9TSU9OEAcSIAocQ09NQkFUX0xPR19LSU5EX0ZJUkVfU1RBUlRFRBAIEh8K",
+            "G0NPTUJBVF9MT0dfS0lORF9ET09SX09QRU5FRBAJEh8KG0NPTUJBVF9MT0df",
+            "S0lORF9ET09SX0NMT1NFRBAKEiYKIkNPTUJBVF9MT0dfS0lORF9CVUlMRElO",
+            "R19ERVNUUk9ZRUQQCxIdChlDT01CQVRfTE9HX0tJTkRfTE9SRF9UT0lMEAwS",
+            "IAocQ09NQkFUX0xPR19LSU5EX01FTlRBTF9TVEFURRANEiMKH0NPTUJBVF9M",
+            "T0dfS0lORF9IT1NUSUxFX0FSUklWRUQQDkJlWkVnaXRodWIuY29tL2Rhdmlk",
+            "YXJjaGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFsL3dpcmUvbWlycm9ycGI7",
+            "bWlycm9ycGKqAhtSaW1Hb3Zlcm5vci5Qcm90b2NvbC5NaXJyb3JiBnByb3Rv",
+            "Mw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Clock.ClockReflection.Descriptor, global::RimGovernor.Protocol.Operations.OperationsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Mirror.CombatSide), typeof(global::RimGovernor.Protocol.Mirror.CombatStance), typeof(global::RimGovernor.Protocol.Mirror.CombatLogKind), }, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatPawn), global::RimGovernor.Protocol.Mirror.CombatPawn.Parser, new[]{ "Id", "Side", "Faction", "LordId", "Cell", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee", "Armor", "Changed", "ShieldBelt", "MedicalSkill", "MeleePower", "GoJuiceHigh", "LuciferiumAddicted", "StunTicksLeft", "TargetMortar" }, new[]{ "Id", "Side", "LordId", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponRange", "WeaponWarmupTicks", "WeaponCooldownTicks", "WeaponMelee", "Armor", "ShieldBelt", "MedicalSkill", "MeleePower", "GoJuiceHigh", "LuciferiumAddicted", "StunTicksLeft", "TargetMortar" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatPawn), global::RimGovernor.Protocol.Mirror.CombatPawn.Parser, new[]{ "Id", "Side", "Faction", "LordId", "Cell", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponWarmupTicks", "WeaponCooldownTicks", "Armor", "Changed", "ShieldBelt", "MedicalSkill", "MeleePower", "GoJuiceHigh", "LuciferiumAddicted", "StunTicksLeft", "TargetMortar" }, new[]{ "Id", "Side", "LordId", "Downed", "Dead", "MentalState", "Drafted", "FireMode", "Job", "TargetId", "Stance", "StanceTicksLeft", "Health", "BleedRate", "Pain", "MoveSpeed", "ShieldEnergy", "ShieldBroken", "Weapon", "WeaponWarmupTicks", "WeaponCooldownTicks", "Armor", "ShieldBelt", "MedicalSkill", "MeleePower", "GoJuiceHigh", "LuciferiumAddicted", "StunTicksLeft", "TargetMortar" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatDoorRow), global::RimGovernor.Protocol.Mirror.CombatDoorRow.Parser, new[]{ "Id", "Cell", "HitPoints", "MaxHitPoints" }, new[]{ "Id", "HitPoints", "MaxHitPoints" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatMortarRow), global::RimGovernor.Protocol.Mirror.CombatMortarRow.Parser, new[]{ "Id", "Cell", "MinRange", "MaxRange", "LoadedShell" }, new[]{ "Id", "MinRange", "MaxRange", "LoadedShell" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Mirror.CombatEventRow), global::RimGovernor.Protocol.Mirror.CombatEventRow.Parser, new[]{ "At", "Kind", "Stop", "ThingId", "TargetId", "DefName", "Cell", "Detail", "RaidStrategy", "OpenTick", "LandingCells" }, new[]{ "Kind", "Stop", "ThingId", "TargetId", "DefName", "Detail", "RaidStrategy", "OpenTick" }, null, null, null),
@@ -342,10 +341,8 @@ namespace RimGovernor.Protocol.Mirror {
       shieldEnergy_ = other.shieldEnergy_;
       shieldBroken_ = other.shieldBroken_;
       weapon_ = other.weapon_;
-      weaponRange_ = other.weaponRange_;
       weaponWarmupTicks_ = other.weaponWarmupTicks_;
       weaponCooldownTicks_ = other.weaponCooldownTicks_;
-      weaponMelee_ = other.weaponMelee_;
       armor_ = other.armor_;
       changed_ = other.changed_ != null ? other.changed_.Clone() : null;
       shieldBelt_ = other.shieldBelt_;
@@ -928,33 +925,6 @@ namespace RimGovernor.Protocol.Mirror {
       weapon_ = null;
     }
 
-    /// <summary>Field number for the "weapon_range" field.</summary>
-    public const int WeaponRangeFieldNumber = 22;
-    private readonly static double WeaponRangeDefaultValue = 0D;
-
-    private double weaponRange_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public double WeaponRange {
-      get { if ((_hasBits0 & 8192) != 0) { return weaponRange_; } else { return WeaponRangeDefaultValue; } }
-      set {
-        _hasBits0 |= 8192;
-        weaponRange_ = value;
-      }
-    }
-    /// <summary>Gets whether the "weapon_range" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasWeaponRange {
-      get { return (_hasBits0 & 8192) != 0; }
-    }
-    /// <summary>Clears the value of the "weapon_range" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearWeaponRange() {
-      _hasBits0 &= ~8192;
-    }
-
     /// <summary>Field number for the "weapon_warmup_ticks" field.</summary>
     public const int WeaponWarmupTicksFieldNumber = 23;
     private readonly static int WeaponWarmupTicksDefaultValue = 0;
@@ -963,9 +933,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int WeaponWarmupTicks {
-      get { if ((_hasBits0 & 16384) != 0) { return weaponWarmupTicks_; } else { return WeaponWarmupTicksDefaultValue; } }
+      get { if ((_hasBits0 & 8192) != 0) { return weaponWarmupTicks_; } else { return WeaponWarmupTicksDefaultValue; } }
       set {
-        _hasBits0 |= 16384;
+        _hasBits0 |= 8192;
         weaponWarmupTicks_ = value;
       }
     }
@@ -973,13 +943,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasWeaponWarmupTicks {
-      get { return (_hasBits0 & 16384) != 0; }
+      get { return (_hasBits0 & 8192) != 0; }
     }
     /// <summary>Clears the value of the "weapon_warmup_ticks" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearWeaponWarmupTicks() {
-      _hasBits0 &= ~16384;
+      _hasBits0 &= ~8192;
     }
 
     /// <summary>Field number for the "weapon_cooldown_ticks" field.</summary>
@@ -990,9 +960,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int WeaponCooldownTicks {
-      get { if ((_hasBits0 & 32768) != 0) { return weaponCooldownTicks_; } else { return WeaponCooldownTicksDefaultValue; } }
+      get { if ((_hasBits0 & 16384) != 0) { return weaponCooldownTicks_; } else { return WeaponCooldownTicksDefaultValue; } }
       set {
-        _hasBits0 |= 32768;
+        _hasBits0 |= 16384;
         weaponCooldownTicks_ = value;
       }
     }
@@ -1000,40 +970,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasWeaponCooldownTicks {
-      get { return (_hasBits0 & 32768) != 0; }
+      get { return (_hasBits0 & 16384) != 0; }
     }
     /// <summary>Clears the value of the "weapon_cooldown_ticks" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearWeaponCooldownTicks() {
-      _hasBits0 &= ~32768;
-    }
-
-    /// <summary>Field number for the "weapon_melee" field.</summary>
-    public const int WeaponMeleeFieldNumber = 25;
-    private readonly static bool WeaponMeleeDefaultValue = false;
-
-    private bool weaponMelee_;
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool WeaponMelee {
-      get { if ((_hasBits0 & 65536) != 0) { return weaponMelee_; } else { return WeaponMeleeDefaultValue; } }
-      set {
-        _hasBits0 |= 65536;
-        weaponMelee_ = value;
-      }
-    }
-    /// <summary>Gets whether the "weapon_melee" field is set</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public bool HasWeaponMelee {
-      get { return (_hasBits0 & 65536) != 0; }
-    }
-    /// <summary>Clears the value of the "weapon_melee" field</summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public void ClearWeaponMelee() {
-      _hasBits0 &= ~65536;
+      _hasBits0 &= ~16384;
     }
 
     /// <summary>Field number for the "armor" field.</summary>
@@ -1048,9 +991,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public double Armor {
-      get { if ((_hasBits0 & 524288) != 0) { return armor_; } else { return ArmorDefaultValue; } }
+      get { if ((_hasBits0 & 131072) != 0) { return armor_; } else { return ArmorDefaultValue; } }
       set {
-        _hasBits0 |= 524288;
+        _hasBits0 |= 131072;
         armor_ = value;
       }
     }
@@ -1058,13 +1001,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasArmor {
-      get { return (_hasBits0 & 524288) != 0; }
+      get { return (_hasBits0 & 131072) != 0; }
     }
     /// <summary>Clears the value of the "armor" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearArmor() {
-      _hasBits0 &= ~524288;
+      _hasBits0 &= ~131072;
     }
 
     /// <summary>Field number for the "changed" field.</summary>
@@ -1097,9 +1040,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool ShieldBelt {
-      get { if ((_hasBits0 & 131072) != 0) { return shieldBelt_; } else { return ShieldBeltDefaultValue; } }
+      get { if ((_hasBits0 & 32768) != 0) { return shieldBelt_; } else { return ShieldBeltDefaultValue; } }
       set {
-        _hasBits0 |= 131072;
+        _hasBits0 |= 32768;
         shieldBelt_ = value;
       }
     }
@@ -1107,13 +1050,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasShieldBelt {
-      get { return (_hasBits0 & 131072) != 0; }
+      get { return (_hasBits0 & 32768) != 0; }
     }
     /// <summary>Clears the value of the "shield_belt" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearShieldBelt() {
-      _hasBits0 &= ~131072;
+      _hasBits0 &= ~32768;
     }
 
     /// <summary>Field number for the "medical_skill" field.</summary>
@@ -1124,9 +1067,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int MedicalSkill {
-      get { if ((_hasBits0 & 262144) != 0) { return medicalSkill_; } else { return MedicalSkillDefaultValue; } }
+      get { if ((_hasBits0 & 65536) != 0) { return medicalSkill_; } else { return MedicalSkillDefaultValue; } }
       set {
-        _hasBits0 |= 262144;
+        _hasBits0 |= 65536;
         medicalSkill_ = value;
       }
     }
@@ -1134,13 +1077,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasMedicalSkill {
-      get { return (_hasBits0 & 262144) != 0; }
+      get { return (_hasBits0 & 65536) != 0; }
     }
     /// <summary>Clears the value of the "medical_skill" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearMedicalSkill() {
-      _hasBits0 &= ~262144;
+      _hasBits0 &= ~65536;
     }
 
     /// <summary>Field number for the "melee_power" field.</summary>
@@ -1154,9 +1097,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public double MeleePower {
-      get { if ((_hasBits0 & 1048576) != 0) { return meleePower_; } else { return MeleePowerDefaultValue; } }
+      get { if ((_hasBits0 & 262144) != 0) { return meleePower_; } else { return MeleePowerDefaultValue; } }
       set {
-        _hasBits0 |= 1048576;
+        _hasBits0 |= 262144;
         meleePower_ = value;
       }
     }
@@ -1164,13 +1107,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasMeleePower {
-      get { return (_hasBits0 & 1048576) != 0; }
+      get { return (_hasBits0 & 262144) != 0; }
     }
     /// <summary>Clears the value of the "melee_power" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearMeleePower() {
-      _hasBits0 &= ~1048576;
+      _hasBits0 &= ~262144;
     }
 
     /// <summary>Field number for the "go_juice_high" field.</summary>
@@ -1185,9 +1128,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool GoJuiceHigh {
-      get { if ((_hasBits0 & 2097152) != 0) { return goJuiceHigh_; } else { return GoJuiceHighDefaultValue; } }
+      get { if ((_hasBits0 & 524288) != 0) { return goJuiceHigh_; } else { return GoJuiceHighDefaultValue; } }
       set {
-        _hasBits0 |= 2097152;
+        _hasBits0 |= 524288;
         goJuiceHigh_ = value;
       }
     }
@@ -1195,13 +1138,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasGoJuiceHigh {
-      get { return (_hasBits0 & 2097152) != 0; }
+      get { return (_hasBits0 & 524288) != 0; }
     }
     /// <summary>Clears the value of the "go_juice_high" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearGoJuiceHigh() {
-      _hasBits0 &= ~2097152;
+      _hasBits0 &= ~524288;
     }
 
     /// <summary>Field number for the "luciferium_addicted" field.</summary>
@@ -1212,9 +1155,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool LuciferiumAddicted {
-      get { if ((_hasBits0 & 4194304) != 0) { return luciferiumAddicted_; } else { return LuciferiumAddictedDefaultValue; } }
+      get { if ((_hasBits0 & 1048576) != 0) { return luciferiumAddicted_; } else { return LuciferiumAddictedDefaultValue; } }
       set {
-        _hasBits0 |= 4194304;
+        _hasBits0 |= 1048576;
         luciferiumAddicted_ = value;
       }
     }
@@ -1222,13 +1165,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasLuciferiumAddicted {
-      get { return (_hasBits0 & 4194304) != 0; }
+      get { return (_hasBits0 & 1048576) != 0; }
     }
     /// <summary>Clears the value of the "luciferium_addicted" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearLuciferiumAddicted() {
-      _hasBits0 &= ~4194304;
+      _hasBits0 &= ~1048576;
     }
 
     /// <summary>Field number for the "stun_ticks_left" field.</summary>
@@ -1243,9 +1186,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public int StunTicksLeft {
-      get { if ((_hasBits0 & 8388608) != 0) { return stunTicksLeft_; } else { return StunTicksLeftDefaultValue; } }
+      get { if ((_hasBits0 & 2097152) != 0) { return stunTicksLeft_; } else { return StunTicksLeftDefaultValue; } }
       set {
-        _hasBits0 |= 8388608;
+        _hasBits0 |= 2097152;
         stunTicksLeft_ = value;
       }
     }
@@ -1253,13 +1196,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasStunTicksLeft {
-      get { return (_hasBits0 & 8388608) != 0; }
+      get { return (_hasBits0 & 2097152) != 0; }
     }
     /// <summary>Clears the value of the "stun_ticks_left" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearStunTicksLeft() {
-      _hasBits0 &= ~8388608;
+      _hasBits0 &= ~2097152;
     }
 
     /// <summary>Field number for the "target_mortar" field.</summary>
@@ -1274,9 +1217,9 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool TargetMortar {
-      get { if ((_hasBits0 & 16777216) != 0) { return targetMortar_; } else { return TargetMortarDefaultValue; } }
+      get { if ((_hasBits0 & 4194304) != 0) { return targetMortar_; } else { return TargetMortarDefaultValue; } }
       set {
-        _hasBits0 |= 16777216;
+        _hasBits0 |= 4194304;
         targetMortar_ = value;
       }
     }
@@ -1284,13 +1227,13 @@ namespace RimGovernor.Protocol.Mirror {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public bool HasTargetMortar {
-      get { return (_hasBits0 & 16777216) != 0; }
+      get { return (_hasBits0 & 4194304) != 0; }
     }
     /// <summary>Clears the value of the "target_mortar" field</summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public void ClearTargetMortar() {
-      _hasBits0 &= ~16777216;
+      _hasBits0 &= ~4194304;
     }
 
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -1329,10 +1272,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(ShieldEnergy, other.ShieldEnergy)) return false;
       if (ShieldBroken != other.ShieldBroken) return false;
       if (Weapon != other.Weapon) return false;
-      if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(WeaponRange, other.WeaponRange)) return false;
       if (WeaponWarmupTicks != other.WeaponWarmupTicks) return false;
       if (WeaponCooldownTicks != other.WeaponCooldownTicks) return false;
-      if (WeaponMelee != other.WeaponMelee) return false;
       if (!pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.Equals(Armor, other.Armor)) return false;
       if (!object.Equals(Changed, other.Changed)) return false;
       if (ShieldBelt != other.ShieldBelt) return false;
@@ -1370,10 +1311,8 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasShieldEnergy) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(ShieldEnergy);
       if (HasShieldBroken) hash ^= ShieldBroken.GetHashCode();
       if (HasWeapon) hash ^= Weapon.GetHashCode();
-      if (HasWeaponRange) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(WeaponRange);
       if (HasWeaponWarmupTicks) hash ^= WeaponWarmupTicks.GetHashCode();
       if (HasWeaponCooldownTicks) hash ^= WeaponCooldownTicks.GetHashCode();
-      if (HasWeaponMelee) hash ^= WeaponMelee.GetHashCode();
       if (HasArmor) hash ^= pbc::ProtobufEqualityComparers.BitwiseDoubleEqualityComparer.GetHashCode(Armor);
       if (changed_ != null) hash ^= Changed.GetHashCode();
       if (HasShieldBelt) hash ^= ShieldBelt.GetHashCode();
@@ -1485,10 +1424,6 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(170, 1);
         output.WriteString(Weapon);
       }
-      if (HasWeaponRange) {
-        output.WriteRawTag(177, 1);
-        output.WriteDouble(WeaponRange);
-      }
       if (HasWeaponWarmupTicks) {
         output.WriteRawTag(184, 1);
         output.WriteInt32(WeaponWarmupTicks);
@@ -1496,10 +1431,6 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasWeaponCooldownTicks) {
         output.WriteRawTag(192, 1);
         output.WriteInt32(WeaponCooldownTicks);
-      }
-      if (HasWeaponMelee) {
-        output.WriteRawTag(200, 1);
-        output.WriteBool(WeaponMelee);
       }
       if (changed_ != null) {
         output.WriteRawTag(210, 1);
@@ -1631,10 +1562,6 @@ namespace RimGovernor.Protocol.Mirror {
         output.WriteRawTag(170, 1);
         output.WriteString(Weapon);
       }
-      if (HasWeaponRange) {
-        output.WriteRawTag(177, 1);
-        output.WriteDouble(WeaponRange);
-      }
       if (HasWeaponWarmupTicks) {
         output.WriteRawTag(184, 1);
         output.WriteInt32(WeaponWarmupTicks);
@@ -1642,10 +1569,6 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasWeaponCooldownTicks) {
         output.WriteRawTag(192, 1);
         output.WriteInt32(WeaponCooldownTicks);
-      }
-      if (HasWeaponMelee) {
-        output.WriteRawTag(200, 1);
-        output.WriteBool(WeaponMelee);
       }
       if (changed_ != null) {
         output.WriteRawTag(210, 1);
@@ -1756,17 +1679,11 @@ namespace RimGovernor.Protocol.Mirror {
       if (HasWeapon) {
         size += 2 + pb::CodedOutputStream.ComputeStringSize(Weapon);
       }
-      if (HasWeaponRange) {
-        size += 2 + 8;
-      }
       if (HasWeaponWarmupTicks) {
         size += 2 + pb::CodedOutputStream.ComputeInt32Size(WeaponWarmupTicks);
       }
       if (HasWeaponCooldownTicks) {
         size += 2 + pb::CodedOutputStream.ComputeInt32Size(WeaponCooldownTicks);
-      }
-      if (HasWeaponMelee) {
-        size += 2 + 1;
       }
       if (HasArmor) {
         size += 2 + 8;
@@ -1876,17 +1793,11 @@ namespace RimGovernor.Protocol.Mirror {
       if (other.HasWeapon) {
         Weapon = other.Weapon;
       }
-      if (other.HasWeaponRange) {
-        WeaponRange = other.WeaponRange;
-      }
       if (other.HasWeaponWarmupTicks) {
         WeaponWarmupTicks = other.WeaponWarmupTicks;
       }
       if (other.HasWeaponCooldownTicks) {
         WeaponCooldownTicks = other.WeaponCooldownTicks;
-      }
-      if (other.HasWeaponMelee) {
-        WeaponMelee = other.WeaponMelee;
       }
       if (other.HasArmor) {
         Armor = other.Armor;
@@ -2027,20 +1938,12 @@ namespace RimGovernor.Protocol.Mirror {
             Weapon = input.ReadString();
             break;
           }
-          case 177: {
-            WeaponRange = input.ReadDouble();
-            break;
-          }
           case 184: {
             WeaponWarmupTicks = input.ReadInt32();
             break;
           }
           case 192: {
             WeaponCooldownTicks = input.ReadInt32();
-            break;
-          }
-          case 200: {
-            WeaponMelee = input.ReadBool();
             break;
           }
           case 210: {
@@ -2191,20 +2094,12 @@ namespace RimGovernor.Protocol.Mirror {
             Weapon = input.ReadString();
             break;
           }
-          case 177: {
-            WeaponRange = input.ReadDouble();
-            break;
-          }
           case 184: {
             WeaponWarmupTicks = input.ReadInt32();
             break;
           }
           case 192: {
             WeaponCooldownTicks = input.ReadInt32();
-            break;
-          }
-          case 200: {
-            WeaponMelee = input.ReadBool();
             break;
           }
           case 210: {

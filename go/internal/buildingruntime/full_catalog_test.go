@@ -39,7 +39,7 @@ var fullCatalogRows = sync.OnceValues(func() (map[protoreflect.FullName]map[stri
 		return nil, err
 	}
 	out := map[protoreflect.FullName]map[string]proto.Message{}
-	for _, class := range []proto.Message{&d.TraitDef{}, &d.WorkTypeDef{}, &d.ThoughtDef{}} {
+	for _, class := range []proto.Message{&d.TraitDef{}, &d.WorkTypeDef{}, &d.ThoughtDef{}, &d.NeedDef{}} {
 		name := class.ProtoReflect().Descriptor().FullName()
 		out[name] = catalog.Defs[name]
 	}

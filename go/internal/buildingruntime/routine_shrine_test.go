@@ -51,11 +51,19 @@ func (n *routineShrineNative) ReadAncientShrines(_ context.Context, _ *c.Identit
 	return &o.AncientShrinesReply{Outcome: &o.AncientShrinesReply_Observed{Observed: &o.AncientShrinesSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Shrines: n.shrines}}}, bridge.Result{}, nil
 }
 func (n *routineShrineNative) ReadCombatPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {
-	reply, result, err := (&shrineTestNative{}).ReadCombatPawns(ctx, identity, ids)
-	if n.melee {
-		pawns := reply.GetObserved().GetPawns()
-		for _, row := range pawns[:len(pawns)-1] {
-			row.Equipment.Equipped[0].Ranged = proto.Bool(false)
+	inner := &shrineTestNative{}
+	reply, result, err := inner.ReadCombatPawns(ctx, identity, ids)
+	pawns := reply.GetObserved().GetPawns()
+	// The weapons join the frame's things table, melee ones for the whole
+	// squad but the last pawn when the native is a melee one.
+	for i, row := range pawns {
+		for _, item := range row.GetEquipment().GetEquipped() {
+			held, _ := inner.things.Get(item.GetThing().GetId())
+			def := held.GetThing().GetDefName()
+			if n.melee && i < len(pawns)-1 {
+				def = "MeleeWeapon_Club"
+			}
+			item.Thing = n.thing(&o.Thing{Thing: &o.EntityRef{Id: item.GetThing().Id, DefName: proto.String(def)}})
 		}
 	}
 	return reply, result, err

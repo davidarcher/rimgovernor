@@ -306,11 +306,9 @@ message SurgeryOperation {
 enum Quality { QUALITY_UNSPECIFIED = 0; QUALITY_AWFUL = 1; QUALITY_POOR = 2; QUALITY_NORMAL = 3; QUALITY_GOOD = 4; QUALITY_EXCELLENT = 5; QUALITY_MASTERWORK = 6; QUALITY_LEGENDARY = 7; }
 message GearItem {
   rimgovernor.common.v1.Ref thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
-  optional double condition_fraction = 6; reserved 7, 8, 10; reserved "apparel_layers", "body_part_groups", "apparel";
-  optional bool weapon = 9; optional bool ranged = 11; optional bool melee = 12;
+  optional double condition_fraction = 6; reserved 7, 8, 9, 10, 11, 12, 19; reserved "apparel_layers", "body_part_groups", "apparel", "weapon", "ranged", "melee", "range";
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
   optional double insulation_cold = 17; optional double insulation_heat = 18;
-  optional double range = 19; // Ranged primary verb range in cells; absent for melee or unknown.
   optional string biocoded_to = 20; // Native pawn ID, only when the coded owner still exists.
   optional bool biocoded = 21; // True also when the coded owner reference was lost; absent on older producers.
   // A loose candidate's supply CAS token (#1342).
@@ -582,9 +580,7 @@ message ResourceStock {
   repeated HeldStock holders = 18; repeated CorpseState corpses = 19; reserved 20;
   reserved 21; reserved 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24;
-  // Weapon class of the row's definition: ranged/melee are ThingDef.IsRangedWeapon/IsMeleeWeapon, which cover every equippable
-  // (a wood log and a beer are melee weapons); weapon_by_trade is membership in the Weapons thing category (what a stockpile calls a weapon).
-  optional bool weapon_by_trade = 25; optional bool ranged = 26; optional bool melee = 27;
+  reserved 25, 26, 27; reserved "weapon_by_trade", "ranged", "melee";
   // Biocode facts keyed by items' exact identities.
   // Only weapon rows carry these; older producers omit them.
   repeated GearItem weapon_items = 28;

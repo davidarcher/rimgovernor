@@ -19,7 +19,7 @@ import (
 func lanceUsers(rows []*n.PawnState, things bridge.Things) []policy.LanceUser {
 	var out []policy.LanceUser
 	for _, row := range rows {
-		facts := squadDefenderFacts(row, nil)
+		facts := squadDefenderFacts(row, nil, domain.Unknown[bool]())
 		dead, dk := facts.Dead.Value()
 		downed, wk := facts.Downed.Value()
 		mental, mk := facts.MentalState.Value()

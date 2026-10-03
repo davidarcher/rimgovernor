@@ -215,15 +215,16 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 		return nil, 0, err
 	}
 	for _, p := range observed.Pawns {
-		facts, err := equipCandidatePawnFacts(p, catalog)
+		facts, err := equipCandidatePawnFacts(p, catalog, things)
 		if err != nil {
 			return nil, 0, err
 		}
 		pawns = append(pawns, facts)
-		if primary, ok := armoryPrimary(p, things); ok {
-			if primary.Facts, err = catalog.WeaponOf(primary.Definition); err != nil {
-				return nil, 0, err
-			}
+		primary, ok, err := armoryPrimary(p, things, catalog)
+		if err != nil {
+			return nil, 0, err
+		}
+		if ok {
 			primaries[domain.PawnID(p.Pawn.GetId())] = primary
 		}
 	}
@@ -274,23 +275,28 @@ func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlSt
 
 // armoryPrimary is the pawn's equipped primary weapon; an unobserved
 // quality reads as normal.
-func armoryPrimary(row *o.PawnState, things bridge.Things) (policy.ArmoryPrimary, bool) {
+func armoryPrimary(row *o.PawnState, things bridge.Things, catalog *bridge.DefinitionCatalog) (policy.ArmoryPrimary, bool, error) {
 	equipment := row.GetEquipment()
 	id := equipment.GetPrimaryId()
 	if id == "" {
-		return policy.ArmoryPrimary{}, false
+		return policy.ArmoryPrimary{}, false, nil
 	}
 	for _, item := range equipment.GetEquipped() {
-		if item.GetThing().GetId() != id || gearDef(things, item.GetThing()) == "" {
+		def := gearDef(things, item.GetThing())
+		if item.GetThing().GetId() != id || def == "" {
 			continue
+		}
+		facts, err := catalog.WeaponOf(def)
+		if err != nil {
+			return policy.ArmoryPrimary{}, false, err
 		}
 		quality := 2 // QualityCategory.Normal
 		if q := item.GetQuality(); q != o.Quality_QUALITY_UNSPECIFIED {
 			quality = int(q) - 1
 		}
-		return policy.ArmoryPrimary{Definition: gearDef(things, item.GetThing()), Ranged: item.GetRanged(), Quality: quality}, true
+		return policy.ArmoryPrimary{Definition: def, Ranged: facts.Ranged, Quality: quality, Facts: facts}, true, nil
 	}
-	return policy.ArmoryPrimary{}, false
+	return policy.ArmoryPrimary{}, false, nil
 }
 
 // weaponBenchHosted reports whether any bench hosts a modelled weapon recipe.

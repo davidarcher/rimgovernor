@@ -49,21 +49,26 @@ func TestDefenseCellFactsLeaveFogUnknown(t *testing.T) {
 
 func TestDefenderRangeUsesPrimaryRangedWeaponOnly(t *testing.T) {
 	t.Parallel()
-	gear := func(id string, ranged bool, r float64) *o.GearItem {
-		return &o.GearItem{Thing: &c.Ref{Id: proto.String(id)}, Weapon: proto.Bool(true), Ranged: proto.Bool(ranged), Melee: proto.Bool(!ranged), Range: proto.Float64(r)}
+	arms := armament{catalog: bridge.FixtureCatalog("load", bridge.CoreWeaponFixtures()...)}
+	gear := func(id, def string) *o.GearItem {
+		arms.things = arms.things.With(id, &o.Thing{Thing: &o.EntityRef{Id: proto.String(id), DefName: proto.String(def)}})
+		return &o.GearItem{Thing: &c.Ref{Id: proto.String(id)}}
 	}
 	rows := []*o.PawnState{
-		{Pawn: &o.EntityRef{Id: proto.String("a")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("rifle"), Equipped: []*o.GearItem{gear("rifle", true, 30.9)}}},
-		{Pawn: &o.EntityRef{Id: proto.String("b")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("pistol"), Equipped: []*o.GearItem{gear("knife", false, 1), gear("pistol", true, 25.9)}}},
-		{Pawn: &o.EntityRef{Id: proto.String("c")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club"), Equipped: []*o.GearItem{gear("club", false, 1)}}},
+		{Pawn: &o.EntityRef{Id: proto.String("a")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("rifle"), Equipped: []*o.GearItem{gear("rifle", "Gun_AssaultRifle")}}},
+		{Pawn: &o.EntityRef{Id: proto.String("b")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("pistol"), Equipped: []*o.GearItem{gear("knife", "MeleeWeapon_Knife"), gear("pistol", "Gun_LMG")}}},
+		{Pawn: &o.EntityRef{Id: proto.String("c")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club"), Equipped: []*o.GearItem{gear("club", "MeleeWeapon_Club")}}},
 		{Pawn: &o.EntityRef{Id: proto.String("d")}, Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}},
 		{Pawn: &o.EntityRef{Id: proto.String("e")}},
 	}
-	count, shortest := defenderRange(rows)
-	if r, known := shortest.Value(); count != 2 || !known || r != 25.9 {
+	count, shortest, err := defenderRange(rows, arms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, known := shortest.Value(); count != 2 || !known || r < 25.89 || r > 25.91 {
 		t.Fatal(count, shortest)
 	}
-	if count, shortest = defenderRange(rows[2:]); count != 0 {
+	if count, shortest, err = defenderRange(rows[2:], arms); err != nil || count != 0 {
 		t.Fatal(count)
 	} else if _, known := shortest.Value(); known {
 		t.Fatal("range known without a ranged defender")

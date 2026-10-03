@@ -326,8 +326,6 @@ namespace HomeBridge.BridgeTools
             if (weapon != null && verb != null)
             {
                 row.Weapon = weapon.def.defName;
-                row.WeaponMelee = verb.IsMeleeAttack;
-                row.WeaponRange = verb.IsMeleeAttack ? Supervisor.MeleeReachCells : verb.verbProps.range;
                 row.WeaponWarmupTicks = verb.verbProps.warmupTime.SecondsToTicks();
                 try { row.WeaponCooldownTicks = weapon.GetStatValue(verb.IsMeleeAttack ? StatDefOf.MeleeWeapon_CooldownMultiplier : StatDefOf.RangedWeapon_Cooldown).SecondsToTicks(); }
                 catch { }

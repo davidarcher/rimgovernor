@@ -16,9 +16,9 @@ import (
 // equipCandidatePawnFacts is the pawn read the equip, gear and combat
 // loadout planners share. It lives apart from routine_equip.go so equip
 // code that uses medical_retry does not widen into the defense family.
-func equipCandidatePawnFacts(row *n.PawnState, catalog *bridge.DefinitionCatalog) (policy.EquipCandidatePawn, error) {
+func equipCandidatePawnFacts(row *n.PawnState, catalog *bridge.DefinitionCatalog, things bridge.Things) (policy.EquipCandidatePawn, error) {
 	facts := policy.EquipCandidatePawn{Pawn: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
-	work, err := observation.WorkPawnRow(row, catalog)
+	work, err := observation.WorkPawnRow(row, catalog, things)
 	if err != nil {
 		return policy.EquipCandidatePawn{}, err
 	}

@@ -154,7 +154,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			biotech = frame.Catalog.Biotech
 		}
 		p.MechCatalog = biotech.MechCatalog()
-		if p.WorkPawns, err = routineWork(colony, emergency, pawns, frame.Catalog); err != nil {
+		if p.WorkPawns, err = routineWork(colony, emergency, pawns, frame.Catalog, frame.Tables.Things); err != nil {
 			return RoutineReading{}, err
 		}
 		p.MeditateAvailable = optional(pawns.MeditateAssignmentAvailable)

@@ -9,6 +9,14 @@ type WeaponDef struct {
 	Ranged, Melee bool
 	// Range is the ranged verb's range in cells, 0 for a melee weapon.
 	Range float64
+	// Reach is how far the wielder strikes: Range for a ranged weapon, the
+	// longest melee verb range of its tools for a melee weapon, 0 for no
+	// weapon.
+	Reach float64
+	// ByTrade is membership in the Weapons thing category (what a stockpile
+	// calls a weapon): a wood log or a beer is a melee weapon by Melee but
+	// not by trade.
+	ByTrade bool
 	// Explosive is a ranged verb that scatters (forcedMissRadius) a
 	// projectile that explodes: a grenade, a rocket, a launcher shell.
 	Explosive bool

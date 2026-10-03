@@ -4726,16 +4726,12 @@ type GearItem struct {
 	HitPoints         *int32                 `protobuf:"varint,4,opt,name=hit_points,json=hitPoints,proto3,oneof" json:"hit_points,omitempty"`
 	MaxHitPoints      *int32                 `protobuf:"varint,5,opt,name=max_hit_points,json=maxHitPoints,proto3,oneof" json:"max_hit_points,omitempty"`
 	ConditionFraction *float64               `protobuf:"fixed64,6,opt,name=condition_fraction,json=conditionFraction,proto3,oneof" json:"condition_fraction,omitempty"`
-	Weapon            *bool                  `protobuf:"varint,9,opt,name=weapon,proto3,oneof" json:"weapon,omitempty"`
-	Ranged            *bool                  `protobuf:"varint,11,opt,name=ranged,proto3,oneof" json:"ranged,omitempty"`
-	Melee             *bool                  `protobuf:"varint,12,opt,name=melee,proto3,oneof" json:"melee,omitempty"`
 	Forced            *bool                  `protobuf:"varint,13,opt,name=forced,proto3,oneof" json:"forced,omitempty"`
 	Locked            *bool                  `protobuf:"varint,14,opt,name=locked,proto3,oneof" json:"locked,omitempty"`
 	ArmorSharp        *float64               `protobuf:"fixed64,15,opt,name=armor_sharp,json=armorSharp,proto3,oneof" json:"armor_sharp,omitempty"`
 	ArmorBlunt        *float64               `protobuf:"fixed64,16,opt,name=armor_blunt,json=armorBlunt,proto3,oneof" json:"armor_blunt,omitempty"`
 	InsulationCold    *float64               `protobuf:"fixed64,17,opt,name=insulation_cold,json=insulationCold,proto3,oneof" json:"insulation_cold,omitempty"`
 	InsulationHeat    *float64               `protobuf:"fixed64,18,opt,name=insulation_heat,json=insulationHeat,proto3,oneof" json:"insulation_heat,omitempty"`
-	Range             *float64               `protobuf:"fixed64,19,opt,name=range,proto3,oneof" json:"range,omitempty"`                           // Ranged primary verb range in cells; absent for melee or unknown.
 	BiocodedTo        *string                `protobuf:"bytes,20,opt,name=biocoded_to,json=biocodedTo,proto3,oneof" json:"biocoded_to,omitempty"` // Native pawn ID, only when the coded owner still exists.
 	Biocoded          *bool                  `protobuf:"varint,21,opt,name=biocoded,proto3,oneof" json:"biocoded,omitempty"`                      // True also when the coded owner reference was lost; absent on older producers.
 	// A loose candidate's supply CAS token (#1342).
@@ -4816,27 +4812,6 @@ func (x *GearItem) GetConditionFraction() float64 {
 	return 0
 }
 
-func (x *GearItem) GetWeapon() bool {
-	if x != nil && x.Weapon != nil {
-		return *x.Weapon
-	}
-	return false
-}
-
-func (x *GearItem) GetRanged() bool {
-	if x != nil && x.Ranged != nil {
-		return *x.Ranged
-	}
-	return false
-}
-
-func (x *GearItem) GetMelee() bool {
-	if x != nil && x.Melee != nil {
-		return *x.Melee
-	}
-	return false
-}
-
 func (x *GearItem) GetForced() bool {
 	if x != nil && x.Forced != nil {
 		return *x.Forced
@@ -4875,13 +4850,6 @@ func (x *GearItem) GetInsulationCold() float64 {
 func (x *GearItem) GetInsulationHeat() float64 {
 	if x != nil && x.InsulationHeat != nil {
 		return *x.InsulationHeat
-	}
-	return 0
-}
-
-func (x *GearItem) GetRange() float64 {
-	if x != nil && x.Range != nil {
-		return *x.Range
 	}
 	return 0
 }
@@ -8329,11 +8297,6 @@ type ResourceStock struct {
 	Corpses         []*CorpseState         `protobuf:"bytes,19,rep,name=corpses,proto3" json:"corpses,omitempty"`
 	Issues          []*ReadIssue           `protobuf:"bytes,23,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot        *SnapshotRef           `protobuf:"bytes,24,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	// Weapon class of the row's definition: ranged/melee are ThingDef.IsRangedWeapon/IsMeleeWeapon, which cover every equippable
-	// (a wood log and a beer are melee weapons); weapon_by_trade is membership in the Weapons thing category (what a stockpile calls a weapon).
-	WeaponByTrade *bool `protobuf:"varint,25,opt,name=weapon_by_trade,json=weaponByTrade,proto3,oneof" json:"weapon_by_trade,omitempty"`
-	Ranged        *bool `protobuf:"varint,26,opt,name=ranged,proto3,oneof" json:"ranged,omitempty"`
-	Melee         *bool `protobuf:"varint,27,opt,name=melee,proto3,oneof" json:"melee,omitempty"`
 	// Biocode facts keyed by items' exact identities.
 	// Only weapon rows carry these; older producers omit them.
 	WeaponItems   []*GearItem `protobuf:"bytes,28,rep,name=weapon_items,json=weaponItems,proto3" json:"weapon_items,omitempty"`
@@ -8516,27 +8479,6 @@ func (x *ResourceStock) GetSnapshot() *SnapshotRef {
 		return x.Snapshot
 	}
 	return nil
-}
-
-func (x *ResourceStock) GetWeaponByTrade() bool {
-	if x != nil && x.WeaponByTrade != nil {
-		return *x.WeaponByTrade
-	}
-	return false
-}
-
-func (x *ResourceStock) GetRanged() bool {
-	if x != nil && x.Ranged != nil {
-		return *x.Ranged
-	}
-	return false
-}
-
-func (x *ResourceStock) GetMelee() bool {
-	if x != nil && x.Melee != nil {
-		return *x.Melee
-	}
-	return false
 }
 
 func (x *ResourceStock) GetWeaponItems() []*GearItem {
@@ -44941,7 +44883,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_yield_thing_defB\x18\n" +
 	"\x16_medicine_market_valueB\x18\n" +
 	"\x16_doctor_success_chanceB\x18\n" +
-	"\x16_medicine_care_limited\"\xba\b\n" +
+	"\x16_medicine_care_limited\"\xd6\a\n" +
 	"\bGearItem\x120\n" +
 	"\x05thing\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05thing\x12\x19\n" +
 	"\x05stuff\x18\x02 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12C\n" +
@@ -44950,22 +44892,18 @@ const file_observations_proto_rawDesc = "" +
 	"hit_points\x18\x04 \x01(\x05H\x02R\thitPoints\x88\x01\x01\x12)\n" +
 	"\x0emax_hit_points\x18\x05 \x01(\x05H\x03R\fmaxHitPoints\x88\x01\x01\x122\n" +
 	"\x12condition_fraction\x18\x06 \x01(\x01H\x04R\x11conditionFraction\x88\x01\x01\x12\x1b\n" +
-	"\x06weapon\x18\t \x01(\bH\x05R\x06weapon\x88\x01\x01\x12\x1b\n" +
-	"\x06ranged\x18\v \x01(\bH\x06R\x06ranged\x88\x01\x01\x12\x19\n" +
-	"\x05melee\x18\f \x01(\bH\aR\x05melee\x88\x01\x01\x12\x1b\n" +
-	"\x06forced\x18\r \x01(\bH\bR\x06forced\x88\x01\x01\x12\x1b\n" +
-	"\x06locked\x18\x0e \x01(\bH\tR\x06locked\x88\x01\x01\x12$\n" +
-	"\varmor_sharp\x18\x0f \x01(\x01H\n" +
-	"R\n" +
+	"\x06forced\x18\r \x01(\bH\x05R\x06forced\x88\x01\x01\x12\x1b\n" +
+	"\x06locked\x18\x0e \x01(\bH\x06R\x06locked\x88\x01\x01\x12$\n" +
+	"\varmor_sharp\x18\x0f \x01(\x01H\aR\n" +
 	"armorSharp\x88\x01\x01\x12$\n" +
-	"\varmor_blunt\x18\x10 \x01(\x01H\vR\n" +
+	"\varmor_blunt\x18\x10 \x01(\x01H\bR\n" +
 	"armorBlunt\x88\x01\x01\x12,\n" +
-	"\x0finsulation_cold\x18\x11 \x01(\x01H\fR\x0einsulationCold\x88\x01\x01\x12,\n" +
-	"\x0finsulation_heat\x18\x12 \x01(\x01H\rR\x0einsulationHeat\x88\x01\x01\x12\x19\n" +
-	"\x05range\x18\x13 \x01(\x01H\x0eR\x05range\x88\x01\x01\x12$\n" +
-	"\vbiocoded_to\x18\x14 \x01(\tH\x0fR\n" +
+	"\x0finsulation_cold\x18\x11 \x01(\x01H\tR\x0einsulationCold\x88\x01\x01\x12,\n" +
+	"\x0finsulation_heat\x18\x12 \x01(\x01H\n" +
+	"R\x0einsulationHeat\x88\x01\x01\x12$\n" +
+	"\vbiocoded_to\x18\x14 \x01(\tH\vR\n" +
 	"biocodedTo\x88\x01\x01\x12\x1f\n" +
-	"\bbiocoded\x18\x15 \x01(\bH\x10R\bbiocoded\x88\x01\x01\x12O\n" +
+	"\bbiocoded\x18\x15 \x01(\bH\fR\bbiocoded\x88\x01\x01\x12O\n" +
 	"\x0ething_snapshot\x18\x16 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\rthingSnapshotB\b\n" +
 	"\x06_stuffB\n" +
 	"\n" +
@@ -44973,19 +44911,16 @@ const file_observations_proto_rawDesc = "" +
 	"\v_hit_pointsB\x11\n" +
 	"\x0f_max_hit_pointsB\x15\n" +
 	"\x13_condition_fractionB\t\n" +
-	"\a_weaponB\t\n" +
-	"\a_rangedB\b\n" +
-	"\x06_meleeB\t\n" +
 	"\a_forcedB\t\n" +
 	"\a_lockedB\x0e\n" +
 	"\f_armor_sharpB\x0e\n" +
 	"\f_armor_bluntB\x12\n" +
 	"\x10_insulation_coldB\x12\n" +
-	"\x10_insulation_heatB\b\n" +
-	"\x06_rangeB\x0e\n" +
+	"\x10_insulation_heatB\x0e\n" +
 	"\f_biocoded_toB\v\n" +
-	"\t_biocodedJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\n" +
-	"\x10\vR\x0eapparel_layersR\x10body_part_groupsR\aapparel\"\xf6\x04\n" +
+	"\t_biocodedJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"J\x04\b\n" +
+	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14R\x0eapparel_layersR\x10body_part_groupsR\aapparelR\x06weaponR\x06rangedR\x05meleeR\x05range\"\xf6\x04\n" +
 	"\rPawnEquipment\x12\"\n" +
 	"\n" +
 	"primary_id\x18\x01 \x01(\tH\x00R\tprimaryId\x88\x01\x01\x12A\n" +
@@ -45543,7 +45478,8 @@ const file_observations_proto_rawDesc = "" +
 	"_humanlikeB\x0f\n" +
 	"\r_was_colonistB\f\n" +
 	"\n" +
-	"_rot_stage\"\x84\v\n" +
+	"_rot_stage\"\xa8\n" +
+	"\n" +
 	"\rResourceStock\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -45570,10 +45506,7 @@ const file_observations_proto_rawDesc = "" +
 	"\aholders\x18\x12 \x03(\v2&.rimgovernor.observations.v1.HeldStockR\aholders\x12B\n" +
 	"\acorpses\x18\x13 \x03(\v2(.rimgovernor.observations.v1.CorpseStateR\acorpses\x12>\n" +
 	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
-	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12+\n" +
-	"\x0fweapon_by_trade\x18\x19 \x01(\bH\x0fR\rweaponByTrade\x88\x01\x01\x12\x1b\n" +
-	"\x06ranged\x18\x1a \x01(\bH\x10R\x06ranged\x88\x01\x01\x12\x19\n" +
-	"\x05melee\x18\x1b \x01(\bH\x11R\x05melee\x88\x01\x01\x12H\n" +
+	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12H\n" +
 	"\fweapon_items\x18\x1c \x03(\v2%.rimgovernor.observations.v1.GearItemR\vweaponItemsB\b\n" +
 	"\x06_unitsB\t\n" +
 	"\a_stacksB\n" +
@@ -45592,10 +45525,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_foggedB\v\n" +
 	"\t_reservedB\x0f\n" +
 	"\r_in_stockpileB\x0f\n" +
-	"\r_in_home_areaB\x12\n" +
-	"\x10_weapon_by_tradeB\t\n" +
-	"\a_rangedB\b\n" +
-	"\x06_meleeJ\x04\b\x11\x10\x12J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17\"\x84\x04\n" +
+	"\r_in_home_areaJ\x04\b\x11\x10\x12J\x04\b\x14\x10\x15J\x04\b\x15\x10\x16J\x04\b\x16\x10\x17J\x04\b\x19\x10\x1aJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cR\x0fweapon_by_tradeR\x06rangedR\x05melee\"\x84\x04\n" +
 	"\vStockFilter\x12\x1b\n" +
 	"\tdef_names\x18\x01 \x03(\tR\bdefNames\x12K\n" +
 	"\bcategory\x18\x02 \x01(\x0e2*.rimgovernor.observations.v1.StockCategoryH\x00R\bcategory\x88\x01\x01\x12N\n" +

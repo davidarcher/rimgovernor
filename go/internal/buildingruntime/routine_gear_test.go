@@ -299,8 +299,8 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	// The census lists a weapon beside the parka: only the parka is a wear
 	// candidate; the weapon's eligibility belongs to the equip family and
 	// the wear operation refuses it as absent (#339).
-	bow := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Ranged: proto.Bool(true)}, Gain: proto.Float64(9)}
-	parka := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}}), Weapon: proto.Bool(false)}, Gain: proto.Float64(1)}
+	bow := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}})}, Gain: proto.Float64(9)}
+	parka := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}})}, Gain: proto.Float64(1)}
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, bow, parka), loadout("b", false)}}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	settleGearPolicies(t, native)
@@ -374,7 +374,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 		}
 		return pawn
 	}
-	log := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Melee: proto.Bool(true)}, Gain: proto.Float64(1)}
+	log := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}})}, Gain: proto.Float64(1)}
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, log), loadout("b", false)}}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	settleGearPolicies(t, native)

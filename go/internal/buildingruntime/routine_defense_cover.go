@@ -128,8 +128,12 @@ func (r *RoutineDefenseLayoutPlanner) defenderRange(call context.Context, state 
 	if err = r.sameTick(observed.Context, state, read.Projection.Identity.Tick); err != nil {
 		return 0, domain.Unknown[float64](), false, err
 	}
-	defenders, minRange := defenderRange(observed.Pawns)
-	return defenders, minRange, defenders > 0, nil
+	arms, err := readArmament(call, r.native, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return 0, domain.Unknown[float64](), false, err
+	}
+	defenders, minRange, err := defenderRange(observed.Pawns, arms)
+	return defenders, minRange, defenders > 0, err
 }
 
 // defenseCoverSelection lists the clearances the census identifies among

@@ -123,7 +123,7 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 			return RoutineWasteResult{}, true, fmt.Errorf("%w: burnRoom: row == nil || row.Pawn == nil", ErrControl)
 		}
 		pawn := domain.PawnID(row.Pawn.GetId())
-		arm, err := equipCandidatePawnFacts(row, catalog)
+		arm, err := equipCandidatePawnFacts(row, catalog, things)
 		if err != nil {
 			return RoutineWasteResult{}, true, err
 		}
