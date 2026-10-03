@@ -102,16 +102,9 @@ func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
 			continue // a listed cell that is not rock
 		}
 		out = append(out, c)
-		if len(out) == planDigBatch {
-			break
-		}
 	}
 	return out
 }
-
-// planDigBatch is the most cells one dig reads and designates (the native
-// excavation read takes 64).
-const planDigBatch = 64
 
 func manhattan(a, b domain.Cell) int32 {
 	dx, dz := a.X-b.X, a.Z-b.Z

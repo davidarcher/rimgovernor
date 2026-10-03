@@ -10,9 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// excavationSiteLimit mirrors NativeExcavationSite.MaxCells.
-const excavationSiteLimit = 64
-
 // ExcavationSiteCell is one requested rock cell as native saw it. Fogged
 // cells carry no rock, roof or eligibility facts: they are unknown, never
 // assumed empty or safe.
@@ -53,7 +50,7 @@ func (client *Client) ReadExcavationSite(ctx context.Context, identity *c.Identi
 	if err := ValidateIdentity(identity); err != nil {
 		return ExcavationSite{}, Result{}, err
 	}
-	if len(cells) == 0 || len(cells) > excavationSiteLimit || !excavationCellValid(access) {
+	if len(cells) == 0 ||!excavationCellValid(access) {
 		return ExcavationSite{}, Result{}, contract("invalid excavation site request")
 	}
 	request := &o.ExcavationSiteRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, AccessCell: &c.Cell{X: proto.Int32(access.X), Z: proto.Int32(access.Z)}}

@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_read_excavation_site", Title = "Read excavation site",
-            Description = "Official ExcavationSiteRequest ProtoJSON. Certifies1..64 exact rock cells for staged room/corridor excavation: per-cell rock, roof, fog, designation and eligibility plus counterfactual roof support after removing every requested cell, pending collapse and mining worker access. Fogged cells are unknown. Read-only.")]
+            Description = "Official ExcavationSiteRequest ProtoJSON. Certifies exact rock cells for staged room/corridor excavation: per-cell rock, roof, fog, designation and eligibility plus counterfactual roof support after removing every requested cell, pending collapse and mining worker access. Fogged cells are unknown. Read-only.")]
         [ToolResponse("payload", "string", "Official observations ExcavationSiteReply ProtoJSON.", Always = true)]
         public async Task<object> ReadExcavationSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be an ExcavationSiteRequest ProtoJSON string.")] object? request = null)

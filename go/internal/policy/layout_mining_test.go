@@ -75,10 +75,6 @@ func TestPlannedDig(t *testing.T) {
 		threshold = shell.Threshold()
 	}
 	want = append(append(want, freezer.Door, threshold, site.Cell), RectangleCells(shaft)...)
-	if len(dig) > planDigBatch {
-		t.Fatalf("dig %d cells, over the batch of %d", len(dig), planDigBatch)
-	}
-	// The room comes first: the corridor fills what the batch has left.
 	for _, c := range want {
 		if !dig[c] {
 			t.Fatalf("%v not dug", c)

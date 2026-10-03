@@ -17,11 +17,10 @@ namespace HomeBridge.BridgeTools
     // site-level support answer is a counterfactual over all requested cells.
     internal static class NativeExcavationSite
     {
-        internal const int MaxCells = 64;
         internal static bool Validate(Obs.ExcavationSiteRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, 1..64 unique nonnegative cells and an access cell required.");
-            if (request?.Scope?.ExpectedIdentity == null || request.Cells.Count < 1 || request.Cells.Count > MaxCells || !HasCell(request.AccessCell)) return false;
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, 1 or more unique nonnegative cells and an access cell required.");
+            if (request?.Scope?.ExpectedIdentity == null || request.Cells.Count < 1 || !HasCell(request.AccessCell)) return false;
             var seen = new HashSet<(int, int)>();
             foreach (var cell in request.Cells) if (!HasCell(cell) || !seen.Add((cell.X, cell.Z))) return false;
             return true;
