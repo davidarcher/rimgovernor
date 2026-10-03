@@ -283,3 +283,24 @@ func TestGrowChildRoomAddsOneAndKeepsTheRest(t *testing.T) {
 		t.Fatal("no furniture, no room")
 	}
 }
+
+// A room beside a north-south hallway is stored transposed (door east or
+// west); it must still count as holding the shape it was grown for, or every
+// review grows another.
+func TestChildRoomForTransposedRoom(t *testing.T) {
+	shape := ChildRoomShape{Module: ModuleWorship, Pieces: []PieceCount{{Size: domain.Cell{X: 1, Z: 1}, Count: 6}}}
+	var size [2]int32
+	for _, s := range ChildRoomSizes(shape) {
+		if s[0] != s[1] {
+			size = s
+			break
+		}
+	}
+	if size == ([2]int32{}) {
+		t.Skip("every size holding the shape is square")
+	}
+	room := LayoutRoom{Role: ModuleWorship, Interior: Rectangle{X: 10, Z: 20, Width: size[1], Height: size[0]}, Door: domain.Cell{X: 9, Z: 21}, DoorRot: domain.East}
+	if _, ok := (LayoutPlan{Rooms: []LayoutRoom{room}}).ChildRoomFor(shape); !ok {
+		t.Fatalf("transposed %v room does not hold the shape", size)
+	}
+}
