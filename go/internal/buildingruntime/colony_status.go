@@ -173,7 +173,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			a, ak := id.NativeGeneration.Value()
 			b, bk := decoded.NativeGeneration.Value()
 			if ak && bk && a == b {
-				shares = held.Value.PersonalShares
+				shares = held.Value.Facts.PersonalShares
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				report.ForbiddenSupplies = held.Value.Facts.ForbiddenSupplies

@@ -31,7 +31,7 @@ func TestStampGearSharesGatesEachModelledPawn(t *testing.T) {
 		{Pawn: "b", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
 		{Pawn: "c"},
 	}}
-	p := ColonyProjection{PersonalShares: policy.PersonalShares(domain.Known(1000.0), []policy.ShareMember{{Profile: policy.PawnProfile{ID: "a"}, Free: true, Spent: domain.Known(0.0)}})}
+	p := ColonyProjection{Facts: policy.RoutineFacts{PersonalShares: policy.PersonalShares(domain.Known(1000.0), []policy.ShareMember{{Profile: policy.PawnProfile{ID: "a"}, Free: true, Spent: domain.Known(0.0)}})}}
 	p.Facts.Gear = domain.Known(census)
 	stampGearShares(&p)
 	gear, _ := p.Facts.Gear.Value()

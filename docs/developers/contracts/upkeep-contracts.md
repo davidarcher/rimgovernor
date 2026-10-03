@@ -941,8 +941,9 @@ wealth fact each review.
 ### Held shares and the accessor (#1846)
 
 Every routine reading computes the per-colonist shares into the held
-`observation.ColonyProjection.PersonalShares` (`personalShares`,
-`observation/colony_personal.go`), from data the reading already holds; nothing
+`observation.ColonyProjection.Facts.PersonalShares` (`personalShares`,
+`observation/colony_personal.go`; the one holder, so detection's elective
+surgery gate reads the same map), from data the reading already holds; nothing
 calls native and nothing is persisted. Gates read it through one accessor and
 rebuild nothing:
 

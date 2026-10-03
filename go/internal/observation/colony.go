@@ -130,10 +130,6 @@ type ColonyProjection struct {
 	// without Royalty or a royalty source.
 	Royalty domain.Fact[policy.RoyaltyFacts]
 	Facts   policy.RoutineFacts
-	// PersonalShares is each free colonist's personal wealth share, spent and
-	// remaining (#1846), computed by every routine reading; read it through
-	// PersonalShareOf. Nil without a routine reading.
-	PersonalShares map[policy.PawnID]policy.PersonalShare
 	// BedPrice prices a bed by (def, stuff) from the catalog's MarketValue
 	// rows (#1840); nil without a catalog.
 	BedPrice policy.BedPrice

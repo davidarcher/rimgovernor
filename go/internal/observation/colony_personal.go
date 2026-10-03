@@ -13,7 +13,7 @@ import (
 // projection holds no share for (no routine reading, an unread roster, a
 // slave or prisoner) gets policy.UnknownPersonalShare: necessities only.
 func (r ColonyProjection) PersonalShareOf(pawn policy.PawnID) policy.PersonalShare {
-	if s, ok := r.PersonalShares[pawn]; ok {
+	if s, ok := r.Facts.PersonalShares[pawn]; ok {
 		return s
 	}
 	return policy.UnknownPersonalShare()
@@ -33,12 +33,14 @@ func (r ColonyProjection) SurgeryContext() policy.SurgeryContext {
 	return ctx
 }
 
-// personalShares fills p.PersonalShares from the reading's wealth, roster,
+// personalShares fills p.Facts.PersonalShares from the reading's wealth, roster,
 // gear and sleeping census (#1846). Soldiers are the pawns whose gear role
 // derives to soldier; doctors are policy.ShareDoctors. Spent is unknown for
 // everyone while the sleeping census is, and for a colonist whose worn gear
 // or equipped weapon was not read. Nothing here calls native.
 func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.PawnSnapshot) {
+	// A live reading always sets the map, so an empty one gates every colonist.
+	p.Facts.PersonalShares = map[policy.PawnID]policy.PersonalShare{}
 	work, known := p.WorkPawns.Value()
 	if !known || pawns == nil {
 		return
@@ -101,7 +103,7 @@ func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.Paw
 			}
 		}
 	}
-	p.PersonalShares = policy.PersonalShares(p.Facts.PersonalPool(), members)
+	p.Facts.PersonalShares = policy.PersonalShares(p.Facts.PersonalPool(), members)
 }
 
 // partPrice adapts ItemFacts.MarketValue to the (price, priced) lookup
