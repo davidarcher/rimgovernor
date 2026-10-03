@@ -74,28 +74,6 @@ func (catalog *DefinitionCatalog) RecipeRole(name string) (domain.RecipeRole, er
 	return role, nil
 }
 
-// RecipeWithRole is the one recipe among names whose role is role: the recipes
-// a bench offers, so a planner finds the butcher recipe of a bench without
-// naming it. None, and more than one, are reported by ok and an error
-// respectively.
-func (catalog *DefinitionCatalog) RecipeWithRole(role domain.RecipeRole, names []string) (string, bool, error) {
-	found := ""
-	for _, name := range names {
-		got, err := catalog.RecipeRole(name)
-		if err != nil {
-			return "", false, err
-		}
-		if got != role {
-			continue
-		}
-		if found != "" {
-			return "", false, contract("recipes %s and %s both have the role %s", found, name, role)
-		}
-		found = name
-	}
-	return found, found != "", nil
-}
-
 func (catalog *DefinitionCatalog) deriveRecipeRole(row *d.RecipeDef) (domain.RecipeRole, error) {
 	if class := row.GetWorkerCounterClass(); class != "" {
 		butcher, err := catalog.ClassIsA(class, classButcherCounter)
