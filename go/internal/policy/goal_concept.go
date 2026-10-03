@@ -34,6 +34,7 @@ var goalConcepts = map[GoalID]Concept{
 	// Chores: Standards whose target is no outstanding work.
 	MaintainWaste:         ConceptStandard,
 	RemoveBlight:          ConceptStandard,
+	ManagePollution:       ConceptStandard,
 	MaintainStockpiles:    ConceptStandard,
 	TidyLayout:            ConceptStandard,
 	ClearHomeObstructions: ConceptStandard,

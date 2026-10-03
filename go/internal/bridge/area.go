@@ -26,7 +26,9 @@ func areaAction(action domain.Action) (*op.Action, error) {
 		return nil, contract("%v", err)
 	}
 	intent := &op.AreaIntent{Operation: areaOperations[v.Operation()].Enum()}
-	if v.Home() {
+	if v.PollutionClear() {
+		intent.PollutionClear = proto.Bool(true)
+	} else if v.Home() {
 		intent.Home = proto.Bool(true)
 	} else {
 		intent.Key = proto.String(v.Key())

@@ -1611,6 +1611,9 @@ message BiotechColonyFacts {
 message PollutionTotals {
   optional int32 total_pollution = 1; optional uint32 pollutable_cells = 2;
   optional string clear_area_id = 3; optional int32 clear_area_cells = 4;
+  // polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
+  // polluted_uncovered_cells those outside the pollution-clear area (#1683).
+  optional uint32 polluted_cells = 5; optional uint32 polluted_uncovered_cells = 6;
 }
 // polluting is CompToxifier.CanPolluteNow; cells_per_day is
 // CompProperties_PolluteOverTime.cellsToPollutePerDay.

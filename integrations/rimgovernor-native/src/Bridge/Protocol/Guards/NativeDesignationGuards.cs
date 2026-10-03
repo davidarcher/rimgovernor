@@ -35,7 +35,20 @@ namespace HomeBridge.BridgeTools
                 s => s.Target is Building b ? RoofWait(b, s.Ground) : null)
             .Register(GuardNames.MineSafety, MineSafety)
             .Register(GuardNames.Acquisition, s => s.Target is Mineable rock ? ResourceAcquisitionTools.MiningBlocker(rock, s.Map) : null)
-            .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall));
+            .Register(GuardNames.WallUpgrade, s => s.Wall == null ? "The wall_upgrade guard holds a wall-upgrade site." : WallUpgradeSafety.Check(s.Wall))
+            .Register(GuardNames.Wastepack, Wastepack);
+
+        // ---- wastepack (#1683) ----
+        // A thing with the game's CompDissolution that is neither frozen nor
+        // inside an atomizer: hauling it to storage is what stops it
+        // deteriorating into pollution.
+        private static string? Wastepack(GuardSubject s)
+        {
+            var dissolution = (s.Target as ThingWithComps)?.GetComp<CompDissolution>();
+            if (dissolution == null || !s.Target!.Spawned) return "The wastepack guard holds a spawned thing with a dissolution comp.";
+            if (dissolution.InAtomizer) return "The wastepack is already in an atomizer.";
+            return dissolution.IsFrozen ? "The wastepack is already frozen." : null;
+        }
 
         internal static string? Name(Operations.DesignationGuard guard)
         {
@@ -45,6 +58,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.DesignationGuard.MineSafety: return GuardNames.MineSafety;
                 case Operations.DesignationGuard.WallUpgrade: return GuardNames.WallUpgrade;
                 case Operations.DesignationGuard.Acquisition: return GuardNames.Acquisition;
+                case Operations.DesignationGuard.Wastepack: return GuardNames.Wastepack;
                 default: return null;
             }
         }

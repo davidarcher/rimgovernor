@@ -568,6 +568,16 @@ var plannerCatalog = []plannerEntry{
 			out.Clean = &method
 			return method.Verdict, nil
 		}},
+	{name: "pollution", goal: policy.ManagePollution, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AreaAction, domain.SupplyAllowAction, domain.WastepackHaulAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Pollution != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Pollution.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Pollution = &method
+			return method.Verdict, nil
+		}},
 	{name: "blight", goal: policy.RemoveBlight, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CutPlantAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Blight != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

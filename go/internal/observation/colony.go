@@ -425,6 +425,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns)
 	r.Facts.Waste = colonyWaste(v, tables)
 	r.Facts.Blight = colonyBlight(v, tables)
+	r.Facts.Pollution = colonyPollution(r.Biotech)
 	r.Facts.Upkeep = colonyUpkeep(v, tables)
 	r.Facts.MedicalReserve = ColonyMedicalReserve(v, tables)
 	// The dialog section is present exactly while a force-pausing choice

@@ -42,6 +42,7 @@ var goalLabels = map[policy.GoalID]string{
 	policy.TradeWithCaravan:         "Trade",
 	policy.ActiveCombat:             "Combat",
 	policy.RemoveBlight:             "Blight",
+	policy.ManagePollution:          "Pollution",
 	policy.MaintainHerd:             "Herd",
 	policy.MaintainAnimalFeed:       "Animal feed",
 	policy.MaintainPopulation:       "Population",

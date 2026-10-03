@@ -89,6 +89,7 @@ type ClockSchedulerConfig struct {
 	Work                *RoutineWorkPlanner
 	Supplies            *RoutineSupplyPlanner
 	Blight              *RoutineBlightPlanner
+	Pollution           *RoutinePollutionPlanner
 	Armory              *RoutineArmoryPlanner
 	Clearance           *RoutineClearancePlanner
 	Shrine              *RoutineShrinePlanner
@@ -171,6 +172,7 @@ type ClockSchedulerResult struct {
 	Work                         *RoutineWorkResult
 	Supplies                     *RoutineSupplyResult
 	Blight                       *RoutineBlightResult
+	Pollution                    *RoutinePollutionResult
 	Armory                       *RoutineArmoryResult
 	Clearance                    *RoutineClearanceResult
 	Shrine                       *RoutineShrineResult
@@ -435,6 +437,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine)", ErrControl)
+	}
+	if config.Pollution != nil && (config.Routine == nil || config.Pollution.reviewer != config.Routine) {
+		return nil, fmt.Errorf("%w: NewClockScheduler: config.Pollution != nil && (config.Routine == nil || config.Pollution.reviewer != config.Routine)", ErrControl)
 	}
 	if config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sleeping.goal != policy.MaintainHousing || config.Sleeping.phase != policy.HousingShelter) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Sleeping != nil && (config.Routine == nil || config.Sleeping.reviewer != config.Routine || config.Sl", ErrControl)
@@ -1982,7 +1987,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.SubdueAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.UseItemAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.ApparelPolicyAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.RoyaltyAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.RemoveRoofAction, domain.AreaPlantCutAction, domain.CutPlantAction, domain.StripAction, domain.MoveBuildingAction, domain.UninstallBuildingAction, domain.CoverClearanceAction, domain.WastepackHaulAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction, domain.RitualAction, domain.AbilityAction, domain.RoyaltyAction, domain.WallRemovalAction, domain.OpenCasketAction, domain.CaravanDepartureAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

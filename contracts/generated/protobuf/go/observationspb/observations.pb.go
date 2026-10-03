@@ -35707,8 +35707,12 @@ type PollutionTotals struct {
 	PollutableCells *uint32                `protobuf:"varint,2,opt,name=pollutable_cells,json=pollutableCells,proto3,oneof" json:"pollutable_cells,omitempty"`
 	ClearAreaId     *string                `protobuf:"bytes,3,opt,name=clear_area_id,json=clearAreaId,proto3,oneof" json:"clear_area_id,omitempty"`
 	ClearAreaCells  *int32                 `protobuf:"varint,4,opt,name=clear_area_cells,json=clearAreaCells,proto3,oneof" json:"clear_area_cells,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// polluted_cells counts the pollutable cells PollutionGrid.IsPolluted holds;
+	// polluted_uncovered_cells those outside the pollution-clear area (#1683).
+	PollutedCells          *uint32 `protobuf:"varint,5,opt,name=polluted_cells,json=pollutedCells,proto3,oneof" json:"polluted_cells,omitempty"`
+	PollutedUncoveredCells *uint32 `protobuf:"varint,6,opt,name=polluted_uncovered_cells,json=pollutedUncoveredCells,proto3,oneof" json:"polluted_uncovered_cells,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *PollutionTotals) Reset() {
@@ -35765,6 +35769,20 @@ func (x *PollutionTotals) GetClearAreaId() string {
 func (x *PollutionTotals) GetClearAreaCells() int32 {
 	if x != nil && x.ClearAreaCells != nil {
 		return *x.ClearAreaCells
+	}
+	return 0
+}
+
+func (x *PollutionTotals) GetPollutedCells() uint32 {
+	if x != nil && x.PollutedCells != nil {
+		return *x.PollutedCells
+	}
+	return 0
+}
+
+func (x *PollutionTotals) GetPollutedUncoveredCells() uint32 {
+	if x != nil && x.PollutedUncoveredCells != nil {
+		return *x.PollutedUncoveredCells
 	}
 	return 0
 }
@@ -49302,16 +49320,20 @@ const file_observations_proto_rawDesc = "" +
 	"\tgestators\x18\x06 \x03(\v2..rimgovernor.observations.v1.MechGestatorStateR\tgestators\x12I\n" +
 	"\bchargers\x18\a \x03(\v2-.rimgovernor.observations.v1.MechChargerStateR\bchargers\x12=\n" +
 	"\x06babies\x18\b \x03(\v2%.rimgovernor.observations.v1.BabyCareR\x06babies\x12$\n" +
-	"\rbreastfeeders\x18\t \x03(\tR\rbreastfeeders\"\x97\x02\n" +
+	"\rbreastfeeders\x18\t \x03(\tR\rbreastfeeders\"\xb2\x03\n" +
 	"\x0fPollutionTotals\x12,\n" +
 	"\x0ftotal_pollution\x18\x01 \x01(\x05H\x00R\x0etotalPollution\x88\x01\x01\x12.\n" +
 	"\x10pollutable_cells\x18\x02 \x01(\rH\x01R\x0fpollutableCells\x88\x01\x01\x12'\n" +
 	"\rclear_area_id\x18\x03 \x01(\tH\x02R\vclearAreaId\x88\x01\x01\x12-\n" +
-	"\x10clear_area_cells\x18\x04 \x01(\x05H\x03R\x0eclearAreaCells\x88\x01\x01B\x12\n" +
+	"\x10clear_area_cells\x18\x04 \x01(\x05H\x03R\x0eclearAreaCells\x88\x01\x01\x12*\n" +
+	"\x0epolluted_cells\x18\x05 \x01(\rH\x04R\rpollutedCells\x88\x01\x01\x12=\n" +
+	"\x18polluted_uncovered_cells\x18\x06 \x01(\rH\x05R\x16pollutedUncoveredCells\x88\x01\x01B\x12\n" +
 	"\x10_total_pollutionB\x13\n" +
 	"\x11_pollutable_cellsB\x10\n" +
 	"\x0e_clear_area_idB\x13\n" +
-	"\x11_clear_area_cells\"\x89\x02\n" +
+	"\x11_clear_area_cellsB\x11\n" +
+	"\x0f_polluted_cellsB\x1b\n" +
+	"\x19_polluted_uncovered_cells\"\x89\x02\n" +
 	"\bPolluter\x12\x1e\n" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x127\n" +

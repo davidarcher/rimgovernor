@@ -2938,18 +2938,19 @@ func (x *SurgeryEffect) GetState() SurgeryState {
 	return SurgeryState_SURGERY_STATE_UNSPECIFIED
 }
 
-// One AreaIntent's result (#1321): the bot area key or home, the area's load
+// One AreaIntent's result (#1321): the bot area key, home or pollution_clear, the area's load
 // id (absent once deleted), whether it stands, and its cell count after the
 // edit.
 type AreaEffect struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           *string                `protobuf:"bytes,1,opt,name=key,proto3,oneof" json:"key,omitempty"`
-	Home          *bool                  `protobuf:"varint,2,opt,name=home,proto3,oneof" json:"home,omitempty"`
-	AreaId        *string                `protobuf:"bytes,3,opt,name=area_id,json=areaId,proto3,oneof" json:"area_id,omitempty"`
-	Present       *bool                  `protobuf:"varint,4,opt,name=present,proto3,oneof" json:"present,omitempty"`
-	CellCount     *int32                 `protobuf:"varint,5,opt,name=cell_count,json=cellCount,proto3,oneof" json:"cell_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            *string                `protobuf:"bytes,1,opt,name=key,proto3,oneof" json:"key,omitempty"`
+	Home           *bool                  `protobuf:"varint,2,opt,name=home,proto3,oneof" json:"home,omitempty"`
+	AreaId         *string                `protobuf:"bytes,3,opt,name=area_id,json=areaId,proto3,oneof" json:"area_id,omitempty"`
+	Present        *bool                  `protobuf:"varint,4,opt,name=present,proto3,oneof" json:"present,omitempty"`
+	CellCount      *int32                 `protobuf:"varint,5,opt,name=cell_count,json=cellCount,proto3,oneof" json:"cell_count,omitempty"`
+	PollutionClear *bool                  `protobuf:"varint,6,opt,name=pollution_clear,json=pollutionClear,proto3,oneof" json:"pollution_clear,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AreaEffect) Reset() {
@@ -3015,6 +3016,13 @@ func (x *AreaEffect) GetCellCount() int32 {
 		return *x.CellCount
 	}
 	return 0
+}
+
+func (x *AreaEffect) GetPollutionClear() bool {
+	if x != nil && x.PollutionClear != nil {
+		return *x.PollutionClear
+	}
+	return false
 }
 
 // One PolicyPruneIntent's result (#1298): the database (outfit, drug, food,
@@ -5522,7 +5530,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\b_pawn_idB\r\n" +
 	"\v_recipe_defB\r\n" +
 	"\v_part_indexB\b\n" +
-	"\x06_state\"\xd5\x01\n" +
+	"\x06_state\"\x97\x02\n" +
 	"\n" +
 	"AreaEffect\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x00R\x03key\x88\x01\x01\x12\x17\n" +
@@ -5530,14 +5538,16 @@ const file_receipts_proto_rawDesc = "" +
 	"\aarea_id\x18\x03 \x01(\tH\x02R\x06areaId\x88\x01\x01\x12\x1d\n" +
 	"\apresent\x18\x04 \x01(\bH\x03R\apresent\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"cell_count\x18\x05 \x01(\x05H\x04R\tcellCount\x88\x01\x01B\x06\n" +
+	"cell_count\x18\x05 \x01(\x05H\x04R\tcellCount\x88\x01\x01\x12,\n" +
+	"\x0fpollution_clear\x18\x06 \x01(\bH\x05R\x0epollutionClear\x88\x01\x01B\x06\n" +
 	"\x04_keyB\a\n" +
 	"\x05_homeB\n" +
 	"\n" +
 	"\b_area_idB\n" +
 	"\n" +
 	"\b_presentB\r\n" +
-	"\v_cell_count\"\x92\x01\n" +
+	"\v_cell_countB\x12\n" +
+	"\x10_pollution_clear\"\x92\x01\n" +
 	"\x11PolicyPruneEffect\x12\x1f\n" +
 	"\bdatabase\x18\x01 \x01(\tH\x00R\bdatabase\x88\x01\x01\x12\x1f\n" +
 	"\vdeleted_ids\x18\x02 \x03(\tR\n" +

@@ -44,6 +44,7 @@ var plainIntents = map[domain.ActionKind]bool{
 	domain.FoundationRemovalAction:   true,
 	domain.FloorRemovalAction:        true,
 	domain.CoverClearanceAction:      true,
+	domain.WastepackHaulAction:       true,
 	domain.CutPlantAction:            true,
 	domain.SupplyAllowAction:         true,
 	domain.SupplyForbidAction:        true,

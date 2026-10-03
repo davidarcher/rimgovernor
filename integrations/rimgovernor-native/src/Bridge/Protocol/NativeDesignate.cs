@@ -124,6 +124,8 @@ namespace HomeBridge.BridgeTools
             // Guard: the one the designation needs, and only that one.
             plan.Guard = GuardFor(intent.Designation);
             var named = intent.HasGuard ? NativeDesignationGuards.Name(intent.Guard) : null;
+            // A HAUL takes no guard, or the wastepack guard (#1683).
+            if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
             plan.Ground = Ground(intent, out var groundRefusal);
             if (groundRefusal != null) return groundRefusal;

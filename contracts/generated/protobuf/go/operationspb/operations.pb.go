@@ -978,6 +978,11 @@ const (
 	// before each pick, and a mined cell that opens protected colony space is
 	// walled.
 	DesignationGuard_DESIGNATION_GUARD_ACQUISITION DesignationGuard = 4
+	// Wastepack hauling (#1683): HAUL on one exact wastepack (a thing with the
+	// game's CompDissolution) that is neither frozen nor inside an atomizer, so
+	// a hauler carries it to storage that stops its deterioration. The guard
+	// is accepted on HAUL only; a forbidden pack is refused (allow it first).
+	DesignationGuard_DESIGNATION_GUARD_WASTEPACK DesignationGuard = 5
 )
 
 // Enum value maps for DesignationGuard.
@@ -988,6 +993,7 @@ var (
 		2: "DESIGNATION_GUARD_MINE_SAFETY",
 		3: "DESIGNATION_GUARD_WALL_UPGRADE",
 		4: "DESIGNATION_GUARD_ACQUISITION",
+		5: "DESIGNATION_GUARD_WASTEPACK",
 	}
 	DesignationGuard_value = map[string]int32{
 		"DESIGNATION_GUARD_UNSPECIFIED":  0,
@@ -995,6 +1001,7 @@ var (
 		"DESIGNATION_GUARD_MINE_SAFETY":  2,
 		"DESIGNATION_GUARD_WALL_UPGRADE": 3,
 		"DESIGNATION_GUARD_ACQUISITION":  4,
+		"DESIGNATION_GUARD_WASTEPACK":    5,
 	}
 )
 
@@ -4910,14 +4917,18 @@ func (*PawnSettingsIntent_MechWorkMode) isPawnSettingsIntent_Setting() {}
 
 func (*PawnSettingsIntent_MechControlGroup) isPawnSettingsIntent_Setting() {}
 
+// pollution_clear (#1683) names the game's pollution-clear area
+// (map.areaManager.PollutionClear), the cells the cleanup crew cleans; like
+// home it is exclusive with key and takes set_cells and clear_cells only.
 type AreaIntent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Operation     *AreaOperation         `protobuf:"varint,1,opt,name=operation,proto3,enum=rimgovernor.operations.v1.AreaOperation,oneof" json:"operation,omitempty"`
-	Key           *string                `protobuf:"bytes,2,opt,name=key,proto3,oneof" json:"key,omitempty"`
-	Home          *bool                  `protobuf:"varint,3,opt,name=home,proto3,oneof" json:"home,omitempty"`
-	Cells         []*commonpb.Cell       `protobuf:"bytes,4,rep,name=cells,proto3" json:"cells,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Operation      *AreaOperation         `protobuf:"varint,1,opt,name=operation,proto3,enum=rimgovernor.operations.v1.AreaOperation,oneof" json:"operation,omitempty"`
+	Key            *string                `protobuf:"bytes,2,opt,name=key,proto3,oneof" json:"key,omitempty"`
+	Home           *bool                  `protobuf:"varint,3,opt,name=home,proto3,oneof" json:"home,omitempty"`
+	Cells          []*commonpb.Cell       `protobuf:"bytes,4,rep,name=cells,proto3" json:"cells,omitempty"`
+	PollutionClear *bool                  `protobuf:"varint,5,opt,name=pollution_clear,json=pollutionClear,proto3,oneof" json:"pollution_clear,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AreaIntent) Reset() {
@@ -4976,6 +4987,13 @@ func (x *AreaIntent) GetCells() []*commonpb.Cell {
 		return x.Cells
 	}
 	return nil
+}
+
+func (x *AreaIntent) GetPollutionClear() bool {
+	if x != nil && x.PollutionClear != nil {
+		return *x.PollutionClear
+	}
+	return false
 }
 
 type PolicyPruneIntent struct {
@@ -7923,17 +7941,19 @@ const file_operations_proto_rawDesc = "" +
 	"\x12mech_control_group\x18\v \x01(\x05H\x00R\x10mechControlGroupB\t\n" +
 	"\asettingB\n" +
 	"\n" +
-	"\b_pawn_id\"\xdb\x01\n" +
+	"\b_pawn_id\"\x9d\x02\n" +
 	"\n" +
 	"AreaIntent\x12K\n" +
 	"\toperation\x18\x01 \x01(\x0e2(.rimgovernor.operations.v1.AreaOperationH\x00R\toperation\x88\x01\x01\x12\x15\n" +
 	"\x03key\x18\x02 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x17\n" +
 	"\x04home\x18\x03 \x01(\bH\x02R\x04home\x88\x01\x01\x121\n" +
-	"\x05cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cellsB\f\n" +
+	"\x05cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\x12,\n" +
+	"\x0fpollution_clear\x18\x05 \x01(\bH\x03R\x0epollutionClear\x88\x01\x01B\f\n" +
 	"\n" +
 	"_operationB\x06\n" +
 	"\x04_keyB\a\n" +
-	"\x05_home\"\x8b\x01\n" +
+	"\x05_homeB\x12\n" +
+	"\x10_pollution_clear\"\x8b\x01\n" +
 	"\x11PolicyPruneIntent\x12J\n" +
 	"\bdatabase\x18\x01 \x01(\x0e2).rimgovernor.operations.v1.PolicyDatabaseH\x00R\bdatabase\x88\x01\x01\x12\x1d\n" +
 	"\n" +
@@ -8306,13 +8326,14 @@ const file_operations_proto_rawDesc = "" +
 	"\x14POLICY_DATABASE_DRUG\x10\x02\x12\x18\n" +
 	"\x14POLICY_DATABASE_FOOD\x10\x03\x12\x1b\n" +
 	"\x17POLICY_DATABASE_READING\x10\x04\x12 \n" +
-	"\x1cPOLICY_DATABASE_ALLOWED_AREA\x10\x05*\xc0\x01\n" +
+	"\x1cPOLICY_DATABASE_ALLOWED_AREA\x10\x05*\xe1\x01\n" +
 	"\x10DesignationGuard\x12!\n" +
 	"\x1dDESIGNATION_GUARD_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDESIGNATION_GUARD_ENCLOSURE\x10\x01\x12!\n" +
 	"\x1dDESIGNATION_GUARD_MINE_SAFETY\x10\x02\x12\"\n" +
 	"\x1eDESIGNATION_GUARD_WALL_UPGRADE\x10\x03\x12!\n" +
-	"\x1dDESIGNATION_GUARD_ACQUISITION\x10\x04*\x93\x03\n" +
+	"\x1dDESIGNATION_GUARD_ACQUISITION\x10\x04\x12\x1f\n" +
+	"\x1bDESIGNATION_GUARD_WASTEPACK\x10\x05*\x93\x03\n" +
 	"\x0eHusbandryOrder\x12\x1f\n" +
 	"\x1bHUSBANDRY_ORDER_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HUSBANDRY_ORDER_TRAIN\x10\x01\x12\x1d\n" +

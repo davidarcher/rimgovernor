@@ -247,7 +247,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
-	blight := sc.routineBlightPlans
+	blight, pollution := sc.routineBlightPlans, sc.routinePollutionPlans
 	armory := sc.routineArmoryPlans
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
@@ -278,7 +278,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || pollution || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -652,6 +652,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if pollution {
+			config.Pollution, err = buildingruntime.NewRoutinePollutionPlanner(reviewer)
+			if err != nil {
+				return nil, err
+			}
+		}
 		if homeCoverage {
 			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer)
 			if err != nil {
@@ -991,6 +997,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans || sc.routinePopulationJoinerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
+	}
+	if sc.routinePollutionPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.ManagePollution)
 	}
 	if sc.routineHomeCoveragePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)

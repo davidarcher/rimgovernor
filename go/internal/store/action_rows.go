@@ -86,6 +86,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'cut_plant',?,?,?,?)", a.ID(), plan, ordinal, cut.Plant(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
 	} else if clear, ok := a.CoverClearance(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,stuff) VALUES(?,?,?,'cover_clearance',?,?,?,?,?)", a.ID(), plan, ordinal, clear.Thing(), clear.Definition(), clear.Cell().X, clear.Cell().Z, clear.Designation())
+	} else if haul, ok := a.WastepackHaul(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'wastepack_haul',?,?,?,?)", a.ID(), plan, ordinal, haul.Thing(), haul.Definition(), haul.Cell().X, haul.Cell().Z)
 	} else if supply, ok := a.SupplyAllow(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
 	} else if tend, ok := a.Tend(); ok {
@@ -185,7 +187,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		if encodeErr != nil {
 			return encodeErr
 		}
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload) VALUES(?,?,?,'area',?,NULLIF(?,''),?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data)
+		// stuff 'pollution_clear' names the pollution-clear area (#1683).
+		var clear any
+		if area.PollutionClear() {
+			clear = "pollution_clear"
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,target,zone_payload,stuff) VALUES(?,?,?,'area',?,NULLIF(?,''),?,?)", a.ID(), plan, ordinal, string(area.Operation()), area.Key(), data, clear)
 	} else if settings, ok := a.PawnSettings(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition) VALUES(?,?,?,'pawn_settings',?,?)", a.ID(), plan, ordinal, string(settings.Pawn()), pawnSettingDefinition(settings))
 	} else if roof, ok := a.RemoveRoof(); ok {
@@ -456,12 +463,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewFoodPolicyAction(id, food)
 		return a, ordinal, err
 	}
-	if kind == "area" && def.Valid && !stuff.Valid && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
+	if kind == "area" && def.Valid && (!stuff.Valid || stuff.String == "pollution_clear" && !target.Valid) && !pawn.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid && work == nil && zone != nil && len(zone) <= 32768 {
 		var cells []domain.Cell
 		if json.Unmarshal(zone, &cells) != nil {
 			return domain.Action{}, 0, errors.New("invalid area payload")
 		}
 		area, err := domain.NewArea(domain.AreaOperation(def.String), target.String, cells)
+		if stuff.Valid {
+			area, err = domain.NewPollutionClearArea(domain.AreaOperation(def.String), cells)
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -723,6 +733,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewCoverClearanceAction(id, c)
+		return a, ordinal, err
+	}
+	if kind == "wastepack_haul" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		h, err := domain.NewWastepackHaul(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewWastepackHaulAction(id, h)
 		return a, ordinal, err
 	}
 	if (kind == "move_building" || kind == "uninstall_building") && target.Valid && def.Valid && x.Valid && z.Valid && rotation.Valid && !pawn.Valid && !draftAction.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {

@@ -381,6 +381,15 @@ unique ids per table, cells on the map, nonnegative counts) and projects them
 into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
 held in Go memory (persistence-contracts.md); it adds no store.
 
+`pollution` also counts the polluted pollutable cells (`polluted_cells`) and
+those outside the pollution-clear area (`polluted_uncovered_cells`, #1683).
+`RoutineFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
+verdicts and that count; it is unknown without Biotech, and `ManagePollution`
+(maintained, priority 3, labor Hauling) is assessed only while it is known. Its
+methods are the pollution-clear `AreaIntent` edit (polluted cells of the
+planning window), `supply_allow` for a forbidden pack and the wastepack-guarded
+HAUL (`wastepack_haul`). Siting freezer storage is not planned yet (open on #1683).
+
 ## Polluting-building flag
 
 `PlanningDefinition.pollutes` (#1684) is set on every building row of the

@@ -410,7 +410,10 @@ message PawnSettingsIntent {
 // Evidence is the AreaEffect: the area's load id and cell count after the
 // edit.
 enum AreaOperation { AREA_OPERATION_UNSPECIFIED = 0; AREA_OPERATION_CREATE = 1; AREA_OPERATION_SET_CELLS = 2; AREA_OPERATION_CLEAR_CELLS = 3; AREA_OPERATION_DELETE = 4; }
-message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; }
+// pollution_clear (#1683) names the game's pollution-clear area
+// (map.areaManager.PollutionClear), the cells the cleanup crew cleans; like
+// home it is exclusive with key and takes set_cells and clear_cells only.
+message AreaIntent { optional AreaOperation operation = 1; optional string key = 2; optional bool home = 3; repeated rimgovernor.common.v1.Cell cells = 4; optional bool pollution_clear = 5; }
 // Delete policies no pawn should keep (#1298): each delete_ids entry is a
 // Policy.GetUniqueLoadID() in the named outfit, drug, food or reading
 // database, or an Area_Allowed load id. Every live pawn still holding the
@@ -568,6 +571,11 @@ enum DesignationGuard {
   // before each pick, and a mined cell that opens protected colony space is
   // walled.
   DESIGNATION_GUARD_ACQUISITION = 4;
+  // Wastepack hauling (#1683): HAUL on one exact wastepack (a thing with the
+  // game's CompDissolution) that is neither frozen nor inside an atomizer, so
+  // a hauler carries it to storage that stops its deterioration. The guard
+  // is accepted on HAUL only; a forbidden pack is refused (allow it first).
+  DESIGNATION_GUARD_WASTEPACK = 5;
 }
 // Move one exact installed player building (or install a packed item, named
 // by its own id or its inner building's) at destination/rotation through the

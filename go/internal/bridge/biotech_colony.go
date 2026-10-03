@@ -27,6 +27,10 @@ func validateBiotechColony(v *o.ColonyFactsSnapshot) error {
 				p.ClearAreaId != nil && validID(p.GetClearAreaId()) != nil {
 				return contract("invalid pollution totals")
 			}
+			if p.PollutedUncoveredCells != nil && (p.PollutedCells == nil || p.GetPollutedUncoveredCells() > p.GetPollutedCells()) ||
+				p.PollutedCells != nil && p.PollutableCells != nil && p.GetPollutedCells() > p.GetPollutableCells() {
+				return contract("invalid polluted cell counts")
+			}
 		}
 		seen := map[string]bool{}
 		head := func(id, def *string, at *c.Cell) bool {

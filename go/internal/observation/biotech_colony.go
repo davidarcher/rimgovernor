@@ -16,14 +16,16 @@ type BiotechColony struct {
 	PollutableCells domain.Fact[uint32]
 	ClearAreaID     domain.Fact[string]
 	ClearAreaCells  domain.Fact[int32]
-	Polluters       []Polluter
-	Wastepacks      []Wastepack
-	Atomizers       []WastepackAtomizer
-	Pumps           []PollutionPump
-	Gestators       []MechGestator
-	Chargers        []MechCharger
-	Babies          []BabyCare
-	Breastfeeders   []string
+	// PollutedCells and PollutedUncoveredCells count the polluted pollutable cells, and those outside the clear area (#1683).
+	PollutedCells, PollutedUncoveredCells domain.Fact[uint32]
+	Polluters                             []Polluter
+	Wastepacks                            []Wastepack
+	Atomizers                             []WastepackAtomizer
+	Pumps                                 []PollutionPump
+	Gestators                             []MechGestator
+	Chargers                              []MechCharger
+	Babies                                []BabyCare
+	Breastfeeders                         []string
 }
 
 // BuildingRow heads every building row: the thing id, definition and cell.
@@ -91,7 +93,7 @@ func colonyBiotech(section *o.BiotechSection) domain.Fact[BiotechColony] {
 		p = &o.PollutionTotals{}
 	}
 	r := BiotechColony{TotalPollution: optional(p.TotalPollution), PollutableCells: optional(p.PollutableCells),
-		ClearAreaID: optional(p.ClearAreaId), ClearAreaCells: optional(p.ClearAreaCells), Breastfeeders: f.Breastfeeders}
+		ClearAreaID: optional(p.ClearAreaId), ClearAreaCells: optional(p.ClearAreaCells), PollutedCells: optional(p.PollutedCells), PollutedUncoveredCells: optional(p.PollutedUncoveredCells), Breastfeeders: f.Breastfeeders}
 	for _, x := range f.Polluters {
 		r.Polluters = append(r.Polluters, Polluter{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Polluting: optional(x.Polluting), CellsPerDay: optional(x.CellsPerDay)})
 	}

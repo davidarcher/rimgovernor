@@ -384,6 +384,10 @@ type RoutineFacts struct {
 	// blighted_plants section), for BlightDeficit to detect and
 	// SelectBlightCuts to designate from.
 	Blight domain.Fact[[]BlightedPlant]
+	// Pollution carries ManagePollution's wastepack verdicts and the polluted
+	// cells outside the clear area (the Biotech colony section, #1679); unknown
+	// without Biotech or when the read failed, and then no assessment exists.
+	Pollution domain.Fact[PollutionFacts]
 	// LayoutTidy is the layout tidying review (#611) the reviewer measures
 	// from the room census against each room's derived interior plan;
 	// unknown without a tier.
@@ -1506,6 +1510,18 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// deficit; availability is gated below through AvailableMethods.
 		addGoal(RemoveBlight, 3)
 	}
+	// ManagePollution (#1683) exists only where the Biotech read is known, so
+	// colonies without it keep their goal list unchanged.
+	if _, biotech := f.Pollution.Value(); biotech {
+		pollutionCleared := domain.Unknown[bool]()
+		if deficit, known := PollutionDeficit(f.Pollution).Value(); known {
+			pollutionCleared = domain.Known(!deficit)
+		}
+		addAssessment(ManagePollution, 3, pollutionCleared)
+		if !positive(pollutionCleared) {
+			addGoal(ManagePollution, 3)
+		}
+	}
 	// TidyLayout (#611) is census-driven too: the layout review measures
 	// off-plan furniture against each room's interior plan and stands a
 	// proposal only while the colony is idle; a standing proposal is the
@@ -1586,6 +1602,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// but its method capability is declared at composition time, before
 		// any facts are read; it must validate against empty facts too.
 		recognized[RecoverDisasterServices] = true
+		// ManagePollution is assessed only on a colony whose Biotech read is
+		// known (#1683); its capability is declared the same way.
+		recognized[ManagePollution] = true
 		for _, id := range methods {
 			if !recognized[id] || available[id] {
 				return RoutineNeeds{}, errors.New("invalid routine method capability " + string(id))

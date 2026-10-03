@@ -30,6 +30,13 @@ namespace HomeBridge.BridgeTools
                 var totals = new Obs.PollutionTotals { TotalPollution = grid.TotalPollution, PollutableCells = (uint)grid.AllPollutableCells.Count };
                 var clear = map.areaManager.PollutionClear;
                 if (clear != null) { totals.ClearAreaId = Id(clear.GetUniqueLoadID()); totals.ClearAreaCells = clear.TrueCount; }
+                uint polluted = 0, uncovered = 0;
+                foreach (var cell in grid.AllPollutableCells) {
+                    if (!grid.IsPolluted(cell)) continue;
+                    polluted++;
+                    if (clear == null || !clear[cell]) uncovered++;
+                }
+                totals.PollutedCells = polluted; totals.PollutedUncoveredCells = uncovered;
                 facts.Pollution = totals;
 
                 var buildings = map.listerBuildings.allBuildingsColonist.Where(b => Owned(b, map)).OrderBy(b => b.thingIDNumber).ToList();

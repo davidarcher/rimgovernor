@@ -101,6 +101,7 @@ type Action struct {
 	cutPlant            CutPlant
 	moveBuilding        MoveBuilding
 	coverClearance      CoverClearance
+	wastepackHaul       WastepackHaul
 	foundationRemoval   FoundationRemoval
 	floorRemoval        FloorRemoval
 	deconstruction      Deconstruction
@@ -229,6 +230,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewCutPlantAction(a.id, a.cutPlant)
 		case CoverClearanceAction:
 			canonical, err = NewCoverClearanceAction(a.id, a.coverClearance)
+		case WastepackHaulAction:
+			canonical, err = NewWastepackHaulAction(a.id, a.wastepackHaul)
 		case FoundationRemovalAction:
 			canonical, err = NewFoundationRemovalAction(a.id, a.foundationRemoval)
 		case FloorRemovalAction:

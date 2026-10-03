@@ -56,6 +56,7 @@ func init() {
 	registerIntentKind(domain.FoundationRemovalAction, foundationRemovalAction)
 	registerIntentKind(domain.FloorRemovalAction, floorRemovalAction)
 	registerIntentKind(domain.CoverClearanceAction, coverAction)
+	registerIntentKind(domain.WastepackHaulAction, wastepackHaulAction)
 	registerIntentKind(domain.CutPlantAction, cutPlantAction)
 	registerIntentKind(domain.SupplyAllowAction, supplyAction)
 	registerIntentKind(domain.SupplyForbidAction, supplyAction)

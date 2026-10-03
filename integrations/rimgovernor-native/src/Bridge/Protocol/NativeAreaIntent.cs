@@ -29,11 +29,13 @@ namespace HomeBridge.BridgeTools
             if (intent == null || !intent.HasOperation || intent.Operation == Operations.AreaOperation.Unspecified)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires an operation.");
             var home = intent.HasHome && intent.Home;
-            if (home == intent.HasKey || (!home && !ProtoBoundary.IsIdentifier(intent.Key)))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires exactly one of home or a bot area key.");
+            var pollution = intent.HasPollutionClear && intent.PollutionClear;
+            var fixedArea = home || pollution;
+            if (home && pollution || fixedArea == intent.HasKey || (!fixedArea && !ProtoBoundary.IsIdentifier(intent.Key)))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires exactly one of home, pollution_clear or a bot area key.");
             var op = intent.Operation;
-            if (home && (op == Operations.AreaOperation.Create || op == Operations.AreaOperation.Delete))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The home area is never created or deleted.");
+            if (fixedArea && (op == Operations.AreaOperation.Create || op == Operations.AreaOperation.Delete))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The home and pollution-clear areas are never created or deleted.");
             if (op == Operations.AreaOperation.Delete && intent.Cells.Count > 0)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area delete takes no cells.");
             if ((op == Operations.AreaOperation.SetCells || op == Operations.AreaOperation.ClearCells) && intent.Cells.Count == 0)
@@ -46,7 +48,12 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area cell is out of bounds.");
                 cells.Add(cell);
             }
-            area = home ? map.areaManager.Home : BotArea(map, intent.Key);
+            // The pollution-clear area is the game's own (Biotech only).
+            if (pollution && !ModsConfig.BiotechActive)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pollution-clear area needs Biotech.");
+            area = pollution ? map.areaManager.PollutionClear : home ? map.areaManager.Home : BotArea(map, intent.Key);
+            if (pollution && area == null)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The map has no pollution-clear area.");
             if (area == null && op == Operations.AreaOperation.Create && !map.areaManager.CanMakeNewAllowed())
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The map cannot make another allowed area.");
             if (area == null && (op == Operations.AreaOperation.SetCells || op == Operations.AreaOperation.ClearCells))
@@ -84,6 +91,7 @@ namespace HomeBridge.BridgeTools
             }
             var effect = new Receipts.AreaEffect { Present = area != null, CellCount = area?.TrueCount ?? 0 };
             if (intent.HasHome && intent.Home) effect.Home = true;
+            else if (intent.HasPollutionClear && intent.PollutionClear) effect.PollutionClear = true;
             else effect.Key = intent.Key;
             if (area != null) effect.AreaId = area.GetUniqueLoadID();
             return new Receipts.EffectEvidence { AreaEdit = effect };

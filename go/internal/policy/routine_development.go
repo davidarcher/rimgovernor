@@ -106,6 +106,17 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case ManagePollution:
+		// Census-driven like blight: any exposed or forbidden wastepack, or
+		// polluted cell outside the clear area, is a full deficit.
+		deficit, deficitKnown := PollutionDeficit(f.Pollution).Value()
+		if !deficitKnown {
+			return domain.Unknown[float64]()
+		}
+		if !deficit {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	case MaintainStockpiles:
 		review, known := f.Stockpiles.Value()
 		if !known || !review.Known {
