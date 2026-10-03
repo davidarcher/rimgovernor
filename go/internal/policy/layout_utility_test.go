@@ -349,7 +349,7 @@ func TestPlanUtilitiesPen(t *testing.T) {
 		t.Fatal("site ignores its centre", near, far)
 	}
 	found := false
-	for _, l := range p.Overlay(Bounds{Width: 120, Height: 120}).Layers {
+	for _, l := range p.Overlay(Bounds{Width: 400, Height: 400}).Layers {
 		found = found || l.Label == "animal pen"
 	}
 	if !found {

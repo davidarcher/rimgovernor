@@ -40,6 +40,11 @@ func (g coreGrid) beside(seg *SpineSegment, rooms []LayoutRoom, role ModuleRole)
 	}
 	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
 	z0 := seg.From.Z
+	if role == ModuleButchery {
+		if room, ok := g.behind(seg, rooms, k); ok {
+			return room, true
+		}
+	}
 	for _, east := range []bool{true, false} {
 		ix, wall := k.X+k.Width+1, k.X+k.Width
 		if !east {
@@ -177,4 +182,37 @@ func overlapsRooms(r LayoutRoom, rooms []LayoutRoom) bool {
 		}
 	}
 	return false
+}
+
+// behind places the butchery against the freezer's back wall, the one
+// opposite the hallway, entered only through a Link door in that wall: the
+// butcher walks through the freezer, and carcasses stay in the cold. The
+// room's own Door is the Link. False when the ground behind the freezer
+// does not fit, and the butchery then takes a side wall or the hallway.
+func (g coreGrid) behind(seg *SpineSegment, rooms []LayoutRoom, k Rectangle) (LayoutRoom, bool) {
+	role := ModuleButchery
+	w, d := coreRoomSize[role][0], coreRoomSize[role][1]
+	north := k.Z > seg.From.Z
+	// The freezer's cooler takes the middle of that wall and vents straight
+	// out behind it, so the butchery overlaps only its east or west end cell.
+	for _, ix := range []int32{k.X + k.Width - 1, k.X - w + 1} {
+		room := LayoutRoom{Role: role, Interior: Rectangle{X: ix, Z: k.Z - 1 - d, Width: w, Height: d}, DoorRot: domain.North}
+		wall := k.Z - 1
+		if north {
+			room.Interior.Z, room.DoorRot, wall = k.Z+k.Height+1, domain.South, k.Z+k.Height
+		}
+		if !g.fits(room, *seg) || overlapsRooms(room, rooms) {
+			continue
+		}
+		link := domain.Cell{Z: wall}
+		if ix > k.X {
+			link.X = k.X + k.Width - 1
+		} else {
+			link.X = k.X
+		}
+		room.Door, room.Link = link, &link
+		room.Dug = g.dug(room)
+		return room, true
+	}
+	return LayoutRoom{}, false
 }

@@ -42,7 +42,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 		count[a.Role]++
 		// The door is in the wall and opens on a hallway.
 		step := map[domain.Rotation]domain.Cell{domain.North: {Z: 1}, domain.South: {Z: -1}, domain.East: {X: 1}, domain.West: {X: -1}}[a.DoorRot]
-		if !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) {
+		if !hall(domain.Cell{X: a.Door.X + step.X, Z: a.Door.Z + step.Z}) && (a.Link == nil || *a.Link != a.Door) {
 			t.Fatal("room off the spine", a)
 		}
 		for j, b := range rooms {
