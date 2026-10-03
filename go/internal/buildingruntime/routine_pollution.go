@@ -63,7 +63,7 @@ func (r *RoutinePollutionPlanner) step(call, epoch context.Context, arbiter *ste
 		selected = selected || row.Goal == policy.ManagePollution && row.Selected
 	}
 	if !selected {
-		return RoutinePollutionResult{Verdict: BuildingReasonRefused}, nil
+		return RoutinePollutionResult{Verdict: awaitingSlot(string(policy.ManagePollution))}, nil
 	}
 	// A pack whose haul ended unsuccessful (no stockpile took it) is not
 	// re-ordered while it stands.

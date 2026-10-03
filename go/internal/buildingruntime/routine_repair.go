@@ -78,7 +78,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.MaintainEssentialRepairs && row.Selected
 	}
 	if !selected {
-		return RoutineRepairResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineRepairResult{Verdict: awaitingSlot(string(policy.MaintainEssentialRepairs))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

@@ -63,7 +63,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 			selected = selected || row.Goal == policy.MaintainFoodStorage && row.Selected
 		}
 		if !selected {
-			return RoutineFoodStorageResult{Verdict: BuildingReasonRefused}, nil
+			return RoutineFoodStorageResult{Verdict: awaitingSlot(string(policy.MaintainFoodStorage))}, nil
 		}
 	}
 	for _, method := range goal.Methods {

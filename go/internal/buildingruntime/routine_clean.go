@@ -71,7 +71,7 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 		selected = selected || row.Goal == policy.MaintainCleanFacilities && row.Selected
 	}
 	if !selected {
-		return RoutineCleanResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineCleanResult{Verdict: awaitingSlot(string(policy.MaintainCleanFacilities))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

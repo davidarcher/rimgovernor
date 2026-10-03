@@ -214,7 +214,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		selected = selected || row.Goal == policy.EnsureDefensiveLayout && row.Selected
 	}
 	if !selected {
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineDefenseLayoutResult{Verdict: awaitingSlot(string(policy.EnsureDefensiveLayout))}, nil
 	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
@@ -283,10 +283,10 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if !ok {
-			if !held.IsZero() {
-				return RoutineDefenseLayoutResult{Verdict: held}, nil
+			if held.IsZero() {
+				return RoutineDefenseLayoutResult{}, defenseControlErr(289)
 			}
-			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_layout_proposal")}, nil
+			return RoutineDefenseLayoutResult{Verdict: held}, nil
 		}
 		record, err = store.NewDefenseLayoutRecord(world, goal.Goal.ID, goal.Goal.Epoch, layout, entrances)
 		if err != nil {
@@ -378,7 +378,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if len(buildings) == 0 {
 			// The census re-opened the tier on a cell it cannot see
 			// (fogged); nothing can be admitted until it can.
-			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_census"), Tier: name}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("fogged_defense_cells"), Tier: name}, nil
 		}
 		if policy.IsPerimeterTier(name) && defenseNeedsStone(buildings) {
 			// The wall is stone: the stock's most plentiful block, waited
@@ -422,7 +422,11 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	}
 	if len(upkeep.Unpowered) > 0 || len(upkeep.Empty) > 0 {
 		clockSchedulerLog("defense-layout: turrets unpowered at %v, unfuelled at %v (fuel shortage %v)", upkeep.Unpowered, upkeep.Empty, upkeep.Shortage)
-		return RoutineDefenseLayoutResult{Verdict: awaitingPlan("turret_power", ""), Tier: policy.TierTurrets}, nil
+		subject := "turret_fuel"
+		if len(upkeep.Unpowered) > 0 {
+			subject = "turret_power"
+		}
+		return RoutineDefenseLayoutResult{Verdict: awaitingPlan(subject, ""), Tier: policy.TierTurrets}, nil
 	}
 	// The line stands: raider cover inside its engagement zone is the
 	// remaining deficit (#581).
@@ -1146,14 +1150,15 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // propose reads the census around the colony centre, the defenders' gear and
 // the firing lines, and returns the policy layout. ok is false when the
 // colony has no verified killbox geometry yet (no ranged defender, no
-// chokepoint, no line of sight), which is a wait rather than an error.
+// chokepoint, no line of sight), which is a wait rather than an error; the
+// verdict then names which of those is missing.
 func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
 	if !ok {
 		clockSchedulerLog("defense-layout: waiting for the layout plan's killbox")
-		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
+		return policy.DefenseLayout{}, nil, awaitingPlan("layout_plan", "killbox"), false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
@@ -1176,10 +1181,11 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	}
 	defenders, minRange, ok, err := r.defenderRange(call, state, read)
 	if err != nil || !ok {
-		if err == nil {
-			clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
+		if err != nil {
+			return policy.DefenseLayout{}, nil, Verdict{}, false, err
 		}
-		return policy.DefenseLayout{}, nil, Verdict{}, false, err
+		clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
+		return policy.DefenseLayout{}, nil, noWorker("ranged_defender"), false, nil
 	}
 	request.Defenders, request.MinRange = defenders, minRange
 	stock, stockKnown := projection.Resources.Value()
@@ -1200,12 +1206,12 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
-		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
+		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
 	}
 	firing, approach := layout.Probe()
 	if len(firing) == 0 {
 		clockSchedulerLog("defense-layout: the layout has no firing cell to probe")
-		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
+		return policy.DefenseLayout{}, nil, noSpace("firing_cell"), false, nil
 	}
 	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
 	if err != nil {
@@ -1223,9 +1229,13 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	}
 	recordLayoutSnapshot(call, state.Snapshot, projection.Identity.Tick, snapshot.Layout{Point: snapshot.LayoutPropose, Request: request})
 	layout, err = policy.DefenseLayouts(request)
-	if err != nil || !layout.LinesVerified {
-		clockSchedulerLog("defense-layout: lines of fire not verified (err=%v verified=%v)", err, layout.LinesVerified)
-		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
+	if err != nil {
+		clockSchedulerLog("defense-layout: no layout once the lines of fire are read: %v", err)
+		return policy.DefenseLayout{}, nil, noSpace("defense_layout"), false, nil
+	}
+	if !layout.LinesVerified {
+		clockSchedulerLog("defense-layout: lines of fire not verified")
+		return policy.DefenseLayout{}, nil, fieldUnavailable("lines_of_fire"), false, nil
 	}
 	return layout, request.Entrances, Verdict{}, true, nil
 }
@@ -1292,7 +1302,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		action := candidates[i]
 		preview, ok := classifyDefensePreview(evaluated[i], building.Cell())
 		if !ok && preview.NativeWorkPending {
-			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_preview"), Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
+			return RoutineDefenseLayoutResult{Verdict: BuildingReasonExistingWork, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
 		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs) {
 			// A perimeter cell the game refuses (natural rock, a building
@@ -1303,7 +1313,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			continue
 		}
 		if !ok {
-			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_preview"), Tier: tier.Name}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("placement_preview"), Tier: tier.Name}, nil
 		}
 		actions = append(actions, action)
 		previews = append(previews, preview.Preview)
@@ -1353,7 +1363,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	}
 	if refusal := access.Refusal(); refusal != "" {
 		clockSchedulerLog("defense-layout.admit: tier=%s access audit refused: %s (blocked %d cells)", tier.Name, refusal, len(blockedCells))
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Tier: tier.Name}, nil
+		return RoutineDefenseLayoutResult{Verdict: noSpace("walkable_layout"), Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {

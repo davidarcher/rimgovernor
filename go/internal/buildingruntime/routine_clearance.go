@@ -70,7 +70,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		selected = selected || row.Goal == policy.ClearHomeObstructions && row.Selected
 	}
 	if !selected {
-		return RoutineClearanceResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineClearanceResult{Verdict: awaitingSlot(string(policy.ClearHomeObstructions))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

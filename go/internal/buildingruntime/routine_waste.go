@@ -77,7 +77,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		selected = selected || row.Goal == policy.MaintainWaste && row.Selected
 	}
 	if !selected {
-		return RoutineWasteResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineWasteResult{Verdict: awaitingSlot(string(policy.MaintainWaste))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

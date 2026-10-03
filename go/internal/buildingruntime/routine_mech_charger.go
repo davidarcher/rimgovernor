@@ -85,7 +85,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 		selected = selected || row.Goal == policy.EnsureMechCharger && row.Selected
 	}
 	if !selected {
-		return RoutineBuildingResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineBuildingResult{Verdict: awaitingSlot(string(policy.EnsureMechCharger))}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)

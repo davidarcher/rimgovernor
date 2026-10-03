@@ -70,7 +70,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.RemoveBlight && row.Selected
 	}
 	if !selected {
-		return RoutineBlightResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineBlightResult{Verdict: awaitingSlot(string(policy.RemoveBlight))}, nil
 	}
 	// A plant whose designation the player cancelled (an unsuccessful cut)
 	// is theirs to keep; it is not re-designated while it stands.

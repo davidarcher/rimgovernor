@@ -626,7 +626,7 @@ Every routine result embeds one `Verdict` (`buildingruntime/outcome.go`): an
 `Outcome` (`admitted`, `nothing_to_do`, `disabled`, `no_current_review`, `expired`,
 `combat_orders`, `hold_fallback`, `waiting`, `refused`) and, when refused or
 waiting, a `Refusal` with a closed `Kind` (refusals: `collapse_pending`, `no_worker`,
-`awaiting_plan`, `field_unavailable`, `no_space`, `shared_admission_refused`, `rock_not_dug` (a dig plan settled with planned rock still standing: refused at once, no follow-up dig); waits:
+`awaiting_plan`, `field_unavailable`, `no_space`, `shared_admission_refused`, `retry_budget_spent`, `rock_not_dug` (a dig plan settled with planned rock still standing: refused at once, no follow-up dig); waits:
 `method_already_used`, `already_working_on_it`, `shelter_bunks_open`, `breach_held`, `waiting_for_native_comfort_use`,
 `existing_facility_needs_bill_or_upkeep`, `hospital_bed_convert_pending`,
 `sleeping_use_needed`, `butcher_separation_pending`, `dialog_not_interactive`,

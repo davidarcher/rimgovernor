@@ -120,7 +120,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		selected = selected || row.Goal == policy.SecureSupplies && row.Selected
 	}
 	if !selected {
-		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: BuildingReasonRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: awaitingSlot(string(policy.SecureSupplies))}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

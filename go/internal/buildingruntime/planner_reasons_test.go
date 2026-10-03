@@ -29,7 +29,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.GoalID]policy.PlannerNote{
 		policy.EnsureBasicPower:        {Text: "no space found for it (verified space)"},
-		policy.MaintainEquipment:       {Text: "the shared admission check turned the plan down (retry bound: exhausted)"},
+		policy.MaintainEquipment:       {Text: "tried as often as it may"},
 		policy.MaintainCleanFacilities: {Text: "already working on it", Waiting: true},
 	}
 	if len(got) != len(want) {

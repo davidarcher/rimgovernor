@@ -56,6 +56,9 @@ const (
 	RefusalNoSpace RefusalKind = "no_space"
 	// RefusalSharedAdmission: the shared admission path turned the plan down.
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
+	// RefusalRetriesSpent: the step tried as often as it may; the subject
+	// names what it retried when the exit knows.
+	RefusalRetriesSpent RefusalKind = "retry_budget_spent"
 	// RefusalRockNotDug: planned rock still stands after its dig plan
 	// settled; the subject names the dig, the detail the count.
 	RefusalRockNotDug RefusalKind = "rock_not_dug"
@@ -94,7 +97,7 @@ const (
 )
 
 var (
-	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRockNotDug}
+	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRetriesSpent, RefusalRockNotDug}
 	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
 )
 
@@ -142,6 +145,10 @@ func collapsePending(subject string) Verdict {
 func awaitingPlan(subject, detail string) Verdict {
 	return refuse(RefusalAwaitingPlan, subject, detail)
 }
+
+// awaitingSlot is the refusal of a goal this review's arbitration did not
+// select: the bounded concurrent-project capacity went to other goals.
+func awaitingSlot(goal string) Verdict { return awaitingPlan("development_slot", goal) }
 
 // awaitingMethod is the refusal for a policy method that names what the
 // goal waits on (a power or temperature wait, a cooler's power).
@@ -273,6 +280,8 @@ func (v Verdict) kindText() string {
 		return aside("no space found for it")
 	case RefusalSharedAdmission:
 		return aside("the shared admission check turned the plan down")
+	case RefusalRetriesSpent:
+		return aside("tried as often as it may")
 	case RefusalRockNotDug:
 		return aside("rock it needs dug is still standing")
 	case WaitMethodUsed:
@@ -346,7 +355,7 @@ var (
 	BuildingSleepingUseNeeded        = waitOn(WaitSleepingUse)
 	BuildingReasonNoSpace            = noSpace("verified_space")
 	BuildingReasonRefused            = refuse(RefusalSharedAdmission, "", "")
-	BuildingReasonExhausted          = refuse(RefusalSharedAdmission, "retry_bound", "exhausted")
+	BuildingReasonExhausted          = refuse(RefusalRetriesSpent, "", "")
 	BuildingReasonNoSquad            = noWorker("squad")
 	BuildingShellBlocked             = awaitingPlan("earlier_shell", "")
 	BuildingShelterPending           = awaitingPlan("initial_shelter", "")

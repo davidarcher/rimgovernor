@@ -104,7 +104,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
 	}
 	if !selected {
-		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: BuildingReasonRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: awaitingSlot(string(policy.MaintainStorage))}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

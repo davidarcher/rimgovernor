@@ -133,7 +133,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.ClearAncientShrine && (row.Selected || row.Committed)
 	}
 	if !selected {
-		return RoutineShrineResult{Verdict: BuildingReasonRefused}, nil
+		return RoutineShrineResult{Verdict: awaitingSlot(string(policy.ClearAncientShrine))}, nil
 	}
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)

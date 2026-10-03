@@ -6,11 +6,36 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
+
+// incompleteBindings is the error of a review whose goal bindings do not
+// match the goals it assessed: it names the needs with no binding and the
+// bound needs the review should not hold (unknown or bound twice). Biotech
+// needs are optional, so one unbound is not missing.
+func incompleteBindings(allowed map[domain.GoalID]bool, bindings []RoutineGoal) error {
+	bound := map[domain.GoalID]bool{}
+	var extra []domain.GoalID
+	for _, b := range bindings {
+		if !allowed[b.Need] || bound[b.Need] {
+			extra = append(extra, b.Need)
+		}
+		bound[b.Need] = true
+	}
+	var missing []domain.GoalID
+	for id := range allowed {
+		if !bound[id] && !slices.Contains(policy.BiotechGoals, id) {
+			missing = append(missing, id)
+		}
+	}
+	slices.Sort(missing)
+	slices.Sort(extra)
+	return fmt.Errorf("incomplete routine goal bindings: missing %v, unexpected %v", missing, extra)
+}
 
 type RoutineGoal struct {
 	Need domain.GoalID
@@ -321,7 +346,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		}
 	}
 	if (r.Enabled || len(r.Goals) != 0) && bound != required {
-		return RoutineReview{}, errors.New("incomplete routine goal bindings")
+		return RoutineReview{}, incompleteBindings(allowed, r.Goals)
 	}
 	seen := map[domain.GoalID]bool{}
 	identities := map[domain.GoalID]bool{}
