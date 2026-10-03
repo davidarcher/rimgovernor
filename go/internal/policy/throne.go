@@ -111,9 +111,9 @@ func NextThroneNeed(f RoyaltyFacts) (ThroneNeed, bool) {
 	return best, found
 }
 
-// ThroneDefinition is a throne definition as the native catalog describes
+// FurnitureDefinition is a throne definition as the native catalog describes
 // it.
-type ThroneDefinition struct {
+type FurnitureDefinition struct {
 	Name      string
 	Available domain.Fact[bool]
 	Size      domain.Fact[Bounds]
@@ -152,7 +152,7 @@ func (s ThroneStep) Owed() bool {
 
 // throneDefinition is the first of need's throne definitions the catalog
 // makes available with a known footprint.
-func throneDefinition(need ThroneNeed, defs []ThroneDefinition) (InteriorPieceDef, bool) {
+func throneDefinition(need ThroneNeed, defs []FurnitureDefinition) (InteriorPieceDef, bool) {
 	for _, thing := range need.Things {
 		for _, d := range defs {
 			if d.Name != thing {
@@ -224,7 +224,7 @@ func throneAssignment(step ThroneStep, throne CurrentBuilding, thrones []RoyalTh
 // while the plan holds no room of the title's area (the layout review owes
 // it) or no throne definition is available with a known size, and once the
 // throne stands and is assigned (or cannot be yet).
-func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []ThroneDefinition, thrones []RoyalThrone) ThroneStep {
+func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []FurnitureDefinition, thrones []RoyalThrone) ThroneStep {
 	room, ok := plan.ThroneRoomFor(need.MinArea)
 	if !ok {
 		return ThroneStep{}

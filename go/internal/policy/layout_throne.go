@@ -65,6 +65,13 @@ func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool) {
 	if _, ok := plan.ThroneRoomFor(area); ok {
 		return plan, false
 	}
+	return growModuleRoom(plan, ModuleThrone, ThroneRoomSizes(area))
+}
+
+// growModuleRoom adds a room of the role to plan at the nearest core slot,
+// trying sizes (interior width, depth) in order, like any other core room. A
+// plan with no core ground or no slot for any size is left as it is.
+func growModuleRoom(plan LayoutPlan, role ModuleRole, sizes [][2]int32) (LayoutPlan, bool) {
 	g := newCoreGrid(plan.Zones, plan.Reservations)
 	if len(g.core) == 0 {
 		return plan, false
@@ -78,8 +85,8 @@ func growThroneRoom(plan LayoutPlan, area int) (LayoutPlan, bool) {
 		bedrooms += len(plan.Wings[i].Rooms)
 	}
 	g.carveBedroomWings(plan.Wings, bedrooms)
-	for _, size := range ThroneRoomSizes(area) {
-		spine, rooms, placed, _ := g.placeRole(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, ModuleThrone, size)
+	for _, size := range sizes {
+		spine, rooms, placed, _ := g.placeRole(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
 		if placed {
 			plan.Spine, plan.Rooms = spine, rooms
 			return plan, true

@@ -292,7 +292,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: decide: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
-	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), r.reviewer.rememberedThrones()...)...)
+	reading, err := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), append(append(append([]string{"Wall", "Door"}, policy.SleepingLadder(true)...), policy.RoomUpgradeDefinitions...), append(r.reviewer.rememberedThrones(), policy.ChildRoomDefinitions()...)...)...)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
@@ -364,6 +364,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			// through the room upgrade below (#1601).
 			if throne := throneStep(facts); throne.Owed() {
 				return r.stageThrone(call, epoch, state, review, goal, reading, throne)
+			}
+			// The Biotech child rooms: shell, then furniture (#1680).
+			if child := childRoomStep(facts); child.Owed() {
+				return r.stageChildRoom(call, epoch, state, review, goal, reading, child)
 			}
 			swap, ok := bedroomSwap(facts)
 			if !ok {

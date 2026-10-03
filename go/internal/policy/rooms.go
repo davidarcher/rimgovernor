@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -228,9 +229,13 @@ func FacilityCatalog() []FacilityRequirement {
 		// the title's impressiveness; assigning the throne awaits an action kind.
 		{Role: RoomRoleThroneRoom, Status: FacilityImplemented, Content: "Royalty", Furniture: []string{"Throne", "GrandThrone"}},
 		{Role: RoomRoleWorshipRoom, Status: FacilityPending, Content: "Ideology"},
-		{Role: RoomRoleNursery, Status: FacilityPending, Content: "Biotech"},
-		{Role: RoomRolePlayroom, Status: FacilityPending, Content: "Biotech"},
-		{Role: RoomRoleClassroom, Status: FacilityPending, Content: "Biotech"},
+		// The child rooms are their own planned rooms (#1680): MaintainHousing
+		// shells each while a baby (nursery), baby or child (playroom) or child
+		// (classroom) lives and places the furniture the game scores the role
+		// from (ChildRoomNeeds); a nursery room holds no other bed.
+		{Role: RoomRoleNursery, Status: FacilityImplemented, Content: "Biotech", Furniture: NurseryBedDefinitions},
+		{Role: RoomRolePlayroom, Status: FacilityImplemented, Content: "Biotech", Furniture: append(slices.Clone(PlayroomToyDefinitions), PlayroomDecoDefinitions...)},
+		{Role: RoomRoleClassroom, Status: FacilityImplemented, Content: "Biotech", Furniture: append(slices.Clone(ClassroomBoardDefs), ClassroomDeskDefs...)},
 		{Role: RoomRoleDeathrestChamber, Status: FacilityPending, Content: "Biotech"},
 		{Role: RoomRoleContainmentCell, Status: FacilityPending, Content: "Anomaly"},
 		{Role: RoomRoleCeremonialChamber, Status: FacilityPending, Content: "Anomaly"},

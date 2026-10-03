@@ -16,7 +16,7 @@ import (
 // shells the planned room, places the title's throne and furnishes it to the
 // title's impressiveness (policy.NextThroneStep, policy.ThroneRoomTargets).
 // The layout review grows the room from the title's minimum area
-// (policy.ReplanLayoutWithThrone). Once it stands, the throne is assigned to
+// (policy.ReplanLayoutWithRooms). Once it stands, the throne is assigned to
 // its holder through the generic Assign action; the step holds
 // MaintainHousing open until the royalty read lists the holder as its owner.
 
@@ -122,10 +122,10 @@ func throneStep(facts observation.ColonyProjection) policy.ThroneStep {
 	if !owed || !pk || !rk || !ck || !census.Colony {
 		return policy.ThroneStep{}
 	}
-	defs := make([]policy.ThroneDefinition, 0, len(need.Things))
+	defs := make([]policy.FurnitureDefinition, 0, len(need.Things))
 	for _, d := range facts.Definitions {
 		if slices.Contains(need.Things, d.Name) {
-			defs = append(defs, policy.ThroneDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
+			defs = append(defs, policy.FurnitureDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
 		}
 	}
 	royalty, _ := facts.Royalty.Value()

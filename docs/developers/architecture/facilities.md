@@ -88,7 +88,34 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
 | Barn | implemented (own planned room, #1633) | | AnimalSleepingSpot; the vet room (a controller role, natively scored Barn) takes AnimalBed |
 | Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb | pending | | |
-| WorshipRoom (Ideology), Nursery, Playroom, Classroom, DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+| Nursery (Biotech) | implemented (own planned room, #1680) | | Crib, BabySleepingSpot |
+| Playroom (Biotech) | implemented (own planned room, #1680) | | ToyBox, BabyDecoration |
+| Classroom (Biotech) | implemented (own planned room, #1680) | | Blackboard, SchoolDesk |
+| WorshipRoom (Ideology), DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
+
+### Child rooms (Biotech)
+
+A baby, toddler or child is owed the room its developmental stage calls for
+(`policy.ChildRoomNeeds`, from the pawn row's `biotech` block): a nursery
+while a newborn or baby lives, a playroom while a baby or child does, a
+classroom while a child does. The roles are the game's own room scores
+([Rooms, Roles](https://rimworldwiki.com/wiki/Rooms)): a Nursery scores 0
+under two baby beds or beside any other bed, a Playroom scores each toy box
+and baby decoration and a Classroom each blackboard and school desk, both
+only while the room holds no humanlike bed. Furniture counts follow the
+pawns: a bed per newborn or baby (at least the game's two), one toy box and
+one decoration, one blackboard and a desk per child.
+
+1. The layout review grows a `nursery`, `playroom` or `classroom` core room
+   sized to hold the furniture (`policy.ChildRoomSizes`,
+   `policy.ReplanLayoutWithRooms`); existing rooms never move or shrink.
+2. `NextChildRoomStep` shells the room, then places each piece at the first
+   free slot of the child room template: bands of free floor as high as the
+   piece, a free row between bands, the row inside the entrance and the
+   entrance column kept free. Footprints are the native definition
+   catalog's; a role whose furniture is unavailable or has no known size is
+   passed over, and a baby sleeping spot answers an unresearched crib.
+3. Using the rooms (feeding, play, lessons) belongs to the next children.
 
 ### Throne room
 
@@ -99,7 +126,7 @@ royalty read; the largest room any colonist is owed wins). The sleeping
 planner raises it under MaintainHousing, like the tomb:
 
 1. The layout review grows a `throne` core room of at least
-   `throne_min_area` cells (`policy.ReplanLayoutWithThrone`); existing
+   `throne_min_area` cells (`policy.ReplanLayoutWithRooms`); existing
    rooms never move, so a title that outgrows the room adds a larger one.
 2. `NextThroneStep` shells the room, then places the title's throne at
    the template's back-wall slot. The throne's footprint is the native

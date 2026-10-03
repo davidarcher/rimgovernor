@@ -318,6 +318,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	r.reviewRoyalty(ctx, state.Snapshot, &reading)
+	reviewChildRooms(&reading)
 	if err = r.reviewLayoutPlan(ctx, state.Snapshot, &reading.Projection); err != nil {
 		clockSchedulerLog("routine.step: layout plan err=%v", err)
 		return store.RoutineReviewResult{}, err

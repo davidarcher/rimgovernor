@@ -105,7 +105,7 @@ func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		if _, grow := suiteGrowth(facts); grow {
 			return domain.Known(true)
 		}
-		if throneStep(facts).Owed() {
+		if throneStep(facts).Owed() || childRoomStep(facts).Owed() {
 			return domain.Known(true)
 		}
 	}

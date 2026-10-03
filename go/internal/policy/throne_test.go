@@ -97,8 +97,8 @@ func throneFixture() (LayoutPlan, LayoutRoom, ThroneNeed) {
 	return LayoutPlan{Rooms: []LayoutRoom{room}}, room, need
 }
 
-func throneDefs(size Bounds) []ThroneDefinition {
-	return []ThroneDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Known(size)}}
+func throneDefs(size Bounds) []FurnitureDefinition {
+	return []FurnitureDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Known(size)}}
 }
 
 func standingThrone(t *testing.T, p InteriorPiece) CurrentBuilding {
@@ -166,11 +166,11 @@ func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 	if step.Kind != ThronePlace || step.Piece.Rect.Width != 2 || step.Piece.Rect.Height != 1 || step.Piece.Rect.X != 12 {
 		t.Fatalf("a 2x1 throne: %+v", step.Piece.Rect)
 	}
-	unknown := []ThroneDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
+	unknown := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
 	if step := NextThroneStep(plan, tombStanding(room), nil, need, unknown, nil); step.Kind != ThroneNone {
 		t.Fatalf("no footprint, no placement: %+v", step)
 	}
-	locked := []ThroneDefinition{{Name: "Throne", Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
+	locked := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
 	if step := NextThroneStep(plan, tombStanding(room), nil, need, locked, nil); step.Kind != ThroneNone {
 		t.Fatalf("unavailable throne: %+v", step)
 	}

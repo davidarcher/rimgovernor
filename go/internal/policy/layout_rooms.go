@@ -35,6 +35,12 @@ func LayoutModule(role RoomRole) (ModuleRole, bool) {
 		return ModuleTomb, true
 	case RoomRoleThroneRoom:
 		return ModuleThrone, true
+	case RoomRoleNursery:
+		return ModuleNursery, true
+	case RoomRolePlayroom:
+		return ModulePlayroom, true
+	case RoomRoleClassroom:
+		return ModuleClassroom, true
 	}
 	return "", false
 }

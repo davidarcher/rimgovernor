@@ -47,15 +47,23 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // wing it otherwise could not (dropEmptiedWings); else it stays as spare
 // beds.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
-	return ReplanLayoutWithThrone(plan, s, 0, 0, pawns, tombs, tier, geysers, emptied, suites...)
+	return ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
 }
 
-// ReplanLayoutWithThrone is ReplanLayout that also keeps a throne room of at
-// least throneArea cells (#1601; 0 asks for none), added after the rest of
-// the rooms and before the perimeter is replanned around them. A herd of
+// RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
+// room of at least ThroneArea cells (#1601; 0 asks for none) and the Child
+// rooms (#1680) the plan lacks.
+type RoomGrowth struct {
+	ThroneArea int
+	Child      []ChildRoomShape
+}
+
+// ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
+// added after the rest of the rooms and before the perimeter is replanned
+// around them. A herd of
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
 // the pens, barn and vet room it lacks (PlanHerdSites, #1633).
-func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
+func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
@@ -82,8 +90,13 @@ func ReplanLayoutWithThrone(plan LayoutPlan, s MapSurvey, throneArea, animals, p
 	dropped := len(next.AllRooms()) != len(plan.AllRooms())
 	next, freed := dropEmptiedWings(next, emptied, pawns, tombs, tier, suites...)
 	dropped = dropped || freed
-	next, throne := growThroneRoom(next, throneArea)
+	next, throne := growThroneRoom(next, growth.ThroneArea)
 	dropped = dropped || throne
+	for _, shape := range growth.Child {
+		var grown bool
+		next, grown = growChildRoom(next, shape)
+		dropped = dropped || grown
+	}
 	next.Zones = zones
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
