@@ -12,6 +12,7 @@ const (
 	RawVegRolePrefix      = "rawveg:"
 	CorpsesRolePrefix     = "corpses:"
 	PerishablesRolePrefix = "perishables:"
+	TombRolePrefix        = "tomb:"
 	ApparelRole           = "apparel"
 	WeaponsRole           = "weapons"
 	WornDumpRole          = "dump:worn"

@@ -149,7 +149,7 @@ func legacyStockpileSettings(zone legacyZone) *op.StockpileSettings {
 	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
 	if zone.preset == "corpse_larder" {
 		settings.Filter = &op.FilterPatch{
-			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
+			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesInsect"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
 			Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowRotten"}}},
 		}
 	}

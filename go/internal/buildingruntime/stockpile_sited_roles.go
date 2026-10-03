@@ -224,6 +224,18 @@ func stockpileSites(projection *observation.ColonyProjection, protected []domain
 				Candidates: [][]domain.Cell{roomPool(room.Cells, projection.Cells, protected)}})
 		}
 	}
+	if layout, planned, known := plannedLayout(*projection); known {
+		for _, tomb := range layout.AllRooms() {
+			if tomb.Role != policy.ModuleTomb {
+				continue
+			}
+			if room, ok := policy.PlannedRoomStanding(tomb, planned); ok && len(room.Cells) > 0 {
+				out = append(out, policy.StockpileSite{Role: domain.TombRolePrefix + room.ID, Room: room.Cells, Filter: domain.TombCorpsesFilter(), Priority: domain.CriticalPriority, Remainder: true,
+					Candidates: [][]domain.Cell{roomPool(room.Cells, projection.Cells, protected)}})
+				break
+			}
+		}
+	}
 	return out
 }
 

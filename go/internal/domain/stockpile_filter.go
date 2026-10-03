@@ -187,9 +187,9 @@ func GeneralFilter() StockpileFilter {
 	return f
 }
 
-// CorpseLarderFilter holds fresh animal corpses only.
+// CorpseLarderFilter holds fresh animal and insect corpses only.
 func CorpseLarderFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesAnimal"), SpecialFilter("AllowFresh")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), SpecialFilter("AllowFresh")}, []FilterSelector{SpecialFilter("AllowRotten")})
 	return f
 }
 
@@ -215,7 +215,14 @@ func RawVegFilter() StockpileFilter {
 // PerishablesFilter holds every food and fresh animal corpse that is not yet
 // rotten: the freezer's catch-all under its dedicated shelves.
 func PerishablesFilter() StockpileFilter {
-	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Foods"), CategoryDef("CorpsesAnimal")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Foods"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect")}, []FilterSelector{SpecialFilter("AllowRotten")})
+	return f
+}
+
+// TombCorpsesFilter holds human corpses, fresh or not: the tomb room's stock
+// until they are buried, entombed or butchered.
+func TombCorpsesFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil)
 	return f
 }
 

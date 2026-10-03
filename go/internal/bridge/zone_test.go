@@ -28,7 +28,7 @@ func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings := ZoneConfiguration(zone).Stockpile
-	if settings.GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || len(settings.Filter.Allow) != 2 || settings.Filter.Allow[0].GetCategoryDef() != "CorpsesAnimal" || settings.Filter.Allow[1].GetSpecialFilterDef() != "AllowFresh" || len(settings.Filter.Disallow) != 1 || settings.Filter.Disallow[0].GetSpecialFilterDef() != "AllowRotten" {
+	if settings.GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || len(settings.Filter.Allow) != 3 || settings.Filter.Allow[0].GetCategoryDef() != "CorpsesAnimal" || settings.Filter.Allow[2].GetSpecialFilterDef() != "AllowFresh" || len(settings.Filter.Disallow) != 1 || settings.Filter.Disallow[0].GetSpecialFilterDef() != "AllowRotten" {
 		t.Fatal(settings)
 	}
 	if restored, err := domain.ReconstructZone(zone); err != nil || restored != zone {
