@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         // within 100 cells over a safe route. A pest is hunted wherever it
         // is on the map (the pack arrives at the edge and works inward);
         // the route still has to be safe.
-        private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.Drafted && !p.InMentalState
+        private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.InMentalState
             && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && (OrdinaryWeapon(p) || MeleeArmed(p, prey))
             && (Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) && HuntingSafety.RouteSafe(p, prey);
         // Ineligible names the first hunt rule the prey (or every colonist
