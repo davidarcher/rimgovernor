@@ -136,23 +136,53 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	for i := 0; i < want.TurbinePairs; i++ {
-		site, ok := u.site(turbineWidth, turbinePairSpan, false, true, u.cx, u.cz)
+		// A pair stands north-south or, turned, east-west: whichever lies
+		// nearer the farmland, where its lanes double as fields.
+		fx, fz := u.fieldCentre()
+		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, false, true, fx, fz, 0)
+		turned := false
+		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, false, true, fx, fz, 0); tok && (!ok || tcost < cost) {
+			site, turned, ok = t, true, true
+		}
 		if !ok {
 			break
 		}
 		pair++
-		for _, r := range turbinePair(site, pair) {
+		for _, r := range turbinePair(site, pair, turned) {
 			u.reserve(&plan, r)
 		}
-		lane := Rectangle{X: site.X, Z: site.Z, Width: turbineWidth, Height: turbinePairSpan}
 		var runs []RowRun
-		for z := lane.Z; z < lane.Z+lane.Height; z++ {
-			if dz := z - lane.Z; dz == 6 || dz == 7 || dz == 18 || dz == 19 {
-				continue // turbine footprints
+		for z := site.Z; z < site.Z+site.Height; z++ {
+			// Cells already planned as farmland are not planned twice.
+			var start int32 = -1
+			flush := func(end int32) {
+				if start >= 0 {
+					runs = append(runs, RowRun{Z: z, X: start, Length: end - start})
+					start = -1
+				}
 			}
-			runs = append(runs, RowRun{Z: z, X: lane.X, Length: lane.Width})
+			for x := site.X; x < site.X+site.Width; x++ {
+				dx, dz := x-site.X, z-site.Z
+				if turned {
+					dx, dz = dz, dx
+				}
+				foot := dz == 6 || dz == 7 || dz == 18 || dz == 19 // turbine footprints
+				if foot || u.field[z*u.w+x] {
+					flush(x)
+					continue
+				}
+				if start < 0 {
+					start = x
+				}
+			}
+			flush(site.X + site.Width)
 		}
 		plan.Zones = append(plan.Zones, LayoutZone{Kind: ZoneField, Runs: runs})
+		for _, run := range runs {
+			for x := run.X; x < run.X+run.Length; x++ {
+				u.field[run.Z*u.w+x] = true
+			}
+		}
 	}
 	for i := 0; i < want.Solar; i++ {
 		site, ok := u.site(solarSide, solarSide, false, false, u.cx, u.cz)
@@ -176,9 +206,13 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 // turbinePair lays a facing pair in the 7x26 site: the north-facing
 // turbine at rows 6-7, the south-facing one at rows 18-19, and three lanes
 // (its back zone, the shared 10-row lane, the other's back zone).
-func turbinePair(site Rectangle, pair int32) []LayoutReservation {
+func turbinePair(site Rectangle, pair int32, turned bool) []LayoutReservation {
 	row := func(dz, h int32, kind ReservationKind) LayoutReservation {
-		return LayoutReservation{Kind: kind, Area: Rectangle{X: site.X, Z: site.Z + dz, Width: turbineWidth, Height: h}, Pair: pair}
+		a := Rectangle{X: site.X, Z: site.Z + dz, Width: turbineWidth, Height: h}
+		if turned {
+			a = Rectangle{X: site.X + dz, Z: site.Z, Width: h, Height: turbineWidth}
+		}
+		return LayoutReservation{Kind: kind, Area: a, Pair: pair}
 	}
 	return []LayoutReservation{
 		row(6, 2, ReserveTurbine), row(18, 2, ReserveTurbine),
@@ -189,6 +223,12 @@ func turbinePair(site Rectangle, pair int32) []LayoutReservation {
 // TurbinePlacement is a turbine reservation's native centre and rotation:
 // the pair's southern turbine faces north, its northern one south.
 func TurbinePlacement(area Rectangle, pairSouth bool) (domain.Cell, domain.Rotation) {
+	if area.Width == 2 && area.Height == turbineWidth { // a turned pair: the western one faces east
+		if pairSouth {
+			return domain.Cell{X: area.X, Z: area.Z + 3}, domain.East
+		}
+		return domain.Cell{X: area.X + 1, Z: area.Z + 3}, domain.West
+	}
 	if pairSouth {
 		return domain.Cell{X: area.X + 3, Z: area.Z}, domain.North
 	}
@@ -271,7 +311,7 @@ func PlannedPowerSites(plan LayoutPlan, definition string) []PlannedPowerSite {
 			}
 			south := true
 			for _, o := range plan.Reservations {
-				if o.Kind == ReserveTurbine && o.Pair == r.Pair && o.Area.Z < r.Area.Z {
+				if o.Kind == ReserveTurbine && o.Pair == r.Pair && (o.Area.Z < r.Area.Z || o.Area.X < r.Area.X) {
 					south = false
 				}
 			}
@@ -512,6 +552,13 @@ func (u *utilityGrid) outside(r Rectangle) bool {
 // planned farmland counting siteFieldReach cells farther. beyondRing keeps
 // it off the core ring's keep-out, for sites the outer ring encloses.
 func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (Rectangle, bool) {
+	r, _, ok := u.siteCost(w, h, rockOK, beyondRing, cx, cz, siteFieldReach)
+	return r, ok
+}
+
+// siteCost is site with an explicit farmland penalty (0 for sites that
+// belong on farmland) and the winning cost.
+func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32, fieldReach float64) (Rectangle, float64, bool) {
 	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
 		for x := int32(0); x+w <= u.w; x++ {
@@ -521,7 +568,7 @@ func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (R
 				continue
 			}
 			r := Rectangle{X: x, Z: z, Width: w, Height: h}
-			cost += siteFieldReach * float64(u.fieldCells(r)) / float64(w*h)
+			cost += fieldReach * float64(u.fieldCells(r)) / float64(w*h)
 			if found && cost >= bestCost {
 				continue
 			}
@@ -530,7 +577,7 @@ func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (R
 			}
 		}
 	}
-	return best, found
+	return best, bestCost, found
 }
 
 // exhaust is the column behind r's back wall, away from the spine, out to

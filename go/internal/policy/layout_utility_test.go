@@ -262,7 +262,7 @@ func TestPlanUtilities(t *testing.T) {
 	for _, tb := range turbines {
 		south := false
 		for _, o := range turbines {
-			if o.Pair == tb.Pair && o.Area.Z > tb.Area.Z {
+			if o.Pair == tb.Pair && (o.Area.Z > tb.Area.Z || o.Area.X > tb.Area.X) {
 				south = true
 			}
 		}
@@ -284,7 +284,7 @@ func TestPlanUtilities(t *testing.T) {
 				}
 			}
 			field := false
-			for _, z := range p.Zones[len(zones):] {
+			for _, z := range p.Zones {
 				for _, run := range z.Runs {
 					field = field || run.Z == c.Z && c.X >= run.X && c.X < run.X+run.Length
 				}
@@ -359,5 +359,39 @@ func TestPlanUtilitiesPen(t *testing.T) {
 		if r.Kind == ReservePen {
 			t.Fatal("pen reserved with no room")
 		}
+	}
+}
+
+// TestTurnedTurbinePair: an east-west pair faces its turbines across the
+// shared lane and every wind cell lies in the pair's lanes.
+func TestTurnedTurbinePair(t *testing.T) {
+	site := Rectangle{X: 40, Z: 50, Width: turbinePairSpan, Height: turbineWidth}
+	var turbines, lanes []LayoutReservation
+	for _, r := range turbinePair(site, 1, true) {
+		if r.Kind == ReserveTurbine {
+			turbines = append(turbines, r)
+		} else {
+			lanes = append(lanes, r)
+		}
+	}
+	if len(turbines) != 2 || turbines[0].Area.Width != 2 || turbines[0].Area.Height != turbineWidth {
+		t.Fatal(turbines)
+	}
+	rots := map[domain.Rotation]bool{}
+	for i, tb := range turbines {
+		centre, rot := TurbinePlacement(tb.Area, i == 0)
+		rots[rot] = true
+		for _, c := range TurbineWindCells(centre, rot) {
+			in := false
+			for _, l := range lanes {
+				in = in || inRect(l.Area, c)
+			}
+			if !in {
+				t.Fatal("wind cell outside the lanes", rot, c)
+			}
+		}
+	}
+	if !rots[domain.East] || !rots[domain.West] {
+		t.Fatal(rots)
 	}
 }
