@@ -7,8 +7,9 @@ import (
 )
 
 // Perimeter, gates and killbox from terrain (#781, A5). The wall is a
-// 3-thick ring traced around the core and the whole field patches beside
-// it (#1286, layout_perimeter_enclosure.go), never across a patch; rock and
+// 3-thick ring traced around the core and its yard (#1286,
+// layout_perimeter_enclosure.go); the patches, pen and geothermal sites
+// beside it get a separate outer ring (layout_perimeter_outer.go); rock and
 // deep water already close their cells, so only the open cells of a stretch
 // are walled (#1592). Soft ground a raider wades through (marsh, mud,
 // shallow and moving water) is closed too (#949): the wall follows the
@@ -44,7 +45,7 @@ const (
 )
 
 // perimeterKinds are the reservations PlanPerimeter owns.
-var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true}
+var perimeterKinds = map[ReservationKind]bool{ReservePerimeter: true, ReservePerimeterLight: true, ReserveBridge: true, ReservePerimeterGap: true, ReserveMoisturePump: true, ReserveGate: true, ReserveKillbox: true, ReserveKillboxApproach: true, ReserveCoverClear: true, ReserveMortar: true, ReservePocketWall: true, ReserveBaitRoom: true, ReserveBaitWall: true, ReserveOuterWall: true, ReserveOuterGate: true}
 
 const (
 	perimeterThick int32 = 3
@@ -450,85 +451,16 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	var gates, stepGates []Rectangle
 	walls, light, bridges, gaps := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 	for k, sd := range sides {
-		// Raiders neither mine nor attack natural rock (#1592): a run is
-		// walled only on its open cells, and not behind a rock row that spans
-		// the column and both neighbours, which no raider can reach round.
-		sealed := func(p, t int32) bool {
-			for u := int32(0); u < t; u++ {
-				if impassable(sd.cell(p-1, u)) && impassable(sd.cell(p, u)) && impassable(sd.cell(p+1, u)) {
-					return true
-				}
-			}
-			return false
-		}
-		openColumn := func(p int32) bool {
-			for t := int32(0); t < perimeterThick; t++ {
-				if impassable(sd.cell(p, t)) {
-					return false
-				}
-			}
-			return true
-		}
-		start := int32(-1)
-		flush := func(end int32) {
-			if start < 0 {
-				return
-			}
-			for p := start; p <= end; p++ {
-				for t := int32(0); t < perimeterThick; t++ {
-					if c := sd.cell(p, t); !impassable(c) && !sealed(p, t) {
-						walls[c] = true
-					}
-				}
-			}
-			n := end - start + 1
-			if n >= 5 {
-				// The pitch runs from a hallway's axis when one meets
-				// this run, so a gate lines up with it (#952).
-				first := start + min(perimeterGatePitch/2, n/2)
-				for _, a := range axes(sd) {
-					if a > start && a < end {
-						first = start + (a-start)%perimeterGatePitch
-						break
-					}
-				}
-				for p := first; p <= end; p += perimeterGatePitch {
-					if !openColumn(p) {
-						continue
-					}
-					g := rectOf(sd.base(p), sd.cell(p, perimeterThick-1))
-					if n < perimeterGatePitch {
-						stepGates = append(stepGates, g)
-					} else {
-						gates = append(gates, g)
-					}
-				}
-			}
-			start = -1
-		}
-		for p := sd.lo; p <= sd.hi; p++ {
-			gap := opened && k == open.side && p >= open.pos-1 && p <= open.pos+1
+		g, sg := wallRuns(sd, impassable, walls, axes(sd), func(p int32) bool {
 			terrain := true
 			for t := int32(0); t < perimeterThick; t++ {
 				terrain = terrain && impassable(sd.cell(p, t))
 			}
-			if gap || terrain || wet[crossing{k, p}] {
-				flush(p - 1)
-			} else if start < 0 {
-				start = p
-			}
-		}
-		flush(sd.hi)
+			return opened && k == open.side && p >= open.pos-1 && p <= open.pos+1 || terrain || wet[crossing{k, p}]
+		})
+		gates, stepGates = append(gates, g...), append(stepGates, sg...)
 	}
-	for _, g := range stepGates {
-		clear := true
-		for _, o := range gates {
-			clear = clear && max(o.X-g.X, g.X-o.X, o.Z-g.Z, g.Z-o.Z) >= perimeterGatePitch
-		}
-		if clear {
-			gates = append(gates, g)
-		}
-	}
+	gates = pitchGates(gates, stepGates)
 	for _, g := range gates {
 		add(ReserveGate, g)
 	}
@@ -672,6 +604,14 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	if depth >= 0 {
 		add(ReserveMortar, rectOf(mortar, mortar))
 	}
+
+	var approaches []Rectangle
+	for _, r := range res {
+		if r.Kind == ReserveKillboxApproach {
+			approaches = append(approaches, r.Area)
+		}
+	}
+	res = append(res, planOuterRing(plan, s, enc, approaches, impassable)...)
 
 	kept := plan.Reservations[:0:0]
 	for _, r := range plan.Reservations {

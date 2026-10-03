@@ -88,7 +88,11 @@ func planEnclosure(core Rectangle, w, h int32) enclosure {
 	}
 	m := LayoutEdgeMargin + perimeterThick
 	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
-	in := encloseRegion(region, w, h, yard)
+	return newEnclosure(encloseRegion(region, w, h, yard, perimeterGap), w, h)
+}
+
+// newEnclosure traces the ring around in.
+func newEnclosure(in []bool, w, h int32) enclosure {
 	e := enclosure{w: w, h: h, in: in, ring: make([]bool, w*h), dist: chebyshevField(w, h, in, perimeterThick+perimeterCoverBand)}
 	for i, v := range e.dist {
 		x, z := int32(i)%w, int32(i)/w
@@ -100,10 +104,10 @@ func planEnclosure(core Rectangle, w, h int32) enclosure {
 	return e
 }
 
-// encloseRegion grows region by the yard within yard's bounds, closes it by
+// encloseRegion grows region by grow within yard's bounds, closes it by
 // perimeterThick and fills its holes.
-func encloseRegion(region []bool, w, h int32, yard Rectangle) []bool {
-	d := chebyshevField(w, h, region, perimeterGap)
+func encloseRegion(region []bool, w, h int32, yard Rectangle, grow int32) []bool {
+	d := chebyshevField(w, h, region, grow)
 	grown := make([]bool, len(region))
 	for i, v := range d {
 		grown[i] = v >= 0
