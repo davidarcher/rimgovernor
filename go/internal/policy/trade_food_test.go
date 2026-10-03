@@ -12,7 +12,7 @@ func tradeFoodContext() TradeFoodContext {
 }
 
 func foodTradeNeed(r TradeFoodContext) TradeNeed {
-	n, _ := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}, r).Value()
+	n, _ := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}, r).Value()
 	return n
 }
 
@@ -151,7 +151,7 @@ func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 	p.Portfolio[0].Channel.Open = domain.Known(true)
 	p.Portfolio[0].DeliveredPerDay = 12
 	r.Plan = domain.Known(p)
-	n, known := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "crop", Count: 100}}), map[Resource]int64{"crop": 60}, map[string]int64{"crop": 80}, domain.Unknown[WealthFacts](), RoutineTradePolicy{}, r).Value()
+	n, known := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "crop", Count: 100}}), map[Resource]int64{"crop": 60}, map[string]int64{"crop": 80}, domain.Unknown[WealthFacts](), RoutineTradePolicy{}, r).Value()
 	if !known || len(n.Food.Missing) != 1 || n.Surplus[0].Count != 20 || n.Retained["crop"] != 80 {
 		t.Fatal(n)
 	}

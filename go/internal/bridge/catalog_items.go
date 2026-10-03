@@ -131,17 +131,9 @@ func (catalog *DefinitionCatalog) RawFoodClass(name string) (policy.FoodIngredie
 	if err != nil {
 		return "", err
 	}
-	within := map[string]bool{}
-	for _, category := range row.GetThingCategories() {
-		// A category already walked has its parents in within, which also ends a cycle.
-		for category != "" && !within[category] {
-			within[category] = true
-			row := DefRow[*d.ThingCategoryDef](catalog, category)
-			if row == nil {
-				return "", contract("catalog has no thing category %s (of %s)", category, name)
-			}
-			category = row.GetParent()
-		}
+	within, err := catalog.categoriesWithin(name, row)
+	if err != nil {
+		return "", err
 	}
 	switch {
 	case within[categoryMeatRaw]:
@@ -152,6 +144,24 @@ func (catalog *DefinitionCatalog) RawFoodClass(name string) (policy.FoodIngredie
 		return policy.IngredientAnimalProduct, nil
 	}
 	return "", nil
+}
+
+// categoriesWithin is every ThingCategoryDef the def sits within: its own
+// thing categories and all their parents.
+func (catalog *DefinitionCatalog) categoriesWithin(name string, row *d.ThingDef) (map[string]bool, error) {
+	within := map[string]bool{}
+	for _, category := range row.GetThingCategories() {
+		// A category already walked has its parents in within, which also ends a cycle.
+		for category != "" && !within[category] {
+			within[category] = true
+			parent := DefRow[*d.ThingCategoryDef](catalog, category)
+			if parent == nil {
+				return nil, contract("catalog has no thing category %s (of %s)", category, name)
+			}
+			category = parent.GetParent()
+		}
+	}
+	return within, nil
 }
 
 // HumanlikeCorpse is whether a corpse def is of a humanlike race: the race

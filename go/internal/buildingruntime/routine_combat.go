@@ -103,6 +103,9 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	// same decision with them orderable. An ask (a rescue path) waits for
 	// the next stop; the batch then only drafts.
 	view := combatView(a.combat, a.in, drafts, a.held)
+	if view.Drug, err = r.reviewer.combatDrug(call, state.Snapshot); err != nil {
+		return RoutineDefenseResult{}, err
+	}
 	orders, ask, next := policy.DecideCombat(view, a.reply, policy.StopEvent{}, memory)
 	if ask != nil {
 		orders, next = nil, memory

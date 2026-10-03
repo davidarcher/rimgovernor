@@ -32,6 +32,19 @@ func (r *RoutineReviewer) itemFacts(ctx context.Context, snapshot domain.Generat
 	return catalog.ItemFacts()
 }
 
+// combatDrug is the preferred combat drug of the load's catalog (#1540), ""
+// when it has none or the reviewer's source serves no definitions.
+func (r *RoutineReviewer) combatDrug(ctx context.Context, snapshot domain.GenerationSnapshot) (string, error) {
+	items, err := r.itemFacts(ctx, snapshot)
+	if err != nil {
+		return "", err
+	}
+	if drugs := items.CombatDrugs(); len(drugs) > 0 {
+		return string(drugs[0].Def), nil
+	}
+	return "", nil
+}
+
 type RoutineReviewer struct {
 	methods domain.Fact[[]policy.GoalID]
 	player  *Player

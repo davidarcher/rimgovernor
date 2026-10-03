@@ -9,6 +9,7 @@ import (
 func doseView(hostiles int, hostile CombatPawnState) (CombatView, map[domain.PawnID]bool, map[domain.PawnID]CombatPawnState) {
 	defender := CombatPawnState{ID: "d1", Cell: domain.Known(domain.Cell{X: 0, Z: 0}), WeaponRange: 25}
 	view := CombatView{
+		Drug:      "GoJuice",
 		Pawns:     []CombatPawnState{defender},
 		Defenders: []SquadDefenderFacts{squadDefender("d1", true)},
 		Orderable: []domain.PawnID{"d1"},

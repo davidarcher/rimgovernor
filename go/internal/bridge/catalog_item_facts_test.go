@@ -1,9 +1,11 @@
 package bridge
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +19,29 @@ func itemTestCatalog() *o.DefinitionCatalog {
 		{DefName: "MedicineHerbal", ThingCategories: []string{"Medicine"}, StatBases: []*d.Opt_StatModifier{{Value: &d.StatModifier{Stat: "MedicalPotency", Value: 0.6}}}},
 		{DefName: "RawRice", ThingCategories: []string{"PlantFoodRaw"}},
 		{DefName: "Bed", StuffCategories: []string{"Metallic", "Woody"}},
+		{DefName: "Silver"},
+		drugRow("Beer", "Alcohol", d.DrugCategory_DRUG_CATEGORY_SOCIAL, 10, false),
+		drugRow("GoJuice", "GoJuice", d.DrugCategory_DRUG_CATEGORY_HARD, 50, true),
+		drugRow("Yayo", "Psychite", d.DrugCategory_DRUG_CATEGORY_HARD, 40, true),
+		drugRow("PsychiteTea", "Psychite", d.DrugCategory_DRUG_CATEGORY_SOCIAL, 30, false),
+		drugRow("Luciferium", "Luciferium", d.DrugCategory_DRUG_CATEGORY_HARD, 60, false),
+		{DefName: "Penoxycyline", Comps: comps(&d.CompProperties_Drug{}), Ingestible: &d.IngestibleProperties{OutcomeDoers: []*d.Opt_IngestionOutcomeDoerAny{{Value: &d.IngestionOutcomeDoerAny{Value: &d.IngestionOutcomeDoerAny_IngestionOutcomeDoer_GiveHediff{IngestionOutcomeDoer_GiveHediff: &d.IngestionOutcomeDoer_GiveHediff{HediffDef: "PenoxycylineHigh"}}}}}}},
+	}
+	v.Defs = &d.DefSets{
+		StatDefs: v.Defs.GetStatDefs(),
+		ThingCategoryDefs: []*d.ThingCategoryDef{
+			{DefName: "Foods"}, {DefName: "PlantFoodRaw", Parent: "Foods"}, {DefName: "ResourcesRaw"}, {DefName: "Medicine"},
+		},
+		ChemicalDefs: []*d.ChemicalDef{
+			{DefName: "Alcohol", AddictionHediff: "AlcoholAddiction"}, {DefName: "GoJuice", AddictionHediff: "GoJuiceAddiction"},
+			{DefName: "Psychite", AddictionHediff: "PsychiteAddiction"}, {DefName: "Luciferium", AddictionHediff: "LuciferiumAddiction"},
+		},
+		HediffDefs: []*d.HediffDef{
+			{DefName: "AlcoholAddiction", Comps: fadingComp(-0.01)}, {DefName: "GoJuiceAddiction", Comps: fadingComp(-0.02)},
+			{DefName: "PsychiteAddiction", Comps: fadingComp(-0.01)}, {DefName: "LuciferiumAddiction"},
+			{DefName: "PenoxycylineHigh", Stages: []*d.Opt_HediffStage{{Value: &d.HediffStage{MakeImmuneTo: []string{"Plague", "Malaria"}}}},
+				Comps: []*d.Opt_HediffCompPropertiesAny{{Value: &d.HediffCompPropertiesAny{Value: &d.HediffCompPropertiesAny_HediffCompProperties_Disappears{HediffCompProperties_Disappears: &d.HediffCompProperties_Disappears{DisappearsAfterTicks: &d.IntRange{Min: 300000, Max: 300000}}}}}}},
+		},
 	}
 	v.StatValues = &o.DefStatTable{
 		Stats: []string{"MarketValue", "Nutrition"},
@@ -28,6 +53,69 @@ func itemTestCatalog() *o.DefinitionCatalog {
 		},
 	}
 	return v
+}
+
+func drugRow(name, chemical string, category d.DrugCategory, order float32, combat bool) *d.ThingDef {
+	return &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{DrugCategory: category},
+		Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Drug{CompProperties_Drug: &d.CompProperties_Drug{Chemical: chemical, ListOrder: order, IsCombatEnhancingDrug: combat}}}}}}
+}
+
+func fadingComp(perDay float32) []*d.Opt_HediffCompPropertiesAny {
+	return []*d.Opt_HediffCompPropertiesAny{{Value: &d.HediffCompPropertiesAny{Value: &d.HediffCompPropertiesAny_HediffCompProperties_SeverityPerDay{HediffCompProperties_SeverityPerDay: &d.HediffCompProperties_SeverityPerDay{SeverityPerDay: perDay}}}}}
+}
+
+// TestDefinitionCatalogDrugFacts (#1734): the drugs, their preference order,
+// which chemicals' addictions fade, the preventive drug and the currency are
+// the def rows', with no name in Go.
+func TestDefinitionCatalogDrugFacts(t *testing.T) {
+	catalog, err := DecodeDefinitionCatalog(itemTestCatalog(), pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := catalog.ItemFacts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := func(drugs []policy.Drug) (out []string) {
+		for _, drug := range drugs {
+			out = append(out, string(drug.Def))
+		}
+		return out
+	}
+	if got := names(items.Drugs); !slices.Equal(got, []string{"Beer", "PsychiteTea", "Yayo", "GoJuice", "Luciferium"}) {
+		t.Fatalf("drugs, social first then by list order: %v", got)
+	}
+	if got := names(items.RecreationDrugs()); !slices.Equal(got, []string{"Beer", "PsychiteTea"}) {
+		t.Fatalf("recreation %v", got)
+	}
+	if got := names(items.CombatDrugs()); !slices.Equal(got, []string{"Yayo", "GoJuice"}) {
+		t.Fatalf("combat %v", got)
+	}
+	if drug, ok := items.DependencyDrug("Psychite"); !ok || drug != "PsychiteTea" {
+		t.Fatalf("dependency drug %v %v", drug, ok)
+	}
+	if !items.Chemicals["Alcohol"].Weanable || items.Chemicals["Luciferium"].Weanable {
+		t.Fatalf("addictions that fade: %+v", items.Chemicals)
+	}
+	if p := items.Prevention; p == nil || p.Drug != "Penoxycyline" || p.Days != 5 || !slices.Equal(p.Diseases, []string{"Malaria", "Plague"}) {
+		t.Fatalf("prevention %+v", p)
+	}
+	if items.Currency != "Silver" {
+		t.Fatalf("currency %q", items.Currency)
+	}
+	if got := items.Categories["RawRice"]; !slices.Equal(got, []string{"Foods", "PlantFoodRaw"}) {
+		t.Fatalf("categories carry their parents: %v", got)
+	}
+
+	missing := itemTestCatalog()
+	missing.Defs.ChemicalDefs = missing.Defs.ChemicalDefs[1:]
+	catalog, err = DecodeDefinitionCatalog(missing, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := catalog.ItemFacts(); err == nil || !strings.Contains(err.Error(), "Alcohol") {
+		t.Fatalf("a drug whose chemical has no row built facts: %v", err)
+	}
 }
 
 // TestDefinitionCatalogItemFacts (#1734): the item facts are the catalog's

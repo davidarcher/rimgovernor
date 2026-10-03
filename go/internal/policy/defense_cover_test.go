@@ -31,7 +31,7 @@ func firingCover(t *testing.T, r DefenseRequest) map[domain.Cell]string {
 
 func TestDefenseLayoutSandbagsWhenFabricStocked(t *testing.T) {
 	stock := map[Resource]int64{"WoodLog": 500, "Cloth": 20, "Leather_Plain": 40}
-	d := DefenseCoverChoice(barricadeDefinitions(), stock, true, true, false, 3)
+	d := DefenseCoverChoice(CoreItemFacts(), barricadeDefinitions(), stock, true, true, false, 3)
 	if d.Sandbag != DefenseSandbags || d.SandbagStuff != "Leather_Plain" || d.Embrasure != "" {
 		t.Fatalf("%+v", d)
 	}
@@ -48,10 +48,10 @@ func TestDefenseLayoutSandbagsWhenFabricStocked(t *testing.T) {
 func TestDefenseLayoutBarricadeFallback(t *testing.T) {
 	base := barricadeDefinitions()
 	for name, d := range map[string]DefenseDefinitions{
-		"short stock":     DefenseCoverChoice(base, map[Resource]int64{"Cloth": 14}, true, true, false, 3),
-		"no fabric":       DefenseCoverChoice(base, map[Resource]int64{"WoodLog": 500, "Steel": 500}, true, true, false, 3),
-		"stock unknown":   DefenseCoverChoice(base, nil, false, true, false, 3),
-		"sandbags absent": DefenseCoverChoice(base, map[Resource]int64{"Cloth": 500}, true, false, false, 3),
+		"short stock":     DefenseCoverChoice(CoreItemFacts(), base, map[Resource]int64{"Cloth": 14}, true, true, false, 3),
+		"no fabric":       DefenseCoverChoice(CoreItemFacts(), base, map[Resource]int64{"WoodLog": 500, "Steel": 500}, true, true, false, 3),
+		"stock unknown":   DefenseCoverChoice(CoreItemFacts(), base, nil, false, true, false, 3),
+		"sandbags absent": DefenseCoverChoice(CoreItemFacts(), base, map[Resource]int64{"Cloth": 500}, true, false, false, 3),
 	} {
 		if d != base {
 			t.Fatalf("%s: %+v", name, d)
@@ -70,7 +70,7 @@ func TestDefenseLayoutBarricadeFallback(t *testing.T) {
 func TestDefenseLayoutEmbrasureOnWallLine(t *testing.T) {
 	r := defenseFixture()
 	r.Killbox.Walled = cells(14, 22, 15, 22, 16, 22)
-	r.Definitions = DefenseCoverChoice(r.Definitions, nil, false, false, true, 3)
+	r.Definitions = DefenseCoverChoice(CoreItemFacts(), r.Definitions, nil, false, false, true, 3)
 	got := firingCover(t, r)
 	for _, c := range cells(15, 22, 14, 22, 16, 22) {
 		if got[c] != "Embrasure/BlocksGranite" {

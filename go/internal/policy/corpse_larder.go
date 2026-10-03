@@ -7,6 +7,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// larderRotMargin is the rot runway a held corpse must keep, our own tuning:
+// a quarter day leaves time for ordinary butchering and hauling. The dense
+// meat thresholds below are tuning too; the game defines no "safe" days.
+const larderRotMargin = domain.TicksPerDay / 4
+
 type CorpseHandling struct {
 	ID                string
 	Cell              domain.Cell
@@ -108,7 +113,7 @@ func SelectCorpseLarder(v FoodStorageObservation) (CorpseLarderMethod, error) {
 		}
 		frozen := roof && temp <= 0
 		dense := meat > 225 || size <= 0.75 && meat > 75
-		if forbidden && (!frozen || !dense || ticks <= 15000 || available < larder.CookDemandNutrition) {
+		if forbidden && (!frozen || !dense || ticks <= larderRotMargin || available < larder.CookDemandNutrition) {
 			return CorpseLarderMethod{Kind: "allow", Stock: s, Handling: row}, nil
 		}
 	}
@@ -131,7 +136,7 @@ func SelectCorpseLarder(v FoodStorageObservation) (CorpseLarderMethod, error) {
 			continue
 		}
 		if roof && temp <= 0 {
-			if (meat > 225 || size <= 0.75 && meat > 75) && ticks > 15000 && available-nutrition >= larder.CookDemandNutrition {
+			if (meat > 225 || size <= 0.75 && meat > 75) && ticks > larderRotMargin && available-nutrition >= larder.CookDemandNutrition {
 				return CorpseLarderMethod{Kind: "forbid", Stock: s, Handling: row}, nil
 			}
 		} else if row.FrozenDestination && row.Hauler != "" {

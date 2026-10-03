@@ -30,6 +30,7 @@ func holdView() CombatView {
 	s2, d2 := combatRaider("r2", domain.Cell{X: 10, Z: 4})
 	return CombatView{
 		Tick:       100,
+		Drug:       "GoJuice",
 		Defenders:  []SquadDefenderFacts{combatRifleman("a"), combatRifleman("b"), combatRifleman("c")},
 		Threats:    []SquadThreatFacts{s1, s2},
 		Positional: []DefensiveThreatFacts{d1, d2},

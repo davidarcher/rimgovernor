@@ -8,47 +8,30 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// RecreationDrug is a social drug a pawn may take for joy and the chemical
-// whose tolerance and addiction it builds.
-type RecreationDrug struct {
-	Def, Chemical string
-}
-
-// RecreationDrugs are the Core joy drugs a per-pawn policy may allow
-// (#1537). All three are addictive.
-var RecreationDrugs = []RecreationDrug{{"Beer", "Alcohol"}, {"SmokeleafJoint", "Smokeleaf"}, {"PsychiteTea", "Psychite"}}
-
 // HighTolerance is the chemical tolerance severity at and above which a
 // pawn stops taking that chemical for joy: the addiction risk is high.
 const HighTolerance = 0.5
 
-// PreventiveDiseases are the biome disease hediffs penoxycyline prevents.
-var PreventiveDiseases = []string{"Malaria", "Plague"}
-
-// Penoxycyline is the preventive drug and PenoxycylineDays its schedule:
-// one dose protects for five days.
-const (
-	Penoxycyline     = "Penoxycyline"
-	PenoxycylineDays = 5
-)
-
-// DependencyDrugs is the drug scheduled for each chemical a Biotech
-// chemical-dependency gene needs (#1539).
-var DependencyDrugs = map[string]string{
-	"Alcohol": "Beer", "Smokeleaf": "SmokeleafJoint", "Psychite": "PsychiteTea",
-	"GoJuice": "GoJuice", "WakeUp": "WakeUp", "Luciferium": "Luciferium",
-}
-
-// DependencyDays is the dependency drug's schedule: a gene's deficiency
-// starts after five days without the chemical, so a dose every four days
-// keeps it away.
+// DependencyDays is the dependency drug's schedule, our own tuning: a
+// gene's deficiency starts after five days without the chemical, so a dose
+// every four days keeps it away. The drug of each chemical is the catalog's
+// (ItemFacts.DependencyDrug, #1539).
 const DependencyDays = 4
 
-// DiseaseBiome reports whether the biome's diseases include one
-// penoxycyline prevents.
-func DiseaseBiome(diseases []string) bool {
+// MaintainDays is the days between maintenance doses of a weanable
+// addiction, our own tuning: inside the chemical need's decay, so a
+// scheduled dose lands before withdrawal. A chemical whose addiction never
+// fades takes DependencyDays.
+const MaintainDays = 2
+
+// DiseaseBiome reports whether the biome's diseases include one the
+// preventive drug makes its taker immune to; false without such a drug.
+func DiseaseBiome(items ItemFacts, diseases []string) bool {
+	if items.Prevention == nil {
+		return false
+	}
 	for _, d := range diseases {
-		if slices.Contains(PreventiveDiseases, d) {
+		if slices.Contains(items.Prevention.Diseases, d) {
 			return true
 		}
 	}
@@ -85,7 +68,7 @@ func joyEntry(def string) domain.DrugPolicyEntry {
 // and the drug of each chemical-dependency gene on schedule (#1539).
 // Everything else is off. Unknown while the pawn's age, traits or chemical
 // state are.
-func DrugEntries(pawn WorkPawn, diseaseBiome bool) ([]domain.DrugPolicyEntry, bool) {
+func DrugEntries(pawn WorkPawn, items ItemFacts, diseaseBiome bool) ([]domain.DrugPolicyEntry, bool) {
 	age, ak := pawn.Age.Value()
 	traits, tk := pawn.Traits.Value()
 	inputs, ik := pawn.PolicyInputs.Value()
@@ -98,17 +81,17 @@ func DrugEntries(pawn WorkPawn, diseaseBiome bool) ([]domain.DrugPolicyEntry, bo
 		interest += TraitEffect(t).ChemicalInterest
 	}
 	if age >= childAge && interest == 0 {
-		entries = joyEntries(inputs)
+		entries = joyEntries(inputs, items)
 	}
 	schedule := func(def string, days float64) {
 		entries = mergeEntry(entries, domain.DrugPolicyEntry{Drug: def, Scheduled: true, DaysFrequency: days, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1})
 	}
-	if diseaseBiome {
-		schedule(Penoxycyline, PenoxycylineDays)
+	if diseaseBiome && items.Prevention != nil {
+		schedule(string(items.Prevention.Drug), items.Prevention.Days)
 	}
 	for _, c := range inputs.DependencyChemicals {
-		if def, ok := DependencyDrugs[c]; ok {
-			schedule(def, DependencyDays)
+		if def, ok := items.DependencyDrug(c); ok {
+			schedule(string(def), DependencyDays)
 		}
 	}
 	return entries, true
@@ -116,11 +99,11 @@ func DrugEntries(pawn WorkPawn, diseaseBiome bool) ([]domain.DrugPolicyEntry, bo
 
 // joyEntries are the recreation drugs a pawn may take for joy: each unless
 // it is addicted to or highly tolerant of the drug's chemical.
-func joyEntries(inputs PawnPolicyInputs) []domain.DrugPolicyEntry {
+func joyEntries(inputs PawnPolicyInputs, items ItemFacts) []domain.DrugPolicyEntry {
 	entries := []domain.DrugPolicyEntry{}
-	for _, d := range RecreationDrugs {
+	for _, d := range items.RecreationDrugs() {
 		if !chemicalRisky(inputs, d.Chemical) {
-			entries = append(entries, joyEntry(d.Def))
+			entries = append(entries, joyEntry(string(d.Def)))
 		}
 	}
 	return entries
@@ -142,16 +125,30 @@ func chemicalRisky(inputs PawnPolicyInputs, chemical string) bool {
 	return false
 }
 
-// CombatDrugs are the drugs a soldier carries (#1540), in preference
-// order: go-juice, or yayo when the colony is known to have no go-juice.
-// Wake-up is never carried here; ingesting on draft is #1311.
-var CombatDrugs = []RecreationDrug{{"GoJuice", "GoJuice"}, {"Yayo", "Psychite"}}
+// CarryDrug is the combat drug a soldier carries (#1540): the preferred
+// combat-enhancing drug (ItemFacts.CombatDrugs), or the first of them in
+// stock when the colony's stock is known and the preferred one is out.
+// Ingesting on draft is #1311. false when the game has no combat drug.
+func CarryDrug(items ItemFacts, stock map[string]int64) (Drug, bool) {
+	drugs := items.CombatDrugs()
+	if len(drugs) == 0 {
+		return Drug{}, false
+	}
+	if stock != nil {
+		for _, d := range drugs {
+			if stock[string(d.Def)] > 0 {
+				return d, true
+			}
+		}
+	}
+	return drugs[0], true
+}
 
 // CarryEntries is the combat drug a soldier-squad member carries (#1540):
-// one go-juice (yayo when noGoJuice) taken to inventory, not for joy, under
-// the same exclusions as DrugEntries. Unknown while DrugEntries is.
-func CarryEntries(pawn WorkPawn, noGoJuice bool) ([]domain.DrugPolicyEntry, bool) {
-	if _, ok := DrugEntries(pawn, false); !ok {
+// one dose of drug taken to inventory, not for joy, under the same
+// exclusions as DrugEntries. Unknown while DrugEntries is.
+func CarryEntries(pawn WorkPawn, items ItemFacts, drug Drug) ([]domain.DrugPolicyEntry, bool) {
+	if _, ok := DrugEntries(pawn, items, false); !ok {
 		return nil, false
 	}
 	age, _ := pawn.Age.Value()
@@ -161,14 +158,10 @@ func CarryEntries(pawn WorkPawn, noGoJuice bool) ([]domain.DrugPolicyEntry, bool
 	for _, t := range traits {
 		interest += TraitEffect(t).ChemicalInterest
 	}
-	d := CombatDrugs[0]
-	if noGoJuice {
-		d = CombatDrugs[1]
-	}
-	if age < childAge || interest != 0 || chemicalRisky(inputs, d.Chemical) {
+	if age < childAge || interest != 0 || chemicalRisky(inputs, drug.Chemical) {
 		return nil, true
 	}
-	return []domain.DrugPolicyEntry{{Drug: d.Def, TakeToInventory: 1, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}}, true
+	return []domain.DrugPolicyEntry{{Drug: string(drug.Def), TakeToInventory: 1, DaysFrequency: 1, OnlyIfMoodBelow: 1, OnlyIfJoyBelow: 1}}, true
 }
 
 // AddictionDrug is a chemical a pawn can be addicted to, the drugs that
@@ -180,16 +173,22 @@ type AddictionDrug struct {
 	AlwaysMaintain bool
 }
 
-// AddictionDrugs are the Core addictive chemicals (#1538). Each maintenance
-// interval sits inside the chemical need's decay, so a scheduled dose lands
-// before withdrawal; luciferium is never weaned.
-var AddictionDrugs = []AddictionDrug{
-	{Chemical: "Alcohol", Drugs: []string{"Beer"}, MaintainDays: 2},
-	{Chemical: "Smokeleaf", Drugs: []string{"SmokeleafJoint"}, MaintainDays: 2},
-	{Chemical: "Psychite", Drugs: []string{"PsychiteTea", "Yayo", "Flake"}, MaintainDays: 2},
-	{Chemical: "GoJuice", Drugs: []string{"GoJuice"}, MaintainDays: 2},
-	{Chemical: "WakeUp", Drugs: []string{"WakeUp"}, MaintainDays: 2},
-	{Chemical: "Luciferium", Drugs: []string{"Luciferium"}, MaintainDays: 4, AlwaysMaintain: true},
+// AddictionDrugs are the addictive chemicals of the catalog's drugs, by
+// chemical name (#1538). A chemical whose addiction does not fade on its own
+// (ItemFacts.Chemicals) is never weaned: it is always maintained.
+func (i ItemFacts) AddictionDrugs() []AddictionDrug {
+	var out []AddictionDrug
+	for _, chemical := range i.DrugChemicals() {
+		a := AddictionDrug{Chemical: chemical, MaintainDays: MaintainDays, AlwaysMaintain: !i.Chemicals[chemical].Weanable}
+		if a.AlwaysMaintain {
+			a.MaintainDays = DependencyDays
+		}
+		for _, d := range i.DrugsOf(chemical) {
+			a.Drugs = append(a.Drugs, string(d.Def))
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // WeanDays is how long a full-severity addiction takes to end without the
@@ -219,17 +218,17 @@ func WeanDoses(a AddictionDrug, severity float64) int64 {
 // covers the weaning doses, which it then consumes; otherwise maintained at
 // its interval and allowed for the need. Luciferium is always maintained.
 // An addiction with none of its drugs in stock schedules nothing.
-func AddictionEntries(pawn WorkPawn, stock map[string]int64) []domain.DrugPolicyEntry {
+func AddictionEntries(pawn WorkPawn, items ItemFacts, stock map[string]int64) []domain.DrugPolicyEntry {
 	inputs, ok := pawn.PolicyInputs.Value()
 	if !ok {
 		return nil
 	}
-	return addictionEntries(inputs, stock)
+	return addictionEntries(inputs, items, stock)
 }
 
-func addictionEntries(inputs PawnPolicyInputs, stock map[string]int64) []domain.DrugPolicyEntry {
+func addictionEntries(inputs PawnPolicyInputs, items ItemFacts, stock map[string]int64) []domain.DrugPolicyEntry {
 	var out []domain.DrugPolicyEntry
-	for _, a := range AddictionDrugs {
+	for _, a := range items.AddictionDrugs() {
 		severity, addicted := 0.0, false
 		for _, c := range inputs.Chemicals {
 			if v, ok := c.Addiction.Value(); ok && c.Chemical == a.Chemical {
@@ -273,17 +272,16 @@ func addictionEntries(inputs PawnPolicyInputs, stock map[string]int64) []domain.
 // biomeDiseases is the colony map biome's disease hediffs (#1539).
 // Each prisoner holds its own policy too (#1554), allowing no recreation,
 // only the addiction maintenance and weaning its chemicals owe.
-func DrugPolicyChanges(pawns []WorkPawn, prisoners []PrisonerFacts, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
-	diseaseBiome := DiseaseBiome(biomeDiseases)
+func DrugPolicyChanges(items ItemFacts, pawns []WorkPawn, prisoners []PrisonerFacts, names []OwnedName, policies []DrugPolicyEntry, stock domain.Fact[[]Amount], biomeDiseases []string, squad SoldierSquad) []DrugPolicyChange {
+	diseaseBiome := DiseaseBiome(items, biomeDiseases)
 	var remaining map[string]int64
-	noGoJuice := false
 	if rows, ok := stock.Value(); ok {
 		remaining = map[string]int64{}
 		for _, r := range rows {
 			remaining[string(r.Resource)] += r.Count
 		}
-		noGoJuice = remaining[CombatDrugs[0].Def] <= 0
 	}
+	carry, hasCarry := CarryDrug(items, remaining)
 	short, count := map[PawnID]string{}, map[string]int{}
 	for _, n := range names {
 		short[n.Pawn] = n.Short
@@ -300,17 +298,17 @@ func DrugPolicyChanges(pawns []WorkPawn, prisoners []PrisonerFacts, names []Owne
 	for _, pawn := range pawns {
 		if inputs, ok := pawn.PolicyInputs.Value(); ok {
 			rows = append(rows, owed{pawn.ID, inputs, func() ([]domain.DrugPolicyEntry, bool) {
-				want, ok := DrugEntries(pawn, diseaseBiome)
+				want, ok := DrugEntries(pawn, items, diseaseBiome)
 				if !ok {
 					return nil, false
 				}
-				if squad.IsSoldier(pawn.ID) {
-					carry, _ := CarryEntries(pawn, noGoJuice)
-					for _, e := range carry {
+				if squad.IsSoldier(pawn.ID) && hasCarry {
+					entries, _ := CarryEntries(pawn, items, carry)
+					for _, e := range entries {
 						want = mergeEntry(want, e)
 					}
 				}
-				for _, e := range AddictionEntries(pawn, remaining) {
+				for _, e := range AddictionEntries(pawn, items, remaining) {
 					want = mergeEntry(want, e)
 				}
 				return want, true
@@ -320,7 +318,7 @@ func DrugPolicyChanges(pawns []WorkPawn, prisoners []PrisonerFacts, names []Owne
 	for _, prisoner := range prisoners {
 		if inputs, ok := prisoner.PolicyInputs.Value(); ok {
 			rows = append(rows, owed{PawnID(prisoner.Pawn), inputs, func() ([]domain.DrugPolicyEntry, bool) {
-				return append([]domain.DrugPolicyEntry{}, addictionEntries(inputs, remaining)...), true
+				return append([]domain.DrugPolicyEntry{}, addictionEntries(inputs, items, remaining)...), true
 			}})
 		}
 	}

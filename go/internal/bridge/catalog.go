@@ -307,6 +307,9 @@ func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 	if v.TicksPerHour != domain.TicksPerHour || v.TicksPerDay != domain.TicksPerDay || v.DaysPerYear != domain.DaysPerYear {
 		return nil, contract("catalog calendar %d ticks per hour, %d per day, %d days per year differs from the one Go plans with", v.TicksPerHour, v.TicksPerDay, v.DaysPerYear)
 	}
+	if v.CurrencyDef == "" {
+		return nil, contract("catalog constant currency_def is empty")
+	}
 	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
 		return nil, contract("catalog constant lit_glow_threshold is %v", g)
 	}

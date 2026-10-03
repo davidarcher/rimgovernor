@@ -39198,8 +39198,11 @@ type CatalogConstants struct {
 	// GlowGrid.GameGlowLitThreshold (a non-public const): the glow at or above
 	// which a cell counts as lit.
 	LitGlowThreshold float32 `protobuf:"fixed32,6,opt,name=lit_glow_threshold,json=litGlowThreshold,proto3" json:"lit_glow_threshold,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
+	// the coin every price and the colony census count in.
+	CurrencyDef   string `protobuf:"bytes,7,opt,name=currency_def,json=currencyDef,proto3" json:"currency_def,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CatalogConstants) Reset() {
@@ -39272,6 +39275,13 @@ func (x *CatalogConstants) GetLitGlowThreshold() float32 {
 		return x.LitGlowThreshold
 	}
 	return 0
+}
+
+func (x *CatalogConstants) GetCurrencyDef() string {
+	if x != nil {
+		return x.CurrencyDef
+	}
+	return ""
 }
 
 // The static Ideology definitions (#1654), each a game def read natively,
@@ -50787,14 +50797,15 @@ const file_observations_proto_rawDesc = "" +
 	"stuff_name\x18\x02 \x01(\tR\tstuffName\x12\x12\n" +
 	"\x04stat\x18\x03 \x03(\x05R\x04stat\x12\x14\n" +
 	"\x05value\x18\x04 \x03(\x02R\x05value\x12;\n" +
-	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\xfc\x01\n" +
+	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\"\x9f\x02\n" +
 	"\x10CatalogConstants\x12$\n" +
 	"\x0eticks_per_hour\x18\x01 \x01(\x05R\fticksPerHour\x12\"\n" +
 	"\rticks_per_day\x18\x02 \x01(\x05R\vticksPerDay\x12\"\n" +
 	"\rdays_per_year\x18\x03 \x01(\x05R\vdaysPerYear\x12$\n" +
 	"\x0ebill_stack_max\x18\x04 \x01(\x05R\fbillStackMax\x12&\n" +
 	"\x0fskill_max_level\x18\x05 \x01(\x05R\rskillMaxLevel\x12,\n" +
-	"\x12lit_glow_threshold\x18\x06 \x01(\x02R\x10litGlowThreshold\"\xac\x02\n" +
+	"\x12lit_glow_threshold\x18\x06 \x01(\x02R\x10litGlowThreshold\x12!\n" +
+	"\fcurrency_def\x18\a \x01(\tR\vcurrencyDef\"\xac\x02\n" +
 	"\x0fIdeologyCatalog\x12A\n" +
 	"\x05memes\x18\x01 \x03(\v2+.rimgovernor.observations.v1.MemeDefinitionR\x05memes\x12J\n" +
 	"\bprecepts\x18\x02 \x03(\v2..rimgovernor.observations.v1.PreceptDefinitionR\bprecepts\x12A\n" +

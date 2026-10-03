@@ -1,6 +1,9 @@
 package bridge
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
@@ -16,7 +19,8 @@ const (
 
 // ItemFacts are the planner-facing item numbers of the catalog (#1734): the
 // game's market value and nutrition of every item def, the potency of every
-// medicine, and the stuff factors. A catalog without a stat table gives the
+// medicine, the stuff factors, the currency and the drugs. Categories carry
+// every thing category a def sits within, parents included. A catalog without a stat table gives the
 // zero value, on which every lookup fails; a stuff with no market value is
 // an error, since it could not be priced.
 func (catalog *DefinitionCatalog) ItemFacts() (policy.ItemFacts, error) {
@@ -44,7 +48,11 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 			}
 		}
 		if len(def.ThingCategories) > 0 {
-			items.Categories[resource] = def.ThingCategories
+			within, err := catalog.categoriesWithin(name, def)
+			if err != nil {
+				return policy.ItemFacts{}, err
+			}
+			items.Categories[resource] = slices.Sorted(maps.Keys(within))
 		}
 		if len(def.StuffCategories) > 0 {
 			items.AcceptedStuff[resource] = def.StuffCategories
@@ -64,6 +72,13 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 				return policy.ItemFacts{}, contract("catalog stuff %s has no market value", name)
 			}
 		}
+	}
+	items.Currency = policy.Resource(catalog.Constants.CurrencyDef)
+	if catalog.ThingDefs[catalog.Constants.CurrencyDef] == nil {
+		return policy.ItemFacts{}, contract("catalog has no def row for the currency %s", catalog.Constants.CurrencyDef)
+	}
+	if err := buildDrugFacts(catalog, &items); err != nil {
+		return policy.ItemFacts{}, err
 	}
 	return items, nil
 }

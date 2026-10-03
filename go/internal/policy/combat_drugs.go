@@ -11,7 +11,7 @@ import (
 // comes within its weapon range plus doseMargin and the fight is worth the
 // drug: the squad is outmatched, or a mech or a go-juiced raider is in it.
 // A lone manhunter rat is fought sober. The order names the preferred
-// combat drug (CombatDrugs); native validates it and refuses a child, a
+// combat drug (CombatView.Drug); native validates it and refuses a child, a
 // pawn already high, or one addicted to, in withdrawal from or highly
 // tolerant of its chemical.
 const (
@@ -48,7 +48,7 @@ func worthDosing(view CombatView, state map[domain.PawnID]CombatPawnState) bool 
 // attack; a fight sheltering or scattered doses no one. Each pawn is
 // dosed at most once per fight, refused or not.
 func doseOrders(view CombatView, m *CombatMemory, orders []CombatOrder, orderable map[domain.PawnID]bool, state map[domain.PawnID]CombatPawnState) []CombatOrder {
-	if m.Wait || m.PodWait || m.Scattered || m.Tactic == TacticShelter || !worthDosing(view, state) {
+	if view.Drug == "" || m.Wait || m.PodWait || m.Scattered || m.Tactic == TacticShelter || !worthDosing(view, state) {
 		return nil
 	}
 	var hostiles []CombatPawnState
@@ -68,7 +68,7 @@ func doseOrders(view CombatView, m *CombatMemory, orders []CombatOrder, orderabl
 			continue
 		}
 		m.Dosed = append(m.Dosed, id)
-		doses = append(doses, CombatOrder{Pawn: id, Kind: OrderDrug, Drug: CombatDrugs[0].Def, Reason: ReasonDrug})
+		doses = append(doses, CombatOrder{Pawn: id, Kind: OrderDrug, Drug: view.Drug, Reason: ReasonDrug})
 	}
 	return doses
 }

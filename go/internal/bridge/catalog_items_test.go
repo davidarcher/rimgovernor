@@ -23,6 +23,8 @@ func compsAny(values ...any) []*d.CompPropertiesAny {
 		switch v := v.(type) {
 		case *d.CompProperties_Rottable:
 			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Rottable{CompProperties_Rottable: v}})
+		case *d.CompProperties_Drug:
+			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Drug{CompProperties_Drug: v}})
 		case *d.CompProperties_Power:
 			out = append(out, &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: v}})
 		case *d.CompProperties_Battery:

@@ -183,6 +183,8 @@ namespace HomeBridge.BridgeTools
             BillStackMax = BillStack.MaxCount,
             SkillMaxLevel = SkillRecord.MaxLevel,
             LitGlowThreshold = LitGlowThreshold(),
+            // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
+            CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
         };
 
         // GlowGrid.GameGlowLitThreshold is a non-public const: read it by name, and

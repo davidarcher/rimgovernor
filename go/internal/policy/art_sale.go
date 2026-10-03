@@ -10,15 +10,15 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // reserve. The sculpture sells through SelectTrade like any surplus.
 
 // SilverStock is the colony's silver from the resource census; unknown
-// while the census is.
-func SilverStock(resources domain.Fact[[]Amount]) domain.Fact[int64] {
+// while the census or the catalog's currency is.
+func SilverStock(items ItemFacts, resources domain.Fact[[]Amount]) domain.Fact[int64] {
 	rows, known := resources.Value()
-	if !known {
+	if !known || items.Currency == "" {
 		return domain.Unknown[int64]()
 	}
 	var n int64
 	for _, row := range rows {
-		if row.Resource == "Silver" {
+		if row.Resource == items.Currency {
 			n += row.Count
 		}
 	}
@@ -26,7 +26,7 @@ func SilverStock(resources domain.Fact[[]Amount]) domain.Fact[int64] {
 }
 
 // Silver is the colony silver stock (SilverStock over f.Resources).
-func (f RoutineFacts) Silver() domain.Fact[int64] { return SilverStock(f.Resources) }
+func (f RoutineFacts) Silver() domain.Fact[int64] { return SilverStock(f.Items, f.Resources) }
 
 // PurchasePrice is the rough silver the need's purchases cost at the game's
 // market values (ItemFacts): the cheapest medicine a replenish buys, a
@@ -95,7 +95,7 @@ func ArtSaleWanted(items ItemFacts, headroom domain.Fact[float64], need domain.F
 
 // reviewSilverShort is SilverShort over the review's trade need.
 func reviewSilverShort(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) domain.Fact[bool] {
-	need := ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
+	need := ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
 	return SilverShort(f.Items, need, f.Silver(), f.Colonists)
 }
 

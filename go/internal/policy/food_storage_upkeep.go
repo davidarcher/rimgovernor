@@ -82,7 +82,8 @@ type FoodStoragePolicy struct {
 	AtRiskNutritionThreshold                    float64
 	// ChilledMaxC is the storage temperature at or below which perishable
 	// stock counts as refrigerated (RimWorld slows rot under 10 C and stops
-	// it under 0 C); SafeRotDays is the rot runway that makes warm roofed
+	// it under 0 C); SafeRotDays is our own tuning (the game defines no safe
+	// days): the rot runway that makes warm roofed
 	// stock acceptable anyway.
 	ChilledMaxC, SafeRotDays float64
 	// ChilledExitC is the measured storage temperature MaintainRefrigeration

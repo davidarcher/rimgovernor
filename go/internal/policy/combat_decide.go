@@ -347,6 +347,9 @@ type CombatView struct {
 	// Royalty is the slow-refresh royalty read (#1608); unknown holds every
 	// permit call.
 	Royalty domain.Fact[RoyaltyFacts] `json:",omitzero"`
+	// Drug is the preferred combat drug (ItemFacts.CombatDrugs) from the
+	// catalog; empty when the game has none, which orders no dose.
+	Drug string `json:",omitempty"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -515,7 +518,7 @@ type CombatOrder struct {
 	// A psycast_cast order (#1611) names the psycast in Permit and the arm
 	// it takes in Arm: self (no target), pawn (Target) or cell (Cell).
 	Arm PsycastTarget `json:",omitempty"`
-	// Drug is a drug order's drug def, the preferred combat drug (CombatDrugs);
+	// Drug is a drug order's drug def, the preferred combat drug (CombatView.Drug);
 	// native validates it and the pawn carrying it.
 	Drug string `json:",omitempty"`
 }

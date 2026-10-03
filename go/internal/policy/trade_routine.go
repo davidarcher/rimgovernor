@@ -199,9 +199,10 @@ func (n TradeNeed) Any() bool {
 // are EconomicReserves's per-definition floors (reserves plus construction
 // deficits); target-driven surplus rows win over wealth-driven ones for the
 // same resource.
+// currency is the colony census's coin, which is neither target nor surplus.
 // A single optional food context adds the shared ledger's food needs; omitting
 // it leaves food purchases and protected crop exports disabled.
-func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
+func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
 	replenish, known := medicine.Replenish.Value()
 	rows, rowsKnown := resources.Value()
 	if !known || !rowsKnown || p.Validate() != nil {
@@ -225,7 +226,7 @@ func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amou
 	sort.Strings(names)
 	for _, name := range names {
 		resource := Resource(name)
-		if resource == ComponentResource || resource == "Silver" {
+		if resource == ComponentResource || resource == currency {
 			continue
 		}
 		if short := targets[resource] - stock[resource]; short > 0 {

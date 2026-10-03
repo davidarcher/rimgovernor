@@ -1193,7 +1193,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	}
 	request.Defenders, request.MinRange = defenders, minRange
 	stock, stockKnown := projection.Resources.Value()
-	request.Definitions = policy.DefenseCoverChoice(request.Definitions, stock, stockKnown,
+	request.Definitions = policy.DefenseCoverChoice(projection.Facts.Items, request.Definitions, stock, stockKnown,
 		defenseDefinitionAvailable(read, policy.DefenseSandbags), defenseDefinitionAvailable(read, policy.DefenseEmbrasure), defenders)
 	defenseIEDRequest(read, &request)
 	// Rock on the corridor and the defenders' ground is mined first through

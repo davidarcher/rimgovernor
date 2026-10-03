@@ -18,7 +18,7 @@ func tradeNeed(t *testing.T, r Routine) policy.TradeNeed {
 	if err != nil {
 		t.Fatal(err)
 	}
-	need, known := policy.ReviewTradeNeed(medicine, r.Facts.Resources, r.Policy.ResourceTargets, policy.RoutineTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoutineTradeFood(r.Facts, r.Policy)).Value()
+	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Policy.ResourceTargets, policy.RoutineTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoutineTradeFood(r.Facts, r.Policy)).Value()
 	if !known {
 		t.Fatal("trade need unknown")
 	}

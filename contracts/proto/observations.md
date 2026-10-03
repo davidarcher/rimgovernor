@@ -223,7 +223,11 @@ must not type in: `ticks_per_hour`, `ticks_per_day`, `days_per_year`
 (`GenDate`), `bill_stack_max` (`BillStack.MaxCount`), `skill_max_level`
 (`SkillRecord.MaxLevel`) and `lit_glow_threshold`, read by reflection from the
 non-public const `GlowGrid.GameGlowLitThreshold`; the read throws naming the
-member when it is missing or not a float. There is no plant-glow constant: each
+member when it is missing or not a float. `currency_def` is `ThingDefOf.Silver`: the
+def `Tradeable.IsCurrency` tests, which Go reads as `ItemFacts.Currency` (the
+census coin; an empty value or a def with no row is refused). Drugs, chemicals
+and the preventive drug are not constants: `ItemFacts` derives them from the
+`CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.
 
 `bridge.DecodeDefinitionCatalog` keys the rows by def name in the per-load-token

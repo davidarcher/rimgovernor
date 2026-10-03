@@ -1981,6 +1981,9 @@ message CatalogConstants {
   // GlowGrid.GameGlowLitThreshold (a non-public const): the glow at or above
   // which a cell counts as lit.
   float lit_glow_threshold = 6;
+  // The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
+  // the coin every price and the colony census count in.
+  string currency_def = 7;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a

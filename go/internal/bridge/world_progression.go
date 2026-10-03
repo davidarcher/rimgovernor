@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"math"
 	"sort"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -46,12 +45,10 @@ type CaravanPawnFact struct {
 // once its pawns enter any map, home or foreign); a caravan departure's
 // receipt only reports that formation started. This type does not surface CaravanState.pawns' remaining
 // PawnState fields (needs, health details, and so on) or mass fields; a
-// future slice adds those once a caller needs them. Silver is the one
-// inventory quantity settlement-gift admission needs (a conservative reserve
-// check, not a full cargo manifest) and stays alongside the full Inventory
-// map for that existing caller; native always populates the full inventory
-// census (Inventory() has no failure path), so an absent Silver row is a
-// known zero, not unknown. FoodDaysKnown mirrors that same "absent is a
+// future slice adds those once a caller needs them. Inventory is the full
+// carried cargo; native always populates the full inventory census
+// (Inventory() has no failure path), so an absent row is a known zero, not
+// unknown (the currency is ItemFacts.Currency). FoodDaysKnown mirrors that same "absent is a
 // known fact, not a gap" discipline for CaravanState.food_days, which native
 // reports as an optional double.
 type CaravanJourney struct {
@@ -60,7 +57,6 @@ type CaravanJourney struct {
 	Moving        bool
 	PawnIDs       []string
 	Pawns         []CaravanPawnFact
-	Silver        int32
 	FoodDays      float64
 	FoodDaysKnown bool
 	HomeRoutes    []WorldRouteFact
@@ -266,7 +262,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			pawns[j] = fact
 		}
-		var silver int32
 		inventory := make(map[string]int64, len(row.Inventory))
 		seenDefs := map[string]bool{}
 		for _, item := range row.Inventory {
@@ -275,12 +270,6 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			}
 			seenDefs[item.GetDefName()] = true
 			inventory[item.GetDefName()] = item.GetUnits()
-			if item.GetDefName() == "Silver" {
-				if item.GetUnits() > math.MaxInt32 {
-					return WorldProgressionRead{}, contract("invalid world progression caravan silver")
-				}
-				silver = int32(item.GetUnits())
-			}
 		}
 		routes := make([]WorldRouteFact, len(row.HomeRoutes))
 		for k, route := range row.HomeRoutes {
@@ -299,7 +288,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 		if !combatNumber(row.FoodDays, true) {
 			return WorldProgressionRead{}, contract("invalid world progression caravan food days")
 		}
-		journey := CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Pawns: pawns, Silver: silver, HomeRoutes: routes, Inventory: inventory}
+		journey := CaravanJourney{ID: row.Caravan.GetId(), Tile: row.GetTile(), Moving: row.GetMoving(), PawnIDs: pawnIDs, Pawns: pawns, HomeRoutes: routes, Inventory: inventory}
 		if row.FoodDays != nil {
 			journey.FoodDays, journey.FoodDaysKnown = row.GetFoodDays(), true
 		}

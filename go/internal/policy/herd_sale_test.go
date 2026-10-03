@@ -136,7 +136,7 @@ func TestSelectTradeAnimalSaleKeepsSilverReserve(t *testing.T) {
 }
 
 func TestAnimalSaleNeedNeedsSilverShortage(t *testing.T) {
-	short := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(5))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{})
+	short := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(5))}, domain.Known([]Amount{}), nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{})
 	sale := map[PawnID]bool{"g1": true, "g2": true}
 	colonists := domain.Known(int64(3))
 	need, _ := AnimalSaleNeed(CoreItemFacts(), short, sale, domain.Known(int64(100)), colonists).Value()

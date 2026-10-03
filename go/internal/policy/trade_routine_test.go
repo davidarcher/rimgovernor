@@ -10,14 +10,14 @@ func TestReviewTradeNeedMeasuresShortfallsAndSurplus(t *testing.T) {
 	medicine := MedicalReserveReview{Active: true, Replenish: domain.Known(int64(4))}
 	resources := domain.Known([]Amount{{Resource: "Steel", Count: 500}, {Resource: ComponentResource, Count: 2}, {Resource: "WoodLog", Count: 40}})
 	targets := map[Resource]int64{"Steel": 200, "WoodLog": 100}
-	need, known := ReviewTradeNeed(medicine, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{ComponentTarget: 10}).Value()
+	need, known := ReviewTradeNeed(CoreItemFacts().Currency, medicine, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{ComponentTarget: 10}).Value()
 	if !known || need.MedicineReplenish != 4 || need.ComponentShortfall != 8 || len(need.Surplus) != 1 || need.Surplus[0] != (Amount{Resource: "Steel", Count: 300}) {
 		t.Fatal(need, known)
 	}
-	if _, known = ReviewTradeNeed(MedicalReserveReview{}, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); known {
+	if _, known = ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{}, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); known {
 		t.Fatal("unknown medicine reserve became a trade need")
 	}
-	if need, known = ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, resources, nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); !known || need.Any() {
+	if need, known = ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, resources, nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); !known || need.Any() {
 		t.Fatal(need, known)
 	}
 }
@@ -88,11 +88,11 @@ func TestReviewTradeNeedMergesWealthSurplusBehindTargets(t *testing.T) {
 	p := RoutineTradePolicy{}
 	// The steel target wins over the wealth rule's retained minimum; gold
 	// comes from the wealth rule alone, retained at its floor.
-	need, known := ReviewTradeNeed(medicine, resources, map[Resource]int64{"Steel": 1000}, nil, heavy, p).Value()
+	need, known := ReviewTradeNeed(CoreItemFacts().Currency, medicine, resources, map[Resource]int64{"Steel": 1000}, nil, heavy, p).Value()
 	if !known || !equalAmounts(need.Surplus, []Amount{{Resource: "Steel", Count: 1000}, {Resource: "Gold", Count: 30}}) || need.Retained["Steel"] != 1000 || need.Retained["Gold"] != 50 {
 		t.Fatal(need, known)
 	}
-	if need, known = ReviewTradeNeed(medicine, resources, nil, nil, domain.Unknown[WealthFacts](), p).Value(); !known || need.Any() {
+	if need, known = ReviewTradeNeed(CoreItemFacts().Currency, medicine, resources, nil, nil, domain.Unknown[WealthFacts](), p).Value(); !known || need.Any() {
 		t.Fatal("unknown wealth should leave only the target-driven surplus", need, known)
 	}
 	rows := []TradeSheetRowFact{{LineID: "l1", DefName: "Gold", ColonyCount: 80, SellPrice: 30, SellPriceKnown: true}}
@@ -183,7 +183,7 @@ func TestRoutineTradeTargetsBuyCheapestMedicineThenSellSurplus(t *testing.T) {
 // A MaintainResource floor short of stock is a trade need and a buy
 // target up to the floor (#728).
 func TestTradeBuysResourceShortfall(t *testing.T) {
-	need, _ := ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "WoodLog", Count: 50}}), map[Resource]int64{"WoodLog": 200}, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value()
+	need, _ := ReviewTradeNeed(CoreItemFacts().Currency, MedicalReserveReview{Replenish: domain.Known(int64(0))}, domain.Known([]Amount{{Resource: "WoodLog", Count: 50}}), map[Resource]int64{"WoodLog": 200}, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value()
 	if !need.Any() || len(need.Shortfall) != 1 || need.Shortfall[0] != (Amount{Resource: "WoodLog", Count: 150}) {
 		t.Fatalf("%+v", need)
 	}

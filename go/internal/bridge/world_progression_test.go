@@ -67,7 +67,7 @@ func TestReadWorldProgressionAcceptsValidObservation(t *testing.T) {
 		t.Fatal(out, err)
 	}
 	caravan := out.Caravans[0]
-	if !caravan.FoodDaysKnown || caravan.FoodDays != 2.5 || caravan.Silver != 50 || caravan.Inventory["Silver"] != 50 || caravan.Inventory["Steel"] != 75 {
+	if !caravan.FoodDaysKnown || caravan.FoodDays != 2.5 || caravan.Inventory["Silver"] != 50 || caravan.Inventory["Steel"] != 75 {
 		t.Fatal(caravan)
 	}
 	if len(caravan.Pawns) != 1 || caravan.Pawns[0].ID != "pawn-1" || !caravan.Pawns[0].DeadKnown || caravan.Pawns[0].Dead ||

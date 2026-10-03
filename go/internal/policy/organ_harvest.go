@@ -301,7 +301,7 @@ func SaleHarvestWanted(f RoutineFacts, silverShort domain.Fact[bool]) bool {
 func OrganSaleSurplus(items ItemFacts, need domain.Fact[TradeNeed], resources domain.Fact[[]Amount], colonists domain.Fact[int64]) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
 	rows, rk := resources.Value()
-	if !nk || !rk || !positive(SilverShort(items, need, SilverStock(resources), colonists)) {
+	if !nk || !rk || !positive(SilverShort(items, need, SilverStock(items, resources), colonists)) {
 		return need
 	}
 	stock := map[Resource]int64{}

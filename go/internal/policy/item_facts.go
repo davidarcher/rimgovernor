@@ -25,6 +25,91 @@ type ItemFacts struct {
 	StuffCategories, AcceptedStuff map[Resource][]string
 	// Categories are every item def's thing categories.
 	Categories map[Resource][]string
+	// Currency is the coin every price is in and the census counts: the
+	// def Tradeable.IsCurrency tests (ThingDefOf.Silver).
+	Currency Resource
+	// Drugs are the catalog's drug defs (a CompProperties_Drug with a
+	// chemical) in preference order: social drugs before hard ones, then the
+	// game's listOrder, then name.
+	Drugs []Drug
+	// Chemicals are the chemicals the drugs build tolerance of and
+	// addiction to, by name.
+	Chemicals map[string]Chemical
+	// Prevention is the drug that makes its taker immune to diseases, nil
+	// when the game has none.
+	Prevention *Prevention
+}
+
+// Drug is one drug def: the chemical it builds addiction to, whether the
+// game files it as a social drug (IngestibleProperties.drugCategory) and
+// whether it enhances combat (CompProperties_Drug.isCombatEnhancingDrug).
+type Drug struct {
+	Def      Resource
+	Chemical string
+	Social   bool
+	Combat   bool
+}
+
+// Chemical is what the colony needs to know of a chemical: whether its
+// addiction hediff fades on its own severity per day, which is what a
+// weaning plan relies on.
+type Chemical struct {
+	Weanable bool
+}
+
+// Prevention is a drug whose hediff makes the taker immune to Diseases for
+// Days (the hediff's disappearance time).
+type Prevention struct {
+	Drug     Resource
+	Days     float64
+	Diseases []string
+}
+
+// RecreationDrugs are the social drugs a per-pawn policy may allow for joy.
+func (i ItemFacts) RecreationDrugs() []Drug {
+	return i.drugsWhere(func(d Drug) bool { return d.Social })
+}
+
+// CombatDrugs are the combat-enhancing drugs, preferred first.
+func (i ItemFacts) CombatDrugs() []Drug {
+	return i.drugsWhere(func(d Drug) bool { return d.Combat })
+}
+
+// DrugsOf are the drugs that build chemical, preferred first.
+func (i ItemFacts) DrugsOf(chemical string) []Drug {
+	return i.drugsWhere(func(d Drug) bool { return d.Chemical == chemical })
+}
+
+// DependencyDrug is the drug a chemical-dependency gene's chemical is
+// satisfied with: the preferred drug of the chemical.
+func (i ItemFacts) DependencyDrug(chemical string) (Resource, bool) {
+	drugs := i.DrugsOf(chemical)
+	if len(drugs) == 0 {
+		return "", false
+	}
+	return drugs[0].Def, true
+}
+
+// DrugChemicals are the chemicals some drug builds, by name.
+func (i ItemFacts) DrugChemicals() []string {
+	var out []string
+	for _, d := range i.Drugs {
+		if !slices.Contains(out, d.Chemical) {
+			out = append(out, d.Chemical)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+func (i ItemFacts) drugsWhere(keep func(Drug) bool) []Drug {
+	var out []Drug
+	for _, d := range i.Drugs {
+		if keep(d) {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // MarketValue is def's market value.
