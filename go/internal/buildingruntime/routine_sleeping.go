@@ -46,10 +46,16 @@ type RoutineBuildingPlanner struct {
 	shelter          bool
 	excavation       RoutineExcavationSource
 	power            *policy.PowerProposal
-	temperature      *policy.TemperatureProposal
-	refrigeration    *policy.RefrigerationProposal
-	lighting         *policy.LightingProposal
-	flooring         *policy.FlooringProposal
+	// exactFootprint and windAllowance are set on a copy for one planned
+	// building (digSky): previewPlannedBuilding then requires the native
+	// footprint to be exactly that and at most windAllowance blocked wind
+	// cells (the catch cells the same plan clears).
+	exactFootprint []domain.Cell
+	windAllowance  int32
+	temperature    *policy.TemperatureProposal
+	refrigeration  *policy.RefrigerationProposal
+	lighting       *policy.LightingProposal
+	flooring       *policy.FlooringProposal
 	// firebreakPave supplies MaintainFlooring's firebreak tier: the ring's
 	// pave cells still natural ground with no floor ordered (#1549).
 	firebreakPave func() []domain.Cell
@@ -701,6 +707,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if result, handled, err := r.digExhaust(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, check); err != nil || handled {
 			return result, err
 		}
+	}
+	if result, handled, err := r.digSky(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {
+		return result, err
 	}
 	if r.power != nil && r.power.FixedSite() {
 		if result, handled, err := r.digGeothermal(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading}, protected, check); err != nil || handled {

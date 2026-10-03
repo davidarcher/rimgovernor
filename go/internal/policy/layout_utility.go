@@ -64,6 +64,23 @@ type UtilityWants struct {
 	TurbinePairs, Solar int
 	PenAnimals          int
 	Geysers             []Rectangle
+	// ThickRoof is the surveyed cells under overhead mountain; non-nil lets
+	// turbines and solar plots be sited on natural rock, dug and unroofed
+	// first, except where a cell is under thick roof (it cannot be
+	// removed). Nil keeps those sites off rock (#1758).
+	ThickRoof map[domain.Cell]bool
+}
+
+// ThickRoofCells is the survey's cells under thick mountain roof, for
+// UtilityWants.ThickRoof; never nil.
+func ThickRoofCells(s MapSurvey) map[domain.Cell]bool {
+	out := map[domain.Cell]bool{}
+	for _, c := range s.Cells {
+		if c.ThickRoof {
+			out[c.Cell] = true
+		}
+	}
+	return out
 }
 
 // penSide is the near-square rectangle holding at least animals x
@@ -113,6 +130,8 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	u := newUtilityGrid(plan)
+	u.thick = want.ThickRoof
+	skyRock := want.ThickRoof != nil
 	for _, role := range coolingRoles {
 		for _, r := range plan.AllRooms() {
 			if r.Role != role {
@@ -141,9 +160,9 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		// A pair stands north-south or, turned, east-west: whichever lies
 		// nearer the farmland, where its lanes double as fields.
 		fx, fz := u.fieldCentre()
-		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, false, true, fx, fz, 0)
+		site, cost, ok := u.siteCost(turbineWidth, turbinePairSpan, skyRock, true, fx, fz, 0)
 		turned := false
-		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, false, true, fx, fz, 0); tok && (!ok || tcost < cost) {
+		if t, tcost, tok := u.siteCost(turbinePairSpan, turbineWidth, skyRock, true, fx, fz, 0); tok && (!ok || tcost < cost) {
 			site, turned, ok = t, true, true
 		}
 		if !ok {
@@ -187,7 +206,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	for i := 0; i < want.Solar; i++ {
-		site, ok := u.site(solarSide, solarSide, false, false, u.cx, u.cz)
+		site, ok := u.site(solarSide, solarSide, skyRock, false, u.cx, u.cz)
 		if !ok {
 			break
 		}
@@ -403,6 +422,7 @@ type utilityGrid struct {
 	w, h           int32
 	ok, rock       []bool // core candidate; natural rock
 	field          []bool // planned farmland: sites avoid it
+	thick          map[domain.Cell]bool
 	keepOut        []bool // the core ring and the clearance the outer ring needs
 	used           []bool // planned rooms, spine, reservations
 	bandLo, bandHi int32  // the core's cross-section rows
@@ -550,8 +570,13 @@ func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (R
 	return r, ok
 }
 
+// skyRockPenalty is how many cells farther a site wholly on rock is worth
+// moving to reach open ground: digging and unroofing cost far more.
+const skyRockPenalty = 30.0
+
 // siteCost is site with an explicit farmland penalty (0 for sites that
-// belong on farmland) and the winning cost.
+// belong on farmland) and the winning cost. A rockOK site is a sky site:
+// it crosses rock but never a thick-roof cell, and rock costs extra.
 func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32, fieldReach float64) (Rectangle, float64, bool) {
 	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
@@ -566,12 +591,39 @@ func (u *utilityGrid) siteCost(w, h int32, rockOK, beyondRing bool, cx, cz int32
 			if found && cost >= bestCost {
 				continue
 			}
+			rock := 0
+			if rockOK {
+				rock = u.skyRock(r)
+			}
+			if rock < 0 {
+				continue
+			}
+			cost += skyRockPenalty * float64(rock) / float64(w*h)
+			if found && cost >= bestCost {
+				continue
+			}
 			if u.free(r, rockOK) && (!beyondRing || u.outside(r)) {
 				best, found, bestCost = r, true, cost
 			}
 		}
 	}
 	return best, bestCost, found
+}
+
+// skyRock counts r's rock cells, or -1 when any cell is under thick roof.
+func (u *utilityGrid) skyRock(r Rectangle) int {
+	n := 0
+	for z := max(r.Z, 0); z < min(r.Z+r.Height, u.h); z++ {
+		for x := max(r.X, 0); x < min(r.X+r.Width, u.w); x++ {
+			if u.thick[domain.Cell{X: x, Z: z}] {
+				return -1
+			}
+			if u.rock[z*u.w+x] {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // exhaust is the column behind r's back wall, away from the spine, out to
@@ -591,4 +643,26 @@ func (u *utilityGrid) exhaust(r LayoutRoom) (Rectangle, bool) {
 		c = domain.Cell{X: c.X + step.X, Z: c.Z + step.Z}
 	}
 	return Rectangle{}, false
+}
+
+// TurbineCatchZone is the lane cells of the turbine pair whose turbine
+// stands on area: the wind its blades catch. Nil for a site that is not a
+// turbine (a solar plot) or has no lanes.
+func TurbineCatchZone(plan LayoutPlan, area Rectangle) []domain.Cell {
+	pair := int32(0)
+	for _, r := range plan.Reservations {
+		if r.Kind == ReserveTurbine && r.Area == area {
+			pair = r.Pair
+		}
+	}
+	if pair == 0 {
+		return nil
+	}
+	var out []domain.Cell
+	for _, r := range plan.Reservations {
+		if r.Kind == ReserveTurbineLane && r.Pair == pair {
+			out = append(out, RectangleCells(r.Area)...)
+		}
+	}
+	return out
 }

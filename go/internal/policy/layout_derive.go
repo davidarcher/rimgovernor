@@ -31,7 +31,7 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 	}
 	plan.Zones = zones
 	want := layoutUtilities
-	want.Geysers, want.PenAnimals = footprints, animals
+	want.Geysers, want.PenAnimals, want.ThickRoof = footprints, animals, ThickRoofCells(s)
 	plan = PlanBaitRoom(PlanMountainPockets(PlanPerimeter(PlanUtilities(plan, want), s), s), s)
 	return domain.Known(withoutCore(plan))
 }

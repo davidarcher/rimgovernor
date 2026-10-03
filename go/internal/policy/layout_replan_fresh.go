@@ -50,7 +50,7 @@ func ReplanFresh(plan LayoutPlan, s MapSurvey, built map[domain.Cell]bool, pawns
 		}
 	}
 	want := layoutUtilities
-	want.PenAnimals = animals
+	want.PenAnimals, want.ThickRoof = animals, ThickRoofCells(s)
 	want.TurbinePairs = max(0, want.TurbinePairs-len(pairs))
 	var kept []LayoutReservation
 	for _, r := range plan.Reservations {

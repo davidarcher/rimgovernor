@@ -17,6 +17,9 @@ const (
 	// RockNeedsFloor is a floor, door, interior, corridor or turret/turbine
 	// footprint cell: rock there is dug, then built on.
 	RockNeedsFloor
+	// RockNeedsSky is a generator footprint or catch cell: dug like a
+	// floor, and its roof comes off as well (#1758).
+	RockNeedsSky
 )
 
 // RoleCell is one cell of a planned structure with its role.
@@ -34,6 +37,10 @@ type RockStepResult struct {
 	// as built. An unlisted (fogged) wall-role cell is unseen mountain and
 	// is left too.
 	Left []domain.Cell
+	// Unroof is the needs-sky cells carrying a removable roof, dug or
+	// already open. Unfit is the needs-sky cells that cannot be opened: an
+	// unseen cell, an unknown roof or a thick mountain roof.
+	Unroof, Unfit []domain.Cell
 }
 
 // RockStep classifies a planned structure's cells against the terrain facts
@@ -41,7 +48,9 @@ type RockStepResult struct {
 // left as rock. A cell the frame does not list is fogged mountain: when it
 // needs a floor it is dug, because roof support is read from the true map
 // when the dig is read, and when it blocks it is left as rock. A listed cell
-// that is not rock is open and needs nothing. Duplicate cells collapse, and
+// that is not rock is open and needs nothing. A needs-sky cell is dug when
+// rock and unroofed when its roof is removable (Unroof), and is Unfit when
+// unseen or under a thick roof. Duplicate cells collapse, and
 // needs-floor wins over blocks for the same cell.
 func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 	site := make(map[domain.Cell]SiteCell, len(cells))
@@ -55,13 +64,27 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 		if !seen {
 			order = append(order, p.Cell)
 			role[p.Cell] = p.Role
-		} else if p.Role == RockNeedsFloor && prev == RockBlocks {
-			role[p.Cell] = RockNeedsFloor
+		} else if p.Role > prev {
+			role[p.Cell] = p.Role
 		}
 	}
 	var out RockStepResult
 	for _, cell := range order {
 		c, listed := site[cell]
+		if role[cell] == RockNeedsSky {
+			roof, known := c.Roof.Value()
+			if !listed || !known || roof == "RoofRockThick" {
+				out.Unfit = append(out.Unfit, cell)
+				continue
+			}
+			if roof != "" {
+				out.Unroof = append(out.Unroof, cell)
+			}
+			if rockCell(c) {
+				out.Dig = append(out.Dig, cell)
+			}
+			continue
+		}
 		if listed && !rockCell(c) {
 			continue
 		}

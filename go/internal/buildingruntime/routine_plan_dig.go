@@ -27,13 +27,28 @@ import (
 // mined first. A native refusal of a building whose cell the frame lists as
 // open and that names no blocker is an error, not a refusal to retry.
 func (b *RoutineBuildingPlanner) admitRockStep(call, epoch context.Context, s excavationStep, planned []policy.RoleCell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
-	return b.digPlanned(call, epoch, s, policy.RockStep(planned, s.facts.Cells).Dig, access, method, buildings, check)
+	step := policy.RockStep(planned, s.facts.Cells)
+	if len(step.Unfit) > 0 {
+		clockSchedulerLog("%s: %s: %d open-sky cells unfit (thick or unseen roof)", b.goal, method, len(step.Unfit))
+		return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_thick_or_unseen_roof", len(step.Unfit)))}, true, nil
+	}
+	return b.digPlannedSky(call, epoch, s, step.Dig, step.Unroof, access, method, buildings, check)
 }
 
 // digPlanned is admitRockStep's executor over an already classified dig
 // list; a planner calls admitRockStep, not this.
 func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excavationStep, rock []domain.Cell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
-	if len(rock) == 0 {
+	return b.digPlannedSky(call, epoch, s, rock, nil, access, method, buildings, check)
+}
+
+// digPlannedSky is digPlanned that also removes the roof (the existing
+// remove_roof action) over unroof, the cells of a building that needs open
+// sky. The roof comes off after the rock is mined and before the building;
+// when the plan settles with the building still unplaced the roof is
+// standing and the method refuses (rock_not_dug, roof_standing) instead of
+// retrying (#1758).
+func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s excavationStep, rock, unroof []domain.Cell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
+	if len(rock) == 0 && len(unroof) == 0 {
 		return RoutineBuildingResult{}, false, nil
 	}
 	dig := *b
@@ -46,33 +61,35 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	}
 	snapshot := s.state.Snapshot
 	snapshot.Revision = 1
-	site, err := dig.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "plan-dig", policy.ExcavationTarget{}, rock, access, check)
-	if err != nil {
-		return RoutineBuildingResult{}, false, err
-	}
 	var excavations []domain.Excavation
 	designated := false
-	for _, cell := range site.Cells {
-		designated = designated || cell.MineDesignated
-		if !cell.Eligible || cell.MineDesignated || cell.Definition == "" {
-			continue
-		}
-		excavation, err := domain.NewExcavation(cell.Cell, cell.Definition)
+	if len(rock) > 0 {
+		site, err := dig.readExcavationSite(call, snapshot, s.facts.Identity.Tick, "plan-dig", policy.ExcavationTarget{}, rock, access, check)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		excavations = append(excavations, excavation)
-	}
-	if len(excavations) == 0 {
-		if designated {
-			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
+		for _, cell := range site.Cells {
+			designated = designated || cell.MineDesignated
+			if !cell.Eligible || cell.MineDesignated || cell.Definition == "" {
+				continue
+			}
+			excavation, err := domain.NewExcavation(cell.Cell, cell.Definition)
+			if err != nil {
+				return RoutineBuildingResult{}, false, err
+			}
+			excavations = append(excavations, excavation)
 		}
-		clockSchedulerLog("%s: %s: none of %d rock cells eligible", b.goal, method, len(rock))
-		return RoutineBuildingResult{}, false, nil
-	}
-	if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
-		clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
-		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
+		if len(excavations) == 0 {
+			if designated {
+				return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
+			}
+			clockSchedulerLog("%s: %s: none of %d rock cells eligible", b.goal, method, len(rock))
+			return RoutineBuildingResult{}, false, nil
+		}
+		if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
+			clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
+			return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
+		}
 	}
 	if prior, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
 		plan, err := b.reviewer.player.journal.LoadPlan(call, prior.Plan)
@@ -81,6 +98,10 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
+		}
+		if len(excavations) == 0 {
+			clockSchedulerLog("%s: %s: %d roof cells still standing after the plan settled", b.goal, method, len(unroof))
+			return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("roof_standing_%d_cells", len(unroof)))}, true, nil
 		}
 		clockSchedulerLog("%s: %s: %d rock cells still standing after the dig plan settled", b.goal, method, len(excavations))
 		return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_standing", len(excavations)))}, true, nil
@@ -112,10 +133,29 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	}
 	built := actions[:len(actions):len(actions)]
 	var dependencies []domain.ActionDependency
+	var dug []domain.ActionID
 	for _, excavation := range excavations {
 		action, err := domain.NewExcavationAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), excavation)
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
+		}
+		for _, building := range built {
+			dependencies = append(dependencies, domain.ActionDependency{Action: building.ID(), Requires: action.ID()})
+		}
+		dug = append(dug, action.ID())
+		actions = append(actions, action)
+	}
+	if len(unroof) > 0 && len(buildings) > 0 {
+		roof, err := domain.NewRemoveRoof(unroof)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		action, err := domain.NewRemoveRoofAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(actions))), roof)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
+		for _, id := range dug {
+			dependencies = append(dependencies, domain.ActionDependency{Action: action.ID(), Requires: id})
 		}
 		for _, building := range built {
 			dependencies = append(dependencies, domain.ActionDependency{Action: building.ID(), Requires: action.ID()})

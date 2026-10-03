@@ -232,6 +232,14 @@ func (r *RoutineBuildingPlanner) previewPlannedBuilding(ctx context.Context, sna
 	if made != (building.Stuff() != "") || !slices.Contains(footprint, building.Cell()) || !legal || !safe {
 		return nil, stock, BuildingReasonNoSpace, nil
 	}
+	if r.exactFootprint != nil && !sameCells(footprint, r.exactFootprint) {
+		return nil, stock, BuildingReasonNoSpace, nil
+	}
+	if building.Definition() == policy.WindTurbineDefinition {
+		if blocked, known := p.WindBlockedCells.Value(); !known || blocked > r.windAllowance {
+			return nil, stock, BuildingReasonNoSpace, nil
+		}
+	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, Verdict{}, err
 	}
