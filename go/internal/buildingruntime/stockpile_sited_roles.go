@@ -207,6 +207,9 @@ func storageRequest(projection *observation.ColonyProjection, protected []domain
 	if plan, rooms, known := plannedLayout(*projection); known {
 		request.Layout, request.Rooms = &plan, &rooms
 	}
+	if sleeping, known := projection.Facts.Sleeping.Value(); known {
+		request.Sleeping = &sleeping
+	}
 	if spot, known := findMealSpot(projection); known && spot.room.ID != "" {
 		request.Meals = &policy.MealStore{Room: spot.room, Filter: spot.filter, Size: spot.size, Anchor: spot.anchor, Avoid: spot.avoid, Whole: spot.whole}
 	}

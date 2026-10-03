@@ -168,7 +168,7 @@ func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 	}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{})
 	roles := stockpileRoles(StockpileRoleInput{Projection: projection, Benches: domain.Known(map[string]bool{"Bench_1": true})})
-	medicine, _ := medicineFilter()
+	medicine := domain.MedicineFilter()
 	for _, tc := range []struct {
 		role      string
 		published bool

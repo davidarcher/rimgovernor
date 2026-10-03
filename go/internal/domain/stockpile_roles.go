@@ -13,6 +13,7 @@ const (
 	CorpsesRolePrefix     = "corpses:"
 	PerishablesRolePrefix = "perishables:"
 	TombRolePrefix        = "tomb:"
+	MedicineRolePrefix    = "medicine:"
 	ApparelRole           = "apparel"
 	WeaponsRole           = "weapons"
 	WornDumpRole          = "dump:worn"

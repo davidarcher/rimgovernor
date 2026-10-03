@@ -426,7 +426,8 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	if r.reviewer.roomsEnabled() {
 		observe = r.reviewer.observeRooms
 	}
-	read, err := observe(call, r.reviewer.native, expected, claims)
+	// The medicine store reads the medical beds, so the census carries them.
+	read, err := observe(call, r.reviewer.native, expected, claims, policy.HospitalBedDefinitions...)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}

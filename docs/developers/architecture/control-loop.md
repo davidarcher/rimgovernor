@@ -63,7 +63,8 @@ preferences. The temporary rest hold does not rewrite those preferences.
 
 RimWorld selects a reachable medical bed for medical rest, falling back to the
 pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
-bed-ownership operation. The hospital planner supplies medical beds, and the
+bed-ownership operation. The hospital planner supplies medical beds (the storage
+planner sites their medicine zone), and the
 sleeping planner uses the existing bed-assignment operation for ordinary beds.
 
 ## Goal concepts

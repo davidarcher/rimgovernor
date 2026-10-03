@@ -228,6 +228,12 @@ func TombCorpsesFilter() StockpileFilter {
 	return f
 }
 
+// MedicineFilter holds every medicine and nothing else: the hospital's store.
+func MedicineFilter() StockpileFilter {
+	f, _ := NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Medicine")}, nil)
+	return f
+}
+
 // AllowOnlyFilter disallows everything except the named thing definitions
 // (1..32 of them).
 func AllowOnlyFilter(definitions []string) (StockpileFilter, error) {

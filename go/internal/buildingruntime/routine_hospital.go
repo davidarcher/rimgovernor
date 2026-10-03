@@ -164,11 +164,6 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	case policy.HospitalNoDemand:
 		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	case policy.HospitalExisting:
-		// The ward stands: keep its medicine beside the beds (#723).
-		reason, err := r.medicineStorage(call, epoch, state, goal, reading, started)
-		if err != nil || !reason.IsZero() {
-			return RoutineBuildingResult{Verdict: reason}, err
-		}
 		return RoutineBuildingResult{Verdict: BuildingExistingFacility}, nil
 	case policy.HospitalUnavailable:
 		return RoutineBuildingResult{Verdict: BuildingHospitalUnavailable}, nil

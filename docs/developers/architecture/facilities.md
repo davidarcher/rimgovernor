@@ -41,7 +41,8 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    and again whenever those change. Native storage capacity
    counts a shelf cell's free slots (three stacks per cell).
    The room-bound stockpiles (meal store, the freezer's raw meat, raw
-   vegetable and corpse shelves and perishables catch-all, the tomb) come from
+   vegetable and corpse shelves and perishables catch-all, the tomb, the hospital
+   medicine zone nearest the medical beds) come from
    one deterministic function, `policy.PlanStorage`, over the layout plan, room
    census and planning cells; its `StockpileSite`s are the standing-zone diff
    `MaintainStockpiles` applies, and the role registry supplies each role's

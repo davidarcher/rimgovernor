@@ -36,6 +36,9 @@ type StorageRequest struct {
 	Rooms     *RoomObservation
 	// Meals is nil when no meal store is wanted or its facts are unknown.
 	Meals *MealStore
+	// Sleeping is nil while the bed census is unknown; the medicine store
+	// needs it with Rooms.
+	Sleeping *SleepingObservation
 }
 
 // StoragePlan is the desired storage, most important site first.
@@ -51,6 +54,7 @@ func PlanStorage(r StorageRequest) StoragePlan {
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
+	plan.Sites = append(plan.Sites, r.medicineSites()...)
 	if r.Layout == nil || r.Rooms == nil {
 		return plan
 	}
