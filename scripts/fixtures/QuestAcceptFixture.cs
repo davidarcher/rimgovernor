@@ -177,6 +177,136 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // test/royal_title_prepare (#1613): the first-title staging. The lab holds
+        // no Empire quest and no bedroom, so this generates the Empire when the
+        // map has none, keeps it neutral, furnishes one walled, roofed bedroom
+        // that meets the first title's bedroom requirements with the first
+        // colonist owning its Bed, and offers one not-yet-accepted Empire quest
+        // whose single reward choice is exactly the favor that title costs (a
+        // QuestPart_GiveRoyalFavor on the quest's own accept signal gives it, the
+        // choice's reward row is what the quest census reads). Everything after
+        // the offer (accepting it, the natively generated bestowing ceremony
+        // quest, the ceremony and the title) is the game's and the controller's.
+        [Tool("test/royal_title_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1613): furnish a first-title bedroom for the first colonist and offer one not-yet-accepted Empire quest granting the first title's favor. Requires Royalty.")]
+        public async Task<object> PrepareRoyalTitle(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
+                if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
+                    return Refuse("A paused disposable colony map is required.");
+                if (!ModsConfig.RoyaltyActive) return Refuse("Royalty is not active.");
+                var colonist = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed)
+                    .OrderBy(p => p.thingIDNumber).FirstOrDefault();
+                if (colonist == null) return Refuse("At least one existing colonist is required.");
+
+                var empire = Find.FactionManager.OfEmpire;
+                var generated = false;
+                if (empire == null)
+                {
+                    empire = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(FactionDefOf.Empire));
+                    Find.FactionManager.Add(empire);
+                    generated = true;
+                }
+                if (empire.HostileTo(player)) empire.SetRelationDirect(player, FactionRelationKind.Neutral, false);
+                if (colonist.royalty == null) colonist.royalty = new Pawn_RoyaltyTracker(colonist);
+                var title = empire.def.RoyalTitlesAwardableInSeniorityOrderForReading.FirstOrDefault();
+                if (title == null) return Refuse("The Empire awards no royal title.");
+                if (colonist.royalty.GetCurrentTitle(empire) != null) return Refuse("The colonist already holds an Empire title.");
+                var needsThrone = title.throneRoomRequirements != null && title.throneRoomRequirements.Count > 0;
+
+                // The bedroom: a 7x7 roofed room north-west of the centre, a Bed the
+                // colonist owns, then whatever the title's bedroom requirements still
+                // ask for, then a little decoration for the impressiveness.
+                var stone = DefDatabase<ThingDef>.GetNamed("BlocksGranite");
+                var c0 = map.Center;
+                var inside = new CellRect(c0.x - 9, c0.z + 4, 7, 7);
+                var shell = inside.ExpandedBy(1);
+                var door = new IntVec3(inside.CenterCell.x, 0, shell.minZ);
+                foreach (var c in shell.Cells)
+                {
+                    map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+                    map.areaManager.Home[c] = true;
+                    if (inside.Contains(c)) continue;
+                    Place(map, c == door ? ThingDefOf.Door : ThingDefOf.Wall, stone, c);
+                }
+                var bed = (Building_Bed)Place(map, ThingDefOf.Bed, stone, new IntVec3(inside.minX, 0, inside.maxZ - 1));
+                colonist.ownership.ClaimBedIfNonMedical(bed);
+                var free = inside.Cells.Where(c => c.z < inside.maxZ - 1 && c.z > inside.minZ).ToList();
+                var next = 0;
+                Func<ThingDef, bool> furnish = def => {
+                    while (next < free.Count)
+                    {
+                        var cell = free[next++];
+                        if (!GenConstruct.CanPlaceBlueprintAt(def, cell, Rot4.North, map).Accepted) continue;
+                        Place(map, def, stone, cell);
+                        return true;
+                    }
+                    return false;
+                };
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                var room = inside.CenterCell.GetRoom(map);
+                if (room == null || !room.ProperRoom || room.TouchesMapEdge || room.OpenRoofCount > 0)
+                    return Refuse("The fixture bedroom is not an enclosed roofed room.");
+                foreach (var req in title.bedroomRequirements ?? new List<RoomRequirement>())
+                {
+                    var defs = new List<ThingDef>(); var count = 1;
+                    switch (req)
+                    {
+                        case RoomRequirement_ThingAnyOfCount anyCount: defs = anyCount.things; count = anyCount.count; break;
+                        case RoomRequirement_ThingAnyOf any: defs = any.things; break;
+                        case RoomRequirement_ThingCount counted: defs = new List<ThingDef> { counted.thingDef }; count = counted.count; break;
+                        case RoomRequirement_Thing one: defs = new List<ThingDef> { one.thingDef }; break;
+                    }
+                    var def = defs.FirstOrDefault(d => d != null && d != ThingDefOf.Bed);
+                    if (def == null) continue;
+                    for (var i = 0; i < count && !req.Met(room, colonist); i++)
+                        if (!furnish(def)) return Refuse("No room left to furnish " + def.defName + ".");
+                }
+                foreach (var name in new[] { "Dresser", "EndTable", "StandingLamp", "PlantPot" })
+                {
+                    var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                    if (def != null) furnish(def);
+                }
+                map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+                room = inside.CenterCell.GetRoom(map);
+                var unmet = (title.bedroomRequirements ?? new List<RoomRequirement>())
+                    .Where(r => !r.Met(room, colonist)).Select(r => r.GetType().Name).ToArray();
+                if (unmet.Length > 0) return Refuse("The fixture bedroom still fails " + title.defName + ": " + string.Join("; ", unmet));
+
+                var favor = title.favorCost;
+                var quest = new Quest {
+                    id = Find.UniqueIDsManager.GetNextQuestID(),
+                    name = "Fixture Empire quest", description = "Private disposable fixture Empire quest.",
+                    acceptanceTick = -1, acceptanceExpireTick = Find.TickManager.TicksGame + 30 * GenDate.TicksPerDay,
+                };
+                var give = quest.AddPart<QuestPart_GiveRoyalFavor>();
+                give.inSignal = quest.InitiateSignal;
+                give.giveTo = colonist; give.faction = empire; give.amount = favor;
+                var choice = quest.AddPart<QuestPart_Choice>();
+                var reward = new Reward_RoyalFavor { faction = empire, amount = favor };
+                var option = new QuestPart_Choice.Choice();
+                option.rewards.Add(reward);
+                choice.choices.Add(option);
+                Find.QuestManager.Add(quest);
+
+                var identity = Current.Game.GetComponent<ColonyIdentity>();
+                return new {
+                    success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
+                    tick = Find.TickManager.TicksGame,
+                    questId = quest.GetUniqueLoadID(), pawnId = colonist.GetUniqueLoadID(), bedId = bed.GetUniqueLoadID(),
+                    title = title.defName, favor, needsThrone, empireGenerated = generated,
+                    impressiveness = room?.GetStat(RoomStatDefOf.Impressiveness) ?? -1f,
+                };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static Thing Place(Map map, ThingDef def, ThingDef stuff, IntVec3 cell)
+        {
+            var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? stuff ?? GenStuff.DefaultStuffFor(def) : null);
+            thing.SetFaction(Faction.OfPlayer);
+            return GenSpawn.Spawn(thing, cell, map, Rot4.North);
+        }
+
         private static object Refuse(string reason) => new { success = false, reason };
     }
 }
