@@ -85,8 +85,8 @@ other required native read, and the herd plan never runs without it.
 - **Sale (#1632).** `HerdSaleAnimals` lists the animals over a race's ceiling
   (all of a retired race) that are known unbonded and, outside a retired race,
   not trained for work; founders have no ceiling and never sell, and any
-  unknown designation or bond sells nothing. A race the player ideo bars from
-  slaughter (see Removal) is never sold. While `SilverShort` holds
+  unknown designation or bond sells nothing. The ideology slaughter bar does
+  not apply to sale. While `SilverShort` holds
   (`AnimalSaleNeed` sets `TradeNeed.SurplusAnimals`, which opens a caravan),
   `SelectTrade` sells each listed animal through its own pawn trade row
   (`TradeSheetRowFact.PawnID`, line count -1) after the resource and art

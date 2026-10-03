@@ -174,7 +174,7 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	}
 }
 
-// A venerated or precept-barred race is never slaughtered, ordered, sold or
+// A venerated or precept-barred race is never slaughtered, ordered or
 // offered as food; an unread precept plans none of them.
 func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	rows := cows(3)
@@ -188,10 +188,6 @@ func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	if got := PrioritizeSlaughterChoice(animals, handler); got.Method != "" {
 		t.Fatal("prioritized a barred slaughter", got)
 	}
-	herd := HerdPolicy{PopulationMax: map[Resource]int64{"Cow": 0}}
-	if got := HerdSaleAnimals(animals, herd); len(got) != 0 {
-		t.Fatal("sold a barred race", got)
-	}
 	food := []SlaughterFoodAnimal{{ID: "cowa", Race: "Cow", MeatNutrition: domain.Known(15.0), FeedPerDay: domain.Known(1.0), ReproductionDays: domain.Known(10.0)}}
 	if got := SlaughterFoodChannels(food, animals, HerdPolicy{}); len(got) != 0 {
 		t.Fatal("barred race offered as food", got)
@@ -199,10 +195,18 @@ func TestSlaughterBarredRaceIsNeverRemoved(t *testing.T) {
 	unread := cows(3)
 	unread[1].Herd.SlaughterBarred = domain.Unknown[bool]()
 	unread[1].Slaughter = domain.Known(true)
-	if got := HerdSaleAnimals(domain.Known(unread), herd); len(got) != 0 {
-		t.Fatal("sold with an unread precept", got)
-	}
 	if got := PrioritizeSlaughterChoice(domain.Known(unread), handler); got.Reason != HusbandryUnknown {
 		t.Fatal("unread precept must fail", got)
+	}
+}
+
+// Vanilla has no rule against selling venerated animals: a barred race still
+// sells (herdSurplusCandidates lists it through release).
+func TestSaleIgnoresSlaughterBar(t *testing.T) {
+	g := bondedAs(planAnimal("g1", "Goat", "Male"), false)
+	g.Herd.SlaughterBarred, g.SafeToRelease = domain.Known(true), domain.Known(true)
+	rows, plan := retiredGoatsPlan([]UpkeepAnimal{g})
+	if got := HerdSaleAnimals(domain.Known(rows), plan.Policy); !got["g1"] {
+		t.Fatal("slaughter bar blocked a sale", got)
 	}
 }
