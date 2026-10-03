@@ -7,11 +7,7 @@ import (
 )
 
 func incineratorCensus(w, h int32) []SiteCell {
-	cells := dumpCensus(w, h, func(domain.Cell) bool { return false })
-	for i := range cells {
-		cells[i].Fertility = domain.Known(0.0)
-	}
-	return cells
+	return dumpCensus(w, h, func(domain.Cell) bool { return false })
 }
 
 func livingRoom(x0, z0 int32) Room {
@@ -77,29 +73,6 @@ func TestSiteIncineratorBesideDumpsClearOfLivingRooms(t *testing.T) {
 	}
 	if site, ok := SiteIncinerator(req); ok {
 		t.Fatal("sited in the clearance", site)
-	}
-}
-
-// Ground where nothing grows is preferred for the interior; fertile ground
-// is the fallback, not a refusal.
-func TestSiteIncineratorPrefersBarrenInterior(t *testing.T) {
-	cells := incineratorCensus(40, 30)
-	// Soil around the anchor, stone further out.
-	for i := range cells {
-		if cells[i].Cell.X < 20 {
-			cells[i].Fertility = domain.Known(1.0)
-		}
-	}
-	req := IncineratorSiteRequest{Bounds: Bounds{Width: 40, Height: 30}, Cells: cells, Anchor: domain.Cell{X: 5, Z: 5}}
-	site, ok := SiteIncinerator(req)
-	if !ok || site.Area.X+1 < 20 {
-		t.Fatal("soil interior chosen over stone", site, ok)
-	}
-	for i := range cells {
-		cells[i].Fertility = domain.Known(1.0)
-	}
-	if site, ok = SiteIncinerator(req); !ok || site.Area.X > 8 {
-		t.Fatal("no fallback on fertile ground", site, ok)
 	}
 }
 

@@ -108,8 +108,7 @@ type IncineratorSiteRequest struct {
 
 // SiteIncinerator finds the walled outline nearest the anchor on free
 // outdoor ground clear of living rooms (the dumps' six cells), off the
-// plan's rooms, hallways and reservations, preferring ground where nothing
-// grows (fertility zero) for the interior. The door faces the dump patch.
+// plan's rooms, hallways and reservations. The door faces the dump patch.
 func SiteIncinerator(r IncineratorSiteRequest) (IncineratorSite, bool) {
 	side := incineratorSide + 2
 	protected := append([]domain.Cell(nil), r.Protected...)
@@ -128,27 +127,7 @@ func SiteIncinerator(r IncineratorSiteRequest) (IncineratorSite, bool) {
 	if err != nil || len(patches) == 0 {
 		return IncineratorSite{}, false
 	}
-	fertility := map[domain.Cell]float64{}
-	for _, c := range r.Cells {
-		if f, known := c.Fertility.Value(); known {
-			fertility[c.Cell] = f
-		}
-	}
-	barren := func(p Rectangle) bool {
-		for _, c := range RectangleCells(Rectangle{X: p.X + 1, Z: p.Z + 1, Width: incineratorSide, Height: incineratorSide}) {
-			if f, known := fertility[c]; !known || f > 0 {
-				return false
-			}
-		}
-		return true
-	}
 	best := patches[0]
-	for _, p := range patches {
-		if barren(p) {
-			best = p
-			break
-		}
-	}
 	toward := r.Toward
 	if toward == (domain.Cell{}) {
 		toward = r.Anchor
