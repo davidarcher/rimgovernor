@@ -36,7 +36,7 @@ func (g RoomGate) Allows(owners []PawnID, delta float64) bool {
 	total := 0.0
 	for _, o := range owners {
 		s := g.Shares(o)
-		if !s.gated {
+		if !s.Gated {
 			return true
 		}
 		remaining, ok := s.Remaining.Value()

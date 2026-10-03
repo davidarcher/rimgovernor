@@ -533,7 +533,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	}
 	targets = policy.ResourceGoalTargets(targets, seasonal.ResourceTargets)
 	// Restore parts no bench can fabricate are bought (#1168).
-	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, policy.SurgeryContext{})
+	parts, benches, err := surgeryPartDemand(call, r.native, identity, projection.Facts.MedicalPawns, projection.SurgeryContext())
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
@@ -564,7 +564,7 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	planInput.Offers = policy.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces)
 	herd := policy.PlanHerd(planInput)
 	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
-	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items.Currency, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
+	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items.Currency, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.SurgeryPurchaseParts(projection.Facts.MedicalPawns, projection.SurgeryContext(), parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}

@@ -121,6 +121,13 @@ x role weight, and exactly one is queued colony-wide, ties by pawn id.
 holds MaintainSurgery open. Served operations never pass the share gate. The zero
 `ElectiveShare` is ungated, which the other `SelectSurgery` callers rely on.
 
+Elective part purchase (#1845): when no item of the chosen elective can be
+fabricated and no served part purchase is pending, `policy.SurgeryPurchaseParts`
+adds its part to the trade part demand. `surgeryPartTargets` buys one unit
+(MaxBuy 1) under `surgeryPartPriceCeiling` and the trade-wide silver reserve; the
+share gate lives in `ChosenElective`, so an unaffordable elective demands nothing
+and the goal recovers. Served purchases are unchanged.
+
 Elective part demand (#1844): `policy.ChosenElective(pawns, ctx)` is the one
 elective colony-wide whose part is missing: the best affordable elective
 (the same gate, slack and ranking as `SelectSurgery`, but over stocked and

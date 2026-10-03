@@ -13,8 +13,10 @@ import (
 const SurgeryPartBill BillPurpose = "surgery_part"
 
 // surgeryPartPriceCeiling bounds a part purchase's unit price. Bionics
-// price near 1500 silver in vanilla; the trade's silver reserve is the
-// real bound on what a purchase may spend.
+// price near 1500 silver in vanilla. It is a sanity cap on one unit, not the
+// spend bound: served parts spend under the trade's silver reserve, and an
+// elective (#1845) additionally has to fit the colonist's personal share
+// (ElectiveShare) before ChosenElective demands it at all.
 const surgeryPartPriceCeiling = 5000.0
 
 // SurgeryPart is one missing part a restore wants: the items that would
@@ -100,6 +102,21 @@ func TradeSurgeryParts(parts []SurgeryPart, fabricable map[Resource]bool) []Surg
 		}
 	}
 	return out
+}
+
+// SurgeryPurchaseParts are the parts a trader must supply (#1845): the served
+// parts no bench can fabricate (TradeSurgeryParts) and, when none of those is
+// pending, the chosen elective's part provided no item of it can be fabricated
+// (the bill path, ElectiveParts, takes it otherwise). One elective at a time:
+// ChosenElective is a single want, and it exists only while nothing served is
+// wanted. Silver still bounds the purchase through the trade's reserve.
+func SurgeryPurchaseParts(pawns domain.Fact[[]CarePawn], ctx SurgeryContext, served []SurgeryPart, fabricable map[Resource]bool) []SurgeryPart {
+	out := TradeSurgeryParts(served, fabricable)
+	want, chosen := ChosenElective(pawns, ctx)
+	if len(out) > 0 || !chosen || len(fabricableItems(want.Items, fabricable)) > 0 {
+		return out
+	}
+	return SurgeryParts([]SurgeryWant{want})
 }
 
 // SurgeryTradeNeed adds the parts only a trader can supply to the trade
