@@ -96,7 +96,12 @@ type AnimalUpkeepObservation struct {
 }
 type AnimalUpkeepPolicy struct{ FeedMinimumDays, FeedTargetDays float64 }
 
-func DefaultAnimalUpkeepPolicy() AnimalUpkeepPolicy { return AnimalUpkeepPolicy{2, 4} }
+// DefaultAnimalUpkeepPolicy keeps a standing herd reserve of DefaultFoodReserveDays
+// (the same 5 days as the colony food reserve): feed is topped up to it once
+// the runway falls under four days.
+func DefaultAnimalUpkeepPolicy() AnimalUpkeepPolicy {
+	return AnimalUpkeepPolicy{FeedMinimumDays: 4, FeedTargetDays: DefaultFoodReserveDays}
+}
 
 type AnimalUpkeepHistory struct {
 	Containment bool

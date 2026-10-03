@@ -54,7 +54,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	if g := routineGoal(t, out, policy.MaintainAnimalContainment); g.Goal.Need != domain.NeedRecovered {
 		t.Fatal(g)
 	}
-	set(4, true)
+	set(5, true)
 	r.Facts.UpkeepIssued = map[policy.GoalID]bool{policy.MaintainAnimalFeed: true}
 	out = reviewRoutine(t, s, &r)
 	recovered := routineGoal(t, out, policy.MaintainAnimalFeed)
@@ -66,7 +66,7 @@ func TestAnimalNeedsRetainRiskAcrossManualRestartAndUnknown(t *testing.T) {
 	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= recovered.Goal.Epoch {
 		t.Fatal(g)
 	}
-	set(3, true)
+	set(4, true)
 	r.Current.Load = "replacement"
 	out = reviewRoutine(t, s, &r)
 	if g := routineGoal(t, out, policy.MaintainAnimalFeed); g.Goal.Need != domain.NeedRecovered {

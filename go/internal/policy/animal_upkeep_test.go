@@ -20,13 +20,13 @@ func TestAnimalFeedCompetitionHysteresisAndExpiry(t *testing.T) {
 	for _, step := range []struct {
 		stock  float64
 		active bool
-	}{{4, false}, {3, true}, {6, true}, {8, false}, {6, false}, {3, true}} {
+	}{{8, false}, {7, true}, {9, true}, {10, false}, {9, false}, {7, true}} {
 		r, err := ReviewAnimalUpkeep(animalFixture(step.stock), history, DefaultAnimalUpkeepPolicy())
 		rows, known := r.Feed.Value()
 		if err != nil || !known || (len(rows) > 0) != step.active {
 			t.Fatalf("stock %v: %+v %v", step.stock, r, err)
 		}
-		if step.active && (rows[0].RunwayDays != step.stock/2 || rows[0].Nutrition != 4-step.stock/2) {
+		if step.active && (rows[0].RunwayDays != step.stock/2 || rows[0].Nutrition != 5-step.stock/2) {
 			t.Fatal(rows)
 		}
 		history = r.History
@@ -154,7 +154,7 @@ func TestAnimalFeedTargetCarriesReachableStorage(t *testing.T) {
 // #708: a pet the gated colony forecast reports short is fed to the target
 // even above the feed minimum.
 func TestAnimalFeedAdmitsForecastPetShortfall(t *testing.T) {
-	v := animalFixture(6) // muffalo runway 3: above the minimum 2, below target 4
+	v := animalFixture(9) // muffalo runway 4.5: above the minimum 4, below target 5
 	food, _ := v.Food.Value()
 	forecast, err := ForecastFood(food, nil)
 	if err != nil {
@@ -164,9 +164,9 @@ func TestAnimalFeedAdmitsForecastPetShortfall(t *testing.T) {
 	if r, _ := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy()); len(mustFeed(t, r)) != 0 {
 		t.Fatal("ungated forecast admitted a pet above the minimum")
 	}
-	v.Forecast = domain.Known(forecast.GateOnColonists([]PawnID{"human"}, 3.5))
+	v.Forecast = domain.Known(forecast.GateOnColonists([]PawnID{"human"}, 5))
 	rows := mustFeed(t, mustReview(t, v))
-	if len(rows) != 1 || rows[0].ID != "muffalo" || rows[0].Nutrition != 1 {
+	if len(rows) != 1 || rows[0].ID != "muffalo" || rows[0].Nutrition != 0.5 {
 		t.Fatalf("shortfall not admitted: %+v", rows)
 	}
 }
