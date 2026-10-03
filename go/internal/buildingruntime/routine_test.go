@@ -82,7 +82,7 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 			JobDefs:      []*d.JobDef{{DefName: "Play_Horseshoes", JoyGainRate: 1, JoyDuration: 1000}},
 			JoyGiverDefs: []*d.JoyGiverDef{{DefName: "Play_Horseshoes", GiverClass: "RimWorld.JoyGiver_WatchBuilding", ThingDefs: []string{"HorseshoesPin"}, JobDef: "Play_Horseshoes"}}},
 		StatValues: &o.DefStatTable{Stats: []string{bridge.StatDeteriorationRate}},
-		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, CurrencyDef: "Silver"}}
+		Constants:  &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}}
 	seen := map[string]bool{}
 	add := func(row *d.ThingDef) {
 		if row.DefName == "" || seen[row.DefName] {

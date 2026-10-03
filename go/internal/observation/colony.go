@@ -504,7 +504,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		if known {
 			r.FoodSupply = domain.Known(supply)
-			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply)
+			r.Facts.FoodStorageUpkeep = policy.FoodStorageStocks(supply, float64(tables.Catalog.Constants.FullRotRateC))
 		}
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {

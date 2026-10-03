@@ -287,6 +287,9 @@ func validateConstants(v *o.CatalogConstants) (*o.CatalogConstants, error) {
 	if g := float64(v.LitGlowThreshold); math.IsNaN(g) || math.IsInf(g, 0) || g <= 0 {
 		return nil, contract("catalog constant lit_glow_threshold is %v", g)
 	}
+	if r := float64(v.FullRotRateC); math.IsNaN(r) || math.IsInf(r, 0) || r <= 0 {
+		return nil, contract("catalog constant full_rot_rate_c is %v", r)
+	}
 	return v, nil
 }
 

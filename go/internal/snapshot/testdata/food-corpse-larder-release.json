@@ -3614,6 +3614,7 @@
    "v": true
   },
   "FoodStorageUpkeep": {
+   "ChilledMaxC": 10,
    "Larder": {
     "v": {
      "CookDemandNutrition": 0.5000000074505806,
@@ -20196,7 +20197,6 @@
   "FoodStorage": {
    "AtRiskNutritionThreshold": 5,
    "ChilledExitC": 5,
-   "ChilledMaxC": 10,
    "FreezerTargetC": -5,
    "MinimumStoredFraction": 0.5,
    "SafeRotDays": 5,

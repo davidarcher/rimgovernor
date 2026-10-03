@@ -14,7 +14,7 @@ func warmStock(id, room string, nutrition, temperature float64) FoodStorageStock
 func TestRefrigerationReviewLatchesOnWarmRoofedStock(t *testing.T) {
 	p := DefaultFoodStoragePolicy()
 	obs := func(stocks ...FoodStorageStock) FoodStorageObservation {
-		return FoodStorageObservation{Stocks: domain.Known(stocks)}
+		return FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known(stocks)}
 	}
 	// Enter: 8 nutrition warm in room b, 4 warm in room a, one cold stock ignored.
 	r, err := ReviewRefrigeration(obs(warmStock("meat", "b", 8, 20), warmStock("veg", "a", 4, 12), warmStock("cold", "c", 50, 2)), false, p)
@@ -82,7 +82,7 @@ func TestRefrigerationReviewLatchesOnWarmRoofedStock(t *testing.T) {
 // and releases exactly at it. refrigeration/build keeps the live check.
 func TestRefrigerationChillThresholdsHaltRot(t *testing.T) {
 	p := DefaultFoodStoragePolicy()
-	if p.FreezerTargetC > 0 || !(p.FreezerTargetC <= p.ChilledExitC && p.ChilledExitC < p.ChilledMaxC) {
+	if p.FreezerTargetC > 0 || !(p.FreezerTargetC <= p.ChilledExitC && p.ChilledExitC < testChilledMaxC) {
 		t.Fatalf("thresholds %+v do not freeze below a hysteresis band", p)
 	}
 	const eps = 0.01
@@ -92,13 +92,13 @@ func TestRefrigerationChillThresholdsHaltRot(t *testing.T) {
 		active      bool
 		want        bool
 	}{
-		{"at max never enters", p.ChilledMaxC, false, false},
-		{"above max enters", p.ChilledMaxC + eps, false, true},
+		{"at max never enters", testChilledMaxC, false, false},
+		{"above max enters", testChilledMaxC + eps, false, true},
 		{"above exit holds", p.ChilledExitC + eps, true, true},
 		{"at exit releases", p.ChilledExitC, true, false},
 		{"frozen releases", p.FreezerTargetC, true, false},
 	} {
-		r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 40, tc.temperature)})}, tc.active, p)
+		r, err := ReviewRefrigeration(FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 40, tc.temperature)})}, tc.active, p)
 		if err != nil || r.Active != tc.want {
 			t.Fatal(tc.name, r, err)
 		}
@@ -245,7 +245,7 @@ func TestRefrigerationReviewIgnoresHeldStock(t *testing.T) {
 	held := FoodStorageStock{Stock: FoodStock{ID: "carried", Holder: domain.Known(PawnID("cook")), Nutrition: domain.Known(8.0),
 		Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * domain.TicksPerDay))}}
 	// A carried stack has no roof or room; it neither counts nor blanks the review.
-	r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 8, 20), held})}, false, p)
+	r, err := ReviewRefrigeration(FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 8, 20), held})}, false, p)
 	if err != nil || !r.Active || len(r.Rooms) != 1 || r.Rooms[0] != "b" {
 		t.Fatal(r, err)
 	}
@@ -260,7 +260,7 @@ func TestRefrigerationReviewIgnoresNonPerishableStockWithoutRotRunway(t *testing
 	// known non-perishable, so it neither counts nor blanks the review.
 	reserve := FoodStorageStock{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(9.0), Perishable: domain.Known(false),
 		Roofed: domain.Known(false), TemperatureC: domain.Known(14.0), Room: domain.Known("235")}}
-	r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{reserve, warmStock("meat", "b", 8, 21)})}, false, p)
+	r, err := ReviewRefrigeration(FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{reserve, warmStock("meat", "b", 8, 21)})}, false, p)
 	if err != nil || !r.Active || len(r.Rooms) != 1 || r.Rooms[0] != "b" {
 		t.Fatal(r, err)
 	}
@@ -270,7 +270,7 @@ func TestRefrigerationReviewIgnoresNonPerishableStockWithoutRotRunway(t *testing
 	// A perishable stock with an unknown runway still preserves the latch.
 	unknown := warmStock("veg", "a", 4, 12)
 	unknown.Stock.RotTicks = domain.Unknown[int64]()
-	r, err = ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{unknown, warmStock("meat", "b", 8, 21)})}, false, p)
+	r, err = ReviewRefrigeration(FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{unknown, warmStock("meat", "b", 8, 21)})}, false, p)
 	if err != nil || r.Active {
 		t.Fatal(r, err)
 	}

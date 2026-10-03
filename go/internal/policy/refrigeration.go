@@ -90,7 +90,10 @@ func ReviewRefrigeration(fact FoodStorageObservation, active bool, p FoodStorage
 	if !known {
 		return RefrigerationReview{Active: active, WarmNutrition: domain.Unknown[float64]()}, nil
 	}
-	limit := p.ChilledMaxC
+	if p.ChilledExitC > fact.ChilledMaxC {
+		return RefrigerationReview{}, errors.New("refrigeration exit temperature above the chilled limit")
+	}
+	limit := fact.ChilledMaxC
 	if active {
 		limit = p.ChilledExitC
 	}

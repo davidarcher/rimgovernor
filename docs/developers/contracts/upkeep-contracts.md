@@ -625,7 +625,7 @@ the same source/bill method other resource goals use. Relocation and bill
 receipts never prove spoilage was averted; the census must observe the stock
 as stored, or the runway as recovered, before the deficit clears. Native code
 sets `FoodStock.roofed`, `temperature_c` and `room_id` per stock row; a stock
-counts as stored when it is roofed and either chilled (at or under 10 C) or
+counts as stored when it is roofed and either chilled (at or under the catalog's `full_rot_rate_c`) or
 has at least five days of rot runway, so a roofed but warm stockpile is not a
 storage deficit unless the food is close to rotting.
 

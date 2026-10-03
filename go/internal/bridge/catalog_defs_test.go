@@ -166,7 +166,7 @@ func TestClassIsAFollowsBaseChains(t *testing.T) {
 }
 
 func catalogConstants() *o.CatalogConstants {
-	return &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, CurrencyDef: "Silver"}
+	return &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}
 }
 
 // TestDefinitionCatalogCarriesGeneratedDefRows (#1730): the generated rows
@@ -198,7 +198,7 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 	if catalog.ThingDef("Missing") != nil || catalog.TerrainDef("Bed") != nil || catalog.Constants.TicksPerDay != 60000 {
 		t.Fatalf("lookup %+v", catalog)
 	}
-	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-thing-defs", "no-terrain-defs", "no-constants", "no-def-sets", "empty-def-sets", "duplicate-def-row", "unnamed-def-row"} {
+	for _, change := range []string{"duplicate-thing", "duplicate-terrain", "unnamed-thing", "nil-terrain", "zero-constant", "nan-glow", "no-full-rot-rate", "no-thing-defs", "no-terrain-defs", "no-constants", "no-def-sets", "empty-def-sets", "duplicate-def-row", "unnamed-def-row"} {
 		t.Run(change, func(t *testing.T) {
 			v := build()
 			switch change {
@@ -228,6 +228,8 @@ func TestDefinitionCatalogCarriesGeneratedDefRows(t *testing.T) {
 				v.Defs.StatDefs[0].DefName = ""
 			case "nan-glow":
 				v.Constants.LitGlowThreshold = float32(math.NaN())
+			case "no-full-rot-rate":
+				v.Constants.FullRotRateC = 0
 			}
 			if _, err := DecodeDefinitionCatalog(v, pbIdentity()); err == nil {
 				t.Fatal("malformed rows accepted")

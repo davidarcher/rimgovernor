@@ -6,6 +6,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// testChilledMaxC stands for the catalog's full_rot_rate_c in these tests.
+const testChilledMaxC = 10.0
+
 // riskyStock is perishable food close to rotting; stored ones sit roofed
 // and chilled, unstored ones warm and uncovered.
 func riskyStock(id string, nutrition float64, stored bool) FoodStorageStock {
@@ -33,12 +36,12 @@ func TestFoodStorageStoredNeedsCoverAndColdOrRunway(t *testing.T) {
 		{"chilled", stock(true, 5, 1000), true},
 		{"warm-long-runway", stock(true, 20, 6*domain.TicksPerDay), true},
 	} {
-		if got, known := tc.stock.stored(p).Value(); !known || got != tc.want {
+		if got, known := tc.stock.stored(testChilledMaxC, p).Value(); !known || got != tc.want {
 			t.Fatalf("%s: stored = %v (known %v), want %v", tc.name, got, known, tc.want)
 		}
 	}
 	unknown := FoodStorageStock{Stock: FoodStock{Roofed: domain.Known(true), RotTicks: domain.Known(int64(1))}}
-	if _, known := unknown.stored(p).Value(); known {
+	if _, known := unknown.stored(testChilledMaxC, p).Value(); known {
 		t.Fatal("unknown temperature reported as known storage")
 	}
 }
@@ -61,7 +64,7 @@ func TestFoodStorageReviewHysteresis(t *testing.T) {
 		// Recovers once stored fraction clears the higher exit bar.
 		{"recovered", []FoodStorageStock{riskyStock("a", 95, true), riskyStock("b", 5, false)}, false, 0},
 	} {
-		obs := FoodStorageObservation{Stocks: domain.Known(tc.stocks)}
+		obs := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known(tc.stocks)}
 		r, err := ReviewFoodStorage(obs, active, DefaultFoodStoragePolicy())
 		if err != nil {
 			t.Fatalf("%s: unexpected error: %v", tc.name, err)
@@ -80,7 +83,7 @@ func TestFoodStorageReviewIgnoresTinyAtRiskAmount(t *testing.T) {
 	// stored=4.1 is below the entry threshold (0.5*9=4.5), which alone would
 	// activate the deficit -- but unstored=4.9 is under AtRiskNutritionThreshold
 	// (5), so the tiny amount must not (re)activate it.
-	obs := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
+	obs := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{
 		riskyStock("stored", 4.1, true), riskyStock("unstored", 4.9, false),
 	})}
 	r, err := ReviewFoodStorage(obs, false, DefaultFoodStoragePolicy())
@@ -96,7 +99,7 @@ func TestFoodStorageReviewIgnoresTinyAtRiskAmount(t *testing.T) {
 }
 
 func TestFoodStorageReviewUnknownFactsPreserveLatch(t *testing.T) {
-	obs := FoodStorageObservation{Stocks: domain.Unknown[[]FoodStorageStock]()}
+	obs := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Unknown[[]FoodStorageStock]()}
 	r, err := ReviewFoodStorage(obs, true, DefaultFoodStoragePolicy())
 	if err != nil || !r.Active {
 		t.Fatal(r, err)
@@ -110,7 +113,7 @@ func TestFoodStorageReviewUnknownFactsPreserveLatch(t *testing.T) {
 	}
 
 	// An unknown temperature (so unknown storage) on any at-risk stock also preserves the latch.
-	obs = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
+	obs = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{
 		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(50.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(500)), Roofed: domain.Known(true)}},
 	})}
 	r, err = ReviewFoodStorage(obs, true, DefaultFoodStoragePolicy())
@@ -123,7 +126,7 @@ func TestFoodStorageReviewUnknownFactsPreserveLatch(t *testing.T) {
 }
 
 func TestFoodStorageReviewIgnoresNonPerishableAndRotted(t *testing.T) {
-	obs := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
+	obs := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{
 		// Non-perishable: never counted.
 		{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(1000.0), Perishable: domain.Known(false), Roofed: domain.Known(false)}},
 		// Already rotted (RotTicks == 0): never counted.
@@ -142,16 +145,16 @@ func TestFoodStorageReviewIgnoresNonPerishableAndRotted(t *testing.T) {
 }
 
 func TestFoodStorageReviewRejectsInvalidFacts(t *testing.T) {
-	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5, 10, 5, 5, -5}); err == nil {
+	if _, err := ReviewFoodStorage(FoodStorageObservation{}, false, FoodStoragePolicy{0.9, 0.5, 5, 5, 5, -5}); err == nil {
 		t.Fatal("unordered thresholds must be rejected")
 	}
-	dup := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
+	dup := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{
 		riskyStock("dup", 10, false), riskyStock("dup", 10, false),
 	})}
 	if _, err := ReviewFoodStorage(dup, false, DefaultFoodStoragePolicy()); err == nil {
 		t.Fatal("duplicate stock IDs must be rejected")
 	}
-	negTicks := FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{
+	negTicks := FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{
 		{Stock: FoodStock{ID: "a", Nutrition: domain.Known(10.0), Perishable: domain.Known(true), RotTicks: domain.Known(int64(-1)), Roofed: domain.Known(false)}},
 	})}
 	if _, err := ReviewFoodStorage(negTicks, false, DefaultFoodStoragePolicy()); err == nil {

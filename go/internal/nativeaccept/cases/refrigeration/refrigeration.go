@@ -36,7 +36,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const prefix = "refrigeration-accept"
@@ -276,8 +278,8 @@ func run(ctx context.Context, s cases.Session) error {
 	// hands the slot back, so this later independent read confirms the stock
 	// is chilled (under the review's entry bound) with no warm nutrition
 	// left, rather than re-applying the hysteresis exit bound.
-	if after.rows == 0 || after.temperature > policyDefaults.ChilledMaxC || after.warmNutrition > 0 {
-		return fmt.Errorf("food-after: meat temperature %.1f C / warm nutrition %.2f is not chilled under %.1f C (rows %d)", after.temperature, after.warmNutrition, policyDefaults.ChilledMaxC, after.rows)
+	if after.rows == 0 || after.temperature > after.chilledMaxC || after.warmNutrition > 0 {
+		return fmt.Errorf("food-after: meat temperature %.1f C / warm nutrition %.2f is not chilled under %.1f C (rows %d)", after.temperature, after.warmNutrition, after.chilledMaxC, after.rows)
 	}
 	coolers, err := readCoolers(ctx, h, identity)
 	if err != nil {
@@ -441,6 +443,8 @@ type foodSummary struct {
 	roofed        int
 	temperature   float64
 	warmNutrition float64
+	// chilledMaxC is the catalog's full_rot_rate_c.
+	chilledMaxC float64
 }
 
 // evidence is the report-serialisable form: the struct fields stay private
@@ -470,7 +474,19 @@ func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any
 		return foodSummary{}, fmt.Errorf("%s: food supply unavailable: %w", label, err)
 	}
 	p := policy.DefaultFoodStoragePolicy()
-	s := foodSummary{temperature: math.Inf(-1)}
+	data, err := json.Marshal(identity)
+	if err != nil {
+		return foodSummary{}, err
+	}
+	id := &c.Identity{}
+	if err := protojson.Unmarshal(data, id); err != nil {
+		return foodSummary{}, err
+	}
+	catalog, err := h.Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return foodSummary{}, fmt.Errorf("%s: %w", label, err)
+	}
+	s := foodSummary{temperature: math.Inf(-1), chilledMaxC: float64(catalog.Constants.FullRotRateC)}
 	for _, raw := range na.AsSlice(food["stocks"]) {
 		row, _ := na.AsMap(raw)
 		perishable, _ := na.AsBool(row["perishable"])
@@ -487,7 +503,7 @@ func readFoodStorage(ctx context.Context, h *na.Harness, identity map[string]any
 			s.temperature = t
 		}
 		ticks := na.AsNumber(row["rotTicks"])
-		if roofed && present(row, "temperatureC") && t > p.ChilledMaxC && ticks > 0 && ticks < p.SafeRotDays*60000 && na.RefID(row["room"]) != "" {
+		if roofed && present(row, "temperatureC") && t > s.chilledMaxC && ticks > 0 && ticks < p.SafeRotDays*60000 && na.RefID(row["room"]) != "" {
 			s.warmNutrition += na.AsNumber(row["nutrition"])
 		}
 	}

@@ -184,7 +184,38 @@ namespace HomeBridge.BridgeTools
             LitGlowThreshold = LitGlowThreshold(),
             // Tradeable.IsCurrency is "def == ThingDefOf.Silver".
             CurrencyDef = ThingDefOf.Silver?.defName ?? throw new InvalidOperationException("ThingDefOf.Silver is not loaded."),
+            FullRotRateC = FullRotRateC(),
         };
+
+        // The game keeps its rot curve as literals inside
+        // GenTemperature.RotRateAtTemperature, so evaluate that function: bisect the
+        // ordered bit patterns of the non-negative floats for the first temperature
+        // whose rate reaches 1. It is exact for any non-decreasing curve, and fails
+        // naming the function when the rate never reaches 1 or is not a number.
+        private static float FullRotRateC()
+        {
+            const string member = "GenTemperature.RotRateAtTemperature";
+            float Rate(float temperature)
+            {
+                var rate = GenTemperature.RotRateAtTemperature(temperature);
+                if (float.IsNaN(rate) || float.IsInfinity(rate))
+                    throw new InvalidOperationException($"{member}({temperature}) is {rate}.");
+                return rate;
+            }
+            const float top = 1000f;
+            if (Rate(0f) >= 1f)
+                throw new InvalidOperationException($"{member} is already at its full rate at 0 C.");
+            if (Rate(top) < 1f)
+                throw new InvalidOperationException($"{member} never reaches a rate of 1 up to {top} C.");
+            var below = BitConverter.ToInt32(BitConverter.GetBytes(0f), 0);
+            var at = BitConverter.ToInt32(BitConverter.GetBytes(top), 0);
+            while (at - below > 1)
+            {
+                var middle = below + (at - below) / 2;
+                if (Rate(BitConverter.ToSingle(BitConverter.GetBytes(middle), 0)) >= 1f) at = middle; else below = middle;
+            }
+            return BitConverter.ToSingle(BitConverter.GetBytes(at), 0);
+        }
 
         // GlowGrid.GameGlowLitThreshold is a non-public const: read it by name, and
         // fail naming it when the game no longer has it or its type changed.

@@ -109,7 +109,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	index := func(name string) int32 { return int32(slices.Index(stats, name)) }
 	wire := &o.DefinitionCatalog{StatValues: &o.DefStatTable{Stats: stats}}
 	wire.Defs = &d.DefSets{StatDefs: []*d.StatDef{{DefName: StatMarketValue}}}
-	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, CurrencyDef: "Silver"}
+	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, CurrencyDef: "Silver"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain"}}
 	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}

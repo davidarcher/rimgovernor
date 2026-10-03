@@ -27,7 +27,7 @@ func stableRoutine() RoutineFacts {
 		LayoutTidy:   domain.Known(TidyReview{Known: true, Reason: "nothing off grid"}),
 		Stockpiles:   domain.Known(StockpileReview{Known: true, Reason: "stockpiles fit their contents"}),
 		Items:        CoreItemFacts(), MedicalReserve: MedicalReserveObservation{Catalog: CoreItemFacts(), Items: domain.Known([]MedicineStack{{ID: "medicine", Definition: "MedicineHerbal", Count: 9, Perishable: domain.Known(false)}}), Resources: domain.Known([]Amount{{"MedicineHerbal", 9}})},
-		FoodStorageUpkeep:    FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})},
+		FoodStorageUpkeep:    FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{})},
 		Upkeep:               emptyUpkeep(),
 		Gear:                 domain.Known(gear),
 		MedicalCareRecovered: domain.Known(true), ComfortRecovered: domain.Known(true), MedicalPawns: domain.Known([]CarePawn{}),
@@ -234,7 +234,7 @@ func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 // at half deficit or more.
 func TestRoutineMealClosetOwedOpensRefrigeration(t *testing.T) {
 	f := stableRoutine()
-	f.FoodStorageUpkeep = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{})}
+	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{})}
 	open := func(r RoutineNeeds) (bool, float64) {
 		for _, g := range r.Goals {
 			if g.ID == MaintainRefrigeration {
@@ -256,7 +256,7 @@ func TestRoutineMealClosetOwedOpensRefrigeration(t *testing.T) {
 func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 	f := stableRoutine()
 	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)
-	f.FoodStorageUpkeep = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
+	f.FoodStorageUpkeep = FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
 	method := func(r RoutineNeeds, id GoalID) (open, unavailable bool) {
 		for _, g := range r.Goals {
 			if g.ID == id {

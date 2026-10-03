@@ -10,7 +10,7 @@ func larderCorpse(id string, forbidden bool, meat, size float64) FoodStock {
 	return FoodStock{ID: id, DefName: "Corpse_Muffalo", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(meat * 0.05), Eaters: []PawnID{"a"}, Perishable: domain.Known(true), RotTicks: domain.Known(int64(600000)), Roofed: domain.Known(true), TemperatureC: domain.Known(-5.), Room: domain.Known("freezer"), Corpse: true, Forbidden: domain.Known(forbidden), MeatAmount: domain.Known(meat), BodySize: domain.Known(size), TileFootprint: domain.Known(int64(1))}
 }
 func larderObservation(stocks ...FoodStock) FoodStorageObservation {
-	v := FoodStorageStocks(FoodSupply{Stocks: stocks})
+	v := FoodStorageStocks(FoodSupply{Stocks: stocks}, testChilledMaxC)
 	l := FoodLarder{RawMeatNutrition: 3, CookDemandNutrition: 0.5}
 	for _, s := range stocks {
 		l.Corpses = append(l.Corpses, CorpseHandling{ID: s.ID, Cell: domain.Cell{X: 2, Z: 3}})

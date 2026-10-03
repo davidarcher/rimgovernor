@@ -1955,6 +1955,10 @@ message CatalogConstants {
   // The defName of ThingDefOf.Silver: the def Tradeable.IsCurrency tests, so
   // the coin every price and the colony census count in.
   string currency_def = 7;
+  // The temperature (C) at which GenTemperature.RotRateAtTemperature first
+  // reaches its full rate of 1, found by evaluating the game's own function:
+  // food stored at or below it rots slower than the full rate.
+  float full_rot_rate_c = 8;
 }
 // The static Ideology definitions (#1654), each a game def read natively,
 // sorted by name, fixed for a load: memes, precepts (every PreceptDef but a

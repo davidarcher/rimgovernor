@@ -61,7 +61,7 @@ func TestReserveAccessCommitsSupplyActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{FoodStorageUpkeep: policy.FoodStorageStocks(policy.FoodSupply{Stocks: []policy.FoodStock{{ID: "hold", DefName: "Pemmican"}, {ID: "release", DefName: "MealSurvivalPack"}}}), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false), FoodReserve: domain.Known(policy.FoodReserveReview{Emergency: true, Hold: []string{"hold"}, Release: []string{"release"}})}})
+	_, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: review.Snapshot, Tick: review.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{FoodStorageUpkeep: policy.FoodStorageStocks(policy.FoodSupply{Stocks: []policy.FoodStock{{ID: "hold", DefName: "Pemmican"}, {ID: "release", DefName: "MealSurvivalPack"}}}, 10), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false), FoodReserve: domain.Known(policy.FoodReserveReview{Emergency: true, Hold: []string{"hold"}, Release: []string{"release"}})}})
 	if err != nil {
 		t.Fatal(err)
 	}

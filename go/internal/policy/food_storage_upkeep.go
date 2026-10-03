@@ -20,20 +20,21 @@ type FoodStorageStock struct {
 }
 
 // FoodStorageStocks lifts a food-supply census into the storage-upkeep census.
-func FoodStorageStocks(supply FoodSupply) FoodStorageObservation {
+// chilledMaxC is the catalog's full-rot-rate temperature.
+func FoodStorageStocks(supply FoodSupply, chilledMaxC float64) FoodStorageObservation {
 	rows := make([]FoodStorageStock, 0, len(supply.Stocks))
 	for _, stock := range supply.Stocks {
 		rows = append(rows, FoodStorageStock{Stock: stock})
 	}
-	return FoodStorageObservation{Stocks: domain.Known(rows), Larder: supply.Larder}
+	return FoodStorageObservation{Stocks: domain.Known(rows), Larder: supply.Larder, ChilledMaxC: chilledMaxC}
 }
 
 // stored reports whether a perishable stock sits in adequate storage: roofed,
-// and either chilled to ChilledMaxC or with at least SafeRotDays of runway
+// and either chilled to chilledMaxC or with at least SafeRotDays of runway
 // left at its current temperature. A roofed-but-warm stockpile is adequate
 // for food that will be eaten long before it rots; only warm food close to
 // spoiling is at risk. Unknown when any needed fact is unknown.
-func (s FoodStorageStock) stored(p FoodStoragePolicy) domain.Fact[bool] {
+func (s FoodStorageStock) stored(chilledMaxC float64, p FoodStoragePolicy) domain.Fact[bool] {
 	roofed, rk := s.Stock.Roofed.Value()
 	if !rk {
 		return domain.Unknown[bool]()
@@ -46,21 +47,21 @@ func (s FoodStorageStock) stored(p FoodStoragePolicy) domain.Fact[bool] {
 	if !tk || !kk {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(temperature <= p.ChilledMaxC || float64(ticks) >= p.SafeRotDays*domain.TicksPerDay)
+	return domain.Known(temperature <= chilledMaxC || float64(ticks) >= p.SafeRotDays*domain.TicksPerDay)
 }
 
 // celsius accepts any finite temperature, below zero included.
 func celsius(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) }
 
 // FoodStorageUnstored reports whether a stock is known perishable, not yet
-// rotted and known not adequately stored under p.
-func FoodStorageUnstored(s FoodStorageStock, p FoodStoragePolicy) bool {
+// rotted and known not adequately stored under p and the census's chilledMaxC.
+func FoodStorageUnstored(s FoodStorageStock, chilledMaxC float64, p FoodStoragePolicy) bool {
 	perishable, pk := s.Stock.Perishable.Value()
 	ticks, tk := s.Stock.RotTicks.Value()
 	if !pk || !perishable || !tk || ticks <= 0 {
 		return false
 	}
-	stored, sk := s.stored(p).Value()
+	stored, sk := s.stored(chilledMaxC, p).Value()
 	return sk && !stored
 }
 
@@ -70,6 +71,10 @@ func FoodStorageUnstored(s FoodStorageStock, p FoodStoragePolicy) bool {
 type FoodStorageObservation struct {
 	Stocks domain.Fact[[]FoodStorageStock]
 	Larder domain.Fact[FoodLarder]
+	// ChilledMaxC is the storage temperature at or below which perishable
+	// stock counts as refrigerated: the catalog's full_rot_rate_c, the
+	// temperature where the game's rot rate reaches its full rate.
+	ChilledMaxC float64
 }
 
 // FoodStoragePolicy names the hysteresis band ReviewFoodStorage applies to the
@@ -80,26 +85,23 @@ type FoodStorageObservation struct {
 type FoodStoragePolicy struct {
 	MinimumStoredFraction, TargetStoredFraction float64
 	AtRiskNutritionThreshold                    float64
-	// ChilledMaxC is the storage temperature at or below which perishable
-	// stock counts as refrigerated (RimWorld slows rot under 10 C and stops
-	// it under 0 C); SafeRotDays is our own tuning (the game defines no safe
-	// days): the rot runway that makes warm roofed
-	// stock acceptable anyway.
-	ChilledMaxC, SafeRotDays float64
+	// SafeRotDays is our own tuning (the game defines no safe days): the rot
+	// runway that makes warm roofed stock acceptable anyway.
+	SafeRotDays float64
 	// ChilledExitC is the measured storage temperature MaintainRefrigeration
-	// releases at (hysteresis under ChilledMaxC); FreezerTargetC is the
+	// releases at (hysteresis under FoodStorageObservation.ChilledMaxC); FreezerTargetC is the
 	// setpoint it asks a cooler for.
 	ChilledExitC, FreezerTargetC float64
 }
 
 func DefaultFoodStoragePolicy() FoodStoragePolicy {
-	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5, ChilledMaxC: 10, SafeRotDays: 5, ChilledExitC: 5, FreezerTargetC: -5}
+	return FoodStoragePolicy{MinimumStoredFraction: 0.5, TargetStoredFraction: 0.9, AtRiskNutritionThreshold: 5, SafeRotDays: 5, ChilledExitC: 5, FreezerTargetC: -5}
 }
 
 func (p FoodStoragePolicy) valid() bool {
 	return foodNumber(p.MinimumStoredFraction) && foodNumber(p.TargetStoredFraction) && foodNumber(p.AtRiskNutritionThreshold) &&
-		foodNumber(p.SafeRotDays) && celsius(p.ChilledMaxC) && celsius(p.ChilledExitC) && celsius(p.FreezerTargetC) &&
-		p.ChilledExitC <= p.ChilledMaxC && p.FreezerTargetC <= p.ChilledExitC &&
+		foodNumber(p.SafeRotDays) && celsius(p.ChilledExitC) && celsius(p.FreezerTargetC) &&
+		p.FreezerTargetC <= p.ChilledExitC &&
 		p.MinimumStoredFraction < p.TargetStoredFraction && p.TargetStoredFraction <= 1
 }
 
@@ -128,6 +130,9 @@ func (v FoodStorageObservation) Validate() error {
 	stocks, known := v.Stocks.Value()
 	if !known {
 		return nil
+	}
+	if !celsius(v.ChilledMaxC) {
+		return invalid
 	}
 	seen := map[string]bool{}
 	for _, entry := range stocks {
@@ -174,7 +179,7 @@ func ReviewFoodStorage(v FoodStorageObservation, active bool, p FoodStoragePolic
 		if !tk || ticks <= 0 {
 			continue
 		}
-		storedFact, sk := entry.stored(p).Value()
+		storedFact, sk := entry.stored(v.ChilledMaxC, p).Value()
 		if !sk {
 			return r, nil
 		}

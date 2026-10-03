@@ -78,7 +78,7 @@ func foodStorageObservationFacts(ctx context.Context, native RoutineFoodStorageU
 	if err != nil || !known {
 		return policy.FoodStorageObservation{}
 	}
-	return policy.FoodStorageStocks(supply)
+	return policy.FoodStorageStocks(supply, float64(tables.Catalog.Constants.FullRotRateC))
 }
 
 // foodStorageDefNames collects the distinct native resource definition names
@@ -95,7 +95,7 @@ func foodStorageDefNames(observed policy.FoodStorageObservation, p policy.FoodSt
 	}
 	names := map[string]bool{}
 	for _, entry := range stocks {
-		if !policy.FoodStorageUnstored(entry, p) {
+		if !policy.FoodStorageUnstored(entry, observed.ChilledMaxC, p) {
 			continue
 		}
 		if name := string(entry.Stock.DefName); name != "" {

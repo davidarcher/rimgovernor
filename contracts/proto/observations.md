@@ -225,7 +225,12 @@ must not type in: `ticks_per_hour`, `ticks_per_day`, `days_per_year`
 non-public const `GlowGrid.GameGlowLitThreshold`; the read throws naming the
 member when it is missing or not a float. `currency_def` is `ThingDefOf.Silver`: the
 def `Tradeable.IsCurrency` tests, which Go reads as `ItemFacts.Currency` (the
-census coin; an empty value or a def with no row is refused). Drugs, chemicals
+census coin; an empty value or a def with no row is refused). `full_rot_rate_c` is the temperature at which
+`GenTemperature.RotRateAtTemperature` first reaches its full rate of 1: its
+curve is literals inside the game function, so native bisects the function
+itself and throws naming it when the rate never reaches 1 or is not finite; Go
+reads it as `FoodStorageObservation.ChilledMaxC`, the limit for refrigerated
+food. Drugs, chemicals
 and the preventive drug are not constants: `ItemFacts` derives them from the
 `CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.
