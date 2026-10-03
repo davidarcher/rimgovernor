@@ -70,7 +70,7 @@ var retiredTraitTable = map[traitDegree]policy.TraitEffects{
 	{"Kind", 0}:              {Sociable: 1},
 	{"Abrasive", 0}:          {Sociable: -1},
 	{"Psychopath", 0}:        {Execution: true, SurgeonSafe: true},
-	{"Bloodlust", 0}:         {Execution: true},
+	{"Bloodlust", 0}:         {Execution: true, TaintFree: true},
 	{"Nudist", 0}:            {Nudist: true},
 	{"Ascetic", 0}:           {Ascetic: true},
 	{"Cannibal", 0}:          {Cannibal: true},
@@ -126,6 +126,13 @@ func TestTraitEffectsMatchTheRetiredTable(t *testing.T) {
 				extras = append(extras, fmt.Sprintf("%s/%d: HumanButcher derived %v, retired name check %v", key.Name, key.Degree, got.HumanButcher, wantButcher))
 			}
 			got.HumanButcher = false
+			// The one recorded difference: the organ-harvest thought is
+			// nullified by Bloodlust as well as Psychopath, so a Bloodlust
+			// surgeon derives SurgeonSafe where the retired table had only
+			// Psychopath (the game's own rule, #1724).
+			if key.Name == "Bloodlust" && got.SurgeonSafe {
+				got.SurgeonSafe = false
+			}
 			if !sameEffects(got, want) {
 				extras = append(extras, fmt.Sprintf("%s/%d: derived %+v, retired table %+v", key.Name, key.Degree, got, want))
 			}

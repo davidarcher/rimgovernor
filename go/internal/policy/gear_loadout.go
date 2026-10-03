@@ -158,9 +158,9 @@ type GearOption struct {
 }
 
 type GearLoadoutInput struct {
-	Climate                            *GearClimate
-	Role                               GearRoleInput
-	Female, Nudist, Bloodlust, Inhuman bool
+	Climate                   *GearClimate
+	Role                      GearRoleInput
+	Female, Nudist, TaintFree bool
 	// Research is the finished research census; an option is eligible only
 	// once every project its Research names is finished.
 	Research []string
@@ -398,7 +398,7 @@ func gearEnsembleScore(p GearLoadoutInput, items []GearOption) float64 {
 		}
 		dressed = dressed || o.Slot != GearBelt && o.Slot != GearHeadgear && o.Slot != GearPrimary
 	}
-	if !p.Bloodlust && !p.Inhuman && tainted > 0 {
+	if !p.TaintFree && tainted > 0 {
 		score -= float64(5 + 3*(min(tainted, 4)-1))
 	}
 	if p.Nudist {
@@ -516,8 +516,7 @@ func PlanGearLoadout(p GearLoadoutInput) (GearLoadout, error) {
 	traits, _ := p.Role.Work.Traits.Value()
 	for _, t := range traits {
 		p.Nudist = p.Nudist || t.Effects.Nudist
-		p.Bloodlust = p.Bloodlust || t.Name == "Bloodlust"
-		p.Inhuman = p.Inhuman || t.Name == "Inhuman"
+		p.TaintFree = p.TaintFree || t.Effects.TaintFree
 	}
 	role := DeriveGearRole(p.Role)
 	options := append(append([]GearOption{}, p.Worn...), p.Options...)

@@ -28,6 +28,32 @@ const (
 	thoughtButcheredHuman = "ButcheredHumanlikeCorpse"
 	thoughtNaked          = "Naked"
 	thoughtRangedCarried  = "BrawlerUnhappy"
+	// thoughtOrganHarvested is the thought of a harvest from a colonist: a
+	// trait that nullifies it is a surgeon who harvests without a mood loss.
+	thoughtOrganHarvested = "KnowColonistOrganHarvested"
+	// thoughtTaintedApparel is the thought of wearing a dead man's apparel.
+	thoughtTaintedApparel = "DeadMansApparel"
+	// The thoughts whose worker applies to one trait only (requiredTraits):
+	// a bedroom that is impressive or not (Greedy, Ascetic), a better bedroom
+	// than the pawn's own (Jealous), the night and carrying an incendiary
+	// weapon (NightOwl, Pyromaniac).
+	thoughtGreedy     = "Greedy"
+	thoughtAscetic    = "Ascetic"
+	thoughtJealous    = "Jealous"
+	thoughtNightOwl   = "NightOwlDuringTheNight"
+	thoughtPyromaniac = "PyromaniacHappy"
+	// thoughtDrugDesire is the thought a drug desire trait raises while
+	// unsatisfied; its required trait is the DrugDesire trait, whose degree
+	// is the chemical interest.
+	thoughtDrugDesire = "DrugDesireInterest"
+)
+
+// Stats whose trait offset or factor marks a pawn who fights on the melee
+// line: more melee hits or dodges, less incoming damage.
+const (
+	statMeleeHit    = "MeleeHitChance"
+	statMeleeDodge  = "MeleeDodgeChance"
+	statIncomingDmg = "IncomingDamageFactor"
 )
 
 // thoughtRow is the ThoughtDef row of the named thought; a catalog without
@@ -103,6 +129,13 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 			rest += offset
 		case statShooting:
 			out.RearRanged = out.RearRanged || offset != 0
+		case statMeleeHit, statMeleeDodge:
+			out.FrontLine = out.FrontLine || offset > 0
+		}
+	}
+	for _, entry := range data.GetStatFactors() {
+		if entry.GetValue().GetStat() == statIncomingDmg && float32Number(entry.GetValue().GetValue()) < 1 {
+			out.FrontLine = true
 		}
 	}
 	for _, rule := range []struct {
@@ -114,6 +147,13 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 		{thoughtButcheredHuman, false, &out.HumanButcher},
 		{thoughtNaked, false, &out.Nudist},
 		{thoughtRangedCarried, true, &out.MeleeOnly},
+		{thoughtOrganHarvested, false, &out.SurgeonSafe},
+		{thoughtTaintedApparel, false, &out.TaintFree},
+		{thoughtGreedy, true, &out.Greedy},
+		{thoughtAscetic, true, &out.Ascetic},
+		{thoughtJealous, true, &out.Jealous},
+		{thoughtNightOwl, true, &out.NightShift},
+		{thoughtPyromaniac, true, &out.Pyromaniac},
 	} {
 		thought, err := thoughtRow(catalog, rule.thought)
 		if err != nil {
@@ -124,6 +164,13 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 			list = thought.GetRequiredTraits()
 		}
 		*rule.set = slices.Contains(list, name)
+	}
+	desire, err := thoughtRow(catalog, thoughtDrugDesire)
+	if err != nil {
+		return policy.TraitEffects{}, err
+	}
+	if slices.Contains(desire.GetRequiredTraits(), name) {
+		out.ChemicalInterest = degree
 	}
 	out.QuickSleeper = rest > 0
 	for _, need := range data.GetDisablesNeeds() {

@@ -51,8 +51,9 @@ type TraitEffects struct {
 	Sociable int
 	// Execution marks a warden who executes a prisoner without the mood loss
 	// of a prisoner dying (the trait nullifies that thought); SurgeonSafe a
-	// surgeon who harvests without one (code-applied, TraitFlags).
-	Execution, SurgeonSafe bool
+	// surgeon who harvests without one; TaintFree wears a dead man's
+	// apparel without the mood loss (each trait nullifies the thought).
+	Execution, SurgeonSafe, TaintFree bool
 	// HumanButcher is a pawn who butchers a human without the mood loss (the
 	// trait nullifies the butchered-humanlike thought).
 	HumanButcher bool
@@ -81,6 +82,7 @@ func (e TraitEffects) Add(o TraitEffects) TraitEffects {
 	e.Sociable += o.Sociable
 	e.Execution = e.Execution || o.Execution
 	e.SurgeonSafe = e.SurgeonSafe || o.SurgeonSafe
+	e.TaintFree = e.TaintFree || o.TaintFree
 	e.HumanButcher = e.HumanButcher || o.HumanButcher
 	e.Nudist = e.Nudist || o.Nudist
 	e.Ascetic = e.Ascetic || o.Ascetic
@@ -106,21 +108,9 @@ type traitKey struct {
 // A trait absent here contributes no flag.
 var traitFlags = map[traitKey]TraitEffects{
 	{"GreatMemory", 0}: {GreatMemory: true},
-	{"NightOwl", 0}:    {NightShift: true},
-	{"Brawler", 0}:     {FrontLine: true},
-	{"Tough", 0}:       {FrontLine: true},
-	{"Nimble", 0}:      {FrontLine: true},
-	{"Pyromaniac", 0}:  {Pyromaniac: true},
 	{"Kind", 0}:        {Sociable: 1},
 	{"Abrasive", 0}:    {Sociable: -1},
-	{"Psychopath", 0}:  {SurgeonSafe: true},
-	{"Ascetic", 0}:     {Ascetic: true},
 	{"Gourmand", 0}:    {Gourmand: true},
-	{"DrugDesire", 2}:  {ChemicalInterest: 2},
-	{"DrugDesire", 1}:  {ChemicalInterest: 1},
-	{"DrugDesire", -1}: {ChemicalInterest: -1},
-	{"Greedy", 0}:      {Greedy: true},
-	{"Jealous", 0}:     {Jealous: true},
 }
 
 // TraitFlags is the code-applied part of a trait's effects; a trait it does

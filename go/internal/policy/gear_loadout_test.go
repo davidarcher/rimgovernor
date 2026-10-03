@@ -253,14 +253,9 @@ func TestGearTainted(t *testing.T) {
 		if got := gearEnsembleScore(p, items); got != -want {
 			t.Fatal(n, got)
 		}
-		p.Bloodlust = true
+		p.TaintFree = true
 		if gearEnsembleScore(p, items) != 0 {
-			t.Fatal("bloodlust")
-		}
-		p.Bloodlust = false
-		p.Inhuman = true
-		if gearEnsembleScore(p, items) != 0 {
-			t.Fatal("inhuman")
+			t.Fatal("taint free")
 		}
 	}
 }
