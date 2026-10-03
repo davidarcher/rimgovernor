@@ -15,16 +15,8 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 	if validID(v.GetName()) != nil || v.MinHitPoints == nil || v.MaxHitPoints == nil || math.IsNaN(float64(v.GetMinHitPoints())) || math.IsNaN(float64(v.GetMaxHitPoints())) || v.GetMinHitPoints() < 0 || v.GetMaxHitPoints() > 1 || v.GetMinHitPoints() > v.GetMaxHitPoints() || v.MinQuality == nil || v.MaxQuality == nil || v.GetMinQuality() < 0 || v.GetMaxQuality() > 6 || v.GetMinQuality() > v.GetMaxQuality() || v.ExcludesTainted == nil {
 		return contract("incomplete apparel policy")
 	}
-	seen := map[string]bool{}
-	for _, d := range v.Definitions {
-		if d == nil || validID(d.GetDefName()) != nil || seen[d.GetDefName()] || d.Armor == nil || d.Child == nil || d.Adult == nil {
-			return contract("invalid apparel definition census")
-		}
-		seen[d.GetDefName()] = true
-	}
 	// The outfit filter may allow apparel this pawn cannot wear (a child's
-	// or another body's), which Definitions leaves out: only ids and
-	// duplicates are checked.
+	// or another body's): only ids and duplicates are checked.
 	allowed := map[string]bool{}
 	for _, d := range v.AllowedDefs {
 		if validID(d) != nil || allowed[d] {
@@ -32,7 +24,7 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 		}
 		allowed[d] = true
 	}
-	seen = map[string]bool{}
+	seen := map[string]bool{}
 	for _, w := range v.Work {
 		if w == nil || validID(w.GetDefName()) != nil || seen[w.GetDefName()] || w.Priority == nil || w.GetPriority() < 0 || w.GetPriority() > 4 || w.Disabled == nil {
 			return contract("invalid apparel work role")

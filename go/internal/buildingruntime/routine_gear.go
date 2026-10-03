@@ -56,7 +56,7 @@ func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) 
 // planner reads a fresh census of its own immediately before proposing a
 // method, the same way RoutineEquipPlanner rereads combat pawns and loose
 // weapons rather than reusing the review's cached facts.
-func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables) policy.GearObservation {
+func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables, defs observation.GearDefinitions) policy.GearObservation {
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: observation.GearStorageFacts(gear)}
 	for _, p := range gear.GetPawns() {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.GetPawn().GetId()), Loadout: p.GetSnapshot().GetToken(), Blocked: p.Blocker != nil, Deficit: optionalBool(p.Deficit)}
@@ -64,10 +64,10 @@ func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables) policy.Gea
 		for _, need := range p.GetReplacementNeeds() {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(need.GetDefName()), Stuff: policy.Resource(need.GetStuff()), Reason: need.GetReason()})
 		}
-		row.Candidates = observation.GearCandidateFacts(p, tables)
+		row.Candidates = observation.GearCandidateFacts(p, tables, defs.Catalog)
 		row.Replacements = domain.Known(needs)
-		row.Apparel = observation.GearApparelFacts(p.GetEquipment(), tables)
-		row.Policy = observation.ApparelPolicyFacts(p)
+		row.Apparel = observation.GearApparelFacts(p.GetEquipment(), tables, defs.Catalog)
+		row.Policy = observation.ApparelPolicyFacts(p, defs.Catalog)
 		row.Climate = observation.GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
 	}
@@ -76,8 +76,14 @@ func gearObservationFacts(gear *o.GearSnapshot, tables bridge.Tables) policy.Gea
 
 // gearModelFacts is observation.GearLoadoutModelFacts; the package name is
 // shadowed where it is used.
-func gearModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
-	return observation.GearLoadoutModelFacts(gear, outdoor, p, state)
+func gearModelFacts(defs observation.GearDefinitions, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+	return observation.GearLoadoutModelFacts(defs, outdoor, p, state)
+}
+
+// gearDefinitions are the catalog and finished research the gear census is
+// decoded against, read from source.
+func gearDefinitions(call context.Context, source any, identity *c.Identity) (observation.GearDefinitions, error) {
+	return observation.ReadGearDefinitions(call, source, identity)
 }
 
 func optionalBool(v *bool) domain.Fact[bool] {
@@ -225,7 +231,11 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
-	observation := gearObservationFacts(gear, bridge.Tables{Things: things})
+	defs, err := gearDefinitions(call, r.native, identity)
+	if err != nil {
+		return RoutineGearResult{}, err
+	}
+	observation := gearObservationFacts(gear, bridge.Tables{Things: things}, defs)
 	for i := range observation.Pawns {
 		pawn := &observation.Pawns[i]
 		pawn.Blocked = pawn.Blocked || busy[domain.PawnID(pawn.Pawn)]
@@ -250,7 +260,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	// census without it.
 	outfitCensus := policy.GearObservation{Pawns: append([]policy.GearPawn{}, observation.Pawns...), Outfits: outfits}
 	for i := range outfitCensus.Pawns {
-		outfitCensus.Pawns[i].LoadoutModel = gearModelFacts(gear, observed.OutdoorTemperatureC, gear.GetPawns()[i], outfitCensus.Pawns[i].Policy)
+		outfitCensus.Pawns[i].LoadoutModel = gearModelFacts(defs, observed.OutdoorTemperatureC, gear.GetPawns()[i], outfitCensus.Pawns[i].Policy)
 	}
 	var policies RoutineGearResult
 	for _, pawn := range outfitCensus.Pawns {

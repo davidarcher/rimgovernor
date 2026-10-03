@@ -63,18 +63,27 @@ type defStuff struct{ def, stuff string }
 // (def, stuff) pair without a row and a stat the game does not show for the
 // def are errors, never a default.
 func (catalog *DefinitionCatalog) StatValue(def, stuff, stat string) (float32, error) {
+	value, shown, err := catalog.ShownStatValue(def, stuff, stat)
+	if err == nil && !shown {
+		return 0, contract("stat %s is not shown for def %s with stuff %q", stat, def, stuff)
+	}
+	return value, err
+}
+
+// ShownStatValue is StatValue for a stat that is legitimately absent from a
+// def's row: shown is false when the row exists and the game does not show
+// the stat for the def (the def has no such property). A catalog without the
+// stat table and a pair without a row are still errors.
+func (catalog *DefinitionCatalog) ShownStatValue(def, stuff, stat string) (value float32, shown bool, err error) {
 	if catalog == nil || catalog.statValues == nil {
-		return 0, contract("definition catalog carries no stat values")
+		return 0, false, contract("definition catalog carries no stat values")
 	}
 	row, ok := catalog.statValues[defStuff{def, stuff}]
 	if !ok {
-		return 0, contract("no stat values for def %s with stuff %q", def, stuff)
+		return 0, false, contract("no stat values for def %s with stuff %q", def, stuff)
 	}
-	value, ok := row.values[stat]
-	if !ok {
-		return 0, contract("stat %s is not shown for def %s with stuff %q", stat, def, stuff)
-	}
-	return value, nil
+	value, shown = row.values[stat]
+	return value, shown, nil
 }
 
 // ThingDef is name's generated def row, nil when the catalog has none.

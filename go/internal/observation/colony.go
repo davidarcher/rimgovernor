@@ -547,7 +547,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") && headed(buildings, planning.Environment.Lights, (*o.GrowLight).GetBuilding) && headed(buildings, planning.Environment.Growers, (*o.PlantGrower).GetBuilding) {
 		r.Environment = domain.Known(colonyEnvironment(planning.Environment, v.OutdoorTemperatureC, buildings))
 	}
-	r.Facts.Gear = colonyGear(v, tables)
+	// r.Facts.Gear needs the catalog: ObserveColony fills it (#1732).
 	return r, nil
 }
 

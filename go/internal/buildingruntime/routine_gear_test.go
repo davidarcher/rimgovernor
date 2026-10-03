@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -18,7 +19,7 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 	reviewer, db, _, _, native := routineFixture(t)
 	setGearProductionNeed(native.reply.GetObserved())
 	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
-	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), PawnName: proto.String("Ann"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), PawnName: proto.String("Ann"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false)}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
@@ -51,7 +52,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	setGearProductionNeed(native.reply.GetObserved())
 	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
 	for _, pawn := range gear.Pawns {
-		pawn.ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas-" + pawn.GetPawn().GetId()), PawnName: proto.String("Name " + pawn.GetPawn().GetId()), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+		pawn.ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas-" + pawn.GetPawn().GetId()), PawnName: proto.String("Name " + pawn.GetPawn().GetId()), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false)}
 	}
 	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
 	reviewer.native = n
@@ -118,7 +119,7 @@ func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
 	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 	gear := &o.GearSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext)}
 	for _, id := range []string{"a", "b"} {
-		pawn := &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &c.Ref{Id: proto.String(id)}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Deficit: proto.Bool(id == "a")}
+		pawn := &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &c.Ref{Id: proto.String(id)}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Deficit: proto.Bool(id == "a"), Gender: d.Gender_GENDER_MALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso", "Arms", "Legs"}}
 		gear.Pawns = append(gear.Pawns, pawn)
 	}
 	gear.Pawns[0].ReplacementNeeds = []*o.GearReplacementNeed{{DefName: proto.String("Apparel_BasicShirt"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}
@@ -213,8 +214,8 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	// The census lists a weapon beside the parka: only the parka is a wear
 	// candidate; the weapon's eligibility belongs to the equip family and
 	// the wear operation refuses it as absent (#339).
-	bow := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Apparel: proto.Bool(false), Ranged: proto.Bool(true)}, Gain: proto.Float64(9)}
-	parka := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}}), Weapon: proto.Bool(false), Apparel: proto.Bool(true)}, Gain: proto.Float64(1)}
+	bow := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Ranged: proto.Bool(true)}, Gain: proto.Float64(9)}
+	parka := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}}), Weapon: proto.Bool(false)}, Gain: proto.Float64(1)}
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, bow, parka), loadout("b", false)}}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	reviewer.native = n
@@ -278,7 +279,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {
 		return &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: observedContext(), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &c.Ref{Id: proto.String(id)}, Equipment: &o.PawnEquipment{Armed: proto.Bool(!deficit)}, Candidates: candidates, Deficit: proto.Bool(deficit)}
 	}
-	log := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Apparel: proto.Bool(false), Melee: proto.Bool(true)}, Gain: proto.Float64(1)}
+	log := &o.GearCandidate{Item: &o.GearItem{Thing: native.entity(&o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}), Weapon: proto.Bool(true), Melee: proto.Bool(true)}, Gain: proto.Float64(1)}
 	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, log), loadout("b", false)}}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	reviewer.native = n

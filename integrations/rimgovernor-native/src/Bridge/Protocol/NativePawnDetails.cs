@@ -382,7 +382,7 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.GearItem Gear(Thing thing)
         {
-            var row=new Obs.GearItem {Thing=NativeRef.Thing(thing),Weapon=thing.def.IsWeapon,Apparel=thing.def.IsApparel,Ranged=thing.def.IsRangedWeapon,Melee=thing.def.IsMeleeWeapon};
+            var row=new Obs.GearItem {Thing=NativeRef.Thing(thing),Weapon=thing.def.IsWeapon,Ranged=thing.def.IsRangedWeapon,Melee=thing.def.IsMeleeWeapon};
             NativeGearFacts.Biocode(thing, row);
             if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
             var range=WeaponRange(thing); if(range.HasValue) row.Range=range.Value;
@@ -391,10 +391,6 @@ namespace HomeBridge.BridgeTools
                 if(thing.MaxHitPoints<=0 || thing.HitPoints<0) throw new InvalidOperationException("Invalid native hit points.");
                 row.HitPoints=thing.HitPoints;row.MaxHitPoints=thing.MaxHitPoints;
                 row.ConditionFraction=Number((double)thing.HitPoints/thing.MaxHitPoints);
-            }
-            if(thing.def.apparel!=null) {
-                row.ApparelLayers.Add(thing.def.apparel.layers.Select(d=>Id(d.defName)));
-                row.BodyPartGroups.Add(thing.def.apparel.bodyPartGroups.Select(d=>Id(d.defName)));
             }
             return row;
         }

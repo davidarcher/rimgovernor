@@ -15,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -108,7 +109,11 @@ func (n *routineNative) finishedResearch() []string { return n.finished }
 
 // DefinitionCatalog serves the fake's catalog rows under the asked load.
 func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
-	return testCatalog(id, n.catalog...), nil
+	catalog := testCatalog(id, n.catalog...)
+	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
+	catalog.ThingDefs = map[string]*d.ThingDef{"Apparel_BasicShirt": {DefName: "Apparel_BasicShirt", Apparel: shirt}, "Apparel_Parka": {DefName: "Apparel_Parka", Apparel: shirt},
+		"Bow_Short": {DefName: "Bow_Short"}, "WoodLog": {DefName: "WoodLog"}}
+	return catalog, nil
 }
 
 // testCatalog is a definition catalog of rows under id's load.

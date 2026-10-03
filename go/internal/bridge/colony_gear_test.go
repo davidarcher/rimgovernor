@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -13,9 +14,9 @@ import (
 func gearColonyFixture(t *testing.T) *o.ColonyFactsSnapshot {
 	v := colonyFixture(t).GetObserved()
 	ctx := v.Context
-	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Apparel: proto.Bool(true), Weapon: proto.Bool(false)}}}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
-	p.LoadoutModel = &o.GearLoadoutModel{Options: []*o.GearLoadoutOption{{Id: proto.String("bill:Apparel_FlakVest/"), DefName: proto.String("Apparel_FlakVest"), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), ArmorSharp: proto.Float64(1), MoveSpeed: proto.Float64(-.12), Research: []string{"FlakArmor"}, Ingredients: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(60)}}}}}
-	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}, FinishedResearch: []string{"FlakArmor"}}
+	p := &o.GearLoadout{Pawn: &c.Ref{Id: proto.String("pawn")}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("loadout")}, Deficit: proto.Bool(true), Candidates: []*o.GearCandidate{{Gain: proto.Float64(.3), Item: &o.GearItem{Thing: &c.Ref{Id: proto.String("parka")}, Weapon: proto.Bool(false)}}}, Gender: d.Gender_GENDER_FEMALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum(), BodyPartGroups: []string{"Torso"}, ReplacementNeeds: []*o.GearReplacementNeed{{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}}
+	p.LoadoutModel = &o.GearLoadoutModel{Options: []*o.GearLoadoutOption{{Id: proto.String("bill:Apparel_FlakVest/"), DefName: proto.String("Apparel_FlakVest"), Quality: proto.Int32(2), Source: proto.String("bill"), Condition: proto.Float64(1), Research: []string{"FlakArmor"}, Ingredients: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(60)}}}}}
+	v.GetPlanning().GetObserved().Gear = &o.GearSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext), Pawns: []*o.GearLoadout{p}}
 	return v
 }
 
@@ -31,13 +32,16 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		"other pawn token":   func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
 		"blocked eligible":   func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
 		"nan gain":           func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
-		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
-		"blank research":     func(g *o.GearSnapshot) { g.FinishedResearch = []string{" "} },
+		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Weapon = nil },
+		"no wearer stage":    func(g *o.GearSnapshot) { g.Pawns[0].DevelopmentalStage = nil },
+		"mixed wearer stage": func(g *o.GearSnapshot) { g.Pawns[0].DevelopmentalStage = d.DevelopmentalStage(12).Enum() },
+		"no wearer gender":   func(g *o.GearSnapshot) { g.Pawns[0].Gender = nil },
+		"wearer group":       func(g *o.GearSnapshot) { g.Pawns[0].BodyPartGroups = []string{"Torso", "Torso"} },
 		"model source": func(g *o.GearSnapshot) {
 			g.Pawns[0].LoadoutModel.Options[0].Source = proto.String("trade")
 		},
-		"model nan armor": func(g *o.GearSnapshot) {
-			g.Pawns[0].LoadoutModel.Options[0].ArmorSharp = proto.Float64(math.NaN())
+		"model nan condition": func(g *o.GearSnapshot) {
+			g.Pawns[0].LoadoutModel.Options[0].Condition = proto.Float64(math.NaN())
 		},
 		"model empty ingredient": func(g *o.GearSnapshot) {
 			g.Pawns[0].LoadoutModel.Options[0].Ingredients[0].Units = proto.Int64(0)

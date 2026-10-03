@@ -58,10 +58,11 @@ any bill exists, the same way a resource deficit covers its benches, because
 native bill admission refuses a bench nobody works.
 
 Production needs include damaged replaceable apparel (`wear`), worn upkeep-owned
-weapons, garments covering a core body-part group (Torso, Legs) the pawn wears
-nothing over (`missing`, the warmest budgeted candidates), and bounded native
-definition/stuff candidates that improve an observed thermal deficit (`cold`,
-`heat`). An uncovered core group is a deficit in any weather. A definition-level
+weapons, and bounded native definition/stuff candidates that improve an
+observed thermal deficit (`cold`, `heat`). A core body-part group (Torso, Legs)
+the pawn wears nothing over is a deficit in any weather, found by Go from the
+worn garments' groups (the native deficit and production needs do not read it).
+A definition-level
 thermal estimate is a procurement candidate, not proof of the eventual garment's
 quality, eligibility or sufficient protection.
 
@@ -79,11 +80,23 @@ an item. Bench staging uses the equipment goal through the shared workshop ladde
 
 `policy.PlanGearLoadout` consumes a complete, eligible def × stuff × quality
 catalog and worn gear. The native gear census supplies it per pawn
-(`GearLoadout.loadout_model`, with the snapshot's finished research and
-outdoor temperature): gender, traits, every worn garment, the eligible loose
-or stored candidates and the producible definitions whose recipe research is
-finished (one stuff each, the most stocked), at most 64 unworn options.
-Go derives each option's slot from its apparel layers and body-part groups,
+(`GearLoadout.loadout_model`, with the outdoor temperature): traits, every
+worn garment, the eligible loose or stored candidates and the producible
+definitions whose recipe research is finished (one stuff each, the most
+stocked), at most 64 unworn options, each an id, def, stuff, quality,
+condition and flags (tainted, locked, smoke-pop). Everything def-static is
+the catalog's (#1732): Go takes each option's layers and body-part groups,
+shield, psychic and move-speed offsets from the ThingDef row, and armor,
+insulation and market value from the stat table for its def and stuff (a
+stat the game does not show for the def is a stat the garment lacks); the
+frame's finished research (`ResearchSnapshot.finished`) gates the bill
+options. The pawn row carries the wear inputs the rows cannot say: gender,
+developmental stage and the body-part groups the pawn still has a part in.
+Go applies the wear filter (gender, stage, a present part in one of the
+garment's groups) to the apparel rows to list the definitions the pawn can
+wear (`ApparelPolicyState.definitions` is gone); armor is the Soldier outfit
+tag without Worker, and a def covers the body with a Torso or Legs group.
+Go derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
 the definitions that role's apparel policy permits. A census without the
 model, or one the model's bounds refuse (for example two worn garments on

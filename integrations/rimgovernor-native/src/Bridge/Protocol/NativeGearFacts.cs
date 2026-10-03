@@ -5,6 +5,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
+using Defs = RimGovernor.Protocol.Defs;
 using Obs = RimGovernor.Protocol.Observations;
 using static HomeBridge.BridgeTools.NativePawnObservationTools;
 
@@ -17,8 +18,6 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             var result = new Obs.GearSnapshot { Context = context.Clone()};
             ReadClimate(map, result);
-            result.FinishedResearch.Add(DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(r => r.IsFinished)
-                .Select(r => Id(r.defName)).OrderBy(n => n, StringComparer.Ordinal));
             var catalog = Catalog();
             var apparelOnMap = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToList();
             var byId = new Dictionary<string, Apparel>();
@@ -46,8 +45,13 @@ namespace HomeBridge.BridgeTools
                     ComfortableMinC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
                     ApparelPolicy = pawn.outfits?.CurrentApparelPolicy == null ? null : NativeApparelPolicyOperations.Read(pawn),
-                    Equipment = Equipment(pawn)
+                    Equipment = Equipment(pawn),
+                    // The wear inputs the apparel rows cannot say: Go applies the
+                    // wear filter (gender, stage, body part groups) from the rows.
+                    Gender = (Defs.Gender)(int)pawn.gender,
+                    DevelopmentalStage = (Defs.DevelopmentalStage)(int)pawn.DevelopmentalStage
                 };
+                row.BodyPartGroups.Add(PresentGroups(pawn));
                 if (refusal != null) row.Blocker = Text(refusal);
                 if (refusal == null) {
                     // Every eligible loose item is offered, best gain first
@@ -84,6 +88,14 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
+        // The body part groups the pawn still has a part in (a part that is not missing).
+        private static List<string> PresentGroups(Pawn pawn)
+        {
+            var parts = pawn.health.hediffSet.GetNotMissingParts().ToList();
+            return DefDatabase<BodyPartGroupDef>.AllDefsListForReading.Where(g => parts.Any(part => part.IsInGroup(g)))
+                .Select(g => Id(g.defName)).OrderBy(n => n, StringComparer.Ordinal).ToList();
+        }
+
         // The Go loadout model's catalog is at most 64 unworn options; loose
         // or stored candidates take up to half, best native gain first.
         private const int ModelOptions = 64, ModelPhysical = 32;
@@ -98,7 +110,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.GearLoadoutModel Model(Map map, Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog,
             Dictionary<string, Apparel> things, Dictionary<RecipeDef, Obs.GearLoadoutOption?> billOptions)
         {
-            var model = new Obs.GearLoadoutModel { Female = pawn.gender == Gender.Female };
+            var model = new Obs.GearLoadoutModel();
             if (pawn.story?.traits != null)
                 foreach (var trait in pawn.story.traits.allTraits) model.Traits.Add(new Obs.Trait { DefName = Id(trait.def.defName), Degree = trait.Degree });
             if (pawn.apparel != null)
@@ -148,24 +160,14 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // Normal-quality def x stuff stats before condition; negative stats clamp to zero.
+        // The instance facts of one option at Normal quality; layers, groups and the
+        // def x stuff stats are the catalog's. The smoke-pop verb is the one def fact
+        // still sent: the catalog's def rows do not carry verbs.
         private static Obs.GearLoadoutOption Option(string id, ThingDef def, ThingDef? stuff, string source)
         {
-            double Stat(StatDef stat) => Math.Max(0, Number(def.GetStatValueAbstract(stat, stuff)));
-            var offsets = def.equippedStatOffsets;
             var row = new Obs.GearLoadoutOption { Id = Id(id), DefName = Id(def.defName), Source = source, Quality = (int)QualityCategory.Normal,
-                Condition = 1, ArmorSharp = Stat(StatDefOf.ArmorRating_Sharp), ArmorBlunt = Stat(StatDefOf.ArmorRating_Blunt),
-                InsulationCold = Stat(StatDefOf.Insulation_Cold), InsulationHeat = Stat(StatDefOf.Insulation_Heat),
-                MarketValue = Stat(StatDefOf.MarketValue),
-                MoveSpeed = offsets == null ? 0 : Number(offsets.GetStatOffsetFromList(StatDefOf.MoveSpeed)),
-                Psychic = offsets != null && offsets.GetStatOffsetFromList(StatDefOf.PsychicSensitivity) < 0,
-                Shield = def.HasComp(typeof(CompShield)),
-                Smokepop = def.Verbs?.Any(v => v.verbClass == typeof(Verb_SmokePop)) == true };
+                Condition = 1, Smokepop = def.Verbs?.Any(v => v.verbClass == typeof(Verb_SmokePop)) == true };
             if (stuff != null) row.Stuff = Id(stuff.defName);
-            if (def.apparel != null) {
-                row.ApparelLayers.Add(def.apparel.layers.Select(d => Id(d.defName)).Distinct());
-                row.BodyPartGroups.Add(def.apparel.bodyPartGroups.Select(d => Id(d.defName)).Distinct());
-            }
             return row;
         }
 
@@ -265,7 +267,7 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.GearItem Gear(Thing thing)
         {
-            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing), Weapon = thing.def.IsWeapon, Apparel = thing.def.IsApparel,
+            var row = new Obs.GearItem { Thing = NativeRef.Thing(thing), Weapon = thing.def.IsWeapon,
                 Ranged = thing.def.IsRangedWeapon, Melee = thing.def.IsMeleeWeapon,
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
@@ -276,10 +278,6 @@ namespace HomeBridge.BridgeTools
             if (thing.def.useHitPoints) {
                 row.HitPoints = thing.HitPoints; row.MaxHitPoints = thing.MaxHitPoints;
                 row.ConditionFraction = Number((double)thing.HitPoints / thing.MaxHitPoints);
-            }
-            if (thing.def.apparel != null) {
-                row.ApparelLayers.Add(thing.def.apparel.layers.Select(d => Id(d.defName)));
-                row.BodyPartGroups.Add(thing.def.apparel.bodyPartGroups.Select(d => Id(d.defName)));
             }
             return row;
         }

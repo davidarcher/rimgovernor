@@ -1,17 +1,24 @@
 package observation
 
 import (
+	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fact[policy.GearObservation] {
+// colonyGear decodes the gear census against the frame's definitions: the
+// catalog's apparel rows and stat table give every garment's layers, groups
+// and stats, and the finished research its bill options need (#1732). A frame
+// without a catalog leaves the census unknown.
+func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables, defs GearDefinitions) domain.Fact[policy.GearObservation] {
 	gear := v.GetPlanning().GetObserved().GetGear()
-	if gear == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
+	if gear == nil || defs.Catalog == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
 		return domain.Unknown[policy.GearObservation]()
 	}
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: GearStorageFacts(gear)}
@@ -21,12 +28,12 @@ func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fact[poli
 		for _, n := range p.ReplacementNeeds {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(n.GetDefName()), Stuff: policy.Resource(n.GetStuff()), Reason: n.GetReason()})
 		}
-		row.Candidates = GearCandidateFacts(p, tables)
+		row.Candidates = GearCandidateFacts(p, tables, defs.Catalog)
 		row.Replacements = domain.Known(needs)
-		row.Apparel = GearApparelFacts(p.Equipment, tables)
-		row.Policy = ApparelPolicyFacts(p)
+		row.Apparel = GearApparelFacts(p.Equipment, tables, defs.Catalog)
+		row.Policy = ApparelPolicyFacts(p, defs.Catalog)
 		row.Climate = GearClimateFacts(gear)
-		row.LoadoutModel = GearLoadoutModelFacts(gear, v.OutdoorTemperatureC, p, row.Policy)
+		row.LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, row.Policy)
 		result.Pawns = append(result.Pawns, row)
 	}
 	result.Outfits = OutfitIDs(ColonyPolicies(v.Policies))
@@ -37,16 +44,18 @@ func colonyGear(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fact[poli
 // apparel-policy role (with the model's traits), and unworn options are
 // narrowed to the definitions that role's apparel policy permits, so the
 // model never plans a garment DesiredApparelPolicy would forbid. Unknown when
-// the producer sent no model, role or temperatures, or when the model falls
-// outside the policy's bounds (PlanGearLoadout's Validate): the census then
-// keeps the native deficit path.
-func GearLoadoutModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
+// the producer sent no model, role or temperatures, when the catalog lacks a
+// garment's row or stat values or the finished research is unknown, or when
+// the model falls outside the policy's bounds (PlanGearLoadout's Validate):
+// the census then keeps the native deficit path.
+func GearLoadoutModelFacts(defs GearDefinitions, outdoor *float64, p *o.GearLoadout, state domain.Fact[policy.ApparelPolicyState]) domain.Fact[policy.GearLoadoutInput] {
 	m := p.GetLoadoutModel()
 	role, known := state.Value()
-	if m == nil || !known || outdoor == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
+	finished, researched := defs.Finished.Value()
+	if m == nil || !known || !researched || p.Gender == nil || outdoor == nil || p.ComfortableMinC == nil || p.ComfortableMaxC == nil {
 		return domain.Unknown[policy.GearLoadoutInput]()
 	}
-	in := policy.GearLoadoutInput{Role: role.Role, Female: m.GetFemale(), Research: append([]string{}, gear.GetFinishedResearch()...), Ambient: *outdoor, ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
+	in := policy.GearLoadoutInput{Role: role.Role, Female: p.GetGender() == d.Gender_GENDER_FEMALE, Research: slices.Sorted(maps.Keys(finished)), Ambient: *outdoor, ComfortableMin: p.GetComfortableMinC(), ComfortableMax: p.GetComfortableMaxC()}
 	traits := []policy.PawnTrait{}
 	for _, t := range m.GetTraits() {
 		traits = append(traits, policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())})
@@ -55,17 +64,25 @@ func GearLoadoutModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoad
 	var allowed map[string]bool
 	if len(role.Definitions) > 0 {
 		allowed = map[string]bool{}
-		for _, d := range policy.RoleApparelDefinitions(policy.DeriveGearRole(role.Role), role) {
-			allowed[d] = true
+		for _, name := range policy.RoleApparelDefinitions(policy.DeriveGearRole(role.Role), role) {
+			allowed[name] = true
 		}
 	}
 	for _, x := range m.GetWorn() {
-		if option, ok := gearLoadoutOption(x); ok {
+		option, ok, err := gearLoadoutOption(x, defs.Catalog)
+		if err != nil {
+			return domain.Unknown[policy.GearLoadoutInput]()
+		}
+		if ok {
 			in.Worn = append(in.Worn, option)
 		}
 	}
 	for _, x := range m.GetOptions() {
-		if option, ok := gearLoadoutOption(x); ok && (allowed == nil || allowed[x.GetDefName()]) {
+		option, ok, err := gearLoadoutOption(x, defs.Catalog)
+		if err != nil {
+			return domain.Unknown[policy.GearLoadoutInput]()
+		}
+		if ok && (allowed == nil || allowed[x.GetDefName()]) {
 			in.Options = append(in.Options, option)
 		}
 	}
@@ -75,18 +92,34 @@ func GearLoadoutModelFacts(gear *o.GearSnapshot, outdoor *float64, p *o.GearLoad
 	return domain.Known(in)
 }
 
-// gearLoadoutOption maps one native option; false for a garment the model's
-// slots do not name.
-func gearLoadoutOption(x *o.GearLoadoutOption) (policy.GearOption, bool) {
-	slot, ok := gearSlot(x.GetApparelLayers(), x.GetBodyPartGroups())
-	if !ok {
-		return policy.GearOption{}, false
+// gearLoadoutOption maps one native option against the catalog: its layers
+// and groups from the def's apparel row, its stats from the stat table for
+// its (def, stuff), its move speed, psychic and shield facts from the row.
+// False for a garment the model's slots do not name; an error for a def the
+// catalog lacks or does not know as apparel, or a pair without stat values.
+func gearLoadoutOption(x *o.GearLoadoutOption, catalog *bridge.DefinitionCatalog) (policy.GearOption, bool, error) {
+	row, apparel := apparelRow(catalog, x.GetDefName())
+	if apparel == nil {
+		return policy.GearOption{}, false, fmt.Errorf("gear option %s: no apparel row for def %s", x.GetId(), x.GetDefName())
 	}
-	option := policy.GearOption{ID: x.GetId(), Definition: policy.Resource(x.GetDefName()), Stuff: policy.Resource(x.GetStuff()), Quality: int(x.GetQuality()), Slot: slot, Layers: append([]string{}, x.GetApparelLayers()...), Groups: append([]string{}, x.GetBodyPartGroups()...), Source: policy.GearSource(x.GetSource()), Condition: x.GetCondition(), Sharp: x.GetArmorSharp(), Blunt: x.GetArmorBlunt(), Cold: x.GetInsulationCold(), Heat: x.GetInsulationHeat(), MoveSpeed: x.GetMoveSpeed(), Cost: x.GetMarketValue(), Tainted: x.GetTainted(), Locked: x.GetLocked(), Shield: x.GetShield(), Psychic: x.GetPsychic(), Smokepop: x.GetSmokepop(), Research: append([]string{}, x.GetResearch()...)}
+	layers, groups := distinct(apparel.GetLayers()), distinct(apparel.GetBodyPartGroups())
+	slot, ok := gearSlot(layers, groups)
+	if !ok {
+		return policy.GearOption{}, false, nil
+	}
+	option := policy.GearOption{ID: x.GetId(), Definition: policy.Resource(x.GetDefName()), Stuff: policy.Resource(x.GetStuff()), Quality: int(x.GetQuality()), Slot: slot, Layers: layers, Groups: groups, Source: policy.GearSource(x.GetSource()), Condition: x.GetCondition(),
+		MoveSpeed: float64(statOffset(row, statMoveSpeed)), Tainted: x.GetTainted(), Locked: x.GetLocked(), Shield: hasShield(row), Psychic: statOffset(row, statPsychic) < 0, Smokepop: x.GetSmokepop(), Research: append([]string{}, x.GetResearch()...)}
+	for stat, into := range map[string]*float64{statArmorSharp: &option.Sharp, statArmorBlunt: &option.Blunt, statInsulationCold: &option.Cold, statInsulationHeat: &option.Heat, statMarketValue: &option.Cost} {
+		value, err := optionStat(catalog, x.GetDefName(), x.GetStuff(), stat)
+		if err != nil {
+			return policy.GearOption{}, false, err
+		}
+		*into = value
+	}
 	for _, q := range x.GetIngredients() {
 		option.Ingredients = append(option.Ingredients, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
 	}
-	return option, true
+	return option, true, nil
 }
 
 // gearSlot is the model slot a garment's native apparel layers and body-part
@@ -140,22 +173,21 @@ func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
 
 // GearCandidateFacts decodes one loadout's loose replacement candidates:
 // the apparel a wear order (gear_replace, native GiveJobIntent Wear) can target.
-// A weapon the census still lists (its eligibility is the equip family's)
-// is skipped: the wear operation looks its target up among loose apparel
-// only, so a plan proposing one was refused on every attempt and held its
-// development slot for the run (#339).
-// A candidate whose things table row the frame lacks leaves them unknown
-// (#1342).
-func GearCandidateFacts(p *o.GearLoadout, tables bridge.Tables) domain.Fact[[]policy.GearCandidate] {
+// A def the catalog does not know as apparel is skipped: the wear operation
+// looks its target up among loose apparel only, so a plan proposing one was
+// refused on every attempt and held its development slot for the run (#339).
+// A candidate whose things table row the frame lacks, or whose def the
+// catalog lacks, leaves them unknown (#1342).
+func GearCandidateFacts(p *o.GearLoadout, tables bridge.Tables, catalog *bridge.DefinitionCatalog) domain.Fact[[]policy.GearCandidate] {
 	candidates := []policy.GearCandidate{}
 	for _, c := range p.GetCandidates() {
 		item := c.GetItem()
-		if !item.GetApparel() {
-			continue
-		}
 		head := tables.Entity(item.GetThing())
-		if head == nil {
+		if head == nil || catalog.ThingDef(head.GetDefName()) == nil {
 			return domain.Unknown[[]policy.GearCandidate]()
+		}
+		if _, apparel := apparelRow(catalog, head.GetDefName()); apparel == nil {
+			continue
 		}
 		candidates = append(candidates, policy.GearCandidate{Target: item.GetThing().GetId(), Gain: c.GetGain(), Definition: policy.Resource(head.GetDefName())})
 	}
@@ -167,7 +199,7 @@ func GearCandidateFacts(p *o.GearLoadout, tables bridge.Tables) domain.Fact[[]po
 // (the equipment carries an "apparel" issue), otherwise each garment's
 // definition, condition fraction (1 without hit points) and body-part
 // groups.
-func GearApparelFacts(equipment *o.PawnEquipment, tables bridge.Tables) domain.Fact[[]policy.GearApparel] {
+func GearApparelFacts(equipment *o.PawnEquipment, tables bridge.Tables, catalog *bridge.DefinitionCatalog) domain.Fact[[]policy.GearApparel] {
 	if equipment == nil || !headed(tables, equipment.GetApparel(), (*o.GearItem).GetThing) {
 		return domain.Unknown[[]policy.GearApparel]()
 	}
@@ -178,7 +210,12 @@ func GearApparelFacts(equipment *o.PawnEquipment, tables bridge.Tables) domain.F
 	}
 	apparel := []policy.GearApparel{}
 	for _, item := range equipment.GetApparel() {
-		row := policy.GearApparel{Definition: policy.Resource(tables.Entity(item.GetThing()).GetDefName()), Condition: 1, Groups: append([]string{}, item.GetBodyPartGroups()...)}
+		def := tables.Entity(item.GetThing()).GetDefName()
+		_, worn := apparelRow(catalog, def)
+		if worn == nil {
+			return domain.Unknown[[]policy.GearApparel]()
+		}
+		row := policy.GearApparel{Definition: policy.Resource(def), Condition: 1, Groups: distinct(worn.GetBodyPartGroups())}
 		if item.ConditionFraction != nil {
 			row.Condition = item.GetConditionFraction()
 		}

@@ -36,15 +36,10 @@ namespace HomeBridge.BridgeTools
             var requirements = Requirements(p).ToList();
             var precepts = new HashSet<string>(ModsConfig.IdeologyActive && p.Ideo != null
                 ? p.Ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(v => v.apparelDef != null).Select(v => v.apparelDef.defName) : Enumerable.Empty<string>());
-            // Listed per pawn: only what its body, stage and gender can wear.
-            foreach (var d in DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel && d.apparel.PawnCanWear(p) && ApparelUtility.HasPartsToWear(p, d)).OrderBy(d => d.defName))
-            {
-                row.Definitions.Add(new Obs.ApparelPolicyDefinition { DefName = d.defName,
-                    Armor = d.apparel.defaultOutfitTags.NotNullAndContains("Soldier") && !d.apparel.defaultOutfitTags.NotNullAndContains("Worker"),
-                    Child = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Child), Adult = d.apparel.developmentalStageFilter.Has(DevelopmentalStage.Adult),
-                    CoversBody = d.apparel.bodyPartGroups.Any(g => g == BodyPartGroupDefOf.Torso || g == BodyPartGroupDefOf.Legs) });
+            // What the pawn's title, role and precepts require, by def; Go keeps
+            // those it can wear (the apparel rows and its wear inputs).
+            foreach (var d in DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName))
                 if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row.RequiredDefs.Add(d.defName);
-            }
             row.Drafted = p.Drafted;
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row.Work.Add(new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
             if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });

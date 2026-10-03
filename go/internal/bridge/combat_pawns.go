@@ -162,12 +162,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 				if g.Range != nil && (!combatNumber(g.Range, true) || g.GetRange() <= 0 || !g.GetRanged()) {
 					return contract("invalid gear range")
 				}
-				if err := combatIDs(g.ApparelLayers); err != nil {
-					return err
-				}
-				if err := combatIDs(g.BodyPartGroups); err != nil {
-					return err
-				}
 			}
 		}
 		if e.Armed != nil && !e.GetArmed() && e.PrimaryId != nil {

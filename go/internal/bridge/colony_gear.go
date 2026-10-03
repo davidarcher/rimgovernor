@@ -3,6 +3,7 @@ package bridge
 import (
 	"fmt"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"math"
@@ -40,9 +41,6 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 			}
 		}
 	}
-	if err := combatIDs(v.FinishedResearch); err != nil {
-		return contract("invalid gear research")
-	}
 	people := map[string]bool{}
 	for _, p := range v.Pawns {
 		if p == nil || p.Snapshot == nil || !proto.Equal(p.Snapshot.Context, ctx) {
@@ -62,6 +60,9 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := validateApparelPolicy(p.ApparelPolicy); err != nil {
 			return err
 		}
+		if err := validateGearWearer(p); err != nil {
+			return err
+		}
 		if !presentationText(p.Blocker, 4096) || p.Blocker != nil && p.GetBlocker() == "" || p.Blocker != nil && len(p.Candidates) > 0 {
 			return contract("invalid blocked gear loadout")
 		}
@@ -77,7 +78,7 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 				return contract("invalid eligible gear candidate")
 			}
 			item := candidate.Item
-			if item.Apparel == nil || item.Weapon == nil || item.GetApparel() == item.GetWeapon() {
+			if item.Weapon == nil {
 				return contract("unknown gear candidate kind")
 			}
 			candidates = append(candidates, item)
@@ -99,6 +100,24 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := validateGearModel(p.LoadoutModel); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// validateGearWearer checks the wear inputs of a pawn row that carries an
+// apparel policy or loadout model: the pawn's gender and single developmental
+// stage and the body part groups it still has a part in.
+func validateGearWearer(p *o.GearLoadout) error {
+	if p.ApparelPolicy == nil && p.LoadoutModel == nil {
+		return nil
+	}
+	switch p.GetDevelopmentalStage() {
+	case d.DevelopmentalStage_DEVELOPMENTAL_STAGE_NEWBORN, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_BABY, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_CHILD, d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT:
+	default:
+		return contract("invalid gear wearer stage")
+	}
+	if p.Gender == nil || p.GetGender().Descriptor().Values().ByNumber(p.GetGender().Number()) == nil || combatIDs(p.BodyPartGroups) != nil {
+		return contract("invalid gear wearer")
 	}
 	return nil
 }
@@ -125,10 +144,8 @@ func validateGearModel(m *o.GearLoadoutModel) error {
 			default:
 				return contract("invalid gear model option source")
 			}
-			for _, n := range []*float64{x.Condition, x.ArmorSharp, x.ArmorBlunt, x.InsulationCold, x.InsulationHeat, x.MoveSpeed, x.MarketValue} {
-				if !combatNumber(n, false) {
-					return contract("invalid gear model option stat")
-				}
+			if !combatNumber(x.Condition, false) {
+				return contract("invalid gear model option condition")
 			}
 			for _, q := range x.Ingredients {
 				if q == nil || validID(q.GetDefName()) != nil || q.GetUnits() <= 0 {

@@ -3,7 +3,9 @@ package observation
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -18,7 +20,7 @@ func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
 		return &o.WorkSetting{DefName: proto.String(name), Priority: proto.Int32(2), Disabled: proto.Bool(false)}
 	}
 	v := &o.ApparelPolicyState{Work: []*o.WorkSetting{work("Construction"), work("Crafting")}, Skills: []*o.Skill{skill("Construction", 3), skill("Crafting", 14)}}
-	state, known := ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v}).Value()
+	state, known := ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v, Gender: d.Gender_GENDER_MALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum()}, &bridge.DefinitionCatalog{}).Value()
 	if !known {
 		t.Fatal("unknown")
 	}
@@ -26,7 +28,7 @@ func TestApparelPolicySkillsBreakRoleTie(t *testing.T) {
 		t.Fatal(got)
 	}
 	v.Skills = nil
-	state, _ = ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v}).Value()
+	state, _ = ApparelPolicyFacts(&o.GearLoadout{ApparelPolicy: v, Gender: d.Gender_GENDER_MALE.Enum(), DevelopmentalStage: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT.Enum()}, &bridge.DefinitionCatalog{}).Value()
 	if _, known := state.Role.Work.Skills.Value(); known {
 		t.Fatal("absent skills read as known")
 	}

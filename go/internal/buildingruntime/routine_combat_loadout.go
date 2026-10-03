@@ -123,7 +123,7 @@ func (r *RoutineDefensePlanner) loadoutBelts(call context.Context, source colony
 		for _, candidate := range pawn.GetCandidates() {
 			thing := candidate.GetItem().GetThing()
 			row, _ := things.Row(thing)
-			if !candidate.GetItem().GetApparel() || row.GetThing().GetDefName() != shieldBeltDef || thing.GetId() == "" || seen[thing.GetId()] {
+			if row.GetThing().GetDefName() != shieldBeltDef || thing.GetId() == "" || seen[thing.GetId()] {
 				continue
 			}
 			seen[thing.GetId()] = true

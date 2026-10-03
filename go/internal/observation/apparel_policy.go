@@ -1,20 +1,23 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func ApparelPolicyFacts(p *o.GearLoadout) domain.Fact[policy.ApparelPolicyState] {
+func ApparelPolicyFacts(p *o.GearLoadout, catalog *bridge.DefinitionCatalog) domain.Fact[policy.ApparelPolicyState] {
 	v := p.GetApparelPolicy()
 	if v == nil {
 		return domain.Unknown[policy.ApparelPolicyState]()
 	}
 	s := policy.ApparelPolicyState{Token: v.GetToken(), PawnName: v.GetPawnName(), PolicyID: v.GetPolicyId(), Required: append([]string{}, v.RequiredDefs...), Nude: v.GetNude(), ExcludesTainted: v.GetExcludesTainted(), Role: policy.GearRoleInput{Child: v.GetChild(), Slave: v.GetSlave(), IncapableOfViolence: v.GetIncapableOfViolence(), DraftedSquad: v.GetDrafted()}, Current: domain.ApparelPolicySpec{Name: v.GetName(), Definitions: append([]string{}, v.AllowedDefs...), MinHP: float64(v.GetMinHitPoints()), MaxHP: float64(v.GetMaxHitPoints()), MinQuality: v.GetMinQuality(), MaxQuality: v.GetMaxQuality()}}
-	for _, d := range v.Definitions {
-		s.Definitions = append(s.Definitions, policy.ApparelDefinition{Name: d.GetDefName(), Armor: d.GetArmor(), Child: d.GetChild(), Adult: d.GetAdult(), CoversBody: d.GetCoversBody()})
+	wearer, sent := wearerOf(p)
+	if !sent || catalog == nil {
+		return domain.Unknown[policy.ApparelPolicyState]()
 	}
+	s.Definitions = apparelDefinitions(catalog, wearer)
 	for _, a := range p.GetEquipment().GetApparel() {
 		s.Overrides = s.Overrides || a.GetForced() || a.GetLocked()
 	}

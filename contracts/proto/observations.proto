@@ -298,8 +298,8 @@ message SurgeryOperation {
 enum Quality { QUALITY_UNSPECIFIED = 0; QUALITY_AWFUL = 1; QUALITY_POOR = 2; QUALITY_NORMAL = 3; QUALITY_GOOD = 4; QUALITY_EXCELLENT = 5; QUALITY_MASTERWORK = 6; QUALITY_LEGENDARY = 7; }
 message GearItem {
   rimgovernor.common.v1.Ref thing = 1; optional string stuff = 2; optional Quality quality = 3; optional int32 hit_points = 4; optional int32 max_hit_points = 5;
-  optional double condition_fraction = 6; repeated string apparel_layers = 7; repeated string body_part_groups = 8;
-  optional bool weapon = 9; optional bool apparel = 10; optional bool ranged = 11; optional bool melee = 12;
+  optional double condition_fraction = 6; reserved 7, 8, 10; reserved "apparel_layers", "body_part_groups", "apparel";
+  optional bool weapon = 9; optional bool ranged = 11; optional bool melee = 12;
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
   optional double insulation_cold = 17; optional double insulation_heat = 18;
   optional double range = 19; // Ranged primary verb range in cells; absent for melee or unknown.
@@ -1032,18 +1032,25 @@ message ResolveTargetReply { oneof outcome { ResolveTargetSnapshot observed = 1;
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
 message GearReplacementNeed { optional string def_name = 1; optional string stuff = 2; optional string reason = 3; optional double gain = 4; }
 // candidates are every eligible loose item, best gain first (then thing id).
-message GearLoadout { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; GearLoadoutModel loadout_model = 12; }
-// One apparel option the Go loadout model may choose. Stats are the native
-// def x stuff values at Normal quality before condition (quality is applied in
-// Go). id is the thing id for worn/loose/stored items, bill:<def>/<stuff> for a
-// producible definition. source is worn, loose, stored or bill.
+// The pawn's wear inputs (gender, developmental_stage, body_part_groups) are
+// what the definition catalog's apparel rows cannot say: Go applies the wear
+// filter (gender, stage, body part groups) from those rows. developmental_stage
+// is the pawn's single DevelopmentalStage (the apparel filter's flag bit);
+// body_part_groups are the BodyPartGroupDef names for which the pawn has a
+// part that is not missing.
+message GearLoadout { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; reserved 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; GearLoadoutModel loadout_model = 12;
+  optional rimgovernor.defs.v1.Gender gender = 13; optional rimgovernor.defs.v1.DevelopmentalStage developmental_stage = 14; repeated string body_part_groups = 15; }
+// One apparel option the Go loadout model may choose. Layers, body part
+// groups and the def x stuff stats come from the catalog (def rows and stat
+// table); the option carries the instance: id is the thing id for
+// worn/loose/stored items, bill:<def>/<stuff> for a producible definition.
+// source is worn, loose, stored or bill. smokepop is the def's smoke-pop verb
+// (the catalog's def rows do not carry verbs yet).
 message GearLoadoutOption {
   optional string id = 1; optional string def_name = 2; optional string stuff = 3; optional int32 quality = 4;
-  optional string source = 5; repeated string apparel_layers = 6; repeated string body_part_groups = 7;
-  optional double condition = 8; optional double armor_sharp = 9; optional double armor_blunt = 10;
-  optional double insulation_cold = 11; optional double insulation_heat = 12; optional double move_speed = 13;
-  optional double market_value = 14; optional bool tainted = 15; optional bool locked = 16; optional bool shield = 17;
-  optional bool psychic = 18; optional bool smokepop = 19;
+  optional string source = 5; reserved 6, 7, 9, 10, 11, 12, 13, 14, 17, 18;
+  reserved "apparel_layers", "body_part_groups", "armor_sharp", "armor_blunt", "insulation_cold", "insulation_heat", "move_speed", "market_value", "shield", "psychic";
+  optional double condition = 8; optional bool tainted = 15; optional bool locked = 16; optional bool smokepop = 19;
   repeated string research = 20; // the producing recipe's research projects (bill options)
   repeated Quantity ingredients = 21; // the producing recipe's cost for this stuff (bill options)
 }
@@ -1051,7 +1058,7 @@ message GearLoadoutOption {
 // whole catalog. worn is every worn garment; options are the eligible loose or
 // stored candidates (best native gain first) and the producible definitions
 // whose recipe research is finished, one stuff each, at most 64 in total.
-message GearLoadoutModel { optional bool female = 1; repeated Trait traits = 2; repeated GearLoadoutOption worn = 3; repeated GearLoadoutOption options = 4; }
+message GearLoadoutModel { reserved 1; reserved "female"; repeated Trait traits = 2; repeated GearLoadoutOption worn = 3; repeated GearLoadoutOption options = 4; }
 // Temperatures are indexed by native Twelfth (0..11), in degrees Celsius.
 // Absent climate fields retain ambient-only planning for older producers.
 message GearSnapshot {
@@ -1063,7 +1070,7 @@ message GearSnapshot {
   optional int32 ticks_to_next_twelfth = 6;
   GearWeatherCondition active_weather = 7;
   GearStorage stored_apparel = 8;
-  repeated string finished_research = 9; // finished ResearchProjectDef names, sorted
+  reserved 9; reserved "finished_research"; // ResearchSnapshot.finished
   reserved 10; // outdoor temperature: ColonyFactsSnapshot.outdoor_temperature_c
 }
 // Aggregate only usable, untainted, unforbidden apparel in valid storage.
@@ -2395,12 +2402,9 @@ message FoodRestriction {
   repeated string eligible_defs = 3;
 }
 
-// One apparel definition the pawn can wear (stage, gender, body parts and
-// body type), listed per pawn. covers_body: it covers the torso or legs.
-message ApparelPolicyDefinition { optional string def_name = 1; optional bool armor = 2; optional bool child = 3; optional bool adult = 4; optional bool covers_body = 5; }
-message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; repeated ApparelPolicyDefinition definitions = 10; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; repeated Skill skills = 16;
+message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; reserved 10; reserved "definitions"; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; repeated Skill skills = 16;
   // The pawn's short name (its outfit's label), the load id of its current
-  // outfit, the wearable definitions its royal title, ideoligion role and
+  // outfit, the definitions its royal title, ideoligion role and
   // ideoligion apparel precepts require, and whether it goes nude (nudist
   // trait or mandatory nudity precept).
   optional string pawn_name = 17; optional string policy_id = 18; repeated string required_defs = 19; optional bool nude = 20; }
