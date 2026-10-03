@@ -62,10 +62,12 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: !routineBuildingBoundary(expected, state.Snapshot, review.Tick)", ErrControl)
 	}
 	started := r.reviewer.clock.Now()
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	// The room census: the vet room is ready only once it stands shelled.
+	read, err := r.reviewer.observeRooms(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
+	read.Projection.Facts.VetRoom.Ready = vetRoomReady(read.Projection)
 	wait := animalProductWait(read.Projection.Facts.FoodPlan)
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHerd)
 	if err != nil {

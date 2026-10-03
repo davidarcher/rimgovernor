@@ -74,6 +74,19 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	return policy.NextHerdStep(plan, rooms, census.Buildings, sleeping.Beds, len(animals), furniture), true, nil
 }
 
+// vetRoomReady is VetRoom.Ready: known once the plan, room census,
+// construction census and sleeping census are; see policy.VetRoomReady.
+func vetRoomReady(facts observation.ColonyProjection) domain.Fact[bool] {
+	plan, pk := facts.LayoutPlan.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	if !pk || !rk || !ck || !sk || !census.Colony {
+		return domain.Unknown[bool]()
+	}
+	return policy.VetRoomReady(plan, rooms, census.Buildings, sleeping.Beds)
+}
+
 // herdRoomsOwed is the review's HerdRoomsOwed fact: known true while a barn
 // or vet room step is due.
 func herdRoomsOwed(facts observation.ColonyProjection) (domain.Fact[bool], error) {

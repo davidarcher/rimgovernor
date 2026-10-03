@@ -303,6 +303,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoKillboxArea = allowedAreaID(r.Policies, policy.NoKillboxAreaLabel)
+	r.Facts.VetRoom.Area = allowedAreaID(r.Policies, policy.VetRoomAreaLabel)
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()

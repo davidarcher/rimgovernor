@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -64,16 +65,23 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	if !known {
 		return domain.Unknown[bool](), nil
 	}
-	var killbox []domain.Cell
+	var killbox, vet []domain.Cell
 	if plan, ok := projection.LayoutPlan.Value(); ok {
-		killbox = plan.KillboxCells()
+		killbox, vet = plan.KillboxCells(), plan.VetRoomCells()
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.enter(world)
 	m.edits = nil
-	if err := m.plan(policy.SafeAreaKey, policy.SafeAreaCells(rooms, killbox)); err != nil {
+	// The Safe area leaves the vet room out: an animal sheltered there
+	// would enter it, and only the sterilize flow lets one in.
+	if err := m.plan(policy.SafeAreaKey, policy.SafeAreaCells(rooms, append(slices.Clone(killbox), vet...))); err != nil {
 		return domain.Unknown[bool](), err
+	}
+	if len(vet) > 0 {
+		if err := m.plan(policy.VetRoomAreaKey, vet); err != nil {
+			return domain.Unknown[bool](), err
+		}
 	}
 	if census, ok := projection.Facts.HomeCoverage.Value(); ok {
 		if home, hk := census.Home.Value(); hk && len(home) > 0 {
