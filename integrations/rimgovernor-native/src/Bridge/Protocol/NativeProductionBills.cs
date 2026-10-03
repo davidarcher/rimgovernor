@@ -43,8 +43,8 @@ namespace HomeBridge.BridgeTools {
   internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
   // Ordinary production: every product is a spawnable item (food, kibble,
   // blocks, weapons, apparel alike); corpse butchering keeps its special case.
-  internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(CorpseRecipe(recipe.defName)||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
-  internal static bool CorpseRecipe(string recipe)=>NativeProductionBillSettings.CorpseRecipe(recipe);
+  internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(NativeRecipeRoles.Corpse(recipe)||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
+  internal static bool CorpseRecipe(string recipe)=>NativeRecipeRoles.Corpse(NativeRecipeRoles.Named(recipe));
   private static bool HumanlikeCorpse(ThingDef d)=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true;
   // The class a corpse bill takes: animal without humanlike corpses, else
   // stranger when the stranger special filter is allowed, else colonist.
@@ -77,12 +77,12 @@ namespace HomeBridge.BridgeTools {
    fresh.ingredientFilter.CopyAllowancesFrom(bill.recipe.defaultIngredientFilter ?? bill.recipe.fixedIngredientFilter);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
     var defaults=new Operations.BillSettings();
-    if(CorpseRecipe(bill.recipe.defName))defaults.CorpseClass=CorpseClass(bill);
+    if(NativeRecipeRoles.Corpse(bill.recipe))defaults.CorpseClass=CorpseClass(bill);
     ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
     row.DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter);
     row.UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly;
    }
-   if(bill.recipe.defName=="ButcherCorpseFlesh"){
+   if(NativeRecipeRoles.ButcherFlesh(bill.recipe)){
     row.IngredientFilter=new Obs.StockpileFilter();
     row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));
    }
@@ -115,11 +115,11 @@ namespace HomeBridge.BridgeTools {
       bill.ingredientFilter.SetDisallowAll();
       foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
      }
-     if(CorpseRecipe(recipe.defName))ConfigureCorpses(bill,recipe,s.CorpseClass);
+     if(NativeRecipeRoles.Corpse(recipe))ConfigureCorpses(bill,recipe,s.CorpseClass);
      else{
       // Shared colonist cooking never creates human-meat meals. Dedicated
       // destination bills must supply their own explicit routing contract.
-      bool trade=s.Ingredients!=null&&recipe!.products.All(p=>p.thingDef.defName=="MealSurvivalPack");
+      bool trade=s.Ingredients!=null&&recipe!.products.All(p=>p.thingDef==ThingDefOf.MealSurvivalPack);
       bool eligible=s.Ingredients!=null&&map.mapPawns.FreeColonistsSpawned.All(HumanFoodFacts.AcceptsMeat);
       bool feed=recipe!.products.All(p=>p.thingDef.ingestible!=null && (p.thingDef.ingestible.foodType&FoodTypeFlags.Kibble)!=0);
       foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && s.Ingredients!.Replace.Selectors.Any(x=>x.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
@@ -161,7 +161,7 @@ namespace HomeBridge.BridgeTools {
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(intent.RecipeDef);
    var work=bench!=null&&recipe!=null?NativeBillsObservationTools.WorkType(bench.def,recipe):null;
    var colonists=map.mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
-   if(intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&(intent.RecipeDef!="ButcherCorpseFlesh"||HumanFoodFacts.AcceptsButchery(p))).ToList();
+   if(intent.Settings.Worker!=null)colonists=colonists.Where(p=>p.GetUniqueLoadID()==intent.Settings.Worker.EntityId&&(!NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named(intent.RecipeDef))||HumanFoodFacts.AcceptsButchery(p))).ToList();
    var rules=new ApplyPreconditions(Kind)
     .Present(()=>bench!=null&&giver!=null,"bench "+intent.BenchId+" is not a loaded bill giver")
     .Require(()=>NativeProductionTracking.Ready,"production tracking is unavailable")
@@ -170,7 +170,7 @@ namespace HomeBridge.BridgeTools {
     .Require(()=>giver!.BillStack.Count<15||replaced?.billStack==giver.BillStack,"bill stack is full")
     .Require(()=>replaced!=null&&replaced.recipe.defName==intent.RecipeDef||!NativeProductionBills.Matching(giver!,replaced,intent),"bench already carries a matching "+intent.RecipeDef+" bill")
     .Require(()=>recipe!=null&&NativeProductionBills.Recipe(bench!,recipe),"recipe "+intent.RecipeDef+" is not available on the bench")
-    .Require(()=>!intent.Settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef.defName=="Wort","Beer reserve requires a wort recipe")
+    .Require(()=>!intent.Settings.BeerReserve||recipe!.products.Count==1&&recipe.products[0].thingDef==ThingDefOf.Wort,"Beer reserve requires a wort recipe")
     .Require(()=>NativeProductionBills.CorpseRecipe(intent.RecipeDef)||recipe!.WorkerCounter.GetType()==typeof(RecipeWorkerCounter)&&recipe.specialProducts==null&&recipe.products.Count==1,"recipe "+intent.RecipeDef+" is not ordinary single-product work")
     .Require(()=>replaced==null||replaced.recipe.defName==intent.RecipeDef||NativeProductionTracking.OrdinaryMeal(recipe!),"replacement requires an ordinary meal recipe")
     .Require(()=>Funded(intent,recipe!),"ingredient filter does not fund the recipe's ingredient slots")

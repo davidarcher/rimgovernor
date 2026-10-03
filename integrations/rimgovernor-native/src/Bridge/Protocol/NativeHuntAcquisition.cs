@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool ButcherReady(Pawn prey) => prey.Map.listerThings.AllThings.OfType<Building>().Any(b =>
             b is IBillGiver giver && !b.IsForbidden(Faction.OfPlayer) && giver.CurrentlyUsableForBills()
-            && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.recipe.defName == "ButcherCorpseFlesh"
+            && giver.BillStack.Bills.OfType<Bill_Production>().Any(bill => NativeRecipeRoles.ButcherFlesh(bill.recipe)
                 && !bill.suspended && !bill.paused && bill.ingredientFilter.Allows(prey.RaceProps.corpseDef)
                 && (bill.repeatMode == BillRepeatModeDefOf.Forever
                     || bill.repeatMode == BillRepeatModeDefOf.RepeatCount && bill.repeatCount > 0

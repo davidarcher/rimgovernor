@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
             && (corpse.InnerPawn.RaceProps.Animal || corpse.InnerPawn.RaceProps.Humanlike)
             && corpse.GetRotStage()==RotStage.Fresh && corpse.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible==true;
         private static bool HasHumanButcher(Map map) => map.listerThings.AllThings.OfType<Building_WorkTable>()
-            .Any(b=>b.Faction==Faction.OfPlayer && b.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")
+            .Any(b=>b.Faction==Faction.OfPlayer && b.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)
                 && map.mapPawns.FreeColonistsSpawned.Any(p=>HumanFoodFacts.CanButcher(p,b)));
 
         private static StockFacts CorpseStock(Corpse corpse, List<Pawn> eaters)

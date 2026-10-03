@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools {
  // placed (ManagedUnchanged), and whether its products need trade protection.
  internal sealed class NativeProductionRecord {
   internal readonly IBillGiver Giver;internal readonly Bill_Production Bill;
-  internal bool TradeHumanFood=>Bill.recipe.products.Any(p=>p.thingDef.defName=="MealSurvivalPack")&&Bill.ingredientFilter.AllowedThingDefs.Any(HumanFoodFacts.IsHumanMeat);
+  internal bool TradeHumanFood=>Bill.recipe.products.Any(p=>p.thingDef==ThingDefOf.MealSurvivalPack)&&Bill.ingredientFilter.AllowedThingDefs.Any(HumanFoodFacts.IsHumanMeat);
   internal bool Retired;
   internal string Config="";internal int Index=-1;
   internal NativeProductionRecord(IBillGiver giver,Bill_Production bill){Giver=giver;Bill=bill;}

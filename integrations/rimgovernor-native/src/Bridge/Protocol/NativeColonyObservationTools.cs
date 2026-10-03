@@ -346,11 +346,11 @@ namespace HomeBridge.BridgeTools
                 if (NativeAutoRefuel.Comp(bench) is CompRefuelable refuel) row.AutoRefuel = refuel.allowAutoRefuel;
                 result.Cooking.Add(row);
             }
-            foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
+            foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)).OrderBy(t=>t.thingIDNumber)){
                 var giver=(IBillGiver)bench;
                 var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context),Usable=NativeProductionBills.Usable(bench)};
                 HumanFoodFacts.Fill(row,bench);
-                foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
+                foreach(var recipe in bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
                 var butcherRoom = bench.GetRoom();
                 if (butcherRoom != null) row.Room = NativeRef.Room(butcherRoom);

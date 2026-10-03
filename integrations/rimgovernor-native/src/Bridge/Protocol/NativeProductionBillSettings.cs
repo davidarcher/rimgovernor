@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools {
    // humanlike butcher bill pins its worker; cremation never pins one.
    if(CorpseRecipe(command.RecipeDef)){
     if(!s.HasCorpseClass||!Enum.IsDefined(typeof(Common.CorpseClass),s.CorpseClass)||s.CorpseClass==Common.CorpseClass.Unspecified)return false;
-    var pinned=command.RecipeDef=="ButcherCorpseFlesh"&&s.CorpseClass!=Common.CorpseClass.Animal;
+    var pinned=NativeRecipeRoles.ButcherFlesh(NativeRecipeRoles.Named(command.RecipeDef))&&s.CorpseClass!=Common.CorpseClass.Animal;
     if(pinned!=(s.Worker!=null)||s.Worker!=null&&(s.Worker.ValueCase!=Operations.Assignment.ValueOneofCase.EntityId||!ProtoBoundary.IsIdentifier(s.Worker.EntityId)))return false;
     return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone(),CorpseClass=s.CorpseClass});
    }
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools {
     return !s.HasBeerReserve&&s.HasRepeatCount&&s.RepeatCount>=1&&s.RepeatCount<=10000&&(s.Worker==null||s.Worker.ValueCase==Operations.Assignment.ValueOneofCase.EntityId&&ProtoBoundary.IsIdentifier(s.Worker.EntityId))&&s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Count,RepeatCount=s.RepeatCount,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone(),Worker=s.Worker?.Clone()});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
   }
-  internal static bool CorpseRecipe(string recipe)=>recipe=="ButcherCorpseFlesh"||recipe=="CremateCorpse";
+  internal static bool CorpseRecipe(string recipe)=>NativeRecipeRoles.Corpse(NativeRecipeRoles.Named(recipe));
   internal static bool ValidIngredients(Operations.FilterPatch? filter){
    if(filter==null)return true;
    if(filter.Allow.Count!=0||filter.Disallow.Count!=0||filter.HasHitPointsMin||filter.HasHitPointsMax||filter.HasQualityMin||filter.HasQualityMax||filter.Replace==null||filter.Replace.Selectors.Count==0||!filter.Equals(new Operations.FilterPatch{Replace=filter.Replace.Clone()}))return false;
