@@ -56,6 +56,36 @@ func TestFoodForecastExpiryInventoryDietAndCompetingDemand(t *testing.T) {
 		})
 	}
 }
+// A squad-kill corpse lies where the animal fell: no roof, room or stockpile
+// facts. The food supply still counts it (the butcher bill and haulers fetch
+// it from anywhere reachable) and its rot clock bounds the usable share; a
+// forbidden corpse does not extend the runway (#1620).
+func TestFoodForecastCountsFarSquadKillCorpse(t *testing.T) {
+	corpse := func(forbidden bool) FoodStock {
+		return FoodStock{ID: "kill", DefName: "Corpse_Elk", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(6.), Eaters: []PawnID{"a", "b"}, Perishable: domain.Known(true), RotTicks: domain.Known(int64(120000)), Corpse: true, Forbidden: domain.Known(forbidden), MeatAmount: domain.Known(120.)}
+	}
+	for _, test := range []struct {
+		name           string
+		stock          FoodStock
+		runway, usable float64
+	}{
+		{"fresh corpse far from the stockpile", corpse(false), 2, 6},
+		{"forbidden corpse", corpse(true), 1, 3},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := foodFixture()
+			s.Stocks = append(s.Stocks, test.stock)
+			got, err := ForecastFood(s, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if days, known := got.RunwayDays.Value(); !known || days != test.runway || got.UsableNutrition != test.usable {
+				t.Fatal(got)
+			}
+		})
+	}
+}
+
 func TestFoodForecastUnknownAndInvalidInputsNeverCertifyRunway(t *testing.T) {
 	for _, test := range []struct {
 		name   string
