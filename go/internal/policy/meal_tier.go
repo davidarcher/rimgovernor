@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -148,6 +149,11 @@ func ReviewMealTier(r MealTierRequest, benches domain.Fact[[]ProductionBench]) (
 		}
 		if a.Mood != b.Mood {
 			return a.Mood > b.Mood
+		}
+		// A bulk recipe cooks four meals per trip to the bench: with equal work
+		// per nutrition it wins, so one campfire keeps up with a big colony.
+		if ab, bb := strings.HasSuffix(a.Recipe, "Bulk"), strings.HasSuffix(b.Recipe, "Bulk"); ab != bb {
+			return ab
 		}
 		if a.Recipe != b.Recipe {
 			return a.Recipe < b.Recipe
