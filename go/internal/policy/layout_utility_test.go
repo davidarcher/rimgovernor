@@ -297,3 +297,56 @@ func TestPlanUtilities(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanUtilitiesPen(t *testing.T) {
+	core := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
+	var pen *LayoutReservation
+	for i, r := range p.Reservations {
+		if r.Kind == ReservePen {
+			pen = &p.Reservations[i]
+		}
+	}
+	if pen == nil {
+		t.Fatal("no pen")
+	}
+	if w, h := penSide(30); w*h < 30*penCellsPerAnimal || h > w || w-h > 1 {
+		t.Fatal("pen not near-square", w, h)
+	}
+	if a := pen.Area; a.Width*a.Height < 30*penCellsPerAnimal {
+		t.Fatal("pen too small", a)
+	}
+	for _, r := range p.Reservations {
+		if r.Kind != ReservePen && rectsOverlap(r.Area, pen.Area) {
+			t.Fatal("pen overlaps", r)
+		}
+	}
+	for _, r := range p.AllRooms() {
+		if rectsOverlap(roomWalls(r), pen.Area) {
+			t.Fatal("pen overlaps room", r.Role)
+		}
+	}
+	u := newUtilityGrid(core)
+	if pen.Area.Z+pen.Area.Height > u.bandLo && pen.Area.Z <= u.bandHi {
+		t.Fatal("pen in the core band", pen.Area)
+	}
+	// The site search follows the centre it is given.
+	w, h := penSide(30)
+	near, _ := u.site(w, h, false, 10, 10)
+	far, _ := u.site(w, h, false, 70, 110)
+	if near.X >= far.X && near.Z >= far.Z || near == far {
+		t.Fatal("site ignores its centre", near, far)
+	}
+	found := false
+	for _, l := range p.Overlay(Bounds{Width: 120, Height: 120}).Layers {
+		found = found || l.Label == "animal pen"
+	}
+	if !found {
+		t.Fatal("overlay lacks the pen")
+	}
+	for _, r := range PlanUtilities(core, UtilityWants{PenAnimals: 2000}).Reservations {
+		if r.Kind == ReservePen {
+			t.Fatal("pen reserved with no room")
+		}
+	}
+}

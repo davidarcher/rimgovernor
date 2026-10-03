@@ -50,11 +50,28 @@ const (
 // dining room's meals (#936).
 var coolingRoles = []ModuleRole{ModuleFreezer, ModuleTomb, ModuleMealCloset}
 
-// UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots
-// and the steam geysers (each the geyser's 2x2 footprint).
+// penCellsPerAnimal sizes the animal pen: cells per penned animal (#1593).
+const penCellsPerAnimal = 10
+
+// ReservePen is the animal pen, sited beside the planned fields inside the
+// future outer ring.
+const ReservePen ReservationKind = "pen"
+
+// UtilityWants is what PlanUtilities reserves: turbine pairs, solar plots,
+// the steam geysers (each the geyser's 2x2 footprint) and a pen for
+// PenAnimals animals.
 type UtilityWants struct {
 	TurbinePairs, Solar int
+	PenAnimals          int
 	Geysers             []Rectangle
+}
+
+// penSide is the near-square rectangle holding at least animals x
+// penCellsPerAnimal cells.
+func penSide(animals int) (w, h int32) {
+	n := animals * penCellsPerAnimal
+	w = int32(math.Ceil(math.Sqrt(float64(n))))
+	return w, int32((n + int(w) - 1) / int(w))
 }
 
 // PlanUtilities adds a battery room, cooler exhausts and the wanted
@@ -119,7 +136,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	for i := 0; i < want.TurbinePairs; i++ {
-		site, ok := u.site(turbineWidth, turbinePairSpan, false)
+		site, ok := u.site(turbineWidth, turbinePairSpan, false, u.cx, u.cz)
 		if !ok {
 			break
 		}
@@ -138,11 +155,20 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		plan.Zones = append(plan.Zones, LayoutZone{Kind: ZoneField, Runs: runs})
 	}
 	for i := 0; i < want.Solar; i++ {
-		site, ok := u.site(solarSide, solarSide, false)
+		site, ok := u.site(solarSide, solarSide, false, u.cx, u.cz)
 		if !ok {
 			break
 		}
 		u.reserve(&plan, LayoutReservation{Kind: ReserveSolar, Area: site})
+	}
+	if want.PenAnimals > 0 {
+		w, h := penSide(want.PenAnimals)
+		fx, fz := u.fieldCentre()
+		if site, ok := u.site(w, h, false, fx, fz); ok {
+			u.reserve(&plan, LayoutReservation{Kind: ReservePen, Area: site})
+		} else {
+			slog.Warn("layout: no room for the animal pen", "animals", want.PenAnimals, "width", w, "height", h)
+		}
 	}
 	return plan
 }
@@ -453,13 +479,28 @@ func (u *utilityGrid) fieldCells(r Rectangle) int {
 	return n
 }
 
-// site is the free w x h rectangle nearest the spine's centre, a site wholly
-// on planned farmland counting siteFieldReach cells farther.
-func (u *utilityGrid) site(w, h int32, rockOK bool) (Rectangle, bool) {
+// fieldCentre is the mean of the planned farmland cells, the spine's centre
+// when there are none.
+func (u *utilityGrid) fieldCentre() (int32, int32) {
+	var sx, sz, n int64
+	for i, f := range u.field {
+		if f {
+			sx, sz, n = sx+int64(int32(i)%u.w), sz+int64(int32(i)/u.w), n+1
+		}
+	}
+	if n == 0 {
+		return u.cx, u.cz
+	}
+	return int32(sx / n), int32(sz / n)
+}
+
+// site is the free w x h rectangle nearest (cx, cz), a site wholly on
+// planned farmland counting siteFieldReach cells farther.
+func (u *utilityGrid) site(w, h int32, rockOK bool, cx, cz int32) (Rectangle, bool) {
 	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
 		for x := int32(0); x+w <= u.w; x++ {
-			dx, dz := float64(x+w/2-u.cx), float64(z+h/2-u.cz)
+			dx, dz := float64(x+w/2-cx), float64(z+h/2-cz)
 			cost := math.Sqrt(dx*dx + dz*dz)
 			if found && cost >= bestCost {
 				continue

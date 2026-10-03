@@ -44,6 +44,7 @@ var reservationOverlay = map[ReservationKind]overlayStyle{
 	ReserveTurbineLane:  {planGreen, "turbine lane"},
 	ReserveSolar:        {planCyan, "solar"},
 	ReserveGeothermal:   {planCyan, "geothermal"},
+	ReservePen:          {planGreen, "animal pen"},
 	ReservePerimeter:    {planRed, "perimeter"},
 	ReserveGate:         {planYellow, "gate"},
 	ReserveBridge:       {planBrown, "bridge"},

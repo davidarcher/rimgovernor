@@ -13,8 +13,9 @@ import (
 // terrain no longer carries, and calls Grow. The core candidates are a
 // planning input, not part of the saved plan.
 
-// layoutUtilities is what a fresh plan reserves beside its core.
-var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1}
+// layoutUtilities is what a fresh plan reserves beside its core; the pen
+// holds a full herd (the wealth-budget herd cap, #1593).
+var layoutUtilities = UtilityWants{TurbinePairs: 1, Solar: 1, PenAnimals: herdCapCeiling}
 
 // DeriveLayoutPlan lays a fresh v2 plan over the survey for pawns
 // colonists, with a geothermal enclosure on each reported steam geyser
