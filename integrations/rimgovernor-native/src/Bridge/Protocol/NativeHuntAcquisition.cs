@@ -49,10 +49,12 @@ namespace HomeBridge.BridgeTools
                     || bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count && count < bill.targetCount))
             && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
                 && DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking") is WorkTypeDef cooking && p.workSettings?.WorkIsActive(cooking) == true && p.CanReach(b, PathEndMode.InteractionCell, Danger.None)));
-        // Food prey is wild, non-predatory and edible. Revenge is a policy cost;
-        // RouteSafe still rejects hazards and non-ordinary death actions.
+        // Food prey is wild and edible. Revenge and predation are policy costs
+        // (the census flags them; a lone hunter never designates either, a squad
+        // may take them); RouteSafe still rejects hazards and non-ordinary death
+        // actions.
         private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
-            && !prey.RaceProps.predator && !prey.InMentalState
+            && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
         // PestDefinitions are the wild animals hunted for what they destroy,
         // not for meat (#247): an alphabeaver pack defoliates the map and
@@ -71,7 +73,7 @@ namespace HomeBridge.BridgeTools
         // flees rather than fights back, so a colonist with a melee weapon
         // or bare hands can run it down. This is the wiki's day-one interim
         // food; it never covers a pest or anything the safe-prey rule rejects.
-        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
+        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && !prey.RaceProps.predator && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
         private static bool MeleeArmed(Pawn p, Pawn prey) => Meleeable(prey) && (p.equipment?.Primary == null || p.equipment.Primary.def.IsMeleeWeapon);
         // Hunter is the colonist rule: hunting enabled, an ordinary bullet
         // weapon (or a melee weapon or bare hands against meleeable prey),
@@ -141,6 +143,7 @@ namespace HomeBridge.BridgeTools
                 RevengeChance = prey.RaceProps.manhunterOnDamageChance,
                 HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == prey.def && p.Position.DistanceToSquared(prey.Position) <= 625),
                 MeleeOnly = Meleeable(prey), Downed = prey.Downed,
+                BodySize = prey.BodySize, Sleeping = !prey.Awake(), Predator = prey.RaceProps.predator,
                 WeaponRange = map.mapPawns.FreeColonistsSpawned.Where(p => Hunter(p, prey) && OrdinaryWeapon(p))
                     .SelectMany(p => p.equipment.Primary.def.Verbs).Where(v => !v.IsMeleeAttack && v.ai_IsWeapon)
                     .Select(v => (double)v.range).DefaultIfEmpty(0).Max(), Taken = ResourceAcquisitionTools.Taken(prey) };
@@ -180,7 +183,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
                 .Require(() => !found!.Dead, "the animal is dead")
-                .Require(() => Pest(found!) || SafePrey(found!), "the animal is neither safe wild prey nor a recognised pest")
+                .Require(() => Pest(found!) || SafePrey(found!) && !found!.RaceProps.predator, "the animal is neither safe wild prey nor a recognised pest")
                 .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")

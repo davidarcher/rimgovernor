@@ -20,7 +20,7 @@ func ColonyAcquisition(v *o.ColonyFactsSnapshot, tables bridge.Tables) domain.Fa
 		if row.GetHunt() && !row.GetFood() && !policy.PestDefinition(policy.Resource(source.GetDefName())) {
 			continue
 		}
-		rows = append(rows, policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield(), RevengeChance: row.GetRevengeChance(), HerdSize: int(row.GetHerdSize()), MeleeOnly: row.GetMeleeOnly(), Downed: row.GetDowned(), WeaponRange: row.GetWeaponRange(), DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken()})
+		rows = append(rows, policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.SourceSnapshot.GetToken(), Definition: source.GetDefName(), Cell: domain.Cell{X: source.GetPosition().GetX(), Z: source.GetPosition().GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield(), RevengeChance: row.GetRevengeChance(), HerdSize: int(row.GetHerdSize()), MeleeOnly: row.GetMeleeOnly(), Downed: row.GetDowned(), BodySize: row.GetBodySize(), Sleeping: row.GetSleeping(), Predator: row.GetPredator(), WeaponRange: row.GetWeaponRange(), DesignatedTick: domain.Tick(row.GetDesignatedTick()), Taken: row.GetTaken()})
 	}
 	return domain.Known(rows)
 }

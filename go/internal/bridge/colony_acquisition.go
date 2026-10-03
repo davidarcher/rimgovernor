@@ -20,7 +20,7 @@ func validateColonyAcquisition(v *o.ColonyFactsSnapshot) error {
 		if !validRef(source) || seen[source.GetId()] || !refSnapshot(row.SourceSnapshot, source, v.Context) || validID(row.GetResource()) != nil || row.Hunt == nil || row.Tree == nil || row.Food == nil || row.Designated == nil || row.Yield == nil || row.GetYield() <= 0 || !combatNumber(row.Yield, true) || row.NutritionYield == nil || !combatNumber(row.NutritionYield, true) || !row.GetFood() && row.GetNutritionYield() != 0 || row.GetHunt() && (row.GetTree() || row.GetYield() != 1) {
 			return contract("invalid acquisition source or yield")
 		}
-		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.WeaponRange == nil || !combatNumber(row.WeaponRange, true)) {
+		if row.GetHunt() && (row.RevengeChance == nil || !combatNumber(row.RevengeChance, true) || row.GetRevengeChance() > 1 || row.HerdSize == nil || row.GetHerdSize() == 0 || row.GetHerdSize() > 65536 || row.MeleeOnly == nil || row.Downed == nil || row.BodySize != nil && !combatNumber(row.BodySize, true) || row.WeaponRange == nil || !combatNumber(row.WeaponRange, true)) {
 			return contract("missing or invalid hunt cost facts")
 		}
 		// A designated row carries the tick native first saw it; an

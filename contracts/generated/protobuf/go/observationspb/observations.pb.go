@@ -27621,6 +27621,9 @@ type AcquisitionFacts struct {
 	WeaponRange    *float64               `protobuf:"fixed64,13,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
 	DesignatedTick *int64                 `protobuf:"varint,14,opt,name=designated_tick,json=designatedTick,proto3,oneof" json:"designated_tick,omitempty"`
 	Taken          *bool                  `protobuf:"varint,15,opt,name=taken,proto3,oneof" json:"taken,omitempty"`
+	BodySize       *float64               `protobuf:"fixed64,17,opt,name=body_size,json=bodySize,proto3,oneof" json:"body_size,omitempty"`
+	Sleeping       *bool                  `protobuf:"varint,18,opt,name=sleeping,proto3,oneof" json:"sleeping,omitempty"`
+	Predator       *bool                  `protobuf:"varint,19,opt,name=predator,proto3,oneof" json:"predator,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -27763,6 +27766,27 @@ func (x *AcquisitionFacts) GetDesignatedTick() int64 {
 func (x *AcquisitionFacts) GetTaken() bool {
 	if x != nil && x.Taken != nil {
 		return *x.Taken
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetBodySize() float64 {
+	if x != nil && x.BodySize != nil {
+		return *x.BodySize
+	}
+	return 0
+}
+
+func (x *AcquisitionFacts) GetSleeping() bool {
+	if x != nil && x.Sleeping != nil {
+		return *x.Sleeping
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetPredator() bool {
+	if x != nil && x.Predator != nil {
+		return *x.Predator
 	}
 	return false
 }
@@ -40014,7 +40038,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06growth\x18\x04 \x01(\x01H\x01R\x06growth\x88\x01\x01\x12O\n" +
 	"\x0eplant_snapshot\x18\x05 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\rplantSnapshotB\r\n" +
 	"\v_designatedB\t\n" +
-	"\a_growth\"\xb2\x06\n" +
+	"\a_growth\"\xbe\a\n" +
 	"\x10AcquisitionFacts\x122\n" +
 	"\x06source\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x06source\x12Q\n" +
 	"\x0fsource_snapshot\x18\x10 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\x0esourceSnapshot\x12\x1f\n" +
@@ -40036,7 +40060,10 @@ const file_observations_proto_rawDesc = "" +
 	"R\x06downed\x88\x01\x01\x12&\n" +
 	"\fweapon_range\x18\r \x01(\x01H\vR\vweaponRange\x88\x01\x01\x12,\n" +
 	"\x0fdesignated_tick\x18\x0e \x01(\x03H\fR\x0edesignatedTick\x88\x01\x01\x12\x19\n" +
-	"\x05taken\x18\x0f \x01(\bH\rR\x05taken\x88\x01\x01B\v\n" +
+	"\x05taken\x18\x0f \x01(\bH\rR\x05taken\x88\x01\x01\x12 \n" +
+	"\tbody_size\x18\x11 \x01(\x01H\x0eR\bbodySize\x88\x01\x01\x12\x1f\n" +
+	"\bsleeping\x18\x12 \x01(\bH\x0fR\bsleeping\x88\x01\x01\x12\x1f\n" +
+	"\bpredator\x18\x13 \x01(\bH\x10R\bpredator\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
@@ -40051,7 +40078,11 @@ const file_observations_proto_rawDesc = "" +
 	"\a_downedB\x0f\n" +
 	"\r_weapon_rangeB\x12\n" +
 	"\x10_designated_tickB\b\n" +
-	"\x06_taken\"\xfd\x05\n" +
+	"\x06_takenB\f\n" +
+	"\n" +
+	"_body_sizeB\v\n" +
+	"\t_sleepingB\v\n" +
+	"\t_predator\"\xfd\x05\n" +
 	"\x0fButcheringFacts\x120\n" +
 	"\x05bench\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x05bench\x12O\n" +
 	"\x0ebench_snapshot\x18\v \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\rbenchSnapshot\x12<\n" +

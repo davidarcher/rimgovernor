@@ -84,3 +84,24 @@ func TestHuntChannelsExposeRiskAndPursuitWork(t *testing.T) {
 		t.Fatal("herd cost unexplained", rows)
 	}
 }
+
+// A predator is never designated by a lone hunter, whatever its revenge
+// chance, but every open hunt row stays visible to the squad planner.
+func TestSquadPreyIncludesRetaliatingRows(t *testing.T) {
+	wolf := AcquisitionSource{ID: "wolf", Resource: "Corpse_Wolf_Timber", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 20, BodySize: 0.8, Predator: true, Sleeping: true, HerdSize: 1}
+	moose := AcquisitionSource{ID: "moose", Resource: "Corpse_Moose", Token: "t", Hunt: true, Food: true, Yield: 1, NutritionYield: 40, RevengeChance: 0.5, BodySize: 2, HerdSize: 1}
+	taken := moose
+	taken.ID, taken.Taken = "taken", true
+	for _, row := range []AcquisitionSource{wolf, moose} {
+		if !row.Retaliates() || !row.SquadPrey() {
+			t.Fatalf("%s: retaliates %v squad %v", row.ID, row.Retaliates(), row.SquadPrey())
+		}
+	}
+	if taken.SquadPrey() {
+		t.Fatal("a taken row is squad prey")
+	}
+	got, err := SelectAcquisition(domain.Known([]AcquisitionSource{wolf, moose}), domain.Known(1.0), domain.Known(0.0), true, nil, domain.Known(2))
+	if err != nil || len(got) != 0 {
+		t.Fatalf("designated a retaliating row: %v, %v", got, err)
+	}
+}

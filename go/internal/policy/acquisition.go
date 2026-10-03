@@ -21,6 +21,9 @@ type AcquisitionSource struct {
 	RevengeChance, WeaponRange   float64
 	HerdSize                     int
 	MeleeOnly, Downed            bool
+	// BodySize, Sleeping and Predator describe a hunt row for squad planning.
+	BodySize           float64
+	Sleeping, Predator bool
 	// DesignatedTick is the tick native first saw the designation (reset on
 	// load); set only when Designated. Taken: a pawn's reservation or a
 	// colonist's current job targets the source (#1043).
@@ -75,7 +78,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !PestDefinition(Resource(row.Definition))) {
+		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodNumber(row.BodySize) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !PestDefinition(Resource(row.Definition))) {
 			return nil, errors.New("invalid acquisition source")
 		}
 		seen[row.ID] = true
@@ -125,10 +128,16 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 // cannot absorb. Downed prey cannot retaliate.
 const MaxHuntRevengeChance = 0.2
 
-// Retaliates reports a standing hunt whose revenge chance exceeds
-// MaxHuntRevengeChance: selection never designates it.
+// Retaliates reports a hunt a lone hunter must not designate: a predator, or
+// a standing animal whose revenge chance exceeds MaxHuntRevengeChance.
+// Selection never designates it; a squad may (SquadPrey).
 func (s AcquisitionSource) Retaliates() bool {
-	return s.Hunt && !s.Downed && s.RevengeChance > MaxHuntRevengeChance
+	return s.Hunt && (s.Predator || !s.Downed && s.RevengeChance > MaxHuntRevengeChance)
+}
+
+// SquadPrey reports an open hunt row a squad may target, retaliating or not.
+func (s AcquisitionSource) SquadPrey() bool {
+	return s.Hunt && !s.Designated && !s.Taken
 }
 
 // HuntRevengeCost is expected retaliation exposure, before the channel risk cap.
