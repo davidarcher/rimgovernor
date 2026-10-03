@@ -83,6 +83,10 @@ var retiredTraitTable = map[traitDegree]policy.TraitEffects{
 	{"Jealous", 0}:           {Jealous: true},
 }
 
+// retiredButcherNames are the traits policy.HumanButcherEligible matched by
+// name before the rows replaced the check (#1724).
+var retiredButcherNames = map[string]bool{"Psychopath": true, "Bloodlust": true, "Cannibal": true}
+
 type traitDegree struct {
 	Name   string
 	Degree int
@@ -116,6 +120,12 @@ func TestTraitEffectsMatchTheRetiredTable(t *testing.T) {
 				t.Fatal(err)
 			}
 			want := retiredTraitTable[key]
+			// HumanButcher replaces policy's name check, compared below.
+			wantButcher := retiredButcherNames[key.Name]
+			if got.HumanButcher != wantButcher {
+				extras = append(extras, fmt.Sprintf("%s/%d: HumanButcher derived %v, retired name check %v", key.Name, key.Degree, got.HumanButcher, wantButcher))
+			}
+			got.HumanButcher = false
 			if !sameEffects(got, want) {
 				extras = append(extras, fmt.Sprintf("%s/%d: derived %+v, retired table %+v", key.Name, key.Degree, got, want))
 			}

@@ -49,10 +49,13 @@ type TraitEffects struct {
 	// Sociable orders warden, recruiter and trader candidates: Kind +1,
 	// Abrasive -1 (never warden or trader while another candidate exists).
 	Sociable int
-	// Execution (Psychopath, Bloodlust) marks a warden who executes and a
-	// surgeon who harvests without a mood loss; Psychopath alone is
-	// SurgeonSafe.
+	// Execution marks a warden who executes a prisoner without the mood loss
+	// of a prisoner dying (the trait nullifies that thought); SurgeonSafe a
+	// surgeon who harvests without one (code-applied, TraitFlags).
 	Execution, SurgeonSafe bool
+	// HumanButcher is a pawn who butchers a human without the mood loss (the
+	// trait nullifies the butchered-humanlike thought).
+	HumanButcher bool
 	// Apparel and diet flags the gear and food planners consume.
 	Nudist, Ascetic, Cannibal, Gourmand bool
 	// ChemicalInterest is the DrugDesire degree: 1 interest, 2 fascination,
@@ -78,6 +81,7 @@ func (e TraitEffects) Add(o TraitEffects) TraitEffects {
 	e.Sociable += o.Sociable
 	e.Execution = e.Execution || o.Execution
 	e.SurgeonSafe = e.SurgeonSafe || o.SurgeonSafe
+	e.HumanButcher = e.HumanButcher || o.HumanButcher
 	e.Nudist = e.Nudist || o.Nudist
 	e.Ascetic = e.Ascetic || o.Ascetic
 	e.Cannibal = e.Cannibal || o.Cannibal
@@ -101,26 +105,22 @@ type traitKey struct {
 // effect is derived from the catalog rows (DefinitionCatalog.TraitEffects).
 // A trait absent here contributes no flag.
 var traitFlags = map[traitKey]TraitEffects{
-	{"GreatMemory", 0}:       {GreatMemory: true},
-	{"NightOwl", 0}:          {NightShift: true},
-	{"Brawler", 0}:           {MeleeOnly: true, FrontLine: true},
-	{"Tough", 0}:             {FrontLine: true},
-	{"Nimble", 0}:            {FrontLine: true},
-	{"ShootingAccuracy", 1}:  {RearRanged: true},
-	{"ShootingAccuracy", -1}: {RearRanged: true},
-	{"Pyromaniac", 0}:        {Pyromaniac: true},
-	{"Kind", 0}:              {Sociable: 1},
-	{"Abrasive", 0}:          {Sociable: -1},
-	{"Psychopath", 0}:        {Execution: true, SurgeonSafe: true},
-	{"Bloodlust", 0}:         {Execution: true},
-	{"Nudist", 0}:            {Nudist: true},
-	{"Ascetic", 0}:           {Ascetic: true},
-	{"Gourmand", 0}:          {Gourmand: true},
-	{"DrugDesire", 2}:        {ChemicalInterest: 2},
-	{"DrugDesire", 1}:        {ChemicalInterest: 1},
-	{"DrugDesire", -1}:       {ChemicalInterest: -1},
-	{"Greedy", 0}:            {Greedy: true},
-	{"Jealous", 0}:           {Jealous: true},
+	{"GreatMemory", 0}: {GreatMemory: true},
+	{"NightOwl", 0}:    {NightShift: true},
+	{"Brawler", 0}:     {FrontLine: true},
+	{"Tough", 0}:       {FrontLine: true},
+	{"Nimble", 0}:      {FrontLine: true},
+	{"Pyromaniac", 0}:  {Pyromaniac: true},
+	{"Kind", 0}:        {Sociable: 1},
+	{"Abrasive", 0}:    {Sociable: -1},
+	{"Psychopath", 0}:  {SurgeonSafe: true},
+	{"Ascetic", 0}:     {Ascetic: true},
+	{"Gourmand", 0}:    {Gourmand: true},
+	{"DrugDesire", 2}:  {ChemicalInterest: 2},
+	{"DrugDesire", 1}:  {ChemicalInterest: 1},
+	{"DrugDesire", -1}: {ChemicalInterest: -1},
+	{"Greedy", 0}:      {Greedy: true},
+	{"Jealous", 0}:     {Jealous: true},
 }
 
 // TraitFlags is the code-applied part of a trait's effects; a trait it does

@@ -127,11 +127,7 @@ func PawnDiet(pawn WorkPawn, ideology domain.Fact[Ideoligion]) (Diet, bool) {
 	if !ok || !known {
 		return Diet{}, false
 	}
-	names := make([]string, 0, len(traits))
-	for _, t := range traits {
-		names = append(names, t.Name)
-	}
-	d, ok := DietOf(names, inputs.Precepts, ideology)
+	d, ok := DietOf(traits, inputs.Precepts, ideology)
 	if !ok {
 		return Diet{}, false
 	}
@@ -146,7 +142,7 @@ func PawnDiet(pawn WorkPawn, ideology domain.Fact[Ideoligion]) (Diet, bool) {
 // precept costs mood for it; insect meat and fungus where a precept
 // approves; vegetarian and carnivore are precepts that penalise meat or
 // non-meat; fungus is despised where a precept penalises it.
-func DietOf(traits, precepts []string, ideology domain.Fact[Ideoligion]) (Diet, bool) {
+func DietOf(traits []PawnTrait, precepts []string, ideology domain.Fact[Ideoligion]) (Diet, bool) {
 	d := traitDiet(traits)
 	if len(precepts) == 0 {
 		return d, true
@@ -175,17 +171,12 @@ func DietOf(traits, precepts []string, ideology domain.Fact[Ideoligion]) (Diet, 
 }
 
 // traitDiet is the diet the pawn's traits give.
-func traitDiet(traits []string) Diet {
+func traitDiet(traits []PawnTrait) Diet {
 	var d Diet
 	for _, t := range traits {
-		switch t {
-		case "Cannibal":
-			d.Cannibal = true
-		case "Ascetic":
-			d.Ascetic = true
-		case "Gourmand":
-			d.Gourmand = true
-		}
+		d.Cannibal = d.Cannibal || t.Effects.Cannibal
+		d.Ascetic = d.Ascetic || t.Effects.Ascetic
+		d.Gourmand = d.Gourmand || t.Effects.Gourmand
 	}
 	return d
 }
@@ -242,8 +233,9 @@ type FoodEater struct {
 	Pawn   PawnID
 	Animal bool
 	// Traits and Precepts are the prisoner's diet inputs (DietOf).
-	Traits, Precepts []string
-	Edible           []string
+	Traits   []PawnTrait
+	Precepts []string
+	Edible   []string
 }
 
 // captiveKinds is what a prisoner or slave eats: nutrient paste and raw food.

@@ -111,7 +111,7 @@ func HumanButcherEligible(traits domain.Fact[[]PawnTrait], preceptAcceptable, ca
 		return false
 	}
 	for _, trait := range rows {
-		if trait.Name == "Psychopath" || trait.Name == "Bloodlust" || trait.Name == "Cannibal" {
+		if trait.Effects.HumanButcher {
 			return true
 		}
 	}

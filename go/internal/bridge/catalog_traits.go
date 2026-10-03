@@ -15,7 +15,30 @@ const (
 	statLearningFactor = "GlobalLearningFactor"
 	statMoveSpeed      = "MoveSpeed"
 	statRestRate       = "RestRateMultiplier"
+	statShooting       = "ShootingAccuracyPawn"
 )
+
+// The vanilla thoughts the game raises in code, whose rows state which
+// traits take no mood from the act or carry a mood of their own: a trait
+// that nullifies the thought of a prisoner dying (an execution), of a
+// butchered human, or of being naked is Execution, HumanButcher or Nudist;
+// the trait the carrying-a-ranged-weapon thought requires is MeleeOnly.
+const (
+	thoughtPrisonerDied   = "KnowPrisonerDiedInnocent"
+	thoughtButcheredHuman = "ButcheredHumanlikeCorpse"
+	thoughtNaked          = "Naked"
+	thoughtRangedCarried  = "BrawlerUnhappy"
+)
+
+// thoughtRow is the ThoughtDef row of the named thought; a catalog without
+// it is a contract error.
+func thoughtRow(catalog *DefinitionCatalog, name string) (*d.ThoughtDef, error) {
+	row := DefRow[*d.ThoughtDef](catalog, name)
+	if row == nil {
+		return nil, contract("catalog has no thought %s", name)
+	}
+	return row, nil
+}
 
 // needOutdoors is the NeedDef a trait disables to keep its pawn out of the
 // open (Outdoors); the needs a trait enables or disables are rows of the
@@ -45,7 +68,9 @@ func float32Number(v float32) float64 {
 // (and disabled work types) take away, a RestRateMultiplier offset above
 // zero as a quick sleeper, the Outdoors need it disables as an
 // undergrounder, and the human-meat ingestion thoughts it disallows as a
-// cannibal. A trait or degree the catalog lacks is a contract error;
+// cannibal. The thoughts it nullifies or is required by give Execution,
+// HumanButcher, Nudist and MeleeOnly, and a ShootingAccuracyPawn offset
+// RearRanged. A trait or degree the catalog lacks is a contract error;
 // effects the game applies in code and no row states come from
 // policy.TraitFlags.
 func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.TraitEffects, error) {
@@ -76,7 +101,29 @@ func (catalog *DefinitionCatalog) TraitEffects(name string, degree int) (policy.
 			out.MoveSpeed += offset
 		case statRestRate:
 			rest += offset
+		case statShooting:
+			out.RearRanged = out.RearRanged || offset != 0
 		}
+	}
+	for _, rule := range []struct {
+		thought  string
+		required bool
+		set      *bool
+	}{
+		{thoughtPrisonerDied, false, &out.Execution},
+		{thoughtButcheredHuman, false, &out.HumanButcher},
+		{thoughtNaked, false, &out.Nudist},
+		{thoughtRangedCarried, true, &out.MeleeOnly},
+	} {
+		thought, err := thoughtRow(catalog, rule.thought)
+		if err != nil {
+			return policy.TraitEffects{}, err
+		}
+		list := thought.GetNullifyingTraits()
+		if rule.required {
+			list = thought.GetRequiredTraits()
+		}
+		*rule.set = slices.Contains(list, name)
 	}
 	out.QuickSleeper = rest > 0
 	for _, need := range data.GetDisablesNeeds() {

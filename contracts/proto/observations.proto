@@ -1270,7 +1270,7 @@ message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable
 message BlightedPlant { rimgovernor.common.v1.Ref plant = 1; rimgovernor.common.v1.Ref zone = 2; optional bool designated = 3; optional double growth = 4; SnapshotRef plant_snapshot = 5; }
 message AcquisitionFacts { rimgovernor.common.v1.Ref source = 1; SnapshotRef source_snapshot = 16; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional double weapon_range = 13; optional int64 designated_tick = 14; optional bool taken = 15; optional double body_size = 17; optional bool sleeping = 18; optional bool predator = 19; }
 message ButcheringFacts { rimgovernor.common.v1.Ref bench = 1; SnapshotRef bench_snapshot = 11; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; rimgovernor.common.v1.Ref room = 5; repeated HumanButcherCandidate human_butchers = 6; optional double human_corpse_nutrition = 7; repeated rimgovernor.common.v1.Cell human_storage_cells = 8; optional bool human_storage_ready = 9; optional string human_corpse_def = 10; }
-message HumanButcherCandidate { string pawn_id = 1; repeated string traits = 2; optional bool precept_acceptable = 3; optional bool can_work = 4; }
+message HumanButcherCandidate { string pawn_id = 1; reserved 2; reserved "traits"; optional bool precept_acceptable = 3; optional bool can_work = 4; repeated Trait pawn_traits = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }
 // One force-pausing Verse.Dialog_NodeTree the game opened by itself (an
@@ -1583,7 +1583,7 @@ message PolicyFacts {
 // carries its diet inputs (trait defNames, its ideoligion's precept
 // defNames); the food an animal's race can ever eat is its catalog race row's.
 enum FoodEaterKind { FOOD_EATER_KIND_UNSPECIFIED = 0; FOOD_EATER_KIND_PRISONER = 1; FOOD_EATER_KIND_ANIMAL = 2; }
-message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string traits = 3; repeated string precepts = 4; reserved 5; reserved "edible_defs"; }
+message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; reserved 3; reserved "traits"; repeated string precepts = 4; reserved 5; reserved "edible_defs"; repeated Trait pawn_traits = 6; }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
 // cell grid is a separate code; pollution here is its totals plus what makes

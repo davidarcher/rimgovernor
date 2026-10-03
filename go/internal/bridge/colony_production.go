@@ -47,8 +47,8 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 				return contract("invalid human butcher")
 			}
 			workers[worker.PawnId] = true
-			for _, trait := range worker.Traits {
-				if validID(trait) != nil {
+			for _, trait := range worker.PawnTraits {
+				if validID(trait.GetDefName()) != nil {
 					return contract("invalid butcher trait")
 				}
 			}

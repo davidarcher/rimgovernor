@@ -234,8 +234,12 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 		}
 		for _, candidate := range b.HumanButchers {
 			var traits []policy.PawnTrait
-			for _, name := range candidate.Traits {
-				traits = append(traits, policy.PawnTrait{Name: name})
+			for _, t := range candidate.PawnTraits {
+				trait := policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())}
+				if err := resolveTrait(catalog, &trait); err != nil && failed == nil {
+					failed = err
+				}
+				traits = append(traits, trait)
 			}
 			row.HumanButchers = append(row.HumanButchers, policy.HumanButcherCandidate{ID: policy.PawnID(candidate.PawnId), Traits: domain.Known(traits), PreceptAcceptable: optional(candidate.PreceptAcceptable), CanWork: optional(candidate.CanWork)})
 		}

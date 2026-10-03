@@ -27,14 +27,21 @@ namespace HomeBridge.BridgeTools
                     && ThoughtUtility.CanGetThought(pawn, c.thought, true));
         }
 
-        internal static bool AcceptsMeat(Pawn pawn) => pawn.story?.traits?.allTraits.Any(t => t.def.defName == "Cannibal") == true || Accepts(pawn, HistoryEventDefOf.AteHumanMeat,
+        // A trait whose degree disallows the ingestion thoughts of human meat (the
+        // TraitDef row Go reads the same way) eats it without a mood loss.
+        internal static bool EatsHumanMeatUnbothered(Pawn pawn) => pawn.story?.traits?.allTraits.Any(t =>
+            t.CurrentData?.disallowedThoughtsFromIngestion?.Any(o => o.meatSource == MeatSourceCategory.Humanlike) == true) == true;
+
+        // A pawn with a trait that nullifies the butchered-humanlike thought (the
+        // ThoughtDef row Go reads the same way) butchers a human without a mood loss.
+        internal static bool ButchersHumanUnbothered(Pawn pawn) => DefDatabase<ThoughtDef>.GetNamed("ButcheredHumanlikeCorpse").nullifyingTraits?.Any(t => pawn.story?.traits?.HasTrait(t) == true) == true;
+
+        internal static bool AcceptsMeat(Pawn pawn) => EatsHumanMeatUnbothered(pawn) || Accepts(pawn, HistoryEventDefOf.AteHumanMeat,
             HistoryEventDefOf.AteHumanMeatDirect, HistoryEventDefOf.AteHumanMeatAsIngredient);
 
         internal static bool AcceptsButchery(Pawn pawn) => pawn.RaceProps.Humanlike
             && IdeoUtility.DoerWillingToDo(HistoryEventDefOf.ButcheredHuman, pawn)
-            && (pawn.story?.traits?.HasTrait(TraitDefOf.Psychopath) == true
-                || pawn.story?.traits?.HasTrait(TraitDefOf.Bloodlust) == true
-                || pawn.story?.traits?.allTraits.Any(t => t.def.defName == "Cannibal") == true
+            && (ButchersHumanUnbothered(pawn)
                 || Accepts(pawn, HistoryEventDefOf.ButcheredHuman));
 
         internal static bool CanButcher(Pawn pawn, Thing bench) => CanWorkButcher(pawn,bench) && AcceptsButchery(pawn);
@@ -59,7 +66,7 @@ namespace HomeBridge.BridgeTools
             foreach(var pawn in people.OrderBy(p=>p.GetUniqueLoadID(),System.StringComparer.Ordinal)) {
                 var candidate=new Obs.HumanButcherCandidate{PawnId=pawn.GetUniqueLoadID(),
                     PreceptAcceptable=pawn.Ideo!=null && !pawn.Ideo.PreceptsListForReading.SelectMany(p=>p.def.comps??Enumerable.Empty<PreceptComp>()).OfType<PreceptComp_SelfTookMemoryThought>().Any(c=>c.eventDef==HistoryEventDefOf.ButcheredHuman && c.thought != null && c.thought.stages.Any(s=>s.baseMoodEffect<0)), CanWork=CanWorkButcher(pawn,bench) && IdeoUtility.DoerWillingToDo(HistoryEventDefOf.ButcheredHuman,pawn)};
-                if(pawn.story?.traits!=null)candidate.Traits.Add(pawn.story.traits.allTraits.Select(t=>t.def.defName));
+                if(pawn.story?.traits!=null)candidate.PawnTraits.Add(pawn.story.traits.allTraits.Select(t=>new Obs.Trait{DefName=t.def.defName,Degree=t.Degree}));
                 row.HumanButchers.Add(candidate);
             }
             row.HumanCorpseNutrition=CorpseNutrition(bench);

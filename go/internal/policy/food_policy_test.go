@@ -135,7 +135,7 @@ func TestDietPolicyChangesNonColonists(t *testing.T) {
 	slave := eater("S", nil, "MeatEating_Abhorrent")
 	slave.PolicyInputs = domain.Known(PawnPolicyInputs{Precepts: []string{"MeatEating_Abhorrent"}, GuestStatus: "Slave"})
 	eaters := []FoodEater{
-		{Pawn: "P", Traits: []string{"Cannibal"}},
+		{Pawn: "P", Traits: []PawnTrait{testTrait("Cannibal", 0)}},
 		{Pawn: "H", Animal: true, Edible: []string{"Kibble", "Hay", "RawPotatoes", "MealSimple", "MealFine", "Milk"}},
 		{Pawn: "W", Animal: true, Edible: []string{"Kibble", "Meat_Cow", "MealLavish"}},
 	}

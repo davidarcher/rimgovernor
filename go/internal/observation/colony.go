@@ -512,7 +512,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns, races), r.FoodChannels)
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns, races)
 	if policies, known := r.Policies.Value(); known {
-		policies.FoodEaters = animalFoodEaters(policies.FoodEaters, tables.Pawns, races)
+		eaters, eatersErr := animalFoodEaters(policies.FoodEaters, tables.Pawns, races, tables.Catalog)
+		if eatersErr != nil {
+			return ColonyProjection{}, eatersErr
+		}
+		policies.FoodEaters = eaters
 		r.Policies = domain.Known(policies)
 	}
 	r.Facts.Waste = colonyWaste(v, tables)

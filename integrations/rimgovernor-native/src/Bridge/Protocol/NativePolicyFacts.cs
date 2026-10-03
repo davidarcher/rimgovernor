@@ -55,7 +55,7 @@ namespace HomeBridge.BridgeTools
                         row.Kind = Obs.FoodEaterKind.Animal;
                     } else {
                         row.Kind = Obs.FoodEaterKind.Prisoner;
-                        row.Traits.Add((p.story?.traits?.allTraits ?? new List<Trait>()).Select(t => Id(t.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
+                        row.PawnTraits.Add((p.story?.traits?.allTraits ?? new List<Trait>()).OrderBy(t => t.def.defName, StringComparer.Ordinal).ThenBy(t => t.Degree).Select(t => new Obs.Trait { DefName = Id(t.def.defName), Degree = t.Degree }));
                         if (ModsConfig.IdeologyActive && p.Ideo is Ideo ideo)
                             row.Precepts.Add(ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
                     }

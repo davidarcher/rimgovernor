@@ -296,15 +296,21 @@ var testImpressiveness = ImpressivenessLevels{Dull: ImpressivenessDull, Mediocre
 // tests use (DefinitionCatalog.TraitEffects, compared with the full game
 // recording in the bridge tests); the code-applied flags come from traitFlags.
 var testTraitRows = map[traitKey]TraitEffects{
-	{"Industriousness", 2}:  {WorkSpeed: 0.35},
-	{"Industriousness", -2}: {WorkSpeed: -0.35},
-	{"FastLearner", 0}:      {LearnRate: 0.75},
-	{"TooSmart", 0}:         {LearnRate: 0.75},
-	{"SpeedOffset", 2}:      {MoveSpeed: 0.4},
-	{"QuickSleeper", 0}:     {QuickSleeper: true},
-	{"Pyromaniac", 0}:       {DisabledWork: []WorkType{WorkFirefighter}},
-	{"Cannibal", 0}:         {Cannibal: true},
-	{"Undergrounder", 0}:    {Undergrounder: true},
+	{"Industriousness", 2}:   {WorkSpeed: 0.35},
+	{"Industriousness", -2}:  {WorkSpeed: -0.35},
+	{"FastLearner", 0}:       {LearnRate: 0.75},
+	{"TooSmart", 0}:          {LearnRate: 0.75},
+	{"SpeedOffset", 2}:       {MoveSpeed: 0.4},
+	{"QuickSleeper", 0}:      {QuickSleeper: true},
+	{"Pyromaniac", 0}:        {DisabledWork: []WorkType{WorkFirefighter}},
+	{"Cannibal", 0}:          {Cannibal: true, HumanButcher: true},
+	{"Psychopath", 0}:        {Execution: true, HumanButcher: true},
+	{"Bloodlust", 0}:         {Execution: true, HumanButcher: true},
+	{"Nudist", 0}:            {Nudist: true},
+	{"Brawler", 0}:           {MeleeOnly: true},
+	{"ShootingAccuracy", 1}:  {RearRanged: true},
+	{"ShootingAccuracy", -1}: {RearRanged: true},
+	{"Undergrounder", 0}:     {Undergrounder: true},
 }
 
 // testTrait is a pawn trait with its effects resolved the way the pawn read

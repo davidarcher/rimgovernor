@@ -71,8 +71,11 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	}
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
 	for _, e := range f.FoodEaters {
-		r.FoodEaters = append(r.FoodEaters, policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL,
-			Traits: e.Traits, Precepts: e.Precepts})
+		eater := policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL, Precepts: e.Precepts}
+		for _, t := range e.PawnTraits {
+			eater.Traits = append(eater.Traits, policy.PawnTrait{Name: t.GetDefName(), Degree: int(t.GetDegree())})
+		}
+		r.FoodEaters = append(r.FoodEaters, eater)
 	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})
@@ -82,10 +85,16 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 
 // animalFoodEaters gives each animal food eater the foods its race can ever
 // eat, from the catalog's race row (#1722). An animal whose pawn row or race
-// the frame does not hold is dropped: no diet is written for it.
-func animalFoodEaters(eaters []policy.FoodEater, pawns bridge.Pawns, races policy.AnimalRaceCatalog) []policy.FoodEater {
+// the frame does not hold is dropped: no diet is written for it. A
+// prisoner's traits are resolved against the catalog.
+func animalFoodEaters(eaters []policy.FoodEater, pawns bridge.Pawns, races policy.AnimalRaceCatalog, catalog *bridge.DefinitionCatalog) ([]policy.FoodEater, error) {
 	out := make([]policy.FoodEater, 0, len(eaters))
 	for _, e := range eaters {
+		for i := range e.Traits {
+			if err := resolveTrait(catalog, &e.Traits[i]); err != nil {
+				return nil, err
+			}
+		}
 		if e.Animal {
 			row, ok := pawns.Get(string(e.Pawn))
 			if !ok || row == nil {
@@ -99,7 +108,7 @@ func animalFoodEaters(eaters []policy.FoodEater, pawns bridge.Pawns, races polic
 		}
 		out = append(out, e)
 	}
-	return out
+	return out, nil
 }
 
 // shelterArea is the Safe allowed area's load id, "" when the map has none.
