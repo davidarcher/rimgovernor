@@ -176,10 +176,12 @@ func ReserveBillRunning(benches domain.Fact[[]ProductionBench], reserve FoodRese
 // includes existing stock of the selected product because native counts that
 // stock toward satisfaction; only other reserve products reduce the target.
 // The target never exceeds the product's observed storable count.
-// Matching bills are corrected under Auto; unrelated recipes are retained.
+// No reserve bill is selected while the runway is short (the food is to be
+// eaten, not cooked ahead). Matching bills are corrected under Auto;
+// unrelated recipes are retained.
 func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReserveReview) (BillSelection, bool) {
 	rows, known := benches.Value()
-	if !known || reserve.Emergency || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
+	if !known || reserve.Emergency || reserve.Short || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
 		return BillSelection{}, false
 	}
 	var options []BillSelection
