@@ -33,6 +33,16 @@ type recipeCache struct {
 	factsOnce sync.Once
 	facts     policy.RecipeFacts
 	factsErr  error
+	// slots are the resolved ingredient slots of each recipe read so far.
+	slots map[string][]recipeSlot
+	// within is every ThingDef's within-categories set, built once.
+	withinOnce sync.Once
+	within     map[string]map[string]bool
+	withinErr  error
+	// givers are the DoBill work givers of each bench definition, built once.
+	giversOnce sync.Once
+	givers     map[string][]*d.WorkGiverDef
+	giversErr  error
 }
 
 // Recipe is name's RecipeDef row; it is an error when the catalog has none.
@@ -157,20 +167,29 @@ func (catalog *DefinitionCatalog) FilterAccepts(filter *d.ThingFilter, def strin
 	if err != nil {
 		return false, err
 	}
+	return filterAccepts(filter, def, within), nil
+}
+
+// filterAccepts is FilterAccepts for a filter already checked against the
+// fields the evaluator models, and the categories the def sits within.
+func filterAccepts(filter *d.ThingFilter, def string, within map[string]bool) bool {
 	allowed := slices.Contains(filter.GetThingDefs(), def)
 	for _, category := range filter.GetCategories() {
 		allowed = allowed || within[category]
 	}
 	for _, category := range filter.GetDisallowedCategories() {
 		if within[category] {
-			return false, nil
+			return false
 		}
 	}
-	return allowed && !slices.Contains(filter.GetDisallowedThingDefs(), def), nil
+	return allowed && !slices.Contains(filter.GetDisallowedThingDefs(), def)
 }
 
 // unmodelledFilterField names the first filter field the evaluator does not
-// read that the filter sets, "" when it sets none.
+// read that the filter sets, "" when it sets none. The special filters are
+// not among them: they only mark per-thing exclusions (ThingFilter.SetAllow
+// of a SpecialThingFilterDef), and ThingFilter.Allows(ThingDef) and
+// AllowedThingDefs read the allowed defs alone.
 func unmodelledFilterField(f *d.ThingFilter) string {
 	switch {
 	case f.GetOverrideRootDef() != "":
@@ -181,8 +200,6 @@ func unmodelledFilterField(f *d.ThingFilter) string {
 		return "tradeTags"
 	case len(f.GetThingSetMakerTagsToAllow()) > 0 || len(f.GetThingSetMakerTagsToDisallow()) > 0:
 		return "thingSetMakerTags"
-	case len(f.GetSpecialFiltersToAllow()) > 0 || len(f.GetSpecialFiltersToDisallow()) > 0:
-		return "specialFilters"
 	case len(f.GetStuffCategoriesToAllow()) > 0:
 		return "stuffCategoriesToAllow"
 	case len(f.GetAllowAllWhoCanMake()) > 0:

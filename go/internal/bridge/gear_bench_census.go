@@ -111,6 +111,9 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 	if snapshot.Snapshot == nil || snapshot.Snapshot.GetEntityId() != bench {
 		return nil, contract("recipe snapshot bench mismatch")
 	}
+	if validID(snapshot.GetBenchDef()) != nil {
+		return nil, contract("recipe snapshot has no bench definition")
+	}
 	names := map[string]bool{}
 	out := make([]policy.GearRecipe, 0, len(snapshot.Recipes))
 	for _, row := range snapshot.Recipes {
@@ -128,135 +131,23 @@ func (client *Client) readGearRecipes(ctx context.Context, identity *c.Identity,
 		if row.AvailableOnBench != nil {
 			recipe.AvailableOn = domain.Known(row.GetAvailableOnBench())
 		}
-		products, err := gearRecipeProducts(row.Products)
-		if err != nil {
+		// What the recipe is and costs is the catalog's; the frame says only
+		// whether this bench offers it now.
+		if recipe.Products, err = catalog.RecipeProducts(recipe.Definition); err != nil {
 			return nil, err
 		}
-		recipe.Products = products
-		recipe.Ingredients = GearRecipeIngredients(row.Ingredients)
-		recipe.RequiredWork = gearRecipeWork(row)
-		if row.MechKind != nil {
-			if validID(row.GetMechKind()) != nil {
-				return nil, contract("invalid gear recipe mech kind")
-			}
-			recipe.MechKind = row.GetMechKind()
+		if recipe.Ingredients, err = catalog.RecipeIngredients(recipe.Definition); err != nil {
+			return nil, err
+		}
+		if recipe.RequiredWork, err = catalog.RecipeWork(recipe.Definition, snapshot.GetBenchDef()); err != nil {
+			return nil, err
+		}
+		if recipe.MechKind, err = catalog.RecipeMechKind(recipe.Definition); err != nil {
+			return nil, err
 		}
 		out = append(out, recipe)
 	}
 	return out, nil
-}
-
-// ReadRecipeCatalog reads the native recipe definition catalog narrowed to
-// recipes producing product: which player-buildable bench definitions host
-// each recipe and whether its research is complete. It is the discovery step
-// a workshop planner takes before any bench exists, so no bench snapshot or
-// AvailableOn is involved; the reply is bounded and complete or an error.
-func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identity, product string) ([]policy.RecipeHost, Result, error) {
-	if err := ValidateIdentity(identity); err != nil {
-		return nil, Result{}, err
-	}
-	if validID(product) != nil {
-		return nil, Result{}, contract("invalid recipe product")
-	}
-	request := &o.RecipesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, ProductDef: proto.String(product)}
-	reply := &o.RecipesReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_recipes", request, reply)
-	if err != nil {
-		return nil, raw, err
-	}
-	if err = buildingUnknown(reply); err != nil {
-		return nil, raw, err
-	}
-	var snapshot *o.RecipesSnapshot
-	switch v := reply.Outcome.(type) {
-	case *o.RecipesReply_Observed:
-		snapshot = v.Observed
-	case *o.RecipesReply_Unavailable:
-		return nil, raw, unavailable(v.Unavailable, raw)
-	case *o.RecipesReply_Failure:
-		return nil, raw, failure(v.Failure, raw)
-	default:
-		return nil, raw, contract("missing recipes outcome")
-	}
-	if snapshot == nil || ValidateContext(snapshot.Context) != nil || !sameIdentity(snapshot.Context.Identity, identity) {
-		return nil, raw, contract("invalid recipes context")
-	}
-	names := map[string]bool{}
-	out := make([]policy.RecipeHost, 0, len(snapshot.Recipes))
-	for _, row := range snapshot.Recipes {
-		if row == nil || row.Recipe == nil || validID(row.Recipe.GetDefName()) != nil || names[row.Recipe.GetDefName()] || row.AvailableNow == nil {
-			return nil, raw, contract("invalid recipe catalog row")
-		}
-		names[row.Recipe.GetDefName()] = true
-		products, err := gearRecipeProducts(row.Products)
-		if err != nil {
-			return nil, raw, err
-		}
-		if len(row.BenchDefs) == 0 {
-			return nil, raw, contract("recipe catalog row without benches")
-		}
-		host := policy.RecipeHost{Definition: row.Recipe.GetDefName(), Products: products, Available: row.GetAvailableNow(), Ingredients: GearRecipeIngredients(row.Ingredients), RequiredWork: gearRecipeWork(row)}
-		for _, project := range row.ResearchPrerequisites {
-			if validID(project) != nil {
-				return nil, raw, contract("invalid recipe research prerequisite")
-			}
-			host.Research = append(host.Research, project)
-		}
-		sort.Strings(host.Research)
-		seen := map[string]bool{}
-		for _, bench := range row.BenchDefs {
-			if validID(bench) != nil || seen[bench] {
-				return nil, raw, contract("invalid recipe catalog bench")
-			}
-			seen[bench] = true
-			host.Benches = append(host.Benches, bench)
-		}
-		sort.Strings(host.Benches)
-		out = append(out, host)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Definition < out[j].Definition })
-	return out, raw, nil
-}
-
-func gearRecipeProducts(list []*o.Quantity) ([]policy.Resource, error) {
-	seen := map[policy.Resource]bool{}
-	out := make([]policy.Resource, 0, len(list))
-	for _, q := range list {
-		if q == nil || validID(q.GetDefName()) != nil {
-			return nil, contract("invalid recipe product")
-		}
-		name := policy.Resource(q.GetDefName())
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		out = append(out, name)
-	}
-	return out, nil
-}
-
-// gearRecipeWork is the one work requirement a bill on this recipe needs
-// covered: the native work type whose DoBill giver serves the bench
-// (RecipeState.work_type — "Crafting" for a crafting spot, "Tailoring" for a
-// tailor bench, "Cooking" for a stove) together with the recipe's own work
-// skill and the highest native minimum level over its skill requirements.
-// Unknown without a native work type, or when a skill row is malformed.
-func gearRecipeWork(row *o.RecipeState) domain.Fact[[]policy.WorkRequirement] {
-	if row.WorkType == nil || validID(row.GetWorkType()) != nil {
-		return domain.Unknown[[]policy.WorkRequirement]()
-	}
-	minimum := 0
-	for _, skill := range row.Skills {
-		if skill == nil || validID(skill.GetDefName()) != nil || skill.Minimum == nil || skill.GetMinimum() < 0 {
-			return domain.Unknown[[]policy.WorkRequirement]()
-		}
-		minimum = max(minimum, int(skill.GetMinimum()))
-	}
-	skill := row.GetWorkSkill()
-	if skill != "" && validID(skill) != nil {
-		return domain.Unknown[[]policy.WorkRequirement]()
-	}
-	return domain.Known([]policy.WorkRequirement{{Work: policy.WorkType(row.GetWorkType()), Skill: skill, Minimum: minimum}})
 }
 
 func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe, catalog *DefinitionCatalog) ([]policy.GearBill, error) {

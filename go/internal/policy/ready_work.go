@@ -207,6 +207,9 @@ type ReadyRequest struct {
 	// Construction is the building census: an applied building intent stays
 	// open, and its dependents wait, until a built row carries its key (#856).
 	Construction domain.Fact[CurrentConstruction]
+	// Recipes place a bill's recipe at a work type; a recipe it does not know
+	// reads as an unmigrated action.
+	Recipes RecipeFacts
 }
 
 const maxReadyParallelism = 4
@@ -260,7 +263,7 @@ func ProjectReadyWork(r ReadyRequest) ReadyWorkReport {
 				deferred[[2]string{string(p.Goal), ReadyDeferredDiscovery}]++
 				continue
 			}
-			c, ok := readyAction(p, a, byAction, r.Construction)
+			c, ok := readyAction(p, a, byAction, r.Construction, r.Recipes)
 			if !ok {
 				continue
 			}
@@ -362,7 +365,7 @@ type readyStage struct {
 	staged bool
 }
 
-func readyActionStage(a domain.Action) (readyStage, bool) {
+func readyActionStage(a domain.Action, recipes RecipeFacts) (readyStage, bool) {
 	if v, ok := a.Building(); ok {
 		return readyStage{stage: "building:" + v.Definition(), work: WorkConstruction, claims: []ReadyClaim{CellClaim(v.Cell())}}, true
 	}
@@ -381,7 +384,12 @@ func readyActionStage(a domain.Action) (readyStage, bool) {
 		return readyStage{stage: "area_plant_cut", work: WorkPlantCutting, claims: claims}, true
 	}
 	if v, ok := a.ProductionBill(); ok {
-		return readyStage{stage: "bill:" + v.Recipe(), work: billWork(v.Recipe()), claims: []ReadyClaim{{"bench", v.Bench()}}}, true
+		// A recipe no catalog row places at a bench has no known work: the
+		// action stays unmigrated rather than guessed.
+		if work, known := recipes.BillWorkOf(v.Recipe()); known {
+			return readyStage{stage: "bill:" + v.Recipe(), work: work, claims: []ReadyClaim{{"bench", v.Bench()}}}, true
+		}
+		return readyStage{}, false
 	}
 	if _, ok := a.GrowerCrop(); ok {
 		return readyStage{stage: "grow", work: WorkGrowing, staged: true}, true
@@ -393,18 +401,7 @@ func readyActionStage(a domain.Action) (readyStage, bool) {
 	return readyStage{}, false
 }
 
-// billWork names the work type a recipe's bill puts a pawn to. Only the
-// startup feed/meal recipes are migrated; any other recipe is Crafting,
-// the bench family the rest of the controller assumes.
-func billWork(recipe string) WorkType {
-	switch {
-	case strings.HasPrefix(recipe, "Cook") || strings.HasPrefix(recipe, "Make_Kibble") || strings.HasPrefix(recipe, "Make_Pemmican") || strings.HasPrefix(recipe, "Butcher"):
-		return WorkCooking
-	}
-	return WorkCrafting
-}
-
-func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]domain.Progress, census domain.Fact[CurrentConstruction]) (ReadyWork, bool) {
+func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]domain.Progress, census domain.Fact[CurrentConstruction], recipes RecipeFacts) (ReadyWork, bool) {
 	prog, has := byAction[a.ID()]
 	v := prog.View()
 	blueprint := has && AppliedBuildingOpen(prog, census)
@@ -412,7 +409,7 @@ func readyAction(p ReadyPlan, a domain.Action, byAction map[domain.ActionID]doma
 		return ReadyWork{}, false
 	}
 	c := ReadyWork{Goals: []GoalID{p.Goal}, Method: p.Method, Plan: p.Spec.ID(), Action: a.ID(), Adapter: ReadyMigrated}
-	st, migrated := readyActionStage(a)
+	st, migrated := readyActionStage(a, recipes)
 	if !migrated {
 		st = readyStage{stage: string(a.Kind())}
 		c.Adapter = ReadyConservative

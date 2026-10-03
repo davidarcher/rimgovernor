@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -10,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -39,16 +41,31 @@ func (n *workshopNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge
 	return n.benches, bridge.Result{}, nil
 }
 
-func (n *workshopNative) ReadRecipeCatalog(_ context.Context, _ *c.Identity, product string) ([]policy.RecipeHost, bridge.Result, error) {
-	var out []policy.RecipeHost
+// DefinitionCatalog serves the fake's catalog with the recipe rows and the
+// player-buildable benches that make the hosts the test sets: a host is
+// available when every research project it lists is finished.
+func (n *workshopNative) DefinitionCatalog(ctx context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
+	catalog, recipes := n.catalog, n.recipes
+	defer func() { n.catalog, n.recipes = catalog, recipes }()
+	n.catalog, n.recipes = slices.Clone(catalog), slices.Clone(recipes)
+	named := map[string]bool{}
+	for _, def := range n.catalog {
+		named[def.Name] = true
+	}
 	for _, host := range n.hosts {
-		for _, p := range host.Products {
-			if string(p) == product {
-				out = append(out, host)
+		row := &d.RecipeDef{DefName: host.Definition, RecipeUsers: host.Benches, ResearchPrerequisites: host.Research}
+		for _, product := range host.Products {
+			row.Products = append(row.Products, &d.Opt_ThingDefCountClass{Value: &d.ThingDefCountClass{ThingDef: string(product), Count: 1}})
+		}
+		n.recipes = append(n.recipes, row)
+		for _, bench := range host.Benches {
+			if !named[bench] {
+				named[bench] = true
+				n.catalog = append(n.catalog, bridge.FixtureDef{Name: bench, BillWork: "Crafting"})
 			}
 		}
 	}
-	return out, bridge.Result{}, nil
+	return n.routineNative.DefinitionCatalog(ctx, id)
 }
 
 var clubRecipe = policy.RecipeHost{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: true, Benches: []string{"CraftingSpot"}}
@@ -57,6 +74,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	planner, session, native := workshopFixture(t)
 	planner.reviewer.policy.ResourceTargets = map[policy.Resource]int64{policy.ComponentResource: 20}
 	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}, {DefName: proto.String("WoodLog"), Units: proto.Int64(400)}}
+	native.finished = []string{"Fabrication"}
 	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
 	ctx := context.Background()
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})

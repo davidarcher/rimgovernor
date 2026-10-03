@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
             catch (Exception e) { return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }; }
         }
 
-        [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "With bench_id: complete recipe catalog of one bench: availability, work, the work type a worker must enable, skill requirements, per-slot required ingredient counts and products. Without: the recipe definition catalog with hosting player-buildable bench definitions, optionally narrowed to recipes producing product_def. No stock scan; ingredient rows carry required amounts only.")]
+        [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "The recipes of one bench (bench_id) with whether each is available now and on that bench, and the bench's definition. What a recipe makes, costs and needs is its RecipeDef row in the definition catalog.")]
         [ToolResponse("payload", "string", "Official ProtoJSON RecipesReply.", Always = true)]
         public async Task<object> ReadRecipes(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object? request = null)
@@ -70,27 +70,12 @@ namespace HomeBridge.BridgeTools
                 {
                     if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") });
-                    if (!parsed.HasBenchId)
-                    {
-                        var catalog = DefDatabase<RecipeDef>.AllDefsListForReading
-                            .Where(r => r.products != null && r.products.Count > 0 && (!parsed.HasProductDef || r.products.Any(p => p.thingDef?.defName == parsed.ProductDef)))
-                            .Where(r => Hosts(r).Count > 0).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                        var definitions = new Obs.RecipesSnapshot { Context = context, Snapshot = new Obs.SnapshotRef { Context = context.Clone() }};
-                        foreach (var recipe in catalog)
-                        {
-                            var hosts = Hosts(recipe);
-                            var row = Recipe(hosts[0], null, recipe);
-                            foreach (var host in hosts) row.BenchDefs.Add(Id(host.defName));
-                            definitions.Recipes.Add(row);
-                        }
-                        return ProtoBoundary.Encode(new Obs.RecipesReply { Observed = definitions });
-                    }
                     var bench = Benches(map, true).ById(parsed.BenchId);
                     if (bench == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") });
                     var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                    var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context)};
-                    foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench.def, bench, recipe));
+                    var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), BenchDef = Id(bench.def.defName) };
+                    foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench, recipe));
                     return ProtoBoundary.Encode(new Obs.RecipesReply { Observed = snapshot });
                 }
                 catch (Exception e) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench recipe facts", e)) }); }
@@ -106,10 +91,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.RecipesRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required; bench id and product def must be identifiers.");
-            return request?.Scope?.ExpectedIdentity != null
-                && (!request.HasBenchId || ProtoBoundary.IsIdentifier(request.BenchId))
-                && (!request.HasProductDef || ProtoBoundary.IsIdentifier(request.ProductDef));
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a bench id identifier are required.");
+            return request?.Scope?.ExpectedIdentity != null && request.HasBenchId && ProtoBoundary.IsIdentifier(request.BenchId);
         }
 
         private static List<Thing> Benches(Map map, bool allFactions)
@@ -134,85 +117,25 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // Player-buildable building definitions that host the recipe.
-        internal static List<ThingDef> Hosts(RecipeDef recipe) => (recipe.AllRecipeUsers ?? Enumerable.Empty<ThingDef>())
-            .Where(d => d.category == ThingCategory.Building && d.BuildableByPlayer && typeof(IBillGiver).IsAssignableFrom(d.thingClass))
-            .Distinct().OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
+        // Only what a frame alone knows: whether the game offers the recipe now
+        // and on this bench. The rest is the recipe's catalog row (#1721).
+        private static Obs.RecipeState Recipe(Thing bench, RecipeDef recipe)
+            => new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName), Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap) },
+                AvailableNow = recipe.AvailableNow, AvailableOnBench = recipe.AvailableOnNow(bench) };
 
         // The work type whose DoBill giver serves this bench definition, so a
         // worker must have it enabled to take the bill; null when no giver
-        // serves it or the recipe demands a different giver work type.
+        // serves it or the recipe demands a different giver work type. Only the
+        // bill write paths still resolve it, to pick a worker who has it enabled.
         internal static WorkTypeDef? WorkType(ThingDef bench, RecipeDef recipe) => DefDatabase<WorkGiverDef>.AllDefsListForReading
             .Where(d => d.workType != null && d.Worker is WorkGiver_DoBill && d.fixedBillGiverDefs != null && d.fixedBillGiverDefs.Contains(bench)
                 && (recipe.requiredGiverWorkType == null || recipe.requiredGiverWorkType == d.workType))
             .OrderBy(d => d.defName, StringComparer.Ordinal).Select(d => d.workType).FirstOrDefault();
 
-        private static Obs.RecipeState Recipe(ThingDef benchDef, Thing? bench, RecipeDef recipe)
-        {
-            var row = new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName) }, AvailableNow = recipe.AvailableNow };
-            NativeMealRecipeFacts.Fill(row, benchDef, recipe);
-            if (bench != null) row.AvailableOnBench = recipe.AvailableOnNow(bench);
-            row.Recipe.Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap);
-            // workAmount is -1 when the work comes from the product's own
-            // WorkToMake (every stuff-made item); WorkAmountTotal resolves it
-            // the way the game does but throws for multi-product recipes, so
-            // leave the amount unset rather than fail the whole read.
-            if (recipe.workAmount >= 0) row.WorkAmount = recipe.workAmount;
-            else { try { row.WorkAmount = recipe.WorkAmountTotal(null); } catch (Exception) { } }
-            if (recipe.workSkill != null) row.WorkSkill = Id(recipe.workSkill.defName);
-            // The recipe's own research gate, apart from its bench's: a
-            // workshop planner researches both before staging the bench.
-            if (recipe.researchPrerequisite != null) row.ResearchPrerequisites.Add(Id(recipe.researchPrerequisite.defName));
-            foreach (var project in recipe.researchPrerequisites ?? new List<ResearchProjectDef>())
-                if (project != null && !row.ResearchPrerequisites.Contains(Id(project.defName))) row.ResearchPrerequisites.Add(Id(project.defName));
-            var mech = NativeMechBills.Kind(recipe);
-            if (mech != null) row.MechKind = Id(mech);
-            var work = WorkType(benchDef, recipe);
-            if (work != null) row.WorkType = Id(work.defName);
-            var skills = recipe.skillRequirements ?? new List<SkillRequirement>();
-            foreach (var skill in skills.Where(s => s?.skill != null && !row.Skills.Any(existing => existing.DefName == s.skill.defName)))
-                row.Skills.Add(new Obs.SkillRequirement { DefName = Id(skill.skill.defName), Minimum = skill.minLevel });
-            var products = recipe.products ?? new List<ThingDefCountClass>();
-            foreach (var product in products.Where(p => p?.thingDef != null))
-                row.Products.Add(new Obs.Quantity { DefName = Id(product.thingDef.defName), Units = product.count });
-            var ingredients = recipe.ingredients ?? new List<IngredientCount>();
-            foreach (var ingredient in ingredients) row.Ingredients.Add(Ingredient(recipe, ingredient));
-            return row;
-        }
-
-        // Required is the whole count of the slot's single allowed definition;
-        // a slot admitting several definitions reports the base count and every
-        // allowed name, since the needed count can differ per chosen material.
-        // No stock scan: Available/Missing stay unset with a NotRequested issue.
-        private static Obs.IngredientRequirement Ingredient(RecipeDef recipe, IngredientCount ingredient)
-        {
-            var row = new Obs.IngredientRequirement();
-            var allowed = (ingredient?.filter?.AllowedThingDefs ?? Enumerable.Empty<ThingDef>()).Where(d => d != null)
-                .Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal).ToList();
-            foreach (var name in allowed) row.AllowedDefNames.Add(Id(name));
-            if (ingredient == null) { row.Complete = false; row.Issues.Add(Issue("required", Common.UnavailableReason.ReadFailed, "Ingredient slot is unreadable.")); return row; }
-            var required = allowed.Count == 1
-                ? (double)ingredient.CountRequiredOfFor(DefDatabase<ThingDef>.GetNamed(allowed[0]), recipe, null)
-                : Math.Ceiling(ingredient.GetBaseCount());
-            row.Required = required;
-            // Per-material counts so a slot admitting several materials still
-            // funds exactly (RecipeState.ingredients[].alternatives).
-            foreach (var name in allowed)
-            {
-                var count = ingredient.CountRequiredOfFor(DefDatabase<ThingDef>.GetNamed(name), recipe, null);
-                if (count < 0) throw new InvalidOperationException("Negative ingredient count.");
-                row.Alternatives.Add(new Obs.Quantity { DefName = name, Units = count });
-            }
-            row.Complete = required >= 0 && !double.IsNaN(required) && !double.IsInfinity(required);
-            row.Issues.Add(Issue("available", Common.UnavailableReason.NotRequested, "Recipe catalog reads carry no stock scan."));
-            return row;
-        }
-
         private static Obs.EntityRef Entity(Thing thing, Map map) => new Obs.EntityRef { Id = Id(thing.GetUniqueLoadID()), DefName = Id(thing.def.defName),
             Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = map.uniqueID, Position = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
         // The detail names the failure so a controller log is diagnosable
         // without the game log; the full trace still goes to the game log.
         private static string Failed(string what, Exception e)

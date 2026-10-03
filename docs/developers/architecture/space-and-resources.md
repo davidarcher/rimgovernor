@@ -260,7 +260,8 @@ checks its own stock and reservations.
 A resource goal may designate mining or harvest work, or configure an ordinary
 production bill. Any ordinary recipe whose products are all items may carry such a
 bill, not only food; the pawn work type a bill needs is the type of the
-`WorkGiver_DoBill` giver serving that bench (`RecipeState.work_type`), and native
+`WorkGiver_DoBill` giver serving that bench (read from the definition catalog's
+`WorkGiverDef` rows, with the recipe's products, ingredients and skill floors), and native
 admission requires an assigned pawn with that type enabled and the recipe's skill
 floors. Open bills contribute that work type to deterministic work coverage alongside
 construction. Existing bills count as continuing capacity only when their settings

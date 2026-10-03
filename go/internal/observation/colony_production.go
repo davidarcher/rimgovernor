@@ -186,7 +186,12 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 				failed = err
 			}
 			recipe.Bulk = bulk
-			mealRecipeFacts(r, &recipe)
+			meal, err := catalog.RecipeMealFacts(recipe.Name, row.Definition)
+			if failed == nil {
+				failed = err
+			}
+			recipe.Mood, recipe.NutrientEfficiency, recipe.WorkPerNutrition = meal.Mood, meal.NutrientEfficiency, meal.WorkPerNutrition
+			recipe.NeedsPower, recipe.IngredientClasses, recipe.CookSkillFloor = meal.NeedsPower, meal.IngredientClasses, meal.CookSkillFloor
 			if r.AvailableNow != nil && r.AvailableOnBench != nil {
 				recipe.Available = domain.Known(r.GetAvailableNow() && r.GetAvailableOnBench())
 			}

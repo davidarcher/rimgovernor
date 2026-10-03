@@ -125,8 +125,10 @@ func TestFilterAcceptsReadsTheFourVanillaFields(t *testing.T) {
 	if got, err := catalog.FilterAccepts(&d.ThingFilter{ThingDefs: []string{"Stool"}}, "Stool"); err != nil || !got {
 		t.Errorf("listed def: %v %v", got, err)
 	}
-	if _, err := catalog.FilterAccepts(&d.ThingFilter{Categories: []string{"Corpses"}, SpecialFiltersToAllow: []string{"AllowFresh"}}, "Corpse_Human"); err == nil || !strings.Contains(err.Error(), "specialFilters") {
-		t.Errorf("special filter accepted: %v", err)
+	// Special filters restrict only the stacks of a def (freshness, quality),
+	// never which defs the filter allows, so they do not change a def-level answer.
+	if got, err := catalog.FilterAccepts(&d.ThingFilter{Categories: []string{"Corpses"}, SpecialFiltersToAllow: []string{"AllowFresh"}}, "Corpse_Human"); err != nil || !got {
+		t.Errorf("special filter: %v %v", got, err)
 	}
 	if _, err := catalog.FilterAccepts(&d.ThingFilter{DisallowCheaperThan: 5}, "Steel"); err == nil {
 		t.Error("disallowCheaperThan accepted")

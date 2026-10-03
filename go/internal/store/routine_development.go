@@ -128,7 +128,7 @@ func readyWorkOf(r RoutineReviewRequest, plans []routinePlan, goals []policy.Dev
 			unserved = append(unserved, g.ID)
 		}
 	}
-	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction})
+	return policy.ProjectReadyWork(policy.ReadyRequest{Snapshot: r.Current, Tick: r.Tick, Plans: ready, Unserved: unserved, Construction: r.Facts.CurrentConstruction, Recipes: r.Facts.Recipes})
 }
 
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState, withheld policy.LaborProfile, stage policy.ColonyStageRecord, records []DependencyRecord) (policy.DevelopmentState, policy.ReadyWorkReport, []DependencyRecord, error) {

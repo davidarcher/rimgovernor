@@ -79,11 +79,8 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		recipes := map[string]bool{}
 		for _, recipe := range bench.Recipes {
-			if recipe == nil || recipe.Recipe == nil || validID(recipe.Recipe.GetDefName()) != nil || recipes[recipe.Recipe.GetDefName()] || !proto.Equal(recipe, &o.RecipeState{Recipe: recipe.Recipe, AvailableNow: recipe.AvailableNow, AvailableOnBench: recipe.AvailableOnBench, Mood: recipe.Mood, IngredientClasses: recipe.IngredientClasses, NutrientEfficiency: recipe.NutrientEfficiency, WorkPerNutrition: recipe.WorkPerNutrition, NeedsPower: recipe.NeedsPower, Skills: recipe.Skills}) {
+			if recipe == nil || recipe.Recipe == nil || validID(recipe.Recipe.GetDefName()) != nil || recipes[recipe.Recipe.GetDefName()] || !proto.Equal(recipe, &o.RecipeState{Recipe: recipe.Recipe, AvailableNow: recipe.AvailableNow, AvailableOnBench: recipe.AvailableOnBench}) {
 				return contract("invalid production recipe")
-			}
-			if err := validateMealRecipe(recipe); err != nil {
-				return err
 			}
 			recipes[recipe.Recipe.GetDefName()] = true
 		}

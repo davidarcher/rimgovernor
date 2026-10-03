@@ -12,8 +12,8 @@ namespace HomeBridge.BridgeTools
     // The mech branch of the production bill write (#1686, epic #1667): one
     // Bill_Mech on a Building_MechGestator, the bill the gestator's bill tab
     // queues. A mech recipe is one whose produced thing is a mechanoid race;
-    // the bill census names the mech kind on the recipe row (RecipeState.mech_kind)
-    // and the mechs' bandwidth cost is the catalog's. Names confirmed by
+    // the planner reads the mech kind and the mechs' bandwidth cost from the
+    // definition catalog. Names confirmed by
     // reflection over Krafs.Rimworld.Ref 1.6.4871: Bill_Mech (a
     // Bill_Production), Building_MechGestator, RecipeDef.ProducedThingDef /
     // gestationCycles / mechResurrection / mechanitorOnlyRecipe,

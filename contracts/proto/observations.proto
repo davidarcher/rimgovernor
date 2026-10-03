@@ -200,7 +200,6 @@ message EntityRef {
 message TargetRef { oneof target { rimgovernor.common.v1.Ref entity = 1; rimgovernor.common.v1.Cell cell = 2; rimgovernor.common.v1.Unavailable unavailable = 3; } }
 message Quantity { optional string def_name = 1; optional int64 units = 2; }
 message Amount { optional string def_name = 1; optional double amount = 2; }
-message SkillRequirement { optional string def_name = 1; optional int32 minimum = 2; optional int32 maximum = 3; }
 message JobEvidence {
   optional string def_name = 1;
   optional string load_id = 2;
@@ -618,19 +617,10 @@ message BillState {
 }
 message IngredientReservation { optional string pawn_id = 1; repeated Quantity items = 2; }
 message BillStack { SnapshotRef snapshot = 1; rimgovernor.common.v1.Ref bench = 2; optional bool usable = 3; optional BenchUnusableReason unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; reserved 7; }
+// What a recipe is, costs and needs is its RecipeDef row in the definition catalog (#1721); a frame carries only whether the bench offers it now.
 message RecipeState {
-  DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5;
-  repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9;
-  optional string work_type = 10; // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
-  repeated string bench_defs = 11; // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
-  repeated string research_prerequisites = 12; // ResearchProjectDefs the recipe itself requires; empty when only its bench gates it.
-  optional double mood = 13; // Base product taste thought; pawn traits/precepts can override it.
-  RecipeIngredientClasses ingredient_classes = 14; // Each slot is required; classes within a slot are alternatives.
-  optional double nutrient_efficiency = 15; // Total product nutrition / input nutrition, including batch size.
-  optional double work_per_nutrition = 16; // Native work units / total product nutrition.
-  optional bool needs_power = 17; // This bench's power requirement, not its current power state.
-  // PawnKindDef of the mech a Biotech gestation recipe makes (the produced race's AnyPawnKind, #1686); absent for every other recipe. Bandwidth cost is the catalog MechKindRow's.
-  optional string mech_kind = 18;
+  DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3;
+  reserved 4 to 18;
 }
 enum FoodIngredientClass {
   FOOD_INGREDIENT_CLASS_UNSPECIFIED = 0;
@@ -639,8 +629,6 @@ enum FoodIngredientClass {
   FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT = 3;
   FOOD_INGREDIENT_CLASS_ANY = 4;
 }
-message FoodIngredientSlot { repeated FoodIngredientClass alternatives = 1; }
-message RecipeIngredientClasses { repeated FoodIngredientSlot slots = 1; }
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;
@@ -1031,8 +1019,8 @@ message WorldProgressionReply { oneof outcome { WorldProgressionSnapshot observe
 message BillsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated BillStack benches = 2; reserved 3; reserved 4, 5, 6; }
 message BillsRequest { ReadScope scope = 1; optional string bench_id = 2; optional bool all_factions = 3; reserved 4, 5; }
 message BillsReply { oneof outcome { BillsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message RecipesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated RecipeState recipes = 3; reserved 4; }
-message RecipesRequest { ReadScope scope = 1; optional string bench_id = 2; optional string product_def = 4; reserved 3; } // No bench_id: definition catalog, optionally narrowed to recipes producing product_def.
+message RecipesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated RecipeState recipes = 3; reserved 4; optional string bench_def = 5; } // bench_def: the bench's ThingDef, which the recipe rows are read against in the catalog.
+message RecipesRequest { ReadScope scope = 1; optional string bench_id = 2; reserved 3, 4; } // bench_id names the bench whose recipe availability is read; required.
 message RecipesReply { oneof outcome { RecipesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message BuildingSettingsRequest { ReadScope scope = 1; optional string thing_id = 2; }
 message BuildingSettingsReply { oneof outcome { BuildingSettings observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

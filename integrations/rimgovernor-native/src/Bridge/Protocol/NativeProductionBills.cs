@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools {
     row.Reservations.Add(reservation);
    }
   }
-  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};NativeMealRecipeFacts.Fill(row,bench.def,recipe);return row;}
+  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};return row;}
   internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.BillSettings s,Map map){
      if(s.Ingredients!=null){
       bill.ingredientFilter.SetDisallowAll();

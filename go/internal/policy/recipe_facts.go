@@ -11,6 +11,17 @@ type RecipeFacts struct {
 	// MaterialInstalls are the install recipes of parts made straight from a
 	// stuff (a peg leg from a log), by recipe.
 	MaterialInstalls []MaterialInstall
+	// BillWork is the work type a bill on the recipe puts a pawn to, by
+	// recipe: that of the first bench (by name) whose DoBill giver serves it.
+	// A recipe no bench hosts has none.
+	BillWork map[string]WorkType
+}
+
+// BillWorkOf is the work type of a bill on the recipe, false when no bench
+// the catalog knows hosts the recipe.
+func (f RecipeFacts) BillWorkOf(recipe string) (WorkType, bool) {
+	work, ok := f.BillWork[recipe]
+	return work, ok
 }
 
 // MaterialInstall is a surgery recipe that installs a part made straight from

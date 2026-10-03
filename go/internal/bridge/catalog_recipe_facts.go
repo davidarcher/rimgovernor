@@ -36,6 +36,23 @@ func (catalog *DefinitionCatalog) recipeFacts() (policy.RecipeFacts, error) {
 		if ok {
 			facts.MaterialInstalls = append(facts.MaterialInstalls, install)
 		}
+		benches, err := catalog.recipeBenches(recipe)
+		if err != nil {
+			return facts, err
+		}
+		for _, bench := range benches {
+			work, found, err := catalog.billWorkType(recipe, bench)
+			if err != nil {
+				return facts, err
+			}
+			if found {
+				if facts.BillWork == nil {
+					facts.BillWork = map[string]policy.WorkType{}
+				}
+				facts.BillWork[name] = policy.WorkType(work)
+				break
+			}
+		}
 	}
 	return facts, nil
 }

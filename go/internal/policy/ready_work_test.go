@@ -160,7 +160,8 @@ func TestReadyWorkBillIntentInFlightClaimsNoCook(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := ReadyPlan{Goal: MaintainAnimalFeed, Spec: spec, Progress: []domain.Progress{readyProgress(t, spec, "bill", "dispatched")}}
-	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}})
+	recipes := RecipeFacts{BillWork: map[string]WorkType{"Make_Kibble": WorkCooking}}
+	r := ProjectReadyWork(ReadyRequest{Snapshot: readySnap("feed"), Plans: []ReadyPlan{plan}, Recipes: recipes})
 	c := byStage(r)["bill:Make_Kibble"]
 	if c.State != ReadyAwaiting || c.Work[0] != WorkCooking {
 		t.Fatalf("%+v", c)

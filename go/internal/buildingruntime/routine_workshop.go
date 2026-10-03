@@ -20,7 +20,6 @@ import (
 type RoutineWorkshopSource interface {
 	RoutineBuildingSource
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
-	ReadRecipeCatalog(context.Context, *c.Identity, string) ([]policy.RecipeHost, bridge.Result, error)
 }
 
 // workshopSelection is what the pre-observation reads settled for one step:
@@ -108,6 +107,14 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
+	defs, err := gearDefinitions(call, r.native, identity)
+	if err != nil {
+		return nil, Verdict{}, err
+	}
+	finished, known := defs.Finished.Value()
+	if defs.Catalog == nil || !known {
+		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: the recipe hosts need the definition catalog and the finished research", ErrControl)
+	}
 	var resource policy.Resource
 	var products []policy.Resource
 	if r.goal == policy.MaintainEquipment {
@@ -116,10 +123,6 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 			return nil, fieldUnavailable("gear_census"), nil
 		}
 		things, err := frameThings(call, r.native, identity)
-		if err != nil {
-			return nil, Verdict{}, err
-		}
-		defs, err := gearDefinitions(call, r.native, identity)
 		if err != nil {
 			return nil, Verdict{}, err
 		}
@@ -186,7 +189,7 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	selection := &workshopSelection{benches: benches}
 	candidates := map[string]bool{}
 	for _, product := range products {
-		hosts, _, err := source.ReadRecipeCatalog(call, identity, string(product))
+		hosts, err := defs.Catalog.RecipeHosts(string(product), finished)
 		if err != nil {
 			return nil, Verdict{}, err
 		}

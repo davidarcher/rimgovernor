@@ -3,7 +3,8 @@
 // on a loaded save: every player bench appears once with a CAS token, each
 // bill names its recipe, the census token
 // agrees with the colony-facts production token for the same bench, and each
-// bench's recipe catalog is complete with products and ingredient counts.
+// bench's recipe list carries the availability of every recipe (what a recipe
+// is, costs and needs is read from the definition catalog, #1721).
 // A fixture build's test/routine_production_prepare seeds a fueled campfire
 // with a food bill so a bench-less save still exercises the census.
 package bills
@@ -132,22 +133,13 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, rawRecipe := range recipes {
 			recipe, _ := na.AsMap(rawRecipe)
-			if err := checkMealFacts(recipe); err != nil {
-				return err
-			}
 			definition, _ := na.AsMap(recipe["recipe"])
 			if na.AsString(definition["defName"]) == "" {
 				return fmt.Errorf("bench %s: recipe without a def name", id)
 			}
-			for _, field := range []string{"availableNow", "availableOnBench", "workAmount"} {
+			for _, field := range []string{"availableNow", "availableOnBench"} {
 				if _, ok := recipe[field]; !ok {
 					return fmt.Errorf("bench %s recipe %s: %s missing", id, definition["defName"], field)
-				}
-			}
-			for _, rawSlot := range na.AsSlice(recipe["ingredients"]) {
-				slot, _ := na.AsMap(rawSlot)
-				if complete, _ := na.AsBool(slot["complete"]); !complete || na.AsNumber(slot["required"]) <= 0 || len(na.AsSlice(slot["allowedDefNames"])) == 0 {
-					return fmt.Errorf("bench %s recipe %s: ingredient slot without allowed names or a positive required count", id, definition["defName"])
 				}
 			}
 			recipeRows++

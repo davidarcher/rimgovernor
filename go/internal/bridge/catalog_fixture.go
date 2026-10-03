@@ -82,6 +82,9 @@ type FixtureDef struct {
 	// Race makes the def a pawn race with the RaceProperties it states and
 	// the game-computed race facts (#1722).
 	Race *FixtureRace
+	// BillWork makes the def a player-buildable bill giver (a Building_WorkTable
+	// building) that a DoBill work giver of this work type serves (#1721).
+	BillWork string
 }
 
 // FixtureFacility is a fixture def's CompProperties_Facility: the stat it
@@ -343,7 +346,7 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.Constants = &o.CatalogConstants{TicksPerHour: 2500, TicksPerDay: 60000, DaysPerYear: 60, BillStackMax: 15, SkillMaxLevel: 20, LitGlowThreshold: 0.3, FullRotRateC: 10, RoofMaxSupportDistance: 6.9, CurrencyDef: "Silver", WortDef: "Wort"}
 	wire.TerrainDefs = []*d.TerrainDef{{DefName: "AnchorTerrain"}}
 	wire.StatValues.TerrainRows = []*o.DefStatRow{{DefName: "AnchorTerrain", Stat: []int32{index(StatCleanliness), index(StatBeauty), index(StatFlammability)}, Value: []float32{0, 0, 0}}}
-	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil}
+	chains := map[string][]string{fixtureThingClass: nil, fixtureChargerClass: {"RimWorld.Building_MechCharger"}, "RimWorld.Building_MechCharger": nil, classVolumeGetter: nil, classNutritionGetter: nil}
 	for _, message := range []proto.Message{&d.CompProperties_Power{}, &d.CompProperties_Glower{}, &d.CompProperties_Explosive{}, &d.CompProperties_Facility{}, &d.CompProperties_AffectedByFacilities{}} {
 		class, _ := proto.GetExtension(message.ProtoReflect().Descriptor().Options(), d.E_ClrType).(string)
 		chains[class] = nil
@@ -388,6 +391,11 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		}
 		if def.Plant != nil {
 			t.DesignationCategory = ""
+		}
+		if def.BillWork != "" {
+			t.Category, t.ThingClass = d.ThingCategory_THING_CATEGORY_BUILDING, classBillGiverBuilding
+			chains[classBillGiverBuilding], chains[classDoBillGiver] = nil, nil
+			wire.Defs.WorkGiverDefs = append(wire.Defs.WorkGiverDefs, &d.WorkGiverDef{DefName: "DoBills" + def.Name, GiverClass: classDoBillGiver, WorkType: def.BillWork, FixedBillGiverDefs: []string{def.Name}})
 		}
 		apparelStats := map[int32]float32{}
 		if a := def.Apparel; a != nil {
