@@ -122,7 +122,7 @@ func worstStock(z StockZone, levels StockLevels) (Resource, float64, float64, bo
 func (z StockZone) stores() (food, general bool, defs map[Resource]bool) {
 	prefix, _, _ := strings.Cut(z.Role, ":")
 	food = z.FoodStorage || prefix == "meals" || prefix == "rawfood" || prefix == "ingredients"
-	general = z.Role == domain.GeneralRole
+	general = isWarehouseRole(z.Role)
 	filter, known := z.Filter.Value()
 	if !known {
 		return food, general, nil

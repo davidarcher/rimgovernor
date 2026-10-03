@@ -244,7 +244,7 @@ func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	base := Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
 	have := len(base.Rooms)
-	grown, added := growThroneRoom(base, 30)
+	grown, added, _ := growThroneRoom(base, 30)
 	if !added || len(grown.Rooms) != have+1 {
 		t.Fatalf("added=%v rooms %d -> %d", added, have, len(grown.Rooms))
 	}
@@ -260,13 +260,13 @@ func TestGrowThroneRoomAddsOneAndKeepsTheRest(t *testing.T) {
 	if _, err := CheckRoutes(grown); err != nil {
 		t.Fatal(err)
 	}
-	if again, added := growThroneRoom(grown, 30); added || len(again.Rooms) != len(grown.Rooms) {
+	if again, added, _ := growThroneRoom(grown, 30); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a second room for the same area")
 	}
-	if bigger, added := growThroneRoom(grown, 48); !added || len(bigger.Rooms) != len(grown.Rooms)+1 {
+	if bigger, added, _ := growThroneRoom(grown, 48); !added || len(bigger.Rooms) != len(grown.Rooms)+1 {
 		t.Fatal("a title that outgrows the room adds a larger one")
 	}
-	if _, added := growThroneRoom(grown, 0); added {
+	if _, added, _ := growThroneRoom(grown, 0); added {
 		t.Fatal("no area asked")
 	}
 }

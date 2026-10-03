@@ -1,10 +1,8 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
-
 // A further warehouse (#1772, epic #1765): when every warehouse zone is at
 // or over StockpileGrowFill and none can grow inside its room, the planner
-// asks layout for one more storage room (GearRoomDemand.Storage). It never
+// asks layout for one more storage room (RoomDemand.Storage). It never
 // plans the room; once the room stands the planner sites its warehouse zone
 // (warehouseSites) and the demand clears until that zone fills too.
 
@@ -22,9 +20,6 @@ func (r StorageRequest) plannedStorageRooms() []LayoutRoom {
 	}
 	return out
 }
-
-// isWarehouseRole reports the first warehouse's role or a further one's.
-func isWarehouseRole(role string) bool { return stockpileRolePrefix(role) == domain.GeneralRole }
 
 // storageRoomsWanted is how many storage rooms the plan should hold: 0 for
 // no demand, else the planned count plus one. Every planned storage room
@@ -73,7 +68,7 @@ func (r StorageRequest) storageRoomsWanted() (wanted int, idle bool) {
 }
 
 // StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.
-func StorageRoomsOwed(plan LayoutPlan, demand GearRoomDemand) int {
+func StorageRoomsOwed(plan LayoutPlan, demand RoomDemand) int {
 	have := 0
 	for _, r := range plan.AllRooms() {
 		if r.Role == ModuleStorage {
@@ -88,9 +83,9 @@ func StorageRoomsOwed(plan LayoutPlan, demand GearRoomDemand) int {
 // planned so the first storage room stays the core. A room is only ever
 // retired by the reconcile steps in layout_retire.go; none moves or resizes.
 // It reports whether a room was added.
-func growStorageRooms(plan LayoutPlan, demand GearRoomDemand) (LayoutPlan, bool) {
+func growStorageRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, error) {
 	if len(plan.Spine) == 0 || StorageRoomsOwed(plan, demand) == 0 {
-		return plan, false
+		return plan, false, nil
 	}
 	return growModuleRoom(plan, ModuleStorage, [][2]int32{coreRoomSize[ModuleStorage]})
 }

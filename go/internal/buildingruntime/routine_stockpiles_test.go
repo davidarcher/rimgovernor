@@ -47,7 +47,7 @@ func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
 		{ID: "Zone_9", Kind: domain.StockpileZone, Role: "general"},
 	}
 	patches := map[string]store.AppliedStockpile{"Zone_2": {Target: "Zone_2", Kind: domain.StorageZoneTarget, Filter: food, Priority: domain.PreferredPriority, Role: "kitchen", Tick: 10}}
-	request := stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil)
+	request := stockpileRequest(projection, owned, patches, domain.Unknown[map[string]bool](), nil, nil, nil)
 	if len(request.Zones) != 2 || request.Tick != 5000 {
 		t.Fatalf("request zones %+v", request.Zones)
 	}

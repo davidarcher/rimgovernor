@@ -55,14 +55,14 @@ func TestRetireSurplusThroneRooms(t *testing.T) {
 func TestRetireSurplusGearRooms(t *testing.T) {
 	armory, wardrobe := surplusRoom(ModuleArmory, 0, 4, 4), surplusRoom(ModuleWardrobe, 10, 4, 4)
 	plan := LayoutPlan{Rooms: []LayoutRoom{armory, wardrobe}}
-	if _, changed := retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{}}, nil); changed {
+	if _, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{}}, nil); changed {
 		t.Fatal("an unread demand retired rooms")
 	}
-	got, changed := retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{Known: true, Armory: true}}, map[Rectangle]bool{})
+	got, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true, Armory: true}}, map[Rectangle]bool{})
 	if !changed || len(surplusRoles(got, ModuleArmory)) != 1 || len(surplusRoles(got, ModuleWardrobe)) != 0 {
 		t.Fatalf("armory demanded: %+v", got.Rooms)
 	}
-	got, _ = retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{Known: true}}, map[Rectangle]bool{wardrobe.Interior: true})
+	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true}}, map[Rectangle]bool{wardrobe.Interior: true})
 	if len(surplusRoles(got, ModuleArmory)) != 0 || len(surplusRoles(got, ModuleWardrobe)) != 1 {
 		t.Fatalf("built wardrobe must stay: %+v", got.Rooms)
 	}
@@ -74,14 +74,14 @@ func TestRetireSurplusStorageRooms(t *testing.T) {
 	core, built, spare := surplusRoom(ModuleStorage, 0, 3, 3), surplusRoom(ModuleStorage, 10, 3, 3), surplusRoom(ModuleStorage, 20, 3, 3)
 	plan := LayoutPlan{Rooms: []LayoutRoom{core, built, spare}}
 	standing := map[Rectangle]bool{built.Interior: true}
-	if _, changed := retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{Known: true, Storage: 0}}, standing); changed {
+	if _, changed := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{Known: true, Storage: 0}}, standing); changed {
 		t.Fatal("a pending reading retired storage")
 	}
-	got, _ := retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{StorageIdle: true}}, standing)
+	got, _ := retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{StorageIdle: true}}, standing)
 	if xs := surplusRoles(got, ModuleStorage); len(xs) != 2 || xs[0] != 0 || xs[1] != 10 {
 		t.Fatalf("kept %v, want the core and the built room", xs)
 	}
-	got, _ = retireSurplusRooms(plan, RoomGrowth{Gear: GearRoomDemand{StorageIdle: true}}, map[Rectangle]bool{})
+	got, _ = retireSurplusRooms(plan, RoomGrowth{Demand: RoomDemand{StorageIdle: true}}, map[Rectangle]bool{})
 	if xs := surplusRoles(got, ModuleStorage); len(xs) != 1 || xs[0] != 0 {
 		t.Fatalf("kept %v, want the core alone (an unbuilt core stays too)", xs)
 	}
@@ -91,7 +91,7 @@ func TestRetireSurplusStorageRooms(t *testing.T) {
 // not yet built is a wait, not a reading.
 func TestStorageIdleSeparatesNoDemandFromAnUnbuiltRoom(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
-	idle := func(req StorageRequest) bool { return PlanStorage(req).Gear.StorageIdle }
+	idle := func(req StorageRequest) bool { return PlanStorage(req).RoomDemand.StorageIdle }
 	if !idle(storeRequest(2, 1, warehouseZone("a", "general", first, 7))) {
 		t.Fatal("a warehouse under the threshold beside an unbuilt room is no demand")
 	}

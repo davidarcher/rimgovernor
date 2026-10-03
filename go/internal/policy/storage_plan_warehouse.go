@@ -15,8 +15,8 @@ import (
 // which is deleted, its items rehoming within the haul budget.
 
 // warehouseSites is the warehouse site of each standing storage room: the
-// first planned room's is the "general" role (superseding the opening
-// store), a further room's (#1772) is "general:<room id>".
+// first planned room's is the "general" role, a further room's (#1772) is
+// "general:<room id>"; every site supersedes the opening store.
 func (r StorageRequest) warehouseSites() []StockpileSite {
 	var sites []StockpileSite
 	for i, planned := range r.plannedStorageRooms() {
@@ -32,7 +32,7 @@ func (r StorageRequest) warehouseSites() []StockpileSite {
 		site := StockpileSite{Role: domain.GeneralRole, Room: room.Cells, Filter: domain.GeneralFilter(), Priority: domain.LowPriority,
 			Candidates: candidates, Supersedes: domain.OpeningGeneralRole}
 		if i > 0 {
-			site.Role, site.Supersedes = domain.GeneralRole+":"+room.ID, ""
+			site.Role = domain.GeneralRole + ":" + room.ID
 		}
 		sites = append(sites, site)
 	}

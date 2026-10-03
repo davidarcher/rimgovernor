@@ -52,18 +52,39 @@ func (s StockpileSite) serves(role string) bool {
 }
 
 // stockpileSiteMoves deletes the zones of a site's prefix standing outside
-// its room.
+// every room of the sites serving it: several sites may share a prefix (the
+// warehouses), and a zone in any of their rooms stays. A move creates before
+// it deletes (#1795): while no zone serves the new site the delete names the
+// site's role in After, and the review admits it only once that create is
+// admitted, so a deferred or refused create never leaves the role without a
+// zone.
 func stockpileSiteMoves(r StockpileRequest) []StockpileEdit {
 	var out []StockpileEdit
-	for _, site := range r.Sited {
-		room := cellSet(site.Room)
-		for _, z := range r.Zones {
-			if !site.serves(z.Role) || stockpileTouches(z.Cells, room) {
+	for _, z := range r.Zones {
+		var serving *StockpileSite
+		after, inRoom, replaced := "", false, false
+		for i, site := range r.Sited {
+			if !site.serves(z.Role) {
 				continue
 			}
-			out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
-				Explanation: fmt.Sprintf("stockpile %s (%s): its site moved to %s, delete; %d used cells rehome", z.ID, z.Role, site.Role, z.Used())})
+			if serving == nil {
+				serving = &r.Sited[i]
+			}
+			inRoom = inRoom || stockpileTouches(z.Cells, cellSet(site.Room))
+			if stockpileSiteServed(r.Zones, site) {
+				replaced = true
+			} else if after == "" {
+				after = site.Role
+			}
 		}
+		if serving == nil || inRoom {
+			continue
+		}
+		if replaced {
+			after = ""
+		}
+		out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, After: after, Hauls: z.Used(),
+			Explanation: fmt.Sprintf("stockpile %s (%s): its site moved to %s, delete; %d used cells rehome", z.ID, z.Role, serving.Role, z.Used())})
 	}
 	return out
 }
@@ -107,6 +128,11 @@ func stockpileSiteShrinks(r StockpileRequest) []StockpileEdit {
 	}
 	return out
 }
+
+// isWarehouseRole reports a warehouse zone's role: every warehouse site is a
+// general store, the first planned room's "general" or a further one's
+// "general:<room id>" (#1772, #1798).
+func isWarehouseRole(role string) bool { return stockpileRolePrefix(role) == domain.GeneralRole }
 
 func stockpileRolePrefix(role string) string {
 	prefix, _, _ := strings.Cut(role, ":")

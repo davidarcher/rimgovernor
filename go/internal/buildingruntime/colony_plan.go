@@ -136,9 +136,9 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
 	if haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0 || policy.SurplusRoomsPossible(layout.Plan, growth.ThroneMin, demand)) {
-		growth.Gear = demand
+		growth.Demand = demand
 	}
-	gear := growth.Gear != (policy.GearRoomDemand{}) && hourly
+	gear := growth.Demand != (policy.RoomDemand{}) && hourly
 	// Rotten food or worn gear waits for a dump and the plan has no
 	// incinerator (#1814): reserve the site the storage planner found.
 	if haveLayout {
@@ -278,7 +278,10 @@ func (r *RoutineReviewer) deriveLayoutPlan(ctx context.Context, snapshot domain.
 // replanLayout grows the recorded v2 plan over a fresh survey and records
 // it when it changed.
 func (r *RoutineReviewer) replanLayout(ctx context.Context, snapshot domain.GenerationSnapshot, tick domain.Tick, plan policy.LayoutPlan, survey policy.MapSurvey, growth policy.RoomGrowth, animals, pawns, tombs int, tier policy.BuildTier, reason string, geysers []policy.PowerGeyser, emptied map[domain.Cell]bool, suites []float64) error {
-	next, changed := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	next, changed, unplaced := policy.ReplanLayoutWithRooms(plan, survey, growth, animals, pawns, tombs, tier, geysers, emptied, suites...)
+	if unplaced != nil {
+		clockSchedulerLog("layout plan could not add rooms: %v", unplaced)
+	}
 	if next.TombRooms() < tombs {
 		clockSchedulerLog("layout plan holds no room for tomb %d", tombs)
 	}

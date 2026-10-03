@@ -30,10 +30,10 @@ func TestGearRoomsNeedDemand(t *testing.T) {
 			t.Fatalf("%s planned with no demand", role)
 		}
 	}
-	if owed := GearRoomsOwed(plan, GearRoomDemand{}); len(owed) != 0 {
+	if owed := GearRoomsOwed(plan, RoomDemand{}); len(owed) != 0 {
 		t.Fatalf("owed %v with no demand", owed)
 	}
-	if same, added := growGearRooms(plan, GearRoomDemand{}); added || len(same.Rooms) != len(plan.Rooms) {
+	if same, added, _ := growGearRooms(plan, RoomDemand{}); added || len(same.Rooms) != len(plan.Rooms) {
 		t.Fatal("rooms added with no demand")
 	}
 }
@@ -41,7 +41,7 @@ func TestGearRoomsNeedDemand(t *testing.T) {
 func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 	t.Parallel()
 	plan := gearTestPlan()
-	grown, added := growGearRooms(plan, GearRoomDemand{Armory: true, Wardrobe: true})
+	grown, added, _ := growGearRooms(plan, RoomDemand{Armory: true, Wardrobe: true})
 	if !added || len(grown.Rooms) != len(plan.Rooms)+2 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
 	}
@@ -66,7 +66,7 @@ func TestGearRoomsSitBesideTheirAnchorAndRoute(t *testing.T) {
 	if _, err := CheckRoutes(grown); err != nil {
 		t.Fatal(err)
 	}
-	if again, added := growGearRooms(grown, GearRoomDemand{Armory: true, Wardrobe: true}); added || len(again.Rooms) != len(grown.Rooms) {
+	if again, added, _ := growGearRooms(grown, RoomDemand{Armory: true, Wardrobe: true}); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a standing room answers its demand for good")
 	}
 }
@@ -96,26 +96,26 @@ func TestPlanStorageSignalsGearDemand(t *testing.T) {
 		name    string
 		stored  []GearStock
 		weapons int
-		want    GearRoomDemand
+		want    RoomDemand
 	}{
-		{"nothing", nil, 0, GearRoomDemand{Known: true}},
-		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, GearRoomDemand{Known: true}},
-		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, GearRoomDemand{Known: true, Armory: true}},
-		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, GearRoomDemand{Known: true, Wardrobe: true}},
-		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, GearRoomDemand{Known: true}},
+		{"nothing", nil, 0, RoomDemand{Known: true}},
+		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, RoomDemand{Known: true}},
+		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, RoomDemand{Known: true, Armory: true}},
+		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, RoomDemand{Known: true, Wardrobe: true}},
+		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, RoomDemand{Known: true}},
 	} {
 		gear, ok, err := NewGearStore(items, tc.stored, tc.weapons)
 		if err != nil || !ok {
 			t.Fatalf("%s: store %v %v", tc.name, ok, err)
 		}
-		if got := PlanStorage(StorageRequest{Gear: &gear}).Gear; got != tc.want {
+		if got := PlanStorage(StorageRequest{Gear: &gear}).RoomDemand; got != tc.want {
 			t.Errorf("%s: %+v, want %+v", tc.name, got, tc.want)
 		}
 	}
 	if _, ok, err := NewGearStore(ItemFacts{}, nil, 9); ok || err != nil {
 		t.Errorf("a catalog without armor must give no store: %v %v", ok, err)
 	}
-	if got := PlanStorage(StorageRequest{}).Gear; got != (GearRoomDemand{}) {
+	if got := PlanStorage(StorageRequest{}).RoomDemand; got != (RoomDemand{}) {
 		t.Errorf("no gear store asks for rooms: %+v", got)
 	}
 }

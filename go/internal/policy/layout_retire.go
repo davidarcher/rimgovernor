@@ -230,7 +230,7 @@ func dropRooms(plan LayoutPlan, drop map[Rectangle]bool) (LayoutPlan, bool) {
 // SurplusRoomsPossible reports whether retireSurplusRooms could drop a room
 // of plan: several throne rooms under a title that asks for one, a gear room
 // whose demand reads false, or an extra storage room under an idle reading.
-func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand GearRoomDemand) bool {
+func SurplusRoomsPossible(plan LayoutPlan, throneMin int, demand RoomDemand) bool {
 	if throneMin > 0 && len(plan.roomsOf(ModuleThrone)) > 1 {
 		return true
 	}
@@ -268,9 +268,9 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]
 			}
 		}
 	}
-	if growth.Gear.Known {
+	if growth.Demand.Known {
 		for _, role := range gearRooms {
-			if role == ModuleArmory && growth.Gear.Armory || role == ModuleWardrobe && growth.Gear.Wardrobe {
+			if role == ModuleArmory && growth.Demand.Armory || role == ModuleWardrobe && growth.Demand.Wardrobe {
 				continue
 			}
 			for _, r := range plan.roomsOf(role) {
@@ -280,7 +280,7 @@ func retireSurplusRooms(plan LayoutPlan, growth RoomGrowth, built map[Rectangle]
 			}
 		}
 	}
-	if growth.Gear.StorageIdle {
+	if growth.Demand.StorageIdle {
 		for i, r := range plan.roomsOf(ModuleStorage) {
 			if i > 0 && !built[r.Interior] {
 				drop[r.Interior] = true

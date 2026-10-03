@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -16,17 +17,34 @@ func storageRooms(plan LayoutPlan) []LayoutRoom {
 	return out
 }
 
+// A demanded room no core slot takes is an error naming the room, for the
+// storage and the gear rooms alike (#1799); a placed one is not.
+func TestUnplaceableRoomDemandFailsLoudly(t *testing.T) {
+	t.Parallel()
+	plan := gearTestPlan()
+	if _, added, err := growStorageRooms(plan, RoomDemand{Storage: 2}); !added || err != nil {
+		t.Fatalf("placed room added=%v err=%v", added, err)
+	}
+	plan.Zones = nil
+	if _, added, err := growStorageRooms(plan, RoomDemand{Storage: 2}); added || err == nil || !strings.Contains(err.Error(), "storage room") {
+		t.Fatalf("storage added=%v err=%v", added, err)
+	}
+	if _, added, err := growGearRooms(plan, RoomDemand{Armory: true}); added || err == nil || !strings.Contains(err.Error(), "armory room") {
+		t.Fatalf("armory added=%v err=%v", added, err)
+	}
+}
+
 func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
 	t.Parallel()
 	plan := gearTestPlan()
 	core, _ := plan.Core()
-	if same, added := growStorageRooms(plan, GearRoomDemand{}); added || len(same.Rooms) != len(plan.Rooms) {
+	if same, added, _ := growStorageRooms(plan, RoomDemand{}); added || len(same.Rooms) != len(plan.Rooms) {
 		t.Fatal("room added with no demand")
 	}
-	if same, added := growStorageRooms(plan, GearRoomDemand{Storage: 1}); added || len(same.Rooms) != len(plan.Rooms) {
+	if same, added, _ := growStorageRooms(plan, RoomDemand{Storage: 1}); added || len(same.Rooms) != len(plan.Rooms) {
 		t.Fatal("a standing storage room answers a demand for one")
 	}
-	grown, added := growStorageRooms(plan, GearRoomDemand{Storage: 2})
+	grown, added, _ := growStorageRooms(plan, RoomDemand{Storage: 2})
 	if !added || len(grown.Rooms) != len(plan.Rooms)+1 {
 		t.Fatalf("added=%v rooms %d -> %d", added, len(plan.Rooms), len(grown.Rooms))
 	}
@@ -45,10 +63,10 @@ func TestStorageRoomAddedOnDemandKeepsTheCore(t *testing.T) {
 	if _, err := CheckRoutes(grown); err != nil {
 		t.Fatal(err)
 	}
-	if owed := StorageRoomsOwed(grown, GearRoomDemand{Storage: 2}); owed != 0 {
+	if owed := StorageRoomsOwed(grown, RoomDemand{Storage: 2}); owed != 0 {
 		t.Fatalf("owed %d once the room is planned", owed)
 	}
-	if again, added := growStorageRooms(grown, GearRoomDemand{Storage: 2}); added || len(again.Rooms) != len(grown.Rooms) {
+	if again, added, _ := growStorageRooms(grown, RoomDemand{Storage: 2}); added || len(again.Rooms) != len(grown.Rooms) {
 		t.Fatal("a planned room answers its demand for good")
 	}
 }
@@ -86,16 +104,16 @@ func TestStorageRoomDemandFollowsTheFillThreshold(t *testing.T) {
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
 	// 8 of 9 cells used is over the threshold and the room has no cell left
 	// to grow onto; 7 of 9 is under it.
-	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))).Gear.Storage; got != 2 {
+	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))).RoomDemand.Storage; got != 2 {
 		t.Fatalf("full warehouse wants %d rooms, want 2", got)
 	}
-	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))).Gear.Storage; got != 0 {
+	if got := PlanStorage(storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))).RoomDemand.Storage; got != 0 {
 		t.Fatalf("a warehouse under the threshold wants %d rooms", got)
 	}
-	if got := PlanStorage(storeRequest(1, 0, warehouseZone("a", domain.GeneralRole, first, 9))).Gear.Storage; got != 0 {
+	if got := PlanStorage(storeRequest(1, 0, warehouseZone("a", domain.GeneralRole, first, 9))).RoomDemand.Storage; got != 0 {
 		t.Fatalf("no standing room, wants %d", got)
 	}
-	if got := PlanStorage(storeRequest(1, 1)).Gear.Storage; got != 0 {
+	if got := PlanStorage(storeRequest(1, 1)).RoomDemand.Storage; got != 0 {
 		t.Fatalf("no warehouse zone yet, wants %d", got)
 	}
 }
@@ -106,7 +124,7 @@ func TestStorageRoomDemandWaitsForRoomToGrow(t *testing.T) {
 	small := warehouseZone("a", domain.GeneralRole, first, 4)
 	small.Cells = small.Cells[:4]
 	small.Stored = small.Stored[:4]
-	if got := PlanStorage(storeRequest(1, 1, small)).Gear.Storage; got != 0 {
+	if got := PlanStorage(storeRequest(1, 1, small)).RoomDemand.Storage; got != 0 {
 		t.Fatalf("a full warehouse that can still grow in its room wants %d rooms", got)
 	}
 }
@@ -118,8 +136,8 @@ func TestSecondWarehouseFollowsTheSecondRoom(t *testing.T) {
 	// The second room is planned but not standing: no site, no more demand.
 	req := storeRequest(2, 1, full)
 	plan := PlanStorage(req)
-	if plan.Gear.Storage != 0 {
-		t.Fatalf("a planned room answers the demand: %d", plan.Gear.Storage)
+	if plan.RoomDemand.Storage != 0 {
+		t.Fatalf("a planned room answers the demand: %d", plan.RoomDemand.Storage)
 	}
 	for _, s := range plan.Sites {
 		if s.Role != domain.GeneralRole {
@@ -136,19 +154,19 @@ func TestSecondWarehouseFollowsTheSecondRoom(t *testing.T) {
 			site = s
 		}
 	}
-	if site.Role == "" || site.Supersedes != "" || site.Filter != domain.GeneralFilter() || site.Priority != domain.LowPriority {
+	if site.Role == "" || site.Supersedes != domain.OpeningGeneralRole || site.Filter != domain.GeneralFilter() || site.Priority != domain.LowPriority {
 		t.Fatalf("second warehouse site %+v", site)
 	}
-	if plan.Gear.Storage != 0 {
-		t.Fatalf("unserved second room still asks: %d", plan.Gear.Storage)
+	if plan.RoomDemand.Storage != 0 {
+		t.Fatalf("unserved second room still asks: %d", plan.RoomDemand.Storage)
 	}
 	// The zone created in the second room fills in turn: a third room.
 	zone := warehouseZone("b", domain.GeneralRole+":second", second, 9)
-	if got := PlanStorage(storeRequest(2, 2, full, zone)).Gear.Storage; got != 3 {
+	if got := PlanStorage(storeRequest(2, 2, full, zone)).RoomDemand.Storage; got != 3 {
 		t.Fatalf("both warehouses full want %d rooms, want 3", got)
 	}
 	zone.Stored = zone.Stored[:2]
-	if got := PlanStorage(storeRequest(2, 2, full, zone)).Gear.Storage; got != 0 {
+	if got := PlanStorage(storeRequest(2, 2, full, zone)).RoomDemand.Storage; got != 0 {
 		t.Fatalf("second warehouse has room, wants %d", got)
 	}
 }
@@ -170,5 +188,26 @@ func TestSecondWarehouseZoneIsCreated(t *testing.T) {
 		if c.X < 20 || c.X > 22 || c.Z < 10 || c.Z > 12 {
 			t.Fatalf("second warehouse outside its room: %v", zone.Cells)
 		}
+	}
+}
+
+// Sites sharing the warehouse prefix keep a zone standing in any of their
+// rooms, and the opening store is not raised beside a further warehouse
+// zone (#1798).
+func TestFurtherWarehouseZoneIsKeptAndCountsAsGeneral(t *testing.T) {
+	t.Parallel()
+	first, second := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, Rectangle{X: 20, Z: 10, Width: 3, Height: 3}
+	zone := warehouseZone("b", domain.GeneralRole+":second", second, 9)
+	r := freshColonyStockpiles()
+	r.Zones = []StockpileZone{zone}
+	r.Sited = []StockpileSite{
+		{Role: domain.GeneralRole, Room: rectCells(first), Supersedes: domain.OpeningGeneralRole},
+		{Role: domain.GeneralRole + ":second", Room: rectCells(second), Supersedes: domain.OpeningGeneralRole},
+	}
+	if moves := stockpileSiteMoves(r); len(moves) != 0 {
+		t.Fatalf("a zone in a further warehouse room moved: %+v", moves)
+	}
+	if _, ok := createdRoles(PlanStockpileMaintenance(r))[domain.OpeningGeneralRole]; ok {
+		t.Fatal("opening store raised beside a further warehouse zone")
 	}
 }

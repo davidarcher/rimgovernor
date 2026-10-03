@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
@@ -47,7 +48,8 @@ func DeriveLayoutPlan(s MapSurvey, pawns int, tier BuildTier, geysers []PowerGey
 // wing it otherwise could not (dropEmptiedWings); else it stays as spare
 // beds.
 func ReplanLayout(plan LayoutPlan, s MapSurvey, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
-	return ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
+	next, changed, _ := ReplanLayoutWithRooms(plan, s, RoomGrowth{}, 0, pawns, tombs, tier, geysers, emptied, suites...)
+	return next, changed
 }
 
 // RoomGrowth is the rooms the plan is asked to add beyond the core: a throne
@@ -60,7 +62,7 @@ type RoomGrowth struct {
 	// exists (#1825).
 	ThroneMin int
 	Child     []ChildRoomShape
-	Gear      GearRoomDemand
+	Demand    RoomDemand
 	// Incinerator is the site of the incinerator the plan lacks (#1814).
 	Incinerator IncineratorSite
 	// Shapes are every resolved child-room need and Built the planned rooms
@@ -79,8 +81,10 @@ type RoomGrowth struct {
 // added after the rest of the rooms and before the perimeter is replanned
 // around them. A herd of
 // animals (HerdPlan.PenAnimals; 0 leaves the herd sites as they are) gets
-// the pens, barn and vet room it lacks (PlanHerdSites, #1633).
-func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool) {
+// the pens, barn and vet room it lacks (PlanHerdSites, #1633). The error
+// joins the rooms growth asked for that no core slot took (#1799); the plan
+// returned is still the best one, so the caller reports it and carries on.
+func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, animals, pawns, tombs int, tier BuildTier, geysers []PowerGeyser, emptied map[domain.Cell]bool, suites ...float64) (LayoutPlan, bool, error) {
 	zones := Zone(s)
 	vents := geothermalCells(geyserFootprints(geysers))
 	noGo := map[domain.Cell]bool{}
@@ -114,28 +118,34 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	}
 	next, retired := retireAddOnRooms(next, growth)
 	dropped = dropped || retired
-	next, throne := growThroneRoom(next, growth.ThroneArea)
+	var unplaced []error
+	next, throne, err := growThroneRoom(next, growth.ThroneArea)
 	dropped = dropped || throne
+	unplaced = append(unplaced, err)
 	for _, shape := range growth.Child {
 		var grown bool
-		next, grown = growChildRoom(next, shape)
+		next, grown, err = growChildRoom(next, shape)
 		dropped = dropped || grown
+		unplaced = append(unplaced, err)
 	}
-	next, gear := growGearRooms(next, growth.Gear)
+	next, gear, err := growGearRooms(next, growth.Demand)
 	dropped = dropped || gear
-	next, storage := growStorageRooms(next, growth.Gear)
+	unplaced = append(unplaced, err)
+	next, storage, err := growStorageRooms(next, growth.Demand)
 	dropped = dropped || storage
+	unplaced = append(unplaced, err)
 	next, incinerator := growIncinerator(next, growth.Incinerator)
 	dropped = dropped || incinerator
 	next.Zones = zones
+	unplacedRooms := errors.Join(unplaced...)
 	if !dropped && sameInteriors(plan.AllRooms(), next.AllRooms()) {
 		fresh := withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(plan, s), s), s))
-		return fresh, sited || !samePerimeter(plan, fresh)
+		return fresh, sited || !samePerimeter(plan, fresh), unplacedRooms
 	}
 	if len(next.AllRooms()) == 0 {
-		return plan, false
+		return plan, false, unplacedRooms
 	}
-	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true
+	return withoutCore(PlanBaitRoom(PlanMountainPockets(PlanPerimeter(next, s), s), s)), true, unplacedRooms
 }
 
 // topUpHerdSites adds the herd sites animals needs to plan, sited over the

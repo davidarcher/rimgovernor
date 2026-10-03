@@ -83,7 +83,7 @@ func TestFoodSitePrefersRoofedFloorOutsideTheBedrooms(t *testing.T) {
 }
 
 // A food stockpile standing outdoors moves indoors once a roofed block is
-// free (one delete, one create), and a zone already on roofed floor, or with
+// free (create first, then delete), and a zone already on roofed floor, or with
 // no roofed block free, is never moved or doubled.
 func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 	r, s := foodSiteRequests(domain.Cell{X: 10, Z: 10})
@@ -100,7 +100,7 @@ func TestFoodSiteMovesIndoorsOnceAndThenStays(t *testing.T) {
 			kinds = append(kinds, e.Kind)
 		}
 	}
-	if len(kinds) != 2 || kinds[0] != StockpileDelete || kinds[1] != StockpileCreate {
+	if len(kinds) != 2 || kinds[0] != StockpileCreate || kinds[1] != StockpileDelete {
 		t.Fatalf("outdoor zone not moved indoors: %v", kinds)
 	}
 	roofed := []domain.Cell{{X: 30, Z: 30}, {X: 31, Z: 30}, {X: 32, Z: 30}, {X: 30, Z: 31}, {X: 31, Z: 31}, {X: 32, Z: 31}, {X: 30, Z: 32}, {X: 31, Z: 32}, {X: 32, Z: 32}}

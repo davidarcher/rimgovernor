@@ -110,10 +110,13 @@ const (
 // settings; Hauls the haul jobs the edit is estimated to trigger. A merge
 // deletes the fragment Zone into Into.
 type StockpileEdit struct {
-	Kind        StockpileEditKind
-	Zone        string
-	Role        string
-	Into        string `json:",omitempty"`
+	Kind StockpileEditKind
+	Zone string
+	Role string
+	Into string `json:",omitempty"`
+	// After is the site role whose create must be admitted before this
+	// delete of a moved zone; empty once the site is served.
+	After       string `json:",omitempty"`
 	Cells       []domain.Cell
 	Filter      domain.StockpileFilter
 	Priority    domain.StockpilePriority
@@ -142,7 +145,7 @@ type StockpileRequest struct {
 	Sited []StockpileSite
 	// Gear is the planner's gear-room demand for layout (#1773); the review
 	// itself does not read it.
-	Gear GearRoomDemand
+	RoomDemand RoomDemand
 	// Incinerator is the planner's incinerator site for layout (#1814); the
 	// review itself does not read it.
 	Incinerator IncineratorSite
@@ -318,15 +321,26 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		}
 	}
 	rank := map[StockpileEditKind]int{StockpileDelete: 0, StockpileRetarget: 1, StockpileShelfPatch: 1, StockpileCreate: 2, StockpileShell: 2, StockpileGrow: 3, StockpileMerge: 4, StockpileShrink: 5}
-	sort.SliceStable(candidates, func(i, j int) bool { return rank[candidates[i].Kind] < rank[candidates[j].Kind] })
+	// A moved zone's delete follows its replacement's create.
+	order := func(e StockpileEdit) int {
+		if e.After != "" {
+			return rank[StockpileCreate]*2 + 1
+		}
+		return rank[e.Kind] * 2
+	}
+	sort.SliceStable(candidates, func(i, j int) bool { return order(candidates[i]) < order(candidates[j]) })
 	spent := 0
+	created := map[string]bool{}
 	for _, e := range candidates {
-		if len(review.Edits) > 0 && spent+e.Hauls > budget {
+		if e.After != "" && !created[e.After] || len(review.Edits) > 0 && spent+e.Hauls > budget {
 			review.Deferred++
 			continue
 		}
 		spent += e.Hauls
 		review.Edits = append(review.Edits, e)
+		if e.Kind == StockpileCreate {
+			created[e.Role] = true
+		}
 	}
 	review.Active = len(review.Edits) > 0
 	if !review.Active {

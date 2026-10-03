@@ -155,7 +155,7 @@ func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
 		t.Fatalf("shape %+v %v", shape, ok)
 	}
 	base := Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
-	grown, added := growChildRoom(base, shape)
+	grown, added, _ := growChildRoom(base, shape)
 	if !added {
 		t.Fatal("no room grown for the platform")
 	}

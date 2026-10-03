@@ -70,11 +70,11 @@ func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, 
 // demand reads enough serviceable gear of a kind as stored gear outgrowing
 // the warehouse's share: weapons and armor ask for the armory, clothing for
 // the wardrobe.
-func (g *GearStore) demand() GearRoomDemand {
+func (g *GearStore) demand() RoomDemand {
 	if g == nil {
-		return GearRoomDemand{}
+		return RoomDemand{}
 	}
-	return GearRoomDemand{Armory: g.Weapons+g.ArmorHeld >= gearRoomMinItems, Wardrobe: g.Clothing >= gearRoomMinItems}
+	return RoomDemand{Armory: g.Weapons+g.ArmorHeld >= gearRoomMinItems, Wardrobe: g.Clothing >= gearRoomMinItems}
 }
 
 // gearSites are the armory and wardrobe zones: each standing gear room is

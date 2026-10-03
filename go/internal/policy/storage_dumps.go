@@ -65,12 +65,12 @@ func DumpNeeds(facts RoutineFacts) map[string]int {
 	return needs
 }
 
-// dumpAnchor is the cell the dump patches are sited nearest: the first general
-// store cell, else the colony anchor.
+// dumpAnchor is the cell the dump patches are sited nearest: the first warehouse
+// cell, else the colony anchor.
 func (r StorageRequest) dumpAnchor() domain.Cell {
 	var store []domain.Cell
 	for _, z := range r.Zones {
-		if z.Role == domain.GeneralRole {
+		if isWarehouseRole(z.Role) {
 			store = append(store, z.Cells...)
 		}
 	}

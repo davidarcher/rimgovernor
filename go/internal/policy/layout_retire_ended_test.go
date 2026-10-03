@@ -66,7 +66,7 @@ func TestReplanRetiresUnbuiltEndedRooms(t *testing.T) {
 	}
 	count := func(p LayoutPlan, role ModuleRole) int { return len(p.roomsOf(role)) }
 	replan := func(g RoomGrowth) LayoutPlan {
-		next, _ := ReplanLayoutWithRooms(plan, s, g, 0, 3, 1, BuildTierCamp, nil, nil)
+		next, _, _ := ReplanLayoutWithRooms(plan, s, g, 0, 3, 1, BuildTierCamp, nil, nil)
 		return next
 	}
 	for i, role := range roles {

@@ -22,7 +22,7 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatal(ok, err)
 	}
-	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear))
+	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
 	if len(request.Shells) != 1 || request.Shells[0] != policy.ModuleArmory {
 		t.Fatalf("shells %v", request.Shells)
 	}
@@ -43,7 +43,7 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	projection.Rooms = domain.Known(rooms)
 	zoneOn(projection, "Zone_7", false, domain.Cell{X: 20, Z: 20}, domain.Cell{X: 21, Z: 20}, domain.Cell{X: 20, Z: 21}, domain.Cell{X: 21, Z: 21})
 	owned := []store.OwnedZone{{ID: "Zone_7", Kind: domain.StockpileZone, Role: domain.WeaponsRole, Filter: domain.GeneralFilter(), Priority: domain.PreferredPriority}}
-	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear))
+	request = withoutOpening(stockpileRequest(projection, owned, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
 	request.Colonists = domain.Known(int64(100))
 	if len(request.Shells) != 0 {
 		t.Fatalf("shells %v with the room standing", request.Shells)

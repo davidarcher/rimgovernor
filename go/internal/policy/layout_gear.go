@@ -1,9 +1,11 @@
 package policy
 
+import "errors"
+
 // The gear rooms (#1773, epic #1765): an armory for weapons and armor and a
 // wardrobe for clothing are core rooms layout adds only when the storage
 // planner signals that stored gear of the kind outgrew its zone
-// (GearRoomDemand); with no demand neither is planned. The armory stands beside
+// (RoomDemand); with no demand neither is planned. The armory stands beside
 // the barracks, the wardrobe beside the workshop, which hosts every bench
 // including the tailor's (besideRoles). A room already in the plan answers
 // its demand for good: rooms are only retired by the reconcile steps in
@@ -19,7 +21,7 @@ const (
 var gearRooms = []ModuleRole{ModuleArmory, ModuleWardrobe}
 
 // GearRoomsOwed is the gear rooms demand asks for that plan lacks.
-func GearRoomsOwed(plan LayoutPlan, demand GearRoomDemand) []ModuleRole {
+func GearRoomsOwed(plan LayoutPlan, demand RoomDemand) []ModuleRole {
 	wanted := map[ModuleRole]bool{ModuleArmory: demand.Armory, ModuleWardrobe: demand.Wardrobe}
 	have := map[ModuleRole]bool{}
 	for _, r := range plan.AllRooms() {
@@ -36,17 +38,22 @@ func GearRoomsOwed(plan LayoutPlan, demand GearRoomDemand) []ModuleRole {
 
 // growGearRooms adds each gear room demand asks for and plan lacks, at the
 // slot beside its anchor room, else the nearest core slot like any other
-// core room. It reports whether a room was added.
-func growGearRooms(plan LayoutPlan, demand GearRoomDemand) (LayoutPlan, bool) {
+// core room. It reports whether a room was added and the rooms it could not
+// place.
+func growGearRooms(plan LayoutPlan, demand RoomDemand) (LayoutPlan, bool, error) {
 	if len(plan.Spine) == 0 {
-		return plan, false
+		return plan, false, nil
 	}
 	grew := false
+	var unplaced []error
 	for _, role := range GearRoomsOwed(plan, demand) {
 		var added bool
-		if plan, added = growModuleRoom(plan, role, [][2]int32{coreRoomSize[role]}); added {
+		var err error
+		if plan, added, err = growModuleRoom(plan, role, [][2]int32{coreRoomSize[role]}); added {
 			grew = true
+		} else if err != nil {
+			unplaced = append(unplaced, err)
 		}
 	}
-	return plan, grew
+	return plan, grew, errors.Join(unplaced...)
 }

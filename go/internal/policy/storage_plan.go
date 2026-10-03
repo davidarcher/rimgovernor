@@ -57,11 +57,11 @@ type StorageRequest struct {
 	Dumps *DumpStore
 }
 
-// GearRoomDemand is the planner's signal to layout that the gear held outgrew
+// RoomDemand is the planner's signal to layout that stored goods outgrew
 // the warehouse (#1773, #1774): the armory for weapons and armor, the
 // wardrobe for clothing. The planner never plans the rooms; layout adds them
 // (GearRoomsOwed).
-type GearRoomDemand struct {
+type RoomDemand struct {
 	Armory, Wardrobe bool
 	// Storage is the storage rooms the plan should hold, 0 for no demand
 	// (a further warehouse, #1772; see storageRoomsWanted).
@@ -76,23 +76,23 @@ type GearRoomDemand struct {
 
 // StoragePlan is the desired storage, most important site first.
 type StoragePlan struct {
-	Sites []StockpileSite
-	Gear  GearRoomDemand
+	Sites      []StockpileSite
+	RoomDemand RoomDemand
 	// Incinerator is the site layout should reserve for the incinerator
 	// (#1814); zero when it stands, nothing waits or no ground fits.
 	Incinerator IncineratorSite
 }
 
-// PlanStorage returns the gear demand and the desired storage sites: the meal store, the
+// PlanStorage returns the room demand and the desired storage sites: the meal store, the
 // workstation stockpiles beside the benches, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
 // catch-all, the tomb's corpse store, and the food stockpile beside the
 // kitchen. The armory and wardrobe stores fill their standing rooms, and the
 // dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
-	plan := StoragePlan{Gear: r.Gear.demand()}
-	plan.Gear.Known = r.Gear != nil
-	plan.Gear.Storage, plan.Gear.StorageIdle = r.storageRoomsWanted()
+	plan := StoragePlan{RoomDemand: r.Gear.demand()}
+	plan.RoomDemand.Known = r.Gear != nil
+	plan.RoomDemand.Storage, plan.RoomDemand.StorageIdle = r.storageRoomsWanted()
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}

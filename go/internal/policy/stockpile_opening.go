@@ -35,14 +35,14 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	var general, dump bool
 	for _, z := range r.Zones {
 		switch {
-		case z.Role == domain.GeneralRole || z.Role == domain.OpeningGeneralRole || z.Filter.Base() == domain.BaseNonperishables:
+		case isWarehouseRole(z.Role) || z.Role == domain.OpeningGeneralRole || z.Filter.Base() == domain.BaseNonperishables:
 			general = true
 		case z.Role == domain.CorpseDumpRole:
 			dump = true
 		}
 	}
 	for _, site := range r.Sited {
-		general = general || site.Role == domain.GeneralRole
+		general = general || isWarehouseRole(site.Role)
 	}
 	var out []StockpileEdit
 	take := func(role string, filter domain.StockpileFilter, priority domain.StockpilePriority, site Rectangle, where string) {

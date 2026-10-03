@@ -40,7 +40,7 @@ again. The opening corpse dump (no planner yet) stands from the first pass.
 ## Gear rooms
 
 When a gear zone has every cell holding something, the planner raises
-`GearRoomDemand` (armory for weapons, wardrobe for apparel) and layout adds
+`RoomDemand` (armory for weapons, wardrobe for apparel) and layout adds
 the room: the armory beside the barracks, the wardrobe beside the workshop
 with the tailor bench, with no wealth gate. Apparel cannot yet be told armor
 from clothing, so apparel demand asks for the wardrobe only.
@@ -51,8 +51,10 @@ A zone grows onto adjacent open cells once 85% of its cells hold things and
 sheds empty edge cells after sitting at or under 25% for a day (never below
 four cells); the warehouse grows onto roofed cells only. Same-filter
 fragments merge. Edits are admitted within a per-cycle haul budget so a zone
-move never floods the colonists with hauling. A role whose site moved has its
-old zone deleted and its items rehome.
+move never floods the colonists with hauling. A role whose site moved gets its
+new zone first; the old zone is deleted in the same review only once that create
+is admitted, and its items rehome. Held building reservations and the unroofed
+floor of a planned shell are protected ground no site takes.
 
 ## Review check
 

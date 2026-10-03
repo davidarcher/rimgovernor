@@ -26,29 +26,29 @@ type stockpileMemory struct {
 	mu    sync.Mutex
 	world string
 	low   map[string]domain.Tick
-	// gear and incinerator are the storage planner's latest layout demands
+	// demand and incinerator are the storage planner's latest layout demands
 	// for demandWorld: layout reads them to add the armory and wardrobe
 	// (#1773) and to reserve the incinerator (#1814).
-	gear        policy.GearRoomDemand
+	demand      policy.RoomDemand
 	incinerator policy.IncineratorSite
 	demandWorld string
 }
 
 // setDemand records the planner's layout demands for world.
-func (m *stockpileMemory) setDemand(world string, gear policy.GearRoomDemand, incinerator policy.IncineratorSite) {
+func (m *stockpileMemory) setDemand(world string, demand policy.RoomDemand, incinerator policy.IncineratorSite) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.gear, m.incinerator, m.demandWorld = gear, incinerator, world
+	m.demand, m.incinerator, m.demandWorld = demand, incinerator, world
 }
 
 // layoutDemand is the recorded layout demands; none for another world.
-func (m *stockpileMemory) layoutDemand(world string) (policy.GearRoomDemand, policy.IncineratorSite) {
+func (m *stockpileMemory) layoutDemand(world string) (policy.RoomDemand, policy.IncineratorSite) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.demandWorld != world {
-		return policy.GearRoomDemand{}, policy.IncineratorSite{}
+		return policy.RoomDemand{}, policy.IncineratorSite{}
 	}
-	return m.gear, m.incinerator
+	return m.demand, m.incinerator
 }
 
 func stockpileWorld(s domain.GenerationSnapshot) string {
@@ -103,7 +103,7 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore) policy.StockpileRequest {
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput, gear *policy.GearStore, protected []domain.Cell) policy.StockpileRequest {
 	type cells struct{ all, stored []domain.Cell }
 	byZone := map[string]*cells{}
 	for _, cell := range projection.Cells {
@@ -121,7 +121,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 			entry.stored = append(entry.stored, cell.Cell)
 		}
 	}
-	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: nil, Colonists: projection.Facts.Colonists, Anchor: planCore(*projection), Rooms: domain.Unknown[[]policy.Room]()}
+	request := policy.StockpileRequest{Tick: projection.Identity.Tick, Roles: stockpileRoles(StockpileRoleInput{Projection: projection, Benches: benches}), Cells: projection.Cells, Bounds: projection.Bounds, Protected: protected, Colonists: projection.Facts.Colonists, Anchor: planCore(*projection), Rooms: domain.Unknown[[]policy.Room]()}
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
@@ -153,7 +153,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
-	request.Sited, request.Gear, request.Incinerator = plan.Sites, plan.Gear, plan.Incinerator
+	request.Sited, request.RoomDemand, request.Incinerator = plan.Sites, plan.RoomDemand, plan.Incinerator
 	return request
 }
 
@@ -170,7 +170,7 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 		return err
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
-	r.stockpiles.setDemand(stockpileWorld(snapshot), request.Gear, request.Incinerator)
+	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand, request.Incinerator)
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {
@@ -218,7 +218,11 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	if err != nil {
 		return policy.StockpileRequest{}, "", err
 	}
-	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear)
+	protected, err := r.reservedGround(ctx, snapshot, projection)
+	if err != nil {
+		return policy.StockpileRequest{}, "", err
+	}
+	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection), gear, protected)
 	// The planned base can stand past the landing-centred planning window:
 	// read the ground around its core so the opening zones site there, not
 	// at the colonists' start.
@@ -264,6 +268,38 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	return request, "", nil
 }
 
+// reservedGround is the ground no stockpile site takes (#1795): the
+// footprints of held building reservations and the unroofed floor inside a
+// shell's wall ring, which belongs to the shell's own furniture until a roof
+// stands. Every sited role reads it as the planner's protected set.
+func (r *RoutineReviewer) reservedGround(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) ([]domain.Cell, error) {
+	held, err := r.player.journal.BuildingReservations(ctx, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	var protected []domain.Cell
+	for _, h := range held {
+		protected = append(protected, h.Footprint...)
+	}
+	claims, err := r.player.journal.ConstructionClaims(ctx, snapshot, projection.Identity.Tick)
+	if err != nil {
+		return nil, err
+	}
+	rows, _ := claims.Value()
+	unroofed := map[domain.Cell]bool{}
+	for _, c := range projection.Cells {
+		if roofed, known := c.Roofed.Value(); known && !roofed {
+			unroofed[c.Cell] = true
+		}
+	}
+	for _, cell := range shellInteriors(nil, rows) {
+		if unroofed[cell] {
+			protected = append(protected, cell)
+		}
+	}
+	return protected, nil
+}
+
 // gearStore is the serviceable gear the colony holds for the armory and
 // wardrobe (#1774): the stored apparel the gear census counts, split into
 // armor and clothing by the catalog (ItemFacts.Armor), and the weapons lying
@@ -275,7 +311,7 @@ func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.Generat
 		return nil, nil
 	}
 	weapons := 0
-	if plan, known := projection.LayoutPlan.Value(); !known || len(policy.GearRoomsOwed(plan, policy.GearRoomDemand{Armory: true})) > 0 {
+	if plan, known := projection.LayoutPlan.Value(); !known || len(policy.GearRoomsOwed(plan, policy.RoomDemand{Armory: true})) > 0 {
 		var err error
 		if weapons, err = r.looseWeapons(ctx, snapshot, projection.Bounds); err != nil {
 			return nil, err
