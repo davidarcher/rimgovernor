@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         private static IEnumerable<T> Sorted<T>(IEnumerable<T> defs) where T : Def =>
             defs.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal);
         private static IEnumerable<string> Names(IEnumerable<Def>? defs) =>
-            (defs ?? Enumerable.Empty<Def>()).Select(d => Id(d?.defName)).Where(n => n != null).Select(n => n!).OrderBy(n => n, StringComparer.Ordinal);
+            (defs ?? Enumerable.Empty<Def>()).Select(d => Id(d?.defName)).Where(n => n != null).Select(n => n!).Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal);
 
         internal static Obs.OdysseyCatalog? Catalog()
         {
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.TileMutatorRow { DefName = def.defName, Label = Label(def), Cave = def.IsCave, PreventsLandmarks = def.preventsLandmarks };
             if (Id(def.Worker?.GetType().Name) is string worker) row.Worker = worker;
-            row.Categories.Add((def.categories ?? new List<string>()).Where(ProtoBoundary.IsIdentifier).OrderBy(n => n, StringComparer.Ordinal));
+            row.Categories.Add((def.categories ?? new List<string>()).Where(ProtoBoundary.IsIdentifier).Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal));
             row.AdditionalGameConditions.Add(Names(def.additionalGameConditions));
             if (Finite(def.animalDensityFactor)) row.AnimalDensityFactor = def.animalDensityFactor;
             if (Finite(def.plantDensityFactor)) row.PlantDensityFactor = def.plantDensityFactor;
