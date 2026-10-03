@@ -918,3 +918,40 @@ the larder uses the native safe-hauling census and the shared Hands actions.
 decision over a colony snapshot recorded from the former `food/corpse-larder`
 case (#749). A corpse butchered before the first hold is observed is an
 accepted loss of density, with its meat still available.
+
+## Personal wealth shares (#1829, #1836)
+
+`policy.PersonalShares` answers how much a colonist may still direct at their
+own bedroom, gear and bionics. Nothing is persisted; it is recomputed from the
+wealth fact each review.
+
+- Pool: `PersonalPool` is `WealthFacts.Items + Buildings`, pawns excluded.
+  Unknown unless the fact is known, finite and non-negative.
+- `PersonalShareFraction` f is 0.2 and must stay below 1 (a test enforces it):
+  personal spend raises wealth and so the pool, and the total converges at
+  f/(1-f) times the starting pool.
+- Weight per free colonist: base 1, +0.25 soldier, +0.25 doctor, +0.5 Greedy,
+  +0.25 Jealous; an Ascetic is 0.5. Share = f x pool x weight / total weight.
+  Slaves and prisoners get a zero share (necessities only).
+- `PersonalShare{Share, Spent, Remaining}`: Remaining is `max(Share - Spent, 0)`.
+  Unknown pool or spent leaves Remaining unknown and `Allows` refuses any
+  charged upgrade; a zero-value `PersonalShare` is ungated. A delta of zero or
+  less (a necessity) is always allowed. `Spent` is filled by #1838/#1839.
+
+### Wealth probe finding
+
+Read from the decompiled `WealthWatcher` and `PriceUtility` (ilspycmd), not a
+live-save run; no acceptance probe was added.
+
+- Worn apparel, equipped weapons and carried inventory land in `WealthItems`:
+  `CalculateWealthItems` walks every HaulableEver thing recursively through
+  holders, which include a pawn's apparel, equipment and inventory trackers.
+  The pool therefore already contains the gear `Spent` charges, which is
+  intended: the share is a part of that wealth.
+- Installed bionics land in `WealthPawns`, not Items: `Pawn.MarketValue` adds
+  the `priceOffset` (else the removed thing's base value) of each
+  price-impacting hediff. They sit outside the pool, so charging them at the
+  tier discount (#1839) does not touch it.
+- `WealthBuildings` is not halved: it is the full `MarketValueIgnoreHp` of
+  player artificial buildings plus floor terrain value. Any halving belongs to
+  the storyteller's own wealth curve, not the watcher's split.
