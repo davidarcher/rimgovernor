@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -73,6 +74,9 @@ type StarterLayout struct {
 	// (#718). Mined lists the interior and door cells of natural rock plan
 	// dig mines before the ring (#836). The ring places walls on the rest.
 	Reused, Mined, Claimed []domain.Cell
+	// Blocked is, for each planned room that cannot stand, the first cell
+	// stopping it and why (set even when no room can).
+	Blocked []string
 }
 
 func sortedCells(set map[domain.Cell]bool) []domain.Cell {
@@ -181,43 +185,70 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		def, known := c.ClaimableRuin.Value()
 		return exists && known && r.WallDef != "" && def == r.WallDef && !protected[p] && !claimHold(c.RuinHold) && positive(c.Ruin) && unzoned(c)
 	}
+	var blocked []string
+	why := func(p domain.Cell) string {
+		c, exists := cells[p]
+		switch {
+		case !exists:
+			return "not in the census"
+		case protected[p]:
+			return "protected"
+		case !positive(c.Walkable):
+			return "not walkable"
+		case !positive(measured(c.Occupied, func(v bool) bool { return !v })):
+			return "occupied"
+		case !unzoned(c):
+			return "zoned"
+		case !positive(c.SupportsLight):
+			return "cannot support light"
+		}
+		return "unknown"
+	}
 	for i, shell := range r.Planned {
 		reused, claimed, mined := map[domain.Cell]bool{}, map[domain.Cell]bool{}, map[domain.Cell]bool{}
 		buildable := true
 		door := shell.Door()
+		first := ""
+		block := func(p domain.Cell, what string) {
+			buildable = false
+			if first == "" {
+				first = fmt.Sprintf("%s (%d,%d) %s", what, p.X, p.Z, why(p))
+			}
+		}
 		for _, p := range shell.Walls() {
 			switch {
 			case p == door:
 				if rock(p) {
 					mined[p] = true
 				} else if !lit(p) {
-					buildable = false
+					block(p, "door")
 				}
 			case wall(p):
 				reused[p] = true
 			case claim(p):
 				claimed[p] = true
 			case !lit(p):
-				buildable = false
+				block(p, "wall")
 			}
 		}
 		for _, p := range shell.Interior() {
 			if rock(p) && positive(cells[p].SupportsLight) {
 				mined[p] = true
 			} else if !lit(p) {
-				buildable = false
+				block(p, "interior")
 			}
 		}
 		// The door opens onto the spine hallway, which the caller protects:
 		// its threshold need only be open ground.
 		if c, observed := cells[shell.Threshold()]; observed && !(positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))) {
-			buildable = false
+			block(shell.Threshold(), "threshold")
 		}
 		if !buildable {
+			blocked = append(blocked, first)
 			continue
 		}
 		b := shell.Bounds()
-		return StarterLayout{Room: Rectangle{b.X, b.Z, b.Width, b.Height}, Storage: starterStorage(shell), Shell: shell, Planned: i, Reused: sortedCells(reused), Mined: sortedCells(mined), Claimed: sortedCells(claimed)}, true, nil
+		return StarterLayout{Room: Rectangle{b.X, b.Z, b.Width, b.Height}, Storage: starterStorage(shell), Shell: shell, Planned: i, Reused: sortedCells(reused), Mined: sortedCells(mined), Claimed: sortedCells(claimed), Blocked: blocked}, true, nil
 	}
-	return StarterLayout{}, false, nil
+	return StarterLayout{Blocked: blocked}, false, nil
 }

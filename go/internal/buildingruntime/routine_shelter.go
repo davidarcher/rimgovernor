@@ -138,7 +138,7 @@ func (r *RoutineBuildingPlanner) plannedShell(call context.Context, facts observ
 	if err != nil || !ok {
 		if err == nil {
 			b := shells[0].Bounds()
-			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells)), telemetry.ComponentKey, "routine")
+			slog.Info(fmt.Sprintf("%s: planned %s room %dx%d at (%d,%d) door %v is blocked (of %d planned, first blockers %q); the shell waits for it", r.goal, r.plannedRole(), b.Width, b.Height, b.X, b.Z, shells[0].Door(), len(shells), layout.Blocked), telemetry.ComponentKey, "routine")
 		}
 		return policy.StarterLayout{}, policy.LayoutRoom{}, false, err
 	}
