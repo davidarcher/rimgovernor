@@ -53,7 +53,7 @@ type FoodReserveReview struct {
 	Short bool
 }
 
-// ReviewFoodReserve counts roofed shared reserve foods at observed nutrition.
+// ReviewFoodReserve counts shared reserve foods, roofed or not, at observed nutrition.
 // deliveryDays contains confirmed channel delivery times; unknown channel facts
 // cannot authorize releasing stock. The caller supplies the selected home census.
 func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimumDays float64, deliveryDays domain.Fact[[]float64]) (FoodReserveReview, error) {
@@ -111,10 +111,6 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 			if stock.Reserve {
 				r.Release = append(r.Release, stock.ID)
 			}
-			continue
-		}
-		roofed, rk := stock.Roofed.Value()
-		if !rk || !roofed {
 			continue
 		}
 		amount, _ := stock.Nutrition.Value()

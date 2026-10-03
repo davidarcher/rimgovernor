@@ -15,10 +15,10 @@ import (
 const reservePrepareOp, reserveProbeOp = "test/food_reserve_prepare", "test/food_reserve_probe"
 
 // reserveSeedShare is the share of the default reserve target the fixture
-// seeds as unforbidden pemmican in the food room: the stock stays short of
+// seeds as unforbidden pemmican in the food room (0.9: the bill has less to cook, so the fill finishes in fewer rounds): the stock stays short of
 // the target, so the goal must both hold it and refill the rest with a
 // preserve bill.
-const reserveSeedShare = 0.7
+const reserveSeedShare = 0.9
 
 // reserveDays is the reserve the service runs with at every stage.
 const reserveDays = policy.DefaultFoodReserveDays

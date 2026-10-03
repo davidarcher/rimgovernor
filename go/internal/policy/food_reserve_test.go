@@ -172,3 +172,13 @@ func TestReserveBillRunningNeedsActiveReserveBillAndDeficit(t *testing.T) {
 		t.Fatal("a paused reserve bill or a meal bill is not reserve work")
 	}
 }
+
+func TestReserveHoldsUnroofedStacks(t *testing.T) {
+	s := reserveFixture()
+	s.Stocks[1].Reserve = false
+	s.Stocks[1].Roofed = domain.Known(false)
+	r, err := ReviewFoodReserve(s, nil, 5, 2, domain.Known([]float64{}))
+	if err != nil || !reflect.DeepEqual(r.Hold, []string{"reserve"}) {
+		t.Fatal(r, err)
+	}
+}

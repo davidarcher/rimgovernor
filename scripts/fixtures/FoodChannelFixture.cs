@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/food_reserve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a roofed walled food room with a fueled stove, a food stockpile, pemmican research, unforbidden pemmican (seedShare of a reserveDays target) and meat, and a 10000 raw rice runway and 1000 wood outside it to the empty-channel fixture; every colonist cooks. Nothing is forbidden and no bill is preinstalled.")]
-        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, double reserveDays = 5, double seedShare = 0.7)
+        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, double reserveDays = 5, double seedShare = 0.9)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
