@@ -220,7 +220,9 @@ func FacilityCatalog() []FacilityRequirement {
 		// A tomb is its own planned room (#832): MaintainWaste shells it and
 		// places a sarcophagus while a dead colonist has none waiting.
 		{Role: RoomRoleTomb, Status: FacilityImplemented, Furniture: []string{SarcophagusDefinition}},
-		{Role: RoomRoleBarn, Status: FacilityPending},
+		// A barn is a planned room beside the pen (#1633): the animal planner
+		// shells it and places an animal sleeping spot per kept animal.
+		{Role: RoomRoleBarn, Status: FacilityImplemented, Furniture: []string{AnimalSleepingSpotDefinition}},
 		// A throne room is its own planned room (#1601): MaintainHousing shells
 		// it sized to the next title's area, places a throne and furnishes it to
 		// the title's impressiveness; assigning the throne awaits an action kind.

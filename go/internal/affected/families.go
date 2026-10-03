@@ -29,6 +29,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_acquisition.go":          {"acquisition"},
 	"routine_acquisition_fields.go":   {"acquisition"},
 	"routine_animal_containment.go":   {"animal-containment"},
+	"routine_herd_rooms.go":           {"animal-containment"},
 	"routine_animal_feed.go":          {"animal-feed"},
 	"routine_assignments.go":          {"work"},
 	"routine_disease.go":              {"work"},

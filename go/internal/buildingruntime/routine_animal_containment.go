@@ -23,6 +23,8 @@ import (
 type RoutineAnimalContainmentPlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineBuildingSource
+	// building raises the barn and vet room (stageHerdRooms).
+	building *RoutineBuildingPlanner
 }
 type RoutineAnimalContainmentResult struct {
 	Reason RoutineBuildingReason
@@ -33,7 +35,8 @@ func NewRoutineAnimalContainmentPlanner(reviewer *RoutineReviewer, native Routin
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutineAnimalContainmentPlanner: reviewer == nil || native == nil", ErrControl)
 	}
-	return &RoutineAnimalContainmentPlanner{reviewer: reviewer, native: native}, nil
+	building := &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainAnimalContainment, definition: "Wall", shelter: true}
+	return &RoutineAnimalContainmentPlanner{reviewer: reviewer, native: native, building: building}, nil
 }
 
 const (
@@ -255,8 +258,12 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	if animalContainmentDevelopmentGated(goal.Goal.Priority, selected, choice.Reason) {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodRefused}, nil
 	}
+	if choice.Reason == policy.ContainmentNoDeficit {
+		// The pen stands (or no animal needs one): the barn and vet room.
+		return r.stageHerdRooms(call, epoch, state, review, goal, expected, claims)
+	}
 	switch choice.Reason {
-	case policy.ContainmentNoDeficit, policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
+	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
 		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
 		return RoutineAnimalContainmentResult{Reason: RoutineBuildingReason(choice.Reason)}, nil
 	case policy.ContainmentBuildShell:

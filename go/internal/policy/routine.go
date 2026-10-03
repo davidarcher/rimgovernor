@@ -290,6 +290,9 @@ type RoutineFacts struct {
 	// plant or an undesignated wooden ruin (FirebreakOwed, #1548); it holds
 	// MaintainFirebreak open. Unknown unless the method is composed.
 	FirebreakOwed domain.Fact[bool]
+	// HerdRoomsOwed: a barn or vet room step is due (NextHerdStep, #1633);
+	// it holds MaintainAnimalContainment open after the pen stands.
+	HerdRoomsOwed domain.Fact[bool]
 	// PsylinkOwed: a willing colonist has no psylink and a psylink
 	// neuroformer is held (PsylinkOwed, #1609); it holds MaintainPsylink
 	// open. Unknown unless the method is composed.
@@ -1366,6 +1369,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {
 		animalContainment = domain.Known(len(targets) == 0)
+	}
+	if owed, known := f.HerdRoomsOwed.Value(); known && owed {
+		animalContainment = domain.Known(false)
 	}
 	animalFeed := domain.Unknown[bool]()
 	if targets, known := animals.Feed.Value(); known {

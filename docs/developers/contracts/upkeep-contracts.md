@@ -530,16 +530,28 @@ containment or grazing space.
 The layout plan reserves the herd's sites from the herd plan's target herd
 (`HerdPlan.PenAnimals`, the summed population ceilings, at least six):
 pens at 10 cells per animal, with one more pen added when the target
-outgrows them and no placed site ever moving; a roofed barn (2 cells per
-animal, at least 25); and a clean vet room beside the barn with medical
-animal beds (one per 10 animals, at least two). All sit inside the outer
-ring. Animal areas are the pens and the barn only; the vet room is closed
-to animals except for surgery or treatment. The reservations are sited
-once per herd size; furnishing them (animal beds, the medical flag),
-companion beds and pasture rotation are not built yet. Assumed natively
-and unverified: animal beds can be flagged medical and a colonist
-operates on an animal in one, and a clean room scores as its cleanliness
-stat says.
+outgrows them and no placed site ever moving; a roofed barn with an animal
+sleeping spot per animal (at least eight); and a clean vet room beside the barn
+with animal beds (one per 10 animals, at least two). All sit inside the outer
+ring. Animal areas are the pens and the barn only; the vet room is left out of
+them, so an animal enters it only when colonists carry it in, a plain door
+being no barrier to an animal. A herd the rooms cannot hold gets one more
+barn or vet room reservation, never a moved or resized one.
+
+Once the pen stands, `MaintainAnimalContainment` raises each barn and vet room
+(`policy.HerdRooms`, a room derived from its reservation with a door facing the
+pen or the colony core), then places `AnimalSleepingSpot`s in the barn (one per
+kept animal) and `AnimalBed`s in the vet room (`VetBeds`) one at a time
+(`policy.NextHerdStep`, `buildingruntime/routine_herd_rooms.go`); the review
+holds the goal open while a step is due (`HerdRoomsOwed`). Both definitions are
+read from the live native catalog; one the catalog lacks fails the review
+rather than being skipped. Not built yet: the medical flag on the vet beds (the
+native bed-use patch refuses beds that are not humanlike, so it needs a native
+contract decision), companion beds and pasture rotation. Assumed natively and
+unverified: the two definition names, that a colonist operates on an animal in
+an animal bed, that a native room of animal beds scores `Barn` (so the
+cleanliness upkeep leaves the vet room alone), and that a room is roofed the
+way every other shelled room is.
 
 `MaintainAnimalFeed` starts below two days of observed reachable feed per animal
 and recovers at four days, with configurable ordered thresholds. Each animal has

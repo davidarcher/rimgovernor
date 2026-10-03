@@ -219,6 +219,8 @@ var moduleRoomRoles = map[ModuleRole]RoomRole{
 	ModuleWorkshop: RoomRoleWorkshop,
 	ModuleStorage:  RoomRoleStoreroom,
 	ModulePrison:   RoomRolePrisonCell,
+	ModuleBarn:     RoomRoleBarn,
+	ModuleVetRoom:  RoomRoleVetRoom,
 }
 
 // InteriorRoomFromLayout reads a v2 layout room as a plan input.

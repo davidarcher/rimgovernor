@@ -283,6 +283,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		// Bed's availability decides which beds are suitable (#1181).
 		readDefinitions = append(append([]string(nil), readDefinitions...), policy.SleepingBedDefinitions[0])
 	}
+	if r.methodEnabled(policy.MaintainAnimalContainment) {
+		readDefinitions = append(append([]string(nil), readDefinitions...), herdDefinitions...)
+	}
 	if r.methodEnabled(policy.MaintainWaste) {
 		readDefinitions = append(append([]string(nil), readDefinitions...), wasteDefinitions...)
 	}
@@ -329,6 +332,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
+	if reading.Projection.Facts.HerdRoomsOwed, err = herdRoomsOwed(reading.Projection); err != nil {
+		return store.RoutineReviewResult{}, err
+	}
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
 	reading.Projection.Facts.CampfireRetireOwed = campfireRetireOwed(reading.Projection)
