@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
         private const long DutyCycle = 10;
         private static long capturedAt;
         private static uint lastCaptureMicros;
-        private const int SlowLogTicks = 2500;
+        private const int SlowLogTicks = RimWorld.GenDate.TicksPerHour;
         private static int slowLoggedTick = -SlowLogTicks;
 
         // NoteSlowCapture logs where a slow frame capture's game-thread time

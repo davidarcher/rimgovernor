@@ -83,9 +83,6 @@ namespace HomeBridge.BridgeTools
                     "Consumption uses native fed demand and minimum native nutrition per eater, not a definition-name table." } };
         }
 
-        internal static bool IsReserve(Thing thing) => thing.Spawned && thing.IsForbidden(Faction.OfPlayer)
-            && (thing.def.defName == "MealSurvivalPack" || thing.def.defName == "Pemmican");
-
         internal static bool PolicyAllows(Pawn pawn, Thing food)
         {
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;

@@ -160,7 +160,7 @@ namespace HomeBridge.BridgeTools
         // no hunting" shows its rule in the game log.
         private static void LogWhyNoPrey(Map map, IntVec3 center, int offered)
         {
-            if (offered > 0 || Find.TickManager.TicksGame - lastWhyTick < 2500) return;
+            if (offered > 0 || Find.TickManager.TicksGame - lastWhyTick < GenDate.TicksPerHour) return;
             var wild = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Faction == null && p.RaceProps.Animal && !p.Dead && p.Position.DistanceTo(center) <= 100).ToList();
             if (wild.Count == 0) return;
             lastWhyTick = Find.TickManager.TicksGame;

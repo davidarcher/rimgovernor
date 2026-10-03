@@ -408,7 +408,7 @@ namespace HomeBridge.BridgeTools
         /// the controller reviewed. Only exact StandardLetter is removed --
         /// choice letters (quests, joiners, ransoms) keep their own handling
         /// or run out through the game's timeout.
-        internal const int ProcessedLetterAgeTicks = 2500;
+        internal const int ProcessedLetterAgeTicks = GenDate.TicksPerHour;
         private static void DismissProcessedLetters(State s, TickManager tm)
         {
             var stack = Find.LetterStack;
