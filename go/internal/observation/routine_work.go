@@ -167,7 +167,7 @@ func workPawnRow(row *o.PawnState) policy.WorkPawn {
 					known = false
 					break
 				}
-				skills = append(skills, policy.WorkSkill{Name: entry.Definition.GetDefName(), Level: int(entry.GetLevel()), Stored: int(entry.GetStoredLevel()), Disabled: entry.GetDisabled(), Passion: skillPassion(entry.GetPassion())})
+				skills = append(skills, policy.WorkSkill{Name: entry.GetDefName(), Level: int(entry.GetLevel()), Stored: int(entry.GetStoredLevel()), Disabled: entry.GetDisabled(), Passion: skillPassion(entry.GetPassion())})
 			}
 			if known {
 				w.Skills = domain.Known(skills)

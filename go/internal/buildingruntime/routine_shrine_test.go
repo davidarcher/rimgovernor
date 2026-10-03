@@ -386,7 +386,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	for _, row := range native.pawnReply.GetObserved().Pawns {
 		row.Equipment.Armed = proto.Bool(false)
 		for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
-			row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
+			row.Biography.Skills = append(row.Biography.Skills, &o.Skill{DefName: proto.String(skill), Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
 		}
 		for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
 			row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})

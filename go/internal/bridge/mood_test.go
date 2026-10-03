@@ -121,7 +121,7 @@ func TestRoutineSocialDetailValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := combatPawnsFixture()
 			social := &o.PawnSocial{
-				Memories:    []*o.Thought{{DefName: proto.String("Insulted"), Label: proto.String("Insulted"), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(-5), MoodOffsetTotal: proto.Float64(-5)}},
+				Memories:    []*o.Thought{{DefName: proto.String("Insulted"), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(-5), MoodOffsetTotal: proto.Float64(-5)}},
 				Situational: []*o.Thought{{DefName: proto.String("NeedJoy"), MoodOffsetTotal: proto.Float64(-20)}},
 			}
 			if test.change != nil {

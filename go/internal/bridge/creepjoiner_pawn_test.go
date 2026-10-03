@@ -25,7 +25,7 @@ func joinerRow(triggered bool, traits []string, hediffs ...*o.Hediff) *o.PawnSta
 }
 
 func hediff(def string, visible bool) *o.Hediff {
-	return &o.Hediff{Definition: &o.DefinitionRef{DefName: proto.String(def)}, Visible: proto.Bool(visible)}
+	return &o.Hediff{DefName: proto.String(def), Visible: proto.Bool(visible)}
 }
 
 // TestCreepJoinerPawnAndHandLift (#1740): the downside check's facts come

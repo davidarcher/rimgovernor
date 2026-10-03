@@ -30,7 +30,7 @@ func ApparelPolicyFacts(p *o.GearLoadout, catalog *bridge.DefinitionCatalog) dom
 	if len(v.Skills) > 0 {
 		skills := []policy.WorkSkill{}
 		for _, sk := range v.Skills {
-			skills = append(skills, policy.WorkSkill{Name: sk.GetDefinition().GetDefName(), Level: int(sk.GetLevel()), Passion: skillPassion(sk.GetPassion()), Disabled: sk.GetDisabled()})
+			skills = append(skills, policy.WorkSkill{Name: sk.GetDefName(), Level: int(sk.GetLevel()), Passion: skillPassion(sk.GetPassion()), Disabled: sk.GetDisabled()})
 		}
 		s.Role.Work.Skills = domain.Known(skills)
 	}

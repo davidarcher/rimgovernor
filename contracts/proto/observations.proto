@@ -229,7 +229,9 @@ message PawnNeeds {
   optional double psyfocus = 11; optional double psyfocus_target = 12; optional int32 psylink_level = 13;
 }
 message Hediff {
-  DefinitionRef definition = 1; optional string part_def_name = 2; optional string part_label = 3; optional int32 part_index = 4;
+  // The HediffDef is the catalog row by def_name; its label is the row's.
+  reserved 1; reserved "definition"; optional string def_name = 21;
+  optional string part_def_name = 2; optional string part_label = 3; optional int32 part_index = 4;
   optional double severity = 5; optional string severity_label = 6; optional bool visible = 7; optional bool bad = 8;
   optional bool permanent = 9; optional bool life_threatening = 10; optional bool tendable_now = 11;
   optional bool tended = 12; optional double tend_quality = 13; optional int64 tend_expires_in_ticks = 14;
@@ -325,17 +327,18 @@ message PawnEquipment {
 }
 // Passion is a skill's vanilla passion level.
 enum Passion { PASSION_UNSPECIFIED = 0; PASSION_NONE = 1; PASSION_MINOR = 2; PASSION_MAJOR = 3; }
-message Skill { DefinitionRef definition = 1; optional int32 level = 2; optional double stored_level = 3; optional Passion passion = 4; optional bool disabled = 5; }
+// The SkillDef is the catalog row by def_name.
+message Skill { reserved 1; reserved "definition"; optional string def_name = 6; optional int32 level = 2; optional double stored_level = 3; optional Passion passion = 4; optional bool disabled = 5; }
 message Trait { optional string def_name = 1; optional int32 degree = 2; }
 message WorkSetting { optional string def_name = 1; optional int32 priority = 2; optional bool disabled = 3; }
 message TimetableSlot { optional uint32 hour = 1; optional string assignment_def_name = 2; }
 message PawnBiography {
   optional double biological_age_years = 1; optional double chronological_age_years = 2;
-  DefinitionRef childhood = 3; DefinitionRef adulthood = 4; optional string title = 5; optional string title_source = 6;
+  reserved 3, 4; reserved "childhood", "adulthood"; optional string childhood_def_name = 13; optional string adulthood_def_name = 14; optional string title = 5; optional string title_source = 6;
   repeated Skill skills = 7; repeated Trait traits = 8; repeated string incapable_work_types = 9;
   repeated string incapable_sources = 10; repeated string disabled_work_tags = 11; repeated ReadIssue issues = 12;
 }
-message Thought { optional string def_name = 1; optional string label = 2; optional uint32 count = 3; optional double mood_offset_each = 4; optional double mood_offset_total = 5; }
+message Thought { optional string def_name = 1; reserved 2; reserved "label"; optional uint32 count = 3; optional double mood_offset_each = 4; optional double mood_offset_total = 5; }
 message Relation { rimgovernor.common.v1.Ref other = 1; optional string relation_def_name = 2; optional int32 opinion = 3; optional bool opinion_reconstructed = 4; }
 message PawnSocial { optional bool high_expectations = 6; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
 message PawnSettings {

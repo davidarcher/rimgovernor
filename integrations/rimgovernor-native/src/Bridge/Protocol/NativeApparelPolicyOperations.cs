@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
                 if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row.RequiredDefs.Add(d.defName);
             row.Drafted = p.Drafted;
             if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row.Work.Add(new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
-            if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
+            if (p.skills != null) foreach (var s in p.skills.skills) row.Skills.Add(new Obs.Skill { DefName = s.def.defName, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
             return row;
         }
 

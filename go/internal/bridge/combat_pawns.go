@@ -55,6 +55,16 @@ func combatDefinition(v *o.DefinitionRef) error {
 	}
 	return nil
 }
+
+func combatDefName(v *string) error {
+	if v == nil {
+		return contract("combat definition missing")
+	}
+	if validID(*v) != nil {
+		return contract("combat definition invalid")
+	}
+	return nil
+}
 func validBiocode(g *o.GearItem) bool {
 	return g.BiocodedTo == nil || validID(g.GetBiocodedTo()) == nil && (g.Biocoded == nil || g.GetBiocoded())
 }
@@ -94,7 +104,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			if v == nil {
 				return contract("missing hediff")
 			}
-			if err := combatDefinition(v.Definition); err != nil {
+			if err := combatDefName(v.DefName); err != nil {
 				return err
 			}
 			if v.PartDefName != nil && validID(v.GetPartDefName()) != nil || !presentationText(v.PartLabel, 16384) || !presentationText(v.SeverityLabel, 16384) || v.PartIndex != nil && v.GetPartIndex() < 0 || v.TendExpiresInTicks != nil && v.GetTendExpiresInTicks() < 0 || v.NextTendInTicks != nil && v.GetNextTendInTicks() < 0 {
@@ -178,9 +188,9 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 		if !combatNumber(b.BiologicalAgeYears, true) || !combatNumber(b.ChronologicalAgeYears, true) || !presentationText(b.Title, 16384) || !presentationText(b.TitleSource, 16384) {
 			return contract("invalid biography")
 		}
-		for _, v := range []*o.DefinitionRef{b.Childhood, b.Adulthood} {
+		for _, v := range []*string{b.ChildhoodDefName, b.AdulthoodDefName} {
 			if v != nil {
-				if err := combatDefinition(v); err != nil {
+				if err := combatDefName(v); err != nil {
 					return err
 				}
 			}
@@ -190,10 +200,10 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			if v == nil {
 				return contract("missing skill")
 			}
-			if err := combatDefinition(v.Definition); err != nil {
+			if err := combatDefName(v.DefName); err != nil {
 				return err
 			}
-			id := v.Definition.GetDefName()
+			id := v.GetDefName()
 			if seen[id] || v.Level != nil && v.GetLevel() < 0 || !combatNumber(v.StoredLevel, true) || v.Passion != nil && PassionName(v.GetPassion()) == "" {
 				return contract("invalid skill")
 			}

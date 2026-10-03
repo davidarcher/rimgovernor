@@ -198,10 +198,10 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	}
 	var skills []TradeSheetSkill
 	for _, skill := range v.Skills {
-		if skill.GetDefinition() == nil || validID(skill.GetDefinition().GetDefName()) != nil || skill.Level == nil || skill.Passion != nil && PassionName(skill.GetPassion()) == "" {
+		if validID(skill.GetDefName()) != nil || skill.Level == nil || skill.Passion != nil && PassionName(skill.GetPassion()) == "" {
 			return TradeSheetRow{}, contract("invalid trade sheet pawn skill")
 		}
-		skills = append(skills, TradeSheetSkill{Name: skill.GetDefinition().GetDefName(), Level: skill.GetLevel(), Passion: PassionName(skill.GetPassion()), Disabled: skill.GetDisabled()})
+		skills = append(skills, TradeSheetSkill{Name: skill.GetDefName(), Level: skill.GetLevel(), Passion: PassionName(skill.GetPassion()), Disabled: skill.GetDisabled()})
 	}
 	return TradeSheetRow{
 		PawnID: v.GetPawnId(), PawnGender: v.GetPawnGender(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,

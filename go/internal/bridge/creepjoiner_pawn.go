@@ -59,7 +59,7 @@ func CreepJoinerPawn(row *o.PawnState) policy.CreepJoinerPawn {
 				break
 			}
 			if v.GetVisible() {
-				hediffs = append(hediffs, v.GetDefinition().GetDefName())
+				hediffs = append(hediffs, v.GetDefName())
 			}
 		}
 		if known {

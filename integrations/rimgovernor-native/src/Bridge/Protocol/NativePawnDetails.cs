@@ -116,10 +116,9 @@ namespace HomeBridge.BridgeTools
         // One hediff row of a health read.
         private static Obs.Hediff HediffRow(Pawn pawn,Hediff h,Obs.PawnHealth row)
         {
-                var item=new Obs.Hediff {Definition=Definition(h.def),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
+                var item=new Obs.Hediff {DefName=Id(h.def.defName),Severity=Number(h.Severity),SeverityLabel=Text(h.SeverityLabel??""),
                     Visible=h.Visible,Bad=h.def.isBad,Permanent=h.IsPermanent(),LifeThreatening=h.IsCurrentlyLifeThreatening,
                     TendableNow=h.TendableNow(false),Tended=h.IsTended()};
-                if(!item.Definition.HasLabel) row.Issues.Add(Issue("hediffs.definition.label",Common.UnavailableReason.NotApplicable,"Native definition supplies no label."));
                 if(h.Part!=null) {
                     var index=pawn.RaceProps.body.AllParts.IndexOf(h.Part);
                     if(index<0) throw new InvalidOperationException("Hediff body part is not in this pawn's body.");
@@ -415,12 +414,10 @@ namespace HomeBridge.BridgeTools
             }
             else {
                 if(pawn.story.Childhood!=null) {
-                    row.Childhood=DefinitionLabel(pawn.story.Childhood.defName,pawn.story.Childhood.TitleCapFor(pawn.gender));
-                    if(!row.Childhood.HasLabel) row.Issues.Add(Issue("childhood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
+                    row.ChildhoodDefName=Id(pawn.story.Childhood.defName);
                 } else row.Issues.Add(Issue("childhood",Common.UnavailableReason.NotApplicable,"No childhood backstory."));
                 if(pawn.story.Adulthood!=null) {
-                    row.Adulthood=DefinitionLabel(pawn.story.Adulthood.defName,pawn.story.Adulthood.TitleCapFor(pawn.gender));
-                    if(!row.Adulthood.HasLabel) row.Issues.Add(Issue("adulthood.label",Common.UnavailableReason.NotApplicable,"Native backstory supplies no title."));
+                    row.AdulthoodDefName=Id(pawn.story.Adulthood.defName);
                 } else row.Issues.Add(Issue("adulthood",Common.UnavailableReason.NotApplicable,"No adulthood backstory."));
                 if(pawn.story.traits==null) row.Issues.Add(Missing("traits"));
                 else {foreach(var trait in pawn.story.traits.allTraits) row.Traits.Add(new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree});}
@@ -428,9 +425,8 @@ namespace HomeBridge.BridgeTools
             if(pawn.skills==null) row.Issues.Add(Missing("skills"));
             else {
                 foreach(var skill in pawn.skills.skills) {
-                    var definition=DefinitionLabel(skill.def.defName,skill.def.skillLabel);
-                    if(!definition.HasLabel) row.Issues.Add(Issue("skills.definition.label",Common.UnavailableReason.NotApplicable,"Native skill supplies no label."));
-                    row.Skills.Add(new Obs.Skill {Definition=definition,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled});
+                    var defName=Id(skill.def.defName);
+                    row.Skills.Add(new Obs.Skill {DefName=defName,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled});
                 }
             }
             var tags=pawn.CombinedDisabledWorkTags;
@@ -571,12 +567,12 @@ namespace HomeBridge.BridgeTools
             var memories=PawnSettingsRead.LiveMemories(pawn);
             if(memories==null) row.Issues.Add(Missing("memories"));
             else foreach(var t in PawnSettingsRead.GroupThoughtRows(memories))
-                row.Memories.Add(new Obs.Thought {DefName=t.DefName??"",Label=t.Label??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
+                row.Memories.Add(new Obs.Thought {DefName=t.DefName??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
 
             var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);
             if(situational==null) row.Issues.Add(Missing("situational"));
             else foreach(var t in PawnSettingsRead.GroupThoughtRows(situational))
-                row.Situational.Add(new Obs.Thought {DefName=t.DefName??"",Label=t.Label??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
+                row.Situational.Add(new Obs.Thought {DefName=t.DefName??"",Count=(uint)t.Count,MoodOffsetEach=Number(t.Each),MoodOffsetTotal=Number(t.Total)});
             if(stale.HasValue) row.SituationalCacheStale=stale.Value;
             else row.Issues.Add(Missing("situational_cache_stale"));
 

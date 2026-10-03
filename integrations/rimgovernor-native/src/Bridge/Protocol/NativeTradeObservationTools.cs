@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                     {
                         if (p.skills != null)
                             foreach (var s in p.skills.skills)
-                                line.Skills.Add(new Obs.Skill { Definition = new Obs.DefinitionRef { DefName = s.def.defName }, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
+                                line.Skills.Add(new Obs.Skill { DefName = s.def.defName, Level = s.Level, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
                     }
                     catch { line.Skills.Clear(); }
                 }

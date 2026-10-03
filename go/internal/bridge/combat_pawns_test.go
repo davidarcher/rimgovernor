@@ -15,9 +15,9 @@ import (
 func combatPawnsFixture() *o.PawnSnapshot {
 	s := pawnsTestSnapshot()
 	p := s.Pawns[0]
-	p.Health = &o.PawnHealth{SummaryFraction: proto.Float64(.9), Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false), Capacities: []*o.Capacity{{DefName: proto.String("Moving"), Level: proto.Float64(1)}}, Hediffs: []*o.Hediff{{Definition: &o.DefinitionRef{DefName: proto.String("Bruise")}, Severity: proto.Float64(.1)}}, HediffCompleteness: &o.Completeness{Filtered: proto.Uint64(0)}}
+	p.Health = &o.PawnHealth{SummaryFraction: proto.Float64(.9), Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false), Capacities: []*o.Capacity{{DefName: proto.String("Moving"), Level: proto.Float64(1)}}, Hediffs: []*o.Hediff{{DefName: proto.String("Bruise"), Severity: proto.Float64(.1)}}, HediffCompleteness: &o.Completeness{Filtered: proto.Uint64(0)}}
 	p.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("club"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("club")}, Weapon: proto.Bool(true), Melee: proto.Bool(true), Ranged: proto.Bool(false), HitPoints: proto.Int32(100), MaxHitPoints: proto.Int32(100), ConditionFraction: proto.Float64(1)}}}
-	p.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(25), Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Melee")}, Level: proto.Int32(10), StoredLevel: proto.Float64(10), Disabled: proto.Bool(false)}}, Traits: []*o.Trait{{DefName: proto.String("Beauty"), Degree: proto.Int32(-1)}}}
+	p.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(25), Skills: []*o.Skill{{DefName: proto.String("Melee"), Level: proto.Int32(10), StoredLevel: proto.Float64(10), Disabled: proto.Bool(false)}}, Traits: []*o.Trait{{DefName: proto.String("Beauty"), Degree: proto.Int32(-1)}}}
 	return s
 }
 func TestCombatBiocodeAndRaidArmor(t *testing.T) {

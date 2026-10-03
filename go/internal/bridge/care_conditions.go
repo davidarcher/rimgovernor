@@ -48,9 +48,7 @@ func CareConditions(h *o.PawnHealth) (domain.Fact[[]policy.CareCondition], domai
 		if condition.PartIndex != nil {
 			row.PartIndex = domain.Known(int(condition.GetPartIndex()))
 		}
-		if condition.Definition != nil {
-			row.DefName = fact(condition.Definition.DefName)
-		}
+		row.DefName = fact(condition.DefName)
 		rows = append(rows, row)
 	}
 	return domain.Known(rows), life

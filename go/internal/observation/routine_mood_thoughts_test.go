@@ -10,7 +10,7 @@ import (
 )
 
 func thought(def string, total float64) *o.Thought {
-	return &o.Thought{DefName: proto.String(def), Label: proto.String(def), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(total), MoodOffsetTotal: proto.Float64(total)}
+	return &o.Thought{DefName: proto.String(def), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(total), MoodOffsetTotal: proto.Float64(total)}
 }
 
 func TestMoodThoughtsKeepNegativePressurePerDef(t *testing.T) {

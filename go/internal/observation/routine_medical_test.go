@@ -84,7 +84,7 @@ func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
 
 func TestRoutineMedicalConditionFacts(t *testing.T) {
 	for _, present := range []bool{false, true} {
-		h := &o.Hediff{Definition: &o.DefinitionRef{DefName: proto.String("Plague")}, Bad: proto.Bool(true)}
+		h := &o.Hediff{DefName: proto.String("Plague"), Bad: proto.Bool(true)}
 		if present {
 			h.Severity = proto.Float64(.2)
 			h.SeverityPerDay = proto.Float64(-.3)

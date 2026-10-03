@@ -33,10 +33,10 @@ func validateApparelPolicy(v *o.ApparelPolicyState) error {
 	}
 	seen = map[string]bool{}
 	for _, s := range v.Skills {
-		if s == nil || validID(s.GetDefinition().GetDefName()) != nil || seen[s.GetDefinition().GetDefName()] || s.Level == nil || s.GetLevel() < 0 || s.GetLevel() > 20 || s.Passion == nil || s.Disabled == nil {
+		if s == nil || validID(s.GetDefName()) != nil || seen[s.GetDefName()] || s.Level == nil || s.GetLevel() < 0 || s.GetLevel() > 20 || s.Passion == nil || s.Disabled == nil {
 			return contract("invalid apparel skill census")
 		}
-		seen[s.GetDefinition().GetDefName()] = true
+		seen[s.GetDefName()] = true
 	}
 	return nil
 }

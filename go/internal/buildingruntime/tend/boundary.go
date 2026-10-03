@@ -11,10 +11,10 @@ import (
 
 func medicineSkillLevel(skills []*n.Skill) (level domain.Fact[int32], disabled domain.Fact[bool]) {
 	for _, s := range skills {
-		if s == nil || s.Definition == nil {
+		if s == nil || s.DefName == nil {
 			continue
 		}
-		if s.Definition.GetDefName() == "Medicine" {
+		if s.GetDefName() == "Medicine" {
 			if s.Disabled != nil {
 				disabled = domain.Known(s.GetDisabled())
 			}

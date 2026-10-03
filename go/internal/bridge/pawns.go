@@ -225,7 +225,7 @@ func pawnsRef(v *o.SnapshotRef, id string, ctx *c.ObservationContext) error {
 func pawnsSocial(v *o.PawnSocial) error {
 	for _, rows := range [][]*o.Thought{v.Memories, v.Situational} {
 		for _, t := range rows {
-			if t == nil || validID(t.GetDefName()) != nil || !presentationText(t.Label, 4096) {
+			if t == nil || validID(t.GetDefName()) != nil {
 				return contract("invalid pawn thought")
 			}
 			for _, value := range []*float64{t.MoodOffsetEach, t.MoodOffsetTotal} {

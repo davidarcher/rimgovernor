@@ -56,7 +56,7 @@ func prisonerProspect(person *o.PopulationPerson) domain.Fact[policy.PrisonerPro
 	}
 	p := policy.PrisonerProspect{Age: bio.GetBiologicalAgeYears(), Health: person.GetHealthSummary(), Incapable: append([]string{}, bio.IncapableWorkTypes...)}
 	for _, s := range bio.Skills {
-		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefinition().GetDefName(), Level: int(s.GetLevel()), Passion: PassionName(s.GetPassion()), Disabled: s.GetDisabled()})
+		p.Skills = append(p.Skills, policy.PrisonerSkill{Name: s.GetDefName(), Level: int(s.GetLevel()), Passion: PassionName(s.GetPassion()), Disabled: s.GetDisabled()})
 	}
 	for _, t := range bio.Traits {
 		p.Traits = append(p.Traits, policy.PrisonerTrait{Def: t.GetDefName(), Degree: int(t.GetDegree())})
@@ -170,10 +170,10 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns, catalog *Defi
 		if person.GetAdmitted() && !pawn.GetDead() {
 			colony.Colonists++
 			for _, s := range person.GetBiography().GetSkills() {
-				if name := s.GetDefinition().GetDefName(); !s.GetDisabled() && int(s.GetLevel()) > colony.BestSkill[name] {
+				if name := s.GetDefName(); !s.GetDisabled() && int(s.GetLevel()) > colony.BestSkill[name] {
 					colony.BestSkill[name] = int(s.GetLevel())
 				}
-				if s.GetDefinition().GetDefName() == "Medicine" && !s.GetDisabled() {
+				if s.GetDefName() == "Medicine" && !s.GetDisabled() {
 					colony.Medicine[domain.PawnID(id)] = int(s.GetLevel())
 				}
 			}
