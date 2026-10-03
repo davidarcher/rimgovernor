@@ -98,6 +98,45 @@ func MergeRockDigs(digs ...[]domain.Cell) []domain.Cell {
 	return out
 }
 
+// RockSiteReach is how far from its anchor (in cells, each way) a planner
+// looks for a footprint it would mine: the area it hands RockSiteView.
+const RockSiteReach int32 = 16
+
+// RockSiteView is the cells a site picker sees when natural rock may be
+// mined for its footprint: inside area, a listed rock cell and a cell the
+// frame does not list (fogged mountain) read as open, walkable, unzoned
+// ground that supports light, so the picker chooses a footprint unchanged.
+// Cells outside area, and listed cells that are not rock, pass through. The
+// caller then runs the chosen footprint through RockStep, which digs what is
+// rock or fogged. Cells outside bounds are never invented.
+func RockSiteView(cells []SiteCell, bounds Bounds, area Rectangle) []SiteCell {
+	open := func(c domain.Cell) SiteCell {
+		return SiteCell{Cell: c, Occupied: domain.Known(false), Walkable: domain.Known(true), Zone: domain.Known(false), SupportsLight: domain.Known(true)}
+	}
+	inside := func(c domain.Cell) bool {
+		return c.X >= area.X && c.Z >= area.Z && c.X < area.X+area.Width && c.Z < area.Z+area.Height
+	}
+	out := make([]SiteCell, 0, len(cells))
+	listed := make(map[domain.Cell]bool, len(cells))
+	for _, c := range cells {
+		listed[c.Cell] = true
+		if inside(c.Cell) && rockCell(c) {
+			view := open(c.Cell)
+			view.Roof, view.NaturalRock = c.Roof, c.NaturalRock
+			c = view
+		}
+		out = append(out, c)
+	}
+	for x := max(area.X, 0); x < min(area.X+area.Width, bounds.Width); x++ {
+		for z := max(area.Z, 0); z < min(area.Z+area.Height, bounds.Height); z++ {
+			if cell := (domain.Cell{X: x, Z: z}); !listed[cell] {
+				out = append(out, open(cell))
+			}
+		}
+	}
+	return out
+}
+
 // RockAccess is the walkable cell a miner reaches a footprint's rock from:
 // the first listed cell outside footprint, in Z then X order, that is open
 // ground (not occupied, walkable) and shares an edge with a footprint cell.

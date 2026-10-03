@@ -55,34 +55,29 @@ const (
 // animalContainmentPlanKind recovers what a previously committed method built
 // from its own actions rather than trusting a naming convention: a shell plan
 // is whichever one placed Fence/FenceGate, a marker plan whichever placed
-// PenMarker. The shell's bounding box (needed to search inside it for a marker
-// spot) is recovered the same way starterRoom recovers the starter shell's
-// footprint from durable claims, since native placement legality already
-// decided which cells actually became the shell.
+// PenMarker. The shell's room (needed to search inside it for a marker spot)
+// is the PenEnclosureSize square its gate anchors: the gate is the middle of
+// the room's first row, and a ring cell left as natural rock has no fence.
 func animalContainmentPlanKindOf(spec domain.PlanSpec) (animalContainmentPlanKind, policy.Rectangle) {
-	var minX, minZ, maxX, maxZ int32
-	have, shell, marker := false, false, false
+	var gate domain.Cell
+	shell, haveGate, marker := false, false, false
 	for _, action := range spec.Actions() {
 		b, ok := action.Building()
 		if !ok {
 			continue
 		}
 		switch b.Definition() {
-		case "Fence", "FenceGate":
+		case "Fence":
 			shell = true
-			c := b.Cell()
-			if !have {
-				minX, minZ, maxX, maxZ, have = c.X, c.Z, c.X, c.Z, true
-			} else {
-				minX, maxX = min(minX, c.X), max(maxX, c.X)
-				minZ, maxZ = min(minZ, c.Z), max(maxZ, c.Z)
-			}
+		case "FenceGate":
+			shell, haveGate, gate = true, true, b.Cell()
 		case "PenMarker":
 			marker = true
 		}
 	}
-	if shell && have {
-		return animalContainmentPlanShell, policy.Rectangle{X: minX, Z: minZ, Width: maxX - minX + 1, Height: maxZ - minZ + 1}
+	if shell && haveGate {
+		size := policy.PenEnclosureSize
+		return animalContainmentPlanShell, policy.Rectangle{X: gate.X - size/2, Z: gate.Z, Width: size, Height: size}
 	}
 	if marker {
 		return animalContainmentPlanMarker, policy.Rectangle{}
@@ -283,7 +278,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		protected = append(protected, h.Footprint...)
 	}
 	if choice.Reason == policy.ContainmentBuildShell {
-		return r.buildShell(call, epoch, state, goal, facts, protected, read)
+		return r.buildShell(call, epoch, state, review, goal, facts, protected, read)
 	}
 	return r.placeMarker(call, epoch, state, goal, facts, protected, read, shellRoom)
 }
@@ -293,7 +288,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 // any is admitted; a site whose native preview refuses a cell is abandoned in
 // favor of the next, exactly like previewShell abandons a planned room
 // candidate that fails partway through its perimeter.
-func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
+func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading) (RoutineAnimalContainmentResult, error) {
 	p := r.reviewer.player
 	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
 	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
@@ -362,6 +357,103 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		}
 		return RoutineAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
 	}
+	return r.digShell(call, epoch, state, review, goal, facts, protected, read, stuff)
+}
+
+// penShellCells lists a pen ring's building cells with the gate first, in
+// the order previewPenShell previews and admits them.
+func penShellCells(room policy.Rectangle) (gate domain.Cell, ring []domain.Cell) {
+	gate = domain.Cell{X: room.X + room.Width/2, Z: room.Z}
+	ring = []domain.Cell{gate}
+	for x := room.X; x < room.X+room.Width; x++ {
+		for z := room.Z; z < room.Z+room.Height; z++ {
+			cell := domain.Cell{X: x, Z: z}
+			if cell != gate && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
+				ring = append(ring, cell)
+			}
+		}
+	}
+	return gate, ring
+}
+
+// digShell sites the pen where no open ground fits: the picker sees rock and
+// fogged cells near the anchor as open (policy.RockSiteView), a fence cell on
+// rock stays rock, and the gate cell and the interior are mined before the
+// rest of the ring is built, all in one shell method through the shared rock
+// step. The gate opens onto ground the frame lists open, which a miner and
+// the animals reach.
+func (r *RoutineAnimalContainmentPlanner) digShell(call, epoch context.Context, state ControlState, review store.RoutineReview, goal store.GoalState, facts observation.ColonyProjection, protected []domain.Cell, read observation.RoutineReading, stuff string) (RoutineAnimalContainmentResult, error) {
+	anchor := layoutAnchor(facts, policy.DistrictFields)
+	reach := policy.RockSiteReach
+	view := policy.RockSiteView(facts.Cells, facts.Bounds, policy.Rectangle{X: anchor.X - reach, Z: anchor.Z - reach, Width: 2*reach + 1, Height: 2*reach + 1})
+	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: anchor, Cells: view, Protected: protected, Entrance: facts.Cells})
+	if err != nil {
+		return RoutineAnimalContainmentResult{}, err
+	}
+	step := excavationStep{state: state, review: review, goal: goal, facts: facts, read: read.ColonyReading}
+	check := func() error {
+		if err := r.reviewer.player.current(call, epoch); err != nil {
+			return err
+		}
+		if r.reviewer.player.session.State() != state {
+			return fmt.Errorf("%w: digShell: p.session.State() != state", ErrControl)
+		}
+		return nil
+	}
+	for _, room := range sites {
+		gate, ring := penShellCells(room)
+		outside := domain.Cell{X: gate.X, Z: gate.Z - 1}
+		var planned []policy.RoleCell
+		for _, cell := range ring {
+			role := policy.RockBlocks
+			if cell == gate {
+				role = policy.RockNeedsFloor
+			}
+			planned = append(planned, policy.RoleCell{Cell: cell, Role: role})
+		}
+		for x := room.X + 1; x < room.X+room.Width-1; x++ {
+			for z := room.Z + 1; z < room.Z+room.Height-1; z++ {
+				planned = append(planned, policy.RoleCell{Cell: domain.Cell{X: x, Z: z}, Role: policy.RockNeedsFloor})
+			}
+		}
+		rock := policy.RockStep(planned, facts.Cells)
+		if len(rock.Dig) == 0 {
+			continue
+		}
+		left := make(map[domain.Cell]bool, len(rock.Left))
+		for _, cell := range rock.Left {
+			left[cell] = true
+		}
+		var buildings []domain.Building
+		for _, cell := range ring {
+			if left[cell] {
+				continue
+			}
+			definition := "Fence"
+			if cell == gate {
+				definition = "FenceGate"
+			}
+			building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
+			if err != nil {
+				return RoutineAnimalContainmentResult{}, err
+			}
+			buildings = append(buildings, building)
+		}
+		result, handled, err := r.building.admitRockStep(call, epoch, step, planned, outside, animalShellMethod, buildings, check)
+		if err != nil {
+			return RoutineAnimalContainmentResult{}, err
+		}
+		if !handled {
+			continue
+		}
+		out := RoutineAnimalContainmentResult{Verdict: result.Verdict}
+		for _, m := range result.Decision.Goal.Methods {
+			if m.Method == animalShellMethod {
+				out.Plan = m.Plan
+			}
+		}
+		return out, nil
+	}
 	return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoSpace}, nil
 }
 
@@ -369,16 +461,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 // FenceGate anchoring the south wall's center, Fence elsewhere). It never
 // commits: a rejected or infeasible cell aborts only this candidate.
 func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, Verdict, error) {
-	door := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
-	perimeter := []domain.Cell{door}
-	for x := room.X; x < room.X+room.Width; x++ {
-		for z := room.Z; z < room.Z+room.Height; z++ {
-			cell := domain.Cell{X: x, Z: z}
-			if cell != door && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
-				perimeter = append(perimeter, cell)
-			}
-		}
-	}
+	_, perimeter := penShellCells(room)
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var actions []domain.Action
 	var previews []policy.Preview
