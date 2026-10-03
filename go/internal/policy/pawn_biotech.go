@@ -22,10 +22,13 @@ type PawnBiotech struct {
 	Hybrid       domain.Fact[bool]
 	// Effects are the active genes' combined typed effects, resolved from
 	// the catalog (#1689); known whenever Genes is.
-	Effects    domain.Fact[GeneEffects]
-	Mechanitor domain.Fact[*PawnMechanitor]
-	Mech       domain.Fact[*PawnMech]
-	Deathrest  domain.Fact[*PawnDeathrest]
+	Effects domain.Fact[GeneEffects]
+	// WorkMinAges is the race's minimum age in years per work type, resolved
+	// from the catalog (#1682); known only for a child.
+	WorkMinAges domain.Fact[map[WorkType]int]
+	Mechanitor  domain.Fact[*PawnMechanitor]
+	Mech        domain.Fact[*PawnMech]
+	Deathrest   domain.Fact[*PawnDeathrest]
 }
 
 // PawnGene is one gene of a pawn; Active is false while another gene

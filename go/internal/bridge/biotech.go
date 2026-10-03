@@ -340,6 +340,24 @@ func (c *BiotechCatalog) GeneEffects(genes []policy.PawnGene) (policy.GeneEffect
 	return out, nil
 }
 
+// WorkMinAges is the race's minimum age in years per work type from the
+// catalog (#1682). A race the catalog lacks is a contract failure: a child
+// must never be left unrestricted for want of data.
+func (c *BiotechCatalog) WorkMinAges(race string) (map[policy.WorkType]int, error) {
+	var row *o.RaceLifeStages
+	if c != nil {
+		row = c.Races[race]
+	}
+	if row == nil {
+		return nil, contract("child race %s is not in the biotech catalog", race)
+	}
+	out := make(map[policy.WorkType]int, len(row.WorkMinAges))
+	for _, w := range row.WorkMinAges {
+		out[policy.WorkType(w.GetWorkType())] = int(w.GetMinAge())
+	}
+	return out, nil
+}
+
 func optionalInt(p *int32) domain.Fact[int] {
 	if p == nil {
 		return domain.Unknown[int]()

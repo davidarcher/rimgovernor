@@ -27,6 +27,14 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		}
 		w := WorkPawnRow(row)
 		if bt, ok := w.Biotech.Value(); ok {
+			if child, known := bt.IsChild(); known && child {
+				ages, err := biotech.WorkMinAges(row.Pawn.GetDefName())
+				if err != nil {
+					return domain.Unknown[[]policy.WorkPawn](), err
+				}
+				bt.WorkMinAges = domain.Known(ages)
+				w.Biotech = domain.Known(bt)
+			}
 			if genes, known := bt.Genes.Value(); known {
 				effects, err := biotech.GeneEffects(genes)
 				if err != nil {

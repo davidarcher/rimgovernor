@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -176,6 +177,9 @@ type PawnProfile struct {
 	// Genes are the active genes' typed effects (#1689); zero when unknown.
 	// Their stat modifiers are already folded into Effects.
 	Genes GeneEffects
+	// WorkMinAge is the race's minimum age per work type for a child; a
+	// work type absent has no minimum (#1682).
+	WorkMinAge map[WorkType]int
 	// Ranged is whether the pawn's primary weapon is ranged.
 	Ranged bool
 	// Inspiration is the current InspirationDef defName; known "" is none
@@ -210,6 +214,9 @@ func (p PawnProfile) Capable(work WorkType, floor int) bool {
 // Forbidden is the hard trait rule: a Pyromaniac never fights fire, a
 // Brawler never hunts (ranged), an Abrasive pawn never wardens.
 func (p PawnProfile) Forbidden(work WorkType) bool {
+	if min, ok := p.WorkMinAge[work]; ok && p.Age < float64(min) {
+		return true
+	}
 	switch work {
 	case WorkFirefighter:
 		return p.Effects.NoFirefighting
@@ -230,7 +237,14 @@ func (p PawnProfile) ForbiddenWork() []WorkType {
 			out = append(out, work)
 		}
 	}
-	return out
+	young := make([]WorkType, 0, len(p.WorkMinAge))
+	for work := range p.WorkMinAge {
+		if p.Forbidden(work) && !slices.Contains(out, work) {
+			young = append(young, work)
+		}
+	}
+	slices.Sort(young)
+	return append(out, young...)
 }
 
 // BuildProfile reads the profile from a WorkPawn; unknown traits, incapable
@@ -267,6 +281,9 @@ func BuildProfile(pawn WorkPawn) PawnProfile {
 		}
 		if child, known := bt.IsChild(); known {
 			profile.Child = child
+		}
+		if ages, ok := bt.WorkMinAges.Value(); ok {
+			profile.WorkMinAge = ages
 		}
 	}
 	profile.Ranged, _ = pawn.Ranged.Value()
