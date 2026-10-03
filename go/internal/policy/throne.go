@@ -9,7 +9,7 @@ import (
 // Staging the throne room (#1601, epic #1598). A colonist who holds an
 // Empire title, or has the favor to claim the next one, is owed the throne
 // room of the next title that asks for one (RoyalRung.Throne*): the plan
-// grows a ThroneRoomSize room (GrowThroneRoom, layout_throne.go), the
+// grows a ThroneRoomSizes room (GrowThroneRoom, layout_throne.go), the
 // sleeping planner raises its shell, places one of the title's throne
 // definitions at the template slot, and furnishes the room to the title's
 // minimum impressiveness through the room quality levers (ThroneRoomTargets).

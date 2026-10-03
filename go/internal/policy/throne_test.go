@@ -75,13 +75,19 @@ func TestThroneNeedTakesTheLargestRoom(t *testing.T) {
 
 func TestThroneRoomSizeMeetsTheArea(t *testing.T) {
 	for _, area := range []int{1, 25, 30, 48, 80, 120} {
-		size := ThroneRoomSize(area)
-		if int(size[0])*int(size[1]) < area || size[1] < throneMinDepth || size[1] > coreMaxDepth || size[0] < size[1] {
-			t.Errorf("area %d: %v", area, size)
+		sizes := ThroneRoomSizes(area)
+		if len(sizes) == 0 {
+			t.Fatalf("area %d: no shape", area)
+		}
+		for _, size := range sizes {
+			if int(size[0])*int(size[1]) < area || size[0] < throneMinSide || size[1] < throneMinSide || size[1] > coreMaxDepth {
+				t.Errorf("area %d: %v", area, size)
+			}
 		}
 	}
-	if size := ThroneRoomSize(30); size != [2]int32{6, 5} {
-		t.Errorf("30 cells: %v", size)
+	sizes := ThroneRoomSizes(30)
+	if sizes[0] != [2]int32{6, 5} || sizes[1] != [2]int32{5, 6} {
+		t.Errorf("30 cells: %v", sizes)
 	}
 }
 
