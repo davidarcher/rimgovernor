@@ -74,6 +74,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 
 	// Registered case areas.
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/anomaly"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/animals"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/apply"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"

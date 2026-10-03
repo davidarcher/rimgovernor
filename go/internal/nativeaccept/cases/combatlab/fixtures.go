@@ -169,6 +169,8 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return prison(cx, cz), nil
 	case "lab-infestation":
 		return infestation(cx, cz), nil
+	case "lab-horror":
+		return horror(cx, cz), nil
 	case "lab-mech":
 		return mech(cx, cz), nil
 	case "lab-mech-line":
@@ -177,6 +179,16 @@ func Build(name string, cx, cz int) (Fixture, error) {
 		return breach(cx, cz), nil
 	}
 	return Fixture{}, fmt.Errorf("combatlab: no fixture %q", name)
+}
+
+// horror (#1748): lab-ranged's four riflemen behind its sandbag line and no
+// hostile; the case fires an Anomaly incident at the staged colony.
+func horror(cx, cz int) Fixture {
+	f := ranged(cx, cz)
+	f.Name = "lab-horror"
+	f.Layout = nil
+	f.Pawns = slices.DeleteFunc(f.Pawns, func(p Pawn) bool { return p.Side == Hostile })
+	return f
 }
 
 // mech (#1118): one rifleman and a scyther 25 cells north, stunned for
