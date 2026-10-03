@@ -143,6 +143,7 @@ type Action struct {
 	prisonerInteraction PrisonerInteraction
 	questAccept         QuestAccept
 	ritual              Ritual
+	ability             Ability
 	mineAcquisition     Acquisition
 	wallRemoval         WallRemoval
 	excavation          Excavation
@@ -305,6 +306,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewRitualAction(a.id, a.ritual)
 		case QuestAcceptAction:
 			canonical, err = NewQuestAcceptAction(a.id, a.questAccept)
+		case AbilityAction:
+			canonical, err = NewAbilityAction(a.id, a.ability)
 		case MineAcquisitionAction:
 			canonical, err = NewMineAcquisitionAction(a.id, a.mineAcquisition)
 		case WallRemovalAction:

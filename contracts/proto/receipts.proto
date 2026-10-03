@@ -66,6 +66,7 @@ message EffectEvidence {
     RemoveRoofEffect remove_roof = 30;
     AreaPlantCutEffect area_plant_cut = 31;
     RitualEffect ritual = 40;
+    AbilityEffect ability = 32;
   }
 }
 message SnapshotEvidence {
@@ -204,6 +205,29 @@ message AreaPlantCutEffect { optional int32 cut = 1; optional int32 chopped = 2;
 // and whether the ritual is started afterwards (the bestowing lord job's
 // ceremonyStarted flag).
 message RitualEffect { optional string pawn_id = 1; optional string ritual = 2; optional string verb = 3; optional bool started = 4; }
+// Evidence of one AbilityIntent (#1607): the pawn that used it and one arm per
+// source. PermitUseEffect asserts the native postcondition: the permit's
+// cooldown started at the current tick and the favor cost was spent. Arrival of
+// the aid and the strike's results are separate observed states.
+message AbilityEffect {
+  optional string pawn_id = 1;
+  oneof outcome {
+    PermitUseEffect permit = 2;
+    // 3 is the psycast outcome (#1610).
+  }
+}
+// cooldown_started_tick is FactionPermit.LastUsedTick read back after the use
+// (equal to the tick of the apply); favor_after == favor_before - the permit's
+// favor cost. aid_things counts the things the use placed when countable
+// (reported, not gated).
+message PermitUseEffect {
+  optional string faction_def = 1;
+  optional string permit = 2;
+  optional int64 cooldown_started_tick = 3;
+  optional int32 favor_before = 4;
+  optional int32 favor_after = 5;
+  optional int32 aid_things = 6;
+}
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; reserved 4; reserved "released_count"; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }
 message JobEffect {

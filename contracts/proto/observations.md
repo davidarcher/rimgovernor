@@ -199,7 +199,10 @@ read from `RoyalTitleDef.throneRoomRequirements`: minimum impressiveness and
 area, the accepted throne definitions and whether the throne is assigned),
 the permit catalog (minimum title, permit points, whether the permit acts and
 the favor a call spends) and each colonist's holdings per faction (title,
-favor, permit points, taken permits). Each rung also carries the title's
+favor, permit points, taken permits, and per taken permit its native cooldown:
+`last_used_tick` (`FactionPermit.LastUsedTick`, absent until first used) and
+`cooldown_remaining_ticks`, 0 when ready, #1607; `Client.FreshRoyaltyFacts`
+bypasses the reuse window to re-read a cooldown). Each rung also carries the title's
 bedroom requirements (`RoyalTitleDef.bedroomRequirements`: minimum area and
 impressiveness, floor, furniture rows; without a holder's ideo exemptions) and
 `ceremonies` lists each offered or ongoing bestowing-ceremony quest

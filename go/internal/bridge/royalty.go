@@ -31,13 +31,23 @@ type royaltyCache struct {
 // it is younger than RoyaltyRefreshTicks. A nil result with a nil error means
 // Royalty is not applicable.
 func (client *Client) RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
+	return client.royaltyFacts(ctx, identity, now, false)
+}
+
+// FreshRoyaltyFacts is the royalty read taken now, bypassing and refreshing the
+// cache: the cooldown re-read that resolves an uncertain ability receipt (#1607).
+func (client *Client) FreshRoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
+	return client.royaltyFacts(ctx, identity, now, true)
+}
+
+func (client *Client) royaltyFacts(ctx context.Context, identity *c.Identity, now int64, fresh bool) (*policy.RoyaltyFacts, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
 	held := &client.royalty
 	held.mu.Lock()
 	defer held.mu.Unlock()
-	if held.token == identity.GetLoadToken() && now >= held.tick && now-held.tick < RoyaltyRefreshTicks {
+	if !fresh && held.token == identity.GetLoadToken() && now >= held.tick && now-held.tick < RoyaltyRefreshTicks {
 		return held.facts, nil
 	}
 	request := &o.RoyaltyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
@@ -131,7 +141,17 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 					return nil, contract("invalid royalty holding permit")
 				}
 			}
-			holdings = append(holdings, policy.RoyalHolding{FactionDef: h.GetFactionDef(), Title: h.GetTitle(), Favor: optionalFact(intPtr(h.Favor)), PermitPoints: optionalFact(intPtr(h.PermitPoints)), Permits: append([]string{}, h.Permits...)})
+			cooldowns := map[string]policy.PermitCooldown{}
+			for _, cd := range h.PermitCooldowns {
+				if validID(cd.GetPermit()) != nil || cd.GetLastUsedTick() < 0 || cd.GetCooldownRemainingTicks() < 0 {
+					return nil, contract("invalid royalty permit cooldown")
+				}
+				if _, dup := cooldowns[cd.GetPermit()]; dup {
+					return nil, contract("duplicate royalty permit cooldown %s", cd.GetPermit())
+				}
+				cooldowns[cd.GetPermit()] = policy.PermitCooldown{LastUsedTick: optionalFact(intPtr(cd.LastUsedTick)), RemainingTicks: optionalFact(intPtr(cd.CooldownRemainingTicks))}
+			}
+			holdings = append(holdings, policy.RoyalHolding{FactionDef: h.GetFactionDef(), Title: h.GetTitle(), Favor: optionalFact(intPtr(h.Favor)), PermitPoints: optionalFact(intPtr(h.PermitPoints)), Permits: append([]string{}, h.Permits...), Cooldowns: cooldowns})
 		}
 		out.Holders[policy.PawnID(id)] = holdings
 		casts := []policy.Psycast{}

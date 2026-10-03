@@ -300,8 +300,46 @@ message Action {
     AreaPlantCutIntent area_plant_cut = 56;
     FoodPolicyIntent food_policy = 57;
     RitualIntent ritual = 63;
+    AbilityIntent ability = 60;
   }
 }
+// Use one ability of one pawn (#1607, epic #1598): one generic shape for every
+// ability source. source names where the ability comes from and native's
+// guard for that source decides eligibility by calling the game's own
+// validation (never trusting Go for favor, cooldown or range); target is what
+// the ability aims at and must match what the source takes. Applied means the
+// ability was used and its native cooldown started; the evidence is an
+// AbilityEffect. A use that already took effect is never re-sent: a retry
+// refuses "on cooldown", and an uncertain receipt is resolved by re-reading
+// the cooldown on the royalty read. Drafted callers are allowed; a downed,
+// dead, unspawned or non-colonist pawn is refused.
+message AbilityIntent {
+  optional string pawn_id = 1;
+  oneof source {
+    // An acting royal permit (royalAid) the pawn holds with a faction.
+    PermitAbility permit = 2;
+    // 3 is the psycast source (#1610): an Ability def the pawn knows.
+  }
+  oneof target {
+    AbilityNoTarget no_target = 4;
+    rimgovernor.common.v1.Cell cell = 5;
+    string pawn = 6;
+    string thing = 7;
+  }
+}
+// The permit source: the faction and RoyalTitlePermitDef defNames. Native
+// guards, in order, named in the refusal text: pawn (living, spawned, free
+// colonist, not downed), held (the pawn holds the permit for the faction),
+// cooldown (FactionPermit not on cooldown), faction (not hostile, not
+// defunct), favor (at least the permit's royalAid favor cost), aid (the
+// worker's own aid options are enabled: map can receive aid, temperature),
+// target (a cell inside the map, not fogged, within royalAid.targetingRange
+// of the pawn; none for a permit that takes no target).
+message PermitAbility {
+  optional string faction_def = 1;
+  optional string permit = 2;
+}
+message AbilityNoTarget {}
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
 // #1292): exactly one arm per intent. hostility_response is the
 // pawn's HostilityResponseMode; native refuses a

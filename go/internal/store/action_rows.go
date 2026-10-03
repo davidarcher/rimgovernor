@@ -141,6 +141,19 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			accepter = sql.NullString{String: string(accept.AccepterPawn()), Valid: true}
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
+	} else if ability, ok := a.Ability(); ok {
+		// definition is the source key ("permit:<faction>:<permit>"); target is
+		// "pawn:<id>" or "thing:<id>", x and z a cell target, none for no
+		// target (#1607).
+		var target sql.NullString
+		var x, z sql.NullInt64
+		switch t := ability.Target(); t.Kind() {
+		case domain.AbilityTargetCell:
+			x, z = sql.NullInt64{Int64: int64(t.Cell().X), Valid: true}, sql.NullInt64{Int64: int64(t.Cell().Z), Valid: true}
+		case domain.AbilityTargetPawn, domain.AbilityTargetThing:
+			target = sql.NullString{String: string(t.Kind()) + ":" + t.ID(), Valid: true}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,definition,target,x,z) VALUES(?,?,?,'ability',?,?,?,?,?)", a.ID(), plan, ordinal, ability.Pawn(), ability.Source().Key(), target, x, z)
 	} else if removal, ok := a.WallRemoval(); ok {
 		data, encodeErr := json.Marshal(wallRemovalPayload{removal.Original(), removal.BackupOf(), removal.Cell().X, removal.Cell().Z})
 		if encodeErr != nil {
@@ -1005,6 +1018,38 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewRitualAction(id, ritual)
+		return a, ordinal, err
+	}
+	if kind == "ability" && pawn.Valid && def.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil {
+		source, err := domain.ParseAbilitySource(def.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		abilityTarget := domain.NoAbilityTarget()
+		switch {
+		case x.Valid && z.Valid && !target.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647:
+			abilityTarget, err = domain.AbilityCellTarget(domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+		case !x.Valid && !z.Valid && target.Valid:
+			kindName, id, _ := strings.Cut(target.String, ":")
+			switch domain.AbilityTargetKind(kindName) {
+			case domain.AbilityTargetPawn:
+				abilityTarget, err = domain.AbilityPawnTarget(domain.PawnID(id))
+			case domain.AbilityTargetThing:
+				abilityTarget, err = domain.AbilityThingTarget(id)
+			default:
+				err = errors.New("invalid ability target")
+			}
+		case x.Valid || z.Valid || target.Valid:
+			err = errors.New("invalid ability target")
+		}
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		ability, err := domain.NewAbility(domain.PawnID(pawn.String), source, abilityTarget)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewAbilityAction(id, ability)
 		return a, ordinal, err
 	}
 	if kind == "quest_accept" && target.Valid && def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid {

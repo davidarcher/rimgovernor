@@ -241,7 +241,8 @@ settings against a moved pawn are a fresh method rather than a retired one.
 
 `rimgovernor/observations_read_royalty_facts` is a slow-refresh read (the client
 reuses it for `RoyaltyRefreshTicks`) and is `NOT_APPLICABLE` without Royalty. It
-carries the title ladder, the permit catalog, each colonist's holdings and, per
+carries the title ladder, the permit catalog, each colonist's holdings (with each
+taken permit's `last_used_tick` and `cooldown_remaining_ticks`) and, per
 psycaster, its known psycasts (def, unlocking psylink level, Psyfocus cost,
 neural heat, target kind, longest cooldown), plus the colony's neuroformer
 stock: the psylink neuroformer and each psycast neurotrainer with `held`

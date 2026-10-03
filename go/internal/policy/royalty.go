@@ -95,4 +95,34 @@ type RoyalHolding struct {
 	Favor        domain.Fact[int]
 	PermitPoints domain.Fact[int]
 	Permits      []string
+	// Cooldowns is the native cooldown of each held permit, by permit def
+	// (#1607).
+	Cooldowns map[string]PermitCooldown
+}
+
+// PermitCooldown is one held permit's native cooldown at the read's tick.
+// LastUsedTick is unknown when the permit was never used; RemainingTicks is 0
+// when it can be used.
+type PermitCooldown struct {
+	LastUsedTick   domain.Fact[int]
+	RemainingTicks domain.Fact[int]
+}
+
+// PermitUsedSince reports whether the pawn's permit for the faction was used
+// at or after tick since, from a royalty read taken after the attempt: the
+// replay rule's way to resolve an uncertain ability receipt (an effective use
+// is never re-sent). An unknown cooldown is false and the caller re-reads.
+func (f *RoyaltyFacts) PermitUsedSince(pawn PawnID, faction, permit string, since int) bool {
+	if f == nil {
+		return false
+	}
+	for _, h := range f.Holders[pawn] {
+		if h.FactionDef != faction {
+			continue
+		}
+		if last, ok := h.Cooldowns[permit].LastUsedTick.Value(); ok && last >= since {
+			return true
+		}
+	}
+	return false
 }

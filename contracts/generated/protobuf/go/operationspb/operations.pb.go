@@ -3738,6 +3738,7 @@ type Action struct {
 	//	*Action_AreaPlantCut
 	//	*Action_FoodPolicy
 	//	*Action_Ritual
+	//	*Action_Ability
 	Intent        isAction_Intent `protobuf_oneof:"intent"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4091,6 +4092,15 @@ func (x *Action) GetRitual() *RitualIntent {
 	return nil
 }
 
+func (x *Action) GetAbility() *AbilityIntent {
+	if x != nil {
+		if x, ok := x.Intent.(*Action_Ability); ok {
+			return x.Ability
+		}
+	}
+	return nil
+}
+
 type isAction_Intent interface {
 	isAction_Intent()
 }
@@ -4228,6 +4238,10 @@ type Action_Ritual struct {
 	Ritual *RitualIntent `protobuf:"bytes,63,opt,name=ritual,proto3,oneof"`
 }
 
+type Action_Ability struct {
+	Ability *AbilityIntent `protobuf:"bytes,60,opt,name=ability,proto3,oneof"`
+}
+
 func (*Action_Trade) isAction_Intent() {}
 
 func (*Action_Building) isAction_Intent() {}
@@ -4294,6 +4308,267 @@ func (*Action_FoodPolicy) isAction_Intent() {}
 
 func (*Action_Ritual) isAction_Intent() {}
 
+func (*Action_Ability) isAction_Intent() {}
+
+// Use one ability of one pawn (#1607, epic #1598): one generic shape for every
+// ability source. source names where the ability comes from and native's
+// guard for that source decides eligibility by calling the game's own
+// validation (never trusting Go for favor, cooldown or range); target is what
+// the ability aims at and must match what the source takes. Applied means the
+// ability was used and its native cooldown started; the evidence is an
+// AbilityEffect. A use that already took effect is never re-sent: a retry
+// refuses "on cooldown", and an uncertain receipt is resolved by re-reading
+// the cooldown on the royalty read. Drafted callers are allowed; a downed,
+// dead, unspawned or non-colonist pawn is refused.
+type AbilityIntent struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	PawnId *string                `protobuf:"bytes,1,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*AbilityIntent_Permit
+	Source isAbilityIntent_Source `protobuf_oneof:"source"`
+	// Types that are valid to be assigned to Target:
+	//
+	//	*AbilityIntent_NoTarget
+	//	*AbilityIntent_Cell
+	//	*AbilityIntent_Pawn
+	//	*AbilityIntent_Thing
+	Target        isAbilityIntent_Target `protobuf_oneof:"target"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbilityIntent) Reset() {
+	*x = AbilityIntent{}
+	mi := &file_operations_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbilityIntent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbilityIntent) ProtoMessage() {}
+
+func (x *AbilityIntent) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbilityIntent.ProtoReflect.Descriptor instead.
+func (*AbilityIntent) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *AbilityIntent) GetPawnId() string {
+	if x != nil && x.PawnId != nil {
+		return *x.PawnId
+	}
+	return ""
+}
+
+func (x *AbilityIntent) GetSource() isAbilityIntent_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *AbilityIntent) GetPermit() *PermitAbility {
+	if x != nil {
+		if x, ok := x.Source.(*AbilityIntent_Permit); ok {
+			return x.Permit
+		}
+	}
+	return nil
+}
+
+func (x *AbilityIntent) GetTarget() isAbilityIntent_Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *AbilityIntent) GetNoTarget() *AbilityNoTarget {
+	if x != nil {
+		if x, ok := x.Target.(*AbilityIntent_NoTarget); ok {
+			return x.NoTarget
+		}
+	}
+	return nil
+}
+
+func (x *AbilityIntent) GetCell() *commonpb.Cell {
+	if x != nil {
+		if x, ok := x.Target.(*AbilityIntent_Cell); ok {
+			return x.Cell
+		}
+	}
+	return nil
+}
+
+func (x *AbilityIntent) GetPawn() string {
+	if x != nil {
+		if x, ok := x.Target.(*AbilityIntent_Pawn); ok {
+			return x.Pawn
+		}
+	}
+	return ""
+}
+
+func (x *AbilityIntent) GetThing() string {
+	if x != nil {
+		if x, ok := x.Target.(*AbilityIntent_Thing); ok {
+			return x.Thing
+		}
+	}
+	return ""
+}
+
+type isAbilityIntent_Source interface {
+	isAbilityIntent_Source()
+}
+
+type AbilityIntent_Permit struct {
+	// An acting royal permit (royalAid) the pawn holds with a faction.
+	Permit *PermitAbility `protobuf:"bytes,2,opt,name=permit,proto3,oneof"` // 3 is the psycast source (#1610): an Ability def the pawn knows.
+}
+
+func (*AbilityIntent_Permit) isAbilityIntent_Source() {}
+
+type isAbilityIntent_Target interface {
+	isAbilityIntent_Target()
+}
+
+type AbilityIntent_NoTarget struct {
+	NoTarget *AbilityNoTarget `protobuf:"bytes,4,opt,name=no_target,json=noTarget,proto3,oneof"`
+}
+
+type AbilityIntent_Cell struct {
+	Cell *commonpb.Cell `protobuf:"bytes,5,opt,name=cell,proto3,oneof"`
+}
+
+type AbilityIntent_Pawn struct {
+	Pawn string `protobuf:"bytes,6,opt,name=pawn,proto3,oneof"`
+}
+
+type AbilityIntent_Thing struct {
+	Thing string `protobuf:"bytes,7,opt,name=thing,proto3,oneof"`
+}
+
+func (*AbilityIntent_NoTarget) isAbilityIntent_Target() {}
+
+func (*AbilityIntent_Cell) isAbilityIntent_Target() {}
+
+func (*AbilityIntent_Pawn) isAbilityIntent_Target() {}
+
+func (*AbilityIntent_Thing) isAbilityIntent_Target() {}
+
+// The permit source: the faction and RoyalTitlePermitDef defNames. Native
+// guards, in order, named in the refusal text: pawn (living, spawned, free
+// colonist, not downed), held (the pawn holds the permit for the faction),
+// cooldown (FactionPermit not on cooldown), faction (not hostile, not
+// defunct), favor (at least the permit's royalAid favor cost), aid (the
+// worker's own aid options are enabled: map can receive aid, temperature),
+// target (a cell inside the map, not fogged, within royalAid.targetingRange
+// of the pawn; none for a permit that takes no target).
+type PermitAbility struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FactionDef    *string                `protobuf:"bytes,1,opt,name=faction_def,json=factionDef,proto3,oneof" json:"faction_def,omitempty"`
+	Permit        *string                `protobuf:"bytes,2,opt,name=permit,proto3,oneof" json:"permit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PermitAbility) Reset() {
+	*x = PermitAbility{}
+	mi := &file_operations_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PermitAbility) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PermitAbility) ProtoMessage() {}
+
+func (x *PermitAbility) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PermitAbility.ProtoReflect.Descriptor instead.
+func (*PermitAbility) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *PermitAbility) GetFactionDef() string {
+	if x != nil && x.FactionDef != nil {
+		return *x.FactionDef
+	}
+	return ""
+}
+
+func (x *PermitAbility) GetPermit() string {
+	if x != nil && x.Permit != nil {
+		return *x.Permit
+	}
+	return ""
+}
+
+type AbilityNoTarget struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbilityNoTarget) Reset() {
+	*x = AbilityNoTarget{}
+	mi := &file_operations_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbilityNoTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbilityNoTarget) ProtoMessage() {}
+
+func (x *AbilityNoTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_operations_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbilityNoTarget.ProtoReflect.Descriptor instead.
+func (*AbilityNoTarget) Descriptor() ([]byte, []int) {
+	return file_operations_proto_rawDescGZIP(), []int{39}
+}
+
 // Set one per-pawn Assign-tab setting on one colony pawn (#1299, epic
 // #1292): exactly one arm per intent. hostility_response is the
 // pawn's HostilityResponseMode; native refuses a
@@ -4338,7 +4613,7 @@ type PawnSettingsIntent struct {
 
 func (x *PawnSettingsIntent) Reset() {
 	*x = PawnSettingsIntent{}
-	mi := &file_operations_proto_msgTypes[37]
+	mi := &file_operations_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4350,7 +4625,7 @@ func (x *PawnSettingsIntent) String() string {
 func (*PawnSettingsIntent) ProtoMessage() {}
 
 func (x *PawnSettingsIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[37]
+	mi := &file_operations_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4363,7 +4638,7 @@ func (x *PawnSettingsIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PawnSettingsIntent.ProtoReflect.Descriptor instead.
 func (*PawnSettingsIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{37}
+	return file_operations_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PawnSettingsIntent) GetPawnId() string {
@@ -4516,7 +4791,7 @@ type AreaIntent struct {
 
 func (x *AreaIntent) Reset() {
 	*x = AreaIntent{}
-	mi := &file_operations_proto_msgTypes[38]
+	mi := &file_operations_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4528,7 +4803,7 @@ func (x *AreaIntent) String() string {
 func (*AreaIntent) ProtoMessage() {}
 
 func (x *AreaIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[38]
+	mi := &file_operations_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4541,7 +4816,7 @@ func (x *AreaIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AreaIntent.ProtoReflect.Descriptor instead.
 func (*AreaIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{38}
+	return file_operations_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *AreaIntent) GetOperation() AreaOperation {
@@ -4582,7 +4857,7 @@ type PolicyPruneIntent struct {
 
 func (x *PolicyPruneIntent) Reset() {
 	*x = PolicyPruneIntent{}
-	mi := &file_operations_proto_msgTypes[39]
+	mi := &file_operations_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4594,7 +4869,7 @@ func (x *PolicyPruneIntent) String() string {
 func (*PolicyPruneIntent) ProtoMessage() {}
 
 func (x *PolicyPruneIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[39]
+	mi := &file_operations_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4607,7 +4882,7 @@ func (x *PolicyPruneIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyPruneIntent.ProtoReflect.Descriptor instead.
 func (*PolicyPruneIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{39}
+	return file_operations_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *PolicyPruneIntent) GetDatabase() PolicyDatabase {
@@ -4641,7 +4916,7 @@ type ReadingPolicyIntent struct {
 
 func (x *ReadingPolicyIntent) Reset() {
 	*x = ReadingPolicyIntent{}
-	mi := &file_operations_proto_msgTypes[40]
+	mi := &file_operations_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4653,7 +4928,7 @@ func (x *ReadingPolicyIntent) String() string {
 func (*ReadingPolicyIntent) ProtoMessage() {}
 
 func (x *ReadingPolicyIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[40]
+	mi := &file_operations_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4666,7 +4941,7 @@ func (x *ReadingPolicyIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadingPolicyIntent.ProtoReflect.Descriptor instead.
 func (*ReadingPolicyIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{40}
+	return file_operations_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ReadingPolicyIntent) GetName() string {
@@ -4707,7 +4982,7 @@ type DrugPolicyEntry struct {
 
 func (x *DrugPolicyEntry) Reset() {
 	*x = DrugPolicyEntry{}
-	mi := &file_operations_proto_msgTypes[41]
+	mi := &file_operations_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4719,7 +4994,7 @@ func (x *DrugPolicyEntry) String() string {
 func (*DrugPolicyEntry) ProtoMessage() {}
 
 func (x *DrugPolicyEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[41]
+	mi := &file_operations_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4732,7 +5007,7 @@ func (x *DrugPolicyEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DrugPolicyEntry.ProtoReflect.Descriptor instead.
 func (*DrugPolicyEntry) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{41}
+	return file_operations_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *DrugPolicyEntry) GetDrugDef() string {
@@ -4801,7 +5076,7 @@ type DrugPolicyIntent struct {
 
 func (x *DrugPolicyIntent) Reset() {
 	*x = DrugPolicyIntent{}
-	mi := &file_operations_proto_msgTypes[42]
+	mi := &file_operations_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4813,7 +5088,7 @@ func (x *DrugPolicyIntent) String() string {
 func (*DrugPolicyIntent) ProtoMessage() {}
 
 func (x *DrugPolicyIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[42]
+	mi := &file_operations_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4826,7 +5101,7 @@ func (x *DrugPolicyIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DrugPolicyIntent.ProtoReflect.Descriptor instead.
 func (*DrugPolicyIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{42}
+	return file_operations_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *DrugPolicyIntent) GetName() string {
@@ -4860,7 +5135,7 @@ type FoodPolicyIntent struct {
 
 func (x *FoodPolicyIntent) Reset() {
 	*x = FoodPolicyIntent{}
-	mi := &file_operations_proto_msgTypes[43]
+	mi := &file_operations_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4872,7 +5147,7 @@ func (x *FoodPolicyIntent) String() string {
 func (*FoodPolicyIntent) ProtoMessage() {}
 
 func (x *FoodPolicyIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[43]
+	mi := &file_operations_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4885,7 +5160,7 @@ func (x *FoodPolicyIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FoodPolicyIntent.ProtoReflect.Descriptor instead.
 func (*FoodPolicyIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{43}
+	return file_operations_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *FoodPolicyIntent) GetName() string {
@@ -4915,7 +5190,7 @@ type AutoHomeAreaIntent struct {
 
 func (x *AutoHomeAreaIntent) Reset() {
 	*x = AutoHomeAreaIntent{}
-	mi := &file_operations_proto_msgTypes[44]
+	mi := &file_operations_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4927,7 +5202,7 @@ func (x *AutoHomeAreaIntent) String() string {
 func (*AutoHomeAreaIntent) ProtoMessage() {}
 
 func (x *AutoHomeAreaIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[44]
+	mi := &file_operations_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4940,7 +5215,7 @@ func (x *AutoHomeAreaIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoHomeAreaIntent.ProtoReflect.Descriptor instead.
 func (*AutoHomeAreaIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{44}
+	return file_operations_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *AutoHomeAreaIntent) GetEnabled() bool {
@@ -4963,7 +5238,7 @@ type DraftIntent struct {
 
 func (x *DraftIntent) Reset() {
 	*x = DraftIntent{}
-	mi := &file_operations_proto_msgTypes[45]
+	mi := &file_operations_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4975,7 +5250,7 @@ func (x *DraftIntent) String() string {
 func (*DraftIntent) ProtoMessage() {}
 
 func (x *DraftIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[45]
+	mi := &file_operations_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4988,7 +5263,7 @@ func (x *DraftIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DraftIntent.ProtoReflect.Descriptor instead.
 func (*DraftIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{45}
+	return file_operations_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *DraftIntent) GetPawnId() string {
@@ -5054,7 +5329,7 @@ type GiveJobOptions struct {
 
 func (x *GiveJobOptions) Reset() {
 	*x = GiveJobOptions{}
-	mi := &file_operations_proto_msgTypes[46]
+	mi := &file_operations_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5066,7 +5341,7 @@ func (x *GiveJobOptions) String() string {
 func (*GiveJobOptions) ProtoMessage() {}
 
 func (x *GiveJobOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[46]
+	mi := &file_operations_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5079,7 +5354,7 @@ func (x *GiveJobOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GiveJobOptions.ProtoReflect.Descriptor instead.
 func (*GiveJobOptions) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{46}
+	return file_operations_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GiveJobOptions) GetPrioritized() bool {
@@ -5117,7 +5392,7 @@ type GiveJobIntent struct {
 
 func (x *GiveJobIntent) Reset() {
 	*x = GiveJobIntent{}
-	mi := &file_operations_proto_msgTypes[47]
+	mi := &file_operations_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5129,7 +5404,7 @@ func (x *GiveJobIntent) String() string {
 func (*GiveJobIntent) ProtoMessage() {}
 
 func (x *GiveJobIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[47]
+	mi := &file_operations_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5142,7 +5417,7 @@ func (x *GiveJobIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GiveJobIntent.ProtoReflect.Descriptor instead.
 func (*GiveJobIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{47}
+	return file_operations_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GiveJobIntent) GetPawn() *commonpb.Ref {
@@ -5225,7 +5500,7 @@ type DesignateIntent struct {
 
 func (x *DesignateIntent) Reset() {
 	*x = DesignateIntent{}
-	mi := &file_operations_proto_msgTypes[48]
+	mi := &file_operations_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5237,7 +5512,7 @@ func (x *DesignateIntent) String() string {
 func (*DesignateIntent) ProtoMessage() {}
 
 func (x *DesignateIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[48]
+	mi := &file_operations_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5250,7 +5525,7 @@ func (x *DesignateIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignateIntent.ProtoReflect.Descriptor instead.
 func (*DesignateIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{48}
+	return file_operations_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *DesignateIntent) GetThingId() string {
@@ -5335,7 +5610,7 @@ type RelocateIntent struct {
 
 func (x *RelocateIntent) Reset() {
 	*x = RelocateIntent{}
-	mi := &file_operations_proto_msgTypes[49]
+	mi := &file_operations_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5347,7 +5622,7 @@ func (x *RelocateIntent) String() string {
 func (*RelocateIntent) ProtoMessage() {}
 
 func (x *RelocateIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[49]
+	mi := &file_operations_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5360,7 +5635,7 @@ func (x *RelocateIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelocateIntent.ProtoReflect.Descriptor instead.
 func (*RelocateIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{49}
+	return file_operations_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *RelocateIntent) GetThingId() string {
@@ -5415,7 +5690,7 @@ type BuildingPatchIntent struct {
 
 func (x *BuildingPatchIntent) Reset() {
 	*x = BuildingPatchIntent{}
-	mi := &file_operations_proto_msgTypes[50]
+	mi := &file_operations_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5427,7 +5702,7 @@ func (x *BuildingPatchIntent) String() string {
 func (*BuildingPatchIntent) ProtoMessage() {}
 
 func (x *BuildingPatchIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[50]
+	mi := &file_operations_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5440,7 +5715,7 @@ func (x *BuildingPatchIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildingPatchIntent.ProtoReflect.Descriptor instead.
 func (*BuildingPatchIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{50}
+	return file_operations_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *BuildingPatchIntent) GetThingId() string {
@@ -5579,7 +5854,7 @@ type RemoveRoofIntent struct {
 
 func (x *RemoveRoofIntent) Reset() {
 	*x = RemoveRoofIntent{}
-	mi := &file_operations_proto_msgTypes[51]
+	mi := &file_operations_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5591,7 +5866,7 @@ func (x *RemoveRoofIntent) String() string {
 func (*RemoveRoofIntent) ProtoMessage() {}
 
 func (x *RemoveRoofIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[51]
+	mi := &file_operations_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5604,7 +5879,7 @@ func (x *RemoveRoofIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveRoofIntent.ProtoReflect.Descriptor instead.
 func (*RemoveRoofIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{51}
+	return file_operations_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *RemoveRoofIntent) GetCells() []*commonpb.Cell {
@@ -5628,7 +5903,7 @@ type AreaPlantCutIntent struct {
 
 func (x *AreaPlantCutIntent) Reset() {
 	*x = AreaPlantCutIntent{}
-	mi := &file_operations_proto_msgTypes[52]
+	mi := &file_operations_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5640,7 +5915,7 @@ func (x *AreaPlantCutIntent) String() string {
 func (*AreaPlantCutIntent) ProtoMessage() {}
 
 func (x *AreaPlantCutIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[52]
+	mi := &file_operations_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5653,7 +5928,7 @@ func (x *AreaPlantCutIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AreaPlantCutIntent.ProtoReflect.Descriptor instead.
 func (*AreaPlantCutIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{52}
+	return file_operations_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *AreaPlantCutIntent) GetCells() []*commonpb.Cell {
@@ -5676,7 +5951,7 @@ type HusbandryIntent struct {
 
 func (x *HusbandryIntent) Reset() {
 	*x = HusbandryIntent{}
-	mi := &file_operations_proto_msgTypes[53]
+	mi := &file_operations_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5688,7 +5963,7 @@ func (x *HusbandryIntent) String() string {
 func (*HusbandryIntent) ProtoMessage() {}
 
 func (x *HusbandryIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[53]
+	mi := &file_operations_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5701,7 +5976,7 @@ func (x *HusbandryIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HusbandryIntent.ProtoReflect.Descriptor instead.
 func (*HusbandryIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{53}
+	return file_operations_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *HusbandryIntent) GetAnimalId() string {
@@ -5773,7 +6048,7 @@ type ProductionBillIntent struct {
 
 func (x *ProductionBillIntent) Reset() {
 	*x = ProductionBillIntent{}
-	mi := &file_operations_proto_msgTypes[54]
+	mi := &file_operations_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5785,7 +6060,7 @@ func (x *ProductionBillIntent) String() string {
 func (*ProductionBillIntent) ProtoMessage() {}
 
 func (x *ProductionBillIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[54]
+	mi := &file_operations_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5798,7 +6073,7 @@ func (x *ProductionBillIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionBillIntent.ProtoReflect.Descriptor instead.
 func (*ProductionBillIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{54}
+	return file_operations_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ProductionBillIntent) GetBenchId() string {
@@ -5874,7 +6149,7 @@ type WorkSettingsIntent struct {
 
 func (x *WorkSettingsIntent) Reset() {
 	*x = WorkSettingsIntent{}
-	mi := &file_operations_proto_msgTypes[55]
+	mi := &file_operations_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5886,7 +6161,7 @@ func (x *WorkSettingsIntent) String() string {
 func (*WorkSettingsIntent) ProtoMessage() {}
 
 func (x *WorkSettingsIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[55]
+	mi := &file_operations_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5899,7 +6174,7 @@ func (x *WorkSettingsIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkSettingsIntent.ProtoReflect.Descriptor instead.
 func (*WorkSettingsIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{55}
+	return file_operations_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *WorkSettingsIntent) GetPawnId() string {
@@ -5946,7 +6221,7 @@ type BedAssignIntent struct {
 
 func (x *BedAssignIntent) Reset() {
 	*x = BedAssignIntent{}
-	mi := &file_operations_proto_msgTypes[56]
+	mi := &file_operations_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5958,7 +6233,7 @@ func (x *BedAssignIntent) String() string {
 func (*BedAssignIntent) ProtoMessage() {}
 
 func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[56]
+	mi := &file_operations_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5971,7 +6246,7 @@ func (x *BedAssignIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BedAssignIntent.ProtoReflect.Descriptor instead.
 func (*BedAssignIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{56}
+	return file_operations_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *BedAssignIntent) GetPawnId() string {
@@ -6015,7 +6290,7 @@ type PrisonerInteractionIntent struct {
 
 func (x *PrisonerInteractionIntent) Reset() {
 	*x = PrisonerInteractionIntent{}
-	mi := &file_operations_proto_msgTypes[57]
+	mi := &file_operations_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6027,7 +6302,7 @@ func (x *PrisonerInteractionIntent) String() string {
 func (*PrisonerInteractionIntent) ProtoMessage() {}
 
 func (x *PrisonerInteractionIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[57]
+	mi := &file_operations_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6040,7 +6315,7 @@ func (x *PrisonerInteractionIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrisonerInteractionIntent.ProtoReflect.Descriptor instead.
 func (*PrisonerInteractionIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{57}
+	return file_operations_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *PrisonerInteractionIntent) GetPawnId() string {
@@ -6069,7 +6344,7 @@ type DialogIntent struct {
 
 func (x *DialogIntent) Reset() {
 	*x = DialogIntent{}
-	mi := &file_operations_proto_msgTypes[58]
+	mi := &file_operations_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6081,7 +6356,7 @@ func (x *DialogIntent) String() string {
 func (*DialogIntent) ProtoMessage() {}
 
 func (x *DialogIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[58]
+	mi := &file_operations_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6094,7 +6369,7 @@ func (x *DialogIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DialogIntent.ProtoReflect.Descriptor instead.
 func (*DialogIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{58}
+	return file_operations_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *DialogIntent) GetWindowId() int32 {
@@ -6141,7 +6416,7 @@ type NamingIntent struct {
 
 func (x *NamingIntent) Reset() {
 	*x = NamingIntent{}
-	mi := &file_operations_proto_msgTypes[59]
+	mi := &file_operations_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6153,7 +6428,7 @@ func (x *NamingIntent) String() string {
 func (*NamingIntent) ProtoMessage() {}
 
 func (x *NamingIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[59]
+	mi := &file_operations_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6166,7 +6441,7 @@ func (x *NamingIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NamingIntent.ProtoReflect.Descriptor instead.
 func (*NamingIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{59}
+	return file_operations_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *NamingIntent) GetWindowId() int32 {
@@ -6202,7 +6477,7 @@ type ResearchIntent struct {
 
 func (x *ResearchIntent) Reset() {
 	*x = ResearchIntent{}
-	mi := &file_operations_proto_msgTypes[60]
+	mi := &file_operations_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6214,7 +6489,7 @@ func (x *ResearchIntent) String() string {
 func (*ResearchIntent) ProtoMessage() {}
 
 func (x *ResearchIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[60]
+	mi := &file_operations_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6227,7 +6502,7 @@ func (x *ResearchIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchIntent.ProtoReflect.Descriptor instead.
 func (*ResearchIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{60}
+	return file_operations_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ResearchIntent) GetProjectDef() string {
@@ -6255,7 +6530,7 @@ type ApparelPolicyIntent struct {
 
 func (x *ApparelPolicyIntent) Reset() {
 	*x = ApparelPolicyIntent{}
-	mi := &file_operations_proto_msgTypes[61]
+	mi := &file_operations_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6267,7 +6542,7 @@ func (x *ApparelPolicyIntent) String() string {
 func (*ApparelPolicyIntent) ProtoMessage() {}
 
 func (x *ApparelPolicyIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[61]
+	mi := &file_operations_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6280,7 +6555,7 @@ func (x *ApparelPolicyIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApparelPolicyIntent.ProtoReflect.Descriptor instead.
 func (*ApparelPolicyIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{61}
+	return file_operations_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ApparelPolicyIntent) GetPawnId() string {
@@ -6351,7 +6626,7 @@ type FormCaravanIntent struct {
 
 func (x *FormCaravanIntent) Reset() {
 	*x = FormCaravanIntent{}
-	mi := &file_operations_proto_msgTypes[62]
+	mi := &file_operations_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6363,7 +6638,7 @@ func (x *FormCaravanIntent) String() string {
 func (*FormCaravanIntent) ProtoMessage() {}
 
 func (x *FormCaravanIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[62]
+	mi := &file_operations_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6376,7 +6651,7 @@ func (x *FormCaravanIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FormCaravanIntent.ProtoReflect.Descriptor instead.
 func (*FormCaravanIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{62}
+	return file_operations_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *FormCaravanIntent) GetPawnIds() []string {
@@ -6415,7 +6690,7 @@ type AcceptQuestIntent struct {
 
 func (x *AcceptQuestIntent) Reset() {
 	*x = AcceptQuestIntent{}
-	mi := &file_operations_proto_msgTypes[63]
+	mi := &file_operations_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6427,7 +6702,7 @@ func (x *AcceptQuestIntent) String() string {
 func (*AcceptQuestIntent) ProtoMessage() {}
 
 func (x *AcceptQuestIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[63]
+	mi := &file_operations_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6440,7 +6715,7 @@ func (x *AcceptQuestIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptQuestIntent.ProtoReflect.Descriptor instead.
 func (*AcceptQuestIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{63}
+	return file_operations_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *AcceptQuestIntent) GetQuestId() string {
@@ -6481,7 +6756,7 @@ type RitualIntent struct {
 
 func (x *RitualIntent) Reset() {
 	*x = RitualIntent{}
-	mi := &file_operations_proto_msgTypes[64]
+	mi := &file_operations_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6493,7 +6768,7 @@ func (x *RitualIntent) String() string {
 func (*RitualIntent) ProtoMessage() {}
 
 func (x *RitualIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[64]
+	mi := &file_operations_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6506,7 +6781,7 @@ func (x *RitualIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RitualIntent.ProtoReflect.Descriptor instead.
 func (*RitualIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{64}
+	return file_operations_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *RitualIntent) GetPawnId() string {
@@ -6543,7 +6818,7 @@ type MoveIntent struct {
 
 func (x *MoveIntent) Reset() {
 	*x = MoveIntent{}
-	mi := &file_operations_proto_msgTypes[65]
+	mi := &file_operations_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6555,7 +6830,7 @@ func (x *MoveIntent) String() string {
 func (*MoveIntent) ProtoMessage() {}
 
 func (x *MoveIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[65]
+	mi := &file_operations_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6568,7 +6843,7 @@ func (x *MoveIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveIntent.ProtoReflect.Descriptor instead.
 func (*MoveIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{65}
+	return file_operations_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *MoveIntent) GetPawnId() string {
@@ -6598,7 +6873,7 @@ type HaulIntent struct {
 
 func (x *HaulIntent) Reset() {
 	*x = HaulIntent{}
-	mi := &file_operations_proto_msgTypes[66]
+	mi := &file_operations_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6610,7 +6885,7 @@ func (x *HaulIntent) String() string {
 func (*HaulIntent) ProtoMessage() {}
 
 func (x *HaulIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[66]
+	mi := &file_operations_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6623,7 +6898,7 @@ func (x *HaulIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaulIntent.ProtoReflect.Descriptor instead.
 func (*HaulIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{66}
+	return file_operations_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *HaulIntent) GetPawnId() string {
@@ -6654,7 +6929,7 @@ type BuildingIntent struct {
 
 func (x *BuildingIntent) Reset() {
 	*x = BuildingIntent{}
-	mi := &file_operations_proto_msgTypes[67]
+	mi := &file_operations_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6666,7 +6941,7 @@ func (x *BuildingIntent) String() string {
 func (*BuildingIntent) ProtoMessage() {}
 
 func (x *BuildingIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[67]
+	mi := &file_operations_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6679,7 +6954,7 @@ func (x *BuildingIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildingIntent.ProtoReflect.Descriptor instead.
 func (*BuildingIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{67}
+	return file_operations_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *BuildingIntent) GetPlacement() *placementpb.PlacementCandidate {
@@ -6708,7 +6983,7 @@ type TradeIntent struct {
 
 func (x *TradeIntent) Reset() {
 	*x = TradeIntent{}
-	mi := &file_operations_proto_msgTypes[68]
+	mi := &file_operations_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6720,7 +6995,7 @@ func (x *TradeIntent) String() string {
 func (*TradeIntent) ProtoMessage() {}
 
 func (x *TradeIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[68]
+	mi := &file_operations_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6733,7 +7008,7 @@ func (x *TradeIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeIntent.ProtoReflect.Descriptor instead.
 func (*TradeIntent) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{68}
+	return file_operations_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *TradeIntent) GetTraderId() string {
@@ -6831,7 +7106,7 @@ type Refusal struct {
 
 func (x *Refusal) Reset() {
 	*x = Refusal{}
-	mi := &file_operations_proto_msgTypes[69]
+	mi := &file_operations_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6843,7 +7118,7 @@ func (x *Refusal) String() string {
 func (*Refusal) ProtoMessage() {}
 
 func (x *Refusal) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[69]
+	mi := &file_operations_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6856,7 +7131,7 @@ func (x *Refusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Refusal.ProtoReflect.Descriptor instead.
 func (*Refusal) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{69}
+	return file_operations_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *Refusal) GetCode() commonpb.FailureCode {
@@ -6888,7 +7163,7 @@ type ActionResult struct {
 
 func (x *ActionResult) Reset() {
 	*x = ActionResult{}
-	mi := &file_operations_proto_msgTypes[70]
+	mi := &file_operations_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6900,7 +7175,7 @@ func (x *ActionResult) String() string {
 func (*ActionResult) ProtoMessage() {}
 
 func (x *ActionResult) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[70]
+	mi := &file_operations_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6913,7 +7188,7 @@ func (x *ActionResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionResult.ProtoReflect.Descriptor instead.
 func (*ActionResult) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{70}
+	return file_operations_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ActionResult) GetKey() string {
@@ -6990,7 +7265,7 @@ type ApplyReply struct {
 
 func (x *ApplyReply) Reset() {
 	*x = ApplyReply{}
-	mi := &file_operations_proto_msgTypes[71]
+	mi := &file_operations_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7002,7 +7277,7 @@ func (x *ApplyReply) String() string {
 func (*ApplyReply) ProtoMessage() {}
 
 func (x *ApplyReply) ProtoReflect() protoreflect.Message {
-	mi := &file_operations_proto_msgTypes[71]
+	mi := &file_operations_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7015,7 +7290,7 @@ func (x *ApplyReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyReply.ProtoReflect.Descriptor instead.
 func (*ApplyReply) Descriptor() ([]byte, []int) {
-	return file_operations_proto_rawDescGZIP(), []int{71}
+	return file_operations_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ApplyReply) GetResults() []*ActionResult {
@@ -7263,7 +7538,7 @@ const file_operations_proto_rawDesc = "" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12;\n" +
 	"\aactions\x18\x02 \x03(\v2!.rimgovernor.operations.v1.ActionR\aactions\x12*\n" +
 	"\x0edefer_snapshot\x18\x03 \x01(\bH\x00R\rdeferSnapshot\x88\x01\x01B\x11\n" +
-	"\x0f_defer_snapshot\"\xee\x16\n" +
+	"\x0f_defer_snapshot\"\xb4\x17\n" +
 	"\x06Action\x12\x15\n" +
 	"\x03key\x18\x01 \x01(\tH\x01R\x03key\x88\x01\x01\x12\x1d\n" +
 	"\apurpose\x18\x02 \x01(\tH\x02R\apurpose\x88\x01\x01\x12>\n" +
@@ -7304,13 +7579,32 @@ const file_operations_proto_rawDesc = "" +
 	"\x0earea_plant_cut\x188 \x01(\v2-.rimgovernor.operations.v1.AreaPlantCutIntentH\x00R\fareaPlantCut\x12N\n" +
 	"\vfood_policy\x189 \x01(\v2+.rimgovernor.operations.v1.FoodPolicyIntentH\x00R\n" +
 	"foodPolicy\x12A\n" +
-	"\x06ritual\x18? \x01(\v2'.rimgovernor.operations.v1.RitualIntentH\x00R\x06ritualB\b\n" +
+	"\x06ritual\x18? \x01(\v2'.rimgovernor.operations.v1.RitualIntentH\x00R\x06ritual\x12D\n" +
+	"\aability\x18< \x01(\v2(.rimgovernor.operations.v1.AbilityIntentH\x00R\aabilityB\b\n" +
 	"\x06intentB\x06\n" +
 	"\x04_keyB\n" +
 	"\n" +
 	"\b_purposeJ\x04\b\x0e\x10\x0fJ\x04\b\x1a\x10\x1bJ\x04\b\x1b\x10\x1cJ\x04\b\x1c\x10\x1dJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b \x10!J\x04\b\"\x10#J\x04\b#\x10$J\x04\b$\x10%J\x04\b%\x10&J\x04\b(\x10)J\x04\b)\x10*J\x04\b*\x10+J\x04\b+\x10,J\x04\b.\x10/J\x04\b/\x100R\x05meleeR\x05wasteR\arecoverR\vremove_wallR\aacquireR\x04homeR\x11remove_foundationR\x05coverR\vdeconstructR\bexcavateR\vcreate_zoneR\vdelete_zoneR\n" +
 	"zone_cellsR\tstockpileR\n" +
-	"pawn_orderR\vneed_reliefR\buse_itemR\asurgery\"\xca\x03\n" +
+	"pawn_orderR\vneed_reliefR\buse_itemR\asurgery\"\xbd\x02\n" +
+	"\rAbilityIntent\x12\x1c\n" +
+	"\apawn_id\x18\x01 \x01(\tH\x02R\x06pawnId\x88\x01\x01\x12B\n" +
+	"\x06permit\x18\x02 \x01(\v2(.rimgovernor.operations.v1.PermitAbilityH\x00R\x06permit\x12I\n" +
+	"\tno_target\x18\x04 \x01(\v2*.rimgovernor.operations.v1.AbilityNoTargetH\x01R\bnoTarget\x121\n" +
+	"\x04cell\x18\x05 \x01(\v2\x1b.rimgovernor.common.v1.CellH\x01R\x04cell\x12\x14\n" +
+	"\x04pawn\x18\x06 \x01(\tH\x01R\x04pawn\x12\x16\n" +
+	"\x05thing\x18\a \x01(\tH\x01R\x05thingB\b\n" +
+	"\x06sourceB\b\n" +
+	"\x06targetB\n" +
+	"\n" +
+	"\b_pawn_id\"m\n" +
+	"\rPermitAbility\x12$\n" +
+	"\vfaction_def\x18\x01 \x01(\tH\x00R\n" +
+	"factionDef\x88\x01\x01\x12\x1b\n" +
+	"\x06permit\x18\x02 \x01(\tH\x01R\x06permit\x88\x01\x01B\x0e\n" +
+	"\f_faction_defB\t\n" +
+	"\a_permit\"\x11\n" +
+	"\x0fAbilityNoTarget\"\xca\x03\n" +
 	"\x12PawnSettingsIntent\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x01R\x06pawnId\x88\x01\x01\x12]\n" +
 	"\x12hostility_response\x18\x02 \x01(\x0e2,.rimgovernor.operations.v1.HostilityResponseH\x00R\x11hostilityResponse\x12\x1d\n" +
@@ -7728,7 +8022,7 @@ func file_operations_proto_rawDescGZIP() []byte {
 }
 
 var file_operations_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
-var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 72)
+var file_operations_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
 var file_operations_proto_goTypes = []any{
 	(CombatFireMode)(0),                    // 0: rimgovernor.operations.v1.CombatFireMode
 	(CombatDoorMode)(0),                    // 1: rimgovernor.operations.v1.CombatDoorMode
@@ -7785,71 +8079,74 @@ var file_operations_proto_goTypes = []any{
 	(*ZonePreviewReply)(nil),               // 52: rimgovernor.operations.v1.ZonePreviewReply
 	(*ApplyRequest)(nil),                   // 53: rimgovernor.operations.v1.ApplyRequest
 	(*Action)(nil),                         // 54: rimgovernor.operations.v1.Action
-	(*PawnSettingsIntent)(nil),             // 55: rimgovernor.operations.v1.PawnSettingsIntent
-	(*AreaIntent)(nil),                     // 56: rimgovernor.operations.v1.AreaIntent
-	(*PolicyPruneIntent)(nil),              // 57: rimgovernor.operations.v1.PolicyPruneIntent
-	(*ReadingPolicyIntent)(nil),            // 58: rimgovernor.operations.v1.ReadingPolicyIntent
-	(*DrugPolicyEntry)(nil),                // 59: rimgovernor.operations.v1.DrugPolicyEntry
-	(*DrugPolicyIntent)(nil),               // 60: rimgovernor.operations.v1.DrugPolicyIntent
-	(*FoodPolicyIntent)(nil),               // 61: rimgovernor.operations.v1.FoodPolicyIntent
-	(*AutoHomeAreaIntent)(nil),             // 62: rimgovernor.operations.v1.AutoHomeAreaIntent
-	(*DraftIntent)(nil),                    // 63: rimgovernor.operations.v1.DraftIntent
-	(*GiveJobOptions)(nil),                 // 64: rimgovernor.operations.v1.GiveJobOptions
-	(*GiveJobIntent)(nil),                  // 65: rimgovernor.operations.v1.GiveJobIntent
-	(*DesignateIntent)(nil),                // 66: rimgovernor.operations.v1.DesignateIntent
-	(*RelocateIntent)(nil),                 // 67: rimgovernor.operations.v1.RelocateIntent
-	(*BuildingPatchIntent)(nil),            // 68: rimgovernor.operations.v1.BuildingPatchIntent
-	(*RemoveRoofIntent)(nil),               // 69: rimgovernor.operations.v1.RemoveRoofIntent
-	(*AreaPlantCutIntent)(nil),             // 70: rimgovernor.operations.v1.AreaPlantCutIntent
-	(*HusbandryIntent)(nil),                // 71: rimgovernor.operations.v1.HusbandryIntent
-	(*ProductionBillIntent)(nil),           // 72: rimgovernor.operations.v1.ProductionBillIntent
-	(*WorkSettingsIntent)(nil),             // 73: rimgovernor.operations.v1.WorkSettingsIntent
-	(*BedAssignIntent)(nil),                // 74: rimgovernor.operations.v1.BedAssignIntent
-	(*PrisonerInteractionIntent)(nil),      // 75: rimgovernor.operations.v1.PrisonerInteractionIntent
-	(*DialogIntent)(nil),                   // 76: rimgovernor.operations.v1.DialogIntent
-	(*NamingIntent)(nil),                   // 77: rimgovernor.operations.v1.NamingIntent
-	(*ResearchIntent)(nil),                 // 78: rimgovernor.operations.v1.ResearchIntent
-	(*ApparelPolicyIntent)(nil),            // 79: rimgovernor.operations.v1.ApparelPolicyIntent
-	(*FormCaravanIntent)(nil),              // 80: rimgovernor.operations.v1.FormCaravanIntent
-	(*AcceptQuestIntent)(nil),              // 81: rimgovernor.operations.v1.AcceptQuestIntent
-	(*RitualIntent)(nil),                   // 82: rimgovernor.operations.v1.RitualIntent
-	(*MoveIntent)(nil),                     // 83: rimgovernor.operations.v1.MoveIntent
-	(*HaulIntent)(nil),                     // 84: rimgovernor.operations.v1.HaulIntent
-	(*BuildingIntent)(nil),                 // 85: rimgovernor.operations.v1.BuildingIntent
-	(*TradeIntent)(nil),                    // 86: rimgovernor.operations.v1.TradeIntent
-	(*Refusal)(nil),                        // 87: rimgovernor.operations.v1.Refusal
-	(*ActionResult)(nil),                   // 88: rimgovernor.operations.v1.ActionResult
-	(*ApplyReply)(nil),                     // 89: rimgovernor.operations.v1.ApplyReply
-	(*commonpb.Cell)(nil),                  // 90: rimgovernor.common.v1.Cell
-	(commonpb.CorpseClass)(0),              // 91: rimgovernor.common.v1.CorpseClass
-	(*commonpb.Ref)(nil),                   // 92: rimgovernor.common.v1.Ref
-	(*commonpb.Identity)(nil),              // 93: rimgovernor.common.v1.Identity
-	(*commonpb.ObservationContext)(nil),    // 94: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Failure)(nil),               // 95: rimgovernor.common.v1.Failure
-	(placementpb.Rotation)(0),              // 96: rimgovernor.placement.v1.Rotation
-	(*placementpb.PlacementCandidate)(nil), // 97: rimgovernor.placement.v1.PlacementCandidate
-	(commonpb.FailureCode)(0),              // 98: rimgovernor.common.v1.FailureCode
-	(*receiptspb.Receipt)(nil),             // 99: rimgovernor.receipts.v1.Receipt
+	(*AbilityIntent)(nil),                  // 55: rimgovernor.operations.v1.AbilityIntent
+	(*PermitAbility)(nil),                  // 56: rimgovernor.operations.v1.PermitAbility
+	(*AbilityNoTarget)(nil),                // 57: rimgovernor.operations.v1.AbilityNoTarget
+	(*PawnSettingsIntent)(nil),             // 58: rimgovernor.operations.v1.PawnSettingsIntent
+	(*AreaIntent)(nil),                     // 59: rimgovernor.operations.v1.AreaIntent
+	(*PolicyPruneIntent)(nil),              // 60: rimgovernor.operations.v1.PolicyPruneIntent
+	(*ReadingPolicyIntent)(nil),            // 61: rimgovernor.operations.v1.ReadingPolicyIntent
+	(*DrugPolicyEntry)(nil),                // 62: rimgovernor.operations.v1.DrugPolicyEntry
+	(*DrugPolicyIntent)(nil),               // 63: rimgovernor.operations.v1.DrugPolicyIntent
+	(*FoodPolicyIntent)(nil),               // 64: rimgovernor.operations.v1.FoodPolicyIntent
+	(*AutoHomeAreaIntent)(nil),             // 65: rimgovernor.operations.v1.AutoHomeAreaIntent
+	(*DraftIntent)(nil),                    // 66: rimgovernor.operations.v1.DraftIntent
+	(*GiveJobOptions)(nil),                 // 67: rimgovernor.operations.v1.GiveJobOptions
+	(*GiveJobIntent)(nil),                  // 68: rimgovernor.operations.v1.GiveJobIntent
+	(*DesignateIntent)(nil),                // 69: rimgovernor.operations.v1.DesignateIntent
+	(*RelocateIntent)(nil),                 // 70: rimgovernor.operations.v1.RelocateIntent
+	(*BuildingPatchIntent)(nil),            // 71: rimgovernor.operations.v1.BuildingPatchIntent
+	(*RemoveRoofIntent)(nil),               // 72: rimgovernor.operations.v1.RemoveRoofIntent
+	(*AreaPlantCutIntent)(nil),             // 73: rimgovernor.operations.v1.AreaPlantCutIntent
+	(*HusbandryIntent)(nil),                // 74: rimgovernor.operations.v1.HusbandryIntent
+	(*ProductionBillIntent)(nil),           // 75: rimgovernor.operations.v1.ProductionBillIntent
+	(*WorkSettingsIntent)(nil),             // 76: rimgovernor.operations.v1.WorkSettingsIntent
+	(*BedAssignIntent)(nil),                // 77: rimgovernor.operations.v1.BedAssignIntent
+	(*PrisonerInteractionIntent)(nil),      // 78: rimgovernor.operations.v1.PrisonerInteractionIntent
+	(*DialogIntent)(nil),                   // 79: rimgovernor.operations.v1.DialogIntent
+	(*NamingIntent)(nil),                   // 80: rimgovernor.operations.v1.NamingIntent
+	(*ResearchIntent)(nil),                 // 81: rimgovernor.operations.v1.ResearchIntent
+	(*ApparelPolicyIntent)(nil),            // 82: rimgovernor.operations.v1.ApparelPolicyIntent
+	(*FormCaravanIntent)(nil),              // 83: rimgovernor.operations.v1.FormCaravanIntent
+	(*AcceptQuestIntent)(nil),              // 84: rimgovernor.operations.v1.AcceptQuestIntent
+	(*RitualIntent)(nil),                   // 85: rimgovernor.operations.v1.RitualIntent
+	(*MoveIntent)(nil),                     // 86: rimgovernor.operations.v1.MoveIntent
+	(*HaulIntent)(nil),                     // 87: rimgovernor.operations.v1.HaulIntent
+	(*BuildingIntent)(nil),                 // 88: rimgovernor.operations.v1.BuildingIntent
+	(*TradeIntent)(nil),                    // 89: rimgovernor.operations.v1.TradeIntent
+	(*Refusal)(nil),                        // 90: rimgovernor.operations.v1.Refusal
+	(*ActionResult)(nil),                   // 91: rimgovernor.operations.v1.ActionResult
+	(*ApplyReply)(nil),                     // 92: rimgovernor.operations.v1.ApplyReply
+	(*commonpb.Cell)(nil),                  // 93: rimgovernor.common.v1.Cell
+	(commonpb.CorpseClass)(0),              // 94: rimgovernor.common.v1.CorpseClass
+	(*commonpb.Ref)(nil),                   // 95: rimgovernor.common.v1.Ref
+	(*commonpb.Identity)(nil),              // 96: rimgovernor.common.v1.Identity
+	(*commonpb.ObservationContext)(nil),    // 97: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Failure)(nil),               // 98: rimgovernor.common.v1.Failure
+	(placementpb.Rotation)(0),              // 99: rimgovernor.placement.v1.Rotation
+	(*placementpb.PlacementCandidate)(nil), // 100: rimgovernor.placement.v1.PlacementCandidate
+	(commonpb.FailureCode)(0),              // 101: rimgovernor.common.v1.FailureCode
+	(*receiptspb.Receipt)(nil),             // 102: rimgovernor.receipts.v1.Receipt
 }
 var file_operations_proto_depIdxs = []int32{
 	19,  // 0: rimgovernor.operations.v1.Assignment.clear:type_name -> rimgovernor.operations.v1.Clear
-	90,  // 1: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
-	90,  // 2: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
+	93,  // 1: rimgovernor.operations.v1.CellList.cells:type_name -> rimgovernor.common.v1.Cell
+	93,  // 2: rimgovernor.operations.v1.Rectangle.origin:type_name -> rimgovernor.common.v1.Cell
 	22,  // 3: rimgovernor.operations.v1.Cells.explicit_cells:type_name -> rimgovernor.operations.v1.CellList
 	23,  // 4: rimgovernor.operations.v1.Cells.rectangle:type_name -> rimgovernor.operations.v1.Rectangle
 	18,  // 5: rimgovernor.operations.v1.CombatRescue.downed:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	90,  // 6: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
-	90,  // 7: rimgovernor.operations.v1.CombatRepair.cell:type_name -> rimgovernor.common.v1.Cell
-	90,  // 8: rimgovernor.operations.v1.CombatMortarFire.mortar:type_name -> rimgovernor.common.v1.Cell
-	90,  // 9: rimgovernor.operations.v1.CombatMortarFire.target:type_name -> rimgovernor.common.v1.Cell
-	90,  // 10: rimgovernor.operations.v1.CombatAnimalArea.cell:type_name -> rimgovernor.common.v1.Cell
+	93,  // 6: rimgovernor.operations.v1.CombatRescue.dest:type_name -> rimgovernor.common.v1.Cell
+	93,  // 7: rimgovernor.operations.v1.CombatRepair.cell:type_name -> rimgovernor.common.v1.Cell
+	93,  // 8: rimgovernor.operations.v1.CombatMortarFire.mortar:type_name -> rimgovernor.common.v1.Cell
+	93,  // 9: rimgovernor.operations.v1.CombatMortarFire.target:type_name -> rimgovernor.common.v1.Cell
+	93,  // 10: rimgovernor.operations.v1.CombatAnimalArea.cell:type_name -> rimgovernor.common.v1.Cell
 	19,  // 11: rimgovernor.operations.v1.CombatAnimalArea.clear:type_name -> rimgovernor.operations.v1.Clear
-	90,  // 12: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
+	93,  // 12: rimgovernor.operations.v1.CombatDoor.cell:type_name -> rimgovernor.common.v1.Cell
 	1,   // 13: rimgovernor.operations.v1.CombatDoor.mode:type_name -> rimgovernor.operations.v1.CombatDoorMode
 	18,  // 14: rimgovernor.operations.v1.CombatOrder.pawn:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	90,  // 15: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
+	93,  // 15: rimgovernor.operations.v1.CombatOrder.move:type_name -> rimgovernor.common.v1.Cell
 	18,  // 16: rimgovernor.operations.v1.CombatOrder.attack:type_name -> rimgovernor.operations.v1.EntityPrecondition
-	90,  // 17: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
+	93,  // 17: rimgovernor.operations.v1.CombatOrder.attack_ground:type_name -> rimgovernor.common.v1.Cell
 	0,   // 18: rimgovernor.operations.v1.CombatOrder.fire_mode:type_name -> rimgovernor.operations.v1.CombatFireMode
 	19,  // 19: rimgovernor.operations.v1.CombatOrder.hold_position:type_name -> rimgovernor.operations.v1.Clear
 	29,  // 20: rimgovernor.operations.v1.CombatOrder.door:type_name -> rimgovernor.operations.v1.CombatDoor
@@ -7857,7 +8154,7 @@ var file_operations_proto_depIdxs = []int32{
 	25,  // 22: rimgovernor.operations.v1.CombatOrder.rescue:type_name -> rimgovernor.operations.v1.CombatRescue
 	26,  // 23: rimgovernor.operations.v1.CombatOrder.repair:type_name -> rimgovernor.operations.v1.CombatRepair
 	19,  // 24: rimgovernor.operations.v1.CombatOrder.draft:type_name -> rimgovernor.operations.v1.Clear
-	90,  // 25: rimgovernor.operations.v1.CombatOrder.man_mortar:type_name -> rimgovernor.common.v1.Cell
+	93,  // 25: rimgovernor.operations.v1.CombatOrder.man_mortar:type_name -> rimgovernor.common.v1.Cell
 	27,  // 26: rimgovernor.operations.v1.CombatOrder.mortar_fire:type_name -> rimgovernor.operations.v1.CombatMortarFire
 	18,  // 27: rimgovernor.operations.v1.CombatOrder.release:type_name -> rimgovernor.operations.v1.EntityPrecondition
 	28,  // 28: rimgovernor.operations.v1.CombatOrder.animal_area:type_name -> rimgovernor.operations.v1.CombatAnimalArea
@@ -7872,116 +8169,120 @@ var file_operations_proto_depIdxs = []int32{
 	20,  // 37: rimgovernor.operations.v1.BillSettings.worker:type_name -> rimgovernor.operations.v1.Assignment
 	37,  // 38: rimgovernor.operations.v1.BillSettings.store:type_name -> rimgovernor.operations.v1.BillStore
 	36,  // 39: rimgovernor.operations.v1.BillSettings.ingredients:type_name -> rimgovernor.operations.v1.FilterPatch
-	91,  // 40: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
+	94,  // 40: rimgovernor.operations.v1.BillSettings.corpse_class:type_name -> rimgovernor.common.v1.CorpseClass
 	9,   // 41: rimgovernor.operations.v1.StockpileSettings.priority:type_name -> rimgovernor.operations.v1.StoragePriority
 	10,  // 42: rimgovernor.operations.v1.StockpileSettings.preset:type_name -> rimgovernor.operations.v1.FilterPreset
 	36,  // 43: rimgovernor.operations.v1.StockpileSettings.filter:type_name -> rimgovernor.operations.v1.FilterPatch
-	92,  // 44: rimgovernor.operations.v1.ZoneIntent.zone:type_name -> rimgovernor.common.v1.Ref
+	95,  // 44: rimgovernor.operations.v1.ZoneIntent.zone:type_name -> rimgovernor.common.v1.Ref
 	8,   // 45: rimgovernor.operations.v1.ZoneIntent.kind:type_name -> rimgovernor.operations.v1.ZoneType
 	24,  // 46: rimgovernor.operations.v1.ZoneIntent.add_cells:type_name -> rimgovernor.operations.v1.Cells
 	24,  // 47: rimgovernor.operations.v1.ZoneIntent.remove_cells:type_name -> rimgovernor.operations.v1.Cells
 	40,  // 48: rimgovernor.operations.v1.ZoneIntent.stockpile:type_name -> rimgovernor.operations.v1.StockpileSettings
 	41,  // 49: rimgovernor.operations.v1.ZoneIntent.growing:type_name -> rimgovernor.operations.v1.GrowingSettings
 	42,  // 50: rimgovernor.operations.v1.ZoneIntent.fishing:type_name -> rimgovernor.operations.v1.FishingSettings
-	90,  // 51: rimgovernor.operations.v1.RemoveFloorIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	93,  // 51: rimgovernor.operations.v1.RemoveFloorIntent.cell:type_name -> rimgovernor.common.v1.Cell
 	46,  // 52: rimgovernor.operations.v1.SetTradeLines.lines:type_name -> rimgovernor.operations.v1.TradeLine
 	21,  // 53: rimgovernor.operations.v1.AcceptTrade.economic_floors:type_name -> rimgovernor.operations.v1.DefCount
 	13,  // 54: rimgovernor.operations.v1.EndTrade.kind:type_name -> rimgovernor.operations.v1.EndTradeKind
-	93,  // 55: rimgovernor.operations.v1.ZonePreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	96,  // 55: rimgovernor.operations.v1.ZonePreviewRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	43,  // 56: rimgovernor.operations.v1.ZonePreviewRequest.zone:type_name -> rimgovernor.operations.v1.ZoneIntent
-	94,  // 57: rimgovernor.operations.v1.ZonePreview.context:type_name -> rimgovernor.common.v1.ObservationContext
+	97,  // 57: rimgovernor.operations.v1.ZonePreview.context:type_name -> rimgovernor.common.v1.ObservationContext
 	51,  // 58: rimgovernor.operations.v1.ZonePreviewReply.evaluated:type_name -> rimgovernor.operations.v1.ZonePreview
-	95,  // 59: rimgovernor.operations.v1.ZonePreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
-	93,  // 60: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	98,  // 59: rimgovernor.operations.v1.ZonePreviewReply.failure:type_name -> rimgovernor.common.v1.Failure
+	96,  // 60: rimgovernor.operations.v1.ApplyRequest.identity:type_name -> rimgovernor.common.v1.Identity
 	54,  // 61: rimgovernor.operations.v1.ApplyRequest.actions:type_name -> rimgovernor.operations.v1.Action
-	86,  // 62: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
-	85,  // 63: rimgovernor.operations.v1.Action.building:type_name -> rimgovernor.operations.v1.BuildingIntent
-	83,  // 64: rimgovernor.operations.v1.Action.move:type_name -> rimgovernor.operations.v1.MoveIntent
-	84,  // 65: rimgovernor.operations.v1.Action.haul:type_name -> rimgovernor.operations.v1.HaulIntent
-	79,  // 66: rimgovernor.operations.v1.Action.apparel_policy:type_name -> rimgovernor.operations.v1.ApparelPolicyIntent
-	78,  // 67: rimgovernor.operations.v1.Action.research:type_name -> rimgovernor.operations.v1.ResearchIntent
-	77,  // 68: rimgovernor.operations.v1.Action.naming:type_name -> rimgovernor.operations.v1.NamingIntent
-	76,  // 69: rimgovernor.operations.v1.Action.dialog:type_name -> rimgovernor.operations.v1.DialogIntent
-	75,  // 70: rimgovernor.operations.v1.Action.prisoner:type_name -> rimgovernor.operations.v1.PrisonerInteractionIntent
-	81,  // 71: rimgovernor.operations.v1.Action.accept_quest:type_name -> rimgovernor.operations.v1.AcceptQuestIntent
-	80,  // 72: rimgovernor.operations.v1.Action.form_caravan:type_name -> rimgovernor.operations.v1.FormCaravanIntent
-	74,  // 73: rimgovernor.operations.v1.Action.bed_assign:type_name -> rimgovernor.operations.v1.BedAssignIntent
-	73,  // 74: rimgovernor.operations.v1.Action.work_settings:type_name -> rimgovernor.operations.v1.WorkSettingsIntent
-	72,  // 75: rimgovernor.operations.v1.Action.production_bill:type_name -> rimgovernor.operations.v1.ProductionBillIntent
-	71,  // 76: rimgovernor.operations.v1.Action.husbandry:type_name -> rimgovernor.operations.v1.HusbandryIntent
+	89,  // 62: rimgovernor.operations.v1.Action.trade:type_name -> rimgovernor.operations.v1.TradeIntent
+	88,  // 63: rimgovernor.operations.v1.Action.building:type_name -> rimgovernor.operations.v1.BuildingIntent
+	86,  // 64: rimgovernor.operations.v1.Action.move:type_name -> rimgovernor.operations.v1.MoveIntent
+	87,  // 65: rimgovernor.operations.v1.Action.haul:type_name -> rimgovernor.operations.v1.HaulIntent
+	82,  // 66: rimgovernor.operations.v1.Action.apparel_policy:type_name -> rimgovernor.operations.v1.ApparelPolicyIntent
+	81,  // 67: rimgovernor.operations.v1.Action.research:type_name -> rimgovernor.operations.v1.ResearchIntent
+	80,  // 68: rimgovernor.operations.v1.Action.naming:type_name -> rimgovernor.operations.v1.NamingIntent
+	79,  // 69: rimgovernor.operations.v1.Action.dialog:type_name -> rimgovernor.operations.v1.DialogIntent
+	78,  // 70: rimgovernor.operations.v1.Action.prisoner:type_name -> rimgovernor.operations.v1.PrisonerInteractionIntent
+	84,  // 71: rimgovernor.operations.v1.Action.accept_quest:type_name -> rimgovernor.operations.v1.AcceptQuestIntent
+	83,  // 72: rimgovernor.operations.v1.Action.form_caravan:type_name -> rimgovernor.operations.v1.FormCaravanIntent
+	77,  // 73: rimgovernor.operations.v1.Action.bed_assign:type_name -> rimgovernor.operations.v1.BedAssignIntent
+	76,  // 74: rimgovernor.operations.v1.Action.work_settings:type_name -> rimgovernor.operations.v1.WorkSettingsIntent
+	75,  // 75: rimgovernor.operations.v1.Action.production_bill:type_name -> rimgovernor.operations.v1.ProductionBillIntent
+	74,  // 76: rimgovernor.operations.v1.Action.husbandry:type_name -> rimgovernor.operations.v1.HusbandryIntent
 	43,  // 77: rimgovernor.operations.v1.Action.zone:type_name -> rimgovernor.operations.v1.ZoneIntent
-	66,  // 78: rimgovernor.operations.v1.Action.designate:type_name -> rimgovernor.operations.v1.DesignateIntent
-	67,  // 79: rimgovernor.operations.v1.Action.relocate:type_name -> rimgovernor.operations.v1.RelocateIntent
-	68,  // 80: rimgovernor.operations.v1.Action.building_patch:type_name -> rimgovernor.operations.v1.BuildingPatchIntent
-	65,  // 81: rimgovernor.operations.v1.Action.give_job:type_name -> rimgovernor.operations.v1.GiveJobIntent
-	63,  // 82: rimgovernor.operations.v1.Action.draft:type_name -> rimgovernor.operations.v1.DraftIntent
+	69,  // 78: rimgovernor.operations.v1.Action.designate:type_name -> rimgovernor.operations.v1.DesignateIntent
+	70,  // 79: rimgovernor.operations.v1.Action.relocate:type_name -> rimgovernor.operations.v1.RelocateIntent
+	71,  // 80: rimgovernor.operations.v1.Action.building_patch:type_name -> rimgovernor.operations.v1.BuildingPatchIntent
+	68,  // 81: rimgovernor.operations.v1.Action.give_job:type_name -> rimgovernor.operations.v1.GiveJobIntent
+	66,  // 82: rimgovernor.operations.v1.Action.draft:type_name -> rimgovernor.operations.v1.DraftIntent
 	31,  // 83: rimgovernor.operations.v1.Action.combat_orders:type_name -> rimgovernor.operations.v1.CombatOrders
-	56,  // 84: rimgovernor.operations.v1.Action.area:type_name -> rimgovernor.operations.v1.AreaIntent
-	62,  // 85: rimgovernor.operations.v1.Action.auto_home_area:type_name -> rimgovernor.operations.v1.AutoHomeAreaIntent
-	55,  // 86: rimgovernor.operations.v1.Action.pawn_settings:type_name -> rimgovernor.operations.v1.PawnSettingsIntent
-	57,  // 87: rimgovernor.operations.v1.Action.policy_prune:type_name -> rimgovernor.operations.v1.PolicyPruneIntent
+	59,  // 84: rimgovernor.operations.v1.Action.area:type_name -> rimgovernor.operations.v1.AreaIntent
+	65,  // 85: rimgovernor.operations.v1.Action.auto_home_area:type_name -> rimgovernor.operations.v1.AutoHomeAreaIntent
+	58,  // 86: rimgovernor.operations.v1.Action.pawn_settings:type_name -> rimgovernor.operations.v1.PawnSettingsIntent
+	60,  // 87: rimgovernor.operations.v1.Action.policy_prune:type_name -> rimgovernor.operations.v1.PolicyPruneIntent
 	44,  // 88: rimgovernor.operations.v1.Action.remove_floor:type_name -> rimgovernor.operations.v1.RemoveFloorIntent
-	69,  // 89: rimgovernor.operations.v1.Action.remove_roof:type_name -> rimgovernor.operations.v1.RemoveRoofIntent
-	58,  // 90: rimgovernor.operations.v1.Action.reading_policy:type_name -> rimgovernor.operations.v1.ReadingPolicyIntent
-	60,  // 91: rimgovernor.operations.v1.Action.drug_policy:type_name -> rimgovernor.operations.v1.DrugPolicyIntent
-	70,  // 92: rimgovernor.operations.v1.Action.area_plant_cut:type_name -> rimgovernor.operations.v1.AreaPlantCutIntent
-	61,  // 93: rimgovernor.operations.v1.Action.food_policy:type_name -> rimgovernor.operations.v1.FoodPolicyIntent
-	82,  // 94: rimgovernor.operations.v1.Action.ritual:type_name -> rimgovernor.operations.v1.RitualIntent
-	4,   // 95: rimgovernor.operations.v1.PawnSettingsIntent.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
-	5,   // 96: rimgovernor.operations.v1.PawnSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
-	14,  // 97: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
-	90,  // 98: rimgovernor.operations.v1.AreaIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	15,  // 99: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
-	59,  // 100: rimgovernor.operations.v1.DrugPolicyIntent.entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
-	11,  // 101: rimgovernor.operations.v1.GiveJobOptions.relieve_need:type_name -> rimgovernor.operations.v1.Need
-	92,  // 102: rimgovernor.operations.v1.GiveJobIntent.pawn:type_name -> rimgovernor.common.v1.Ref
-	92,  // 103: rimgovernor.operations.v1.GiveJobIntent.targets:type_name -> rimgovernor.common.v1.Ref
-	90,  // 104: rimgovernor.operations.v1.GiveJobIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	64,  // 105: rimgovernor.operations.v1.GiveJobIntent.options:type_name -> rimgovernor.operations.v1.GiveJobOptions
-	2,   // 106: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
-	92,  // 107: rimgovernor.operations.v1.DesignateIntent.target:type_name -> rimgovernor.common.v1.Ref
-	90,  // 108: rimgovernor.operations.v1.DesignateIntent.cell:type_name -> rimgovernor.common.v1.Cell
-	16,  // 109: rimgovernor.operations.v1.DesignateIntent.guard:type_name -> rimgovernor.operations.v1.DesignationGuard
-	23,  // 110: rimgovernor.operations.v1.DesignateIntent.cleared_ground:type_name -> rimgovernor.operations.v1.Rectangle
-	90,  // 111: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	96,  // 112: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	19,  // 113: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
-	19,  // 114: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
-	19,  // 115: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
-	90,  // 116: rimgovernor.operations.v1.RemoveRoofIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	90,  // 117: rimgovernor.operations.v1.AreaPlantCutIntent.cells:type_name -> rimgovernor.common.v1.Cell
-	17,  // 118: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
-	38,  // 119: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
-	92,  // 120: rimgovernor.operations.v1.ProductionBillIntent.replace_owned_bill:type_name -> rimgovernor.common.v1.Ref
-	92,  // 121: rimgovernor.operations.v1.ProductionBillIntent.patient:type_name -> rimgovernor.common.v1.Ref
-	92,  // 122: rimgovernor.operations.v1.ProductionBillIntent.surgeon:type_name -> rimgovernor.common.v1.Ref
-	32,  // 123: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
-	20,  // 124: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
-	33,  // 125: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
-	20,  // 126: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
-	12,  // 127: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
-	21,  // 128: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
-	90,  // 129: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
-	97,  // 130: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
-	45,  // 131: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
-	47,  // 132: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
-	48,  // 133: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
-	49,  // 134: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
-	98,  // 135: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
-	99,  // 136: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
-	87,  // 137: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
-	95,  // 138: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
-	88,  // 139: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
-	95,  // 140: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
-	50,  // 141: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
-	53,  // 142: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
-	52,  // 143: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
-	89,  // 144: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
-	143, // [143:145] is the sub-list for method output_type
-	141, // [141:143] is the sub-list for method input_type
-	141, // [141:141] is the sub-list for extension type_name
-	141, // [141:141] is the sub-list for extension extendee
-	0,   // [0:141] is the sub-list for field type_name
+	72,  // 89: rimgovernor.operations.v1.Action.remove_roof:type_name -> rimgovernor.operations.v1.RemoveRoofIntent
+	61,  // 90: rimgovernor.operations.v1.Action.reading_policy:type_name -> rimgovernor.operations.v1.ReadingPolicyIntent
+	63,  // 91: rimgovernor.operations.v1.Action.drug_policy:type_name -> rimgovernor.operations.v1.DrugPolicyIntent
+	73,  // 92: rimgovernor.operations.v1.Action.area_plant_cut:type_name -> rimgovernor.operations.v1.AreaPlantCutIntent
+	64,  // 93: rimgovernor.operations.v1.Action.food_policy:type_name -> rimgovernor.operations.v1.FoodPolicyIntent
+	85,  // 94: rimgovernor.operations.v1.Action.ritual:type_name -> rimgovernor.operations.v1.RitualIntent
+	55,  // 95: rimgovernor.operations.v1.Action.ability:type_name -> rimgovernor.operations.v1.AbilityIntent
+	56,  // 96: rimgovernor.operations.v1.AbilityIntent.permit:type_name -> rimgovernor.operations.v1.PermitAbility
+	57,  // 97: rimgovernor.operations.v1.AbilityIntent.no_target:type_name -> rimgovernor.operations.v1.AbilityNoTarget
+	93,  // 98: rimgovernor.operations.v1.AbilityIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	4,   // 99: rimgovernor.operations.v1.PawnSettingsIntent.hostility_response:type_name -> rimgovernor.operations.v1.HostilityResponse
+	5,   // 100: rimgovernor.operations.v1.PawnSettingsIntent.medical_care:type_name -> rimgovernor.operations.v1.MedicalCare
+	14,  // 101: rimgovernor.operations.v1.AreaIntent.operation:type_name -> rimgovernor.operations.v1.AreaOperation
+	93,  // 102: rimgovernor.operations.v1.AreaIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	15,  // 103: rimgovernor.operations.v1.PolicyPruneIntent.database:type_name -> rimgovernor.operations.v1.PolicyDatabase
+	62,  // 104: rimgovernor.operations.v1.DrugPolicyIntent.entries:type_name -> rimgovernor.operations.v1.DrugPolicyEntry
+	11,  // 105: rimgovernor.operations.v1.GiveJobOptions.relieve_need:type_name -> rimgovernor.operations.v1.Need
+	95,  // 106: rimgovernor.operations.v1.GiveJobIntent.pawn:type_name -> rimgovernor.common.v1.Ref
+	95,  // 107: rimgovernor.operations.v1.GiveJobIntent.targets:type_name -> rimgovernor.common.v1.Ref
+	93,  // 108: rimgovernor.operations.v1.GiveJobIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	67,  // 109: rimgovernor.operations.v1.GiveJobIntent.options:type_name -> rimgovernor.operations.v1.GiveJobOptions
+	2,   // 110: rimgovernor.operations.v1.DesignateIntent.designation:type_name -> rimgovernor.operations.v1.ThingDesignation
+	95,  // 111: rimgovernor.operations.v1.DesignateIntent.target:type_name -> rimgovernor.common.v1.Ref
+	93,  // 112: rimgovernor.operations.v1.DesignateIntent.cell:type_name -> rimgovernor.common.v1.Cell
+	16,  // 113: rimgovernor.operations.v1.DesignateIntent.guard:type_name -> rimgovernor.operations.v1.DesignationGuard
+	23,  // 114: rimgovernor.operations.v1.DesignateIntent.cleared_ground:type_name -> rimgovernor.operations.v1.Rectangle
+	93,  // 115: rimgovernor.operations.v1.RelocateIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	99,  // 116: rimgovernor.operations.v1.RelocateIntent.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	19,  // 117: rimgovernor.operations.v1.BuildingPatchIntent.for_prisoners:type_name -> rimgovernor.operations.v1.Clear
+	19,  // 118: rimgovernor.operations.v1.BuildingPatchIntent.claim:type_name -> rimgovernor.operations.v1.Clear
+	19,  // 119: rimgovernor.operations.v1.BuildingPatchIntent.for_slaves:type_name -> rimgovernor.operations.v1.Clear
+	93,  // 120: rimgovernor.operations.v1.RemoveRoofIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	93,  // 121: rimgovernor.operations.v1.AreaPlantCutIntent.cells:type_name -> rimgovernor.common.v1.Cell
+	17,  // 122: rimgovernor.operations.v1.HusbandryIntent.order:type_name -> rimgovernor.operations.v1.HusbandryOrder
+	38,  // 123: rimgovernor.operations.v1.ProductionBillIntent.settings:type_name -> rimgovernor.operations.v1.BillSettings
+	95,  // 124: rimgovernor.operations.v1.ProductionBillIntent.replace_owned_bill:type_name -> rimgovernor.common.v1.Ref
+	95,  // 125: rimgovernor.operations.v1.ProductionBillIntent.patient:type_name -> rimgovernor.common.v1.Ref
+	95,  // 126: rimgovernor.operations.v1.ProductionBillIntent.surgeon:type_name -> rimgovernor.common.v1.Ref
+	32,  // 127: rimgovernor.operations.v1.WorkSettingsIntent.work:type_name -> rimgovernor.operations.v1.WorkPriority
+	20,  // 128: rimgovernor.operations.v1.WorkSettingsIntent.allowed_area:type_name -> rimgovernor.operations.v1.Assignment
+	33,  // 129: rimgovernor.operations.v1.WorkSettingsIntent.schedule:type_name -> rimgovernor.operations.v1.Schedule
+	20,  // 130: rimgovernor.operations.v1.BedAssignIntent.expected_previous_bed:type_name -> rimgovernor.operations.v1.Assignment
+	12,  // 131: rimgovernor.operations.v1.PrisonerInteractionIntent.interaction:type_name -> rimgovernor.operations.v1.PrisonerInteraction
+	21,  // 132: rimgovernor.operations.v1.FormCaravanIntent.cargo:type_name -> rimgovernor.operations.v1.DefCount
+	93,  // 133: rimgovernor.operations.v1.MoveIntent.destination:type_name -> rimgovernor.common.v1.Cell
+	100, // 134: rimgovernor.operations.v1.BuildingIntent.placement:type_name -> rimgovernor.placement.v1.PlacementCandidate
+	45,  // 135: rimgovernor.operations.v1.TradeIntent.open:type_name -> rimgovernor.operations.v1.OpenTrade
+	47,  // 136: rimgovernor.operations.v1.TradeIntent.set_lines:type_name -> rimgovernor.operations.v1.SetTradeLines
+	48,  // 137: rimgovernor.operations.v1.TradeIntent.accept:type_name -> rimgovernor.operations.v1.AcceptTrade
+	49,  // 138: rimgovernor.operations.v1.TradeIntent.end:type_name -> rimgovernor.operations.v1.EndTrade
+	101, // 139: rimgovernor.operations.v1.Refusal.code:type_name -> rimgovernor.common.v1.FailureCode
+	102, // 140: rimgovernor.operations.v1.ActionResult.applied:type_name -> rimgovernor.receipts.v1.Receipt
+	90,  // 141: rimgovernor.operations.v1.ActionResult.refused:type_name -> rimgovernor.operations.v1.Refusal
+	98,  // 142: rimgovernor.operations.v1.ActionResult.failed:type_name -> rimgovernor.common.v1.Failure
+	91,  // 143: rimgovernor.operations.v1.ApplyReply.results:type_name -> rimgovernor.operations.v1.ActionResult
+	98,  // 144: rimgovernor.operations.v1.ApplyReply.batch_failure:type_name -> rimgovernor.common.v1.Failure
+	50,  // 145: rimgovernor.operations.v1.Zones.Preview:input_type -> rimgovernor.operations.v1.ZonePreviewRequest
+	53,  // 146: rimgovernor.operations.v1.Actions.Apply:input_type -> rimgovernor.operations.v1.ApplyRequest
+	52,  // 147: rimgovernor.operations.v1.Zones.Preview:output_type -> rimgovernor.operations.v1.ZonePreviewReply
+	92,  // 148: rimgovernor.operations.v1.Actions.Apply:output_type -> rimgovernor.operations.v1.ApplyReply
+	147, // [147:149] is the sub-list for method output_type
+	145, // [145:147] is the sub-list for method input_type
+	145, // [145:145] is the sub-list for extension type_name
+	145, // [145:145] is the sub-list for extension extendee
+	0,   // [0:145] is the sub-list for field type_name
 }
 
 func init() { file_operations_proto_init() }
@@ -8085,8 +8386,17 @@ func file_operations_proto_init() {
 		(*Action_AreaPlantCut)(nil),
 		(*Action_FoodPolicy)(nil),
 		(*Action_Ritual)(nil),
+		(*Action_Ability)(nil),
 	}
 	file_operations_proto_msgTypes[37].OneofWrappers = []any{
+		(*AbilityIntent_Permit)(nil),
+		(*AbilityIntent_NoTarget)(nil),
+		(*AbilityIntent_Cell)(nil),
+		(*AbilityIntent_Pawn)(nil),
+		(*AbilityIntent_Thing)(nil),
+	}
+	file_operations_proto_msgTypes[38].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[40].OneofWrappers = []any{
 		(*PawnSettingsIntent_HostilityResponse)(nil),
 		(*PawnSettingsIntent_SelfTend)(nil),
 		(*PawnSettingsIntent_ReadingPolicy)(nil),
@@ -8096,9 +8406,6 @@ func file_operations_proto_init() {
 		(*PawnSettingsIntent_DrugPolicy)(nil),
 		(*PawnSettingsIntent_FoodPolicy)(nil),
 	}
-	file_operations_proto_msgTypes[38].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[39].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[40].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[41].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[42].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[43].OneofWrappers = []any{}
@@ -8108,7 +8415,10 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[47].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[48].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[49].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[50].OneofWrappers = []any{
+	file_operations_proto_msgTypes[50].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[51].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[52].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[53].OneofWrappers = []any{
 		(*BuildingPatchIntent_TargetTemperature)(nil),
 		(*BuildingPatchIntent_Medical)(nil),
 		(*BuildingPatchIntent_ForPrisoners)(nil),
@@ -8117,9 +8427,6 @@ func file_operations_proto_init() {
 		(*BuildingPatchIntent_ForSlaves)(nil),
 		(*BuildingPatchIntent_AutoRefuel)(nil),
 	}
-	file_operations_proto_msgTypes[53].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[54].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[55].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[56].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[57].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[58].OneofWrappers = []any{}
@@ -8131,14 +8438,17 @@ func file_operations_proto_init() {
 	file_operations_proto_msgTypes[64].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[65].OneofWrappers = []any{}
 	file_operations_proto_msgTypes[66].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[68].OneofWrappers = []any{
+	file_operations_proto_msgTypes[67].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[68].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[69].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[71].OneofWrappers = []any{
 		(*TradeIntent_Open)(nil),
 		(*TradeIntent_SetLines)(nil),
 		(*TradeIntent_Accept)(nil),
 		(*TradeIntent_End)(nil),
 	}
-	file_operations_proto_msgTypes[69].OneofWrappers = []any{}
-	file_operations_proto_msgTypes[70].OneofWrappers = []any{
+	file_operations_proto_msgTypes[72].OneofWrappers = []any{}
+	file_operations_proto_msgTypes[73].OneofWrappers = []any{
 		(*ActionResult_Applied)(nil),
 		(*ActionResult_Refused)(nil),
 		(*ActionResult_Failed)(nil),
@@ -8149,7 +8459,7 @@ func file_operations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_operations_proto_rawDesc), len(file_operations_proto_rawDesc)),
 			NumEnums:      18,
-			NumMessages:   72,
+			NumMessages:   75,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

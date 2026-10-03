@@ -113,6 +113,16 @@ namespace HomeBridge.BridgeTools
                     if (title != null) holding.Title = title.defName;
                     holding.Permits.AddRange(royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
                         .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal));
+                    // The native cooldown of each held permit (#1607): FactionPermit.LastUsedTick
+                    // (-1 until first used) and the ticks left of the permit's cooldown.
+                    var now = Find.TickManager.TicksGame;
+                    foreach (var held in royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null && ProtoBoundary.IsIdentifier(p.Permit.defName))
+                        .OrderBy(p => p.Permit.defName, StringComparer.Ordinal))
+                    {
+                        var cooldown = new Obs.PermitCooldown { Permit = held.Permit.defName, CooldownRemainingTicks = held.OnCooldown ? Math.Max(0, held.LastUsedTick + held.Permit.CooldownTicks - now) : 0 };
+                        if (held.LastUsedTick >= 0) cooldown.LastUsedTick = held.LastUsedTick;
+                        holding.PermitCooldowns.Add(cooldown);
+                    }
                     row.Holdings.Add(holding);
                 }
                 if (pawn.abilities != null)
