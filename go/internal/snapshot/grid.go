@@ -32,6 +32,8 @@ import (
 type heldGrid struct {
 	grid  *cellgrid.Grid
 	built *cellgrid.Grid
+	// cells caches built's cells for step lines (RecordStep).
+	cells []policy.SiteCell
 }
 
 // gridRows applies a wire grid over held (nil for a keyframe) and is the

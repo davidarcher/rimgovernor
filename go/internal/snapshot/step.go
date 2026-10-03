@@ -3,10 +3,13 @@ package snapshot
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
@@ -75,6 +78,20 @@ func RecordStep(dir, planner string, goal policy.GoalID, current domain.Generati
 	var none observation.ColonyProjection
 	reading.Zones, reading.Window = none.Zones, none.Window
 	tick := reading.Identity.Tick
+	streamsMu.Lock()
+	defer streamsMu.Unlock()
+	rec, err := openStream(dir, tick)
+	if err != nil {
+		return err
+	}
+	// A window the mirror holds exactly is left to its section without
+	// encoding it: encoding 62,500 cells costs more than the rest of the
+	// line.
+	cells := rec.sections[string(facts.PlanningCells)]
+	cellsHeld := cells.holds(reading.Cells)
+	if cellsHeld {
+		reading.Cells = nil
+	}
 	data, err := Encode(Step{
 		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d goal %s", current.Colony, current.Load, current.Map, tick, goal),
 		Snapshot: current, Tick: tick, Goal: goal, Planner: planner, Projection: reading,
@@ -86,14 +103,14 @@ func RecordStep(dir, planner string, goal policy.GoalID, current domain.Generati
 	if err != nil {
 		return err
 	}
-	streamsMu.Lock()
-	defer streamsMu.Unlock()
-	rec, err := openStream(dir, tick)
-	if err != nil {
-		return err
-	}
 	line := streamLine{Tick: tick, Step: &stepFrame{Planner: planner, Goal: goal}}
 	tree, line.Mirror = elide(tree, rec.sections)
+	if cellsHeld {
+		if line.Mirror == nil {
+			line.Mirror = map[string]uint64{}
+		}
+		line.Mirror[string(facts.PlanningCells)] = cells.version
+	}
 	patch, changed := diffTree(stepBase(rec.prev), tree)
 	if !changed {
 		patch = map[string]any{"~": map[string]any{}}
@@ -193,4 +210,17 @@ func LoadStep(path string) (Step, error) {
 		return Step{}, fmt.Errorf("%s: %w", path, err)
 	}
 	return s, nil
+}
+
+// holds reports whether the section's planning window is exactly cells
+// (row-major, as the mirror lists them), so a line can name the section
+// instead of encoding them. A window of no cells is never held.
+func (s *recSection) holds(cells []policy.SiteCell) bool {
+	if s == nil || s.grid == nil || len(cells) == 0 {
+		return false
+	}
+	if s.grid.cells == nil {
+		s.grid.cells = s.grid.built.Cells()
+	}
+	return slices.EqualFunc(s.grid.cells, cells, func(a, b policy.SiteCell) bool { return reflect.DeepEqual(a, b) })
 }
