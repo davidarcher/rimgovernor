@@ -295,6 +295,26 @@ lists the colony map tile's mutators next to `biome`. Go lifts the blocks into
 all of it is derived state held in Go memory (persistence-contracts.md) and
 adds no store.
 
+`ColonyFactsSnapshot.odyssey` (`OdysseySection`, #1709) is the colony-wide
+Odyssey read, one keyed section with the snapshot's seq/tick (#1347); it is
+absent without Odyssey and `Unavailable` when the read failed. It carries
+`conditions` (every `GameCondition` active on the colony map with its def,
+class, ticks passed and left, permanence and causing thing: lava flow, volcanic
+ash, winter or debris, toxic fallout), `hazard_terrain` (the terrain defs on the
+map whose own `dangerous`, `burnDamage`, `heatPerTick` or `toxicBuildupFactor`
+flags make them hurt or contaminate, with the cells each covers),
+`lava_emergences` (spawned `LavaEmergence` things) and `sites` (each
+`AncientHatch` with an existing pocket map: pocket map id, stockpile type,
+layout, colonists present and every `CompHackable` thing on the pocket map with
+its progress, defence, hacked, locked-out and autohack state; positions are
+pocket-map cells). Selection is by the game's own types and flags, never def-name
+lists; an absent scalar is unknown, never zero. Go validates the rows
+(`bridge.validateOdysseyColony`: unique ids per table, lava cells on the map,
+nonnegative ticks, progress a fraction, no `ticks_left` on a permanent
+condition) and projects them into `observation.OdysseyColony`
+(`ColonyProjection.Odyssey`). Derived state held in Go memory
+(persistence-contracts.md); it adds no store.
+
 ## Biotech colony section
 
 `ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide

@@ -138,6 +138,7 @@ namespace HomeBridge.BridgeTools
             result.DeepResources = NativeDeepResources.Read(map);
             result.Policies = NativePolicyFacts.Read(map);
             result.Biotech = NativeBiotechColony.Read(map);
+            result.Odyssey = NativeOdysseyColony.Read(map);
             result.TileMutators.Add(NativeOdysseyFacts.MapMutators(map));
             Span("cf.deep");
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
