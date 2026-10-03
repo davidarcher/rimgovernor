@@ -257,7 +257,15 @@ func (k *AuthorityKeepAlive) fail(message string) {
 // governor, so the check is cheap (/api/state) and frequent (#267).
 const KeepAliveInterval = 500 * time.Millisecond
 
+// keepAliveStaleGrace is how long a keep-alive tolerates the service
+// reporting that it holds authority but waits for current observations: a
+// long planner step on a loaded box leaves the snapshot older than its max
+// age while the game is frozen, and a resume then bumps the native
+// generation under that very step, failing it (#1266).
+const keepAliveStaleGrace = 3 * time.Minute
+
 func (k *AuthorityKeepAlive) run(ctx context.Context) {
+	var waitingSince time.Time
 	for {
 		select {
 		case <-ctx.Done():
@@ -272,7 +280,18 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 			continue
 		}
 		if AsString(state["mode"]) == "automate" {
+			waitingSince = time.Time{}
 			continue
+		}
+		if status, _ := AsMap(state["status"]); AsString(status["label"]) == "Player control is waiting for current observations" {
+			if waitingSince.IsZero() {
+				waitingSince = time.Now()
+			}
+			if time.Since(waitingSince) < keepAliveStaleGrace {
+				continue
+			}
+		} else {
+			waitingSince = time.Time{}
 		}
 		before, beforeKnown := keepAliveGeneration(state["generation"])
 		if clk, clkStatus, clkErr := k.Service.API("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
