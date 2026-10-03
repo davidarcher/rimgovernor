@@ -303,8 +303,15 @@ message Action {
     RitualIntent ritual = 63;
     AbilityIntent ability = 60;
     RoyaltyIntent royalty = 64;
+    IgniteIntent ignite = 65;
   }
 }
+// One drafted colonist throws a molotov at one cell (#1815, epic #1640): the
+// CombatOrder attack_ground force-fire with the molotov in the pawn's
+// primary slot. Native refuses while any pawn stands in the cell's room, and
+// when the pawn is not drafted, holds no molotov or cannot hit the cell. Applied means the throw order
+// was taken; whether the fire caught is a separate observed state.
+message IgniteIntent { optional string pawn_id = 1; rimgovernor.common.v1.Cell cell = 2; }
 // Use one ability of one pawn (#1607, epic #1598): one generic shape for every
 // ability source. source names where the ability comes from and native's
 // guard for that source decides eligibility by calling the game's own
