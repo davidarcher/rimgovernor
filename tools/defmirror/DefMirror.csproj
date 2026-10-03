@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.1" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4871" NoWarn="NU1701" GeneratePathProperty="true" PrivateAssets="all" ExcludeAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Default managed dir: the pinned reference assemblies restored above. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RimWorldManagedDir</_Parameter1>
+      <_Parameter2>$(PkgKrafs_Rimworld_Ref)/ref/net472</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

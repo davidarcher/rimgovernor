@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "Krafs.Rimworld.Ref": {
+        "type": "Direct",
+        "requested": "[1.6.4871, )",
+        "resolved": "1.6.4871",
+        "contentHash": "aKebbihZfq47VI9UgyEdrnYslEDeMK3l9+QwC21zL6noJCOLlr5D4+jvhP/F5UA9q+9YVkuTx3NH3eJ03/ivlA=="
+      },
+      "System.Reflection.MetadataLoadContext": {
+        "type": "Direct",
+        "requested": "[8.0.1, )",
+        "resolved": "8.0.1",
+        "contentHash": "c/hiLzoMeYWnoTsdeRY2o0Vbadfedt0b4ZawQ+qDr1BIoYBQo3ASei0Pyiz00n9pHBlfWXiUVy90tOWBEgJ8/Q=="
+      }
+    }
+  }
+}

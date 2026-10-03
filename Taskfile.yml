@@ -27,6 +27,7 @@ includes:
   wire: { taskfile: contracts/generated/protobuf/go, dir: contracts/generated/protobuf/go }
   protobuf: { taskfile: tools/protobuf, dir: tools/protobuf }
   protobuf-go: { taskfile: tools/protobuf/go, dir: tools/protobuf/go }
+  defmirror: { taskfile: tools/defmirror, dir: tools/defmirror }
   native: { taskfile: integrations/rimgovernor-native, dir: integrations/rimgovernor-native }
   probes: { taskfile: contracts/tests, dir: contracts/tests }
 
@@ -39,6 +40,7 @@ tasks:
       - task: wire:build
       - task: protobuf-go:build
       - task: protobuf:build
+      - task: defmirror:build
       - task: native:build
       - task: probes:build
 

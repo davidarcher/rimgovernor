@@ -1,0 +1,25 @@
+# Def mirror generator: contracts/proto/defs.proto from the game's managed
+# assemblies (see contracts/schema-generation.md). Runs on the locked
+# Krafs.Rimworld.Ref reference assemblies; no game install is needed. Pass
+# `-- --managed-dir <RimWorld Managed dir>` to reflect a game install instead.
+# `generate` writes only defs.proto; regenerate the Go and C# bindings with the
+# commands in ../protobuf/README.md and ../protobuf/go/README.md.
+version: '3'
+
+vars:
+  REPO: '{{.TASKFILE_DIR}}/../..'
+  DEFS: '{{.REPO}}/contracts/proto/defs.proto'
+  RUN: dotnet run --project {{.TASKFILE_DIR}} -c Release --no-restore --no-launch-profile --
+
+tasks:
+  build:
+    desc: contracts/proto/defs.proto matches the pinned reference assemblies (locked restore)
+    cmds:
+      - dotnet restore {{.TASKFILE_DIR}}/DefMirror.csproj --locked-mode
+      - '{{.RUN}} --check --output {{.DEFS}} {{.CLI_ARGS}}'
+
+  generate:
+    desc: Regenerate contracts/proto/defs.proto (then the Go and C# bindings)
+    cmds:
+      - dotnet restore {{.TASKFILE_DIR}}/DefMirror.csproj --locked-mode
+      - '{{.RUN}} --output {{.DEFS}} {{.CLI_ARGS}}'

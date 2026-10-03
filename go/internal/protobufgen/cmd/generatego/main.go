@@ -254,7 +254,9 @@ func (r *runner) generate(protoc, protoRoot, output string, opts options) error 
 	if err := os.MkdirAll(generated, 0o755); err != nil {
 		return err
 	}
-	args := []string{"--proto_path=" + inputs, "--plugin=protoc-gen-go=" + plugin, "--go_out=" + generated, "--go_opt=module=" + wireModule}
+	// Grpc.Tools ships the well-known imports (descriptor.proto) beside the compiler: tools/<os>/protoc, build/native/include.
+	wellKnown := filepath.Join(filepath.Dir(protoc), "..", "..", "build", "native", "include")
+	args := []string{"--proto_path=" + inputs, "--proto_path=" + wellKnown, "--plugin=protoc-gen-go=" + plugin, "--go_out=" + generated, "--go_opt=module=" + wireModule}
 	if _, err := r.command(output, protoc, append(args, schemas...)...); err != nil {
 		return err
 	}
