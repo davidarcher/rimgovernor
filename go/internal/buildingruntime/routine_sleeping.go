@@ -879,6 +879,12 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	if r.shelter {
 		return r.previewShell(call, snapshot, facts, protected, check)
 	}
+	if r.goal == policy.MaintainHousing && r.facility == nil {
+		// Loose sleeping spots go to the starter shell or a bedroom, not into
+		// a standing kitchen, lab or other planned room: beds there make it a
+		// sleeping room and block the room's own furnishing.
+		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
+	}
 	if r.definition == "ButcherSpot" || r.goal == policy.EnsureCooking {
 		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot")...)
 	}
@@ -1411,4 +1417,24 @@ func developmentSelects(rows []store.RoutineDevelopmentRow, goal domain.GoalID) 
 		}
 	}
 	return false
+}
+
+// nonSleepingPlannedCells are the interior cells of the layout plan's rooms
+// built for another use than sleeping (storage and reserve rooms stay open to
+// the starter shell).
+func nonSleepingPlannedCells(facts observation.ColonyProjection) []domain.Cell {
+	plan, ok := facts.LayoutPlan.Value()
+	if !ok {
+		return nil
+	}
+	var cells []domain.Cell
+	for _, room := range plan.AllRooms() {
+		switch room.Role {
+		case policy.ModuleKitchen, policy.ModuleLab, policy.ModuleHospital, policy.ModulePrison, policy.ModuleDining, policy.ModuleRec, policy.ModuleFreezer, policy.ModuleWorkshop, policy.ModuleMealCloset:
+		default:
+			continue
+		}
+		cells = append(cells, plannedRoomInterior(room)...)
+	}
+	return cells
 }
