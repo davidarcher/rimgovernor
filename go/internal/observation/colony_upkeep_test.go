@@ -35,16 +35,6 @@ func TestUpkeepProjectionPreservesSectionsAndFalsePresence(t *testing.T) {
 	if _, known := f.Fires.Value(); known {
 		t.Fatal("failed empty census recovered")
 	}
-	if _, known := f.Items.Value(); !known {
-		t.Fatal("unrelated census lost")
-	}
-	u.Items = []*o.UpkeepItem{{}}
-	if _, known := upkeepOf(t, v, bridge.Tables{}).Items.Value(); known {
-		t.Fatal("partial item became known")
-	}
-	if _, known := upkeepOf(t, &o.ColonyFactsSnapshot{}, bridge.Tables{}).Items.Value(); known {
-		t.Fatal("absent section became empty")
-	}
 }
 
 func TestUpkeepFilthCarriesRoomIdentity(t *testing.T) {
@@ -225,7 +215,7 @@ func TestUpkeepProjectionDecodesRoutes(t *testing.T) {
 func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	flooring := &o.FlooringFacts{
-		Rooms:    []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
+		Rooms: []*o.FloorRoom{{Room: &c.Ref{Id: proto.String("7")}, Cells: []*o.FloorCell{{Cell: cell(10, 10), Terrain: proto.String("Soil")}}}},
 	}
 	tables := bridge.Tables{Catalog: itemCatalog(t, nil, map[string][3]float32{"Soil": {-1, -3, 0}})}
 	routes := routesWireFacts()
@@ -252,27 +242,6 @@ func TestUpkeepProjectionJoinsTrafficIntoFlooring(t *testing.T) {
 	u.Issues = nil
 	if f, known := upkeepOf(t, v, tables).Flooring.Value(); !known || len(f.Traffic) != 0 {
 		t.Fatal(f, known)
-	}
-}
-
-// TestUpkeepItemsReadDefFactsFromCatalog (#1733): an item's base
-// deterioration and medicine flag are the catalog's, not the frame's; a def the
-// catalog cannot answer for is a named error.
-func TestUpkeepItemsReadDefFactsFromCatalog(t *testing.T) {
-	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("herb"), Count: proto.Int64(5), Roofed: proto.Bool(false), InStorage: proto.Bool(false), Forbidden: proto.Bool(false)}}}
-	v := &o.ColonyFactsSnapshot{Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
-	tables := heads(&o.EntityRef{Id: proto.String("herb"), DefName: proto.String("MedicineHerbal")})
-	tables.Catalog = itemCatalog(t, map[string]itemFact{"MedicineHerbal": {deterioration: 2.5, medicine: true}}, nil)
-	items, known := upkeepOf(t, v, tables).Items.Value()
-	if !known || len(items) != 1 || items[0].Deterioration != 2.5 || !items[0].Medicine {
-		t.Fatal(items, known)
-	}
-	tables.Catalog = itemCatalog(t, map[string]itemFact{"Steel": {}}, nil)
-	if _, err := colonyUpkeep(v, tables); err == nil || !strings.Contains(err.Error(), "upkeep items census") || !strings.Contains(err.Error(), "MedicineHerbal") {
-		t.Fatal("an item whose def the catalog lacks was not a named error", err)
-	}
-	if _, err := colonyUpkeep(v, heads(&o.EntityRef{Id: proto.String("herb"), DefName: proto.String("MedicineHerbal")})); err == nil || !strings.Contains(err.Error(), "upkeep items census") {
-		t.Fatal("items without a catalog were not a named error", err)
 	}
 }
 

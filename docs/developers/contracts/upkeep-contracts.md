@@ -348,7 +348,7 @@ result and the census decides recovery. Native authority loss releases exact
 controller-owned designations. Salvage uses ordinary hauling and does not gate
 this goal.
 
-`SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
+`MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.
 Any observed target enters maintenance; recovery requires no remaining deficit
 and no unresolved issued action. Missing evidence retains active risk, while a

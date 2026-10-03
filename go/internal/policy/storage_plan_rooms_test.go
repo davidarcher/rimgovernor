@@ -118,6 +118,17 @@ func TestStorageRoomDemandFollowsTheFillThreshold(t *testing.T) {
 	}
 }
 
+// A planned storage room that does not stand yet is raised by the storage
+// planner, like the armory and wardrobe (#1802): the shell edit names the
+// storage module.
+func TestUnbuiltStorageRoomIsAShellEdit(t *testing.T) {
+	t.Parallel()
+	edits := stockpileShellEdits(StockpileRequest{Shells: []ModuleRole{ModuleStorage}})
+	if len(edits) != 1 || edits[0].Kind != StockpileShell || edits[0].Role != string(ModuleStorage) {
+		t.Fatalf("shell edits %+v", edits)
+	}
+}
+
 func TestStorageRoomDemandWaitsForRoomToGrow(t *testing.T) {
 	t.Parallel()
 	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}

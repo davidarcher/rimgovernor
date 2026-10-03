@@ -226,7 +226,7 @@ a different permitted ingredient.
 
 ## Active plan commitments bound what a step can claim
 
-Planners that return proposals (haul, secure-supplies) do not commit anything
+Planners that return proposals do not commit anything
 themselves: the step's coordinator ranks the wave's proposals by (planner
 priority, goal urgency, proposal ID) and checks each one's pawn, entity and
 quantity claims before its commit runs. Quantities are checked against the

@@ -36,7 +36,7 @@ func woodShortage() DevelopmentRequest {
 		Goals: []DevelopmentGoal{
 			{ID: MaintainHousing, Source: AutopilotGoal, Priority: 2, Served: true},
 			{ID: MaintainAnimalFeed, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
-			{ID: SecureSupplies, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
+			{ID: MaintainWaste, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
 			{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
 		},
 	}

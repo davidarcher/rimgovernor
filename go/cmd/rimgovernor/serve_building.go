@@ -176,7 +176,7 @@ func drainBuilding(owner buildingCloser) error {
 }
 
 func haulExecutorRequired(config serveConfig) bool {
-	return config.routineSecureSuppliesPlans || config.routineHaulPlans || config.routineFoodStorageUpkeepPlans
+	return config.routineFoodStorageUpkeepPlans
 }
 
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {

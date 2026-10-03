@@ -125,7 +125,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	if rooms, ok := projection.Rooms.Value(); ok {
 		request.Rooms = domain.Known(rooms.Rooms)
 	}
-	for _, module := range []policy.ModuleRole{policy.ModuleArmory, policy.ModuleWardrobe} {
+	for _, module := range []policy.ModuleRole{policy.ModuleStorage, policy.ModuleArmory, policy.ModuleWardrobe} {
 		if _, owed := plannedRoomOwed(*projection, module); owed {
 			request.Shells = append(request.Shells, module)
 		}
@@ -440,7 +440,7 @@ func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state Contr
 	if !owed {
 		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, false, nil
 	}
-	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "gear room")
+	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "storage-planner room")
 	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
 	if err != nil || result.Verdict == BuildingReasonUsed || result.Verdict == BuildingReasonNoSpace || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict == BuildingReasonRefused {
 		return RoutineStockpileResult{Verdict: result.Verdict}, false, err

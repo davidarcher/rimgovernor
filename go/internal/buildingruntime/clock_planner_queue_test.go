@@ -131,42 +131,42 @@ func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 	t.Parallel()
 	q := newPlannerQueue()
-	reasons := map[string]Verdict{"haul": BuildingReasonExistingWork, "tend": BuildingReasonAdmitted}
+	reasons := map[string]Verdict{"repair": BuildingReasonExistingWork, "tend": BuildingReasonAdmitted}
 	reasonOf := func(name string) (Verdict, bool) { reason, ok := reasons[name]; return reason, ok }
 	sel := plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}
-	q.ran(sel, []string{"haul", "tend"}, reasonOf, 1000, func(kinds []domain.ActionKind) []domain.ActionID {
-		if !reflect.DeepEqual(kinds, []domain.ActionKind{domain.HaulAction}) {
+	q.ran(sel, []string{"repair", "tend"}, reasonOf, 1000, func(kinds []domain.ActionKind) []domain.ActionID {
+		if !reflect.DeepEqual(kinds, []domain.ActionKind{domain.RepairAction}) {
 			t.Fatal(kinds)
 		}
-		return []domain.ActionID{"haul-1"}
+		return []domain.ActionID{"repair-1"}
 	})
-	if q.due["haul"] != 1000+int64(reviewEveryRoutine) || q.due["tend"] != 1000+int64(reviewEveryUrgent) {
+	if q.due["repair"] != 1000+int64(reviewEveryRoutine) || q.due["tend"] != 1000+int64(reviewEveryUrgent) {
 		t.Fatal(q.due)
 	}
-	if wait, ok := q.waitingOn("haul"); !ok || !reflect.DeepEqual(wait.On, []domain.ActionID{"haul-1"}) || wait.Deadline != q.due["haul"] {
+	if wait, ok := q.waitingOn("repair"); !ok || !reflect.DeepEqual(wait.On, []domain.ActionID{"repair-1"}) || wait.Deadline != q.due["repair"] {
 		t.Fatal(wait, ok)
 	}
 	if _, ok := q.waitingOn("tend"); ok {
 		t.Fatal("admitted planner waits")
 	}
 	// Dirty and waiting: skipped and reported.
-	q.mark("haul")
+	q.mark("repair")
 	got := q.selection(0, false, false, nil)
-	if got.planners || !reflect.DeepEqual(got.waiting, []string{"haul"}) {
+	if got.planners || !reflect.DeepEqual(got.waiting, []string{"repair"}) {
 		t.Fatal(got)
 	}
 	// The outcome row releases it.
-	q.wake(StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "haul-1", Attempt: 1, Terminal: true}}}, func(domain.ActionID) (domain.ActionKind, bool) { return domain.HaulAction, true })
+	q.wake(StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "repair-1", Attempt: 1, Terminal: true}}}, func(domain.ActionID) (domain.ActionKind, bool) { return domain.RepairAction, true })
 	got = q.selection(0, false, false, nil)
-	if !got.planners || got.waiting != nil || !got.pick(plannerEntry{name: "haul"}) || got.pick(plannerEntry{name: "tend"}) {
+	if !got.planners || got.waiting != nil || !got.pick(plannerEntry{name: "repair"}) || got.pick(plannerEntry{name: "tend"}) {
 		t.Fatal(got)
 	}
 	// An attempt no longer open in the journal releases the wait too.
-	q.waits["haul"] = plannerWait{On: []domain.ActionID{"haul-2"}, Deadline: 1 << 40}
+	q.waits["repair"] = plannerWait{On: []domain.ActionID{"repair-2"}, Deadline: 1 << 40}
 	if got = q.selection(0, false, false, func(domain.ActionID) bool { return false }); got.waiting != nil {
 		t.Fatal(got)
 	}
-	q.waits["haul"] = plannerWait{On: []domain.ActionID{"haul-2"}, Deadline: 1 << 40}
+	q.waits["repair"] = plannerWait{On: []domain.ActionID{"repair-2"}, Deadline: 1 << 40}
 	q.ran(plannerSelectionResult{planners: true}, nil, reasonOf, 0, nil)
 	if len(q.waits) != 0 {
 		t.Fatal(q.waits)

@@ -85,27 +85,6 @@ var (
 	sectionsArmory = []facts.Section{facts.Colony, facts.Bills, facts.Pawns, facts.Emergency, facts.Research}
 )
 
-// factsBuilding and factsColony are the fact families of the building and
-// colony section sets: what a migrated planner names on its Proposal
-// (#622).
-var (
-	factsBuilding = sectionFamilies(sectionsBuilding)
-	factsColony   = sectionFamilies(sectionsColony)
-)
-
-// sectionFamilies lists the families of sections, each once, in order.
-func sectionFamilies(sections []facts.Section) []bridge.FactFamily {
-	var out []bridge.FactFamily
-	seen := map[bridge.FactFamily]bool{}
-	for _, section := range sections {
-		if family := section.Family(); !seen[family] {
-			seen[family] = true
-			out = append(out, family)
-		}
-	}
-	return out
-}
-
 // Review cadences, in game ticks (2500 an hour): how long a planner's last
 // evaluation stands before the due queue re-runs it without evidence
 // (plannerEntry.every, #625). Evidence (an outcome of its kinds, a dirty
@@ -514,21 +493,6 @@ var plannerCatalog = []plannerEntry{
 			out.Equip = &method
 			return method.Verdict, nil
 		}},
-	{name: "secureSupplies", goal: policy.SecureSupplies, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction}, sections: sectionsBuilding,
-		configured: func(c *ClockSchedulerConfig) bool { return c.SecureSupplies != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			// Migrated (#622): the planner proposes; the coordinator after
-			// the wave ranks and commits, and its outcome carries the reason
-			// the due queue reads (plannerWave.finished, #625).
-			result, err := s.config.SecureSupplies.propose(ctx, epoch)
-			if err != nil {
-				return Verdict{}, err
-			}
-			arbiter.propose("secureSupplies", result, func(outcome ProposalOutcome) {
-				out.SecureSupplies = &RoutineSecureSuppliesResult{Verdict: outcome.Verdict, Plan: outcome.Plan, NativeWorkTicks: uint32(result.NativeWorkTicks)}
-			})
-			return Verdict{}, nil
-		}},
 	{name: "repair", goal: policy.MaintainEssentialRepairs, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Repair != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
@@ -639,22 +603,6 @@ var plannerCatalog = []plannerEntry{
 			}
 			out.MoodRelief = &method
 			return method.Verdict, nil
-		}},
-	{name: "haul", goal: policy.MaintainStorage, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HaulAction}, sections: sectionsZones,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Haul != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			// Migrated (#622): the planner proposes; the coordinator after
-			// the wave ranks and commits, and its outcome carries the reason
-			// the due queue reads (plannerWave.finished, #625).
-			result, err := s.config.Haul.propose(ctx, epoch)
-			if err != nil {
-				return Verdict{}, err
-			}
-			arbiter.propose("haul", result, func(outcome ProposalOutcome) {
-				clockSchedulerLog("Haul.step result: reason=%v plan=%s", outcome.Verdict, outcome.Plan)
-				out.Haul = &RoutineHaulResult{Verdict: outcome.Verdict, Plan: outcome.Plan, NativeWorkTicks: uint32(result.NativeWorkTicks)}
-			})
-			return Verdict{}, nil
 		}},
 	{name: "gear", goal: policy.MaintainEquipment, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction, domain.PolicyPruneAction}, sections: sectionsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Gear != nil },

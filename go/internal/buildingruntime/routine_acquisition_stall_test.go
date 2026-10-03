@@ -121,3 +121,15 @@ func TestWithoutStalledTakesRowsOffPending(t *testing.T) {
 		t.Fatal("unknown pending stays unknown")
 	}
 }
+
+func huntContract(deadline int64) policy.ProgressContract {
+	p := policy.DefaultRoutinePolicy()
+	p.HuntStallTicks = deadline
+	return p.HuntProgress()
+}
+
+func harvestContract(deadline int64) policy.ProgressContract {
+	p := policy.DefaultRoutinePolicy()
+	p.AcquisitionStallTicks = deadline
+	return p.AcquisitionProgress()
+}

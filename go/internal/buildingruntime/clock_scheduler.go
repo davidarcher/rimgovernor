@@ -111,11 +111,9 @@ type ClockSchedulerConfig struct {
 	Tend                *RoutineTendPlanner
 	Rescue              *RoutineRescuePlanner
 	Equip               *RoutineEquipPlanner
-	SecureSupplies      *RoutineSecureSuppliesPlanner
 	Repair              *RoutineRepairPlanner
 	FireSafety          *RoutineFireSafetyPlanner
 	Clean               *RoutineCleanPlanner
-	Haul                *RoutineHaulPlanner
 	Gear                *RoutineGearPlanner
 	Medical             *RoutineMedicalPlanner
 	Surgery             *RoutineSurgeryPlanner
@@ -195,11 +193,9 @@ type ClockSchedulerResult struct {
 	Tend                         *RoutineTendResult
 	Rescue                       *RoutineRescueResult
 	Equip                        *RoutineEquipResult
-	SecureSupplies               *RoutineSecureSuppliesResult
 	Repair                       *RoutineRepairResult
 	FireSafety                   *RoutineFireSafetyResult
 	Clean                        *RoutineCleanResult
-	Haul                         *RoutineHaulResult
 	Gear                         *RoutineGearResult
 	Medical                      *RoutineMedicalResult
 	Surgery                      *RoutineSurgeryResult
@@ -497,9 +493,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Equip != nil && (config.Routine == nil || config.Equip.reviewer != config.Routine)", ErrControl)
 	}
-	if config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.SecureSupplies != nil && (config.Routine == nil || config.SecureSupplies.reviewer != config.Routine)", ErrControl)
-	}
 	if config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine)", ErrControl)
 	}
@@ -514,9 +507,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.MoodRelief != nil && (config.Routine == nil || config.MoodRelief.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.MoodRelief != nil && (config.Routine == nil || config.MoodRelief.reviewer != config.Routine)", ErrControl)
-	}
-	if config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.Haul != nil && (config.Routine == nil || config.Haul.reviewer != config.Routine)", ErrControl)
 	}
 	if config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.AnimalContainment != nil && (config.Routine == nil || config.AnimalContainment.reviewer != config.Ro", ErrControl)
@@ -1320,13 +1310,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// A caravan walks to its trade spot on native ticks alone (#234).
 	if out.Trade != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)
-	}
-	// An ordered haul is carried out on native ticks alone (#856).
-	if out.Haul != nil {
-		nativeWorkTicks = max(nativeWorkTicks, out.Haul.NativeWorkTicks)
-	}
-	if out.SecureSupplies != nil {
-		nativeWorkTicks = max(nativeWorkTicks, out.SecureSupplies.NativeWorkTicks)
 	}
 	if out.ArtBills != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.ArtBills.NativeWorkTicks)

@@ -106,12 +106,12 @@ func TestRoutineFamilyScope(t *testing.T) {
 	// A file whose declarations other family files use scopes to the union
 	// of their families, not every family. (medical_retry's attempt counter
 	// is used by shared files too, so it is all-areas.)
-	got, err := routineFamilyScope(goDir, "go/internal/buildingruntime/routine_haul.go")
+	got, err := routineFamilyScope(goDir, "go/internal/buildingruntime/routine_armory.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.All || !slices.Contains(got.Families, "haul") || !slices.Contains(got.Families, "secure-supplies") || slices.Contains(got.Families, "lighting") {
-		t.Errorf("haul scoped to %+v", got)
+	if got.All || !slices.Contains(got.Families, "armory") || !slices.Contains(got.Families, "gear") || slices.Contains(got.Families, "lighting") {
+		t.Errorf("armory scoped to %+v", got)
 	}
 }
 

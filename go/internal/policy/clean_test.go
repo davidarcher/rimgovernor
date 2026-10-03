@@ -51,3 +51,6 @@ func TestSelectCleanRequiresFilthAndPawns(t *testing.T) {
 		t.Fatal("selected with no pawns")
 	}
 }
+
+func knownTrue() domain.Fact[bool]  { return domain.Known(true) }
+func knownFalse() domain.Fact[bool] { return domain.Known(false) }

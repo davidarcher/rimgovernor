@@ -35,9 +35,6 @@ type Planner struct {
 	ChunkDumps []ChunkDumpCall
 	// AnimalFeed is every policy.SelectAnimalFeedMethod call.
 	AnimalFeed []AnimalFeedCall
-	// SecureSupplies is every policy.SelectSecureSupplies call: the exposed
-	// items and the hauler candidates.
-	SecureSupplies []SecureSuppliesCall
 	// ShrineSquads is every shrine defender read, in order.
 	ShrineSquads [][]policy.ShrineDefenderFacts
 	// ShrineReadiness is every policy.ShrineBreachReadiness request.
@@ -95,7 +92,7 @@ func StartPlanner(ctx context.Context, goal policy.GoalID) (context.Context, fun
 		rec.mu.Lock()
 		defer rec.mu.Unlock()
 		p := rec.p
-		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.SecureSupplies)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
+		if len(p.Shelter)+len(p.Excavation)+len(p.Sites)+len(p.ChunkDumps)+len(p.AnimalFeed)+len(p.ShrineSquads)+len(p.ShrineReadiness)+
 			len(p.ResourceMethods)+len(p.Workshops)+len(p.GearMethods)+len(p.Research) == 0 {
 			return nil
 		}
@@ -152,12 +149,6 @@ type AnimalFeedCall struct {
 	Races   policy.AnimalRaceCatalog
 }
 
-// SecureSuppliesCall is one policy.SelectSecureSupplies call's inputs.
-type SecureSuppliesCall struct {
-	Items []policy.UpkeepItem
-	Pawns []policy.SecureSuppliesHaulerFacts
-}
-
 // NoteChunkDump records a chunk dump selection's inputs.
 func NoteChunkDump(ctx context.Context, c ChunkDumpCall) {
 	recorder(ctx).add(func(p *Planner) { p.ChunkDumps = append(p.ChunkDumps, c) })
@@ -166,11 +157,6 @@ func NoteChunkDump(ctx context.Context, c ChunkDumpCall) {
 // NoteAnimalFeed records an animal feed method selection's inputs.
 func NoteAnimalFeed(ctx context.Context, c AnimalFeedCall) {
 	recorder(ctx).add(func(p *Planner) { p.AnimalFeed = append(p.AnimalFeed, c) })
-}
-
-// NoteSecureSupplies records a secure-supplies hauler selection's inputs.
-func NoteSecureSupplies(ctx context.Context, c SecureSuppliesCall) {
-	recorder(ctx).add(func(p *Planner) { p.SecureSupplies = append(p.SecureSupplies, c) })
 }
 
 // NoteShrineSquad records a shrine defender read.

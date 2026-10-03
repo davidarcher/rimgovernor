@@ -41,7 +41,7 @@ func TestShelfOnRockMinesFootprintThenBuildsShelf(t *testing.T) {
 		step := policy.ShelfStep{Zone: policy.ShelfZone{Zone: "z1"}, Pieces: []policy.InteriorPiece{{Slot: "shelf", Def: policy.ShelfDefinition, Size: domain.Cell{X: 1, Z: 1}, Rot: domain.North, Rect: policy.Rectangle{X: cell.X, Z: cell.Z, Width: 1, Height: 1}}}}
 		reading := observation.RoutineReading{ColonyReading: s.read}
 		reading.Projection = s.facts
-		result, err := r.build(call, epoch, s.state, s.review, s.goal, policy.SecureSupplies, reading, step, 0)
+		result, err := r.build(call, epoch, s.state, s.review, s.goal, policy.MaintainResource, reading, step, 0)
 		if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 			t.Fatal(fogged, result, err)
 		}

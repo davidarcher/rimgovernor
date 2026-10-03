@@ -1152,12 +1152,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			if targetsKnown {
 				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 			}
-			// SecureSupplies, MaintainEssentialRepairs, MaintainCleanFacilities
-			// and MaintainStorage now each have a composed dispatch method
+			// MaintainEssentialRepairs and MaintainCleanFacilities now each have a composed dispatch method
 			// (G01.07c 05.4, G01.07b 05.2); the rest of the direct upkeep
 			// orders remain visible-only until their own dispatch verticals
 			// land.
-			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != MaintainStorage && n.Goal != ClearHomeObstructions && n.Goal != ClearAncientShrine {
+			if n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != ClearHomeObstructions && n.Goal != ClearAncientShrine {
 				r.Goals[len(r.Goals)-1].MethodUnavailable = true
 			}
 		}

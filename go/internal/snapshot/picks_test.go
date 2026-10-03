@@ -135,20 +135,6 @@ func TestPickShrineBreachReadiness(t *testing.T) {
 	}
 }
 
-// upkeep/scattered, tick 15: the exposed medicine goes to Thing_Human724,
-// the first of the eight colonists eligible to haul.
-func TestPickSecureSuppliesHauler(t *testing.T) {
-	p := planner(t, "testdata/planner-secure-supplies-hauler.json")
-	if len(p.SecureSupplies) != 1 || len(p.SecureSupplies[0].Pawns) != 8 {
-		t.Fatalf("recorded %+v", p.SecureSupplies)
-	}
-	c := p.SecureSupplies[0]
-	item, pawn, ok := policy.SelectSecureSupplies(c.Items, c.Pawns)
-	if !ok || item.ID != "Thing_MedicineHerbal44693" || pawn != "Thing_Human724" {
-		t.Errorf("picked %s for %s (%v)", pawn, item.ID, ok)
-	}
-}
-
 // clearance/salvage-hold-resume, tick 26: the review selects the remote
 // battery ruin, holds it threat_present while a raider stands beside it
 // (no salvage target, so nothing is designated), and selects it again once

@@ -10691,272 +10691,6 @@
      "Traffic": []
     }
    },
-   "Items": {
-    "v": [
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 120
-      },
-      "Count": 25,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5159",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 111,
-       "Z": 124
-      },
-      "Count": 20,
-      "Definition": "MedicineHerbal",
-      "Deterioration": 6,
-      "Forbidden": true,
-      "ID": "Thing_MedicineHerbal5160",
-      "Medicine": true,
-      "RotTicks": {
-       "v": 22500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 115,
-       "Z": 123
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Club",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Club5161"
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 127
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Ikwa",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Ikwa5162"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 120
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Knife",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Knife5163"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 121
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Bow_Short5164"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 124
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Bow_Short5165"
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5170",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5171",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 120
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5172",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 118
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5173",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 116,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5174",
-      "RotTicks": {
-       "v": 10500000
-      }
-     },
-     {
-      "Cell": {
-       "X": 95,
-       "Z": 114
-      },
-      "Count": 52,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5175"
-     },
-     {
-      "Cell": {
-       "X": 94,
-       "Z": 120
-      },
-      "Count": 61,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5176"
-     },
-     {
-      "Cell": {
-       "X": 97,
-       "Z": 115
-      },
-      "Count": 54,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5177"
-     },
-     {
-      "Cell": {
-       "X": 93,
-       "Z": 120
-      },
-      "Count": 51,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5178"
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 124
-      },
-      "Count": 45,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5179"
-     },
-     {
-      "Cell": {
-       "X": 119,
-       "Z": 124
-      },
-      "Count": 70,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5180"
-     },
-     {
-      "Cell": {
-       "X": 119,
-       "Z": 128
-      },
-      "Count": 66,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5181"
-     },
-     {
-      "Cell": {
-       "X": 122,
-       "Z": 124
-      },
-      "Count": 51,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5182"
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 137
-      },
-      "Count": 50,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5183"
-     },
-     {
-      "Cell": {
-       "X": 109,
-       "Z": 133
-      },
-      "Count": 1,
-      "Definition": "ChunkSlate",
-      "ID": "Thing_ChunkSlate43408"
-     }
-    ]
-   },
    "Lighting": {
     "v": {
      "Lamps": [],
@@ -12641,17 +12375,6 @@
     },
     {
      "Deficit": 1,
-     "Goal": "MaintainStorage",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 100,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Goal": "ClearAncientShrine",
      "Labor": [
       "Construction"
@@ -13071,20 +12794,12 @@
     "Need": "MaintainFireSafety"
    },
    {
-    "Goal": "routine-1bf97f76353844d2-SecureSupplies",
-    "Need": "SecureSupplies"
-   },
-   {
     "Goal": "routine-1bf97f76353844d2-MaintainEssentialRepairs",
     "Need": "MaintainEssentialRepairs"
    },
    {
     "Goal": "routine-1bf97f76353844d2-MaintainCleanFacilities",
     "Need": "MaintainCleanFacilities"
-   },
-   {
-    "Goal": "routine-1bf97f76353844d2-MaintainStorage",
-    "Need": "MaintainStorage"
    },
    {
     "Goal": "routine-1bf97f76353844d2-ClearHomeObstructions",
@@ -13172,8 +12887,7 @@
    "MedicalReserve": true,
    "Sleeping": true,
    "Upkeep": {
-    "Shrine": true,
-    "Storage": true
+    "Shrine": true
    },
    "Wood": true
   },
@@ -13265,15 +12979,6 @@
     "LastProgress": 15,
     "Method": "assess",
     "NextReview": 2515
-   },
-   {
-    "Blocked": "no_method",
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainStorage",
-    "LastProgress": 15,
-    "Method": "assess",
-    "NextReview": 2515,
-    "Observed": 1
    },
    {
     "Blocked": "no_method",
@@ -13488,9 +13193,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
-      "MaintainStorage"
-     ],
+     "Goals": [],
      "ID": "fda7af2869c6a133",
      "Reason": "no plan or proposal",
      "Stage": "none",

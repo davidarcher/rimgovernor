@@ -228,11 +228,11 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	}
 	r.Goals = []DevelopmentGoal{
 		goal("EnsureDefensiveLayout", 0, false), goal("MaintainEquipment", 0, true), goal("EnsureComfort", 0.5, true),
-		goal("MaintainFlooring", 0.5, false), goal("MaintainAnimalFeed", 0, false), goal("MaintainStorage", 0, false),
-		goal("SecureSupplies", 0, false), goal("MaintainHousing", 0.5, false),
+		goal("MaintainFlooring", 0.5, false), goal("MaintainAnimalFeed", 0, false), goal("MaintainLighting", 0, false),
+		goal("MaintainRoutes", 0, false), goal("MaintainHousing", 0.5, false),
 		goal("MaintainStoneShell", 0.5, false), goal("MaintainWaste", 0, true),
 	}
-	since := map[GoalID]domain.Tick{"MaintainFlooring": 6430, "MaintainStorage": 36769, "SecureSupplies": 36769, "MaintainStoneShell": 33189}
+	since := map[GoalID]domain.Tick{"MaintainFlooring": 6430, "MaintainLighting": 36769, "MaintainRoutes": 36769, "MaintainStoneShell": 33189}
 	previous := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick - 500, Capacity: 1}
 	for _, g := range r.Goals {
 		row := DevelopmentRow{Goal: g.ID, WaitingSince: 15, Idle: g.ID != "MaintainFlooring" && !g.Blocked}

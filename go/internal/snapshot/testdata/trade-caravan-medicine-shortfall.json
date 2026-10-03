@@ -5498,283 +5498,6 @@
      "TrafficSamples": 428
     }
    },
-   "Items": {
-    "v": [
-     {
-      "Cell": {
-       "X": 87,
-       "Z": 108
-      },
-      "Count": 10,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2657"
-     },
-     {
-      "Cell": {
-       "X": 90,
-       "Z": 112
-      },
-      "Count": 30,
-      "Definition": "ComponentIndustrial",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_ComponentIndustrial2659"
-     },
-     {
-      "Cell": {
-       "X": 89,
-       "Z": 109
-      },
-      "Count": 1,
-      "Definition": "Gun_BoltActionRifle",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Gun_BoltActionRifle2660"
-     },
-     {
-      "Cell": {
-       "X": 83,
-       "Z": 107
-      },
-      "Count": 1,
-      "Definition": "Gun_Revolver",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Gun_Revolver2661"
-     },
-     {
-      "Cell": {
-       "X": 90,
-       "Z": 110
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Knife",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Knife2662"
-     },
-     {
-      "Cell": {
-       "X": 87,
-       "Z": 109
-      },
-      "Count": 1,
-      "Definition": "Apparel_FlakPants",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Apparel_FlakPants2663"
-     },
-     {
-      "Cell": {
-       "X": 83,
-       "Z": 105
-      },
-      "Count": 1,
-      "Definition": "Apparel_FlakVest",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Apparel_FlakVest2664"
-     },
-     {
-      "Cell": {
-       "X": 89,
-       "Z": 111
-      },
-      "Count": 1,
-      "Definition": "Apparel_AdvancedHelmet",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Apparel_AdvancedHelmet2665"
-     },
-     {
-      "Cell": {
-       "X": 82,
-       "Z": 106
-      },
-      "Count": 1,
-      "Definition": "EggTortoiseFertilized",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_EggTortoiseFertilized2667"
-     },
-     {
-      "Cell": {
-       "X": 88,
-       "Z": 108
-      },
-      "Count": 10,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2669"
-     },
-     {
-      "Cell": {
-       "X": 89,
-       "Z": 108
-      },
-      "Count": 10,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2670"
-     },
-     {
-      "Cell": {
-       "X": 88,
-       "Z": 109
-      },
-      "Count": 10,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2671"
-     },
-     {
-      "Cell": {
-       "X": 88,
-       "Z": 107
-      },
-      "Count": 10,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2672"
-     },
-     {
-      "Cell": {
-       "X": 82,
-       "Z": 117
-      },
-      "Count": 43,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2683"
-     },
-     {
-      "Cell": {
-       "X": 83,
-       "Z": 118
-      },
-      "Count": 40,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2684"
-     },
-     {
-      "Cell": {
-       "X": 81,
-       "Z": 117
-      },
-      "Count": 67,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2685"
-     },
-     {
-      "Cell": {
-       "X": 83,
-       "Z": 117
-      },
-      "Count": 69,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2686"
-     },
-     {
-      "Cell": {
-       "X": 84,
-       "Z": 107
-      },
-      "Count": 75,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2687"
-     },
-     {
-      "Cell": {
-       "X": 85,
-       "Z": 107
-      },
-      "Count": 6,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog2688"
-     },
-     {
-      "Cell": {
-       "X": 25,
-       "Z": 59
-      },
-      "Count": 2,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2706"
-     },
-     {
-      "Cell": {
-       "X": 22,
-       "Z": 63
-      },
-      "Count": 1,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2707"
-     },
-     {
-      "Cell": {
-       "X": 29,
-       "Z": 63
-      },
-      "Count": 1,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2709"
-     },
-     {
-      "Cell": {
-       "X": 142,
-       "Z": 73
-      },
-      "Count": 2,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2710"
-     },
-     {
-      "Cell": {
-       "X": 141,
-       "Z": 72
-      },
-      "Count": 1,
-      "Definition": "MealSurvivalPack",
-      "Deterioration": 0.25,
-      "Forbidden": true,
-      "ID": "Thing_MealSurvivalPack2712"
-     },
-     {
-      "Cell": {
-       "X": 91,
-       "Z": 112
-      },
-      "Count": 400,
-      "Definition": "Silver",
-      "ID": "Thing_Silver14239"
-     }
-    ]
-   },
    "Lighting": {
     "v": {
      "Lamps": [],
@@ -6779,9 +6502,7 @@
   "Food": true,
   "MedicalReserve": true,
   "Sleeping": true,
-  "Upkeep": {
-   "Storage": true
-  },
+  "Upkeep": {},
   "Wood": true
  },
  "Policy": {
@@ -6982,17 +6703,6 @@
       "Cooking",
       "Hauling",
       "Growing"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 107.5,
-     "WaitingSince": 21
-    },
-    {
-     "Deficit": 1,
-     "Goal": "MaintainStorage",
-     "Labor": [
-      "Hauling"
      ],
      "Reason": "method_unavailable",
      "Risk": 0,
@@ -7673,20 +7383,12 @@
     "Need": "MaintainFireSafety"
    },
    {
-    "Goal": "routine-ceca44ef45538de9-SecureSupplies",
-    "Need": "SecureSupplies"
-   },
-   {
     "Goal": "routine-ceca44ef45538de9-MaintainEssentialRepairs",
     "Need": "MaintainEssentialRepairs"
    },
    {
     "Goal": "routine-ceca44ef45538de9-MaintainCleanFacilities",
     "Need": "MaintainCleanFacilities"
-   },
-   {
-    "Goal": "routine-ceca44ef45538de9-MaintainStorage",
-    "Need": "MaintainStorage"
    },
    {
     "Goal": "routine-ceca44ef45538de9-ClearHomeObstructions",
@@ -7770,9 +7472,7 @@
    "Medical": "reserves",
    "MedicalReserve": true,
    "Sleeping": true,
-   "Upkeep": {
-    "Storage": true
-   },
+   "Upkeep": {},
    "Wood": true
   },
   "MedicalCare": {
@@ -7952,21 +7652,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "TradeWithCaravan",
-    "LastProgress": 7521,
-    "Method": "assess",
-    "NextReview": 10021,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 10021
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainStorage",
     "LastProgress": 7521,
     "Method": "assess",
     "NextReview": 10021,
@@ -8177,9 +7862,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
-      "MaintainStorage"
-     ],
+     "Goals": [],
      "ID": "96aa0e3b7d647c61",
      "Reason": "no plan or proposal",
      "Stage": "none",

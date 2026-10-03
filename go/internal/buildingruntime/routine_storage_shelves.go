@@ -36,7 +36,7 @@ type RoutineStorageShelvesResult struct {
 // shelfGoals are the goals whose stockpiles get shelves: SecureSupplies'
 // general store and MaintainResource's earlier ingredient zones.
 // Food storage (meal shelves, freezers) is planned by its own goals.
-var shelfGoals = map[policy.GoalID]bool{policy.SecureSupplies: true, policy.MaintainResource: true}
+var shelfGoals = map[policy.GoalID]bool{policy.MaintainResource: true}
 
 // maxShelvesPerZone bounds the shelves a zone may ever be given.
 const maxShelvesPerZone = 8

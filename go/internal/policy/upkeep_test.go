@@ -9,19 +9,10 @@ import (
 )
 
 func emptyUpkeep() UpkeepObservation {
-	return UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Shrines: domain.Known([]AncientShrine{}), Items: domain.Known([]UpkeepItem{}), Structures: domain.Known([]UpkeepStructure{}), Fires: domain.Known([]UpkeepFire{}), Filth: domain.Known([]UpkeepFilth{}), Lighting: domain.Known(LightingObservation{}), Flooring: domain.Known(FlooringObservation{}), Routes: domain.Known(RoutesObservation{})}
+	return UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Shrines: domain.Known([]AncientShrine{}), Structures: domain.Known([]UpkeepStructure{}), Fires: domain.Known([]UpkeepFire{}), Filth: domain.Known([]UpkeepFilth{}), Lighting: domain.Known(LightingObservation{}), Flooring: domain.Known(FlooringObservation{}), Routes: domain.Known(RoutesObservation{})}
 }
 func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	v := emptyUpkeep()
-	v.Items = domain.Known([]UpkeepItem{
-		{ID: "wood", Definition: "WoodLog", Deterioration: 1, Count: 30},
-		{ID: "meal", Definition: "MealSimple", Deterioration: 1, RotTicks: domain.Known(int64(10)), Count: 2},
-		{ID: "medicine", Definition: "MedicineHerbal", Deterioration: 1, Medicine: true, Count: 5},
-		{ID: "forbidden", Definition: "Steel", Deterioration: 1, Forbidden: true, Count: 50},
-		{ID: "safe", Definition: "Steel", Deterioration: 1, Roofed: true, InStorage: true, Count: 50},
-		{ID: "steel", Definition: "Steel", Count: 50},
-		{ID: "stored-outdoors", Definition: "Steel", InStorage: true, Count: 50},
-	})
 	v.Structures = domain.Known([]UpkeepStructure{
 		{ID: "wall", Home: true, HitPoints: 2, MaxHitPoints: 100, Priority: 1},
 		{ID: "heater", Home: true, HitPoints: 99, MaxHitPoints: 100},
@@ -42,10 +33,10 @@ func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range [][]string{{"a", "b"}, {"medicine", "meal", "wood"}, {"heater", "wall", "door"}, {"b"}, {"steel"}} {
+	for i, want := range [][]string{{"a", "b"}, {"heater", "wall", "door"}, {"b"}} {
 		got, known := r.Needs[i].Targets.Value()
 		metric, mk := r.Needs[i].Metric.Value()
-		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 37, 149, 2, 50}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
+		if !known || !reflect.DeepEqual(got, want) || !mk || metric != []float64{1.5, 149, 2}[i] || !r.Needs[i].Active || r.Needs[i].Unsafe {
 			t.Fatal(r.Needs[i])
 		}
 	}
@@ -60,7 +51,7 @@ func TestUpkeepUnknownRetainsRiskAndIssuedWork(t *testing.T) {
 			t.Fatal("unknown created emergency", n)
 		}
 	}
-	history := UpkeepHistory{Fire: true, Supplies: true, Repairs: true, Cleaning: true, Storage: true}
+	history := UpkeepHistory{Fire: true, Repairs: true, Cleaning: true}
 	r, err = ReviewUpkeep(UpkeepObservation{}, history, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -68,11 +59,11 @@ func TestUpkeepUnknownRetainsRiskAndIssuedWork(t *testing.T) {
 	if !reflect.DeepEqual(r.History, history) || r.Needs[0].Priority != 1 || r.Needs[1].Priority != 3 {
 		t.Fatal(r)
 	}
-	r, err = ReviewUpkeep(emptyUpkeep(), history, map[GoalID]bool{SecureSupplies: true})
+	r, err = ReviewUpkeep(emptyUpkeep(), history, map[GoalID]bool{MaintainEssentialRepairs: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(r.History, UpkeepHistory{Supplies: true}) {
+	if !reflect.DeepEqual(r.History, UpkeepHistory{Repairs: true}) {
 		t.Fatal("empty census cleared unfinished shared work", r)
 	}
 	r, err = ReviewUpkeep(emptyUpkeep(), r.History, nil)
@@ -99,10 +90,6 @@ func TestUpkeepRejectsContradictoryNativeFacts(t *testing.T) {
 		func(v *UpkeepObservation) { v.Fires = domain.Known([]UpkeepFire{{ID: "a"}, {ID: "a"}}) },
 		func(v *UpkeepObservation) {
 			v.Fires = domain.Known([]UpkeepFire{{ID: "a", Size: domain.Known(math.NaN())}})
-		},
-		func(v *UpkeepObservation) { v.Items = domain.Known([]UpkeepItem{{ID: "a", Count: -1}}) },
-		func(v *UpkeepObservation) {
-			v.Items = domain.Known([]UpkeepItem{{ID: "a", Deterioration: math.Inf(1)}})
 		},
 		func(v *UpkeepObservation) {
 			v.Structures = domain.Known([]UpkeepStructure{{ID: "a", HitPoints: 2, MaxHitPoints: 1}})

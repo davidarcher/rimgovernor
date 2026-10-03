@@ -53,7 +53,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -413,7 +412,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 			if lastTick >= startTick+m.p.ticks {
 				return na.Signature(lastTick), true, nil
 			}
-			workDone, err = stageWorkDone(ctx, journal, review, planIDs)
+			workDone, err = stageWorkDone(ctx, journal, planIDs)
 			if err != nil {
 				return "", false, err
 			}
@@ -570,11 +569,9 @@ func (m *matrix) submitWalls(service *na.ServiceProcess, prefix string, identity
 }
 
 // stageWorkDone reports whether the stage has run out of work: every wall
-// plan has observed its building completed and the routine review holds no
-// MaintainStorage goal still active in deficit (a satisfied goal may have
-// retired its binding). After that the clock scheduler refuses every window
+// plan has observed its building completed. After that the clock scheduler refuses every window
 // as no_work and the review tick no longer advances.
-func stageWorkDone(ctx context.Context, s *store.Store, review store.RoutineReview, walls []domain.PlanID) (bool, error) {
+func stageWorkDone(ctx context.Context, s *store.Store, walls []domain.PlanID) (bool, error) {
 	for _, id := range walls {
 		state, err := s.LoadPlan(ctx, id)
 		if err != nil {
@@ -592,27 +589,11 @@ func stageWorkDone(ctx context.Context, s *store.Store, review store.RoutineRevi
 			}
 		}
 	}
-	for _, binding := range review.Goals {
-		if binding.Need != policy.MaintainStorage {
-			continue
-		}
-		goal, err := s.LoadGoal(ctx, binding.Goal)
-		if err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				continue
-			}
-			return false, err
-		}
-		if goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
-			return false, nil
-		}
-	}
 	return true, nil
 }
 
 // countUnsuccessful counts Unsuccessful action stages over the wall plans
-// and every routine goal method the service dispatched (the haul family's
-// MaintainStorage among them). LoadPlan sees retired plans; LoadPlans would
+// and every routine goal method the service dispatched. LoadPlan sees retired plans; LoadPlans would
 // hide them.
 func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanID) (int, int, error) {
 	seen := map[domain.PlanID]bool{}

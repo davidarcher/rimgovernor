@@ -234,7 +234,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	research := sc.researchPlans()
 	hospital := sc.routineHospitalPlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
-	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
+	repair, clean, gear, medical, foodStorageUpkeep := sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
 	refrigeration := sc.routineRefrigerationPlans
 	fireSafety := sc.routineFireSafetyPlans
 	lighting := sc.routineLightingPlans
@@ -245,7 +245,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	animalFeedPlans := sc.routineAnimalFeedPlans
 	fields, bills := sc.routineFieldPlans, sc.routineBillPlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
-	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
+	waste, moodRelief, naming, dialog, trade := sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
 	blight, pollution, mechCharger := sc.routineBlightPlans, sc.routinePollutionPlans, sc.routineMechChargerPlans
 	armory := sc.routineArmoryPlans
 	clearance := sc.routineClearancePlans
@@ -277,7 +277,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || pollution || mechCharger || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -420,18 +420,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		if secureSupplies {
-			secureSuppliesNative, ok := reads.(buildingruntime.RoutineSecureSuppliesSource)
-			if !ok {
-				return nil, errors.New("secure supplies plans require typed colony and tend observations")
-			}
-			config.SecureSupplies, err = buildingruntime.NewRoutineSecureSuppliesPlanner(reviewer, secureSuppliesNative)
-			if err != nil {
-				return nil, err
-			}
-		}
 		// Shelves (#721) serve the stockpiles the goal methods create.
-		if secureSupplies {
+		if stockpiles {
 			if shelvesNative, ok := reads.(buildingruntime.RoutineStorageShelvesSource); ok {
 				if config.StorageShelves, err = buildingruntime.NewRoutineStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
 					return nil, err
@@ -464,16 +454,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("clean plans require typed colony and tend observations")
 			}
 			config.Clean, err = buildingruntime.NewRoutineCleanPlanner(reviewer, cleanNative)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if haul {
-			haulNative, ok := reads.(buildingruntime.RoutineHaulSource)
-			if !ok {
-				return nil, errors.New("haul plans require typed colony and tend observations")
-			}
-			config.Haul, err = buildingruntime.NewRoutineHaulPlanner(reviewer, haulNative)
 			if err != nil {
 				return nil, err
 			}
@@ -973,9 +953,6 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineAnimalContainmentPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalContainment)
 	}
-	if sc.routineSecureSuppliesPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.SecureSupplies)
-	}
 	if sc.routineRepairPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainEssentialRepairs)
 	}
@@ -984,9 +961,6 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineCleanPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainCleanFacilities)
-	}
-	if sc.routineHaulPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainStorage)
 	}
 	if sc.routineWastePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)

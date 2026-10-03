@@ -11,19 +11,16 @@ import (
 // Every family whose planner acts only while the development ranking
 // selected its goal must declare that goal as a method capability; a family
 // that wires the planner without declaring the goal ranks it
-// method_unavailable on every review and never dispatches (the secure-supplies
-// family shipped that way, #2).
+// method_unavailable on every review and never dispatches.
 func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		family string
 		goal   policy.GoalID
 	}{
-		{"secure-supplies", policy.SecureSupplies},
 		{"repair", policy.MaintainEssentialRepairs},
 		{"fire", policy.MaintainFireSafety},
 		{"clean", policy.MaintainCleanFacilities},
-		{"haul", policy.MaintainStorage},
 		{"waste", policy.MaintainWaste},
 		{"pollution", policy.ManagePollution},
 		{"mechcharger", policy.EnsureMechCharger},

@@ -66,18 +66,11 @@ func TestReplayHomeFireIsAnEmergencyUntilOut(t *testing.T) {
 // walled off from every worker. Both deficits stay visible rather than
 // being dropped as unreachable.
 func TestReplayUnreachableUpkeepStaysInDeficit(t *testing.T) {
-	for _, goal := range []policy.GoalID{policy.SecureSupplies, policy.MaintainEssentialRepairs} {
+	for _, goal := range []policy.GoalID{policy.MaintainEssentialRepairs} {
 		if a := assess(t, "testdata/upkeep-blocked.json", goal); a.Need != domain.NeedDeficit {
 			t.Errorf("%s %+v, want deficit", goal, a)
 		}
 	}
-}
-
-// upkeep/storage-missing, ticks 62208 and 64083: exposed medicine with no
-// storage accepting it keeps SecureSupplies open until the fallback
-// stockpile holds it.
-func TestReplayExposedMedicineSecuredInCreatedStorage(t *testing.T) {
-	transition(t, "testdata/upkeep-storage-missing-exposed.json", "testdata/upkeep-storage-missing-stored.json", policy.SecureSupplies)
 }
 
 // upkeep/medicine, ticks 153652 and 161964: every medicine destroyed opens
@@ -157,13 +150,12 @@ func TestReplayStoneShellReplacesOwnedWoodWall(t *testing.T) {
 }
 
 // upkeep/scattered, ticks 15 and 13749: medicine outdoors beside a covered
-// stockpile and a half-damaged Home wall open SecureSupplies and
-// MaintainEssentialRepairs until both are observed secured and repaired;
+// stockpile and a half-damaged Home wall opens
+// MaintainEssentialRepairs until observed repaired;
 // the outdoor dirt lies outside any workspace, so MaintainCleanFacilities
 // never opens.
 func TestReplayScatteredSuppliesSecuredAndWallRepaired(t *testing.T) {
 	const open, closed = "testdata/upkeep-scattered.json", "testdata/upkeep-scattered-secured.json"
-	transition(t, open, closed, policy.SecureSupplies)
 	transition(t, open, closed, policy.MaintainEssentialRepairs)
 	for _, path := range []string{open, closed} {
 		if a := assess(t, path, policy.MaintainCleanFacilities); a.Need == domain.NeedDeficit {

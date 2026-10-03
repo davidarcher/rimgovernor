@@ -66,8 +66,6 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	}
 	// A stockpile zone is created one per method in this slice, unlike the
 	// bounded batches of growing-field zones EnsureFoodSupply may dispatch.
-	// SecureSupplies
-	// places its covered-storage fallback (routine_secure_supplies.go);
 	// MaintainResource places the production ladder's ingredient stockpile
 	// beside the bench (routine_ingredient_storage.go, #155: the rung was
 	// refused here on every live run before it was bound); MaintainAnimalFeed
@@ -81,7 +79,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	needs := []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
+		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
 	}
 	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() {
 		return ErrConflict

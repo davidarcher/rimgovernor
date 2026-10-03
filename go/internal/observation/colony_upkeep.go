@@ -10,21 +10,6 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// upkeepItemDef is the game's base DeteriorationRate of def made of the stuff
-// of the item's thing row, and whether def is medicine, from the catalog.
-func upkeepItemDef(tables bridge.Tables, item bridge.Reference, def string) (deterioration float64, medicine bool, err error) {
-	row, ok := tables.Things.Row(item)
-	if !ok {
-		return 0, false, fmt.Errorf("upkeep item %s has no thing row", item.GetId())
-	}
-	rate, err := tables.Catalog.StatValue(def, row.GetStuff(), bridge.StatDeteriorationRate)
-	if err != nil {
-		return 0, false, err
-	}
-	medicine, err = tables.Catalog.Medicine(def)
-	return float64(rate), medicine, err
-}
-
 // colonyUpkeep decodes the upkeep censuses. A census whose frame lacks a field
 // is unknown; one that needs a def the catalog cannot answer for is an error
 // naming the census and the def, never an unknown.
@@ -34,28 +19,6 @@ func colonyUpkeep(v *o.ColonyFactsSnapshot, tables bridge.Tables) (policy.Upkeep
 	u := v.GetUpkeep().GetObserved()
 	if u == nil {
 		return r, nil
-	}
-	if !hasIssue(u.Issues, "items") && headed(tables, u.Items, (*o.UpkeepItem).GetItem) {
-		rows := []policy.UpkeepItem{}
-		known := true
-		for _, item := range u.Items {
-			if item.Roofed == nil || item.InStorage == nil || item.Forbidden == nil || item.Count == nil {
-				known = false
-				break
-			}
-			head := tables.Entity(item.Item)
-			// What the item's def says about it, and the game's base
-			// deterioration of the def made of the item's stuff, are the
-			// catalog's (#1733).
-			deterioration, medicine, err := upkeepItemDef(tables, item.Item, head.GetDefName())
-			if err != nil {
-				return r, fmt.Errorf("upkeep items census: %w", err)
-			}
-			rows = append(rows, policy.UpkeepItem{ID: item.Item.GetId(), Definition: head.GetDefName(), Cell: domain.Cell{X: head.GetPosition().GetX(), Z: head.GetPosition().GetZ()}, Roofed: item.GetRoofed(), InStorage: item.GetInStorage(), Forbidden: item.GetForbidden(), Deterioration: deterioration, Medicine: medicine, Count: item.GetCount(), RotTicks: optional(item.RotTicks)})
-		}
-		if known {
-			r.Items = domain.Known(rows)
-		}
 	}
 	if !hasIssue(u.Issues, "structures") {
 		rows := []policy.UpkeepStructure{}

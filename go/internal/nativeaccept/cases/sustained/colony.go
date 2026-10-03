@@ -44,7 +44,7 @@ var ColonyGoals = []policy.GoalID{
 	policy.MaintainHousing, policy.MaintainFoodStorage, policy.EnsureCooking,
 	policy.EnsureTemperatureSafety, policy.MaintainResource,
 	policy.EnsureWorkAssignments, policy.EnsureBasicDefense, policy.EnsureResearch,
-	policy.EnsureComfort, policy.MaintainStorage, policy.MaintainEssentialRepairs,
+	policy.EnsureComfort, policy.MaintainEssentialRepairs,
 }
 
 func init() {

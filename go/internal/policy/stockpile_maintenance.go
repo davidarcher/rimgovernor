@@ -149,7 +149,7 @@ type StockpileRequest struct {
 	// Incinerator is the planner's incinerator site for layout (#1814); the
 	// review itself does not read it.
 	Incinerator IncineratorSite
-	// Shells are the planned storage-planner rooms (the armory and wardrobe,
+	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
 	// #1774) not yet standing: each is a StockpileShell edit.
 	Shells []ModuleRole
 	// Opening stands the opening stockpiles (general store, corpse dump)

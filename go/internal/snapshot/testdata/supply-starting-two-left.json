@@ -10004,185 +10004,6 @@
      "TrafficSamples": 13491
     }
    },
-   "Items": {
-    "v": [
-     {
-      "Cell": {
-       "X": 113,
-       "Z": 129
-      },
-      "Count": 200,
-      "Definition": "Silver",
-      "ID": "Thing_Silver5158"
-     },
-     {
-      "Cell": {
-       "X": 111,
-       "Z": 124
-      },
-      "Count": 20,
-      "Definition": "MedicineHerbal",
-      "Deterioration": 6,
-      "ID": "Thing_MedicineHerbal5160",
-      "Medicine": true,
-      "RotTicks": {
-       "v": 8932901
-      }
-     },
-     {
-      "Cell": {
-       "X": 115,
-       "Z": 123
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Club",
-      "Deterioration": 2,
-      "ID": "Thing_MeleeWeapon_Club5161"
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 127
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Ikwa",
-      "Deterioration": 2,
-      "ID": "Thing_MeleeWeapon_Ikwa5162"
-     },
-     {
-      "Cell": {
-       "X": 110,
-       "Z": 120
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Knife",
-      "Deterioration": 2,
-      "ID": "Thing_MeleeWeapon_Knife5163"
-     },
-     {
-      "Cell": {
-       "X": 109,
-       "Z": 121
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "ID": "Thing_Bow_Short5164"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 123
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "ID": "Thing_Bow_Short5165"
-     },
-     {
-      "Cell": {
-       "X": 114,
-       "Z": 129
-      },
-      "Count": 1,
-      "Definition": "Pila",
-      "Deterioration": 2,
-      "ID": "Thing_Pila5166"
-     },
-     {
-      "Cell": {
-       "X": 95,
-       "Z": 114
-      },
-      "Count": 31,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5175"
-     },
-     {
-      "Cell": {
-       "X": 94,
-       "Z": 120
-      },
-      "Count": 14,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5176"
-     },
-     {
-      "Cell": {
-       "X": 93,
-       "Z": 120
-      },
-      "Count": 31,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5178"
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 124
-      },
-      "Count": 12,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5179"
-     },
-     {
-      "Cell": {
-       "X": 119,
-       "Z": 124
-      },
-      "Count": 70,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5180"
-     },
-     {
-      "Cell": {
-       "X": 119,
-       "Z": 128
-      },
-      "Count": 66,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog5181"
-     },
-     {
-      "Cell": {
-       "X": 122,
-       "Z": 124
-      },
-      "Count": 51,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5182"
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 137
-      },
-      "Count": 50,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5183"
-     },
-     {
-      "Cell": {
-       "X": 116,
-       "Z": 126
-      },
-      "Count": 2,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog45494"
-     }
-    ]
-   },
    "Lighting": {
     "v": {
      "Lamps": [],
@@ -12847,10 +12668,7 @@
   "MedicalReserve": true,
   "Sleeping": true,
   "StoneShell": true,
-  "Upkeep": {
-   "Storage": true,
-   "Supplies": true
-  },
+  "Upkeep": {},
   "Wood": true
  },
  "Policy": {
@@ -13174,17 +12992,6 @@
     },
     {
      "Deficit": 1,
-     "Goal": "SecureSupplies",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 183.003,
-     "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
      "Goal": "MaintainFlooring",
      "Labor": [
       "Construction"
@@ -13217,17 +13024,6 @@
      "Risk": 0,
      "Score": 165.374,
      "WaitingSince": 15
-    },
-    {
-     "Deficit": 1,
-     "Goal": "MaintainStorage",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 108.063,
-     "WaitingSince": 74955
     },
     {
      "Deficit": 0.16666666666666666,
@@ -13433,20 +13229,12 @@
     "Need": "MaintainFireSafety"
    },
    {
-    "Goal": "routine-69c4ddc65761f9c6-SecureSupplies",
-    "Need": "SecureSupplies"
-   },
-   {
     "Goal": "routine-69c4ddc65761f9c6-MaintainEssentialRepairs",
     "Need": "MaintainEssentialRepairs"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-MaintainCleanFacilities",
     "Need": "MaintainCleanFacilities"
-   },
-   {
-    "Goal": "routine-69c4ddc65761f9c6-MaintainStorage",
-    "Need": "MaintainStorage"
    },
    {
     "Goal": "routine-69c4ddc65761f9c6-ClearHomeObstructions",
@@ -13535,10 +13323,7 @@
    "MedicalReserve": true,
    "Sleeping": true,
    "StoneShell": true,
-   "Upkeep": {
-    "Storage": true,
-    "Supplies": true
-   },
+   "Upkeep": {},
    "Wood": true
   },
   "MedicalCare": {
@@ -13707,41 +13492,11 @@
    },
    {
     "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "SecureSupplies",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "MaintainCleanFacilities",
     "LastProgress": 83018,
     "Method": "assess",
     "NextReview": 85518
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 85518
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "MaintainStorage",
-    "LastProgress": 83018,
-    "Method": "assess",
-    "NextReview": 85518,
-    "Observed": 1
    },
    {
     "Blocked": "no_method",
@@ -14117,9 +13872,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
-      "SecureSupplies"
-     ],
+     "Goals": [],
      "ID": "41b9eaef06620d35",
      "Reason": "no plan or proposal",
      "Stage": "none",
@@ -14227,9 +13980,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
-      "MaintainStorage"
-     ],
+     "Goals": [],
      "ID": "e02ebf5505159d89",
      "Reason": "no plan or proposal",
      "Stage": "none",

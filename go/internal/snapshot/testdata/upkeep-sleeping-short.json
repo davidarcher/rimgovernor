@@ -26663,241 +26663,6 @@
      "TrafficSamples": 3799
     }
    },
-   "Items": {
-    "v": [
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 120
-      },
-      "Count": 25,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5159",
-      "RotTicks": {
-       "v": 4164304
-      }
-     },
-     {
-      "Cell": {
-       "X": 111,
-       "Z": 124
-      },
-      "Count": 20,
-      "Definition": "MedicineHerbal",
-      "Deterioration": 6,
-      "Forbidden": true,
-      "ID": "Thing_MedicineHerbal5160",
-      "Medicine": true,
-      "RotTicks": {
-       "v": 8964304
-      }
-     },
-     {
-      "Cell": {
-       "X": 115,
-       "Z": 123
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Club",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Club5161"
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 127
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Ikwa",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Ikwa5162"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 120
-      },
-      "Count": 1,
-      "Definition": "MeleeWeapon_Knife",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_MeleeWeapon_Knife5163"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 121
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Bow_Short5164"
-     },
-     {
-      "Cell": {
-       "X": 108,
-       "Z": 124
-      },
-      "Count": 1,
-      "Definition": "Bow_Short",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Bow_Short5165"
-     },
-     {
-      "Cell": {
-       "X": 114,
-       "Z": 129
-      },
-      "Count": 1,
-      "Definition": "Pila",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pila5166"
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5170",
-      "RotTicks": {
-       "v": 4164297
-      }
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5171",
-      "RotTicks": {
-       "v": 4164297
-      }
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 120
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5172",
-      "RotTicks": {
-       "v": 4164297
-      }
-     },
-     {
-      "Cell": {
-       "X": 117,
-       "Z": 118
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5173",
-      "RotTicks": {
-       "v": 4164297
-      }
-     },
-     {
-      "Cell": {
-       "X": 116,
-       "Z": 119
-      },
-      "Count": 75,
-      "Definition": "Pemmican",
-      "Deterioration": 2,
-      "Forbidden": true,
-      "ID": "Thing_Pemmican5174",
-      "RotTicks": {
-       "v": 4164297
-      }
-     },
-     {
-      "Cell": {
-       "X": 95,
-       "Z": 114
-      },
-      "Count": 52,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5175"
-     },
-     {
-      "Cell": {
-       "X": 94,
-       "Z": 120
-      },
-      "Count": 61,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5176"
-     },
-     {
-      "Cell": {
-       "X": 97,
-       "Z": 115
-      },
-      "Count": 54,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5177"
-     },
-     {
-      "Cell": {
-       "X": 93,
-       "Z": 120
-      },
-      "Count": 51,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5178"
-     },
-     {
-      "Cell": {
-       "X": 118,
-       "Z": 137
-      },
-      "Count": 50,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "Forbidden": true,
-      "ID": "Thing_WoodLog5183"
-     },
-     {
-      "Cell": {
-       "X": 122,
-       "Z": 130
-      },
-      "Count": 30,
-      "Definition": "WoodLog",
-      "Deterioration": 0.5,
-      "ID": "Thing_WoodLog44723",
-      "Roofed": true
-     }
-    ]
-   },
    "Lighting": {
     "v": {
      "Lamps": [
@@ -29974,9 +29739,7 @@
   "MedicalReserve": true,
   "Sleeping": true,
   "StoneShell": true,
-  "Upkeep": {
-   "Supplies": true
-  },
+  "Upkeep": {},
   "Wood": true
  },
  "Policy": {
@@ -30395,17 +30158,6 @@
      "WaitingSince": 15
     },
     {
-     "Deficit": 1,
-     "Goal": "SecureSupplies",
-     "Labor": [
-      "Hauling"
-     ],
-     "Reason": "method_unavailable",
-     "Risk": 0,
-     "Score": 140.331,
-     "WaitingSince": 15
-    },
-    {
      "Goal": "ClearAncientShrine",
      "Labor": [
       "Construction"
@@ -30739,20 +30491,12 @@
     "Need": "MaintainFireSafety"
    },
    {
-    "Goal": "routine-eb99163e6625776b-SecureSupplies",
-    "Need": "SecureSupplies"
-   },
-   {
     "Goal": "routine-eb99163e6625776b-MaintainEssentialRepairs",
     "Need": "MaintainEssentialRepairs"
    },
    {
     "Goal": "routine-eb99163e6625776b-MaintainCleanFacilities",
     "Need": "MaintainCleanFacilities"
-   },
-   {
-    "Goal": "routine-eb99163e6625776b-MaintainStorage",
-    "Need": "MaintainStorage"
    },
    {
     "Goal": "routine-eb99163e6625776b-ClearHomeObstructions",
@@ -30843,9 +30587,7 @@
    "MedicalReserve": true,
    "Sleeping": true,
    "StoneShell": true,
-   "Upkeep": {
-    "Supplies": true
-   },
+   "Upkeep": {},
    "Wood": true
   },
   "MedicalCare": {
@@ -30973,21 +30715,6 @@
     ],
     "Expected": "deficit shrinks or the method's work settles",
     "Goal": "MaintainResource",
-    "LastProgress": 38602,
-    "Method": "assess",
-    "NextReview": 41102,
-    "Observed": 1
-   },
-   {
-    "Blocked": "no_method",
-    "Cooldowns": [
-     {
-      "Key": "assess/no_method",
-      "Until": 41102
-     }
-    ],
-    "Expected": "deficit shrinks or the method's work settles",
-    "Goal": "SecureSupplies",
     "LastProgress": 38602,
     "Method": "assess",
     "NextReview": 41102,
@@ -31193,9 +30920,7 @@
     },
     {
      "Adapter": "migrated",
-     "Goals": [
-      "SecureSupplies"
-     ],
+     "Goals": [],
      "ID": "78d80e10938f0d91",
      "Reason": "no plan or proposal",
      "Stage": "none",

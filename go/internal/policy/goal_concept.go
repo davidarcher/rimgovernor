@@ -46,7 +46,6 @@ var goalConcepts = map[GoalID]Concept{
 	EnsureComfort:             ConceptStandard,
 	MaintainHousing:           ConceptStandard,
 	ManageSupplySafety:        ConceptStandard,
-	SecureSupplies:            ConceptStandard,
 	ClearPests:                ConceptStandard,
 	MaintainAnimalContainment: ConceptStandard,
 	MaintainAnimalFeed:        ConceptStandard,
@@ -76,7 +75,6 @@ var goalConcepts = map[GoalID]Concept{
 	MaintainResource:          ConceptStandard,
 	MaintainRoutes:            ConceptStandard,
 	MaintainStoneShell:        ConceptStandard,
-	MaintainStorage:           ConceptStandard,
 }
 
 // GoalConcept classifies id. Rules carry no GoalID, so no id maps to

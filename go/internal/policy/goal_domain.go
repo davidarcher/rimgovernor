@@ -64,10 +64,8 @@ var goalDomains = map[GoalID]Domain{
 	MaintainPopulation:    DomainPeople,
 
 	AllowStartingSupplies:    DomainUpkeep,
-	SecureSupplies:           DomainUpkeep,
 	ManageSupplySafety:       DomainUpkeep,
 	MaintainStockpiles:       DomainUpkeep,
-	MaintainStorage:          DomainUpkeep,
 	TradeWithCaravan:         DomainUpkeep,
 	MaintainWaste:            DomainUpkeep,
 	TidyLayout:               DomainUpkeep,

@@ -148,7 +148,6 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 	if err != nil {
 		return policy.DevelopmentState{}, policy.ReadyWorkReport{}, nil, err
 	}
-	dependencies = append(dependencies, policy.StockpileDependencies(r.Facts.Stockpiles)...)
 	goals := append([]policy.DevelopmentGoal(nil), needs.Goals...)
 	for i := range goals {
 		for j, b := range bindings {

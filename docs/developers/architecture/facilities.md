@@ -36,7 +36,7 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    chunks) on the free roofed 2x2 patch in the bench's room nearest it by
    walking distance. Hauling then brings the inputs to the bench. Once
    ComplexFurniture is researched, `RoutineStorageShelvesPlanner` places a
-   Shelf inside the SecureSupplies general store (and the ingredient zones
+   Shelf inside the planner's general store (and the ingredient zones
    `MaintainResource` created before the planner took them over), up to
    a third of its footprint; `MaintainStockpiles` patches each built shelf
    with the zone's desired filter and priority (role `shelf:<buildingID>`)

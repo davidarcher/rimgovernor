@@ -56,7 +56,7 @@ func TestPlannerSelectionByReason(t *testing.T) {
 		{"settled", StepReason{Cause: StepSettled}, true, all},
 		{"timer nothing due", StepReason{Cause: StepTimer}, false, nil},
 		{"timer tick advanced, nothing due", StepReason{Cause: StepTimer, TickAdvanced: true}, false, nil},
-		{"wake haul", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "haul-1", Attempt: 1, Terminal: true}}}, true, []string{"secureSupplies", "haul", "foodStorageUpkeep"}},
+		{"wake haul", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "haul-1", Attempt: 1, Terminal: true}}}, true, []string{"foodStorageUpkeep"}},
 		{"wake research family", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}}, true, []string{"armory", "research"}},
 		{"wake bills section", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Bills}}, true, []string{"cookingBills", "preservationBills", "butcherBills", "cookAheadBills", "artBills", "babyFoodBills", "surgeryPartBills", "mechBills", "armory", "resource"}},
 		{"wake unknown kind", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "ghost", Attempt: 1}}}, true, all},
@@ -72,8 +72,8 @@ func TestPlannerSelectionByReason(t *testing.T) {
 	// A timer step selects the planners whose review tick has passed and
 	// leaves the rest to their cadence.
 	q := newPlannerQueue()
-	q.due["haul"], q.due["tend"] = 100, 200
-	if planners, got := selectedPlannersAt(StepReason{Cause: StepTimer}, kindOf, q, 150); !planners || !reflect.DeepEqual(got, []string{"haul"}) {
+	q.due["repair"], q.due["tend"] = 100, 200
+	if planners, got := selectedPlannersAt(StepReason{Cause: StepTimer}, kindOf, q, 150); !planners || !reflect.DeepEqual(got, []string{"repair"}) {
 		t.Fatal(planners, got)
 	}
 	// A building wake selects every construction planner (research stages

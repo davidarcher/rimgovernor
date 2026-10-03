@@ -56,7 +56,6 @@ type serveConfig struct {
 	routineTendPlans                bool
 	routineRescuePlans              bool
 	routineEquipPlans               bool
-	routineSecureSuppliesPlans      bool
 	routineRepairPlans              bool
 	routineFireSafetyPlans          bool
 	routineCleanPlans               bool
@@ -70,7 +69,6 @@ type serveConfig struct {
 	routineTidyPlans                bool
 	routineStockpilePlans           bool
 	routineMoodPlans                bool
-	routineHaulPlans                bool
 	routineGearPlans                bool
 	routineMedicalPlans             bool
 	routineFoodStorageUpkeepPlans   bool
@@ -274,7 +272,6 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"tend", &c.routineTendPlans},
 		{"rescue", &c.routineRescuePlans},
 		{"equip", &c.routineEquipPlans},
-		{"secure-supplies", &c.routineSecureSuppliesPlans},
 		{"repair", &c.routineRepairPlans},
 		{"fire", &c.routineFireSafetyPlans},
 		{"clean", &c.routineCleanPlans},
@@ -288,7 +285,6 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"tidy", &c.routineTidyPlans},
 		{"stockpiles", &c.routineStockpilePlans},
 		{"mood", &c.routineMoodPlans},
-		{"haul", &c.routineHaulPlans},
 		{"gear", &c.routineGearPlans},
 		{"medical", &c.routineMedicalPlans},
 		{"food-storage-upkeep", &c.routineFoodStorageUpkeepPlans},
