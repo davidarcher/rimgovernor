@@ -40,6 +40,12 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    with the zone's desired filter and priority (role `shelf:<buildingID>`)
    and again whenever those change. Native storage capacity
    counts a shelf cell's free slots (three stacks per cell).
+   The room-bound stockpiles (meal store, the freezer's raw meat, raw
+   vegetable and corpse shelves and perishables catch-all, the tomb) come from
+   one deterministic function, `policy.PlanStorage`, over the layout plan, room
+   census and planning cells; its `StockpileSite`s are the standing-zone diff
+   `MaintainStockpiles` applies, and the role registry supplies each role's
+   filter and priority. The plan is derived each pass and stored nowhere.
 6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. Native
    applies a bill on an unfueled bench (`UsableForBillsAfterFueling`):

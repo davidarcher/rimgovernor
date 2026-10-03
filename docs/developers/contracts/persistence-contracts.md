@@ -63,7 +63,10 @@ Routine goals are re-derived from observation every review. A world change
 bindings, cancels their pending work and starts a fresh review under the new
 world's root plan; only work already dispatched keeps its recovery
 requirement. A pause in the same world suspends the bindings and leaves
-their work open; the next enabled review reactivates the same goals. Durable goals come back from the save blobs, so nothing here needs a
+their work open; the next enabled review reactivates the same goals. The
+storage plan (`policy.PlanStorage`, the desired room-bound stockpile sites)
+is re-derived the same way every `MaintainStockpiles` pass; the standing
+zones are its only record. Durable goals come back from the save blobs, so nothing here needs a
 restore step.
 
 ## Bounded working set
