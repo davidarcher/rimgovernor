@@ -12,13 +12,6 @@ func syncMain(worktree, mainCheckout string) error {
 		fmt.Printf("origin/main not fetched (%v); landing on local main as it is\n", err)
 		return nil
 	}
-	// Cloud sessions clone shallow, so ancestry between a snapshot-era main
-	// and origin/main cannot be proven and every main looks diverged.
-	if out, _ := git(worktree, "rev-parse", "--is-shallow-repository"); out == "true" {
-		if _, err := git(worktree, "fetch", "--unshallow", "origin", "main"); err != nil {
-			return fmt.Errorf("unshallowing the clone to compare main with origin/main: %w", err)
-		}
-	}
 	if _, err := git(worktree, "merge-base", "--is-ancestor", "origin/main", "main"); err == nil {
 		return nil // main already contains origin/main
 	}
