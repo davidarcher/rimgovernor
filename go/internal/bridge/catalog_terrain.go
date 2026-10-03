@@ -52,5 +52,5 @@ func (catalog *DefinitionCatalog) FloorTerrain(name string) (policy.FloorTerrain
 		}
 		stats[i] = value
 	}
-	return policy.FloorTerrain{Cleanliness: float64(stats[0]), Beauty: float64(stats[1]), Flammability: float64(stats[2]), PathCost: row.GetPathCost(), Natural: row.GetNatural()}, nil
+	return policy.FloorTerrain{Cleanliness: float64(stats[0]), Beauty: float64(stats[1]), Flammability: float64(stats[2]), PathCost: row.GetPathCost(), Fertility: float64(row.GetFertility()), Natural: row.GetNatural()}, nil
 }

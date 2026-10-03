@@ -8,10 +8,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // NewRoutineFlooringPlanner composes MaintainFlooring's building method: lay
@@ -36,6 +39,38 @@ func (r *RoutineBuildingPlanner) SetFirebreakPave(pave func() []domain.Cell) {
 	r.firebreakPave = pave
 }
 
+// incineratorFloor reads the terrain under the standing incinerator's
+// interior (#1821): the native flooring census lists only roofed rooms, so
+// the nine cells come from one defense-site read. Nil when no incinerator
+// stands, the source cannot read a site, or a cell is fogged or stands on
+// terrain the catalog does not price.
+func (r *RoutineBuildingPlanner) incineratorFloor(call context.Context, current domain.GenerationSnapshot, facts observation.ColonyProjection, terrains map[string]policy.FloorTerrain) ([]policy.FloorCell, error) {
+	room := standingIncinerator(facts)
+	reader, ok := r.native.(interface {
+		ReadDefenseSite(context.Context, *c.Identity, bridge.CellRect) (bridge.DefenseSite, bridge.Result, error)
+	})
+	if room == nil || !ok {
+		return nil, nil
+	}
+	in := room.Interior
+	region := bridge.CellRect{Min: domain.Cell{X: in.X, Z: in.Z}, Max: domain.Cell{X: in.X + in.Width - 1, Z: in.Z + in.Height - 1}}
+	site, _, err := reader.ReadDefenseSite(call, boundary.Identity(current), region)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = boundary.Context(site.Context, current); err != nil || domain.Tick(site.Context.GetTick()) < facts.Identity.Tick {
+		return nil, fmt.Errorf("%w: incinerator floor: defense site context", ErrControl)
+	}
+	var out []policy.FloorCell
+	for _, cell := range site.Cells {
+		if _, priced := terrains[cell.Terrain]; cell.Fogged || !priced {
+			return nil, nil
+		}
+		out = append(out, policy.FloorCell{Cell: cell.Cell, Terrain: cell.Terrain})
+	}
+	return out, nil
+}
+
 // flooringDefinitions lists every floor the policy may choose so the census
 // read carries each one's availability, stats and cost list, the entry floors included.
 func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
@@ -52,11 +87,17 @@ func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
 // selectFlooring re-reviews the fresh census under the review's latch and
 // maps the policy outcome onto the planner: a build resolves the floor
 // definition and its cells, everything else is a reason.
-func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
+func (r *RoutineBuildingPlanner) selectFlooring(call context.Context, current domain.GenerationSnapshot, facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
 	p := r.reviewer.policy.Flooring
 	census := trafficFlooringFacts(facts, p)
-	if v, known := census.Value(); known && r.firebreakPave != nil {
-		v.Firebreak = r.firebreakPave()
+	if v, known := census.Value(); known {
+		if r.firebreakPave != nil {
+			v.Firebreak = r.firebreakPave()
+		}
+		var err error
+		if v.Incinerator, err = r.incineratorFloor(call, current, facts, v.Terrains); err != nil {
+			return nil, Verdict{}, err
+		}
 		census = domain.Known(v)
 	}
 	logTrafficFindings(census)

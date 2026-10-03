@@ -54,7 +54,17 @@ const (
 	// FloorTierFirebreak covers the firebreak ring's settled pave cells
 	// (#1549): the cheapest affordable floor with zero flammability.
 	FloorTierFirebreak FloorTier = "firebreak"
+	// FloorTierIncinerator covers the standing incinerator's interior
+	// (#1821): every cell needs ground that neither burns nor grows (zero
+	// flammability and fertility) so the burn leaves nothing to spread on.
+	FloorTierIncinerator FloorTier = "incinerator"
 )
+
+// incineratorKey is the latch key of the single incinerator deficit.
+const incineratorKey = "incinerator"
+
+// fireproof is true for the tiers that lay only floors with zero flammability.
+func (t FloorTier) fireproof() bool { return t == FloorTierFirebreak || t == FloorTierIncinerator }
 
 // firebreakKey is the latch key of the single firebreak deficit.
 const firebreakKey = "firebreak"
@@ -170,6 +180,10 @@ type FlooringObservation struct {
 	// are still natural ground with no floor ordered, as the caller reads
 	// them; nil when none.
 	Firebreak []domain.Cell
+	// Incinerator is the standing incinerator's interior with the terrain
+	// under each cell, read by the caller (the native census lists only
+	// roofed rooms); nil when none stands.
+	Incinerator []FloorCell
 }
 type FloorRoom struct {
 	ID    string
@@ -191,13 +205,15 @@ type FloorCell struct {
 type FloorTerrain struct {
 	Cleanliness, Beauty, Flammability float64
 	PathCost                          int32
+	// Fertility is the terrain's own fertility; above zero it grows plants.
+	Fertility float64
 	// Natural is native's own flag for unbuilt ground.
 	Natural bool
 }
 
 func (v FlooringObservation) Validate() error {
 	for name, t := range v.Terrains {
-		if !foodID(name) || !floorNumber(t.Cleanliness) || !floorNumber(t.Beauty) || !floorNumber(t.Flammability) || t.PathCost < 0 {
+		if !foodID(name) || !floorNumber(t.Cleanliness) || !floorNumber(t.Beauty) || !floorNumber(t.Flammability) || !floorNumber(t.Fertility) || t.PathCost < 0 {
 			return errors.New("invalid floor terrain")
 		}
 	}
@@ -219,6 +235,12 @@ func (v FlooringObservation) Validate() error {
 			}
 			cells[c.Cell] = true
 		}
+	}
+	for _, c := range v.Incinerator {
+		if _, ok := v.Terrains[c.Terrain]; !ok || cells[c.Cell] || c.Pending != "" && !foodID(c.Pending) {
+			return errors.New("invalid incinerator cell")
+		}
+		cells[c.Cell] = true
 	}
 	traffic := map[trafficCellKey]bool{}
 	for _, t := range v.Traffic {
@@ -565,6 +587,25 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 			r.Latched = append(r.Latched, d.Key)
 		}
 	}
+	if len(v.Incinerator) > 0 {
+		d := FloorDeficit{Key: incineratorKey, Tier: FloorTierIncinerator}
+		for _, c := range v.Incinerator {
+			t := v.Terrains[c.Terrain]
+			if t.Flammability <= 0 && t.Fertility <= 0 {
+				continue
+			}
+			if c.Pending != "" {
+				d.Pending++
+				continue
+			}
+			d.Cells = append(d.Cells, c.Cell)
+		}
+		sort.Slice(d.Cells, func(i, j int) bool { return cellLess(d.Cells[i], d.Cells[j]) })
+		if len(d.Cells) > 0 || d.Pending > 0 {
+			r.Deficits = append(r.Deficits, d)
+			r.Latched = append(r.Latched, d.Key)
+		}
+	}
 	if d, ok := entryDeficit(v, clean, p); ok {
 		r.Deficits = append(r.Deficits, d)
 		r.Latched = append(r.Latched, d.Key)
@@ -580,7 +621,7 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 	return r, nil
 }
 
-var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierFirebreak: 3, FloorTierTraffic: 4}
+var floorTierOrder = map[FloorTier]int{FloorTierClean: 0, FloorTierEntry: 1, FloorTierLiving: 2, FloorTierIncinerator: 3, FloorTierFirebreak: 4, FloorTierTraffic: 5}
 
 type FlooringMethod string
 
@@ -638,7 +679,7 @@ func floorScore(tier FloorTier, d FloorDefinition, w FloorWeights) (float64, boo
 	beauty, _ := d.Beauty.Value()
 	flammability, _ := d.Flammability.Value()
 	pathCost, _ := d.PathCost.Value()
-	if _, fk := d.Flammability.Value(); tier == FloorTierFirebreak && (!fk || flammability > 0) {
+	if _, fk := d.Flammability.Value(); tier.fireproof() && (!fk || flammability > 0) {
 		return 0, false
 	}
 	if tier == FloorTierClean && cleanliness < 0 || tier == FloorTierLiving && beauty < 0 || tier == FloorTierTraffic && pathCost > 0 {
@@ -706,7 +747,7 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 			weights = p.Living
 		case FloorTierTraffic:
 			weights = p.Traffic
-		case FloorTierFirebreak:
+		case FloorTierFirebreak, FloorTierIncinerator:
 			weights = firebreakWeights
 		}
 		type candidate struct {
@@ -725,7 +766,7 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		} else if d.Floor != "" {
 			// The traffic tier lays the floor its payback was priced on.
 			scored = []string{d.Floor}
-		} else if name, ok := styledFloor(d, facts, batch, weights); ok && d.Tier != FloorTierFirebreak {
+		} else if name, ok := styledFloor(d, facts, batch, weights); ok && !d.Tier.fireproof() {
 			best, scored = &candidate{name, batch, 0}, nil
 		}
 		for _, name := range scored {
