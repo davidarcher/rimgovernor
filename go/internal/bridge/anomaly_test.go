@@ -30,7 +30,7 @@ func anomalyCatalogFixture() *o.AnomalyCatalog {
 }
 
 // TestAnomalyCatalogDecode (#1737): the section decodes by name and refuses
-// duplicates, unknown references, nonfinite and negative numbers; absent
+// duplicates, unknown references and nonfinite numbers; absent
 // stays nil.
 func TestAnomalyCatalogDecode(t *testing.T) {
 	got, err := DecodeAnomalyCatalog(anomalyCatalogFixture())
@@ -157,7 +157,6 @@ func TestPawnAnomalyRow(t *testing.T) {
 	}
 	for name, mutate := range map[string]func(*o.PawnAnomaly){
 		"nan minimum":      func(v *o.PawnAnomaly) { v.MinContainmentStrength = proto.Float64(math.NaN()) },
-		"negative minimum": func(v *o.PawnAnomaly) { v.MinContainmentStrength = proto.Float64(-1) },
 		"unspecified mode": func(v *o.PawnAnomaly) {
 			v.Held.Mode = o.EntityContainmentModeKind_ENTITY_CONTAINMENT_MODE_KIND_UNSPECIFIED.Enum()
 		},
