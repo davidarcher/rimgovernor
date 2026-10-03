@@ -198,15 +198,6 @@ func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryRes
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngredientStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch)
-}
-
 func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {

@@ -62,7 +62,7 @@ recreated indoors; with none free the Room is the whole map and a standing zone
 stays. Native readback still establishes the storage gate. A stockpile takes
 walkable, storage-empty floor: no plant, building, blueprint, frame or item, the same rule the cell census
 reports as storage-empty; filth or a standing pawn never refuses a cell. The
-workshop ingredient storage planner previews a bounded,
+secure-supplies storage planner previews a bounded,
 ordered list of candidate patches one at a time: a zone preview reports refused
 ground as an evaluation that is not accepted, so a refused patch gives way to the
 next, while a stale map snapshot or an unresolvable configuration is a failure.

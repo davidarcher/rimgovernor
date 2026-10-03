@@ -101,7 +101,7 @@ func (m *stockpileMemory) fill(world string, zones []policy.StockpileZone) {
 // storage-empty flag is false holds things) and the colony's stockpile
 // claims, their settings superseded by the latest patch of each; the
 // registered roles judge on the projection and benches.
-func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool]) policy.StockpileRequest {
+func stockpileRequest(projection *observation.ColonyProjection, owned []store.OwnedZone, patches map[string]store.AppliedStockpile, benches domain.Fact[map[string]bool], inputs []policy.BenchInput) policy.StockpileRequest {
 	type cells struct{ all, stored []domain.Cell }
 	byZone := map[string]*cells{}
 	for _, cell := range projection.Cells {
@@ -144,6 +144,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage := storageRequest(projection, request.Protected)
 	storage.Zones = request.Zones
+	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
 	request.Sited, request.Gear = plan.Sites, plan.Gear
 	return request
@@ -190,21 +191,23 @@ func (r *RoutineReviewer) stockpileRequest(ctx context.Context, snapshot domain.
 	if err != nil {
 		return policy.StockpileRequest{}, "", err
 	}
-	benches := domain.Unknown[map[string]bool]()
 	roles := map[string]bool{}
 	for _, z := range owned {
 		roles[z.Role] = true
-		if _, read := benches.Value(); strings.HasPrefix(z.Role, domain.IngredientsPrefix) && !read {
-			if benches, err = r.standingBenches(ctx, snapshot, projection.Identity); err != nil {
-				return policy.StockpileRequest{}, "", err
-			}
-		}
+	}
+	census, err := r.benchCensus(ctx, snapshot, projection.Identity)
+	if err != nil {
+		return policy.StockpileRequest{}, "", err
+	}
+	benches := make(map[string]bool, len(census))
+	for _, row := range census {
+		benches[row.Bench.ID] = true
 	}
 	zoneGoal := map[string]domain.GoalID{}
 	for _, z := range owned {
 		zoneGoal[z.ID] = z.Goal
 	}
-	request := stockpileRequest(projection, owned, patches, benches)
+	request := stockpileRequest(projection, owned, patches, domain.Known(benches), benchInputs(census, projection))
 	// The planned base can stand past the landing-centred planning window:
 	// read the ground around its core so the opening zones site there, not
 	// at the colonists' start.
@@ -328,18 +331,14 @@ func (r *RoutineReviewer) looseWeapons(ctx context.Context, snapshot domain.Gene
 	return count, nil
 }
 
-// standingBenches is the bench census as a set of ids.
-func (r *RoutineReviewer) standingBenches(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) (domain.Fact[map[string]bool], error) {
-	native := r.native.(RoutineWorkBenchSource)
+// benchCensus is the bench census (bills and recipes per bench).
+func (r *RoutineReviewer) benchCensus(ctx context.Context, snapshot domain.GenerationSnapshot, expected observation.Identity) ([]bridge.GearBenchRead, error) {
+	native, ok := r.native.(RoutineWorkBenchSource)
+	if !ok {
+		return nil, fmt.Errorf("%w: benchCensus: native lacks the bench census", ErrControl)
+	}
 	rows, _, err := r.benchSource(native, expected, false).ReadGearBenches(ctx, boundary.Identity(snapshot))
-	if err != nil {
-		return domain.Unknown[map[string]bool](), err
-	}
-	ids := map[string]bool{}
-	for _, row := range rows {
-		ids[row.Bench.ID] = true
-	}
-	return domain.Known(ids), nil
+	return rows, err
 }
 
 // The gear stockpiles and dumps are MaintainStockpiles' own roles (#724):

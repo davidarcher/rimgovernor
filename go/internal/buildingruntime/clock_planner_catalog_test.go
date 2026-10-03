@@ -23,7 +23,7 @@ var inlinePlannerSet = []struct {
 	{"fireSafety", plannerFoothold}, {"clearance", plannerMaintenance}, {"shrine", plannerMaintenance}, {"clean", plannerMaintenance}, {"pollution", plannerMaintenance}, {"mechcharger", plannerMaintenance}, {"blight", plannerMaintenance}, {"armory", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
 	{"haul", plannerMaintenance}, {"gear", plannerMaintenance}, {"foodStorageUpkeep", plannerFoothold},
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
-	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"ingredient-storage", plannerMaintenance}, {"storage-shelves", plannerMaintenance}, {"naming", plannerPreempt}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
+	{"populationCustody", plannerPreempt}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"storage-shelves", plannerMaintenance}, {"naming", plannerPreempt}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},
 	{"animalFeed", plannerMaintenance}, {"maintainShelter", plannerComfort}, {"firebreak", plannerMaintenance}, {"psylink", plannerMaintenance}, {"creepJoiners", plannerMaintenance}, {"ideoRoles", plannerMaintenance}, {"rituals", plannerMaintenance}, {"permits", plannerMaintenance}, {"homeCoverage", plannerComfort},
 	{"stoneShell", plannerComfort}, {"tidy", plannerMaintenance}, {"stockpiles", plannerFoothold}, {"defenseLayout", plannerMaintenance},
 }

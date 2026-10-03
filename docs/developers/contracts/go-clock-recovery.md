@@ -637,7 +637,7 @@ a `field_unavailable` exit could not read (`acquisition_sources`, `colonists`), 
 capacity, bench or source an `awaiting_plan` exit waits on (`food_plan:cooking-capacity`,
 `cooking_bench`, `resource_source:Steel`, `development_slot:<goal>` for a low-priority
 goal the development ranking has not selected), the placement a `no_space` exit failed to
-site (`ingredient_stockpile`, `pen_enclosure`), and the claim a `waiting_on_claim` exit lost
+site (`pen_enclosure`), and the claim a `waiting_on_claim` exit lost
 (`bench`). `Verdict.String` is the machine token
 (`kind[:subject[:detail]]`, no spaces) for the service log's `reason=` (the dashboard timeline
 parses it) and snapshot names; `Verdict.Text` is the one plain-English sentence per outcome and

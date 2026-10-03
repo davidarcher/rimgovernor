@@ -29,20 +29,23 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
 4. **Bench**: the first candidate bench the planning census reports available
    and buildable by a builder the colony has (unpowered before powered) is
    furnished into a hosting room, or the starter shell is staged first.
-5. **Ingredient storage**: once a bench hosts an available recipe for the
-   deficit, `RoutineIngredientStoragePlanner` places one allow-list stockpile
-   for the recipe's ingredients on the nearest free roofed 2x2 patch inside the
-   room the census scores as the Workshop, as a second method under
-   `MaintainResource`. Hauling then brings the inputs to the bench. Once
+5. **Workstation stockpile**: not a method. The storage planner
+   (`policy.PlanStorage`) gives every bench with an active bill, except the
+   kitchen's and butcher's, one Important allow-list stockpile of that bench's
+   recipe ingredients (`policy.DeriveBenchInputs`; a stonecutter's is its stone
+   chunks) on the free roofed 2x2 patch in the bench's room nearest it by
+   walking distance. Hauling then brings the inputs to the bench. Once
    ComplexFurniture is researched, `RoutineStorageShelvesPlanner` places a
-   Shelf inside that stockpile (and the SecureSupplies general store), up to
+   Shelf inside the SecureSupplies general store (and the ingredient zones
+   `MaintainResource` created before the planner took them over), up to
    a third of its footprint; `MaintainStockpiles` patches each built shelf
    with the zone's desired filter and priority (role `shelf:<buildingID>`)
    and again whenever those change. Native storage capacity
    counts a shelf cell's free slots (three stacks per cell).
-   The room-bound stockpiles (meal store, the freezer's raw meat, raw
-   vegetable and corpse shelves and perishables catch-all, the tomb, the hospital
-   medicine zone nearest the medical beds) come from
+   The room-bound stockpiles (meal store, the workstation stockpiles, the
+   freezer's raw meat, raw vegetable and corpse shelves and perishables
+   catch-all, the tomb, the hospital medicine zone nearest the medical beds)
+   come from
    one deterministic function, `policy.PlanStorage`, over the layout plan, room
    census and planning cells; its `StockpileSite`s are the standing-zone diff
    `MaintainStockpiles` applies, and the role registry supplies each role's

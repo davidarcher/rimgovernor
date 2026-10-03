@@ -112,6 +112,22 @@ type StockpileSite struct {
 	// Supersedes is a role prefix whose zones are deleted once the site is
 	// served: the stand-in it replaces.
 	Supersedes string
+	// Keyed makes Role a stable identity (a bench ID, unlike a census room
+	// ID that RimWorld renumbers): zones are matched to the site by the
+	// whole role key, so several sites may share a prefix.
+	Keyed bool
+}
+
+// serves reports whether a zone's role belongs to the site: the whole key
+// for a keyed site, else the prefix.
+func (s StockpileSite) serves(role string) bool {
+	if role == "" {
+		return false
+	}
+	if s.Keyed {
+		return role == s.Role
+	}
+	return stockpileRolePrefix(role) == stockpileRolePrefix(s.Role)
 }
 
 // stockpileSiteMoves deletes the zones of a site's prefix standing outside
@@ -119,10 +135,9 @@ type StockpileSite struct {
 func stockpileSiteMoves(r StockpileRequest) []StockpileEdit {
 	var out []StockpileEdit
 	for _, site := range r.Sited {
-		prefix := stockpileRolePrefix(site.Role)
 		room := cellSet(site.Room)
 		for _, z := range r.Zones {
-			if z.Role == "" || stockpileRolePrefix(z.Role) != prefix || stockpileTouches(z.Cells, room) {
+			if !site.serves(z.Role) || stockpileTouches(z.Cells, room) {
 				continue
 			}
 			out = append(out, StockpileEdit{Kind: StockpileDelete, Zone: z.ID, Role: z.Role, Hauls: z.Used(),
@@ -140,14 +155,13 @@ func stockpileSiteShrinks(r StockpileRequest) []StockpileEdit {
 		if site.Size <= 0 {
 			continue
 		}
-		prefix := stockpileRolePrefix(site.Role)
 		room := cellSet(site.Room)
 		anchor := domain.Cell{}
 		if len(site.Candidates) > 0 && len(site.Candidates[0]) > 0 {
 			anchor = site.Candidates[0][0]
 		}
 		for _, z := range r.Zones {
-			if stockpileRolePrefix(z.Role) != prefix || !stockpileTouches(z.Cells, room) || len(z.Cells) <= site.Size {
+			if !site.serves(z.Role) || !stockpileTouches(z.Cells, room) || len(z.Cells) <= site.Size {
 				continue
 			}
 			stored := cellSet(z.Stored)
@@ -242,10 +256,9 @@ func stockpileSiteEdits(r StockpileRequest, open stockpileOpen) []StockpileEdit 
 }
 
 func stockpileSiteServed(zones []StockpileZone, site StockpileSite) bool {
-	prefix := stockpileRolePrefix(site.Role)
 	room := cellSet(site.Room)
 	for _, z := range zones {
-		if z.Role != "" && stockpileRolePrefix(z.Role) == prefix && stockpileTouches(z.Cells, room) {
+		if site.serves(z.Role) && stockpileTouches(z.Cells, room) {
 			return true
 		}
 	}

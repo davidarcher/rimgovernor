@@ -2,7 +2,7 @@
 // (production/ladder): on the Core tribal baseline, the service's default
 // component floor (policy.DefaultResourceTargets, #875) asks for an item
 // only a research-gated bench produces (components on a fabrication bench),
-// and the ladder walks research -> bench -> ingredient storage -> bill. The
+// and the ladder walks research -> bench -> workstation stockpile -> bill. The
 // fixture stages what the ladder does not build: a roofed starter hut whose
 // native room role hosts the Workshop facility (with a sleeping spot per
 // colonist, so the initial shelter is met), a simple research bench and a
@@ -48,7 +48,7 @@ const (
 )
 
 // ladderFamilies is facility/workshop's composition plus the research and
-// ingredient-storage rungs M4 adds, and the emergency responders: an injury
+// stockpiles (the workstation stockpile rung) M4 adds, and the emergency responders: an injury
 // (a social fight is enough) holds every development goal until tended, a
 // predator hunting a colonist holds the clock until defense answers it, and
 // a choice dialog the DLC save opens by itself (Verse.Dialog_NodeTree)
@@ -60,7 +60,7 @@ const (
 // bench (#218, a 16 minute run whose ingredient stockpile then had no clean
 // floor, #223). An unserved priority-2 shelter goal gates only comfort,
 // never MaintainResource.
-const ladderFamilies = "temperature,comfort,work,power,supply,defense,tend,rescue,medical,field,stockpiles,acquisition,cooking,resource,workshop,research,ingredient-storage,gear,armory,dialog,naming"
+const ladderFamilies = "temperature,comfort,work,power,supply,defense,tend,rescue,medical,field,stockpiles,acquisition,cooking,resource,workshop,research,gear,armory,dialog,naming"
 
 // benchWindow is how long the ladder gets to finish the research rung and
 // raise its bench (the "bench-built" stage, cached across runs, #329);

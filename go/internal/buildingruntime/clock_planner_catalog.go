@@ -747,17 +747,6 @@ var plannerCatalog = []plannerEntry{
 			out.Research = &method
 			return method.Verdict, nil
 		}},
-	{name: "ingredient-storage", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction}, sections: sectionsBuilding,
-		configured: func(c *ClockSchedulerConfig) bool { return c.IngredientStorage != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.IngredientStorage.step(ctx, epoch)
-			if err != nil {
-				return Verdict{}, err
-			}
-			clockSchedulerLog("IngredientStorage.step result: reason=%v plan=%v", method.Verdict, method.Plan)
-			out.IngredientStorage = &method
-			return method.Verdict, nil
-		}},
 	{name: "storage-shelves", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.StorageShelves != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

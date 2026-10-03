@@ -127,7 +127,6 @@ type ClockSchedulerConfig struct {
 	PopulationCustody   *RoutinePopulationCustodyPlanner
 	PopulationJoiner    *RoutinePopulationJoinerPlanner
 	Research            *RoutineResearchPlanner
-	IngredientStorage   *RoutineIngredientStoragePlanner
 	StorageShelves      *RoutineStorageShelvesPlanner
 	Resource            *RoutineResourcePlanner
 	AnimalFeed          *RoutineAnimalFeedPlanner
@@ -212,7 +211,6 @@ type ClockSchedulerResult struct {
 	PopulationCustody            *RoutinePopulationCustodyResult
 	PopulationJoiner             *RoutinePopulationJoinerResult
 	Research                     *RoutineResearchResult
-	IngredientStorage            *RoutineIngredientStorageResult
 	StorageShelves               *RoutineStorageShelvesResult
 	Resource                     *RoutineResourceResult
 	AnimalFeed                   *RoutineResourceResult
@@ -552,9 +550,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine)", ErrControl)
-	}
-	if config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Routine) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Ro", ErrControl)
 	}
 	if config.StorageShelves != nil && (config.Routine == nil || config.StorageShelves.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.StorageShelves != nil && (config.Routine == nil || config.StorageShelves.reviewer != config.Routine)", ErrControl)

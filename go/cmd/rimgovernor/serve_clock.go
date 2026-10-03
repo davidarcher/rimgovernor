@@ -231,7 +231,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	profile, routine := sc.profile, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.workshopPlans()
-	ingredientStorage := sc.routineIngredientStoragePlans && sc.resourceTargetsConfigured()
 	research := sc.researchPlans()
 	hospital := sc.routineHospitalPlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
@@ -431,9 +430,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		// Shelves (#721) serve the stockpiles SecureSupplies and
-		// MaintainResource create, so either planner brings them.
-		if secureSupplies || ingredientStorage {
+		// Shelves (#721) serve the stockpiles the goal methods create.
+		if secureSupplies {
 			if shelvesNative, ok := reads.(buildingruntime.RoutineStorageShelvesSource); ok {
 				if config.StorageShelves, err = buildingruntime.NewRoutineStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
 					return nil, err
@@ -886,16 +884,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if workshop {
 				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if ingredientStorage {
-				storageNative, ok := reads.(buildingruntime.RoutineIngredientStorageSource)
-				if !ok {
-					return nil, errors.New("ingredient storage plans require typed bench census and zone preview observations")
-				}
-				config.IngredientStorage, err = buildingruntime.NewRoutineIngredientStoragePlanner(reviewer, storageNative)
 				if err != nil {
 					return nil, err
 				}

@@ -99,10 +99,9 @@ func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
 	}
 }
 
-// MaintainResource's ingredient-storage rung (routine_ingredient_storage.go)
-// commits one allow-list stockpile for the recipe's inputs beside the bench;
-// the production ladder stalled on "plan or action identity already exists"
-// at this admission on every live run before the goal was bound (#155).
+// A zone method committed under MaintainResource must bind to the resource
+// target goal; the production ladder once stalled on "plan or action
+// identity already exists" at this admission before the goal was bound (#155).
 func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

@@ -204,8 +204,9 @@ The desired state per role comes from the role's owning planner through
 `buildingruntime.RegisterStockpileRole(prefix, source)`; a role no source
 claims keeps its settings, and a source answers nothing while the fact it
 judges by is unknown. The owners: `general` and `covered:<def>` (secure
-supplies, fixed settings), `ingredients:<benchID>` (retired once the bench
-census no longer lists the bench), `medicine:<roomID>` (retired once the
+supplies, fixed settings), `ingredients:<benchID>`, the workstation stockpile
+`policy.PlanStorage` sites per bench (retired once the bench census no longer
+lists the bench), `medicine:<roomID>` (retired once the
 room census no longer shows the room as a hospital), and MaintainStockpiles'
 own `apparel`, `weapons`, `dump:worn`, `dump:rotten` and `dump:corpses`,
 `meals:<roomID>` and `rawfood:<roomID>`. A role that publishes `Fixed` keeps

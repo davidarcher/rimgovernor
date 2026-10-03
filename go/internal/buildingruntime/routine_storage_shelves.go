@@ -12,8 +12,8 @@ import (
 )
 
 // RoutineStorageShelvesPlanner (#721) places shelves inside the stockpiles
-// this colony created -- the general store and the working stockpiles at the
-// benches. Each shelf is a method of the goal that created its zone, taken
+// a goal method created -- the general store and the ingredient zones
+// MaintainResource created before the storage planner took them over. Each shelf is a method of the goal that created its zone, taken
 // only while that goal is active and selected; policy.NextShelfStep picks
 // the step (one open shelf at a time, a third of the footprint at most).
 // MaintainStockpiles configures every built shelf like its zone
@@ -34,7 +34,7 @@ type RoutineStorageShelvesResult struct {
 }
 
 // shelfGoals are the goals whose stockpiles get shelves: SecureSupplies'
-// general store and MaintainResource's working stockpiles at the benches.
+// general store and MaintainResource's earlier ingredient zones.
 // Food storage (meal shelves, freezers) is planned by its own goals.
 var shelfGoals = map[policy.GoalID]bool{policy.SecureSupplies: true, policy.MaintainResource: true}
 

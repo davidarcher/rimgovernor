@@ -22,7 +22,7 @@ import (
 // fixture stages the hut, the research bench, Stonecutting at 97% and the
 // steel the table costs (the tribal save has none); the chunks are the
 // map's own. The
-// ingredient-storage family stays off: a chunk stockpile inside the hut is
+// stockpiles family stays off: a chunk stockpile inside the hut is
 // not a rung this case proves.
 const (
 	stoneProject = "Stonecutting"
