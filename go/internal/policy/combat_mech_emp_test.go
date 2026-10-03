@@ -127,8 +127,8 @@ func TestMechDisengageBeforeReactivate(t *testing.T) {
 func TestNoIncendiaryOnMechs(t *testing.T) {
 	carrier := withWeapon(CombatPawnState{ID: "a", Cell: domain.Known(domain.Cell{X: 9, Z: 23})}, "Weapon_GrenadeMolotov")
 	mechs := []CombatPawnState{
-		{ID: "m1", Kind: "Mech_Scyther", Cell: domain.Known(domain.Cell{X: 9, Z: 14})},
-		{ID: "m2", Kind: "Mech_Lancer", Cell: domain.Known(domain.Cell{X: 10, Z: 14})},
+		{ID: "m1", Kind: "Mech_Scyther", Mech: true, Cell: domain.Known(domain.Cell{X: 9, Z: 14})},
+		{ID: "m2", Kind: "Mech_Lancer", Mech: true, Cell: domain.Known(domain.Cell{X: 10, Z: 14})},
 	}
 	if c, ok := GrenadeTarget(carrier, mechs, nil); ok {
 		t.Fatalf("Molotov at mechs: %v", c)

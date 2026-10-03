@@ -15,12 +15,12 @@ func infested(view CombatView) CombatView {
 	seen := map[domain.PawnID]bool{}
 	for i := range view.Pawns {
 		if id := view.Pawns[i].ID; id == "r1" || id == "r2" {
-			view.Pawns[i].Kind, seen[id] = "Megaspider", true
+			view.Pawns[i].Kind, view.Pawns[i].Insect, seen[id] = "Megaspider", true, true
 		}
 	}
 	for _, t := range view.Positional {
 		if id := domain.PawnID(t.ID); (id == "r1" || id == "r2") && !seen[id] {
-			view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: t.Position, Kind: "Megaspider", Stance: StanceMoving})
+			view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: t.Position, Kind: "Megaspider", Insect: true, Stance: StanceMoving})
 		}
 	}
 	view.Structures = append(view.Structures, HostileStructure{ID: "Thing_Hive1", Def: "Hive", Cell: hiveCell})
@@ -95,7 +95,7 @@ func TestNoMortarUnderMountain(t *testing.T) {
 	view := infested(grenadeView("Weapon_GrenadeFrag"))
 	for i := range view.Pawns {
 		if view.Pawns[i].ID[0] == 'h' {
-			view.Pawns[i].Kind = "Megascarab"
+			view.Pawns[i].Kind, view.Pawns[i].Insect = "Megascarab", true
 		}
 	}
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 5, MaxRange: 500}}
@@ -122,7 +122,7 @@ func molotovHive(tick domain.Tick, temp float64) CombatView {
 	view := infested(grenadeView("Weapon_GrenadeMolotov"))
 	for i := range view.Pawns {
 		if view.Pawns[i].ID[0] == 'h' {
-			view.Pawns[i].Kind = "Megascarab"
+			view.Pawns[i].Kind, view.Pawns[i].Insect = "Megascarab", true
 		}
 	}
 	view.Tick, view.HiveTemperatureC = tick, domain.Known(temp)

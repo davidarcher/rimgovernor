@@ -16,7 +16,7 @@ func scytherView() CombatView {
 		view.Threats[i].Humanlike = domain.Known(false)
 		view.Positional[i].Humanlike = domain.Known(false)
 		cell, _ := view.Positional[i].Position.Value()
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(view.Threats[i].ID), Kind: "Mech_Scyther", Weapon: "MeleeWeapon_ScytherBlade", Cell: domain.Known(cell)})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(view.Threats[i].ID), Kind: "Mech_Scyther", Mech: true, Weapon: "MeleeWeapon_ScytherBlade", Cell: domain.Known(cell)})
 	}
 	for i := range view.Pawns[:3] {
 		view.Pawns[i].WeaponRange = 30

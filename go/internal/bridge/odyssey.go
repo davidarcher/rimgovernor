@@ -11,7 +11,7 @@ import (
 // OdysseyCatalog is one load's Odyssey defs (#1708) by name, the native rows
 // as read: hazards, animals and hack rules are the game defs' own, never Go
 // name lists. Nil without Odyssey. Animal kinds name PawnKindDefs; the races
-// are AnimalRaceCatalog's.
+// are the catalog's race rows (AnimalRaces).
 type OdysseyCatalog struct {
 	Biomes         map[string]*o.BiomeRow
 	TileMutators   map[string]*o.TileMutatorRow

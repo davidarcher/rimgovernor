@@ -1,6 +1,7 @@
 package observation
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -71,12 +72,34 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
 	for _, e := range f.FoodEaters {
 		r.FoodEaters = append(r.FoodEaters, policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL,
-			Traits: e.Traits, Precepts: e.Precepts, Edible: e.EdibleDefs})
+			Traits: e.Traits, Precepts: e.Precepts})
 	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})
 	}
 	return domain.Known(r)
+}
+
+// animalFoodEaters gives each animal food eater the foods its race can ever
+// eat, from the catalog's race row (#1722). An animal whose pawn row or race
+// the frame does not hold is dropped: no diet is written for it.
+func animalFoodEaters(eaters []policy.FoodEater, pawns bridge.Pawns, races policy.AnimalRaceCatalog) []policy.FoodEater {
+	out := make([]policy.FoodEater, 0, len(eaters))
+	for _, e := range eaters {
+		if e.Animal {
+			row, ok := pawns.Get(string(e.Pawn))
+			if !ok || row == nil {
+				continue
+			}
+			race, ok := races.Race(policy.Resource(row.GetPawn().GetDefName()))
+			if !ok {
+				continue
+			}
+			e.Edible = race.Edible
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // shelterArea is the Safe allowed area's load id, "" when the map has none.

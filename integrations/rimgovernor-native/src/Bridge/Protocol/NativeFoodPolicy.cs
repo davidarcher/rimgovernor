@@ -53,6 +53,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.ThingDefFacts { DefName = d.defName, RawMeat = d.IsMeat, Medicine = d.IsMedicine };
             row.RoomRoles.Add(NativeColonyObservationTools.GameRoomRoles(d));
+            if (d.race != null) row.Race = NativeRaceFacts.Facts(d);
             if (!IsFood(d)) return row;
             var kind = Kind(d);
             row.FoodKind = kind;
@@ -68,21 +69,12 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<string> Allowed(FoodPolicy p) =>
             p.filter.AllowedThingDefs.Where(IsFood).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);
 
-        // Native diet eligibility, never WillEat (which includes the policy).
-        private static bool Eligible(Pawn pawn, ThingDef def) => IsFood(def)
-            && (def.ingestible.foodType & FoodTypeFlags.Kibble) == 0
-            && pawn.FoodIsSuitable(def) && !FoodUtility.IsVeneratedAnimalMeatOrCorpse(def, pawn)
-            && !FoodUtility.InappropriateForTitle(def, pawn, allowIfStarving: true)
-            && (!HumanFoodFacts.IsHumanMeat(def) || HumanFoodFacts.AcceptsMeat(pawn));
-
         internal static Obs.FoodRestriction? Read(Pawn pawn)
         {
             var policy = pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn);
             if (policy == null || pawn.needs?.food == null || pawn.DevelopmentalStage.Baby()) return null;
             var row = new Obs.FoodRestriction { PolicyId = policy.GetUniqueLoadID() };
             row.AllowedDefs.Add(policy.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal));
-            row.EligibleDefs.Add(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Eligible(pawn, d))
-                .Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal));
             return row;
         }
 

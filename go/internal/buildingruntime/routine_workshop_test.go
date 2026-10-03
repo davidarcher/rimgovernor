@@ -31,11 +31,6 @@ func (n *workshopNative) ReadResearch(context.Context, *c.Identity) (bridge.Rese
 	return bridge.ResearchRead{Context: n.reply.GetObserved().Context, Finished: n.finishedResearch()}, bridge.Result{}, nil
 }
 
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (n *workshopNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
-}
-
 func (n *workshopNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
 	return &o.ListRoomsReply{}, bridge.Result{}, nil
 }

@@ -55,14 +55,12 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 		if validID(food.GetPolicyId()) != nil {
 			return contract("invalid food policy identity")
 		}
-		for _, defs := range [][]string{food.AllowedDefs, food.EligibleDefs} {
-			seen := map[string]bool{}
-			for _, def := range defs {
-				if validID(def) != nil || seen[def] {
-					return contract("invalid food definition")
-				}
-				seen[def] = true
+		seen := map[string]bool{}
+		for _, def := range food.AllowedDefs {
+			if validID(def) != nil || seen[def] {
+				return contract("invalid food definition")
 			}
+			seen[def] = true
 		}
 	}
 	if err := pawnsIssues(s.Issues, s.ProtoReflect()); err != nil {

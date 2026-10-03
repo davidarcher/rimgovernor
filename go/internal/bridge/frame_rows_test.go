@@ -182,7 +182,7 @@ func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	bad := rowPawn("b")
-	bad.AnimalState = &o.AnimalState{Contained: proto.Bool(false), MinimumHandlingSkill: proto.Int32(-1)}
+	bad.AnimalState = &o.AnimalState{Contained: proto.Bool(false), PenId: proto.String("bad id")}
 	h.fill(pawnFrame(2, &o.PawnSnapshot{Pawns: []*o.PawnState{bad, rowPawn("c")}}, 2, true, 1))
 	if h.heldAt(nil).err() == nil {
 		t.Fatal("an invalid changed row was accepted")

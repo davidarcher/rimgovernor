@@ -51,6 +51,11 @@ type routineNative struct {
 	things    bridge.Things
 	// itemDefs are the defs whose catalog facts a test sets (thingCatalog).
 	itemDefs map[string]itemDef
+	// races are the animal races whose catalog rows a test sets
+	// (thingCatalog), by def name.
+	races map[string]*d.RaceProperties
+	// mechs are the mechanoid races (thingCatalog), by def name.
+	mechs map[string]bool
 }
 
 func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
@@ -110,6 +115,22 @@ func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
 	generator("GeothermalGenerator", "RimWorld.CompPowerPlant", 3600)
 	add(&d.ThingDef{DefName: "Battery", Comps: []*d.Opt_CompPropertiesAny{{Value: &d.CompPropertiesAny{Value: &d.CompPropertiesAny_CompProperties_Battery{CompProperties_Battery: &d.CompProperties_Battery{StoredEnergyMax: 600, Efficiency: 0.5}}}}}})
 	add(&d.ThingDef{DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}})
+	for name, props := range n.races {
+		add(&d.ThingDef{DefName: name, Race: props})
+		for _, facts := range v.ThingFacts {
+			if facts.DefName == name {
+				facts.Race = &o.RaceFacts{Animal: true}
+			}
+		}
+	}
+	for name := range n.mechs {
+		add(&d.ThingDef{DefName: name, Race: &d.RaceProperties{}})
+		for _, facts := range v.ThingFacts {
+			if facts.DefName == name {
+				facts.Race = &o.RaceFacts{Mechanoid: true}
+			}
+		}
+	}
 	plain := func(name string) {
 		// A def a test gave a wattage (PowerW) draws it, as its row states.
 		var watts float32
@@ -335,11 +356,6 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity) (bri
 
 func (n *routineNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
-}
-
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (n *routineNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
 }
 
 // fakeFrame is the frame a test fake serves: the colony reply's context
@@ -734,11 +750,6 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 
 func (n *routineMedicalNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
-}
-
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (n *routineMedicalNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
 }
 
 // extentCells stands in for the frame grid: each test room fills its

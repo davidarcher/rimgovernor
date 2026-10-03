@@ -13,6 +13,9 @@ const (
 )
 
 type UpkeepAnimal struct {
+	// Pest is the race row's flag (AnimalRace.Pest, #1722): a wild animal
+	// ClearPests hunts for what it destroys.
+	Pest          bool `json:",omitempty"`
 	SupportsAreas domain.Fact[bool]
 	AllowedArea   domain.Fact[string]
 	ID            PawnID
@@ -404,6 +407,16 @@ type AnimalRace struct {
 	// FeedItems are the items the race can eat that a recipe produces (sorted
 	// by definition name): the feed a bench can make for it.
 	FeedItems []RaceFeedItem
+	// LifeExpectancy is RaceProperties.lifeExpectancy in years,
+	// ManhunterOnTameFail and ManhunterOnDamage the manhunter chances (#1722).
+	LifeExpectancy, ManhunterOnTameFail, ManhunterOnDamage domain.Fact[float64]
+	// Predator is RaceProperties.predator; Pest is a wild animal that eats
+	// trees (RaceProperties.Eats(Tree)), hunted for what it destroys, not for
+	// meat; Mechanoid and Insect are the game's own race flags.
+	Predator, Pest, Mechanoid, Insect bool
+	// Edible are the foods the race can ever eat (RaceProperties.CanEverEat),
+	// sorted.
+	Edible []string
 }
 
 // RaceFeedItem is one producible feed item and its nutrition per item.

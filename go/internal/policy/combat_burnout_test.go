@@ -21,7 +21,7 @@ func burnView(tick domain.Tick, temp float64, site domain.Fact[BurnSite]) Combat
 	for id, c := range map[PawnID]domain.Cell{"r1": {X: 9, Z: 5}, "r2": {X: 10, Z: 4}} {
 		s, d := combatRaider(id, c)
 		view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(c), Kind: "Megaspider", Stance: StanceMoving})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(c), Kind: "Megaspider", Insect: true, Stance: StanceMoving})
 	}
 	view.Burn = site
 	return view

@@ -335,7 +335,7 @@ func nearAny(ours []domain.Cell, c domain.Cell) bool {
 func mechAt(view CombatView, c domain.Cell) bool {
 	return slices.ContainsFunc(view.Pawns, func(p CombatPawnState) bool {
 		at, ok := p.Cell.Value()
-		return ok && at == c && strings.HasPrefix(p.Kind, "Mech_")
+		return ok && at == c && p.Mech
 	})
 }
 

@@ -136,7 +136,7 @@ func shipPartHitAndRun(view CombatView, m *CombatMemory) {
 		return
 	}
 	for _, h := range rankThreats(view) {
-		if strings.HasPrefix(h.Kind, "Mech_") {
+		if h.Mech {
 			return
 		}
 	}

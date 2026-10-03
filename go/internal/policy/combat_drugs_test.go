@@ -39,7 +39,7 @@ func TestDoseOrders(t *testing.T) {
 		{"lone rat is fought sober", 1, near, false},
 		{"outmatched squad doses in reach", 2, near, true},
 		{"outmatched squad waits out of reach", 2, far, false},
-		{"one mech is dangerous", 1, CombatPawnState{Cell: near.Cell, Kind: "Mech_Lancer"}, true},
+		{"one mech is dangerous", 1, CombatPawnState{Cell: near.Cell, Kind: "Mech_Lancer", Mech: true}, true},
 		{"one go-juiced raider is dangerous", 1, CombatPawnState{Cell: near.Cell, GoJuice: true}, true},
 	}
 	for _, c := range cases {

@@ -15,7 +15,7 @@ func pikemenView() CombatView {
 	for i := range view.Threats {
 		view.Threats[i].Humanlike, view.Positional[i].Humanlike = domain.Known(false), domain.Known(false)
 		cell, _ := view.Positional[i].Position.Value()
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(view.Threats[i].ID), Kind: "Mech_Pikeman", Weapon: "Gun_NeedleGun", WeaponRange: 44.9, Cell: domain.Known(cell)})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(view.Threats[i].ID), Kind: "Mech_Pikeman", Mech: true, Weapon: "Gun_NeedleGun", WeaponRange: 44.9, Cell: domain.Known(cell)})
 	}
 	view.Pawns[0].ShieldBelt = true
 	return view
@@ -45,7 +45,7 @@ func TestDecideCombatPikemenChargeLast(t *testing.T) {
 	s, d := combatRaider("r3", domain.Cell{X: 12, Z: 6})
 	s.Humanlike, d.Humanlike = domain.Known(false), domain.Known(false)
 	view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
-	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r3", Kind: "Mech_Scyther", Cell: domain.Known(domain.Cell{X: 12, Z: 6})})
+	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r3", Kind: "Mech_Scyther", Mech: true, Cell: domain.Known(domain.Cell{X: 12, Z: 6})})
 	orders, memory := decideStop(t, view, StopEvent{}, CombatMemory{})
 	if want := (CombatOrder{Pawn: "a", Kind: OrderMove, Cell: domain.Cell{X: 9, Z: 23}, Reason: ReasonFormation}); len(orders) == 0 || orders[0] != want {
 		t.Fatalf("%+v", orders)

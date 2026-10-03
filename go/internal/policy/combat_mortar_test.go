@@ -216,7 +216,7 @@ func TestMortarSiegeFire(t *testing.T) {
 	mechs := view(siegeCampToil)
 	for i, p := range mechs.Pawns {
 		if p.ID == "r1" || p.ID == "r2" {
-			mechs.Pawns[i].Kind = "Mech_Lancer"
+			mechs.Pawns[i].Kind, mechs.Pawns[i].Mech = "Mech_Lancer", true
 		}
 	}
 	orders, _ = decideStop(t, mechs, StopEvent{}, CombatMemory{})
@@ -232,7 +232,7 @@ func TestMortarHECentipede(t *testing.T) {
 	view := holdView()
 	view = withBrawlers(view, combatBrawler("m", 0.5))
 	view.Mortars = []CombatMortar{{ID: "Thing_Turret_Mortar1", Cell: domain.Cell{X: 5, Z: 30}, MinRange: 29.9, MaxRange: 500}}
-	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: -20}), Kind: "Mech_Centipede"})
+	view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: -20}), Kind: "Mech_Centipede", Mech: true})
 	orders, _ := decideStop(t, view, StopEvent{}, CombatMemory{})
 	if got := mortarOrders(orders); len(got) != 1 || got[0].Aim != (domain.Cell{X: 9, Z: -20}) || got[0].Shell != ShellHE {
 		t.Fatalf("%+v", got)

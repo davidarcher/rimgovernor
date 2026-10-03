@@ -7,14 +7,14 @@ import (
 )
 
 func pestRow(id, token string, x int32) AcquisitionSource {
-	return AcquisitionSource{ID: id, Resource: "Corpse_Alphabeaver", Token: token, Definition: "Alphabeaver", Cell: domain.Cell{X: x, Z: 4}, Hunt: true, Yield: 1}
+	return AcquisitionSource{ID: id, Resource: "Corpse_Alphabeaver", Token: token, Definition: "Alphabeaver", Cell: domain.Cell{X: x, Z: 4}, Hunt: true, Pest: true, Yield: 1}
 }
 
-func TestPestCensusCountsRecognisedDefinitionsOnly(t *testing.T) {
+func TestPestCensusCountsPestRacesOnly(t *testing.T) {
 	if _, known := PestCensus(domain.Unknown[[]UpkeepAnimal]()).Value(); known {
 		t.Fatal("unknown wild census became a count")
 	}
-	wild := []UpkeepAnimal{{ID: "b1", Definition: "Alphabeaver"}, {ID: "d1", Definition: "Deer"}, {ID: "b2", Definition: "Alphabeaver"}}
+	wild := []UpkeepAnimal{{ID: "b1", Definition: "Alphabeaver", Pest: true}, {ID: "d1", Definition: "Deer"}, {ID: "b2", Definition: "Alphabeaver", Pest: true}}
 	if n, known := PestCensus(domain.Known(wild)).Value(); !known || n != 2 {
 		t.Fatal(n, known)
 	}
@@ -34,7 +34,7 @@ func TestPestHuntRowsPassFoodAndWoodSelectionsOver(t *testing.T) {
 		t.Fatal(wood, err)
 	}
 	// A hunt row that is neither food nor a recognised pest is still invalid.
-	rows[0].Definition = "Muffalo"
+	rows[0].Definition, rows[0].Pest = "Muffalo", false
 	if _, err = SelectAcquisition(domain.Known(rows), domain.Known(5.0), domain.Known(0.0), true, nil); err == nil {
 		t.Fatal("inedible non-pest hunt row accepted")
 	}
@@ -87,7 +87,7 @@ func TestClearPestsOpensOnlyOnAKnownPest(t *testing.T) {
 	if hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.NeedRecovered {
 		t.Fatal("a deer opened the goal", r.Goals)
 	}
-	f.AnimalUpkeep.WildAnimals = domain.Known([]UpkeepAnimal{{ID: "d", Definition: "Deer"}, {ID: "b", Definition: "Alphabeaver"}})
+	f.AnimalUpkeep.WildAnimals = domain.Known([]UpkeepAnimal{{ID: "d", Definition: "Deer"}, {ID: "b", Definition: "Alphabeaver", Pest: true}})
 	r = needs(t, f, RoutineLatches{})
 	if !hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.NeedDeficit {
 		t.Fatal(r.Goals)

@@ -851,8 +851,8 @@ type Combat struct {
 	// HiveTemperatureC is the hottest live hive's temperature (#1073).
 	HiveTemperatureC domain.Fact[float64]
 	Frame            *o.BundleSnapshot
-	// Catalog is the load's definition catalog: the mech kinds (#1736) and
-	// the weapons' def rows (#1723) resolve against it.
+	// Catalog is the load's definition catalog: the mech kinds (#1736), the
+	// weapons' def rows (#1723) and the race rows (#1722) resolve against it.
 	Catalog *DefinitionCatalog
 }
 
@@ -874,9 +874,15 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	if err != nil {
 		return Combat{}, err
 	}
-	// The weapons' facts (#1723) and the mech guard orders (#1736) resolve
-	// against the catalog of the load.
+	// The weapons' facts (#1723), the mech guard orders (#1736) and a fight's
+	// race flags (mech, insect, body size: the catalog's race rows, #1722)
+	// resolve against the catalog of the load.
 	if combat.Catalog, err = caller.DefinitionCatalog(ctx, identity); err != nil {
+		return Combat{}, err
+	}
+	// An unbuildable race table fails the read here, so the fight's race
+	// lookups (which reuse the built table) never see the error.
+	if _, err = combat.Catalog.AnimalRaces(); err != nil {
 		return Combat{}, err
 	}
 	return combat, nil

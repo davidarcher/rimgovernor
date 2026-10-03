@@ -215,9 +215,6 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 		}
 	}
 	if a := row.AnimalState; a != nil {
-		if !combatNumber(a.BodySize, true) {
-			return contract("invalid animal body size")
-		}
 		// Training rows carry MaintainHerd's training deficit: one per
 		// trainable def.
 		trainables := map[string]bool{}
@@ -227,7 +224,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			}
 			trainables[entry.GetDefName()] = true
 		}
-		if a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || a.MinimumHandlingSkill != nil && a.GetMinimumHandlingSkill() < 0 || a.AllowedAreaId != nil && a.GetAllowedAreaId() != "" && validID(a.GetAllowedAreaId()) != nil {
+		if a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || a.AllowedAreaId != nil && a.GetAllowedAreaId() != "" && validID(a.GetAllowedAreaId()) != nil {
 			return contract("invalid animal herd facts")
 		}
 		if err := pawnsIssues(a.Issues, a.ProtoReflect()); err != nil {

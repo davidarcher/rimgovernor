@@ -20,7 +20,7 @@ func lineView(from, to int32, centipede bool) CombatView {
 	if centipede {
 		cell, _ := view.Positional[0].Position.Value()
 		view.Threats[0].Humanlike, view.Positional[0].Humanlike = domain.Known(false), domain.Known(false)
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Kind: "Mech_CentipedeGunner", Weapon: "Gun_HeavyChargeBlaster", Cell: domain.Known(cell)})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: "r1", Kind: "Mech_CentipedeGunner", Mech: true, Weapon: "Gun_HeavyChargeBlaster", Cell: domain.Known(cell)})
 	}
 	return view
 }

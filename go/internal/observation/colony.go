@@ -494,8 +494,19 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v, buildings)
 	r.Facts.Sleeping = colonySleeping(v, buildings)
-	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns), r.FoodChannels)
-	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns)
+	// The race rows are static for a load and come from the catalog; an
+	// unbuildable race table fails the reading.
+	races, racesErr := tables.Catalog.AnimalRaces()
+	if racesErr != nil {
+		return ColonyProjection{}, racesErr
+	}
+	r.Facts.AnimalUpkeep.AnimalRaces = races
+	r.Facts.AnimalUpkeep.Animals = mergeHerdFoodFacts(colonyAnimals(v, tables.Pawns, races), r.FoodChannels)
+	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v, tables.Pawns, races)
+	if policies, known := r.Policies.Value(); known {
+		policies.FoodEaters = animalFoodEaters(policies.FoodEaters, tables.Pawns, races)
+		r.Policies = domain.Known(policies)
+	}
 	r.Facts.Waste = colonyWaste(v, tables)
 	r.Facts.Blight = colonyBlight(v, tables)
 	r.Facts.Pollution = colonyPollution(r.Biotech)

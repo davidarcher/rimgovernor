@@ -56,19 +56,19 @@ namespace HomeBridge.BridgeTools
         private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
             && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
-        // PestDefinitions are the wild animals hunted for what they destroy,
-        // not for meat (#247): an alphabeaver pack defoliates the map and
-        // no census otherwise answers it (wild, factionless, not hostile,
-        // not a predator). Go recognises the same names in the wild-animal
-        // census (policy.PestDefinition), so the two lists move together.
-        internal static readonly HashSet<string> PestDefinitions = new HashSet<string>(StringComparer.Ordinal) { "Alphabeaver" };
+        // A pest is a wild animal hunted for what it destroys, not for meat
+        // (#247): a race that eats trees (RaceProperties.Eats(Tree), the
+        // alphabeaver) defoliates the map and no census otherwise answers it
+        // (wild, factionless, not hostile, not a predator). Go reads the same
+        // rule off the race rows (AnimalRace.Pest).
+        internal static bool PestRace(RaceProperties race) => race.Animal && race.Eats(FoodTypeFlags.Tree);
         // Pest is the pest rule: a wild, living, undowned animal of a pest
-        // definition. It waives the docility (manhunterOnDamageChance) and
+        // race. It waives the docility (manhunterOnDamageChance) and
         // butcher-bill rules of SafePrey: the point is the kill, and the
         // pack turning manhunter on a hit is the emergency census's threat
         // to answer, not a reason to leave the trees to them.
         internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
-            && prey.RaceProps.corpseDef != null && PestDefinitions.Contains(prey.def.defName);
+            && prey.RaceProps.corpseDef != null && PestRace(prey.RaceProps);
         // Meleeable prey (#260): safe prey no bigger than the hunter, which
         // flees rather than fights back, so a colonist with a melee weapon
         // or bare hands can run it down. This is the wiki's day-one interim

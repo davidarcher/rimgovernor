@@ -42,6 +42,7 @@ package husbandry
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"sort"
@@ -53,6 +54,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -80,7 +83,7 @@ const (
 func init() {
 	cases.Register(cases.Case{
 		Name: "husbandry/plan",
-		Scope: "Herd plan end to end on the lab (#1638): the race catalog read carries cows with a milk product, wild and tame " +
+		Scope: "Herd plan end to end on the lab (#1638): the catalog race rows carry cows with a milk product, wild and tame " +
 			"races and a minimum handling skill; a lone cow founder is kept (never culled or sterilized) beside an old milk race; " +
 			"the old race's surplus male is sterilized in the controller-built vet room (VetRoom area, medical animal bed, " +
 			"surgery bill) and reads back sterilized; a wild bull is tamed as the cow's mate and the old race then retires one " +
@@ -109,43 +112,43 @@ type raceRow struct {
 	milk     *struct{ amount, interval float64 }
 }
 
-func optNumber(m map[string]any, key string) *float64 {
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	n := na.AsNumber(v)
-	return &n
-}
-
-// readCatalog reads the race catalog once and returns its rows by defName.
+// readCatalog reads the definition catalog once and returns its animal race
+// rows by defName (#1722: the race rows of the catalog, not a separate read).
 func readCatalog(ctx context.Context, h *na.Harness, identity map[string]any) (map[string]raceRow, error) {
-	reply, err := h.Wire(ctx, "race-catalog", "observations_read_animal_race_catalog", map[string]any{
-		"scope": map[string]any{"expectedIdentity": identity}})
+	data, err := json.Marshal(identity)
 	if err != nil {
 		return nil, err
 	}
-	_, observed, err := na.Outcome(reply, "observed")
+	id := &c.Identity{}
+	if err := protojson.Unmarshal(data, id); err != nil {
+		return nil, err
+	}
+	catalog, err := h.Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	races, err := catalog.AnimalRaces()
 	if err != nil {
 		return nil, err
 	}
 	rows := map[string]raceRow{}
-	for _, raw := range na.AsSlice(observed["races"]) {
-		m, _ := na.AsMap(raw)
-		row := raceRow{def: na.AsString(m["defName"]), wildness: optNumber(m, "wildness"), body: optNumber(m, "bodySize")}
-		if v, ok := m["minimumHandlingSkill"]; ok {
-			n := int(na.AsNumber(v))
-			row.minSkill = &n
+	for def, race := range races.Races {
+		row := raceRow{def: string(def)}
+		if v, ok := race.Wildness.Value(); ok {
+			row.wildness = &v
 		}
-		for _, p := range na.AsSlice(m["products"]) {
-			product, _ := na.AsMap(p)
-			amount, interval := optNumber(product, "amount"), optNumber(product, "intervalDays")
-			if na.AsString(product["kind"]) == "milk" && amount != nil && interval != nil && *interval > 0 {
-				row.milk = &struct{ amount, interval float64 }{*amount, *interval}
+		if v, ok := race.BodySize.Value(); ok {
+			row.body = &v
+		}
+		if v, ok := race.MinimumHandlingSkill.Value(); ok {
+			row.minSkill = &v
+		}
+		for _, product := range race.Products {
+			amount, aok := product.Amount.Value()
+			interval, iok := product.IntervalDays.Value()
+			if product.Kind == "milk" && aok && iok && interval > 0 {
+				row.milk = &struct{ amount, interval float64 }{amount, interval}
 			}
-		}
-		if row.def == "" {
-			return nil, fmt.Errorf("race catalog row without a defName: %#v", m)
 		}
 		rows[row.def] = row
 	}

@@ -46,7 +46,7 @@ func ClassifyLoadoutThreat(view CombatView, prisonBreak bool) LoadoutThreat {
 		if !hostile[p.ID] || p.Dead || p.Downed {
 			continue
 		}
-		if strings.HasPrefix(p.Kind, "Mech_") {
+		if p.Mech {
 			return LoadoutEMP
 		}
 		if _, shielded := p.Shield.Value(); shielded && !p.WeaponFacts.Ranged {

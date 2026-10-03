@@ -60,7 +60,7 @@ func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
 		return threatScyther
 	case strings.Contains(h.Kind, "Termite"):
 		return threatTermite
-	case strings.HasPrefix(h.Kind, "Mech_"):
+	case h.Mech:
 		return threatMech
 	}
 	return threatOther

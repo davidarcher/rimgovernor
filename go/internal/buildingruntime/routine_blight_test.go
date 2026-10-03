@@ -131,8 +131,3 @@ func TestRoutineBlightPlannerRefusesWithoutCensus(t *testing.T) {
 func (n *routineBlightNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
 	return fakeFrame(ctx, n, id)
 }
-
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (n *routineBlightNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
-}

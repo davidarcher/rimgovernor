@@ -119,11 +119,6 @@ func (n *temperatureNative) ReadRoutineFrame(ctx context.Context, id *c.Identity
 	return fakeFrame(ctx, n, id)
 }
 
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (n *temperatureNative) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
-}
-
 func (n *temperatureNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
 	n.roomReads++
 	if n.onRooms != nil {

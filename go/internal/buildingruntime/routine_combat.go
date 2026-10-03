@@ -469,7 +469,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapon
 			if row.Health != nil {
 				s.Health = domain.Known(row.GetHealth())
 			}
-			out = append(out, threatFacts(s, rows[row.GetId()]))
+			out = append(out, threatFacts(s, rows[row.GetId()], combat.Catalog))
 		}
 		return out
 	}
@@ -484,7 +484,7 @@ func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapon
 		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
 			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
 		}
-		out = append(out, threatFacts(s, row))
+		out = append(out, threatFacts(s, row, combat.Catalog))
 	}
 	return out
 }
@@ -504,11 +504,13 @@ func recordCombatStop(ctx context.Context, combat bridge.Combat, s snap.CombatSt
 
 // threatFacts adds the census row's threat facts (#863): the pawn kind,
 // and a sapper or breacher by its lord toil or a mining job.
-func threatFacts(s policy.CombatPawnState, row *n.PawnState) policy.CombatPawnState {
+func threatFacts(s policy.CombatPawnState, row *n.PawnState, catalog *bridge.DefinitionCatalog) policy.CombatPawnState {
 	if row == nil {
 		return s
 	}
 	s.Kind = row.GetKindDefName()
+	// The race flags are the game's own, off the catalog's race rows (#1722).
+	_, s.Mech, s.Insect = catalog.RaceFlags(row.GetPawn().GetDefName())
 	if h := row.GetHealth(); h != nil {
 		if h.BloodLoss != nil {
 			s.BloodLoss = domain.Known(h.GetBloodLoss())

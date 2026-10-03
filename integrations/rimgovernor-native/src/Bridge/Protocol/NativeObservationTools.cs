@@ -293,8 +293,7 @@ namespace HomeBridge.BridgeTools
         {
             var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
                 Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
-                Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid,
-                Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
+                Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid };
             if (pawn.Faction != null) row.Faction=NativeRef.Of(Identifier(pawn.Faction.GetUniqueLoadID()));
             // Fog is the discovery fact, not a guess at reachability: a hostile
             // the colony has never seen is no emergency (#659).

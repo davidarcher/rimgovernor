@@ -160,13 +160,10 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if !presentationText(row.HostileReason, 4096) {
 			return contract("invalid pawn hostile reason")
 		}
-		for _, value := range []*float64{row.ManhunterOnDamageChance, row.NearestColonistDistance} {
+		for _, value := range []*float64{row.NearestColonistDistance} {
 			if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0) || *value < 0) {
 				return contract("invalid pawn number")
 			}
-		}
-		if row.ManhunterOnDamageChance != nil && row.GetManhunterOnDamageChance() > 1 {
-			return contract("invalid manhunter probability")
 		}
 		if row.NearestColonist != nil && !validRef(row.NearestColonist) {
 			return contract("invalid nearest colonist")

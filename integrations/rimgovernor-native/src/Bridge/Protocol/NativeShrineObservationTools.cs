@@ -148,7 +148,7 @@ namespace HomeBridge.BridgeTools
             if (race == null) return Obs.ShrineGuardKind.Other;
             if (race.IsMechanoid) return Obs.ShrineGuardKind.Mechanoid;
             if (race.Humanlike) return Obs.ShrineGuardKind.Human;
-            if (race.FleshType == FleshTypeDefOf.Insectoid) return Obs.ShrineGuardKind.Insectoid;
+            if (race.Insect) return Obs.ShrineGuardKind.Insectoid;
             if (race.FleshType == FleshTypeDefOf.Fleshbeast) return Obs.ShrineGuardKind.Fleshbeast;
             return Obs.ShrineGuardKind.Other;
         }

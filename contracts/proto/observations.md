@@ -377,19 +377,26 @@ Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
 returns as no facts. Reads are derived state (persistence-contracts.md); the
 read adds no store.
 
-## Animal race catalog
+## Animal races
 
-`ReadAnimalRaceCatalog` (#1625) reports the static facts of every animal race
-the game knows, modded and DLC included, whether wild or tameable: carrying
-capacity, trainability and the trainables the race can learn, wildness, body
-size, combat power (the highest `PawnKindDef.combatPower` of the race), market
-value, minimum handling skill (the Animals level taming needs) and its
-periodic products (milk, wool, eggs and spawned items such as chemfuel, each
-with item and interval). The facts hold for a load, so the Go client reads the
-catalog once per load token and decodes it into `policy.AnimalRaceCatalog`
-(`bridge.AnimalRaces`), where an absent scalar is unknown, never zero. It is
-derived state held in Go memory (persistence-contracts.md); it adds no store
-and no per-animal rows.
+There is no race read (#1722; `ReadAnimalRaceCatalog` is gone). The definition
+catalog's `ThingDef` rows carry every race's whole `RaceProperties` and its
+comps, `PawnKindDef` rows the combat power, and the stat table the race's
+carrying capacity, wildness, market value and minimum handling skill. What only
+the game's own race code can say rides the race's `ThingDefFacts.race`
+(`RaceFacts`, #1722): `animal` (`RaceProperties.Animal`), `mechanoid`
+(`IsMechanoid`), `insect` (`Insect`), the `trainables` the race can ever learn
+(`Pawn_TrainingTracker.CanAssignToTrain`'s race rules) and the `edible_defs`
+(`RaceProperties.CanEverEat`, over the foods the facts mark). The Go catalog
+derives `policy.AnimalRaceCatalog` from those rows once per load
+(`DefinitionCatalog.AnimalRaces`): body size, life expectancy, the predator
+flag and the manhunter chances are row fields, a pest is an animal whose
+`foodType` includes `Tree` (the alphabeaver), periodic products come from the
+milk, wool, egg and spawner comps, and the feed a bench can make is the
+`RecipeDef` products the race can eat. An absent stat is unknown, never zero.
+It is derived state held in Go memory (persistence-contracts.md); it adds no
+store and no per-animal race copy: `AnimalState` and `PawnState` carry no race
+scalar, `FoodEater` and `FoodRestriction` no food list.
 
 ## Biotech defs and pawn facts
 
@@ -435,7 +442,7 @@ is absent without Odyssey (`ModsConfig.OdysseyActive`).
 game defs (never Go name lists): `BiomeDef` rows (hazard flags, densities,
 `biomeMapConditions`, and the animal kinds and disease incidents with a nonzero
 commonality in the inland, pollution and coastal tables; the races are
-`AnimalRaceCatalog`'s, so a new animal needs no row of its own);
+the catalog's race rows, so a new animal needs no row of its own);
 `TileMutatorDef` rows (the cave, vent and stockpile features of a world tile,
 with the game conditions they add); `CompProperties_Hackable` thing defs
 (defence, skill prerequisite, lockout, the quest a finished hack starts);

@@ -3,20 +3,27 @@ package buildingruntime
 import (
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
+// noRaces is the empty race catalog.
+var noRaces = policy.AnimalRaceCatalog{}
+
 func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 	row := &o.PawnState{
-		Pawn:        &o.EntityRef{Id: proto.String("wolf")},
+		Pawn:        &o.EntityRef{Id: proto.String("wolf"), DefName: proto.String("Wolf_Timber")},
 		Animal:      proto.Bool(true),
 		Humanlike:   proto.Bool(false),
 		MentalState: proto.String("ManhunterPermanent"),
-		AnimalState: &o.AnimalState{BodySize: proto.Float64(1.4)},
 	}
-	facts := squadThreatFacts(row)
+	// The body size is the race row's (#1722).
+	races := policy.AnimalRaceCatalog{Races: map[policy.Resource]policy.AnimalRace{"Wolf_Timber": {Def: "Wolf_Timber", BodySize: domain.Known(1.4)}}}
+	facts := squadThreatFacts(row, races)
 	if size, ok := facts.BodySize.Value(); !ok || size != 1.4 {
 		t.Fatal("body size not decoded", facts.BodySize)
 	}
@@ -26,11 +33,11 @@ func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 	// A wild animal's equipment reads as a missing native component; it
 	// still counts as unarmed, or squad defense could never target it.
 	row.Equipment = &o.PawnEquipment{Issues: []*o.ReadIssue{{Field: proto.String("equipped"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING.Enum()}}}}
-	if ranged, ok := squadThreatFacts(row).RangedEquipped.Value(); !ok || ranged {
+	if ranged, ok := squadThreatFacts(row, noRaces).RangedEquipped.Value(); !ok || ranged {
 		t.Fatal("animal must read as not ranged-equipped", facts.RangedEquipped)
 	}
 	row.Animal = nil
-	if _, ok := squadThreatFacts(row).RangedEquipped.Value(); ok {
+	if _, ok := squadThreatFacts(row, noRaces).RangedEquipped.Value(); ok {
 		t.Fatal("unknown kind must keep the equipment unknown")
 	}
 }
@@ -45,7 +52,7 @@ func TestSquadThreatFactsMeleeEntity(t *testing.T) {
 		Humanlike: proto.Bool(false),
 		Anomaly:   &o.PawnAnomaly{Entity: proto.Bool(true), Mutant: proto.Bool(false), MeleeOnly: proto.Bool(true), HiddenFromPlayer: proto.Bool(true)},
 	}
-	facts := squadThreatFacts(row)
+	facts := squadThreatFacts(row, noRaces)
 	if ranged, ok := facts.RangedEquipped.Value(); !ok || ranged {
 		t.Fatal("a melee-only entity must read as not ranged-equipped", facts.RangedEquipped)
 	}
@@ -53,7 +60,7 @@ func TestSquadThreatFactsMeleeEntity(t *testing.T) {
 		t.Fatal("the row's Anomaly facts were not lifted", facts.Anomaly)
 	}
 	row.Anomaly.MeleeOnly = nil
-	if _, ok := squadThreatFacts(row).RangedEquipped.Value(); ok {
+	if _, ok := squadThreatFacts(row, noRaces).RangedEquipped.Value(); ok {
 		t.Fatal("an unread attack must keep the equipment unknown")
 	}
 }
@@ -63,7 +70,7 @@ func TestSquadThreatFactsNonManhunterMentalStateKnownFalse(t *testing.T) {
 		Pawn:        &o.EntityRef{Id: proto.String("berserk-colonist")},
 		MentalState: proto.String("Berserk"),
 	}
-	facts := squadThreatFacts(row)
+	facts := squadThreatFacts(row, noRaces)
 	if manhunter, ok := facts.Manhunter.Value(); !ok || manhunter {
 		t.Fatal("expected known-false manhunter for a different mental state", facts.Manhunter)
 	}
@@ -76,7 +83,7 @@ func TestSquadThreatFactsNoMentalStateKnownFalseViaIssue(t *testing.T) {
 			Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum(),
 		}}},
 	}
-	facts := squadThreatFacts(row)
+	facts := squadThreatFacts(row, noRaces)
 	if manhunter, ok := facts.Manhunter.Value(); !ok || manhunter {
 		t.Fatal("expected known-false manhunter from a not-applicable issue", facts.Manhunter)
 	}
@@ -84,19 +91,19 @@ func TestSquadThreatFactsNoMentalStateKnownFalseViaIssue(t *testing.T) {
 
 func TestSquadThreatFactsMentalStateUnknownWithoutIssue(t *testing.T) {
 	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("unread")}}
-	facts := squadThreatFacts(row)
+	facts := squadThreatFacts(row, noRaces)
 	if _, ok := facts.Manhunter.Value(); ok {
 		t.Fatal("expected unknown manhunter without an explicit not-applicable issue")
 	}
 }
 
-func TestSquadThreatFactsBodySizeUnknownWithIssue(t *testing.T) {
+func TestSquadThreatFactsBodySizeUnknownWithoutARaceRow(t *testing.T) {
 	row := &o.PawnState{
-		Pawn:        &o.EntityRef{Id: proto.String("fogged-animal")},
-		AnimalState: &o.AnimalState{Issues: []*o.ReadIssue{{Field: proto.String("body_size"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}},
+		Pawn:        &o.EntityRef{Id: proto.String("fogged-animal"), DefName: proto.String("Wolf_Timber")},
+		AnimalState: &o.AnimalState{},
 	}
-	facts := squadThreatFacts(row)
+	facts := squadThreatFacts(row, noRaces)
 	if _, ok := facts.BodySize.Value(); ok {
-		t.Fatal("expected unknown body size when the field carries an issue")
+		t.Fatal("expected unknown body size when the catalog holds no race row")
 	}
 }

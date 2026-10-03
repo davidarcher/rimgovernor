@@ -21,7 +21,7 @@ func withMechs(view CombatView, mechs ...combatMech) CombatView {
 		s, d := combatRaider(h.id, h.cell)
 		s.Humanlike, d.Humanlike = domain.Known(false), domain.Known(false)
 		view.Threats, view.Positional = append(view.Threats, s), append(view.Positional, d)
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(h.id), Cell: domain.Known(h.cell), Kind: h.kind, WeaponRange: h.reach, MoveSpeed: h.speed})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: domain.PawnID(h.id), Cell: domain.Known(h.cell), Kind: h.kind, Mech: true, WeaponRange: h.reach, MoveSpeed: h.speed})
 	}
 	return view
 }

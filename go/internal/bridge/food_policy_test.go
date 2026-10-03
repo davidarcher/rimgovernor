@@ -8,14 +8,14 @@ import (
 )
 
 func TestFoodPolicyObservation(t *testing.T) {
-	diet := &o.PawnSettings{FoodRestriction: &o.FoodRestriction{PolicyId: proto.String("diet"), AllowedDefs: []string{"Rice"}, EligibleDefs: []string{"Rice", "MealSimple"}}}
+	diet := &o.PawnSettings{FoodRestriction: &o.FoodRestriction{PolicyId: proto.String("diet"), AllowedDefs: []string{"Rice"}}}
 	if err := validateSettings(diet, true, false, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := validateSettings(diet, false, true, false); err == nil {
 		t.Fatal("unrequested diet accepted")
 	}
-	diet.FoodRestriction.EligibleDefs = []string{"Rice", "Rice"}
+	diet.FoodRestriction.AllowedDefs = []string{"Rice", "Rice"}
 	if err := validateSettings(diet, true, false, false); err == nil {
 		t.Fatal("duplicate diet definition accepted")
 	}

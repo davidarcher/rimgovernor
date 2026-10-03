@@ -33,7 +33,6 @@ func TestPawnTableValidatesEveryKind(t *testing.T) {
 	for _, mutate := range []func(*o.PawnSnapshot){
 		func(v *o.PawnSnapshot) { v.Pawns = append(v.Pawns, v.Pawns[0]) },
 		func(v *o.PawnSnapshot) { v.Pawns[1].AnimalState.Contained = proto.Bool(false) },
-		func(v *o.PawnSnapshot) { v.Pawns[1].AnimalState.MinimumHandlingSkill = proto.Int32(-1) },
 		func(v *o.PawnSnapshot) {
 			v.Pawns[1].AnimalState.Training = append(v.Pawns[1].AnimalState.Training, v.Pawns[1].AnimalState.Training[0])
 		},

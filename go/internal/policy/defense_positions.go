@@ -20,7 +20,7 @@ type DefensiveThreatFacts struct {
 	// corridor direction it says whether the raid is still in front of the
 	// line or already past it.
 	Position domain.Fact[domain.Cell]
-	// Mech is a Mech_ kind (#922): a mechanoid assault lord holds like a
+	// Mech is a mechanoid (#922): a mechanoid assault lord holds like a
 	// humanlike raid.
 	Mech bool `json:",omitempty"`
 }

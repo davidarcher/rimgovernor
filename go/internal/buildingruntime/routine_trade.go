@@ -31,7 +31,6 @@ type RoutineTradeSource interface {
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSession(context.Context, *c.Identity) (bridge.TradeSessionRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity) (bridge.TradeSheetRead, bridge.Result, error)
-	AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error)
 }
 
 // RoutineTradePlanner drives TradeWithCaravan (#234) one phase edge per
@@ -550,17 +549,13 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		artCount = domain.Known(int64(len(saleArt)))
 	}
 	// Surplus animals sell while the silver runway is short (#1632); the
-	// race catalog is the herd plan's, as the routine reading attaches it.
-	races, err := r.native.AnimalRaceCatalog(call, identity)
-	if err != nil {
-		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
-	}
-	projection.Facts.AnimalUpkeep.AnimalRaces = races.AnimalRaceCatalog
+	// race catalog is the herd plan's, the catalog's race rows the projection
+	// decoded.
 	rows := tradeSheetRowFacts(sheet.Rows)
 	// The plan counts the animals this trader offers as obtainable, so its
 	// wants (bought below, #1636) and its surplus (sold) agree.
 	planInput := projection.Facts.HerdPlanInput()
-	planInput.Offers = policy.HerdOffers(rows, races.AnimalRaceCatalog)
+	planInput.Offers = policy.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces)
 	herd := policy.PlanHerd(planInput)
 	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
 	need, known := policy.AnimalSaleNeed(projection.Facts.Items, policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(projection.Facts.Items, policy.ReviewTradeNeed(projection.Facts.Items.Currency, medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()

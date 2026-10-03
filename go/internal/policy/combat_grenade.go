@@ -2,7 +2,6 @@ package policy
 
 import (
 	"math"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -84,8 +83,8 @@ func empWorth(h CombatPawnState) bool {
 	return isMech(h)
 }
 
-// isMech is a mechanoid pawn kind.
-func isMech(h CombatPawnState) bool { return strings.HasPrefix(h.Kind, "Mech_") }
+// isMech is a mechanoid pawn.
+func isMech(h CombatPawnState) bool { return h.Mech }
 
 func nearColonist(c domain.Cell, colonists []domain.Cell) bool {
 	for _, p := range colonists {

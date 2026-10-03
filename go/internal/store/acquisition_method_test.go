@@ -128,7 +128,7 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Current.Native = 2
-	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver"}})
+	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver", Pest: true}})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.ClearPests)
 	if g.Goal.Need != domain.NeedDeficit {

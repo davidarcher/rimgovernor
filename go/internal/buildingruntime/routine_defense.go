@@ -434,10 +434,12 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 		defenders[i].FrontLine = holds[defenders[i].ID]
 	}
 	var threats []policy.SquadThreatFacts
+	// ReadCombat built the table, so it carries no error here.
+	races, _ := combat.Catalog.AnimalRaces()
 	positional := make([]policy.DefensiveThreatFacts, 0, len(in.hostileIDs))
 	for _, id := range in.hostileIDs {
 		row := in.rows[id]
-		facts := squadThreatFacts(row)
+		facts := squadThreatFacts(row, races)
 		facts.Hunting = domain.Known(in.hunting[id])
 		facts.MeleePower = melee[domain.PawnID(id)]
 		threats = append(threats, facts)
@@ -445,7 +447,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	}
 	// A hunt origin's prey are threats the squad answers (#1617).
 	for _, id := range in.prey {
-		threats = append(threats, squadThreatFacts(in.rows[id]))
+		threats = append(threats, squadThreatFacts(in.rows[id], races))
 	}
 	lines := buildingLinesOfFire(combat.Lines, in.buildings, defenders, in.rows)
 	for _, building := range in.buildings {
@@ -461,13 +463,13 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
+	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in, combat.Catalog), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
 		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
 }
 
 // preyStates adds the hunt origin's prey the combat mirror does not list
 // (it carries wild animals only beside a hostile) from their detail rows.
-func preyStates(states []policy.CombatPawnState, in combatInputs) []policy.CombatPawnState {
+func preyStates(states []policy.CombatPawnState, in combatInputs, catalog *bridge.DefinitionCatalog) []policy.CombatPawnState {
 	listed := map[domain.PawnID]bool{}
 	for _, s := range states {
 		listed[s.ID] = true
@@ -481,7 +483,7 @@ func preyStates(states []policy.CombatPawnState, in combatInputs) []policy.Comba
 		if position := row.GetPawn().GetPosition(); position != nil && position.X != nil && position.Z != nil {
 			s.Cell = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
 		}
-		states = append(states, threatFacts(s, row))
+		states = append(states, threatFacts(s, row, catalog))
 	}
 	return states
 }

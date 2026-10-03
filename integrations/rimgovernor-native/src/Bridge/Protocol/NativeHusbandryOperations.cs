@@ -80,9 +80,7 @@ namespace HomeBridge.BridgeTools
         internal static void HerdFacts(Pawn animal, RimGovernor.Protocol.Observations.AnimalState state)
         {
             state.AgeYears = animal.ageTracker.AgeBiologicalYearsFloat;
-            state.LifeExpectancyYears = animal.RaceProps.lifeExpectancy;
             state.Adult = animal.ageTracker.Adult;
-            state.ManhunterOnTameFail = animal.RaceProps.manhunterOnTameFailChance;
             state.Gender = animal.gender.ToString();
             if (animal.Faction != Faction.OfPlayer) return;
             state.Sick = animal.health.hediffSet.AnyHediffMakesSickThought;

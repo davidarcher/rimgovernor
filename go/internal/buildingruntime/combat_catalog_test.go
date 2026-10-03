@@ -1,9 +1,11 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -27,6 +29,36 @@ func decodeCombatWithCatalog(frame *o.BundleSnapshot) (bridge.Combat, error) {
 		}
 		defs = append(defs, bridge.FixtureDef{Name: name, Weapon: weapon})
 	}
+	// The race rows a live read would carry (#1722): the recordings hold pawn
+	// rows, not the catalog, so each animal and mechanoid in the frame is a
+	// race here, a recorded Cougar with the predator and manhunter numbers its
+	// rows held.
+	races := map[string]bool{}
+	for row := range combat.Detail.Values() {
+		def := row.GetPawn().GetDefName()
+		if races[def] {
+			continue
+		}
+		switch {
+		case row.GetMechanoid():
+			races[def] = true
+			defs = append(defs, bridge.FixtureDef{Name: def, Race: &bridge.FixtureRace{Props: &d.RaceProperties{}, Facts: &o.RaceFacts{Mechanoid: true}}})
+		case row.GetAnimal():
+			races[def] = true
+			props, ok := recordedRaces[def]
+			if !ok {
+				return combat, fmt.Errorf("recorded animal %s has no recorded race row", def)
+			}
+			defs = append(defs, bridge.FixtureDef{Name: def, Race: &bridge.FixtureRace{Props: props, Facts: &o.RaceFacts{Animal: true}}})
+		}
+	}
 	combat.Catalog = bridge.FixtureCatalog("load", defs...)
 	return combat, nil
+}
+
+// recordedRaces are the race rows the recorded fights' animals had before the
+// catalog carried them (#1722): a recorded Cougar is a predator of body size
+// 1 that turns on a hit half the time.
+var recordedRaces = map[string]*d.RaceProperties{
+	"Cougar": {Predator: true, BaseBodySize: 1, ManhunterOnDamageChance: 0.5},
 }

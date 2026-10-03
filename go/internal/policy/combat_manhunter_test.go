@@ -12,7 +12,7 @@ func combatAnimal(id PawnID, kind string, cell domain.Cell, speed float64) (Squa
 	s.Humanlike, s.Animal, s.Manhunter, s.BodySize = domain.Known(false), domain.Known(true), domain.Known(true), domain.Known(1.0)
 	d.Humanlike = domain.Known(false)
 	d.LordJobClass, d.LordToilClass = domain.Unknown[string](), domain.Unknown[string]()
-	return s, d, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(cell), Kind: kind, MoveSpeed: speed}
+	return s, d, CombatPawnState{ID: domain.PawnID(id), Cell: domain.Known(cell), Kind: kind, Insect: kind == "Megaspider", MoveSpeed: speed}
 }
 
 type animalFacts func() (SquadThreatFacts, DefensiveThreatFacts, CombatPawnState)

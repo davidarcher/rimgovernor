@@ -51,9 +51,9 @@ func meleeCapable(equipment *n.PawnEquipment) domain.Fact[bool] {
 }
 
 // squadThreatFacts populates what the shared pawn snapshot carries, including
-// the animal detail (BodySize) requested alongside combat pawn reads and the
+// the race's body size from the catalog's race rows (#1722) and the
 // manhunter mental state exact-matched against Manhunter/ManhunterPermanent.
-func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
+func squadThreatFacts(row *n.PawnState, races policy.AnimalRaceCatalog) policy.SquadThreatFacts {
 	facts := policy.SquadThreatFacts{ID: policy.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
 	if row.Humanlike != nil {
 		facts.Humanlike = domain.Known(row.GetHumanlike())
@@ -70,8 +70,8 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 		facts.RangedEquipped = domain.Known(false)
 	}
 	facts.Manhunter = manhunterFact(row.MentalState, row.Issues)
-	if animal := row.AnimalState; animal != nil && animal.BodySize != nil && !boundary.IssueField(animal.Issues, "body_size") {
-		facts.BodySize = domain.Known(animal.GetBodySize())
+	if race, ok := races.Race(policy.Resource(row.GetPawn().GetDefName())); ok {
+		facts.BodySize = race.BodySize
 	}
 	return facts
 }

@@ -388,19 +388,21 @@ message AnimalState {
   optional double gestation = 5; optional double milk_fullness = 6; optional double wool_fullness = 7;
   optional string pen_id = 8; optional bool contained = 9; repeated string parent_ids = 10;
   repeated TrainingEntry training = 11; optional bool release = 12; optional bool slaughter = 13;
-  optional bool safe_to_slaughter = 14; optional int32 minimum_handling_skill = 15; repeated ReadIssue issues = 16;
-  optional double body_size = 17; optional bool tameable = 18; optional bool tame = 19; optional bool safe_to_release = 20;
+  optional bool safe_to_slaughter = 14; reserved 15; reserved "minimum_handling_skill"; repeated ReadIssue issues = 16;
+  reserved 17; reserved "body_size"; optional bool tameable = 18; optional bool tame = 19; optional bool safe_to_release = 20;
   // Player-animal settings the SetAnimalArea/Master/Following writes target:
   // the current allowed area and master (empty when unassigned), the follow
   // flags, whether Obedience is learned (master/follow eligibility) and
   // whether native lets this animal carry an allowed area at all.
   optional string allowed_area_id = 21; optional string master_id = 22; optional bool follow_drafted = 23; optional bool follow_fieldwork = 24;
   optional bool obedient = 25; optional bool supports_allowed_areas = 26;
-  // Herd sizing facts (#875): RaceProps.lifeExpectancy in years, any hediff
-  // that makes colonists feel sick, the player ideo venerates this race
-  // (slaughter_barred is no longer written; precept effects decide, #1644), RaceProps.manhunterOnTameFailChance, and adult age stage.
-  optional double life_expectancy_years = 27; optional bool sick = 28; optional bool slaughter_barred = 29;
-  optional bool venerated = 30; optional double manhunter_on_tame_fail = 31; optional bool adult = 32;
+  // Herd sizing facts (#875): any hediff that makes colonists feel sick, the
+  // player ideo venerates this race (slaughter_barred is no longer written;
+  // precept effects decide, #1644), and adult age stage. The race's own
+  // numbers (body size, life expectancy, minimum handling skill, tame-failure
+  // manhunter chance) are the catalog's race rows (#1722).
+  reserved 27; reserved "life_expectancy_years"; optional bool sick = 28; optional bool slaughter_barred = 29;
+  optional bool venerated = 30; reserved 31; reserved "manhunter_on_tame_fail"; optional bool adult = 32;
   // Medical care cap inputs (#1301), for a player animal: its
   // MedicalCareCategory name, a Bond relation to any living pawn, and the
   // same conditions block PopulationPerson.conditions carries.
@@ -421,7 +423,7 @@ message PawnState {
   optional bool burning = 19; optional bool player_controlled = 20; JobEvidence job = 21;
   PawnNeeds needs = 22; PawnHealth health = 23; PawnEquipment equipment = 24; PawnBiography biography = 25;
   PawnSettings settings = 26; PawnSocial social = 27; AnimalState animal_state = 28;
-  optional bool predator = 29; optional double manhunter_on_damage_chance = 30; rimgovernor.common.v1.Ref nearest_colonist = 31;
+  reserved 29, 30; reserved "predator", "manhunter_on_damage_chance"; rimgovernor.common.v1.Ref nearest_colonist = 31;
   optional double nearest_colonist_distance = 32; repeated ReadIssue issues = 33;
   // Native draft claims were removed (#939): drafts are plan-owned.
   reserved 34; reserved "draft_claim";
@@ -1197,26 +1199,6 @@ message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_n
 message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; repeated PawnRoyalty pawns = 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-// Animal race catalog (#1625): the static facts of every animal race the game
-// knows (modded and DLC included, wild or tameable), fixed for a load. Each
-// scalar is absent when native could not read it. trainability is the
-// TrainabilityDef name; trainables are the TrainableDefs the race can ever
-// learn. carrying_capacity is the CarryingCapacity stat, wildness the Wildness stat
-// (0-1), combat_power the highest PawnKindDef.combatPower of the race, market_value the
-// MarketValue stat and minimum_handling_skill the Animals level taming it
-// needs (the MinimumHandlingSkill stat). products are what the race gives
-// from its comps: kind is milk, wool, eggs or spawner (periodic spawns such
-// as chemfuel); amount is items per yield, interval_days the days between
-// yields at full growth.
-message AnimalProduct { optional string kind = 1; optional string def_name = 2; optional double amount = 3; optional double interval_days = 4; }
-// feed_items are the items the race can eat (RaceProperties.CanEverEat) that
-// some recipe produces, each with its nutrition per item: the feed a bench can
-// make for the race.
-message AnimalFeedItem { optional string def_name = 1; optional double nutrition_per_item = 2; }
-message AnimalRaceFacts { optional string def_name = 1; optional double carrying_capacity = 2; optional string trainability = 3; repeated string trainables = 4; optional double wildness = 5; optional double body_size = 6; optional double combat_power = 7; optional double market_value = 8; optional int32 minimum_handling_skill = 9; repeated AnimalProduct products = 10; repeated AnimalFeedItem feed_items = 11; }
-message AnimalRaceCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated AnimalRaceFacts races = 2; }
-message AnimalRaceCatalogRequest { ReadScope scope = 1; }
-message AnimalRaceCatalogReply { oneof outcome { AnimalRaceCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated rimgovernor.common.v1.Ref eaters = 3; }
 // reachable_benches lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
@@ -1605,9 +1587,9 @@ message PolicyFacts {
 // A food policy holder outside the work census (#1543): a prisoner of the
 // colony or a tame animal on the colony map with a food policy. A prisoner
 // carries its diet inputs (trait defNames, its ideoligion's precept
-// defNames); an animal the food definitions its race can ever eat.
+// defNames); the food an animal's race can ever eat is its catalog race row's.
 enum FoodEaterKind { FOOD_EATER_KIND_UNSPECIFIED = 0; FOOD_EATER_KIND_PRISONER = 1; FOOD_EATER_KIND_ANIMAL = 2; }
-message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string traits = 3; repeated string precepts = 4; repeated string edible_defs = 5; }
+message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string traits = 3; repeated string precepts = 4; reserved 5; reserved "edible_defs"; }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
 // cell grid is a separate code; pollution here is its totals plus what makes
@@ -1910,6 +1892,24 @@ message ThingDefFacts {
   bool raw_meat = 4;
   bool medicine = 5;
   repeated string room_roles = 6;
+  // Set on a def with RaceProperties (#1722).
+  optional RaceFacts race = 7;
+}
+// What the game's own race code says about one race, computed once per load
+// (#1722); the race's numbers (body size, life expectancy, predator, the
+// manhunter chances, wildness, minimum handling skill, products, meat) are the
+// def rows and the stat table, not copied here. `animal` is RaceProperties
+// .Animal, `mechanoid` .IsMechanoid and `insect` .Insect. `trainables` are the
+// TrainableDefs the race can ever learn (Pawn_TrainingTracker.CanAssignToTrain's
+// race rules: trainability rank, minimum body size, the tag lists) and
+// `edible_defs` the foods (ThingDefFacts.food_kind set) RaceProperties
+// .CanEverEat accepts, both sorted.
+message RaceFacts {
+  bool animal = 1;
+  bool mechanoid = 2;
+  bool insect = 3;
+  repeated string trainables = 4;
+  repeated string edible_defs = 5;
 }
 // GetStatValueAbstract(stat, stuff) of every StatDef the game shows for a def,
 // for every ThingDef: once per allowed stuff for a def made from stuff, once
@@ -2121,7 +2121,7 @@ message BiotechCatalog {
 // animals they carry, tile mutators (the cave, vent and stockpile features a
 // world tile can have), hackable thing defs, map portals and the stockpile
 // types. A def name is the key every other Odyssey message refers by; the
-// animal races themselves are AnimalRaceCatalog's.
+// animal races themselves are the catalog's ThingDef race rows.
 message OdysseyCatalog {
   repeated BiomeRow biomes = 1; repeated TileMutatorRow tile_mutators = 2; repeated HackableRow hackables = 3;
   repeated PortalRow portals = 4; repeated StockpileTypeRow stockpile_types = 5;
@@ -2379,7 +2379,6 @@ service Observations {
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
   rpc ReadRoyaltyFacts(RoyaltyFactsRequest) returns (RoyaltyFactsReply);
-  rpc ReadAnimalRaceCatalog(AnimalRaceCatalogRequest) returns (AnimalRaceCatalogReply);
   rpc ReadWaste(WasteRequest) returns (WasteReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);
@@ -2400,12 +2399,11 @@ service Observations {
 // Native definition classification for bounded food purchases and crop exports.
 message TradeFoodFacts { double nutrition = 1; FoodIngredientClass ingredient_class = 2; bool prepared = 3; bool non_perishable = 4; bool crop = 5; }
 
-// The pawn's current food policy: its load id, allowed definitions and
-// the definitions native diet rules let it eat.
+// The pawn's current food policy: its load id and allowed definitions.
 message FoodRestriction {
   optional string policy_id = 1;
   repeated string allowed_defs = 2;
-  repeated string eligible_defs = 3;
+  reserved 3; reserved "eligible_defs";
 }
 
 message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; reserved 10; reserved "definitions"; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; repeated Skill skills = 16;

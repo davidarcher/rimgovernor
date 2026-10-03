@@ -6,20 +6,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// pestDefinitions are the wild animals ClearPests hunts for what they
-// destroy rather than for meat (#247): an alphabeaver pack arrives as a
-// NegativeEvent letter, is factionless, never hostile and not a predator,
-// so no emergency census answers it while it defoliates the map. Native's
-// NativeHuntAcquisition.PestDefinitions lists the same names: it decides
-// which animals the hunt census offers as pest rows, this decides which
-// rows of the wild-animal census count as the goal's deficit.
-var pestDefinitions = map[Resource]bool{"Alphabeaver": true}
+// A pest is a wild animal ClearPests hunts for what it destroys rather than
+// for meat (#247): an alphabeaver pack arrives as a NegativeEvent letter, is
+// factionless, never hostile and not a predator, so no emergency census
+// answers it while it defoliates the map. The race rows say which races are
+// pests (AnimalRace.Pest: an animal that eats trees); native's
+// NativeHuntAcquisition.PestRace applies the same rule to decide which
+// animals the hunt census offers as pest rows, and this decides which rows of
+// the wild-animal census count as the goal's deficit.
 
-// PestDefinition reports whether a native definition name is a recognised
-// pest.
-func PestDefinition(definition Resource) bool { return pestDefinitions[definition] }
-
-// PestCensus counts the recognised pests in the wild-animal census (every
+// PestCensus counts the pests in the wild-animal census (every
 // living factionless animal on the map, so a pest anywhere counts, not
 // only one near the colony). Unknown while the census is unknown.
 func PestCensus(wild domain.Fact[[]UpkeepAnimal]) domain.Fact[int] {
@@ -29,7 +25,7 @@ func PestCensus(wild domain.Fact[[]UpkeepAnimal]) domain.Fact[int] {
 	}
 	count := 0
 	for _, row := range rows {
-		if PestDefinition(row.Definition) {
+		if row.Pest {
 			count++
 		}
 	}
@@ -47,7 +43,7 @@ func SelectPestAcquisition(sources domain.Fact[[]AcquisitionSource], pests domai
 		return nil, errors.New("pest census unavailable")
 	}
 	accept := func(row AcquisitionSource) (float64, bool) {
-		return 1, row.Hunt && PestDefinition(Resource(row.Definition))
+		return 1, row.Hunt && row.Pest
 	}
 	return selectAcquisition(sources, domain.Known(float64(count)), domain.Known(0.0), accept, held, huntSlots)
 }

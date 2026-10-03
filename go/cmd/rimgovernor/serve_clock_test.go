@@ -51,11 +51,6 @@ func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity) (bridg
 	return bridge.RoutineFrame{}, errors.New("routine frame unavailable")
 }
 
-// AnimalRaceCatalog is the empty race catalog (the observation source requires one).
-func (f *clockServiceFake) AnimalRaceCatalog(context.Context, *c.Identity) (*bridge.AnimalRaces, error) {
-	return &bridge.AnimalRaces{}, nil
-}
-
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
 	return f.reads.Identity(ctx)
 }

@@ -55,6 +55,16 @@ type FixtureDef struct {
 	// Weapon makes the def a weapon with the verb, projectile and tools it
 	// states (#1723).
 	Weapon *FixtureWeapon
+	// Race makes the def a pawn race with the RaceProperties it states and
+	// the game-computed race facts (#1722).
+	Race *FixtureRace
+}
+
+// FixtureRace is a fixture race: its RaceProperties and the facts the game's
+// race code computes.
+type FixtureRace struct {
+	Props *d.RaceProperties
+	Facts *o.RaceFacts
 }
 
 // FixtureWeapon is a fixture weapon: a ranged one names its verb class and
@@ -291,6 +301,9 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			for _, capacity := range w.Capacities {
 				t.Tools = append(t.Tools, &d.Opt_Tool{Value: &d.Tool{Capacities: []string{capacity}}})
 			}
+		}
+		if r := def.Race; r != nil {
+			t.Race, facts.Race = r.Props, r.Facts
 		}
 		wire.ThingDefs = append(wire.ThingDefs, t)
 		wire.ThingFacts = append(wire.ThingFacts, facts)

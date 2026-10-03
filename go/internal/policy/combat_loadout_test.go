@@ -73,7 +73,7 @@ func TestLoadoutTribals(t *testing.T) {
 
 func TestLoadoutEMPCarrier(t *testing.T) {
 	for name, view := range map[string]CombatView{
-		"mechs":          {Pawns: []CombatPawnState{{ID: "m", Kind: "Mech_Scyther"}}, Threats: []SquadThreatFacts{{ID: "m"}}},
+		"mechs":          {Pawns: []CombatPawnState{{ID: "m", Kind: "Mech_Scyther", Mech: true}}, Threats: []SquadThreatFacts{{ID: "m"}}},
 		"shielded melee": {Pawns: []CombatPawnState{{ID: "p", Kind: "Pirate", Weapon: "MeleeWeapon_Longsword", Shield: domain.Known(1.0)}}, Threats: []SquadThreatFacts{{ID: "p"}}},
 	} {
 		if got := ClassifyLoadoutThreat(view, false); got != LoadoutEMP {

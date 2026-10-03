@@ -53,7 +53,6 @@ namespace HomeBridge.BridgeTools
                     var row = new Obs.FoodEater { PawnId = Id(p.GetUniqueLoadID()) };
                     if (p.RaceProps.Animal) {
                         row.Kind = Obs.FoodEaterKind.Animal;
-                        row.EdibleDefs.Add(NativeFoodPolicy.Foods().Where(d => p.RaceProps.CanEverEat(d)).Select(d => Id(d.defName)));
                     } else {
                         row.Kind = Obs.FoodEaterKind.Prisoner;
                         row.Traits.Add((p.story?.traits?.allTraits ?? new List<Trait>()).Select(t => Id(t.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));

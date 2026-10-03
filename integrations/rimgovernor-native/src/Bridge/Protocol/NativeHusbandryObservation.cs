@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         {
             // Gender, age and the other herd facts (#875) come only from the
             // colony upkeep census (NativeHusbandryOperations.HerdFacts, #885).
-            var row = new Obs.AnimalState { BodySize = Number(animal.RaceProps.baseBodySize) };
+            var row = new Obs.AnimalState();
             if (animal.training != null)
             {
                 foreach (var def in DefDatabase<TrainableDef>.AllDefsListForReading)

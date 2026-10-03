@@ -10,8 +10,8 @@ import (
 
 // AcquisitionSource is an observed native-approved source, not inventory.
 // Definition is the source's own native definition name (the plant or the
-// animal, not the harvested resource); a hunt row of a recognised pest
-// definition (PestDefinition) is a pest hunt: food false, no nutrition.
+// animal, not the harvested resource); a hunt row of a pest race (Pest, the
+// race row's) is a pest hunt: food false, no nutrition.
 type AcquisitionSource struct {
 	ID, Resource, Token          string
 	Definition                   string
@@ -24,6 +24,8 @@ type AcquisitionSource struct {
 	// BodySize, Sleeping and Predator describe a hunt row for squad planning.
 	BodySize           float64
 	Sleeping, Predator bool
+	// Pest is the source's race row flag (AnimalRace.Pest, #1722).
+	Pest bool `json:",omitempty"`
 	// DesignatedTick is the tick native first saw the designation (reset on
 	// load); set only when Designated. Taken: a pawn's reservation or a
 	// colonist's current job targets the source (#1043).
@@ -78,7 +80,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodNumber(row.BodySize) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !PestDefinition(Resource(row.Definition))) {
+		if !foodNumber(row.RevengeChance) || row.RevengeChance > 1 || row.HerdSize < 0 || row.HerdSize > 65536 || !foodNumber(row.WeaponRange) || !foodNumber(row.BodySize) || !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !row.Pest) {
 			return nil, errors.New("invalid acquisition source")
 		}
 		seen[row.ID] = true

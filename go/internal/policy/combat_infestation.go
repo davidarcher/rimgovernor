@@ -14,20 +14,15 @@ import (
 // reach.
 const TacticInfestation CombatTactic = "infestation"
 
-// insectKinds are the vanilla insectoid pawn kinds.
-var insectKinds = []string{"Megascarab", "Spelopede", "Megaspider"}
-
-func insectKind(kind string) bool { return slices.Contains(insectKinds, kind) }
-
 // Infestation reports a fight with a live hive, or with at least one live
 // hostile pawn and every live hostile pawn an insect.
 func Infestation(view CombatView) bool {
 	if slices.ContainsFunc(view.Structures, HostileStructure.hive) {
 		return true
 	}
-	kinds := map[domain.PawnID]string{}
+	insects := map[domain.PawnID]bool{}
 	for _, p := range view.Pawns {
-		kinds[p.ID] = p.Kind
+		insects[p.ID] = p.Insect
 	}
 	down := downPawns(view)
 	n := 0
@@ -36,7 +31,7 @@ func Infestation(view CombatView) bool {
 		if t.Building || positive(t.Dead) || positive(t.Downed) || down[id] {
 			continue
 		}
-		if !insectKind(kinds[id]) {
+		if !insects[id] {
 			return false
 		}
 		n++

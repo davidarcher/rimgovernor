@@ -8,11 +8,11 @@ import (
 )
 
 // FoodRestriction is the pawn's current food policy: its load id, allowed
-// definitions and native diet eligibility. It is observation, never an
+// definitions. It is observation, never an
 // explicit controller preference.
 type FoodRestriction struct {
-	PolicyID          string
-	Allowed, Eligible []string
+	PolicyID string
+	Allowed  []string
 }
 
 // FoodKind is what a food definition is for diets (#1541): a meal tier,

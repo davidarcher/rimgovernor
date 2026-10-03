@@ -296,6 +296,11 @@ type CombatPawnState struct {
 	Wild bool `json:",omitempty"`
 	// StunTicks is a stunned pawn's ticks left (#1050), 0 awake.
 	StunTicks int `json:",omitempty"`
+	// Mech and Insect are the game's own flags of the pawn's race
+	// (RaceProperties.IsMechanoid, .Insect), read off the catalog's race
+	// rows (#1722).
+	Mech   bool `json:",omitempty"`
+	Insect bool `json:",omitempty"`
 }
 
 // CombatLayout is the stored, complete defense layout's line.

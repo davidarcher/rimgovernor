@@ -5,15 +5,16 @@
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` goal in
 ColonyPlan. It sizes each race itself (#875); there are no operator flags.
 
-**Race catalog (#1625).** Static per-race facts (carrying capacity, trainability
-and trainables, wildness, body size, combat power, market value, minimum
-handling skill, and products with item and interval) come from one native read,
-`rimgovernor/observations_read_animal_race_catalog`, taken once per load token
-and held in Go memory as `policy.AnimalRaceCatalog`. It covers every animal race
-the game knows, wild or tame, and an unread fact is unknown, never zero. It is
-derived state: no save, journal or per-animal copy. The routine reading
-requires the catalog: an unreadable catalog fails the reading loudly like any
-other required native read, and the herd plan never runs without it.
+**Race catalog (#1625, #1722).** Static per-race facts (carrying capacity,
+trainability and trainables, wildness, body size, combat power, market value,
+minimum handling skill, life expectancy, the manhunter chances and products
+with item and interval) are derived from the definition catalog's race rows
+(`DefinitionCatalog.AnimalRaces`, built once per load token and held in Go
+memory as `policy.AnimalRaceCatalog`); there is no separate native read. It
+covers every animal race the game knows, wild or tame, and an unread fact is
+unknown, never zero. It is derived state: no save, journal or per-animal copy
+(an animal row carries none of its race's numbers). An unbuildable race table
+fails the reading loudly like any other required native read.
 
 - **Herd plan (#1628).** `policy.PlanHerd` derives every race's job each cycle
   from colony facts and the race catalog; nothing is stored. A job (milk, wool,
@@ -103,8 +104,8 @@ other required native read, and the herd plan never runs without it.
   then line id) as a second purchase line beside `SelectPawnPurchase`, within
   the same budget (`PawnPurchaseFraction` of silver, above the reserve and
   the lines already selected). No joiner-capacity gate and no `allow_pawns`
-  (only giving a pawn away needs it). An unreadable race catalog fails the
-  selection.
+  (only giving a pawn away needs it). An unbuildable race catalog fails the
+  reading.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `SafeToRelease`

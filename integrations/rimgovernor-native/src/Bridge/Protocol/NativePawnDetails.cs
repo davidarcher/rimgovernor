@@ -505,7 +505,7 @@ namespace HomeBridge.BridgeTools
         // and the release/slaughter guards; for a wild one its tame facts.
         internal static Obs.AnimalState Animal(Pawn pawn)
         {
-            var row=new Obs.AnimalState {BodySize=Number(pawn.RaceProps.baseBodySize)};
+            var row=new Obs.AnimalState();
             if(pawn.ageTracker!=null) NativeHusbandryOperations.HerdFacts(pawn,row);
             else {row.Gender=pawn.gender.ToString();row.Issues.Add(Missing("age_years"));}
             if(pawn.training==null) row.Issues.Add(Missing("training"));
@@ -550,7 +550,6 @@ namespace HomeBridge.BridgeTools
                 // The tame target facts a MaintainHerd tame write needs.
                 row.Tameable=NativeHusbandryOperations.Tameable(pawn);
                 row.Tame=map?.designationManager?.DesignationOn(pawn,DesignationDefOf.Tame)!=null;
-                row.MinimumHandlingSkill=TrainableUtility.MinimumHandlingSkill(pawn);
             }
             return row;
         }
