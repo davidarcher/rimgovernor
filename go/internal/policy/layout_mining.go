@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // Mine tiers order mining designations along the plan's mining zone (#792):
 // ore first, then the rock under dug rooms (walls included) and the cooler
@@ -40,23 +44,84 @@ func (p LayoutPlan) MineTier(cell domain.Cell) int {
 // and the room is never left open. Rock on the rest of the ring stays and
 // walls the room.
 func (p LayoutPlan) RoomDig(room LayoutRoom, cells []SiteCell) []domain.Cell {
-	want := map[domain.Cell]bool{room.Door: true}
-	if shell, err := room.Footprint(); err == nil {
-		want[shell.Threshold()] = true // a hallway cell still in rock
-	}
-	for c := range p.hallwayCells() {
-		want[c] = true // the corridor is mined out whole
-	}
-	for _, c := range RectangleCells(room.Interior) {
-		want[c] = true
-	}
-	if site, area, ok := p.CoolerExhaust(room); ok {
-		want[site.Cell] = true
-		for _, c := range RectangleCells(area) {
-			want[c] = true
+	// Priority order: the room (door and interior), the cooler shaft, the
+	// cell outside the door, then the corridor outward from it. Cells the
+	// census does not list are fogged mountain, which can be designated like
+	// any rock: the native read says whether each really is rock.
+	var order []domain.Cell
+	seen := map[domain.Cell]bool{}
+	add := func(c domain.Cell) {
+		if !seen[c] {
+			seen[c] = true
+			order = append(order, c)
 		}
 	}
-	return rockAmong(want, cells)
+	add(room.Door)
+	for _, c := range RectangleCells(room.Interior) {
+		add(c)
+	}
+	if site, area, ok := p.CoolerExhaust(room); ok {
+		add(site.Cell)
+		for _, c := range RectangleCells(area) {
+			add(c)
+		}
+	}
+	if shell, err := room.Footprint(); err == nil {
+		from := shell.Threshold()
+		add(from)
+		hall := p.hallwayCells()
+		corridor := make([]domain.Cell, 0, len(hall))
+		for c := range hall {
+			corridor = append(corridor, c)
+		}
+		sort.Slice(corridor, func(i, j int) bool {
+			di, dj := manhattan(corridor[i], from), manhattan(corridor[j], from)
+			if di != dj {
+				return di < dj
+			}
+			if corridor[i].Z != corridor[j].Z {
+				return corridor[i].Z < corridor[j].Z
+			}
+			return corridor[i].X < corridor[j].X
+		})
+		for _, c := range corridor {
+			add(c)
+		}
+	}
+	known := make(map[domain.Cell]bool, len(cells))
+	for _, c := range cells {
+		rock, isKnown := c.NaturalRock.Value()
+		known[c.Cell] = isKnown && rock
+		if !isKnown {
+			known[c.Cell] = true
+		}
+	}
+	var out []domain.Cell
+	for _, c := range order {
+		if rock, listed := known[c]; listed && !rock {
+			continue // a listed cell that is not rock
+		}
+		out = append(out, c)
+		if len(out) == planDigBatch {
+			break
+		}
+	}
+	return out
+}
+
+// planDigBatch is the most cells one dig reads and designates (the native
+// excavation read takes 64).
+const planDigBatch = 64
+
+func manhattan(a, b domain.Cell) int32 {
+	dx, dz := a.X-b.X, a.Z-b.Z
+	if dx < 0 {
+		dx = -dx
+	}
+	if dz < 0 {
+		dz = -dz
+	}
+	return dx + dz
 }
 
 // ExhaustDig lists the rock in a standing room's planned exhaust shaft

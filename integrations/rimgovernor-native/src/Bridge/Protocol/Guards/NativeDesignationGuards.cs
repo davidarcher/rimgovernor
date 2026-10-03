@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
         {
             if (s.Map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) return "Roof collapse is pending on this map.";
             var blocker = ExcavationTools.CellBlocker(s.Cell, s.Map);
-            if (blocker == null && ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support) != ExcavationSafety.Support.Supported) blocker = support ?? "Roof support is unproven.";
+            if (blocker == null && ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support, throughFog: true) != ExcavationSafety.Support.Supported) blocker = support ?? "Roof support is unproven.";
             return blocker;
         }
 

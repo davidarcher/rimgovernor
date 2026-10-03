@@ -115,7 +115,6 @@ namespace HomeBridge.BridgeTools
         internal static string? CellBlocker(IntVec3 cell, Map map)
         {
             if (!cell.InBounds(map)) return "Cell is outside the map";
-            if (cell.Fogged(map)) return "Unknown excavation geometry";
             var rock = RockAt(cell, map);
             if (rock == null) return "No native rock at cell";
             if (rock.Faction != null) return "Faction-owned excavation target is protected";

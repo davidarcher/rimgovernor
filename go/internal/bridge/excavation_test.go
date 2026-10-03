@@ -71,7 +71,6 @@ func TestReadExcavationSiteRejectsInconsistentReplies(t *testing.T) {
 	for name, edit := range map[string]func(*o.ExcavationSiteSnapshot){
 		"row order":         func(v *o.ExcavationSiteSnapshot) { v.Cells[0].Cell.X = proto.Int32(5) },
 		"row count":         func(v *o.ExcavationSiteSnapshot) { v.Cells = append(v.Cells, excavationSiteRow(2, 2, false)) },
-		"fogged with facts": func(v *o.ExcavationSiteSnapshot) { v.Cells[0].Fogged = proto.Bool(true) },
 		"eligible blocked": func(v *o.ExcavationSiteSnapshot) {
 			v.Cells[0].Blocker = proto.String("Faction-owned excavation target is protected")
 		},

@@ -209,8 +209,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 		buildable := true
 		door := shell.Door()
 		// fogged counts interior and door cells the census lacks: fogged mountain
-		// is never listed and cannot be designated yet, so it is mined once the
-		// front of the dig reveals it. foggedRing counts ring cells likewise.
+		// is mined like any rock (the game designates through fog), so those cells
+		// join Mined and native says which are rock. foggedRing counts ring cells likewise.
 		fogged, foggedRing := 0, 0
 		missing := func(p domain.Cell) bool { _, exists := cells[p]; return !exists }
 		first := ""
@@ -227,6 +227,7 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 					mined[p] = true
 				} else if missing(p) {
 					fogged++
+					mined[p] = true // fogged mountain is mined like any rock
 				} else if !lit(p) {
 					block(p, "door")
 				}
@@ -245,6 +246,8 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 				mined[p] = true
 			} else if missing(p) {
 				fogged++
+				mined[p] = true
+				mined[p] = true
 			} else if !lit(p) {
 				block(p, "interior")
 			}
@@ -259,8 +262,6 @@ func PlannedLayout(r StarterRequest) (layout StarterLayout, ok bool, err error) 
 			}
 		}
 		switch {
-		case fogged > 0 && len(mined) == 0:
-			block(shell.Door(), fmt.Sprintf("%d fogged cells with no visible rock to mine yet", fogged))
 		case foggedRing > 0 && fogged == 0:
 			block(shell.Door(), fmt.Sprintf("%d ring cells not in the census", foggedRing))
 		}

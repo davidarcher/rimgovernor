@@ -75,19 +75,10 @@ func TestPlannedDig(t *testing.T) {
 		threshold = shell.Threshold()
 	}
 	want = append(append(want, freezer.Door, threshold, site.Cell), RectangleCells(shaft)...)
-	seen := map[domain.Cell]bool{}
-	for _, c := range want {
-		seen[c] = true
+	if len(dig) > planDigBatch {
+		t.Fatalf("dig %d cells, over the batch of %d", len(dig), planDigBatch)
 	}
-	for _, sc := range cells {
-		if p.hallwayCells()[sc.Cell] && !seen[sc.Cell] {
-			seen[sc.Cell] = true
-			want = append(want, sc.Cell) // the corridor is mined whole
-		}
-	}
-	if len(dig) != len(want) {
-		t.Fatalf("dig %d cells, want %d", len(dig), len(want))
-	}
+	// The room comes first: the corridor fills what the batch has left.
 	for _, c := range want {
 		if !dig[c] {
 			t.Fatalf("%v not dug", c)
@@ -111,5 +102,31 @@ func TestPlannedDig(t *testing.T) {
 	}
 	if got := p.ExhaustDig(freezer, cells); len(got) != len(RectangleCells(shaft)) {
 		t.Fatalf("shaft dig %v, want %v", got, shaft)
+	}
+}
+
+// TestRoomDigIncludesFoggedCells: cells the census does not list are fogged
+// mountain and are dug like any rock, while listed non-rock cells are not.
+func TestRoomDigIncludesFoggedCells(t *testing.T) {
+	p := PlanCore(utilityTestZones(), 3, BuildTierCamp)
+	var room LayoutRoom
+	for _, r := range p.AllRooms() {
+		room = r
+		break
+	}
+	open := room.Interior
+	cells := []SiteCell{{Cell: domain.Cell{X: open.X, Z: open.Z}, NaturalRock: domain.Known(false)}}
+	dig := map[domain.Cell]bool{}
+	for _, c := range p.RoomDig(room, cells) {
+		dig[c] = true
+	}
+	if dig[domain.Cell{X: open.X, Z: open.Z}] {
+		t.Fatal("a listed open cell is dug")
+	}
+	if open.Width*open.Height > 1 && !dig[domain.Cell{X: open.X + open.Width - 1, Z: open.Z + open.Height - 1}] {
+		t.Fatal("a fogged interior cell is not dug")
+	}
+	if !dig[room.Door] {
+		t.Fatal("the fogged door is not dug")
 	}
 }

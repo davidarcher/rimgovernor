@@ -33,7 +33,6 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.ExcavationCell { Cell = new Common.Cell { X = cell.x, Z = cell.z }, Fogged = false, MineDesignated = false, Eligible = false };
             if (!cell.InBounds(map)) { row.Eligible = false; row.Blocker = "Cell is outside the map"; return row; }
             row.Fogged = cell.Fogged(map);
-            if (row.Fogged) { row.Eligible = false; row.Blocker = "Unknown excavation geometry"; return row; }
             var roof = cell.GetRoof(map);
             if (roof != null) row.RoofDefName = roof.defName;
             row.Walkable = cell.Walkable(map);
@@ -58,17 +57,15 @@ namespace HomeBridge.BridgeTools
             var access = new IntVec3(request.AccessCell.X, 0, request.AccessCell.Z);
             var snapshot = new Obs.ExcavationSiteSnapshot { Context = context, CollapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0 };
             foreach (var cell in cells) snapshot.Cells.Add(Row(cell, map, context));
-            var known = cells.Where(c => c.InBounds(map) && !c.Fogged(map)).ToList();
+            var known = cells.Where(c => c.InBounds(map)).ToList();
             if (known.Count == 0) { snapshot.SupportAfterRemoval = Obs.ExcavationSupport.Unknown; snapshot.SupportBlocker = "Unknown excavation geometry"; }
             else
             {
-                var support = ExcavationSafety.Check(map, known, out var checkedRoofs, out var blocker);
+                var support = ExcavationSafety.Check(map, known, out var checkedRoofs, out var blocker, throughFog: true);
                 snapshot.RoofCellsChecked = (uint)checkedRoofs;
                 snapshot.SupportAfterRemoval = support == ExcavationSafety.Support.Supported ? Obs.ExcavationSupport.Supported
                     : support == ExcavationSafety.Support.Unknown ? Obs.ExcavationSupport.Unknown : Obs.ExcavationSupport.Unsupported;
                 if (blocker != null) snapshot.SupportBlocker = blocker;
-                if (known.Count < cells.Count && snapshot.SupportAfterRemoval == Obs.ExcavationSupport.Supported)
-                { snapshot.SupportAfterRemoval = Obs.ExcavationSupport.Unknown; snapshot.SupportBlocker = "Fogged cells in the requested set are unknown"; }
             }
             if (snapshot.CollapsePending)
             { snapshot.SupportAfterRemoval = Obs.ExcavationSupport.Unsupported; snapshot.SupportBlocker = "Roof collapse is already pending"; }
