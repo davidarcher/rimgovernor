@@ -87,6 +87,7 @@
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShutdownFixture.cs" Condition="'$(ShutdownFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/BabyCareFixture.cs" Condition="'$(BabyCareFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
     <!-- Keep locked restore identical with and without an installed targeting pack. -->
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
