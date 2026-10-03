@@ -236,6 +236,19 @@ deficit with the channel's prey as the occurrence's payload
 cover the open hunt census rows. A hostile in the frame, or the plan no
 longer opening the hunt, ends the origin.
 
+An outmatched fight calls the royal permits its colonists hold (#1608,
+`combat_permit.go`): with the royalty read (`CombatView.Royalty`, the
+review's `RoutineFacts.Royalty`) known, a held acting aid or strike permit
+that is off cooldown and affordable (favor at least its cost) yields a
+`permit_call` order, once per holder and permit per fight
+(`CombatMemory.Permitted`). Aid lands on the defender nearest the squad's
+centre; a strike lands on the densest hostile clump no colonist stands
+within the mortar safe radius of. Unread favor, cooldown or royalty facts
+hold the call. The order is no `combat.orders` entry: the defense planner
+commits it as an `ability` action (permit source, cell target) on its own
+incident method, and the fight's stops wait while it is open. The admission
+stop makes no call.
+
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open

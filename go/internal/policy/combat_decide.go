@@ -213,12 +213,15 @@ func DecideCombat(view CombatView, geometry GeometryReply, stop StopEvent, memor
 	orders = enrageWild(view, orders, next.Roles, orderable, state)
 	// A defender with no other order this stop takes its combat drug (#1311).
 	orders = append(orders, doseOrders(view, &next, orders, orderable, state)...)
+	// An outmatched fight calls its held permits (#1608); a call names no
+	// drafted pawn and leaves its holder's other orders alone.
+	orders = append(orders, permitCalls(view, &next)...)
 	// The rescue's orders (#867) lead; a door order names no pawn to issue.
 	orders = append(append(rescue, podDoorOrders(&next)...), orders...)
 	// The colony animals' orders (#1058) name no drafted pawn.
 	orders = append(orders, animalStep(view, &next)...)
 	for _, o := range orders {
-		if o.Pawn != "" {
+		if o.Pawn != "" && o.Kind != OrderPermit {
 			next.issue(o, view.Tick)
 		}
 	}
@@ -334,6 +337,9 @@ type CombatView struct {
 	Burn domain.Fact[BurnSite] `json:",omitzero"`
 	// Hunt marks a squad hunt (#1616): Threats are wild prey, not raiders.
 	Hunt bool `json:",omitempty"`
+	// Royalty is the slow-refresh royalty read (#1608); unknown holds every
+	// permit call.
+	Royalty domain.Fact[RoyaltyFacts] `json:",omitzero"`
 }
 
 // CombatStopKind is the #849 event that stopped the clock, lower-cased
@@ -495,6 +501,10 @@ type CombatOrder struct {
 	Clear bool `json:",omitempty"`
 	// Shell is a mortar order's shell def (#1051), "" whatever is loaded.
 	Shell string `json:",omitempty"`
+	// Faction and Permit name a permit_call order's permit (#1608); Cell is
+	// its target and Pawn the holder.
+	Faction string `json:",omitempty"`
+	Permit  string `json:",omitempty"`
 }
 
 // IssuedOrder is the last order a pawn was given and the tick it went out.
@@ -589,6 +599,9 @@ type CombatMemory struct {
 	NoShells []string `json:",omitempty"`
 	// Dosed are the defenders given a combat drug order this fight (#1311).
 	Dosed []domain.PawnID `json:",omitempty"`
+	// Permitted are the permits called this fight, "pawn/faction/permit"
+	// (#1608): the royalty read is slow, so a call is not repeated.
+	Permitted []string `json:",omitempty"`
 	// EMPAdapted are the mechs seen stunned, each until its EMP adaptation
 	// ends (#1050), sorted by pawn.
 	EMPAdapted []EMPAdaptation `json:",omitempty"`
@@ -708,6 +721,7 @@ func (m CombatMemory) clone() CombatMemory {
 	m.Untrained = slices.Clone(m.Untrained)
 	m.NoShells = slices.Clone(m.NoShells)
 	m.Dosed = slices.Clone(m.Dosed)
+	m.Permitted = slices.Clone(m.Permitted)
 	m.Flank = m.Flank.clone()
 	m.Groups = slices.Clone(m.Groups)
 	for i := range m.Groups {

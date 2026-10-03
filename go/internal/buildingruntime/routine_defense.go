@@ -179,7 +179,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{}, err
 	}
 	view := combatView(combat, in, orderable, held)
-	view.Burn = burn
+	view.Burn, view.Royalty = burn, r.reviewer.census.remembered()
 	tick := view.Tick
 	stop := combatStop(combat, memory.Tick)
 	orders, ask, next := policy.DecideCombat(view, policy.GeometryReply{}, stop, memory)
@@ -225,7 +225,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		recorded.Orderable = append(slices.Clone(orderable), drafts...)
 		slices.Sort(recorded.Orderable)
 		view = combatView(combat, in, recorded.Orderable, held)
-		view.Burn = burn
+		view.Burn, view.Royalty = burn, r.reviewer.census.remembered()
 		var more *policy.GeometryRequest
 		orders, more, next = policy.DecideCombat(view, recorded.Reply, stop, memory)
 		if more != nil && recorded.Ask == nil {
@@ -238,6 +238,19 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			orders, next = nil, memory
 		}
 		recorded.MemoryOut = next
+	}
+	// The stop's permit calls (#1608) are Ability actions on a method of
+	// their own; the memory marking them called is saved with the stop.
+	orders, permits := splitPermitCalls(orders)
+	if err = r.commitPermitCalls(call, epoch, incident, permits); err != nil {
+		return RoutineDefenseResult{}, err
+	}
+	if len(orders)+len(drafts) == 0 && len(permits) > 0 {
+		if err = p.journal.SaveCombatMemory(call, id, next); err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		recordCombatStop(call, combat, recorded)
+		return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 	}
 	if len(orders)+len(drafts) == 0 {
 		// A stop that changes nothing writes nothing; a re-formation that

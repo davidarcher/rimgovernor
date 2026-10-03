@@ -107,6 +107,9 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	if ask != nil {
 		orders, next = nil, memory
 	}
+	// The admission stop makes no permit call (#1608): its first stop does.
+	orders, _ = splitPermitCalls(orders)
+	next = withoutPermitMarks(next, memory)
 	if len(drafts)+len(orders) == 0 {
 		return admitted, p.journal.SaveCombatMemory(call, id, next)
 	}
