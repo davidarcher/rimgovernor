@@ -20,11 +20,6 @@ import (
 // separate and untouched.
 const ManagePollution GoalID = "ManagePollution"
 
-// BiotechGoals are the routine goals assessed only where the Biotech colony
-// read is known: a review binds them exactly when its read assessed them, so
-// the store counts them apart from the goals every colony has.
-var BiotechGoals = []GoalID{ManagePollution, EnsureMechCharger}
-
 // Wastepack is one spawned wastepack stack with the game's own verdicts
 // (CompDissolution.IsFrozen, InAtomizer, the item's forbidden flag). An
 // unknown verdict is never read as false.

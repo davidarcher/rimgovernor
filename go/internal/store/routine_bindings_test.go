@@ -3,13 +3,14 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
 )
 
-// A stored review whose goal bindings do not match its assessments fails to
-// load with the missing and the unexpected goal ids in the message (#1762).
-func TestIncompleteRoutineBindingsNameTheGoals(t *testing.T) {
+// Bindings are validated against the stored review itself, not a second
+// derivation from empty facts (#1763): a review that assessed fewer goals
+// than the empty-facts universe (a conditionally assessed goal left out)
+// still loads, while a binding naming no routine goal does not.
+func TestRoutineBindingsValidateAgainstTheStoredReview(t *testing.T) {
 	t.Parallel()
 	s := open(t, memoryPath(t))
 	defer s.Close()
@@ -31,14 +32,13 @@ func TestIncompleteRoutineBindingsNameTheGoals(t *testing.T) {
 	extra := out.Review
 	extra.Goals = append(append([]RoutineGoal{}, out.Review.Goals...), RoutineGoal{Need: "InventedNeed", Goal: "invented-goal"})
 	store(extra)
-	if _, err := s.LoadRoutineReview(context.Background()); err == nil || !strings.Contains(err.Error(), "unexpected [InventedNeed]") || !strings.Contains(err.Error(), "missing []") {
-		t.Fatal("extra binding error:", err)
+	if _, err := s.LoadRoutineReview(context.Background()); err == nil {
+		t.Fatal("a binding naming no routine goal loaded")
 	}
-	dropped := out.Review.Goals[0].Need
 	short := out.Review
 	short.Goals = append([]RoutineGoal{}, out.Review.Goals[1:]...)
 	store(short)
-	if _, err := s.LoadRoutineReview(context.Background()); err == nil || !strings.Contains(err.Error(), "missing ["+string(dropped)+"]") || !strings.Contains(err.Error(), "unexpected []") {
-		t.Fatal("missing binding error:", err)
+	if _, err := s.LoadRoutineReview(context.Background()); err != nil {
+		t.Fatal("a review that assessed one goal fewer failed to load:", err)
 	}
 }

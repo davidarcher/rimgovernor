@@ -6,36 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
-
-// incompleteBindings is the error of a review whose goal bindings do not
-// match the goals it assessed: it names the needs with no binding and the
-// bound needs the review should not hold (unknown or bound twice). Biotech
-// needs are optional, so one unbound is not missing.
-func incompleteBindings(allowed map[domain.GoalID]bool, bindings []RoutineGoal) error {
-	bound := map[domain.GoalID]bool{}
-	var extra []domain.GoalID
-	for _, b := range bindings {
-		if !allowed[b.Need] || bound[b.Need] {
-			extra = append(extra, b.Need)
-		}
-		bound[b.Need] = true
-	}
-	var missing []domain.GoalID
-	for id := range allowed {
-		if !bound[id] && !slices.Contains(policy.BiotechGoals, id) {
-			missing = append(missing, id)
-		}
-	}
-	slices.Sort(missing)
-	slices.Sort(extra)
-	return fmt.Errorf("incomplete routine goal bindings: missing %v, unexpected %v", missing, extra)
-}
 
 type RoutineGoal struct {
 	Need domain.GoalID
@@ -321,37 +296,23 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 			}
 		}
 	}
-	known, _ := policy.DetectRoutine(policy.RoutineFacts{Disaster: r.Disaster, DisasterTick: r.Tick}, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
-	allowed := map[domain.GoalID]bool{}
-	optional := map[domain.GoalID]bool{}
-	for _, n := range known.Assessments {
-		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3 || n.ID == policy.EnsureComfort || n.ID == policy.MaintainHousing || n.ID == policy.MaintainMedicalReserves || n.ID == policy.MaintainFoodStorage
-	}
-	// Biotech goals are assessed only where the colony read is known, so the
-	// empty-facts universe above lacks them: they are allowed and optional,
-	// and a review binds them exactly when its read assessed them.
-	for _, id := range policy.BiotechGoals {
-		allowed[id], optional[id] = true, true
+	// The stored review is the fact: a binding is valid when it names a
+	// routine goal the table knows, not when a second derivation from empty
+	// facts would also have assessed it (#1763). Response kinds live in the
+	// incidents table and carry no binding.
+	allowed := func(id domain.GoalID) bool {
+		c := policy.GoalConcept(id)
+		return (c == policy.ConceptStandard || c == policy.ConceptProject) && !policy.IsIncidentKind(id)
 	}
 	for _, row := range r.Development.Rows {
-		if !optional[row.Goal] {
+		if !allowed(row.Goal) {
 			return RoutineReview{}, errors.New("unknown optional routine goal")
 		}
-	}
-	required, bound := len(allowed)-len(policy.BiotechGoals), len(r.Goals)
-	for _, binding := range r.Goals {
-		if slices.Contains(policy.BiotechGoals, binding.Need) {
-			bound--
-		}
-	}
-	if (r.Enabled || len(r.Goals) != 0) && bound != required {
-		return RoutineReview{}, incompleteBindings(allowed, r.Goals)
 	}
 	seen := map[domain.GoalID]bool{}
 	identities := map[domain.GoalID]bool{}
 	for _, binding := range r.Goals {
-		if !allowed[binding.Need] || seen[binding.Need] || identities[binding.Goal] {
+		if !allowed(binding.Need) || seen[binding.Need] || identities[binding.Goal] {
 			return RoutineReview{}, errors.New("duplicate routine need")
 		}
 		seen[binding.Need] = true
