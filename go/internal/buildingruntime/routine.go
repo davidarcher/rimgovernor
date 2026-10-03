@@ -333,8 +333,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	reading.Projection.Facts.TitleClaimQuests = titleClaimQuests(reading.Projection)
 	reading.Projection.Facts.BedroomsOwed = bedroomsOwed(reading.Projection)
 	reading.Projection.Facts.CorpsesOwed = corpsesOwed(reading.Projection)
-	if reading.Projection.Facts.HerdRoomsOwed, err = herdRoomsOwed(reading.Projection); err != nil {
-		return store.RoutineReviewResult{}, err
+	// The herd furniture is read only when the containment method is on
+	// (readDefinitions above); a review without it owes no herd step.
+	if r.methodEnabled(policy.MaintainAnimalContainment) {
+		if reading.Projection.Facts.HerdRoomsOwed, err = herdRoomsOwed(reading.Projection); err != nil {
+			return store.RoutineReviewResult{}, err
+		}
 	}
 	reading.Projection.Facts.TombsWarm = warmTombs(reading.Projection)
 	reading.Projection.Facts.MealClosetOwed = mealClosetOwed(reading.Projection)
