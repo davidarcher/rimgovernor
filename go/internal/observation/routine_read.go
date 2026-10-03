@@ -236,6 +236,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if err := ctx.Err(); err != nil {
 		return RoutineReading{}, err
 	}
+	personalShares(p, frame, pawns)
 	return RoutineReading{ColonyReading: reading, Emergency: emergency, Sections: routineSections(frame, *p, roomCensus), Frame: frame}, nil
 }
 

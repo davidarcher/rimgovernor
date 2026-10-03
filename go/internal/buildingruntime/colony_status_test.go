@@ -7,6 +7,10 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -153,6 +157,48 @@ func TestColonyStatusReadTolerantOfTickBetweenReads(t *testing.T) {
 	}
 	if report.RosterTick != report.Tick+7 {
 		t.Fatal(report.Tick, report.RosterTick)
+	}
+}
+
+// The held projection's personal shares ride the roster rows (#1846); a
+// colonist it holds none for stays unknown.
+func TestColonyStatusReadPersonalSharesFromHeldProjection(t *testing.T) {
+	status, native := colonyStatusFixture(t)
+	native.colony.GetObserved().ColonistCount = proto.Uint32(2)
+	native.roster.GetObserved().Pawns = []*o.PawnState{
+		{Pawn: &o.EntityRef{Id: proto.String("p1"), Label: proto.String("Ann")}},
+		{Pawn: &o.EntityRef{Id: proto.String("p2"), Label: proto.String("Bob")}},
+	}
+	reply, _, err := native.Identity(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := observation.DecodeIdentity(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := observation.ColonyProjection{Identity: decoded, PersonalShares: map[policy.PawnID]policy.PersonalShare{
+		"p1": {Share: domain.Known(400.0), Spent: domain.Known(150.0), Remaining: domain.Known(250.0)},
+	}}
+	generation, _ := decoded.NativeGeneration.Value()
+	held := facts.NewStore()
+	facts.Put(held, facts.Scope{Load: string(decoded.Load), Map: int32(decoded.Map), Generation: uint64(generation)}, facts.Colony, facts.Held[observation.ColonyProjection]{Value: projection, Complete: true, AsOf: int64(decoded.Tick)})
+	status, err = NewColonyStatus(status.player, native, held)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := status.Read(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if share, _ := report.Pawns[0].Share.Value(); share != 400 {
+		t.Fatal(report.Pawns)
+	}
+	if remaining, _ := report.Pawns[0].Remaining.Value(); remaining != 250 {
+		t.Fatal(report.Pawns)
+	}
+	if _, known := report.Pawns[1].Share.Value(); known {
+		t.Fatal("a colonist the projection holds no share for must stay unknown")
 	}
 }
 

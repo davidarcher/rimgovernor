@@ -86,6 +86,10 @@ type ColonyStatusPawn struct {
 	Label      string
 	Downed     domain.Fact[bool]
 	Mood, Food domain.Fact[float64]
+	// Share, Spent and Remaining are the colonist's personal wealth share
+	// from the held colony projection (#1846); unknown when it is missing or
+	// stale or holds no share for the colonist.
+	Share, Spent, Remaining domain.Fact[float64]
 }
 
 // NewColonyStatus builds a ColonyStatus boundary. player and native must be
@@ -162,12 +166,14 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			return ColonyStatusReport{}, err
 		}
 	}
+	var shares map[policy.PawnID]policy.PersonalShare
 	if held, ok := facts.Get[observation.ColonyProjection](s.food, facts.Colony); ok {
 		id := held.Value.Identity
 		if id.SameContext(decoded) && id.Tick <= decoded.Tick {
 			a, ak := id.NativeGeneration.Value()
 			b, bk := decoded.NativeGeneration.Value()
 			if ak && bk && a == b {
+				shares = held.Value.PersonalShares
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				report.ForbiddenSupplies = held.Value.Facts.ForbiddenSupplies
@@ -199,6 +205,9 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		if needs := row.GetNeeds(); needs != nil {
 			pawn.Mood = optionalFact(needs.Mood)
 			pawn.Food = optionalFact(needs.Food)
+		}
+		if share, held := shares[policy.PawnID(pawn.ID)]; held {
+			pawn.Share, pawn.Spent, pawn.Remaining = share.Share, share.Spent, share.Remaining
 		}
 		report.Pawns = append(report.Pawns, pawn)
 	}

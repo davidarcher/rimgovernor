@@ -87,6 +87,13 @@ type colonyStatusPawnDTO struct {
 	Downed *bool         `json:"downed"`
 	Mood   *float64      `json:"mood"`
 	Food   *float64      `json:"food"`
+	// Share, Spent and Remaining are the colonist's personal wealth share
+	// (#1846), what they have attributed to them now and what is left; null
+	// when the held colony facts are missing or stale, or the colonist has no
+	// share (a slave) or an input is unread.
+	Share     *float64 `json:"share"`
+	Spent     *float64 `json:"spent"`
+	Remaining *float64 `json:"remaining"`
 }
 
 func factPointer[T any](fact domain.Fact[T]) *T {
@@ -141,7 +148,8 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 	}
 	moodSum, moodCount := 0.0, 0
 	for _, pawn := range v.Pawns {
-		row := colonyStatusPawnDTO{ID: pawn.ID, Label: pawn.Label, Downed: factPointer(pawn.Downed), Mood: factPointer(pawn.Mood), Food: factPointer(pawn.Food)}
+		row := colonyStatusPawnDTO{ID: pawn.ID, Label: pawn.Label, Downed: factPointer(pawn.Downed), Mood: factPointer(pawn.Mood), Food: factPointer(pawn.Food),
+			Share: factPointer(pawn.Share), Spent: factPointer(pawn.Spent), Remaining: factPointer(pawn.Remaining)}
 		if row.Downed != nil && *row.Downed {
 			out.Downed++
 		}

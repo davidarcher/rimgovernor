@@ -1,6 +1,10 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // PersonalShareFraction is f, the part of the personal pool colonists may
 // direct at themselves (#1829). It must stay below 1: personal spend adds to
@@ -92,6 +96,39 @@ func (s PersonalShare) Allows(delta float64) bool {
 	}
 	remaining, ok := s.Remaining.Value()
 	return ok && delta <= remaining
+}
+
+// UnknownPersonalShare is the share of a colonist the colony has no share
+// for (an unread pool, spent or roster, a slave or a prisoner): gated, with
+// every part unknown, so Allows refuses any charged upgrade and only
+// necessities pass. Unlike the zero value it is never ungated.
+func UnknownPersonalShare() PersonalShare {
+	return PersonalShare{Share: domain.Unknown[float64](), Spent: domain.Unknown[float64](), Remaining: domain.Unknown[float64](), gated: true}
+}
+
+// ShareDoctors are the colonists whose claim carries the doctor weight
+// (#1846): the DoctorsWanted(len(profiles)) most skilled Medicine doctors
+// among those able to doctor (not backstory-incapable, not a child), best
+// level first and ties by id.
+func ShareDoctors(profiles []PawnProfile) map[PawnID]bool {
+	able := []PawnProfile{}
+	for _, p := range profiles {
+		if p.Capable(WorkDoctor, 0) && !p.Child {
+			able = append(able, p)
+		}
+	}
+	sort.SliceStable(able, func(i, j int) bool {
+		a, b := able[i].Skill("Medicine").Level, able[j].Skill("Medicine").Level
+		if a != b {
+			return a > b
+		}
+		return able[i].ID < able[j].ID
+	})
+	out := map[PawnID]bool{}
+	for i := 0; i < len(able) && i < DoctorsWanted(len(profiles)); i++ {
+		out[able[i].ID] = true
+	}
+	return out
 }
 
 // PersonalShares divides the pool among the free members by weight and pairs

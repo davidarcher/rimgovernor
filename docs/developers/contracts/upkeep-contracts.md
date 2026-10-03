@@ -938,6 +938,38 @@ wealth fact each review.
   charged upgrade; a zero-value `PersonalShare` is ungated. A delta of zero or
   less (a necessity) is always allowed. `Spent` is filled by #1838/#1839 (below).
 
+### Held shares and the accessor (#1846)
+
+Every routine reading computes the per-colonist shares into the held
+`observation.ColonyProjection.PersonalShares` (`personalShares`,
+`observation/colony_personal.go`), from data the reading already holds; nothing
+calls native and nothing is persisted. Gates read it through one accessor and
+rebuild nothing:
+
+```go
+func (r ColonyProjection) PersonalShareOf(pawn policy.PawnID) policy.PersonalShare
+```
+
+Use `share.Allows(delta)` with the upgrade's market-value delta; a delta of zero
+or less (a necessity) always passes. A colonist with no held share (no routine
+reading, unread roster or wealth, a prisoner) gets `policy.UnknownPersonalShare`:
+gated, every part unknown, so only necessities pass. A slave is on the roster
+with a known zero share and unknown spent, with the same effect.
+
+Inputs: pool from `Facts.Wealth`; weights from the trait effects of
+`WorkPawns`; Soldier is a gear role of soldier (the loadout model's or apparel
+policy's role); Doctor is `policy.ShareDoctors`, the `DoctorsWanted` most
+skilled capable Medicine colonists. Spent takes beds priced by (def, stuff) from
+the catalog's MarketValue stat rows, worn apparel from the gear loadout model's
+`Worn` options, and the equipped primary weapon from the pawn row priced the
+same way (quality unobserved reads as Normal). Spent is unknown for everyone
+while the sleeping census is, and for a colonist whose worn gear model or
+weapon was not read. Installed parts join in #1839.
+
+The same shares are the read-only `share`, `spent` and `remaining` per roster
+row of `/api/player/colony` (`go-player-api.md`), taken from the held projection
+only while it is the current native generation.
+
 ### Wealth probe finding
 
 Read from the decompiled `WealthWatcher` and `PriceUtility` (ilspycmd), not a
