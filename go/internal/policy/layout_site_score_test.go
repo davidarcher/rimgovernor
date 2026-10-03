@@ -47,15 +47,12 @@ func TestSiteCoreLandsOffCentreRichPatch(t *testing.T) {
 	}
 }
 
-func TestSiteCoreBaselineNoRicherThanCentroid(t *testing.T) {
+func TestSiteCoreBaselineScoresNoBelowCentroid(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
 	zones := Zone(s)
 	g := newCoreGrid(zones, nil).withSoil(s)
 	centroid := PlanCore(zones, 3, BuildTierCamp)
 	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
-	if c, r := richUnderRooms(g, centroid), richUnderRooms(g, sited); r > c {
-		t.Fatal("rich cells under rooms: centroid", c, "sited", r)
-	}
 	if g.scoreSite(sited) < g.scoreSite(centroid) {
 		t.Fatal("sited plan scores below the centroid plan")
 	}
@@ -94,7 +91,7 @@ func TestSoilCostBaselineFixture(t *testing.T) {
 // TestSiteCoreKeepsOffMapEdge: on the baseline map, almost all plain
 // soil, barren ground beside the southern mountain once drew the core to
 // within ten cells of the edge margin; the edge cost keeps every room
-// clear of it.
+// far enough in for the ring to stand.
 func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 	s := loadSurvey(t, baselineSurveyPath)
 	p := SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp)
@@ -103,7 +100,7 @@ func TestSiteCoreKeepsOffMapEdge(t *testing.T) {
 	}
 	for _, r := range p.AllRooms() {
 		for _, c := range rectCells(r.Interior) {
-			if d := min(c.X, c.Z, s.Bounds.Width-1-c.X, s.Bounds.Height-1-c.Z); d < siteEdgeClear {
+			if d := min(c.X, c.Z, s.Bounds.Width-1-c.X, s.Bounds.Height-1-c.Z); d < LayoutEdgeMargin+2*perimeterThick {
 				t.Fatal(r.Role, "room cell", c, "is", d, "cells from the map edge")
 			}
 		}
@@ -164,5 +161,32 @@ func TestSiteEdgeCostSparesRockEdge(t *testing.T) {
 	}
 	if got := siteEdgeCost(plan, b, newSiteGround(MapSurvey{Bounds: b, Cells: rock})); got != 0 {
 		t.Fatalf("rock edge charged %d", got)
+	}
+}
+
+// mountainSideSurvey: plain soil with a rock slab over the west third.
+func mountainSideSurvey() MapSurvey {
+	return zoningSurvey(140, func(x, z int32) SurveyCell {
+		if x < 45 {
+			return SurveyCell{Rock: true}
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	})
+}
+
+// A mountain-side site beats the equivalent open-centre one on wall cost
+// (#1594): the sited core stands against the rock and walls fewer cells
+// than the centroid core on the same ground.
+func TestSiteCorePrefersMountainSide(t *testing.T) {
+	s := mountainSideSurvey()
+	zones := Zone(s)
+	centroid := PlanCore(zones, 3, BuildTierCamp)
+	sited := SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
+	if len(sited.Rooms) == 0 || len(centroid.Rooms) == 0 {
+		t.Fatal("no rooms")
+	}
+	wall := func(p LayoutPlan) int { return scoreWall(PlanPerimeter(p, s)) }
+	if c, m := wall(centroid), wall(sited); m <= c {
+		t.Fatal("wall score: centroid", c, "sited", m)
 	}
 }

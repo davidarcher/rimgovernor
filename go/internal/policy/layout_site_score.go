@@ -26,12 +26,10 @@ const siteCandidates = 96
 // under on the #1280 fixture (BenchmarkLayoutSiteCore checks it).
 const siteBudget = 2 * time.Second
 
-// Score weights. Soil near the core is a gain, soil under rooms and
-// hallways a loss (by soilCost), rock under them a dig cost, and a base
+// Score weights. Soil under rooms and hallways is a loss (by soilCost),
+// rock under them a dig cost, and a base
 // room that did not fit outweighs any soil.
 const (
-	siteReach       = 20 // cells around the rooms counted as walking range
-	siteNearWeight  = 1
 	siteUnderWeight = 3
 	siteRockWeight  = 1
 	siteMissingRoom = 100000
@@ -168,21 +166,19 @@ func stepped(cs []domain.Cell, k int) []domain.Cell {
 	return out
 }
 
-// scoreSite scores a grown plan: soil within siteReach of its rooms and
-// not under them counts for it; soilCost and rock under rooms and
-// hallways, and every base room left out, count against it.
+// scoreSite scores a grown plan: soilCost and rock under rooms and
+// hallways, and every base room left out, count against it. Fields near the
+// core earn nothing: the wall cost (scoreWall) steers the site.
 func (g coreGrid) scoreSite(p LayoutPlan) int {
 	rooms := p.AllRooms()
 	if len(rooms) == 0 {
 		return -siteMissingRoom * (len(coreBaseRooms) + 1)
 	}
 	under := map[domain.Cell]bool{}
-	box := rooms[0].Interior
 	for _, r := range rooms {
 		for _, c := range rectCells(r.Interior) {
 			under[c] = true
 		}
-		box = union(box, r.Interior)
 	}
 	for _, h := range p.Hallways() {
 		for _, c := range rectCells(pad(rectOf(h.From, h.To), SpineWidth/2)) {
@@ -194,11 +190,6 @@ func (g coreGrid) scoreSite(p LayoutPlan) int {
 		score -= siteUnderWeight * g.soil[c]
 		if g.rock[c] {
 			score -= siteRockWeight
-		}
-	}
-	for _, c := range rectCells(pad(box, siteReach)) {
-		if !under[c] {
-			score += siteNearWeight * g.soil[c]
 		}
 	}
 	have := map[ModuleRole]bool{}
@@ -214,9 +205,9 @@ func (g coreGrid) scoreSite(p LayoutPlan) int {
 }
 
 // siteEdgeClear is how far from the map edge a room stands before the
-// edge stops costing it: raiders arrive at the edge, so a core pressed
-// against it has no ground to meet them on, and barren ground near a
-// mountain edge otherwise beats central soil on soil cost alone.
+// edge stops costing it: the ring cannot be built in the edge margin, so
+// scoreWall would otherwise read a core pressed against the edge as a
+// cheap one, and raiders arrive at the edge.
 const (
 	siteEdgeClear  = 50
 	siteEdgeWeight = 3
@@ -263,12 +254,6 @@ func (g siteGround) rockAt(c domain.Cell) bool {
 	return c.X >= 0 && c.X < g.w && c.Z >= 0 && c.Z < g.h && g.blocked[c.Z*g.w+c.X]
 }
 
-func union(a, b Rectangle) Rectangle {
-	x0, z0 := min(a.X, b.X), min(a.Z, b.Z)
-	x1, z1 := max(a.X+a.Width, b.X+b.Width), max(a.Z+a.Height, b.Z+b.Height)
-	return Rectangle{X: x0, Z: z0, Width: x1 - x0, Height: z1 - z0}
-}
-
 // siteWallCandidates is K, how many of the best sites by core score are
 // walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
 // on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
@@ -276,8 +261,10 @@ func union(a, b Rectangle) Rectangle {
 // quiet box), inside siteBudget.
 const siteWallCandidates = 8
 
-// siteWallWeight is the cost of each built wall cell (#1288).
-const siteWallWeight = 2
+// siteWallWeight is the cost of each built wall cell (#1288, #1594): the
+// main site signal. Ring edge backed by rock is not built, so a
+// mountain-side site is cheaper than an open one by its saved cells.
+const siteWallWeight = 10
 
 // siteGround is the map's size and its impassable cells, shared by every
 // candidate's wall score.
