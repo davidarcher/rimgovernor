@@ -39,8 +39,12 @@ func TestHerdTameLessPrefersSafeAndEasy(t *testing.T) {
 func TestSelectHusbandryMethodStillExcludesDangerousRaces(t *testing.T) {
 	wolf := wildAnimal("wolf-1", "Wolf", true, false)
 	wolf.Herd.Predator = true
-	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Wolf": 1}, Roles: map[Resource]HerdRole{"Wolf": {Race: "Wolf", Preferred: true, Job: HerdJobWar}}}
+	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Wolf": 1}, Roles: map[Resource]HerdRole{"Wolf": {Race: "Wolf", Preferred: true, Job: HerdJobMilk}}}
 	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{}), domain.Known([]UpkeepAnimal{wolf}), feedFine, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
-		t.Fatal("a predator is never tamed", choice)
+		t.Fatal("a predator is not tamed off the war job", choice)
+	}
+	herd.Roles["Wolf"] = HerdRole{Race: "Wolf", Preferred: true, Job: HerdJobWar}
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{}), domain.Known([]UpkeepAnimal{wolf}), feedFine, herd, anyTamer); choice.Animal != "wolf-1" {
+		t.Fatal("the war target is tamed", choice)
 	}
 }

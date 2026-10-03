@@ -533,7 +533,8 @@ func herdWarWanted(in HerdPlanInput) bool {
 // herdCandidates are the races ranked for the job. War candidates the colony
 // does not own also need a handler whose Animals skill clears the race's
 // minimum handling skill, read from the catalog (an unread roster or minimum
-// leaves the race out).
+// leaves the race out). Dangerous wild races join the war candidates only
+// when they out-fight every other candidate (herdDangerousWar).
 func herdCandidates(job HerdJob, in HerdPlanInput, owned map[Resource]*herdRace, obtainable map[Resource]bool) map[Resource]bool {
 	if job != HerdJobWar {
 		return obtainable
@@ -545,6 +546,39 @@ func herdCandidates(job HerdJob, in HerdPlanInput, owned map[Resource]*herdRace,
 		minimum, known := race.MinimumHandlingSkill.Value()
 		if _, handled := TamerFor(profiles, minimum); owned[def] != nil || known && handled {
 			out[def] = true
+		}
+	}
+	for def := range herdDangerousWar(in, out) {
+		out[def] = true
+	}
+	return out
+}
+
+// herdDangerousWar is the tameable dangerous wild races worth the tame risk
+// as war animals: those whose catalog CombatPower is above that of the best
+// war candidate already owned or obtainable safely, and that a handler can
+// tame. With no such candidate any readable dangerous race qualifies. An
+// unread CombatPower or minimum handling skill leaves the race out.
+func herdDangerousWar(in HerdPlanInput, safe map[Resource]bool) map[Resource]bool {
+	best := math.Inf(-1)
+	for def := range safe {
+		race, _ := in.Races.Race(def)
+		if power, _, known := herdPerAdult(HerdJobWar, race); known {
+			best = math.Max(best, power)
+		}
+	}
+	profiles, _ := in.Handlers.Value()
+	wild, _ := in.Wild.Value()
+	out := map[Resource]bool{}
+	for _, a := range wild {
+		if tameable, ok := a.Tameable.Value(); !ok || !tameable || !herdDangerous(a) || safe[a.Definition] {
+			continue
+		}
+		race, _ := in.Races.Race(a.Definition)
+		power, capable, known := herdPerAdult(HerdJobWar, race)
+		minimum, mk := race.MinimumHandlingSkill.Value()
+		if _, handled := TamerFor(profiles, minimum); capable && known && power > best && mk && handled {
+			out[a.Definition] = true
 		}
 	}
 	return out

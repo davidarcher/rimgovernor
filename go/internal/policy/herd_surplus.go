@@ -55,10 +55,6 @@ const herdStoredFeedDays = 15.0
 // warg 0.4, tiger 0.5, emu 1.0).
 const herdTameDanger = 0.2
 
-// herdDangerousAllowed are the dangerous races worth taming anyway: bears
-// and wargs are strong fighters that repay the tame risk.
-var herdDangerousAllowed = map[Resource]bool{"Bear_Grizzly": true, "Bear_Polar": true, "Warg": true}
-
 func herdOld(a UpkeepAnimal) bool {
 	age, ak := a.Herd.AgeYears.Value()
 	life, lk := a.Herd.LifeExpectancy.Value()
@@ -71,10 +67,11 @@ func herdJuvenile(a UpkeepAnimal) bool {
 }
 
 // herdDangerous is a predator, or a race whose failed tame turns manhunter
-// at least herdTameDanger of the time, outside herdDangerousAllowed.
+// at least herdTameDanger of the time. Such a race is tamed only as the war
+// target (herdDangerousWar); every other job and the leveling race pass it by.
 func herdDangerous(a UpkeepAnimal) bool {
 	chance, _ := a.Herd.ManhunterOnTameFail.Value()
-	return (a.Herd.Predator || chance >= herdTameDanger) && !herdDangerousAllowed[a.Definition]
+	return a.Herd.Predator || chance >= herdTameDanger
 }
 
 // herdPastureRatio is pasture supply over pen demand; unknown when any pen

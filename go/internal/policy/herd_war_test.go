@@ -76,3 +76,39 @@ func TestHerdPlanKeepsTrainedWarAnimalsWhateverTheBudget(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+// A dangerous wild race is tamed only while its catalog CombatPower beats
+// every safe war candidate; the species here are named by no code.
+func TestHerdPlanTamesDangerousRaceOnlyAboveBestSafeCombatPower(t *testing.T) {
+	dangerous := func(def Resource) UpkeepAnimal {
+		a := wildOf(def)
+		a.Herd.ManhunterOnTameFail = domain.Known(0.5)
+		return a
+	}
+	in := warInput(domain.Known(0.0), 10, wildOf("Husky"), dangerous("Gloomfang"), dangerous("Mildclaw"))
+	in.Races = raceCatalog(warRace("Husky", 10, 0.5, 2), warRace("Gloomfang", 55, 2, 8), warRace("Mildclaw", 10, 2, 4))
+	plan := PlanHerd(in)
+	if got := plan.Jobs[HerdJobWar]; got.Target != "Gloomfang" || len(got.Ranked) != 2 {
+		t.Fatal("the stronger dangerous race is the war target", got)
+	}
+	if plan.Policy.PopulationMin["Gloomfang"] != herdPairSize || plan.Roles["Gloomfang"].Job != HerdJobWar {
+		t.Fatal(plan.Roles, plan.Policy)
+	}
+	// Equal power to the best safe race does not repay the risk.
+	in.Races = raceCatalog(warRace("Husky", 55, 0.5, 2), warRace("Gloomfang", 55, 2, 8), warRace("Mildclaw", 10, 2, 4))
+	if got := PlanHerd(in).Jobs[HerdJobWar]; got.Target != "Husky" || len(got.Ranked) != 1 {
+		t.Fatal("a dangerous race no stronger than the safe one is skipped", got)
+	}
+	// With no safe candidate the dangerous race qualifies; unread power leaves it out.
+	in.Wild = domain.Known([]UpkeepAnimal{dangerous("Gloomfang")})
+	in.Races = raceCatalog(warRace("Gloomfang", 55, 2, 8))
+	if got := PlanHerd(in).Jobs[HerdJobWar].Target; got != "Gloomfang" {
+		t.Fatal(got)
+	}
+	unread := warRace("Gloomfang", 55, 2, 8)
+	unread.CombatPower = domain.Unknown[float64]()
+	in.Races = raceCatalog(unread)
+	if got := PlanHerd(in); len(got.Jobs) != 0 {
+		t.Fatal(got.Jobs)
+	}
+}
