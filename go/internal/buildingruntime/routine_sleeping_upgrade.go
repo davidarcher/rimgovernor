@@ -109,6 +109,22 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
 	}
+	// A real bed is packed, not deconstructed: the stored bed furnishes the
+	// next bedroom or bed spot (furnishFromShell, reinstallStoredBed).
+	if rep.Def == "Bed" || rep.Def == policy.SleepingCoupleBedDefinition {
+		value, err := domain.NewMoveBuilding(rep.Bed, rep.Def, rep.Cell, domain.South)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		id := domain.MintPlanID()
+		action, err := domain.NewUninstallBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		clockSchedulerLog("%s: bedroom %s: pack replaced bed %s for reuse", goal.Goal.ID, rep.Room, rep.Bed)
+		result, _, err := r.commitCouple(call, epoch, state, goal, method, id, []domain.Action{action})
+		return result, err
+	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
 	snapshot.Revision = 1

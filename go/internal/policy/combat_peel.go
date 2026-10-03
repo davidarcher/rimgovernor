@@ -139,7 +139,6 @@ func holdBrawlerBesideGunners(view CombatView, roles []CombatRole) []CombatRole 
 	for i, r := range roles {
 		if melee[r.Pawn] && !r.Ranged {
 			roles[i] = CombatRole{Pawn: r.Pawn, Duty: DutyPeeler, Cell: gunner, Home: gunner}
-			break
 		}
 	}
 	return roles

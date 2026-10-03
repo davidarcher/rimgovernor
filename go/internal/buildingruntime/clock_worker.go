@@ -332,6 +332,10 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		level, message = slog.LevelWarn, "step failed: "+err.Error()
 		if err == executor.ErrHeld && len(failures) == 0 {
 			level, message = slog.LevelInfo, "step held: "+err.Error()
+		} else if strings.Contains(err.Error(), "FAILURE_CODE_OWNER_CONFLICT") && len(failures) == 0 {
+			// A restarted controller asking after its old clock epoch: it opens a
+			// new one on the next step.
+			level, message = slog.LevelInfo, "step: clock epoch not held, reopening: "+err.Error()
 		}
 	}
 	proposals := make([]string, 0, len(result.Proposals))

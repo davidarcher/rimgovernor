@@ -26,3 +26,26 @@ func TestInnerCrossWallLeavesRingGatesOpen(t *testing.T) {
 		}
 	}
 }
+
+// A cross wall's gate stands in the wall with open ground at both ends.
+func TestInnerCrossWallGatesHaveOpenEnds(t *testing.T) {
+	core := Rectangle{X: 100, Z: 100, Width: 10, Height: 10}
+	bound := pad(core, 40)
+	walls, gates := innerWalls(core, func(c domain.Cell) bool { return contains(bound, c) }, func(domain.Cell, bool) bool { return true })
+	for i, g := range gates[4:] {
+		for _, c := range rectCells(g) {
+			if !walls[c] {
+				t.Errorf("cross gate %d at %+v has a cell %+v outside the wall", i, g, c)
+			}
+		}
+		var a, b domain.Cell
+		if g.Width > g.Height {
+			a, b = domain.Cell{X: g.X - 1, Z: g.Z}, domain.Cell{X: g.X + g.Width, Z: g.Z}
+		} else {
+			a, b = domain.Cell{X: g.X, Z: g.Z - 1}, domain.Cell{X: g.X, Z: g.Z + g.Height}
+		}
+		if walls[a] || walls[b] {
+			t.Errorf("cross gate %d at %+v opens onto a wall (%v %v)", i, g, walls[a], walls[b])
+		}
+	}
+}
