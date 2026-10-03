@@ -209,9 +209,13 @@ an animal designated for removal, or one with an unread `sterilized` or
 `sterilize_queued` fact; and never a sex below its breeding pair of fertile
 animals (1 male, 2 females), which must exist to begin with. A queued bill
 counts as sterile, so bills cannot take a race below the pair. It runs only
-while `RoutineFacts.VetRoom` is ready (a vet room reservation with a built
-medical animal bed, plus the allowed-area id covering it); an unknown or
-unready vet room selects nothing, and the layout does not expose it yet. The
+while `RoutineFacts.VetRoom` is ready: `Ready` is `policy.VetRoomReady` (a vet
+room of the plan standing shelled with a standing animal bed the sleeping
+census reads medical; unknown while a standing bed's census row or flag is
+unread), read by the husbandry planner from the room census; `Area` is the id
+of the bot-owned `VetRoom` allowed area (the room interior, planned by
+MaintainShelter beside the Safe area, which leaves the vet room out; `""`
+until created). An unknown or unready vet room selects nothing. The
 steps are derived each cycle from the animals' allowed area and sterilize
 facts, one write per cycle and one animal in the room at a time: `allowed_area`
 into the vet room, `sterilize`, then `allowed_area` cleared once sterilized

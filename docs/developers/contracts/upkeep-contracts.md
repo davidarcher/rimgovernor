@@ -535,7 +535,8 @@ sleeping spot per animal (at least eight); and a clean vet room beside the barn
 with animal beds (one per 10 animals, at least two). All sit inside the outer
 ring. Animal areas are the pens and the barn only; the vet room is left out of
 them, so an animal enters it only when colonists carry it in, a plain door
-being no barrier to an animal. A herd the rooms cannot hold gets one more
+being no barrier to an animal, or the sterilize flow lets it in through the
+bot-owned `VetRoom` allowed area (`VetRoomAreaKey`, the room interior). A herd the rooms cannot hold gets one more
 barn or vet room reservation, never a moved or resized one.
 
 Once the pen stands, `MaintainAnimalContainment` raises each barn and vet room
