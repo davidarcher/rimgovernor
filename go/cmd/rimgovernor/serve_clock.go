@@ -244,7 +244,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
 	resourceTargets := sc.resourceTargetsConfigured()
 	animalFeedPlans := sc.routineAnimalFeedPlans
-	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
+	fields, bills := sc.routineFieldPlans, sc.routineBillPlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
 	blight, pollution, mechCharger := sc.routineBlightPlans, sc.routinePollutionPlans, sc.routineMechChargerPlans
@@ -278,7 +278,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || pollution || mechCharger || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || pollution || mechCharger || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -357,16 +357,6 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("field planning requires typed preview")
 			}
 			config.Fields, err = buildingruntime.NewRoutineFieldPlanner(reviewer, fieldNative)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if foodStorage {
-			fieldNative, ok := reads.(buildingruntime.FieldNative)
-			if !ok {
-				return nil, errors.New("food storage planning requires typed preview")
-			}
-			config.FoodStorage, err = buildingruntime.NewRoutineFoodStoragePlanner(reviewer, fieldNative)
 			if err != nil {
 				return nil, err
 			}
@@ -959,7 +949,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
-	if sc.routineFoodStoragePlans || sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
+	if sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)
 	}
 	if sc.routineTemperaturePlans {

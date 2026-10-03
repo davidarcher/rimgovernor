@@ -152,12 +152,8 @@ type StockpileRequest struct {
 	// belongs in (apparel: storage; weapons: the barracks, else storage); a
 	// gear zone is sited there before anywhere else.
 	GearRooms map[string][]domain.Cell
-	// Kitchen, when set, is the cooking spot the opening food stockpile
-	// sits beside while no roofed floor is free.
-	Kitchen *domain.Cell
-	// Opening stands the opening stockpiles (general store, food, corpse
-	// dump) while no owned zone of their kind stands; the runtime always
-	// sets it.
+	// Opening stands the opening stockpiles (general store, corpse dump)
+	// while no owned zone of their kind stands; the runtime always sets it.
 	Opening bool
 }
 

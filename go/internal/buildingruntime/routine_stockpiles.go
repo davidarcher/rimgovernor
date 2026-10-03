@@ -114,15 +114,6 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 		}
 	}
 	request.Opening = true
-	if census, ok := projection.Facts.CurrentConstruction.Value(); ok {
-		for _, b := range census.Buildings {
-			if foodStorageCookingDefinitions[b.Building.Definition()] {
-				cell := b.Building.Cell()
-				request.Kitchen = &cell
-				break
-			}
-		}
-	}
 	for _, z := range owned {
 		entry := byZone[z.ID]
 		if z.Kind != domain.StockpileZone || entry == nil {

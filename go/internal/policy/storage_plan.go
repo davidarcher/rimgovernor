@@ -39,6 +39,9 @@ type StorageRequest struct {
 	// Sleeping is nil while the bed census is unknown; the medicine store
 	// needs it with Rooms.
 	Sleeping *SleepingObservation
+	// Food is nil when the colony's food storage stands or its fact is
+	// known to be met; see FoodStore.
+	Food *FoodStore
 }
 
 // StoragePlan is the desired storage, most important site first.
@@ -48,19 +51,20 @@ type StoragePlan struct {
 
 // PlanStorage returns the desired storage sites: the meal store, the
 // freezer's raw meat, raw vegetable and corpse shelves and its perishables
-// catch-all, and the tomb's corpse store.
+// catch-all, the tomb's corpse store, and the food stockpile beside the
+// kitchen.
 func PlanStorage(r StorageRequest) StoragePlan {
 	var plan StoragePlan
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
 	plan.Sites = append(plan.Sites, r.medicineSites()...)
-	if r.Layout == nil || r.Rooms == nil {
-		return plan
+	if r.Layout != nil && r.Rooms != nil {
+		plan.Sites = append(plan.Sites, r.freezerSites()...)
+		plan.Sites = append(plan.Sites, r.tombSites()...)
+		plan.Sites = append(plan.Sites, r.yardSites()...)
 	}
-	plan.Sites = append(plan.Sites, r.freezerSites()...)
-	plan.Sites = append(plan.Sites, r.tombSites()...)
-	plan.Sites = append(plan.Sites, r.yardSites()...)
+	plan.Sites = append(plan.Sites, r.foodSites()...)
 	return plan
 }
 

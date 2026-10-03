@@ -40,7 +40,6 @@ type ClockSchedulerConfig struct {
 	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills, BabyFoodBills, MechBills *RoutineBillPlanner
 	Butcher                                                                                                             *RoutineBuildingPlanner
 	Fields                                                                                                              *RoutineFieldPlanner
-	FoodStorage                                                                                                         *RoutineFoodStoragePlanner
 	Profile                                                                                                             string
 	Start                                                                                                               bridge.ClockStart
 	// PaceHorizonTicks is the safe horizon player acceleration's backoff
@@ -162,7 +161,6 @@ type ClockSchedulerResult struct {
 	CookingBills, PreservationBills, ButcherBills, CookAheadBills, ArtBills, SurgeryPartBills, BabyFoodBills, MechBills *RoutineBillResult
 	Butcher                                                                                                             *RoutineBuildingResult
 	Fields                                                                                                              *RoutineFieldResult
-	FoodStorage                                                                                                         *RoutineFoodStorageResult
 	Attempt                                                                                                             *store.ClockAttempt
 	Decision                                                                                                            policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
@@ -417,9 +415,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	}
 	if config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine) {
 		return nil, fmt.Errorf("%w: NewClockScheduler: config.Fields != nil && (config.Routine == nil || config.Fields.reviewer != config.Routine)", ErrControl)
-	}
-	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
-		return nil, fmt.Errorf("%w: NewClockScheduler: config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine)", ErrControl)
 	}
 	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.PestAcquisition, config.ResourceAcquisition} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {

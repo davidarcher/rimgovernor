@@ -197,7 +197,8 @@ func centroid(cells []domain.Cell) domain.Cell {
 }
 
 // storageRequest is the colony view the storage planner reads: the cells,
-// the layout plan and room census when known, and the meal store's spot.
+// the layout plan and room census when known, the meal store's spot and the
+// food stockpile while the colony's food storage is not met.
 func storageRequest(projection *observation.ColonyProjection, protected []domain.Cell) policy.StorageRequest {
 	request := policy.StorageRequest{Bounds: projection.Bounds, Cells: projection.Cells, Protected: protected}
 	if plan, rooms, known := plannedLayout(*projection); known {
@@ -209,7 +210,30 @@ func storageRequest(projection *observation.ColonyProjection, protected []domain
 	if spot, known := findMealSpot(projection); known && spot.room.ID != "" {
 		request.Meals = &policy.MealStore{Room: spot.room, Filter: spot.filter, Size: spot.size, Anchor: spot.anchor, Avoid: spot.avoid, Whole: spot.whole}
 	}
+	if met, known := projection.Facts.FoodStorage.Value(); !known || !met {
+		anchor, cooking := cookingSpot(projection)
+		if !cooking {
+			anchor = planCore(*projection)
+		}
+		request.Food = &policy.FoodStore{Anchor: anchor}
+	}
 	return request
+}
+
+// cookingBenchDefinitions are the cooking benches the food stockpile sits
+// beside.
+var cookingBenchDefinitions = map[string]bool{"Campfire": true, "FueledStove": true, "ElectricStove": true}
+
+// cookingSpot is the first claimed or built cooking bench's cell.
+func cookingSpot(projection *observation.ColonyProjection) (domain.Cell, bool) {
+	if census, ok := projection.Facts.CurrentConstruction.Value(); ok {
+		for _, b := range census.Buildings {
+			if cookingBenchDefinitions[b.Building.Definition()] {
+				return b.Building.Cell(), true
+			}
+		}
+	}
+	return domain.Cell{}, false
 }
 
 // stockpileGearRooms are the standing planned rooms the gear stockpiles

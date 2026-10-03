@@ -31,6 +31,7 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 	}
 	projection.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{Surfaces: []policy.DiningSurface{{ID: "Table_1", RoomID: "Room_4", Adjacent: adjacent}}})
+	projection.Facts.FoodStorage = domain.Known(true)
 	var consumers []policy.FoodConsumer
 	for i, need := range needs {
 		consumers = append(consumers, policy.FoodConsumer{ID: policy.PawnID(rune('a' + i)), NutritionPerDay: domain.Known(need)})
@@ -181,4 +182,23 @@ func TestMealSpotAtTheFreezerDoor(t *testing.T) {
 func withoutOpening(r policy.StockpileRequest) policy.StockpileRequest {
 	r.Opening = false
 	return r
+}
+
+// The food stockpile is planned while the colony's food storage is unmet or
+// unknown, anchored at the colony core with no cooking bench, and not at all
+// once the fact reads met.
+func TestStorageRequestPlansFoodUntilStorageIsMet(t *testing.T) {
+	t.Parallel()
+	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, Center: domain.Cell{X: 7, Z: 8}}
+	for _, fact := range []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)} {
+		projection.Facts.FoodStorage = fact
+		food := storageRequest(projection, nil).Food
+		if food == nil || food.Anchor != (domain.Cell{X: 7, Z: 8}) {
+			t.Fatalf("food %+v", food)
+		}
+	}
+	projection.Facts.FoodStorage = domain.Known(true)
+	if food := storageRequest(projection, nil).Food; food != nil {
+		t.Fatalf("food planned with storage met: %+v", food)
+	}
 }

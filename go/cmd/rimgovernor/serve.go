@@ -40,7 +40,6 @@ type serveConfig struct {
 	routineSleepingPlans            bool
 	routineAcquisitionPlans         bool
 	routineFieldPlans               bool
-	routineFoodStoragePlans         bool
 	routineBillPlans                bool
 	routineWorkPlans                bool
 	routineSupplyPlans              bool
@@ -260,7 +259,6 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"sleeping", &c.routineSleepingPlans},
 		{"bill", &c.routineBillPlans},
 		{"field", &c.routineFieldPlans},
-		{"food-storage", &c.routineFoodStoragePlans},
 		{"acquisition", &c.routineAcquisitionPlans},
 		{"work", &c.routineWorkPlans},
 		{"supply", &c.routineSupplyPlans},
@@ -331,7 +329,7 @@ func routineFamilies(c *serveConfig) []routineFamily {
 // and basic defense. Only then can the measured colony stage climb.
 func (c serveConfig) footholdComposed() bool {
 	return (c.routineSleepingPlans || c.routineShelterPlans) && (c.routineBillPlans || c.routineCookingPlans) &&
-		c.routineFoodStoragePlans && (c.routineDefensePlans || c.routineEquipPlans)
+		c.routineStockpilePlans && (c.routineDefensePlans || c.routineEquipPlans)
 }
 
 // researchPlans reports whether EnsureResearch is composed: with the research

@@ -52,16 +52,17 @@ through shared building admission after startup and development selection permit
 it. Existing inaccessible furniture blocks duplicate construction. A finite wait
 after observed construction allows ordinary use without asserting need recovery.
 
-Required food storage runs at startup survival priority, alongside cooking and
-shelter. It waits for verified indoor sleeping capacity before fitting the starter
-room, but does not wait for optional development slots held by interrupted gear.
-Placement uses current native room/building geometry and zone previews, preserving
-the entrance aisle and existing zones. Nine valid cells may form several patches
-when service furniture prevents a complete rectangle. Native readback still
-establishes the storage gate. A stockpile takes roofed, walkable, storage-empty
-floor: no plant, building, blueprint, frame or item, the same rule the cell census
+The food stockpile is a storage-planner site (`policy.PlanStorage`), created by
+`MaintainStockpiles` while the native food-storage fact is unmet: a 3x3 of
+`FoodRole`, Preferred, nearest the cooking bench (else the colony core), on
+roofed floor outside the bedrooms when any block is free, then any roofed
+block, else open ground before the first roof. Its Room is the roofed floor
+while a roofed block is free, so a zone standing outdoors is deleted and
+recreated indoors; with none free the Room is the whole map and a standing zone
+stays. Native readback still establishes the storage gate. A stockpile takes
+walkable, storage-empty floor: no plant, building, blueprint, frame or item, the same rule the cell census
 reports as storage-empty; filth or a standing pawn never refuses a cell. The
-storage planners (food storage, workshop ingredient storage) preview a bounded,
+workshop ingredient storage planner previews a bounded,
 ordered list of candidate patches one at a time: a zone preview reports refused
 ground as an evaluation that is not accepted, so a refused patch gives way to the
 next, while a stale map snapshot or an unresolvable configuration is a failure.

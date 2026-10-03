@@ -165,17 +165,6 @@ var plannerCatalog = []plannerEntry{
 			out.Fields = &method
 			return method.Verdict, nil
 		}},
-	{name: "foodStorage", goal: policy.MaintainFoodStorage, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ZoneCreateAction}, sections: sectionsBuilding,
-		configured: func(c *ClockSchedulerConfig) bool { return c.FoodStorage != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			method, err := s.config.FoodStorage.step(ctx, epoch, arbiter)
-			if err != nil {
-				return Verdict{}, err
-			}
-			clockSchedulerLog("FoodStorage.step result: reason=%v plan=%s", method.Verdict, method.Plan)
-			out.FoodStorage = &method
-			return method.Verdict, nil
-		}},
 	{name: "foodAcquisition", goal: policy.EnsureFoodSupply, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.AcquisitionWithdrawAction}, sections: sectionsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {

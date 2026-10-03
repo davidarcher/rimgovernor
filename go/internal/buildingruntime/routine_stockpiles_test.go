@@ -23,7 +23,7 @@ func stockpileSiteCell(x, z int32, zone string, stored bool) policy.SiteCell {
 // the review's zones, a later patch supersedes the created settings and
 // role, and a nearly full claimed zone grows through the registered role.
 func TestStockpileRequestFromCensusAndClaims(t *testing.T) {
-	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
+	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 20, Height: 20}, Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2)), FoodStorage: domain.Known(true)}}
 	projection.Identity.Tick = 5000
 	for x := int32(0); x < 20; x++ {
 		for z := int32(0); z < 20; z++ {

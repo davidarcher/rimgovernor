@@ -8,13 +8,11 @@ import (
 )
 
 // The opening stockpiles: zoning costs no pawn labor and is instant, so a
-// fresh colony gets its three basic zones on the first review instead of
+// fresh colony gets its two basic zones on the first review instead of
 // waiting on a room, a deficit or a haul budget. Each is created while no
-// owned zone of its kind stands:
+// owned zone of its kind stands (the food stockpile is a planner site,
+// storage_plan_food.go):
 //   - the general store, outdoors is fine, nearest the colony anchor;
-//   - the food stockpile, a 3x3 on roofed floor when there is any, else
-//     beside the cooking spot; Preferred, so the indoor food zones above it
-//     draw the food in once they stand;
 //   - the corpse dump, outdoors at least openingDumpDistance from the
 //     anchor and clear of living rooms.
 //
@@ -22,7 +20,6 @@ import (
 // never defers one.
 const (
 	openingGeneralSide  int32 = 5
-	openingFoodSide     int32 = 3
 	openingDumpSide     int32 = 3
 	openingDumpDistance int32 = 12
 )
@@ -33,14 +30,11 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 	if !r.Opening || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return nil
 	}
-	var general, food, dump bool
+	var general, dump bool
 	for _, z := range r.Zones {
-		prefix := stockpileRolePrefix(z.Role) + ":"
 		switch {
 		case z.Role == domain.GeneralRole || z.Filter.Base() == domain.BaseNonperishables:
 			general = true
-		case z.Role == domain.FoodRole || z.Filter.Base() == domain.BaseFood || prefix == domain.MealsRolePrefix || prefix == domain.RawFoodRolePrefix || prefix == domain.RawMeatRolePrefix || prefix == domain.RawVegRolePrefix || prefix == domain.PerishablesRolePrefix:
-			food = true
 		case z.Role == domain.CorpseDumpRole:
 			dump = true
 		}
@@ -59,18 +53,6 @@ func stockpileOpeningEdits(r StockpileRequest, open stockpileOpen) []StockpileEd
 			take(domain.GeneralRole, domain.GeneralFilter(), domain.NormalPriority, site, "in the planned storage room")
 		} else if site, ok := openingSite(open, r.Anchor, openingGeneralSide, nil); ok {
 			take(domain.GeneralRole, domain.GeneralFilter(), domain.NormalPriority, site, "near the colony")
-		}
-	}
-	if !food {
-		roofed := func(c SiteCell) bool { return positive(c.Roofed) }
-		anchor := r.Anchor
-		if r.Kitchen != nil {
-			anchor = *r.Kitchen
-		}
-		if site, ok := openingSite(open, anchor, openingFoodSide, roofed); ok {
-			take(domain.FoodRole, domain.FoodFilter(), domain.PreferredPriority, site, "on roofed floor")
-		} else if site, ok := openingSite(open, anchor, openingFoodSide, nil); ok {
-			take(domain.FoodRole, domain.FoodFilter(), domain.PreferredPriority, site, "beside the cooking spot")
 		}
 	}
 	if !dump {
@@ -124,17 +106,30 @@ func storageRoomSite(open stockpileOpen, room Rectangle, side int32) (Rectangle,
 // openingSite is the free side x side square nearest anchor whose every
 // cell is open and passes allow (nil: any open cell).
 func openingSite(open stockpileOpen, anchor domain.Cell, side int32, allow func(SiteCell) bool) (Rectangle, bool) {
+	sites := openingSites(open, anchor, side, allow, 1)
+	if len(sites) == 0 {
+		return Rectangle{}, false
+	}
+	return sites[0], true
+}
+
+// openingSites lists up to limit free side x side squares whose every cell
+// is open and passes allow (nil: any open cell), nearest anchor first, ties
+// by corner.
+func openingSites(open stockpileOpen, anchor domain.Cell, side int32, allow func(SiteCell) bool, limit int) []Rectangle {
 	corners := make([]domain.Cell, 0, len(open.cells))
 	for p := range open.cells {
 		corners = append(corners, p)
 	}
 	sort.Slice(corners, func(i, j int) bool { return cellLess(corners[i], corners[j]) })
-	var best Rectangle
-	var bestScore int64 = -1
+	type scored struct {
+		site  Rectangle
+		score int64
+	}
+	var found []scored
 	for _, p := range corners {
 		site := Rectangle{p.X, p.Z, side, side}
-		score := squaredDistance(domain.Cell{X: p.X + side/2, Z: p.Z + side/2}, anchor)
-		if bestScore >= 0 && score >= bestScore || !openFree(open, site) {
+		if !openFree(open, site) {
 			continue
 		}
 		ok := true
@@ -142,10 +137,15 @@ func openingSite(open stockpileOpen, anchor domain.Cell, side int32, allow func(
 			ok = ok && (allow == nil || allow(open.cells[c]))
 		}
 		if ok {
-			best, bestScore = site, score
+			found = append(found, scored{site, squaredDistance(domain.Cell{X: p.X + side/2, Z: p.Z + side/2}, anchor)})
 		}
 	}
-	return best, bestScore >= 0
+	sort.SliceStable(found, func(i, j int) bool { return found[i].score < found[j].score })
+	out := make([]Rectangle, 0, min(len(found), limit))
+	for _, f := range found[:min(len(found), limit)] {
+		out = append(out, f.site)
+	}
+	return out
 }
 
 func openFree(open stockpileOpen, site Rectangle) bool {

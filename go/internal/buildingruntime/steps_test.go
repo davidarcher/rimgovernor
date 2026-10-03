@@ -2,9 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // Step runs one full scheduling decision; see StepWithReason.
@@ -136,15 +133,6 @@ func (r *RoutineFireSafetyPlanner) Step(ctx context.Context) (RoutineFireSafetyR
 	}
 	defer done()
 	return r.step(call, epoch)
-}
-
-func (r *RoutineFoodStoragePlanner) Step(ctx context.Context) (RoutineFoodStorageResult, error) {
-	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	defer done()
-	return r.step(call, epoch, newStepArbiter())
 }
 
 func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFoodStorageUpkeepResult, error) {
@@ -465,16 +453,6 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	}
 	got, err := commitClaimed(call, arbiter, result.Proposal)
 	return RoutineSecureSuppliesResult(got), err
-}
-
-// foodStorageCells is the first of foodStorageSites, or false when nothing
-// fits.
-func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) ([]domain.Cell, bool) {
-	sites := foodStorageSites(room, cells, occupied)
-	if len(sites) == 0 {
-		return nil, false
-	}
-	return sites[0], true
 }
 
 // waitingOn reports the wait recorded for name, for tests and the step row.

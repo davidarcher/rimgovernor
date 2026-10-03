@@ -17,7 +17,7 @@ import (
 // durable shell-then-marker build, reusing the existing plain-BuildingAction
 // preview/admission path (Fence/FenceGate/PenMarker) rather than folding into
 // the shared shelter/cooking/comfort switch (RoutineBuildingPlanner). It is
-// self-contained the way RoutineFoodStoragePlanner and RoutineFieldPlanner are,
+// self-contained the way RoutineFieldPlanner is,
 // on purpose: the shared switch is actively edited by parallel building-family
 // slices, and this goal's action family needs none of its machinery.
 type RoutineAnimalContainmentPlanner struct {
@@ -86,7 +86,7 @@ func animalContainmentPlanKindOf(spec domain.PlanSpec) (animalContainmentPlanKin
 }
 
 // animalContainmentPlanComplete matches the completed-shell check
-// shelterNativeWorkTicks and starterRoom rely on elsewhere: every action must
+// shelterNativeWorkTicks relies on elsewhere: every action must
 // be an observed, resolved, completed effect. An empty plan is never complete.
 func animalContainmentPlanComplete(plan store.PlanState) bool {
 	if len(plan.Progress) == 0 {

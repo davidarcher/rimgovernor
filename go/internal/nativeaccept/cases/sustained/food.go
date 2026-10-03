@@ -52,7 +52,7 @@ func Window() time.Duration {
 // scheduler step admits a clock window.
 func Spec(prefix string) cases.ServeSpec {
 	return cases.ServeSpec{
-		Families:      []string{"field,food-storage,acquisition,cooking,supply"},
+		Families:      []string{"field,stockpiles,acquisition,cooking,supply"},
 		NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: prefix,
 	}
 }

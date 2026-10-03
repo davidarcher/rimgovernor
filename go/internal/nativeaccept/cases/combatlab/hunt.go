@@ -14,7 +14,7 @@ import (
 // with four riflemen (lab-ranged's line) and no raiders, a group of calm
 // wild animals north of them, and the planners a hunt and its aftermath
 // compose: the hunt origin of ActiveCombat (defense), the butcher and haul
-// flow that takes the corpses (bill, haul, work, stockpiles, food-storage).
+// flow that takes the corpses (bill, haul, work, stockpiles).
 const (
 	// huntTicks bounds the served window of the kill-and-butcher case: the
 	// squad walks into range, shoots three animals, and the corpses are hauled
@@ -31,7 +31,7 @@ const (
 	observeChannelsTool = "test/food_channels_observe"
 )
 
-var huntFamilies = []string{"defense", "tend", "rescue", "acquisition", "work", "bill", "haul", "stockpiles", "food-storage"}
+var huntFamilies = []string{"defense", "tend", "rescue", "acquisition", "work", "bill", "haul", "stockpiles"}
 
 func init() {
 	cases.Register(cases.Case{
