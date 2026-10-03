@@ -19,8 +19,8 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{BuildingReasonNoReview, "no_current_review", "no current review to judge"},
 		{BuildingReasonExpired, "expired", "the proposal went stale"},
 		{BuildingReasonExistingWork, "already_working_on_it", "already working on it"},
-		{BuildingReasonCombatOrders, "combat_orders", "combat orders sent"},
-		{BuildingReasonHoldFallback, "hold_fallback", "the hold line was re-formed as squad defense"},
+		{BuildingReasonCombatOrders, "combat_orders", "combat orders are running"},
+		{BuildingReasonHoldFallback, "hold_fallback", "the hold line fell back to squad defense"},
 		{collapsePending("excavation_site"), "collapse_pending:excavation_site", "a collapse is pending at the excavation site"},
 		{noWorker("squad"), "no_worker:squad", "no colonist free to do it (squad)"},
 		{noWorker(""), "no_worker", "no colonist free to do it"},
@@ -117,7 +117,7 @@ func TestNoUnknownPrerequisiteRemains(t *testing.T) {
 		}
 		if info.IsDir() {
 			switch info.Name() {
-			case ".git", "node_modules", ".rimgovernor", "dist":
+			case ".git", ".claude", "node_modules", ".rimgovernor", "dist":
 				return filepath.SkipDir
 			}
 			return nil

@@ -221,9 +221,9 @@ func (v Verdict) Text() string {
 	case OutcomeExpired:
 		return "the proposal went stale"
 	case OutcomeOrdersSent:
-		return "combat orders sent"
+		return "combat orders are running"
 	case OutcomeHoldFallback:
-		return "the hold line was re-formed as squad defense"
+		return "the hold line fell back to squad defense"
 	case OutcomeWaiting, OutcomeRefused:
 		return v.kindText()
 	}

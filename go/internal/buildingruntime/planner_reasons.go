@@ -10,8 +10,10 @@ import (
 
 // plannerRecordReason is what a planner's verdict files on its goal's
 // record. A refusal and a wait file their plain-English text (a wait marked
-// as one); a planner that admitted, saw no deficit or ran the fight's orders files the
-// zero note, which clears the goal's filed refusal or wait; a switched-off
+// as one); a planner whose fight is running orders (combat_orders) or fell
+// back to squad defense (hold_fallback) files that text as a wait, since the
+// fight is under way and nothing failed; a planner that admitted or saw no
+// deficit files the zero note, which clears the goal's filed refusal or wait; a switched-off
 // planner files the opt-out hold. False skips filing: no verdict, an invalid
 // one, unprintable text, or an outcome that says nothing about the goal (no
 // review to judge, a stale proposal).
@@ -24,7 +26,7 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 		return policy.PlannerNote{}, false
 	}
 	switch v.Outcome {
-	case OutcomeAdmitted, OutcomeNothingToDo, OutcomeOrdersSent, OutcomeHoldFallback:
+	case OutcomeAdmitted, OutcomeNothingToDo:
 		return policy.PlannerNote{}, true
 	case OutcomeDisabled:
 		return policy.PlannerNote{Text: policy.PlannerOptOut}, true
@@ -40,7 +42,7 @@ func plannerRecordReason(v Verdict) (policy.PlannerNote, bool) {
 			return policy.PlannerNote{}, false
 		}
 	}
-	return policy.PlannerNote{Text: s, Waiting: v.Outcome == OutcomeWaiting}, true
+	return policy.PlannerNote{Text: s, Waiting: v.Outcome != OutcomeRefused}, true
 }
 
 // noteRank orders the notes sibling planners file on one goal: a refusal

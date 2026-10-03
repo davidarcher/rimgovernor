@@ -639,7 +639,7 @@ kind, filed on `GoalProgress.Planner` for the status strip and the journal. A pl
 entry names the one goal it serves (`plannerEntry.goal`), and the wave files its verdict there:
 a refusal files as a block (`planner:` reason), a wait files as a wait (`waiting:` reason,
 `GoalProgress.PlannerWaiting`; shown without a warning), a disabled planner files the opt-out
-hold, a planner that found its earlier work still standing (`already_working_on_it`) waits on it, and an admitted, nothing-to-do, combat-orders or hold-fallback verdict clears the goal's refusal or wait.
+hold, a planner that found its earlier work still standing (`already_working_on_it`) waits on it, a planner whose fight is running orders (`combat_orders`: "combat orders are running") or fell back to squad defense (`hold_fallback`: "the hold line fell back to squad defense") files that sentence as a wait, since the fight is under way and nothing failed, and an admitted or nothing-to-do verdict clears the goal's refusal or wait.
 A verdict that says nothing about the goal (no review, a stale proposal) files nothing.
 Siblings on one goal keep the strongest note: refusal, then wait, then clear, then opt-out.
 

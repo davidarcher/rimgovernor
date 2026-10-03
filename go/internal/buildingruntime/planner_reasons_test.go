@@ -95,12 +95,27 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
 		t.Fatalf("nothing to do did not clear the existing-work wait: %v", got)
 	}
-	for _, combat := range []Verdict{BuildingReasonCombatOrders, BuildingReasonHoldFallback} {
+	for combat, text := range map[Verdict]string{BuildingReasonCombatOrders: "combat orders are running", BuildingReasonHoldFallback: "the hold line fell back to squad defense"} {
 		verdicts["shelter"] = combat
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Text: text, Waiting: true}) {
+			t.Fatalf("%s not filed as a wait: %v", combat, got)
+		}
+		verdicts["shelter"] = BuildingReasonAdmitted
 		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
-			t.Fatalf("%s did not clear: %v", combat, got)
+			t.Fatalf("admitting did not clear %s: %v", combat, got)
+		}
+		// Sibling precedence on one goal: an idle sibling does not clear the
+		// fight's note, and a refusal outranks it.
+		verdicts["housing"], verdicts["sibling"] = combat, BuildingReasonNoDeficit
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing] != (policy.PlannerNote{Text: text, Waiting: true}) {
+			t.Fatalf("an idle sibling cleared %s: %v", combat, got)
+		}
+		verdicts["sibling"] = BuildingReasonNoSpace
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing].Waiting || got[policy.MaintainHousing].Text == "" {
+			t.Fatalf("a refusal lost to %s: %v", combat, got)
 		}
 	}
+	verdicts["shelter"] = BuildingReasonNoDeficit
 	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, BuildingReasonNoSpace
 	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Waiting || refused[policy.MaintainHousing].Text == "" {
 		t.Fatalf("a refusal lost to a wait: %v", refused)
