@@ -1503,6 +1503,8 @@ message ColonyFactsSnapshot {
   repeated string tile_mutators = 51;
   // Odyssey eruption, contamination and underground-site state (#1709); absent without Odyssey.
   OdysseySection odyssey = 52;
+  // Anomaly containment, knowledge and incident state (#1738); absent without Anomaly.
+  AnomalySection anomaly = 53;
 }
 // Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
 // absent is unknown, never zero.
@@ -1541,6 +1543,43 @@ message UndergroundSite {
 message UndergroundHackable {
   optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3;
   optional double progress_percent = 4; optional double defence = 5; optional bool hacked = 6; optional bool locked_out = 7; optional bool autohack = 8;
+}
+// Anomaly colony facts (#1738), a keyed colony section (#1347). Per-thing
+// state (an entity's hold and study, a platform's containment strength)
+// rides the pawn and building rows (#1737); this section carries what no
+// row holds. A scalar absent is unknown, never zero.
+// knowledge: one row per KnowledgeCategoryDef. codex: one row per
+// EntityCategoryDef; discovered_entries are the EntityCodexEntryDef names
+// the colony has discovered. held_entities: each pawn a holding
+// platform holds on the colony map, by id, joining the pawn and building
+// rows. holding_platform_available: StudyUtility.HoldingPlatformAvailableOnCurrentMap.
+message AnomalySection { oneof outcome { AnomalyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+message AnomalyColonyFacts {
+  repeated KnowledgeProgress knowledge = 1; repeated CodexProgress codex = 2; repeated string discovered_entries = 3;
+  repeated HeldEntity held_entities = 4; optional bool holding_platform_available = 5; AnomalyIncidentState incidents = 6;
+}
+// current_project is the ResearchProjectDef the research manager funds from
+// this category (absent when none is set); knowledge the amount stored for
+// it (ResearchManager.GetKnowledge); projects_available whether any project
+// of the category can still be researched.
+message KnowledgeProgress {
+  optional string category = 1; optional string current_project = 2; optional double knowledge = 3; optional bool projects_available = 4;
+}
+// entries: the codex entries in the category, discovered: those discovered.
+message CodexProgress { optional string category = 1; optional uint32 entries = 2; optional uint32 discovered = 3; }
+message HeldEntity { optional string pawn_id = 1; optional string platform_id = 2; }
+// GameComponent_Anomaly: the state that gates and times the Anomaly
+// threats. level_def and level are the monolith's current MonolithLevelDef
+// and its number; highest_level_reached the highest it has reached.
+// anomaly_threat_fraction_now is the share of threat points the game
+// currently gives Anomaly incidents. awoken_corpse_active: an unnatural
+// corpse has awoken; metalhorror_implant_possible: the game would allow a
+// new metalhorror biosignature implant now.
+message AnomalyIncidentState {
+  optional bool monolith_spawned = 1; optional string level_def = 2; optional int32 level = 3; optional int32 highest_level_reached = 4;
+  optional bool questline_ended = 5; optional int32 ticks_since_level_change = 6; optional bool ambient_horror_mode = 7;
+  optional bool anomaly_study_enabled = 8; optional double anomaly_threat_fraction_now = 9; optional bool void_awakening_active = 10;
+  optional bool awoken_corpse_active = 11; optional bool metalhorror_implant_possible = 12;
 }
 // One policy database row: Policy.GetUniqueLoadID(), label, the player
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or

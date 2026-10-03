@@ -123,6 +123,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if err := validateBiotechColony(v); err != nil {
 		return err
 	}
+	if err := validateAnomalyColony(v); err != nil {
+		return err
+	}
 	if err := validateOdysseyColony(v); err != nil {
 		return err
 	}

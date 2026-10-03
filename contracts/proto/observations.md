@@ -358,6 +358,32 @@ a failed sub-read leaves its block absent and adds a `ReadIssue` named
 (persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
 no study state.
 
+`ColonyFactsSnapshot.anomaly` (`AnomalySection`, #1738) is the colony-wide
+Anomaly read, one keyed section with the snapshot's seq/tick (#1347); it is
+absent without Anomaly and `Unavailable` when the read failed. It carries what
+no row holds: `knowledge` (per `KnowledgeCategoryDef`: the project the research
+manager funds from it, the knowledge stored for that project, whether any
+project of the category can still be researched), `codex` (per
+`EntityCategoryDef`: entries and discovered count) with `discovered_entries`
+(the discovered `EntityCodexEntryDef` names), `held_entities` (each pawn a
+holding platform holds on the colony map with its platform id, the join keys
+into the pawn and building rows), `holding_platform_available` (the game's own
+`StudyUtility.HoldingPlatformAvailableOnCurrentMap`) and `incidents`
+(`GameComponent_Anomaly`: monolith spawned, level def and number, highest level
+reached, questline ended, ticks since the last level change, ambient horror
+mode, anomaly study enabled, the threat fraction the game gives Anomaly
+incidents now, void awakening, an awoken corpse, whether a new metalhorror
+implant can occur). A held entity's strength and need stay on its rows
+(`HeldState`, `EntityHolderState`, `PawnAnomaly.min_containment_strength`).
+Selection is by the game's own types, never name lists; an absent scalar is
+unknown, never zero. Go validates the rows (`bridge.validateAnomalyColony`:
+unique names and ids, discovered at most entries, nonnegative finite knowledge
+and threat fraction, nonnegative levels) and projects them into
+`observation.AnomalyColony` (`ColonyProjection.Anomaly`). Derived state held in
+Go memory (persistence-contracts.md); it adds no store. Active game conditions
+(for example the gray pall) are not here: the shared condition read lives in
+the Odyssey section today.
+
 ## Room-role furniture
 
 `PlanningDefinition.room_roles` (#1728, #1690) lists the roles a building
