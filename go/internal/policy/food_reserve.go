@@ -186,6 +186,16 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 	}
 	var options []BillSelection
 	products := map[string]Resource{}
+	// A recipe whose product is already made by another recipe's bill needs
+	// no bill of its own: Make_Pemmican and Make_PemmicanBulk are one reserve.
+	produces := map[string]Resource{}
+	for _, bench := range rows {
+		for _, recipe := range bench.Recipes {
+			if len(recipe.Products) == 1 && ReserveFoodDefinition(Resource(recipe.Products[0].Name)) {
+				produces[recipe.Name] = Resource(recipe.Products[0].Name)
+			}
+		}
+	}
 	for _, bench := range rows {
 		usable, uk := bench.Usable.Value()
 		token, tk := bench.Token.Value()
@@ -215,10 +225,13 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 				continue
 			}
 			selected := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(target)}
-			exists := false
+			exists, siblingBill := false, false
 			for _, other := range rows {
 				for _, bill := range other.Bills {
 					if bill.Recipe != recipe.Name {
+						if sibling, ok := produces[bill.Recipe]; ok && sibling == def && !exists {
+							siblingBill = true
+						}
 						continue
 					}
 					exists = true
@@ -226,6 +239,9 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 						selected.Replace = bill.ID
 					}
 				}
+			}
+			if siblingBill && !exists {
+				continue
 			}
 			if exists && selected.Replace == "" || len(bench.Bills) == 15 && selected.Replace == "" {
 				continue

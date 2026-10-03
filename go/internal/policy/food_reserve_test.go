@@ -173,6 +173,27 @@ func TestReserveBillRunningNeedsActiveReserveBillAndDeficit(t *testing.T) {
 	}
 }
 
+// Make_Pemmican and Make_PemmicanBulk make the same reserve product: an
+// existing bill for one leaves the other without a bill.
+func TestReserveBillSkipsSiblingRecipeOfSameProduct(t *testing.T) {
+	r, err := ReviewFoodReserve(reserveFixture(), nil, 5, 3, domain.Known([]float64{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipe := func(name string) ProductionRecipe {
+		return ProductionRecipe{Name: name, Available: domain.Known(true), Products: []ProductionProduct{{Name: "Pemmican", Nutrition: domain.Known(.05), Edible: domain.Known(true)}}}
+	}
+	bench := ProductionBench{ID: "stove", Token: domain.Known("token"), Usable: domain.Known(true), Recipes: []ProductionRecipe{recipe("MakePemmican"), recipe("MakePemmicanBulk")}}
+	b, ok := SelectReserveBill(domain.Known([]ProductionBench{bench}), r)
+	if !ok || b.Recipe != "MakePemmican" {
+		t.Fatal(b, ok)
+	}
+	bench.Bills = []ExistingProductionBill{{ID: "bill1", Recipe: "MakePemmican", Active: domain.Known(true), Forever: domain.Known(false), TargetCount: domain.Known(int32(b.Target))}}
+	if b, ok = SelectReserveBill(domain.Known([]ProductionBench{bench}), r); ok && b.Recipe == "MakePemmicanBulk" {
+		t.Fatalf("sibling recipe got a second bill: %v", b)
+	}
+}
+
 func TestReserveHoldsUnroofedStacks(t *testing.T) {
 	s := reserveFixture()
 	s.Stocks[1].Reserve = false
