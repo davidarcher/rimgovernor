@@ -16,7 +16,9 @@ import (
 // (RoutineFacts.QuestOffers, from the world-progression read the
 // RoutineSource offers as RoutineQuestSource) against the bot's own
 // population target (domain.PopulationTarget) and the population, sleeping
-// and food facts the review already carries. Pending WandererJoins letters use the same capacity gate
+// and food facts the review already carries. Empire quests and ground
+// Odyssey quests (policy.SelectOdysseyQuestMethod) are accepted through the
+// same write. Pending WandererJoins letters use the same capacity gate
 // and the dialog-answer executor. Offers the colony cannot host expire.
 type RoutinePopulationJoinerPlanner struct {
 	reviewer *RoutineReviewer
@@ -89,6 +91,8 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if choice.Reason == policy.JoinerNoOffer || choice.Reason == policy.JoinerNoCapacity {
 		if empire := policy.SelectEmpireQuestMethod(facts.QuestOffers, facts.TitleClaimQuests...); empire.Reason == "" {
 			choice, prefix = empire, "empire"
+		} else if odyssey := policy.SelectOdysseyQuestMethod(facts.QuestOffers); odyssey.Reason == "" {
+			choice, prefix = odyssey, "odyssey"
 		}
 	}
 	switch choice.Reason {

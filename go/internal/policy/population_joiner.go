@@ -29,6 +29,12 @@ type JoinerOffer struct {
 	FactionHostile domain.Fact[bool]
 	OnMap          bool
 	Favor          []QuestFavor
+	// Class is the quest root's ground or ship-only classification from the
+	// catalog's QuestScriptDef rows (bridge.QuestClass); unknown when the
+	// catalog could not classify it. SelectOdysseyQuestMethod reads it.
+	Class domain.Fact[QuestClass]
+	// ClassError is why the catalog could not classify the root.
+	ClassError string
 }
 
 // QuestFavor is the royal favor one QuestAccept reward choice grants.
@@ -222,11 +228,15 @@ func empireFavor(offer JoinerOffer) (choice, favor int32) {
 // empireAnswerable reports whether an offer is an Empire quest worth
 // accepting for favor: not yet accepted, not a joiner offer, native-
 // acceptable (CanAcceptQuest includes every requirements-to-accept check, so
-// an unaffordable quest reads can_accept=false), needing no accepter, from a
+// an unaffordable quest reads can_accept=false), not a ship-only Odyssey quest
+// (QuestClass), needing no accepter, from a
 // faction known not to be hostile, on the colony's map, with a reward choice
 // granting favor. Disclosed narrowing: favor granted outside a reward-choice
 // part is not in the census, so such a quest is not chosen.
 func empireAnswerable(offer JoinerOffer) bool {
+	if class, classified := offer.Class.Value(); classified && class.Scope == QuestScopeShipOnly {
+		return false
+	}
 	hostile, known := offer.FactionHostile.Value()
 	_, favor := empireFavor(offer)
 	return offer.State == "NotYetAccepted" && !IsJoinerOffer(offer.ScriptDef) && offer.CanAccept && !offer.RequiresAccepter &&

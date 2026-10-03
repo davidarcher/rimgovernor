@@ -175,7 +175,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.Facts.Research = frameResearch(frame.Research)
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
-	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map)
+	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map, frame.Catalog)
 	p.Facts.Ideology = frameIdeology(frame.Ideology)
 	p.Facts.RitualSites = ritualSites(frame.Buildings, p.Facts.Ideology)
 	p.Facts.AnimalUpkeep.Animals = policy.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, frame.Catalog != nil && frame.Catalog.Ideology != nil)
@@ -284,8 +284,10 @@ func (f frameColony) ReadResearch(context.Context, *c.Identity) (bridge.Research
 }
 
 // frameQuests is the visible quest census; unknown when the frame carries
-// none.
-func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID) domain.Fact[[]policy.JoinerOffer] {
+// none. Each offer carries the catalog's ground or ship-only class of its
+// quest root (bridge.QuestClass), unknown without a catalog or when the
+// catalog cannot classify the root.
+func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID, catalog *bridge.DefinitionCatalog) domain.Fact[[]policy.JoinerOffer] {
 	if read == nil {
 		return domain.Unknown[[]policy.JoinerOffer]()
 	}
@@ -296,7 +298,15 @@ func frameQuests(read *bridge.WorldProgressionRead, home domain.MapID) domain.Fa
 	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
 	for _, quest := range read.Quests {
 		offer := policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount,
-			FactionID: quest.FactionID, FactionHostile: domain.Unknown[bool](), OnMap: quest.MapKnown && domain.MapID(quest.MapID) == home}
+			FactionID: quest.FactionID, FactionHostile: domain.Unknown[bool](), OnMap: quest.MapKnown && domain.MapID(quest.MapID) == home, Class: domain.Unknown[policy.QuestClass]()}
+		if catalog != nil {
+			class, err := catalog.QuestClass(quest.ScriptDef)
+			if err == nil {
+				offer.Class = domain.Known(class)
+			} else {
+				offer.ClassError = err.Error()
+			}
+		}
 		if value, found := hostile[quest.FactionID]; found && quest.FactionID != "" {
 			offer.FactionHostile = domain.Known(value)
 		}

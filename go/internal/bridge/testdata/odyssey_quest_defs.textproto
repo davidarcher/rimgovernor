@@ -1,0 +1,2982 @@
+# Recorded from a headless Odyssey game's definition catalog (#1717): the Odyssey QuestScriptDef rows,
+# the Util_ sub-scripts they run, one Core quest and the planet layer rows, with the quest text rule packs
+# cleared and the layers cut to their identity.
+planet_layer_defs:  {
+  defName:  "Orbit"
+  isSpace:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+planet_layer_defs:  {
+  defName:  "Surface"
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "GravEngine"
+  root:  {
+    QuestNode_Root_GravShip:  {
+      subquestDefs:  "Gravcore_MechanoidRelay"
+      subquestDefs:  "Gravcore_InsectLair"
+      subquestDefs:  "Gravcore_AncientReactor"
+      subquestDefs:  "Gravcore_OrbitalMechanoidPlatform"
+      subquestDefs:  "Gravcore_AncientStockpile"
+      subquestDefs:  "Gravcore_CrashedMechanoidPlatform"
+      subquestDefs:  "Gravcore_OrbitalAncientPlatform"
+      subquestDefs:  "Gravcore_FrozenTerraformer"
+      subquestDefs:  "Gravcore_Mechhive"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  4
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_AncientReactor"
+  root:  {
+    QuestNode_Root_Gravcore_AncientReactor:  {
+      allowedBiomes:  "Scarlands"
+      distanceFromColonyRange:  {
+        min:  20
+        max:  60
+      }
+      requiredSubquestsGiven:  1
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Ancient reactor"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_AncientStockpile"
+  root:  {
+    QuestNode_Root_Gravcore_AncientStockpile:  {
+      allowedBiomes:  "Scarlands"
+      allowedBiomes:  "LavaField"
+      allowedBiomes:  "Glowforest"
+      allowedBiomes:  "GlacialPlain"
+      allowedBiomes:  "Grasslands"
+      allowedBiomes:  "Desert"
+      allowedBiomes:  "ExtremeDesert"
+      distanceFromColonyRange:  {
+        min:  10
+        max:  60
+      }
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Ancient stockpile"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_CrashedMechanoidPlatform"
+  root:  {
+    QuestNode_Root_Gravcore_CrashedMechanoidPlatform:  {
+      allowedBiomes:  "Grasslands"
+      allowedBiomes:  "TropicalSwamp"
+      allowedBiomes:  "Glowforest"
+      allowedBiomes:  "ColdBog"
+      allowedBiomes:  "LavaField"
+      allowedBiomes:  "GlacialPlain"
+      allowedBiomes:  "Scarlands"
+      allowedBiomes:  "Desert"
+      allowedBiomes:  "ExtremeDesert"
+      distanceFromColonyRange:  {
+        min:  40
+        max:  160
+      }
+      requiredSubquestsGiven:  2
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Crash site"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_FrozenTerraformer"
+  root:  {
+    QuestNode_Root_Gravcore_FrozenTerraformer:  {
+      allowedBiomes:  "GlacialPlain"
+      allowedBiomes:  "IceSheet"
+      allowedBiomes:  "Tundra"
+      maxHilliness:  HILLINESS_SMALL_HILLS
+      distanceFromColonyRange:  {
+        min:  40
+        max:  160
+      }
+      requiredSubquestsGiven:  1
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Frozen terraformer"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_InsectLair"
+  root:  {
+    QuestNode_Root_Gravcore_InsectLair:  {
+      minHilliness:  HILLINESS_MOUNTAINOUS
+      distanceFromColonyRange:  {
+        min:  40
+        max:  160
+      }
+      requiredSubquestsGiven:  3
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Cave entrance"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_MechanoidRelay"
+  root:  {
+    QuestNode_Root_Gravcore_MechanoidRelay:  {
+      allowedBiomes:  "LavaField"
+      allowedBiomes:  "Glowforest"
+      allowedBiomes:  "GlacialPlain"
+      allowedBiomes:  "ExtremeDesert"
+      allowedBiomes:  "TropicalSwamp"
+      allowedBiomes:  "IceSheet"
+      distanceFromColonyRange:  {
+        min:  10
+        max:  60
+      }
+      selectLandmarkChance:  1
+      layer:  "Surface"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Mechanoid relay"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_Mechhive"
+  root:  {
+    QuestNode_Root_Gravcore_Mechhive:  {
+      distanceFromColonyRange:  {
+        min:  3
+        max:  15
+      }
+      requiredSubquestsGiven:  7
+      layer:  "Orbit"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Mechhive detected"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_OrbitalAncientPlatform"
+  root:  {
+    QuestNode_Root_Gravcore_OrbitalAncientPlatform:  {
+      distanceFromColonyRange:  {
+        min:  2
+        max:  8
+      }
+      requiredSubquestsGiven:  3
+      layer:  "Orbit"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Orbital platform"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Gravcore_OrbitalMechanoidPlatform"
+  root:  {
+    QuestNode_Root_Gravcore_OrbitalMechanoidPlatform:  {
+      distanceFromColonyRange:  {
+        min:  2
+        max:  8
+      }
+      requiredSubquestsGiven:  5
+      layer:  "Orbit"
+    }
+  }
+  randomlySelectable:  true
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  questAvailableLetterLabel:  "Gravcore detected: Mechanoid platform"
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "GravshipWreckage"
+  root:  {
+    QuestNode_Root_Gravship_Wreckage:  {
+      distanceFromColonyRange:  {
+        min:  5
+        max:  20
+      }
+      selectLandmarkChance:  1
+      requiresLandmark:  true
+      layer:  "Surface"
+    }
+  }
+  rootSelectionWeight:  2
+  randomlySelectable:  true
+  minRefireDays:  120
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "MechanoidSignal"
+  root:  {
+    QuestNode_Root_MechanoidSignal:  {}
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_AbandonedPlatform"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "Opportunity_AbandonedPlatform"
+            worldObjectDef:  "ClaimableSpaceSite"
+            distanceFromColonyRange:  "1~3"
+            canBeSpace:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Orbit</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(45,60)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Intercepted communications indicate the platform has been claimed by others. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.NoActiveThreats"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Success"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_AlphaThrumbo_Giver"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "siteDistRange"
+            value:  "40~120"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteTile:  {
+            storeAs:  "siteTile"
+            preferCloserTiles:  "true"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Fjord</li><li>CoastalAtoll</li><li>Iceberg</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Crevasse</li><li>Plateau</li><li>IceDunes</li><li>Cliffs</li><li>Hollow</li><li>Basin</li><li>TerraformingScar</li><li>LavaLake</li><li>LavaCrater</li><li>LavaFlow</li><li>Dunes</li><li>Ruins</li><li>FrozenRuins</li><li>AncientSmokeVent</li><li>AncientHeatVent</li><li>AncientQuarry</li><li>AbandonedColonyTribal</li><li>AbandonedColonyOutlander</li><li>AncientLaunchSite</li><li>Harbor</li><li>AncientGarrison</li><li>AncientWarehouse</li><li>AncientChemfuelRefinery</li>"
+            selectLandmarkChance:  "1"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSitePartDefsByTagsAndFaction:  {
+            sitePartsTags:  "<li><tag>AlphaThrumboSighting</tag></li>"
+            storeAs:  "sitePartDefs"
+            storeFactionAs:  "siteFaction"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetDefaultSitePartsParams:  {
+            tile:  "$siteTile"
+            faction:  "$siteFaction"
+            sitePartDefs:  "$sitePartDefs"
+            storeSitePartsParamsAs:  "sitePartsParams"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GenerateSite"
+            parms:  {
+              value:  {
+                name:  "hiddenSitePartsPossible"
+                value:  "false"
+              }
+            }
+            parms:  {
+              value:  {
+                name:  "worldObjectDef"
+                value:  "ClaimableSite"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SpawnWorldObjects:  {
+            worldObjects:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(25,35)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Intercepted communications indicate the alpha thrumbo has moved on. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.15
+  rootEarliestDay:  45
+  minRefireDays:  300
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_AncientMercenaries"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_RandomizePointsChallengeRating"
+            parms:  {
+              value:  {
+                name:  "pointsFactorTwoStar"
+                value:  "1.5"
+              }
+            }
+            parms:  {
+              value:  {
+                name:  "pointsFactorThreeStar"
+                value:  "2"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "siteDistRange"
+            value:  "20~60"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteTile:  {
+            storeAs:  "siteTile"
+            preferCloserTiles:  "true"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Cliffs</li><li>Hollow</li><li>TerraformingScar</li><li>LavaLake</li><li>Dunes</li><li>AncientHeatVent</li>"
+            selectLandmarkChance:  "0.75"
+            canSelectComboLandmarks:  "false"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientMercenaries:  {}
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  rootMinPoints:  350
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_Asteroid"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Asteroid:  {
+            layerDef:  "Orbit"
+            worldObjectDef:  "AsteroidMiningSite"
+            mineables:  "MineableGold"
+            mineables:  "MineablePlasteel"
+            mineables:  "MineableUranium"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1.5
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_BanditCamp_Giver"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_RandomizePointsChallengeRating"
+            parms:  {
+              value:  {
+                name:  "pointsFactorTwoStar"
+                value:  "1.5"
+              }
+            }
+            parms:  {
+              value:  {
+                name:  "pointsFactorThreeStar"
+                value:  "2"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetPawn:  {
+            storeAs:  "asker"
+            mustBeFactionLeader:  "true"
+            allowPermanentEnemyFaction:  "false"
+            hostileWeight:  "0.15"
+            factionMustBePermanent:  "True"
+            maxUsablePawnsToGenerate:  "10"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "siteDistRange"
+            value:  "20~60"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteTile:  {
+            storeAs:  "siteTile"
+            preferCloserTiles:  "true"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Cliffs</li><li>Hollow</li><li>TerraformingScar</li><li>LavaLake</li><li>Dunes</li><li>AncientHeatVent</li>"
+            selectLandmarkChance:  "0.75"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSitePartDefsByTagsAndFaction:  {
+            sitePartsTags:  "<li><tag>BanditCamp</tag></li>"
+            storeAs:  "sitePartDefs"
+            storeFactionAs:  "siteFaction"
+            mustBeHostileToFactionOf:  "$asker"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetDefaultSitePartsParams:  {
+            tile:  "$siteTile"
+            faction:  "$siteFaction"
+            sitePartDefs:  "$sitePartDefs"
+            storeSitePartsParamsAs:  "sitePartsParams"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteThreatPoints:  {
+            storeAs:  "sitePoints"
+            sitePartsParams:  "$sitePartsParams"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GenerateSite"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SpawnWorldObjects:  {
+            worldObjects:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(25,35)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "The bandit camp has packed up and moved on. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            destroyOnCleanup:  "true"
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.Destroyed"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest failed: [resolvedQuestName]"
+                      text:  "After being discovered, the bandit camp has dispersed. The quest [resolvedQuestName] has ended."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.AllEnemiesDefeated"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Notify_PlayerRaidedSomeone:  {
+                      getRaidersFromMapParent:  "$site"
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_CampLootReward:  {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_End:  {
+            inSignal:  "site.AllEnemiesDefeated"
+            outcome:  "Success"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.5
+  rootMinPoints:  350
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  canGiveRoyalFavor:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_ItemStash_Giver"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_RandomizePointsChallengeRating"
+            parms:  {
+              value:  {
+                name:  "pointsFactorTwoStar"
+                value:  "1.5"
+              }
+            }
+            parms:  {
+              value:  {
+                name:  "pointsFactorThreeStar"
+                value:  "2"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GetDefaultRewardValueFromPoints"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "siteDistRange"
+            value:  "20~60"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteTile:  {
+            storeAs:  "siteTile"
+            preferCloserTiles:  "true"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Cliffs</li><li>Hollow</li><li>TerraformingScar</li><li>LavaLake</li><li>Dunes</li><li>AncientHeatVent</li>"
+            selectLandmarkChance:  "0.75"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_ViolentQuestsAllowed:  {
+            node:  {
+              QuestNode_Set:  {
+                name:  "siteThreatChance"
+                value:  "0.85"
+              }
+            }
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "siteThreatChance"
+                value:  "0"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSitePartDefsByTagsAndFaction:  {
+            sitePartsTags:  "<li><tag>ItemStash</tag></li><li><tag>ItemStashQuestThreat</tag><chance>$siteThreatChance</chance></li>"
+            storeAs:  "sitePartDefs"
+            storeFactionAs:  "siteFaction"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetDefaultSitePartsParams:  {
+            tile:  "$siteTile"
+            faction:  "$siteFaction"
+            sitePartDefs:  "$sitePartDefs"
+            storeSitePartsParamsAs:  "sitePartsParams"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GenerateSite"
+            parms:  {
+              value:  {
+                name:  "hiddenSitePartsPossible"
+                value:  "true"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SpawnWorldObjects:  {
+            worldObjects:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(25,35)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Intercepted communications indicate the item stash has been claimed by others. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_AddItemsReward:  {
+            items:  "$generatedItemStashThings"
+            inSignalChoiceUsed:  "site.MapGenerated"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.5
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_MechanoidPlatform"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_FactionExists:  {
+            faction:  "Insect"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "Opportunity_MechanoidPlatform"
+            worldObjectDef:  "ClaimableSpaceSite"
+            distanceFromColonyRange:  "1~3"
+            canBeSpace:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Orbit</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(45,60)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Intercepted communications indicate the platform has been claimed by others. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.NoActiveThreats"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Success"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.5
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_OrbitalItemStash"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Asteroid:  {
+            layerDef:  "Orbit"
+            worldObjectDef:  "OrbitalItemStash"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_OrbitalWreck"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "Opportunity_OrbitalWreck"
+            worldObjectDef:  "ClaimableSpaceSite"
+            distanceFromColonyRange:  "1~3"
+            canBeSpace:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Orbit</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(45,60)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Intercepted communications indicate the orbital wreck has been claimed by others. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.NoActiveThreats"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Success"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OpportunitySite_Satellite"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "discoveryMethod"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      name:  "discoveryMethod"
+                      value:  "You have discovered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "OpportunitySite_Satellite"
+            worldObjectDef:  "ClaimableSpaceSite"
+            distanceFromColonyRange:  "1~3"
+            canBeSpace:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Orbit</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(45,60)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "Scanner readings indicate the satellite has boosted itself into a higher, unreachable orbit. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Signal:  {
+            inSignal:  "site.NoActiveThreats"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Success"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  isRootSpecial:  true
+  questAvailableLetterTextIsDescription:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_ORBITAL_SCANNER
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Opportunity_AncientInfestedSettlement"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_SetupAncientStructureCommon"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientStructure:  {
+            structureMutator:  "AncientInfestedSettlement"
+            sitePartDef:  "OpportunitySite_AncientInfestedSettlement"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.2
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Opportunity_AncientStructureChemfuelRefinery"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_SetupAncientStructureCommon"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientStructure:  {
+            structureMutator:  "AncientChemfuelRefinery"
+            sitePartDef:  "OpportunitySite_AncientChemfuelRefinery"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.2
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Opportunity_AncientStructureGarrison"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_SetupAncientStructureCommon"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientStructure:  {
+            structureMutator:  "AncientGarrison"
+            sitePartDef:  "OpportunitySite_AncientGarrison"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.2
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Opportunity_AncientStructureLaunchSite"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_SetupAncientStructureCommon"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientStructure:  {
+            structureMutator:  "AncientLaunchSite"
+            sitePartDef:  "OpportunitySite_AncientLaunchSite"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.2
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "Opportunity_AncientStructureWarehouse"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_SetupAncientStructureCommon"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_AncientStructure:  {
+            structureMutator:  "AncientWarehouse"
+            sitePartDef:  "OpportunitySite_AncientWarehouse"
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.2
+  autoAccept:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  1
+  isRootSpecial:  true
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  givenBy:  QUEST_GIVER_TAG_TRADERS
+  givenBy:  QUEST_GIVER_TAG_BEGGARS
+  givenBy:  QUEST_GIVER_TAG_READING
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "OrbitalFugitive"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_RequirementsToAcceptResearch:  {
+            reserach:  "BasicGravtech"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GetDefaultRewardValueFromPoints"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "asker"
+            elseNode:  {
+              QuestNode_GetPawn:  {
+                selectionWeight:  "1.0"
+                storeAs:  "asker"
+                mustBeFactionLeader:  "true"
+                mustBeNonHostileToPlayer:  "true"
+                minTechLevel:  "Industrial"
+                hostileWeight:  "0"
+                factionMustBePermanent:  "True"
+                maxUsablePawnsToGenerate:  "10"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "OrbitalFugitivePlatform"
+            worldObjectDef:  "ClaimableSpaceSite"
+            distanceFromColonyRange:  "2~8"
+            canBeSpace:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Orbit</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(45,60)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Fail"
+                sendStandardLetter:  "true"
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_OrbitalFugitive:  {}
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GenerateThingSet:  {
+            storeAs:  "upgradeItem"
+            thingSetMaker:  "Reward_GravshipUpgrade"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_AllSignals:  {
+            inSignals:  "<li>fugitive.Destroyed</li>"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_AddItemsReward:  {
+                      items:  "$upgradeItem"
+                      generateQuestParts:  true
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Success"
+                      sendStandardLetter:  "true"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  randomlySelectable:  true
+  minRefireDays:  30
+  expireDaysRange:  {
+    min:  4
+    max:  8
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  everAcceptableInSpace:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "SurveySite"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_RequirementsToAcceptResearch:  {
+            reserach:  "BasicGravtech"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_GetDefaultRewardValueFromPoints"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "asker"
+            elseNode:  {
+              QuestNode_RandomNode:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Set:  {
+                      selectionWeight:  "0.4"
+                      name:  "askerIsNull"
+                      value:  "true"
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_GetPawn:  {
+                      selectionWeight:  "0.6"
+                      storeAs:  "asker"
+                      mustBeFactionLeader:  "true"
+                      mustBeNonHostileToPlayer:  "true"
+                      minTechLevel:  "Industrial"
+                      hostileWeight:  "0"
+                      factionMustBePermanent:  "True"
+                      maxUsablePawnsToGenerate:  "10"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_Site:  {
+            sitePartDef:  "Opportunity_SurveySite"
+            worldObjectDef:  "ClaimableSite"
+            distanceFromColonyRange:  "20~80"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Fjord</li><li>CoastalAtoll</li><li>Iceberg</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Crevasse</li><li>Plateau</li><li>IceDunes</li><li>Cliffs</li><li>Hollow</li><li>Basin</li><li>TerraformingScar</li><li>LavaLake</li><li>LavaCrater</li><li>LavaFlow</li><li>Dunes</li><li>Ruins</li><li>FrozenRuins</li><li>AncientSmokeVent</li><li>AncientToxVent</li><li>AncientHeatVent</li><li>AncientQuarry</li><li>AbandonedColonyTribal</li><li>AbandonedColonyOutlander</li><li>AncientLaunchSite</li><li>Harbor</li><li>AncientGarrison</li><li>AncientWarehouse</li><li>AncientChemfuelRefinery</li>"
+            selectLandmarkChance:  "1"
+            desperateIgnoreDistance:  "true"
+            requireSameOrAdjacentLayer:  "True"
+            layerWhitelist:  "<li>Surface</li>"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_WorldObjectTimeout:  {
+            inSignalDisable:  "site.MapGenerated"
+            delayTicks:  "$(randInt(15,20)*60000)"
+            isQuestTimeout:  "true"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_Letter:  {
+                      label:  "Quest expired: [resolvedQuestName]"
+                      text:  "The scanner has gone offline. The quest [resolvedQuestName] has expired."
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_End:  {
+                      outcome:  "Fail"
+                    }
+                  }
+                }
+              }
+            }
+            worldObject:  "$site"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "duration"
+            value:  "$(randInt(10,15)*60000)"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Root_SurveyScanner:  {
+            site:  "$site"
+            duration:  "$duration"
+            raidChance:  "1"
+            raidAttackRemainingHoursRange:  "6~48"
+            raidLetterText:  "{BASETEXT}\n\nThe [enemyFaction_pawnsPlural] [attackReason]."
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GenerateThingSet:  {
+            storeAs:  "upgradeItem"
+            thingSetMaker:  "Reward_GravshipUpgrade"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_AllSignals:  {
+            inSignals:  "<li>site.SurveyCompleted</li>"
+            node:  {
+              QuestNode_Delay:  {
+                delayTicks:  "300"
+                node:  {
+                  QuestNode_Sequence:  {
+                    nodes:  {
+                      value:  {
+                        QuestNode_Letter:  {
+                          letterDef:  "PositiveEvent"
+                          label:  "Quest completed"
+                          text:  "You have successfully completed the quest '[resolvedQuestName]'!"
+                        }
+                      }
+                    }
+                    nodes:  {
+                      value:  {
+                        QuestNode_AddItemsReward:  {
+                          items:  "$upgradeItem"
+                          generateQuestParts:  true
+                        }
+                      }
+                    }
+                    nodes:  {
+                      value:  {
+                        QuestNode_End:  {
+                          outcome:  "Success"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_NoWorldObject:  {
+            worldObject:  "$site"
+            node:  {
+              QuestNode_End:  {
+                outcome:  "Fail"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  1
+  randomlySelectable:  true
+  minRefireDays:  30
+  expireDaysRange:  {
+    min:  20
+    max:  30
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  everAcceptableInSpace:  true
+  canOccurOnAllPlanetLayers:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}
+quest_script_defs:  {
+  defName:  "ThreatReward_Raid_Joiner"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_RandomizePointsChallengeRating"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetWalkInSpot:  {
+            storeAs:  "walkInSpot"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetFaction:  {
+            storeAs:  "enemyFaction"
+            allowEnemy:  "true"
+            mustBePermanentEnemy:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_JoinerThreat_Joiner"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "raidDelayTicks"
+            value:  "$(roundToTicksRough(randInt(1800, 2400)))"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Delay:  {
+            delayTicks:  "$raidDelayTicks"
+            node:  {
+              QuestNode_SubScript:  {
+                def:  "Util_Raid"
+                prefix:  "raid"
+                parms:  {
+                  value:  {
+                    name:  "inSignal"
+                    value:  "$inSignal"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "map"
+                    value:  "$map"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "points"
+                    value:  "$points"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "enemyFaction"
+                    value:  "$enemyFaction"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "walkInSpot"
+                    value:  "$walkInSpot"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "customLetterLabel"
+                    value:  "{BASELABEL} chasing [../joiner_nameDef]"
+                  }
+                }
+                parms:  {
+                  value:  {
+                    name:  "customLetterText"
+                    value:  "{BASETEXT}\n              \nThe [enemyFaction_pawnsPlural] have come to get [../joiner_nameDef]."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Delay:  {
+            delayTicks:  "$($raidDelayTicks+600)"
+            node:  {
+              QuestNode_End:  {}
+            }
+          }
+        }
+      }
+    }
+  }
+  rootSelectionWeight:  0.6
+  randomlySelectable:  true
+  rootIncreasesPopulation:  true
+  expireDaysRange:  {
+    min:  0.3
+    max:  0.3
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  defaultCharity:  true
+  failedOrExpiredHistoryEvent:  "CharityRefused_ThreatReward_Joiner"
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_AdjustPointsForDistantFight"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_HasGravEngine:  {
+            node:  {
+              QuestNode_EvaluateSimpleCurve:  {
+                storeAs:  "points"
+                curve:  "<points><li>   35,   35</li><li>  400,  300</li><li> 1000,  600</li><li> 2000,  1000</li><li> 3000,  1400</li><li> 4000,  1800</li><li> 5000,  2000</li><li>10000,  2500</li></points>"
+                value:  "$points"
+              }
+            }
+            elseNode:  {
+              QuestNode_EvaluateSimpleCurve:  {
+                storeAs:  "points"
+                curve:  "<points><li>   35,   35</li><li>  400,  175</li><li> 1000,  300</li><li> 2000,  425</li><li> 3000,  700</li><li> 4000,  800</li><li> 5000,  900</li><li>10000, 1250</li></points>"
+                value:  "$points"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_GenerateSite"
+  root:  {
+    QuestNode_GenerateSite:  {
+      sitePartsParams:  "$sitePartsParams"
+      faction:  "$siteFaction"
+      tile:  "$siteTile"
+      storeAs:  "site"
+      singleSitePartRules:  "<rulesStrings><li>root(priority=1,sitePart==ClimateAdjuster)-&gt;there's (*Threat)a climate adjuster machine(/Threat) there shifting the regional temperature by [temperatureOffset]</li><li>root(priority=1,sitePart==PsychicDroner)-&gt;there's (*Threat)a psychic droner machine(/Threat) there tuned to the [affectedGender] gender</li><li>root(priority=1,sitePart==PsychicSuppressor)-&gt;there's (*Threat)a psychic suppressor machine(/Threat) there tuned to the [affectedGender] gender</li><li>root(priority=1,sitePart==WeatherController)-&gt;there's (*Threat)a weather controller machine(/Threat) there forcing weather in the whole region to [weather_label]</li><li>root(priority=1,sitePart==SmokeSpewer)-&gt;there's (*Threat)a smoke spewer machine(/Threat) there belching smoke over the whole region</li><li>root(priority=1,sitePart==SunBlocker)-&gt;there's (*Threat)a sun blocker machine(/Threat) there shadowing the whole region</li><li>root(priority=1,sitePart==EMIDynamo)-&gt;there's (*Threat)an EMI dynamo machine(/Threat) there which can disable electrical devices across the region</li><li>root(priority=1,sitePart==ToxicSpewer)-&gt;there's (*Threat)a toxic spewer machine(/Threat) there blanketing the whole region in poison</li><li>root(priority=1,sitePart==RaidSource)-&gt;there's a military staging area guarded by (*Threat)[enemiesCount] [enemiesLabel](/Threat) that will launch raids on you every [mtbDays]</li><li>root(priority=1,sitePart==Outpost)-&gt;there's an enemy outpost at the site guarded by (*Threat)[enemiesCount] [enemiesLabel](/Threat)</li><li>root(priority=1,sitePart==BanditCamp)-&gt;there's a bandit camp at the site guarded by (*Threat)[enemiesCount] [enemiesLabel](/Threat)</li><li>root(priority=1,sitePart==Manhunters,count==1)-&gt;(*Threat)a manhunting [kindLabel](/Threat) is wandering nearby</li><li>root(priority=1,sitePart==Manhunters,count&gt;1)-&gt;(*Threat)[count] manhunting [kindLabel](/Threat) are wandering nearby</li><li>root(priority=1,sitePart==SleepingMechanoids,count==1)-&gt;(*Threat)a mechanoid(/Threat) is sleeping nearby</li><li>root(priority=1,sitePart==SleepingMechanoids,count&gt;1)-&gt;(*Threat)[count] mechanoids(/Threat) are sleeping nearby</li><li>root(priority=1,sitePart==Turrets)-&gt;(*Threat)[threatsInfo](/Threat) defend the site</li><li>root(priority=1,sitePart==AmbushEdge)-&gt;(*Threat)an enemy force(/Threat) is waiting to ambush anyone who comes near</li><li>root(priority=1,sitePart==AmbushHidden)-&gt;(*Threat)an enemy force(/Threat) is waiting to ambush anyone who comes near</li><li>root(priority=1,sitePart==MechCluster)-&gt;there's (*Threat)a cluster of hostile mechanoid structures(/Threat)</li><li>root(priority=1,sitePart==PossibleUnknownThreatMarker)-&gt;there may be an (*Threat)unknown threat(/Threat)</li><li>root-&gt;there's a [label]</li></rulesStrings>"
+      hiddenSitePartsPossible:  "$hiddenSitePartsPossible"
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_GetDefaultRewardValueFromPoints"
+  root:  {
+    QuestNode_EvaluateSimpleCurve:  {
+      storeAs:  "rewardValue"
+      curve:  "<points><li>200, 550</li><li>400, 1100</li><li>800, 1600</li><li>1600, 2600</li><li>3200, 3600</li><li>20000, 20000</li></points>"
+      value:  "$points"
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_JoinerDropIn"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_GeneratePawn:  {
+            storeAs:  "joiner"
+            kindDef:  "SpaceRefugee"
+            allowPregnant:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_PawnsArrive:  {
+            pawns:  "$joiner"
+            arrivalMode:  "RandomDrop"
+            joinPlayer:  "true"
+            customLetterLabel:  "$customLetterLabel"
+            customLetterText:  "$customLetterText"
+            customLetterLabelRules:  "$customLetterLabelRules"
+            customLetterTextRules:  "$customLetterTextRules"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_JoinerThreat_Joiner"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_Delay:  {
+            delayTicks:  "$(randInt(600,1200))"
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_SubScript:  {
+                      def:  "Util_JoinerWalkIn"
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_SendSignals:  {
+                      outSignals:  "JoinerArrived"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_JoinerWalkIn"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_GeneratePawnRandDevelopmentStage:  {
+            storeAs:  "joiner"
+            kindDef:  "SpaceRefugee"
+            childChance:  "0.5"
+            adultChance:  "0.5"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SetChildCount:  {
+            pawns:  "$joiner"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_PawnsArrive:  {
+            pawns:  "$joiner"
+            joinPlayer:  "true"
+            customLetterLabel:  "$customLetterLabel"
+            customLetterText:  "$customLetterText"
+            customLetterLabelRules:  "$customLetterLabelRules"
+            customLetterTextRules:  "$customLetterTextRules"
+            isSingleReward:  "true"
+            rewardDetailsHidden:  "true"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_MechCluster"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SpawnMechCluster:  {}
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_Raid"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_Raid:  {
+            customLetterLabel:  "$customLetterLabel"
+            customLetterText:  "$customLetterText"
+            customLetterLabelRules:  "$customLetterLabelRules"
+            customLetterTextRules:  "$customLetterTextRules"
+            arrivalMode:  "$arrivalMode"
+            raidPawnKind:  "$raidPawnKind"
+            canTimeoutOrFlee:  "$canTimeoutOrFlee"
+            inSignalLeave:  "EndRaid"
+            tag:  "$tag"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_RaidDelayRepeatable"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_GetFaction:  {
+            storeAs:  "enemyFaction"
+            allowEnemy:  "true"
+            mustBePermanentEnemy:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "nextRaidDelayTicks"
+            value:  "$firstRaidDelayTicks"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "raidCountMinusOne"
+            value:  "$raidCount"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Subtract:  {
+            value1:  "$raidCountMinusOne"
+            value2:  "1"
+            storeAs:  "raidCountMinusOne"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_LoopCount:  {
+            node:  {
+              QuestNode_Sequence:  {
+                nodes:  {
+                  value:  {
+                    QuestNode_IsNull:  {
+                      value:  "$raid(($raidLoopCounter))/raidDelayTicks"
+                      elseNode:  {
+                        QuestNode_Set:  {
+                          name:  "nextRaidDelayTicks"
+                          value:  "$raid(($raidLoopCounter))/raidDelayTicks"
+                        }
+                      }
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_Delay:  {
+                      delayTicks:  "$nextRaidDelayTicks"
+                      waitUntilPlayerHasHomeMap:  "true"
+                      node:  {
+                        QuestNode_Sequence:  {
+                          nodes:  {
+                            value:  {
+                              QuestNode_SubScript:  {
+                                def:  "Util_Raid"
+                                prefix:  "raid$raidLoopCounter"
+                                parms:  {
+                                  value:  {
+                                    name:  "tag"
+                                    value:  "lord"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "inSignal"
+                                    value:  "$inSignal"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "map"
+                                    value:  "$map"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "enemyFaction"
+                                    value:  "$enemyFaction"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "points"
+                                    value:  "$points"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "walkInSpot"
+                                    value:  "$walkInSpot"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "customLetterLabel"
+                                    value:  "$customLetterLabel"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "customLetterText"
+                                    value:  "$customLetterText"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "customLetterLabelRules"
+                                    value:  "$customLetterLabelRules"
+                                  }
+                                }
+                                parms:  {
+                                  value:  {
+                                    name:  "customLetterTextRules"
+                                    value:  "$customLetterTextRules"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          nodes:  {
+                            value:  {
+                              QuestNode_Equal:  {
+                                value1:  "$raidLoopCounter"
+                                value2:  "$($raidCount - 1)"
+                                compareAs:  "int"
+                                node:  {
+                                  QuestNode_SendSignals:  {
+                                    outSignals:  "AllRaidsSent"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                nodes:  {
+                  value:  {
+                    QuestNode_Add:  {
+                      value1:  "$nextRaidDelayTicks"
+                      value2:  "9000"
+                      storeAs:  "nextRaidDelayTicks"
+                    }
+                  }
+                }
+              }
+            }
+            loopCount:  "$raidCount"
+            storeLoopCounterAs:  "raidLoopCounter"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_RandomizePointsChallengeRating"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "pointsOriginal"
+            value:  "$points"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "pointsFactorTwoStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "pointsFactorTwoStar"
+                value:  "2"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "pointsFactorThreeStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "pointsFactorThreeStar"
+                value:  "3"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "selectionWeightOneStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "selectionWeightOneStar"
+                value:  "0.60"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "selectionWeightTwoStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "selectionWeightTwoStar"
+                value:  "0.25"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "selectionWeightThreeStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "selectionWeightThreeStar"
+                value:  "0.15"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "minPointsTwoStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "minPointsTwoStar"
+                value:  "0"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_IsSet:  {
+            name:  "minPointsThreeStar"
+            elseNode:  {
+              QuestNode_Set:  {
+                name:  "minPointsThreeStar"
+                value:  "0"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Less:  {
+            value1:  "$points"
+            value2:  "$minPointsThreeStar"
+            node:  {
+              QuestNode_Set:  {
+                name:  "selectionWeightThreeStar"
+                value:  "0"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Less:  {
+            value1:  "$points"
+            value2:  "$minPointsTwoStar"
+            node:  {
+              QuestNode_Set:  {
+                name:  "selectionWeightTwoStar"
+                value:  "0"
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_RandomNode:  {
+            nodes:  {
+              value:  {
+                QuestNode_Sequence:  {
+                  selectionWeight:  "$selectionWeightOneStar"
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "challengeRating"
+                        value:  "1"
+                      }
+                    }
+                  }
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "pointsFactor"
+                        value:  "1"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            nodes:  {
+              value:  {
+                QuestNode_Sequence:  {
+                  selectionWeight:  "$selectionWeightTwoStar"
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "challengeRating"
+                        value:  "2"
+                      }
+                    }
+                  }
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "pointsFactor"
+                        value:  "$pointsFactorTwoStar"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            nodes:  {
+              value:  {
+                QuestNode_Sequence:  {
+                  selectionWeight:  "$selectionWeightThreeStar"
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "challengeRating"
+                        value:  "3"
+                      }
+                    }
+                  }
+                  nodes:  {
+                    value:  {
+                      QuestNode_Set:  {
+                        name:  "pointsFactor"
+                        value:  "$pointsFactorThreeStar"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_ViolentQuestsAllowed:  {
+            elseNode:  {
+              QuestNode_IsSet:  {
+                name:  "peacefulChallengeRating"
+                node:  {
+                  QuestNode_Set:  {
+                    name:  "challengeRating"
+                    value:  "$peacefulChallengeRating"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Multiply:  {
+            value1:  "$points"
+            value2:  "$pointsFactor"
+            storeAs:  "points"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_SetChallengeRating:  {
+            challengeRating:  "$challengeRating"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_SendItemPods"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_MultiplyRange:  {
+            range:  "0.7~1.3"
+            value:  "$rewardValue"
+            storeAs:  "itemPodsTotalMarketValueRange"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GenerateThingSet:  {
+            storeAs:  "itemPodsContents"
+            thingSetMaker:  "Reward_ItemsStandard"
+            totalMarketValueRange:  "$itemPodsTotalMarketValueRange"
+            factionOf:  "$asker"
+            qualityGenerator:  "Reward"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMarketValue:  {
+            storeAs:  "itemPodsTotalMarketValue"
+            things:  "$itemPodsContents"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_DropPods:  {
+            contents:  "$itemPodsContents"
+            customLetterLabel:  "$customLetterLabel"
+            customLetterText:  "$customLetterText"
+            customLetterLabelRules:  "$customLetterLabelRules"
+            customLetterTextRules:  "$customLetterTextRules"
+            canRetargetAnyMap:  "true"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld"
+}
+quest_script_defs:  {
+  defName:  "Util_SetupAncientStructureCommon"
+  root:  {
+    QuestNode_Sequence:  {
+      nodes:  {
+        value:  {
+          QuestNode_SubScript:  {
+            def:  "Util_AdjustPointsForDistantFight"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetMap:  {
+            storeAs:  "map"
+            canBeSpace:  "true"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_Set:  {
+            name:  "siteDistRange"
+            value:  "20~60"
+          }
+        }
+      }
+      nodes:  {
+        value:  {
+          QuestNode_GetSiteTile:  {
+            storeAs:  "siteTile"
+            preferCloserTiles:  "true"
+            allowedLandmarks:  "<li>Oasis</li><li>Lake</li><li>LakeWithIsland</li><li>LakeWithIslands</li><li>Pond</li><li>DryLake</li><li>ToxicLake</li><li>Wetland</li><li>HotSprings</li><li>Archipelago</li><li>CoastalIsland</li><li>Peninsula</li><li>Bay</li><li>Valley</li><li>Cavern</li><li>Chasm</li><li>Cliffs</li><li>Hollow</li><li>TerraformingScar</li><li>LavaLake</li><li>Dunes</li><li>AncientHeatVent</li>"
+            selectLandmarkChance:  "0.5"
+            canSelectComboLandmarks:  "false"
+          }
+        }
+      }
+    }
+  }
+  randomlySelectable:  true
+  expireDaysRange:  {
+    min:  -1
+    max:  -1
+  }
+  defaultChallengeRating:  -1
+  affectedByPoints:  true
+  sendAvailableLetter:  true
+  endOnColonyMove:  true
+  modPackageId:  "ludeon.rimworld.odyssey"
+}

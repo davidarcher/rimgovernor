@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // RoutineReviewer observes and journals needs under Player's existing gate.
@@ -60,6 +62,8 @@ type RoutineReviewer struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
+	// skipsLogged are the Odyssey quest skips already logged (#1717).
+	skipsLogged map[odysseySkipKey]bool
 	// buildTier is the last build tier logged (#604): the service log
 	// records a change once, not every review.
 	buildTier domain.Fact[policy.BuildTier]
@@ -183,6 +187,32 @@ func (r *RoutineReviewer) logBuildTier(ctx context.Context, projection observati
 		message += " (" + evidence + ")"
 	}
 	clockEvent(ctx, "layout", "build_tier", message, "tier", tier.String(), "evidence", evidence)
+}
+
+type odysseySkipKey struct {
+	quest  domain.QuestID
+	reason policy.OdysseySkipReason
+}
+
+// logOdysseySkips records each Odyssey offer the colony does not accept
+// (policy.OdysseySkips) in the service log once per quest and reason:
+// `[routine] odyssey quest skipped Q12 OrbitalFugitive: ship_only (Orbit)`.
+func (r *RoutineReviewer) logOdysseySkips(ctx context.Context, facts policy.RoutineFacts) {
+	for _, skip := range policy.OdysseySkips(facts.QuestOffers) {
+		key := odysseySkipKey{skip.Quest, skip.Reason}
+		if r.skipsLogged[key] {
+			continue
+		}
+		if r.skipsLogged == nil {
+			r.skipsLogged = map[odysseySkipKey]bool{}
+		}
+		r.skipsLogged[key] = true
+		message := fmt.Sprintf("odyssey quest skipped %s %s: %s", skip.Quest, skip.ScriptDef, skip.Reason)
+		if skip.Detail != "" {
+			message += " (" + skip.Detail + ")"
+		}
+		slog.Default().WarnContext(ctx, message, telemetry.ComponentKey, "routine", telemetry.KindKey, "odyssey_quest_skip", "quest", string(skip.Quest), "script", skip.ScriptDef, "reason", string(skip.Reason), "detail", skip.Detail)
+	}
 }
 
 // seasonal is the configured policy with its food and wood targets widened
@@ -341,6 +371,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	r.logBuildTier(ctx, reading.Projection)
+	r.logOdysseySkips(ctx, reading.Projection.Facts)
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
