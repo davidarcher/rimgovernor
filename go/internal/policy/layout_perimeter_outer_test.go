@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -144,5 +145,51 @@ func TestOuterRingNeedsUnits(t *testing.T) {
 	p := perimeterPlan(t, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} })
 	if len(reserved(p, ReserveOuterWall)) != 0 || len(reserved(p, ReserveOuterGate)) != 0 {
 		t.Fatal("outer ring without a patch, pen or geothermal enclosure")
+	}
+}
+
+// A derived plan on open fertile ground reserves a turbine pair; the outer
+// ring encloses the pair and its lanes whole, and none of them lies on the
+// core ring or across the killbox and its approaches (#1597).
+func TestOuterRingEnclosesTurbinePair(t *testing.T) {
+	for _, pawns := range []int{3, 6, 10} {
+		t.Run(strconv.Itoa(pawns), func(t *testing.T) { turbinePairInsideOuterRing(t, pawns) })
+	}
+}
+
+func turbinePairInsideOuterRing(t *testing.T, pawns int) {
+	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
+	plan, ok := DeriveLayoutPlan(s, pawns, BuildTierCamp, nil).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	walls := reservedCells(plan, ReserveOuterWall)
+	if len(walls) == 0 {
+		t.Fatal("no outer ring")
+	}
+	seen := outerReach(walls)
+	core := map[domain.Cell]bool{}
+	for _, k := range []ReservationKind{ReservePerimeter, ReservePerimeterLight, ReserveBridge, ReservePerimeterGap, ReserveGate, ReserveKillbox, ReserveKillboxApproach} {
+		for c := range reservedCells(plan, k) {
+			core[c] = true
+		}
+	}
+	n := 0
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveTurbine && r.Kind != ReserveTurbineLane {
+			continue
+		}
+		n++
+		for _, c := range rectCells(r.Area) {
+			if seen[c] {
+				t.Fatal(r.Kind, "outside the outer ring at", c)
+			}
+			if core[c] {
+				t.Fatal(r.Kind, "on the core ring or killbox at", c)
+			}
+		}
+	}
+	if n != 5 {
+		t.Fatal("turbine reservations", n)
 	}
 }

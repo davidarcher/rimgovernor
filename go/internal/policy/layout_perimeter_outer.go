@@ -3,8 +3,8 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // The outer ring (#1595): a second stone wall, planned up front around the
-// rich field patches, the animal pen and the geothermal enclosures near the
-// core, wholly apart from the core ring (perimeterOuterGap cells between
+// rich field patches, the animal pen, the geothermal enclosures and the
+// turbine pairs (with their lanes) near the core, wholly apart from the core ring (perimeterOuterGap cells between
 // them, never a shared wall). It has its own reservation kinds, so the core
 // ring's logic and the builder tell them apart; it holds no killbox. It
 // traces, snaps to rock and gates as the core ring does (wallRuns); soft
@@ -76,10 +76,18 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 		}
 		take(cells)
 	}
+	pairs := map[int32][]domain.Cell{}
 	for _, r := range plan.Reservations {
-		if r.Kind == ReservePen || r.Kind == ReserveGeothermal {
+		switch r.Kind {
+		case ReservePen, ReserveGeothermal:
 			take(rectCells(r.Area))
+		case ReserveTurbine, ReserveTurbineLane:
+			// A turbine pair and its lanes stand whole inside the ring (#1597).
+			pairs[r.Pair] = append(pairs[r.Pair], rectCells(r.Area)...)
 		}
+	}
+	for _, cells := range pairs {
+		take(cells)
 	}
 	if !found {
 		return nil
@@ -223,4 +231,35 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 		}
 	}
 	return gates
+}
+
+// coreBox is the core ring's box: the rooms with their walls and the
+// hallways.
+func coreBox(plan LayoutPlan) Rectangle {
+	var core Rectangle
+	for _, r := range plan.AllRooms() {
+		core = unionRect(core, pad(r.Interior, 1))
+	}
+	for _, sg := range plan.Hallways() {
+		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
+	}
+	return core
+}
+
+// outerKeepOut marks the cells of a w x h map the core ring will occupy or
+// crowd: the core's enclosure and everything the outer ring must stand
+// clear of it. A unit sited off these is enclosed by the outer ring whole
+// (#1597); PlanUtilities runs before PlanPerimeter, so the core's box
+// stands in for the ring.
+func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
+	out := make([]bool, w*h)
+	core := coreBox(plan)
+	if core.Width == 0 || w < 1 || h < 1 {
+		return out
+	}
+	enc := planEnclosure(core, w, h)
+	for i, d := range chebyshevField(w, h, enc.in, perimeterThick+perimeterOuterGap+perimeterThick) {
+		out[i] = d >= 0
+	}
+	return out
 }

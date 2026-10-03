@@ -6,8 +6,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// utilityTestZones is coreTestZones on a map wide enough for utility sites
+// beyond the core ring's keep-out.
+func utilityTestZones() []LayoutZone {
+	return Zone(zoningSurvey(220, func(x, z int32) SurveyCell {
+		if x >= 180 {
+			return SurveyCell{Rock: true}
+		}
+		return SurveyCell{Walkable: true, Fertility: 1}
+	}))
+}
+
 func TestPlannedPowerSites(t *testing.T) {
-	p := PlanUtilities(PlanCore(coreTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
+	p := PlanUtilities(PlanCore(utilityTestZones(), 3, BuildTierCamp), UtilityWants{TurbinePairs: 1, Solar: 1})
 	batteries := PlannedPowerSites(p, BatteryDefinition)
 	if len(batteries) != 8 || batteries[0].Block != (Rectangle{}) || batteries[1].Block != (Rectangle{}) {
 		t.Fatal(batteries)
@@ -199,9 +210,9 @@ func TestTurbineWindCells(t *testing.T) {
 }
 
 func TestPlanUtilities(t *testing.T) {
-	zones := coreTestZones()
+	zones := utilityTestZones()
 	core := PlanCore(zones, 0, BuildTierCamp)
-	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 100, Width: 2, Height: 2}}})
+	p := PlanUtilities(core, UtilityWants{TurbinePairs: 2, Solar: 2, Geysers: []Rectangle{{X: 20, Z: 190, Width: 2, Height: 2}}})
 	if !p.Valid() {
 		t.Fatal("invalid")
 	}
@@ -299,7 +310,7 @@ func TestPlanUtilities(t *testing.T) {
 }
 
 func TestPlanUtilitiesPen(t *testing.T) {
-	core := PlanCore(coreTestZones(), 3, BuildTierCamp)
+	core := PlanCore(utilityTestZones(), 3, BuildTierCamp)
 	p := PlanUtilities(core, UtilityWants{Solar: 1, PenAnimals: 30})
 	var pen *LayoutReservation
 	for i, r := range p.Reservations {
@@ -332,8 +343,8 @@ func TestPlanUtilitiesPen(t *testing.T) {
 	}
 	// The site search follows the centre it is given.
 	w, h := penSide(30)
-	near, _ := u.site(w, h, false, 10, 10)
-	far, _ := u.site(w, h, false, 70, 110)
+	near, _ := u.site(w, h, false, false, 10, 10)
+	far, _ := u.site(w, h, false, false, 70, 110)
 	if near.X >= far.X && near.Z >= far.Z || near == far {
 		t.Fatal("site ignores its centre", near, far)
 	}

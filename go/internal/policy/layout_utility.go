@@ -136,7 +136,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		}
 	}
 	for i := 0; i < want.TurbinePairs; i++ {
-		site, ok := u.site(turbineWidth, turbinePairSpan, false, u.cx, u.cz)
+		site, ok := u.site(turbineWidth, turbinePairSpan, false, true, u.cx, u.cz)
 		if !ok {
 			break
 		}
@@ -155,7 +155,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 		plan.Zones = append(plan.Zones, LayoutZone{Kind: ZoneField, Runs: runs})
 	}
 	for i := 0; i < want.Solar; i++ {
-		site, ok := u.site(solarSide, solarSide, false, u.cx, u.cz)
+		site, ok := u.site(solarSide, solarSide, false, false, u.cx, u.cz)
 		if !ok {
 			break
 		}
@@ -164,7 +164,7 @@ func PlanUtilities(plan LayoutPlan, want UtilityWants) LayoutPlan {
 	if want.PenAnimals > 0 {
 		w, h := penSide(want.PenAnimals)
 		fx, fz := u.fieldCentre()
-		if site, ok := u.site(w, h, false, fx, fz); ok {
+		if site, ok := u.site(w, h, false, true, fx, fz); ok {
 			u.reserve(&plan, LayoutReservation{Kind: ReservePen, Area: site})
 		} else {
 			slog.Warn("layout: no room for the animal pen", "animals", want.PenAnimals, "width", w, "height", h)
@@ -369,6 +369,7 @@ type utilityGrid struct {
 	w, h           int32
 	ok, rock       []bool // core candidate; natural rock
 	field          []bool // planned farmland: sites avoid it
+	keepOut        []bool // the core ring and the clearance the outer ring needs
 	used           []bool // planned rooms, spine, reservations
 	bandLo, bandHi int32  // the core's cross-section rows
 	cx, cz         int32  // the spine's centre
@@ -412,6 +413,7 @@ func newUtilityGrid(plan LayoutPlan) *utilityGrid {
 	for _, r := range plan.Reservations {
 		u.mark(r.Area)
 	}
+	u.keepOut = outerKeepOut(plan, u.w, u.h)
 	seg := plan.Spine[0]
 	half := SpineWidth/2 + coreMaxDepth + 2
 	u.bandLo, u.bandHi = seg.From.Z-half, seg.From.Z+half
@@ -494,9 +496,22 @@ func (u *utilityGrid) fieldCentre() (int32, int32) {
 	return int32(sx / n), int32(sz / n)
 }
 
+// outside reports r clear of the core ring's keep-out.
+func (u *utilityGrid) outside(r Rectangle) bool {
+	for z := r.Z; z < r.Z+r.Height; z++ {
+		for x := r.X; x < r.X+r.Width; x++ {
+			if u.in(x, z) && u.keepOut[z*u.w+x] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // site is the free w x h rectangle nearest (cx, cz), a site wholly on
-// planned farmland counting siteFieldReach cells farther.
-func (u *utilityGrid) site(w, h int32, rockOK bool, cx, cz int32) (Rectangle, bool) {
+// planned farmland counting siteFieldReach cells farther. beyondRing keeps
+// it off the core ring's keep-out, for sites the outer ring encloses.
+func (u *utilityGrid) site(w, h int32, rockOK, beyondRing bool, cx, cz int32) (Rectangle, bool) {
 	best, found, bestCost := Rectangle{}, false, 0.0
 	for z := int32(0); z+h <= u.h; z++ {
 		for x := int32(0); x+w <= u.w; x++ {
@@ -510,7 +525,7 @@ func (u *utilityGrid) site(w, h int32, rockOK bool, cx, cz int32) (Rectangle, bo
 			if found && cost >= bestCost {
 				continue
 			}
-			if u.free(r, rockOK) {
+			if u.free(r, rockOK) && (!beyondRing || u.outside(r)) {
 				best, found, bestCost = r, true, cost
 			}
 		}

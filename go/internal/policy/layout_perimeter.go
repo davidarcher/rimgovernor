@@ -89,22 +89,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 
 	// The core box: rooms with walls and the hallway, then nearby fields.
-	var core Rectangle
-	grow := func(r Rectangle) {
-		if core.Width == 0 {
-			core = r
-			return
-		}
-		x0, z0 := min(core.X, r.X), min(core.Z, r.Z)
-		x1, z1 := max(core.X+core.Width, r.X+r.Width), max(core.Z+core.Height, r.Z+r.Height)
-		core = Rectangle{X: x0, Z: z0, Width: x1 - x0, Height: z1 - z0}
-	}
-	for _, r := range plan.AllRooms() {
-		grow(pad(r.Interior, 1))
-	}
-	for _, sg := range plan.Hallways() {
-		grow(pad(rectOf(sg.From, sg.To), SpineWidth/2))
-	}
+	core := coreBox(plan)
 	// The enclosure: the core box and its yard (killbox included); the ring
 	// traced outside it (#1286).
 	enc := planEnclosure(core, w, h)
