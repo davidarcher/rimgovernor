@@ -440,7 +440,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)
 	letters := make([]policy.JoinerLetterOffer, 0, len(v.JoinerLetters))
 	for _, row := range v.JoinerLetters {
-		letters = append(letters, policy.JoinerLetterOffer{ID: row.GetLetterId(), Token: row.GetSnapshotToken(), Pawn: domain.PawnID(row.GetPawnId()), Expires: domain.Tick(row.GetExpiresTick()), Label: row.GetAcceptLabel(), CanAccept: row.GetCanAccept()})
+		letters = append(letters, policy.JoinerLetterOffer{ID: row.GetLetterId(), Token: row.GetSnapshotToken(), Pawn: domain.PawnID(row.GetPawnId()), Expires: domain.Tick(row.GetExpiresTick()), Label: row.GetAcceptLabel(), CanAccept: row.GetCanAccept(), CreepJoiner: row.GetCreepjoiner()})
 	}
 	r.Facts.JoinerLetters = domain.Known(letters)
 	if v.Naming != nil {

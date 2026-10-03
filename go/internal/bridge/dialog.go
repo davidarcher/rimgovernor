@@ -54,7 +54,7 @@ func validateJoinerLetters(rows []*ob.JoinerLetter, tick int64) error {
 	seen := map[int32]bool{}
 	for _, row := range rows {
 		if row == nil || buildingUnknown(row) != nil || row.LetterId == nil || row.GetLetterId() < 0 || seen[row.GetLetterId()] ||
-			validID(row.GetSnapshotToken()) != nil || validID(row.GetPawnId()) != nil || row.ExpiresTick == nil || row.GetExpiresTick() <= tick ||
+			validID(row.GetSnapshotToken()) != nil || validID(row.GetPawnId()) != nil || row.ExpiresTick == nil || row.GetExpiresTick() >= 0 && row.GetExpiresTick() <= tick ||
 			validID(row.GetAcceptLabel()) != nil || row.CanAccept == nil {
 			return contract("invalid joiner letter census")
 		}

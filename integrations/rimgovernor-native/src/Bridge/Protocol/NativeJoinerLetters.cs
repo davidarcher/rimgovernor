@@ -15,6 +15,9 @@ namespace HomeBridge.BridgeTools
 {
     // Only the Core walk-in offer is supported: its signal admits exactly one
     // pawn immediately. Other AcceptJoiner quest families remain player choices.
+    // A creepjoiner offer (#1740) is answered through the letter's accept
+    // signal, the one the game's own Accept option sends, never by option
+    // index or label.
     internal static class NativeJoinerLetters
     {
         private static Pawn? Joiner(ChoiceLetter_AcceptJoiner letter) => letter.quest?.PartsListForReading
@@ -34,9 +37,69 @@ namespace HomeBridge.BridgeTools
                 return "joiner-" + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
         }
 
-        internal static List<Obs.JoinerLetter> Snapshot()
+        private const string CreepJoinerTokenPrefix = "creepjoiner-";
+
+        private static IEnumerable<ChoiceLetter_AcceptCreepJoiner> PendingCreepJoiners() => Find.LetterStack.LettersListForReading
+            .OfType<ChoiceLetter_AcceptCreepJoiner>().Where(l => l.CanShowInLetterStack && !l.TimeoutPassed && l.pawn != null
+                && l.pawn.Spawned && l.pawn.Map == Find.CurrentMap);
+
+        private static string CreepJoinerToken(ChoiceLetter_AcceptCreepJoiner letter)
+        {
+            var text = string.Join("|", letter.GetUniqueLoadID(), letter.pawn.GetUniqueLoadID(), letter.pawn.Dead, letter.pawn.Faction?.GetUniqueLoadID(),
+                letter.pawn.Map?.uniqueID, letter.disappearAtTick, letter.signalAccept);
+            using (var hash = SHA256.Create())
+                return CreepJoinerTokenPrefix + BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
+        }
+
+        private static List<Obs.JoinerLetter> CreepJoinerSnapshot()
         {
             var rows = new List<Obs.JoinerLetter>();
+            foreach (var letter in PendingCreepJoiners().OrderBy(l => l.ID))
+            {
+                var accept = letter.Choices.First();
+                var row = new Obs.JoinerLetter { LetterId = letter.ID, SnapshotToken = CreepJoinerToken(letter), ExpiresTick = letter.disappearAtTick, PawnId = letter.pawn.GetUniqueLoadID(),
+                    AcceptLabel = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && !string.IsNullOrEmpty(letter.signalAccept), Creepjoiner = true };
+                rows.Add(row);
+            }
+            return rows;
+        }
+
+        private static ChoiceLetter_AcceptCreepJoiner? ResolveCreepJoiner(Operations.DialogIntent c) =>
+            PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId && CreepJoinerToken(l) == c.JoinerLetterToken);
+
+        private static bool CreepJoinerAccepted(Operations.DialogIntent c) =>
+            Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>()
+                .FirstOrDefault(l => l.ID == c.WindowId) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
+                && !letter.pawn.Dead && letter.pawn.IsFreeColonist;
+
+        private static Common.Failure? ValidateCreepJoiner(Operations.DialogIntent c)
+        {
+            if (CreepJoinerAccepted(c)) return null;
+            if (!c.HasWindowId || string.IsNullOrEmpty(c.JoinerLetterToken))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A creepjoiner answer needs the letter and the letter token.");
+            return ResolveCreepJoiner(c) == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creepjoiner letter changed or expired; inspect again.") : null;
+        }
+
+        private static Receipts.EffectEvidence ApplyCreepJoiner(Operations.DialogIntent c)
+        {
+            if (!CreepJoinerAccepted(c))
+            {
+                var letter = ResolveCreepJoiner(c) ?? throw new InvalidOperationException("Creepjoiner letter changed before apply.");
+                var pawn = letter.pawn;
+                if (!pawn.Spawned) throw new InvalidOperationException("The creepjoiner is no longer on the map.");
+                Find.SignalManager.SendSignal(new Signal(letter.signalAccept));
+                Find.LetterStack.RemoveLetter(letter);
+                if (pawn.Dead || !pawn.IsFreeColonist) throw new InvalidOperationException("Creepjoiner did not join.");
+            }
+            var joined = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>().First(l => l.ID == c.WindowId).pawn;
+            return new Receipts.EffectEvidence { Dialog = new Receipts.DialogEffect { WindowId = c.WindowId, OptionIndex = 0,
+                OptionLabel = c.OptionLabel, JoinerLetterToken = c.JoinerLetterToken, JoinerPawnId = joined.GetUniqueLoadID(),
+                Activated = true, Closed = true, Advanced = false, Joined = true } };
+        }
+
+        internal static List<Obs.JoinerLetter> Snapshot()
+        {
+            var rows = CreepJoinerSnapshot();
             foreach (var letter in Pending().OrderBy(l => l.ID))
             {
                 var pawn = Joiner(letter);
@@ -79,10 +142,11 @@ namespace HomeBridge.BridgeTools
         private static bool Joined(ChoiceLetter_AcceptJoiner letter, Pawn pawn) =>
             !pawn.Dead && pawn.Spawned && pawn.Map == letter.MapToUse && pawn.IsFreeColonist;
 
-        internal static Common.Failure? Validate(Operations.DialogIntent c) => Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
+        internal static Common.Failure? Validate(Operations.DialogIntent c) => c.JoinerLetterToken.StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal) ? ValidateCreepJoiner(c) : Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.DialogIntent c)
         {
+            if (c.JoinerLetterToken.StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal)) return ApplyCreepJoiner(c);
             if (!Accepted(c, out var letter, out var pawn))
             {
                 var failure = Resolve(c, out letter, out pawn, out var option);

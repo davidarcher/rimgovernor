@@ -302,15 +302,18 @@ func (f RoutineFacts) JoinerCapacity() JoinerCapacityFacts {
 	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: f.FoodDays}
 }
 
-// JoinerLetterOffer is a pending current-map WandererJoins letter. Its opaque
-// token binds the native pawn, quest, map, expiry and choices.
+// JoinerLetterOffer is a pending current-map WandererJoins or creepjoiner
+// letter (#1740). Its opaque token binds the native pawn, quest, map,
+// expiry and choices. Expires is the letter's disappearAtTick verbatim,
+// negative for a letter with no timeout (the game's own sentinel).
 type JoinerLetterOffer struct {
-	ID        int32
-	Token     string
-	Pawn      domain.PawnID
-	Expires   domain.Tick
-	Label     string
-	CanAccept bool
+	ID          int32
+	Token       string
+	Pawn        domain.PawnID
+	Expires     domain.Tick
+	Label       string
+	CanAccept   bool
+	CreepJoiner bool
 }
 
 func SelectJoinerLetter(offers domain.Fact[[]JoinerLetterOffer], capacity domain.Fact[bool]) (JoinerLetterOffer, bool) {

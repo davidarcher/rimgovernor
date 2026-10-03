@@ -20,6 +20,12 @@ type AnomalyCatalog struct {
 	Codex               map[string]*o.EntityCodexRow
 	Things              map[string]*o.AnomalyThingRow
 	Incidents           map[string]*o.AnomalyIncidentRow
+	// Creepjoiner parts (#1740) by def name. The downside rows are the
+	// static defs; which downside a given pawn has is hidden and is not in
+	// any pawn row.
+	CreepJoinerForms     map[string]*o.CreepJoinerFormRow
+	CreepJoinerBenefits  map[string]*o.CreepJoinerBenefitRow
+	CreepJoinerDownsides map[string]*o.CreepJoinerDownsideRow
 }
 
 // DecodeAnomalyCatalog validates the catalog's Anomaly section; nil in, nil
@@ -43,6 +49,9 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 		return nil, err
 	}
 	if out.Incidents, err = catalogIndex("anomaly incident", v.Incidents, (*o.AnomalyIncidentRow).GetDefName); err != nil {
+		return nil, err
+	}
+	if err = decodeCreepJoinerCatalog(v, out); err != nil {
 		return nil, err
 	}
 	knowledge := func(owner, name string) error {
@@ -177,6 +186,13 @@ func validatePawnAnomaly(a *o.PawnAnomaly) error {
 			return contract("anomaly pawn has an unknown containment mode")
 		}
 	}
+	if c := a.Creepjoiner; c != nil {
+		for _, id := range []*string{c.Form, c.Benefit} {
+			if id != nil && validID(*id) != nil {
+				return contract("invalid creepjoiner def name")
+			}
+		}
+	}
 	if err := validateStudyState(a.Study); err != nil {
 		return err
 	}
@@ -229,7 +245,15 @@ func PawnAnomaly(a *o.PawnAnomaly) domain.Fact[policy.PawnAnomaly] {
 	failed := failedFields(a.Issues)
 	r := policy.PawnAnomaly{Entity: optionalFact(a.Entity), Mutant: optionalFact(a.Mutant), Shambler: optionalFact(a.Shambler),
 		MinContainmentStrength: optionalFact(a.MinContainmentStrength),
-		HiddenFromPlayer:       optionalFact(a.HiddenFromPlayer), PsychicRitualInvoker: optionalFact(a.PsychicRitualInvoker), MeleeOnly: optionalFact(a.MeleeOnly), Held: domain.Unknown[*policy.EntityHeld](), Study: domain.Unknown[*policy.StudyState]()}
+		HiddenFromPlayer:       optionalFact(a.HiddenFromPlayer), PsychicRitualInvoker: optionalFact(a.PsychicRitualInvoker), MeleeOnly: optionalFact(a.MeleeOnly), Held: domain.Unknown[*policy.EntityHeld](), Study: domain.Unknown[*policy.StudyState](),
+		CreepJoiner: domain.Unknown[*policy.CreepJoiner]()}
+	if !failed["creepjoiner"] {
+		var joiner *policy.CreepJoiner
+		if c := a.Creepjoiner; c != nil {
+			joiner = &policy.CreepJoiner{Form: optionalFact(c.Form), Benefit: optionalFact(c.Benefit), DownsideTriggered: optionalFact(c.DownsideTriggered)}
+		}
+		r.CreepJoiner = domain.Known(joiner)
+	}
 	if !failed["held"] {
 		var held *policy.EntityHeld
 		if h := a.Held; h != nil {
@@ -280,4 +304,55 @@ func BuildingAnomaly(row *o.BuildingState) domain.Fact[policy.BuildingAnomaly] {
 		r.Study = domain.Known(studyState(b.Study))
 	}
 	return domain.Known(r)
+}
+
+// decodeCreepJoinerCatalog indexes the creepjoiner defs (#1740). Numbers are
+// the def values and only checked for being finite; requires and excludes
+// name other creepjoiner defs (aggressive and rejection defs among them,
+// which the catalog does not carry), so they are checked for valid names only.
+func decodeCreepJoinerCatalog(v *o.AnomalyCatalog, out *AnomalyCatalog) (err error) {
+	if out.CreepJoinerForms, err = catalogIndex("creepjoiner form", v.CreepjoinerForms, (*o.CreepJoinerFormRow).GetDefName); err != nil {
+		return err
+	}
+	if out.CreepJoinerBenefits, err = catalogIndex("creepjoiner benefit", v.CreepjoinerBenefits, (*o.CreepJoinerBenefitRow).GetDefName); err != nil {
+		return err
+	}
+	if out.CreepJoinerDownsides, err = catalogIndex("creepjoiner downside", v.CreepjoinerDownsides, (*o.CreepJoinerDownsideRow).GetDefName); err != nil {
+		return err
+	}
+	for _, row := range v.CreepjoinerForms {
+		if err = catalogNumbers("creepjoiner form", row.Weight, row.MinCombatPoints); err == nil {
+			err = catalogIDs("creepjoiner form", row.Requires, row.Excludes)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	for _, row := range v.CreepjoinerBenefits {
+		if err = catalogNumbers("creepjoiner benefit", row.Weight, row.MinCombatPoints); err == nil {
+			err = catalogIDs("creepjoiner benefit", row.Requires, row.Excludes, row.Traits, row.Hediffs, row.Abilities)
+		}
+		if err != nil {
+			return err
+		}
+		for _, skill := range row.Skills {
+			if validID(skill.GetSkill()) != nil || skill.Min == nil || skill.Max == nil || skill.GetMin() > skill.GetMax() {
+				return contract("invalid creepjoiner benefit %s skill", row.GetDefName())
+			}
+		}
+	}
+	for _, row := range v.CreepjoinerDownsides {
+		err = catalogNumbers("creepjoiner downside", row.Weight, row.MinCombatPoints, row.TriggersAfterDaysMin, row.TriggersAfterDaysMax,
+			row.TriggerMtbDays, row.TriggerMinDaysMin, row.TriggerMinDaysMax)
+		if err == nil {
+			err = catalogIDs("creepjoiner downside", row.Requires, row.Excludes, row.Traits, row.Hediffs, row.Abilities)
+		}
+		if err != nil {
+			return err
+		}
+		if row.Worker != nil && validID(row.GetWorker()) != nil {
+			return contract("invalid creepjoiner downside %s worker", row.GetDefName())
+		}
+	}
+	return nil
 }

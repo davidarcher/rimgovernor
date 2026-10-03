@@ -45,7 +45,61 @@ namespace HomeBridge.BridgeTools
             foreach (var def in Sorted(DefDatabase<EntityCodexEntryDef>.AllDefsListForReading)) catalog.CodexEntries.Add(Codex(def));
             foreach (var def in Sorted(DefDatabase<ThingDef>.AllDefsListForReading.Where(IsAnomalyThing))) catalog.Things.Add(ThingRow(def));
             foreach (var def in Sorted(DefDatabase<IncidentDef>.AllDefsListForReading.Where(i => i.IsAnomalyIncident))) catalog.Incidents.Add(Incident(def));
+            foreach (var def in Sorted(DefDatabase<CreepJoinerFormKindDef>.AllDefsListForReading)) catalog.CreepjoinerForms.Add(CreepJoinerForm(def));
+            foreach (var def in Sorted(DefDatabase<CreepJoinerBenefitDef>.AllDefsListForReading)) catalog.CreepjoinerBenefits.Add(CreepJoinerBenefit(def));
+            foreach (var def in Sorted(DefDatabase<CreepJoinerDownsideDef>.AllDefsListForReading)) catalog.CreepjoinerDownsides.Add(CreepJoinerDownside(def));
             return catalog;
+        }
+
+        // The ICreepJoinerDef fields every creepjoiner part shares.
+        private static void CreepJoinerCommon(ICreepJoinerDef part, Action<double> weight, Action<double> combat, Action<bool> random,
+            ICollection<string> requires, ICollection<string> excludes)
+        {
+            if (Finite(part.Weight)) weight(part.Weight);
+            if (Finite(part.MinCombatPoints)) combat(part.MinCombatPoints);
+            random(part.CanOccurRandomly);
+            foreach (var name in Names(part.Requires)) requires.Add(name);
+            foreach (var name in Names(part.Excludes)) excludes.Add(name);
+        }
+
+        private static IEnumerable<string> TraitNames(IEnumerable<BackstoryTrait>? traits) =>
+            (traits ?? Enumerable.Empty<BackstoryTrait>()).Select(t => Id(t?.def?.defName)).Where(n => n != null).Select(n => n!);
+
+        private static Obs.CreepJoinerFormRow CreepJoinerForm(CreepJoinerFormKindDef def)
+        {
+            var row = new Obs.CreepJoinerFormRow { DefName = def.defName, Label = Label(def) };
+            CreepJoinerCommon(def, v => row.Weight = v, v => row.MinCombatPoints = v, v => row.CanOccurRandomly = v, row.Requires, row.Excludes);
+            return row;
+        }
+
+        private static Obs.CreepJoinerBenefitRow CreepJoinerBenefit(CreepJoinerBenefitDef def)
+        {
+            var row = new Obs.CreepJoinerBenefitRow { DefName = def.defName, Label = Label(def) };
+            CreepJoinerCommon(def, v => row.Weight = v, v => row.MinCombatPoints = v, v => row.CanOccurRandomly = v, row.Requires, row.Excludes);
+            row.Traits.Add(TraitNames(def.traits));
+            row.Hediffs.Add(Names(def.hediffs));
+            row.Abilities.Add(Names(def.abilities));
+            foreach (var skill in def.skills ?? new List<CreepJoinerBenefitDef.SkillValue>())
+                if (Id(skill?.skill?.defName) is string name) row.Skills.Add(new Obs.CreepJoinerSkillRange { Skill = name, Min = skill!.range.min, Max = skill.range.max });
+            return row;
+        }
+
+        private static Obs.CreepJoinerDownsideRow CreepJoinerDownside(CreepJoinerDownsideDef def)
+        {
+            var row = new Obs.CreepJoinerDownsideRow { DefName = def.defName, Label = Label(def), Repeats = def.repeats,
+                CanOccurWhenImprisoned = def.canOccurWhenImprisoned, CanOccurWhileDowned = def.canOccurWhileDowned, MustBeConscious = def.mustBeConscious,
+                SurgicalInspectionHint = !string.IsNullOrEmpty(def.surgicalInspectionLetterExtra) };
+            CreepJoinerCommon(def, v => row.Weight = v, v => row.MinCombatPoints = v, v => row.CanOccurRandomly = v, row.Requires, row.Excludes);
+            row.Traits.Add(TraitNames(def.traits));
+            row.Hediffs.Add(Names(def.hediffs));
+            row.Abilities.Add(Names(def.abilities));
+            if (Finite(def.triggersAfterDays.min)) row.TriggersAfterDaysMin = def.triggersAfterDays.min;
+            if (Finite(def.triggersAfterDays.max)) row.TriggersAfterDaysMax = def.triggersAfterDays.max;
+            if (Finite(def.triggerMtbDays)) row.TriggerMtbDays = def.triggerMtbDays;
+            if (Finite(def.triggerMinDays.min)) row.TriggerMinDaysMin = def.triggerMinDays.min;
+            if (Finite(def.triggerMinDays.max)) row.TriggerMinDaysMax = def.triggerMinDays.max;
+            if (Id(def.workerType?.Name) is string worker) row.Worker = worker;
+            return row;
         }
 
         private static bool IsAnomalyThing(ThingDef def) =>
@@ -199,7 +253,29 @@ namespace HomeBridge.BridgeTools
             catch (Exception ex) { row.Issues.Add(Failed("held", ex)); }
             try { row.Study = Study(pawn); }
             catch (Exception ex) { row.Issues.Add(Failed("study", ex)); }
+            try { row.Creepjoiner = CreepJoiner(pawn); }
+            catch (Exception ex) { row.Issues.Add(Failed("creepjoiner", ex)); }
             return row;
+        }
+
+        // The tracker keeps triggeredDownside private: true once the game has
+        // fired the downside, which a player sees as its letter or effect.
+        // The hidden downside def is never read. A game version without the
+        // field fails the read naming it.
+        private static class CreepJoinerFields
+        {
+            private static readonly AccessTools.FieldRef<Pawn_CreepJoinerTracker, bool> Triggered = AccessTools.FieldRefAccess<Pawn_CreepJoinerTracker, bool>("triggeredDownside");
+            internal static bool DownsideTriggered(Pawn_CreepJoinerTracker tracker) => Triggered(tracker);
+        }
+
+        // The creepjoiner block; null for a pawn with no tracker.
+        private static Obs.CreepJoinerState? CreepJoiner(Pawn pawn)
+        {
+            if (pawn.creepjoiner is not Pawn_CreepJoinerTracker tracker) return null;
+            var state = new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker) };
+            if (Id(tracker.form?.defName) is string form) state.Form = form;
+            if (Id(tracker.benefit?.defName) is string benefit) state.Benefit = benefit;
+            return state;
         }
 
         // The building row block; null without Anomaly or when the building

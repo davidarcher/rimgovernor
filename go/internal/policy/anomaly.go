@@ -33,6 +33,18 @@ type PawnAnomaly struct {
 	// PsychicRitualInvoker the caster of its lord's psychic ritual, and
 	// MeleeOnly a pawn whose attack is melee with no offensive ability.
 	HiddenFromPlayer, PsychicRitualInvoker, MeleeOnly domain.Fact[bool]
+	// CreepJoiner is the pawn's creepjoiner tracker facts (#1740); a nil
+	// pointer inside a Known fact is a pawn that is no creepjoiner.
+	CreepJoiner domain.Fact[*CreepJoiner]
+}
+
+// CreepJoiner is a creepjoiner's visible facts: its form and benefit def
+// names and whether the game has fired its downside. The downside def is
+// hidden information and is never read; what a player can see of it is the
+// pawn's traits and hediffs.
+type CreepJoiner struct {
+	Form, Benefit     domain.Fact[string]
+	DownsideTriggered domain.Fact[bool]
 }
 
 // EntityHeld is a holding-platform target's state: whether it is held now,

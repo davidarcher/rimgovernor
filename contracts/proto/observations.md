@@ -403,8 +403,10 @@ values); and `AnomalyIncidentRow`, one per `IncidentDef.IsAnomalyIncident`
 chance and threat-point gates, the codex entry it discovers).
 `bridge.DecodeAnomalyCatalog` indexes them by name and refuses duplicates,
 unknown references (categories, codex entries), nonfinite or negative numbers
-and an unnamed enum value. Creepjoiner and monolith level defs are not
-included; their children add them. The thing rows duplicate what the generated
+and an unnamed enum value. Creepjoiner form, benefit and downside rows (#1740: weights, combat-point
+gates, requires/excludes, granted traits, skills, hediffs and abilities, a
+downside's timing and worker) are included; monolith level defs are not, their
+child adds them. The thing rows duplicate what the generated
 ThingDef rows of #1720 will carry (comps, stat bases); they become Go views
 over those rows when it lands. Def numbers in the anomaly catalog and `min_containment_strength` are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator `studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
 
@@ -423,6 +425,21 @@ abilities is `ai_IsOffensive`; an entity or mutant that is melee only fights
 as a charging pack, so squad defense and the manhunter tactic apply). Each is
 read alone: a failed read is absent with a `ReadIssue` named for it.
 Hostility stays `PawnState.hostile`.
+A pawn with a creepjoiner tracker carries `anomaly.creepjoiner` (#1740): its
+form and benefit def names (both shown to a player in the offer letter) and
+`downside_triggered`, the tracker's private `triggeredDownside`, read natively
+and true only once a timed downside has fired. The downside def is hidden
+information: no pawn row carries it and nothing reads it (the catalog's
+downside rows are static defs). Trait-only downsides and no downside never set
+the flag, so "downside revealed" for the bot is what a player sees: the pawn's
+visible traits and hediffs, or the flag. A failed read is absent with a
+`ReadIssue` named `creepjoiner`. Creepjoiner offer letters
+(`ChoiceLetter_AcceptCreepJoiner`) ride the colony census's `joiner_letters`
+with `creepjoiner` true and a negative `expires_tick` when the letter has no
+timeout (the game's sentinel, mirrored);
+accepting sends the letter's own accept signal (`signalAccept`, then removes
+the letter) through the same `DialogIntent`, guarded on the pawn being
+spawned, and never by option index or label.
 `BuildingState.anomaly` carries a holding platform's `CompEntityHolder` state
 (the containment strength its room provides now, whether it is available, the
 pawn it holds) and a studiable building's `CompStudiable` state. An absent

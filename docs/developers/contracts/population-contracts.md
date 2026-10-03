@@ -80,7 +80,11 @@ through `DialogIntent.joiner_letter_token` on Actions/Apply. Native rechecks the
 quest, pawn, map, expiry and option under authority and runs its ordinary Accept
 option. The intent applies only once the offered pawn is a living spawned free colonist
 on that map; closing the letter alone is insufficient, and a resent intent for a
-letter already accepted that way applies again. Expired, changed and
+letter already accepted that way applies again. A creepjoiner offer
+(`ChoiceLetter_AcceptCreepJoiner`, #1740; David 2026-10-03: accept creepjoiners)
+is a letter row with `creepjoiner` true under the same gate. Its token prefix routes native to the
+letter's accept signal rather than an option, and the intent applies only once the
+pawn is a living free colonist. Expired, changed and
 unsupported offers are never answered. Without known capacity, letters expire
 through their own native quest timeout.
 

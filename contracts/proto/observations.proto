@@ -1710,8 +1710,8 @@ message BabyCare {
   optional bool in_bed = 5; repeated BabyAutofeeder autofeeders = 6;
 }
 message BabyAutofeeder { optional string pawn_id = 1; optional string mode = 2; }
-// Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
-message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
+// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true, #1740); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
+message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; optional bool creepjoiner = 7; }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; reserved 3, 4, 5; reserved "requested_definition_names"; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
@@ -2183,6 +2183,36 @@ message PortalState { optional bool pocket_map_exists = 1; optional int32 pocket
 message AnomalyCatalog {
   repeated EntityCategoryRow entity_categories = 1; repeated KnowledgeCategoryRow knowledge_categories = 2; repeated EntityCodexRow codex_entries = 3;
   repeated AnomalyThingRow things = 4; repeated AnomalyIncidentRow incidents = 5;
+  repeated CreepJoinerFormRow creepjoiner_forms = 6; repeated CreepJoinerBenefitRow creepjoiner_benefits = 7; repeated CreepJoinerDownsideRow creepjoiner_downsides = 8;
+}
+// The creepjoiner defs (#1740), read from the game defs. The shared fields are
+// ICreepJoinerDef's: weight, min_combat_points and can_occur_randomly gate the
+// random pick and requires and excludes (def names of other creepjoiner
+// parts) pair a form, benefit and downside. A form is a PawnKindDef.
+message CreepJoinerFormRow {
+  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
+  repeated string requires = 6; repeated string excludes = 7;
+}
+// CreepJoinerBenefitDef: the traits, skills, hediffs and abilities it grants
+// (def names; a skill carries its level range).
+message CreepJoinerBenefitRow {
+  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
+  repeated string requires = 6; repeated string excludes = 7;
+  repeated string traits = 8; repeated string hediffs = 9; repeated string abilities = 10; repeated CreepJoinerSkillRange skills = 11;
+}
+message CreepJoinerSkillRange { optional string skill = 1; optional int32 min = 2; optional int32 max = 3; }
+// CreepJoinerDownsideDef: what it adds when it fires, when it can fire and
+// the class of its worker. surgical_inspection_hint is whether the def has
+// a surgical inspection letter text (the game reveals it only through an
+// inspection). The pawn rows never carry which downside a creepjoiner has.
+message CreepJoinerDownsideRow {
+  optional string def_name = 1; optional string label = 2; optional double weight = 3; optional double min_combat_points = 4; optional bool can_occur_randomly = 5;
+  repeated string requires = 6; repeated string excludes = 7;
+  repeated string traits = 8; repeated string hediffs = 9; repeated string abilities = 10;
+  optional bool repeats = 11; optional double triggers_after_days_min = 12; optional double triggers_after_days_max = 13; optional double trigger_mtb_days = 14;
+  optional double trigger_min_days_min = 15; optional double trigger_min_days_max = 16;
+  optional bool can_occur_when_imprisoned = 17; optional bool can_occur_while_downed = 18; optional bool must_be_conscious = 19; optional string worker = 20;
+  optional bool surgical_inspection_hint = 21;
 }
 // EntityCategoryDef: a codex grouping of entities.
 message EntityCategoryRow { optional string def_name = 1; optional string label = 2; optional int32 list_order = 3; }
@@ -2259,7 +2289,15 @@ message PawnAnomaly {
   optional bool entity = 1; optional bool mutant = 2; optional bool shambler = 3; optional double min_containment_strength = 4;
   HeldState held = 5; StudyState study = 6; repeated ReadIssue issues = 7;
   optional bool hidden_from_player = 8; optional bool psychic_ritual_invoker = 9; optional bool melee_only = 10;
+  CreepJoinerState creepjoiner = 11;
 }
+// A creepjoiner's facts (#1740), set for a pawn with a creepjoiner tracker
+// (a failed read leaves it absent with a ReadIssue named creepjoiner). form and
+// benefit are CreepJoinerFormKindDef and CreepJoinerBenefitDef names, which a
+// player sees in the offer letter. downside_triggered is the tracker's
+// triggeredDownside, true once the game has shown the downside; the downside
+// def itself is hidden information and is never read.
+message CreepJoinerState { optional string form = 1; optional string benefit = 2; optional bool downside_triggered = 3; }
 // CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
 // Building_HoldingPlatform holding the pawn; mode the ordered containment
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
