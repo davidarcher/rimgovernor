@@ -60999,8 +60999,9 @@ namespace RimGovernor.Protocol.Observations {
   /// grid cell (row-major, 0 on a cell the grid does not hold): bit 0
   /// supports_heavy (the terrain takes a wall), bit 1 supports_light, bit 2
   /// resource_rock (mineable ore), bit 3 tree, bit 4 bridgeable, bit 5 dries
-  /// (a moisture pump dries it), each of the natural ground under any
-  /// bridge or floor. things, when requested, are the canonical rows (#1343)
+  /// (a moisture pump dries it), each of the natural ground
+  /// under any bridge or floor; bit 6 hazard (the terrain now at the cell hurts
+  /// or contaminates by its own def flags, lava). things, when requested, are the canonical rows (#1343)
   /// of the things standing on the grid's held cells, each once, in id
   /// order, at its own thing.position.
   /// </summary>

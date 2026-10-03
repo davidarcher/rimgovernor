@@ -192,6 +192,7 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 			*at(1, 1) = foundationHeavy | foundationOre
 			*at(3, 1) = foundationLight | foundationBridgeable | foundationDries | foundationTree
 			*at(4, 1) = foundationBridgeable
+			*at(6, 1) = foundationHeavy | foundationHazard
 			*at(5, 1) = 0
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
@@ -216,6 +217,9 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 	}
 	if got := by[domain.Cell{X: 4, Z: 1}]; got.Footing != policy.FootingNone || !got.Bridgeable {
 		t.Fatalf("water %+v", got)
+	}
+	if got := by[domain.Cell{X: 6, Z: 1}]; !got.Hazard || by[domain.Cell{X: 4, Z: 1}].Hazard {
+		t.Fatalf("hazard bit %+v", got)
 	}
 	if got := by[domain.Cell{X: 5, Z: 1}]; !got.Rock || got.Walkable || got.Ore {
 		t.Fatalf("fogged cell reads as plain rock %+v", got)

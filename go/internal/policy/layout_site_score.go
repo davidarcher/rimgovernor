@@ -259,7 +259,7 @@ func newSiteGround(s MapSurvey) siteGround {
 	w, h := s.Bounds.Width, s.Bounds.Height
 	b := make([]bool, max(w*h, 0))
 	for _, c := range s.Cells {
-		if c.Cell.X >= 0 && c.Cell.X < w && c.Cell.Z >= 0 && c.Cell.Z < h && (c.Rock || !c.Walkable && !c.Built) {
+		if c.Cell.X >= 0 && c.Cell.X < w && c.Cell.Z >= 0 && c.Cell.Z < h && (c.Rock || c.Hazard || !c.Walkable && !c.Built) {
 			b[c.Cell.Z*w+c.Cell.X] = true
 		}
 	}

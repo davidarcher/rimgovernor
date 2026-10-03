@@ -121,3 +121,20 @@ func TestZoneOpenPlains(t *testing.T) {
 		t.Fatal("zones persist")
 	}
 }
+
+// A hazard cell (lava) is no-go: never core, field or pasture, however
+// fertile it reads.
+func TestZoneKeepsOffHazard(t *testing.T) {
+	lava := domain.Cell{X: 30, Z: 30}
+	zones := Zone(zoningSurvey(60, func(x, z int32) SurveyCell {
+		return SurveyCell{Walkable: true, Fertility: 1.4, Hazard: x == lava.X && z == lava.Z}
+	}))
+	for _, kind := range []ZoneKind{ZoneCore, ZoneField, ZonePasture} {
+		if cells, _ := zoningCells(zones, kind); cells[lava] != 0 {
+			t.Fatal("zone", kind, "covers the hazard cell")
+		}
+	}
+	if noGo, _ := zoningCells(zones, ZoneNoGo); noGo[lava] == 0 {
+		t.Fatal("hazard cell is not no-go")
+	}
+}

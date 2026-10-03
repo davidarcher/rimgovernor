@@ -81,7 +81,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	}
 	impassable := func(c domain.Cell) bool {
 		sc, ok := cells[c]
-		return ok && (sc.Rock || !sc.Walkable && !sc.Built)
+		return ok && (sc.Rock || sc.Hazard || !sc.Walkable && !sc.Built)
 	}
 	soft := func(c domain.Cell) bool {
 		sc, ok := cells[c]
@@ -502,7 +502,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 	// pump standing there (Built) or not: a re-survey never moves a pump.
 	pumpSite := func(c domain.Cell, kept bool) bool {
 		sc, ok := cells[c]
-		return ok && enc.inside(c) && (sc.Walkable && !sc.Built || kept && sc.Built) && !sc.Rock && sc.Footing == FootingFirm && !built(c) && !contains(killbox, c) && !detour[c] && !shut[c]
+		return ok && enc.inside(c) && !sc.Hazard && (sc.Walkable && !sc.Built || kept && sc.Built) && !sc.Rock && sc.Footing == FootingFirm && !built(c) && !contains(killbox, c) && !detour[c] && !shut[c]
 	}
 	pumps := map[domain.Cell]bool{}
 	drying := func(pump domain.Cell) int {
@@ -578,7 +578,7 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		for x := enc.bbox.X; x < enc.bbox.X+enc.bbox.Width; x++ {
 			c := domain.Cell{X: x, Z: z}
 			sc, ok := cells[c]
-			if !ok || !enc.inside(c) || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] || pumps[c] {
+			if !ok || !enc.inside(c) || sc.Hazard || !sc.Walkable || sc.Rock || sc.Footing != FootingFirm || built(c) || contains(killbox, c) || detour[c] || pumps[c] {
 				continue
 			}
 			if d := deep[z*w+x]; d > depth {

@@ -46,6 +46,10 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        // The terrain hurts or contaminates by its own def flags (also the
+        // map survey's hazard bit).
+        internal static bool IsHazard(TerrainDef terrain) => terrain.dangerous || terrain.burnDamage > 0 || terrain.heatPerTick > 0f || terrain.toxicBuildupFactor > 0f;
+
         // Terrain defs whose own flags hurt or contaminate, with the cells each covers.
         private static IEnumerable<Obs.HazardTerrain> HazardTerrain(Map map)
         {
@@ -53,7 +57,7 @@ namespace HomeBridge.BridgeTools
             var grid = map.terrainGrid;
             foreach (var cell in map.AllCells) {
                 var terrain = grid.TerrainAt(cell);
-                if (terrain.dangerous || terrain.burnDamage > 0 || terrain.heatPerTick > 0f || terrain.toxicBuildupFactor > 0f)
+                if (IsHazard(terrain))
                     counts[terrain] = counts.TryGetValue(terrain, out var n) ? n + 1 : 1;
             }
             foreach (var pair in counts.Where(p => ProtoBoundary.IsIdentifier(p.Key.defName)).OrderBy(p => p.Key.defName, StringComparer.Ordinal)) {

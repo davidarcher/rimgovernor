@@ -80,6 +80,10 @@ namespace HomeBridge.BridgeTools
                         // Bridges and moisture pumps close a perimeter across soft ground (#949).
                         if (terrain?.affordances.Contains(TerrainAffordanceDefOf.Bridgeable) == true) bits |= 16;
                         if (terrain?.driesTo != null) bits |= 32;
+                        // Hazard reads the terrain now at the cell: it hurts whatever natural
+                        // ground lies under it, which the base read above does not see.
+                        var top = map.terrainGrid.TerrainAt(cell);
+                        if (top != null && NativeOdysseyColony.IsHazard(top)) bits |= 64;
                         bytes[j] = (byte)bits;
                     }
                     snapshot.Foundation = ByteString.CopyFrom(bytes);

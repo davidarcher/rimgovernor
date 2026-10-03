@@ -100,6 +100,7 @@ func surveyCells(read cellsRead) []policy.SurveyCell {
 			Footing:    footing,
 			Bridgeable: ground&foundationBridgeable != 0,
 			Dries:      ground&foundationDries != 0,
+			Hazard:     ground&foundationHazard != 0,
 			ThickRoof:  roof == thickRoof,
 			Fertility:  value(cell.Fertility),
 			Ore:        ground&foundationOre != 0,

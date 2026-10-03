@@ -41,7 +41,7 @@ func Zone(s MapSurvey) []LayoutZone {
 	noGo := func(i int32) bool {
 		c := cells[i]
 		x, z := i%w, i/w
-		return c != nil && !c.Rock && c.Footing != FootingFirm || x < e || z < e || x >= w-e || z >= h-e
+		return c != nil && (c.Hazard || !c.Rock && c.Footing != FootingFirm) || x < e || z < e || x >= w-e || z >= h-e
 	}
 	has := func(pred func(c *SurveyCell) bool) func(int32) bool {
 		return func(i int32) bool { return cells[i] != nil && !noGo(i) && pred(cells[i]) }

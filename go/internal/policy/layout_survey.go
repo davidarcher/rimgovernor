@@ -21,6 +21,9 @@ type SurveyCell struct {
 	// moving or deep water).
 	Footing           Footing
 	Bridgeable, Dries bool
+	// Hazard is terrain that hurts or contaminates by its own def flags (lava):
+	// nothing is built, farmed or walled on it.
+	Hazard bool
 	// ThickRoof is overhead mountain: no drop pods, no roof collapse from
 	// mining, cold storage.
 	ThickRoof bool

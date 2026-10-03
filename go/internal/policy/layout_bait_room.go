@@ -121,7 +121,7 @@ func baitFits(r Rectangle, cells map[domain.Cell]SurveyCell, used map[domain.Cel
 		if !ok || !sc.ThickRoof || sc.Built || used[c] {
 			return false
 		}
-		open := sc.Walkable && !sc.Rock
+		open := sc.Walkable && !sc.Rock && !sc.Hazard
 		if !open && (!sc.Rock || contains(in, c) || c == door) {
 			return false
 		}

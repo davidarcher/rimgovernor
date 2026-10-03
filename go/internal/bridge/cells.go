@@ -21,6 +21,9 @@ const (
 	foundationTree
 	foundationBridgeable
 	foundationDries
+	// foundationHazard is read from the terrain now at the cell, not the
+	// natural ground (bit 6; the map survey keeps planning off it).
+	foundationHazard
 )
 
 // cellsRead is one validated observations_get_cells read (#1346): the
