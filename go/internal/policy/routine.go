@@ -1615,9 +1615,15 @@ func cookingMet(f RoutineFacts) domain.Fact[bool] {
 // ButcherBench is a standing butcher bench and the room it stands in
 // (unknown outdoors).
 type ButcherBench struct {
-	ID   string
-	Room domain.Fact[string]
+	ID         string
+	Definition string
+	Room       domain.Fact[string]
 }
+
+// ButcherTableWood is the WoodLog stock at which a stand-in butcher spot is
+// owed its table: the table is stuff-built, so the goal stays open below it
+// only to wait, never to starve the colony of wood.
+const ButcherTableWood int64 = 120
 
 // butcherSpotMet is MaintainButcherSpot's recovery: a butcher bench stands
 // that does not share a room with a cooking bench. A butcher bench inside
@@ -1640,10 +1646,20 @@ func butcherSpotMet(f RoutineFacts) domain.Fact[bool] {
 	for _, room := range shared {
 		colocated[room.ID] = true
 	}
+	apart, table := false, false
 	for _, bench := range benches {
 		if room, known := bench.Room.Value(); !known || !colocated[room] {
-			return domain.Known(true)
+			apart = true
+			table = table || bench.Definition != "ButcherSpot"
 		}
 	}
-	return domain.Known(false)
+	if !apart {
+		return domain.Known(false)
+	}
+	// Only a stand-in spot stands apart: with the wood to build one, the
+	// goal stays open for the butcher table.
+	if wood, ok := f.Wood.Value(); !table && ok && wood >= ButcherTableWood {
+		return domain.Known(false)
+	}
+	return domain.Known(true)
 }

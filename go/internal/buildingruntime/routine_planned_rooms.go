@@ -22,7 +22,7 @@ func (r *RoutineBuildingPlanner) plannedRoomModule() (policy.ModuleRole, bool) {
 	switch {
 	case r.goal == policy.EnsureCooking && len(r.paste) == 0:
 		return policy.ModuleKitchen, true
-	case r.goal == policy.MaintainButcherSpot && r.definition == "ButcherSpot":
+	case r.goal == policy.MaintainButcherSpot && (r.definition == "ButcherSpot" || r.definition == "TableButcher"):
 		return policy.ModuleButchery, true
 	case r.goal == policy.MaintainRefrigeration && r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationBuild:
 		return policy.ModuleFreezer, true

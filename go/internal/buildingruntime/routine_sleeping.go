@@ -218,7 +218,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if r.goal == policy.MaintainButcherSpot {
 			// Only a pending spot of this definition is the planner's own work (#260).
 			for _, progress := range plan.Progress {
-				if pendingFacility(progress, r.definition) {
+				if pendingFacility(progress, r.definition) || pendingFacility(progress, "TableButcher") {
 					return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 				}
 			}
@@ -332,6 +332,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		observed = append(append([]string(nil), observed...), "Wall", "Door")
 	}
 	if r.shelter {
+	if r.goal == policy.MaintainButcherSpot {
+		observed = append(append([]string(nil), observed...), "TableButcher")
+	}
 		// The door ladder proposes an Autodoor only once the read shows it
 		// available (#610); the ring never waits on it.
 		observed = append(append([]string(nil), observed...), "Autodoor")
@@ -519,6 +522,20 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return result, err
 	}
 	missing, method, reason := r.selection(facts)
+	if method == "butcher-table" {
+		// A stand-in spot stands apart: the real table goes in the same room (the
+		// planned butchery) once the wood is in stock.
+		table := *r
+		table.definition = "TableButcher"
+		for _, d := range facts.Definitions {
+			if d.Name == table.definition {
+				if stuff, known := d.Stuff.Value(); known {
+					table.stuff = stuff
+				}
+			}
+		}
+		r = &table
+	}
 	if reason == BuildingExistingFacility {
 		// The ring and the furniture are independent (#835): a campfire
 		// already standing for the kitchen does not excuse the planned
@@ -571,7 +588,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			available = available && comfortBuilderAvailable(facts, name)
 		}
 	}
-	if r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
+	if r.definition == "TableButcher" || r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		available = comfortBuilderAvailable(facts, r.definition)
 		if r.power != nil && r.power.Method == policy.PowerGenerate {
 			// A generator no site accepts yields to the next ranked one a
@@ -885,8 +902,8 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		// sleeping room and block the room's own furnishing.
 		protected = append(append([]domain.Cell(nil), protected...), nonSleepingPlannedCells(facts)...)
 	}
-	if r.definition == "ButcherSpot" || r.goal == policy.EnsureCooking {
-		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot")...)
+	if r.definition == "ButcherSpot" || r.definition == "TableButcher" || r.goal == policy.EnsureCooking {
+		protected = append(append([]domain.Cell(nil), protected...), policy.SeparationProtectedCells(facts.Rooms, r.definition == "ButcherSpot" || r.definition == "TableButcher")...)
 	}
 	if r.goal == policy.EnsureCooking && r.definition == "Campfire" {
 		// The cooking campfire stands outdoors or in a non-sleeping room,
@@ -978,7 +995,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		anchor := layoutAnchor(facts, r.district())
 		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
 	}
-	if r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" {
+	if r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher" {
 		// The cooking campfire and the butcher spot stand by the base, not the landing
 		// centroid (#1534).
 		anchor := planCore(facts)

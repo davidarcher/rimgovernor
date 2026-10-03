@@ -393,7 +393,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 		standing := []policy.ButcherBench{}
 		for _, b := range benches {
-			standing = append(standing, policy.ButcherBench{ID: b.ID, Room: b.Room})
+			standing = append(standing, policy.ButcherBench{ID: b.ID, Definition: b.Definition, Room: b.Room})
 		}
 		r.Facts.ButcherBenches = domain.Known(standing)
 		r.ButcheringBenches = domain.Known(benches)

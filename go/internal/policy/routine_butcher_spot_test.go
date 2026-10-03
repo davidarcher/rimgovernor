@@ -24,3 +24,24 @@ func TestButcherSpotGoalIsOwedUntilABenchStandsApart(t *testing.T) {
 		t.Fatal("an unread census became evidence", got)
 	}
 }
+
+// A stand-in spot left standing apart keeps the goal open for the table once
+// the wood is in stock, and the table closes it.
+func TestButcherSpotGoalStaysOpenForTheTable(t *testing.T) {
+	f := stableRoutine()
+	f.Upkeep.Rooms = domain.Known(RoomObservation{})
+	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot", Definition: "ButcherSpot"}})
+	f.Wood = domain.Known(ButcherTableWood)
+	if got := butcherSpotMet(f); got != domain.Known(false) {
+		t.Fatal("a spot with the wood for a table closed the goal", got)
+	}
+	f.Wood = domain.Known(ButcherTableWood - 1)
+	if got := butcherSpotMet(f); got != domain.Known(true) {
+		t.Fatal("a spot without the wood held the goal open", got)
+	}
+	f.Wood = domain.Known(ButcherTableWood)
+	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot", Definition: "ButcherSpot"}, {ID: "table", Definition: "TableButcher"}})
+	if got := butcherSpotMet(f); got != domain.Known(true) {
+		t.Fatal("a standing table left the goal open", got)
+	}
+}

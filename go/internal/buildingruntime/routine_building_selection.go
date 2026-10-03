@@ -65,6 +65,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			// butcher spot is admitted outside. Deconstructing the shared
 			// one needs a generic deconstruct action (follow-up).
 			if !butchersAllColocated(benches, facts.Rooms) {
+				if butcherTableWanted(facts, benches) {
+					return 1, "butcher-table", ""
+				}
 				return 0, "", BuildingExistingFacility
 			}
 			return 1, "butcher-spot-separated", ""
@@ -272,4 +275,17 @@ func campfireIntentStanding(claims domain.Fact[[]policy.ConstructionClaim], obse
 		}
 	}
 	return false
+}
+
+// butcherTableWanted is true once a butcher spot stands apart and the colony
+// can raise the real table: the table is built from stuff, so the wood must
+// be in stock, and a builder able to raise it must be at work.
+func butcherTableWanted(facts observation.ColonyProjection, benches []observation.CookingBench) bool {
+	for _, b := range benches {
+		if b.Definition == "TableButcher" {
+			return false
+		}
+	}
+	wood, known := facts.Facts.Wood.Value()
+	return known && wood >= policy.ButcherTableWood && comfortBuilderAvailable(facts, "TableButcher")
 }
