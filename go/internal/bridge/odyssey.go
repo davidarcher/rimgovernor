@@ -8,15 +8,13 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// OdysseyCatalog is one load's Odyssey defs (#1708) by name, the native rows
-// as read: hazards, animals and hack rules are the game defs' own, never Go
-// name lists. Nil without Odyssey. Animal kinds name PawnKindDefs; the races
+// OdysseyCatalog is the Odyssey facts the def mirror cannot give (#1708,
+// #1791): each biome's wild animal tables by BiomeDef name, and the stockpile
+// types. Biome, tile mutator, hackable and portal defs are the mirror's
+// own rows. Nil without Odyssey. Animal kinds name PawnKindDefs; the races
 // are the catalog's race rows (AnimalRaces).
 type OdysseyCatalog struct {
-	Biomes         map[string]*o.BiomeRow
-	TileMutators   map[string]*o.TileMutatorRow
-	Hackables      map[string]*o.HackableRow
-	Portals        map[string]*o.PortalRow
+	BiomeAnimals   map[string]*o.BiomeAnimals
 	StockpileTypes map[string]*o.StockpileTypeRow
 }
 
@@ -48,83 +46,17 @@ func DecodeOdysseyCatalog(v *o.OdysseyCatalog) (*OdysseyCatalog, error) {
 	}
 	out := &OdysseyCatalog{}
 	var err error
-	if out.Biomes, err = catalogIndex("odyssey biome", v.Biomes, (*o.BiomeRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.TileMutators, err = catalogIndex("odyssey tile mutator", v.TileMutators, (*o.TileMutatorRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.Hackables, err = catalogIndex("odyssey hackable", v.Hackables, (*o.HackableRow).GetDefName); err != nil {
-		return nil, err
-	}
-	if out.Portals, err = catalogIndex("odyssey portal", v.Portals, (*o.PortalRow).GetDefName); err != nil {
+	if out.BiomeAnimals, err = catalogIndex("odyssey biome animals", v.BiomeAnimals, (*o.BiomeAnimals).GetBiome); err != nil {
 		return nil, err
 	}
 	if out.StockpileTypes, err = catalogIndex("odyssey stockpile type", v.StockpileTypes, (*o.StockpileTypeRow).GetName); err != nil {
 		return nil, err
 	}
-	for _, row := range v.Biomes {
-		if err := catalogIDs("odyssey biome", row.MapConditions); err != nil {
-			return nil, err
-		}
-		if err := odysseyNumbers("biome", row.AnimalDensity, row.PlantDensity, row.DiseaseMtbDays, row.Forageability, row.MovementDifficulty,
-			row.GeyserCountFactor, row.WildAnimalScariaChance, row.PollutionOffset, row.ConstantOutdoorTemperatureC); err != nil {
-			return nil, err
-		}
+	for _, row := range v.BiomeAnimals {
 		for kind, rows := range map[string][]*o.BiomeAnimal{"wild": row.WildAnimals, "pollution": row.PollutionWildAnimals, "coastal": row.CoastalWildAnimals} {
 			if err := odysseyAnimals(kind, rows); err != nil {
 				return nil, err
 			}
-		}
-		seen := map[string]bool{}
-		for _, d := range row.Diseases {
-			if d == nil || validID(d.GetIncident()) != nil || seen[d.GetIncident()] || d.Commonality == nil || !(d.GetCommonality() > 0) || math.IsInf(d.GetCommonality(), 0) {
-				return nil, contract("invalid or duplicate odyssey biome disease")
-			}
-			seen[d.GetIncident()] = true
-		}
-	}
-	for _, row := range v.TileMutators {
-		if err := catalogIDs("odyssey tile mutator", row.Categories, row.AdditionalGameConditions, row.BiomeWhitelist, row.BiomeBlacklist); err != nil {
-			return nil, err
-		}
-		for _, biome := range append(append([]string{}, row.BiomeWhitelist...), row.BiomeBlacklist...) {
-			if out.Biomes[biome] == nil {
-				return nil, contract("odyssey tile mutator %s names unknown biome %s", row.GetDefName(), biome)
-			}
-		}
-		if err := odysseyNumbers("tile mutator", row.AnimalDensityFactor, row.PlantDensityFactor, row.GeyserCountFactor, row.FishPopulationFactor); err != nil {
-			return nil, err
-		}
-	}
-	for _, row := range v.Hackables {
-		if row.CompletedQuest != nil && validID(row.GetCompletedQuest()) != nil || row.Comp != nil && validID(row.GetComp()) != nil {
-			return nil, contract("invalid odyssey hackable name")
-		}
-		if err := odysseyNumbers("hackable", row.Defence); err != nil {
-			return nil, err
-		}
-		if row.Defence != nil && row.GetDefence() < 0 || row.IntellectualSkillPrerequisite != nil && row.GetIntellectualSkillPrerequisite() < 0 ||
-			row.LockoutHoursMin != nil && row.GetLockoutHoursMin() < 0 || row.LockoutHoursMax != nil && row.LockoutHoursMin != nil && row.GetLockoutHoursMax() < row.GetLockoutHoursMin() {
-			return nil, contract("invalid odyssey hackable number")
-		}
-	}
-	for _, row := range v.Portals {
-		for _, id := range []*string{row.PocketMapGenerator, row.ExitDef} {
-			if id != nil && validID(*id) != nil {
-				return nil, contract("invalid odyssey portal name")
-			}
-		}
-		if err := catalogIDs("odyssey portal", row.PocketTileMutators); err != nil {
-			return nil, err
-		}
-		for _, m := range row.PocketTileMutators {
-			if out.TileMutators[m] == nil {
-				return nil, contract("odyssey portal %s names unknown tile mutator %s", row.GetDefName(), m)
-			}
-		}
-		if row.PocketMapSize != nil && row.GetPocketMapSize() < 0 {
-			return nil, contract("negative odyssey pocket map size")
 		}
 	}
 	return out, nil

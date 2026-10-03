@@ -11,44 +11,31 @@ import (
 
 func odysseyCatalogFixture() *o.OdysseyCatalog {
 	return &o.OdysseyCatalog{
-		Biomes: []*o.BiomeRow{
-			{DefName: proto.String("Glowforest"), AnimalDensity: proto.Float64(.5), MapConditions: []string{"GlowDark"},
-				WildAnimals: []*o.BiomeAnimal{{Kind: proto.String("Muffalo"), Commonality: proto.Float64(1)}},
-				Diseases:    []*o.BiomeDisease{{Incident: proto.String("Disease_Flu"), Commonality: proto.Float64(2)}}},
-			{DefName: proto.String("LavaField"), Extreme: proto.Bool(true), ConstantOutdoorTemperatureC: proto.Float64(40)},
+		BiomeAnimals: []*o.BiomeAnimals{
+			{Biome: proto.String("Glowforest"), WildAnimals: []*o.BiomeAnimal{{Kind: proto.String("Muffalo"), Commonality: proto.Float64(1)}}},
+			{Biome: proto.String("LavaField")},
 		},
-		TileMutators:   []*o.TileMutatorRow{{DefName: proto.String("LavaCaves"), Cave: proto.Bool(true), AdditionalGameConditions: []string{"LavaFlow"}, BiomeWhitelist: []string{"LavaField"}}},
-		Hackables:      []*o.HackableRow{{DefName: proto.String("AncientHatch"), Defence: proto.Float64(600), IntellectualSkillPrerequisite: proto.Int32(8), LockoutHoursMin: proto.Int32(12), LockoutHoursMax: proto.Int32(24)}},
-		Portals:        []*o.PortalRow{{DefName: proto.String("AncientHatch"), PocketMapGenerator: proto.String("Stockpile"), PocketTileMutators: []string{"LavaCaves"}, PocketMapSize: proto.Int32(60)}},
 		StockpileTypes: []*o.StockpileTypeRow{{Name: proto.String("Gravcore"), Generatable: proto.Bool(false)}, {Name: proto.String("Medicine"), Generatable: proto.Bool(true)}},
 	}
 }
 
 // TestOdysseyCatalogDecode (#1708): the section decodes by name and refuses
-// duplicates, bad references and nonfinite numbers; absent stays nil.
+// duplicates and bad animal rows; absent stays nil.
 func TestOdysseyCatalogDecode(t *testing.T) {
 	got, err := DecodeOdysseyCatalog(odysseyCatalogFixture())
-	if err != nil || got.Biomes["Glowforest"] == nil || got.TileMutators["LavaCaves"] == nil || got.Hackables["AncientHatch"] == nil || got.Portals["AncientHatch"] == nil || got.StockpileTypes["Gravcore"] == nil {
+	if err != nil || got.BiomeAnimals["Glowforest"] == nil || got.StockpileTypes["Gravcore"] == nil {
 		t.Fatalf("%+v %v", got, err)
 	}
 	if none, err := DecodeOdysseyCatalog(nil); none != nil || err != nil {
 		t.Fatal("Core-only catalog must decode to nil", none, err)
 	}
 	for name, mutate := range map[string]func(*o.OdysseyCatalog){
-		"duplicate biome":  func(v *o.OdysseyCatalog) { v.Biomes = append(v.Biomes, v.Biomes[0]) },
-		"unnamed hackable": func(v *o.OdysseyCatalog) { v.Hackables[0].DefName = nil },
-		"unknown mutator":  func(v *o.OdysseyCatalog) { v.Portals[0].PocketTileMutators = []string{"Missing"} },
-		"unknown biome":    func(v *o.OdysseyCatalog) { v.TileMutators[0].BiomeWhitelist = []string{"Missing"} },
-		"nan density":      func(v *o.OdysseyCatalog) { v.Biomes[0].AnimalDensity = proto.Float64(math.NaN()) },
-		"zero commonality": func(v *o.OdysseyCatalog) { v.Biomes[0].WildAnimals[0].Commonality = proto.Float64(0) },
+		"duplicate biome":  func(v *o.OdysseyCatalog) { v.BiomeAnimals = append(v.BiomeAnimals, v.BiomeAnimals[0]) },
+		"zero commonality": func(v *o.OdysseyCatalog) { v.BiomeAnimals[0].WildAnimals[0].Commonality = proto.Float64(0) },
 		"duplicate animal": func(v *o.OdysseyCatalog) {
-			v.Biomes[0].WildAnimals = append(v.Biomes[0].WildAnimals, v.Biomes[0].WildAnimals[0])
+			v.BiomeAnimals[0].WildAnimals = append(v.BiomeAnimals[0].WildAnimals, v.BiomeAnimals[0].WildAnimals[0])
 		},
-		"duplicate condition": func(v *o.OdysseyCatalog) { v.Biomes[0].MapConditions = []string{"GlowDark", "GlowDark"} },
-		"inverted lockout":    func(v *o.OdysseyCatalog) { v.Hackables[0].LockoutHoursMax = proto.Int32(1) },
-		"negative defence":    func(v *o.OdysseyCatalog) { v.Hackables[0].Defence = proto.Float64(-1) },
-		"disease no value":    func(v *o.OdysseyCatalog) { v.Biomes[0].Diseases[0].Commonality = nil },
-		"negative pocket":     func(v *o.OdysseyCatalog) { v.Portals[0].PocketMapSize = proto.Int32(-1) },
+		"nan commonality": func(v *o.OdysseyCatalog) { v.BiomeAnimals[0].WildAnimals[0].Commonality = proto.Float64(math.NaN()) },
 	} {
 		v := odysseyCatalogFixture()
 		mutate(v)

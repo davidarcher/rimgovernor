@@ -10,15 +10,14 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Odyssey facts (#1708): the static defs of the definition catalog
-    // (biomes, tile mutators, hackables, portals, stockpile types), the
-    // building row block (hack progress, portal state) and the colony map's
-    // tile mutators. Everything is read from the game defs and objects, never
-    // from name lists, and is absent without Odyssey.
+    // Odyssey facts (#1708): the catalog's derived part (each biome's wild
+    // animal tables and the stockpile types; the defs themselves ride the def
+    // mirror, #1791), the building row block (hack progress, portal state) and
+    // the colony map's tile mutators. Everything is read from the game defs and
+    // objects, never from name lists, and is absent without Odyssey.
     internal static class NativeOdysseyFacts
     {
         private static string? Id(string? value) => value != null && ProtoBoundary.IsIdentifier(value) ? value : null;
-        private static string Label(Def def) => PlacementPreviewOperation.Diagnostic(def.label ?? "");
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
         private static IEnumerable<T> Sorted<T>(IEnumerable<T> defs) where T : Def =>
             defs.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal);
@@ -30,12 +29,7 @@ namespace HomeBridge.BridgeTools
             if (!ModsConfig.OdysseyActive) return null;
             var catalog = new Obs.OdysseyCatalog();
             var animals = Sorted(DefDatabase<PawnKindDef>.AllDefsListForReading.Where(k => k.RaceProps != null && k.RaceProps.Animal)).ToList();
-            var diseases = Sorted(DefDatabase<IncidentDef>.AllDefsListForReading.Where(i => i.diseaseIncident != null)).ToList();
-            foreach (var def in Sorted(DefDatabase<BiomeDef>.AllDefsListForReading)) catalog.Biomes.Add(Biome(def, animals, diseases));
-            foreach (var def in Sorted(DefDatabase<TileMutatorDef>.AllDefsListForReading)) catalog.TileMutators.Add(Mutator(def));
-            foreach (var def in Sorted(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.GetCompProperties<CompProperties_Hackable>() != null)))
-                catalog.Hackables.Add(Hackable(def));
-            foreach (var def in Sorted(DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.portal != null))) catalog.Portals.Add(Portal(def));
+            foreach (var def in Sorted(DefDatabase<BiomeDef>.AllDefsListForReading)) catalog.BiomeAnimals.Add(Biome(def, animals));
             var generatable = TileMutatorWorker_Stockpile.GeneratableStockpileTypes ?? new List<TileMutatorWorker_Stockpile.StockpileType>();
             foreach (var name in Enum.GetNames(typeof(TileMutatorWorker_Stockpile.StockpileType)).OrderBy(n => n, StringComparer.Ordinal))
                 if (Id(name) is string id)
@@ -52,68 +46,14 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Obs.BiomeRow Biome(BiomeDef def, List<PawnKindDef> animals, List<IncidentDef> diseases)
+        private static Obs.BiomeAnimals Biome(BiomeDef def, List<PawnKindDef> animals)
         {
-            var row = new Obs.BiomeRow { DefName = def.defName, Label = Label(def), GeneratesNaturally = def.generatesNaturally, CanBuildBase = def.canBuildBase,
-                Impassable = def.impassable, Extreme = def.isExtremeBiome, Water = def.isWaterBiome, InVacuum = def.inVacuum, HasBedrock = def.hasBedrock,
-                AllowPollution = def.allowPollution, WildPlantsAreCavePlants = def.wildPlantsAreCavePlants };
-            if (Finite(def.animalDensity)) row.AnimalDensity = def.animalDensity;
-            if (Finite(def.plantDensity)) row.PlantDensity = def.plantDensity;
-            if (Finite(def.diseaseMtbDays)) row.DiseaseMtbDays = def.diseaseMtbDays;
-            if (Finite(def.forageability)) row.Forageability = def.forageability;
-            if (Finite(def.movementDifficulty)) row.MovementDifficulty = def.movementDifficulty;
-            if (Finite(def.geyserCountFactor)) row.GeyserCountFactor = def.geyserCountFactor;
-            if (Finite(def.wildAnimalScariaChance)) row.WildAnimalScariaChance = def.wildAnimalScariaChance;
-            if (Finite(def.pollutionOffset)) row.PollutionOffset = def.pollutionOffset;
-            if (def.constantOutdoorTemperature is float constant && Finite(constant)) row.ConstantOutdoorTemperatureC = constant;
-            row.MapConditions.Add(Names(def.biomeMapConditions));
+            var row = new Obs.BiomeAnimals { Biome = def.defName };
             Animals(row.WildAnimals, animals, def.CommonalityOfAnimal);
             Animals(row.PollutionWildAnimals, animals, def.CommonalityOfPollutionAnimal);
             Animals(row.CoastalWildAnimals, animals, def.CommonalityOfCoastalAnimal);
-            foreach (var incident in diseases)
-            {
-                var c = def.CommonalityOfDisease(incident);
-                if (c > 0 && Finite(c)) row.Diseases.Add(new Obs.BiomeDisease { Incident = incident.defName, Commonality = c });
-            }
             return row;
         }
-
-        private static Obs.TileMutatorRow Mutator(TileMutatorDef def)
-        {
-            var row = new Obs.TileMutatorRow { DefName = def.defName, Label = Label(def), Cave = def.IsCave, PreventsLandmarks = def.preventsLandmarks };
-            if (Id(def.Worker?.GetType().Name) is string worker) row.Worker = worker;
-            row.Categories.Add((def.categories ?? new List<string>()).Where(ProtoBoundary.IsIdentifier).Distinct(StringComparer.Ordinal).OrderBy(n => n, StringComparer.Ordinal));
-            row.AdditionalGameConditions.Add(Names(def.additionalGameConditions));
-            if (Finite(def.animalDensityFactor)) row.AnimalDensityFactor = def.animalDensityFactor;
-            if (Finite(def.plantDensityFactor)) row.PlantDensityFactor = def.plantDensityFactor;
-            if (Finite(def.geyserCountFactor)) row.GeyserCountFactor = def.geyserCountFactor;
-            if (Finite(def.fishPopulationFactor)) row.FishPopulationFactor = def.fishPopulationFactor;
-            row.BiomeWhitelist.Add(Names(def.biomeWhitelist));
-            row.BiomeBlacklist.Add(Names(def.biomeBlacklist));
-            return row;
-        }
-
-        private static Obs.HackableRow Hackable(ThingDef def)
-        {
-            var props = def.GetCompProperties<CompProperties_Hackable>();
-            var row = new Obs.HackableRow { DefName = def.defName, Label = Label(def), Comp = Id(props.GetType().Name), IntellectualSkillPrerequisite = props.intellectualSkillPrerequisite,
-                OnlyRemotelyHackable = props.onlyRemotelyHackable, LockoutPermanently = props.lockoutPermanently, GlowIfHacked = props.glowIfHacked,
-                LockoutHoursMin = props.lockoutDurationHoursRange.min, LockoutHoursMax = props.lockoutDurationHoursRange.max };
-            if (Finite(props.defence)) row.Defence = props.defence;
-            if (Id(props.completedQuest?.defName) is string quest) row.CompletedQuest = quest;
-            return row;
-        }
-
-        private static Obs.PortalRow Portal(ThingDef def)
-        {
-            var portal = def.portal;
-            var row = new Obs.PortalRow { DefName = def.defName, Label = Label(def), PocketMapSize = portal.pocketMapSize };
-            if (Id(portal.pocketMapGenerator?.defName) is string generator) row.PocketMapGenerator = generator;
-            if (Id(portal.exitDef?.defName) is string exit) row.ExitDef = exit;
-            row.PocketTileMutators.Add(Names(portal.pocketMapGenerator?.pocketMapProperties?.tileMutators));
-            return row;
-        }
-
         // The colony map's world-tile mutators; empty without Odyssey.
         internal static IEnumerable<string> MapMutators(Map map) =>
             !ModsConfig.OdysseyActive || map.TileInfo == null ? Enumerable.Empty<string>() : Names(map.TileInfo.Mutators).ToList();

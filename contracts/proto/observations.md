@@ -438,19 +438,16 @@ defs ride the definition catalog and per-thing facts ride the canonical
 building row. There is no separate read tool and no Odyssey intent. All of it
 is absent without Odyssey (`ModsConfig.OdysseyActive`).
 
-`DefinitionCatalog.odyssey` (#1708) holds, each sorted by name and read from the
-game defs (never Go name lists): `BiomeDef` rows (hazard flags, densities,
-`biomeMapConditions`, and the animal kinds and disease incidents with a nonzero
-commonality in the inland, pollution and coastal tables; the races are
-the catalog's race rows, so a new animal needs no row of its own);
-`TileMutatorDef` rows (the cave, vent and stockpile features of a world tile,
-with the game conditions they add); `CompProperties_Hackable` thing defs
-(defence, skill prerequisite, lockout, the quest a finished hack starts);
-`MapPortalProperties` thing defs (pocket map generator, exit, size, tile
-mutators); and the stockpile type enum with whether the world generator places
-each value. `bridge.DecodeOdysseyCatalog` indexes them by name and refuses
-duplicates, unknown cross references and nonfinite numbers.
-
+`DefinitionCatalog.odyssey` (#1708, #1791) holds only what the def mirror
+(`defs.proto`) cannot give, read from the game defs: each `BiomeDef`'s wild
+animal kinds with a nonzero commonality in the inland, pollution and coastal
+tables (the game joins `BiomeDef.wildAnimals` with each race's `wildBiomes`;
+the races are the catalog's race rows, so a new animal needs no row of its
+own), and the stockpile type enum with whether the world generator places each
+value. Biomes, `TileMutatorDef`s, `CompProperties_Hackable` thing defs,
+`MapPortalProperties` thing defs and biome diseases are the mirror's own rows.
+`bridge.DecodeOdysseyCatalog` indexes the rows by name and refuses duplicates
+and nonfinite or nonpositive commonalities.
 `BuildingState.odyssey` carries a building's hack progress, defence, hacked,
 locked-out and autohack state (`CompHackable`) and a portal's pocket map
 existence and id, plus an ancient hatch's stockpile type and layout. An absent
