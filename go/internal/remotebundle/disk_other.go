@@ -2,6 +2,10 @@
 
 package remotebundle
 
-import "fmt"
+import "errors"
 
-func freeDisk(string) (uint64, error) { return 0, fmt.Errorf("runner preflight requires Windows") }
+// errFreeDiskUnsupported is a package variable, not an inline error, so the
+// shared caller's err check is not a constant comparison on this platform.
+var errFreeDiskUnsupported = errors.New("runner preflight requires Windows")
+
+func freeDisk(string) (uint64, error) { return 0, errFreeDiskUnsupported }
