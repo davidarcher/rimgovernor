@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
 
                 // A 20x14 clearing near the mechanitor: the conduit line along
                 // z=6, the generator just below it and the gestator just above,
-                // the stock on the two rows at the bottom.
+                // the stock on the four rows at the bottom and the two at the top.
                 const int width = 20, height = 14, line = 6;
                 var origin = GenRadial.RadialCellsAround(overseer.Position, 40, true).FirstOrDefault(c =>
                     new CellRect(c.x, c.z, width, height).Cells.All(x => x.InBounds(map) && !x.Fogged(map) && x.Standable(map) && x.GetEdifice(map) == null
@@ -142,10 +142,11 @@ namespace HomeBridge.BridgeTools
                 var cell = 0; var seeded = new List<object>();
                 foreach (var pair in totals.OrderBy(p => p.Key.defName, StringComparer.Ordinal)) {
                     for (var remaining = pair.Value; remaining > 0;) {
-                        if (cell >= width * 2) return Refuse("No room left in the clearing for the stock.");
+                        if (cell >= width * 6) return Refuse("No room left in the clearing for the stock (" + totals.Count + " kinds, " + totals.Values.Sum() + " items).");
                         var stack = ThingMaker.MakeThing(pair.Key);
                         stack.stackCount = Math.Min(pair.Key.stackLimit, remaining); remaining -= stack.stackCount;
-                        GenSpawn.Spawn(stack, At(cell % width, cell / width), map);
+                        var row = cell / width; // rows 0-3 below the generator, then the two top rows
+                        GenSpawn.Spawn(stack, At(cell % width, row < 4 ? row : height - 6 + row), map);
                         stack.SetForbidden(false, false);
                         cell++;
                     }
