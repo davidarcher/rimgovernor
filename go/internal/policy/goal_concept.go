@@ -58,6 +58,7 @@ var goalConcepts = map[GoalID]Concept{
 	MaintainPsylink:           ConceptStandard,
 	MaintainPermits:           ConceptStandard,
 	MaintainIdeoRoles:         ConceptStandard,
+	MaintainRituals:           ConceptStandard,
 	MaintainFlooring:          ConceptStandard,
 	MaintainFoodStorage:       ConceptStandard,
 	MaintainBabyFeeding:       ConceptStandard,

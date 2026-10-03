@@ -47,9 +47,9 @@ Every def is read from the game; no Go code lists a def name.
 `IdeologySnapshot` is the player faction's primary ideoligion
 (`FactionIdeosTracker.PrimaryIdeo`): its memes, the precepts in force (roles,
 rituals and building precepts held apart), each role's holders as pawn row
-refs, each ritual's raw `lastFinishedTick`, active obligation count and repeat
-penalty flag, and each building precept's ThingDef. The section is absent,
-with no watermark, without Ideology or a primary ideoligion; Go then holds
+refs, each ritual's raw `lastFinishedTick`, active obligation count, repeat
+penalty flag and whether a lord job of it runs (`running`, #1660), and each
+building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; Go then holds
 `Facts.Ideology` unknown.
 
 `bridge.DecodeIdeology` resolves every def name against the catalog and fails
@@ -103,10 +103,54 @@ the write is the shared Assign intent ([action contracts](action-contracts.md)),
 postcondition: the pawn holds the role. At most `maxMedicalAttemptsPerPatient`
 tries per pawn and role per goal epoch. Composed by the `ideo-roles` routine family.
 
+## Ritual scheduling
+
+`MaintainRituals` (#1660, `policy.PlanRituals`) begins each due ritual precept
+through the Ritual `begin` verb ([action contracts](action-contracts.md)).
+Every value is read from the game; no ritual, building or role name is listed
+in Go.
+
+- **Due** (`HeldRitual` against its `RitualDef`): not running
+  (`IdeoRitual.running`: a `LordJob_Ritual` of the precept exists). An active
+  obligation is due. Otherwise the pattern must allow a free start
+  (`canStartAnytime` or `alwaysStartAnytime`), the repeat penalty must be off
+  and the pattern's own cooldown, the minimum of
+  `ritualFreeStartIntervalDaysRange` in days, must have passed since the raw
+  `lastFinishedTick`. Each ritual has its own cooldown.
+- **Spot**: the cells of the finished buildings of the pattern's
+  `required_buildings`, from the frame's building table
+  (`Facts.RitualSites`), in building id order. The game offers the begin
+  command at the building its obligation targets, so the planner tries the
+  sites in turn. A held ritual whose pattern the catalog lacks, or that names
+  no required building, is not planned: nothing says where to hold it.
+- **Attendees**: available believers of the ideoligion (same `ideo_id`). A
+  slot bound to a role precept takes that role's active holders up to the
+  slot's `max_count` (the moral guide leads through it); a required slot with
+  no role precept takes the most certain unassigned believer; an optional
+  unbound slot stays empty. The organizer is the first pawn of the first
+  filled slot and every other believer attends as a spectator. A required slot
+  nobody can fill means no plan. One pawn attends one ritual per review.
+  Whether the game accepts a pawn in a slot is its check when the begin
+  applies (`PawnNotAssignableReason`).
+- **Calm**: nothing is planned unless the emergency census reads no hostile
+  threat and no critical patient (`policy.RitualCalm`); an unread census plans
+  nothing. A fight therefore holds the ritual and releases its attendees.
+- **Hold**: the attendees of every plan are kept off the Sleep timetable
+  (`policy.HeldOffSleep` merges them with the bestowing ceremony's
+  `CeremonyHold` for `PlanSchedulesHeld`), so they are awake when the begin
+  lands.
+
+The planner commits one Ritual `begin` per step: the plan's organizer, the
+site, the slot fills and the spectators. A refused begin is retried at most
+`maxMedicalAttemptsPerPatient` times per ritual and site per goal epoch; the
+goal method's reason records the organizer, ritual, site and attendance.
+Postcondition: a `LordJob_Ritual` of the precept is running
+(`RitualEffect.started`), read back as `running`. Composed by the `rituals`
+routine family.
+
 ## Not here
 
-Ritual scheduling (#1660) consumes these facts; writes reuse the shared Assign
-and Ritual shapes. The Ritual `begin` verb (#1659,
+The Ritual `begin` verb (#1659,
 [action contracts](action-contracts.md)) names a held ritual by its
 `IdeoRitual.id` and fills the role slots the catalog's `RitualRoleSlot`s list.
 Building and room planning (#1658)

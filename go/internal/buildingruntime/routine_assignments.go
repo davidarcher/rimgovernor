@@ -172,7 +172,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// same assignment as its priorities (or alone), under the same token.
 	schedules := map[policy.PawnID][]string{}
 	meditate, _ := read.Projection.MeditateAvailable.Value()
-	for _, row := range policy.PlanSchedulesHeld(pawns, read.Projection.Facts.Comfort, meditate, policy.CeremonyHoldOf(read.Projection.Facts.Royalty)).Schedules {
+	for _, row := range policy.PlanSchedulesHeld(pawns, read.Projection.Facts.Comfort, meditate, policy.HeldOffSleep(read.Projection.Facts)).Schedules {
 		if !row.Matches {
 			schedules[row.Pawn] = row.Slots
 		}

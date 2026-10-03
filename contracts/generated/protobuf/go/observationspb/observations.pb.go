@@ -40675,8 +40675,9 @@ func (x *IdeoRole) GetPawns() []*commonpb.Ref {
 }
 
 // A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
-// raw Precept_Ritual.lastFinishedTick, the count of active obligations and
-// whether the repeat penalty applies.
+// raw Precept_Ritual.lastFinishedTick, the count of active obligations,
+// whether the repeat penalty applies and whether a LordJob_Ritual of the
+// precept is running now (#1660).
 type IdeoRitual struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Id                  *string                `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
@@ -40685,6 +40686,7 @@ type IdeoRitual struct {
 	LastFinishedTick    *int32                 `protobuf:"varint,4,opt,name=last_finished_tick,json=lastFinishedTick,proto3,oneof" json:"last_finished_tick,omitempty"`
 	ActiveObligations   *int32                 `protobuf:"varint,5,opt,name=active_obligations,json=activeObligations,proto3,oneof" json:"active_obligations,omitempty"`
 	RepeatPenaltyActive *bool                  `protobuf:"varint,6,opt,name=repeat_penalty_active,json=repeatPenaltyActive,proto3,oneof" json:"repeat_penalty_active,omitempty"`
+	Running             *bool                  `protobuf:"varint,7,opt,name=running,proto3,oneof" json:"running,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -40757,6 +40759,13 @@ func (x *IdeoRitual) GetActiveObligations() int32 {
 func (x *IdeoRitual) GetRepeatPenaltyActive() bool {
 	if x != nil && x.RepeatPenaltyActive != nil {
 		return *x.RepeatPenaltyActive
+	}
+	return false
+}
+
+func (x *IdeoRitual) GetRunning() bool {
+	if x != nil && x.Running != nil {
+		return *x.Running
 	}
 	return false
 }
@@ -50556,7 +50565,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05pawns\x18\x04 \x03(\v2\x1a.rimgovernor.common.v1.RefR\x05pawnsB\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_def_nameB\t\n" +
-	"\a_active\"\xe8\x02\n" +
+	"\a_active\"\x93\x03\n" +
 	"\n" +
 	"IdeoRitual\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
@@ -50564,14 +50573,17 @@ const file_observations_proto_rawDesc = "" +
 	"\apattern\x18\x03 \x01(\tH\x02R\apattern\x88\x01\x01\x121\n" +
 	"\x12last_finished_tick\x18\x04 \x01(\x05H\x03R\x10lastFinishedTick\x88\x01\x01\x122\n" +
 	"\x12active_obligations\x18\x05 \x01(\x05H\x04R\x11activeObligations\x88\x01\x01\x127\n" +
-	"\x15repeat_penalty_active\x18\x06 \x01(\bH\x05R\x13repeatPenaltyActive\x88\x01\x01B\x05\n" +
+	"\x15repeat_penalty_active\x18\x06 \x01(\bH\x05R\x13repeatPenaltyActive\x88\x01\x01\x12\x1d\n" +
+	"\arunning\x18\a \x01(\bH\x06R\arunning\x88\x01\x01B\x05\n" +
 	"\x03_idB\v\n" +
 	"\t_def_nameB\n" +
 	"\n" +
 	"\b_patternB\x15\n" +
 	"\x13_last_finished_tickB\x15\n" +
 	"\x13_active_obligationsB\x18\n" +
-	"\x16_repeat_penalty_active\"\x85\x01\n" +
+	"\x16_repeat_penalty_activeB\n" +
+	"\n" +
+	"\b_running\"\x85\x01\n" +
 	"\fIdeoBuilding\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x1f\n" +

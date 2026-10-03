@@ -127,7 +127,7 @@ namespace HomeBridge.BridgeTools
             public RitualRoleAssignments? Assignments;
         }
 
-        private static bool Running(Precept_Ritual ritual) =>
+        internal static bool Running(Precept_Ritual ritual) =>
             Verse.Find.Maps.Any(map => map.lordManager.lords.Any(lord => lord.LordJob is LordJob_Ritual job && job.Ritual == ritual));
 
         private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);

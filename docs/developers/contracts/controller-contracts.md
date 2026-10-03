@@ -292,6 +292,10 @@ fire target cell); `Focus`, `Invisibility`, `Overshield`-class self buffs
 active role precepts with the best-fitting believers through the shared
 Assign intent; see [ideology contracts](ideology-contracts.md#role-assignment).
 
+`MaintainRituals` (#1660, `policy.PlanRituals`) begins each due ritual
+precept through the Ritual `begin` verb and holds its attendees off Sleep; see
+[ideology contracts](ideology-contracts.md#ritual-scheduling).
+
 `MaintainPermits` (#1606, `policy.NextPermit`) spends permit points. Each
 review ranks every untaken permit of every titled colonist's holding
 (`policy.RankPermits`): acting permits by the royalty read's permit worker

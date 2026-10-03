@@ -41,7 +41,7 @@ func ideologySnapshot() *o.IdeologySnapshot {
 	return &o.IdeologySnapshot{Context: pbContext(), IdeoId: proto.String("Ideo_1"), Memes: []string{"Structure_Animist"},
 		Precepts:          []*o.IdeoPrecept{{Id: proto.String("Precept_1"), DefName: proto.String("Slavery_Abhorrent")}},
 		Roles:             []*o.IdeoRole{{Id: proto.String("Precept_2"), DefName: proto.String("IdeoRole_Moral"), Active: proto.Bool(true), Pawns: []*c.Ref{{Id: proto.String("Thing_Human1")}}}},
-		Rituals:           []*o.IdeoRitual{{Id: proto.String("Precept_3"), DefName: proto.String("Ritual_Sermon"), Pattern: proto.String("Sermon"), LastFinishedTick: proto.Int32(1200), ActiveObligations: proto.Int32(1), RepeatPenaltyActive: proto.Bool(false)}},
+		Rituals:           []*o.IdeoRitual{{Id: proto.String("Precept_3"), DefName: proto.String("Ritual_Sermon"), Pattern: proto.String("Sermon"), LastFinishedTick: proto.Int32(1200), ActiveObligations: proto.Int32(1), RepeatPenaltyActive: proto.Bool(false), Running: proto.Bool(false)}},
 		Buildings:         []*o.IdeoBuilding{{Id: proto.String("Precept_4"), DefName: proto.String("IdeoBuilding_Altar"), Building: proto.String("Altar")}},
 		ObligationsActive: proto.Bool(true), Believers: proto.Int32(4), MinBelieversForObligations: proto.Int32(3)}
 }

@@ -150,6 +150,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map)
 	p.Facts.Ideology = frameIdeology(frame.Ideology)
+	p.Facts.RitualSites = ritualSites(frame.Buildings, p.Facts.Ideology)
 	p.Facts.AnimalUpkeep.Animals = policy.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, frame.Catalog != nil && frame.Catalog.Ideology != nil)
 	// A failed or inapplicable royalty read leaves the fact unknown; it must
 	// not fail the routine reading the whole review stands on.

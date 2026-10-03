@@ -402,6 +402,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.methodEnabled(policy.MaintainIdeoRoles) {
 		reading.Projection.Facts.RolesOwed = policy.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns)
 	}
+	if r.methodEnabled(policy.MaintainRituals) {
+		r.reviewRituals(&reading, state.Snapshot)
+	}
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}
@@ -508,7 +511,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 				// deficit the same review corrects (#417).
 				if matches, ok := work.Matches.Value(); ok && matches {
 					meditate, _ := reading.Projection.MeditateAvailable.Value()
-					for _, row := range policy.PlanSchedulesHeld(pawns, reading.Projection.Facts.Comfort, meditate, policy.CeremonyHoldOf(reading.Projection.Facts.Royalty)).Schedules {
+					for _, row := range policy.PlanSchedulesHeld(pawns, reading.Projection.Facts.Comfort, meditate, policy.HeldOffSleep(reading.Projection.Facts)).Schedules {
 						if !row.Matches {
 							reading.Projection.Facts.WorkCoverage = domain.Known(false)
 						}

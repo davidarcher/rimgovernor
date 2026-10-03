@@ -216,7 +216,7 @@ namespace HomeBridge.BridgeTools
                         break;
                     case Precept_Ritual ritual:
                         row.Rituals.Add(new Obs.IdeoRitual { Id = id, DefName = def, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
-                            LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive });
+                            LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) });
                         break;
                     case Precept_Building building:
                         row.Buildings.Add(new Obs.IdeoBuilding { Id = id, DefName = def, Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) });

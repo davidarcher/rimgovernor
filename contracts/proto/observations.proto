@@ -1973,9 +1973,10 @@ message IdeoPrecept { optional string id = 1; optional string def_name = 2; }
 // holding it (Precept_Role.ChosenPawns), each a pawn row ref.
 message IdeoRole { optional string id = 1; optional string def_name = 2; optional bool active = 3; repeated rimgovernor.common.v1.Ref pawns = 4; }
 // A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
-// raw Precept_Ritual.lastFinishedTick, the count of active obligations and
-// whether the repeat penalty applies.
-message IdeoRitual { optional string id = 1; optional string def_name = 2; optional string pattern = 3; optional int32 last_finished_tick = 4; optional int32 active_obligations = 5; optional bool repeat_penalty_active = 6; }
+// raw Precept_Ritual.lastFinishedTick, the count of active obligations,
+// whether the repeat penalty applies and whether a LordJob_Ritual of the
+// precept is running now (#1660).
+message IdeoRitual { optional string id = 1; optional string def_name = 2; optional string pattern = 3; optional int32 last_finished_tick = 4; optional int32 active_obligations = 5; optional bool repeat_penalty_active = 6; optional bool running = 7; }
 // A building precept: the ThingDef it takes.
 message IdeoBuilding { optional string id = 1; optional string def_name = 2; optional string building = 3; }
 // The static Biotech defs, each list sorted by name (#1678). A stat effect is

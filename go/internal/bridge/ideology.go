@@ -262,14 +262,14 @@ func DecodeIdeology(v *o.IdeologySnapshot, identity *c.Identity, defs *policy.Id
 		if err := precept(row.GetId(), row.GetDefName()); err != nil {
 			return nil, err
 		}
-		if !optionalID(row.Pattern) || row.LastFinishedTick == nil || row.ActiveObligations == nil || row.GetActiveObligations() < 0 || row.RepeatPenaltyActive == nil {
+		if !optionalID(row.Pattern) || row.LastFinishedTick == nil || row.ActiveObligations == nil || row.GetActiveObligations() < 0 || row.RepeatPenaltyActive == nil || row.Running == nil {
 			return nil, contract("invalid ideology ritual %q", row.GetId())
 		}
 		if _, ok := defs.Rituals[row.GetPattern()]; row.Pattern != nil && !ok {
 			return nil, contract("ideology ritual pattern %q is not in the catalog", row.GetPattern())
 		}
 		facts.Rituals = append(facts.Rituals, policy.HeldRitual{ID: row.GetId(), Def: row.GetDefName(), Pattern: row.GetPattern(), LastFinishedTick: int64(row.GetLastFinishedTick()),
-			ActiveObligations: int(row.GetActiveObligations()), RepeatPenaltyActive: row.GetRepeatPenaltyActive()})
+			ActiveObligations: int(row.GetActiveObligations()), RepeatPenaltyActive: row.GetRepeatPenaltyActive(), Running: row.GetRunning()})
 	}
 	for _, row := range v.Buildings {
 		if err := precept(row.GetId(), row.GetDefName()); err != nil {

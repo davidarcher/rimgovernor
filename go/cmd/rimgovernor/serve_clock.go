@@ -661,6 +661,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
+		if sc.routineRitualPlans {
+			// MaintainRituals (#1660) plans from the review's ideology section, pawn rows, building table and emergency census.
+			if config.Rituals, err = buildingruntime.NewRoutineRitualsPlanner(reviewer); err != nil {
+				return nil, err
+			}
+		}
 		if sc.routineShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
@@ -1036,6 +1042,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineIdeoRolePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainIdeoRoles)
+	}
+	if sc.routineRitualPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainRituals)
 	}
 	if sc.routineStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)

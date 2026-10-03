@@ -310,6 +310,14 @@ type RoutineFacts struct {
 	// RolesOwed: an active ideoligion role has a free place and a fitting
 	// believer (RolesOwed, #1661); it holds MaintainIdeoRoles open.
 	RolesOwed domain.Fact[bool]
+	// RitualSites are the finished buildings the held rituals' patterns
+	// require (observation, from the frame's building census); RitualPlans
+	// the rituals to begin now (PlanRituals, #1660), whose attendees the
+	// schedule planners hold off Sleep (HeldOffSleep); RitualsOwed holds
+	// MaintainRituals open. Unknown unless the method is composed.
+	RitualSites domain.Fact[[]RitualSite]
+	RitualPlans domain.Fact[[]RitualPlan]
+	RitualsOwed domain.Fact[bool]
 	// ShelterArea is the Safe allowed area's native load id, "" when the
 	// map has none (PlanSheltering, #1326).
 	ShelterArea domain.Fact[string]
@@ -1398,6 +1406,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainIdeoRoles, 3, measured(f.RolesOwed, func(owed bool) bool { return !owed }))
 	if owed, known := f.RolesOwed.Value(); known && owed {
 		addGoal(MaintainIdeoRoles, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
+	// MaintainRituals (#1660): a ritual is due, calm and ready to begin.
+	addAssessment(MaintainRituals, 3, measured(f.RitualsOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.RitualsOwed.Value(); known && owed {
+		addGoal(MaintainRituals, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
 	// MaintainPermits (#1606): a colonist holds permit points for a permit

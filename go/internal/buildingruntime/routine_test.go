@@ -435,7 +435,7 @@ func TestRoutineReviewerPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Goals) != 48 || got.Review.Revision != 1 || !got.Review.Enabled {
+	if len(got.Goals) != 49 || got.Review.Revision != 1 || !got.Review.Enabled {
 		t.Fatal(got)
 	}
 	for _, binding := range got.Review.Goals {

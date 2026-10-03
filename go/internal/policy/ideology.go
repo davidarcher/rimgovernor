@@ -195,11 +195,13 @@ type HeldRole struct {
 
 // HeldRitual is a ritual precept. LastFinishedTick is the game's
 // Precept_Ritual.lastFinishedTick as read; no sentinel is interpreted here.
+// Running is whether a lord job of the precept is running now (#1660).
 type HeldRitual struct {
 	ID, Def, Pattern    string
 	LastFinishedTick    int64
 	ActiveObligations   int
 	RepeatPenaltyActive bool
+	Running             bool
 }
 
 // HeldBuilding is a building precept and the ThingDef it takes.

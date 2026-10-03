@@ -118,6 +118,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_psylink.go":              {"psylink"},
 	"routine_permits.go":              {"permits"},
 	"routine_ideo_roles.go":           {"ideo-roles"},
+	"routine_rituals.go":              {"rituals"},
 	"routine_shelter_bunks.go":        {"shelter", "sleeping"},
 	"routine_sleeping_couple.go":      {"sleeping"},
 	"routine_sleeping_upkeep.go":      {"sleeping"},

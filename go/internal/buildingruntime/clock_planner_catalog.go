@@ -63,11 +63,14 @@ type plannerEntry struct {
 var (
 	sectionsBuilding = []facts.Section{facts.Colony, facts.PlanningCells, facts.Zones, facts.Buildings, facts.Rooms}
 	sectionsColony   = []facts.Section{facts.Colony}
-	sectionsBills    = []facts.Section{facts.Colony, facts.Bills}
-	sectionsZones    = []facts.Section{facts.Colony, facts.Zones}
-	sectionsPawns    = []facts.Section{facts.Pawns}
-	sectionsMedical  = []facts.Section{facts.Pawns, facts.Colony}
-	sectionsThreat   = []facts.Section{facts.Pawns, facts.Emergency}
+	// sectionsRituals: the ritual plan reads the ideoligion, the building
+	// sites, the colonists and the emergency census (#1660).
+	sectionsRituals = []facts.Section{facts.Colony, facts.Pawns, facts.Emergency, facts.Buildings, facts.Ideology}
+	sectionsBills   = []facts.Section{facts.Colony, facts.Bills}
+	sectionsZones   = []facts.Section{facts.Colony, facts.Zones}
+	sectionsPawns   = []facts.Section{facts.Pawns}
+	sectionsMedical = []facts.Section{facts.Pawns, facts.Colony}
+	sectionsThreat  = []facts.Section{facts.Pawns, facts.Emergency}
 	// sectionsWork adds the population census for the owned-pawn names
 	// (#1310) and the colony facts for the reading (#1306), drug (#1537) and
 	// food (#1541) policies.
@@ -857,6 +860,16 @@ var plannerCatalog = []plannerEntry{
 				return Verdict{}, err
 			}
 			out.IdeoRoles = &method
+			return method.Verdict, nil
+		}},
+	{name: "rituals", goal: policy.MaintainRituals, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RitualAction}, sections: sectionsRituals,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Rituals != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			method, err := s.config.Rituals.step(ctx, epoch, arbiter)
+			if err != nil {
+				return Verdict{}, err
+			}
+			out.Rituals = &method
 			return method.Verdict, nil
 		}},
 	{name: "permits", goal: policy.MaintainPermits, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RoyaltyAction}, sections: sectionsBuilding,
