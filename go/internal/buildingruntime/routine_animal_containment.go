@@ -27,8 +27,8 @@ type RoutineAnimalContainmentPlanner struct {
 	building *RoutineBuildingPlanner
 }
 type RoutineAnimalContainmentResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineAnimalContainmentPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineAnimalContainmentPlanner, error) {
@@ -178,7 +178,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineAnimalContainmentResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -188,14 +188,14 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainAnimalContainment)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if !workable {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
@@ -241,22 +241,22 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	facts := read.Projection
 	animals, animalsKnown := facts.Facts.AnimalUpkeep.Animals.Value()
 	if !animalsKnown {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("animal_upkeep")}, nil
 	}
 	workPawns, workKnown := facts.WorkPawns.Value()
 	if !workKnown {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("work_pawns")}, nil
 	}
 	handlerAvailable := animalHandlerAvailable(workPawns)
 	if _, known := handlerAvailable.Value(); !known {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("animal_handler")}, nil
 	}
 	choice, err := policy.SelectAnimalContainmentMethod(animals, handlerAvailable, shellStage, markerAttempted)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if animalContainmentDevelopmentGated(goal.Goal.Priority, selected, choice.Reason) {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodRefused}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonRefused}, nil
 	}
 	if choice.Reason == policy.ContainmentNoDeficit {
 		// The pen stands (or no animal needs one): the barn and vet room.
@@ -265,7 +265,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 	switch choice.Reason {
 	case policy.ContainmentWaitingHandler, policy.ContainmentWaitingNativePen,
 		policy.ContainmentExceedsBound, policy.ContainmentAwaitingShell, policy.ContainmentMarkerExhausted:
-		return RoutineAnimalContainmentResult{Reason: RoutineBuildingReason(choice.Reason)}, nil
+		return RoutineAnimalContainmentResult{Verdict: awaitingMethod(choice.Reason)}, nil
 	case policy.ContainmentBuildShell:
 	case policy.ContainmentPlaceMarker:
 		if !haveShellRoom {
@@ -298,16 +298,16 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	fenceDef, fok := animalContainmentDefinition(facts.Definitions, "Fence")
 	gateDef, gok := animalContainmentDefinition(facts.Definitions, "FenceGate")
 	if !fok || !gok {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("fence_definitions")}, nil
 	}
 	favail, fak := fenceDef.Available.Value()
 	gavail, gak := gateDef.Available.Value()
 	if !fak || !gak || !favail || !gavail {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("fence_availability")}, nil
 	}
 	stuff, known := animalContainmentStuff(fenceDef, gateDef)
 	if !known {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("fence_stuff")}, nil
 	}
 	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, policy.DistrictFields), Cells: facts.Cells, Protected: protected})
 	if err != nil {
@@ -322,10 +322,10 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
-		if reason == BuildingMethodUnknown {
-			return RoutineAnimalContainmentResult{Reason: reason}, nil
+		if reason.Is(RefusalFieldUnavailable) {
+			return RoutineAnimalContainmentResult{Verdict: reason}, nil
 		}
-		if reason != "" {
+		if !reason.IsZero() {
 			continue
 		}
 		// The ring is one ungated wave, and like the starter shell it is
@@ -356,19 +356,19 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
-		outcome := BuildingMethodRefused
+		outcome := BuildingReasonRefused
 		if decision.Admitted {
-			outcome = BuildingMethodAdmitted
+			outcome = BuildingReasonAdmitted
 		}
-		return RoutineAnimalContainmentResult{Reason: outcome, Plan: planID}, nil
+		return RoutineAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
 	}
-	return RoutineAnimalContainmentResult{Reason: BuildingMethodNoSpace}, nil
+	return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoSpace}, nil
 }
 
 // previewPenShell previews one candidate room's full 6x6 perimeter (one
 // FenceGate anchoring the south wall's center, Fence elsewhere). It never
 // commits: a rejected or infeasible cell aborts only this candidate.
-func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, snapshot domain.GenerationSnapshot, room policy.Rectangle, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, Verdict, error) {
 	door := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
 	perimeter := []domain.Cell{door}
 	for x := room.X; x < room.X+room.Width; x++ {
@@ -389,34 +389,34 @@ func (r *RoutineAnimalContainmentPlanner) previewPenShell(ctx context.Context, s
 		}
 		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		v := preview.Preview
 		made, madeKnown := v.MadeFromStuff.Value()
 		if !madeKnown || made != (stuff != "") {
-			return nil, nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			return nil, nil, policy.StockObservation{}, fieldUnavailable("pen_shell_preview"), nil
 		}
 		footprint, fk := v.Footprint.Value()
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			return nil, nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+			return nil, nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		actions = append(actions, action)
 		previews = append(previews, v)
 	}
-	return actions, previews, stock, "", nil
+	return actions, previews, stock, Verdict{}, nil
 }
 
 // placeMarker searches the completed shell's interior for a legal PenMarker
@@ -425,11 +425,11 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	p := r.reviewer.player
 	markerDef, ok := animalContainmentDefinition(facts.Definitions, "PenMarker")
 	if !ok {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_definition")}, nil
 	}
 	avail, ak := markerDef.Available.Value()
 	if !ak || !avail {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("pen_marker_availability")}, nil
 	}
 	stuff := ""
 	if s, sk := markerDef.Stuff.Value(); sk {
@@ -492,7 +492,7 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 		// interior refused one instead of idling silently.
 		slog.Default().Warn("pen marker found no legal interior cell", telemetry.ComponentKey, "animal-containment",
 			"shell", fmt.Sprintf("%d,%d %dx%d", room.X, room.Z, room.Width, room.Height), "interior_cells", len(cells), "candidates", len(search.Candidates()))
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	plan, err := domain.NewPlan(planID, 1, []domain.Action{chosen.Action})
 	if err != nil {
@@ -519,9 +519,9 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	outcome := BuildingMethodRefused
+	outcome := BuildingReasonRefused
 	if decision.Admitted {
-		outcome = BuildingMethodAdmitted
+		outcome = BuildingReasonAdmitted
 	}
-	return RoutineAnimalContainmentResult{Reason: outcome, Plan: planID}, nil
+	return RoutineAnimalContainmentResult{Verdict: outcome, Plan: planID}, nil
 }

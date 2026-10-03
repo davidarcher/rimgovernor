@@ -39,7 +39,7 @@ type RoutineFireSafetyPlanner struct {
 }
 
 type RoutineFireSafetyResult struct {
-	Reason          RoutineBuildingReason
+	Verdict
 	Outcome         policy.FireSafetyOutcome
 	NativeWorkTicks uint32
 }
@@ -55,7 +55,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineFireSafetyResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineFireSafetyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -65,14 +65,14 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineFireSafetyResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	_, workable, err := p.journal.Workable(call, review, policy.MaintainFireSafety)
 	if err != nil {
 		return RoutineFireSafetyResult{}, err
 	}
 	if !workable {
-		return RoutineFireSafetyResult{Reason: BuildingMethodNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
@@ -101,7 +101,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		}
 	}
 	if !active {
-		return RoutineFireSafetyResult{Reason: BuildingMethodNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonNoDeficit, Outcome: policy.FireSafetyRecovered}, nil
 	}
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
@@ -113,7 +113,7 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	}
 	complete, completeKnown := emergency.Facts.ColonistsComplete.Value()
 	if !completeKnown || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineFireSafetyResult{Reason: BuildingMethodUnknown, Outcome: policy.FireSafetyUnknown}, nil
+		return RoutineFireSafetyResult{Verdict: fieldUnavailable("colonists_complete"), Outcome: policy.FireSafetyUnknown}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -151,11 +151,11 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 	outcome := policy.EvaluateFireSafety(active, known, pawns)
 	switch outcome {
 	case policy.FireSafetyWaitingForNative:
-		return RoutineFireSafetyResult{Reason: BuildingMethodExistingWork, Outcome: outcome, NativeWorkTicks: fireSafetyNativeWorkTicks}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonExistingWork, Outcome: outcome, NativeWorkTicks: fireSafetyNativeWorkTicks}, nil
 	case policy.FireSafetyUnknown:
-		return RoutineFireSafetyResult{Reason: BuildingMethodUnknown, Outcome: outcome}, nil
+		return RoutineFireSafetyResult{Verdict: fieldUnavailable("fire_safety"), Outcome: outcome}, nil
 	default:
-		return RoutineFireSafetyResult{Reason: BuildingMethodRefused, Outcome: outcome}, nil
+		return RoutineFireSafetyResult{Verdict: BuildingReasonRefused, Outcome: outcome}, nil
 	}
 }
 

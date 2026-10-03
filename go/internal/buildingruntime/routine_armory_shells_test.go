@@ -47,7 +47,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := armory.Step(ctx); err != nil || result.Reason == BuildingMethodAdmitted {
+	if result, err := armory.Step(ctx); err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal("armory billed without a mortar", result, err)
 	}
 	snapshot := session.State().Snapshot
@@ -60,7 +60,7 @@ func TestArmoryStocksShellsAfterMortarBuilt(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := armory.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal("armory held the shell bill", result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

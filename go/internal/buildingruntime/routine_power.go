@@ -24,7 +24,7 @@ func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSou
 // selectPower maps the policy outcome onto the planner. pendingConsumers
 // names, with multiplicity, the buildings other goals' admitted plans are
 // about to build; their declared draw joins the budget's demand.
-func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection, pendingConsumers []string) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection, pendingConsumers []string) (*RoutineBuildingPlanner, Verdict, error) {
 	planning := policy.DefaultPowerPlanning()
 	planning.Generators = facts.GeneratorOptions()
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
@@ -32,25 +32,25 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection,
 	planning.PendingDemandW = pendingDemand(facts, pendingConsumers)
 	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	switch proposal.Method {
 	case policy.PowerUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("power"), nil
 	case policy.PowerNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	case policy.PowerRouteBlocked:
-		return nil, BuildingMethodNoSpace, nil
+		return nil, BuildingReasonNoSpace, nil
 	case policy.PowerNoGenerator:
 		// Every generator the family can compile is unavailable; when the
 		// research they require is unfinished, that is what the goal waits
 		// on, not a cheaper generator.
 		if gate := policy.ResearchGate(generatorResearch(facts), facts.Facts.Research); gate != "" {
-			return nil, researchWaitReason(gate), nil
+			return nil, researchWait(gate), nil
 		}
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer, policy.PowerWaitCharge:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 	resolved := *r
 	resolved.power = &proposal
@@ -68,7 +68,7 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection,
 	if proposal.Method == policy.PowerShelter {
 		resolved.definition = "Wall"
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // pendingBuildingDefinitions lists, with multiplicity, the definitions of
@@ -160,16 +160,16 @@ func powerOutputAllowance(ctx context.Context, journal *store.Store, goal domain
 	return allowance, nil
 }
 
-func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	wall, wok := animalContainmentDefinition(facts.Definitions, "Wall")
 	door, dok := animalContainmentDefinition(facts.Definitions, "Door")
 	if !wok || !dok {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("wall_door_definitions"), nil
 	}
 	stuff, known := animalContainmentStuff(wall, door)
 	if !known {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("wall_door_stuff"), nil
 	}
 	room := r.power.Room
 	entry := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
@@ -189,10 +189,10 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 	var selected []policy.Preview
 	for i, c := range perimeter {
 		if blocked[c] {
-			return nil, stock, BuildingMethodExistingWork, nil
+			return nil, stock, BuildingReasonExistingWork, nil
 		}
 		if err := check(); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		name := "Wall"
 		if i == 0 {
@@ -200,15 +200,15 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 		}
 		b, err := domain.NewBuilding(name, c, domain.North, stuff)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		p, _, err := r.native.PreviewBuilding(ctx, a, snapshot)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		v := p.Preview
 		footprint, fk := v.Footprint.Value()
@@ -216,17 +216,17 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 		safe, sk := v.SafeToPlace.Value()
 		made, mk := v.MadeFromStuff.Value()
 		if !fk || !ck || !sk || !mk {
-			return nil, stock, BuildingMethodUnknown, nil
+			return nil, stock, fieldUnavailable("power_preview"), nil
 		}
 		if len(footprint) != 1 || footprint[0] != c || !can || !safe || made != (stuff != "") {
-			return nil, stock, BuildingMethodNoSpace, nil
+			return nil, stock, BuildingReasonNoSpace, nil
 		}
 		if err = mergeRoutineStock(&stock, p.Stock, i == 0); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		selected = append(selected, v)
 	}
-	return selected, stock, "", nil
+	return selected, stock, Verdict{}, nil
 }
 
 // powerDefinition reports whether a completed building belongs to the power
@@ -266,25 +266,25 @@ func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapsho
 // geothermal generator centred on its geyser. The geyser itself stands on
 // the footprint, so the site census (which reports it occupied) is not
 // consulted; the native preview's legality and safety are.
-func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.power == nil || !r.power.FixedSite() {
-		return nil, stock, "", fmt.Errorf("%w: previewPowerSite: r.power == nil || !r.power.FixedSite()", ErrControl)
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewPowerSite: r.power == nil || !r.power.FixedSite()", ErrControl)
 	}
 	if err := check(); err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	building, err := domain.NewBuilding(r.definition, r.power.Center, domain.North, "")
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	p := preview.Preview
 	footprint, fk := p.Footprint.Value()
@@ -292,7 +292,7 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 	legal, lk := p.CanPlace.Value()
 	safe, sk := p.SafeToPlace.Value()
 	if !fk || !mk || !lk || !sk {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("power_preview"), nil
 	}
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {
@@ -300,28 +300,28 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 	}
 	for _, c := range footprint {
 		if blocked[c] {
-			return nil, stock, BuildingMethodExistingWork, nil
+			return nil, stock, BuildingReasonExistingWork, nil
 		}
 	}
 	if made || len(footprint) == 0 || !legal || !safe {
 		clockSchedulerLog("%s: no site for %s on geyser %v: legal=%v safe=%v blockers=%v", r.goal, r.definition, r.power.Center, legal, safe, p.Blockers)
-		return nil, stock, BuildingMethodNoSpace, nil
+		return nil, stock, BuildingReasonNoSpace, nil
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
-	return []policy.Preview{p}, stock, "", nil
+	return []policy.Preview{p}, stock, Verdict{}, nil
 }
 
 // previewPowerOrSearch places a generator or battery on the v2 layout
 // plan's sites (#788) at Masonry and above, and falls back to the search
 // near the consumer when the plan has no open site for it (no plan yet, the
 // battery room not built and roofed, every site taken or refused).
-func (r *RoutineBuildingPlanner) previewPowerOrSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewPowerOrSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if r.power != nil && (r.power.Method == policy.PowerGenerate || r.power.Method == policy.PowerStore) {
 		selected, stock, ok, err := r.previewPlannedPower(call, snapshot, facts, protected, missing, check)
 		if err != nil || ok {
-			return selected, stock, "", err
+			return selected, stock, Verdict{}, err
 		}
 	}
 	return r.previewSearch(call, snapshot, facts, protected, missing, check)
@@ -472,10 +472,10 @@ func sameCells(a, b []domain.Cell) bool {
 
 // Conduits may legally underlay occupied cells. Validate the exact observed
 // route with native previews instead of treating occupied cells as free floor.
-func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8 {
-		return nil, stock, "", fmt.Errorf("%w: previewPowerRoute: r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8", ErrControl)
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewPowerRoute: r.power == nil || r.power.Method != policy.PowerConnect || len(r.power.Cells) < 1 || len(r.power.Cells) > 8", ErrControl)
 	}
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {
@@ -484,22 +484,22 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 	var selected []policy.Preview
 	for i, cell := range r.power.Cells {
 		if blocked[cell] {
-			return nil, stock, BuildingMethodExistingWork, nil
+			return nil, stock, BuildingReasonExistingWork, nil
 		}
 		if err := check(); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		building, err := domain.NewBuilding(string(policy.PowerConnect), cell, domain.North, "")
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		p := preview.Preview
 		footprint, fk := p.Footprint.Value()
@@ -507,15 +507,15 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 		legal, lk := p.CanPlace.Value()
 		safe, sk := p.SafeToPlace.Value()
 		if !fk || !mk || !lk || !sk {
-			return nil, stock, BuildingMethodUnknown, nil
+			return nil, stock, fieldUnavailable("power_preview"), nil
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			return nil, stock, BuildingMethodNoSpace, nil
+			return nil, stock, BuildingReasonNoSpace, nil
 		}
 		selected = append(selected, p)
 		if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 	}
-	return selected, stock, "", nil
+	return selected, stock, Verdict{}, nil
 }

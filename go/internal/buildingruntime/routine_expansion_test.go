@@ -19,20 +19,20 @@ func TestExpansionSelectionReusesFurnishingAndWholeShell(t *testing.T) {
 	r := &RoutineBuildingPlanner{goal: policy.MaintainHousing, phase: policy.HousingExpansion}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), HousingTarget: domain.Known(int64(20))}}
 	n, id, reason := r.selection(f)
-	if n != 1 || id != "expansion-indoor-sleeping-4-1" || reason != "" {
+	if n != 1 || id != "expansion-indoor-sleeping-4-1" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
 	r.shelter = true
 	n, id, reason = r.selection(f)
-	if n != 32 || id != "expansion-starter-shell" || reason != "" {
+	if n != 32 || id != "expansion-starter-shell" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
 	f.Facts.IndoorCapacity = domain.Known(int64(4))
-	if _, _, reason = r.selection(f); reason != BuildingMethodNoDeficit {
+	if _, _, reason = r.selection(f); reason != BuildingReasonNoDeficit {
 		t.Fatal(reason)
 	}
 	f.Facts.IndoorCapacity = domain.Unknown[int64]()
-	if _, _, reason = r.selection(f); reason != BuildingMethodUnknown {
+	if _, _, reason = r.selection(f); reason != fieldUnavailable("indoor_capacity") {
 		t.Fatal(reason)
 	}
 }
@@ -47,14 +47,14 @@ func TestExpansionAdmitsSparePlaceAndManualCancels(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := r.Step(ctx)
-	if err != nil || got.Reason != BuildingMethodAdmitted {
+	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(ctx, got.Decision.Goal.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 1 || plan.Progress[0].View().Attempt != 0 {
 		t.Fatal(plan, err)
 	}
-	if again, err := r.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := r.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-expansion"
@@ -105,14 +105,14 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
-	if err != nil || got.Reason != BuildingMethodAdmitted {
+	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), got.Decision.Goal.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
-	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 }
@@ -154,7 +154,7 @@ func TestExpansionClaimsAMatchingRuinOnItsPlannedRing(t *testing.T) {
 	barracks, _ := policy.LayoutModule(policy.RoomRoleBarracks)
 	recordLayout(t, r, db, policy.LayoutPlan{Rooms: []policy.LayoutRoom{{Role: barracks, Interior: policy.Rectangle{X: 1, Z: 1, Width: 7, Height: 7}, Door: domain.Cell{X: 4, Z: 0}, DoorRot: domain.South}}})
 	got, err := r.Step(context.Background())
-	if err != nil || got.Reason != BuildingMethodAdmitted {
+	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	var claim *store.PlanState

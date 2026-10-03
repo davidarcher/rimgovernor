@@ -18,7 +18,7 @@ func TestRoutinePowerReportsTheResearchItWaitsOn(t *testing.T) {
 	}
 	n.finished = []string{}
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != researchWaitReason("Electricity") {
+	if err != nil || result.Verdict != researchWait("Electricity") {
 		t.Fatal(result, err)
 	}
 }

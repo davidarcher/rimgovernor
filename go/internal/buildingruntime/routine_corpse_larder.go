@@ -32,7 +32,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 		}
 	case "haul":
 		if !arbiter.tryClaim([]domain.PawnID{choice.Handling.Hauler}, "haul-item:"+choice.Stock.ID) {
-			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+			return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 		}
 		var haul domain.Haul
 		haul, err = domain.NewHaul(choice.Handling.Hauler, choice.Stock.ID, string(choice.Stock.DefName), choice.Handling.Cell)
@@ -57,5 +57,5 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseLarder(ctx, epoch context.C
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitCorpseLarder: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
-	return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodAdmitted, Plan: id}, err
+	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, err
 }

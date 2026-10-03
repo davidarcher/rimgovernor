@@ -28,7 +28,7 @@ func TestCombatFrameInputsHuntOriginTargetsPrey(t *testing.T) {
 	}
 	prey := []domain.PawnID{"boar", "dead", "deer", "gone"}
 	in, reason, err := combatFrameInputs(combat, prey)
-	if err != nil || reason != "" {
+	if err != nil || !reason.IsZero() {
 		t.Fatalf("reason %q err %v", reason, err)
 	}
 	if !reflect.DeepEqual(in.prey, []string{"boar", "deer"}) {
@@ -48,7 +48,7 @@ func TestCombatFrameInputsHuntOriginTargetsPrey(t *testing.T) {
 		t.Fatalf("prey cells = %v", cells)
 	}
 	// With no live prey the origin has no fight to decide.
-	if _, reason, _ = combatFrameInputs(combat, []domain.PawnID{"dead", "gone"}); reason != BuildingMethodUsed {
+	if _, reason, _ = combatFrameInputs(combat, []domain.PawnID{"dead", "gone"}); reason != BuildingReasonUsed {
 		t.Fatalf("no live prey: reason %q", reason)
 	}
 }

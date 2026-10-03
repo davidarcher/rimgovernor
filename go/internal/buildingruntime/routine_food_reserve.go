@@ -70,7 +70,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 		ReadFoodReserveSupplies(context.Context, *c.Identity, bool) (bridge.SupplyRead, bridge.Result, error)
 	})
 	if !ok {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: fieldUnavailable("food_reserve_supplies")}, nil
 	}
 	var actions []domain.Action
 	for _, forbid := range []bool{false, true} {
@@ -102,7 +102,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 		}
 	}
 	if len(actions) == 0 {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: fieldUnavailable("food_reserve_supplies")}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -116,5 +116,5 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitReserve: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	_, err = p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan)
-	return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodAdmitted, Plan: id}, err
+	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, err
 }

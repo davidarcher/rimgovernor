@@ -8,8 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-const BuildingExistingFacility RoutineBuildingReason = "existing_facility_needs_bill_or_upkeep"
-
 // pendingWork is open work on one action, counting an applied building
 // whose blueprint or frame may still stand (#856): only census-aware plan
 // retirement settles it.
@@ -38,15 +36,15 @@ func NewRoutineButcherPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	}
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.MaintainButcherSpot, definition: "ButcherSpot", environment: policy.PlacementAnywhere}, nil
 }
-func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, RoutineBuildingReason) {
+func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (int64, domain.MethodID, Verdict) {
 	count, known := facts.Facts.Colonists.Value()
 	if !known || count <= 0 {
-		return 0, "", BuildingMethodUnknown
+		return 0, "", fieldUnavailable("colonists")
 	}
 	switch r.goal {
 	case policy.MaintainButcherSpot:
 		if r.definition != "ButcherSpot" {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("butcher_spot_definition")
 		}
 		// The spot is free and instant, and the butcher bill is the hunt
 		// row's precondition (#260): it is owed whenever the goal is, not on
@@ -56,7 +54,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		// them.
 		benches, bk := facts.ButcheringBenches.Value()
 		if !bk {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("butchering_benches")
 		}
 		if len(benches) > 0 {
 			// A butcher bench that shares a room with a cooking bench keeps
@@ -66,116 +64,116 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			// one needs a generic deconstruct action (follow-up).
 			if !butchersAllColocated(benches, facts.Rooms) {
 				if _, retire := standingButcherSpot(facts); retire {
-					return 1, "butcher-spot-retire", ""
+					return 1, "butcher-spot-retire", Verdict{}
 				}
 				if butcherTableWanted(facts, benches) {
-					return 1, "butcher-table", ""
+					return 1, "butcher-table", Verdict{}
 				}
 				return 0, "", BuildingExistingFacility
 			}
-			return 1, "butcher-spot-separated", ""
+			return 1, "butcher-spot-separated", Verdict{}
 		}
-		return 1, "butcher-spot", ""
+		return 1, "butcher-spot", Verdict{}
 
 	case policy.EnsureBasicDefense:
 		// Reached only from RoutineEquipPlanner once no loose weapon and no
 		// bench's weapon recipe can arm an unarmed colonist.
 		if r.definition != "CraftingSpot" {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("crafting_spot_definition")
 		}
-		return 1, "crafting-spot", ""
+		return 1, "crafting-spot", Verdict{}
 	case policy.EnsureTemperatureSafety:
 		if r.temperature == nil {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("temperature_proposal")
 		}
-		return 1, r.temperature.Key, ""
+		return 1, r.temperature.Key, Verdict{}
 	case policy.MaintainRefrigeration:
 		if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("refrigeration_proposal")
 		}
-		return 1, r.refrigeration.Key, ""
+		return 1, r.refrigeration.Key, Verdict{}
 	case policy.MaintainLighting:
 		if r.lighting == nil || r.lighting.Method != policy.LightingBuild {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("lighting_proposal")
 		}
-		return 1, r.lighting.Key, ""
+		return 1, r.lighting.Key, Verdict{}
 	case policy.MaintainFlooring:
 		if r.flooring == nil || r.flooring.Method != policy.FlooringBuild {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("flooring_proposal")
 		}
-		return int64(len(r.flooring.Cells)), r.flooring.Key, ""
+		return int64(len(r.flooring.Cells)), r.flooring.Key, Verdict{}
 	case policy.MaintainRoutes:
 		if r.routes == nil || r.routes.Method != policy.RoutesBuild {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("routes_proposal")
 		}
-		return 1, r.routes.Key, ""
+		return 1, r.routes.Key, Verdict{}
 	case policy.EnsureBasicPower:
 		if r.power == nil {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("power_proposal")
 		}
 		if r.power.Method == policy.PowerConnect {
-			return int64(len(r.power.Cells)), r.power.Key, ""
+			return int64(len(r.power.Cells)), r.power.Key, Verdict{}
 		}
 		if r.power.Method == policy.PowerGenerate || r.power.Method == policy.PowerStore {
-			return 1, r.power.Key, ""
+			return 1, r.power.Key, Verdict{}
 		}
 		if r.power.Method == policy.PowerShelter {
-			return int64(2*r.power.Room.Width + 2*r.power.Room.Height - 4), r.power.Key, ""
+			return int64(2*r.power.Room.Width + 2*r.power.Room.Height - 4), r.power.Key, Verdict{}
 		}
-		return 0, "", BuildingMethodUnknown
+		return 0, "", fieldUnavailable("power_proposal")
 	case policy.EnsureComfort:
 		if r.phase == policy.ComfortBasic {
-			return 1, domain.MethodID("basic-comfort-" + r.definition), ""
+			return 1, domain.MethodID("basic-comfort-" + r.definition), Verdict{}
 		}
 		if r.shelter {
-			return 32, "comfort-shell", ""
+			return 32, "comfort-shell", Verdict{}
 		}
-		return 1, domain.MethodID("comfort-" + r.definition), ""
+		return 1, domain.MethodID("comfort-" + r.definition), Verdict{}
 	case policy.MaintainResource, policy.MaintainEquipment:
 		if r.shelter {
-			return 32, "workshop-shell", ""
+			return 32, "workshop-shell", Verdict{}
 		}
-		return 1, domain.MethodID("workshop-" + r.definition), ""
+		return 1, domain.MethodID("workshop-" + r.definition), Verdict{}
 	case policy.MaintainMedicalReserves:
 		if r.shelter {
-			return 32, "hospital-shell", ""
+			return 32, "hospital-shell", Verdict{}
 		}
-		return 1, domain.MethodID("hospital-" + r.definition), ""
+		return 1, domain.MethodID("hospital-" + r.definition), Verdict{}
 	case policy.EnsureResearch:
 		if r.shelter {
-			return 32, "laboratory-shell", ""
+			return 32, "laboratory-shell", Verdict{}
 		}
-		return 1, domain.MethodID("laboratory-" + r.definition), ""
+		return 1, domain.MethodID("laboratory-" + r.definition), Verdict{}
 	case policy.MaintainHousing:
 		// The three housing phases share the goal's epoch, so each names
 		// its own methods: the starter shell and its bunks, then the
 		// bedrooms, then the spare expansion room.
 		if r.phase == policy.HousingSleeping {
 			if r.shelter {
-				return 32, "sleeping-shell", ""
+				return 32, "sleeping-shell", Verdict{}
 			}
 			// One method per bed still owed: the count falls once a staged
 			// bed is assigned, so the next bed is a new method in the same
 			// epoch.
 			if r.sleeping == nil {
-				return 0, "", BuildingMethodUnknown
+				return 0, "", fieldUnavailable("sleeping_proposal")
 			}
 			if r.bedroom != nil {
-				return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), ""
+				return 1, bedroomMethod(r.bedroom.Kind, r.bedroom.Room), Verdict{}
 			}
-			return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), ""
+			return 1, domain.MethodID(fmt.Sprintf("sleeping-%s-%d", r.definition, r.sleeping.Unhoused)), Verdict{}
 		}
 		capacity, known := facts.Facts.IndoorCapacity.Value()
 		if !known {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("indoor_capacity")
 		}
 		prefix := ""
 		if r.phase == policy.HousingExpansion {
 			if plan, known := facts.Facts.FoodPlan.Value(); known && plan.GapPerDay > 0 {
-				return 0, "", BuildingMethodRefused
+				return 0, "", BuildingReasonRefused
 			}
 			if count >= 1<<63-1 {
-				return 0, "", BuildingMethodUnknown
+				return 0, "", fieldUnavailable("colonist_count")
 			}
 			count++
 			prefix = "expansion-"
@@ -184,32 +182,32 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		missing := count - capacity
 		if missing <= 0 {
-			return 0, "", BuildingMethodNoDeficit
+			return 0, "", BuildingReasonNoDeficit
 		}
 		if missing > 64 {
-			return 0, "", BuildingMethodNoSpace
+			return 0, "", BuildingReasonNoSpace
 		}
 		if r.shelter {
-			return 32, domain.MethodID(prefix + "starter-shell"), ""
+			return 32, domain.MethodID(prefix + "starter-shell"), Verdict{}
 		}
-		return missing, domain.MethodID(fmt.Sprintf("%sindoor-sleeping-%d-%d", prefix, count, missing)), ""
+		return missing, domain.MethodID(fmt.Sprintf("%sindoor-sleeping-%d-%d", prefix, count, missing)), Verdict{}
 	case policy.EnsureCooking:
 		if len(r.paste) > 0 {
-			return int64(len(r.paste)), "nutrient-paste", ""
+			return int64(len(r.paste)), "nutrient-paste", Verdict{}
 		}
 		if !foodPlanSupport(facts.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", awaitingFoodPlan("cooking-capacity")
 		}
 		ready, known := facts.Facts.Cooking.Value()
 		if !known {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("cooking")
 		}
 		if ready {
-			return 0, "", BuildingMethodNoDeficit
+			return 0, "", BuildingReasonNoDeficit
 		}
 		benches, known := facts.CookingBenches.Value()
 		if !known {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("cooking_benches")
 		}
 		unknown := false
 		for _, bench := range benches {
@@ -220,14 +218,14 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			unknown = unknown || !known
 		}
 		if unknown {
-			return 0, "", BuildingMethodUnknown
+			return 0, "", fieldUnavailable("cooking_bench_bills")
 		}
 		if campfireIntentStanding(facts.Facts.ConstructionClaims, facts.Facts.CurrentConstruction) {
 			return 0, "", BuildingExistingFacility
 		}
-		return 1, "campfire", ""
+		return 1, "campfire", Verdict{}
 	default:
-		return 0, "", BuildingMethodUnknown
+		return 0, "", fieldUnavailable("goal_selection")
 	}
 }
 

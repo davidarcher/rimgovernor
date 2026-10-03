@@ -119,12 +119,12 @@ func TestRoutineTendRequiresTheNativeDoctorGates(t *testing.T) {
 			}
 			result := tendGatePlanner(t, []*o.PawnState{doctor, tendGateRow("patient", mapID, true, []string{"doctor"})})
 			if test.admitted {
-				if result.Reason != BuildingMethodAdmitted || result.Plan == "" {
+				if result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 					t.Fatal(result)
 				}
 				return
 			}
-			if result.Reason != BuildingMethodUsed || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
+			if result.Verdict != BuildingReasonUsed || result.Plan != "" || result.NativeWorkTicks != medicalWaitTicks {
 				t.Fatal(result)
 			}
 		})

@@ -68,7 +68,7 @@ func (r *RoutineDefensePlanner) postFight(call, epoch context.Context, incident 
 		}
 		switch policy.PostFightNext(apparelWorn(combat.Detail.At(string(id))), strip) {
 		case policy.PostFightWait:
-			return RoutineDefenseResult{Reason: BuildingMethodExistingWork, Plan: fightPlan}, true, nil
+			return RoutineDefenseResult{Verdict: BuildingReasonExistingWork, Plan: fightPlan}, true, nil
 		case policy.PostFightStrip:
 			result, err := r.commitStrip(call, epoch, incident, id)
 			return result, true, err
@@ -147,7 +147,7 @@ func (r *RoutineDefensePlanner) commitStrip(call, epoch context.Context, inciden
 	if _, err = p.journal.CommitFightStrip(call, incident.Incident.ID, domain.MethodID(stripMethodPrefix+string(raider)), plan); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // stripper is the colonist to finish raider: one whose job targets it
@@ -179,7 +179,7 @@ func stripper(combat bridge.Combat, raider *mp.CombatPawn) *mp.CombatPawn {
 // then the attack order. A stripper already attacking it is left to it.
 func (r *RoutineDefensePlanner) finishRaider(call, epoch context.Context, state ControlState, fightPlan domain.PlanID, memory policy.CombatMemory, combat bridge.Combat, raider *mp.CombatPawn, arbiter *stepArbiter) (RoutineDefenseResult, error) {
 	p := r.reviewer.player
-	waiting := RoutineDefenseResult{Reason: BuildingMethodExistingWork, Plan: fightPlan}
+	waiting := RoutineDefenseResult{Verdict: BuildingReasonExistingWork, Plan: fightPlan}
 	pawn := stripper(combat, raider)
 	if pawn == nil || pawn.GetTargetId() == raider.GetId() && pawn.GetJob() != stripJob && pawn.GetDrafted() {
 		return waiting, nil
@@ -210,5 +210,5 @@ func (r *RoutineDefensePlanner) finishRaider(call, epoch context.Context, state 
 			return RoutineDefenseResult{}, err
 		}
 	}
-	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: fightPlan}, nil
+	return RoutineDefenseResult{Verdict: BuildingReasonCombatOrders, Plan: fightPlan}, nil
 }

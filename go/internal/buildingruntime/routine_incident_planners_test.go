@@ -31,14 +31,14 @@ func TestRoutineNamingPlannerCommitsToIncident(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	incident, err := db.LoadIncident(ctx, b.Incident)
 	if err != nil || len(incident.Methods) != 1 || incident.Methods[0].Plan != result.Plan {
 		t.Fatal("confirmation not bound to the incident", incident, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -68,7 +68,7 @@ func TestRoutineMoodReliefPlannerCommitsToPawnIncident(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	incident, err := db.LoadIncident(ctx, bindings[0].Incident)

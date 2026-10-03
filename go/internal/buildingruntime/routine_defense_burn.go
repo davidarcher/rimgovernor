@@ -40,12 +40,12 @@ func burnStone(stock map[policy.Resource]int64) string {
 func (r *RoutineDefenseLayoutPlanner) fuel(call, epoch context.Context, goal store.GoalState, state ControlState, burn policy.CombatBurn) (RoutineDefenseLayoutResult, error) {
 	read, census, err := r.fightCensus(call, state, burnRegion(burn.Hive))
 	if err != nil || !policy.BurnRoofed(burn.Hive, census) {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseFuelTier}, err
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseFuelTier}, err
 	}
 	stock, _ := read.Projection.Resources.Value()
 	buildings, err := policy.BurnBuilds(burn, census, burnStone(stock))
 	if err != nil || len(buildings) == 0 {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseFuelTier}, err
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseFuelTier}, err
 	}
 	return r.admitFightBuilds(call, epoch, goal, state, read, buildings, defenseFuelTier)
 }

@@ -23,8 +23,8 @@ type RoutineSupplyPlanner struct {
 	native   RoutineSupplySource
 }
 type RoutineSupplyResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineSupplyPlanner(reviewer *RoutineReviewer, native RoutineSupplySource) (*RoutineSupplyPlanner, error) {
@@ -37,7 +37,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineSupplyResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineSupplyResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineSupplyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -47,7 +47,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineSupplyResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineSupplyResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineSupplyResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	var goal store.GoalState
 	var cohort []policy.StartingSupply
@@ -75,7 +75,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineSupplyResult{}, err
 	}
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
-		return RoutineSupplyResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineSupplyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -109,7 +109,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 			}
 		}
 		if store.PlanOpen(plan) {
-			return RoutineSupplyResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineSupplyResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	claims := map[string]bool{}
@@ -174,7 +174,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	if len(targets) == 0 {
-		return RoutineSupplyResult{Reason: BuildingMethodUsed}, nil
+		return RoutineSupplyResult{Verdict: BuildingReasonUsed}, nil
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Thing() < targets[j].Thing() })
 	if len(targets) > 8 {
@@ -208,5 +208,5 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSupplyResult{}, err
 	}
-	return RoutineSupplyResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineSupplyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

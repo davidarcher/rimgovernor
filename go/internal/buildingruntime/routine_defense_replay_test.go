@@ -83,8 +83,8 @@ func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []dom
 		steps = append(steps, step)
 	}
 	results, methods, db := replayDefenseSteps(t, replayFrame{}, steps...)
-	if len(steps) == 1 && string(results[0].Reason) != steps[0].Reason {
-		t.Fatalf("%s: replay %s, recorded %s", paths[0], results[0].Reason, steps[0].Reason)
+	if len(steps) == 1 && results[0].Verdict.String() != steps[0].Reason {
+		t.Fatalf("%s: replay %s, recorded %s", paths[0], results[0].Verdict, steps[0].Reason)
 	}
 	return results, methods, db
 }

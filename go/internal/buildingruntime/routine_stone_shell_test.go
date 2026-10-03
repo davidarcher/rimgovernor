@@ -154,7 +154,7 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 	ctx := context.Background()
 	p, db, n := stoneShellFixture(t)
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 1 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 1 {
 		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -181,7 +181,7 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 			t.Fatal(progress)
 		}
 	}
-	if again, err := p.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := p.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 	// The pending demolition is clock work like the wall build after it: a
@@ -209,7 +209,7 @@ func TestRoutineStoneShellAdmitsPlayerBuiltWall(t *testing.T) {
 		t.Fatal("fixture has wall construction history", rows, known, err)
 	}
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 }
@@ -231,7 +231,7 @@ func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)

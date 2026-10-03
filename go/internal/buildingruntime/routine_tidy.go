@@ -18,8 +18,8 @@ type RoutineTidyPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutineTidyResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineTidyPlanner(reviewer *RoutineReviewer) (*RoutineTidyPlanner, error) {
@@ -38,7 +38,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineTidyResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineTidyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -48,7 +48,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot || review.Layout == nil {
-		return RoutineTidyResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	var goal store.GoalState
 	found := false
@@ -63,7 +63,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if !found || goal.Goal.Status != domain.GoalActive || review.Veto(goal.Goal) != "" {
-		return RoutineTidyResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -82,7 +82,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if goal.Goal.Need != domain.NeedDeficit {
-		return RoutineTidyResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -90,16 +90,16 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineTidyResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineTidyResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineTidyResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	proposal := review.Layout.Proposal
 	if proposal == nil {
-		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineTidyResult{Verdict: fieldUnavailable("tidy_proposal")}, nil
 	}
 	for _, t := range tidies {
 		if t.Item == proposal.Item.ID {
-			return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
+			return RoutineTidyResult{Verdict: BuildingReasonUsed}, nil
 		}
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)
@@ -111,7 +111,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTidyResult{}, err
 	}
 	if proposal.Item.Kind != policy.TidyFurniture {
-		return RoutineTidyResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineTidyResult{Verdict: fieldUnavailable("tidy_item")}, nil
 	}
 	return r.move(call, epoch, state, goal, read, *proposal)
 }

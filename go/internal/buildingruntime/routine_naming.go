@@ -28,8 +28,8 @@ type RoutineNamingPlanner struct {
 	native   RoutineNamingSource
 }
 type RoutineNamingResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineNamingPlanner(reviewer *RoutineReviewer, native RoutineNamingSource) (*RoutineNamingPlanner, error) {
@@ -42,7 +42,7 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineNamingResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineNamingResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineNamingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -52,17 +52,17 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineNamingResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineNamingResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineNamingResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.ConfirmColonyNames)
 	if err != nil {
 		return RoutineNamingResult{}, err
 	}
 	if !found {
-		return RoutineNamingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineNamingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-		return RoutineNamingResult{Reason: BuildingMethodExistingWork}, err
+		return RoutineNamingResult{Verdict: BuildingReasonExistingWork}, err
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -78,13 +78,13 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	naming := observed.Naming
 	if naming == nil || naming.WindowId == nil || naming.FactionName == nil || naming.SettlementName == nil {
-		return RoutineNamingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineNamingResult{Verdict: fieldUnavailable("naming_dialog")}, nil
 	}
 	windowID, factionName, settlementName := naming.GetWindowId(), naming.GetFactionName(), naming.GetSettlementName()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%s/%s", windowID, factionName, settlementName)))
 	method := domain.MethodID(fmt.Sprintf("naming-%x", digestNext[:16]))
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
-		return RoutineNamingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineNamingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewNamingConfirmation(windowID, factionName, settlementName)
@@ -108,5 +108,5 @@ func (r *RoutineNamingPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineNamingResult{}, err
 	}
-	return RoutineNamingResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineNamingResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

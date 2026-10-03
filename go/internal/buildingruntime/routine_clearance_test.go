@@ -70,7 +70,7 @@ func TestRoutineClearanceAdmitsNearestSingleTargetAndJournalsHolds(t *testing.T)
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -91,7 +91,7 @@ func TestRoutineClearanceAdmitsNearestSingleTargetAndJournalsHolds(t *testing.T)
 	if work, _, err := clockSchedulerWork(plan, scope); err != nil || !work {
 		t.Fatal(work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -145,7 +145,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -162,7 +162,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 	if len(source.previews) != 1 {
 		t.Fatal(source.previews)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -198,7 +198,7 @@ func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -225,7 +225,7 @@ func TestRoutineClearanceChunkHaulBatchIsOrderedOnce(t *testing.T) {
 		t.Fatal("the ordered batch should retire", plan.Retired, err)
 	}
 	next, err := planner.Step(ctx)
-	if err != nil || next.Reason != BuildingMethodUsed || next.NativeWorkTicks != chunkHaulWorkTicks {
+	if err != nil || next.Verdict != BuildingReasonUsed || next.NativeWorkTicks != chunkHaulWorkTicks {
 		t.Fatal(next, err)
 	}
 }
@@ -261,7 +261,7 @@ func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, err := planner.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	plan, err := db.LoadPlan(ctx, first.Plan)
@@ -285,7 +285,7 @@ func TestRoutineClearanceNextChunkBatchSkipsOrderedChunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	next, err := planner.Step(ctx)
-	if err != nil || next.Reason != BuildingMethodAdmitted {
+	if err != nil || next.Verdict != BuildingReasonAdmitted {
 		t.Fatal(next, err)
 	}
 	if plan, err = db.LoadPlan(ctx, next.Plan); err != nil || len(plan.Spec.Actions()) != 1 {

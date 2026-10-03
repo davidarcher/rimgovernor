@@ -24,7 +24,7 @@ func TestRoutineWorkAdmitsAssignmentsWithPawnSettings(t *testing.T) {
 	}
 
 	result, err := planners.work.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("work admission: %+v %v", result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

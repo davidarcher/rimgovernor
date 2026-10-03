@@ -20,8 +20,8 @@ type RoutinePermitsPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutinePermitsResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutinePermitsPlanner(reviewer *RoutineReviewer) (*RoutinePermitsPlanner, error) {
@@ -35,7 +35,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutinePermitsResult{Reason: BuildingMethodDisabled}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePermitsResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -45,14 +45,14 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePermitsResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutinePermitsResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPermits)
 	if err != nil {
 		return RoutinePermitsResult{}, err
 	}
 	if !workable {
-		return RoutinePermitsResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -60,7 +60,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutinePermitsResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutinePermitsResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutinePermitsResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -77,7 +77,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	choice, ok := policy.NextPermitOf(read.Projection.Facts.Royalty)
 	if !ok {
-		return RoutinePermitsResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonUsed}, nil
 	}
 	intent := choice.Intent()
 	method, plan, exhausted, err := permitMethod(intent, goal.History, goal.Goal.Epoch)
@@ -85,10 +85,10 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePermitsResult{}, err
 	}
 	if exhausted {
-		return RoutinePermitsResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(intent.Holder)}) {
-		return RoutinePermitsResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePermitsResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutinePermitsResult{}, err
@@ -100,7 +100,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("permits: %s takes %s with %s", intent.Holder, intent.Permit, intent.Faction), plan); err != nil {
 		return RoutinePermitsResult{}, err
 	}
-	return RoutinePermitsResult{Reason: BuildingMethodAdmitted, Plan: plan.ID()}, nil
+	return RoutinePermitsResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
 }
 
 // permitMethod builds the one-write plan that records a permit intent and the

@@ -60,7 +60,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
 	ctx := context.Background()
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
-	if err != nil || reason != "" || selection == nil || selection.resource != policy.ComponentResource || selection.candidates[0] != "FabricationBench" {
+	if err != nil || !reason.IsZero() || selection == nil || selection.resource != policy.ComponentResource || selection.candidates[0] != "FabricationBench" {
 		t.Fatal(selection, reason, err)
 	}
 	planner.workshop = selection
@@ -69,7 +69,7 @@ func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
 		{Name: "WoodFiredGenerator", Available: domain.Known(true)},
 	}}
 	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
-	if err != nil || reason != "" || bench == nil || bench.definition != "FabricationBench" || bench.facility == nil || bench.facility.Role != policy.RoomRoleWorkshop {
+	if err != nil || !reason.IsZero() || bench == nil || bench.definition != "FabricationBench" || bench.facility == nil || bench.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(bench, reason, err)
 	}
 }
@@ -83,18 +83,18 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	native.hosts = []policy.RecipeHost{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: true, Benches: []string{"HandTailoringBench"}}}
 	ctx := context.Background()
 	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
-	if err != nil || reason != "" || selection == nil || selection.resource != "Apparel_BasicShirt" || selection.candidates[0] != "HandTailoringBench" {
+	if err != nil || !reason.IsZero() || selection == nil || selection.resource != "Apparel_BasicShirt" || selection.candidates[0] != "HandTailoringBench" {
 		t.Fatal(selection, reason, err)
 	}
 	planner.workshop = selection
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}}}
 	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
-	if err != nil || reason != "" || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
+	if err != nil || !reason.IsZero() || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
 		t.Fatal(bench, reason, err)
 	}
 	bench.shelter = false
 	facts.Facts.Colonists = domain.Known(int64(2))
-	if count, _, reason := bench.selection(facts); count != 1 || reason != "" {
+	if count, _, reason := bench.selection(facts); count != 1 || !reason.IsZero() {
 		t.Fatal(count, reason)
 	}
 	facts.Definitions[0].Available = domain.Known(false)
@@ -117,7 +117,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds = append(native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds, &o.GearReplacementNeed{DefName: proto.String("Apparel_ArmorRecon"), Reason: proto.String("missing")})
 	native.hosts = append(native.hosts, policy.RecipeHost{Definition: "Make_Armor", Products: []policy.Resource{"Apparel_ArmorRecon"}, Available: false, Research: []string{"ReconArmor"}, Benches: []string{"FabricationBench"}})
 	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
-	if err != nil || reason != "" || selection == nil || len(selection.alternatives) != 1 {
+	if err != nil || !reason.IsZero() || selection == nil || len(selection.alternatives) != 1 {
 		t.Fatal(selection, reason, err)
 	}
 	planner.workshop = selection
@@ -125,7 +125,7 @@ func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *tes
 	facts.Definitions[0].Research = nil
 	facts.Definitions = append(facts.Definitions, observation.PlanningDefinition{Name: "FabricationBench", Available: domain.Known(false), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(6)), Research: []string{"Fabrication"}})
 	bench, reason, err = planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
-	if err != nil || reason != "" || bench == nil || bench.definition != "HandTailoringBench" || bench.workshop.resource != "Apparel_BasicShirt" {
+	if err != nil || !reason.IsZero() || bench == nil || bench.definition != "HandTailoringBench" || bench.workshop.resource != "Apparel_BasicShirt" {
 		t.Fatal(bench, reason, err)
 	}
 }
@@ -151,15 +151,15 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 		hosts      []policy.RecipeHost
 		targets    map[policy.Resource]int64
 		stock      int64
-		reason     RoutineBuildingReason
+		reason     Verdict
 		candidates []string
 	}{
-		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
-		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingMethodNoDeficit, nil},
+		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, Verdict{}, append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
+		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingReasonNoDeficit, nil},
 		// The review's wood floor (#728) is a target even without operator ones.
-		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingMethodNoDeficit, nil},
+		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingReasonNoDeficit, nil},
 		{"existing bench", []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}, []policy.RecipeHost{clubRecipe}, nil, 0, BuildingExistingFacility, nil},
-		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}, Research: []string{"Smithing"}}}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
+		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}, Research: []string{"Smithing"}}}, nil, 0, Verdict{}, append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
 		{"no host", nil, []policy.RecipeHost{}, nil, 0, BuildingWorkshopUnavailable, nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -173,7 +173,7 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 			if err != nil || reason != test.reason {
 				t.Fatal(selection, reason, err)
 			}
-			if reason != "" {
+			if !reason.IsZero() {
 				if selection != nil {
 					t.Fatal("selection with reason", selection)
 				}
@@ -198,7 +198,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{definition("CraftingSpot", true, false), definition("FabricationBench", true, true)}}
 	selected, reason, err := planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts)
-	if err != nil || reason != "" || selected.definition != "CraftingSpot" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleWorkshop {
+	if err != nil || !reason.IsZero() || selected.definition != "CraftingSpot" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(selected, reason, err)
 	}
 	if planner.definition != "Wall" || planner.facility != nil {
@@ -218,7 +218,7 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 		t.Fatal(ladder, ok, err)
 	}
 	facts.Definitions = append(facts.Definitions, definition("WoodFiredGenerator", true, false))
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != "" || selected.definition != "FabricationBench" {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || !reason.IsZero() || selected.definition != "FabricationBench" {
 		t.Fatal(selected, reason, err)
 	}
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", false, false), definition("FabricationBench", true, true)}
@@ -227,11 +227,11 @@ func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	}
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", true, false)}
 	facts.Definitions[0].NeedsPower = domain.Unknown[bool]()
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	planner.workshop = nil
-	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != fieldUnavailable("workshop") || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 }
@@ -251,13 +251,13 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	for _, test := range []struct {
 		name   string
 		rooms  domain.Fact[policy.RoomObservation]
-		reason RoutineBuildingReason
+		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), "", hosting},
-		{"shared barracks", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), "", hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingMethodNoSpace, domain.Cell{}},
-		{"census unknown", domain.Unknown[policy.RoomObservation](), BuildingMethodUnknown, domain.Cell{}},
+		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"shared barracks", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
@@ -271,7 +271,7 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)
 			}
-			if reason != "" {
+			if !reason.IsZero() {
 				if native.previews != 0 {
 					t.Fatal("previewed outside a hosting room", native.previews)
 				}
@@ -285,11 +285,11 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	}
 	shell := &RoutineBuildingPlanner{goal: policy.MaintainResource, definition: "Wall", shelter: true}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := shell.selection(facts); missing != 32 || method != "workshop-shell" || reason != "" {
+	if missing, method, reason := shell.selection(facts); missing != 32 || method != "workshop-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 	bench := &RoutineBuildingPlanner{goal: policy.MaintainResource, definition: "CraftingSpot"}
-	if missing, method, reason := bench.selection(facts); missing != 1 || method != "workshop-CraftingSpot" || reason != "" {
+	if missing, method, reason := bench.selection(facts); missing != 1 || method != "workshop-CraftingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 }
@@ -318,7 +318,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
-		if err != nil || reason != "" || len(selected) != 1 {
+		if err != nil || !reason.IsZero() || len(selected) != 1 {
 			t.Fatal(selected, reason, err)
 		}
 		b, _ := selected[0].Action.Building()
@@ -332,7 +332,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
 		native.onPreview = rejectUnless("")
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
-		if err != nil || reason != BuildingMethodNoSpace || len(selected) != 0 || native.previews != 4 {
+		if err != nil || reason != BuildingReasonNoSpace || len(selected) != 0 || native.previews != 4 {
 			t.Fatal(selected, reason, err, native.previews)
 		}
 	})
@@ -341,7 +341,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 		planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
 		native.onPreview = rejectUnless(domain.East)
 		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
-		if err != nil || reason != BuildingMethodNoSpace || len(selected) != 0 || native.previews != 1 {
+		if err != nil || reason != BuildingReasonNoSpace || len(selected) != 0 || native.previews != 1 {
 			t.Fatal(selected, reason, err, native.previews)
 		}
 	})

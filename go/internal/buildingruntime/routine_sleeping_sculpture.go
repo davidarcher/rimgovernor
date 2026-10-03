@@ -73,7 +73,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	digest := sha256.Sum256([]byte(step.Packed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-sculpture-install-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
 	}
 	item := inner[step.Packed]
 	id := domain.MintPlanID()
@@ -99,7 +99,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 		return RoutineBuildingResult{}, false, err
 	}
 	clockSchedulerLog("%s: bedroom %s: sculpture install (weakest beauty)", goal.Goal.ID, step.Room)
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, true, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, true, nil
 }
 
 // packedSculptures is the policy view of packed sculpture stock.

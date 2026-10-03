@@ -94,7 +94,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 	r, db, session, request, n := sleepingFixture(t)
 	before := session.acquires.Load()
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || !result.Decision.Admitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || !result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
 	g := result.Decision.Goal
@@ -110,7 +110,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 			t.Fatal("compiler dispatched", progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 2 {
+	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 2 {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-sleep"
@@ -126,7 +126,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 			t.Fatal(progress)
 		}
 	}
-	if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodDisabled {
+	if next, err := r.Step(context.Background()); err != nil || next.Verdict != BuildingReasonDisabled {
 		t.Fatal(next, err)
 	}
 }
@@ -160,7 +160,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 				}
 			}
 			result, err := r.Step(context.Background())
-			if err == nil && result.Reason == BuildingMethodAdmitted {
+			if err == nil && result.Verdict == BuildingReasonAdmitted {
 				t.Fatal("invalid method admitted", change)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)
@@ -179,7 +179,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	t.Parallel()
 	r, db, _, _, n := sleepingFixture(t)
 	first, err := r.Step(context.Background())
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	g := first.Decision.Goal
@@ -194,7 +194,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 	}
 	// No census shows the spots gone: they may stand uncounted (an open
 	// roof), so the method stays used.
-	if held, err := r.Step(context.Background()); err != nil || held.Reason != BuildingMethodUsed {
+	if held, err := r.Step(context.Background()); err != nil || held.Verdict != BuildingReasonUsed {
 		t.Fatal(held, err)
 	}
 	// Three colonists, three spots, two of them converted to medical beds.
@@ -209,7 +209,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	next, err := r.Step(context.Background())
-	if err != nil || next.Reason != BuildingMethodAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch {
+	if err != nil || next.Verdict != BuildingReasonAdmitted || next.Decision.Goal.Goal.Epoch != g.Goal.Epoch {
 		t.Fatal(next, err)
 	}
 	methods := next.Decision.Goal.Methods
@@ -217,7 +217,7 @@ func TestRoutineSleepingReproposesSpotsAfterSpentMethod(t *testing.T) {
 		t.Fatal(methods)
 	}
 	// The successor still open is the method in use.
-	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 }
@@ -264,7 +264,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 		t.Fatal("pending intent holds no anchor", anchors, err)
 	}
 	result, err := r.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	compiled, err := db.LoadPlan(ctx, result.Decision.Goal.Methods[0].Plan)
@@ -316,7 +316,7 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 		}
 	}
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	compiled, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)

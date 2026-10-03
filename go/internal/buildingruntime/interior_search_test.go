@@ -57,7 +57,7 @@ func TestFacilityBedTakesTheInteriorTemplateSlot(t *testing.T) {
 			}
 		}
 		selected, _, reason, err := planner.previewSearch(ctx, snapshot, facts, nil, 1, check)
-		if err != nil || reason != "" || len(selected) != 1 {
+		if err != nil || !reason.IsZero() || len(selected) != 1 {
 			t.Fatalf("selected %v %q %v", selected, reason, err)
 		}
 		return selected[0]

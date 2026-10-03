@@ -61,8 +61,8 @@ type RoutineSecureSuppliesPlanner struct {
 	native   RoutineSecureSuppliesSource
 }
 type RoutineSecureSuppliesResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks for a clock window while an ordered haul is
 	// still on its way (haulWait).
 	NativeWorkTicks uint32
@@ -90,7 +90,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
+		return PlanResult{Kind: PlanUnsupported, Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return PlanResult{}, fmt.Errorf("%w: propose: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -100,7 +100,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Reason: BuildingMethodNoReview}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.SecureSupplies, state.Snapshot, review.Tick)
 	defer recorded()
@@ -109,7 +109,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{}, err
 	}
 	if !workable {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// SecureSupplies competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
@@ -119,7 +119,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		selected = selected || row.Goal == policy.SecureSupplies && row.Selected
 	}
 	if !selected {
-		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Reason: BuildingMethodRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: BuildingReasonRefused}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
@@ -148,12 +148,12 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		}
 	}
 	if len(targetIDs) == 0 {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonUsed}, nil
 	}
 	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
 		return PlanResult{}, err
 	} else if open {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {
@@ -180,7 +180,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -248,7 +248,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		}
 		// Every route for this item is spent: the direct-haul budget, the
 		// covered-storage zones and the supply room.
-		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -261,20 +261,20 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 		return PlanResult{}, err
 	}
 	proposal := r.proposal(call, id, goal, state, review.Tick, []domain.Action{action}, ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}})
-	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+	proposal.commit = func(ctx context.Context) (domain.PlanID, Verdict, error) {
 		if err := p.current(ctx, epoch); err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+			return "", Verdict{}, fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
-		return id, BuildingMethodAdmitted, nil
+		return id, BuildingReasonAdmitted, nil
 	}
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // proposal is the planner's Proposal for plan id under goal: the wave's
@@ -308,27 +308,27 @@ func previewClaims(previews []policy.Preview) ResourceClaims {
 
 // admitBuilding is the fallbacks' commit: the shared building admission
 // path, refused when it declines the method.
-func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, state ControlState, started time.Time, request store.BuildingMethodRequest) func(context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, state ControlState, started time.Time, request store.BuildingMethodRequest) func(context.Context) (domain.PlanID, Verdict, error) {
 	p := r.reviewer.player
-	return func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+	return func(ctx context.Context) (domain.PlanID, Verdict, error) {
 		if err := p.current(ctx, epoch); err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
 		if p.session.State() != state {
-			return "", "", fmt.Errorf("%w: admitBuilding: p.session.State() != state", ErrControl)
+			return "", Verdict{}, fmt.Errorf("%w: admitBuilding: p.session.State() != state", ErrControl)
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", fmt.Errorf("%w: admitBuilding: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+			return "", Verdict{}, fmt.Errorf("%w: admitBuilding: elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		decision, err := admitMethod(ctx, p.journal, request)
 		if err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
 		if !decision.Admitted {
-			return request.Plan.ID(), BuildingMethodRefused, nil
+			return request.Plan.ID(), BuildingReasonRefused, nil
 		}
-		return request.Plan.ID(), BuildingMethodAdmitted, nil
+		return request.Plan.ID(), BuildingReasonAdmitted, nil
 	}
 }
 
@@ -445,7 +445,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	}
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // generalStoreMethod zones a completed storeroom shell's interior as the
@@ -525,7 +525,7 @@ func (r *RoutineSecureSuppliesPlanner) generalStore(call, epoch context.Context,
 	}
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: generalStoreMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // shellInterior is the cells strictly inside a room shell's Wall/Door
@@ -648,7 +648,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	}
 	storage, planned := plannedStorageRoom(projection)
 	if !planned {
-		return PlanResult{Kind: PlanWaiting, Dependency: "layout plan storage room", Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "layout plan storage room", Verdict: fieldUnavailable("storage_room_plan")}, nil
 	}
 	stockpile, perimeter := storageRoomStep(storage, projection.Cells)
 	if perimeter == nil {
@@ -678,22 +678,22 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	}
 	for _, c := range storage.Cells() {
 		if reserved[c] {
-			return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Reason: BuildingMethodNoSpace}, nil
+			return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Verdict: BuildingReasonNoSpace}, nil
 		}
 	}
 	wallDef, wok := animalContainmentDefinition(projection.Definitions, "Wall")
 	doorDef, dok := animalContainmentDefinition(projection.Definitions, "Door")
 	if !wok || !dok {
-		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Verdict: fieldUnavailable("wall_door_definitions")}, nil
 	}
 	wavail, wak := wallDef.Available.Value()
 	davail, dak := doorDef.Available.Value()
 	if !wak || !dak || !wavail || !davail {
-		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Verdict: fieldUnavailable("wall_door_definitions")}, nil
 	}
 	stuff, known := animalContainmentStuff(wallDef, doorDef)
 	if !known {
-		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Verdict: fieldUnavailable("wall_door_stuff")}, nil
 	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
@@ -703,11 +703,11 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	if err != nil {
 		return PlanResult{}, err
 	}
-	if reason == BuildingMethodUnknown {
-		return PlanResult{Kind: PlanWaiting, Dependency: "shell preview", Reason: reason}, nil
+	if reason.Is(RefusalFieldUnavailable) {
+		return PlanResult{Kind: PlanWaiting, Dependency: "shell preview", Verdict: reason}, nil
 	}
-	if reason != "" {
-		return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Reason: BuildingMethodNoSpace}, nil
+	if !reason.IsZero() {
+		return PlanResult{Kind: PlanWaiting, Dependency: "storage room site", Verdict: BuildingReasonNoSpace}, nil
 	}
 	plan, err := domain.NewPlan(planID, 1, actions)
 	if err != nil {
@@ -715,7 +715,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	}
 	proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Previews: previews, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // plannedStorageRoom is the layout plan's storage room, the slot the
@@ -816,13 +816,13 @@ func (r *RoutineSecureSuppliesPlanner) shellStockpile(call, epoch context.Contex
 	}
 	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }
 
 // previewSupplyRoomShell previews the storage room's ring, perimeter door
 // first (a Door, Wall elsewhere), mirroring previewPenShell. It never
 // commits: a rejected or infeasible cell aborts the room.
-func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, perimeter []domain.Cell, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Context, snapshot domain.GenerationSnapshot, perimeter []domain.Cell, stuff string, facts observation.ColonyProjection) ([]domain.Action, []policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	var actions []domain.Action
 	var previews []policy.Preview
@@ -833,34 +833,34 @@ func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Contex
 		}
 		building, err := domain.NewBuilding(definition, cell, domain.North, stuff)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		v := preview.Preview
 		made, madeKnown := v.MadeFromStuff.Value()
 		if !madeKnown || made != (stuff != "") {
-			return nil, nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			return nil, nil, policy.StockObservation{}, fieldUnavailable("supply_shell_preview"), nil
 		}
 		footprint, fk := v.Footprint.Value()
 		can, ck := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
-			return nil, nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+			return nil, nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
-			return nil, nil, policy.StockObservation{}, "", err
+			return nil, nil, policy.StockObservation{}, Verdict{}, err
 		}
 		actions = append(actions, action)
 		previews = append(previews, v)
 	}
-	return actions, previews, stock, "", nil
+	return actions, previews, stock, Verdict{}, nil
 }
 
 func secureSuppliesHaulerFacts(pawn domain.PawnID, row *n.PawnState) policy.SecureSuppliesHaulerFacts {

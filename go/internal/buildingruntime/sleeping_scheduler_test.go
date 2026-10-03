@@ -48,7 +48,7 @@ func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	result, err := s.Step(context.Background())
-	if err != nil || result.Sleeping == nil || result.Sleeping.Reason != BuildingMethodAdmitted || f.writes != 1 {
+	if err != nil || result.Sleeping == nil || result.Sleeping.Verdict != BuildingReasonAdmitted || f.writes != 1 {
 		t.Fatal(result, err, f.writes)
 	}
 	plan, err := s.player.journal.LoadPlan(context.Background(), result.Sleeping.Decision.Goal.Methods[0].Plan)
@@ -126,7 +126,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := s.Step(context.Background())
-	if err != nil || result.Cooking == nil || result.Cooking.Reason != BuildingMethodAdmitted || result.Sleeping != nil || f.writes != 1 {
+	if err != nil || result.Cooking == nil || result.Cooking.Verdict != BuildingReasonAdmitted || result.Sleeping != nil || f.writes != 1 {
 		t.Fatal(result, err)
 	}
 	if config.Cooking.definition != "Campfire" {

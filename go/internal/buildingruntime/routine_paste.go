@@ -9,16 +9,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func (r *RoutineBuildingPlanner) selectPaste(p observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason) {
+func (r *RoutineBuildingPlanner) selectPaste(p observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict) {
 	seasonal := r.reviewer.seasonal(p.Facts)
 	meals := p.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
 	review, err := policy.ReviewMealTier(meals, p.ProductionBenches)
 	if err != nil || review.Tier != policy.MealPaste {
-		return r, ""
+		return r, Verdict{}
 	}
 	channels, known := p.FoodChannels.Value()
 	if !known {
-		return r, BuildingMethodUnknown
+		return r, fieldUnavailable("food_channels")
 	}
 	if len(channels.PasteDispenser) > 0 {
 		return r, BuildingExistingFacility
@@ -34,15 +34,15 @@ func (r *RoutineBuildingPlanner) selectPaste(p observation.ColonyProjection) (*R
 	}
 	site, ok := policy.PlanSiteType(policy.SiteTypeRequest{Paste: &request, Field: policy.FieldRequest{Site: policy.FarmSiteRequest{Cells: p.Cells, Bounds: p.Bounds, Anchor: p.Center}}})
 	if !ok {
-		return r, BuildingMethodNoSpace
+		return r, BuildingReasonNoSpace
 	}
 	result := *r
 	result.paste = site.Buildings
 	result.definition = "NutrientPasteDispenser"
-	return &result, ""
+	return &result, Verdict{}
 }
 
-func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot domain.GenerationSnapshot, p observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot domain.GenerationSnapshot, p observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: p.Identity.Tick}
 	blocked := map[domain.Cell]bool{}
 	for _, cell := range protected {
@@ -52,33 +52,33 @@ func (r *RoutineBuildingPlanner) previewPaste(ctx context.Context, snapshot doma
 	for i, site := range r.paste {
 		building, err := domain.NewBuilding(site.Definition, site.Cell, site.Rotation, "")
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), building)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		read, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		v := read.Preview
 		legal, lk := v.CanPlace.Value()
 		safe, sk := v.SafeToPlace.Value()
 		cells, ck := v.Footprint.Value()
 		if !lk || !sk || !ck || !legal || !safe || len(cells) == 0 {
-			return nil, stock, BuildingMethodRefused, nil
+			return nil, stock, BuildingReasonRefused, nil
 		}
 		for _, cell := range cells {
 			if blocked[cell] {
-				return nil, stock, BuildingMethodRefused, nil
+				return nil, stock, BuildingReasonRefused, nil
 			}
 			blocked[cell] = true
 		}
 		if err = mergeRoutineStock(&stock, read.Stock, true); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		out = append(out, v)
 	}
-	return out, stock, "", nil
+	return out, stock, Verdict{}, nil
 }

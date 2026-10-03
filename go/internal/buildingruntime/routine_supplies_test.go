@@ -55,7 +55,7 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	}
 	before := session.acquires.Load()
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -77,14 +77,14 @@ func TestSupplyPlannerBoundsPendingWorkAndManualCancels(t *testing.T) {
 	if work, _, err := clockSchedulerWork(plan, target); err != nil || work {
 		t.Fatal("Allow required game ticks", work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork || len(source.cells) != 1 {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork || len(source.cells) != 1 {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-supplies"
 	if _, err = reviewer.player.Pause(ctx, request); err != nil {
 		t.Fatal(err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonDisabled {
 		t.Fatal(next, err)
 	}
 	plan, err = db.LoadPlan(ctx, result.Plan)
@@ -136,7 +136,7 @@ func TestSupplyPlannerTargetsCohortStacksAtTheirCensusCell(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -162,7 +162,7 @@ func TestSupplyPlannerTargetsCohortStacksAtTheirCensusCell(t *testing.T) {
 	}
 	source.cells = nil
 	result, err = planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err = db.LoadPlan(ctx, result.Plan)

@@ -173,7 +173,7 @@ func (r *RoutineSleepingUpkeepPlanner) stageThrone(call, epoch context.Context, 
 	case policy.ThroneAssign:
 		return r.assignThrone(call, epoch, state, review, goal, step)
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+	return RoutineBuildingResult{Verdict: fieldUnavailable("throne_step")}, nil
 }
 
 // assignThrone commits one Assign of the standing throne to its holder,
@@ -187,7 +187,7 @@ func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context,
 		return RoutineBuildingResult{}, err
 	}
 	if method == "" {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	previous := domain.ClearPrevious()
 	if step.PreviousThrone != "" {
@@ -224,5 +224,5 @@ func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context,
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

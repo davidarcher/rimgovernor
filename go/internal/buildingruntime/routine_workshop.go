@@ -15,16 +15,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// BuildingWorkshopUnavailable: every bench that could produce the deficit
-// resource needs a skilled builder or power no generator can supply; the
-// deficit falls through to the resource planner's source paths.
-const BuildingWorkshopUnavailable RoutineBuildingReason = "workshop_bench_unavailable"
-
-// BuildingWorkshopResearch: the first bench that could produce the deficit
-// resource waits on research; the ladder record now names the projects and
-// the review raises EnsureResearch for them (issue #4 M4).
-const BuildingWorkshopResearch RoutineBuildingReason = "workshop_research_needed"
-
 // RoutineWorkshopSource adds the fresh bench and recipe-catalog reads the
 // workshop planner needs on top of the building source.
 type RoutineWorkshopSource interface {
@@ -55,11 +45,11 @@ func (r *RoutineBuildingPlanner) stepWorkshops(call, epoch context.Context, arbi
 	gear := *r
 	gear.goal = policy.MaintainEquipment
 	result, err := gear.step(call, epoch, arbiter)
-	if err != nil || result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Reason == BuildingWorkshopResearch {
+	if err != nil || result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Verdict == BuildingWorkshopResearch {
 		return result, err
 	}
 	resource, err := r.step(call, epoch, arbiter)
-	if err == nil && (resource.Reason == BuildingMethodNoDeficit || resource.Reason == BuildingMethodDisabled) {
+	if err == nil && (resource.Verdict == BuildingReasonNoDeficit || resource.Verdict == BuildingReasonDisabled) {
 		return result, nil
 	}
 	return resource, err
@@ -92,52 +82,52 @@ func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 // the recipe catalog before the planning census is requested, so the census
 // can describe exactly the candidate bench definitions. A non-empty reason
 // ends the step.
-func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.RoutineReview) (*workshopSelection, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.RoutineReview) (*workshopSelection, Verdict, error) {
 	if r.goal != policy.MaintainEquipment && !r.reviewer.policy.ResourceGoalConfigured() {
 		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		if len(targets) == 0 {
-			return nil, BuildingMethodDisabled, nil
+			return nil, BuildingReasonDisabled, nil
 		}
 	}
 	source, ok := r.native.(RoutineWorkshopSource)
 	if !ok {
-		return nil, "", fmt.Errorf("%w: prepareWorkshop: !ok", ErrControl)
+		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: !ok", ErrControl)
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := source.ReadColonyFacts(call, identity, r.goal == policy.MaintainEquipment)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil {
-		return nil, "", fmt.Errorf("%w: prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", ErrControl)
+		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil", ErrControl)
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
-		return nil, "", fmt.Errorf("%w: prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
+		return nil, Verdict{}, fmt.Errorf("%w: prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	var resource policy.Resource
 	var products []policy.Resource
 	if r.goal == policy.MaintainEquipment {
 		gear := observed.GetPlanning().GetObserved().GetGear()
 		if gear == nil {
-			return nil, BuildingMethodUnknown, nil
+			return nil, fieldUnavailable("gear_census"), nil
 		}
 		things, err := frameThings(call, r.native, identity)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		facts := gearObservationFacts(gear, bridge.Tables{Things: things})
 		for _, pawn := range facts.Pawns {
 			if candidates, known := pawn.Candidates.Value(); !known || len(candidates) > 0 {
-				return nil, BuildingMethodExistingWork, nil
+				return nil, BuildingReasonExistingWork, nil
 			}
 		}
 		needs := policy.GearReplacementNeeds(domain.Known(facts))
 		if len(needs) == 0 {
-			return nil, BuildingMethodNoDeficit, nil
+			return nil, BuildingReasonNoDeficit, nil
 		}
 		resource = needs[0]
 		products = needs
@@ -145,29 +135,29 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		stock := resourceStockFacts(observed)
 		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, stock)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		var found bool
 		resource, _, found, err = policy.SelectResourceTarget(targets, stock)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		if !found {
-			return nil, BuildingMethodNoDeficit, nil
+			return nil, BuildingReasonNoDeficit, nil
 		}
 	}
 	census, _, err := source.ReadGearBenches(call, identity)
 	if resource == "Beer" {
 		if observed.FermentingBarrels == nil {
-			return nil, BuildingMethodUnknown, nil
+			return nil, fieldUnavailable("fermenting_barrels"), nil
 		}
 		if observed.GetFermentingBarrels() == 0 {
-			return &workshopSelection{barrel: true, resource: resource, candidates: []string{"FermentingBarrel"}}, "", nil
+			return &workshopSelection{barrel: true, resource: resource, candidates: []string{"FermentingBarrel"}}, Verdict{}, nil
 		}
 		resource = "Wort"
 	}
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	for _, row := range census {
@@ -181,17 +171,17 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	for _, product := range products {
 		hosts, _, err := source.ReadRecipeCatalog(call, identity, string(product))
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		request := policy.WorkshopRequest{Resource: product, Benches: domain.Known(benches), Hosts: hosts}
 		snap.NoteWorkshop(call, request)
 		choice, err := policy.SelectWorkshopBench(request)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		if choice.Method == policy.WorkshopExisting {
 			if err := r.recordWorkshopLadder(call, state, review, product, choice); err != nil {
-				return nil, "", err
+				return nil, Verdict{}, err
 			}
 			return nil, BuildingExistingFacility, nil
 		}
@@ -216,7 +206,7 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	}
 	sort.Strings(selection.candidates)
 	selection.candidates = append(selection.candidates, policy.GeneratorDefinitions...)
-	return selection, "", nil
+	return selection, Verdict{}, nil
 }
 
 // recordWorkshopLadder persists the rung the workshop settled on so the next
@@ -233,9 +223,9 @@ func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, stat
 // selectWorkshop resolves the prepared candidates against the planning
 // census the same way selectComfort resolves a comfort method: the chosen
 // bench becomes the definition, placed indoors in a Workshop-hosting room.
-func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.RoutineReview, facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.RoutineReview, facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
 	if r.workshop == nil {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("workshop"), nil
 	}
 	if r.workshop.barrel {
 		if available, known := facts.DefinitionAvailable("FermentingBarrel").Value(); !known || !available {
@@ -243,11 +233,11 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 		}
 		facility, err := policy.Facility(policy.RoomRoleWorkshop)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		resolved := *r
 		resolved.definition, resolved.environment, resolved.facility = "FermentingBarrel", policy.PlacementIndoors, &facility
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	}
 	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
 	available := map[string]domain.Fact[bool]{}
@@ -265,7 +255,7 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 		snap.NoteWorkshop(call, request)
 		candidate, err := policy.SelectWorkshopBench(request)
 		if err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 		if candidate.Method == policy.WorkshopBuild || candidate.Method == policy.WorkshopExisting {
 			choice, resource = candidate, product.resource
@@ -277,12 +267,12 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 	}
 	if choice.Method != policy.WorkshopUnknown {
 		if err := r.recordWorkshopLadder(call, state, review, resource, choice); err != nil {
-			return nil, "", err
+			return nil, Verdict{}, err
 		}
 	}
 	switch choice.Method {
 	case policy.WorkshopUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("workshop"), nil
 	case policy.WorkshopExisting:
 		return nil, BuildingExistingFacility, nil
 	case policy.WorkshopResearch:
@@ -292,7 +282,7 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 	}
 	facility, err := policy.Facility(policy.RoomRoleWorkshop)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	resolved := *r
 	selectedWorkshop := *r.workshop
@@ -308,7 +298,7 @@ func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state Cont
 			}
 		}
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // generatorAvailable is whether any generator definition the power family

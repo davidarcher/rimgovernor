@@ -96,7 +96,7 @@ func defenseFightCensus(site bridge.DefenseSite) map[domain.Cell]policy.WaitDoor
 // stop tick; the open-plan check upstream keeps one in flight.
 func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal store.GoalState, state ControlState, m policy.CombatMemory) (RoutineDefenseLayoutResult, error) {
 	if len(m.WaitRooms) == 0 {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseWaitTier}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseWaitTier}, nil
 	}
 	read, census, err := r.fightCensus(call, state, defenseWaitRegion(m))
 	if err != nil {
@@ -105,7 +105,7 @@ func (r *RoutineDefenseLayoutPlanner) harden(call, epoch context.Context, goal s
 	stock, _ := read.Projection.Resources.Value()
 	buildings, err := policy.WaitHardening(m, census, stock[policy.Resource(policy.WaitDoorStuff)], defenseDefinitions.Door, defenseDefinitions.Wall, defenseDefinitions.WallStuff)
 	if err != nil || len(buildings) == 0 {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit, Tier: defenseWaitTier}, err
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit, Tier: defenseWaitTier}, err
 	}
 	return r.admitFightBuilds(call, epoch, goal, state, read, buildings, defenseWaitTier)
 }
@@ -141,7 +141,7 @@ func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Conte
 		}
 	}
 	if len(actions) == 0 {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: tier}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Tier: tier}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -164,8 +164,8 @@ func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Conte
 	}
 	if !decision.Admitted {
 		clockSchedulerLog("defense-layout.%s: refused=%+v", tier, decision.Refused)
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Plan: id, Tier: tier}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Plan: id, Tier: tier}, nil
 	}
 	clockSchedulerLog("defense-layout.%s: %d builds (%s)", tier, len(actions), method)
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: tier}, nil
+	return RoutineDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: tier}, nil
 }

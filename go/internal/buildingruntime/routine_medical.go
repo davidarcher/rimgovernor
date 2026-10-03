@@ -48,8 +48,8 @@ type RoutineMedicalPlanner struct {
 	native   RoutineMedicalSource
 }
 type RoutineMedicalResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineMedicalPlanner(reviewer *RoutineReviewer, native RoutineMedicalSource) (*RoutineMedicalPlanner, error) {
@@ -74,7 +74,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineMedicalResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -84,7 +84,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineMedicalResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if result, err := r.planAmputation(call, epoch, state, review); err != nil || result.Plan != "" {
 		return result, err
@@ -94,7 +94,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if !workable || !review.Latches.Medical.Restocks() {
-		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -145,7 +145,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineMedicalResult{}, err
 		}
-		return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: plan.ID()}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -153,7 +153,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineMedicalResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineMedicalResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	facts := observation.ColonyMedicalReserve(observed, tables)
@@ -162,7 +162,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if !medicalReview.Active {
-		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -194,14 +194,14 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return r.harvestMedicine(call, epoch, state, goal, observed, tables, medicalReview, stalledSources, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
-		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
 	}
 	_, ok := tokens[choice.Bench]
 	if !ok {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+choice.Bench) {
-		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	target := int32(choice.Target)
@@ -230,7 +230,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineMedicalResult{}, err
 	}
-	return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // harvestMedicine is MaintainMedicalReserves' method when no bench produces
@@ -244,15 +244,15 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	p := r.reviewer.player
 	replenish, known := medicalReview.Replenish.Value()
 	if !known {
-		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineMedicalResult{Verdict: fieldUnavailable("medical_replenish")}, nil
 	}
 	if replenish <= 0 {
-		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	sources := observation.ColonyAcquisition(observed, tables)
 	rows, known := sources.Value()
 	if !known {
-		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineMedicalResult{Verdict: fieldUnavailable("medicine_acquisition")}, nil
 	}
 	// A designation this step cancelled as stalled (#291) is still on the
 	// plant; counting its yield as pending would leave nothing to replenish.
@@ -276,10 +276,10 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	}
 	selected, err := policy.SelectResourceAcquisition(sources, domain.Known(float64(replenish)), domain.Known(pending), medicineResourceDefinition, held)
 	if err != nil {
-		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineMedicalResult{Verdict: fieldUnavailable("medicine_acquisition")}, nil
 	}
 	if len(selected) == 0 {
-		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
 	}
 	hash := sha256.New()
 	for _, row := range selected {
@@ -287,7 +287,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	}
 	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMedicalResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineMedicalResult{}, err
 	}
@@ -318,7 +318,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineMedicalResult{}, err
 	}
-	return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // planAmputation is CriticalMedical's life-saving amputation (#1166): while
@@ -379,7 +379,7 @@ func (r *RoutineMedicalPlanner) planAmputation(call, epoch context.Context, stat
 			if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 				return RoutineMedicalResult{}, err
 			}
-			return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+			return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 		}
 	}
 	return RoutineMedicalResult{}, nil

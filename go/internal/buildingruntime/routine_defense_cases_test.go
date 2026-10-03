@@ -248,10 +248,10 @@ func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
 		"testdata/defense/raid-breach-2-held.json.gz",
 		"testdata/defense/raid-breach-3-fallback.json.gz",
 		"testdata/defense/raid-breach-4-squad.json.gz")
-	if results[0].Reason != BuildingMethodAdmitted {
+	if results[0].Verdict != BuildingReasonAdmitted {
 		t.Fatal(results)
 	}
-	if results[1].Reason != BuildingMethodExistingWork || results[2].Reason != BuildingMethodCombatOrders || results[3].Reason != BuildingMethodExistingWork {
+	if results[1].Verdict != BuildingReasonExistingWork || results[2].Verdict != BuildingReasonCombatOrders || results[3].Verdict != BuildingReasonExistingWork {
 		t.Fatal(results)
 	}
 	for _, r := range results[1:] {

@@ -105,7 +105,7 @@ func TestSnapshotResearchLadderBenchThenNextRung(t *testing.T) {
 	}
 	in := p.Research[0]
 	next, reason := researchNext(in)
-	if next != "Stonecutting" || reason != "" || !policy.ResearchBenchNeeded(in.Read.Projects[next]) {
+	if next != "Stonecutting" || !reason.IsZero() || !policy.ResearchBenchNeeded(in.Read.Projects[next]) {
 		t.Fatalf("research: next %q reason %q, want Stonecutting owing a bench", next, reason)
 	}
 	step := loadStep(t, "research-ladder-step-bench", policy.EnsureResearch)
@@ -114,7 +114,7 @@ func TestSnapshotResearchLadderBenchThenNextRung(t *testing.T) {
 		t.Fatalf("bench: %+v reason %q err %v, want an indoor %s", bench, reason, err, policy.ResearchBenchDefinition)
 	}
 	in.Read.Finished = append(append([]string(nil), in.Read.Finished...), "Stonecutting")
-	if next, reason = researchNext(in); next != "Electricity" || reason != "" {
+	if next, reason = researchNext(in); next != "Electricity" || !reason.IsZero() {
 		t.Fatalf("after Stonecutting: next %q reason %q, want Electricity", next, reason)
 	}
 }

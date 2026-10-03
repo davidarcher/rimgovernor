@@ -11,7 +11,7 @@ import (
 func TestCraftingSpotSelection(t *testing.T) {
 	r := &RoutineBuildingPlanner{goal: policy.EnsureBasicDefense, definition: craftingSpotDefinition}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3))}}
-	if n, id, reason := r.selection(f); n != 1 || id != "crafting-spot" || reason != "" {
+	if n, id, reason := r.selection(f); n != 1 || id != "crafting-spot" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
 }

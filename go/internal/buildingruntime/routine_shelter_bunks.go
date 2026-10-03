@@ -143,14 +143,14 @@ func (r *RoutineBuildingPlanner) shelterBunks(call context.Context, goal store.G
 // to admit as the shell method, or a handled result: an adopted ring's own
 // outcome, an excavation stage, the room's plan dig or ruin claims, or a
 // bunk rung admitted (or refused) this review.
-func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s shelterSite) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, *RoutineBuildingResult, error) {
+func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s shelterSite) ([]policy.Preview, policy.StockObservation, Verdict, *RoutineBuildingResult, error) {
 	none := policy.StockObservation{}
 	if selected, stock, reason, adopted, err := r.adoptShell(call, s.snapshot, s.facts, s.protected, s.check); err != nil || adopted {
 		return selected, stock, reason, nil, err
 	}
 	record, err := r.shelterBunks(call, s.goal)
 	if err != nil {
-		return nil, none, "", nil, err
+		return nil, none, Verdict{}, nil, err
 	}
 	free := record.cells()
 	freed := make(map[domain.Cell]bool, len(free))
@@ -165,11 +165,11 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	}
 	layout, room, sited, err := r.plannedShell(call, s.facts, protected, free, s.check)
 	if err != nil {
-		return nil, none, "", nil, err
+		return nil, none, Verdict{}, nil, err
 	}
 	step := excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}
 	if !sited {
-		return nil, none, BuildingMethodNoSpace, nil, nil
+		return nil, none, BuildingReasonNoSpace, nil, nil
 	}
 	if len(free) > 0 {
 		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, record.beds, record.spots); !ok {
@@ -179,19 +179,19 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	// The planned room's rock is dug and its ruins claimed before the bunks
 	// stand on it; either holds the first roof, and says so in its log.
 	if result, handled, err := r.prepareShell(call, epoch, step, layout, room, s.check); err != nil || handled {
-		return nil, none, "", &result, err
+		return nil, none, Verdict{}, &result, err
 	}
 	indoor := *r
 	indoor.shelter, indoor.definition = false, "SleepingSpot"
 	owed, _, reason := indoor.selection(s.facts)
-	if reason != "" {
+	if !reason.IsZero() {
 		return nil, none, reason, nil, nil
 	}
 	if !record.spotsBound && !record.bedsBound {
 		bunks := policy.PlanShelterBunks(layout, int(owed), int(owed), nil)
 		result, admitted, err := r.admitBunks(call, epoch, s, shelterSpotsMethod, "SleepingSpot", bunks.Spots)
 		if err != nil || admitted {
-			return nil, none, "", &result, err
+			return nil, none, Verdict{}, &result, err
 		}
 	}
 	if !record.bedsBound {
@@ -199,7 +199,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 		definition, anchors := shelterBeds(s.facts, bunks.Beds)
 		result, admitted, err := r.admitBunks(call, epoch, s, shelterBedsMethod, definition, anchors)
 		if err != nil || admitted {
-			return nil, none, "", &result, err
+			return nil, none, Verdict{}, &result, err
 		}
 	}
 	selected, stock, reason, err := r.previewPlannedRing(call, s.snapshot, s.facts, layout, s.check)
@@ -314,8 +314,8 @@ func (r *RoutineBuildingPlanner) admitShellClaims(call, epoch context.Context, s
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d claims reason=%s", r.goal, method, len(actions), result.Reason)
-	return result, result.Reason == BuildingMethodAdmitted, nil
+	clockSchedulerLog("%s: %s: %d claims reason=%s", r.goal, method, len(actions), result.Verdict)
+	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 
 // admitBunks previews the bunks natively and admits the placeable ones as
@@ -396,8 +396,8 @@ func (r *RoutineBuildingPlanner) admitBunks(call, epoch context.Context, s shelt
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %s x%d reason=%s refused=%d", r.goal, method, definition, len(selected), result.Reason, len(result.Decision.Refused))
-	return result, result.Reason == BuildingMethodAdmitted, nil
+	clockSchedulerLog("%s: %s: %s x%d reason=%s refused=%d", r.goal, method, definition, len(selected), result.Verdict, len(result.Decision.Refused))
+	return result, result.Verdict == BuildingReasonAdmitted, nil
 }
 
 // sameBunkFootprint reports whether the native footprint is exactly the two

@@ -110,7 +110,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	ctx := context.Background()
 	planner, reviewer, db, v, native := pestFixture(t)
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -122,7 +122,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 		t.Fatal(plan.Progress[0])
 	}
 	// The pack's only animal has its hunt: nothing more to plan.
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodUsed {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonUsed {
 		t.Fatal(next, err)
 	}
 	// A second animal is planned beside the open hunt, not behind it:
@@ -133,7 +133,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := planner.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted || second.Plan == result.Plan {
+	if err != nil || second.Verdict != BuildingReasonAdmitted || second.Plan == result.Plan {
 		t.Fatal(second, err)
 	}
 	plan, err = db.LoadPlan(ctx, second.Plan)
@@ -143,7 +143,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	if acquisition, ok := plan.Progress[0].Action().Acquisition(); !ok || acquisition.Thing() != "beaver-2" {
 		t.Fatal(plan.Progress[0])
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodUsed {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonUsed {
 		t.Fatal(next, err)
 	}
 }
@@ -156,7 +156,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	ctx := context.Background()
 	planner, reviewer, db, v, native := pestFixture(t)
 	first, err := planner.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	addPest(native, v, "beaver-2", 9, 9)
@@ -164,7 +164,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := planner.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted {
+	if err != nil || second.Verdict != BuildingReasonAdmitted {
 		t.Fatal(second, err)
 	}
 	// Both beavers wander off their planned cells.
@@ -177,7 +177,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
 		t.Fatal(result, err)
 	}
 	for _, id := range []domain.PlanID{first.Plan, second.Plan} {
@@ -224,7 +224,7 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 		if _, err = reviewer.Step(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
 			t.Fatal(result, err)
 		}
 		plan, err = db.LoadPlan(ctx, first.Plan)
@@ -275,7 +275,7 @@ func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
 		t.Fatal("an unarmed roster must not be handed a hunt", result, err)
 	}
 	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: &c.Ref{Id: proto.String("bow")}, Ranged: proto.Bool(true)}}}
@@ -283,7 +283,7 @@ func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal("a bow-armed shooter admits the hunt", result, err)
 	}
 }

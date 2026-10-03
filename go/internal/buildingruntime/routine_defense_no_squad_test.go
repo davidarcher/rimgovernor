@@ -54,7 +54,7 @@ func TestRoutineDefenseReportsNoSquadForAnUnanswerableBuilding(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := planner.Step(ctx)
-	if err != nil || got.Reason != BuildingMethodNoSquad || got.Plan != "" {
+	if err != nil || got.Verdict != BuildingReasonNoSquad || got.Plan != "" {
 		t.Fatal(got, err)
 	}
 }

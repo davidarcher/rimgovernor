@@ -52,7 +52,7 @@ func (r *RoutineSleepingUpkeepPlanner) growSuite(call, epoch context.Context, st
 	case policy.SuiteGrowthRelocate:
 		return r.relocateSuite(call, epoch, state, goal, g)
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+	return RoutineBuildingResult{Verdict: fieldUnavailable("suite_growth")}, nil
 }
 
 func (r *RoutineSleepingUpkeepPlanner) growthCheck(call, epoch context.Context, state ControlState) func() error {
@@ -73,7 +73,7 @@ func (r *RoutineSleepingUpkeepPlanner) openSuiteWall(call, epoch context.Context
 	p := r.reviewer.player
 	method := suiteGrowthMethod(g, "")
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
@@ -114,7 +114,7 @@ func (r *RoutineSleepingUpkeepPlanner) relocateSuite(call, epoch context.Context
 	}
 	method := suiteGrowthMethod(g, strings.Join(things, ","))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	actionID := func(i int) domain.ActionID { return domain.ActionID(fmt.Sprintf("%s-%d", id, i)) }
@@ -145,5 +145,5 @@ func (r *RoutineSleepingUpkeepPlanner) relocateSuite(call, epoch context.Context
 		return RoutineBuildingResult{}, err
 	}
 	clockSchedulerLog("%s: suite %s: %d furniture move(s) onto the grown plan", goal.Goal.ID, g.RoomID, len(actions))
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

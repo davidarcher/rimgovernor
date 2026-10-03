@@ -128,7 +128,7 @@ func (r *RoutineSleepingUpkeepPlanner) removeOldBed(call, epoch context.Context,
 	bed := sha256.Sum256([]byte(rep.Bed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-replace-remove-%x", bed[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	// A real bed is packed, not deconstructed: the stored bed furnishes the
 	// next bedroom or bed spot (furnishFromShell, reinstallStoredBed).
@@ -186,7 +186,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 	room := sha256.Sum256([]byte(u.Room))
 	method := domain.MethodID(fmt.Sprintf("bedroom-upgrade-%s-%x", u.Slot, room[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	stuff := u.Stuff
 	for _, d := range facts.Definitions {
@@ -241,7 +241,7 @@ func (r *RoutineSleepingUpkeepPlanner) upgradeBedroom(call, epoch context.Contex
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	clockSchedulerLog("%s: bedroom upgrade %s %s x%d (weakest %s)", goal.Goal.ID, u.Room, u.Def, len(selected), u.Weakest)
 	return r.building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})

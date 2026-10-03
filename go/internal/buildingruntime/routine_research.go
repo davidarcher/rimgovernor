@@ -44,19 +44,9 @@ type RoutineResearchPlanner struct {
 	building *RoutineBuildingPlanner
 }
 
-// BuildingResearchBench: the next rung is selectable but for a research
-// bench nobody has built, and this planner has no building ladder to
-// stage one.
-const BuildingResearchBench RoutineBuildingReason = "research_bench_needed"
-
-// BuildingResearchBenchUnavailable: the simple research bench definition
-// is not buildable in the planning census (research-gated, or a builder
-// skill no colonist has).
-const BuildingResearchBenchUnavailable RoutineBuildingReason = "research_bench_unavailable"
-
 type RoutineResearchResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks the clock for ticks while the selected project
 	// is researched: nothing else owes the window a plan meanwhile.
 	NativeWorkTicks uint32
@@ -82,7 +72,7 @@ func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearch
 // selectResearchBench resolves the building ladder's definition: the simple
 // research bench, placed indoors in a Laboratory-hosting room, when the
 // planning census lists it buildable.
-func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
 	var definition *observation.PlanningDefinition
 	for i := range facts.Definitions {
 		if facts.Definitions[i].Name == policy.ResearchBenchDefinition {
@@ -90,18 +80,18 @@ func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyPro
 		}
 	}
 	if definition == nil {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("research_bench_definition"), nil
 	}
 	available, known := definition.Available.Value()
 	if !known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("research_bench_availability"), nil
 	}
 	if !available {
 		return nil, BuildingResearchBenchUnavailable, nil
 	}
 	facility, err := policy.Facility(policy.RoomRoleLaboratory)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	resolved := *r
 	resolved.definition = policy.ResearchBenchDefinition
@@ -110,27 +100,27 @@ func (r *RoutineBuildingPlanner) selectResearchBench(facts observation.ColonyPro
 	if stuff, known := definition.Stuff.Value(); known {
 		resolved.stuff = stuff
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // bench walks the building ladder for the research bench, or reports the
 // hold when none is composed.
 func (r *RoutineResearchPlanner) bench(call, epoch context.Context, arbiter *stepArbiter) (RoutineResearchResult, error) {
 	if r.building == nil {
-		return RoutineResearchResult{Reason: BuildingResearchBench}, nil
+		return RoutineResearchResult{Verdict: BuildingResearchBench}, nil
 	}
 	result, err := r.building.step(call, epoch, arbiter)
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	return RoutineResearchResult{Reason: result.Reason, NativeWorkTicks: result.NativeWorkTicks}, nil
+	return RoutineResearchResult{Verdict: result.Verdict, NativeWorkTicks: result.NativeWorkTicks}, nil
 }
 
 func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineResearchResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResearchResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -140,7 +130,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineResearchResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.EnsureResearch, state.Snapshot, review.Tick)
 	defer recorded()
@@ -154,7 +144,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	needs = r.reviewer.censusResearchNeeds(needs)
 	needs = policy.DeepDrillingResearch(needs, review.ResourceRunwayState())
 	if len(needs) == 0 && len(staged.ResearchLadder) == 0 {
-		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	goal, deficit, err := p.journal.Workable(call, review, policy.EnsureResearch)
 	if err != nil {
@@ -167,7 +157,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 				return RoutineResearchResult{}, err
 			}
 			if store.PlanOpen(plan) {
-				return RoutineResearchResult{Reason: BuildingMethodExistingWork}, nil
+				return RoutineResearchResult{Verdict: BuildingReasonExistingWork}, nil
 			}
 		}
 	}
@@ -190,16 +180,16 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		if deficit && policy.ResearchBenchNeeded(read.Projects[read.CurrentProject]) {
 			return r.bench(call, epoch, arbiter)
 		}
-		return RoutineResearchResult{Reason: BuildingMethodUsed, NativeWorkTicks: researchNativeWorkTicks}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonUsed, NativeWorkTicks: researchNativeWorkTicks}, nil
 	}
 	if !deficit {
-		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	inputs := snap.ResearchCall{Policy: policy.ArmorResearchPolicy(staged, review.Latches.Soldiers), Needs: needs, Read: read}
 	snap.NoteResearch(call, inputs)
 	next, reason := researchNext(inputs)
-	if reason != "" {
-		return RoutineResearchResult{Reason: reason}, nil
+	if !reason.IsZero() {
+		return RoutineResearchResult{Verdict: reason}, nil
 	}
 	// A rung locked only for lack of a bench is a building need, not a
 	// selection: native refuses the ResearchIntent until the bench stands
@@ -211,7 +201,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineResearchResult{Reason: BuildingMethodUsed}, nil
+		return RoutineResearchResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
 	}
@@ -237,7 +227,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineResearchResult{}, err
 	}
-	return RoutineResearchResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineResearchResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // researchNext is the project a research step selects from its fresh
@@ -245,7 +235,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 // finished, else the first such ladder rung, and the step selects the first
 // unfinished prerequisite on the way to it. A non-empty reason is the
 // step's outcome instead.
-func researchNext(in snap.ResearchCall) (string, RoutineBuildingReason) {
+func researchNext(in snap.ResearchCall) (string, Verdict) {
 	read := in.Read
 	finished := make([]policy.ResearchProjectID, len(read.Finished))
 	for i, name := range read.Finished {
@@ -257,10 +247,10 @@ func researchNext(in snap.ResearchCall) (string, RoutineBuildingReason) {
 	}
 	target, _ := policy.ResearchGoal(in.Policy, in.Needs, domain.Known(facts))
 	if target == "" {
-		return "", BuildingMethodNoDeficit
+		return "", BuildingReasonNoDeficit
 	}
 	if _, ok := read.Projects[target]; !ok {
-		return "", BuildingMethodUnknown
+		return "", fieldUnavailable("research_project")
 	}
 	projects := make(map[policy.ResearchProjectID]policy.ResearchProjectFacts, len(read.Projects))
 	for name, facts := range read.Projects {
@@ -268,7 +258,7 @@ func researchNext(in snap.ResearchCall) (string, RoutineBuildingReason) {
 	}
 	queue, err := policy.ResearchPrerequisiteQueue(projects, finished, []policy.ResearchProjectID{policy.ResearchProjectID(target)})
 	if err != nil || len(queue) == 0 {
-		return "", BuildingMethodUnknown
+		return "", fieldUnavailable("research_prerequisites")
 	}
-	return string(queue[0]), ""
+	return string(queue[0]), Verdict{}
 }

@@ -23,8 +23,8 @@ type RoutineFieldPlanner struct {
 }
 type RoutineFieldResult struct {
 	NativeWorkTicks uint32
-	Reason          RoutineBuildingReason
-	Plan            domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 type FieldNative interface {
@@ -41,7 +41,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineFieldResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineFieldResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineFieldResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -51,20 +51,20 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineFieldResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFieldResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.EnsureFoodSupply)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
-	idle := BuildingMethodNoDeficit
+	idle := BuildingReasonNoDeficit
 	if workable && goal.Goal.Priority >= 3 {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == policy.EnsureFoodSupply && row.Selected
 		}
 		if !selected {
-			workable, idle = false, BuildingMethodRefused
+			workable, idle = false, BuildingReasonRefused
 		}
 	}
 	// Open field work is budgeted against the food plan below. Infrastructure
@@ -143,12 +143,12 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	anchor := layoutAnchor(projection, policy.DistrictFields)
-	placeOthers := func(wait uint32, reason RoutineBuildingReason) (RoutineFieldResult, error) {
+	placeOthers := func(wait uint32, reason Verdict) (RoutineFieldResult, error) {
 		result, tried, err := r.placeLedger(call, epoch, state, projection, read, wait, others, anchor, protected)
 		if err != nil || tried {
 			return result, err
 		}
-		return RoutineFieldResult{Reason: reason, NativeWorkTicks: wait}, nil
+		return RoutineFieldResult{Verdict: reason, NativeWorkTicks: wait}, nil
 	}
 	if !workable {
 		return placeOthers(0, idle)
@@ -157,7 +157,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return result, err
 	}
 	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
-		return placeOthers(0, BuildingMethodUnknown)
+		return placeOthers(0, awaitingFoodPlan("field-capacity"))
 	}
 	if blocked {
 		openPlans := []store.PlanState{}
@@ -195,7 +195,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 	}
 	if blocked {
-		return placeOthers(wait, BuildingMethodExistingWork)
+		return placeOthers(wait, BuildingReasonExistingWork)
 	}
 	// A crop whose zones outgrew its full target gives up bare cells
 	// first (#1309): the shortfall planners go quiet once covered.
@@ -204,7 +204,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	if !known {
 		clockSchedulerLog("Fields: no plan (cells=%d choices=%d climate=%+v runway=%+v colonists=%+v coverage=%+v zones=%d): %s", len(projection.Cells), len(choices), projection.CropClimate, projection.Facts.FoodDays, projection.Facts.Colonists, request.Field.Coverage, len(projection.Farms), selection.Explain())
-		return placeOthers(wait, BuildingMethodUnknown)
+		return placeOthers(wait, fieldUnavailable("field_plan"))
 	}
 	// The winner's cells: basin kinds carry them on the candidate, not a site plan.
 	clockSchedulerLog("Fields select: kind=%s crop=%s cells=%d buildings=%d | %s", selection.Kind, selection.Crop.Name, selection.Candidates[0].Cells, len(selection.Buildings), selection.Explain())
@@ -232,9 +232,9 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if err != nil || tried {
 			return result, err
 		}
-		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Reason)
+		clockSchedulerLog("Fields: %s %s refused (%s), trying next candidate", candidate.Kind, candidate.Crop.Name, result.Verdict)
 	}
-	return placeOthers(wait, BuildingMethodRefused)
+	return placeOthers(wait, BuildingReasonRefused)
 }
 
 // otherFieldShortfalls is the hay and social field demand of this step's
@@ -288,7 +288,7 @@ func (r *RoutineFieldPlanner) otherFieldShortfalls(call context.Context, review 
 // placeLedger places the next field block of the heaviest shortfall that
 // still fits (#1308); tried reports a block reached commitment.
 func (r *RoutineFieldPlanner) placeLedger(call, epoch context.Context, state ControlState, projection observation.ColonyProjection, read observation.RoutineReading, wait uint32, ledger []fieldShortfall, anchor domain.Cell, protected []domain.Cell) (RoutineFieldResult, bool, error) {
-	result := RoutineFieldResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}
+	result := RoutineFieldResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: wait}
 	for _, s := range rankFieldShortfalls(ledger) {
 		if len(s.Options) == 0 {
 			continue
@@ -323,7 +323,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	fmt.Fprintf(hash, "%s/%s/%v/%v", candidate.Kind, crop.Name, candidate.Sites.Patches, candidate.Buildings)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, true, nil
+		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -341,7 +341,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 		})
 		if !ok {
-			return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+			return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
 		}
 		buildings := candidate.Buildings
 		if len(buildings) > fieldBatchPatches {
@@ -368,10 +368,10 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			legal, lk := v.CanPlace.Value()
 			safe, sk := v.SafeToPlace.Value()
 			if !lk || !sk {
-				return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, false, nil
+				return RoutineFieldResult{Verdict: fieldUnavailable("field_preview"), NativeWorkTicks: wait}, false, nil
 			}
 			if !legal || !safe {
-				return RoutineFieldResult{Reason: BuildingMethodNoSpace, NativeWorkTicks: wait}, false, nil
+				return RoutineFieldResult{Verdict: BuildingReasonNoSpace, NativeWorkTicks: wait}, false, nil
 			}
 			if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
 				return RoutineFieldResult{}, false, err
@@ -415,7 +415,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			}
 			if refused != "" {
 				clockSchedulerLog("Fields: %s patch %+v refused: %s", crop.Name, patch, refused)
-				return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+				return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
 			}
 			v := reply.GetEvaluated()
 			if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
@@ -455,9 +455,9 @@ func (r *RoutineFieldPlanner) admit(call, epoch context.Context, state ControlSt
 	}
 	if !decision.Admitted {
 		clockSchedulerLog("Fields: %s not admitted: %+v", what, decision.Refused)
-		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
 	}
-	return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 const fieldBatchPatches = 6
@@ -471,13 +471,13 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 	edit, reason, ok := planFieldBlock(projection, anchor, options, protected)
 	if !ok {
 		clockEvent(call, "layout", "fields", "outdoor field refused: "+reason, "crop", candidate.Crop.Name)
-		return RoutineFieldResult{Reason: BuildingMethodNoSpace, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonNoSpace, NativeWorkTicks: wait}, false, nil
 	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, true, nil
+		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -511,7 +511,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 			return RoutineFieldResult{}, false, err
 		}
 		clockEvent(call, "layout", "fields", "field block grown", "zone", edit.Zone, "crop", edit.Crop, "cells", len(edit.Cells), "plan", string(id))
-		return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+		return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 	}
 	value, err := domain.NewZoneCreate(domain.GrowingZone, edit.Crop, edit.Cells)
 	if err != nil {
@@ -527,7 +527,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 	}
 	if refused != "" {
 		clockSchedulerLog("Fields: %s block zone refused: %s", edit.Crop, refused)
-		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
 	}
 	v := reply.GetEvaluated()
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
@@ -549,12 +549,12 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		ReadGrowerCropTarget(context.Context, *c.Identity, string) (bridge.GrowerCropTarget, bridge.Result, error)
 	})
 	if !ok {
-		return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonRefused, NativeWorkTicks: wait}, false, nil
 	}
 	p := r.reviewer.player
 	method := domain.MethodID("fields-recrop-" + choice.Grower)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
 	}
@@ -567,7 +567,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	}
 	if target.Crop != choice.Current {
 		clockSchedulerLog("Fields: grower %s crop moved (%s -> %s) since the census", choice.Grower, choice.Current, target.Crop)
-		return RoutineFieldResult{Reason: BuildingMethodUnknown, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: fieldUnavailable("grower_crop"), NativeWorkTicks: wait}, false, nil
 	}
 	patch, err := domain.NewGrowerCrop(choice.Grower, choice.Crop.Name)
 	if err != nil {
@@ -576,7 +576,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	// Native checks the grower and crop live when the BuildingPatchIntent
 	// applies (#940); a refusal comes back on the plan, not here.
 	if !arbiter.tryClaim(nil, "grower:"+choice.Grower) {
-		return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, false, nil
+		return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, false, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewGrowerCropAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
@@ -598,7 +598,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineFieldResult{}, false, err
 	}
-	return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 func fieldCosts(v policy.Preview) []policy.Amount {

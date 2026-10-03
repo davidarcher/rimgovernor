@@ -175,7 +175,7 @@ func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
 	state, epoch := planner.reviewer.player.session.State(), planner.reviewer.player.epoch
 	step := policy.ThroneStep{Kind: policy.ThroneAssign, Throne: "t1", PreviousThrone: "t0", Need: policy.ThroneNeed{Holder: "Alice"}}
 	result, err := planner.assignThrone(ctx, epoch, state, review, goal, step)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	goal = sleepingGoal(t, db)
@@ -190,7 +190,7 @@ func TestAssignThroneCommitsOneGenericAssign(t *testing.T) {
 	if !ok || assign.Pawn() != "Alice" || assign.Thing() != "t1" || assign.Previous().ID() != "t0" || assign.Swap() {
 		t.Fatal(plan.Progress[0].Action())
 	}
-	if result, err = planner.assignThrone(ctx, epoch, state, review, goal, step); err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.assignThrone(ctx, epoch, state, review, goal, step); err != nil || result.Verdict != BuildingReasonUsed && result.Verdict != BuildingReasonExistingWork {
 		t.Fatal("assigned twice in one epoch", result, err)
 	}
 }

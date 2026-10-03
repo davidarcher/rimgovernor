@@ -13,8 +13,8 @@ type RoutineMoodReliefPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutineMoodReliefResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineMoodReliefPlanner(reviewer *RoutineReviewer) (*RoutineMoodReliefPlanner, error) {
@@ -79,7 +79,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	p := r.reviewer.player
 	sessionState := p.session.State()
 	if !sessionState.Enabled {
-		return RoutineMoodReliefResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineMoodReliefResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0 {
 		return RoutineMoodReliefResult{}, fmt.Errorf("%w: step: !sessionState.ObservationKnown || sessionState.Snapshot.Validate() != nil || sessionState.Snapshot.Native == 0", ErrControl)
@@ -89,10 +89,10 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineMoodReliefResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(sessionState.Snapshot) {
-		return RoutineMoodReliefResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineMoodReliefResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if review.Mood == nil || len(review.Mood.States) == 0 {
-		return RoutineMoodReliefResult{Reason: BuildingMethodUsed}, nil
+		return RoutineMoodReliefResult{Verdict: BuildingReasonUsed}, nil
 	}
 	statesByPawn := map[domain.PawnID]store.RoutineMoodState{}
 	for _, s := range review.Mood.States {
@@ -124,7 +124,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 			continue
 		}
 		if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-			return RoutineMoodReliefResult{Reason: BuildingMethodExistingWork}, err
+			return RoutineMoodReliefResult{Verdict: BuildingReasonExistingWork}, err
 		}
 		moodState, found := statesByPawn[binding.Subject]
 		if !found {
@@ -154,7 +154,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 				if id, cast, err := r.castMoodRelief(call, epoch, arbiter, incident, moodState.Pawn.ID); err != nil {
 					return RoutineMoodReliefResult{}, err
 				} else if cast {
-					return RoutineMoodReliefResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+					return RoutineMoodReliefResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 				}
 			}
 			continue
@@ -195,7 +195,7 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
-		return RoutineMoodReliefResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+		return RoutineMoodReliefResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 	}
-	return RoutineMoodReliefResult{Reason: BuildingMethodUsed}, nil
+	return RoutineMoodReliefResult{Verdict: BuildingReasonUsed}, nil
 }

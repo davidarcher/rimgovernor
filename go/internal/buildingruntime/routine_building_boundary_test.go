@@ -70,7 +70,7 @@ func TestRoutineSleepingPlansUnderAReviewAnchorAheadOfTheIdentityRead(t *testing
 	if err != nil {
 		t.Fatalf("planner failed on an identity read behind the review anchor: %v", err)
 	}
-	if result.Reason != BuildingMethodAdmitted || !result.Decision.Admitted {
+	if result.Verdict != BuildingReasonAdmitted || !result.Decision.Admitted {
 		t.Fatal(result)
 	}
 }

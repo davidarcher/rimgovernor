@@ -32,17 +32,17 @@ func (r *RoutineBuildingPlanner) routesDefinitions() []string {
 
 // selectRoutes re-reviews the fresh census under the review's latch and maps
 // the policy outcome onto the planner.
-func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
 	p := r.reviewer.policy.Routes
 	review, err := policy.ReviewRoutes(facts.Facts.Upkeep.Routes, latches.Routes, p)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if !review.Active {
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	}
 	if !review.Known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("routes"), nil
 	}
 	routes := policy.RoutesFacts{}
 	for _, d := range facts.Definitions {
@@ -52,7 +52,7 @@ func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection
 	}
 	proposal, err := policy.SelectRoutesMethod(review, routes, p)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if clockDebug() {
 		clockSchedulerLog("routes: review=%+v door=%+v proposal=%+v", review, routes.DoorAvailable, proposal)
@@ -62,13 +62,13 @@ func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection
 		resolved := *r
 		resolved.routes = &proposal
 		resolved.definition = proposal.Definition
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	case policy.RoutesUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("routes"), nil
 	case policy.RoutesNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	default:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 }
 
@@ -89,10 +89,10 @@ func deliberateBreach(p policy.Preview) bool {
 // the first one native reports legal with a one-cell footprint on the wall
 // cell; one door is enough to open the room, so the batch is a single
 // action. A door rotates with its wall, so both orientations are tried.
-func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.routes == nil || r.routes.Method != policy.RoutesBuild {
-		return nil, stock, "", fmt.Errorf("%w: previewRoutes: r.routes == nil || r.routes.Method != policy.RoutesBuild", ErrControl)
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewRoutes: r.routes == nil || r.routes.Method != policy.RoutesBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {
@@ -106,15 +106,15 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 		for _, rotation := range []domain.Rotation{domain.North, domain.East} {
 			building, err := domain.NewBuilding(r.routes.Definition, cell, rotation, r.routes.Stuff)
 			if err != nil {
-				return nil, stock, "", err
+				return nil, stock, Verdict{}, err
 			}
 			action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
 			if err != nil {
-				return nil, stock, "", err
+				return nil, stock, Verdict{}, err
 			}
 			preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 			if err != nil {
-				return nil, stock, "", err
+				return nil, stock, Verdict{}, err
 			}
 			p := preview.Preview
 			footprint, fk := p.Footprint.Value()
@@ -136,16 +136,16 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 				continue
 			}
 			if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-				return nil, stock, "", err
+				return nil, stock, Verdict{}, err
 			}
 			if clockDebug() {
 				clockSchedulerLog("routes: door %s on breach %v for facility %s stock=%+v", r.routes.Definition, cell, r.routes.Facility, stock.Values)
 			}
-			return []policy.Preview{p}, stock, "", nil
+			return []policy.Preview{p}, stock, Verdict{}, nil
 		}
 	}
 	if unknown {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("routes_preview"), nil
 	}
-	return nil, stock, BuildingMethodNoSpace, nil
+	return nil, stock, BuildingReasonNoSpace, nil
 }

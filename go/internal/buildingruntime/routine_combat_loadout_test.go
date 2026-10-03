@@ -62,7 +62,7 @@ func TestPodFightCommitsLoadoutBeforeFirstCombatBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := planner.Step(ctx)
-	if err != nil || got.Reason != BuildingMethodAdmitted {
+	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(ctx, got.Plan)

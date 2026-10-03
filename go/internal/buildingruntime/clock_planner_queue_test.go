@@ -62,7 +62,7 @@ func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 	n := schedulerSleeping(t, s, f)
 	ctx := context.Background()
 	first, err := s.Step(ctx)
-	if err != nil || first.Sleeping == nil || first.Sleeping.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Sleeping == nil || first.Sleeping.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	s.lastFull = s.clock.Now()
@@ -70,7 +70,7 @@ func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 	buildingWake := StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Buildings}}
 	// The planner runs once more, finds its blueprint open and waits on it.
 	step, err := s.StepWithReason(ctx, buildingWake)
-	if err != nil || !reflect.DeepEqual(step.Planners, []string{"sleeping"}) || step.Sleeping == nil || step.Sleeping.Reason != BuildingMethodExistingWork || step.Waiting != nil {
+	if err != nil || !reflect.DeepEqual(step.Planners, []string{"sleeping"}) || step.Sleeping == nil || step.Sleeping.Verdict != BuildingReasonExistingWork || step.Waiting != nil {
 		t.Fatal(step, err)
 	}
 	wait, ok := s.queue.waitingOn("sleeping")
@@ -131,8 +131,8 @@ func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
 func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 	t.Parallel()
 	q := newPlannerQueue()
-	reasons := map[string]RoutineBuildingReason{"haul": BuildingMethodExistingWork, "tend": BuildingMethodAdmitted}
-	reasonOf := func(name string) (RoutineBuildingReason, bool) { reason, ok := reasons[name]; return reason, ok }
+	reasons := map[string]Verdict{"haul": BuildingReasonExistingWork, "tend": BuildingReasonAdmitted}
+	reasonOf := func(name string) (Verdict, bool) { reason, ok := reasons[name]; return reason, ok }
 	sel := plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}
 	q.ran(sel, []string{"haul", "tend"}, reasonOf, 1000, func(kinds []domain.ActionKind) []domain.ActionID {
 		if !reflect.DeepEqual(kinds, []domain.ActionKind{domain.HaulAction}) {
@@ -186,8 +186,8 @@ func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	s.queue.configured = nil
 	ctx := context.Background()
 	// defenseLayout was refused admission and is due only at a later tick.
-	reasons := map[string]RoutineBuildingReason{"defenseLayout": BuildingMethodRefused}
-	s.queue.ran(plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}, []string{"defenseLayout"}, func(name string) (RoutineBuildingReason, bool) {
+	reasons := map[string]Verdict{"defenseLayout": BuildingReasonRefused}
+	s.queue.ran(plannerSelectionResult{planners: true, pick: func(plannerEntry) bool { return true }}, []string{"defenseLayout"}, func(name string) (Verdict, bool) {
 		reason, ok := reasons[name]
 		return reason, ok
 	}, 100, nil)

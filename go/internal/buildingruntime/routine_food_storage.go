@@ -19,8 +19,8 @@ type RoutineFoodStoragePlanner struct {
 	native   FieldNative
 }
 type RoutineFoodStorageResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineFoodStoragePlanner(reviewer *RoutineReviewer, native FieldNative) (*RoutineFoodStoragePlanner, error) {
@@ -38,7 +38,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineFoodStorageResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineFoodStorageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -48,14 +48,14 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineFoodStorageResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineFoodStorageResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainFoodStorage)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
 	if !workable {
-		return RoutineFoodStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {
 		selected := false
@@ -63,7 +63,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 			selected = selected || row.Goal == policy.MaintainFoodStorage && row.Selected
 		}
 		if !selected {
-			return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
+			return RoutineFoodStorageResult{Verdict: BuildingReasonRefused}, nil
 		}
 	}
 	for _, method := range goal.Methods {
@@ -72,7 +72,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineFoodStorageResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineFoodStorageResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineFoodStorageResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -95,7 +95,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	// MaintainFoodStorage also stands open for the larder and reserve; this
 	// planner places only the food stockpile a colony without one needs.
 	if storage, known := projection.Facts.FoodStorage.Value(); known && storage {
-		return RoutineFoodStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -115,7 +115,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	// is the placement done, whatever the census reads of it: standing
 	// another every pass is how the map filled with them (#1581).
 	if r.foodZoneStands(call, state.Snapshot, expected.Tick, goal.Goal.ID, siteCells) {
-		return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonUsed}, nil
 	}
 	claimRows, _ := claims.Value()
 	for _, cell := range shellInteriors(nil, claimRows) {
@@ -151,7 +151,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		sites = sites[:maxFoodStorageSites]
 	}
 	if len(sites) == 0 {
-		return RoutineFoodStorageResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	// The census cannot see everything native refuses (a pawn or a stack
 	// that landed after the read), so each candidate is previewed in turn
@@ -171,7 +171,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		hash := sha256.Sum256([]byte(fmt.Sprintf("%v", candidate)))
 		method = domain.MethodID(fmt.Sprintf("food-storage-%x", hash[:16]))
 		if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-			return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
+			return RoutineFoodStorageResult{Verdict: BuildingReasonUsed}, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineFoodStorageResult{}, err
 		}
@@ -206,7 +206,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 		break
 	}
 	if !accepted {
-		return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
+		return RoutineFoodStorageResult{Verdict: BuildingReasonRefused}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineFoodStorageResult{}, err
@@ -226,11 +226,11 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
-	reason := BuildingMethodRefused
+	reason := BuildingReasonRefused
 	if decision.Admitted {
-		reason = BuildingMethodAdmitted
+		reason = BuildingReasonAdmitted
 	}
-	return RoutineFoodStorageResult{Reason: reason, Plan: id}, nil
+	return RoutineFoodStorageResult{Verdict: reason, Plan: id}, nil
 }
 
 // starterRoom recovers the completed starter shell's footprint from durable

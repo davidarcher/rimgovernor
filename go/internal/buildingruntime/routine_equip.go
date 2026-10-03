@@ -27,8 +27,8 @@ type RoutineEquipPlanner struct {
 	native   RoutineEquipSource
 }
 type RoutineEquipResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineEquipPlanner(reviewer *RoutineReviewer, native RoutineEquipSource) (*RoutineEquipPlanner, error) {
@@ -61,7 +61,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineEquipResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineEquipResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineEquipResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -71,14 +71,14 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineEquipResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineEquipResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineEquipResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.EnsureBasicDefense)
 	if err != nil {
 		return RoutineEquipResult{}, err
 	}
 	if !workable {
-		return RoutineEquipResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineEquipResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	attemptsByPawn := map[domain.PawnID]int{}
 	ownedWeapons := map[domain.PawnID]string{}
@@ -88,7 +88,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineEquipResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineEquipResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineEquipResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 		for _, progress := range plan.Progress {
 			if equip, ok := progress.Action().Equip(); ok {
@@ -112,7 +112,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineEquipResult{Reason: BuildingMethodUsed}, nil
+		return RoutineEquipResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -201,11 +201,11 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	arbiter.mu.Unlock()
 	if len(assignments) == 0 {
 		if exhausted {
-			return RoutineEquipResult{Reason: BuildingMethodExhausted}, nil
+			return RoutineEquipResult{Verdict: BuildingReasonExhausted}, nil
 		}
 		// No loose weapon fits an unarmed fighter: the armory crafts one
 		// (#1204).
-		return RoutineEquipResult{Reason: BuildingMethodUsed}, nil
+		return RoutineEquipResult{Verdict: BuildingReasonUsed}, nil
 	}
 	// A single plan contains independent equip actions: no pawn waits for a
 	// preceding pawn's native postcondition before its order can dispatch.
@@ -237,5 +237,5 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineEquipResult{}, err
 	}
-	return RoutineEquipResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineEquipResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

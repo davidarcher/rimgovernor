@@ -47,7 +47,7 @@ func TestRoutineShelterSpotsThenBedsThenShell(t *testing.T) {
 		}
 	}
 	result, err := r.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 32 {
 		t.Fatal(result, err, n.previews)
 	}
 	shell, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
@@ -108,7 +108,7 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 		}
 	}
 	first, err := r.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	if plan := methodPlan(t, first.Decision, shelterSpotsMethod); plan == "" {
@@ -117,7 +117,7 @@ func TestRoutineShelterBedsRefusedFallsThroughToShell(t *testing.T) {
 	completeRoutineBuildingMethod(t, db, first)
 	n.previews, n.calls = 0, 0
 	second, err := r.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted || n.previews != 32 {
+	if err != nil || second.Verdict != BuildingReasonAdmitted || n.previews != 32 {
 		t.Fatal(second, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(second.Decision.Goal).Plan)
@@ -156,7 +156,7 @@ func TestRoutineShelterAdoptionSkipsBunks(t *testing.T) {
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.censuses == 0 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || n.censuses == 0 {
 		t.Fatal(result, err, n.censuses)
 	}
 	for _, m := range result.Decision.Goal.Methods {
@@ -178,14 +178,14 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
 	spots, err := r.Step(ctx)
-	if err != nil || spots.Reason != BuildingMethodAdmitted {
+	if err != nil || spots.Verdict != BuildingReasonAdmitted {
 		t.Fatal(spots, err)
 	}
 	methodPlan(t, spots.Decision, shelterSpotsMethod)
 	// The spots stay open too: an interim that has not stood yet holds
 	// neither the beds nor the ring.
 	beds, err := r.Step(ctx)
-	if err != nil || beds.Reason != BuildingMethodAdmitted {
+	if err != nil || beds.Verdict != BuildingReasonAdmitted {
 		t.Fatal(beds, err)
 	}
 	bedPlan, err := db.LoadPlan(ctx, methodPlan(t, beds.Decision, shelterBedsMethod))
@@ -194,7 +194,7 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 	}
 	n.previews, n.calls = 0, 0
 	shell, err := r.Step(ctx)
-	if err != nil || shell.Reason != BuildingMethodAdmitted {
+	if err != nil || shell.Verdict != BuildingReasonAdmitted {
 		t.Fatal("stalled beds held the ring", shell, err)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(shell.Decision.Goal).Plan)
@@ -214,7 +214,7 @@ func TestRoutineShelterStalledBedsAdmitShell(t *testing.T) {
 		}
 	}
 	again, err := r.Step(ctx)
-	if err != nil || again.Reason != BuildingMethodExistingWork {
+	if err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
 	goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID)
@@ -231,7 +231,7 @@ func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
 	r, db, n := shelterSiteFixture(t)
 	ctx := context.Background()
 	for range 2 {
-		if result, err := r.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+		if result, err := r.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
 			t.Fatal(result, err)
 		}
 	}
@@ -240,7 +240,7 @@ func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
 		t.Fatal(err)
 	}
 	shell, err := restarted.Step(ctx)
-	if err != nil || shell.Reason != BuildingMethodAdmitted {
+	if err != nil || shell.Verdict != BuildingReasonAdmitted {
 		t.Fatal(shell, err)
 	}
 	record, err := restarted.shelterBunks(ctx, shell.Decision.Goal)
@@ -261,7 +261,7 @@ func TestRoutineShelterRestartKeepsBunks(t *testing.T) {
 			t.Fatal("ring on a recorded bunk", c)
 		}
 	}
-	if again, err := restarted.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := restarted.Step(ctx); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal("repeat review", again, err)
 	}
 	if goal, err := db.LoadGoal(ctx, shell.Decision.Goal.Goal.ID); err != nil || len(goal.Methods) != 3 {

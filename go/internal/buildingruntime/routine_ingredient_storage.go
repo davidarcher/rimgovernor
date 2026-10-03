@@ -36,8 +36,8 @@ type RoutineIngredientStorageSource interface {
 	FieldNative
 }
 type RoutineIngredientStorageResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 const maxIngredientStorageAttempts = 3
@@ -56,7 +56,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineIngredientStorageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -66,24 +66,24 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if !r.reviewer.policy.ResourceGoalConfigured() && review.MedicineTarget == 0 {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainResource)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
 	if !workable {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.MaintainResource && row.Selected
 	}
 	if !selected {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodRefused}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonRefused}, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -107,7 +107,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if !ok {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if resource == "Beer" {
 		resource = "Wort"
@@ -122,15 +122,15 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	}
 	bench, recipe, allow, known := ingredientStorageAllowList(resource, benches)
 	if !known {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineIngredientStorageResult{Verdict: fieldUnavailable("ingredient_allow_list")}, nil
 	}
 	if recipe == "" {
 		// No standing bench hosts the recipe yet: the workshop rung owns the
 		// deficit until one does.
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if len(allow) == 0 {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// One zone per bench and recipe, retried only after an earlier attempt
 	// ended unsuccessful or cancelled.
@@ -152,14 +152,14 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 			return RoutineIngredientStorageResult{}, err
 		}
 		if !ingredientStorageFailed(plan.Progress) {
-			return RoutineIngredientStorageResult{Reason: BuildingMethodUsed}, nil
+			return RoutineIngredientStorageResult{Verdict: BuildingReasonUsed}, nil
 		}
 	}
 	if id == "" {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodUsed}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodUsed}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineIngredientStorageResult{}, err
 	}
@@ -177,7 +177,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	projection := read.Projection
 	rooms, known := projection.Rooms.Value()
 	if !known {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineIngredientStorageResult{Verdict: fieldUnavailable("rooms")}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
@@ -196,7 +196,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if len(sites) == 0 {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = id
@@ -244,7 +244,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		break
 	}
 	if !accepted {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodRefused}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonRefused}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
@@ -265,9 +265,9 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 		return RoutineIngredientStorageResult{}, err
 	}
 	if !decision.Admitted {
-		return RoutineIngredientStorageResult{Reason: BuildingMethodRefused}, nil
+		return RoutineIngredientStorageResult{Verdict: BuildingReasonRefused}, nil
 	}
-	return RoutineIngredientStorageResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineIngredientStorageResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // ingredientStorageAllowList picks the first bench (census order) hosting an

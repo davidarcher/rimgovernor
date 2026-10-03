@@ -16,12 +16,12 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 	for _, test := range []struct {
 		name     string
 		access   []domain.Fact[bool]
-		reason   RoutineBuildingReason
+		reason   Verdict
 		previews int
 	}{
-		{"cramped then playable", []domain.Fact[bool]{domain.Known(false), domain.Known(true)}, "", 2},
-		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, BuildingMethodNoSpace, 2},
-		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, BuildingMethodUnknown, 2},
+		{"cramped then playable", []domain.Fact[bool]{domain.Known(false), domain.Known(true)}, Verdict{}, 2},
+		{"cramped", []domain.Fact[bool]{domain.Known(false), domain.Known(false)}, BuildingReasonNoSpace, 2},
+		{"unavailable", []domain.Fact[bool]{domain.Unknown[bool](), domain.Known(false)}, fieldUnavailable("watch_preview"), 2},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
@@ -39,7 +39,7 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 			if err != nil || reason != test.reason || native.previews != test.previews {
 				t.Fatal(selected, reason, err, native.previews)
 			}
-			if reason == "" {
+			if reason.IsZero() {
 				b, _ := selected[0].Action.Building()
 				if b.Cell() != (domain.Cell{X: 3, Z: 2}) {
 					t.Fatal("cramped site selected", b)
@@ -168,19 +168,19 @@ func TestComfortCompilerResolvesNativeMaterialAndDiningAdjacency(t *testing.T) {
 	census := policy.ComfortObservation{People: people}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Comfort: domain.Known(census)}, Definitions: []observation.PlanningDefinition{{Name: "Table1x2c", Stuff: domain.Known("WoodLog")}, {Name: "DiningChair", Stuff: domain.Known("WoodLog")}}}
 	selected, reason, err := planner.selectComfort(facts, policy.ComfortHistory{})
-	if err != nil || reason != "" || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {
+	if err != nil || !reason.IsZero() || selected.definition != "Table1x2c" || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleDiningRoom {
 		t.Fatal(selected, reason, err)
 	}
 	census.Surfaces = []policy.DiningSurface{{ID: "table", Adjacent: []domain.Cell{{X: 2, Z: 3}}}}
 	facts.Facts.Comfort = domain.Known(census)
 	selected, reason, err = planner.selectComfort(facts, policy.ComfortHistory{})
-	if err != nil || reason != "" || selected.definition != "DiningChair" || len(selected.adjacent) != 1 || selected.adjacent[0] != (domain.Cell{X: 2, Z: 3}) {
+	if err != nil || !reason.IsZero() || selected.definition != "DiningChair" || len(selected.adjacent) != 1 || selected.adjacent[0] != (domain.Cell{X: 2, Z: 3}) {
 		t.Fatal(selected, reason, err)
 	}
 	census.Dining = []policy.ComfortFacility{{ID: "chair", AccessibleTo: people}}
 	facts.Facts.Comfort = domain.Known(census)
 	selected, reason, err = planner.selectComfort(facts, policy.ComfortHistory{})
-	if err != nil || reason != "" || selected.definition != "HorseshoesPin" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleRecRoom {
+	if err != nil || !reason.IsZero() || selected.definition != "HorseshoesPin" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleRecRoom {
 		t.Fatal(selected, reason, err)
 	}
 	census.Recreation = []policy.ComfortFacility{{ID: "hoop", AccessibleTo: people}}
@@ -208,12 +208,12 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 	for _, test := range []struct {
 		name   string
 		rooms  domain.Fact[policy.RoomObservation]
-		reason RoutineBuildingReason
+		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), "", hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingMethodNoSpace, domain.Cell{}},
-		{"census unknown", domain.Unknown[policy.RoomObservation](), BuildingMethodUnknown, domain.Cell{}},
+		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, _, session, _, native := sleepingFixture(t)
@@ -227,7 +227,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 			if err != nil || reason != test.reason {
 				t.Fatal(selected, reason, err)
 			}
-			if reason != "" {
+			if !reason.IsZero() {
 				if native.previews != 0 {
 					t.Fatal("previewed outside a hosting room", native.previews)
 				}
@@ -241,7 +241,7 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 	}
 	shell := &RoutineBuildingPlanner{goal: policy.EnsureComfort, phase: policy.ComfortRanked, definition: "Wall", shelter: true}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := shell.selection(facts); missing != 32 || method != "comfort-shell" || reason != "" {
+	if missing, method, reason := shell.selection(facts); missing != 32 || method != "comfort-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 }

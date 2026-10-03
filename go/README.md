@@ -680,7 +680,7 @@ research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
 tribal baseline; `TableStonecutter` once stonecutting is researched) inside a
 Workshop-hosting room (method `workshop-<definition>`), or stages a shell
 first (`workshop-shell`); while `MaintainHousing` is still in deficit it
-waits (`earlier_shell_blocked`) for that starter shell to become the first
+waits (`awaiting_plan:earlier_shell`) for that starter shell to become the first
 room rather than split the builders across two rings. Research-gated or powered benches stop at
 `workshop_bench_unavailable`. The `resource` family then places the bill on the
 new bench and the `work` family covers the bench's own DoBill work type.

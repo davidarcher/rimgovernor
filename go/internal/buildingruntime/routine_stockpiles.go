@@ -362,9 +362,9 @@ type RoutineStockpilePlanner struct {
 }
 
 type RoutineStockpileResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
-	Edits  int
+	Verdict
+	Plan  domain.PlanID
+	Edits int
 }
 
 func NewRoutineStockpilePlanner(reviewer *RoutineReviewer, native RoutineStockpileSource) (*RoutineStockpilePlanner, error) {
@@ -378,7 +378,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineStockpileResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -388,14 +388,14 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineStockpileResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainStockpiles)
 	if err != nil {
 		return RoutineStockpileResult{}, err
 	}
 	if !workable {
-		return RoutineStockpileResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -403,7 +403,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 			return RoutineStockpileResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineStockpileResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineStockpileResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -431,18 +431,18 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return RoutineStockpileResult{}, err
 	}
 	if !known {
-		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineStockpileResult{Verdict: fieldUnavailable("stockpile_zones")}, nil
 	}
 	r.reviewer.stockpiles.fill(stockpileWorld(state.Snapshot), request.Zones)
 	proposal := policy.PlanStockpileMaintenance(request)
 	if !proposal.Active {
-		return RoutineStockpileResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	tick := projection.Identity.Tick
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
 	id := domain.MintPlanID()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
 	}
@@ -474,7 +474,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		return r.create(call, epoch, state, goal, projection, read.StartedAt, creates)
 	}
 	if len(actions) == 0 {
-		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -496,7 +496,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 		}
 		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "zone", e.Zone, "kind", string(e.Kind), "plan", string(id))
 	}
-	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: len(actions)}, nil
+	return RoutineStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }
 
 // create admits the missing zones (#724, and the opening stockpiles) as one
@@ -510,7 +510,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		PreviewZone(context.Context, *c.Identity, domain.ZoneCreate) (*op.ZonePreviewReply, bridge.Result, error)
 	})
 	if !ok {
-		return RoutineStockpileResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineStockpileResult{Verdict: fieldUnavailable("zone_preview")}, nil
 	}
 	tick := projection.Identity.Tick
 	roles := make([]string, len(edits))
@@ -521,7 +521,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	id := domain.MintPlanID()
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineStockpileResult{Reason: BuildingMethodUsed}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
 	}
@@ -565,7 +565,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		admitted = append(admitted, e)
 	}
 	if len(actions) == 0 {
-		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -583,12 +583,12 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 		return RoutineStockpileResult{}, err
 	}
 	if !decision.Admitted {
-		return RoutineStockpileResult{Reason: BuildingMethodRefused}, nil
+		return RoutineStockpileResult{Verdict: BuildingReasonRefused}, nil
 	}
 	for _, e := range admitted {
 		clockEvent(call, "layout", "stockpiles", "stockpile edit admitted: "+e.Explanation, "role", e.Role, "kind", string(e.Kind), "plan", string(id))
 	}
-	return RoutineStockpileResult{Reason: BuildingMethodAdmitted, Plan: id, Edits: len(actions)}, nil
+	return RoutineStockpileResult{Verdict: BuildingReasonAdmitted, Plan: id, Edits: len(actions)}, nil
 }
 
 // shelfTargetSource reads a shelf's storage settings CAS token.

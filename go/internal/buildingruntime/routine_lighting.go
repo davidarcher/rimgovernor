@@ -37,17 +37,17 @@ func (r *RoutineBuildingPlanner) lightingDefinitions() []string {
 // selectLighting re-reviews the fresh census under the review's latch and
 // maps the policy outcome onto the planner: a build resolves the lamp
 // definition and its candidate cells, everything else is a reason.
-func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
 	p := r.reviewer.policy.Lighting
 	review, err := policy.ReviewLighting(facts.Facts.Upkeep.Lighting, latches.Lighting, p, policy.EclipseHold(facts.Facts.DisasterConditions))
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if !review.Active {
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	}
 	if !review.Known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("lighting"), nil
 	}
 	lighting := policy.LightingFacts{Cells: facts.Cells, Available: map[string]domain.Fact[bool]{}, PoweredSource: poweredSource(facts), Styled: lampStyle(facts)}
 	if rooms, known := facts.Rooms.Value(); known {
@@ -58,7 +58,7 @@ func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjecti
 	}
 	proposal, err := policy.SelectLightingMethod(review, facts.Facts.Upkeep.Lighting, lighting, p)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if clockDebug() {
 		clockSchedulerLog("lighting: review=%+v rooms=%d cells=%d source=%+v proposal=%+v", review, len(lighting.Rooms), len(lighting.Cells), lighting.PoweredSource, proposal)
@@ -68,23 +68,23 @@ func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjecti
 		resolved := *r
 		resolved.lighting = &proposal
 		resolved.definition = proposal.Definition
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	case policy.LightingUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("lighting"), nil
 	case policy.LightingNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	default:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 }
 
 // previewLighting previews the policy's candidate cells nearest first and
 // admits the first one native reports legal and safe; a lamp has no
 // rotation, so only the cell varies.
-func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.lighting == nil || r.lighting.Method != policy.LightingBuild {
-		return nil, stock, "", fmt.Errorf("%w: previewLighting: r.lighting == nil || r.lighting.Method != policy.LightingBuild", ErrControl)
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewLighting: r.lighting == nil || r.lighting.Method != policy.LightingBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {
@@ -97,15 +97,15 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 		}
 		building, err := domain.NewBuilding(r.lighting.Definition, cell, domain.North, "")
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		p := preview.Preview
 		footprint, fk := p.Footprint.Value()
@@ -123,15 +123,15 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 			continue
 		}
 		if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		if clockDebug() {
 			clockSchedulerLog("lighting: preview cell=%v costs=%+v stock=%+v", cell, p.Costs, stock.Values)
 		}
-		return []policy.Preview{p}, stock, "", nil
+		return []policy.Preview{p}, stock, Verdict{}, nil
 	}
 	if unknown {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("lighting_preview"), nil
 	}
-	return nil, stock, BuildingMethodNoSpace, nil
+	return nil, stock, BuildingReasonNoSpace, nil
 }

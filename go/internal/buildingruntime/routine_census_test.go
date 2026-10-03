@@ -21,11 +21,11 @@ func TestPlannersPlanFromReviewCensus(t *testing.T) {
 		t.Fatal("review never read colony facts")
 	}
 	acquisition, err := planners.acquisition.Step(ctx)
-	if err != nil || acquisition.Reason != BuildingMethodAdmitted {
+	if err != nil || acquisition.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("acquisition: %+v %v", acquisition, err)
 	}
 	work, err := planners.work.Step(ctx)
-	if err != nil || work.Reason != BuildingMethodAdmitted {
+	if err != nil || work.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("work: %+v %v", work, err)
 	}
 	if native.reads != reads {

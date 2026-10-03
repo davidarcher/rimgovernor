@@ -18,8 +18,8 @@ type RoutineAcquisitionPlanner struct {
 }
 
 type RoutineAcquisitionResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 // NewRoutineAcquisitionPlanner plans one acquisition goal: EnsureFoodSupply
@@ -38,7 +38,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineAcquisitionResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -48,14 +48,14 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineAcquisitionResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, r.need)
 	if err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
 	if !workable {
-		return RoutineAcquisitionResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {
 		selected := false
@@ -63,7 +63,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			selected = selected || row.Goal == r.need && row.Selected
 		}
 		if !selected {
-			return RoutineAcquisitionResult{Reason: BuildingMethodRefused}, nil
+			return RoutineAcquisitionResult{Verdict: BuildingReasonRefused}, nil
 		}
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
@@ -184,7 +184,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: plan.ID()}, nil
+				return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
 			}
 		}
 	}
@@ -213,7 +213,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if !pest && !stockGoal {
 		block, plants := censusBlocking(projection.Acquisition, food, held, undispatched)
 		if block {
-			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineAcquisitionResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 		huntOnly = plants
 	}
@@ -238,7 +238,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if food {
 		plan, known := projection.Facts.FoodPlan.Value()
 		if !known {
-			return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineAcquisitionResult{Verdict: fieldUnavailable("food_plan")}, nil
 		}
 		runway = plan.Forecast.RunwayDays
 		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
@@ -280,13 +280,13 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Goal.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
 	}
 	if err != nil {
-		return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAcquisitionResult{Verdict: fieldUnavailable("acquisition_selection")}, nil
 	}
 	if len(selected) == 0 && existing {
-		return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	if len(selected) == 0 {
-		return RoutineAcquisitionResult{Reason: BuildingMethodUsed}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonUsed}, nil
 	}
 	hash := sha256.New()
 	for _, row := range selected {
@@ -306,7 +306,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineAcquisitionResult{Reason: BuildingMethodUsed}, nil
+		return RoutineAcquisitionResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
 	}
@@ -336,7 +336,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
-	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // resourceSelection is MaintainResource's census selection: the floors

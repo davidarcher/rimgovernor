@@ -28,7 +28,7 @@ func nextAreaChange(changes []policy.AllowedAreaChange, admitted int) (policy.Al
 func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, arbiter *stepArbiter, snapshot domain.GenerationSnapshot, incident store.IncidentState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn, started time.Time) (RoutineRecoveryResult, error) {
 	change, method := nextAreaChange(changes, len(incident.Methods))
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(change.Pawn)}) {
-		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	actionID := domain.ActionID(fmt.Sprintf("%s-0", id))
@@ -46,7 +46,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 			found = found || worker.ID == change.Pawn
 		}
 		if !found {
-			return RoutineRecoveryResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineRecoveryResult{Verdict: noWorker("area_pawn")}, nil
 		}
 		var assignment domain.WorkAssignment
 		assignment, err = domain.NewAreaAssignment(domain.PawnID(change.Pawn), change.Area == "", change.Area)
@@ -73,7 +73,7 @@ func (r *RoutineRecoveryPlanner) commitAreaChange(call, epoch context.Context, a
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineRecoveryResult{}, err
 	}
-	return RoutineRecoveryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineRecoveryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 func cancelStaleAreaActions(ctx context.Context, journal *store.Store, plan store.PlanState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn) error {

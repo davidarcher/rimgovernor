@@ -30,7 +30,7 @@ func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	state, err := db.LoadPlan(context.Background(), result.Plan)
@@ -69,7 +69,7 @@ func TestGearPlannerAdmitsEveryPawnPolicyInOneStep(t *testing.T) {
 	}
 	result, err := planner.stepOne(call, epoch, newStepArbiter())
 	done()
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	review, err := db.LoadRoutineReview(context.Background())
@@ -156,7 +156,7 @@ func TestGearProductionPersistsOnlyFundedMaterials(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.Reason != BuildingMethodAdmitted {
+		if result.Verdict != BuildingReasonAdmitted {
 			t.Fatal(result)
 		}
 		plan, err := db.LoadPlan(context.Background(), result.Plan)
@@ -245,7 +245,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -257,7 +257,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 		t.Fatal("expected pawn a to wear the parka", replace)
 	}
 	// A second step sees the open plan and admits nothing more.
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
 		t.Fatal(result, err)
 	}
 }
@@ -292,7 +292,7 @@ func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason == BuildingMethodAdmitted {
+	if err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal("weapon candidate admitted as a wear order", result, err)
 	}
 	if n.benchReads != 1 {
@@ -319,7 +319,7 @@ func TestGearPlannerWaitsWhileTheGoalIsNotRaised(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodNoDeficit {
+	if err != nil || result.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(result, err)
 	}
 }

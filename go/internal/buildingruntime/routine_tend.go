@@ -22,8 +22,8 @@ type RoutineTendPlanner struct {
 	native   RoutineTendSource
 }
 type RoutineTendResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks is a bounded window the step may lend when the
 	// CriticalMedical deficit stands but no tend method can run
 	// (medicalWaitTicks, #636).
@@ -40,7 +40,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineTendResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineTendResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineTendResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -50,17 +50,17 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineTendResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineTendResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineTendResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.CriticalMedicine)
 	if err != nil {
 		return RoutineTendResult{}, err
 	}
 	if !found {
-		return RoutineTendResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineTendResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-		return RoutineTendResult{Reason: BuildingMethodExistingWork}, err
+		return RoutineTendResult{Verdict: BuildingReasonExistingWork}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -73,7 +73,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineTendResult{Reason: BuildingMethodUsed}, nil
+		return RoutineTendResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -113,7 +113,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// No pair to order: the patient is up and out of bed, or every
 		// doctor is ineligible, busy or walled off from the patients. Only game time changes that, so
 		// the step lends a window rather than reporting no work (#636).
-		return RoutineTendResult{Reason: BuildingMethodUsed, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineTendResult{Verdict: BuildingReasonUsed, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	tend, err := domain.NewTend(doctor, patient)
 	if err != nil {
@@ -127,7 +127,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).
-		return RoutineTendResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineTendResult{Verdict: BuildingReasonExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -149,5 +149,5 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineTendResult{}, err
 	}
-	return RoutineTendResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineTendResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

@@ -168,7 +168,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 	}
 	// The loser is reported waiting on the hauler the winner holds, and
 	// its planner result carries the same reason: never a failure.
-	if !secureResult.Admitted || haulResult.Admitted || haulResult.Reason != BuildingMethodWaiting || !strings.HasPrefix(haulResult.Waiting, "pawn:hauler held by secureSupplies/") {
+	if !secureResult.Admitted || haulResult.Admitted || haulResult.Verdict != BuildingReasonWaiting || !strings.HasPrefix(haulResult.Waiting, "pawn:hauler held by secureSupplies/") {
 		t.Fatalf("secure supplies must win the hauler and haul wait on it: %+v / %+v", secureResult, haulResult)
 	}
 	var admitted []domain.PlanID

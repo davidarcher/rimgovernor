@@ -8,37 +8,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
-// plannerGoals names the goal each single-goal planner serves: the record
-// its refusal reason is filed on (GoalProgress.Planner). Planners serving
-// several goals or none are left out.
-var plannerGoals = map[string]policy.GoalID{
-	"foodStorage": policy.MaintainFoodStorage, "foodAcquisition": policy.EnsureFoodSupply, "pestAcquisition": policy.ClearPests,
-	"resourceAcquisition": policy.MaintainResource, "resource": policy.MaintainResource, "power": policy.EnsureBasicPower,
-	"temperature": policy.EnsureTemperatureSafety, "refrigeration": policy.MaintainRefrigeration, "lighting": policy.MaintainLighting, "artBills": policy.MaintainArt,
-	"flooring": policy.MaintainFlooring, "routes": policy.MaintainRoutes, "cooking": policy.EnsureCooking, "butcher": policy.MaintainButcherSpot,
-	"basicComfort": policy.EnsureComfort, "comfort": policy.EnsureComfort, "expansion": policy.MaintainHousing,
-	"sleeping": policy.MaintainHousing, "sleepingUpkeep": policy.MaintainHousing,
-	"equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "secureSupplies": policy.SecureSupplies,
-	"repair": policy.MaintainEssentialRepairs, "fireSafety": policy.MaintainFireSafety, "clearance": policy.ClearHomeObstructions,
-	"shrine": policy.ClearAncientShrine, "clean": policy.MaintainCleanFacilities, "blight": policy.RemoveBlight,
-	"waste": policy.MaintainWaste, "haul": policy.MaintainStorage, "foodStorageUpkeep": policy.MaintainFoodStorage,
-	"animalContainment": policy.MaintainAnimalContainment, "research": policy.EnsureResearch, "animalFeed": policy.MaintainAnimalFeed,
-	"homeCoverage": policy.MaintainHomeCoverage, "maintainShelter": policy.MaintainShelter, "firebreak": policy.MaintainFirebreak, "psylink": policy.MaintainPsylink, "permits": policy.MaintainPermits, "stoneShell": policy.MaintainStoneShell, "stockpiles": policy.MaintainStockpiles,
-	"defenseLayout": policy.EnsureDefensiveLayout, "work": policy.EnsureWorkAssignments, "medical": policy.MaintainMedicalReserves,
-	"surgery": policy.MaintainSurgery,
-}
-
-// plannerRecordReason is what a planner's reason files on its goal's
+// plannerRecordReason is what a planner's verdict files on its goal's
 // record: "" clears a refusal (the planner admitted, found work or saw no
-// deficit), false skips it (no review to judge, or unprintable text).
-func plannerRecordReason(reason RoutineBuildingReason) (string, bool) {
-	switch reason {
-	case "", BuildingMethodNoReview:
+// deficit), false skips it (no verdict, an invalid one, or unprintable
+// text). A refusal is filed as its rendered text.
+func plannerRecordReason(v Verdict) (string, bool) {
+	if v.IsZero() {
 		return "", false
-	case BuildingMethodAdmitted, BuildingMethodExistingWork, BuildingMethodNoDeficit, BuildingMethodHoldFallback, BuildingMethodCombatOrders:
+	}
+	if err := v.Validate(); err != nil {
+		clockSchedulerLog("planner verdict rejected: %v", err)
+		return "", false
+	}
+	if v.Outcome != OutcomeRefused {
 		return "", true
 	}
-	s := string(reason)
+	s := v.String()
 	if len(s) > 96 {
 		s = s[:96]
 	}
@@ -74,18 +59,14 @@ func (l *plannerReasonLog) changed(reasons map[policy.GoalID]string) map[policy.
 
 // wavePlannerReasons collects the goal reasons of the planners that
 // returned: a refusal wins over a clear from a sibling planner.
-func wavePlannerReasons(names []string, reasonOf func(string) (RoutineBuildingReason, bool)) map[policy.GoalID]string {
+func wavePlannerReasons(names []string, filing func(string) (policy.GoalID, Verdict, bool)) map[policy.GoalID]string {
 	out := map[policy.GoalID]string{}
 	for _, name := range names {
-		goal, ok := plannerGoals[name]
+		goal, verdict, ok := filing(name)
 		if !ok {
 			continue
 		}
-		raw, ok := reasonOf(name)
-		if !ok {
-			continue
-		}
-		reason, ok := plannerRecordReason(raw)
+		reason, ok := plannerRecordReason(verdict)
 		if !ok {
 			continue
 		}
@@ -100,7 +81,7 @@ func wavePlannerReasons(names []string, reasonOf func(string) (RoutineBuildingRe
 // files it on the goal's progress record, so the status strip and the
 // service log say why a goal has no method.
 func (s *ClockScheduler) recordPlannerReasons(call context.Context, wave *plannerWave) {
-	reasons := wavePlannerReasons(wave.finishedNames(), wave.reason)
+	reasons := wavePlannerReasons(wave.finishedNames(), wave.filing)
 	if len(reasons) == 0 {
 		return
 	}

@@ -131,7 +131,7 @@ func TestRoutineShrineJournalsTheShrineTheStepHeldOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err)
 	}
 	journal, err := db.LoadRoutineReview(ctx)
@@ -139,7 +139,7 @@ func TestRoutineShrineJournalsTheShrineTheStepHeldOn(t *testing.T) {
 		t.Fatal(err)
 	}
 	step := journal.ShrineStep
-	if step == nil || step.Shrine != "shrine" || step.Reason != string(BuildingMethodAdmitted) || len(step.Skipped) != 1 || step.Skipped[0] != (policy.ShrineHold{Shrine: "AncientShrineGroup_0", Reason: policy.ShrineHoldNoTraps}) {
+	if step == nil || step.Shrine != "shrine" || step.Reason != BuildingReasonAdmitted.String() || len(step.Skipped) != 1 || step.Skipped[0] != (policy.ShrineHold{Shrine: "AncientShrineGroup_0", Reason: policy.ShrineHoldNoTraps}) {
 		t.Fatalf("%+v", step)
 	}
 	marks := map[string]string{}
@@ -196,11 +196,11 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodHeld || result.Hold != policy.ShrineHoldNoTraps || result.Shrine != "shrine" {
+	if err != nil || result.Verdict != BuildingReasonHeld || result.Hold != policy.ShrineHoldNoTraps || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	journal, err := db.LoadRoutineReview(ctx)
-	if err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != string(BuildingMethodHeld) || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Hold != policy.ShrineHoldNoTraps || len(journal.ShrineStep.Skipped) != 0 || journal.ShrineHolds[0].Planner != store.ShrinePlannerHeld {
+	if err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != BuildingReasonHeld.String() || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Hold != policy.ShrineHoldNoTraps || len(journal.ShrineStep.Skipped) != 0 || journal.ShrineHolds[0].Planner != store.ShrinePlannerHeld {
 		t.Fatalf("%+v %+v %v", journal.ShrineStep, journal.ShrineHolds, err)
 	}
 
@@ -214,10 +214,10 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		t.Fatal(review.Review.ShrineHolds)
 	}
 	result, err = planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
-	if journal, err = db.LoadRoutineReview(ctx); err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != string(BuildingMethodAdmitted) || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Plan != result.Plan || journal.ShrineStep.Hold != "" {
+	if journal, err = db.LoadRoutineReview(ctx); err != nil || journal.ShrineStep == nil || journal.ShrineStep.Reason != BuildingReasonAdmitted.String() || journal.ShrineStep.Shrine != "shrine" || journal.ShrineStep.Plan != result.Plan || journal.ShrineStep.Hold != "" {
 		t.Fatalf("%+v %v", journal.ShrineStep, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -251,7 +251,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	if work, _, err := clockSchedulerWork(plan, scope); err != nil || !work {
 		t.Fatal(work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 
@@ -289,7 +289,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 		t.Fatal(holds)
 	}
 	result, err = planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
 	if plan, err = db.LoadPlan(ctx, result.Plan); err != nil || len(plan.Progress) != 2 {
@@ -309,7 +309,7 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	if err = db.AuthorizeRoutinePlan(ctx, root, scope); err != nil {
 		t.Fatal(err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 
@@ -368,7 +368,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodNoDeficit {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonNoDeficit {
 		t.Fatal("an unready gate leaves the caskets sealed", result, err)
 	}
 	// Ready the gate: a spare bed, food, medicine and a hosted census the
@@ -400,7 +400,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 		t.Fatal(review.Review.ShrineHolds)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

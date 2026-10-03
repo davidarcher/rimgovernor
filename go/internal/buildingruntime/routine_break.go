@@ -71,10 +71,10 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 		}
 	}
 	if len(chosen) == 0 {
-		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonNoSquad}, nil
 	}
 	if !arbiter.tryClaim(append(append([]domain.PawnID{}, chosen...), domain.PawnID(victim))) {
-		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonUsed}, nil
 	}
 	fmt.Fprintf(h, "%s/%v", victim, chosen)
 	method, id := defenseMethodID("subdue", len(incident.Methods), h), domain.MintPlanID()
@@ -113,5 +113,5 @@ func (r *RoutineDefensePlanner) planBreak(call, epoch context.Context, incident 
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

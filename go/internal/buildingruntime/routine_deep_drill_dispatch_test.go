@@ -116,12 +116,12 @@ func TestDeepDrillAdmitsNearestReachableSiteAndHoldsExistingDrill(t *testing.T) 
 			d := deepDrillDispatchFixture(t, existing, nil)
 			result, handled, err := d.run(t)
 			if existing {
-				if err != nil || !handled || result.Reason != BuildingMethodExistingWork || d.sleeping.previews != 0 {
+				if err != nil || !handled || result.Verdict != BuildingReasonExistingWork || d.sleeping.previews != 0 {
 					t.Fatal(result, handled, err)
 				}
 				return
 			}
-			if err != nil || !handled || result.Reason != BuildingMethodAdmitted {
+			if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, handled, err, d.review.Development.Rows)
 			}
 			plan, err := d.db.LoadPlan(context.Background(), result.Plan)
@@ -173,12 +173,12 @@ func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 				t.Fatal(result, handled, err)
 			}
 			if !tc.removal {
-				if result.Reason != BuildingMethodExistingWork || d.sleeping.previews != 0 {
+				if result.Verdict != BuildingReasonExistingWork || d.sleeping.previews != 0 {
 					t.Fatal(result, d.sleeping.previews)
 				}
 				return
 			}
-			if result.Reason != BuildingMethodAdmitted || d.sleeping.previews != 0 {
+			if result.Verdict != BuildingReasonAdmitted || d.sleeping.previews != 0 {
 				t.Fatal(result, d.sleeping.previews)
 			}
 			plan, err := d.db.LoadPlan(context.Background(), result.Plan)

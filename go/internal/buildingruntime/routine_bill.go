@@ -20,8 +20,8 @@ type RoutineBillPlanner struct {
 	native   BillPlannerNative
 }
 type RoutineBillResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks for game time while a claimed art bill is still
 	// being sculpted: a placed bill is no work to the clock (#1195).
 	NativeWorkTicks uint32
@@ -59,7 +59,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineBillResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineBillResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineBillResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -69,14 +69,14 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineBillResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineBillResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, r.need)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
 	if !workable {
-		return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if goal.Goal.Priority >= 3 {
 		selected := false
@@ -84,7 +84,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			selected = selected || row.Goal == r.need && row.Selected
 		}
 		if !selected {
-			return RoutineBillResult{Reason: BuildingMethodRefused}, nil
+			return RoutineBillResult{Verdict: BuildingReasonRefused}, nil
 		}
 	}
 	for _, method := range goal.Methods {
@@ -100,13 +100,13 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 					if b, ok := progress.Action().ProductionBill(); ok && r.purpose == policy.ButcherFood && b.Mode() == domain.ButcherForever {
 						continue
 					}
-					return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
+					return RoutineBillResult{Verdict: BuildingReasonExistingWork}, nil
 				}
 			}
 			continue
 		}
 		if r.purpose != policy.CookFood && store.PlanOpen(plan) {
-			return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineBillResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
@@ -148,7 +148,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		clockSchedulerLog("art bill: selected=%+v known=%v art=%+v err=%v", selected, known, art, err)
 		if err != nil || !known {
-			return RoutineBillResult{Reason: BuildingMethodUnknown, NativeWorkTicks: ticks}, err
+			return RoutineBillResult{Verdict: fieldUnavailable("art_bill"), NativeWorkTicks: ticks}, err
 		}
 		result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, art.finished[selected.Worker])
 		result.NativeWorkTicks = max(result.NativeWorkTicks, ticks)
@@ -161,12 +161,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		selected, known := policy.SelectProductionBill(r.purpose, domain.Known(benches), projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{Parts: parts})
 		if !known {
-			return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
+			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}
 		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	}
 	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
-		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBillResult{Verdict: awaitingFoodPlan("cooking-capacity")}, nil
 	}
 	if r.purpose == policy.ButcherFood {
 		// Owed on the food runway alone (#260): native offers no hunt row
@@ -174,7 +174,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// colonist would serialise spot, bill and hunt behind the equip family.
 		days, dk := projection.Facts.FoodDays.Value()
 		if (!dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays) && !policy.HumanFoodPending(projection.Facts.FoodPlan) {
-			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineBillResult{Verdict: fieldUnavailable("food_days")}, nil
 		}
 		// A butcher bench that shares a cooking room feeds the colony but keeps
 		// the kitchen dirty (issue #6 slice 2). While every bench is co-located
@@ -188,7 +188,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 				return RoutineBillResult{}, triedErr
 			}
 			if !tried {
-				return RoutineBillResult{Reason: BuildingMethodSeparation}, nil
+				return RoutineBillResult{Verdict: BuildingReasonSeparation}, nil
 			}
 		}
 	}
@@ -200,7 +200,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// meal recipe this load already claimed (the ordinary cooking bill)
 		// is dropped from the census: one claim per bench and recipe.
 		if !policy.SolarFlareHold(projection.Facts.DisasterConditions) {
-			return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
+			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}
 		refrigeration, err := policy.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, r.reviewer.policy.FoodStorage)
 		if err != nil {
@@ -220,11 +220,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	if r.purpose == policy.PreserveFood {
 		if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
-			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineBillResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 		}
 		value, known := projection.Facts.FoodReserve.Value()
 		if !known {
-			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineBillResult{Verdict: fieldUnavailable("food_reserve")}, nil
 		}
 		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
 		// A standing short reserve bill is native cook work: lend game time
@@ -249,7 +249,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if r.purpose == policy.ButcherFood {
 		if human, ok := policy.SelectHumanButcher(benches); ok {
 			if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCorpse, "human-butchery") {
-				return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+				return RoutineBillResult{Verdict: awaitingFoodPlan("human-butchery")}, nil
 			}
 			rows, _ := benches.Value()
 			for _, bench := range rows {
@@ -258,11 +258,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 					if !ready {
 						native, ok := r.native.(RoutineResourceSource)
 						if !ok || len(bench.HumanStorageCells) == 0 {
-							return RoutineBillResult{Reason: BuildingMethodNoSpace}, nil
+							return RoutineBillResult{Verdict: BuildingReasonNoSpace}, nil
 						}
 						core := RoutineResourcePlanner{reviewer: r.reviewer, native: native}
 						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage")
-						return RoutineBillResult{Reason: out.Reason, Plan: out.Plan}, e
+						return RoutineBillResult{Verdict: out.Verdict, Plan: out.Plan}, e
 					}
 				}
 			}
@@ -270,7 +270,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if !known {
-		return r.lendReserveWork(RoutineBillResult{Reason: BuildingMethodUnknown}, reserveRunning), nil
+		return r.lendReserveWork(RoutineBillResult{Verdict: fieldUnavailable("bill_bench")}, reserveRunning), nil
 	}
 	result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	return r.lendReserveWork(result, reserveRunning), err
@@ -279,7 +279,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 // lendReserveWork asks for game time while a reserve bill runs and no new
 // bill was admitted this step.
 func (r *RoutineBillPlanner) lendReserveWork(result RoutineBillResult, running bool) RoutineBillResult {
-	if running && result.Reason != BuildingMethodAdmitted {
+	if running && result.Verdict != BuildingReasonAdmitted {
 		result.NativeWorkTicks = max(result.NativeWorkTicks, animalFeedBillWorkTicks)
 	}
 	return result
@@ -305,13 +305,13 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	// Finite batches expire (store.checkBillMethod): a claim from an earlier
 	// batch does not bar the next one.
 	if claimed && selected.Replace == "" && selected.Mode != domain.GearBatch {
-		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
 	}
 	// The bill planners of one step run concurrently and read the same
 	// bench token; the second bill on a bench would hold forever on the
 	// first's write (#408). One bill per bench per step.
 	if arbiter != nil && !arbiter.tryClaim(nil, "bench:"+selected.Bench) {
-		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
 	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)
@@ -329,7 +329,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	}
 	method := domain.MethodID(fmt.Sprintf("bill-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBillResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBillResult{}, err
 	}
@@ -362,7 +362,7 @@ func (r *RoutineBillPlanner) admit(call, epoch context.Context, arbiter *stepArb
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBillResult{}, err
 	}
-	return RoutineBillResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineBillResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // unclaimedBenches copies the bench census with every recipe this load has

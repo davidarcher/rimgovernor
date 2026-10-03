@@ -274,7 +274,7 @@ func admitSleepingSpots(t *testing.T, rig *controllerRig) store.PlanState {
 	t.Helper()
 	rig.resume(t, "resume-1")
 	result, err := rig.planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || !result.Decision.Admitted || len(result.Decision.Goal.Methods) != 1 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || !result.Decision.Admitted || len(result.Decision.Goal.Methods) != 1 {
 		t.Fatalf("sleeping admission: %+v %v", result, err)
 	}
 	plan := rig.plan(t, result.Decision.Goal.Methods[0].Plan)

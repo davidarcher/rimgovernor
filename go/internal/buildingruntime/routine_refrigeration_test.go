@@ -94,7 +94,7 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 		t.Fatal(review.Latches, err)
 	}
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
@@ -110,7 +110,7 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 	if n.previews != 1 || n.buildingReads != 1 {
 		t.Fatal(n.previews, n.buildingReads)
 	}
-	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -119,7 +119,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, true)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.buildingReads != 2 || n.previews != 0 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || n.buildingReads != 2 || n.previews != 0 {
 		t.Fatal(result, err, n.buildingReads, n.previews)
 	}
 	goal, err := db.LoadGoal(context.Background(), result.Decision.Goal.Goal.ID)
@@ -148,7 +148,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	if !ok || patch.Thing() != "cooler" || patch.Celsius() != -5 {
 		t.Fatal(patch, ok)
 	}
-	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	// The routine worker must dispatch the patch (it is not a player plan)
@@ -172,7 +172,7 @@ func TestRefrigerationWaitsOnColdSetpointCooler(t *testing.T) {
 	p, _, n, _ := refrigerationFixture(t, true)
 	n.buildings.GetObserved().Buildings[0].Settings.TargetTemperatureC = proto.Float64(-5)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationWait) || result.Decision.Admitted || n.previews != 0 {
+	if err != nil || result.Verdict != awaitingMethod(policy.RefrigerationWait) || result.Decision.Admitted || n.previews != 0 {
 		t.Fatal(result, err)
 	}
 }
@@ -187,7 +187,7 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
+	if err != nil || result.Verdict != awaitingMethod(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
 }
@@ -200,7 +200,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, true)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	review, err := db.LoadRoutineReview(context.Background())
@@ -240,7 +240,7 @@ func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *te
 		t.Fatal(err)
 	}
 	result, err = p.Step(context.Background())
-	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
+	if err != nil || result.Verdict != awaitingMethod(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
 		t.Fatal(result, err)
 	}
 	if result.NativeWorkTicks == 0 {
@@ -291,7 +291,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	ctx := context.Background()
 	p, db, _, _ := refrigerationFixture(t, true)
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	review, err := db.LoadRoutineReview(ctx)
@@ -328,7 +328,7 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 	}
 	// The census still reads the warm target: the same patch is used.
 	next, err := p.Step(ctx)
-	if err != nil || next.Reason != BuildingMethodUsed || next.NativeWorkTicks == 0 {
+	if err != nil || next.Verdict != BuildingReasonUsed || next.NativeWorkTicks == 0 {
 		t.Fatal(next, err)
 	}
 }
@@ -354,7 +354,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 		t.Fatal(again.Latches, err)
 	}
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationWait) || result.Decision.Admitted || n.previews != 0 {
+	if err != nil || result.Verdict != awaitingMethod(policy.RefrigerationWait) || result.Decision.Admitted || n.previews != 0 {
 		t.Fatal(result, err)
 	}
 	if result.NativeWorkTicks == 0 {

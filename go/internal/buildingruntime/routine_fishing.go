@@ -76,7 +76,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 				continue
 			}
 			if open, known := region.Delivering.Value(); known && open {
-				return RoutineFieldResult{Reason: BuildingMethodUsed, NativeWorkTicks: 2500}, true, nil
+				return RoutineFieldResult{Verdict: BuildingReasonUsed, NativeWorkTicks: 2500}, true, nil
 			}
 			zoned, zk := region.Zoned.Value()
 			if entry.Decision != policy.FoodPlanOpen || !zk || zoned || len(region.ProposedCells) == 0 {
@@ -131,9 +131,9 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 				return RoutineFieldResult{}, false, err
 			}
 			if !decision.Admitted {
-				return RoutineFieldResult{Reason: BuildingMethodRefused}, true, nil
+				return RoutineFieldResult{Verdict: BuildingReasonRefused}, true, nil
 			}
-			return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+			return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 		}
 	}
 	return RoutineFieldResult{}, false, nil

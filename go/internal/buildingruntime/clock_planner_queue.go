@@ -253,7 +253,7 @@ func (q *plannerQueue) selection(tick int64, full, settled bool, stillOpen func(
 // waits on those attempts (openWork names them) until their outcome or
 // its deadline; a full wave (pick nil) also clears the all-evidence flag
 // and every wait. A planner that missed the wave keeps its marks.
-func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf func(string) (RoutineBuildingReason, bool), tick int64, openWork func(kinds []domain.ActionKind) []domain.ActionID) {
+func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf func(string) (Verdict, bool), tick int64, openWork func(kinds []domain.ActionKind) []domain.ActionID) {
 	if sel.pick == nil {
 		q.all = false
 		q.waits = map[string]plannerWait{}
@@ -269,12 +269,12 @@ func (q *plannerQueue) ran(sel plannerSelectionResult, names []string, reasonOf 
 			delete(q.dirty, name)
 		}
 		reason, finished := reasonOf(name)
-		if finished && reason == BuildingMethodRefused {
+		if finished && reason == BuildingReasonRefused {
 			q.refused[name] = true
 		} else {
 			delete(q.refused, name)
 		}
-		if !finished || reason != BuildingMethodExistingWork || openWork == nil {
+		if !finished || reason != BuildingReasonExistingWork || openWork == nil {
 			delete(q.waits, name)
 			continue
 		}

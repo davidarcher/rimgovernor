@@ -240,7 +240,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	}
 	if defenseCoverAttempts(history, tick) >= maxDefenseCoverAttempts {
 		clockSchedulerLog("defense-layout: cover clearance exhausted for the day (%d things waiting)", len(clearances))
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted}, true, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonExhausted}, true, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseCoverPrefix, tick))
 	id := domain.MintPlanID()
@@ -269,7 +269,7 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	for _, clearance := range clearances {
 		clockSchedulerLog("defense-layout: clear cover %s (%s) at %v by %s (%s)", clearance.Thing(), clearance.Definition(), clearance.Cell(), clearance.Designation(), method)
 	}
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	return RoutineDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 // defenseCensusSummary is the census in one line for a sector-less or

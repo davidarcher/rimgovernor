@@ -27,8 +27,8 @@ type RoutinePrisonerInteractionPlanner struct {
 	building *RoutineBuildingPlanner
 }
 type RoutinePrisonerInteractionResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutinePrisonerInteractionPlanner(reviewer *RoutineReviewer) (*RoutinePrisonerInteractionPlanner, error) {
@@ -46,7 +46,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodDisabled}, nil
+		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -56,14 +56,14 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPopulation)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	if !workable {
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -71,7 +71,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 			return RoutinePrisonerInteractionResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutinePrisonerInteractionResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutinePrisonerInteractionResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -89,9 +89,9 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
 	switch choice.Reason {
 	case policy.PrisonerNoDeficit:
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonUsed}, nil
 	case policy.PrisonerUnknown:
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUnknown}, nil
+		return RoutinePrisonerInteractionResult{Verdict: fieldUnavailable("prisoners")}, nil
 	}
 	if result, handled, err := r.stageJail(call, epoch, state, review, goal, expected); err != nil || handled {
 		return result, err
@@ -103,7 +103,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePrisonerInteractionResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	interaction, err := domain.NewPrisonerInteraction(choice.Pawn, choice.Interaction)
@@ -129,7 +129,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
-	return RoutinePrisonerInteractionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePrisonerInteractionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // stageJail takes the next jail step (#835, #880) while a prisoner is
@@ -158,11 +158,11 @@ func (r *RoutinePrisonerInteractionPlanner) stageJail(call, epoch context.Contex
 	case policy.JailMark:
 		result, err = r.markJailBed(call, epoch, state, goal, reading.Projection, step.Bed)
 	}
-	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Goal.ID, step.Kind, step.Held, step.Beds, result.Reason)
-	if err != nil || result.Reason == BuildingMethodUsed || result.Reason == BuildingMethodNoSpace || result.Reason == BuildingMethodUnknown || result.Reason == BuildingMethodRefused {
+	clockSchedulerLog("%s: jail %s (held %d, beds %d) reason=%v", goal.Goal.ID, step.Kind, step.Held, step.Beds, result.Verdict)
+	if err != nil || result.Verdict == BuildingReasonUsed || result.Verdict == BuildingReasonNoSpace || result.Verdict.Is(RefusalFieldUnavailable) || result.Verdict == BuildingReasonRefused {
 		return RoutinePrisonerInteractionResult{}, false, err
 	}
-	return RoutinePrisonerInteractionResult{Reason: result.Reason}, true, nil
+	return RoutinePrisonerInteractionResult{Verdict: result.Verdict}, true, nil
 }
 
 // jailStep is the projection's next jail step; none below Masonry or
@@ -184,11 +184,11 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	p := r.reviewer.player
 	native, ok := r.reviewer.native.(RoutineHospitalSource)
 	if !ok {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("hospital_source")}, nil
 	}
 	method := domain.MethodID("jail-mark-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -200,7 +200,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markJailBed: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Prisoners {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	patch, err := domain.NewBedPrisoners(bed)
 	if err != nil {
@@ -224,7 +224,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }
 
 // heldPrisoners counts the living prisoners in the census.

@@ -1247,8 +1247,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// no-squad answer lets a hostile building be watched instead of held
 	// (#326); any other outcome, or no planner, keeps the hold.
 	squadUnanswered := domain.Unknown[bool]()
-	if out.Defense != nil && out.Defense.Reason != "" {
-		squadUnanswered = domain.Known(out.Defense.Reason == BuildingMethodNoSquad)
+	if out.Defense != nil && !out.Defense.Verdict.IsZero() {
+		squadUnanswered = domain.Known(out.Defense.Verdict == BuildingReasonNoSquad)
 	}
 	// A complete sheltering response lets the threat be waited out (#1560):
 	// the wait is work of its own, on game time. It reads the review's
@@ -1270,7 +1270,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var nativeWorkTicks uint32
 	if out.Shrine != nil {
 		nativeWorkTicks = out.Shrine.NativeWorkTicks
-		clockSchedulerLog("shrine: reason=%s shrine=%s hold=%s native_work_ticks=%d", out.Shrine.Reason, out.Shrine.Shrine, out.Shrine.Hold, out.Shrine.NativeWorkTicks)
+		clockSchedulerLog("shrine: reason=%s shrine=%s hold=%s native_work_ticks=%d", out.Shrine.Verdict, out.Shrine.Shrine, out.Shrine.Hold, out.Shrine.NativeWorkTicks)
 	}
 	if out.Fields != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)
@@ -1617,13 +1617,13 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		case outcome.Admitted:
 			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
 		case outcome.Stale != "":
-			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Stale)
-		case outcome.Reason == BuildingMethodDemand:
-			clockSchedulerLog("proposal %s %s: %s (demand %v)", outcome.Proposal, outcome.Reason, outcome.Waiting, outcome.Demand)
+			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Verdict, outcome.Stale)
+		case outcome.Verdict == BuildingReasonDemand:
+			clockSchedulerLog("proposal %s %s: %s (demand %v)", outcome.Proposal, outcome.Verdict, outcome.Waiting, outcome.Demand)
 		default:
-			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Waiting)
+			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Verdict, outcome.Waiting)
 		}
-		wave.decided(outcome.Planner, outcome.Reason)
+		wave.decided(outcome.Planner, outcome.Verdict)
 	}
 	wave.merge(out)
 	// A failed planner is reported, not fatal: the step still evaluates the

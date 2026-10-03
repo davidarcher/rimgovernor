@@ -23,13 +23,13 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 		return RoutineArmoryResult{}, err
 	}
 	if !workable {
-		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if !equipmentRanked(review) {
-		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if _, refused, err := equipmentSlots(call, p, review); err != nil || refused != "" {
-		return RoutineArmoryResult{Reason: refused}, err
+	if _, refused, err := equipmentSlots(call, p, review); err != nil || !refused.IsZero() {
+		return RoutineArmoryResult{Verdict: refused}, err
 	}
 	claimed := map[string]bool{}
 	for _, method := range goal.Methods {
@@ -44,7 +44,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 			if wear, ok := action.GearReplace(); ok {
 				claimed[wear.Thing()] = true
 			} else if _, ok := action.ApparelPolicy(); !ok {
-				return RoutineArmoryResult{Reason: BuildingMethodExistingWork}, nil
+				return RoutineArmoryResult{Verdict: BuildingReasonExistingWork}, nil
 			}
 		}
 	}
@@ -63,7 +63,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
-		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	things, err := frameThings(call, r.native, identity)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 		}
 		if len(available) > 0 {
 			// Gear wears an existing item before anything is crafted.
-			return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
+			return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
 		}
 		observation.Pawns[i].Candidates = domain.Known(available)
 	}
@@ -130,7 +130,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 		}
 	}
 	if choice.Kind != policy.GearProduce {
-		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if _, ok := tokens[choice.Bench]; !ok {
 		return RoutineArmoryResult{}, fmt.Errorf("%w: craftWeapons: unknown bench %q", ErrControl, choice.Bench)
@@ -162,7 +162,7 @@ func (r *RoutineArmoryPlanner) craftWeapons(call, epoch context.Context, arbiter
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineArmoryResult{}, err
 	}
-	return RoutineArmoryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineArmoryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 func (r *RoutineArmoryPlanner) weaponDemand(ctx context.Context, state ControlState, gear *o.GearSnapshot, benches []policy.GearBench, tier policy.ArmoryTier) ([]policy.Amount, int, error) {
@@ -276,14 +276,14 @@ func weaponBenchHosted(benches []policy.GearBench) bool {
 // the weapon bill follows on a later step once it stands.
 func (r *RoutineArmoryPlanner) placeCraftingSpot(call, epoch context.Context, arbiter *stepArbiter) (RoutineArmoryResult, error) {
 	if r.spot == nil {
-		return RoutineArmoryResult{Reason: BuildingNoWeaponBench}, nil
+		return RoutineArmoryResult{Verdict: BuildingNoWeaponBench}, nil
 	}
 	result, err := r.spot.step(call, epoch, arbiter)
 	if err != nil {
 		return RoutineArmoryResult{}, err
 	}
 	if result.Decision.Admitted {
-		return RoutineArmoryResult{Reason: BuildingMethodAdmitted}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonAdmitted}, nil
 	}
-	return RoutineArmoryResult{Reason: result.Reason}, nil
+	return RoutineArmoryResult{Verdict: result.Verdict}, nil
 }

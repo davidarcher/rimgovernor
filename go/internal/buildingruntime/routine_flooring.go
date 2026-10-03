@@ -52,7 +52,7 @@ func (r *RoutineBuildingPlanner) flooringDefinitions() []string {
 // selectFlooring re-reviews the fresh census under the review's latch and
 // maps the policy outcome onto the planner: a build resolves the floor
 // definition and its cells, everything else is a reason.
-func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
 	p := r.reviewer.policy.Flooring
 	census := trafficFlooringFacts(facts, p)
 	if v, known := census.Value(); known && r.firebreakPave != nil {
@@ -62,13 +62,13 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 	logTrafficFindings(census)
 	review, err := policy.ReviewFlooring(census, facts.Rooms, latches.Flooring, p)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if !review.Active {
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	}
 	if !review.Known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("flooring"), nil
 	}
 	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
 	for _, d := range facts.Definitions {
@@ -76,7 +76,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 	}
 	proposal, err := policy.SelectFlooringMethod(review, flooring, p)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if clockDebug() {
 		clockSchedulerLog("flooring: review=%+v definitions=%d stock=%+v proposal=%+v", review, len(flooring.Definitions), flooring.Stock, proposal)
@@ -86,13 +86,13 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 		resolved := *r
 		resolved.flooring = &proposal
 		resolved.definition = proposal.Definition
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	case policy.FlooringUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("flooring"), nil
 	case policy.FlooringNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	default:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 }
 
@@ -100,10 +100,10 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 // one native reports legal and safe; a floor has no rotation and a
 // one-cell footprint. Cells native refuses (a wall, an identical floor laid
 // meanwhile) are skipped; the batch is the cells that remain.
-func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.flooring == nil || r.flooring.Method != policy.FlooringBuild {
-		return nil, stock, "", fmt.Errorf("%w: previewFlooring: r.flooring == nil || r.flooring.Method != policy.FlooringBuild", ErrControl)
+		return nil, stock, Verdict{}, fmt.Errorf("%w: previewFlooring: r.flooring == nil || r.flooring.Method != policy.FlooringBuild", ErrControl)
 	}
 	guarded := map[domain.Cell]bool{}
 	for _, c := range protected {
@@ -117,15 +117,15 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 		}
 		building, err := domain.NewBuilding(r.flooring.Definition, cell, domain.North, "")
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, len(selected))), building)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
 		if err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		p := preview.Preview
 		footprint, fk := p.Footprint.Value()
@@ -143,7 +143,7 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 			continue
 		}
 		if err = mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
-			return nil, stock, "", err
+			return nil, stock, Verdict{}, err
 		}
 		selected = append(selected, p)
 	}
@@ -151,12 +151,12 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 		if clockDebug() {
 			clockSchedulerLog("flooring: %d cells previewed for %s in room %s stock=%+v", len(selected), r.flooring.Definition, r.flooring.Room, stock.Values)
 		}
-		return selected, stock, "", nil
+		return selected, stock, Verdict{}, nil
 	}
 	if unknown {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("flooring_preview"), nil
 	}
-	return nil, stock, BuildingMethodNoSpace, nil
+	return nil, stock, BuildingReasonNoSpace, nil
 }
 
 // trafficFindingsLogged is the last finding set logged, so the service log

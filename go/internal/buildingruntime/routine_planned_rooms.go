@@ -111,7 +111,7 @@ func (r *RoutineBuildingPlanner) plannedDiningFurnishing(call, epoch context.Con
 		return r, RoutineBuildingResult{}, false, nil
 	}
 	result, err = r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
-	if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+	if err != nil || !result.Verdict.skipsToPlacement() {
 		return nil, result, true, err
 	}
 	furnish := *r

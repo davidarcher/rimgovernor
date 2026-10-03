@@ -103,7 +103,7 @@ func TestSnapshotLightOutageHoldsForPower(t *testing.T) {
 		t.Fatalf("review latched %v, want the one dark stove", r.Review.Latches.Lighting)
 	}
 	resolved, reason, err := recordedPlanner(r, policy.MaintainLighting).selectLighting(*r.Projection, r.Review.Latches)
-	if err != nil || resolved != nil || reason != RoutineBuildingReason(policy.LightingPowerNeeded) {
+	if err != nil || resolved != nil || reason != awaitingMethod(policy.LightingPowerNeeded) {
 		t.Fatalf("lighting: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, policy.LightingPowerNeeded)
 	}
 }
@@ -122,8 +122,8 @@ func TestSnapshotLightFungusNeverLatches(t *testing.T) {
 		t.Fatalf("review latched %v in a protected fungus room", r.Review.Latches.Lighting)
 	}
 	resolved, reason, err := recordedPlanner(r, policy.MaintainLighting).selectLighting(*r.Projection, r.Review.Latches)
-	if err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
-		t.Fatalf("lighting: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	if err != nil || resolved != nil || reason != BuildingReasonNoDeficit {
+		t.Fatalf("lighting: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingReasonNoDeficit)
 	}
 }
 
@@ -167,8 +167,8 @@ func TestSnapshotLightRepairRelatchesAfterLampRemoved(t *testing.T) {
 	if len(lit.Review.Latches.Lighting) != 0 {
 		t.Fatalf("lit room still latched: %v", lit.Review.Latches.Lighting)
 	}
-	if _, reason, err := recordedPlanner(lit, policy.MaintainLighting).selectLighting(*lit.Projection, lit.Review.Latches); err != nil || reason != BuildingMethodNoDeficit {
-		t.Fatalf("lit room: reason %q err %v, want %s", reason, err, BuildingMethodNoDeficit)
+	if _, reason, err := recordedPlanner(lit, policy.MaintainLighting).selectLighting(*lit.Projection, lit.Review.Latches); err != nil || reason != BuildingReasonNoDeficit {
+		t.Fatalf("lit room: reason %q err %v, want %s", reason, err, BuildingReasonNoDeficit)
 	}
 	dark := loadRecorded(t, "light-repair-lamp-removed")
 	census, known := dark.Facts.Upkeep.Lighting.Value()
@@ -400,8 +400,8 @@ func TestSnapshotRefrigerationPowerReleasesOnceReconnected(t *testing.T) {
 	if r.Review.Latches.Refrigeration {
 		t.Fatal("storeroom still latched after the cooler was reconnected")
 	}
-	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
-		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingReasonNoDeficit {
+		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingReasonNoDeficit)
 	}
 }
 
@@ -410,8 +410,8 @@ func TestSnapshotRefrigerationPowerReleasesOnceReconnected(t *testing.T) {
 func TestSnapshotPowerBatteryBankedHasNoDeficit(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "power-battery-banked")
-	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingMethodNoDeficit {
-		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingMethodNoDeficit)
+	if resolved, reason, err := recordedPlanner(r, policy.EnsureBasicPower).selectPower(*r.Projection, nil); err != nil || resolved != nil || reason != BuildingReasonNoDeficit {
+		t.Fatalf("power: resolved %v reason %q err %v, want %s", resolved != nil, reason, err, BuildingReasonNoDeficit)
 	}
 }
 

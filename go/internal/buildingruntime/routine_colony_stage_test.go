@@ -93,7 +93,7 @@ func TestRoutineStoneShellFollowsColonyStage(t *testing.T) {
 		t.Fatalf("stone shell row at Stable %+v", r)
 	}
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 1 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || n.previews != 1 {
 		t.Fatal(result, err, n.previews)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

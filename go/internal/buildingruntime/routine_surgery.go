@@ -20,9 +20,9 @@ type RoutineSurgeryPlanner struct {
 }
 
 type RoutineSurgeryResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
-	Wants  []policy.SurgeryWant
+	Verdict
+	Plan  domain.PlanID
+	Wants []policy.SurgeryWant
 	// Harvest is set when the plan carries an organ harvest (#1169)
 	// or an artificial part recovery (#1232), or a peg-leg step (#1236).
 	Harvest bool
@@ -46,7 +46,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineSurgeryResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineSurgeryResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -56,7 +56,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineSurgeryResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineSurgeryResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineSurgeryResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
@@ -81,7 +81,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineSurgeryResult{}, err
 	}
 	if !workable {
-		return RoutineSurgeryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: ticks}, nil
+		return RoutineSurgeryResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: ticks}, nil
 	}
 	inFlight := map[policy.PawnID]bool{}
 	for _, method := range goal.Methods {
@@ -96,7 +96,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if _, known := read.Projection.Facts.MedicalPawns.Value(); !known {
-		return RoutineSurgeryResult{Reason: BuildingMethodUnknown, NativeWorkTicks: ticks}, nil
+		return RoutineSurgeryResult{Verdict: fieldUnavailable("medical_pawns"), NativeWorkTicks: ticks}, nil
 	}
 	surgery := policy.SurgeryContext{HospitalBed: positiveFact(policy.HospitalBedReady(read.Projection.Facts.Sleeping))}
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
@@ -143,11 +143,11 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if len(queue) == 0 && !harvesting {
 		switch {
 		case len(inFlight) > 0:
-			result.Reason = BuildingMethodExistingWork
+			result.Verdict = BuildingReasonExistingWork
 		case len(selection.Wants) > 0:
-			result.Reason = RoutineBuildingReason(selection.Wants[0].Reason)
+			result.Verdict = awaitingMethod(selection.Wants[0].Reason)
 		default:
-			result.Reason = BuildingMethodUsed
+			result.Verdict = BuildingReasonUsed
 		}
 		return result, nil
 	}
@@ -164,7 +164,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	method := domain.MethodID(fmt.Sprintf("restore-%x", hash.Sum(nil)[:16]))
 	for _, previous := range goal.Methods {
 		if previous.Method == method {
-			result.Reason = BuildingMethodUsed
+			result.Verdict = BuildingReasonUsed
 			return result, nil
 		}
 	}
@@ -208,6 +208,6 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSurgeryResult{}, err
 	}
-	result.Reason, result.Plan = BuildingMethodAdmitted, id
+	result.Verdict, result.Plan = BuildingReasonAdmitted, id
 	return result, nil
 }

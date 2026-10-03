@@ -40,7 +40,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -50,7 +50,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineResourceResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainAnimalFeed, state.Snapshot, review.Tick)
 	defer recorded()
@@ -59,7 +59,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, err
 	}
 	if !workable {
-		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -67,7 +67,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineResourceResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineResourceResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineResourceResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	// A completed bill plan retires at the next review and leaves
@@ -101,7 +101,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		upkeep.Forecast = domain.Known(plan.Forecast)
 	}
 	if !foodPlanSupport(read.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
-		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineResourceResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 	}
 	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.AnimalUpkeep)
 	if err != nil {
@@ -109,14 +109,14 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	targets, known := reviewed.Feed.Value()
 	if !known {
-		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineResourceResult{Verdict: fieldUnavailable("animal_feed_targets")}, nil
 	}
 	if len(targets) == 0 {
-		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	supply, known := upkeep.Food.Value()
 	if !known {
-		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineResourceResult{Verdict: fieldUnavailable("animal_food_supply")}, nil
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -147,10 +147,10 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	switch choice.Reason {
 	case policy.AnimalFeedSelected:
 	case policy.AnimalFeedNoDeficit:
-		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	default:
 		// AnimalFeedNoFeed and AnimalFeedExceedsBound refuse for the window.
-		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
 	}
 	// Feed is only feed where the animal can eat it: the bill lands on a
 	// bench inside every covered animal's reachable area (#237) or, with no
@@ -167,7 +167,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		case len(choice.StorageCells) > 0:
 			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Goal.ID, choice.Resource, len(choice.StorageCells))
 			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage")
-			if err == nil && (result.Reason == BuildingMethodRefused || result.Reason == BuildingMethodNoSpace) {
+			if err == nil && (result.Verdict == BuildingReasonRefused || result.Verdict == BuildingReasonNoSpace) {
 				// The footprint native offered was refused at preview (the
 				// roof or the ground changed): lend the same window the
 				// no-bench refusal does rather than parking on no_work.
@@ -192,7 +192,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	// iteration is what completed the action, the rest needs colonists to
 	// keep cooking. With the deficit still open and no new method, ask for
 	// game time instead of leaving the clock refused as no_work.
-	if result.Reason == BuildingMethodUsed && standingBill {
+	if result.Verdict == BuildingReasonUsed && standingBill {
 		result.NativeWorkTicks = animalFeedBillWorkTicks
 	}
 	return result, nil

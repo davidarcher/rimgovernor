@@ -124,7 +124,7 @@ func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal
 		return RoutineBuildingResult{}, fmt.Errorf("%w: commitCampfireRefuel: not a refuel proposal", ErrControl)
 	}
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, proposal.Key); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -148,7 +148,7 @@ func (r *RoutineBuildingPlanner) commitCampfireRefuel(call context.Context, goal
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, proposal.Key, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }
 
 // campfireRetireOwed is the review's CampfireRetireOwed fact.
@@ -177,7 +177,7 @@ func (r *RoutineBuildingPlanner) retireBuilding(call, epoch context.Context, sta
 	sum := sha256.Sum256([]byte(campfire.ID))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, sum[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}

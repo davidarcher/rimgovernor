@@ -115,7 +115,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Plan == "" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
@@ -127,7 +127,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 		t.Fatal(bill, ok)
 	}
 	again, err := planner.Step(context.Background())
-	if err != nil || again.Reason != BuildingMethodExistingWork {
+	if err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 }
@@ -194,15 +194,15 @@ func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
 	identity := boundary.Identity(state.Snapshot)
 	stock := resourceStockFacts(v)
 	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodRefused || result.NativeWorkTicks != stockWaitTicks {
+	if err != nil || result.Verdict != BuildingReasonRefused || result.NativeWorkTicks != stockWaitTicks {
 		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodRefused {
+	if err != nil || result.Verdict != BuildingReasonRefused {
 		t.Fatal(result, err)
 	}
 	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 }
@@ -294,7 +294,7 @@ func TestResourceStepFallsThroughAnUndispatchableTargetToTheNextDeficit(t *testi
 	if got := native.reads; len(got) < 2 || got[len(got)-2] != "MedicineHerbal" || got[len(got)-1] != "Steel" {
 		t.Fatal("source reads", got, result)
 	}
-	if result.Reason != BuildingMethodAdmitted || result.Plan == "" || !minedSource(result, "ore-cas") {
+	if result.Verdict != BuildingReasonAdmitted || result.Plan == "" || !minedSource(result, "ore-cas") {
 		t.Fatal(result)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)

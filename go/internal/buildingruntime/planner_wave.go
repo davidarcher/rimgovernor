@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // StepBudget bounds one clock step's planner waves (#623), each part
@@ -75,7 +77,9 @@ type plannerWave struct {
 	// reasons is each returned planner's reason (its run's, or for a
 	// migrated planner its proposal's outcome): what the due queue reads
 	// to tell a planner waiting on open work from one that is due (#625).
-	reasons map[string]RoutineBuildingReason
+	reasons map[string]Verdict
+	// goals is the goal each queued planner files its verdict on.
+	goals map[string]policy.GoalID
 	// critical records the class each planner was queued under, which is
 	// the entry's own class or a startup promotion of it (#658).
 	critical map[string]bool
@@ -84,7 +88,7 @@ type plannerWave struct {
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]RoutineBuildingReason{}, critical: map[string]bool{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.GoalID{}, critical: map[string]bool{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -93,12 +97,13 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 	private := &ClockSchedulerResult{}
 	w.results[entry.name] = private
 	w.critical[entry.name] = entry.class == classCritical
+	w.goals[entry.name] = entry.goal
 	ctx := call
 	if entry.class != classCritical {
 		ctx = w.optional
 	}
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
-		var reason RoutineBuildingReason
+		var reason Verdict
 		run := s.config.Faults.plannerFault(entry.name, ctx, func() (err error) {
 			reason, err = entry.run(s, ctx, epoch, private, arbiter)
 			return err
@@ -114,7 +119,7 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 // done records a planner's return and its reason. After the cutoff the
 // return is discarded: the planner was recorded missed, its result is not
 // merged and its (cancellation) error is not a failure.
-func (w *plannerWave) done(name string, reason RoutineBuildingReason, err error) error {
+func (w *plannerWave) done(name string, reason Verdict, err error) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed {
@@ -129,7 +134,7 @@ func (w *plannerWave) done(name string, reason RoutineBuildingReason, err error)
 
 // decided records a reason decided after the planner returned: a
 // migrated planner's proposal outcome from the coordinator.
-func (w *plannerWave) decided(name string, reason RoutineBuildingReason) {
+func (w *plannerWave) decided(name string, reason Verdict) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.reasons[name] = reason
@@ -137,11 +142,22 @@ func (w *plannerWave) decided(name string, reason RoutineBuildingReason) {
 
 // reason is the reason recorded for name; false for a planner that failed
 // or missed the cutoff.
-func (w *plannerWave) reason(name string) (RoutineBuildingReason, bool) {
+func (w *plannerWave) reason(name string) (Verdict, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	reason, ok := w.reasons[name]
 	return reason, ok
+}
+
+// filing is the goal and verdict a returned planner files on: the goal comes
+// with the result. False for a planner that serves no single goal, failed or
+// missed the cutoff.
+func (w *plannerWave) filing(name string) (policy.GoalID, Verdict, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	verdict, ok := w.reasons[name]
+	goal := w.goals[name]
+	return goal, verdict, ok && goal != ""
 }
 
 // queuedCritical reports whether the named planner was queued into this

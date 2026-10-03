@@ -30,8 +30,8 @@ type RoutineRepairPlanner struct {
 	native   RoutineRepairSource
 }
 type RoutineRepairResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineRepairPlanner(reviewer *RoutineReviewer, native RoutineRepairSource) (*RoutineRepairPlanner, error) {
@@ -44,7 +44,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineRepairResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineRepairResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -54,7 +54,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRepairResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineRepairResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEssentialRepairs)
 	if err != nil {
@@ -68,7 +68,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRepairResult{}, err
 	}
 	if !workable {
-		return RoutineRepairResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// MaintainEssentialRepairs competes for the same bounded concurrent-project
 	// capacity as comfort/expansion/other priority>=3 autopilot goals; only act
@@ -78,7 +78,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.MaintainEssentialRepairs && row.Selected
 	}
 	if !selected {
-		return RoutineRepairResult{Reason: BuildingMethodRefused}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonRefused}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -86,7 +86,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoutineRepairResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineRepairResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineRepairResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	identity, _, err := r.native.Identity(call)
@@ -116,7 +116,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoutineRepairResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
 	}
 	byID := map[string]policy.UpkeepStructure{}
 	if rows, known := reading.Projection.Facts.Upkeep.Structures.Value(); known {
@@ -143,7 +143,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineRepairResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -179,7 +179,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		ok = false
 	}
 	if !ok {
-		return RoutineRepairResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
 	}
 	repair, err := domain.NewRepair(pawn, structure.ID, structure.Cell)
 	if err != nil {
@@ -190,7 +190,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	prefix := fmt.Sprintf("repair-%s-", structure.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineRepairResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineRepairResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -212,7 +212,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineRepairResult{}, err
 	}
-	return RoutineRepairResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineRepairResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 func repairCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.RepairCandidateFacts {

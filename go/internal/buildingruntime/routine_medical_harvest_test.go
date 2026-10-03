@@ -70,7 +70,7 @@ func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -89,7 +89,7 @@ func TestMedicalPlannerHarvestsWildHealrootWithoutBench(t *testing.T) {
 		}
 	}
 	// The same census proposes nothing new while the harvest is open.
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
 		t.Fatal(result, err)
 	}
 }

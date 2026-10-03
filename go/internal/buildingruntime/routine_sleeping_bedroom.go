@@ -80,10 +80,6 @@ func upgradeTargets(facts observation.ColonyProjection, targets map[string]polic
 	return policy.UpgradeTargets(targets, sleeping, claims)
 }
 
-// BuildingSuiteStock: a suite's shell waits until its walls are in stock
-// (#1216).
-const BuildingSuiteStock RoutineBuildingReason = "suite_materials_short"
-
 // bedroomsOwed is the review's BedroomsOwed fact for the projection.
 // A due room quality swap (#813) or wing migration (#1244) owes a bedroom
 // too, so MaintainHousing stays open until it is done.
@@ -169,7 +165,7 @@ func (r *RoutineSleepingUpkeepPlanner) shellBedroom(call, epoch context.Context,
 		in := step.Room.Interior
 		_, walls, _ := reading.Projection.StockedStuff("Wall")
 		if walls < int64(2*(in.Width+in.Height)+4) {
-			return RoutineBuildingResult{Reason: BuildingSuiteStock}, nil
+			return RoutineBuildingResult{Verdict: BuildingSuiteStock}, nil
 		}
 	}
 	return r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, bedroomMethod(step.Kind, step.Room), bedroomShellReason(step))
@@ -191,21 +187,21 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	wallDef, wok := animalContainmentDefinition(facts.Definitions, "Wall")
 	doorDef, dok := animalContainmentDefinition(facts.Definitions, "Door")
 	if !wok || !dok {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_definitions")}, nil
 	}
 	wa, wak := wallDef.Available.Value()
 	da, dak := doorDef.Available.Value()
 	if !wak || !dak || !wa || !da {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_definitions")}, nil
 	}
 	stuff, known := animalContainmentStuff(wallDef, doorDef)
 	if !known {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("wall_door_stuff")}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
@@ -259,7 +255,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		safe, sk := v.SafeToPlace.Value()
 		if !fk || len(footprint) != 1 || footprint[0] != cell || !ck || !can || !sk || !safe {
 			clockSchedulerLog("%s: %s %d,%d refused at %d,%d", goal.Goal.ID, method, room.Interior.X, room.Interior.Z, cell.X, cell.Z)
-			return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
 		}
 		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
 			return RoutineBuildingResult{}, err
@@ -267,7 +263,7 @@ func (b *RoutineBuildingPlanner) shellRoom(call, epoch context.Context, state Co
 		selected = append(selected, v)
 	}
 	if len(selected) == 0 {
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	return b.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: reason, snapshot: snapshot, selected: selected, stock: stock, purpose: policy.Shelter})
 }

@@ -24,8 +24,8 @@ type RoutineRescuePlanner struct {
 	native   RoutineRescueSource
 }
 type RoutineRescueResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks is a bounded window the step may lend when the
 	// CriticalMedical deficit stands but no rescue method can run
 	// (medicalWaitTicks, #636).
@@ -42,7 +42,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineRescueResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineRescueResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -52,17 +52,17 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineRescueResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineRescueResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.CriticalMedicine)
 	if err != nil {
 		return RoutineRescueResult{}, err
 	}
 	if !found {
-		return RoutineRescueResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-		return RoutineRescueResult{Reason: BuildingMethodExistingWork}, err
+		return RoutineRescueResult{Verdict: BuildingReasonExistingWork}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -75,7 +75,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineRescueResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -114,7 +114,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !ok {
 		// No pair to order: only game time frees a rescuer or resolves
 		// the casualty, so the step lends a window (#636).
-		return RoutineRescueResult{Reason: BuildingMethodUsed, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonUsed, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	rescue, err := domain.NewRescue(rescuer, patient)
 	if err != nil {
@@ -128,7 +128,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).
-		return RoutineRescueResult{Reason: BuildingMethodExhausted, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineRescueResult{Verdict: BuildingReasonExhausted, NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -150,5 +150,5 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineRescueResult{}, err
 	}
-	return RoutineRescueResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineRescueResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

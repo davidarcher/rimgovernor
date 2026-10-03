@@ -127,7 +127,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 		if _, err = player.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 			return RoutineResourceResult{}, true, err
 		}
-		return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: planID}, true, nil
+		return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: planID}, true, nil
 	}
 	return RoutineResourceResult{}, false, nil
 }
@@ -206,7 +206,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	// leaves the census once demolished.
 	for row := range buildings.Rows.Values() {
 		if row.GetBuilding().GetDefName() == "DeepDrill" || row.GetBuildDefName() == "DeepDrill" {
-			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
+			return RoutineResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil
 		}
 	}
 	runways := review.ResourceRunwayState()
@@ -237,7 +237,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 		}
 		method := domain.MethodID(fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z))
 		if _, err := r.reviewer.player.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-			return RoutineResourceResult{Reason: BuildingMethodUsed}, true, nil
+			return RoutineResourceResult{Verdict: BuildingReasonUsed}, true, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineResourceResult{}, true, err
 		}
@@ -302,9 +302,9 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			return RoutineResourceResult{}, true, err
 		}
 		if !decision.Admitted {
-			return RoutineResourceResult{Reason: BuildingMethodRefused}, true, nil
+			return RoutineResourceResult{Verdict: BuildingReasonRefused}, true, nil
 		}
-		return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: planID}, true, nil
+		return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: planID}, true, nil
 	}
 	return RoutineResourceResult{}, false, nil
 }

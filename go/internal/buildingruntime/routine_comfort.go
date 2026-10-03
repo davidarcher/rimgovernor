@@ -12,8 +12,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-const BuildingComfortWait RoutineBuildingReason = "waiting_for_native_comfort_use"
-
 // Completed methods leave the active catalog but retain their bounded use budget.
 // Look up only this goal epoch's known comfort methods; old epochs cannot lend time.
 func comfortUseAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (uint32, error) {
@@ -80,22 +78,22 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 	return false
 }
 
-func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjection, history policy.ComfortHistory) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjection, history policy.ComfortHistory) (*RoutineBuildingPlanner, Verdict, error) {
 	v, known := facts.Facts.Comfort.Value()
 	if !known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("comfort"), nil
 	}
 	review, err := policy.ReviewComfort(facts.Facts.Comfort, history, facts.Identity.Tick)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	method, err := policy.SelectComfortMethod(v, review)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	switch method {
 	case policy.ComfortNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	case policy.ComfortWait:
 		return nil, BuildingComfortWait, nil
 	case policy.ComfortAccessBlocked:
@@ -110,7 +108,7 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 	}
 	facility, err := policy.Facility(role)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	resolved.facility = &facility
 	if method == policy.ComfortBuildChair {
@@ -125,7 +123,7 @@ func (r *RoutineBuildingPlanner) selectComfort(facts observation.ColonyProjectio
 			}
 		}
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // Allow a finite interval for ordinary dining/recreation after this direction
@@ -231,21 +229,21 @@ func NewRoutineBasicComfortPlanner(reviewer *RoutineReviewer, native RoutineBuil
 // hut included); the recreation source may stand outdoors, as a horseshoes
 // pin ordinarily does, so placement is unrestricted and the native watch-cell
 // preview decides reach.
-func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
 	v, known := facts.Facts.BasicComfort.Value()
 	if !known {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("basic_comfort"), nil
 	}
 	review, err := policy.ReviewBasicComfort(facts.Facts.BasicComfort)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	method, err := policy.SelectBasicComfortMethod(v, review)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if method == policy.ComfortNoMethod && !review.VarietyKnown {
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("comfort_variety"), nil
 	}
 	if method == policy.ComfortNoMethod && review.MissingVariety > 0 {
 		method = policy.SelectRecreationVariety(v, func(m policy.JoyBuildingMethod) bool {
@@ -263,7 +261,7 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 	}
 	switch method {
 	case policy.ComfortNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	case policy.ComfortAccessBlocked:
 		return nil, BuildingExistingFacility, nil
 	}
@@ -292,7 +290,7 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 			}
 		}
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // A TV is sited within connector reach of a running generator on a network

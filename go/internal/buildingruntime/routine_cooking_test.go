@@ -42,7 +42,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || native.previews != 1 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews != 1 {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
@@ -53,7 +53,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Goal.Need != domain.NeedDeficit {
 		t.Fatal(plan, result)
 	}
-	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || native.previews != 1 {
+	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 1 {
 		t.Fatal(next, err)
 	}
 }
@@ -74,15 +74,15 @@ func TestRoutineCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) 
 				}
 				if change == "unknown" {
 					bench.Usable = nil
-					want = BuildingMethodUnknown
+					want = fieldUnavailable("cooking")
 				}
 				v.Cooking = []*o.CookingFacts{bench}
 			case "definition":
-				want = BuildingMethodUnknown
+				want = fieldUnavailable("builder_available")
 				native.catalog[0].ResearchPrerequisites = []string{"Unfinished"}
 			}
 			result, err := p.Step(context.Background())
-			if err != nil || result.Reason != want || result.Decision.Admitted {
+			if err != nil || result.Verdict != want || result.Decision.Admitted {
 				t.Fatal(result, err)
 			}
 		})
@@ -97,7 +97,7 @@ func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 	p, db, native := cookingFixture(t)
 	ctx := context.Background()
 	result, err := p.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	completeRoutineBuildingMethod(t, db, result)
@@ -108,7 +108,7 @@ func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 		t.Fatal(err)
 	}
 	again, err := p.Step(ctx)
-	if err != nil || again.Reason != BuildingMethodAdmitted || native.previews != 2 {
+	if err != nil || again.Verdict != BuildingReasonAdmitted || native.previews != 2 {
 		t.Fatal(again, err, native.previews)
 	}
 	// The burnt-out campfire's plan retired on the census (#856); the
@@ -118,7 +118,7 @@ func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
 	if err != nil || len(methods) != 2 || methods[0].Method != "campfire" || methods[1].Method != "campfire-1" {
 		t.Fatal(methods, err)
 	}
-	if next, err := p.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := p.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }

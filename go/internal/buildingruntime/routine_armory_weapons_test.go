@@ -57,7 +57,7 @@ func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := gear.Step(ctx); err != nil || result.Reason == BuildingMethodAdmitted {
+	if result, err := gear.Step(ctx); err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal("gear planned weapon work", result, err)
 	}
 	armory, err := NewRoutineArmoryPlanner(reviewer, n)
@@ -65,7 +65,7 @@ func TestArmoryPlannerCraftsWeaponsPastFilteredCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := armory.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal("armory held the weapon bill", result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

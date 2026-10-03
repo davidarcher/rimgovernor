@@ -141,21 +141,21 @@ func medicineFilter() (domain.StockpileFilter, error) {
 // medical beds once the ward stands (#723), a MaintainMedicalReserves method
 // keyed by the room: role medicine:<roomID>. A zero reason means nothing to
 // do this step.
-func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading, started time.Time) (RoutineBuildingReason, error) {
+func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, state ControlState, goal store.GoalState, reading observation.RoutineReading, started time.Time) (Verdict, error) {
 	p := r.reviewer.player
 	native, ok := r.native.(zonePreviewer)
 	if !ok {
-		return "", nil
+		return Verdict{}, nil
 	}
 	facts := reading.Projection
 	rooms, rk := facts.Rooms.Value()
 	sleeping, sk := facts.Facts.Sleeping.Value()
 	if !rk || !sk {
-		return "", nil
+		return Verdict{}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
-		return "", err
+		return Verdict{}, err
 	}
 	var protected []domain.Cell
 	for _, h := range held {
@@ -163,7 +163,7 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 	}
 	site, err := medicineStorageSites(rooms, sleeping, facts.Bounds, facts.Cells, protected)
 	if err != nil || site.Room == "" {
-		return "", err
+		return Verdict{}, err
 	}
 	role := "medicine:" + site.Room
 	var id domain.PlanID
@@ -177,22 +177,22 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 			break
 		}
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		plan, err := p.journal.LoadPlan(call, bound)
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		if !ingredientStorageFailed(plan.Progress) {
-			return "", nil
+			return Verdict{}, nil
 		}
 	}
 	if id == "" || len(site.Sites) == 0 {
-		return "", nil
+		return Verdict{}, nil
 	}
 	filter, err := medicineFilter()
 	if err != nil {
-		return "", err
+		return Verdict{}, err
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = id
@@ -203,10 +203,10 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 		}
 		value, err := domain.NewFilteredStockpileZone(filter, domain.ImportantPriority, cells)
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		if value, err = value.WithRole(role); err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), value)
 		var refused *bridge.NativeFailure
@@ -214,39 +214,39 @@ func (r *RoutineHospitalPlanner) medicineStorage(call, epoch context.Context, st
 			continue
 		}
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		v := reply.GetEvaluated()
 		if v == nil || !v.GetAccepted() {
 			continue
 		}
 		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < facts.Identity.Tick {
-			return "", fmt.Errorf("%w: medicineStorage: err != nil || domain.Tick(v.Context.GetTick()) < facts.Identity.Tick", ErrControl)
+			return Verdict{}, fmt.Errorf("%w: medicineStorage: err != nil || domain.Tick(v.Context.GetTick()) < facts.Identity.Tick", ErrControl)
 		}
 		action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: facts.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		if err = p.current(call, epoch); err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", fmt.Errorf("%w: medicineStorage: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+			return Verdict{}, fmt.Errorf("%w: medicineStorage: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		decision, err := admitMethod(call, p.journal, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 		if err != nil {
-			return "", err
+			return Verdict{}, err
 		}
 		if !decision.Admitted {
-			return BuildingMethodRefused, nil
+			return BuildingReasonRefused, nil
 		}
-		return BuildingMethodAdmitted, nil
+		return BuildingReasonAdmitted, nil
 	}
-	return "", nil
+	return Verdict{}, nil
 }

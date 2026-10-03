@@ -191,7 +191,7 @@ func TestBuriedSteelTunnelsThenMines(t *testing.T) {
 		t.Fatal(err)
 	}
 	id, cells := tunnelStage(t, db)
-	if result.Reason != BuildingMethodAdmitted || id == "" || minedSource(result, "") {
+	if result.Verdict != BuildingReasonAdmitted || id == "" || minedSource(result, "") {
 		t.Fatal(result, id)
 	}
 	stage, err := db.LoadPlan(context.Background(), id)
@@ -212,7 +212,7 @@ func TestBuriedSteelTunnelsThenMines(t *testing.T) {
 		}
 		id, _ = tunnelStage(t, db)
 	}
-	if native.buried() || result.Reason != BuildingMethodAdmitted || !minedSource(result, "ore-cas") {
+	if native.buried() || result.Verdict != BuildingReasonAdmitted || !minedSource(result, "ore-cas") {
 		t.Fatal(native.buried(), result)
 	}
 }
@@ -234,7 +234,7 @@ func TestBuriedSteelLostSupportHoldsTheNextStage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if next, _ := tunnelStage(t, db); next != "" || result.Reason == BuildingMethodAdmitted {
+	if next, _ := tunnelStage(t, db); next != "" || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal(result, next)
 	}
 }
@@ -248,7 +248,7 @@ func TestBuriedSteelUnsupportedCorridorHoldsTheDig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if id, _ := tunnelStage(t, db); id != "" || result.Reason == BuildingMethodAdmitted {
+	if id, _ := tunnelStage(t, db); id != "" || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal(result, id)
 	}
 }
@@ -288,7 +288,7 @@ func TestBuriedSteelResumesADroppedFirstStage(t *testing.T) {
 		t.Fatal(err)
 	}
 	id, cells := tunnelStage(t, db)
-	if result.Reason != BuildingMethodAdmitted || id == "" || len(cells) == 0 {
+	if result.Verdict != BuildingReasonAdmitted || id == "" || len(cells) == 0 {
 		t.Fatal(result, id, cells)
 	}
 }

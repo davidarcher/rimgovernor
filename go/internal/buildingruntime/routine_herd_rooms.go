@@ -120,10 +120,10 @@ func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Con
 		return RoutineAnimalContainmentResult{}, err
 	}
 	if !known {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineAnimalContainmentResult{Verdict: fieldUnavailable("herd_rooms")}, nil
 	}
 	if !step.Owed() {
-		return RoutineAnimalContainmentResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineAnimalContainmentResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	clockSchedulerLog("%s: %s %s", goal.Goal.ID, step.Role, step.Kind)
 	var result RoutineBuildingResult
@@ -135,7 +135,7 @@ func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Con
 	default:
 		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, herdMethod(step))
 	}
-	return RoutineAnimalContainmentResult{Reason: result.Reason}, err
+	return RoutineAnimalContainmentResult{Verdict: result.Verdict}, err
 }
 
 // markHerdBedMedical commits one CAS-gated patch flagging a vet room bed
@@ -149,7 +149,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 	}
 	method := domain.MethodID("herd-medical-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -161,7 +161,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: stale bed read", ErrControl)
 	}
 	if target.Medical {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	patch, err := domain.NewBedMedical(bed, true)
 	if err != nil {
@@ -185,5 +185,5 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

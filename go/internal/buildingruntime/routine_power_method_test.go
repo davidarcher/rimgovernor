@@ -95,7 +95,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 		t.Run(map[bool]string{false: "generation", true: "conduit"}[conduit], func(t *testing.T) {
 			p, db, n, request := powerFixture(t, conduit)
 			first, err := p.Step(context.Background())
-			if err != nil || first.Reason != BuildingMethodAdmitted {
+			if err != nil || first.Verdict != BuildingReasonAdmitted {
 				review, _ := db.LoadRoutineReview(context.Background())
 				for _, b := range review.Goals {
 					if b.Need == policy.EnsureBasicPower {
@@ -118,7 +118,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 					t.Fatal("compiler dispatched")
 				}
 			}
-			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != want {
+			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != want {
 				t.Fatal(next, err)
 			}
 			request.Kind, request.RequestID = store.PauseControl, "manual-power"
@@ -134,7 +134,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 					t.Fatal(progress)
 				}
 			}
-			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodDisabled {
+			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonDisabled {
 				t.Fatal(next, err)
 			}
 		})

@@ -16,15 +16,15 @@ func TestButcherSpotSelectionIgnoresArmedCount(t *testing.T) {
 	r := &RoutineBuildingPlanner{reviewer: &RoutineReviewer{policy: policy.DefaultRoutinePolicy()}, goal: policy.MaintainButcherSpot, definition: "ButcherSpot"}
 	f := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(8)), FoodDays: domain.Known(1.75), Armed: domain.Known(int64(0))}}
 	f.ButcheringBenches = domain.Known([]observation.CookingBench{})
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
+	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
 	f.Facts.Armed = domain.Unknown[int64]()
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
+	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
 		t.Fatal(n, id, reason)
 	}
 	f.Facts.FoodDays = domain.Known(10.0)
-	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || reason != "" {
+	if n, id, reason := r.selection(f); n != 1 || id != "butcher-spot" || !reason.IsZero() {
 		t.Fatal("the spot waited on the food runway", n, id, reason)
 	}
 }

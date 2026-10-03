@@ -77,7 +77,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 		t.Fatal(err)
 	}
 	result, err := armory.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal("armory held the armor bill", result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

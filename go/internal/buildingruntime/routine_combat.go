@@ -53,7 +53,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	p := r.reviewer.player
 	memory := a.memory
 	if len(memory.Roles) == 0 {
-		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonNoSquad}, nil
 	}
 	pawns := make([]domain.PawnID, 0, len(memory.Roles))
 	hash := sha256.New()
@@ -63,7 +63,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 		fmt.Fprintf(hash, "%s/%s\n", role.Pawn, role.Target)
 	}
 	if !arbiter.tryClaim(pawns) {
-		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonUsed}, nil
 	}
 	// The threat loadout (#1115) is the fight plan's own equip and wear
 	// actions, committed before the first combat.orders batch; its pawns
@@ -98,7 +98,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	if _, err = p.journal.CommitCombatFight(call, incident.Incident.ID, method, plan, memory, world, drafts); err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	admitted := RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}
+	admitted := RoutineDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}
 	// The formation's orders as the defenders will be once drafted: the
 	// same decision with them orderable. An ask (a rescue path) waits for
 	// the next stop; the batch then only drafts.

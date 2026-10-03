@@ -333,8 +333,8 @@ type RoutineFirebreakPlanner struct {
 	memory   *firebreakMemory
 }
 type RoutineFirebreakResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 // NewRoutineFirebreakPlanner composes the planner and has reviewer run the
@@ -354,7 +354,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineFirebreakResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineFirebreakResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -364,14 +364,14 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineFirebreakResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineFirebreakResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainFirebreak)
 	if err != nil {
 		return RoutineFirebreakResult{}, err
 	}
 	if !workable {
-		return RoutineFirebreakResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -379,15 +379,15 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineFirebreakResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineFirebreakResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineFirebreakResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	work, ruins, ok := r.memory.take(stockpileWorld(state.Snapshot), review.Tick)
 	if !ok {
-		return RoutineFirebreakResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	if !work.Owed() {
-		return RoutineFirebreakResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonUsed}, nil
 	}
 	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
 	if err != nil {
@@ -395,7 +395,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	if firebreakAttempts(history, review.Tick) >= maxFirebreakAttempts {
 		clockSchedulerLog("firebreak: exhausted for the day (%d cells, %d ruins waiting)", len(work.Cut), len(work.Deconstruct))
-		return RoutineFirebreakResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineFirebreakResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	actions, err := firebreakActions(domain.MintPlanID(), work, ruins)
 	if err != nil {
@@ -415,7 +415,7 @@ func (r *RoutineFirebreakPlanner) step(call, epoch context.Context, arbiter *ste
 	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("firebreak cut %d cells, deconstruct %d ruins", actions.cut, actions.ruins), plan); err != nil {
 		return RoutineFirebreakResult{}, err
 	}
-	return RoutineFirebreakResult{Reason: BuildingMethodAdmitted, Plan: actions.id}, nil
+	return RoutineFirebreakResult{Verdict: BuildingReasonAdmitted, Plan: actions.id}, nil
 }
 
 type firebreakPlan struct {

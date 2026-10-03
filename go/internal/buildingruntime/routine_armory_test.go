@@ -28,8 +28,8 @@ func TestRoutineArmoryPlannerAssessesWithoutActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Reason != BuildingMethodNoDeficit {
-		t.Fatalf("reason = %v, want %v", got.Reason, BuildingMethodNoDeficit)
+	if got.Verdict != BuildingReasonNoDeficit {
+		t.Fatalf("reason = %v, want %v", got.Verdict, BuildingReasonNoDeficit)
 	}
 	after, err := db.LoadPlans(ctx, 256)
 	if err != nil {

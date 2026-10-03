@@ -56,7 +56,7 @@ func (r *RoutineWastePlanner) stageTomb(call, epoch context.Context, state Contr
 	case policy.TombGrave:
 		result, err = r.placeGrave(call, epoch, state, review, goal, reading, step)
 	}
-	return RoutineWasteResult{Reason: result.Reason}, true, err
+	return RoutineWasteResult{Verdict: result.Verdict}, true, err
 }
 
 // graveSiteTries bounds the free sites a grave previews.
@@ -71,13 +71,13 @@ func (r *RoutineWastePlanner) placeGrave(call, epoch context.Context, state Cont
 		return RoutineBuildingResult{}, err
 	}
 	method := domain.MethodID(fmt.Sprintf("tomb-grave-%d", step.Graves))
-	result := RoutineBuildingResult{Reason: BuildingMethodNoSpace}
+	result := RoutineBuildingResult{Verdict: BuildingReasonNoSpace}
 	for i, site := range sites {
 		if i == graveSiteTries {
 			break
 		}
 		piece := policy.NewInteriorPiece("grave", policy.GraveDefinition, domain.Cell{X: 1, Z: 2}, domain.North, domain.Cell{X: site.X, Z: site.Z})
-		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method); err != nil || result.Reason != BuildingMethodNoSpace {
+		if result, err = r.building.placePiece(call, epoch, state, review, goal, reading, piece, method); err != nil || result.Verdict != BuildingReasonNoSpace {
 			return result, err
 		}
 	}
@@ -90,7 +90,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	stuff := ""
 	for _, d := range facts.Definitions {
@@ -130,7 +130,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	safe, sk := v.SafeToPlace.Value()
 	if !ck || !can || !sk || !safe {
 		clockSchedulerLog("%s: %s %s refused at %d,%d", goal.Goal.ID, piece.Def, piece.Slot, piece.Anchor().X, piece.Anchor().Z)
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if err := mergeRoutineStock(&stock, preview.Stock, true); err != nil {

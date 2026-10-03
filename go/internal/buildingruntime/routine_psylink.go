@@ -88,8 +88,8 @@ type RoutinePsylinkPlanner struct {
 	memory   *psylinkMemory
 }
 type RoutinePsylinkResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 // NewRoutinePsylinkPlanner composes the planner and has reviewer run the
@@ -106,7 +106,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutinePsylinkResult{Reason: BuildingMethodDisabled}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePsylinkResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -116,14 +116,14 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePsylinkResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutinePsylinkResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPsylink)
 	if err != nil {
 		return RoutinePsylinkResult{}, err
 	}
 	if !workable {
-		return RoutinePsylinkResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -131,12 +131,12 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutinePsylinkResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutinePsylinkResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutinePsylinkResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	candidates, items, ok := r.memory.take(stockpileWorld(state.Snapshot), review.Tick)
 	if !ok {
-		return RoutinePsylinkResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
 	if err != nil {
@@ -151,12 +151,12 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	choice, owed := policy.NextPsylinkUse(willing, items)
 	if !owed {
 		if len(candidates) > 0 && len(items) > 0 {
-			return RoutinePsylinkResult{Reason: BuildingMethodExhausted}, nil
+			return RoutinePsylinkResult{Verdict: BuildingReasonExhausted}, nil
 		}
-		return RoutinePsylinkResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-		return RoutinePsylinkResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePsylinkResult{Verdict: BuildingReasonUsed}, nil
 	}
 	prefix := fmt.Sprintf("%s%s-", psylinkPrefix, choice.Pawn)
 	attempt := medicalAttemptCount(history, goal.Goal.Epoch, prefix)
@@ -183,5 +183,5 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	if _, err = p.journal.CommitGoalMethodReason(call, goal.Goal.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
 		return RoutinePsylinkResult{}, err
 	}
-	return RoutinePsylinkResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePsylinkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

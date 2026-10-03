@@ -45,7 +45,7 @@ func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	}
 	before := session.acquires.Load()
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -60,7 +60,7 @@ func TestWorkPlannerRestoresPlayerDisabledWork(t *testing.T) {
 	if !ok || work.Pawn() != "patient" || !restored {
 		t.Fatal(work)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -98,7 +98,7 @@ func TestWorkPlannerSkipsPawnInCheckboxMode(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason == BuildingMethodAdmitted || result.Plan != "" {
+	if err != nil || result.Verdict == BuildingReasonAdmitted || result.Plan != "" {
 		t.Fatal(result, err)
 	}
 	_ = db
@@ -165,14 +165,14 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, err := planner.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	if values := settings(first.Plan); len(values) != 2 || values["Construction"] == 0 || values["Hunting"] == 0 {
 		t.Fatal(values)
 	}
 	// Nothing moved: the proposal stays open and gates a second plan.
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	// The pawn disarmed before the write ran: the fresh decision no longer
@@ -183,7 +183,7 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := planner.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted || second.Plan == first.Plan {
+	if err != nil || second.Verdict != BuildingReasonAdmitted || second.Plan == first.Plan {
 		t.Fatal(second, err)
 	}
 	if stage(first.Plan) != domain.Cancelled {
@@ -198,7 +198,7 @@ func TestWorkPlannerCancelsStalePendingAssignments(t *testing.T) {
 	if _, err = r.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork || stage(second.Plan) != domain.Pending {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork || stage(second.Plan) != domain.Pending {
 		t.Fatal(next, err)
 	}
 }

@@ -104,12 +104,12 @@ func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
 				t.Fatal(err)
 			}
 			if tc.want == "" {
-				if result.Reason != BuildingMethodUsed {
+				if result.Verdict != BuildingReasonUsed {
 					t.Fatal(result)
 				}
 				return
 			}
-			if result.Reason != BuildingMethodAdmitted {
+			if result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result)
 			}
 			plan, err := db.LoadPlan(ctx, result.Plan)
@@ -150,7 +150,7 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 				t.Fatal(err)
 			}
 			result, err := planner.Step(ctx)
-			if err != nil || result.Reason != BuildingMethodAdmitted {
+			if err != nil || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, err)
 			}
 			plan, err := db.LoadPlan(ctx, result.Plan)
@@ -179,11 +179,11 @@ func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
 			}
 			n.weapons = []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_AssaultRifle", ByTrade: true, Ranged: true}}
 			next, err := planner.Step(ctx)
-			want := BuildingMethodAdmitted
+			want := BuildingReasonAdmitted
 			if tc.coded {
-				want = BuildingMethodUsed
+				want = BuildingReasonUsed
 			}
-			if err != nil || next.Reason != want {
+			if err != nil || next.Verdict != want {
 				t.Fatal(next, err)
 			}
 		})
@@ -231,7 +231,7 @@ func TestEquipPlannerOneWave(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -250,7 +250,7 @@ func TestEquipPlannerOneWave(t *testing.T) {
 		pawns[equip.Pawn()] = true
 		weapons[equip.Thing()] = true
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal("duplicated open wave", next, err)
 	}
 }
@@ -322,7 +322,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 		t.Fatal("fresh arbiter refused a claim")
 	}
 	result, err := planner.step(call, epoch, arbiter)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)

@@ -25,8 +25,8 @@ type RoutineRecoveryPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutineRecoveryResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineRecoveryPlanner(reviewer *RoutineReviewer) (*RoutineRecoveryPlanner, error) {
@@ -53,7 +53,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineRecoveryResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineRecoveryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -63,14 +63,14 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineRecoveryResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.RecoverDisasterServices)
 	if err != nil {
 		return RoutineRecoveryResult{}, err
 	}
 	if !found {
-		return RoutineRecoveryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	var open []store.PlanState
 	for _, method := range incident.Methods {
@@ -123,7 +123,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineRecoveryResult{}, err
 		}
 		if domain.GoalWorkOpen(updated.Progress) {
-			return RoutineRecoveryResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineRecoveryResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	if len(changes) > 0 {
@@ -149,10 +149,10 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if chosen == nil {
-		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
-		return RoutineRecoveryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	method, ok := recoveryServiceMethod(chosen.Method)
@@ -181,7 +181,7 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, chosen.ID, "", plan); err != nil {
 		return RoutineRecoveryResult{}, err
 	}
-	return RoutineRecoveryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineRecoveryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // shelterCombatants is the squad's draft set for sheltering (#1367): the

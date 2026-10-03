@@ -291,7 +291,7 @@ func statusMethod(g GoalProgress) string {
 }
 
 // statusReason words a blocked reason for the player: the raw codes
-// ("no_method", "planner:unknown_prerequisite") mean nothing on screen.
+// ("no_method", "planner:no_space:verified_space") mean nothing on screen.
 func statusReason(b BlockedReason) string {
 	switch b {
 	case BlockedNoMethod:
@@ -310,7 +310,7 @@ func statusReason(b BlockedReason) string {
 	raw := string(b)
 	for prefix, lead := range map[string]string{blockedPlanner: "can't plan yet: ", blockedPrerequisite: "waiting on ", blockedHeld: "on hold: "} {
 		if rest, ok := strings.CutPrefix(raw, prefix); ok {
-			return lead + strings.ReplaceAll(rest, "_", " ")
+			return lead + strings.ReplaceAll(strings.ReplaceAll(rest, "_", " "), ":", ": ")
 		}
 	}
 	return strings.ReplaceAll(raw, "_", " ")

@@ -81,7 +81,7 @@ func remoteOreStep(t *testing.T, steel int64) (RoutineResourceResult, *remoteOre
 func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
 	t.Parallel()
 	result, _ := remoteOreStep(t, 0)
-	if result.Reason != BuildingMethodAdmitted || !minedSource(result, "lump-cas") {
+	if result.Verdict != BuildingReasonAdmitted || !minedSource(result, "lump-cas") {
 		t.Fatal(result)
 	}
 }
@@ -91,7 +91,7 @@ func TestSteelDemandMinesTheRemoteLumpNotTheForeignDesignation(t *testing.T) {
 func TestDeliveredSteelPlansNoFurtherMining(t *testing.T) {
 	t.Parallel()
 	result, _ := remoteOreStep(t, 200)
-	if result.Reason == BuildingMethodAdmitted {
+	if result.Verdict == BuildingReasonAdmitted {
 		t.Fatal(result)
 	}
 }

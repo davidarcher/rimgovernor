@@ -48,11 +48,11 @@ func TestPlannerCatalogClasses(t *testing.T) {
 func blockedPlanner(name string, class plannerClass, released chan<- error) plannerEntry {
 	return plannerEntry{name: name, class: class, priority: plannerFoothold,
 		configured: func(*ClockSchedulerConfig) bool { return true },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
-			out.Lighting = &RoutineBuildingResult{Reason: BuildingMethodRefused}
-			return "", ctx.Err()
+			out.Lighting = &RoutineBuildingResult{Verdict: BuildingReasonRefused}
+			return Verdict{}, ctx.Err()
 		}}
 }
 
@@ -60,9 +60,9 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 func quickPlanner(name string, class plannerClass) plannerEntry {
 	return plannerEntry{name: name, class: class, priority: plannerCritical,
 		configured: func(*ClockSchedulerConfig) bool { return true },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
-			out.Sleeping = &RoutineBuildingResult{Reason: BuildingMethodNoDeficit}
-			return BuildingMethodNoDeficit, nil
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
+			out.Sleeping = &RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}
+			return BuildingReasonNoDeficit, nil
 		}}
 }
 
@@ -84,7 +84,7 @@ func TestClockSchedulerAdmitsPastBlockedOptionalPlanner(t *testing.T) {
 	if !reflect.DeepEqual(got.MissedCutoff, []string{"lighting"}) || len(got.HeldBy) != 0 || len(got.PlannerFailures) != 0 {
 		t.Fatalf("missed %v held %v failures %v", got.MissedCutoff, got.HeldBy, got.PlannerFailures)
 	}
-	if got.Sleeping == nil || got.Sleeping.Reason != BuildingMethodNoDeficit || got.Lighting != nil {
+	if got.Sleeping == nil || got.Sleeping.Verdict != BuildingReasonNoDeficit || got.Lighting != nil {
 		t.Fatalf("critical result must be merged and the missed planner's discarded: %+v %+v", got.Sleeping, got.Lighting)
 	}
 	if !reflect.DeepEqual(got.Planners, []string{"tend", "lighting"}) {
@@ -187,9 +187,9 @@ func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
 	committed := 0
 	late := func(id string, snapshot domain.GenerationSnapshot, tick domain.Tick) *Proposal {
 		p := &Proposal{ID: id, Planner: "lighting", Goal: domain.GoalID(id), Priority: plannerMaintenance, Snapshot: snapshot, ValidTick: tick}
-		p.commit = func(context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+		p.commit = func(context.Context) (domain.PlanID, Verdict, error) {
 			committed++
-			return domain.PlanID("plan-" + id), BuildingMethodAdmitted, nil
+			return domain.PlanID("plan-" + id), BuildingReasonAdmitted, nil
 		}
 		return p
 	}
@@ -212,7 +212,7 @@ func TestClockSchedulerRefusesLateProposalAgainstNewerSnapshot(t *testing.T) {
 	for _, outcome := range got.Proposals {
 		byID[outcome.Proposal] = outcome
 	}
-	if o := byID["generation"]; o.Admitted || o.Reason != BuildingMethodExpired || o.Stale != fmt.Sprintf("native generation %d, step is %d", stale.Native, current.Native) {
+	if o := byID["generation"]; o.Admitted || o.Verdict != BuildingReasonExpired || o.Stale != fmt.Sprintf("native generation %d, step is %d", stale.Native, current.Native) {
 		t.Fatalf("stale generation: %+v", o)
 	}
 	if o := byID["valid"]; !o.Admitted || o.Plan != "plan-valid" || o.Stale != "" {

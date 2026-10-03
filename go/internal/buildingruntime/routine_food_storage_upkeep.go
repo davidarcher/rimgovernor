@@ -51,8 +51,8 @@ type RoutineFoodStorageUpkeepPlanner struct {
 	native   RoutineFoodStorageUpkeepSource
 }
 type RoutineFoodStorageUpkeepResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineFoodStorageUpkeepPlanner(reviewer *RoutineReviewer, native RoutineFoodStorageUpkeepSource) (*RoutineFoodStorageUpkeepPlanner, error) {
@@ -118,7 +118,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -128,14 +128,14 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainFoodStorage)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if !workable {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -149,7 +149,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 			}
 		}
 		if domain.GoalWorkOpen(pending) {
-			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -176,11 +176,11 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if !foodPlanSupport(reading.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: awaitingFoodPlan("stock-protection")}, nil
 	}
 	if reserve, known := reading.Projection.Facts.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {
 		if reading.Projection.Identity.Tick != domain.Tick(observed.Context.GetTick()) {
-			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineFoodStorageUpkeepResult{Verdict: fieldUnavailable("food_reserve")}, nil
 		}
 		return r.admitReserve(call, epoch, goal, observed, reserve)
 	}
@@ -196,7 +196,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if !foodReview.Active {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -232,10 +232,10 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		// native hauling-to-covered-storage wiring; this slice only acts on
 		// the Produce fallback below, mirroring how routine_medical.go only
 		// acts on MedicineProduce and reports every other outcome as used.
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if choice.Kind != policy.FoodStorageProduce {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 	}
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
@@ -273,14 +273,14 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	if medChoice.Kind != policy.MedicineProduce {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 	}
 	_, ok := tokens[medChoice.Bench]
 	if !ok {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: step: !ok", ErrControl)
 	}
 	if !arbiter.tryClaim(nil, "bench:"+medChoice.Bench) {
-		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUsed}, nil
+		return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	target := int32(medChoice.Target)
@@ -309,5 +309,5 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, medChoice.ID, plan); err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
-	return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

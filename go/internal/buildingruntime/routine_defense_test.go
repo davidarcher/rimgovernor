@@ -255,7 +255,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		t.Fatal("recovered incident with open work should stay open", goal)
 	}
 	got, err := planner.Step(ctx)
-	if err != nil || got.Reason != BuildingMethodNoDeficit {
+	if err != nil || got.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(got, err)
 	}
 	state, err := db.LoadPlan(ctx, plan.ID())
@@ -275,7 +275,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	if goal, ok = combat(review(1)); !ok || goal.Incident == first || goal.Need != domain.NeedDeficit {
 		t.Fatal(goal)
 	}
-	if got, err = planner.Step(ctx); err != nil || got.Reason == BuildingMethodExistingWork {
+	if got, err = planner.Step(ctx); err != nil || got.Verdict == BuildingReasonExistingWork {
 		t.Fatal(got, err)
 	}
 	fresh, _ := domain.NewPlan("routine-defense-test-2", 1, squad("-2"))

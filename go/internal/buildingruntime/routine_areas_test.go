@@ -37,7 +37,7 @@ func TestAreaPlannerManualDoesNotReadOrPlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodDisabled || native.reads != before || session.State().Enabled {
+	if err != nil || result.Verdict != BuildingReasonDisabled || native.reads != before || session.State().Enabled {
 		t.Fatal(result, err)
 	}
 }
@@ -61,7 +61,7 @@ func TestAreaPlannerFreshRestriction(t *testing.T) {
 	}
 	planner, _ := NewRoutineRecoveryPlanner(r)
 	first, err := planner.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	plan, err := journal.LoadPlan(ctx, first.Plan)

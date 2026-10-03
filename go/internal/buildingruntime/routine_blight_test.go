@@ -85,7 +85,7 @@ func TestRoutineBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -107,7 +107,7 @@ func TestRoutineBlightPlannerDesignatesUndesignatedCensusPlants(t *testing.T) {
 	if work, _, err := clockSchedulerWork(plan, target); err != nil || !work {
 		t.Fatal("a cut designation must open a simulation window for the cutter", work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork || source.reads != 1 {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork || source.reads != 1 {
 		t.Fatal(next, err)
 	}
 }
@@ -123,7 +123,7 @@ func TestRoutineBlightPlannerRefusesWithoutCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason == BuildingMethodAdmitted {
+	if err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 }

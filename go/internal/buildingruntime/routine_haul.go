@@ -34,8 +34,8 @@ type RoutineHaulPlanner struct {
 	native   RoutineHaulSource
 }
 type RoutineHaulResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks for a clock window while an ordered haul is
 	// still on its way (haulWait).
 	NativeWorkTicks uint32
@@ -51,9 +51,9 @@ const haulTransitTicks = 250
 // Only game time moves it, so the planner lends the clock a short window.
 func haulWait(items []policy.UpkeepItem, pawns []policy.SecureSuppliesHaulerFacts) PlanResult {
 	if policy.HaulInTransit(items, pawns) {
-		return PlanResult{Kind: PlanWaiting, Dependency: "haul in transit", NativeWorkTicks: haulTransitTicks, Reason: BuildingMethodExistingWork}
+		return PlanResult{Kind: PlanWaiting, Dependency: "haul in transit", NativeWorkTicks: haulTransitTicks, Verdict: BuildingReasonExistingWork}
 	}
-	return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}
+	return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Verdict: BuildingReasonUsed}
 }
 
 func NewRoutineHaulPlanner(reviewer *RoutineReviewer, native RoutineHaulSource) (*RoutineHaulPlanner, error) {
@@ -70,7 +70,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
+		return PlanResult{Kind: PlanUnsupported, Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return PlanResult{}, fmt.Errorf("%w: propose: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -80,7 +80,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Reason: BuildingMethodNoReview}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainStorage, state.Snapshot, review.Tick)
 	defer recorded()
@@ -89,7 +89,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if !workable {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// MaintainStorage competes for the same bounded concurrent-project
 	// capacity as comfort/expansion/other priority>=3 autopilot goals; only
@@ -104,7 +104,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
 	}
 	if !selected {
-		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Reason: BuildingMethodRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Verdict: BuildingReasonRefused}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
@@ -133,12 +133,12 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		}
 	}
 	if len(targetIDs) == 0 {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonUsed}, nil
 	}
 	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
 		return PlanResult{}, err
 	} else if open {
-		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Verdict: BuildingReasonExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {
@@ -165,7 +165,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -213,7 +213,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -227,18 +227,18 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	}
 	proposal := &Proposal{ID: "haul/" + string(id), Planner: "haul", Goal: goal.Goal.ID, Priority: plannerMaintenance, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsColony,
 		Claims: ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}}, ValidTick: review.Tick, Actions: []domain.Action{action}}
-	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+	proposal.commit = func(ctx context.Context) (domain.PlanID, Verdict, error) {
 		if err := p.current(ctx, epoch); err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
 		elapsed := r.reviewer.clock.Now().Sub(started)
 		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return "", "", fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+			return "", Verdict{}, fmt.Errorf("%w: propose: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-			return "", "", err
+			return "", Verdict{}, err
 		}
-		return id, BuildingMethodAdmitted, nil
+		return id, BuildingReasonAdmitted, nil
 	}
-	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Verdict: BuildingReasonAdmitted}, nil
 }

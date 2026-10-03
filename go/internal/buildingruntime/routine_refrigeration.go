@@ -44,26 +44,26 @@ func NewRoutineRefrigerationPlanner(reviewer *RoutineReviewer, native RoutineBui
 
 // selectRefrigeration re-reviews the fresh census under the review's latch,
 // reads the exact coolers and maps the policy outcome onto the planner.
-func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts observation.ColonyProjection, latches policy.RoutineLatches, allowance bool) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts observation.ColonyProjection, latches policy.RoutineLatches, allowance bool) (*RoutineBuildingPlanner, Verdict, error) {
 	review, err := policy.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, latches.Refrigeration, r.reviewer.policy.FoodStorage)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	review = review.WithTombs(warmTombs(facts))
 	if !review.Active {
 		if clockDebug() {
 			clockSchedulerLog("refrigeration: inactive review=%+v storage=%+v", review, facts.Facts.FoodStorageUpkeep)
 		}
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	}
 	coolers, _, err := observation.ReadRefrigerationCoolers(call, r.native.(observation.RefrigerationSource), facts.Identity, facts.PowerPlanning)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	fact := observation.RefrigerationFacts(facts, coolers)
 	proposal, err := policy.SelectRefrigerationMethod(review, fact, r.reviewer.policy.FoodStorage, allowance)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if clockDebug() {
 		v, known := fact.Value()
@@ -76,13 +76,13 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 		resolved := *r
 		resolved.refrigeration = &proposal
 		resolved.definition = "Cooler"
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	case policy.RefrigerationUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("refrigeration"), nil
 	case policy.RefrigerationNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	default:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 }
 
@@ -160,9 +160,9 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 
 // previewRefrigeration previews the one exact wall cell and rotation the
 // policy chose; unlike the placement search, there is no fallback cell.
-func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
-		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, "", fmt.Errorf("%w: previewRefrigeration: r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild", ErrControl)
+		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, Verdict{}, fmt.Errorf("%w: previewRefrigeration: r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild", ErrControl)
 	}
 	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation, false)
 }
@@ -172,33 +172,33 @@ func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snaps
 // temperature family for a sleeping room); there is no fallback cell.
 // overRock previews it as though natural rock on the cell were mined, for
 // the exhaust dig that mines the cell in the same plan (#874).
-func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation, overRock bool) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for _, c := range protected {
 		if c == cell {
-			return nil, stock, BuildingMethodExistingWork, nil
+			return nil, stock, BuildingReasonExistingWork, nil
 		}
 	}
 	building, err := domain.NewBuilding("Cooler", cell, rotation, "")
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	var preview bridge.BuildingPreview
 	if overRock {
 		source, ok := r.native.(overRockPreviewer)
 		if !ok {
-			return nil, stock, BuildingMethodUnknown, nil
+			return nil, stock, fieldUnavailable("over_rock_preview"), nil
 		}
 		preview, _, err = source.PreviewBuildingOverRock(ctx, action, snapshot)
 	} else {
 		preview, _, err = r.native.PreviewBuilding(ctx, action, snapshot)
 	}
 	if err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	p := preview.Preview
 	footprint, fk := p.Footprint.Value()
@@ -206,18 +206,18 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 	legal, lk := p.CanPlace.Value()
 	safe, sk := p.SafeToPlace.Value()
 	if !fk || !mk || !lk || !sk {
-		return nil, stock, BuildingMethodUnknown, nil
+		return nil, stock, fieldUnavailable("cooler_preview"), nil
 	}
 	if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-		return nil, stock, BuildingMethodNoSpace, nil
+		return nil, stock, BuildingReasonNoSpace, nil
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
-		return nil, stock, "", err
+		return nil, stock, Verdict{}, err
 	}
 	if clockDebug() {
 		clockSchedulerLog("%s: cooler preview costs=%+v stock=%+v", r.goal, p.Costs, stock.Values)
 	}
-	return []policy.Preview{p}, stock, "", nil
+	return []policy.Preview{p}, stock, Verdict{}, nil
 }
 
 // commitRefrigerationTarget binds a one-action building-temperature plan to
@@ -231,7 +231,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	}
 	method := proposal.Key
 	if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
 	}
@@ -254,5 +254,5 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

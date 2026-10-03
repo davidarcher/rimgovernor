@@ -29,8 +29,8 @@ type RoutineBlightPlanner struct {
 	native   RoutineBlightSource
 }
 type RoutineBlightResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineBlightPlanner(reviewer *RoutineReviewer, native RoutineBlightSource) (*RoutineBlightPlanner, error) {
@@ -43,7 +43,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineBlightResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineBlightResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineBlightResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -53,14 +53,14 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineBlightResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineBlightResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineBlightResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.RemoveBlight)
 	if err != nil {
 		return RoutineBlightResult{}, err
 	}
 	if !workable {
-		return RoutineBlightResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBlightResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// RemoveBlight competes for the bounded development capacity like waste
 	// and the other priority>=3 autopilot goals; act only while this
@@ -70,7 +70,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.RemoveBlight && row.Selected
 	}
 	if !selected {
-		return RoutineBlightResult{Reason: BuildingMethodRefused}, nil
+		return RoutineBlightResult{Verdict: BuildingReasonRefused}, nil
 	}
 	// A plant whose designation the player cancelled (an unsuccessful cut)
 	// is theirs to keep; it is not re-designated while it stands.
@@ -81,7 +81,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoutineBlightResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineBlightResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineBlightResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 		for _, progress := range plan.Progress {
 			if cut, ok := progress.Action().CutPlant(); ok && progress.View().Stage == domain.Unsuccessful {
@@ -105,7 +105,7 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	targets := policy.SelectBlightCuts(census, claimed, 8)
 	if len(targets) == 0 {
-		return RoutineBlightResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBlightResult{Verdict: BuildingReasonUsed}, nil
 	}
 	hash := sha256.New()
 	for _, plant := range targets {
@@ -135,5 +135,5 @@ func (r *RoutineBlightPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBlightResult{}, err
 	}
-	return RoutineBlightResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineBlightResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

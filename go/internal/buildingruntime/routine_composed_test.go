@@ -111,15 +111,15 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 	reviewer, db, _, request, native, planners := composedRoutineFixture(t)
 
 	supplyResult, err := planners.supply.Step(ctx)
-	if err != nil || supplyResult.Reason != BuildingMethodAdmitted {
+	if err != nil || supplyResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("supply admission: %+v %v", supplyResult, err)
 	}
 	acquisitionResult, err := planners.acquisition.Step(ctx)
-	if err != nil || acquisitionResult.Reason != BuildingMethodAdmitted {
+	if err != nil || acquisitionResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("acquisition admission: %+v %v", acquisitionResult, err)
 	}
 	workResult, err := planners.work.Step(ctx)
-	if err != nil || workResult.Reason != BuildingMethodAdmitted {
+	if err != nil || workResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("work admission: %+v %v", workResult, err)
 	}
 	if supplyResult.Plan == acquisitionResult.Plan || acquisitionResult.Plan == workResult.Plan || supplyResult.Plan == workResult.Plan {
@@ -128,13 +128,13 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 
 	// Each family recognizes its own held plan and neither admits a
 	// duplicate nor is confused by the other two families' plans.
-	if next, err := planners.supply.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planners.supply.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("supply hold: %+v %v", next, err)
 	}
-	if next, err := planners.acquisition.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planners.acquisition.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("acquisition hold: %+v %v", next, err)
 	}
-	if next, err := planners.work.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planners.work.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("work hold: %+v %v", next, err)
 	}
 	if native.reads == 0 {
@@ -149,13 +149,13 @@ func TestComposedRoutineFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if next, err := planners.supply.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {
+	if next, err := planners.supply.Step(ctx); err != nil || next.Verdict != BuildingReasonDisabled {
 		t.Fatalf("supply after manual: %+v %v", next, err)
 	}
-	if next, err := planners.acquisition.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {
+	if next, err := planners.acquisition.Step(ctx); err != nil || next.Verdict != BuildingReasonDisabled {
 		t.Fatalf("acquisition after manual: %+v %v", next, err)
 	}
-	if next, err := planners.work.Step(ctx); err != nil || next.Reason != BuildingMethodDisabled {
+	if next, err := planners.work.Step(ctx); err != nil || next.Verdict != BuildingReasonDisabled {
 		t.Fatalf("work after manual: %+v %v", next, err)
 	}
 
@@ -188,15 +188,15 @@ func TestComposedRoutineFamiliesWorldChangeRejectsAllWithoutCrossLeak(t *testing
 	_, db, session, _, native, planners := composedRoutineFixture(t)
 
 	supplyResult, err := planners.supply.Step(ctx)
-	if err != nil || supplyResult.Reason != BuildingMethodAdmitted {
+	if err != nil || supplyResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("supply admission: %+v %v", supplyResult, err)
 	}
 	acquisitionResult, err := planners.acquisition.Step(ctx)
-	if err != nil || acquisitionResult.Reason != BuildingMethodAdmitted {
+	if err != nil || acquisitionResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("acquisition admission: %+v %v", acquisitionResult, err)
 	}
 	workResult, err := planners.work.Step(ctx)
-	if err != nil || workResult.Reason != BuildingMethodAdmitted {
+	if err != nil || workResult.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("work admission: %+v %v", workResult, err)
 	}
 
@@ -218,13 +218,13 @@ func TestComposedRoutineFamiliesWorldChangeRejectsAllWithoutCrossLeak(t *testing
 	session.state.Snapshot.Native++
 	session.mu.Unlock()
 
-	if next, err := planners.supply.Step(ctx); err != nil || next.Reason != BuildingMethodNoReview {
+	if next, err := planners.supply.Step(ctx); err != nil || next.Verdict != BuildingReasonNoReview {
 		t.Fatalf("supply after world change: %+v %v", next, err)
 	}
-	if next, err := planners.acquisition.Step(ctx); err != nil || next.Reason != BuildingMethodNoReview {
+	if next, err := planners.acquisition.Step(ctx); err != nil || next.Verdict != BuildingReasonNoReview {
 		t.Fatalf("acquisition after world change: %+v %v", next, err)
 	}
-	if next, err := planners.work.Step(ctx); err != nil || next.Reason != BuildingMethodNoReview {
+	if next, err := planners.work.Step(ctx); err != nil || next.Verdict != BuildingReasonNoReview {
 		t.Fatalf("work after world change: %+v %v", next, err)
 	}
 	if native.reads != readsBefore {
@@ -331,11 +331,11 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 		t.Fatal(err)
 	}
 	supplyResult1, err := supplyPlanner1.Step(ctx)
-	if err != nil || supplyResult1.Reason != BuildingMethodAdmitted {
+	if err != nil || supplyResult1.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("prior-run supply admission: %+v %v", supplyResult1, err)
 	}
 	acquisitionResult1, err := acquisitionPlanner1.Step(ctx)
-	if err != nil || acquisitionResult1.Reason != BuildingMethodAdmitted {
+	if err != nil || acquisitionResult1.Verdict != BuildingReasonAdmitted {
 		t.Fatalf("prior-run acquisition admission: %+v %v", acquisitionResult1, err)
 	}
 	if supplyResult1.Plan == acquisitionResult1.Plan {
@@ -408,14 +408,14 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	// suspended them and the resume reactivates them. Each family must
 	// independently recognise only its own prior hold as existing work.
 	supplyResult2, err := supplyPlanner2.Step(ctx)
-	if err != nil || supplyResult2.Reason != BuildingMethodExistingWork {
+	if err != nil || supplyResult2.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("restart supply reconciliation: %+v %v", supplyResult2, err)
 	}
 	// MaintainResource is a priority>=3 project: with its hold open, the resumed
 	// review ranks it Committed rather than Selected, so the planner refuses
 	// a fresh admission before it reaches the existing-work check.
 	acquisitionResult2, err := acquisitionPlanner2.Step(ctx)
-	if err != nil || acquisitionResult2.Reason != BuildingMethodRefused && acquisitionResult2.Reason != BuildingMethodExistingWork {
+	if err != nil || acquisitionResult2.Verdict != BuildingReasonRefused && acquisitionResult2.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("restart acquisition reconciliation: %+v %v", acquisitionResult2, err)
 	}
 
@@ -441,10 +441,10 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 			t.Fatal("restart admitted a fresh plan beside the surviving hold", plan.Spec.ID())
 		}
 	}
-	if next, err := supplyPlanner2.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := supplyPlanner2.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("post-restart supply hold: %+v %v", next, err)
 	}
-	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Reason != BuildingMethodRefused && next.Reason != BuildingMethodExistingWork {
+	if next, err := acquisitionPlanner2.Step(ctx); err != nil || next.Verdict != BuildingReasonRefused && next.Verdict != BuildingReasonExistingWork {
 		t.Fatalf("post-restart acquisition hold: %+v %v", next, err)
 	}
 }

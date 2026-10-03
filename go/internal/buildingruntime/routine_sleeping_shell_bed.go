@@ -89,7 +89,7 @@ func (r *RoutineSleepingUpkeepPlanner) furnishFromShell(call, epoch context.Cont
 		if m, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 			// Packing is under way: wait for it rather than build a second bed.
 			if prior, err := p.journal.LoadPlan(call, m.Plan); err == nil && domain.GoalWorkOpen(prior.Progress) {
-				return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
+				return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
 			}
 			continue
 		} else if !errors.Is(err, store.ErrNotFound) {

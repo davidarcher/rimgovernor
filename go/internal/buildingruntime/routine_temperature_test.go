@@ -173,7 +173,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 		t.Run(map[bool]string{false: "cold", true: "hot"}[hot], func(t *testing.T) {
 			p, db, n, request := temperatureFixture(t, hot)
 			result, err := p.Step(context.Background())
-			if err != nil || result.Reason != BuildingMethodAdmitted {
+			if err != nil || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, err)
 			}
 			plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
@@ -188,7 +188,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 			if b.Definition() != want || b.Cell().X > 1 || b.Cell().Z > 1 || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Goal.Need != domain.NeedDeficit {
 				t.Fatal(b, plan.Progress, result)
 			}
-			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork || n.previews != 1 {
+			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 1 {
 				t.Fatal(next, err)
 			}
 			request.Kind, request.RequestID = store.PauseControl, "manual-temperature"
@@ -200,7 +200,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 				t.Fatal(plan, err)
 			}
 			before := n.roomReads
-			if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodDisabled || n.roomReads != before {
+			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonDisabled || n.roomReads != before {
 				t.Fatal(next, err)
 			}
 		})
@@ -276,7 +276,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if err != nil || len(plans) != 2 {
 				t.Fatal(plans, err)
 			}
-			if mode == "existing" && result.Reason != RoutineBuildingReason(policy.TemperatureWait) {
+			if mode == "existing" && result.Verdict != awaitingMethod(policy.TemperatureWait) {
 				t.Fatal(result)
 			}
 			if mode == "unavailable" || mode == "recovered" {

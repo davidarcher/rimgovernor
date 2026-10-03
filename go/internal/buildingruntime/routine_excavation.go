@@ -197,7 +197,7 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	}
 	_, stage := excavationProgress(methods)
 	if stage > excavationStageBound {
-		return RoutineBuildingResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	check := func() error {
 		if err := p.current(call, epoch); err != nil {
@@ -221,10 +221,10 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 	review, reason, door := excavationNext(s.target, site)
 	clockSchedulerLog("excavation stage %d for %s: next=%v kept=%v remaining=%d unknown=%v complete=%v corridor=%v support=%d (%s) collapse=%v worker=%v access=%v", stage, s.target.Key(), review.Stage, review.Kept, review.Remaining, review.Unknown, review.Complete, review.Corridor, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable, site.AccessReachable)
 	if door {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
-	if reason != "" {
-		return RoutineBuildingResult{Reason: reason}, nil
+	if !reason.IsZero() {
+		return RoutineBuildingResult{Verdict: reason}, nil
 	}
 	next := review.Stage
 	if site.Support != policy.ExcavationSupportSupported {
@@ -239,15 +239,15 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 		case policy.ExcavationSupportSupported:
 		case policy.ExcavationSupportUnsupported:
 			if stageSite.CollapsePending {
-				return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+				return RoutineBuildingResult{Verdict: collapsePending("excavation_site")}, nil
 			}
-			return RoutineBuildingResult{Reason: BuildingExcavationBlocked}, nil
+			return RoutineBuildingResult{Verdict: BuildingExcavationBlocked}, nil
 		default:
-			return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineBuildingResult{Verdict: fieldUnavailable("excavation_support")}, nil
 		}
 	}
 	if !site.WorkerAvailable {
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: noWorker("excavation")}, nil
 	}
 	snapshot.Plan = domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(next))
@@ -273,21 +273,21 @@ func (r *RoutineBuildingPlanner) stepExcavation(call, epoch context.Context, s e
 // done once the tunnel is complete, a reason that holds or ends the
 // project, or neither, when review.Stage is the next stage to designate
 // (its own support still to be read unless the whole site is supported).
-func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) (policy.ExcavationReview, RoutineBuildingReason, bool) {
+func excavationNext(target policy.ExcavationTarget, site bridge.ExcavationSite) (policy.ExcavationReview, Verdict, bool) {
 	review := policy.ReviewExcavation(target, excavationStates(site), excavationStageLimit)
 	switch {
 	case site.CollapsePending:
-		return review, BuildingMethodUnknown, false
+		return review, collapsePending("excavation_site"), false
 	case !review.Corridor || !site.AccessReachable:
 		return review, BuildingExcavationBlocked, false
 	case review.Complete:
-		return review, "", true
+		return review, Verdict{}, true
 	case site.Support == policy.ExcavationSupportUnsupported:
 		return review, BuildingExcavationBlocked, false
 	case len(review.Stage) == 0:
-		return review, BuildingMethodUnknown, false
+		return review, fieldUnavailable("excavation_stage"), false
 	}
-	return review, "", false
+	return review, Verdict{}, false
 }
 
 // cancelStalledExcavation cancels the stage actions of the goal's open
@@ -365,9 +365,9 @@ func (r *RoutineBuildingPlanner) admitExcavation(call, epoch context.Context, s 
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	reason := BuildingMethodRefused
+	reason := BuildingReasonRefused
 	if decision.Admitted {
-		reason = BuildingMethodAdmitted
+		reason = BuildingReasonAdmitted
 	}
-	return RoutineBuildingResult{Reason: reason, Decision: decision}, nil
+	return RoutineBuildingResult{Verdict: reason, Decision: decision}, nil
 }

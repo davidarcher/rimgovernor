@@ -251,7 +251,7 @@ deadline. Admission carries its snapshot and review revision for dispatch bindin
 A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
 unless the facts say the ActiveCombat goal holds an admitted plan with open work;
 unknown plan evidence refuses as `unknown_facts`. A hostile building alone
-refuses only while the defense planner has not reported `no_eligible_squad`
+refuses only while the defense planner has not reported `no_worker:squad`
 for this stop (`ClockWindowFacts.SquadUnanswered`); reported, the building is
 watched and the colony window admits (#326). A hostile or hunting *animal*,
 or a hostile building (#246, #340), known to be at least
@@ -621,6 +621,17 @@ passes, or a full step runs, and a step that skips it lists it under
 `waiting`. The routine reviewer runs before any planner wave; its retained
 census is retired by any typed-event invalidation (`routineCensusStore`
 generation) so a same-tick reuse never serves facts an event made stale.
+
+Every routine result embeds one `Verdict` (`buildingruntime/outcome.go`): an
+`Outcome` (`admitted`, `nothing_to_do`, `in_progress`, `refused`) and, when refused, a
+`Refusal` with a closed `Kind` (`collapse_pending`, `no_worker`, `awaiting_plan`,
+`field_unavailable`, `no_space`, `shared_admission_refused`), a subject and optional detail.
+A refusal without a kind panics at construction and is rejected when filed; there is no
+catch-all kind. `Verdict.String` is the one rendering (`kind[:subject[:detail]]`) for the
+service log, the dashboard timeline and `GoalProgress.Planner`, which the status strip shows;
+nothing parses it. A planner's catalog entry names the one goal it serves (`plannerEntry.goal`),
+and the wave files its verdict there: an admitted, nothing-to-do or in-progress verdict clears
+the goal's refusal.
 
 No window watches attempts: the `watched_attempts` policy field is retired
 (#856), since a building intent settles on its Apply receipt and the census

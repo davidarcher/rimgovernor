@@ -77,7 +77,7 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 	}
 	review(1, 0)
 	out, err := planner.Step(ctx)
-	if err != nil || out.Reason != BuildingMethodAdmitted {
+	if err != nil || out.Verdict != BuildingReasonAdmitted {
 		t.Fatal(out, err)
 	}
 	plan, err := db.LoadPlan(ctx, out.Plan)
@@ -116,7 +116,7 @@ func TestBreakResponsePlannerDraftsSubduesThenOffersRescue(t *testing.T) {
 	review(0, 1)
 	rescue, _ := NewRoutineRescuePlanner(reviewer, native)
 	rescued, err := rescue.Step(ctx)
-	if err != nil || rescued.Reason != BuildingMethodAdmitted {
+	if err != nil || rescued.Verdict != BuildingReasonAdmitted {
 		t.Fatal(rescued, err)
 	}
 	rp, err := db.LoadPlan(ctx, rescued.Plan)

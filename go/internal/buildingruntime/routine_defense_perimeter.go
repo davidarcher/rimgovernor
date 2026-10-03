@@ -361,9 +361,9 @@ func (r *RoutineDefenseLayoutPlanner) remove(call, epoch context.Context, goal s
 	}
 	if len(actions) == 0 {
 		if pending {
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("perimeter_preview"), Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
+		return RoutineDefenseLayoutResult{Verdict: noSpace("perimeter_section"), Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -385,7 +385,7 @@ func (r *RoutineDefenseLayoutPlanner) remove(call, epoch context.Context, goal s
 		return RoutineDefenseLayoutResult{}, err
 	}
 	clockSchedulerLog("defense-layout.remove: tier=%s ordered %d removals (%s)", tier.Name, len(actions), key)
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: tier.Name}, nil
+	return RoutineDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: tier.Name}, nil
 }
 
 // maxDefenseRemovals bounds one removal method's orders.

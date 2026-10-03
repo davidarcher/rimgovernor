@@ -27,8 +27,8 @@ type RoutineWorkPlanner struct {
 	benches  RoutineWorkBenchSource
 }
 type RoutineWorkResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineWorkPlanner(reviewer *RoutineReviewer) (*RoutineWorkPlanner, error) {
@@ -42,7 +42,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineWorkResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineWorkResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineWorkResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -52,7 +52,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineWorkResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineWorkResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	var goal store.GoalState
 	deficit := false
@@ -72,7 +72,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "" {
-		return RoutineWorkResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineWorkResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// Open work no longer gates the fresh decision outright: an undispatched
 	// action whose premise moved (what the policy now wants for the pawn) is cancelled below so the goal can
@@ -89,8 +89,8 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	existing := func(unknown RoutineWorkResult) RoutineWorkResult {
 		if len(open) > 0 {
-			clockSchedulerLog("Work.step: open plan kept, fresh decision unknown reason=%v", unknown.Reason)
-			return RoutineWorkResult{Reason: BuildingMethodExistingWork}
+			clockSchedulerLog("Work.step: open plan kept, fresh decision unknown reason=%v", unknown.Verdict)
+			return RoutineWorkResult{Verdict: BuildingReasonExistingWork}
 		}
 		return unknown
 	}
@@ -120,7 +120,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	pawns, known := read.Projection.WorkPawns.Value()
 	if !known {
-		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
+		return existing(RoutineWorkResult{Verdict: fieldUnavailable("work_pawns")}), nil
 	}
 	squad, err := reviewSoldierSquad(call, p.journal, state.Snapshot, pawns)
 	if err != nil {
@@ -128,7 +128,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	required, known := routineProjectWork(definitions, read.Projection.Definitions).Value()
 	if !known {
-		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
+		return existing(RoutineWorkResult{Verdict: fieldUnavailable("project_work")}), nil
 	}
 	resourceTargets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
 	if err != nil {
@@ -140,7 +140,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if rows, known := benchWork.Value(); !known {
-		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
+		return existing(RoutineWorkResult{Verdict: fieldUnavailable("bench_work")}), nil
 	} else {
 		required = mergeWorkRequirements(required, rows)
 	}
@@ -161,7 +161,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	_, known = decision.Capacity.Value()
 	if !known {
-		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
+		return existing(RoutineWorkResult{Verdict: fieldUnavailable("work_capacity")}), nil
 	}
 	byID := map[policy.PawnID]policy.WorkPawn{}
 	for _, pawn := range pawns {
@@ -282,11 +282,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineWorkResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	if len(work) == 0 && len(settings) == 0 && len(reading) == 0 && len(drugs) == 0 && len(food) == 0 {
-		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineWorkResult{Verdict: fieldUnavailable("work_assignments")}, nil
 	}
 	// Staleness above judged every pawn; the plan itself carries at most eight.
 	if len(work) > 8 {
@@ -325,7 +325,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineWorkResult{Reason: BuildingMethodUsed}, nil
+		return RoutineWorkResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineWorkResult{}, err
 	}
@@ -379,7 +379,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWorkResult{}, err
 	}
-	return RoutineWorkResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineWorkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // cancelStaleWorkActions cancels every undispatched work assignment on the

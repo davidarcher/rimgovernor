@@ -13,15 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-const (
-	// BuildingSleepingUnavailable: nobody can be assigned a vacant suitable
-	// bed and no bed definition is buildable now.
-	BuildingSleepingUnavailable RoutineBuildingReason = "sleeping_bed_unavailable"
-	// BuildingSleepingUseNeeded: every waiting colonist owns a suitable bed;
-	// only observed sleep completes the goal, so nothing is dispatched.
-	BuildingSleepingUseNeeded RoutineBuildingReason = "sleeping_use_needed"
-)
-
 // RoutineSleepingUpkeepPlanner answers MaintainHousing's bedroom phase: it transfers
 // ownership of a vacant suitable bed to a colonist without one (a one-shot
 // AssignIntent native checks for roof, access, allowed area and the
@@ -110,14 +101,14 @@ func bedroomsFirst(method policy.SleepingMethod) bool {
 // selectSleeping resolves the building ladder's definition and site from
 // the same census the sleeping planner chose from: only a SleepingBuild
 // choice furnishes; every other outcome is reported, never built around.
-func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjection, review store.RoutineReview) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjection, review store.RoutineReview) (*RoutineBuildingPlanner, Verdict, error) {
 	request, err := sleepingRequest(facts, review)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	choice, err := policy.SelectSleepingMethod(request)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if bedroomsFirst(choice.Method) {
 		// A planned bedroom standing empty takes one bed (#786): the best
@@ -142,7 +133,7 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("sleeping"), nil
 	case policy.SleepingNoDemand:
 		return nil, BuildingSleepingUseNeeded, nil
 	case policy.SleepingAssign:
@@ -154,13 +145,13 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 }
 
 // resolveSleeping is the building ladder resolved for a SleepingBuild choice.
-func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProjection, choice policy.SleepingChoice) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProjection, choice policy.SleepingChoice) (*RoutineBuildingPlanner, Verdict, error) {
 	if len(choice.Cells) == 0 {
-		return nil, BuildingMethodNoSpace, nil
+		return nil, BuildingReasonNoSpace, nil
 	}
 	facility, err := policy.Facility(policy.RoomRoleBedroom)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	resolved := *r
 	resolved.definition = choice.Definition
@@ -169,7 +160,7 @@ func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProject
 	resolved.cells = choice.Cells
 	resolved.sleeping = &choice
 	resolved.stuff = bedStuff(facts, resolved.definition)
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 // bedStuff is the stuff a bed step builds definition from: a bedroll's
@@ -194,7 +185,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -204,14 +195,14 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		return RoutineBuildingResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineBuildingResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHousing)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if !workable || review.Latches.Housing != policy.HousingSleeping {
-		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
@@ -219,7 +210,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 			return RoutineBuildingResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	// A completed assignment is retired from the goal's active methods once
@@ -242,7 +233,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		observe = max(observe, sleepingNativeWorkTicks(plan, state.Snapshot, review.Tick))
 	}
 	result, err := r.decide(call, epoch, arbiter, state, review, goal)
-	if err == nil && result.Reason != BuildingMethodAdmitted && result.NativeWorkTicks == 0 {
+	if err == nil && result.Verdict != BuildingReasonAdmitted && result.NativeWorkTicks == 0 {
 		result.NativeWorkTicks = observe
 	}
 	return result, err
@@ -321,7 +312,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	}
 	switch choice.Method {
 	case policy.SleepingUnknown:
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("sleeping")}, nil
 	case policy.SleepingNoDemand:
 		// A bed replacement under way finishes first (#829): its new bed
 		// stands unowned until the owner moves.
@@ -389,13 +380,13 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 				if result, due, err := r.sculptBedroom(call, epoch, state, goal, reading); due || err != nil {
 					return result, err
 				}
-				return RoutineBuildingResult{Reason: BuildingSleepingUseNeeded}, nil
+				return RoutineBuildingResult{Verdict: BuildingSleepingUseNeeded}, nil
 			}
 			choice = policy.SleepingChoice{Method: policy.SleepingAssign, Pawn: swap.Pawn, Bed: swap.Bed, PreviousBed: swap.PreviousBed}
 			swapping = true
 		}
 	case policy.SleepingUnavailable:
-		return RoutineBuildingResult{Reason: BuildingSleepingUnavailable}, nil
+		return RoutineBuildingResult{Verdict: BuildingSleepingUnavailable}, nil
 	case policy.SleepingMarkSlaves:
 		return r.markSlaveBed(call, epoch, state, goal, choice.Bed)
 	case policy.SleepingBuild:
@@ -415,7 +406,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		return RoutineBuildingResult{}, err
 	}
 	if method == "" {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	previous := domain.ClearPrevious()
 	if choice.PreviousBed != "" {
@@ -431,7 +422,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		assign = assign.AsSwap()
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
@@ -459,7 +450,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }
 
 // sleepingAssignAttempts bounds the refused assignment attempts one goal
@@ -515,7 +506,7 @@ func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context,
 	p := r.reviewer.player
 	method := domain.MethodID("sleeping-slave-bed-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -541,5 +532,5 @@ func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context,
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

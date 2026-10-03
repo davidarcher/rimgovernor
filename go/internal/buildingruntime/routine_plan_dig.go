@@ -55,17 +55,17 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	}
 	if len(excavations) == 0 {
 		if designated {
-			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, true, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, true, nil
 		}
 		clockSchedulerLog("%s: %s: none of %d rock cells eligible", b.goal, method, len(rock))
 		return RoutineBuildingResult{}, false, nil
 	}
 	if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
 		clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
-		return RoutineBuildingResult{Reason: BuildingMethodNoSpace}, true, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
 	}
 	if _, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, true, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, false, err
 	}
@@ -75,10 +75,10 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	actions := make([]domain.Action, 0, len(excavations)+1)
 	if cooler != nil {
 		// The cooler is action -0, as previewCoolerWall names it.
-		var reason RoutineBuildingReason
+		var reason Verdict
 		previews, stock, reason, err = b.previewCoolerWall(call, snapshot, s.facts, nil, check, cooler.Cell, cooler.Rotation, true)
-		if err != nil || reason != "" {
-			return RoutineBuildingResult{Reason: reason}, reason != "", err
+		if err != nil || !reason.IsZero() {
+			return RoutineBuildingResult{Verdict: reason}, !reason.IsZero(), err
 		}
 		actions = append(actions, previews[0].Action)
 	}
@@ -101,7 +101,7 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	if err != nil {
 		return result, false, err
 	}
-	clockSchedulerLog("%s: %s: %d rock cells reason=%s", b.goal, method, len(actions), result.Reason)
+	clockSchedulerLog("%s: %s: %d rock cells reason=%s", b.goal, method, len(actions), result.Verdict)
 	return result, true, nil
 }
 

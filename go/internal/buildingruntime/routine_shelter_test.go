@@ -120,7 +120,7 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 || n.calls != 1 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 || n.calls != 1 {
 		t.Fatal(result, err, n.previews, n.calls)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -144,7 +144,7 @@ func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 			t.Fatal("wall waits for the door", action, err)
 		}
 	}
-	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork || n.previews != 32 {
+	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork || n.previews != 32 {
 		t.Fatal(again, err)
 	}
 }
@@ -177,7 +177,7 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Reason != BuildingMethodAdmitted || len(plans) != 5 {
+			if result.Verdict != BuildingReasonAdmitted || len(plans) != 5 {
 				t.Fatal("shell not admitted", result, len(plans))
 			}
 			plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -187,7 +187,7 @@ func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
 			if len(result.Decision.Refused) != 0 {
 				t.Fatal("shell not admitted whole", len(plan.Progress), result.Decision.Refused)
 			}
-			if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+			if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork {
 				t.Fatal(again, err)
 			}
 		})
@@ -202,7 +202,7 @@ func TestRoutineShelterHoldsThroughWoodShortage(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	shell := shellMethod(result.Decision.Goal).Plan
@@ -213,7 +213,7 @@ func TestRoutineShelterHoldsThroughWoodShortage(t *testing.T) {
 	}
 	for range 3 {
 		again, err := r.Step(context.Background())
-		if err != nil || again.Reason != BuildingMethodExistingWork || n.previews != previews {
+		if err != nil || again.Verdict != BuildingReasonExistingWork || n.previews != previews {
 			t.Fatal("shortage replanned the shell", again, err, n.previews)
 		}
 	}
@@ -260,7 +260,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				n.cells.Cells[40].Occupied = domain.Known(true)
 			}
 			result, err := r.Step(context.Background())
-			if err == nil && result.Reason == BuildingMethodAdmitted {
+			if err == nil && result.Verdict == BuildingReasonAdmitted {
 				t.Fatal("invalid shell admitted", change)
 			}
 			// The load plan and the two bunk plans are all the journal holds.
@@ -280,7 +280,7 @@ func TestRoutineShelterPrefersExistingRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -371,7 +371,7 @@ func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	}
 	reads := n.reads
 	again, err := r.Step(ctx)
-	if err != nil || again.Reason != BuildingMethodDisabled || again.NativeWorkTicks != 0 || n.reads != reads {
+	if err != nil || again.Verdict != BuildingReasonDisabled || again.NativeWorkTicks != 0 || n.reads != reads {
 		t.Fatal(again, err, n.reads)
 	}
 }
@@ -424,7 +424,7 @@ func stageShelterBunks(t *testing.T, r *RoutineBuildingPlanner, db *store.Store,
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result.Reason != BuildingMethodAdmitted {
+		if result.Verdict != BuildingReasonAdmitted {
 			t.Fatal("bunk rung not admitted", rung, result)
 		}
 		method := methodPlan(t, result.Decision, []domain.MethodID{shelterSpotsMethod, shelterBedsMethod}[rung])
@@ -486,7 +486,7 @@ func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *te
 		t.Fatal(err)
 	}
 	remaining, err = r.Step(ctx)
-	if err != nil || remaining.Reason != BuildingMethodNoDeficit || remaining.NativeWorkTicks != 0 {
+	if err != nil || remaining.Verdict != BuildingReasonNoDeficit || remaining.NativeWorkTicks != 0 {
 		t.Fatal(remaining, err)
 	}
 }
@@ -538,7 +538,7 @@ func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 	hutCells(n, 21, func(int32, int32) bool { return true })
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -580,7 +580,7 @@ func TestRoutineShelterRaisesTheStarterRectangle(t *testing.T) {
 	if got := shelterNativeWorkTicks(plan, current, 100); got != 10000 {
 		t.Fatal("shell completion granted no roofing budget", got)
 	}
-	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+	if again, err := r.Step(context.Background()); err != nil || again.Verdict != BuildingReasonExistingWork {
 		t.Fatal(again, err)
 	}
 }
@@ -596,7 +596,7 @@ func TestRoutineShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
 	hutCells(n, 21, lit)
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodNoSpace {
+	if err != nil || result.Verdict != BuildingReasonNoSpace {
 		t.Fatal(result, err)
 	}
 }
@@ -672,7 +672,7 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	// Prime the generation the fake census echoes.
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	if n.censuses == 0 {
@@ -722,7 +722,7 @@ func TestRoutineShelterAdoptsALoneDoor(t *testing.T) {
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -807,7 +807,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingShellBlocked {
+	if err != nil || result.Verdict != BuildingShellBlocked {
 		t.Fatal("a blocked best-matched shell must wait, not adopt a lesser shape or site afresh:", result, err)
 	}
 	for cell := range previewed {
@@ -829,7 +829,7 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 	blocked = domain.Cell{X: -1, Z: -1}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err = planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -914,7 +914,7 @@ func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -967,7 +967,7 @@ func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -1004,7 +1004,7 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), shellMethod(result.Decision.Goal).Plan)
@@ -1039,7 +1039,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	ctx := context.Background()
 	n.last = r.reviewer.player.session.State().Snapshot
 	first, err := planner.Step(ctx)
-	if err != nil || first.Reason != BuildingMethodAdmitted {
+	if err != nil || first.Verdict != BuildingReasonAdmitted {
 		t.Fatal(first, err)
 	}
 	// The shell settles with one wall unsuccessful (native refused its
@@ -1070,7 +1070,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	second, err := planner.Step(ctx)
-	if err != nil || second.Reason != BuildingMethodAdmitted {
+	if err != nil || second.Verdict != BuildingReasonAdmitted {
 		t.Fatal("a settled shell with a gap must be repaired:", second, err)
 	}
 	var repair *domain.GoalMethod
@@ -1094,7 +1094,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	}
 	// While the repair is open the goal has work and nothing more is sited.
 	third, err := planner.Step(ctx)
-	if err != nil || third.Reason != BuildingMethodExistingWork {
+	if err != nil || third.Verdict != BuildingReasonExistingWork {
 		t.Fatal(third, err)
 	}
 }
@@ -1152,7 +1152,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 			if err != nil || len(selected) != 0 || adopted != test.adopted {
 				t.Fatal(selected, reason, adopted, err)
 			}
-			if test.adopted && reason != BuildingShellBlocked || !test.adopted && reason != "" {
+			if test.adopted && reason != BuildingShellBlocked || !test.adopted && !reason.IsZero() {
 				t.Fatal("reason", reason)
 			}
 		})
@@ -1170,7 +1170,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	}{{policy.MaintainHousing, true}, {policy.MaintainResource, false}} {
 		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}
 		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, func() error { return nil })
-		if err != nil || reason != "" || adopted != test.adopted || (len(selected) == 1) != test.adopted {
+		if err != nil || !reason.IsZero() || adopted != test.adopted || (len(selected) == 1) != test.adopted {
 			t.Fatal(test.goal, selected, reason, adopted, err)
 		}
 	}

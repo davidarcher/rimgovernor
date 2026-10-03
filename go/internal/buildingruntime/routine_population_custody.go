@@ -29,8 +29,8 @@ type RoutinePopulationCustodyPlanner struct {
 	native   RoutineRescueSource
 }
 type RoutinePopulationCustodyResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native RoutineRescueSource) (*RoutinePopulationCustodyPlanner, error) {
@@ -43,7 +43,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodDisabled}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePopulationCustodyResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -53,14 +53,14 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPopulation)
 	if err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
 	if !workable {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -68,7 +68,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return RoutinePopulationCustodyResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutinePopulationCustodyResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -97,9 +97,9 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 	case policy.CustodyUnknown:
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodUnknown}, nil
+		return RoutinePopulationCustodyResult{Verdict: fieldUnavailable("custody")}, nil
 	}
 	identityCtx := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityCtx)
@@ -111,7 +111,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+1)
 	for _, pawn := range emergency.Facts.Colonists {
@@ -174,7 +174,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			ok = false
 		}
 		if !ok {
-			return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+			return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 		}
 		value, err := domain.NewRescue(performer, target)
 		if err != nil {
@@ -183,7 +183,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		prefix = fmt.Sprintf("population-rescue-%s-", target)
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
+			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
@@ -202,7 +202,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			ok = false
 		}
 		if !ok {
-			return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+			return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 		}
 		value, err := domain.NewCapture(performer, target)
 		if err != nil {
@@ -211,7 +211,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		prefix = fmt.Sprintf("population-capture-%s-", target)
 		attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 		if attempt >= maxMedicalAttemptsPerPatient {
-			return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
+			return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 		id := domain.MintPlanID()
@@ -240,5 +240,5 @@ func (r *RoutinePopulationCustodyPlanner) commit(call, epoch context.Context, p 
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
-	return RoutinePopulationCustodyResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePopulationCustodyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

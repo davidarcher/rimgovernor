@@ -17,7 +17,7 @@ the goal. Advisory goals cannot create research orders.
 A goal whose only method is gated on research reports the project instead of
 no method: `EnsureBasicPower` with every generator definition unavailable and
 `MaintainStoneShell` with no replacement material report
-`waiting_on_research:<project>` (`policy.ResearchGate`).
+`awaiting_plan:research:<project>` (`policy.ResearchGate`).
 
 `Observations.ReadResearch` supplies the installed prerequisite graph; `include_unlocks` lists
 the definitions each project unlocks and `include_capability` adds research benches,

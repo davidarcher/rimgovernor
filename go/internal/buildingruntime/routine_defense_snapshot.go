@@ -86,7 +86,7 @@ func (r *RoutineDefensePlanner) defenseSnapshot(ctx context.Context, rec *defens
 	d := snapshot.Defense{
 		Recorded: fmt.Sprintf("colony %s load %s map %d tick %d", current.Colony, current.Load, current.Map, tick),
 		Snapshot: current, Tick: tick, Emergency: rec.emergency.Facts,
-		Reason: string(result.Reason), Plan: result.Plan,
+		Reason: result.Verdict.String(), Plan: result.Plan,
 	}
 	var err error
 	if d.EmergencyContext, err = protojson.Marshal(rec.emergency.Context); err != nil {

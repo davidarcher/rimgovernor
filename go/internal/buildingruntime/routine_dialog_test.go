@@ -48,7 +48,7 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Option != "Ignore" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Option != "Ignore" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -60,7 +60,7 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 		t.Fatal(answer, ok)
 	}
 	next, err := planner.Step(ctx)
-	if err != nil || next.Reason != BuildingMethodExistingWork {
+	if err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	v.Dialog = nil
@@ -89,11 +89,11 @@ func TestRoutineDialogPlannerWaitsForInteractivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodNotInteractive {
+	if err != nil || result.Verdict != BuildingReasonNotInteractive {
 		t.Fatal(result, err)
 	}
 	dialog.Interactive = proto.Bool(true)
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted || result.Option != "OK" {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted || result.Option != "OK" {
 		t.Fatal(result, err)
 	}
 }
@@ -111,7 +111,7 @@ func TestRoutineDialogPlannerHoldsWithoutSelectableOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodExhausted {
+	if err != nil || result.Verdict != BuildingReasonExhausted {
 		t.Fatal(result, err)
 	}
 }

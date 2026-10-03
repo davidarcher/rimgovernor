@@ -52,7 +52,7 @@ func TestRoutineShelterShellInvariantsAcrossSites(t *testing.T) {
 			bunks := stageShelterBunks(t, planner, db, n)
 			beds := bunkCellsOf(t, bunks[len(bunks)-1])
 			result, err := planner.Step(ctx)
-			if err != nil || result.Reason != BuildingMethodAdmitted {
+			if err != nil || result.Verdict != BuildingReasonAdmitted {
 				t.Fatal(result, err)
 			}
 			plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)
@@ -199,7 +199,7 @@ func TestRoutineShelterRefusesAlreadyRoofedGround(t *testing.T) {
 		cell.Roofed, cell.Roof = domain.Known(true), domain.Known("RoofRockThick")
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodNoSpace {
+	if err != nil || result.Verdict != BuildingReasonNoSpace {
 		t.Fatal("a shell was sited on roofed ground", result, err)
 	}
 }
@@ -216,7 +216,7 @@ func TestRoutineShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 	bunks := map[domain.Cell]bool{}
 	for rung, method := range []domain.MethodID{shelterSpotsMethod, shelterBedsMethod} {
 		result, err := planner.Step(ctx)
-		if err != nil || result.Reason != BuildingMethodAdmitted {
+		if err != nil || result.Verdict != BuildingReasonAdmitted {
 			t.Fatal(rung, result, err)
 		}
 		completeRoutineBuildingMethod(t, db, result)
@@ -235,7 +235,7 @@ func TestRoutineShelterRingEnclosesBunksAfterCentreDrift(t *testing.T) {
 		n.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10 + 4*int32(rung+1)), Z: proto.Int32(10 + 3*int32(rung+1))}
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, shellMethod(result.Decision.Goal).Plan)

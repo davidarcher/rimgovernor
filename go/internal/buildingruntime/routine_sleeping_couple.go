@@ -156,7 +156,7 @@ func (r *RoutineSleepingUpkeepPlanner) coupleBed(call, epoch context.Context, st
 		result, err := r.upgradeBedroom(call, epoch, state, review, goal, reading, policy.RoomUpgrade{Room: step.Room, Slot: "couple-bed", Def: policy.SleepingCoupleBedDefinition, Anchor: step.Anchor, Rot: step.Rot})
 		// A build already tried this epoch, or refused, leaves the
 		// ordinary choice to go on.
-		return result, err != nil || result.Reason == BuildingMethodAdmitted, err
+		return result, err != nil || result.Verdict == BuildingReasonAdmitted, err
 	}
 	return RoutineBuildingResult{}, false, nil
 }
@@ -219,5 +219,5 @@ func (r *RoutineSleepingUpkeepPlanner) commitCouple(call, epoch context.Context,
 	if _, err := p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, false, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, true, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, true, nil
 }

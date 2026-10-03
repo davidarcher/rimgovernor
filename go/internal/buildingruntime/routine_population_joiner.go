@@ -22,8 +22,8 @@ type RoutinePopulationJoinerPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutinePopulationJoinerResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutinePopulationJoinerPlanner(reviewer *RoutineReviewer) (*RoutinePopulationJoinerPlanner, error) {
@@ -37,7 +37,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodDisabled}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -47,14 +47,14 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 		return RoutinePopulationJoinerResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodNoReview}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainPopulation)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	if !workable {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -62,7 +62,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 			return RoutinePopulationJoinerResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutinePopulationJoinerResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutinePopulationJoinerResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -93,9 +93,9 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity:
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonUsed}, nil
 	case policy.JoinerCensusUnknown:
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodUnknown}, nil
+		return RoutinePopulationJoinerResult{Verdict: fieldUnavailable("joiner_census")}, nil
 	}
 	// Keyed by quest and attempt count, mirroring
 	// RoutinePrisonerInteractionPlanner's method key: a fresh attempt after
@@ -103,7 +103,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	prefix = fmt.Sprintf("%s-%s-", prefix, choice.Quest)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	accept, err := domain.NewQuestAccept(choice.Quest, "", choice.RewardChoice)
@@ -129,7 +129,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // admitCeremonyStart commands the bestowing ritual of a ceremony whose
@@ -140,7 +140,7 @@ func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.
 	prefix := fmt.Sprintf("ritual-start-%s-", ceremony.Pawn)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	ritual, err := domain.NewRitual(domain.PawnID(ceremony.Pawn), domain.RitualBestowing, domain.RitualStart)
@@ -166,7 +166,7 @@ func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.GoalState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
@@ -174,7 +174,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -200,5 +200,5 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
-	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

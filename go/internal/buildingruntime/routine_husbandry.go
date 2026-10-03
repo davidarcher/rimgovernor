@@ -21,8 +21,8 @@ type RoutineHusbandryPlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutineHusbandryResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks is lent while an open animal-product channel delivers
 	// on native jobs alone (milking, egg gathering): the herd needs game
 	// time, not a method, and a hold without it parks the clock on no_work.
@@ -40,7 +40,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineHusbandryResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineHusbandryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -50,7 +50,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineHusbandryResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	// Read before the goal check: an open animal-product channel lends
 	// game time whether or not the herd goal is in deficit.
@@ -74,7 +74,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	if !workable {
-		return RoutineHusbandryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonNoDeficit, NativeWorkTicks: wait}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -82,7 +82,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineHusbandryResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineHusbandryResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
+			return RoutineHusbandryResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: wait}, nil
 		}
 	}
 	upkeep := read.Projection.Facts.AnimalUpkeep
@@ -117,9 +117,9 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
-		return RoutineHusbandryResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonUsed, NativeWorkTicks: wait}, nil
 	case policy.HusbandryUnknown:
-		return RoutineHusbandryResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineHusbandryResult{Verdict: fieldUnavailable("husbandry")}, nil
 	}
 	// Keyed by animal, method and attempt count, not trainable: a fresh
 	// attempt after an interrupted or failed try re-selects whichever
@@ -130,10 +130,10 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	prefix := fmt.Sprintf("%s-%s-", choice.Method, choice.Animal)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineHusbandryResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Animal)}) {
-		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineHusbandryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	argument := choice.TrainableDef
@@ -166,7 +166,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	return RoutineHusbandryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineHusbandryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // animalProductWait is the game time an open animal-product channel needs:

@@ -103,7 +103,7 @@ func resourceStorageFloor(t *testing.T, advance int64) {
 	}
 	base.reviewer.bids.bid(state.Snapshot, "Steel", bidTrade, 5, policy.AcquisitionTrade, review.Tick)
 	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, boundary.Identity(state.Snapshot), "Steel", 200, resourceStockFacts(v), nil, base.reviewer.clock.Now())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	if len(native.previews) != 1 || len(native.previews[0].Cells()) != 1 {

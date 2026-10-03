@@ -747,7 +747,7 @@ acknowledged to the native watcher, which resolves every acknowledged id as a
 spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
 admits a combat window with an empty acknowledgement list. A building the
 planner cannot answer -- every colonist downed or incapable of violence, so
-`RoutineDefensePlanner` reports `no_eligible_squad` at this stop -- is watched
+`RoutineDefensePlanner` reports `no_worker:squad` at this stop -- is watched
 rather than held (#326): the deficit stays open, colony windows run around it,
 and a plan admitted at a later stop makes the next window a combat one. A
 hostile pawn with no squad still holds; a raid never auto-advances. Squad defense assigns buildings only once no eligible hostile pawn remains (a

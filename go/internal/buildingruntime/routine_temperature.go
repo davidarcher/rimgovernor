@@ -45,11 +45,11 @@ func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {
 	return false
 }
 
-func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, Verdict, error) {
 	cooling := temperatureCooling(facts)
 	proposal, err := policy.SelectTemperatureMethod(facts.Rooms, cooling, r.reviewer.policy, latches)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	if clockDebug() && (latches.Hot || proposal.Method == policy.TemperatureCoolPowered) {
 		spare := domain.Unknown[float64]()
@@ -66,13 +66,13 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 		if proposal.Thing != "" {
 			resolved.definition = "Campfire"
 		}
-		return &resolved, "", nil
+		return &resolved, Verdict{}, nil
 	case policy.TemperatureUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("temperature"), nil
 	case policy.TemperatureNoMethod:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	default:
-		return nil, RoutineBuildingReason(proposal.Method), nil
+		return nil, awaitingMethod(proposal.Method), nil
 	}
 }
 

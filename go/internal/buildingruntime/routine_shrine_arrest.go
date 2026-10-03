@@ -34,12 +34,12 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 	bed := policy.ShrineArrestBed(facts.Sleeping)
 	performer := policy.ShrineArrester(squad)
 	if bed == "" || performer == "" || performer == target {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 	}
 	prefix := fmt.Sprintf("population-arrest-%s-", target)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodExhausted}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -48,7 +48,7 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 		return RoutinePopulationCustodyResult{}, err
 	}
 	if !arbiter.tryClaim([]domain.PawnID{performer, target}, "bed:"+bed) {
-		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
+		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutinePopulationCustodyResult{}, err
@@ -60,5 +60,5 @@ func (r *RoutinePopulationCustodyPlanner) commitArrest(call, epoch context.Conte
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationCustodyResult{}, err
 	}
-	return RoutinePopulationCustodyResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutinePopulationCustodyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

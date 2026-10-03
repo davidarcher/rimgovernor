@@ -96,7 +96,7 @@ func (r *RoutineFieldPlanner) shrink(call, epoch context.Context, state ControlS
 		return RoutineFieldResult{}, false, err
 	}
 	clockEvent(call, "layout", "fields", "field block shrunk", "zone", plan.ID, "crop", plan.Crop, "cells", len(cells), "plan", string(id))
-	return RoutineFieldResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 // Field shrink hysteresis (#1309): a crop's growing zones shrink only once

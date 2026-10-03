@@ -29,8 +29,8 @@ type RoutineDialogPlanner struct {
 	policy   policy.DialogAnswerPolicy
 }
 type RoutineDialogResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// Option is the label the planner chose when it admitted a plan.
 	Option string
 }
@@ -45,7 +45,7 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineDialogResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDialogResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -55,17 +55,17 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineDialogResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineDialogResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.AnswerDialog)
 	if err != nil {
 		return RoutineDialogResult{}, err
 	}
 	if !found {
-		return RoutineDialogResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-		return RoutineDialogResult{Reason: BuildingMethodExistingWork}, err
+		return RoutineDialogResult{Verdict: BuildingReasonExistingWork}, err
 	}
 	identity := boundary.Identity(state.Snapshot)
 	reply, _, err := r.reviewer.colonyFacts(call, r.native, identity, false)
@@ -81,14 +81,14 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	dialog := observed.Dialog
 	if dialog == nil || dialog.WindowId == nil {
-		return RoutineDialogResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineDialogResult{Verdict: fieldUnavailable("dialog")}, nil
 	}
 	if !dialog.GetInteractive() {
 		// Dialog_NodeTree.delayInteractivity greys the options for a second
 		// of real time after opening; native refuses an answer until then, so
 		// the planner waits for the next review rather than reporting the
 		// dialog unanswerable (#179).
-		return RoutineDialogResult{Reason: BuildingMethodNotInteractive}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonNotInteractive}, nil
 	}
 	options := make([]policy.DialogOption, 0, len(dialog.Options))
 	for _, option := range dialog.Options {
@@ -99,13 +99,13 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 		// Every option is disabled, a hyperlink or opens another window:
 		// nothing the controller can activate answers this dialog, so the
 		// hold stays with the player.
-		return RoutineDialogResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	windowID := dialog.GetWindowId()
 	digestNext := sha256.Sum256([]byte(fmt.Sprintf("%d/%d/%s", windowID, chosen.Index, chosen.Label)))
 	method := domain.MethodID(fmt.Sprintf("dialog-%x", digestNext[:16]))
 	if slices.ContainsFunc(incident.Methods, func(m store.IncidentMethod) bool { return m.Method == method }) {
-		return RoutineDialogResult{Reason: BuildingMethodUsed}, nil
+		return RoutineDialogResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewDialogAnswer(windowID, chosen.Index, chosen.Label)
@@ -129,5 +129,5 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
 		return RoutineDialogResult{}, err
 	}
-	return RoutineDialogResult{Reason: BuildingMethodAdmitted, Plan: id, Option: chosen.Label}, nil
+	return RoutineDialogResult{Verdict: BuildingReasonAdmitted, Plan: id, Option: chosen.Label}, nil
 }

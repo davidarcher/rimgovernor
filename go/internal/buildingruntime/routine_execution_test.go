@@ -73,7 +73,7 @@ func TestRoutineClockIncludesMethodsAfterPlayerPlanSettles(t *testing.T) {
 		}
 	}
 	result, err := s.Step(context.Background())
-	if err != nil || result.Sleeping == nil || result.Sleeping.Reason != BuildingMethodAdmitted || f.writes != 1 {
+	if err != nil || result.Sleeping == nil || result.Sleeping.Verdict != BuildingReasonAdmitted || f.writes != 1 {
 		t.Fatal(result, err, f.writes)
 	}
 }

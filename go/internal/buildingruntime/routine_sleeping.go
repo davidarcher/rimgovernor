@@ -22,63 +22,8 @@ type RoutineBuildingSource interface {
 	PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error)
 }
 
-type RoutineBuildingReason string
-
-const (
-	BuildingMethodDisabled     RoutineBuildingReason = "disabled"
-	BuildingMethodNoReview     RoutineBuildingReason = "no_current_review"
-	BuildingMethodNoDeficit    RoutineBuildingReason = "no_active_deficit"
-	BuildingMethodExistingWork RoutineBuildingReason = "existing_work"
-	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
-	// its open bunk rungs, which do not hold the ring itself (#641).
-	BuildingBunksOpen     RoutineBuildingReason = "shelter_bunks_open"
-	BuildingMethodUnknown RoutineBuildingReason = "unknown_prerequisite"
-	BuildingMethodNoSpace RoutineBuildingReason = "insufficient_verified_space"
-	BuildingMethodUsed    RoutineBuildingReason = "method_already_used"
-	BuildingMethodRefused RoutineBuildingReason = "shared_admission_refused"
-	// BuildingMethodNoSquad is the defense planner's answer when live
-	// threats remain and no eligible squad can be assigned to them (#326).
-	BuildingMethodNoSquad RoutineBuildingReason = "no_eligible_squad"
-	// BuildingMethodHoldFallback: the fight's hold-the-line formation was
-	// re-formed as squad defense because the raid crossed the line (#118).
-	BuildingMethodHoldFallback RoutineBuildingReason = "hold_fallback"
-	// BuildingMethodCombatOrders: the fight's stop sent changed orders
-	// (#852), recorded as its plan's evidence.
-	BuildingMethodCombatOrders RoutineBuildingReason = "combat_orders"
-	// BuildingShellBlocked: a shell begun earlier stands at the colony centre
-	// but the cells it still needs are not placeable this review, or it
-	// stands whole without a finished room inside; the routine waits rather
-	// than site a second shell. A facility ladder at a whole ring that
-	// already encloses a room sites afresh instead (#218).
-	BuildingShellBlocked    RoutineBuildingReason = "earlier_shell_blocked"
-	BuildingMethodExhausted RoutineBuildingReason = "retry_bound_exhausted"
-	// BuildingShelterPending: the foothold comfort goal has no room to
-	// furnish until the initial shelter stands; the next review re-reads it.
-	BuildingShelterPending RoutineBuildingReason = "initial_shelter_pending"
-	// BuildingExcavationBlocked: the goal's ore tunnel cannot be
-	// finished as planned (its roof no longer held, its way in closed); the
-	// tunnel is re-sited from the geometry the pawns opened.
-	BuildingExcavationBlocked RoutineBuildingReason = "excavation_blocked"
-	BuildingMethodAdmitted    RoutineBuildingReason = "admitted"
-	// BuildingMethodSeparation defers a butcher bill while the separated
-	// butcher spot build still owns the food-supply goal.
-	BuildingMethodSeparation RoutineBuildingReason = "butcher_separation_pending"
-	// BuildingMethodNotInteractive: the choice dialog's own interactivity
-	// delay has not elapsed; the next review re-reads it.
-	BuildingMethodNotInteractive RoutineBuildingReason = "dialog_not_interactive"
-	// BuildingMethodResearch: the goal's only method needs a native research
-	// project the census has not finished; the reason names it
-	// ("waiting_on_research:Electricity") and EnsureResearch's roadmap is
-	// what gets there (#230).
-	BuildingMethodResearch RoutineBuildingReason = "waiting_on_research"
-)
-
-func researchWaitReason(project string) RoutineBuildingReason {
-	return BuildingMethodResearch + ":" + RoutineBuildingReason(project)
-}
-
 type RoutineBuildingResult struct {
-	Reason   RoutineBuildingReason
+	Verdict
 	Decision store.BuildingMethodDecision
 	// NativeWorkTicks bounds ordinary roofing or comfort use after observed construction.
 	// It neither asserts recovery nor grants native authority.
@@ -146,16 +91,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			indoor.definition = ""
 		}
 		result, err := indoor.step(call, epoch, arbiter)
-		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Reason, err)
-		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed && result.Reason != BuildingBunksOpen {
+		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Verdict, err)
+		if err != nil || result.Verdict != BuildingReasonNoSpace && result.Verdict != BuildingReasonUsed && result.Verdict != BuildingBunksOpen {
 			return result, err
 		}
-		roofingOnly = result.Reason == BuildingMethodUsed
+		roofingOnly = result.Verdict == BuildingReasonUsed
 	}
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -165,19 +110,19 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineBuildingResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, r.goal)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if !workable {
-		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A phased goal walks its phases in order: only the planner for the
 	// phase the review left owed runs.
 	if r.phase != "" && review.Latches.Phase(r.goal) != r.phase {
-		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A facility shell is the ladder's last rung. While the initial shelter
 	// is still owed, its starter shell becomes the first room, which the
@@ -192,7 +137,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, err
 		}
 		if blocked {
-			return RoutineBuildingResult{Reason: BuildingShellBlocked}, nil
+			return RoutineBuildingResult{Verdict: BuildingShellBlocked}, nil
 		}
 	}
 	if r.phase == policy.ComfortBasic {
@@ -201,12 +146,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, err
 		}
 		if owed {
-			return RoutineBuildingResult{Reason: BuildingShelterPending}, nil
+			return RoutineBuildingResult{Verdict: BuildingShelterPending}, nil
 		}
 	}
 	if r.phase == policy.ComfortRanked || r.phase == policy.HousingExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.phase == policy.HousingSleeping {
 		if !developmentSelects(review.Development.Rows, r.goal) {
-			return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonRefused}, nil
 		}
 	}
 	bunksOpen := false
@@ -219,7 +164,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// Only a pending spot of this definition is the planner's own work (#260).
 			for _, progress := range plan.Progress {
 				if pendingFacility(progress, r.definition) || pendingFacility(progress, "TableButcher") {
-					return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+					return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 				}
 			}
 			continue
@@ -237,11 +182,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			continue
 		}
 		if store.PlanOpen(plan) {
-			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	if bunksOpen {
-		return RoutineBuildingResult{Reason: BuildingBunksOpen}, nil
+		return RoutineBuildingResult{Verdict: BuildingBunksOpen}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
@@ -262,8 +207,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		call, recorded = recordPlannerStep(call, r.goal, state.Snapshot, review.Tick)
 		defer recorded()
 		selection, reason, err := r.prepareWorkshop(call, state, review)
-		if err != nil || reason != "" {
-			return RoutineBuildingResult{Reason: reason}, err
+		if err != nil || !reason.IsZero() {
+			return RoutineBuildingResult{Verdict: reason}, err
 		}
 		prepared := *r
 		prepared.workshop = selection
@@ -369,14 +314,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if known, ok := claims.Value(); ok {
 			if campfire, owed := campfireRetirement(facts, known); owed {
 				result, err := r.retireCampfire(call, epoch, state, review, goal, reading, campfire)
-				if err != nil || result.Reason != BuildingMethodUsed {
+				if err != nil || result.Verdict != BuildingReasonUsed {
 					return result, err
 				}
 			}
 		}
 		resolved, reason := r.selectPaste(facts)
-		if reason != "" {
-			return RoutineBuildingResult{Reason: reason}, nil
+		if !reason.IsZero() {
+			return RoutineBuildingResult{Verdict: reason}, nil
 		}
 		r = resolved
 	}
@@ -384,7 +329,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	var coolingLent bool
 	if r.facilityLadder() && !r.shelter || r.phase == policy.ComfortBasic || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		var resolved *RoutineBuildingPlanner
-		var reason RoutineBuildingReason
+		var reason Verdict
 		if r.goal == policy.EnsureTemperatureSafety {
 			resolved, reason, err = r.selectTemperature(facts, review.Latches)
 		} else if r.goal == policy.MaintainRefrigeration {
@@ -398,7 +343,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// the cooling to go on.
 			if closet, owed := plannedMealCloset(facts); positiveFact(owed) {
 				result, err := r.shellRoom(call, epoch, state, review, goal, reading, closet, plannedRoomMethod(closet), "cold meal shelf")
-				if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+				if err != nil || !result.Verdict.skipsToPlacement() {
 					return result, err
 				}
 			}
@@ -427,13 +372,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
-		if reason != "" {
-			result := RoutineBuildingResult{Reason: reason}
-			if r.goal == policy.EnsureBasicPower && reason == BuildingMethodNoSpace {
+		if !reason.IsZero() {
+			result := RoutineBuildingResult{Verdict: reason}
+			if r.goal == policy.EnsureBasicPower && reason == BuildingReasonNoSpace {
 				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
 			}
-			if r.goal == policy.EnsureBasicPower && reason == RoutineBuildingReason(policy.PowerWaitFuel) {
+			if r.goal == policy.EnsureBasicPower && reason == awaitingMethod(policy.PowerWaitFuel) {
 				// An empty generator is refuelled by a native haul the
 				// census cannot see coming; like a stock refusal, the
 				// hold lends the window that haul needs rather than
@@ -447,8 +392,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// cooler still unpowered when it runs out is a real hold (#66).
 			// Time lent from the latch alone does not cover it: with no
 			// method in the epoch there is no cooler still settling (#202).
-			powerSettling := r.goal == policy.MaintainRefrigeration && reason == RoutineBuildingReason(policy.RefrigerationPowerNeeded) && !coolingLent
-			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) || reason == RoutineBuildingReason(policy.TemperatureWait) || reason == RoutineBuildingReason(policy.RefrigerationWait) || powerSettling {
+			powerSettling := r.goal == policy.MaintainRefrigeration && reason == awaitingMethod(policy.RefrigerationPowerNeeded) && !coolingLent
+			if reason == BuildingComfortWait || reason == awaitingMethod(policy.PowerWaitOutput) || reason == awaitingMethod(policy.TemperatureWait) || reason == awaitingMethod(policy.RefrigerationWait) || powerSettling {
 				if r.goal == policy.EnsureTemperatureSafety {
 					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else if r.goal == policy.MaintainRefrigeration {
@@ -516,7 +461,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// on tick advance), so the same patch is proposed again and found
 		// used. Lend the cooling allowance anyway: the clock then runs, the
 		// census refreshes and the room cools.
-		if err == nil && result.Reason == BuildingMethodUsed {
+		if err == nil && result.Verdict == BuildingReasonUsed {
 			result.NativeWorkTicks = coolingAllowance
 		}
 		return result, err
@@ -548,14 +493,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if module, ok := r.plannedRoomModule(); ok {
 			if room, owed := plannedRoomOwed(facts, module); owed {
 				result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
-				if err != nil || result.Reason == BuildingMethodUsed {
+				if err != nil || result.Verdict == BuildingReasonUsed {
 					return result, err
 				}
 			}
 		}
 	}
-	if reason != "" {
-		return RoutineBuildingResult{Reason: reason}, nil
+	if !reason.IsZero() {
+		return RoutineBuildingResult{Verdict: reason}, nil
 	}
 	if module, ok := r.plannedRoomModule(); ok {
 		// The planned room is raised and furnished together (#835): the
@@ -564,7 +509,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// this epoch, or refused, leaves the usual placement to go on.
 		if room, owed := plannedRoomOwed(facts, module); owed {
 			result, err := r.shellRoom(call, epoch, state, review, goal, reading, room, plannedRoomMethod(room), "")
-			if err != nil || result.Reason != BuildingMethodUsed && result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUnknown {
+			if err != nil || !result.Verdict.skipsToPlacement() {
 				return result, err
 			}
 			if module == policy.ModuleKitchen || module == policy.ModuleButchery {
@@ -615,7 +560,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 				}
 			}
 		}
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("builder_available")}, nil
 	}
 	if r.shelter {
 		// A shell plan that settled with a cell unsuccessful (a wall the
@@ -636,7 +581,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			if p.session.State() != state {
 				return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 			}
-			return RoutineBuildingResult{Reason: BuildingMethodUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
 		}
 		method = repaired
 	} else {
@@ -654,13 +599,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 		}
 		if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-			return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 		} else if !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
 		}
 	}
 	if roofingOnly {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot
@@ -697,12 +642,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		for _, progress := range playerPlan.Progress {
 			if pending(progress) {
-				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+				return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 			}
 		}
 		for _, reservation := range held {
 			if pending(reservation.Progress) {
-				return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+				return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 			}
 		}
 	}
@@ -772,8 +717,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	} else {
 		selected, stock, reason, err = r.previewMethod(call, snapshot, facts, protected, missing, check)
 	}
-	if err != nil || reason != "" {
-		return RoutineBuildingResult{Reason: reason}, err
+	if err != nil || !reason.IsZero() {
+		return RoutineBuildingResult{Verdict: reason}, err
 	}
 	// Admission never checks stock: RimWorld places the blueprints
 	// regardless and the frames hold natively for materials, which
@@ -824,9 +769,9 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	reason := BuildingMethodRefused
+	reason := BuildingReasonRefused
 	if decision.Admitted {
-		reason = BuildingMethodAdmitted
+		reason = BuildingReasonAdmitted
 		// A shell admitted short of a material (#602) records each
 		// shortfall so the ranking orders that resource's acquisition ahead
 		// of unrelated optional work (#651, #728). The review keeps an edge
@@ -841,7 +786,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 			}
 		}
 	}
-	return RoutineBuildingResult{Reason: reason, Decision: decision}, nil
+	return RoutineBuildingResult{Verdict: reason, Decision: decision}, nil
 }
 
 // stockWaitTicks bounds one clock window lent to a method refused for
@@ -852,7 +797,7 @@ func (r *RoutineBuildingPlanner) admitPreviews(call, epoch context.Context, a ro
 // re-reads the census, so the wait is the window, not a belief about stock.
 const stockWaitTicks = 2500
 
-func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if r.power != nil && r.power.Method == policy.PowerShelter {
 		return r.previewPowerShelter(call, snapshot, facts, protected, check)
 	}
@@ -868,7 +813,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 		// turbine whose every catch zone is obstructed) yields to the next
 		// ranked definition under the same method.
 		for _, name := range r.power.Alternatives {
-			if err != nil || reason != BuildingMethodNoSpace {
+			if err != nil || reason != BuildingReasonNoSpace {
 				break
 			}
 			next := *r
@@ -879,7 +824,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	return selected, stock, reason, err
 }
 
-func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if len(r.paste) > 0 {
 		return r.previewPaste(call, snapshot, facts, protected, check)
 	}
@@ -931,7 +876,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	if r.facility != nil {
 		rooms, known := facts.Rooms.Value()
 		if !known {
-			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			return nil, policy.StockObservation{}, fieldUnavailable("rooms"), nil
 		}
 		for _, c := range policy.HostingCells(*r.facility, rooms) {
 			roomCells[c] = true
@@ -945,7 +890,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				}
 				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.goal, *r.facility, summary)
 			}
-			return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+			return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
 		}
 	}
 	if r.cells != nil {
@@ -963,17 +908,17 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 		}
 		if len(roomCells) == 0 {
-			return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+			return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
 		}
 		// A layout room can stand past the colony-centred planning window
 		// (#838): read the room's own cells rather than find no site.
 		if source := observation.PlanningWindowFrom(call); source != nil && !windowHolds(facts.Cells, roomCells) {
 			held, err := source.PlanningWindow(call, boundary.Identity(snapshot), cellsBox(roomCells))
 			if err != nil {
-				return nil, policy.StockObservation{}, "", err
+				return nil, policy.StockObservation{}, Verdict{}, err
 			}
 			if !held.Complete {
-				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+				return nil, policy.StockObservation{}, fieldUnavailable("held_reservations"), nil
 			}
 			facts.Cells = held.Value.Cells
 		}
@@ -1025,7 +970,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	search, err := policy.NewPlacementSearch(searchRequest)
 	if err != nil {
-		return nil, policy.StockObservation{}, "", err
+		return nil, policy.StockObservation{}, Verdict{}, err
 	}
 	var selected []policy.Preview
 	unknownWatch := false
@@ -1054,45 +999,45 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	// previewAt previews the definition at one anchor and rotation; false
 	// when the native preview or the search refuses the site.
-	previewAt := func(search policy.PlacementSearch, id string, c domain.Cell, rotation domain.Rotation) (placementChoice, bool, RoutineBuildingReason, error) {
+	previewAt := func(search policy.PlacementSearch, id string, c domain.Cell, rotation domain.Rotation) (placementChoice, bool, Verdict, error) {
 		if err := check(); err != nil {
-			return placementChoice{}, false, "", err
+			return placementChoice{}, false, Verdict{}, err
 		}
 		b, err := domain.NewBuilding(r.definition, c, rotation, r.stuff)
 		if err != nil {
-			return placementChoice{}, false, "", err
+			return placementChoice{}, false, Verdict{}, err
 		}
 		a, err := domain.NewBuildingAction(domain.ActionID(id), b)
 		if err != nil {
-			return placementChoice{}, false, "", err
+			return placementChoice{}, false, Verdict{}, err
 		}
 		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
 		if err != nil {
-			return placementChoice{}, false, "", err
+			return placementChoice{}, false, Verdict{}, err
 		}
 		made, known := preview.Preview.MadeFromStuff.Value()
 		if (r.phase == policy.ComfortRanked || r.phase == policy.ComfortBasic) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
 			accessible, known := preview.Preview.WatchCellsAccessible.Value()
 			unknownWatch = unknownWatch || !known
 			if !known || !accessible {
-				return placementChoice{}, false, "", nil
+				return placementChoice{}, false, Verdict{}, nil
 			}
 		}
 		if !known || made != (r.stuff != "") {
-			return placementChoice{}, false, BuildingMethodUnknown, nil
+			return placementChoice{}, false, fieldUnavailable("placement_preview"), nil
 		}
 		if r.definition == policy.WindTurbineDefinition {
 			// Only a site whose native catch zone is clear makes the
 			// turbine's nominal output; an obstructed one is no site.
 			if blocked, known := preview.Preview.WindBlockedCells.Value(); !known || blocked > 0 {
-				return placementChoice{}, false, "", nil
+				return placementChoice{}, false, Verdict{}, nil
 			}
 		}
 		choice, score, ok, err := search.SelectScored(r.definition, r.stuff, []policy.Preview{preview.Preview})
 		if err != nil || !ok {
-			return placementChoice{}, false, "", err
+			return placementChoice{}, false, Verdict{}, err
 		}
-		return placementChoice{choice: choice, preview: preview, score: score}, true, "", nil
+		return placementChoice{choice: choice, preview: preview, score: score}, true, Verdict{}, nil
 	}
 	var occupied []domain.Cell
 	if len(interiorRooms) > 0 {
@@ -1129,14 +1074,14 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	// footprint's score is its distance, so once the next candidate's distance reaches the best valid score no
 	// later candidate can beat it: the best is committed and the previews
 	// stop there.
-	pass := func(search policy.PlacementSearch, tag string) (RoutineBuildingReason, error) {
+	pass := func(search policy.PlacementSearch, tag string) (Verdict, error) {
 		for i, c := range search.Candidates() {
 			if int64(len(selected)) == missing {
 				break
 			}
 			if pending != nil && search.Score(c, nil).Distance >= pending.score.Score {
 				if err := commit(); err != nil {
-					return "", err
+					return Verdict{}, err
 				}
 				if int64(len(selected)) == missing {
 					break
@@ -1148,7 +1093,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 					id = fmt.Sprintf("%s%s-%d-%s", snapshot.Plan, tag, i, rotation)
 				}
 				choice, ok, reason, err := previewAt(search, id, c, rotation)
-				if err != nil || reason != "" {
+				if err != nil || !reason.IsZero() {
 					return reason, err
 				}
 				if !ok {
@@ -1161,9 +1106,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 		}
 		if pending != nil && int64(len(selected)) < missing {
-			return "", commit()
+			return Verdict{}, commit()
 		}
-		return "", nil
+		return Verdict{}, nil
 	}
 	// An indoor facility asks each room's interior template for the
 	// piece's slots first (#800) and takes any slot that can be placed,
@@ -1195,21 +1140,21 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 			slotSearch, err := policy.NewPlacementSearch(request)
 			if err != nil {
-				return nil, policy.StockObservation{}, "", err
+				return nil, policy.StockObservation{}, Verdict{}, err
 			}
 			for i, p := range slots {
 				if int64(len(selected)) == missing {
 					break
 				}
 				choice, ok, reason, err := previewAt(slotSearch, fmt.Sprintf("%s-t%d", snapshot.Plan, i), p.Anchor(), p.Rot)
-				if err != nil || reason != "" {
+				if err != nil || !reason.IsZero() {
 					return nil, policy.StockObservation{}, reason, err
 				}
 				if ok && !overlaps(choice.choice) {
 					clockSchedulerLog("%s: %s takes interior slot %s at %d,%d %s", r.goal, r.definition, p.Slot, p.Anchor().X, p.Anchor().Z, p.Rot)
 					pending = &choice
 					if err := commit(); err != nil {
-						return nil, policy.StockObservation{}, "", err
+						return nil, policy.StockObservation{}, Verdict{}, err
 					}
 				}
 			}
@@ -1219,21 +1164,21 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			request.Anchors = anchors
 			snapSearch, err := policy.NewPlacementSearch(request)
 			if err != nil {
-				return nil, policy.StockObservation{}, "", err
+				return nil, policy.StockObservation{}, Verdict{}, err
 			}
-			if reason, err := pass(snapSearch, "-s"); err != nil || reason != "" {
+			if reason, err := pass(snapSearch, "-s"); err != nil || !reason.IsZero() {
 				return nil, policy.StockObservation{}, reason, err
 			}
 		}
 	}
 	if int64(len(selected)) < missing {
-		if reason, err := pass(search, ""); err != nil || reason != "" {
+		if reason, err := pass(search, ""); err != nil || !reason.IsZero() {
 			return nil, policy.StockObservation{}, reason, err
 		}
 	}
 	if int64(len(selected)) != missing {
 		if unknownWatch {
-			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			return nil, policy.StockObservation{}, fieldUnavailable("watch_preview"), nil
 		}
 		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.goal, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
 		if clockDebug() && restricted {
@@ -1250,9 +1195,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 			}
 			clockSchedulerLog("%s: site census %v", r.goal, rows)
 		}
-		return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
+		return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
 	}
-	return selected, stock, "", nil
+	return selected, stock, Verdict{}, nil
 }
 
 // routineScope is the observation scope a planner checks its review

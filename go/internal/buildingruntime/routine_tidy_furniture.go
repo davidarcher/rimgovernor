@@ -25,7 +25,7 @@ func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlStat
 	}
 	method := tidyMethodID(proposal.Item.ID+"/"+strings.Join(things, ","), "furniture")
 	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
-		return RoutineTidyResult{Reason: BuildingMethodUsed}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}
@@ -61,7 +61,7 @@ func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlStat
 			return RoutineTidyResult{}, err
 		}
 	}
-	return RoutineTidyResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineTidyResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // tidyFurnitureRows is one row per moved piece: From its first leg's
@@ -88,7 +88,7 @@ func (r *RoutineTidyPlanner) abandonFurniture(call context.Context, state Contro
 			return RoutineTidyResult{}, err
 		}
 	}
-	return RoutineTidyResult{Reason: BuildingMethodRefused}, nil
+	return RoutineTidyResult{Verdict: BuildingReasonRefused}, nil
 }
 
 // finishFurniture closes a moving furniture batch once its plan's work is
@@ -114,7 +114,7 @@ func (r *RoutineTidyPlanner) finishFurniture(call context.Context, state Control
 			}
 		}
 		clockEvent(call, "layout", "tidy", fmt.Sprintf("tidy furniture batch closed: %d of %d pieces moved", len(completed), len(rows)), "plan", planID)
-		return RoutineTidyResult{Reason: BuildingMethodAdmitted}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonAdmitted}, nil
 	}
 	plan, err := p.journal.LoadPlan(call, domain.PlanID(planID))
 	if errors.Is(err, store.ErrNotFound) {
@@ -152,7 +152,7 @@ func (r *RoutineTidyPlanner) finishFurniture(call context.Context, state Control
 		return RoutineTidyResult{}, err
 	}
 	if store.PlanOpen(plan) {
-		return RoutineTidyResult{Reason: BuildingMethodExistingWork}, nil
+		return RoutineTidyResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	// A piece's final leg is its last action in the batch.
 	final := map[string]int{}

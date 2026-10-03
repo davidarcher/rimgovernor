@@ -14,15 +14,6 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-const (
-	// BuildingHospitalUnavailable: no hosted bed can be flagged medical
-	// without evicting a healthy colonist and no bed definition is buildable.
-	BuildingHospitalUnavailable RoutineBuildingReason = "hospital_bed_unavailable"
-	// BuildingHospitalConvert: a hosted bed awaits its medical patch; the
-	// hospital planner, not the building ladder, owns that step.
-	BuildingHospitalConvert RoutineBuildingReason = "hospital_bed_convert_pending"
-)
-
 // RoutineHospitalSource adds the bed use read the hospital planner needs on
 // top of the building source; Actions/Apply validates the patch itself.
 type RoutineHospitalSource interface {
@@ -75,16 +66,16 @@ func hospitalRequest(facts observation.ColonyProjection) policy.HospitalRequest 
 // selectHospital resolves the building ladder's definition from the same
 // census the hospital planner chose from: only a HospitalBuild choice
 // furnishes; every other outcome is reported, never built around.
-func (r *RoutineBuildingPlanner) selectHospital(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectHospital(facts observation.ColonyProjection) (*RoutineBuildingPlanner, Verdict, error) {
 	choice, err := policy.SelectHospitalBed(hospitalRequest(facts))
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	switch choice.Method {
 	case policy.HospitalUnknown:
-		return nil, BuildingMethodUnknown, nil
+		return nil, fieldUnavailable("hospital"), nil
 	case policy.HospitalNoDemand:
-		return nil, BuildingMethodNoDeficit, nil
+		return nil, BuildingReasonNoDeficit, nil
 	case policy.HospitalExisting:
 		return nil, BuildingExistingFacility, nil
 	case policy.HospitalConvert:
@@ -94,7 +85,7 @@ func (r *RoutineBuildingPlanner) selectHospital(facts observation.ColonyProjecti
 	}
 	facility, err := policy.Facility(policy.RoomRoleHospital)
 	if err != nil {
-		return nil, "", err
+		return nil, Verdict{}, err
 	}
 	resolved := *r
 	resolved.definition = choice.Definition
@@ -107,14 +98,14 @@ func (r *RoutineBuildingPlanner) selectHospital(facts observation.ColonyProjecti
 			}
 		}
 	}
-	return &resolved, "", nil
+	return &resolved, Verdict{}, nil
 }
 
 func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineBuildingResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineBuildingResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -124,14 +115,14 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineBuildingResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainMedicalReserves)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if !workable || review.Latches.Medical != policy.MedicalCare {
-		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
@@ -139,7 +130,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -169,18 +160,18 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	switch choice.Method {
 	case policy.HospitalUnknown:
-		return RoutineBuildingResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineBuildingResult{Verdict: fieldUnavailable("hospital")}, nil
 	case policy.HospitalNoDemand:
-		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}, nil
 	case policy.HospitalExisting:
 		// The ward stands: keep its medicine beside the beds (#723).
 		reason, err := r.medicineStorage(call, epoch, state, goal, reading, started)
-		if err != nil || reason != "" {
-			return RoutineBuildingResult{Reason: reason}, err
+		if err != nil || !reason.IsZero() {
+			return RoutineBuildingResult{Verdict: reason}, err
 		}
-		return RoutineBuildingResult{Reason: BuildingExistingFacility}, nil
+		return RoutineBuildingResult{Verdict: BuildingExistingFacility}, nil
 	case policy.HospitalUnavailable:
-		return RoutineBuildingResult{Reason: BuildingHospitalUnavailable}, nil
+		return RoutineBuildingResult{Verdict: BuildingHospitalUnavailable}, nil
 	case policy.HospitalBuild:
 		return r.building.step(call, epoch, arbiter)
 	}
@@ -189,7 +180,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	// it) is not retried; the next epoch reconsiders.
 	method := domain.MethodID("hospital-convert-" + choice.Bed)
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -201,14 +192,14 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, fmt.Errorf("%w: step: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Medical {
-		return RoutineBuildingResult{Reason: BuildingExistingFacility}, nil
+		return RoutineBuildingResult{Verdict: BuildingExistingFacility}, nil
 	}
 	patch, err := domain.NewBedMedical(choice.Bed, true)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
@@ -236,5 +227,5 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
+	return RoutineBuildingResult{Verdict: BuildingReasonAdmitted}, nil
 }

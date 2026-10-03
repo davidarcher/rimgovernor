@@ -51,7 +51,7 @@ func TestCancelStalledExcavation(t *testing.T) {
 	planner, db, _ := buriedOreFixture(t)
 	ctx := context.Background()
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	planID, _ := tunnelStage(t, db)

@@ -62,7 +62,7 @@ type RoutineTradePlanner struct {
 	native   RoutineTradeSource
 }
 type RoutineTradeResult struct {
-	Reason RoutineBuildingReason
+	Verdict
 	Plan   domain.PlanID
 	Trader string
 	Phase  domain.TradeOperationKind
@@ -182,7 +182,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineTradeResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineTradeResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -192,17 +192,17 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineTradeResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineTradeResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, found, err := incidentDeficit(call, p.journal, review, policy.TradeWithCaravan)
 	if err != nil {
 		return RoutineTradeResult{}, err
 	}
 	if !found {
-		return RoutineTradeResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if open, err := incidentOpenWork(call, p.journal, incident); err != nil || open {
-		return RoutineTradeResult{Reason: BuildingMethodExistingWork}, err
+		return RoutineTradeResult{Verdict: BuildingReasonExistingWork}, err
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -239,7 +239,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 			continue
 		}
 		if !session.Open {
-			return RoutineTradeResult{Reason: BuildingMethodExistingWork, Trader: row.ID, Phase: domain.TradeOpen, NativeWorkTicks: tradeWalkTicks}, nil
+			return RoutineTradeResult{Verdict: BuildingReasonExistingWork, Trader: row.ID, Phase: domain.TradeOpen, NativeWorkTicks: tradeWalkTicks}, nil
 		}
 		return r.drive(call, epoch, state, incident, review, row.ID, domain.PawnID(session.Negotiator), started)
 	}
@@ -256,12 +256,12 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	trader, ok := policy.SelectTrader(traders, settled)
 	if !ok {
 		if waiting {
-			return RoutineTradeResult{Reason: BuildingMethodRefused, NativeWorkTicks: tradeArrivalTicks}, nil
+			return RoutineTradeResult{Verdict: BuildingReasonRefused, NativeWorkTicks: tradeArrivalTicks}, nil
 		}
-		return RoutineTradeResult{Reason: BuildingMethodUsed}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonUsed}, nil
 	}
 	if len(census.Negotiators) == 0 {
-		return RoutineTradeResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineTradeResult{Verdict: noWorker("negotiator")}, nil
 	}
 	negotiator, err := r.negotiator(call, state, review, census.Negotiators)
 	if err != nil {
@@ -344,7 +344,7 @@ func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlStat
 // reachability when the open applies and walks the negotiator over.
 func (r *RoutineTradePlanner) open(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time) (RoutineTradeResult, error) {
 	if !arbiter.tryClaim(nil, "pawn:"+negotiator.ID) {
-		return RoutineTradeResult{Reason: BuildingMethodUsed}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonUsed}, nil
 	}
 	value, err := domain.NewTradeOpen(trader, domain.PawnID(negotiator.ID), false)
 	if err != nil {
@@ -368,7 +368,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		// An end that failed leaves native holding the session; there is
 		// nothing further to propose, and tradeSettled already reads it as
 		// over.
-		return RoutineTradeResult{Reason: BuildingMethodExhausted, Trader: trader, Phase: domain.TradeEnd}, nil
+		return RoutineTradeResult{Verdict: BuildingReasonExhausted, Trader: trader, Phase: domain.TradeEnd}, nil
 	}
 	accept, err := r.phase(call, incident, domain.TradeAccept, trader)
 	if err != nil {
@@ -613,7 +613,7 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	if kind != domain.TradeEnd {
 		ticks = tradeArrivalTicks
 	}
-	return RoutineTradeResult{Reason: BuildingMethodAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
+	return RoutineTradeResult{Verdict: BuildingReasonAdmitted, Plan: id, Trader: trader, Phase: kind, NativeWorkTicks: ticks}, nil
 }
 
 func tradeFoodFact(food *o.TradeFoodFacts) domain.Fact[policy.TradeFoodGood] {

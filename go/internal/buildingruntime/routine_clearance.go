@@ -27,8 +27,8 @@ type RoutineClearancePlanner struct {
 	native   RoutineClearanceSource
 }
 type RoutineClearanceResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks for game time while ordinary hauling moves
 	// designated chunks into their store.
 	NativeWorkTicks uint32
@@ -44,7 +44,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineClearanceResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineClearanceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -54,7 +54,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineClearanceResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.ClearHomeObstructions, state.Snapshot, review.Tick)
 	defer recorded()
@@ -63,14 +63,14 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{}, err
 	}
 	if !workable {
-		return RoutineClearanceResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.ClearHomeObstructions && row.Selected
 	}
 	if !selected {
-		return RoutineClearanceResult{Reason: BuildingMethodRefused}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonRefused}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -78,7 +78,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineClearanceResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineClearanceResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineClearanceResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -104,7 +104,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	census, known := read.Value()
 	if !known {
-		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonUsed}, nil
 	}
 	// The review admitted at most one remote ruin by reach and demand from
 	// its complete facts; the planner executes that choice against the fresh
@@ -137,7 +137,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineClearanceResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	plan, err := domain.NewPlan(id, 1, actions)
@@ -154,7 +154,7 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	return RoutineClearanceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // maxGroundFloorBatch bounds one floor-removal method; the next review
@@ -263,7 +263,7 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	snap.NoteChunkDump(call, snap.ChunkDumpCall{Chunks: census.Chunks, DumpSites: census.DumpSites, Protected: protected})
 	cells, allow, ok := policy.SelectChunkDump(census.Chunks, census.DumpSites, protected)
 	if !ok {
-		return RoutineClearanceResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	value, err := allowListZone(domain.LowPriority, allow, cells)
 	if err != nil {
@@ -272,7 +272,7 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%v/%v", allow, cells)))
 	method := domain.MethodID(fmt.Sprintf("chunk-dump-%x", hash[:16]))
 	result, err := admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, started)
-	return RoutineClearanceResult{Reason: result.Reason, Plan: result.Plan}, err
+	return RoutineClearanceResult{Verdict: result.Verdict, Plan: result.Plan}, err
 }
 
 // chunkHaulWorkTicks bounds one clock window spent letting ordinary hauling
@@ -317,13 +317,13 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 		chunks = append(chunks, chunk)
 	}
 	if len(chunks) == 0 && waiting {
-		return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
 	}
 	if len(chunks) > maxChunkHaulBatch {
 		chunks = chunks[:maxChunkHaulBatch]
 	}
 	if len(chunks) == 0 {
-		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+		return RoutineClearanceResult{Verdict: BuildingReasonUsed}, nil
 	}
 	var key strings.Builder
 	for _, chunk := range chunks {
@@ -335,7 +335,7 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	// designations land, and re-committing the same method is a conflict.
 	for _, m := range goal.History {
 		if m.Method == method {
-			return RoutineClearanceResult{Reason: BuildingMethodUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
+			return RoutineClearanceResult{Verdict: BuildingReasonUsed, NativeWorkTicks: chunkHaulWorkTicks}, nil
 		}
 	}
 	id := domain.MintPlanID()
@@ -365,5 +365,5 @@ func (r *RoutineClearancePlanner) haulChunks(call, epoch context.Context, state 
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	return RoutineClearanceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineClearanceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

@@ -44,7 +44,7 @@ func (r *RoutineWastePlanner) stageCremation(call, epoch context.Context, state 
 	case policy.CremationPlace:
 		clockSchedulerLog("%s: crematorium place (strangers %d)", goal.Goal.ID, step.Strangers)
 		result, err := r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, cremationMethod(step))
-		return RoutineWasteResult{Reason: result.Reason}, true, err
+		return RoutineWasteResult{Verdict: result.Verdict}, true, err
 	case policy.CremationBill:
 		return r.cremationBill(call, epoch, state, goal, bills, step)
 	}
@@ -71,7 +71,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		}
 		existing, known := row.Bench.Bills.Value()
 		if !known {
-			return RoutineWasteResult{Reason: BuildingMethodUnknown}, true, nil
+			return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bills")}, true, nil
 		}
 		for _, b := range existing {
 			if b.Recipe == domain.CremateRecipe {
@@ -81,7 +81,7 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		token = row.Token
 	}
 	if token == "" {
-		return RoutineWasteResult{Reason: BuildingMethodUnknown}, true, nil
+		return RoutineWasteResult{Verdict: fieldUnavailable("cremation_bench")}, true, nil
 	}
 	bill, err := domain.NewCorpseBill(step.Bench, domain.CremateRecipe, domain.CorpseStranger)
 	if err != nil {
@@ -106,5 +106,5 @@ func (r *RoutineWastePlanner) cremationBill(call, epoch context.Context, state C
 		return RoutineWasteResult{}, true, err
 	}
 	clockSchedulerLog("%s: cremation bill on %s", goal.Goal.ID, step.Bench)
-	return RoutineWasteResult{Reason: BuildingMethodAdmitted}, true, nil
+	return RoutineWasteResult{Verdict: BuildingReasonAdmitted}, true, nil
 }

@@ -62,7 +62,7 @@ func TestRoutineTendLendsClockTicksWithoutAnEligiblePair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Reason != BuildingMethodUsed || result.Plan != "" {
+	if result.Verdict != BuildingReasonUsed || result.Plan != "" {
 		t.Fatal(result)
 	}
 	if result.NativeWorkTicks != medicalWaitTicks {

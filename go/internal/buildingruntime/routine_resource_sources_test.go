@@ -91,7 +91,7 @@ func TestMaterialStorageZoneFallbackNotHandledWithoutMineSelection(t *testing.T)
 	selected := []policy.ResourceSource{{ThingID: "wood1", Yield: 40, Method: "cut"}}
 	storage := policy.ResourceStorage{Capacity: 0, StackLimit: 75, Haulers: 0}
 	result, handled, err := planner.materialStorageZoneFallback(context.Background(), context.Background(), ControlState{}, store.GoalState{}, 0, "WoodLog", selected, storage, 0, time.Time{})
-	if err != nil || handled || result.Reason != "" {
+	if err != nil || handled || !result.Verdict.IsZero() {
 		t.Fatalf("got result=%v handled=%v err=%v", result, handled, err)
 	}
 }
@@ -101,7 +101,7 @@ func TestMaterialStorageZoneFallbackBlockedWithoutHaulers(t *testing.T) {
 	selected := []policy.ResourceSource{{ThingID: "rock1", Yield: 40, Method: policy.ResourceSourceMine}}
 	storage := policy.ResourceStorage{Capacity: 1000, StackLimit: 75, Haulers: 0}
 	result, handled, err := planner.materialStorageZoneFallback(context.Background(), context.Background(), ControlState{}, store.GoalState{}, 0, "Steel", selected, storage, 0, time.Time{})
-	if err != nil || !handled || result.Reason != BuildingMethodNoSpace {
+	if err != nil || !handled || result.Verdict != BuildingReasonNoSpace {
 		t.Fatalf("got result=%v handled=%v err=%v", result, handled, err)
 	}
 }
@@ -150,7 +150,7 @@ func TestSourcesForDeficitReportsDesignatedMine(t *testing.T) {
 		t.Fatal(sel, ok)
 	}
 	result, dispatched, err := planner.acquireFromSources(context.Background(), context.Background(), ControlState{}, store.GoalState{}, 0, &c.Identity{}, "Steel", 200, stock, time.Time{}, &sel)
-	if err != nil || dispatched || result.Reason != BuildingMethodExistingWork || result.NativeWorkTicks != stockWaitTicks {
+	if err != nil || dispatched || result.Verdict != BuildingReasonExistingWork || result.NativeWorkTicks != stockWaitTicks {
 		t.Fatal(result, dispatched, err)
 	}
 	native.rows[0].Designated = false

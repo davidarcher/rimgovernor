@@ -96,7 +96,7 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	ctx := context.Background()
 	planner, db, native := hospitalFixture(t)
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	if native.targetReads != 1 || native.previews != 0 {
@@ -127,13 +127,13 @@ func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
 	}
 	// The open patch is existing work; once it retires, the used method is
 	// not retried within the epoch even though the bed still reads non-medical.
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
 		t.Fatal(result, err)
 	}
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
 		t.Fatal(result, err)
 	}
 }
@@ -145,13 +145,13 @@ func TestHospitalAcceptsExistingMedicalBed(t *testing.T) {
 	// The bed flips medical by the player's hand between reviews: the CAS
 	// read, not the census, is what the convert path trusts.
 	native.target.Medical = true
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingExistingFacility {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingExistingFacility {
 		t.Fatal(result, err)
 	}
 	// A hosted medical bed in the census settles the deficit without a read.
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Medical = proto.Bool(true)
 	native.targetReads = 0
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingExistingFacility || native.targetReads != 0 {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingExistingFacility || native.targetReads != 0 {
 		t.Fatal(result, err, native.targetReads)
 	}
 }
@@ -168,7 +168,7 @@ func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || native.previews == 0 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {
 		t.Fatal(result, err, native.previews)
 	}
 	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "hospital-SleepingSpot" {
@@ -191,14 +191,14 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		facts  observation.ColonyProjection
-		reason RoutineBuildingReason
+		reason Verdict
 		want   string
 	}{
-		{"unknown", observation.ColonyProjection{}, BuildingMethodUnknown, ""},
-		{"no demand", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: domain.Known([]policy.CarePawn{})}}, BuildingMethodNoDeficit, ""},
+		{"unknown", observation.ColonyProjection{}, fieldUnavailable("hospital"), ""},
+		{"no demand", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: domain.Known([]policy.CarePawn{})}}, BuildingReasonNoDeficit, ""},
 		{"existing", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: bed(true)}, Rooms: rooms}, BuildingExistingFacility, ""},
 		{"convert", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: bed(false)}, Rooms: rooms}, BuildingHospitalConvert, ""},
-		{"build", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", true)}}, "", "SleepingSpot"},
+		{"build", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", true)}}, Verdict{}, "SleepingSpot"},
 		{"unavailable", observation.ColonyProjection{Facts: policy.RoutineFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", false)}}, BuildingHospitalUnavailable, ""},
 	} {
 		selected, reason, err := ladder.selectHospital(test.facts)
@@ -219,11 +219,11 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 		}
 	}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || reason != "" {
+	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 	spot := &RoutineBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
-	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || reason != "" {
+	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 }

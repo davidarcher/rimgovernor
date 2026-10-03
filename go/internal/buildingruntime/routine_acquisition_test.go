@@ -58,7 +58,7 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	}
 	before := session.acquires.Load()
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -75,7 +75,7 @@ func TestAcquisitionPlannerBoundsWoodAndPreservesManual(t *testing.T) {
 	if work, _, err := clockSchedulerWork(plan, target); err != nil || !work {
 		t.Fatal("ordinary harvest cannot advance", work, err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	request.Kind, request.RequestID = store.PauseControl, "manual-acquisition"
@@ -178,7 +178,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -190,7 +190,7 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 			t.Fatal("not nearest first", i, a.Thing())
 		}
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	// Once dispatched the census takes over (#1045): the grass reads
@@ -209,14 +209,14 @@ func TestResourceAcquisitionPlannerHarvestsForFloor(t *testing.T) {
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+	if next, err := planner.Step(ctx); err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 	// A designated resource skips only itself: a second floor still
 	// plans, and never re-admits a held grass source.
 	reviewer.policy.ResourceTargets["RawBerries"] = 30
 	berries, err := planner.Step(ctx)
-	if err != nil || berries.Reason != BuildingMethodAdmitted {
+	if err != nil || berries.Verdict != BuildingReasonAdmitted {
 		t.Fatal(berries, err)
 	}
 	if plan, err = db.LoadPlan(ctx, berries.Plan); err != nil || len(plan.Progress) == 0 {

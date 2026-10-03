@@ -438,7 +438,7 @@ func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, err
 func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHaulResult, error) {
 	result, err := r.propose(call, epoch)
 	if err != nil || result.Kind != PlanProposed {
-		return RoutineHaulResult{Reason: result.Reason}, err
+		return RoutineHaulResult{Verdict: result.Verdict}, err
 	}
 	return commitClaimed(call, arbiter, result.Proposal)
 }
@@ -449,19 +449,19 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 // wave's proposals first (#622).
 func commitClaimed(call context.Context, arbiter *stepArbiter, proposal *Proposal) (RoutineHaulResult, error) {
 	if !arbiter.tryClaim(proposal.Claims.Pawns, proposal.Claims.Entities...) {
-		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
+		return RoutineHaulResult{Verdict: BuildingReasonUsed}, nil
 	}
 	plan, reason, err := proposal.commit(call)
 	if err != nil {
 		return RoutineHaulResult{}, err
 	}
-	return RoutineHaulResult{Reason: reason, Plan: plan}, nil
+	return RoutineHaulResult{Verdict: reason, Plan: plan}, nil
 }
 
 func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	result, err := r.propose(call, epoch)
 	if err != nil || result.Kind != PlanProposed {
-		return RoutineSecureSuppliesResult{Reason: result.Reason}, err
+		return RoutineSecureSuppliesResult{Verdict: result.Verdict}, err
 	}
 	got, err := commitClaimed(call, arbiter, result.Proposal)
 	return RoutineSecureSuppliesResult(got), err

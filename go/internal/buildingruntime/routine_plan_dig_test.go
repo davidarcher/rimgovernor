@@ -84,7 +84,7 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
 	method := domain.MethodID("plan-dig-exhaust-test")
 	result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{site.Cell, shaft}, cold, method, &site, func() error { return nil })
-	if err != nil || !handled || result.Reason != BuildingMethodAdmitted {
+	if err != nil || !handled || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, handled, err)
 	}
 	if n.overRock != 1 || len(n.overCells) != 1 || n.overCells[0] != site.Cell {

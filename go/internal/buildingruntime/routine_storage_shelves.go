@@ -29,8 +29,8 @@ type RoutineStorageShelvesSource interface {
 }
 
 type RoutineStorageShelvesResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 // shelfGoals are the goals whose stockpiles get shelves: SecureSupplies'
@@ -61,7 +61,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineStorageShelvesResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineStorageShelvesResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -71,7 +71,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		return RoutineStorageShelvesResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineStorageShelvesResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	selected := map[domain.GoalID]policy.GoalID{}
 	for _, binding := range review.Goals {
@@ -87,7 +87,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	}
 	owned, known := claims.Value()
 	if !known {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineStorageShelvesResult{Verdict: fieldUnavailable("shelf_claims")}, nil
 	}
 	goals := map[domain.GoalID]store.GoalState{}
 	var zones []store.OwnedZone
@@ -107,7 +107,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 		}
 	}
 	if len(zones) == 0 {
-		return RoutineStorageShelvesResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineStorageShelvesResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -153,11 +153,11 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if step.Kind == policy.ShelfBuild {
 		z := owner[step.Zone.Zone]
 		if next[z.ID] >= maxShelvesPerZone {
-			return RoutineStorageShelvesResult{Reason: BuildingMethodExhausted}, nil
+			return RoutineStorageShelvesResult{Verdict: BuildingReasonExhausted}, nil
 		}
 		return r.build(call, epoch, state, review, goals[z.Goal], selected[z.Goal], reading, step, next[z.ID])
 	}
-	return RoutineStorageShelvesResult{Reason: BuildingMethodUsed}, nil
+	return RoutineStorageShelvesResult{Verdict: BuildingReasonUsed}, nil
 }
 
 // zoneShelves reads back the zone's shelf plans in index order: the
@@ -267,10 +267,10 @@ func (r *RoutineStorageShelvesPlanner) build(call, epoch context.Context, state 
 		}
 		method := shelfMethod(step.Zone.Zone, index)
 		result, err := building.admitPreviews(call, epoch, routineAdmission{state: state, review: review, goal: goal, facts: facts, method: method, reason: "shelf for zone " + step.Zone.Zone, snapshot: snapshot, selected: []policy.Preview{v}, stock: stock, purpose: policy.Routine})
-		if err != nil || result.Reason != BuildingMethodAdmitted {
-			return RoutineStorageShelvesResult{Reason: result.Reason}, err
+		if err != nil || result.Verdict != BuildingReasonAdmitted {
+			return RoutineStorageShelvesResult{Verdict: result.Verdict}, err
 		}
-		return RoutineStorageShelvesResult{Reason: BuildingMethodAdmitted, Plan: snapshot.Plan}, nil
+		return RoutineStorageShelvesResult{Verdict: BuildingReasonAdmitted, Plan: snapshot.Plan}, nil
 	}
-	return RoutineStorageShelvesResult{Reason: BuildingMethodNoSpace}, nil
+	return RoutineStorageShelvesResult{Verdict: BuildingReasonNoSpace}, nil
 }

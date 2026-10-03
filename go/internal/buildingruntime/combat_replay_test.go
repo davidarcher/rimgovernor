@@ -57,7 +57,7 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 			return nil, fmt.Errorf("stop %d (tick %d): %w", i, s.Tick, err)
 		}
 		in, reason, err := combatFrameInputs(combat, nil)
-		if err != nil || reason != "" {
+		if err != nil || !reason.IsZero() {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: the frame holds no fight (%s %v)", i, s.Tick, reason, err)
 		}
 		var layout domain.Fact[policy.CombatLayout]

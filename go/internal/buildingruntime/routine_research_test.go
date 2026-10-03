@@ -84,7 +84,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || result.Plan == "" {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || result.Plan == "" {
 		review, _ := db.LoadRoutineReview(context.Background())
 		t.Fatal(result, err, review.Development.Rows)
 	}
@@ -102,7 +102,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != researchNativeWorkTicks {
+	if err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != researchNativeWorkTicks {
 		t.Fatal(result, err)
 	}
 	// An empty ladder with no target composes nothing.
@@ -111,7 +111,7 @@ func TestRoutineResearchWalksTheLadderAndLendsTicks(t *testing.T) {
 	if _, err = reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(context.Background()); err != nil || result.Reason != BuildingMethodDisabled {
+	if result, err = planner.Step(context.Background()); err != nil || result.Verdict != BuildingReasonDisabled {
 		t.Fatal(result, err)
 	}
 }
@@ -145,7 +145,7 @@ func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 		t.Fatal("a source without placement previews composes no ladder")
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason != BuildingResearchBench || result.Plan != "" {
+	if err != nil || result.Verdict != BuildingResearchBench || result.Plan != "" {
 		t.Fatal(result, err)
 	}
 	review, err := db.LoadRoutineReview(context.Background())
@@ -166,7 +166,7 @@ func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	if _, err = reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(context.Background()); err != nil || result.Reason != BuildingResearchBench || result.NativeWorkTicks != 0 {
+	if result, err = planner.Step(context.Background()); err != nil || result.Verdict != BuildingResearchBench || result.NativeWorkTicks != 0 {
 		t.Fatal(result, err)
 	}
 	n.current = ""
@@ -175,7 +175,7 @@ func TestRoutineResearchReportsTheBenchHoldInsteadOfSelecting(t *testing.T) {
 	if _, err = reviewer.Step(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(context.Background()); err != nil || result.Reason != BuildingMethodAdmitted {
+	if result, err = planner.Step(context.Background()); err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 }
@@ -191,18 +191,18 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		facts  observation.ColonyProjection
-		reason RoutineBuildingReason
+		reason Verdict
 	}{
-		{"undescribed", observation.ColonyProjection{}, BuildingMethodUnknown},
-		{"unknown", observation.ColonyProjection{Definitions: definition(domain.Unknown[bool]())}, BuildingMethodUnknown},
+		{"undescribed", observation.ColonyProjection{}, fieldUnavailable("research_bench_definition")},
+		{"unknown", observation.ColonyProjection{Definitions: definition(domain.Unknown[bool]())}, fieldUnavailable("research_bench_availability")},
 		{"unavailable", observation.ColonyProjection{Definitions: definition(domain.Known(false))}, BuildingResearchBenchUnavailable},
-		{"build", observation.ColonyProjection{Definitions: definition(domain.Known(true))}, ""},
+		{"build", observation.ColonyProjection{Definitions: definition(domain.Known(true))}, Verdict{}},
 	} {
 		selected, reason, err := ladder.selectResearchBench(test.facts)
 		if err != nil || reason != test.reason {
 			t.Fatal(test.name, selected, reason, err)
 		}
-		if test.reason != "" {
+		if !test.reason.IsZero() {
 			if selected != nil {
 				t.Fatal(test.name, selected)
 			}
@@ -219,11 +219,11 @@ func TestResearchBenchSelectMapsOntoTheLadder(t *testing.T) {
 		t.Fatal("the research bench walks the facility ladder")
 	}
 	facts := observation.ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(2))}}
-	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "laboratory-shell" || reason != "" {
+	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "laboratory-shell" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 	bench := &RoutineBuildingPlanner{goal: policy.EnsureResearch, definition: policy.ResearchBenchDefinition}
-	if missing, method, reason := bench.selection(facts); missing != 1 || method != "laboratory-SimpleResearchBench" || reason != "" {
+	if missing, method, reason := bench.selection(facts); missing != 1 || method != "laboratory-SimpleResearchBench" || !reason.IsZero() {
 		t.Fatal(missing, method, reason)
 	}
 }

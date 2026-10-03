@@ -342,9 +342,9 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 		case outcome.Admitted:
 			proposals = append(proposals, outcome.Proposal+" admitted")
 		case len(outcome.Demand) != 0:
-			proposals = append(proposals, fmt.Sprintf("%s %s %s demand %v", outcome.Proposal, outcome.Reason, outcome.Waiting, outcome.Demand))
+			proposals = append(proposals, fmt.Sprintf("%s %s %s demand %v", outcome.Proposal, outcome.Verdict, outcome.Waiting, outcome.Demand))
 		default:
-			proposals = append(proposals, outcome.Proposal+" "+string(outcome.Reason)+" "+outcome.Waiting)
+			proposals = append(proposals, outcome.Proposal+" "+outcome.Verdict.String()+" "+outcome.Waiting)
 		}
 	}
 	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",

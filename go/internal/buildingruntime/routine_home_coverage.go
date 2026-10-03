@@ -16,8 +16,8 @@ type RoutineHomeCoveragePlanner struct {
 	reviewer *RoutineReviewer
 }
 type RoutineHomeCoverageResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineHomeCoveragePlanner(reviewer *RoutineReviewer) (*RoutineHomeCoveragePlanner, error) {
@@ -31,7 +31,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineHomeCoverageResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -41,14 +41,14 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 		return RoutineHomeCoverageResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineHomeCoverageResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainHomeCoverage)
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
 	if !workable {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineHomeCoverageResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -56,7 +56,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 			return RoutineHomeCoverageResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineHomeCoverageResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineHomeCoverageResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -82,15 +82,15 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	}
 	diff, known := planned.Value()
 	if !known {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineHomeCoverageResult{Verdict: fieldUnavailable("home_coverage")}, nil
 	}
 	if diff.Empty() {
-		return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
+		return RoutineHomeCoverageResult{Verdict: BuildingReasonUsed}, nil
 	}
 	method := diff.MethodID()
 	for _, seen := range goal.Methods {
 		if seen.Method == method {
-			return RoutineHomeCoverageResult{Reason: BuildingMethodUsed}, nil
+			return RoutineHomeCoverageResult{Verdict: BuildingReasonUsed}, nil
 		}
 	}
 	id := domain.MintPlanID()
@@ -134,5 +134,5 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
-	return RoutineHomeCoverageResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineHomeCoverageResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

@@ -807,7 +807,7 @@ one adjacent seat and one recreation source that every colonist can reach, read
 from the same native census before the hosting-room filter, so the starter hut
 counts whatever room role it scores. Capacity alone recovers it; observed use is
 the `ranked` phase's concern (raised from `StageDevelopment`). While shelter is still owed the goal is
-`method_unavailable` and its planner reports `initial_shelter_pending`, so it
+`method_unavailable` and its planner reports `awaiting_plan:initial_shelter`, so it
 never extends the startup hold nor competes with the shell. The table and chair
 preview indoors, the horseshoes pin anywhere with accessible watch cells; an
 existing facility nobody can reach stays a blocker rather than a duplicate.

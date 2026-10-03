@@ -33,8 +33,8 @@ type RoutineStoneShellPlanner struct {
 	native   RoutineStoneShellSource
 }
 type RoutineStoneShellResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineStoneShellPlanner(reviewer *RoutineReviewer, native RoutineStoneShellSource) (*RoutineStoneShellPlanner, error) {
@@ -56,7 +56,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineStoneShellResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineStoneShellResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineStoneShellResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -66,14 +66,14 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineStoneShellResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineStoneShellResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineStoneShellResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainStoneShell)
 	if err != nil {
 		return RoutineStoneShellResult{}, err
 	}
 	if !workable {
-		return RoutineStoneShellResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineStoneShellResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -81,7 +81,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineStoneShellResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineStoneShellResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineStoneShellResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	expected, err := routineScope(call, r.reviewer.native)
@@ -110,7 +110,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	walls, known := targets.Value()
 	if !known {
-		return RoutineStoneShellResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineStoneShellResult{Verdict: fieldUnavailable("stone_shell_walls")}, nil
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, method := range goal.Methods {
@@ -135,21 +135,17 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		if ok {
 			return result, nil
 		}
-		unstocked = unstocked || result.Reason == stoneShellUnstocked
+		unstocked = unstocked || result.Verdict == stoneShellUnstocked
 	}
 	// A site with no replacement material while Stonecutting is unfinished
 	// waits on that research: nothing cuts the blocks a stone wall needs.
 	if unstocked {
 		if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, projection.Facts.Research); gate != "" {
-			return RoutineStoneShellResult{Reason: researchWaitReason(gate)}, nil
+			return RoutineStoneShellResult{Verdict: researchWait(gate)}, nil
 		}
 	}
-	return RoutineStoneShellResult{Reason: BuildingMethodUnknown}, nil
+	return RoutineStoneShellResult{Verdict: fieldUnavailable("stone_shell")}, nil
 }
-
-// stoneShellUnstocked marks a candidate propose passed over for want of any
-// replacement material, so the step can tell a research gate from no site.
-const stoneShellUnstocked RoutineBuildingReason = "no_replacement_material"
 
 // propose builds and admits one candidate wall's bundle. ok is false only for
 // a structural reason to move on to the next candidate (no site, no material,
@@ -185,7 +181,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		return RoutineStoneShellResult{}, false, nil
 	}
 	if len(site.ReplacementMaterials) == 0 {
-		return RoutineStoneShellResult{Reason: stoneShellUnstocked}, false, nil
+		return RoutineStoneShellResult{Verdict: stoneShellUnstocked}, false, nil
 	}
 	backupCount := len(site.BackupCells)
 	if backupCount != 0 && backupCount != 3 {
@@ -205,7 +201,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		}
 	}
 	if !funded {
-		return RoutineStoneShellResult{Reason: stoneShellUnstocked}, false, nil
+		return RoutineStoneShellResult{Verdict: stoneShellUnstocked}, false, nil
 	}
 	costs := make([]policy.Amount, len(material.Costs))
 	for i, c := range material.Costs {
@@ -323,11 +319,11 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	if err != nil {
 		return RoutineStoneShellResult{}, false, err
 	}
-	reason := BuildingMethodRefused
+	reason := BuildingReasonRefused
 	if decision.Admitted {
-		reason = BuildingMethodAdmitted
+		reason = BuildingReasonAdmitted
 	}
-	return RoutineStoneShellResult{Reason: reason, Plan: id}, true, nil
+	return RoutineStoneShellResult{Verdict: reason, Plan: id}, true, nil
 }
 
 func (r *RoutineStoneShellPlanner) previewWall(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot, tick domain.Tick, cell domain.Cell) (bridge.BuildingPreview, bool, error) {

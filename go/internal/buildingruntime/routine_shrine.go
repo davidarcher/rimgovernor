@@ -46,9 +46,9 @@ type RoutineShrinePlanner struct {
 	native   RoutineShrineSource
 }
 type RoutineShrineResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
-	// Hold is the readiness reason the planner held on (BuildingMethodHeld)
+	Verdict
+	Plan domain.PlanID
+	// Hold is the readiness reason the planner held on (BuildingReasonHeld)
 	// and Shrine the shrine it judged.
 	Hold, Shrine string
 	// Skipped is every candidate the step judged and passed over, with its
@@ -56,10 +56,6 @@ type RoutineShrineResult struct {
 	Skipped         []policy.ShrineHold
 	NativeWorkTicks uint32
 }
-
-// BuildingMethodHeld is the shrine planner's answer while every target
-// shrine holds; RoutineShrineResult.Hold carries the reason.
-const BuildingMethodHeld RoutineBuildingReason = "breach_held"
 
 func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
 	if reviewer == nil || native == nil {
@@ -71,7 +67,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineShrineResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineShrineResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -81,7 +77,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineShrineResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.ClearAncientShrine, state.Snapshot, review.Tick)
 	defer recorded()
@@ -93,7 +89,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	// on to act on a later shrine names every one of them skipped.
 	var held RoutineShrineResult
 	defer func() {
-		if err != nil || result.Reason == "" {
+		if err != nil || result.Verdict.IsZero() {
 			return
 		}
 		if result.Shrine != held.Shrine || result.Hold != held.Hold {
@@ -102,7 +98,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 				result.Skipped = append(result.Skipped, policy.ShrineHold{Shrine: held.Shrine, Reason: held.Hold})
 			}
 		}
-		step := store.RoutineShrineStep{Tick: review.Tick, Reason: string(result.Reason), Shrine: result.Shrine, Hold: result.Hold, Plan: result.Plan, Skipped: result.Skipped}
+		step := store.RoutineShrineStep{Tick: review.Tick, Reason: result.Verdict.String(), Shrine: result.Shrine, Hold: result.Hold, Plan: result.Plan, Skipped: result.Skipped}
 		if _, recordErr := p.journal.RecordShrineStep(call, review.Revision, step); recordErr != nil && !errors.Is(recordErr, store.ErrConflict) {
 			err = recordErr
 		}
@@ -121,7 +117,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{}, err
 	}
 	if !workable {
-		return RoutineShrineResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -129,7 +125,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			return RoutineShrineResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineShrineResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineShrineResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	selected := false
@@ -137,7 +133,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		selected = selected || row.Goal == policy.ClearAncientShrine && (row.Selected || row.Committed)
 	}
 	if !selected {
-		return RoutineShrineResult{Reason: BuildingMethodRefused}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonRefused}, nil
 	}
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
@@ -161,7 +157,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	shrines, known := read.Value()
 	if !known {
-		return RoutineShrineResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineShrineResult{Verdict: fieldUnavailable("shrines")}, nil
 	}
 	// The opening gate (#875) was judged at the review; a casket it decided
 	// open there is owed an opening now. The lock is re-staffed below.
@@ -177,7 +173,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	if len(candidates) == 0 {
-		return RoutineShrineResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
 	claims := policy.ShrineClaimTargets(candidates)
@@ -186,7 +182,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			return r.claim(call, epoch, state, goal, shrine, caskets, started)
 		}
 	}
-	held = RoutineShrineResult{Reason: BuildingMethodHeld}
+	held = RoutineShrineResult{Verdict: BuildingReasonHeld}
 	opens := policy.ShrineOpenTargets(candidates, opening)
 	if len(opens) > 0 {
 		needed, err := plannedDrafts(call, p.journal)
@@ -248,7 +244,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -273,7 +269,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 		actions = append(actions, action)
 	}
 	if len(actions) == 0 {
-		return RoutineShrineResult{Reason: BuildingMethodNoDeficit, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonNoDeficit, Shrine: shrine.ID}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -289,7 +285,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
-	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
+	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
 // breach commits one sealed shrine's method: an owned draft and a move to a
@@ -302,17 +298,17 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	wall := report.Readiness.Wall
 	colonists, known := projection.Facts.Colonists.Value()
 	if !known {
-		return RoutineShrineResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineShrineResult{Verdict: fieldUnavailable("colonists")}, nil
 	}
 	drafted := policy.ShrineBreachDrafts(report.Readiness.Squad, int(colonists))
 	if !arbiter.tryClaim(drafted) {
-		return RoutineShrineResult{Reason: BuildingMethodUsed}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonUsed}, nil
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -376,7 +372,7 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
-	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
+	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
 // open commits one open, guard-free shrine's melee lock (#460): an owned
@@ -393,12 +389,12 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		lockers = append(lockers, lock.Lockers[casket.EntityID])
 	}
 	if !arbiter.tryClaim(lockers) {
-		return RoutineShrineResult{Reason: BuildingMethodUsed}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonUsed}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -460,7 +456,7 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineShrineResult{}, err
 	}
-	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
+	return RoutineShrineResult{Verdict: BuildingReasonAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
 // shrineMethod reports a method the shrine planner admits (claim, breach or

@@ -41,14 +41,14 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 	p := r.reviewer.player
 	targets, err := shellTargets(call, p.journal, state.Snapshot, projection)
 	if err != nil || len(targets) == 0 {
-		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, err
+		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, err
 	}
 	if short, _ := policy.ShellsShort(targets, projection.Resources).Value(); !short {
-		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainEquipment)
 	if err != nil || !workable {
-		return RoutineArmoryResult{Reason: BuildingMethodNoDeficit}, err
+		return RoutineArmoryResult{Verdict: BuildingReasonNoDeficit}, err
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -56,7 +56,7 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 			return RoutineArmoryResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineArmoryResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineArmoryResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -77,7 +77,7 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 	}
 	choice, ok := policy.SelectShellBill(benches, targets, stock, holds)
 	if !ok {
-		return RoutineArmoryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, domain.StockTarget, int32(min(choice.Target, 10000)))
@@ -103,5 +103,5 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineArmoryResult{}, err
 	}
-	return RoutineArmoryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineArmoryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

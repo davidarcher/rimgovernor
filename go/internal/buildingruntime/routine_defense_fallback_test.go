@@ -101,7 +101,7 @@ func crossedHoldFight(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := planner.Step(ctx)
-	if err != nil || got.Reason != BuildingMethodAdmitted {
+	if err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	plan := got.Plan
@@ -130,7 +130,7 @@ func crossedHoldFight(t *testing.T) {
 	}
 	// Nothing changed: no orders, no evidence.
 	native.raider = domain.Cell{X: 9, Z: 21}
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork || len(native.orders.batches) != 1 {
+	if got, err = planner.Step(ctx); err != nil || got.Verdict != BuildingReasonExistingWork || len(native.orders.batches) != 1 {
 		t.Fatal(got, err)
 	}
 	if evidence, err := db.CombatEvidence(ctx, plan); err != nil || len(evidence) != 1 || len(evidence[0].Orders) != 2 || !evidence[0].Orders[0].Applied {
@@ -139,7 +139,7 @@ func crossedHoldFight(t *testing.T) {
 	// Past the cover row the same fight re-forms as squad defense on the
 	// intruder, never a second plan.
 	native.raider = domain.Cell{X: 12, Z: 22}
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodCombatOrders || got.Plan != plan || len(native.orders.batches) != 2 {
+	if got, err = planner.Step(ctx); err != nil || got.Verdict != BuildingReasonCombatOrders || got.Plan != plan || len(native.orders.batches) != 2 {
 		t.Fatal(got, err)
 	}
 	if orders := batchOrders(native.orders.batches[1]); orders["a"] != "attack raider" || orders["b"] != "attack raider" {
@@ -157,7 +157,7 @@ func crossedHoldFight(t *testing.T) {
 	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: review.Revision, Current: snapshot, Tick: 9, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err = planner.Step(ctx); err != nil || got.Reason != BuildingMethodNoDeficit {
+	if got, err = planner.Step(ctx); err != nil || got.Verdict != BuildingReasonNoDeficit {
 		t.Fatal(got, err)
 	}
 	if fight, _, _ = db.LoadCombatFight(ctx, plan); fight.Open || len(fight.Roster) != 2 {
@@ -190,15 +190,15 @@ func TestRoutineDefenseHoldFallbackNeedsProof(t *testing.T) {
 	if _, err = db.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: current.Revision, Current: snapshot, Tick: 7, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: facts}); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := planner.Step(ctx); err != nil || got.Reason != BuildingMethodAdmitted {
+	if got, err := planner.Step(ctx); err != nil || got.Verdict != BuildingReasonAdmitted {
 		t.Fatal(got, err)
 	}
 	native.toil = ""
-	if got, err := planner.Step(ctx); err != nil || got.Reason != BuildingMethodExistingWork {
+	if got, err := planner.Step(ctx); err != nil || got.Verdict != BuildingReasonExistingWork {
 		t.Fatal("unknown toil abandoned the hold:", got, err)
 	}
 	native.toil = "LordToil_AssaultColonyBreaching"
-	if got, err := planner.Step(ctx); err != nil || got.Reason != BuildingMethodHoldFallback {
+	if got, err := planner.Step(ctx); err != nil || got.Verdict != BuildingReasonHoldFallback {
 		t.Fatal(got, err)
 	}
 }

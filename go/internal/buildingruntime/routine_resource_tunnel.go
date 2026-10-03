@@ -95,7 +95,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 	}
 	step := excavationStep{state: state, review: review, goal: goal, facts: reading.Projection, read: reading}
 	finish := func(result RoutineBuildingResult) (RoutineResourceResult, bool, error) {
-		out := RoutineResourceResult{Reason: result.Reason}
+		out := RoutineResourceResult{Verdict: result.Verdict}
 		for _, m := range result.Decision.Goal.Methods {
 			if IsExcavationMethod(m.Method) {
 				out.Plan = m.Plan
@@ -111,7 +111,7 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		if err != nil {
 			return RoutineBuildingResult{}, false, err
 		}
-		return result, result.Reason == BuildingMethodUsed || result.Reason == BuildingExcavationBlocked, nil
+		return result, result.Verdict == BuildingReasonUsed || result.Verdict == BuildingExcavationBlocked, nil
 	}
 	project, err := dig.excavationProject(call, goal)
 	if err != nil {

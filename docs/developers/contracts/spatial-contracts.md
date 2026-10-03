@@ -140,7 +140,7 @@ holds only that shape's missing cells, and a ring whose door was cancelled is
 reissued door first as a fresh shell would be. When a missing cell of
 the best-matched shape is not placeable now (for instance a cancelled frame
 still clearing), or when it stands whole but the room census lists no enclosed
-room inside it yet, the review reports `earlier_shell_blocked` and waits: it
+room inside it yet, the review reports `awaiting_plan:earlier_shell` and waits: it
 never adopts a lesser shape at the same door nor sites a second shell beside
 an unfinished first. A facility ladder (comfort, workshop, hospital, sleeping)
 reaches adoption only because its furnishing step found no site, so it passes

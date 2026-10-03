@@ -38,8 +38,8 @@ type RoutineDefensePlanner struct {
 	native   RoutineDefenseSource
 }
 type RoutineDefenseResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineDefensePlanner(reviewer *RoutineReviewer, native RoutineDefenseSource) (*RoutineDefensePlanner, error) {
@@ -52,7 +52,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineDefenseResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -62,7 +62,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineDefenseResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	incident, need, found, err := routineIncident(call, p.journal, review, policy.ActiveCombat)
 	if err != nil {
@@ -93,10 +93,10 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 				}
 			}
 		}
-		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	if !found || need != domain.NeedDeficit || review.VetoIncident(incident.Incident) != "" {
-		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// One ActiveCombat plan owns the fight (#852): its combat method whose
 	// fight is open is the fight the stop decides for. Any other open work
@@ -113,7 +113,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 				continue
 			}
 			if fight != nil {
-				return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
+				return RoutineDefenseResult{Verdict: BuildingReasonExistingWork}, nil
 			}
 			fight, fightPlan = &record, method.Plan
 			continue
@@ -123,7 +123,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			return RoutineDefenseResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineDefenseResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -139,14 +139,14 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		return RoutineDefenseResult{}, fmt.Errorf("%w: decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)", ErrControl)
 	}
 	in, reason, err := combatFrameInputs(combat, store.HuntPrey(incident.Incident))
-	if err != nil || reason != "" {
-		return RoutineDefenseResult{Reason: reason}, err
+	if err != nil || !reason.IsZero() {
+		return RoutineDefenseResult{Verdict: reason}, err
 	}
 	if in.needed, err = plannedDrafts(call, p.journal); err != nil {
 		return RoutineDefenseResult{}, err
 	}
 	emergency, rows := combat.Emergency, in.rows
-	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
+	if result, err := r.planBreak(call, epoch, incident, state, started, arbiter, emergency.Facts, rows); err != nil || !result.Verdict.IsZero() {
 		return result, err
 	}
 	var orderable []domain.PawnID
@@ -198,7 +198,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	}
 	if fight == nil {
 		result, err := r.admitFight(call, epoch, incident, state, started, arbiter, fightAdmission{combat: combat, in: in, held: held, reply: recorded.Reply, stop: stop, memory: next})
-		if err == nil && result.Reason == BuildingMethodAdmitted {
+		if err == nil && result.Verdict == BuildingReasonAdmitted {
 			recorded.Plan = result.Plan
 			recordCombatStop(call, combat, recorded)
 		}
@@ -250,7 +250,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			return RoutineDefenseResult{}, err
 		}
 		recordCombatStop(call, combat, recorded)
-		return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 	}
 	if len(orders)+len(drafts) == 0 {
 		// A stop that changes nothing writes nothing; a re-formation that
@@ -261,10 +261,10 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 			}
 			recordCombatStop(call, combat, recorded)
 			if memory.Tactic == policy.TacticHold && next.Tactic != policy.TacticHold {
-				return RoutineDefenseResult{Reason: BuildingMethodHoldFallback, Plan: id}, nil
+				return RoutineDefenseResult{Verdict: BuildingReasonHoldFallback, Plan: id}, nil
 			}
 		}
-		return RoutineDefenseResult{Reason: BuildingMethodExistingWork, Plan: id}, nil
+		return RoutineDefenseResult{Verdict: BuildingReasonExistingWork, Plan: id}, nil
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineDefenseResult{}, err
@@ -281,7 +281,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	// caller's, read from the evidence.
 	recorded.Evidence = true
 	recordCombatStop(call, combat, recorded)
-	return RoutineDefenseResult{Reason: BuildingMethodCombatOrders, Plan: id}, nil
+	return RoutineDefenseResult{Verdict: BuildingReasonCombatOrders, Plan: id}, nil
 }
 
 // fightOrderable is the fight's orderable defenders (#939): its roster
@@ -314,11 +314,11 @@ type combatInputs struct {
 
 // combatFrameInputs is the fight's inputs from the frame; a reason means
 // there is no fight to decide (an incomplete census, no threat).
-func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatInputs, RoutineBuildingReason, error) {
+func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatInputs, Verdict, error) {
 	facts := combat.Emergency.Facts
 	colonistsComplete, ck := facts.ColonistsComplete.Value()
 	if !ck || !colonistsComplete {
-		return combatInputs{}, BuildingMethodUsed, nil
+		return combatInputs{}, BuildingReasonUsed, nil
 	}
 	var in combatInputs
 	in.hostileIDs, in.hunting, in.buildings = defenseTargets(facts.Threats)
@@ -334,7 +334,7 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	// Raiders still in their pods (#908) are a fight with no hostile yet:
 	// the pods tactic drafts the nearest armed before the open (#891).
 	if len(facts.Colonists) == 0 || len(in.hostileIDs)+len(in.buildings)+len(in.prey) == 0 && !hasAggressiveBreak(facts) && facts.PodsOpen == 0 {
-		return combatInputs{}, BuildingMethodUsed, nil
+		return combatInputs{}, BuildingReasonUsed, nil
 	}
 	in.rows = map[string]*n.PawnState{}
 	for _, pawn := range facts.Colonists {
@@ -346,10 +346,10 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 	for _, row := range in.rows {
 		if row == nil {
 			// The frame's detail misses a pawn its census lists.
-			return combatInputs{}, "", fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
+			return combatInputs{}, Verdict{}, fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
 		}
 	}
-	return in, "", nil
+	return in, Verdict{}, nil
 }
 
 // combatView is DecideCombat's view of the frame: the census colonists as

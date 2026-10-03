@@ -23,7 +23,7 @@ type RoutineArmoryPlanner struct {
 }
 
 type RoutineArmoryResult struct {
-	Reason     RoutineBuildingReason
+	Verdict
 	Assessment policy.ArmoryAssessment
 	Plan       domain.PlanID
 }
@@ -39,7 +39,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineArmoryResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown {
 		return RoutineArmoryResult{}, fmt.Errorf("%w: step: !state.ObservationKnown", ErrControl)
@@ -49,7 +49,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineArmoryResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineArmoryResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineArmoryResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	holds := policy.ResourceHolds(targets)
 	result, err := r.craftWeapons(call, epoch, arbiter, state, review, assessment.Tier, holds)
-	if err == nil && result.Reason != BuildingMethodAdmitted {
+	if err == nil && result.Verdict != BuildingReasonAdmitted {
 		result, err = r.stockShells(call, epoch, state, review, read.Projection, holds)
 	}
 	result.Assessment = assessment
@@ -84,10 +84,6 @@ func (r *RoutineArmoryPlanner) step(call, epoch context.Context, arbiter *stepAr
 // place at once; it hosts the club and short bow recipes a tribal start
 // arms itself with.
 const craftingSpotDefinition = "CraftingSpot"
-
-// BuildingNoWeaponBench: an unarmed colonist has no loose weapon and no bench
-// hosts a weapon recipe, and no crafting spot planner is wired to place one.
-const BuildingNoWeaponBench RoutineBuildingReason = "no_weapon_bench"
 
 // newCraftingSpotPlanner is the EnsureBasicDefense placement the armory
 // falls back to (moved from the equip planner, #1204); nil when the source

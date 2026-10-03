@@ -56,8 +56,8 @@ type RoutineResourcePlanner struct {
 	native   RoutineResourceSource
 }
 type RoutineResourceResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 	// NativeWorkTicks asks for a clock window without a plan of its own: a
 	// standing production bill whose first iteration completed needs game
 	// time, not another method, while its resource is still in deficit.
@@ -111,7 +111,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResourceResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -123,14 +123,14 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{}, err
 	}
 	if len(targets) == 0 && !r.reviewer.policy.ResourceGoalConfigured() {
-		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineResourceResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainResource, state.Snapshot, review.Tick)
 	defer recorded()
@@ -139,7 +139,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{}, err
 	}
 	if !workable {
-		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A tunnel stage held against geometry that changed under it closes so
 	// the corridor is reviewed instead of waited on (#1074).
@@ -152,7 +152,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineResourceResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineResourceResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineResourceResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -194,7 +194,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		if result.Reason != BuildingMethodUsed || result.Plan != "" || result.NativeWorkTicks != 0 {
+		if result.Verdict != BuildingReasonUsed || result.Plan != "" || result.NativeWorkTicks != 0 {
 			return result, nil
 		}
 		if first == nil {
@@ -202,7 +202,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if first == nil {
-		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
 	}
 	return *first, nil
 }
@@ -229,7 +229,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{}, err
 		}
 		if blocked {
-			return RoutineResourceResult{Reason: BuildingMethodNoSpace}, nil
+			return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, nil
 		}
 		if needed {
 			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage")
@@ -266,7 +266,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		// only piles it up out of reach (#237). Lend a window so a bench
 		// built or an area widened meanwhile is seen next step.
 		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Goal.ID, resource, len(census))
-		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonRefused, NativeWorkTicks: stockWaitTicks}, nil
 	}
 	names := recipeIngredientNames(census, resource)
 	var supply []policy.Stock
@@ -294,7 +294,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
 		if beer && choice.Kind == policy.ResourceMethodWait {
-			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
+			return RoutineResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		}
 		var pre *sourceSelection
 		if !beer && benchFilter == nil {
@@ -305,7 +305,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 			if !ok {
 				r.reviewer.bids.bid(state.Snapshot, resource, bidResource, 0, "", reviewTick)
-				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+				return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
 			}
 			pre = &sel
 			selected, sourceStorage := sel.selected, sel.storage
@@ -317,7 +317,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 				return RoutineResourceResult{}, err
 			}
 			if r.outbid(goal, state, resource, ranked, reviewTick) {
-				return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+				return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
 			}
 		}
 		result, _, err := r.acquireFromSources(call, epoch, state, goal, reviewTick, identity, resource, target, stock, started, pre)
@@ -336,7 +336,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		selected, sourceStorage := sel.selected, sel.storage
 		deficit := target - resourceCount(stock, resource)
 		if ok {
-			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, deficit, started); err != nil || handled && result.Reason == BuildingMethodAdmitted {
+			if result, handled, err := r.storageFloor(call, epoch, state, goal, reviewTick, resource, sourceStorage, deficit, started); err != nil || handled && result.Verdict == BuildingReasonAdmitted {
 				return result, err
 			}
 		}
@@ -349,7 +349,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{}, err
 		}
 		if r.outbid(goal, state, resource, ranked, reviewTick) {
-			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+			return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
 		}
 		if ok && len(ranked) > 0 && ranked[0].Kind == policy.AcquisitionMining {
 			clockSchedulerLog("%s: %s mining %s scores %.3f over the bill", goal.Goal.ID, resource, ranked[0].ID, ranked[0].Score)
@@ -400,7 +400,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineResourceResult{}, err
 	}
-	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // outbid posts this planner's best catalog score for resource on the joint
@@ -449,7 +449,7 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 		}
 		sel, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		if !ok {
-			return RoutineResourceResult{Reason: BuildingMethodUsed}, false, nil
+			return RoutineResourceResult{Verdict: BuildingReasonUsed}, false, nil
 		}
 		pre = &sel
 	}
@@ -480,9 +480,9 @@ func (r *RoutineResourcePlanner) acquireFromSources(call, epoch context.Context,
 	// by a colonist on game time alone (#1075): lend a window rather than
 	// park the clock on no_work beside it.
 	if pre.designated {
-		return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil
+		return RoutineResourceResult{Verdict: BuildingReasonExistingWork, NativeWorkTicks: stockWaitTicks, Sources: selected}, false, nil
 	}
-	return RoutineResourceResult{Reason: BuildingMethodUsed, Sources: selected}, false, nil
+	return RoutineResourceResult{Verdict: BuildingReasonUsed, Sources: selected}, false, nil
 }
 
 // sourcesForDeficit reads the resource's fresh native mine/harvest sources
@@ -602,7 +602,7 @@ func (r *RoutineResourcePlanner) materialStorageZoneFallback(call, epoch context
 		return RoutineResourceResult{}, false, err
 	}
 	if blocked {
-		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, true, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, true, nil
 	}
 	if !needed {
 		if zone, needed, err = policy.SelectFullStorageZone(deficit, storage); err != nil || !needed {
@@ -638,7 +638,7 @@ func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state
 // material-storage and animal-feed delivery fallbacks share: cells under a
 // held building reservation are dropped, the method ID is content-addressed
 // by resource and cells (methodPrefix; fingerprint dedup reports
-// BuildingMethodUsed), and the zone is previewed against the live zone-map
+// BuildingReasonUsed), and the zone is previewed against the live zone-map
 // token and admitted through AdmitBuildingMethod, since a zone carries
 // footprint like a building.
 func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix string) (RoutineResourceResult, error) {
@@ -660,7 +660,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 		}
 	}
 	if len(cells) == 0 {
-		return RoutineResourceResult{Reason: BuildingMethodNoSpace}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonNoSpace}, nil
 	}
 	value, err := allowListZone(domain.ImportantPriority, []string{string(resource)}, cells)
 	if err != nil {
@@ -679,14 +679,14 @@ type zoneMethodNative interface {
 }
 
 // admitZoneMethod admits one already-shaped zone under goal as method: the
-// method ID is the caller's (fingerprint dedup reports BuildingMethodUsed),
+// method ID is the caller's (fingerprint dedup reports BuildingReasonUsed),
 // the zone is previewed against the live zone-map token and admitted through
 // AdmitBuildingMethod, since a zone carries footprint like a building.
 func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
 	p := reviewer.player
 	cells := value.Cells()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
 	}
@@ -720,7 +720,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 	}
 	v := reply.GetEvaluated()
 	if v == nil || !v.GetAccepted() {
-		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick {
 		return RoutineResourceResult{}, fmt.Errorf("%w: admitZoneMethod: err != nil || domain.Tick(v.Context.GetTick()) < projection.Identity.Tick", ErrControl)
@@ -742,9 +742,9 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 		return RoutineResourceResult{}, err
 	}
 	if !decision.Admitted {
-		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
+		return RoutineResourceResult{Verdict: BuildingReasonRefused}, nil
 	}
-	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // dispatchMineSource actually dispatches a domain.MineAcquisitionAction
@@ -759,7 +759,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 // materialStorageZoneFallback reports handled=false, i.e. either no mine
 // source was selected or its covered storage already suffices. dispatched is
 // false, with a zero result and nil error, when there is nothing to dispatch
-// -- the caller then falls back to its own BuildingMethodUsed reporting.
+// -- the caller then falls back to its own BuildingReasonUsed reporting.
 func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.GoalState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
 	var source policy.ResourceSource
 	found := false
@@ -798,7 +798,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, methodID, plan); err != nil {
 		return RoutineResourceResult{}, false, err
 	}
-	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 // recipeIngredientNames lists, sorted, every ingredient alternative of the

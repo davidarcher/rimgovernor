@@ -84,7 +84,7 @@ func TestRoutineWastePlannerSelectsAndCommitsMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
@@ -97,7 +97,7 @@ func TestRoutineWastePlannerSelectsAndCommitsMethod(t *testing.T) {
 		t.Fatal(waste, ok)
 	}
 	next, err := planner.Step(ctx)
-	if err != nil || next.Reason != BuildingMethodExistingWork {
+	if err != nil || next.Verdict != BuildingReasonExistingWork {
 		t.Fatal(next, err)
 	}
 }
@@ -114,7 +114,7 @@ func TestRoutineWastePlannerRefusesWithoutPendingCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Reason == BuildingMethodAdmitted {
+	if err != nil || result.Verdict == BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 }

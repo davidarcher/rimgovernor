@@ -43,7 +43,7 @@ type PlanResult struct {
 	Proposal        *Proposal
 	Dependency      string
 	NativeWorkTicks domain.Tick
-	Reason          RoutineBuildingReason
+	Verdict
 }
 
 // ResourceClaims is what a proposal needs held for it exclusively while it
@@ -79,7 +79,7 @@ type Proposal struct {
 	// ValidTick is the review tick the proposal was planned from.
 	ValidTick domain.Tick
 	Actions   []domain.Action
-	commit    func(context.Context) (domain.PlanID, RoutineBuildingReason, error)
+	commit    func(context.Context) (domain.PlanID, Verdict, error)
 }
 
 // ProposalOutcome is one proposal's fate on the step row: admitted with
@@ -96,24 +96,14 @@ type ProposalOutcome struct {
 	// Stale names the dependency the coordinator found changed since the
 	// proposal was evaluated (#623): the snapshot's scope, its native
 	// generation or plan revision, or the tick it was planned from.
-	Stale  string
-	Reason RoutineBuildingReason
+	Stale string
+	Verdict
 	// Demand is the quantity the step could not cover for the proposal:
 	// what it claimed beyond the stock left after the step's earlier
 	// claims and the admitted plans' commitments (#628). Nil unless Reason
-	// is BuildingMethodDemand.
+	// is BuildingReasonDemand.
 	Demand []policy.Amount
 }
-
-// BuildingMethodWaiting is a migrated planner's result when the
-// coordinator gave a claim it needs to a higher-ranked proposal; the step
-// row's proposal outcome names the claim.
-const BuildingMethodWaiting RoutineBuildingReason = "waiting_on_claim"
-
-// BuildingMethodExpired is a proposal's outcome when the step it reached
-// no longer matches what it was evaluated against (#623): its commit never
-// runs, so nothing is written to the journal.
-const BuildingMethodExpired RoutineBuildingReason = "expired"
 
 // proposalScope is the step the coordinator commits under: the read
 // validity the step fixed (#624), which every proposal must still hold
@@ -164,12 +154,6 @@ func (l *lateProposals) drain() []proposalArrival {
 	l.arrivals = nil
 	return arrivals
 }
-
-// BuildingMethodDemand is a migrated planner's result when the step's
-// stock, less the quantities earlier proposals claimed and admitted plans
-// hold, does not cover a quantity it needs and no less urgent commitment
-// could be preempted to release it; the outcome's Demand is the shortfall.
-const BuildingMethodDemand RoutineBuildingReason = "unmet_demand"
 
 // stepBudget is what the coordinator checks a proposal's quantity claims
 // against (#628): Stock is the count the routine review observed for each
@@ -337,7 +321,7 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 			continue
 		}
 		if arrival.settle != nil {
-			arrival.settle(ProposalOutcome{Planner: arrival.planner, Reason: arrival.result.Reason})
+			arrival.settle(ProposalOutcome{Planner: arrival.planner, Verdict: arrival.result.Verdict})
 		}
 	}
 	sort.SliceStable(proposals, func(i, j int) bool { return proposalRank(proposals[i].result.Proposal, proposals[j].result.Proposal) })
@@ -349,7 +333,7 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 		p := arrival.result.Proposal
 		outcome := ProposalOutcome{Proposal: p.ID, Planner: arrival.planner, Goal: p.Goal}
 		if stale := proposalStale(scope, p); stale != "" {
-			outcome.Stale, outcome.Reason = stale, BuildingMethodExpired
+			outcome.Stale, outcome.Verdict = stale, BuildingReasonExpired
 			if arrival.settle != nil {
 				arrival.settle(outcome)
 			}
@@ -362,18 +346,18 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 			refused, demand = index.shortfall(p)
 		}
 		if refused != "" {
-			outcome.Waiting, outcome.Reason = refused, BuildingMethodWaiting
+			outcome.Waiting, outcome.Verdict = refused, BuildingReasonWaiting
 			if demand != nil {
-				outcome.Reason, outcome.Demand = BuildingMethodDemand, demand
+				outcome.Verdict, outcome.Demand = BuildingReasonDemand, demand
 			}
 		} else {
 			index.take(p)
 			plan, reason, err := p.commit(ctx)
 			if err != nil {
 				failures = append(failures, fmt.Errorf("%s: %w", arrival.planner, err))
-				outcome.Reason = BuildingMethodRefused
+				outcome.Verdict = BuildingReasonRefused
 			} else {
-				outcome.Admitted, outcome.Plan, outcome.Reason = reason == BuildingMethodAdmitted, plan, reason
+				outcome.Admitted, outcome.Plan, outcome.Verdict = reason == BuildingReasonAdmitted, plan, reason
 			}
 		}
 		if arrival.settle != nil {

@@ -115,7 +115,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 		t.Fatal("sleeping goal not in deficit", goal.Goal)
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	if native.previews != 0 {
@@ -135,13 +135,13 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	}
 	// Open assignment is existing work; once retired, the used method is not
 	// retried within the epoch even though the bed still reads vacant.
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
 		t.Fatal(result, err)
 	}
 	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
 		t.Fatal(err)
 	}
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed {
 		t.Fatal(result, err)
 	}
 }
@@ -187,7 +187,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	}
 	for i, method := range []domain.MethodID{"sleeping-assign-patient-bed", "sleeping-assign-patient-bed-retry1", "sleeping-assign-patient-bed-retry2"} {
 		result, err := planner.Step(ctx)
-		if err != nil || result.Reason != BuildingMethodAdmitted {
+		if err != nil || result.Verdict != BuildingReasonAdmitted {
 			t.Fatal(i, result, err)
 		}
 		if goal := sleepingGoal(t, db); len(goal.Methods) != i+1 || goal.Methods[i].Method != method {
@@ -195,7 +195,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		}
 		settle(method, domain.ReceiptRefused)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != 0 {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != 0 {
 		t.Fatal("fourth attempt", result, err)
 	}
 	// A completed (admitted) attempt is final for the epoch even when the
@@ -204,14 +204,14 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if review, err = db.LoadRoutineReview(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	settle("sleeping-assign-patient-bed", domain.ReceiptAccepted)
 	// Only observed sleep completes the goal, so the completed assignment
 	// earns a bounded clock window; the refused attempts above earned
 	// none.
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)
 	}
 	// The next review retires the settled plan from the goal's active
@@ -223,7 +223,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if goal := sleepingGoal(t, db); len(goal.Methods) != 0 {
 		t.Fatal("completed assignment still active", goal.Methods)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonUsed || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal("after retirement", result, err)
 	}
 }
@@ -232,7 +232,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, db, native := sleepingUpkeepFixture(t)
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	// The census now shows the bed owned by the sleeper: still in deficit,
@@ -247,7 +247,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		t.Fatal("assignment receipt completed the sleeping goal", goal.Goal)
 	}
-	if result, err := planner.Step(ctx); err != nil || (result.Reason != BuildingSleepingUseNeeded && result.Reason != BuildingMethodExistingWork) {
+	if result, err := planner.Step(ctx); err != nil || (result.Verdict != BuildingSleepingUseNeeded && result.Verdict != BuildingReasonExistingWork) {
 		t.Fatal(result, err)
 	}
 	upkeep.Beds[0].Users = bridge.NewRefs([]string{"patient"})
@@ -271,7 +271,7 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
 	}
 	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted || native.previews == 0 {
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {
 		t.Fatal(result, err, native.previews)
 	}
 	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "sleeping-Bed-1" {
@@ -319,13 +319,13 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
 		t.Fatal(result, err)
 	}
 	if methods := sleepingGoal(t, db).Methods; len(methods) == 0 || methods[len(methods)-1].Method != "sleeping-Bed-1-1" { // the retired first bed leaves the list
 		t.Fatal(methods)
 	}
-	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
 		t.Fatal(result, err)
 	}
 }
@@ -341,7 +341,7 @@ func TestSleepingUpkeepDoesNotBuildOutsideComfortBand(t *testing.T) {
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = bridge.NewRefs([]string{"other"})
 	native.rooms.GetObserved().Rooms[0].TemperatureC = proto.Float64(-5)
 	result, err := planner.Step(ctx)
-	if err != nil || (result.Reason != BuildingShellBlocked && result.Reason != BuildingMethodUnknown) || native.previews != 0 {
+	if err != nil || (result.Verdict != BuildingShellBlocked && !result.Verdict.Is(RefusalFieldUnavailable)) || native.previews != 0 {
 		t.Fatal(result, err, native.previews)
 	}
 }

@@ -12,9 +12,9 @@ import (
 // testProposal is a proposal whose commit records itself as admitted.
 func testProposal(id string, priority, urgency int, claims ResourceClaims, committed *[]string) *Proposal {
 	return &Proposal{ID: id, Planner: id, Goal: domain.GoalID(id), Priority: priority, Urgency: urgency, Claims: claims,
-		commit: func(context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+		commit: func(context.Context) (domain.PlanID, Verdict, error) {
 			*committed = append(*committed, id)
-			return domain.PlanID("plan-" + id), BuildingMethodAdmitted, nil
+			return domain.PlanID("plan-" + id), BuildingReasonAdmitted, nil
 		}}
 }
 
@@ -34,7 +34,7 @@ func TestCoordinateAdmitsHigherRankAndReportsLoserWaiting(t *testing.T) {
 		a := newStepArbiter()
 		settled := map[string]ProposalOutcome{}
 		for _, name := range order {
-			a.propose(name, PlanResult{Kind: PlanProposed, Proposal: proposals[name], Reason: BuildingMethodAdmitted}, func(o ProposalOutcome) { settled[name] = o })
+			a.propose(name, PlanResult{Kind: PlanProposed, Proposal: proposals[name], Verdict: BuildingReasonAdmitted}, func(o ProposalOutcome) { settled[name] = o })
 		}
 		outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"Steel": 25}}, proposalScope{})
 		if len(failures) != 0 || len(outcomes) != 2 || len(committed) != 1 || committed[0] != "high" {
@@ -43,7 +43,7 @@ func TestCoordinateAdmitsHigherRankAndReportsLoserWaiting(t *testing.T) {
 		if !outcomes[0].Admitted || outcomes[0].Proposal != "high" || outcomes[0].Plan != "plan-high" || settled["high"].Plan != outcomes[0].Plan {
 			t.Fatalf("%v: high must be admitted first: %+v", order, outcomes[0])
 		}
-		if outcomes[1].Admitted || outcomes[1].Reason != BuildingMethodWaiting || outcomes[1].Waiting != "pawn:builder held by high" || settled["low"].Waiting != outcomes[1].Waiting {
+		if outcomes[1].Admitted || outcomes[1].Verdict != BuildingReasonWaiting || outcomes[1].Waiting != "pawn:builder held by high" || settled["low"].Waiting != outcomes[1].Waiting {
 			t.Fatalf("%v: low must wait on the pawn: %+v", order, outcomes[1])
 		}
 	}
@@ -106,12 +106,12 @@ func TestCoordinateHonoursArbiterClaimsAndSettlesNonProposals(t *testing.T) {
 	}
 	a.propose("tend", PlanResult{Kind: PlanProposed, Proposal: testProposal("tend", plannerCritical, 1, ResourceClaims{Pawns: []domain.PawnID{"doctor"}}, &committed)}, nil)
 	var waiting ProposalOutcome
-	a.propose("idle", PlanResult{Kind: PlanWaiting, Dependency: "review", Reason: BuildingMethodNoReview}, func(o ProposalOutcome) { waiting = o })
+	a.propose("idle", PlanResult{Kind: PlanWaiting, Dependency: "review", Verdict: BuildingReasonNoReview}, func(o ProposalOutcome) { waiting = o })
 	outcomes, failures := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
 	if len(failures) != 0 || len(committed) != 0 || len(outcomes) != 1 || outcomes[0].Admitted || outcomes[0].Waiting != "pawn:doctor" {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
-	if waiting.Planner != "idle" || waiting.Reason != BuildingMethodNoReview || waiting.Admitted {
+	if waiting.Planner != "idle" || waiting.Verdict != BuildingReasonNoReview || waiting.Admitted {
 		t.Fatalf("%+v", waiting)
 	}
 }
@@ -124,11 +124,11 @@ func TestCoordinateIsolatesCommitFailure(t *testing.T) {
 	a := newStepArbiter()
 	broken := errors.New("journal closed")
 	a.propose("first", PlanResult{Kind: PlanProposed, Proposal: &Proposal{ID: "first", Priority: plannerFoothold, Claims: ResourceClaims{Pawns: []domain.PawnID{"p"}},
-		commit: func(context.Context) (domain.PlanID, RoutineBuildingReason, error) { return "", "", broken }}}, nil)
+		commit: func(context.Context) (domain.PlanID, Verdict, error) { return "", Verdict{}, broken }}}, nil)
 	var committed []string
 	a.propose("second", PlanResult{Kind: PlanProposed, Proposal: testProposal("second", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"q"}}, &committed)}, nil)
 	outcomes, failures := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
-	if len(failures) != 1 || !errors.Is(failures[0], broken) || len(outcomes) != 2 || outcomes[0].Admitted || outcomes[0].Reason != BuildingMethodRefused || !outcomes[1].Admitted {
+	if len(failures) != 1 || !errors.Is(failures[0], broken) || len(outcomes) != 2 || outcomes[0].Admitted || outcomes[0].Verdict != BuildingReasonRefused || !outcomes[1].Admitted {
 		t.Fatalf("%+v %v", outcomes, failures)
 	}
 }

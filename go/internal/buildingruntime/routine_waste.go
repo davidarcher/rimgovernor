@@ -32,8 +32,8 @@ type RoutineWastePlanner struct {
 	building *RoutineBuildingPlanner
 }
 type RoutineWasteResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineWastePlanner(reviewer *RoutineReviewer, native RoutineWasteSource) (*RoutineWastePlanner, error) {
@@ -50,7 +50,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineWasteResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
 		return RoutineWasteResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0", ErrControl)
@@ -60,14 +60,14 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineWasteResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineWasteResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainWaste)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}
 	if !workable {
-		return RoutineWasteResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// MaintainWaste competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
@@ -77,7 +77,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		selected = selected || row.Goal == policy.MaintainWaste && row.Selected
 	}
 	if !selected {
-		return RoutineWasteResult{Reason: BuildingMethodRefused}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonRefused}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -85,7 +85,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineWasteResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineWasteResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineWasteResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	identity, _, err := r.native.Identity(call)
@@ -109,7 +109,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	items, known := reading.Projection.Facts.Waste.Value()
 	if !known || len(items) == 0 {
-		return RoutineWasteResult{Reason: BuildingMethodUsed}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
 	}
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
@@ -121,7 +121,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineWasteResult{Reason: BuildingMethodUsed}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -156,7 +156,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 		ok = false
 	}
 	if !ok {
-		return RoutineWasteResult{Reason: BuildingMethodUsed}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
 	}
 	waste, err := domain.NewWaste(domain.PawnID(pawn), item.ID, item.Cell)
 	if err != nil {
@@ -167,7 +167,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	prefix := fmt.Sprintf("waste-%s-", item.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineWasteResult{Reason: BuildingMethodExhausted}, nil
+		return RoutineWasteResult{Verdict: BuildingReasonExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -189,7 +189,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, err
 	}
-	return RoutineWasteResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineWasteResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 func wasteCandidateFacts(pawn domain.PawnID, row *n.PawnState) policy.WastePawn {

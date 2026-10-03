@@ -130,8 +130,8 @@ type MaintainShelterPlanner struct {
 	reviewer *RoutineReviewer
 }
 type MaintainShelterResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewMaintainShelterPlanner(reviewer *RoutineReviewer) (*MaintainShelterPlanner, error) {
@@ -145,7 +145,7 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return MaintainShelterResult{Reason: BuildingMethodDisabled}, nil
+		return MaintainShelterResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return MaintainShelterResult{}, fmt.Errorf("%w: step: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -155,14 +155,14 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 		return MaintainShelterResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return MaintainShelterResult{Reason: BuildingMethodNoReview}, nil
+		return MaintainShelterResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	goal, workable, err := p.journal.Workable(call, review, policy.MaintainShelter)
 	if err != nil {
 		return MaintainShelterResult{}, err
 	}
 	if !workable {
-		return MaintainShelterResult{Reason: BuildingMethodNoDeficit}, nil
+		return MaintainShelterResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -170,13 +170,13 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 			return MaintainShelterResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return MaintainShelterResult{Reason: BuildingMethodExistingWork}, nil
+			return MaintainShelterResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	world := stockpileWorld(state.Snapshot)
 	edits := r.reviewer.safeArea.take(world)
 	if len(edits) == 0 {
-		return MaintainShelterResult{Reason: BuildingMethodUsed}, nil
+		return MaintainShelterResult{Verdict: BuildingReasonUsed}, nil
 	}
 	id := domain.MintPlanID()
 	actions := make([]domain.Action, 0, len(edits))
@@ -202,5 +202,5 @@ func (r *MaintainShelterPlanner) step(call, epoch context.Context, arbiter *step
 		return MaintainShelterResult{}, err
 	}
 	r.reviewer.safeArea.commit(world)
-	return MaintainShelterResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return MaintainShelterResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }

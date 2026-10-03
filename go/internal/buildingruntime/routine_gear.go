@@ -39,8 +39,8 @@ type RoutineGearPlanner struct {
 	native   RoutineGearSource
 }
 type RoutineGearResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
+	Verdict
+	Plan domain.PlanID
 }
 
 func NewRoutineGearPlanner(reviewer *RoutineReviewer, native RoutineGearSource) (*RoutineGearPlanner, error) {
@@ -111,8 +111,8 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineGearResult{}, err
 	}
 	limit, refused, err := equipmentSlots(call, r.reviewer.player, review)
-	if err != nil || refused != "" {
-		return RoutineGearResult{Reason: refused}, err
+	if err != nil || !refused.IsZero() {
+		return RoutineGearResult{Verdict: refused}, err
 	}
 	var admitted RoutineGearResult
 	for i := 0; i < limit; i++ {
@@ -120,7 +120,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return result, err
 		}
-		if result.Reason != BuildingMethodAdmitted {
+		if result.Verdict != BuildingReasonAdmitted {
 			if admitted.Plan != "" {
 				return admitted, nil
 			}
@@ -134,8 +134,8 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 // equipmentSlots is how many MaintainEquipment methods the gear and armory
 // planners may start in one step. There is no development slot or pawn limit:
 // each gear plan is already confined to one pawn and one item.
-func equipmentSlots(call context.Context, p *Player, review store.RoutineReview) (int, RoutineBuildingReason, error) {
-	return 16, "", nil
+func equipmentSlots(call context.Context, p *Player, review store.RoutineReview) (int, Verdict, error) {
+	return 16, Verdict{}, nil
 }
 
 // equipmentRanked: the ranking gave MaintainEquipment a slot (or it already
@@ -159,7 +159,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineGearResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineGearResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !state.ObservationKnown || state.Snapshot.Validate() != nil", ErrControl)
@@ -169,7 +169,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		return RoutineGearResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineGearResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineGearResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	call, recorded := recordPlannerStep(call, policy.MaintainEquipment, state.Snapshot, review.Tick)
 	defer recorded()
@@ -178,7 +178,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		return RoutineGearResult{}, err
 	}
 	if !workable {
-		return RoutineGearResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineGearResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	busy := map[domain.PawnID]bool{}
 	claimed := map[string]bool{}
@@ -198,7 +198,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 				} else if _, ok := action.PolicyPrune(); ok {
 					pruning = true
 				} else {
-					return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+					return RoutineGearResult{Verdict: BuildingReasonExistingWork}, nil
 				}
 			}
 		}
@@ -218,7 +218,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	}
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	if gear == nil || observed.ColonistCount == nil || uint32(len(gear.GetPawns())) != observed.GetColonistCount() {
-		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
+		return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
 	}
 	outfits := observation.OutfitIDs(observation.ColonyPolicies(observed.Policies))
 	things, err := frameThings(call, r.native, identity)
@@ -291,7 +291,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		}
 	}
 	if !equipmentRanked(review) {
-		return RoutineGearResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineGearResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -360,7 +360,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 			return RoutineGearResult{}, fmt.Errorf("%w: stepOne: !ok", ErrControl)
 		}
 		if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-			return RoutineGearResult{Reason: BuildingMethodUsed}, nil
+			return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
 		}
 		replace, err := domain.NewGearReplace(domain.PawnID(choice.Pawn), choice.Target, definition)
 		if err != nil {
@@ -388,9 +388,9 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 		}
 	default:
 		if len(busy) > 0 {
-			return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineGearResult{Verdict: BuildingReasonExistingWork}, nil
 		}
-		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
+		return RoutineGearResult{Verdict: BuildingReasonUsed}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
@@ -406,7 +406,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
-	return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // policyMethod is the method id of a policy write or prune: the goal epoch
@@ -453,7 +453,7 @@ func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state
 	if *goal, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
-	return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 }
 
 // frameThingsSource serves the newest frame's things table (#1342).

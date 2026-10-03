@@ -97,9 +97,9 @@ type RoutineDefenseLayoutPlanner struct {
 	native   RoutineDefenseLayoutSource
 }
 type RoutineDefenseLayoutResult struct {
-	Reason RoutineBuildingReason
-	Plan   domain.PlanID
-	Tier   policy.DefenseTierName
+	Verdict
+	Plan domain.PlanID
+	Tier policy.DefenseTierName
 	// NativeWorkTicks asks for a clock window without a plan of its own: a
 	// tier's missing building already has a blueprint or frame on its cell
 	// (a sprung trap's auto-rearm), so native construction restores it.
@@ -163,7 +163,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodDisabled}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineDefenseLayoutResult{}, defenseControlErr(113)
@@ -173,7 +173,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoReview}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	goal, found, err := defenseLayoutGoal(call, p, review, world)
@@ -181,7 +181,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if !found || goal.Goal.Status != domain.GoalActive {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// A fight waiting behind its rooms' doors (#1065) hardens them whether
 	// or not the layout itself is short.
@@ -190,7 +190,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if wait == nil && (goal.Goal.Need != domain.NeedDeficit || review.Veto(goal.Goal) != "") {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -198,7 +198,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if store.PlanOpen(plan) {
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineDefenseLayoutResult{Verdict: BuildingReasonExistingWork}, nil
 		}
 	}
 	if wait != nil {
@@ -214,7 +214,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		selected = selected || row.Goal == policy.EnsureDefensiveLayout && row.Selected
 	}
 	if !selected {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused}, nil
 	}
 	record, stored, err := p.journal.LoadDefenseLayout(call, world)
 	if err != nil {
@@ -252,7 +252,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{}, err
 	}
 	if stored && record.Complete && !defenseReverifyDue(record, review.Tick, combat) {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
@@ -283,10 +283,10 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if !ok {
-			if held != "" {
-				return RoutineDefenseLayoutResult{Reason: held}, nil
+			if !held.IsZero() {
+				return RoutineDefenseLayoutResult{Verdict: held}, nil
 			}
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_layout_proposal")}, nil
 		}
 		record, err = store.NewDefenseLayoutRecord(world, goal.Goal.ID, goal.Goal.Epoch, layout, entrances)
 		if err != nil {
@@ -369,7 +369,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 				return RoutineDefenseLayoutResult{}, err
 			}
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
+			return RoutineDefenseLayoutResult{Verdict: BuildingReasonExhausted, Tier: name}, nil
 		}
 		if tier.Remove {
 			return r.remove(call, epoch, goal, state, read, record, tier, census)
@@ -378,7 +378,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		if len(buildings) == 0 {
 			// The census re-opened the tier on a cell it cannot see
 			// (fogged); nothing can be admitted until it can.
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: name}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_census"), Tier: name}, nil
 		}
 		if policy.IsPerimeterTier(name) && defenseNeedsStone(buildings) {
 			// The wall is stone: the stock's most plentiful block, waited
@@ -388,9 +388,9 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			stuff, ok := defensePerimeterStone(read.Projection, buildings)
 			if !ok {
 				if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, read.Projection.Facts.Research); gate != "" {
-					return RoutineDefenseLayoutResult{Reason: researchWaitReason(gate), Tier: name}, nil
+					return RoutineDefenseLayoutResult{Verdict: researchWait(gate), Tier: name}, nil
 				}
-				return RoutineDefenseLayoutResult{Reason: defensePerimeterNoStone, Tier: name}, nil
+				return RoutineDefenseLayoutResult{Verdict: defensePerimeterNoStone, Tier: name}, nil
 			}
 			for i, b := range buildings {
 				if !defenseStoneBuilding(b) {
@@ -422,14 +422,14 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	}
 	if len(upkeep.Unpowered) > 0 || len(upkeep.Empty) > 0 {
 		clockSchedulerLog("defense-layout: turrets unpowered at %v, unfuelled at %v (fuel shortage %v)", upkeep.Unpowered, upkeep.Empty, upkeep.Shortage)
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: policy.TierTurrets}, nil
+		return RoutineDefenseLayoutResult{Verdict: awaitingPlan("turret_power", ""), Tier: policy.TierTurrets}, nil
 	}
 	// The line stands: raider cover inside its engagement zone is the
 	// remaining deficit (#581).
 	if result, handled, err := r.clearCover(call, epoch, goal, review, state, read, record); handled || err != nil {
 		return result, err
 	}
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+	return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 }
 
 // A rearm method is keyed by turret and the tick it was ordered at: the
@@ -476,10 +476,10 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 	}
 	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
 		clockSchedulerLog("defense-layout: rearm of %s at %v exhausted", order.Turret, order.Cell)
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: policy.TierTurrets}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonExhausted, Tier: policy.TierTurrets}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodUsed, Tier: policy.TierTurrets}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonUsed, Tier: policy.TierTurrets}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
 	id := domain.MintPlanID()
@@ -506,7 +506,7 @@ func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal st
 		return RoutineDefenseLayoutResult{}, err
 	}
 	clockSchedulerLog("defense-layout: rearm %s at %v by %s with %s (%s)", order.Turret, order.Cell, order.Pawn, order.Fuel, method)
-	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: policy.TierTurrets}, nil
+	return RoutineDefenseLayoutResult{Verdict: BuildingReasonAdmitted, Plan: id, Tier: policy.TierTurrets}, nil
 }
 
 // defenseTurretFacts is the record's turret cells with the census's
@@ -1147,20 +1147,20 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 // the firing lines, and returns the policy layout. ok is false when the
 // colony has no verified killbox geometry yet (no ranged defender, no
 // chokepoint, no line of sight), which is a wait rather than an error.
-func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, RoutineBuildingReason, bool, error) {
+func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal store.GoalState, review store.RoutineReview, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, Verdict, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
 	killbox, region, home, ok := defenseKillbox(projection)
 	if !ok {
 		clockSchedulerLog("defense-layout: waiting for the layout plan's killbox")
-		return policy.DefenseLayout{}, nil, "", false, nil
+		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
 	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
-		return policy.DefenseLayout{}, nil, "", false, err
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, "", false, err
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home, request.Killbox = projection.Bounds, home, killbox
@@ -1179,7 +1179,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 		if err == nil {
 			clockSchedulerLog("defense-layout: waiting for a ranged defender (colonists=%d complete=%v)", len(read.Emergency.Colonists), read.Emergency.ColonistsComplete)
 		}
-		return policy.DefenseLayout{}, nil, "", false, err
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	request.Defenders, request.MinRange = defenders, minRange
 	stock, stockKnown := projection.Resources.Value()
@@ -1192,28 +1192,28 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 		result, handled, err := r.digKillbox(call, epoch, goal, review, state, read, request.Home, rock)
 		if err != nil || handled {
 			if err == nil {
-				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (%d rock cells, reason=%s)", len(rock), result.Reason)
+				clockSchedulerLog("defense-layout: the layout waits on its killbox dig (%d rock cells, reason=%s)", len(rock), result.Verdict)
 			}
-			return policy.DefenseLayout{}, nil, result.Reason, false, err
+			return policy.DefenseLayout{}, nil, result.Verdict, false, err
 		}
 		clockSchedulerLog("defense-layout: %d killbox cells in rock are not diggable now; the layout waits (first %v)", len(rock), rock[0])
 	}
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		clockSchedulerLog("defense-layout: no layout for the site: %v (region=%+v home=%v killbox=%+v defenders=%d)", err, request.Region, request.Home, request.Killbox, defenders)
-		return policy.DefenseLayout{}, nil, "", false, nil
+		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
 	}
 	firing, approach := layout.Probe()
 	if len(firing) == 0 {
 		clockSchedulerLog("defense-layout: the layout has no firing cell to probe")
-		return policy.DefenseLayout{}, nil, "", false, nil
+		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
 	}
 	lines, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
 	if err != nil {
-		return policy.DefenseLayout{}, nil, "", false, err
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, "", false, err
+		return policy.DefenseLayout{}, nil, Verdict{}, false, err
 	}
 	for _, line := range lines.Lines {
 		l := policy.DefenseLine{From: line.From, To: line.To}
@@ -1226,9 +1226,9 @@ func (r *RoutineDefenseLayoutPlanner) propose(call, epoch context.Context, goal 
 	layout, err = policy.DefenseLayouts(request)
 	if err != nil || !layout.LinesVerified {
 		clockSchedulerLog("defense-layout: lines of fire not verified (err=%v verified=%v)", err, layout.LinesVerified)
-		return policy.DefenseLayout{}, nil, "", false, nil
+		return policy.DefenseLayout{}, nil, Verdict{}, false, nil
 	}
-	return layout, request.Entrances, "", true, nil
+	return layout, request.Entrances, Verdict{}, true, nil
 }
 
 // digKillbox designates the rock the killbox corridor stands on through the
@@ -1292,7 +1292,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		action := candidates[i]
 		preview, ok := classifyDefensePreview(evaluated[i], building.Cell())
 		if !ok && preview.NativeWorkPending {
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_preview"), Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
 		if !ok && (tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor || policy.IsPerimeterTier(tier.Name) || tier.Name == policy.TierIEDs) {
 			// A perimeter cell the game refuses (natural rock, a building
@@ -1303,7 +1303,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			continue
 		}
 		if !ok {
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
+			return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("defense_preview"), Tier: tier.Name}, nil
 		}
 		actions = append(actions, action)
 		previews = append(previews, preview.Preview)
@@ -1319,7 +1319,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			return RoutineDefenseLayoutResult{}, err
 		}
 		if len(actions) == 0 {
-			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
+			return RoutineDefenseLayoutResult{Verdict: noSpace("defense_tier"), Tier: tier.Name}, nil
 		}
 	}
 	// The audit blocks every placement of the whole layout that colonists
@@ -1343,7 +1343,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	access, _, err := r.native.ReadSpatialAccess(call, boundary.Identity(state.Snapshot), blockedCells, targets, nil)
 	var native *bridge.NativeUnavailable
 	if errors.As(err, &native) {
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
+		return RoutineDefenseLayoutResult{Verdict: fieldUnavailable("spatial_access"), Tier: tier.Name}, nil
 	}
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
@@ -1353,7 +1353,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	}
 	if refusal := access.Refusal(); refusal != "" {
 		clockSchedulerLog("defense-layout.admit: tier=%s access audit refused: %s (blocked %d cells)", tier.Name, refusal, len(blockedCells))
-		return RoutineDefenseLayoutResult{Reason: BuildingMethodRefused, Tier: tier.Name}, nil
+		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Tier: tier.Name}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {
@@ -1377,9 +1377,9 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	reason := BuildingMethodRefused
+	reason := BuildingReasonRefused
 	if decision.Admitted {
-		reason = BuildingMethodAdmitted
+		reason = BuildingReasonAdmitted
 		tier.Attempts++
 		record.SetTier(tier)
 		if err = p.journal.SaveDefenseLayout(call, record); err != nil {
@@ -1388,7 +1388,7 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	} else {
 		clockSchedulerLog("defense-layout.admit: tier=%s refused=%+v", tier.Name, decision.Refused)
 	}
-	return RoutineDefenseLayoutResult{Reason: reason, Plan: id, Tier: tier.Name}, nil
+	return RoutineDefenseLayoutResult{Verdict: reason, Plan: id, Tier: tier.Name}, nil
 }
 
 // defenseWithoutFloors is the tier's buildings less the shooter floors on
@@ -1444,10 +1444,6 @@ func classifyDefensePreview(preview bridge.BuildingPreview, cell domain.Cell) (b
 	}
 	return preview, true
 }
-
-// defensePerimeterNoStone is a perimeter section waiting on stone blocks
-// once Stonecutting is done.
-const defensePerimeterNoStone RoutineBuildingReason = "no_perimeter_stone"
 
 // Native stuff costs of a stone Wall and Door.
 const (

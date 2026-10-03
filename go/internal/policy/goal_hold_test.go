@@ -7,7 +7,7 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 		{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage},
 		{Goal: EnsureResearch, Method: "assess", Blocked: BlockedNoMethod},
 		{Goal: MaintainResource, Method: "mine"},
-		{Goal: EnsureBasicPower, Method: "assess", Planner: "insufficient_verified_space", Blocked: BlockedPlanner("insufficient_verified_space")},
+		{Goal: EnsureBasicPower, Method: "assess", Planner: "no_space:verified_space", Blocked: BlockedPlanner("no_space:verified_space")},
 		{Goal: EnsureFoodSupply, Method: "cook", Blocked: BlockedPrerequisite(EnsureCooking)},
 		{Goal: MaintainLighting, Method: "assess", Blocked: HeldLabor(WorkConstruction)},
 	}})
@@ -27,7 +27,7 @@ func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
 		"held EnsureComfort, MaintainLighting",
 		"Industry",
 		"Project EnsureResearch - nothing to do right now",
-		"Project EnsureBasicPower - can't plan yet: insufficient verified space",
+		"Project EnsureBasicPower - can't plan yet: no space: verified space",
 		"Standard MaintainResource: mine",
 	}
 	if len(got) != len(want) {
