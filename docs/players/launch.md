@@ -7,7 +7,9 @@ status row is OK, press **Play**: the launcher starts the Go controller, which
 starts RimWorld, and shows **Running** once the controller answers.
 **Open dashboard** opens the dashboard in your browser. Enable Run in background in RimWorld.
 
-The game boots to its main menu; load a save there or from the dashboard.
+Pick a **Saved game** above Play to load it automatically once the controller is
+up (newest first; "Main menu" loads nothing). With none selected the game boots
+to its main menu; load a save there or from the dashboard.
 
 - **Stop** stops the controller only; the game keeps running.
 - **Restart** stops and starts the controller with the current settings.

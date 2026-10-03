@@ -43,6 +43,7 @@ type View struct {
 	GameUp     bool       `json:"gameUp"`
 	Log        []string   `json:"log"`
 	Settings   Settings   `json:"settings"`
+	Saves      []string   `json:"saves"`
 }
 
 const (
@@ -149,8 +150,11 @@ func (a *app) view() View {
 		GameUp:     a.gameUp,
 		Log:        append([]string(nil), a.log...),
 		Settings:   a.settings,
+		Saves:      ListSaves(a.savesDir()),
 	}
 }
+
+func (a *app) savesDir() string { return filepath.Join(a.layout.Root, "profile", "Saves") }
 
 func (a *app) saveSettings(s Settings) error {
 	if err := s.Validate(); err != nil {

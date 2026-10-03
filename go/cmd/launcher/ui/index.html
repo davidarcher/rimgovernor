@@ -97,6 +97,8 @@
   <div class="hero">
     <p class="headline" id="headline" aria-live="polite">Getting ready</p>
     <p class="sub" id="sub"></p>
+    <div class="field"><label for="loadSave">Saved game</label>
+      <select id="loadSave"><option value="">Main menu (none)</option></select></div>
     <button class="primary" id="primary" disabled>Play</button>
     <div class="secondary" id="secondary" hidden>
       <button id="restart">Restart</button>
@@ -168,7 +170,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const bools = ['autoStart', 'layoutOverlay', 'debug'];
-const texts = ['chatModel', 'chatBaseURL', 'extraArgs'];
+const texts = ['chatModel', 'chatBaseURL', 'extraArgs', 'loadSave'];
 let view = null, loaded = false, busyAction = false;
 
 function fill(s) {
@@ -199,6 +201,20 @@ async function save() {
   catch (e) { $('settingsErr').textContent = String(e.message || e); }
 }
 $('settings').addEventListener('change', save);
+$('loadSave').addEventListener('change', save);
+
+// The dropdown lists the saves on disk; a selected save that has gone stays
+// listed so the setting is not silently dropped.
+function fillSaves(saves, selected) {
+  const sel = $('loadSave');
+  if (document.activeElement === sel) return;
+  const names = selected && !saves.includes(selected) ? [selected, ...saves] : saves;
+  const key = names.join('\n') + '\n' + selected;
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  sel.innerHTML = '<option value="">Main menu (none)</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = selected || '';
+}
 
 $('gear').onclick = () => {
   const open = $('settings').hidden;
@@ -238,6 +254,7 @@ async function refresh() {
   const log = $('log'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
   const text = v.log.join('\n');
   if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
+  fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
   if (!loaded) { fill(v.settings); loaded = true; }
 }
 

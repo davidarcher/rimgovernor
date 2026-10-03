@@ -325,3 +325,24 @@ func TestLoadSettingsIgnoresRemovedShrineSwitches(t *testing.T) {
 		t.Fatal(s, err)
 	}
 }
+
+func TestListSaves(t *testing.T) {
+	dir := t.TempDir()
+	for name, age := range map[string]time.Duration{"old": 2 * time.Hour, "new": 0, "mid": time.Hour} {
+		p := filepath.Join(dir, name+".rws")
+		if err := os.WriteFile(p, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		at := time.Now().Add(-age)
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(dir, "notes.txt"), nil, 0o644)
+	if got := strings.Join(ListSaves(dir), ","); got != "new,mid,old" {
+		t.Fatalf("got %q", got)
+	}
+	if got := ListSaves(filepath.Join(dir, "missing")); len(got) != 0 {
+		t.Fatalf("missing dir listed %v", got)
+	}
+}

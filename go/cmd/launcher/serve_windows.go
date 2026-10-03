@@ -180,8 +180,11 @@ func (a *app) start(s Settings) error {
 		}
 		if healthy(url) {
 			a.setController(ctrlRunning, "")
-			if strings.HasPrefix(why, "continuing") {
-				go a.reload(url, state, filepath.Join(paths.Profile, "Saves"))
+			saves := filepath.Join(paths.Profile, "Saves")
+			if s.LoadSave != "" {
+				go a.load(url, s.LoadSave)
+			} else if strings.HasPrefix(why, "continuing") {
+				go a.reload(url, state, saves)
 			}
 			return nil
 		}
@@ -202,6 +205,11 @@ func (a *app) reload(url, state, saves string) {
 		a.logf("reload: no save of colony %q in %s (%v)", colony, saves, err)
 		return
 	}
+	a.load(url, save)
+}
+
+// load asks the controller to load the named save and logs the outcome.
+func (a *app) load(url, save string) {
 	a.logf("reload: loading %s", save)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -285,4 +293,3 @@ func (a *app) activePort() int {
 // firstPort is where Play starts looking; a port held by another
 // checkout's controller moves it up. Players never pick a port.
 const firstPort = 8787
-

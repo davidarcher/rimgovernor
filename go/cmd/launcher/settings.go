@@ -30,6 +30,10 @@ type Settings struct {
 	ChatModel     string `json:"chatModel"`
 	ChatBaseURL   string `json:"chatBaseURL"`
 
+	// LoadSave is a save name (no .rws) to load once the controller is up;
+	// "" leaves the game at its main menu (or the continued colony's save).
+	LoadSave string `json:"loadSave"`
+
 	LayoutOverlay bool `json:"layoutOverlay"`
 
 	Debug     bool   `json:"debug"`
@@ -213,6 +217,27 @@ func currentControl(path string) (store.ControlRecord, error) {
 		err = nil
 	}
 	return r, err
+}
+
+// ListSaves is the names (no .rws) of the saves in savesDir, newest first.
+func ListSaves(savesDir string) []string {
+	matches, _ := filepath.Glob(filepath.Join(savesDir, "*.rws"))
+	type save struct {
+		name string
+		at   time.Time
+	}
+	var saves []save
+	for _, path := range matches {
+		if info, err := os.Stat(path); err == nil {
+			saves = append(saves, save{strings.TrimSuffix(filepath.Base(path), ".rws"), info.ModTime()})
+		}
+	}
+	sort.Slice(saves, func(i, j int) bool { return saves[i].at.After(saves[j].at) })
+	names := make([]string, len(saves))
+	for i, s := range saves {
+		names[i] = s.name
+	}
+	return names
 }
 
 // LatestColonySave is the name (no .rws) of the newest save in savesDir
