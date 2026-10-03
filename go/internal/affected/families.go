@@ -47,6 +47,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_defense_postfight.go":    {"defense"},
 	"routine_combat.go":               {"defense"},
 	"routine_combat_loadout.go":       {"defense"},
+	"routine_combat_permit.go":        {"defense"},
 	"routine_defense_snapshot.go":     {"defense", "defensive-layout"},
 	"routine_break.go":                {"defense"},
 	"routine_incident.go":             {"defense", "defensive-layout", "rescue", "tend"},
@@ -86,6 +87,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_bill_surgery.go":         {"medical", "trade"},
 	"routine_medical_retry.go":        {"medical"},
 	"routine_mood_relief.go":          {"mood"},
+	"routine_mood_cast.go":            {"mood"},
 	"routine_naming.go":               {"naming"},
 	"routine_population_custody.go":   {"population-custody"},
 	"routine_population_lance.go":     {"population-custody"},
@@ -143,7 +145,8 @@ var routineFamilyFiles = map[string][]string{
 
 // routineDispatchFiles compose or dispatch to the family planners without
 // sharing their behaviour: the scheduler constructs and steps every
-// planner, the catalog logs each step, and the shared building planner in
+// planner, the catalog logs each step, routine.go holds each family's review
+// memory and feeds its owed facts, and the shared building planner in
 // routine_sleeping.go selects a family's method behind the family's own
 // gate. A reference from one of these to a family file does not widen the
 // file's scope; a change to one of them is all-areas like any other shared
@@ -152,6 +155,7 @@ var routineDispatchFiles = map[string]bool{
 	"clock_scheduler.go":       true,
 	"clock_planner_catalog.go": true,
 	"routine_sleeping.go":      true,
+	"routine.go":               true,
 }
 
 // routineFamilyNames is every family the table names, sorted.
