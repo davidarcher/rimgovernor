@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
                         .OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay()));
                     var record=pawn.health.immunity.GetImmunityRecord(h.def);
                     if(record!=null && !pawn.Dead)
-                        item.ImmunityPerDay=Number(record.ImmunityChangePerTick(pawn,true,h)*60000f);
+                        item.ImmunityPerDay=Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h)));
                 }
                 var tend=h.TryGetComp<HediffComp_TendDuration>();
                 if(tend!=null) {
@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
             else row.Issues.Add(Issue("bed_id",Common.UnavailableReason.NotApplicable,"Pawn is not in a bed."));
             if(row.Bleeding && !pawn.Dead) {
                 var ticks=HealthUtility.TicksUntilDeathDueToBloodLoss(pawn);
-                if(ticks>0 && ticks<int.MaxValue) row.HoursUntilDeathFromBloodLoss=ticks/2500.0;
+                if(ticks>0 && ticks<int.MaxValue) row.HoursUntilDeathFromBloodLoss=GameTime.Hours((double)ticks);
                 else row.Issues.Add(Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No finite native bleed-out estimate."));
             } else row.Issues.Add(Issue("hours_until_death_from_blood_loss",Common.UnavailableReason.NotApplicable,"No living bleeding pawn."));
             if(pawn.Dead) row.Issues.Add(Issue("capacities",Common.UnavailableReason.NotApplicable,"Capacities are not evaluated for dead pawns."));

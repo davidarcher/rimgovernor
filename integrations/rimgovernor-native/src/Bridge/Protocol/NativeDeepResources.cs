@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
                         if (Progress?.GetValue(scanner) is float progress && Speed?.GetValue(scanner) is float speed
                             && progress >= 0 && !float.IsInfinity(progress) && speed > 0 && !float.IsInfinity(speed)
                             && scanner.Props.scanFindGuaranteedDays > 0) {
-                            var ticks = Math.Ceiling(Math.Max(0, (scanner.Props.scanFindGuaranteedDays - (double)progress) * 60000 / speed));
+                            var ticks = Math.Ceiling(Math.Max(0, GameTime.Ticks(scanner.Props.scanFindGuaranteedDays - (double)progress) / speed));
                             if (!double.IsNaN(ticks) && !double.IsInfinity(ticks) && ticks < long.MaxValue) row.TicksToNextFind = (long)ticks;
                         }
                         if (scanner is CompLongRangeMineralScanner) {

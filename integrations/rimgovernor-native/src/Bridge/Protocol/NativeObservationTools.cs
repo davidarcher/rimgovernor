@@ -384,7 +384,7 @@ namespace HomeBridge.BridgeTools
                 var room = thing.Position.GetRoom(thing.Map);
                 if (room != null) row.Room = NativeRef.Room(room);
             }
-            row.RawClass = (Obs.FoodIngredientClass)(NativeMealRecipeFacts.InCategory(thing.def, "MeatRaw") ? 1 : NativeMealRecipeFacts.InCategory(thing.def, "PlantFoodRaw") ? 2 : NativeMealRecipeFacts.InCategory(thing.def, "AnimalProductRaw") ? 3 : 0);
+            row.RawClass = NativeMealRecipeFacts.RawClass(thing.def);
             row.IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing);
             row.RawMeat = thing.def.IsMeat;
             row.Vegetable = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.VegetableOrFruit) != 0;

@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
                 bleedRatePerDay = ReadNumber(() => p.health.hediffSet.BleedRateTotal),
                 hoursUntilDeathFromBloodLoss = ReadNumber(() => {
                     var ticks = HealthUtility.TicksUntilDeathDueToBloodLoss(p);
-                    return ticks == int.MaxValue ? (float?)null : ticks / 2500f;
+                    return ticks == int.MaxValue ? (float?)null : GameTime.Hours((float)ticks);
                 }),
                 mood = ReadNumber(() => p.needs.mood?.CurLevelPercentage),
                 moodTarget = ReadNumber(() => p.needs.mood?.CurInstantLevel),

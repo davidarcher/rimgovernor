@@ -32,10 +32,7 @@ namespace HomeBridge.BridgeTools {
                     // Milk has the Fluid food-type flag, but belongs to the
                     // AnimalProductRaw filter category. Recipe categories,
                     // including parent categories for eggs, own this contract.
-                    var kind = InCategory(def, "MeatRaw") ? Obs.FoodIngredientClass.Meat
-                        : InCategory(def, "PlantFoodRaw") ? Obs.FoodIngredientClass.Vegetable
-                        : InCategory(def, "AnimalProductRaw") ? Obs.FoodIngredientClass.AnimalProduct
-                        : Obs.FoodIngredientClass.Unspecified;
+                    var kind = RawClass(def);
                     // An unclassified mod ingredient must not broaden a slot to "any".
                     if (kind == Obs.FoodIngredientClass.Unspecified) return;
                     if (!slot.Alternatives.Contains(kind)) slot.Alternatives.Add(kind);
@@ -56,7 +53,14 @@ namespace HomeBridge.BridgeTools {
         }
         private static bool Finite(double n) => !double.IsNaN(n) && !double.IsInfinity(n);
         private static bool Positive(double n) => Finite(n) && n > 0;
-        internal static bool InCategory(ThingDef def, string name) {
+        // The raw-ingredient filter category of def (Unspecified when none), the one
+        // classification the trade, recipe and stock reads share.
+        internal static Obs.FoodIngredientClass RawClass(ThingDef def)
+            => InCategory(def, "MeatRaw") ? Obs.FoodIngredientClass.Meat
+            : InCategory(def, "PlantFoodRaw") ? Obs.FoodIngredientClass.Vegetable
+            : InCategory(def, "AnimalProductRaw") ? Obs.FoodIngredientClass.AnimalProduct
+            : Obs.FoodIngredientClass.Unspecified;
+        private static bool InCategory(ThingDef def, string name) {
             var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(name);
             return category != null && def.IsWithinCategory(category);
         }

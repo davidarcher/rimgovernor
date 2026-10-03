@@ -13,6 +13,8 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeFoodChannels
     {
+        // The planning assumption for one colonist-day of work: eight work hours.
+        private const double WorkTicksPerDay = 8 * GenDate.TicksPerHour;
         private static readonly FieldInfo? EggProgress = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
         private static readonly PropertyInfo? Resource = typeof(CompHasGatherableBodyResource).GetProperty("ResourceDef", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? GatherActive = typeof(CompHasGatherableBodyResource).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -139,7 +141,7 @@ namespace HomeBridge.BridgeTools
                             var speed = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research))
                                 .Select(p => p.GetStatValue(StatDefOf.ResearchSpeed)).DefaultIfEmpty(0).Max();
                             if (speed > 0) water.ResearchLeadDays = Finite(Math.Max(0, research.baseCost - Find.ResearchManager.GetProgress(research))
-                                * research.CostFactor(Faction.OfPlayer.def.techLevel) / (speed * 0.00825 * 20000 * Find.Storyteller.difficulty.researchSpeedFactor));
+                                * research.CostFactor(Faction.OfPlayer.def.techLevel) / (speed * ResearchManager.ResearchPointsPerWorkTick * WorkTicksPerDay * Find.Storyteller.difficulty.researchSpeedFactor));
                         }
                     }
                     var fishers = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Fishing) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
@@ -161,11 +163,11 @@ namespace HomeBridge.BridgeTools
                         {
                             row.FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield))));
                             var speed = fishers.Min(p => p.GetStatValue(StatDefOf.FishingSpeed));
-                            if (speed > 0) row.WorkTicksPerBatch = Finite(7500 / speed);
+                            if (speed > 0) row.WorkTicksPerBatch = Finite(FishingUtility.BaseFishingDurationTicks / speed);
                         }
                         if (row.HasNutritionPerFish)
-                            row.PawnFishWorkCapacity = Finite(fishers.Sum(p => 20000.0 * Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)
-                                * p.GetStatValue(StatDefOf.FishingYield))) * row.NutritionPerFish * p.GetStatValue(StatDefOf.FishingSpeed) / 7500));
+                            row.PawnFishWorkCapacity = Finite(fishers.Sum(p => WorkTicksPerDay * Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)
+                                * p.GetStatValue(StatDefOf.FishingYield))) * row.NutritionPerFish * p.GetStatValue(StatDefOf.FishingSpeed) / FishingUtility.BaseFishingDurationTicks));
                         // A connected spot per available fisher is access capacity,
                         // never a population or sustainable-yield multiplier.
                         var free = cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)

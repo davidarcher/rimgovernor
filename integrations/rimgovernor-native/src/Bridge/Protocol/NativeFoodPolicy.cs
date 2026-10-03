@@ -62,8 +62,7 @@ namespace HomeBridge.BridgeTools
             p.filter.AllowedThingDefs.Where(IsFood).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal);
 
         // Native diet eligibility, never WillEat (which includes the policy).
-        private static bool Eligible(Pawn pawn, ThingDef def) => def.IsNutritionGivingIngestible
-            && !def.IsDrug && !def.IsCorpse && def.ingestible != null
+        private static bool Eligible(Pawn pawn, ThingDef def) => IsFood(def)
             && (def.ingestible.foodType & FoodTypeFlags.Kibble) == 0
             && pawn.FoodIsSuitable(def) && !FoodUtility.IsVeneratedAnimalMeatOrCorpse(def, pawn)
             && !FoodUtility.InappropriateForTitle(def, pawn, allowIfStarving: true)

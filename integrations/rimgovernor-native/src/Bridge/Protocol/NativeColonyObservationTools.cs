@@ -97,8 +97,7 @@ namespace HomeBridge.BridgeTools
             Func<ThingDef, bool> humanFood = d => {
                 if (d == null) return false;
                 if (edible.TryGetValue(d, out var known)) return known;
-                return edible[d] = d.IsNutritionGivingIngestible && !d.IsDrug
-                    && d.ingestible != null && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
+                return edible[d] = NativeFoodPolicy.IsFood(d) && (d.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
                     && people.All(p => p.WillEat(d));
             };
             var items = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
@@ -115,7 +114,7 @@ namespace HomeBridge.BridgeTools
                 .Sum(t => (double)t.stackCount * people.Min(p => FoodUtility.NutritionForEater(p, t)));
             // Raw native demand/runway remains distinct from the controller's
             // diet, held-food, rot and competing-animal forecast.
-            var demand = people.Sum(p => p.needs?.food == null ? 0.0 : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000.0);
+            var demand = people.Sum(p => p.needs?.food == null ? 0.0 : GameTime.PerDay((double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             Span("cf.nutrition");
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
                 WorkerCount = (uint)workers.Count, Center = Cell(center), MapSize = Size(map), Biome = map.Biome.defName,
@@ -394,12 +393,12 @@ namespace HomeBridge.BridgeTools
         {
             var result = new List<Obs.EdibleCrop>();
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
-            var demand = people.Sum(p => p.needs?.food == null ? 0f : p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);
+            var demand = people.Sum(p => p.needs?.food == null ? 0f : GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Cataloged(d) && d.plant != null).OrderBy(d => d.defName, StringComparer.Ordinal)) {
                 var product = def.plant.harvestedThingDef;
-                if (product == null || !Edible(product)) continue;
+                if (product == null || !NativeFoodPolicy.IsFood(product)) continue;
                 var row = new Obs.EdibleCrop { DefName = def.defName };
                 row.DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
                     p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
@@ -408,12 +407,11 @@ namespace HomeBridge.BridgeTools
                             && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
                 row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
                     && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
-                    .Sum(p => p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f));
+                    .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))));
                 result.Add(row);
             }
             return result;
         }
-        private static bool Edible(ThingDef product) => product.IsNutritionGivingIngestible && !product.IsDrug;
 
         // One definition's static planning row: what holds for the whole
         // load, whatever the map or the research state.
@@ -468,7 +466,7 @@ namespace HomeBridge.BridgeTools
                 var product = def.plant.harvestedThingDef;
                 if (product != null) {
                     row.RawPreferred = product.ingestible != null && product.ingestible.preferability >= FoodPreferability.RawTasty;
-                    row.Edible = Edible(product);
+                    row.Edible = NativeFoodPolicy.IsFood(product);
                     row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
                 }
             }

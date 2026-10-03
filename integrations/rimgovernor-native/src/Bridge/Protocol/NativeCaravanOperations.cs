@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
         private static float ShelfDays(TransferableOneWay group) => group.things
             .Select(t => t.TryGetComp<CompRottable>())
             .Where(r => r != null && r.Active)
-            .Select(r => Math.Max(0f, r!.PropsRot.TicksToRotStart - r.RotProgress) / 60000f)
+            .Select(r => GameTime.Days(Math.Max(0f, r!.PropsRot.TicksToRotStart - r.RotProgress)))
             .DefaultIfEmpty(float.MaxValue).Min();
 
         // Builds the dialog the game would show, selects the crew and fills

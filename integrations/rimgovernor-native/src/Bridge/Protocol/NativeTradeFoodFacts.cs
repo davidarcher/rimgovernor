@@ -8,16 +8,13 @@ namespace HomeBridge.BridgeTools {
     internal static class NativeTradeFoodFacts {
         internal static Obs.TradeFoodFacts? Read(ThingDef? def) {
             if (def == null || def.category != ThingCategory.Item || def.ingestible == null
-                || !def.ingestible.HumanEdible || !def.IsNutritionGivingIngestible || def.IsDrug
+                || !def.ingestible.HumanEdible || !NativeFoodPolicy.IsFood(def)
                 || def.IsMedicine || def.IsWeapon || def.IsApparel
                 || (def.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) != 0) return null;
             var nutrition = def.GetStatValueAbstract(StatDefOf.Nutrition);
             if (float.IsNaN(nutrition) || float.IsInfinity(nutrition) || nutrition <= 0) return null;
-            var kind = InCategory(def, "MeatRaw") ? Obs.FoodIngredientClass.Meat
-                : InCategory(def, "PlantFoodRaw") ? Obs.FoodIngredientClass.Vegetable
-                : InCategory(def, "AnimalProductRaw") ? Obs.FoodIngredientClass.AnimalProduct
-                : (def.ingestible.foodType & FoodTypeFlags.Meal) != 0 ? Obs.FoodIngredientClass.Any
-                : Obs.FoodIngredientClass.Unspecified;
+            var kind = NativeMealRecipeFacts.RawClass(def);
+            if (kind == Obs.FoodIngredientClass.Unspecified && (def.ingestible.foodType & FoodTypeFlags.Meal) != 0) kind = Obs.FoodIngredientClass.Any;
             if (kind == Obs.FoodIngredientClass.Unspecified) return null;
             // Human meat is not a routine ingredient purchase.
             if (kind == Obs.FoodIngredientClass.Meat && def.ingestible.sourceDef?.race?.Humanlike == true) return null;
@@ -36,10 +33,5 @@ namespace HomeBridge.BridgeTools {
         }
 
         internal static bool Crop(ThingDef? def) => Read(def)?.Crop == true;
-
-        private static bool InCategory(ThingDef def, string name) {
-            var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(name);
-            return category != null && def.IsWithinCategory(category);
-        }
     }
 }

@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<int>();
             var consumers = people.Where(p => p.needs?.food != null).Select(p => new ConsumerFacts {
                 id = p.GetUniqueLoadID(), humanMeatAcceptable = HumanFoodFacts.AcceptsMeat(p),
-                nutritionPerDay = p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f
+                nutritionPerDay = GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))
             }).ToList();
             foreach (var thing in shared)
             {

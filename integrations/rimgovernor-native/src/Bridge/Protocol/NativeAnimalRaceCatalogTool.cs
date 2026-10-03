@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         {
             var spawner = def.GetCompProperties<CompProperties_Spawner>();
             if (spawner?.thingToSpawn != null && ProtoBoundary.IsIdentifier(spawner.thingToSpawn.defName))
-                row.Products.Add(Product("spawner", spawner.thingToSpawn.defName, spawner.spawnCount, spawner.spawnIntervalRange.Average / 60000.0));
+                row.Products.Add(Product("spawner", spawner.thingToSpawn.defName, spawner.spawnCount, GameTime.Days((double)spawner.spawnIntervalRange.Average)));
         }
 
         private static Obs.AnimalProduct Product(string kind, string defName, double amount, double intervalDays)

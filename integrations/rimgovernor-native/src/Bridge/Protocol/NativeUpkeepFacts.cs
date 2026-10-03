@@ -424,7 +424,7 @@ namespace HomeBridge.BridgeTools
                     .OrderBy(b => b.thingIDNumber).ToList();
                 var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
                 var feedDefs = DefDatabase<ThingDef>.AllDefsListForReading
-                    .Where(d => d.category == ThingCategory.Item && d.IsNutritionGivingIngestible && !d.IsDrug && !d.IsCorpse)
+                    .Where(d => d.category == ThingCategory.Item && NativeFoodPolicy.IsFood(d))
                     .OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
                 var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
