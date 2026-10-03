@@ -43,6 +43,7 @@ namespace HomeBridge.BridgeTools
             frame.Research = Section(frame, "research", frame.Research, keyframe, tick);
             frame.Traders = Section(frame, "traders", frame.Traders, keyframe, tick);
             frame.WorldProgression = Section(frame, "world_progression", frame.WorldProgression, keyframe, tick);
+            frame.Ideology = Section(frame, "ideology", frame.Ideology, keyframe, tick);
             frame.Pawns = Keyed(frame, "pawns", frame.Pawns, t => t.Pawns, r => r.Pawn?.Id, t => t.Removed, keyframe, tick);
             frame.Buildings = Keyed(frame, "buildings", frame.Buildings, t => t.Buildings, r => r.Building?.Id, t => t.Removed, keyframe, tick);
             frame.Things = Keyed(frame, "things", frame.Things, t => t.Things, r => r.Thing_?.Id, t => t.Removed, keyframe, tick);

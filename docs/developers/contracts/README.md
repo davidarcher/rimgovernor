@@ -12,6 +12,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Animal husbandry contracts](husbandry-contracts.md): race catalog, herd plan, vet room, acceptance
+- [Ideology contracts](ideology-contracts.md): ideoligion defs, pawn certainty, colony section
 - [Dashboard contracts](interface-contracts.md)
 - [Go player API](go-player-api.md)
 - [Go clock recovery evidence](go-clock-recovery.md)

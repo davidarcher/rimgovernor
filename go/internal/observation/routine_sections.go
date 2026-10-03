@@ -23,6 +23,7 @@ type RoutineSections struct {
 	Emergency     facts.Held[policy.EmergencyFacts]
 	Rooms         facts.Held[policy.RoomObservation]
 	Zones         facts.Held[bridge.ZonesRead]
+	Ideology      facts.Held[policy.Ideoligion]
 }
 
 // PlanningCells is the colony facts' planning window: the observed region
@@ -55,6 +56,7 @@ func (r RoutineSections) File(store *facts.Store, scope facts.Scope) {
 	file(store, scope, facts.Emergency, r.Emergency)
 	file(store, scope, facts.Rooms, r.Rooms)
 	file(store, scope, facts.Zones, r.Zones)
+	file(store, scope, facts.Ideology, r.Ideology)
 }
 
 func file[T any](store *facts.Store, scope facts.Scope, section facts.Section, held facts.Held[T]) {
@@ -89,6 +91,9 @@ func routineSections(frame bridge.RoutineFrame, projection ColonyProjection, roo
 	}
 	if research, known := projection.Facts.Research.Value(); known {
 		out.Research = facts.Held[policy.ResearchFacts]{Value: research, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_research"}
+	}
+	if ideology, known := projection.Facts.Ideology.Value(); known {
+		out.Ideology = facts.Held[policy.Ideoligion]{Value: ideology, AsOf: tick, Complete: true, Source: "rimgovernor/snapshot_frame_ideology"}
 	}
 	if census, known := projection.Rooms.Value(); known && rooms != nil {
 		out.Rooms = facts.Held[policy.RoomObservation]{Value: census, AsOf: rooms.GetContext().GetTick(), Complete: true, Source: "rimgovernor/observations_list_rooms"}

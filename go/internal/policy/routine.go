@@ -353,6 +353,10 @@ type RoutineFacts struct {
 	// RoutineSource offering RoutineRoyaltySource; unknown when the source
 	// has none, the read failed or Royalty is not applicable.
 	Royalty domain.Fact[RoyaltyFacts]
+	// Ideology is the primary ideoligion (#1654) from the frame's ideology
+	// section with the catalog's defs; unknown when the frame carries no
+	// section (no Ideology, or no primary ideoligion).
+	Ideology domain.Fact[Ideoligion]
 	// TitleClaimQuests are the bestowing-ceremony quests the title claim
 	// gate allows to accept now (ClaimQuests, #1605); the review fills it
 	// once the plan, rooms and royalty read are known.

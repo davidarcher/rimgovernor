@@ -30,17 +30,18 @@ const (
 	Zones         Section = "zones"
 	Buildings     Section = "buildings"
 	Bills         Section = "bills"
+	Ideology      Section = "ideology"
 )
 
 // Sections lists every section in report order.
 func Sections() []Section {
-	return []Section{Colony, PlanningCells, Population, Research, Pawns, Emergency, Rooms, Zones, Buildings, Bills}
+	return []Section{Colony, PlanningCells, Population, Research, Pawns, Emergency, Rooms, Zones, Buildings, Bills, Ideology}
 }
 
 // Family is the bridge fact family whose invalidation the section follows.
 func (s Section) Family() bridge.FactFamily {
 	switch s {
-	case Colony, PlanningCells, Zones, Buildings, Bills:
+	case Colony, PlanningCells, Zones, Buildings, Bills, Ideology:
 		return bridge.FactColony
 	case Population, Pawns:
 		return bridge.FactPawns

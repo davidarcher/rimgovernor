@@ -35,6 +35,8 @@ func sectionFrame(base *o.BundleSnapshot, tick int64, seqs map[string]uint64, ca
 				v.Traders = nil
 			case "world_progression":
 				v.WorldProgression = nil
+			case "ideology":
+				v.Ideology = nil
 			}
 		}
 	}

@@ -29,6 +29,8 @@ type DefinitionCatalog struct {
 	Research map[string]policy.ResearchProjectFacts
 	// Biotech is the Biotech defs (#1678); nil without Biotech.
 	Biotech *BiotechCatalog
+	// Ideology is the Ideology defs (#1654); nil without Ideology.
+	Ideology *policy.IdeologyDefs
 }
 
 // Definition is name's catalog row, nil when the catalog has none.
@@ -128,6 +130,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		// the wire, which is known-empty, not unread.
 		out.Research[name] = policy.ResearchProjectFacts{Name: policy.ResearchProjectID(name), Hidden: domain.Known(false), KnowledgeCategory: row.GetCategory(),
 			Prerequisites: domain.Known(toProjectIDs(row.GetPrerequisites())), HiddenPrerequisites: domain.Known(toProjectIDs(row.GetHiddenPrerequisites())), RequiredBuilding: row.GetRequiredBuilding()}
+	}
+	if out.Ideology, err = DecodeIdeologyCatalog(v.Ideology); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

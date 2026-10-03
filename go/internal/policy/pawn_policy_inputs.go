@@ -17,9 +17,12 @@ type PawnPolicyInputs struct {
 	TitleApparel        []ApparelRequirement
 	// Ideo is the ideoligion load id; Precepts every precept defName of it;
 	// IdeoRole the pawn's role precept defName.
-	Ideo           string
-	Precepts       []string
-	IdeoRole       string
+	Ideo     string
+	Precepts []string
+	IdeoRole string
+	// IdeoCertainty is the pawn's certainty (0..1) in Ideo; unknown without
+	// an ideoligion (#1654).
+	IdeoCertainty  domain.Fact[float64]
 	RoleApparel    []ApparelRequirement
 	PreceptApparel []string
 	// GuestStatus is Guest, Prisoner or Slave; empty for a free pawn.

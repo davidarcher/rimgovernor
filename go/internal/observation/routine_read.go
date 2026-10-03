@@ -141,6 +141,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	p.BuildTier = policy.SelectBuildTier(FinishedResearch(p.Facts.Research), p.PlayerTechLevel)
 	p.Facts.Traders = frameTraders(frame.Traders)
 	p.Facts.QuestOffers = frameQuests(frame.Quests, expected.Map)
+	p.Facts.Ideology = frameIdeology(frame.Ideology)
 	// A failed or inapplicable royalty read leaves the fact unknown; it must
 	// not fail the routine reading the whole review stands on.
 	p.Facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()
@@ -282,6 +283,15 @@ func frameResearch(read *bridge.ResearchRead) domain.Fact[policy.ResearchFacts] 
 		facts.Finished = append(facts.Finished, policy.ResearchProjectID(name))
 	}
 	return domain.Known(facts)
+}
+
+// frameIdeology is the primary ideoligion; unknown when the frame carries no
+// ideology section.
+func frameIdeology(read *policy.Ideoligion) domain.Fact[policy.Ideoligion] {
+	if read == nil {
+		return domain.Unknown[policy.Ideoligion]()
+	}
+	return domain.Known(*read)
 }
 
 // frameTraders is the trader census; unknown when the frame carries none.

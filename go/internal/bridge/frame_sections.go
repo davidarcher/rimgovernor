@@ -58,6 +58,13 @@ var elidedSections = map[string]elidedSection{
 			v.Traders.Context = ctx
 		},
 	},
+	"ideology": {
+		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.Ideology) },
+		set: func(v *o.BundleSnapshot, m proto.Message, ctx *c.ObservationContext) {
+			v.Ideology = m.(*o.IdeologySnapshot)
+			v.Ideology.Context = ctx
+		},
+	},
 	"world_progression": {
 		get: func(v *o.BundleSnapshot) proto.Message { return nilMessage(v.WorldProgression) },
 		set: func(v *o.BundleSnapshot, m proto.Message, ctx *c.ObservationContext) {

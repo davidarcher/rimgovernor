@@ -214,6 +214,11 @@ namespace HomeBridge.BridgeTools
                 ObservationWork.Captured("worldProgression", Now() - began);
             }
             {
+                var began = Now();
+                try { observed.Ideology = NativeIdeologyObservation.Build(context); } catch (System.Exception ex) { Log.Error(ObservationWork.Failed("ideology", ex)); }
+                ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
+            }
+            {
                 var rooms = new Obs.ListRoomsRequest { Scope = Scope(), IncludeOutdoors = false, IncludeBoundary = false };
                 var began = Now();
                 var census = NativeRoomObservationTools.Read(map, rooms, context).Observed;

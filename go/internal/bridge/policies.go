@@ -113,6 +113,9 @@ func validatePolicyInputs(p *o.PawnPolicyInputs) error {
 	if !combatNumber(p.MedicalTendQuality, true) {
 		return contract("invalid medical tend quality")
 	}
+	if c := p.IdeoCertainty; c != nil && (p.IdeoId == nil || !combatNumber(c, true) || *c > 1) {
+		return contract("invalid ideoligion certainty")
+	}
 	groups := map[string]bool{}
 	for _, s := range p.InventoryStock {
 		if s == nil || validID(s.GetGroup()) != nil || groups[s.GetGroup()] || validID(s.GetThingDef()) != nil || s.Count == nil || s.GetCount() < 0 {

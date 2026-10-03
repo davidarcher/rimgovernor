@@ -123,6 +123,7 @@ namespace HomeBridge.BridgeTools
             }
             if (ModsConfig.IdeologyActive && pawn.Ideo is Ideo ideo) {
                 row.IdeoId = Id(ideo.GetUniqueLoadID());
+                if (pawn.ideo != null) row.IdeoCertainty = Number(pawn.ideo.Certainty);
                 row.Precepts.Add(ideo.PreceptsListForReading.Select(p => Id(p.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));
                 row.PreceptApparel.Add(ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(p => p.apparelDef != null)
                     .Select(p => Id(p.apparelDef.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal));

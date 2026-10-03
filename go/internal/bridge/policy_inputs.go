@@ -30,7 +30,7 @@ func PawnPolicyInputs(p *o.PawnPolicyInputs) domain.Fact[policy.PawnPolicyInputs
 	r := policy.PawnPolicyInputs{
 		OutfitPolicy: p.GetOutfitPolicyId(), DrugPolicy: p.GetDrugPolicyId(), ReadingPolicy: p.GetReadingPolicyId(),
 		DependencyChemicals: p.DependencyChemicals, RoyalTitle: p.GetRoyalTitle(), TitleApparel: apparelRequirements(p.TitleApparel),
-		Ideo: p.GetIdeoId(), Precepts: p.Precepts, IdeoRole: p.GetIdeoRole(), RoleApparel: apparelRequirements(p.RoleApparel), PreceptApparel: p.PreceptApparel,
+		Ideo: p.GetIdeoId(), Precepts: p.Precepts, IdeoRole: p.GetIdeoRole(), IdeoCertainty: optionalFact(p.IdeoCertainty), RoleApparel: apparelRequirements(p.RoleApparel), PreceptApparel: p.PreceptApparel,
 		GuestStatus: p.GetGuestStatus(), PrisonerInteraction: p.GetPrisonerInteraction(), SlaveInteraction: p.GetSlaveInteraction(),
 		TendQuality: optionalFact(p.MedicalTendQuality),
 	}
