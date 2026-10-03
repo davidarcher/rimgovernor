@@ -1504,7 +1504,10 @@ func (s *ClockScheduler) optionalWaveGrace(critical time.Duration, pending []str
 // returned loses its mark and one that missed the cutoff gains it. A mark
 // lasts until its planner returns, so a wave that does not run it leaves
 // it alone; wiping it there left a planner due less often than steps run
-// cancelled at the grace every time it was due (#717).
+// cancelled at the grace every time it was due (#717). A planner that
+// missed the cutoff stays due, so the next step reruns it with the whole
+// wall budget: its discarded result otherwise left a clock that never
+// started on no_work with nothing to rerun it (hunt cases, CI).
 func (s *ClockScheduler) markStarved(finished, missed []string) {
 	if s.starved == nil {
 		s.starved = map[string]bool{}
@@ -1514,6 +1517,7 @@ func (s *ClockScheduler) markStarved(finished, missed []string) {
 	}
 	for _, name := range missed {
 		s.starved[name] = true
+		s.queue.mark(name)
 	}
 }
 
