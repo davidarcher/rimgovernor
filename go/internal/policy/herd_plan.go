@@ -289,11 +289,14 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 				holders = append(holders, def)
 			}
 		}
-		if len(holders) == 0 {
+		if len(holders) == 0 && !(job == HerdJobWar && herdWarWanted(in)) {
 			continue
 		}
-		jp := HerdJobPlan{Job: job, Ranked: herdRank(job, in.Races, obtainable)}
+		jp := HerdJobPlan{Job: job, Ranked: herdRank(job, in.Races, herdCandidates(job, in, stats, obtainable))}
 		if len(jp.Ranked) == 0 {
+			if len(holders) == 0 {
+				continue
+			}
 			for _, def := range holders {
 				herdKeep(keeps, def, job)
 			}
@@ -509,6 +512,35 @@ func herdObtainable(in HerdPlanInput, owned map[Resource]*herdRace) map[Resource
 	return out
 }
 
+// herdWarWanted is whether the colony wants a war animal it has none of: the
+// wealth budget is read and has no negative headroom, so the defense keeps
+// pace with the wealth the animals add. Held war animals are kept (and cut by
+// the budget ceiling) whatever this says.
+func herdWarWanted(in HerdPlanInput) bool {
+	headroom, ok := in.Budget.Value()
+	return ok && finite(headroom) && headroom >= 0
+}
+
+// herdCandidates are the races ranked for the job. War candidates the colony
+// does not own also need a handler whose Animals skill clears the race's
+// minimum handling skill, read from the catalog (an unread roster or minimum
+// leaves the race out).
+func herdCandidates(job HerdJob, in HerdPlanInput, owned map[Resource]*herdRace, obtainable map[Resource]bool) map[Resource]bool {
+	if job != HerdJobWar {
+		return obtainable
+	}
+	profiles, _ := in.Handlers.Value()
+	out := map[Resource]bool{}
+	for def := range obtainable {
+		race, _ := in.Races.Race(def)
+		minimum, known := race.MinimumHandlingSkill.Value()
+		if _, handled := TamerFor(profiles, minimum); owned[def] != nil || known && handled {
+			out[def] = true
+		}
+	}
+	return out
+}
+
 // herdRank orders the obtainable races able to hold the job.
 func herdRank(job HerdJob, catalog AnimalRaceCatalog, obtainable map[Resource]bool) []Resource {
 	type ranked struct {
@@ -528,6 +560,10 @@ func herdRank(job HerdJob, catalog AnimalRaceCatalog, obtainable map[Resource]bo
 		score, known := herdScore(job, race)
 		if !known {
 			continue
+		}
+		if job == HerdJobWar {
+			// A war animal is chosen for the fight it wins, not its feed.
+			score, _, _ = herdPerAdult(job, race)
 		}
 		skill, sk := race.MinimumHandlingSkill.Value()
 		if !sk {

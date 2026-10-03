@@ -27,6 +27,17 @@ other required native read, and the herd plan never runs without it.
   re-ranks every cycle as availability changes. A race with an unread yield or
   size cannot hold or be ranked for the job that needs it. Other roles: companion (a bonded animal on a race with no work job) and
   none.
+- **War animals (#1637).** Unlike the other jobs, `war` is also wanted before
+  any animal holds it: while the wealth budget is read and has no negative
+  headroom (defense capacity keeps pace with the wealth the animals add), the
+  plan targets a pair of the race with the highest catalog combat power (not
+  per body size) that the colony can obtain and a handler clears
+  (`TamerFor` at the catalog `minimum_handling_skill`; a thrumbo needs its
+  catalog minimum, an unread roster or minimum leaves a race out). Negative or
+  unread headroom plans no new war animal; kept ones stay and the budget
+  ceiling cuts their race. Taming follows the target's floor; training and
+  masters follow the war job, and the animals fight through the existing
+  animal combat orders (`combat_animals.go`).
 - **Floor.** The target race's floor is its head count: the larger of a
   breeding pair, the capacity the other holders give today (adult yield, or
   trained carrying capacity or combat power) and the food plan's
