@@ -87,7 +87,18 @@ other required native read, and the herd plan never runs without it.
   lines; silver reserve rules are unchanged. Staging passes `allow_pawns`;
   native `AcceptTrade` exports a pawn row only when it is an unbonded
   player-faction animal and the deal's floors name its definition. Native's
-  preview stays the authority. Buying animals reuses the pawn row (#1636).
+  preview stays the authority.
+- **Purchase (#1636).** The trader's pawn rows of catalog races are the plan's
+  `Offers` (`HerdOffers`), so a map with no cows can still plan milk.
+  `HerdWants` lists what the plan lacks: each job's target race, then each
+  founder's missing sex. `SelectAnimalPurchase` buys the first want with an
+  affordable pawn row (trader holds it and will trade, colony side none, race
+  and sex match, `TradeLine.pawn_gender` read natively from the pawn, cheapest
+  then line id) as a second purchase line beside `SelectPawnPurchase`, within
+  the same budget (`PawnPurchaseFraction` of silver, above the reserve and
+  the lines already selected). No joiner-capacity gate and no `allow_pawns`
+  (only giving a pawn away needs it). An unreadable race catalog fails the
+  selection.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideo neither venerates the race nor has an

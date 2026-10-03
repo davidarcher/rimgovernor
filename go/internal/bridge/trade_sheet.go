@@ -45,6 +45,7 @@ type TradeSheetRow struct {
 	// skills with passions, and whether it can do violence. Absent on
 	// every other row, and on a pawn native could not read.
 	PawnID               string
+	PawnGender           string
 	Skills               []TradeSheetSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
@@ -188,13 +189,13 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		}
 		food = proto.CloneOf(f)
 	}
-	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "") {
+	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "" || v.PawnGender != nil) {
 		return TradeSheetRow{}, contract("pawn facts on a non-pawn trade line")
 	}
 	if v.GetPawn() && (v.ThingId != nil || v.Quality != nil) || !diagnostic(v.ThingId) || v.Quality != nil && !validQuality(v.GetQuality()) {
 		return TradeSheetRow{}, contract("invalid trade sheet thing facts")
 	}
-	if !diagnostic(v.PawnId) {
+	if !diagnostic(v.PawnId) || !diagnostic(v.PawnGender) {
 		return TradeSheetRow{}, contract("trade sheet pawn id invalid")
 	}
 	var skills []TradeSheetSkill
@@ -205,7 +206,7 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		skills = append(skills, TradeSheetSkill{Name: skill.GetDefinition().GetDefName(), Level: skill.GetLevel(), Passion: PassionName(skill.GetPassion()), Disabled: skill.GetDisabled()})
 	}
 	return TradeSheetRow{
-		PawnID: v.GetPawnId(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
+		PawnID: v.GetPawnId(), PawnGender: v.GetPawnGender(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
 		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil,
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),

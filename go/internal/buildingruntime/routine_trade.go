@@ -410,6 +410,11 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		if pawn, ok := policy.SelectPawnPurchase(capacity, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
 			selection.Selected = append(selection.Selected, pawn)
 		}
+		// A wanted animal is a second purchase line under the same reserve
+		// (#1636); native needs no allow_pawns to buy a pawn row.
+		if animal, ok := policy.SelectAnimalPurchase(facts.HerdWants, facts.Rows, facts.ColonySilver, selection.SilverReserve, selection.Selected); ok {
+			selection.Selected = append(selection.Selected, animal)
+		}
 	}
 	if phase == domain.TradeSetLines {
 		if selection.Refused || len(selection.Selected) == 0 {
@@ -540,17 +545,23 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, err
 	}
 	projection.Facts.AnimalUpkeep.AnimalRaces = races.AnimalRaceCatalog
-	saleAnimals := projection.Facts.SaleAnimals()
+	rows := tradeSheetRowFacts(sheet.Rows)
+	// The plan counts the animals this trader offers as obtainable, so its
+	// wants (bought below, #1636) and its surplus (sold) agree.
+	planInput := projection.Facts.HerdPlanInput()
+	planInput.Offers = policy.HerdOffers(rows, races.AnimalRaceCatalog)
+	herd := policy.PlanHerd(planInput)
+	saleAnimals := policy.HerdSaleAnimals(projection.Facts.AnimalUpkeep.Animals, herd.Policy)
 	need, known := policy.AnimalSaleNeed(policy.ShedArtNeed(policy.SurgeryTradeNeed(policy.ReserveSurgeryStock(policy.OrganSaleSurplus(policy.ReviewTradeNeed(medical, medicalFacts.Resources, targets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)), medicalFacts.Resources, projection.Facts.Colonists), projection.Facts.MedicalPawns), policy.TradeSurgeryParts(parts, policy.FabricableParts(benches))), headroom, artCount), saleAnimals, projection.Facts.Silver(), projection.Facts.Colonists).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, false, fmt.Errorf("%w: selection: !known", ErrControl)
 	}
-	rows := tradeSheetRowFacts(sheet.Rows)
 	economic := policy.RoutineTradeTargets(need, rows, policy.ResourceGoalTargets(targets, r.reviewer.policy.ResourceTargets), r.reviewer.policy.Trade, projection.Facts.Colonists)
 	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
 	facts.SaleArt = saleArt
+	facts.HerdWants = policy.HerdWants(herd)
 	if need.SurplusAnimals > 0 {
 		facts.SaleAnimals = make(map[string]bool, len(saleAnimals))
 		for id := range saleAnimals {
@@ -634,7 +645,7 @@ func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact 
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,
 			Currency: row.Currency, CurrencyKnown: row.CurrencyKnown, Pawn: row.Pawn, PawnKnown: row.PawnKnown,
-			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, PawnID: row.PawnID,
+			ProtectedExport: row.ProtectedExport, ProtectedExportKnown: row.ProtectedExportKnown, ThingID: row.ThingID, PawnID: row.PawnID, PawnGender: row.PawnGender,
 			Skills: tradePawnSkills(row.Skills), ViolenceCapable: row.ViolenceCapable, ViolenceCapableKnown: row.ViolenceCapableKnown,
 		})
 	}

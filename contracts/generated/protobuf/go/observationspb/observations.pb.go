@@ -22084,6 +22084,7 @@ type TradeLine struct {
 	PawnId            *string                `protobuf:"bytes,25,opt,name=pawn_id,json=pawnId,proto3,oneof" json:"pawn_id,omitempty"`
 	ThingId           *string                `protobuf:"bytes,26,opt,name=thing_id,json=thingId,proto3,oneof" json:"thing_id,omitempty"`
 	Quality           *int32                 `protobuf:"varint,27,opt,name=quality,proto3,oneof" json:"quality,omitempty"`
+	PawnGender        *string                `protobuf:"bytes,28,opt,name=pawn_gender,json=pawnGender,proto3,oneof" json:"pawn_gender,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -22305,6 +22306,13 @@ func (x *TradeLine) GetQuality() int32 {
 		return *x.Quality
 	}
 	return 0
+}
+
+func (x *TradeLine) GetPawnGender() string {
+	if x != nil && x.PawnGender != nil {
+		return *x.PawnGender
+	}
+	return ""
 }
 
 // TradeSession is the adapter's one live trade (#856): the negotiator
@@ -39994,7 +40002,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2,.rimgovernor.observations.v1.TradersSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xa2\f\n" +
+	"\aoutcome\"\xd8\f\n" +
 	"\tTradeLine\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\rH\x00R\x05index\x88\x01\x01\x12J\n" +
 	"\n" +
@@ -40027,7 +40035,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x10violence_capable\x18\x18 \x01(\bH\x13R\x0fviolenceCapable\x88\x01\x01\x12\x1c\n" +
 	"\apawn_id\x18\x19 \x01(\tH\x14R\x06pawnId\x88\x01\x01\x12\x1e\n" +
 	"\bthing_id\x18\x1a \x01(\tH\x15R\athingId\x88\x01\x01\x12\x1d\n" +
-	"\aquality\x18\x1b \x01(\x05H\x16R\aquality\x88\x01\x01B\b\n" +
+	"\aquality\x18\x1b \x01(\x05H\x16R\aquality\x88\x01\x01\x12$\n" +
+	"\vpawn_gender\x18\x1c \x01(\tH\x17R\n" +
+	"pawnGender\x88\x01\x01B\b\n" +
 	"\x06_indexB\b\n" +
 	"\x06_stuffB\v\n" +
 	"\t_categoryB\x0f\n" +
@@ -40054,7 +40064,8 @@ const file_observations_proto_rawDesc = "" +
 	"\b_pawn_idB\v\n" +
 	"\t_thing_idB\n" +
 	"\n" +
-	"\b_quality\"\xe1\x01\n" +
+	"\b_qualityB\x0e\n" +
+	"\f_pawn_gender\"\xe1\x01\n" +
 	"\fTradeSession\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12 \n" +
 	"\ttrader_id\x18\x02 \x01(\tH\x00R\btraderId\x88\x01\x01\x12(\n" +

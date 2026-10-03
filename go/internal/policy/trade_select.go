@@ -49,6 +49,9 @@ type TradeSheetRowFact struct {
 	// animal): the key a live-animal sale matches (#1632) and a purchase
 	// can name (#1636).
 	PawnID string
+	// PawnGender is a pawn row's gender ("Male"/"Female"), as an animal's
+	// census gender: what a purchase of a founder's missing sex matches.
+	PawnGender string
 }
 
 // TradeSelectionFacts is everything SelectTrade reads: the complete unfiltered
@@ -83,6 +86,10 @@ type TradeSelectionFacts struct {
 	// HerdSaleAnimals), by pawn id, set only while the colony wants silver.
 	// Each sells through its own pawn row.
 	SaleAnimals map[string]bool
+
+	// HerdWants are the animals the herd plan lacks (HerdWants, #1636),
+	// best first: the pawn-purchase line buys the first affordable one.
+	HerdWants []HerdWant
 }
 
 // TradeSelectionLine is one selected row adjustment: the native line id

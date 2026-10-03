@@ -139,6 +139,7 @@ namespace HomeBridge.BridgeTools
                 if (p != null)
                 {
                     line.PawnId = SafeText(() => p.GetUniqueLoadID());
+                    line.PawnGender = SafeText(() => p.gender.ToString());
                     line.ViolenceCapable = SafeBool(() => !p.WorkTagIsDisabled(WorkTags.Violent));
                     try
                     {
