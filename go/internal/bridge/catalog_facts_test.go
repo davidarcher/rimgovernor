@@ -38,6 +38,8 @@ func factsReply() *o.DefinitionCatalog {
 			{DefName: "PlayPin", ThingDefs: []string{"Pin"}, JobDef: "Throw"},
 			{DefName: "WatchTelevision", ThingDefs: []string{"Television"}, JobDef: "Watch"},
 			{DefName: "Socialize", JobDef: "Missing"},
+			// An ingest giver: its class hardcodes the job, so jobDef is empty.
+			{DefName: "EatChocolate", ThingDefs: []string{"Meal"}},
 		},
 	}
 	costs := func(units int64) []*o.Quantity {

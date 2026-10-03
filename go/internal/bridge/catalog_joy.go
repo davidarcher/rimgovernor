@@ -21,7 +21,8 @@ const StatMarketValue = "MarketValue"
 // ties go to the cheaper building (the market value of its adjusted costs
 // at its cheapest stuff), then to the name. A joy building no
 // JoyGiverDef offers, a giver without its job row and a cost the stat table
-// cannot value are contract errors. Research and builders are the planner's
+// cannot value are contract errors (a giver with no jobDef at all, such as
+// the ingest ones, offers no buildings and is skipped). Research and builders are the planner's
 // to check.
 func (catalog *DefinitionCatalog) JoyBuildings() ([]policy.JoyBuildingMethod, error) {
 	if catalog == nil {
@@ -145,6 +146,12 @@ func (catalog *DefinitionCatalog) joyPerSession() (map[string]float64, error) {
 	for name, giver := range catalog.Defs[(&d.JoyGiverDef{}).ProtoReflect().Descriptor().FullName()] {
 		row, _ := giver.(*d.JoyGiverDef)
 		if len(row.GetThingDefs()) == 0 {
+			continue
+		}
+		// A giver with no jobDef hardcodes its job in its class (the ingest
+		// givers offer food items, not buildings); a joy building such a
+		// giver offers surfaces as "offered by no joy giver".
+		if row.GetJobDef() == "" {
 			continue
 		}
 		job := DefRow[*d.JobDef](catalog, row.GetJobDef())
