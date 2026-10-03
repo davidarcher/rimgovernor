@@ -22,8 +22,6 @@ const (
 	OutcomeNoReview Outcome = "no_current_review"
 	// OutcomeExpired: the proposal went stale before it could be admitted.
 	OutcomeExpired Outcome = "expired"
-	// OutcomeInProgress: earlier work stands and the goal moves with it.
-	OutcomeInProgress Outcome = "in_progress"
 	// OutcomeOrdersSent: the fight's stop sent changed orders (#852),
 	// recorded as its plan's evidence.
 	OutcomeOrdersSent Outcome = "combat_orders"
@@ -65,6 +63,8 @@ const (
 	// WaitMethodUsed: the method already did its part and the goal waits for
 	// that work to finish.
 	WaitMethodUsed RefusalKind = "method_already_used"
+	// WaitExistingWork: earlier work stands and the goal moves with it.
+	WaitExistingWork RefusalKind = "already_working_on_it"
 	// WaitBunksOpen: the initial shelter's indoor furnishing waits on its open
 	// bunk rungs, which do not hold the ring itself (#641).
 	WaitBunksOpen RefusalKind = "shelter_bunks_open"
@@ -92,7 +92,7 @@ const (
 
 var (
 	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission}
-	waitKinds    = []RefusalKind{WaitMethodUsed, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
+	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
 )
 
 // Refusal says why an OutcomeRefused step stopped or what an OutcomeWaiting
@@ -161,7 +161,7 @@ func (v Verdict) Validate() error {
 		if v != (Verdict{}) {
 			return fmt.Errorf("verdict without an outcome: %+v", v)
 		}
-	case OutcomeAdmitted, OutcomeNothingToDo, OutcomeDisabled, OutcomeNoReview, OutcomeExpired, OutcomeInProgress, OutcomeOrdersSent, OutcomeHoldFallback:
+	case OutcomeAdmitted, OutcomeNothingToDo, OutcomeDisabled, OutcomeNoReview, OutcomeExpired, OutcomeOrdersSent, OutcomeHoldFallback:
 		if v.Refusal != (Refusal{}) {
 			return fmt.Errorf("%s verdict carries a refusal: %+v", v.Outcome, v.Refusal)
 		}
@@ -220,8 +220,6 @@ func (v Verdict) Text() string {
 		return "no current review to judge"
 	case OutcomeExpired:
 		return "the proposal went stale"
-	case OutcomeInProgress:
-		return "earlier work is still under way"
 	case OutcomeOrdersSent:
 		return "combat orders sent"
 	case OutcomeHoldFallback:
@@ -273,6 +271,8 @@ func (v Verdict) kindText() string {
 		return aside("the shared admission check turned the plan down")
 	case WaitMethodUsed:
 		return aside("waiting for work it already started")
+	case WaitExistingWork:
+		return aside("already working on it")
 	case WaitBunksOpen:
 		return aside("waiting on the shelter's open bunks")
 	case WaitBreachHeld:
@@ -314,7 +314,7 @@ var (
 	BuildingReasonNoReview     = Verdict{Outcome: OutcomeNoReview}
 	BuildingReasonNoDeficit    = Verdict{Outcome: OutcomeNothingToDo}
 	BuildingReasonExpired      = Verdict{Outcome: OutcomeExpired}
-	BuildingReasonExistingWork = Verdict{Outcome: OutcomeInProgress}
+	BuildingReasonExistingWork = waitOn(WaitExistingWork)
 	BuildingReasonUsed         = waitOn(WaitMethodUsed)
 	// BuildingBunksOpen: the initial shelter's indoor furnishing waits on
 	// its open bunk rungs, which do not hold the ring itself (#641).

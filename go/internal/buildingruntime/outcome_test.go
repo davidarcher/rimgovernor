@@ -18,7 +18,7 @@ func TestVerdictRendersPerKind(t *testing.T) {
 		{BuildingReasonDisabled, "disabled", "this planner is switched off"},
 		{BuildingReasonNoReview, "no_current_review", "no current review to judge"},
 		{BuildingReasonExpired, "expired", "the proposal went stale"},
-		{BuildingReasonExistingWork, "in_progress", "earlier work is still under way"},
+		{BuildingReasonExistingWork, "already_working_on_it", "already working on it"},
 		{BuildingReasonCombatOrders, "combat_orders", "combat orders sent"},
 		{BuildingReasonHoldFallback, "hold_fallback", "the hold line was re-formed as squad defense"},
 		{collapsePending("excavation_site"), "collapse_pending:excavation_site", "a collapse is pending at the excavation site"},
@@ -79,7 +79,7 @@ func TestRefusalWithoutAKindIsRejected(t *testing.T) {
 	for _, v := range []Verdict{
 		{Outcome: OutcomeRefused},
 		{Outcome: OutcomeRefused, Refusal: Refusal{Kind: "unknown_prerequisite"}},
-		{Outcome: OutcomeInProgress, Refusal: Refusal{Kind: RefusalNoSpace}},
+		{Outcome: OutcomeAdmitted, Refusal: Refusal{Kind: RefusalNoSpace}},
 		{Outcome: "bogus"},
 		{Outcome: OutcomeWaiting},
 		{Outcome: OutcomeWaiting, Refusal: Refusal{Kind: RefusalNoSpace}},

@@ -30,7 +30,7 @@ func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 	want := map[policy.GoalID]policy.PlannerNote{
 		policy.EnsureBasicPower:        {Text: "no space found for it (verified space)"},
 		policy.MaintainEquipment:       {Text: "the shared admission check turned the plan down (retry bound: exhausted)"},
-		policy.MaintainCleanFacilities: {},
+		policy.MaintainCleanFacilities: {Text: "already working on it", Waiting: true},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("%v", got)
@@ -86,6 +86,20 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 	cleared := wavePlannerReasons(names, filingOf(goals, verdicts))
 	if cleared[policy.MaintainShelter] != (policy.PlannerNote{}) || cleared[policy.MaintainHousing] != (policy.PlannerNote{}) {
 		t.Fatalf("waits not cleared: %v", cleared)
+	}
+	verdicts["shelter"] = BuildingReasonExistingWork
+	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{Text: "already working on it", Waiting: true}) {
+		t.Fatalf("existing work not filed as a wait: %v", got)
+	}
+	verdicts["shelter"] = BuildingReasonNoDeficit
+	if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
+		t.Fatalf("nothing to do did not clear the existing-work wait: %v", got)
+	}
+	for _, combat := range []Verdict{BuildingReasonCombatOrders, BuildingReasonHoldFallback} {
+		verdicts["shelter"] = combat
+		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainShelter] != (policy.PlannerNote{}) {
+			t.Fatalf("%s did not clear: %v", combat, got)
+		}
 	}
 	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, BuildingReasonNoSpace
 	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Waiting || refused[policy.MaintainHousing].Text == "" {
