@@ -75,6 +75,16 @@ func TestPlannedDig(t *testing.T) {
 		threshold = shell.Threshold()
 	}
 	want = append(append(want, freezer.Door, threshold, site.Cell), RectangleCells(shaft)...)
+	seen := map[domain.Cell]bool{}
+	for _, c := range want {
+		seen[c] = true
+	}
+	for _, sc := range cells {
+		if p.hallwayCells()[sc.Cell] && !seen[sc.Cell] {
+			seen[sc.Cell] = true
+			want = append(want, sc.Cell) // the corridor is mined whole
+		}
+	}
 	if len(dig) != len(want) {
 		t.Fatalf("dig %d cells, want %d", len(dig), len(want))
 	}
