@@ -392,7 +392,7 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, GoalID, domain.Fact[float64]) {
 	owed := func(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 	observed := domain.Unknown[float64]()
-	if days, known := fallback(f.PopulationFoodDays, f.FoodDays).Value(); known && p.FoodTargetDays > 0 {
+	if days, known := f.FoodDays.Value(); known && p.FoodTargetDays > 0 {
 		observed = domain.Known(max(0, min(1, 1-days/p.FoodTargetDays)))
 	}
 	var prerequisite GoalID

@@ -18,8 +18,7 @@ namespace HomeBridge.BridgeTools
     /// live-versus-desired comparison and the ZoneState.filter projection.
     /// A preset is applied first, then a replacement list (disallow all,
     /// allow the list), then allow, then disallow, then the ranges -- the
-    /// order the storage tab's own buttons compose in and the order the
-    /// legacy StockpileFilter.Apply uses. Every selector must resolve
+    /// order the storage tab's own buttons compose in. Every selector must resolve
     /// exactly (defName, never label) or the whole body is refused.
     /// </summary>
     internal static class NativeStockpileSettings

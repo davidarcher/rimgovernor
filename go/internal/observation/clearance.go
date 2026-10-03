@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -47,7 +48,7 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 
 // ObserveClearanceCensusOnGround also reads the player's buildings (Player
 // rows) and constructed floors on planned ground (#1245). A source without
-// the planned-ground read serves the plain census.
+// the planned-ground read is a contract error when ground is requested.
 func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource, expected Identity, includeSalvage bool, ground []policy.Rectangle) (domain.Fact[ClearanceCensus], error) {
 	unknown := domain.Unknown[ClearanceCensus]()
 	if source == nil || expected.Validate() != nil || !sameColonyContext(expected, expected) {
@@ -56,7 +57,11 @@ func ObserveClearanceCensusOnGround(ctx context.Context, source ClearanceSource,
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
 	var reply *o.ClearanceTargetsReply
 	var err error
-	if widened, ok := source.(GroundClearanceSource); ok && len(ground) > 0 {
+	if len(ground) > 0 {
+		widened, ok := source.(GroundClearanceSource)
+		if !ok {
+			return unknown, fmt.Errorf("%w: clearance source lacks the planned-ground read", ErrContract)
+		}
 		rects := make([]*o.Rectangle, 0, len(ground))
 		for _, g := range ground {
 			rects = append(rects, &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(g.X), Z: proto.Int32(g.Z)}, Maximum: &c.Cell{X: proto.Int32(g.X + g.Width - 1), Z: proto.Int32(g.Z + g.Height - 1)}})

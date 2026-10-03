@@ -180,19 +180,15 @@ type stepBudget struct {
 }
 
 // proposalArrival is one PlanResult as the wave delivered it: the result,
-// the callback that writes it to the step's result, and (for a proposal)
-// the verdict the first-arrival path would have given, so the coordinator
-// can log where the two paths disagree during the migration.
+// and the callback that writes it to the step's result.
 type proposalArrival struct {
 	planner string
 	result  PlanResult
 	settle  func(ProposalOutcome)
-	legacy  bool
 }
 
 // propose records a migrated planner's result for the coordinator. The
-// planner has already finished every read; nothing is claimed here. For a
-// proposal the shadow arbiter records the first-arrival verdict beside it.
+// planner has already finished every read; nothing is claimed here.
 func (a *stepArbiter) propose(planner string, result PlanResult, settle func(ProposalOutcome)) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -202,16 +198,10 @@ func (a *stepArbiter) propose(planner string, result PlanResult, settle func(Pro
 		// read again: a proposal is carried to the next coordinator, and
 		// a non-proposal result has nothing to carry.
 		if a.late != nil && result.Kind == PlanProposed && result.Proposal != nil {
-			arrival.settle, arrival.legacy = nil, true
+			arrival.settle = nil
 			a.late.add(arrival)
 		}
 		return
-	}
-	if result.Kind == PlanProposed && result.Proposal != nil {
-		if a.shadow == nil {
-			a.shadow = newStepArbiter()
-		}
-		arrival.legacy = a.shadow.tryClaim(result.Proposal.Claims.Pawns, result.Proposal.Claims.Entities...)
 	}
 	a.arrivals = append(a.arrivals, arrival)
 }
@@ -334,9 +324,6 @@ func (c *claimIndex) take(p *Proposal) {
 // Non-proposal results settle as they were reported. The outcomes are
 // returned in rank order; commit errors are returned beside them for the
 // step to isolate.
-//
-// During the migration the coordinator also logs every proposal whose fate
-// differs from the first-arrival verdict the shadow arbiter recorded.
 func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope proposalScope) ([]ProposalOutcome, []error) {
 	a.mu.Lock()
 	arrivals := append(a.late.drain(), a.arrivals...)
@@ -389,22 +376,12 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 				outcome.Admitted, outcome.Plan, outcome.Reason = reason == BuildingMethodAdmitted, plan, reason
 			}
 		}
-		if outcome.Admitted != arrival.legacy {
-			clockSchedulerLog("proposal %s: coordinator %s, first-arrival would have %s (claims %s)", p.ID, proposalVerdict(outcome.Admitted), proposalVerdict(arrival.legacy), p.Claims)
-		}
 		if arrival.settle != nil {
 			arrival.settle(outcome)
 		}
 		outcomes = append(outcomes, outcome)
 	}
 	return outcomes, failures
-}
-
-func proposalVerdict(admitted bool) string {
-	if admitted {
-		return "admitted"
-	}
-	return "refused"
 }
 
 // String lists the claims for a log line.

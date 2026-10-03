@@ -25,8 +25,7 @@ import (
 // changed, unless a binding names the version). Keys and rows are Encode's
 // JSON of the mirror's K and R; planning_cells rides as a wire CellGrid in
 // "Grid" instead (grid.go). "Format" names the form: FormatRows (1) or
-// FormatGrid (2); a line without it is the legacy row form, and any other
-// value fails the load. Any mirror section is recorded this way,
+// FormatGrid (2); any other value, or none, fails the load. Any mirror section is recorded this way,
 // whatever its type, as soon as it is a mirror section (#773's pawns, gear,
 // acquisition and upkeep included).
 //
@@ -66,9 +65,8 @@ func cellCoord(row any, axis string) int64 {
 }
 
 // sectionFrame is one mirror table as a stream line records it.
-// Section line formats (Format). A line with no Format is the legacy row
-// form, as every stream before the field held; any other value is a load
-// error, never a guess.
+// Section line formats (Format). Any other value is a load error, never a
+// guess.
 const (
 	// FormatRows: the rows in Upserts and Removed.
 	FormatRows = 1
@@ -78,9 +76,8 @@ const (
 
 type sectionFrame struct {
 	Name string
-	// Format is the line's form: FormatRows, FormatGrid, or 0 (absent) for
-	// a legacy row line.
-	Format  int `json:",omitempty"`
+	// Format is the line's form: FormatRows or FormatGrid.
+	Format  int
 	Version uint64
 	AsOf    facts.Watermark
 	Scope   facts.Scope
@@ -312,7 +309,7 @@ func (s *recSection) apply(f sectionFrame) (*recSection, error) {
 			return nil, fmt.Errorf("snapshot: section %s line is Format %d with no Grid", f.Name, f.Format)
 		}
 		return s.applyGrid(f)
-	case 0, FormatRows:
+	case FormatRows:
 		if f.Grid != nil {
 			return nil, fmt.Errorf("snapshot: section %s line is Format %d with a Grid", f.Name, f.Format)
 		}

@@ -96,21 +96,17 @@ func TestAutoDevelopmentStartupHoldsNoGoalBack(t *testing.T) {
 	requireSelected(t, rank(t, r), "build")
 }
 
-// Admission agrees with the ranking and checks no capacity.
+// Admission agrees with the ranking.
 func TestAdmitDevelopmentAgreesWithRank(t *testing.T) {
 	r := autoFixture()
 	s := rank(t, r)
 	for _, g := range []GoalID{"build", "study", "wood", "haul", "shed"} {
-		if err := AdmitDevelopment(s, g, s.Holds); err != nil {
+		if err := AdmitDevelopment(s, g); err != nil {
 			t.Fatal(g, err)
 		}
 	}
-	if err := AdmitDevelopment(s, "unranked", s.Holds); err == nil {
+	if err := AdmitDevelopment(s, "unranked"); err == nil {
 		t.Fatal("unranked goal admitted")
-	}
-	s.Capacity = 1
-	if err := AdmitDevelopment(s, "study", nil); err != nil {
-		t.Fatal(err)
 	}
 }
 

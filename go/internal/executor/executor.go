@@ -28,6 +28,9 @@ type Journal interface {
 	Prepare(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 	Dispatch(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 	RecordReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, domain.Receipt) (domain.Progress, error)
+	// RecordZoneReceipt records an applied zone_create's receipt with the
+	// zone identity its evidence named.
+	RecordZoneReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, string) (domain.Progress, error)
 	Observe(context.Context, domain.PlanID, domain.Observation, domain.GenerationSnapshot) (domain.Progress, error)
 	Cancel(context.Context, domain.PlanID, domain.ActionID) (domain.Progress, error)
 	Hold(context.Context, domain.PlanID, domain.ActionID, []domain.HeldReason, domain.Tick) (domain.Progress, error)
@@ -68,12 +71,6 @@ type Receipt struct {
 	Kind     domain.Receipt
 	// Zone is the zone an applied zone_create's evidence names.
 	Zone string
-}
-
-// ZoneJournal records an applied zone_create's receipt with the zone
-// identity its evidence named.
-type ZoneJournal interface {
-	RecordZoneReceipt(context.Context, domain.PlanID, domain.ActionID, domain.AttemptID, string) (domain.Progress, error)
 }
 
 type Boundary interface {
@@ -309,8 +306,8 @@ func (e *Executor) recordZone(result Result, plan domain.PlanID, placement Place
 	defer cancel()
 	var progress domain.Progress
 	var err error
-	if journal, ok := e.journal.(ZoneJournal); ok && zone != "" && kind == domain.ReceiptAccepted {
-		progress, err = journal.RecordZoneReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, zone)
+	if zone != "" && kind == domain.ReceiptAccepted {
+		progress, err = e.journal.RecordZoneReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, zone)
 	} else {
 		progress, err = e.journal.RecordReceipt(ctx, plan, placement.Action.ID(), placement.Attempt, kind)
 	}

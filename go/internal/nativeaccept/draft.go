@@ -8,11 +8,6 @@ import "fmt"
 // continuity); this only keys attempts and typed clock epochs.
 const Controller = "native-draft-acceptance"
 
-// Owner is the legacy map form of Controller kept for the acceptance binaries
-// that still spell na.Owner["controllerSessionId"]; it carries no
-// playerDirection because that concept was removed with the authority lease.
-var Owner = map[string]any{"controllerSessionId": Controller}
-
 // PawnRow asserts an observations_list_pawns reply is a single complete, exact-match
 // page whose context matches identity, extracts the row for pawnID (the first
 // row when pawnID is empty) and validates its snapshot invariants.

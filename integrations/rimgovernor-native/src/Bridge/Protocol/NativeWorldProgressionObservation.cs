@@ -16,13 +16,9 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Ports the legacy home/world_progression JSON tool (WorldProgressionTools
-    // in ../WorldProgressionTool.cs) behind the typed ReadScope boundary.
-    // observations.proto's WorldProgressionRequest/
-    // Reply, WorldMap, FactionState, CaravanState, CaravanAssembly and
-    // QuestState were already fully defined; this closes the gap that no
-    // native handler yet answered rimgovernor/observations_read_world_progression
-    // (confirmed by exhaustive search of the C# mod before writing this file).
+    // Answers rimgovernor/observations_read_world_progression behind the typed
+    // ReadScope boundary (observations.proto's WorldProgressionRequest/Reply,
+    // WorldMap, FactionState, CaravanState, CaravanAssembly and QuestState).
     // Stateless: every read recomputes from current native state, per
     // native-static-state.md. Read-only; no orders, no UI, no camera.
     internal static class NativeWorldProgressionObservation
@@ -64,7 +60,7 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        // Mirrors legacy WorldProgressionTools' per-caravan homeRoutes: one
+        // Per-caravan home routes: one
         // route fact per player-home map, so Go can tell whether a caravan
         // could path home without depending on the caravan formation catalog
         // (which only ever evaluates one destination at a time).

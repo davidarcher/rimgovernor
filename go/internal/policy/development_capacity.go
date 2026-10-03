@@ -166,38 +166,15 @@ func developmentFit(census domain.Fact[[]DevelopmentWorker], labor domain.Fact[m
 	return fits, bottlenecks
 }
 
-// AdmitDevelopment revalidates, inside method admission, the slot the
-// review granted need: the row is still selected, the slots held now
-// (holds, recomputed from current commitments with CommitmentHolds) leave
-// room, and the labor after the holds and every selected row ranked ahead
-// of need that has not been admitted yet still fits need. A player project
-// or another admission since the ranking is in holds; a retry of the same
-// admission finds its own work held and is refused by the goal's revision
-// before it gets here.
-func AdmitDevelopment(s DevelopmentState, need GoalID, holds []DevelopmentHold) error {
-	at := -1
-	for i, row := range s.Rows {
+// AdmitDevelopment revalidates, inside method admission, that the review
+// still grants need a development slot: its row is still selected. A retry
+// of the same admission is refused by the goal's revision before it gets
+// here.
+func AdmitDevelopment(s DevelopmentState, need GoalID) error {
+	for _, row := range s.Rows {
 		if row.Goal == need && row.Selected {
-			at = i
+			return nil
 		}
 	}
-	if at < 0 {
-		return fmt.Errorf("goal %s holds no development slot", need)
-	}
-	held := map[GoalID]bool{}
-	for _, h := range holds {
-		if h.Goal != "" {
-			held[h.Goal] = true
-		}
-	}
-	// Selected rows ranked ahead and not admitted yet keep the slot and
-	// labor the ranking gave them.
-	var rows []LaborProfile
-	for _, row := range s.Rows[:at] {
-		if row.Selected && !held[row.Goal] {
-			rows = append(rows, row.Labor)
-		}
-	}
-	_ = rows
-	return nil
+	return fmt.Errorf("goal %s holds no development slot", need)
 }

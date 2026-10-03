@@ -218,7 +218,7 @@ func TestCommitZoneMethodRejectsKindGoalMismatch(t *testing.T) {
 
 // The allow-list (NothingPreset) stockpile variant persists and reloads its
 // definition allow-list exactly, exercising insertAction/scanAction's new
-// zonePayload.Allow field the same way the food-preset plans above exercise
+// zone payload the same way the food-preset plans above exercise
 // the rest of zonePayload.
 func TestCommitAllowListStockpileZoneMethodRoundTrips(t *testing.T) {
 	ctx := context.Background()

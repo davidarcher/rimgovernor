@@ -425,8 +425,8 @@ type RoutineFacts struct {
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	// Unarmed counts living, conscious colonists able to fight who hold no
 	// weapon; EnsureBasicDefense stays owed while it is positive.
-	Unarmed                                     domain.Fact[int64]
-	FoodDays, PopulationFoodDays, FieldCoverage domain.Fact[float64]
+	Unarmed                 domain.Fact[int64]
+	FoodDays, FieldCoverage domain.Fact[float64]
 	// WorkHelp is the same plan's construction helper record (#653);
 	// nil when the plan ran without the helper input.
 	WorkHelp *ConstructionHelpRecord
@@ -531,7 +531,7 @@ func footholdProduction(f RoutineFacts) domain.Fact[bool] {
 	return countCapacity(f.GrowingCells, footholdCount(f), 10)
 }
 func footholdFood(f RoutineFacts, p RoutinePolicy) domain.Fact[bool] {
-	return measured(fallback(f.PopulationFoodDays, f.FoodDays), func(v float64) bool { return v >= p.FootholdFoodDays })
+	return measured(f.FoodDays, func(v float64) bool { return v >= p.FootholdFoodDays })
 }
 func footholdTemperature(f RoutineFacts, p RoutinePolicy) domain.Fact[bool] {
 	return allFacts(measured(f.SleepingMin, func(v float64) bool { return v >= p.ColdEnter }), measured(f.SleepingMax, func(v float64) bool { return v <= p.HotEnter }))
@@ -691,6 +691,9 @@ func latchValue(active bool, fact domain.Fact[float64], enter, exit float64, hig
 	}
 	return v < enter
 }
+
+// fallback is f when measured, else other: an unmeasured sleeping-room
+// temperature reads as the outdoor temperature (sleeping outdoors).
 func fallback[T any](f, other domain.Fact[T]) domain.Fact[T] {
 	if _, k := f.Value(); k {
 		return f
@@ -779,12 +782,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			return RoutineNeeds{}, errors.New("invalid routine count")
 		}
 	}
-	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.PopulationFoodDays, f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom} {
+	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom} {
 		if v, k := fact.Value(); k && (math.IsNaN(v) || math.IsInf(v, 0)) {
 			return RoutineNeeds{}, errors.New("nonfinite routine fact")
 		}
 	}
-	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.PopulationFoodDays, f.FieldCoverage} {
+	for _, fact := range []domain.Fact[float64]{f.FoodDays, f.FieldCoverage} {
 		if v, k := fact.Value(); k && v < 0 {
 			return RoutineNeeds{}, errors.New("negative food fact")
 		}

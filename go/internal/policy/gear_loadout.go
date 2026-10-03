@@ -155,12 +155,11 @@ type GearOption struct {
 }
 
 type GearLoadoutInput struct {
-	Climate                                      *GearClimate
-	Role                                         GearRoleInput
-	Female, Nudist, Bloodlust, Inhuman, Smithing bool
+	Climate                            *GearClimate
+	Role                               GearRoleInput
+	Female, Nudist, Bloodlust, Inhuman bool
 	// Research is the finished research census; an option is eligible only
-	// once every project its Research names is finished (Smithing remains
-	// the legacy flag for the simple helmet).
+	// once every project its Research names is finished.
 	Research []string
 	// Budget is GearMaterialBudget: stock after holds.
 	// A bill option whose Ingredients exceed it is refused; nil is
@@ -281,7 +280,7 @@ func gearEligible(p GearLoadoutInput, o GearOption) bool {
 	if o.Smokepop || o.Psychic && !p.PsychicDrone {
 		return false
 	}
-	if role == GearSoldier && o.Slot == GearHeadgear && o.Sharp > 0 && !p.Smithing && !gearResearched(p, "Smithing") {
+	if role == GearSoldier && o.Slot == GearHeadgear && o.Sharp > 0 && !gearResearched(p, "Smithing") {
 		return false
 	}
 	// Plate (-0.8 c/s) and cataphract (-0.5) never; recon and marine only as

@@ -250,7 +250,7 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 		Wire: func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error) {
 			return h.Wire(ctx, label, method, request)
 		},
-		Identity: identity, Owner: na.AsString(na.Owner["controllerSessionId"]), Report: report, Grant: grant, CombatTargets: targets,
+		Identity: identity, Owner: na.Controller, Report: report, Grant: grant, CombatTargets: targets,
 	}
 	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names, CombatTargets: targets}
 

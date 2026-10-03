@@ -135,7 +135,7 @@ namespace HomeBridge.BridgeTools
                 nutrition = thing is Corpse ? 0 : thing.stackCount * (eaters.Count>0 ? eaters.Min(p => FoodUtility.NutritionForEater(p, thing)) : thing.def.GetStatValueAbstract(StatDefOf.Nutrition)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList() };
 
-        // Shared typed source for the compatibility JSON and protobuf projections.
+        // Shared typed source for the protobuf projections.
         internal sealed class Snapshot {
             internal FoodLarderFacts.Snapshot? larder;
             public bool readable { get; set; }

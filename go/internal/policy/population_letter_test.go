@@ -27,10 +27,10 @@ func TestJoinerLettersNeedKnownCapacityAndChooseOneOffer(t *testing.T) {
 
 func TestPendingLetterRaisesPopulationNeedOnlyWithRoom(t *testing.T) {
 	capacity := joinerFacts(t, 2)
-	facts := RoutineFacts{Custody: capacity.Custody, Sleeping: capacity.Sleeping, PopulationFoodDays: capacity.FoodDays,
+	facts := RoutineFacts{Custody: capacity.Custody, Sleeping: capacity.Sleeping, FoodDays: capacity.FoodDays,
 		QuestOffers: domain.Known([]JoinerOffer{}), JoinerLetters: domain.Known([]JoinerLetterOffer{{ID: 3, CanAccept: true}})}
 	for _, food := range []float64{20, 1} {
-		facts.PopulationFoodDays = domain.Known(food)
+		facts.FoodDays = domain.Known(food)
 		needs, err := DetectRoutine(facts, RoutineLatches{}, DefaultRoutinePolicy())
 		if err != nil {
 			t.Fatal(err)

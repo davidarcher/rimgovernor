@@ -299,7 +299,7 @@ func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer], claims ...domain
 // the population census, the sleeping census, the population food runway
 // (falling back to the stock runway, as the foothold food gate does).
 func (f RoutineFacts) JoinerCapacity() JoinerCapacityFacts {
-	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: fallback(f.PopulationFoodDays, f.FoodDays)}
+	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: f.FoodDays}
 }
 
 // JoinerLetterOffer is a pending current-map WandererJoins letter. Its opaque

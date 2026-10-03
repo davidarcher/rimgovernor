@@ -146,7 +146,7 @@ func TestRoutineForecastAndPopulationAreSeparateFromStock(t *testing.T) {
 	f = stableRoutine()
 	f.HousingTarget = domain.Known(int64(4))
 	f.IndoorCapacity = domain.Known(int64(3))
-	f.PopulationFoodDays = domain.Known(2.0)
+	f.FoodDays = domain.Known(2.0)
 	r = needs(t, f, RoutineLatches{})
 	if positive(footholdShelter(f)) || positive(footholdProduction(f)) || positive(footholdFood(f, DefaultRoutinePolicy())) {
 		t.Fatal(r)

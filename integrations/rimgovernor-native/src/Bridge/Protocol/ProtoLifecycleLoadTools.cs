@@ -13,8 +13,7 @@ using Lifecycle = RimGovernor.Protocol.Lifecycle;
 namespace HomeBridge.BridgeTools
 {
     // Trusted native load of a named save into the already-running, already-
-    // connected game process (not a wrapper around the legacy
-    // rimworld/load_game_ready tool, and not a relaunch: this calls
+    // connected game process (not a relaunch: this calls
     // GameDataSaveLoader directly, same as ProtoLifecycleSaveTools calls
     // SaveGame directly). Loading is asynchronous: Load starts it and
     // returns LoadPending; the caller polls ReadLoad for either MAP readiness

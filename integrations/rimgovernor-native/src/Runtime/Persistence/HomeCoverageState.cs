@@ -4,7 +4,7 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Every native Home edit advances this map's freshness token. Autonomous
-    /// coverage restores missing cells; legacy saved exclusions are not read.
+    /// coverage restores missing cells.
     /// </summary>
     public sealed class HomeCoverageState : MapComponent
     {

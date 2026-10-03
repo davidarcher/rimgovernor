@@ -46,7 +46,7 @@ func runStops(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	clock := &na.ScenarioClock{
 		Wire:     h.WireFunc(),
-		Identity: identity, Owner: na.AsString(na.Owner["controllerSessionId"]), Report: map[string]any{}, Grant: grant,
+		Identity: identity, Owner: na.Controller, Report: map[string]any{}, Grant: grant,
 		// Acknowledged, the raiders' approach is not a hostile stop; the
 		// health thresholds are off so only armed events and the budget stop.
 		CombatTargets: staged.Hostiles(),

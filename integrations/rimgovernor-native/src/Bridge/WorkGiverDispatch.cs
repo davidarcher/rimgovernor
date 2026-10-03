@@ -18,11 +18,10 @@ namespace HomeBridge.BridgeTools
 
     /// <summary>
     /// Walks every WorkGiverDef the way `FloatMenuOptionProvider_WorkGivers` does
-    /// and takes the first job one produces for the target. Shared by the legacy
-    /// OrderTool (haul/work/repair/clean) and the protobuf haul Operation dispatch
-    /// so both issue exactly the same native job a player's click would produce.
+    /// and takes the first job one produces for the target, so the protobuf haul
+    /// Operation dispatch issues exactly the native job a player's click would produce.
     ///
-    /// See OrderTool's original remarks: `Pawn_WorkSettings.WorkGiversInOrderNormal`
+    /// `Pawn_WorkSettings.WorkGiversInOrderNormal`
     /// is never used (its cache path logs and writes to the pawn); `workGiversByPriority`
     /// walked directly is what the float menu itself walks. `FloatMenuMakerMap.makingFor`
     /// is set for the duration because `WorkGiver_DoBill.StartOrResumeBillJob` gates

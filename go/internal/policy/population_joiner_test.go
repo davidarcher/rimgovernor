@@ -178,8 +178,4 @@ func TestRoutineFactsJoinerCapacityFallsBackToStockRunway(t *testing.T) {
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 4 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
 	}
-	f.PopulationFoodDays = domain.Known(2.0)
-	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 2 {
-		t.Fatal(f.JoinerCapacity().FoodDays)
-	}
 }

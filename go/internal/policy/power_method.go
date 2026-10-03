@@ -198,20 +198,6 @@ func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []strin
 	return out
 }
 
-// SelectGenerator is the first generator RankGenerators returns. With no
-// options at all the legacy wood-fired default applies; with options but
-// none available the result is empty and the caller reports
-// PowerNoGenerator.
-func SelectGenerator(options []GeneratorOption, ranking GeneratorRanking) string {
-	if len(options) == 0 {
-		return "WoodFiredGenerator"
-	}
-	if ranked := RankGenerators(options, ranking); len(ranked) > 0 {
-		return ranked[0]
-	}
-	return ""
-}
-
 type PowerProposal struct {
 	Method     PowerMethod
 	Definition string
@@ -678,10 +664,6 @@ func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning
 	}
 	// A shortfall the day already covers is night-only: no solar answers it.
 	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
-	if len(planning.Generators) == 0 {
-		p.Method, p.Definition = PowerGenerate, SelectGenerator(nil, ranking)
-		return p, nil
-	}
 	ranked := RankGenerators(planning.Generators, ranking)
 	if len(ranked) == 0 {
 		p.Method = PowerNoGenerator

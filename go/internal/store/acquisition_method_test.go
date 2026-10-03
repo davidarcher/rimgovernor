@@ -11,7 +11,7 @@ import (
 func foodDeficitRoutineRequest() RoutineReviewRequest {
 	r := routineRequest()
 	r.Current.Native = 2
-	r.Facts.PopulationFoodDays = domain.Known(0.0)
+	r.Facts.FoodDays = domain.Known(0.0)
 	r.Facts.GrowingCells = domain.Known(int64(0))
 	r.Facts.FieldCoverage = domain.Known(1.0)
 	return r

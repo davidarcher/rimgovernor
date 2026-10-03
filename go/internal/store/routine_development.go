@@ -85,14 +85,6 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 	return result, nil
 }
 
-func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoutineGoal) ([]policy.Commitment, error) {
-	plans, err := routinePlans(ctx, tx, current, bindings)
-	if err != nil {
-		return nil, err
-	}
-	return commitmentsOf(ctx, tx, plans)
-}
-
 func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]policy.Commitment, error) {
 	var result []policy.Commitment
 	for _, plan := range plans {
@@ -258,29 +250,7 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 			break
 		}
 	}
-	// The ranking's own accounting (policy.AdmitDevelopment) on the
-	// commitments as they stand now: a player project or another admission
-	// since the review holds its slot and worker. The same commitments the
-	// ranking freed hold nothing here either: a stalled one, and one whose
-	// labor idled (its row reads labor_idle).
-	commitments, err := routineCommitments(ctx, tx, review.Snapshot, review.Goals)
-	if err != nil {
-		return err
-	}
-	state := review.Development.State()
-	released := map[domain.GoalID]bool{}
-	for _, row := range state.Rows {
-		if row.Reason == policy.DevelopmentLaborIdle {
-			released[row.Goal] = true
-		}
-	}
-	var withheld policy.LaborProfile
-	for _, h := range state.Holds {
-		if h.Goal == "" {
-			withheld = append(withheld, h.Labor...)
-		}
-	}
-	if err = policy.AdmitDevelopment(state, need, policy.CommitmentHolds(commitments, review.Tick, released, withheld)); err != nil {
+	if err := policy.AdmitDevelopment(review.Development.State(), need); err != nil {
 		return fmt.Errorf("%w: %v", ErrNotAdmitted, err)
 	}
 	return nil

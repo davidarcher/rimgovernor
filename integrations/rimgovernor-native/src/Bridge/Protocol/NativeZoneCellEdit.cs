@@ -11,8 +11,8 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The zone intent's cells shape. Unlike the legacy op=add, this never
-    /// takes a cell away from another zone: add is restricted to cells that
+    /// The zone intent's cells shape. It never takes a cell away from another
+    /// zone: add is restricted to cells that
     /// are genuinely free (no grid owner, and no zone's own cell list holds
     /// them either -- the same orphan-safe test NativeZoneCreation.Prepare
     /// uses for a fresh zone). Remove only ever touches this zone's own,

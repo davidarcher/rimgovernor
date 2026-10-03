@@ -42,14 +42,11 @@ func TestSectionLineFormat(t *testing.T) {
 	if stamped.Format != FormatRows || grid.Format != FormatGrid {
 		t.Fatalf("stamp: rows %d grid %d", stamped.Format, grid.Format)
 	}
-	for label, f := range map[string]sectionFrame{"missing": legacy, "rows": stamped, "grid": grid} {
+	for label, f := range map[string]sectionFrame{"rows": stamped, "grid": grid} {
 		// Through JSON, as a stream holds it.
 		raw, err := json.Marshal(f)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if label == "missing" && strings.Contains(string(raw), "Format") {
-			t.Fatalf("legacy line carries Format: %s", raw)
 		}
 		var back sectionFrame
 		if err := json.Unmarshal(raw, &back); err != nil {
@@ -69,8 +66,9 @@ func TestSectionLineFormat(t *testing.T) {
 		f    sectionFrame
 		want string
 	}{
+		{legacy, "unknown Format 0"},
 		{with(stamped, 7), "unknown Format 7"},
-		{with(gridLine, 0), "with a Grid"},
+		{with(gridLine, FormatRows), "with a Grid"},
 		{with(stamped, FormatGrid), "with no Grid"},
 	} {
 		if _, err := (*recSection)(nil).apply(c.f); err == nil || !strings.Contains(err.Error(), c.want) {

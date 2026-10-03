@@ -154,7 +154,7 @@ func TestGearRoleChoices(t *testing.T) {
 	if gearEligible(p, helm) {
 		t.Fatal("helmet before smithing")
 	}
-	p.Smithing = true
+	p.Research = append(p.Research, "Smithing")
 	if !gearEligible(p, helm) {
 		t.Fatal("helmet after smithing")
 	}

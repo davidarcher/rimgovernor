@@ -12,8 +12,7 @@ namespace HomeBridge.BridgeTools
 {
     // AssignIntent (#941, #1601): one free colonist's ownership of one
     // assignable thing, a synchronous CompAssignableToPawn.TryAssignPawn
-    // write. Beds keep the legacy home/upkeep_bed tool's eligibility rules;
-    // a throne or a grave is refused when owned by someone else; a thing
+    // write. A throne or a grave is refused when owned by someone else; a thing
     // without CompAssignableToPawn is refused. Native checks the pawn, the
     // thing and the pawn's previous assignment of that kind live when it
     // applies; a pawn that already owns the thing applies again.

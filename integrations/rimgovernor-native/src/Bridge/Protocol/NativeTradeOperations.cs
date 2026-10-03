@@ -16,14 +16,12 @@ using Receipts = RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // The trade arm of Actions/Apply (NativeActionDispatch): OpenTrade,
-    // SetTradeLines, AcceptTrade, EndTrade. Ports the legacy JSON home/trade
-    // tool's (HomeTradeTools) native mechanics -- RimWorld's own static
-    // TradeSession/TradeDeal, TradeSession.SetupWith, Tradeable.AdjustTo,
-    // TradeDeal.TryExecute -- behind the typed boundary, deliberately
-    // WITHOUT that tool's Dialog_Trade "watch" theater (opening a real
-    // window, holding it on screen, closing it after): that exists so a
-    // human watching the game can see a trade land, which has no analogue
-    // for a typed native operation driven by the Go controller.
+    // SetTradeLines, AcceptTrade, EndTrade. Drives RimWorld's own static
+    // TradeSession/TradeDeal, TradeSession.SetupWith, Tradeable.AdjustTo and
+    // TradeDeal.TryExecute behind the typed boundary, with no Dialog_Trade
+    // "watch" theater (opening a real window, holding it on screen, closing
+    // it after): a typed native operation driven by the Go controller has no
+    // human to show a trade to.
     //
     // RimWorld allows exactly one TradeSession at a time, so every operation
     // is an idempotent intent against that one live session, named by its
@@ -415,10 +413,9 @@ namespace HomeBridge.BridgeTools
             internal PreparedLine(int index, int target, int before) { Index = index; Target = target; Before = before; } }
 
         // Resolves a line_id to exactly one row: "#N" absolute index, or an
-        // exact defName match. Unlike the legacy JSON tool's fuzzy label/
-        // substring matching (built for a human typing a name), a typed
-        // caller is expected to already hold an exact defName or index from
-        // an observation read, so ambiguity is refused rather than guessed.
+        // exact defName match. A typed caller already holds an exact defName or
+        // index from an observation read, so ambiguity is refused rather than
+        // guessed.
         private static bool ResolveRow(List<Tradeable> all, string lineId, out int index, out Common.Failure failure)
         {
             index = -1;
@@ -440,9 +437,8 @@ namespace HomeBridge.BridgeTools
             index = hits[0]; return true;
         }
 
-        // Validates every requested line before applying any of them: a
-        // typed SetTradeLines is an atomic admission, unlike the legacy
-        // JSON tool's per-line partial-apply report.
+        // Validates every requested line before applying any of them:
+        // SetTradeLines is an atomic admission, never a per-line partial apply.
         private static bool PrepareLines(Operations.SetTradeLines? command, string traderId, string negotiatorId, Common.Identity identity, List<Tradeable> all, out List<PreparedLine> prepared, out Common.Failure failure)
         {
             prepared = new List<PreparedLine>();

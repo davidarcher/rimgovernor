@@ -62,7 +62,9 @@ func TestPowerMethodNetworkCapacityAndPlayerIntent(t *testing.T) {
 				v.Buildings = nil
 				want = PowerNoMethod
 			}
-			p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, DefaultPowerPlanning())
+			planning := DefaultPowerPlanning()
+			planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(200)) })
+			p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 			if err != nil || p.Method != want {
 				t.Fatal(p, err, want)
 			}
@@ -157,7 +159,7 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 			return domain.Unknown[int64]()
 		})
 	}
-	for _, name := range []string{"out-of-fuel", "broken", "reserve-short", "reserve-fine", "reserve-unknown", "reserve-store", "reserve-store-unavailable", "reserve-charging", "reserve-eclipse", "solar-preferred", "solar-without-battery", "wood-short", "no-generator", "legacy-default"} {
+	for _, name := range []string{"out-of-fuel", "broken", "reserve-short", "reserve-fine", "reserve-unknown", "reserve-store", "reserve-store-unavailable", "reserve-charging", "reserve-eclipse", "solar-preferred", "solar-without-battery", "wood-short", "no-generator", "empty-census"} {
 		t.Run(name, func(t *testing.T) {
 			v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a")}, Blackout: domain.Known(false)}
 			planning := PowerPlanning{ReserveMinDays: 1, Generators: options(false, true, 200)}
@@ -229,8 +231,9 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 			case "no-generator":
 				planning.Generators = options(false, false, 200)
 				want = PowerNoGenerator
-			case "legacy-default":
+			case "empty-census":
 				planning.Generators = nil
+				want = PowerNoGenerator
 			}
 			p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
 			if err != nil || p.Method != want {
@@ -277,7 +280,7 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 		}
 	}
 	unavailable := DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(false) }, func(Resource) domain.Fact[int64] { return domain.Unknown[int64]() })
-	if got := SelectGenerator(unavailable, GeneratorRanking{}); got != "" {
+	if got := RankGenerators(unavailable, GeneratorRanking{}); len(got) != 0 {
 		t.Fatal(got)
 	}
 	// A solar net short only at night is answered by a constant source.

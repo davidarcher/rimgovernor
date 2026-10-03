@@ -19,8 +19,7 @@ namespace HomeBridge.BridgeTools
     // whose caller cancelled while queued is completed cancelled and
     // skipped. A pump that finds the frame's allowance spent (#988) runs
     // nothing unless control is queued, and the frame boundary (Frame)
-    // drains what stays queued, so every hop still runs exactly once. Hops that call the host's InvokeAsync directly (the legacy
-    // home/* tools) stay outside this ordering.
+    // drains what stays queued, so every hop still runs exactly once.
     internal static class MainThreadAdmission
     {
         internal const string ClassArgument = "class";

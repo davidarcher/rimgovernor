@@ -298,14 +298,13 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 func (e *Executor) recordReceipts(out []BatchItem, sent []int, placements []Placement, kinds []domain.Receipt, zones []string, causes []error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.limits.JournalTimeout)
 	defer cancel()
-	zoneJournal, _ := e.journal.(ZoneJournal)
 	var receipts []store.BatchReceipt
 	var at []int
 	for j, i := range sent {
 		p, plan := placements[j], out[i].Result.Progress.View().Plan
 		out[i].Err = causes[j]
-		if zoneJournal != nil && zones[j] != "" && kinds[j] == domain.ReceiptAccepted {
-			progress, err := zoneJournal.RecordZoneReceipt(ctx, plan, p.Action.ID(), p.Attempt, zones[j])
+		if zones[j] != "" && kinds[j] == domain.ReceiptAccepted {
+			progress, err := e.journal.RecordZoneReceipt(ctx, plan, p.Action.ID(), p.Attempt, zones[j])
 			if err == nil {
 				out[i].Result.Progress = progress
 			}

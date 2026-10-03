@@ -16,19 +16,13 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // Typed successor to the legacy untyped home/resource_sources tool
-    // (ResourceAcquisitionTools.Sources) production_policy.py's resource_method
-    // still calls directly. This adapter reuses that class's exact eligibility,
-    // designation and safety logic (ResourceAcquisitionTools.Eligible/
-    // Designated/MiningBlocker) so both the old and new surfaces agree on what
-    // counts as a reachable, safe source, but reports the complete typed
-    // ResourceSource rows the new ResourceSourcesSnapshot contract wants.
-    // Storage capacity is now populated (Storage below), porting
-    // ResourceAcquisitionTools.Storage's exact hauler/capacity/candidate scan
-    // so both surfaces agree on material-storage adequacy too.
-    // Deliberately narrower than the legacy read in one
-    // remaining respect: extraction-development detail stays unset (an
-    // explicit Unsupported failure when development is requested).
+    // Typed resource source read. It reuses ResourceAcquisitionTools' eligibility,
+    // designation and safety logic (Eligible/Designated/MiningBlocker) for what
+    // counts as a reachable, safe source and reports the complete typed
+    // ResourceSource rows of the ResourceSourcesSnapshot contract. Storage
+    // capacity is populated by Storage below. Extraction-development detail
+    // stays unset (an explicit Unsupported failure when development is
+    // requested).
     public sealed class NativeResourceSourcesTool
     {
         private const string ToolName = "rimgovernor/observations_list_resource_sources";
@@ -112,15 +106,11 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        // Ports ResourceAcquisitionTools.Storage's exact hauler/capacity/
-        // candidate-cell scan (the legacy home/resource_sources storage
-        // payload production_policy.py's resource_method keys its storage
-        // branch off) into the typed StorageCapacity message: haulers,
-        // capacity, stored, stack_limit and candidates match that method
-        // field-for-field so both surfaces agree on material-storage
-        // adequacy. Unlike the legacy untyped reply, deep-drill portion
-        // sizing and the hauling WorkType are not carried -- nothing on the
-        // Go side reads either yet.
+        // ResourceAcquisitionTools.Storage's hauler/capacity/candidate-cell
+        // scan as the typed StorageCapacity message: haulers, capacity,
+        // stored, stack_limit and candidates. Deep-drill portion sizing and
+        // the hauling WorkType are not carried -- nothing on the Go side
+        // reads either.
         private static Obs.StorageCapacity Storage(Map map, ThingDef def)
         {
             var haulers = Haulers(map);

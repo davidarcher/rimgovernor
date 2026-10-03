@@ -9,7 +9,7 @@ using Clock = RimGovernor.Protocol.Clock;
 
 namespace HomeBridge.BridgeTools
 {
-    // Strict projection at observation time. Legacy payloads never escape as arbitrary wire data.
+    // Strict projection at observation time.
     internal static class NativeClockEventProjection
     {
         internal static string Text(string? value)

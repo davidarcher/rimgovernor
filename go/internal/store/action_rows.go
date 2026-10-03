@@ -346,7 +346,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		var value domain.ZoneCreate
 		var valueErr error
-		if payload.Kind != domain.FishingZone && payload.ExtendZoneID != "" || payload.Kind == domain.FishingZone && (payload.Crop != "" || payload.Preset != "" || payload.Priority != "" || len(payload.Allow) != 0) {
+		if payload.Kind != domain.FishingZone && payload.ExtendZoneID != "" || payload.Kind == domain.FishingZone && (payload.Crop != "" || payload.Priority != "") {
 			return domain.Action{}, 0, errors.New("mixed fishing zone payload")
 		}
 		switch payload.Kind {
@@ -358,10 +358,10 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 				value, valueErr = domain.NewFishingZoneExtension(payload.ExtendZoneID, payload.Cells)
 			}
 		case domain.StockpileZone:
-			var filter domain.StockpileFilter
-			filter, valueErr = legacyZoneFilter(payload)
-			if valueErr == nil {
-				value, valueErr = domain.NewFilteredStockpileZone(filter, payload.Priority, payload.Cells)
+			if payload.Filter == nil {
+				valueErr = errors.New("stockpile zone row missing filter")
+			} else {
+				value, valueErr = domain.NewFilteredStockpileZone(*payload.Filter, payload.Priority, payload.Cells)
 			}
 			if valueErr == nil && payload.Role != "" {
 				value, valueErr = value.WithRole(payload.Role)
@@ -1101,19 +1101,14 @@ type workPayload struct {
 	Schedule []string `json:",omitempty"`
 }
 
-// zonePayload is a zone_create row. Preset and Allow are only ever read:
-// rows written before #932 name a stockpile's filter by preset (and an
-// allow-list for "nothing"); newer rows carry Filter with Preset empty.
+// zonePayload is a zone_create row.
 type zonePayload struct {
 	Kind         domain.ZoneKind
 	Crop         string
-	Preset       string
 	Priority     domain.StockpilePriority
 	Cells        []domain.Cell
-	Allow        []string `json:",omitempty"`
-	ExtendZoneID string   `json:",omitempty"`
+	ExtendZoneID string `json:",omitempty"`
 	// Filter is a stockpile's filter; Role a stockpile's planner role key.
-	// Both are absent on older rows.
 	Filter *domain.StockpileFilter `json:",omitempty"`
 	Role   string                  `json:",omitempty"`
 }
@@ -1198,31 +1193,6 @@ func bedUseDefinition(b domain.BedUse) string {
 		return bedSlavesUse
 	}
 	return strconv.FormatBool(b.Medical())
-}
-
-// legacyZoneFilter is a stockpile row's filter: Filter on current rows, the
-// retired preset's filter on rows written before #932.
-func legacyZoneFilter(payload zonePayload) (domain.StockpileFilter, error) {
-	if payload.Filter != nil {
-		if payload.Preset != "" || len(payload.Allow) != 0 {
-			return domain.StockpileFilter{}, errors.New("mixed stockpile filter payload")
-		}
-		return *payload.Filter, nil
-	}
-	if payload.Preset != "nothing" && len(payload.Allow) != 0 {
-		return domain.StockpileFilter{}, errors.New("mixed stockpile allow payload")
-	}
-	switch payload.Preset {
-	case "food":
-		return domain.FoodFilter(), nil
-	case "corpse_larder":
-		return domain.CorpseLarderFilter(), nil
-	case "general":
-		return domain.GeneralFilter(), nil
-	case "nothing":
-		return domain.AllowOnlyFilter(payload.Allow)
-	}
-	return domain.StockpileFilter{}, errors.New("unsupported stockpile preset")
 }
 
 // pawnSettingDefinition is a pawn_settings row's definition column: the

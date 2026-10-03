@@ -384,7 +384,7 @@ func ProductionBlockedGoal(progress []GoalProgress) (GoalID, BlockedReason) {
 func StageColonyFacts(needs RoutineNeeds, f RoutineFacts, p RoutinePolicy, progress []GoalProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
 		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
-		FoodDays:  fallback(f.PopulationFoodDays, f.FoodDays),
+		FoodDays:  f.FoodDays,
 		FieldSown: allFacts(footholdProduction(f), measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })),
 		WoodShort: needs.Latches.Wood, ResearchBench: ResearchBenchBuilt(f.CurrentConstruction),
 		Power: footholdPower(f), Climate: SeasonalClimate(f.Calendar, footholdTemperature(f, p), needs.Latches.Refrigeration), Doctor: DoctorCapable(f.WorkProfiles),
