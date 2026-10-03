@@ -1249,6 +1249,9 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   // Native explosive radius (CompProperties_Explosive) of an explosive
   // building such as an IED trap; unset when the definition has none.
   optional double explosive_radius = 35;
+  // True when the building pollutes or produces wastepacks: it has a
+  // CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
+  optional bool pollutes = 36;
 }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their

@@ -453,6 +453,8 @@ namespace HomeBridge.BridgeTools
             if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
             var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
             if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
+            // Pollutes or produces wastepacks: the three Biotech comps, read from the def, never a name list (#1684).
+            if (def.building != null) row.Pollutes = def.GetCompProperties<CompProperties_Toxifier>() != null || def.GetCompProperties<CompProperties_PolluteOverTime>() != null || def.GetCompProperties<CompProperties_WasteProducer>() != null;
             if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
             if (def.plant != null) {
                 row.HarvestWork = Finite(def.plant.harvestWork);

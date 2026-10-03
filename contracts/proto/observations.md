@@ -338,6 +338,16 @@ unique ids per table, cells on the map, nonnegative counts) and projects them
 into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
 held in Go memory (persistence-contracts.md); it adds no store.
 
+## Polluting-building flag
+
+`PlanningDefinition.pollutes` (#1684) is set on every building row of the
+definition catalog: true when the def has `CompProperties_Toxifier`,
+`CompProperties_PolluteOverTime` or `CompProperties_WasteProducer` (the comps
+behind the colony section's polluters and wastepack producers), false for any
+other building, absent on rows that are not buildings. It decodes to
+`observation.PlanningDefinition.Pollutes` (a `domain.Fact`, unknown when
+absent). Siting uses it, never a def-name list.
+
 ## Quest census Empire fields
 
 `QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`

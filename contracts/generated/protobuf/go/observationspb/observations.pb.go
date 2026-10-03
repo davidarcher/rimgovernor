@@ -27730,8 +27730,11 @@ type PlanningDefinition struct {
 	// Native explosive radius (CompProperties_Explosive) of an explosive
 	// building such as an IED trap; unset when the definition has none.
 	ExplosiveRadius *float64 `protobuf:"fixed64,35,opt,name=explosive_radius,json=explosiveRadius,proto3,oneof" json:"explosive_radius,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// True when the building pollutes or produces wastepacks: it has a
+	// CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
+	Pollutes      *bool `protobuf:"varint,36,opt,name=pollutes,proto3,oneof" json:"pollutes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlanningDefinition) Reset() {
@@ -27986,6 +27989,13 @@ func (x *PlanningDefinition) GetExplosiveRadius() float64 {
 		return *x.ExplosiveRadius
 	}
 	return 0
+}
+
+func (x *PlanningDefinition) GetPollutes() bool {
+	if x != nil && x.Pollutes != nil {
+		return *x.Pollutes
+	}
+	return false
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -46779,7 +46789,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\xa9\x0f\n" +
+	"\v_sowing_now\"\xd7\x0f\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -46818,7 +46828,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13requires_clean_soil\x18  \x01(\bH\x16R\x11requiresCleanSoil\x88\x01\x01\x12'\n" +
 	"\rwork_to_build\x18! \x01(\x01H\x17R\vworkToBuild\x88\x01\x01\x12M\n" +
 	"\rstuff_options\x18\" \x03(\v2(.rimgovernor.observations.v1.StuffOptionR\fstuffOptions\x12.\n" +
-	"\x10explosive_radius\x18# \x01(\x01H\x18R\x0fexplosiveRadius\x88\x01\x01B\b\n" +
+	"\x10explosive_radius\x18# \x01(\x01H\x18R\x0fexplosiveRadius\x88\x01\x01\x12\x1f\n" +
+	"\bpollutes\x18$ \x01(\bH\x19R\bpollutes\x88\x01\x01B\b\n" +
 	"\x06_stuffB\x15\n" +
 	"\x13_construction_skillB\x15\n" +
 	"\x13_rest_effectivenessB\f\n" +
@@ -46848,7 +46859,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_requires_pollutionB\x16\n" +
 	"\x14_requires_clean_soilB\x10\n" +
 	"\x0e_work_to_buildB\x13\n" +
-	"\x11_explosive_radiusJ\x04\b\x03\x10\x04J\x04\b\r\x10\x0eJ\x04\b\x1e\x10\x1fR\tavailableR\x18nutrition_demand_per_dayR\fdiet_allowed\"\xaa\x03\n" +
+	"\x11_explosive_radiusB\v\n" +
+	"\t_pollutesJ\x04\b\x03\x10\x04J\x04\b\r\x10\x0eJ\x04\b\x1e\x10\x1fR\tavailableR\x18nutrition_demand_per_dayR\fdiet_allowed\"\xaa\x03\n" +
 	"\tGrowLight\x126\n" +
 	"\bbuilding\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12.\n" +
 	"\x04room\x18\x02 \x01(\v2\x1a.rimgovernor.common.v1.RefR\x04room\x12\x1d\n" +

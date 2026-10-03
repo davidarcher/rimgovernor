@@ -34,3 +34,17 @@ func TestDefinitionsResolveAgainstTheCatalog(t *testing.T) {
 		}
 	}
 }
+
+// TestPlanningDefinitionDecodesPollutes (#1684): the native pollutes flag is
+// a known fact when present and unknown when absent.
+func TestPlanningDefinitionDecodesPollutes(t *testing.T) {
+	yes := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Toxifier")}, Pollutes: proto.Bool(true)})
+	no := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Wall")}, Pollutes: proto.Bool(false)})
+	absent := planningDefinition(&o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String("Rice")}})
+	if yes.Pollutes != domain.Known(true) || no.Pollutes != domain.Known(false) {
+		t.Fatalf("known flags: %+v %+v", yes.Pollutes, no.Pollutes)
+	}
+	if _, known := absent.Pollutes.Value(); known {
+		t.Fatal("absent flag decoded as known")
+	}
+}

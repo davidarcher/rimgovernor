@@ -118,6 +118,18 @@ one decoration, one blackboard and a desk per child.
    passed over, and a baby sleeping spot answers an unresearched crib.
 3. Using the rooms (feeding, play, lessons) belongs to the next children.
 
+### Polluting-machine siting (Biotech)
+
+A building whose catalog row has `Pollutes` known true (a toxifier,
+pollute-over-time or wastepack-producing comp, read natively) is sited by
+`policy.PollutionSites`: it ranks the caller's legal candidate footprints by
+distance only (no wind term; no sourced rule). Farthest from the nearest field
+zone, bedroom, living-room or polluted cell first, then nearest the wastepack
+disposal (atomizer) cells, then by cell order. The function is pure: it holds no
+reservation and sets no threshold, so a goal (mech gestation, charging) takes the
+first ranked site its native placement preview accepts. Unknown or off-map input
+is an error, never a guess.
+
 ### Worship room (Ideology)
 
 An ideoligion that requires buildings is owed one worship room holding one of
