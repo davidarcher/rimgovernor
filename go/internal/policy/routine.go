@@ -235,6 +235,10 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	// PersonalShares are the colonists' personal wealth shares (#1846) the
+	// elective surgery gate reads (#1843); nil is ungated, a live reading
+	// always sets it (an empty map gates every colonist).
+	PersonalShares map[PawnID]PersonalShare `json:",omitzero"`
 	// Items are the catalog's item numbers (market value, nutrition,
 	// medical potency, stuff factors); the zero value without a catalog.
 	Items ItemFacts `json:",omitzero"`
@@ -1229,7 +1233,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// MaintainSurgery (#1164): an operation the planner serves stands on a
 	// living colonist until the health change removes it.
 	// An actionable elective upgrade (#1167) keeps it open too.
-	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping)), func(owed bool) bool { return !owed }))
+	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, HospitalBedReady(f.Sleeping), f.ElectiveShare()), func(owed bool) bool { return !owed }))
 	// A sale organ harvest (#1169) holds it open while the silver runway
 	// is short and a prisoner's organ clears its cost; a prisoner's
 	// recoverable artificial part (#1232) too, and a peg-leg step: doctor

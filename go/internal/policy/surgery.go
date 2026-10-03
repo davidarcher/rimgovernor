@@ -31,6 +31,38 @@ const ElectiveFailureCap = 0.05
 type SurgeryContext struct {
 	Profiles    []PawnProfile
 	HospitalBed bool
+	// Elective gates electives by each colonist's remaining personal share
+	// (#1843); the zero value is ungated.
+	Elective ElectiveShare
+}
+
+// ElectiveShareSlack is the stateless hysteresis of the elective gate: an
+// elective is affordable while its part's market value is within
+// (1+slack) x the colonist's remaining share. Electives are only offered once
+// the part is on the map, so the part is already bought or fabricated and
+// wealth jitter around the price must not strand it.
+const ElectiveShareSlack = 0.1
+
+// ElectiveShare prices electives against personal shares (#1843). Of is the
+// colonist's share (observation.ColonyProjection.PersonalShareOf); nil gates
+// nothing. Items price the installed part; a part with no price is not
+// affordable while Of is set, as an unknown share is not.
+type ElectiveShare struct {
+	Items ItemFacts
+	Of    func(PawnID) PersonalShare
+}
+
+// affordable is whether the pawn's remaining share covers the elective's
+// installed part, within ElectiveShareSlack.
+func (g ElectiveShare) affordable(pawn PawnID, op SurgeryOperation) bool {
+	if g.Of == nil {
+		return true
+	}
+	price, err := g.Items.MarketValue(op.Item)
+	if op.Item == "" || err != nil {
+		return false
+	}
+	return g.Of(pawn).Allows(price / (1 + ElectiveShareSlack))
 }
 
 // SurgeryWantReason says why a patient's operation was not queued.
@@ -190,10 +222,11 @@ func electiveUpgrade(op SurgeryOperation) bool {
 }
 
 // ElectiveSurgeryOwed: an elective upgrade could be queued now (stocked,
-// within ElectiveFailureCap, a hospital bed, nothing served pending) on a
-// living colonist without a queued bill. It keeps MaintainSurgery open;
-// blocked electives never do.
-func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], hospital domain.Fact[bool]) domain.Fact[bool] {
+// within ElectiveFailureCap, a hospital bed, nothing served pending, the
+// part within the colonist's remaining share) on a living colonist without a
+// queued bill. It keeps MaintainSurgery open; blocked or unaffordable
+// electives never do.
+func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], hospital domain.Fact[bool], gate ElectiveShare) domain.Fact[bool] {
 	rows, known := pawns.Value()
 	if !known {
 		return domain.Unknown[bool]()
@@ -210,7 +243,7 @@ func ElectiveSurgeryOwed(pawns domain.Fact[[]CarePawn], hospital domain.Fact[boo
 		}
 		ops, _ := pawn.Operations.Value()
 		for _, op := range ops {
-			if stocked, sk := op.IngredientsOnMap.Value(); electiveUpgrade(op) && sk && stocked && surgeryAcceptable(op, ElectiveFailureCap) {
+			if stocked, sk := op.IngredientsOnMap.Value(); electiveUpgrade(op) && sk && stocked && surgeryAcceptable(op, ElectiveFailureCap) && gate.affordable(pawn.ID, op) {
 				return domain.Known(true)
 			}
 		}
@@ -262,8 +295,10 @@ func SurgeryBillsQueued(pawns domain.Fact[[]CarePawn], prisoners domain.Fact[[]P
 // Each part picks its best stocked recipe (bionic, then prosthetic, then
 // peg) that some eligible doctor performs within the kind's failure cap;
 // the patient queues its most valuable part, weighted by its role
-// (UpgradeRoleWeight). When electives are allowed, healthy parts compete
-// with their gain over the natural part, one elective per review.
+// (UpgradeRoleWeight). When electives are allowed, healthy parts whose
+// installed part fits the colonist's remaining share (ctx.Elective) compete
+// with their gain over the natural part, one elective per review colony-wide.
+// Served operations never pass the share gate.
 func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool, ctx SurgeryContext) SurgerySelection {
 	var s SurgerySelection
 	rows, _ := pawns.Value()
@@ -292,7 +327,7 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool, ctx 
 			}
 			weight, _ := servedSurgery(pawn, op)
 			name, _ := op.PartDefName.Value()
-			if weight <= 0 && electives && electiveUpgrade(op) {
+			if weight <= 0 && electives && electiveUpgrade(op) && ctx.Elective.affordable(pawn.ID, op) {
 				weight, elective[part] = partWeight(name), true
 			}
 			if _, rk := op.Recipe.Value(); !rk || weight <= 0 || !pk && op.Kind != SurgeryCure {
@@ -323,9 +358,15 @@ func SelectSurgery(pawns domain.Fact[[]CarePawn], inFlight map[PawnID]bool, ctx 
 			s.Queue = append(s.Queue, *best)
 		}
 	}
-	sort.SliceStable(s.Queue, func(i, j int) bool { return s.Queue[i].Value > s.Queue[j].Value })
+	sort.SliceStable(s.Queue, func(i, j int) bool {
+		if a, b := s.Queue[i], s.Queue[j]; a.Value != b.Value {
+			return a.Value > b.Value
+		}
+		return s.Queue[i].Pawn < s.Queue[j].Pawn
+	})
 	// The stock read is a bool, not a count: one elective per review, to
-	// the pawn whose role gains most, so two bills never race for one part.
+	// the pawn whose role gains most (ties by pawn id), so two bills never
+	// race for one part.
 	queue, elective := s.Queue[:0], false
 	for _, choice := range s.Queue {
 		if choice.Elective {

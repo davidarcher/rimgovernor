@@ -104,6 +104,23 @@ precept refuses. At these prices a classic five-colonist colony harvests a kidne
 (900) from a prisoner whose faction loses 70 goodwill (850), and a colony of seven
 does not. The harvest queues a medical `ProductionBillIntent` with `acknowledge_violation`.
 
+Electives (#1167, #1843) are bionic or archotech installs on a healthy part. They
+need a medical bed, no served operation (restore, cure, chronic replacement) or
+queued bill anywhere, a stocked part and a failure chance within 5%
+(`ElectiveFailureCap`). Since #1843 the installed part's market value
+(`ItemFacts.MarketValue(op.Item)`) must also fit the colonist's remaining
+personal share (`SurgeryContext.Elective`, read through
+`observation.ColonyProjection.PersonalShareOf`, see
+[upkeep contracts](upkeep-contracts.md#personal-wealth-shares-1829-1836)): an
+unknown share or an unpriced part is necessities only, so no elective. The gate
+carries `ElectiveShareSlack` (10%) of stateless hysteresis, since the part is
+already on the map and wealth jitter near its price must not strand it. Affordable
+electives from every colonist compete by gain over the natural part x part weight
+x role weight, and exactly one is queued colony-wide, ties by pawn id.
+`ElectiveSurgeryOwed` applies the same gate, so an unaffordable elective never
+holds MaintainSurgery open. Served operations never pass the share gate. The zero
+`ElectiveShare` is ungated, which the other `SelectSurgery` callers rely on.
+
 Peg-leg cycling (#1236) takes the same one-surgery slot after harvest and part
 recovery. It installs and removes cheap wood parts (peg leg, wooden hand, wooden
 foot) on colony prisoners:

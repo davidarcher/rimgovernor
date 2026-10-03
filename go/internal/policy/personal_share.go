@@ -35,6 +35,21 @@ func PersonalPool(wealth domain.Fact[WealthFacts]) domain.Fact[float64] {
 	return domain.Known(w.Items + w.Buildings)
 }
 
+// ElectiveShare is the elective surgery gate over f's held shares: a colonist
+// with no entry gets UnknownPersonalShare (necessities only); nil shares are
+// ungated.
+func (f RoutineFacts) ElectiveShare() ElectiveShare {
+	if f.PersonalShares == nil {
+		return ElectiveShare{}
+	}
+	return ElectiveShare{Items: f.Items, Of: func(pawn PawnID) PersonalShare {
+		if s, ok := f.PersonalShares[pawn]; ok {
+			return s
+		}
+		return UnknownPersonalShare()
+	}}
+}
+
 // PersonalPool is the pool from f's wealth.
 func (f RoutineFacts) PersonalPool() domain.Fact[float64] { return PersonalPool(f.Wealth) }
 
@@ -83,7 +98,8 @@ func ShareWeight(m ShareMember) float64 {
 // callers that carry no share keep working.
 type PersonalShare struct {
 	Share, Spent, Remaining domain.Fact[float64]
-	gated                   bool
+	// Gated is exported so a recorded share keeps its gate through JSON.
+	Gated bool
 }
 
 // Allows is whether the colonist's remaining share covers an upgrade of the
@@ -91,7 +107,7 @@ type PersonalShare struct {
 // so does a delta of zero or less (necessities are never charged); otherwise
 // an unknown remaining refuses.
 func (s PersonalShare) Allows(delta float64) bool {
-	if !s.gated || delta <= 0 {
+	if !s.Gated || delta <= 0 {
 		return true
 	}
 	remaining, ok := s.Remaining.Value()
@@ -103,7 +119,7 @@ func (s PersonalShare) Allows(delta float64) bool {
 // every part unknown, so Allows refuses any charged upgrade and only
 // necessities pass. Unlike the zero value it is never ungated.
 func UnknownPersonalShare() PersonalShare {
-	return PersonalShare{Share: domain.Unknown[float64](), Spent: domain.Unknown[float64](), Remaining: domain.Unknown[float64](), gated: true}
+	return PersonalShare{Share: domain.Unknown[float64](), Spent: domain.Unknown[float64](), Remaining: domain.Unknown[float64](), Gated: true}
 }
 
 // ShareDoctors are the colonists whose claim carries the doctor weight
@@ -153,7 +169,7 @@ func PersonalShares(pool domain.Fact[float64], members []ShareMember) map[PawnID
 				share = domain.Known(PersonalShareFraction * p * ShareWeight(m) / total)
 			}
 		}
-		s := PersonalShare{Share: share, Spent: m.Spent, gated: true}
+		s := PersonalShare{Share: share, Spent: m.Spent, Gated: true}
 		sh, shk := share.Value()
 		sp, spk := m.Spent.Value()
 		if shk && spk && finite(sp) && sp >= 0 {

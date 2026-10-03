@@ -237,6 +237,11 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		return RoutineReading{}, err
 	}
 	personalShares(p, frame, pawns)
+	// The detection reads the same shares; an empty map gates every colonist.
+	p.Facts.PersonalShares = p.PersonalShares
+	if p.Facts.PersonalShares == nil {
+		p.Facts.PersonalShares = map[policy.PawnID]policy.PersonalShare{}
+	}
 	return RoutineReading{ColonyReading: reading, Emergency: emergency, Sections: routineSections(frame, *p, roomCensus), Frame: frame}, nil
 }
 
