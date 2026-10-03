@@ -19,6 +19,25 @@ type DumpStore struct {
 	Rooms []Room
 	// Anchor sites the dumps when no general store stands.
 	Anchor domain.Cell
+	// Anchors sites a dump role's patches nearest its own cell instead of the
+	// general store: the rotten dump, the crematorium's feed, sits beside the
+	// crematorium (#1812), and the incinerator's dump will beside its room.
+	Anchors map[string]domain.Cell
+}
+
+// CrematoriumFeedAnchor is a built crematorium's first cell, the lowest ID
+// when several stand; false while none is built.
+func CrematoriumFeedAnchor(built []CurrentBuilding) (domain.Cell, bool) {
+	var best *CurrentBuilding
+	for i := range built {
+		if built[i].Building.Definition() == CrematoriumDefinition && len(built[i].Cells) > 0 && (best == nil || built[i].ID < best.ID) {
+			best = &built[i]
+		}
+	}
+	if best == nil {
+		return domain.Cell{}, false
+	}
+	return stockpileSorted(best.Cells)[0], true
 }
 
 // DumpNeeds counts the things waiting for each dump (#724): poor stored
@@ -50,7 +69,7 @@ func DumpNeeds(facts RoutineFacts) map[string]int {
 				continue
 			}
 			switch {
-			case item.Kind == "spoiled", item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal:
+			case item.Kind == "spoiled", item.Kind == "corpse" && item.CorpseOf == domain.CorpseAnimal && item.RotStage != domain.RotFresh:
 				needs[domain.RottenDumpRole]++
 			case item.Kind == "corpse" && (item.CorpseOf == domain.CorpseColonist || item.CorpseOf == domain.CorpseStranger):
 				needs[domain.CorpseDumpRole]++
@@ -86,17 +105,30 @@ func (r StorageRequest) dumpSites() []StockpileSite {
 			room = append(room, c.Cell)
 		}
 	}
-	patches, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: anchor, Cells: r.Cells, Rooms: d.Rooms, Protected: r.Protected, Width: 2, Height: 2})
-	if err != nil {
-		return nil
+	// patchesNear is the nearest free patches to one anchor, read once each.
+	byAnchor := map[domain.Cell][]Rectangle{}
+	patchesNear := func(at domain.Cell) []Rectangle {
+		if p, ok := byAnchor[at]; ok {
+			return p
+		}
+		p, err := OutdoorDumpSites(OutdoorDumpRequest{Bounds: r.Bounds, Anchor: at, Cells: r.Cells, Rooms: d.Rooms, Protected: r.Protected, Width: 2, Height: 2})
+		if err != nil {
+			p = nil
+		}
+		byAnchor[at] = p
+		return p
 	}
 	var out []StockpileSite
 	for _, spec := range domain.DumpRoles() {
 		if d.Needs[spec.Role] <= 0 {
 			continue
 		}
+		at, near := d.Anchors[spec.Role]
+		if !near {
+			at = anchor
+		}
 		site := StockpileSite{Role: spec.Role, Room: room, Filter: spec.Filter, Priority: spec.Priority, Keyed: true}
-		for _, p := range patches {
+		for _, p := range patchesNear(at) {
 			site.Candidates = append(site.Candidates, stockpileSorted(rectCells(p)))
 		}
 		out = append(out, site)

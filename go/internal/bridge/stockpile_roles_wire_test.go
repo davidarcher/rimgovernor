@@ -15,7 +15,7 @@ func TestGearAndDumpRoleFiltersWire(t *testing.T) {
 	want := map[string]string{
 		domain.WornDumpRole:   `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"Apparel"},{"categoryDef":"Weapons"}]}}`,
 		domain.RottenDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"},{"categoryDef":"CorpsesInsect"},{"categoryDef":"Foods"}],"disallow":[{"specialFilterDef":"AllowFresh"}]}}`,
-		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesAnimal"}, {"categoryDef":"CorpsesHumanlike"}, {"categoryDef":"CorpsesInsect"}]}}`,
+		domain.CorpseDumpRole: `{"priority":"STORAGE_PRIORITY_LOW","preset":"FILTER_PRESET_NOTHING","filter":{"allow":[{"categoryDef":"CorpsesHumanlike"}]}}`,
 	}
 	for _, spec := range domain.DumpRoles() {
 		z, err := domain.NewFilteredStockpileZone(spec.Filter, spec.Priority, []domain.Cell{{X: 1, Z: 1}})

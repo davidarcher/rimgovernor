@@ -111,18 +111,22 @@ func WornDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("Apparel"), CategoryDef("Weapons")}, nil))
 }
 
-// RottenDumpFilter takes rotten food and rotten non-human corpses only.
+// RottenDumpFilter takes rotten food and rotten non-human corpses only. It
+// is the crematorium's feed (#1812): the planner sites it beside the
+// crematorium, whose bill cremates rotting and desiccated animal corpses.
 func RottenDumpFilter() StockpileFilter {
 	return mustFilter(NewStockpileFilter(BaseNothing,
 		[]FilterSelector{CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect"), CategoryDef("Foods")},
 		[]FilterSelector{SpecialFilter("AllowFresh")}))
 }
 
-// CorpseDumpFilter is the vanilla dumping preset's corpses: human, animal
-// and insect, fresh or rotten, so none lie in a room colonists sleep or eat
-// in, and hunted or raider corpses wait in one place a butcher bill reaches.
+// CorpseDumpFilter takes humanlike corpses only, the ones with no better
+// home yet: strangers wait for the butcher or the crematorium and colonists
+// for the tomb, so none lie in a room colonists sleep or eat in. Animal and
+// insect corpses are not here (#1812): fresh ones belong on the freezer
+// shelf, and a rotting one goes to the rotten dump, the crematorium's feed.
 func CorpseDumpFilter() StockpileFilter {
-	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike"), CategoryDef("CorpsesAnimal"), CategoryDef("CorpsesInsect")}, nil))
+	return mustFilter(NewStockpileFilter(BaseNothing, []FilterSelector{CategoryDef("CorpsesHumanlike")}, nil))
 }
 
 // StockpileRoleSpec is the filter and priority a role's zone is created
