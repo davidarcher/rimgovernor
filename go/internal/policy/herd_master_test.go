@@ -37,54 +37,66 @@ func masterChoice(rows ...UpkeepAnimal) HusbandryChoice {
 	return HerdMasterChoice(domain.Known(rows), masterHerd(), masterRoster())
 }
 
+// learning marks an animal as still having a wanted trainable to learn.
+func learning(a UpkeepAnimal) UpkeepAnimal {
+	a.Training = []HusbandryTrainable{{Def: "Obedience", Available: domain.Known(true), Learned: domain.Known(false)}}
+	return a
+}
+
 func TestHerdMasterChoiceWarAnimalGetsFrontLineHandler(t *testing.T) {
 	got := masterChoice(workAnimal("w1", "Warg", "", false, false))
 	want := HusbandryChoice{Animal: "w1", Method: domain.HusbandryMaster, Argument: "fighter"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v (the sniper handles better but shoots from the rear)", got, want)
 	}
-}
-
-func TestHerdMasterChoiceHaulAnimalGetsBestHauler(t *testing.T) {
-	got := masterChoice(workAnimal("m1", "Muffalo", "", false, false))
-	want := HusbandryChoice{Animal: "m1", Method: domain.HusbandryMaster, Argument: "sniper"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %+v, want %+v", got, want)
+	// Once mastered it follows when drafted, and never writes fieldwork.
+	if got := masterChoice(workAnimal("w1", "Warg", "fighter", false, true)); got.Method != domain.HusbandryFollowDrafted || got.Argument != "true" {
+		t.Fatalf("war flag: %+v", got)
 	}
-}
-
-func TestHerdMasterChoiceFlagsFollowJobOneWritePerCall(t *testing.T) {
-	war := workAnimal("w1", "Warg", "fighter", false, true)
-	if got := masterChoice(war); got.Method != domain.HusbandryFollowDrafted || got.Argument != "true" {
-		t.Fatalf("war flags: %+v", got)
+	if got := masterChoice(workAnimal("w1", "Warg", "fighter", true, true)); got.Method != "" {
+		t.Fatalf("settled war animal chose %+v", got)
 	}
-	war.FollowDrafted = domain.Known(true)
-	if got := masterChoice(war); got.Method != domain.HusbandryFollowFieldwork || got.Argument != "false" {
-		t.Fatalf("war fieldwork flag: %+v", got)
-	}
-	haul := workAnimal("m1", "Muffalo", "hauler", true, false)
-	if got := masterChoice(haul); got.Method != domain.HusbandryFollowDrafted || got.Argument != "false" {
-		t.Fatalf("haul flags: %+v", got)
-	}
-}
-
-func TestHerdMasterChoiceMatchingAnimalSelectsNothing(t *testing.T) {
-	// A fitting master stays even when another colonist would rank higher.
-	got := masterChoice(workAnimal("w1", "Warg", "fighter", true, false), workAnimal("m1", "Muffalo", "hauler", false, true))
-	if got.Reason != HusbandryNoDeficit || got.Method != "" {
-		t.Fatalf("matching animals chose %+v", got)
-	}
-}
-
-func TestHerdMasterChoiceReassignsOnlyMismatchedMaster(t *testing.T) {
-	// The sniper shoots from the rear, so a war animal reassigns to the fighter;
-	// a master the roster no longer holds fits no job.
-	got := masterChoice(workAnimal("w1", "Warg", "sniper", true, false))
-	if got.Method != domain.HusbandryMaster || got.Argument != "fighter" {
+	// A rear master is replaced by the front line.
+	if got := masterChoice(workAnimal("w1", "Warg", "sniper", true, false)); got.Argument != "fighter" {
 		t.Fatalf("got %+v", got)
 	}
-	if got := masterChoice(workAnimal("m1", "Muffalo", "ghost", false, true)); got.Method != domain.HusbandryMaster {
-		t.Fatalf("departed master kept: %+v", got)
+}
+
+func TestHerdMasterChoiceUnbondedHaulAnimalGetsNothing(t *testing.T) {
+	if got := masterChoice(workAnimal("m1", "Muffalo", "", true, true)); got.Method != "" {
+		t.Fatalf("haul animal chose %+v", got)
+	}
+}
+
+func TestHerdMasterChoiceLearningAnimalGetsBestAnimalsHandler(t *testing.T) {
+	// The sniper has the best Animals skill; follow flags are left alone and
+	// one handler masters a whole pack.
+	pack := []UpkeepAnimal{learning(workAnimal("m1", "Muffalo", "", true, true)), learning(workAnimal("w1", "Warg", "", false, false))}
+	if got := masterChoice(pack...); got.Animal != "m1" || got.Method != domain.HusbandryMaster || got.Argument != "sniper" {
+		t.Fatalf("got %+v", got)
+	}
+	pack[0].Master = domain.Known("sniper")
+	if got := masterChoice(pack...); got.Animal != "w1" || got.Argument != "sniper" {
+		t.Fatalf("pack not extended: %+v", got)
+	}
+	pack[1].Master = domain.Known("sniper")
+	if got := masterChoice(pack...); got.Method != "" {
+		t.Fatalf("settled pack chose %+v", got)
+	}
+}
+
+func TestHerdMasterChoiceLearningIgnoresUnavailableAndLearned(t *testing.T) {
+	a := workAnimal("m1", "Muffalo", "", false, false)
+	a.Training = []HusbandryTrainable{
+		{Def: "Obedience", Available: domain.Known(true), Learned: domain.Known(true)},
+		{Def: "Haul", Available: domain.Known(false), Learned: domain.Known(false)},
+	}
+	if got := masterChoice(a); got.Method != "" {
+		t.Fatalf("trained haul animal chose %+v", got)
+	}
+	a.Training[1].Available = domain.Unknown[bool]()
+	if got := masterChoice(a); got.Method != "" {
+		t.Fatalf("unread availability chose %+v", got)
 	}
 }
 
@@ -126,37 +138,35 @@ func TestHerdMasterChoiceRetiringRaceAndUnknownRosterSelectNothing(t *testing.T)
 	}
 }
 
-func companionAnimal(id, master string, drafted, fieldwork bool, bonded ...string) UpkeepAnimal {
-	a := workAnimal(id, "Husky", master, drafted, fieldwork)
+func bondedAnimal(id string, def Resource, master string, bonded ...string) UpkeepAnimal {
+	a := workAnimal(id, def, master, false, false)
 	a.BondedPawns = bonded
 	return a
 }
 
-func TestHerdMasterChoiceCompanionGetsBondedColonist(t *testing.T) {
+func TestHerdMasterChoiceBondedAnimalGetsBondedColonist(t *testing.T) {
 	// Bond partners off the roster (a prisoner, a pawn who left) are ignored;
-	// of those on it the first by id masters.
-	got := masterChoice(companionAnimal("h1", "", false, false, "prisoner", "sniper", "hauler"))
-	want := HusbandryChoice{Animal: "h1", Method: domain.HusbandryMaster, Argument: "hauler"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %+v, want %+v", got, want)
+	// of those on it the first by id masters, whatever the race's job.
+	for _, def := range []Resource{"Husky", "Warg", "Muffalo"} {
+		got := masterChoice(bondedAnimal("h1", def, "", "prisoner", "sniper", "hauler"))
+		want := HusbandryChoice{Animal: "h1", Method: domain.HusbandryMaster, Argument: "hauler"}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: got %+v, want %+v", def, got, want)
+		}
 	}
-	// A master who is a bond partner on the roster stays, follow flags go off.
-	got = masterChoice(companionAnimal("h1", "sniper", true, true, "hauler", "sniper"))
-	if got.Method != domain.HusbandryFollowDrafted || got.Argument != "false" {
-		t.Fatalf("got %+v", got)
+	// A master who is a bond partner on the roster stays; no flag is written.
+	if got := masterChoice(bondedAnimal("w1", "Warg", "sniper", "hauler", "sniper")); got.Method != "" {
+		t.Fatalf("settled bonded animal chose %+v", got)
 	}
-	if got := masterChoice(companionAnimal("h1", "sniper", false, false, "hauler", "sniper")); got.Method != "" {
-		t.Fatalf("settled companion chose %+v", got)
-	}
-	// A master who is not a bond partner is replaced.
-	if got := masterChoice(companionAnimal("h1", "fighter", false, false, "hauler")); got.Argument != "hauler" {
+	// A master who is not a bond partner is replaced, even while learning.
+	if got := masterChoice(learning(bondedAnimal("h1", "Husky", "fighter", "hauler"))); got.Argument != "hauler" {
 		t.Fatalf("got %+v", got)
 	}
 }
 
-func TestHerdMasterChoiceCompanionWithoutRosterPartnerStaysUnmastered(t *testing.T) {
+func TestHerdMasterChoiceUnbondedCompanionWithoutTrainingStaysUnmastered(t *testing.T) {
 	for _, bonded := range [][]string{nil, {"prisoner", "ghost"}} {
-		if got := masterChoice(companionAnimal("h1", "", false, false, bonded...)); got.Method != "" {
+		if got := masterChoice(bondedAnimal("h1", "Husky", "", bonded...)); got.Method != "" {
 			t.Fatalf("bonded %v chose %+v", bonded, got)
 		}
 	}

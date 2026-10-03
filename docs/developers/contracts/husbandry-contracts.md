@@ -157,23 +157,31 @@ of 1 (taming it, then the usual training, raises the Animals skill). Once a
 handler clears the wanted race, or no easy wild animal exists, the plan carries
 no leveling race. The easy animal has no retirement rule yet.
 
-**Master assignment (#1635).** After removal, `HerdMasterChoice` reads the plan's
-job for each animal's race. A war animal is mastered by the best front-line
-handler (`FrontLine`, handling-capable, highest Animals) with `follow_drafted`
-true and `follow_fieldwork` false; a haul animal by the best hauling-capable
-handler with `follow_fieldwork` true and `follow_drafted` false. The census
+**Master assignment (#1635).** After removal, `HerdMasterChoice` assigns masters
+bond first, for any planned, non-retiring race:
+
+1. A bonded animal is mastered by its bonded colonist: `AnimalState.bonded_pawn_ids`
+   lists the living humanlike pawns the animal has a Bond relation with
+   (colonist, prisoner, slave, guest or a pawn who left); the planner keeps
+   those on the colony roster, the first by id (a roster partner already
+   mastering is kept). Bonds give +5 mood as master, -3 otherwise.
+2. An unbonded animal with a wanted, available, unlearned trainable
+   (`herdTrainQueue`) gets the handling-capable colonist with the best Animals
+   skill; any handling-capable master is kept. One colonist may master any
+   number of animals. Follow flags are not written.
+3. An unbonded war animal gets a front-line handler (`FrontLine`,
+   handling-capable) and `follow_drafted` true.
+4. An unbonded haul animal gets no master and no follow flag (haul training
+   hauls on its own).
+
+`follow_fieldwork` and the other follow flag are never written. The census
 carries `master_id`, the follow flags and `obedient` on `UpkeepAnimal`. An
 animal is skipped unless obedient (native refuses master and follow without
 learned Obedience), when marked for release or slaughter, when its race is
-retiring or has no war or haul job, or when any of these facts is unread. A
-master who still fits the job is kept; the master is rewritten only when empty
-or not fitting, then each follow flag that differs, one write per cycle.
-A companion (a bonded animal on a race with no work job) is mastered by its
-bonded colonist: `AnimalState.bonded_pawn_ids` lists the living humanlike pawns
-the animal has a Bond relation with (colonist, prisoner, slave, guest or a pawn
-who left), and the planner keeps those on the colony roster, the first by id
-(a roster partner already mastering is kept), with both follow flags false; no
-partner on the roster leaves it unmastered. Native reports `master_id` and
+retiring or unplanned, or when its master, release, slaughter or a trainable
+fact it needs is unread. A master who fits is kept; the master is rewritten
+only when empty or not fitting, then `follow_drafted` for a war animal, one
+write per cycle. Native reports `master_id` and
 `bonded_pawn_ids` as `GetUniqueLoadID()`, the same id as the pawn rows. The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
 mastered animal outside a retired race.
 
