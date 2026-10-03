@@ -143,7 +143,8 @@ The game feeds babies itself: a lactating pawn breastfeeds any baby, and a
 colonist on Childcare work (pinned for every pawn) bottle-feeds food a baby
 can eat, which is baby food, milk or insect jelly
 ([Baby, Food](https://rimworldwiki.com/wiki/Baby); the def flag is
-`IngestibleProperties.babiesCanIngest`, carried as `FoodProduct.baby_edible`).
+`IngestibleProperties.babiesCanIngest`, read from the def row by
+`DefinitionCatalog.BabyEdible`).
 The mother is Urgent and every other pawn Childcare by default. No write
 beyond the existing production bill is owed. `MaintainBabyFeeding`
 (priority 2, Food domain) is raised while babies live, no colonist can

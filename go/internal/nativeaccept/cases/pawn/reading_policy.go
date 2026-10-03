@@ -9,8 +9,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -91,11 +91,15 @@ func readingPolicy(ctx context.Context, s cases.Session) error {
 	if facts == nil {
 		return fmt.Errorf("colony read carried no policy facts")
 	}
-	kinds := map[string]o.BookKind{}
-	for _, b := range facts.Books {
-		kinds[b.GetDefName()] = b.GetKind()
+	catalog, err := h.Client.DefinitionCatalog(ctx, id)
+	if err != nil {
+		return err
 	}
-	held := map[string][]o.BookKind{}
+	kinds := map[string]policy.BookKind{}
+	for _, b := range catalog.Books() {
+		kinds[b.Def] = b.Kind
+	}
+	held := map[string][]policy.BookKind{}
 	for _, p := range facts.Reading {
 		for _, pawn := range p.PawnIds {
 			for _, d := range p.AllowedDefs {
@@ -104,7 +108,7 @@ func readingPolicy(ctx context.Context, s cases.Session) error {
 			s.Report()["policy_"+pawn] = p.GetLabel()
 		}
 	}
-	has := func(rows []o.BookKind, k o.BookKind) bool {
+	has := func(rows []policy.BookKind, k policy.BookKind) bool {
 		for _, r := range rows {
 			if r == k {
 				return true
@@ -113,14 +117,14 @@ func readingPolicy(ctx context.Context, s cases.Session) error {
 		return false
 	}
 	s.Report()["researcher_books"], s.Report()["child_books"] = fmt.Sprint(held[researcher]), fmt.Sprint(held[child])
-	if !has(held[researcher], o.BookKind_BOOK_KIND_SCHEMATIC) || has(held[researcher], o.BookKind_BOOK_KIND_TOME) {
+	if !has(held[researcher], policy.Schematic) || has(held[researcher], policy.Tome) {
 		return fmt.Errorf("researcher's reading policy allows %v, want schematics and no tome", held[researcher])
 	}
 	if len(held[child]) == 0 {
 		return fmt.Errorf("child's reading policy allows no book")
 	}
 	for _, k := range held[child] {
-		if k != o.BookKind_BOOK_KIND_TEXTBOOK {
+		if k != policy.Textbook {
 			return fmt.Errorf("child's reading policy allows %v, want textbooks only", held[child])
 		}
 	}

@@ -128,10 +128,41 @@ func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 	}
 }
 
-func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.ProductionBench] {
-	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") || !headed(buildings, v.Cooking, (*o.CookingFacts).GetBench) || !headed(buildings, v.Butchering, (*o.ButcheringFacts).GetBench) {
-		return domain.Unknown[[]policy.ProductionBench]()
+// productionProduct is a recipe product: the frame's varying facts (count,
+// demand, storage room) joined to what its def row says (nutrition from the
+// stat table, rot days, baby edibility; #1733). Without a catalog the
+// static facts stay unknown. The game shows no Nutrition stat for a def
+// that gives none: that nutrition stays unknown, it is not zero.
+func productionProduct(product *o.FoodProduct, catalog *bridge.DefinitionCatalog) (policy.ProductionProduct, error) {
+	name := product.GetDefName()
+	row := policy.ProductionProduct{Name: name, Demand: optional(product.NutritionDemandPerDay), Edible: optional(product.Edible), Storable: optional(product.Storable)}
+	if catalog == nil {
+		return row, nil
 	}
+	days, perishable, err := catalog.RotDays(name)
+	if err != nil {
+		return row, err
+	}
+	row.Perishable = domain.Known(perishable)
+	if perishable {
+		row.RotDays = domain.Known(days)
+	}
+	baby, err := catalog.BabyEdible(name)
+	if err != nil {
+		return row, err
+	}
+	row.BabyEdible = domain.Known(baby)
+	if nutrition, err := catalog.StatValue(name, "", bridge.StatNutrition); err == nil {
+		row.Nutrition = domain.Known(float64(nutrition))
+	}
+	return row, nil
+}
+
+func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.ProductionBench], error) {
+	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") || !headed(buildings, v.Cooking, (*o.CookingFacts).GetBench) || !headed(buildings, v.Butchering, (*o.ButcheringFacts).GetBench) {
+		return domain.Unknown[[]policy.ProductionBench](), nil
+	}
+	var failed error
 	var rows []policy.ProductionBench
 	add := func(bench *c.Ref, snapshot *o.SnapshotRef, usable *bool, recipes []*o.RecipeState, bills []*o.BillState, production []*o.FoodProduction, butcher bool, room *c.Ref) {
 		row := policy.ProductionBench{ID: bench.GetId(), Definition: buildings.Entity(bench).GetDefName(), Usable: optional(usable), Butcher: butcher, Room: optionalRef(room)}
@@ -150,7 +181,11 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 						recipe.Available = domain.Known(p.GetAvailable() && r.GetAvailableNow() && r.GetAvailableOnBench())
 					}
 					for _, product := range p.Products {
-						recipe.Products = append(recipe.Products, policy.ProductionProduct{Name: product.GetDefName(), Nutrition: optional(product.Nutrition), Demand: optional(product.NutritionDemandPerDay), RotDays: optional(product.RotDays), Edible: optional(product.Edible), Perishable: optional(product.Perishable), Storable: optional(product.Storable), BabyEdible: optional(product.BabyEdible)})
+						row, err := productionProduct(product, catalog)
+						if failed == nil {
+							failed = err
+						}
+						recipe.Products = append(recipe.Products, row)
 					}
 				}
 			}
@@ -181,7 +216,10 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 			row.HumanButchers = append(row.HumanButchers, policy.HumanButcherCandidate{ID: policy.PawnID(candidate.PawnId), Traits: domain.Known(traits), PreceptAcceptable: optional(candidate.PreceptAcceptable), CanWork: optional(candidate.CanWork)})
 		}
 	}
-	return domain.Known(rows)
+	if failed != nil {
+		return domain.Unknown[[]policy.ProductionBench](), failed
+	}
+	return domain.Known(rows), nil
 }
 
 // colonyCalendar projects the native food climate into the routine calendar

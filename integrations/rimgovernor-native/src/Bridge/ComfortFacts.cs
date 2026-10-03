@@ -122,13 +122,6 @@ namespace HomeBridge.BridgeTools
                 }
                 result.Pawns.Add(row);
             }
-            foreach (var name in new[] { "TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin" }) {
-                var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
-                if (def?.building?.joyKind == null || !def.BuildableByPlayer
-                    || def.researchPrerequisites?.Any(r => !r.IsFinished) == true) continue;
-                result.Methods.Add(new Obs.JoyBuildingMethod { Definition = Id(name), Kind = Id(def.building.joyKind.defName),
-                    PowerW = Math.Max(0, def.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0) });
-            }
             return result;
         }
     }

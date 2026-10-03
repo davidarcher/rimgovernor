@@ -20,16 +20,6 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool IsBook(ThingDef d) => d.GetCompProperties<CompProperties_Book>() != null;
 
-        // What reading the book does, from its outcome doers.
-        internal static Obs.BookKind Kind(ThingDef d)
-        {
-            var doers = d.GetCompProperties<CompProperties_Book>()?.doers ?? new List<ReadingOutcomeProperties>();
-            if (doers.Any(x => x is BookOutcomeProperties_GainAnomalyResearch || x is BookOutcomeProperties_MentalBreak)) return Obs.BookKind.Tome;
-            if (doers.Any(x => x is BookOutcomeProperties_GainSkillExp)) return Obs.BookKind.Textbook;
-            if (doers.Any(x => x is BookOutcomeProperties_GainResearch)) return Obs.BookKind.Schematic;
-            return Obs.BookKind.Novel;
-        }
-
         internal static IEnumerable<ThingDef> Books() =>
             DefDatabase<ThingDef>.AllDefsListForReading.Where(IsBook).OrderBy(d => d.defName, StringComparer.Ordinal);
 

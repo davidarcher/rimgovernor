@@ -53,13 +53,6 @@ func validatePolicies(v *o.ColonyFactsSnapshot) error {
 				return contract("several default policies")
 			}
 		}
-		books := map[string]bool{}
-		for _, b := range f.Books {
-			if b == nil || validID(b.GetDefName()) != nil || books[b.GetDefName()] || b.GetKind() == o.BookKind_BOOK_KIND_UNSPECIFIED || o.BookKind_name[int32(b.GetKind())] == "" {
-				return contract("invalid book definition")
-			}
-			books[b.GetDefName()] = true
-		}
 		for _, d := range f.BiomeDiseases {
 			if validID(d) != nil {
 				return contract("invalid biome disease")

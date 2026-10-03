@@ -379,7 +379,7 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 		Items:   []*o.UpkeepItem{{Item: native.entity(&o.EntityRef{Id: proto.String("medicine"), DefName: proto.String("MedicineHerbal"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(0), Z: proto.Int32(0)}}), Medicine: proto.Bool(true), Count: proto.Int64(5), Forbidden: proto.Bool(false)}},
 	}}}
 	food := &o.FoodSupplyFacts{Consumers: []*o.FoodConsumer{{PawnId: proto.String("alpha"), NutritionPerDay: proto.Float64(1)}},
-		Stocks: []*o.FoodStock{{Item: native.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, StackCount: proto.Int64(60), Perishable: proto.Bool(false)}), Nutrition: proto.Float64(30), Eaters: bridge.NewRefs([]string{"alpha"})}}}
+		Stocks: []*o.FoodStock{{Item: native.thing(&o.Thing{Thing: &o.EntityRef{Id: proto.String("pemmican"), DefName: proto.String("Pemmican")}, StackCount: proto.Int64(60)}), Nutrition: proto.Float64(30), Eaters: bridge.NewRefs([]string{"alpha"})}}}
 	v.FoodSupply = &o.FoodSupplySection{Outcome: &o.FoodSupplySection_Observed{Observed: food}}
 	v.Forecast = &o.ForecastSection{Outcome: &o.ForecastSection_Observed{Observed: &o.ForecastFacts{CombinedFoodSupply: proto.Clone(food).(*o.FoodSupplyFacts), Patients: []*o.PatientForecast{{PawnId: proto.String("alpha")}}}}}
 	for _, row := range native.pawnReply.GetObserved().Pawns {

@@ -31,7 +31,8 @@ type AllowedArea struct {
 type Policies struct {
 	Outfit, Drug, Food, Reading []PolicyEntry
 	AllowedAreas                []AllowedArea
-	// Books is every book definition and its kind (#1306).
+	// Books is every book definition and its kind (#1306), read from the
+	// definition catalog by DecodeColony (#1733); empty without one.
 	Books []policy.Book
 	// BiomeDiseases is the colony map biome's disease hediffs (#1539).
 	BiomeDiseases []string
@@ -63,13 +64,6 @@ var mealIngredients = map[o.MealIngredients]policy.MealIngredients{
 	o.MealIngredients_MEAL_INGREDIENTS_NON_MEAT: policy.MealNonMeat,
 }
 
-var bookKinds = map[o.BookKind]policy.BookKind{
-	o.BookKind_BOOK_KIND_TEXTBOOK:  policy.Textbook,
-	o.BookKind_BOOK_KIND_NOVEL:     policy.Novel,
-	o.BookKind_BOOK_KIND_SCHEMATIC: policy.Schematic,
-	o.BookKind_BOOK_KIND_TOME:      policy.Tome,
-}
-
 func pawnIDs(ids []string) []policy.PawnID {
 	r := make([]policy.PawnID, 0, len(ids))
 	for _, id := range ids {
@@ -96,9 +90,6 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 		return r
 	}
 	r := Policies{Outfit: entries(f.Outfit), Drug: entries(f.Drug), Food: entries(f.Food), Reading: entries(f.Reading), BiomeDiseases: f.BiomeDiseases}
-	for _, b := range f.Books {
-		r.Books = append(r.Books, policy.Book{Def: b.GetDefName(), Kind: bookKinds[b.GetKind()]})
-	}
 	for _, d := range f.Foods {
 		r.Foods = append(r.Foods, policy.Food{Def: d.GetDefName(), Kind: foodKinds[d.GetKind()], Ingredients: mealIngredients[d.GetIngredients()]})
 	}

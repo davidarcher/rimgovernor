@@ -42,9 +42,9 @@ type RoutineFoodStorageUpkeepSource interface {
 	ReadResourceSources(context.Context, *c.Identity, string) ([]bridge.ResourceSourceRow, policy.ResourceStorage, bridge.Result, error)
 	ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error)
 	ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error)
-	// FrameThings is the things table the colony census's food stocks
-	// reference (#1343).
-	FrameThings(context.Context, *c.Identity) (bridge.Things, error)
+	// FrameTables carries the things table the colony census's food stocks
+	// reference (#1343) and the catalog their defs resolve against (#1733).
+	FrameTables(context.Context, *c.Identity) (bridge.Tables, error)
 }
 type RoutineFoodStorageUpkeepPlanner struct {
 	reviewer *RoutineReviewer
@@ -71,11 +71,11 @@ func foodStorageObservationFacts(ctx context.Context, native RoutineFoodStorageU
 	if food == nil {
 		return policy.FoodStorageObservation{}
 	}
-	things, err := native.FrameThings(ctx, v.GetContext().GetIdentity())
+	tables, err := native.FrameTables(ctx, v.GetContext().GetIdentity())
 	if err != nil {
 		return policy.FoodStorageObservation{}
 	}
-	supply, known, err := observation.DecodeFoodSupply(food, things)
+	supply, known, err := observation.DecodeFoodSupply(food, tables.Things, tables.Catalog)
 	if err != nil || !known {
 		return policy.FoodStorageObservation{}
 	}

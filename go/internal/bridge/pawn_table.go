@@ -60,6 +60,21 @@ type Tables struct {
 	Buildings Buildings
 	Pawns     Pawns
 	Things    Things
+	// Catalog is the load's definition catalog, which resolves a row's def
+	// name to what the def says (#1733); nil where none is held, and the
+	// facts that need it stay unknown.
+	Catalog *DefinitionCatalog
+}
+
+// heldCatalog is the catalog read for identity's load, nil when this
+// client has not read it yet.
+func (caller *Client) heldCatalog(identity *c.Identity) *DefinitionCatalog {
+	caller.catalog.mu.Lock()
+	defer caller.catalog.mu.Unlock()
+	if held := caller.catalog.catalog; held != nil && held.LoadToken == identity.GetLoadToken() {
+		return held
+	}
+	return nil
 }
 
 // Entity is the head (def, label, position) of the row ref points at in
@@ -143,7 +158,7 @@ func (caller *Client) FrameTables(ctx context.Context, identity *c.Identity) (Ta
 		if err != nil {
 			return Tables{}, err
 		}
-		return Tables{Buildings: held.buildings, Pawns: held.pawns, Things: held.things}, nil
+		return Tables{Buildings: held.buildings, Pawns: held.pawns, Things: held.things, Catalog: caller.heldCatalog(identity)}, nil
 	}
 	buildings, err := caller.FrameBuildings(ctx, identity)
 	if err != nil {
@@ -153,7 +168,7 @@ func (caller *Client) FrameTables(ctx context.Context, identity *c.Identity) (Ta
 	if err != nil {
 		return Tables{}, err
 	}
-	return Tables{Buildings: buildings, Pawns: pawns, Things: Things{}}, nil
+	return Tables{Buildings: buildings, Pawns: pawns, Things: Things{}, Catalog: caller.heldCatalog(identity)}, nil
 }
 
 // frameHeld is the hold's keyed tables as of the newest frame past this

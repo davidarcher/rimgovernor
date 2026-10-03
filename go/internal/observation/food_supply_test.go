@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -32,9 +33,24 @@ func foodFixture(t *testing.T) (*o.FoodSupplyFacts, bridge.Things) {
 	return supply, things
 }
 
+// foodCatalog holds the defs the food fixtures name: raw rice is a vegetable
+// whose source race (as a corpse def it stands for) is no humanlike.
+func foodCatalog() *bridge.DefinitionCatalog {
+	food := func(name string, flags d.FoodTypeFlags) *d.ThingDef {
+		return &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{FoodType: flags, SourceDef: "Muffalo"}}
+	}
+	return &bridge.DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
+		"RawRice":  food("RawRice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
+		"Rice":     food("Rice", d.FoodTypeFlags_FOOD_TYPE_FLAGS_VEGETABLE_OR_FRUIT),
+		"Pemmican": food("Pemmican", d.FoodTypeFlags_FOOD_TYPE_FLAGS_MEAL),
+		"Muffalo":  {DefName: "Muffalo", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_ANIMAL}},
+		"Human":    {DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
+	}}
+}
+
 func decodeFood(t *testing.T, wire *o.FoodSupplyFacts, things bridge.Things) (policy.FoodSupply, error) {
 	t.Helper()
-	supply, known, err := DecodeFoodSupply(wire, things)
+	supply, known, err := DecodeFoodSupply(wire, things, foodCatalog())
 	if err == nil && !known {
 		t.Fatal("fixture stock unresolved")
 	}
@@ -51,17 +67,21 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 	if days, known := forecast.RunwayDays.Value(); err != nil || !known || days != 1 || forecast.InventoryNutrition != 4 || forecast.UsableNutrition != 7 {
 		t.Fatal(forecast, err)
 	}
+	// A thing rots exactly while it has a rot deadline: without one it is durable.
+	if perishable, known := supply.Stocks[0].Perishable.Value(); !known || !perishable {
+		t.Fatal("a thing with a rot deadline is perishable", perishable, known)
+	}
 	things.At("rice").RotTicks = nil
 	supply, err = decodeFood(t, wire, things)
 	if err != nil {
-		t.Fatal("optional unknown deadline rejected", err)
+		t.Fatal(err)
 	}
-	if _, err = policy.ForecastFood(supply, nil); err == nil {
-		t.Fatal("unknown deadline certified food")
+	if perishable, known := supply.Stocks[0].Perishable.Value(); !known || perishable {
+		t.Fatal("a thing without a rot deadline is durable", perishable, known)
 	}
 	things.At("rice").RotTicks = proto.Int64(60000)
 	wire.Stocks[1].Eaters = append(wire.Stocks[1].Eaters, bridge.NewRef("b"))
-	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
 		t.Fatal("shared private inventory accepted")
 	}
 }
@@ -70,7 +90,7 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 func TestFoodSupplyUnresolvedStockIsUnknown(t *testing.T) {
 	wire, things := foodFixture(t)
 	things = things.Without("rice")
-	if _, known, err := DecodeFoodSupply(wire, things); err != nil || known {
+	if _, known, err := DecodeFoodSupply(wire, things, foodCatalog()); err != nil || known {
 		t.Fatal("an unresolved stock was decided", known, err)
 	}
 }
@@ -112,12 +132,12 @@ func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
 		t.Fatal(supply, err)
 	}
 	things.At("rice").Thing.DefName = proto.String("Rice")
-	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
 		t.Fatal("ordinary food accepted as reserve")
 	}
 	things.At("rice").Thing.DefName = proto.String("Pemmican")
 	wire.Stocks[0].Holder = wire.Stocks[0].Eaters[0]
-	if _, _, err = DecodeFoodSupply(wire, things); err == nil {
+	if _, _, err = DecodeFoodSupply(wire, things, foodCatalog()); err == nil {
 		t.Fatal("held inventory accepted as reserve")
 	}
 }

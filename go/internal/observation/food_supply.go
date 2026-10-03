@@ -7,19 +7,48 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// DecodeFoodSupply joins v's stocks to their things table rows (#1343);
-// known is false when the table misses a stock, and the supply is then
-// unknown until a later frame.
-func DecodeFoodSupply(v *o.FoodSupplyFacts, things bridge.Things) (supply policy.FoodSupply, known bool, err error) {
+// DecodeFoodSupply joins v's stocks to their things table rows (#1343) and
+// to their def rows in the definition catalog (#1733); known is false when
+// the table misses a stock or no catalog is held, and the supply is then
+// unknown until a later frame. A stock whose def the catalog lacks is a
+// contract error.
+func DecodeFoodSupply(v *o.FoodSupplyFacts, things bridge.Things, catalog *bridge.DefinitionCatalog) (supply policy.FoodSupply, known bool, err error) {
 	rows, known, err := bridge.JoinFoodSupply(v, things)
-	if err != nil || !known {
+	if err != nil || !known || catalog == nil {
 		return policy.FoodSupply{}, false, err
 	}
-	supply = decodeFoodSupply(v, rows)
+	supply, err = decodeFoodSupply(v, rows, catalog)
+	if err != nil {
+		return policy.FoodSupply{}, false, err
+	}
 	return supply, true, nil
 }
 
-func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing) policy.FoodSupply {
+// foodDef is what a food stock's def says about it (#1733): its raw
+// ingredient class (a raw meat is the meat class), whether its food type
+// includes vegetable or fruit, and for a corpse whether its race is humanlike.
+type foodDef struct {
+	class     policy.FoodIngredientClass
+	vegetable bool
+	humanlike bool
+}
+
+func foodDefFacts(catalog *bridge.DefinitionCatalog, def string, corpse bool) (foodDef, error) {
+	var facts foodDef
+	var err error
+	if facts.class, err = catalog.RawFoodClass(def); err != nil {
+		return facts, err
+	}
+	if facts.vegetable, err = catalog.Vegetable(def); err != nil {
+		return facts, err
+	}
+	if corpse {
+		facts.humanlike, err = catalog.HumanlikeCorpse(def)
+	}
+	return facts, err
+}
+
+func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *bridge.DefinitionCatalog) (policy.FoodSupply, error) {
 	supply := policy.FoodSupply{Complete: domain.Known(true)}
 	if v.Larder != nil {
 		larder := policy.FoodLarder{RawMeatNutrition: v.Larder.RawMeatNutrition, CookDemandNutrition: v.Larder.CookDemandNutrition}
@@ -36,12 +65,17 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing) policy.Foo
 	}
 	for _, s := range v.Stocks {
 		row := rows[s.Item.GetId()]
-		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: row.GetRawMeat(), IsHumanlike: row.GetIsHumanlike(), Vegetable: row.GetVegetable(), Reserve: s.GetReserve(), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: optional(row.Perishable), RotTicks: optional(row.RotTicks), DefName: policy.Resource(row.GetThing().GetDefName()), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
+		def := row.GetThing().GetDefName()
+		defFacts, err := foodDefFacts(catalog, def, row.GetCorpse())
+		if err != nil {
+			return policy.FoodSupply{}, err
+		}
+		// A thing rots exactly while it has a rot deadline.
+		stock := policy.FoodStock{ID: s.Item.GetId(), IsHumanMeat: row.GetIsHumanMeat(), RawMeat: defFacts.class == policy.IngredientMeat, IsHumanlike: defFacts.humanlike, Vegetable: defFacts.vegetable, RawClass: domain.Known(defFacts.class), Reserve: s.GetReserve(), Holder: domain.Known(policy.PawnID(s.GetHolder().GetId())), Nutrition: optional(s.Nutrition), Perishable: domain.Known(row.RotTicks != nil), RotTicks: optional(row.RotTicks), DefName: policy.Resource(def), Roofed: optional(row.Roofed), TemperatureC: optional(row.TemperatureC), Room: optionalRef(row.Room)}
 		if row.StackCount != nil {
 			stock.Count = domain.Known(row.GetStackCount())
 		}
 		stock.Corpse = row.GetCorpse()
-		stock.RawClass = rawFoodClass(row.RawClass)
 		if stock.Corpse {
 			stock.Forbidden = optional(row.Forbidden)
 		}
@@ -53,5 +87,5 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing) policy.Foo
 		}
 		supply.Stocks = append(supply.Stocks, stock)
 	}
-	return supply
+	return supply, nil
 }

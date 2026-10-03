@@ -70,12 +70,6 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 	if row.StackCount != nil && row.GetStackCount() < 0 || row.RotTicks != nil && row.GetRotTicks() < 0 || !combatNumber(row.TemperatureC, false) {
 		return contract("invalid thing facts")
 	}
-	if row.RawClass != nil && (row.GetRawClass() < 0 || row.GetRawClass() > 3) {
-		return contract("invalid raw class")
-	}
-	if row.Perishable != nil && !row.GetPerishable() && row.RotTicks != nil {
-		return contract("durable thing has a rot deadline")
-	}
 	if !optionalRef(row.Room) {
 		return contract("invalid thing room")
 	}
@@ -83,7 +77,7 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 		if row.Forbidden == nil || !combatNumber(row.MeatAmount, true) || row.MeatAmount == nil || row.BodySize == nil || !combatNumber(row.BodySize, true) || row.GetBodySize() <= 0 || row.GetTileFootprint() != 1 || row.GetStackCount() != 1 {
 			return contract("invalid corpse row")
 		}
-	} else if row.GetIsHumanlike() || row.MeatAmount != nil || row.BodySize != nil || row.TileFootprint != nil {
+	} else if row.MeatAmount != nil || row.BodySize != nil || row.TileFootprint != nil {
 		return contract("corpse facts on a thing that is no corpse")
 	}
 	return nil

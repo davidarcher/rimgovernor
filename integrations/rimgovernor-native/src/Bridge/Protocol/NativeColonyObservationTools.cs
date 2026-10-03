@@ -279,14 +279,14 @@ namespace HomeBridge.BridgeTools
             foreach (var power in traders) {
                 var building = (Building)power.parent;
                 var row = new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = NativeBuildingObservationTools.Ref(building),
-                    RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
+                    Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second (#1188).
                 try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
                 result.Power.Add(row);
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = NativeBuildingObservationTools.Ref(building), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
                     StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)
@@ -334,9 +334,7 @@ namespace HomeBridge.BridgeTools
                     row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                     var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe) };
                     foreach(var product in recipe.products){
-                        var rot=product.thingDef.GetCompProperties<CompProperties_Rottable>();
-                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),Nutrition=product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition),NutritionDemandPerDay=result.NutritionPerDay,Perishable=rot!=null,BabyEdible=product.thingDef.ingestible?.babiesCanIngest??false};
-                        if(rot!=null)food.RotDays=rot.daysToRotStart;
+                        var food=new Obs.FoodProduct{DefName=product.thingDef.defName,Count=product.count,Edible=humanFood(product.thingDef),NutritionDemandPerDay=result.NutritionPerDay};
                         food.Storable=NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored)+stored;
                         production.Products.Add(food);
                     }
@@ -389,6 +387,11 @@ namespace HomeBridge.BridgeTools
 
         // A sowable crop whose product is edible: the per-map facts the
         // catalog row cannot carry, one row per crop sorted by name.
+        // The crop defs, sorted by name: the defs are fixed for the process, so
+        // they are scanned once rather than per frame.
+        private static readonly Lazy<List<ThingDef>> CropDefs = new Lazy<List<ThingDef>>(() =>
+            DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Cataloged(d) && d.plant != null).OrderBy(d => d.defName, StringComparer.Ordinal).ToList());
+
         internal static List<Obs.EdibleCrop> Crops(Map map)
         {
             var result = new List<Obs.EdibleCrop>();
@@ -396,7 +399,7 @@ namespace HomeBridge.BridgeTools
             var demand = people.Sum(p => p.needs?.food == null ? 0f : GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
-            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Cataloged(d) && d.plant != null).OrderBy(d => d.defName, StringComparer.Ordinal)) {
+            foreach (var def in CropDefs.Value) {
                 var product = def.plant.harvestedThingDef;
                 if (product == null || !NativeFoodPolicy.IsFood(product)) continue;
                 var row = new Obs.EdibleCrop { DefName = def.defName };

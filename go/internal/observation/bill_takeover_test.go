@@ -2,6 +2,8 @@ package observation
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -11,13 +13,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// productionBenches decodes snapshot's benches without a catalog.
+func productionBenches(t *testing.T, snapshot *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.ProductionBench] {
+	t.Helper()
+	benches, err := colonyProductionBenches(snapshot, buildings, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return benches
+}
+
 func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 	bill := &o.BillState{Recipe: &o.DefinitionRef{DefName: proto.String("CookMealSimple")}, Suspended: proto.Bool(true), RepeatMode: ops.RepeatMode_REPEAT_MODE_COUNT.Enum(), DefaultIngredients: proto.Bool(false), UnrestrictedWorker: proto.Bool(false), Worker: &commonpb.Ref{Id: proto.String("pawn")}, IngredientFilter: &o.StockpileFilter{AllowedDefNames: []string{"Rice"}}}
 	snapshot := &o.ColonyFactsSnapshot{Cooking: []*o.CookingFacts{{Bench: &commonpb.Ref{Id: proto.String("stove")}, Bills: []*o.BillState{bill}}}}
-	if _, k := colonyProductionBenches(snapshot, bridge.Buildings{}).Value(); k {
+	if _, k := productionBenches(t, snapshot, bridge.Buildings{}).Value(); k {
 		t.Fatal("an unresolved bench became a known census")
 	}
-	benches, known := colonyProductionBenches(snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
+	benches, known := productionBenches(t, snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
 	if !known {
 		t.Fatal("missing benches")
 	}
@@ -41,7 +53,7 @@ func TestBillTakeoverProjectionPreservesDriftAndUnknowns(t *testing.T) {
 		t.Fatal(got)
 	}
 	bill.DefaultIngredients, bill.UnrestrictedWorker, bill.Worker, bill.IngredientFilter = nil, nil, nil, nil
-	benches, _ = colonyProductionBenches(snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
+	benches, _ = productionBenches(t, snapshot, buildingRows(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("stove")}})).Value()
 	got = benches[0].Bills[0]
 	if _, k := got.DefaultIngredients.Value(); k {
 		t.Fatal("missing defaults became known")

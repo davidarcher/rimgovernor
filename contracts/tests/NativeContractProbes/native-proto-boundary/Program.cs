@@ -106,7 +106,7 @@ internal static class NativeProtoBoundaryProbe {
         for (int i = 0; i < 2025; i++) {
             things.Things.Add(new RimGovernor.Protocol.Observations.Thing {
                 Thing_ = new RimGovernor.Protocol.Observations.EntityRef { Id = "Thing_" + i, Position = new Common.Cell { X = i % 45, Z = i / 45 } },
-                ClassName = "2026-09-12T00:00:00Z", Stuff = "spaces and \"quotes\" \\ \u00e9",
+                BuildDefName = "2026-09-12T00:00:00Z", Stuff = "spaces and \"quotes\" \\ \u00e9",
                 Growth = .12345678901234567, TemperatureC = i % 2 == 0 ? double.Epsilon : double.MaxValue,
                 Forbidden = false, Roofed = true
             });

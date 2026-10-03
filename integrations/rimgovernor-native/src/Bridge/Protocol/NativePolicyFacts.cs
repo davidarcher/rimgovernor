@@ -67,8 +67,6 @@ namespace HomeBridge.BridgeTools
                     }
                     facts.FoodEaters.Add(row);
                 }
-                foreach (var book in NativeReadingPolicy.Books())
-                    facts.Books.Add(new Obs.BookDefinition { DefName = Id(book.defName), Kind = NativeReadingPolicy.Kind(book) });
                 foreach (var hediff in DefDatabase<IncidentDef>.AllDefsListForReading
                     .Where(d => d.diseaseIncident != null && map.Biome.CommonalityOfDisease(d) > 0)
                     .Select(d => d.diseaseIncident.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal))

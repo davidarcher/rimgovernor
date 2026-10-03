@@ -3,24 +3,7 @@ package observation
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
-
-func rawFoodClass(v *o.FoodIngredientClass) domain.Fact[policy.FoodIngredientClass] {
-	if v == nil {
-		return domain.Unknown[policy.FoodIngredientClass]()
-	}
-	switch *v {
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_MEAT:
-		return domain.Known(policy.IngredientMeat)
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_VEGETABLE:
-		return domain.Known(policy.IngredientVegetable)
-	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT:
-		return domain.Known(policy.IngredientAnimalProduct)
-	default:
-		return domain.Known(policy.FoodIngredientClass(""))
-	}
-}
 
 // MealRequest uses observed work priorities, never a proposed roster. The raw
 // forecast keeps competing consumers, private ownership and spoilage deadlines.

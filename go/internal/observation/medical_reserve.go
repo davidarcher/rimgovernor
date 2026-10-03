@@ -39,7 +39,7 @@ func ColonyMedicalReserve(v *o.ColonyFactsSnapshot, tables bridge.Tables) policy
 		if item.Count == nil || item.Forbidden == nil {
 			return r
 		}
-		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(tables.Entity(item.Item).GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: optional(item.Perishable), RotTicks: optional(item.RotTicks)})
+		rows = append(rows, policy.MedicineStack{ID: item.Item.GetId(), Definition: policy.Resource(tables.Entity(item.Item).GetDefName()), Count: item.GetCount(), Forbidden: item.GetForbidden(), Perishable: domain.Known(item.RotTicks != nil), RotTicks: optional(item.RotTicks)})
 	}
 	r.Items = domain.Known(rows)
 	return r

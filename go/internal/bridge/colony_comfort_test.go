@@ -12,7 +12,7 @@ import (
 func TestRecreationCensusBoundary(t *testing.T) {
 	valid := func() *o.ComfortFacts {
 		v := comfortWire().Comfort.GetObserved()
-		v.Joy = &o.RecreationCensus{Kinds: []string{"Dexterity"}, Pawns: []*o.JoyTolerance{{Pawn: "p", Tolerance: []float64{.4}, Bored: []bool{true}}}, Methods: []*o.JoyBuildingMethod{{Definition: "ChessTable", Kind: "Cerebral"}}}
+		v.Joy = &o.RecreationCensus{Kinds: []string{"Dexterity"}, Pawns: []*o.JoyTolerance{{Pawn: "p", Tolerance: []float64{.4}, Bored: []bool{true}}}}
 		return v
 	}
 	if err := validateRecreationCensus(valid(), map[string]bool{"p": true}); err != nil {
@@ -27,8 +27,6 @@ func TestRecreationCensusBoundary(t *testing.T) {
 		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Pawn = "outsider" },
 		func(v *o.ComfortFacts) { v.Joy.Pawns = append(v.Joy.Pawns, v.Joy.Pawns[0]) },
 		func(v *o.ComfortFacts) { v.Joy.Pawns[0] = nil },
-		func(v *o.ComfortFacts) { v.Joy.Methods[0].PowerW = math.Inf(1) },
-		func(v *o.ComfortFacts) { v.Joy.Methods[0].Definition = "invented" },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = []string{"missing"} },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 17) },
 		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 16); v.Joy.Pawns = make([]*o.JoyTolerance, 129) },

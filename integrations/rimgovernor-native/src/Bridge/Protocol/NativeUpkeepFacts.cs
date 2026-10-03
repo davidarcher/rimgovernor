@@ -86,8 +86,7 @@ namespace HomeBridge.BridgeTools
                         Item = NativeRef.Thing(t), Count = t.stackCount, Roofed = t.Position.Roofed(map), InStorage = t.IsInValidStorage(),
                         DeteriorationRate = Number(t.GetStatValue(StatDefOf.DeteriorationRate)),
                         BaseDeteriorationRate = Number(t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff)),
-                        Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), Medicine = t.def.IsMedicine,
-                        Perishable = rot != null && rot.Active
+                        Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail), Medicine = t.def.IsMedicine
                     };
                     if (rot != null && rot.Active) value.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
                     return value;

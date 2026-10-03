@@ -31,7 +31,9 @@ corpses remain observable but contribute no runway. Corpse stock replaces
 the separate pending-hunt corpse credit; live designated prey remains pending.
 The [corpse larder](upkeep-contracts.md#corpse-larder) owns reserve release.
 
-Humanlike corpses carry `is_humanlike`; raw meat and meals containing it carry
+A corpse is humanlike when its source race row is (`DefinitionCatalog.HumanlikeCorpse`);
+a stock is perishable exactly while it carries `rot_ticks`; raw class and
+vegetable come from the def row. Raw meat and meals containing it carry
 `is_human_meat`. Each consumer exposes native trait/precept eating disposition.
 Unknown or unacceptable disposition excludes that stock from its forecast,
 including private inventory. The ordinary corpse larder never releases human

@@ -149,10 +149,7 @@ func (caller *Client) DefinitionCatalog(ctx context.Context, identity *c.Identit
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
-	caller.catalog.mu.Lock()
-	held := caller.catalog.catalog
-	caller.catalog.mu.Unlock()
-	if held != nil && held.LoadToken == identity.GetLoadToken() {
+	if held := caller.heldCatalog(identity); held != nil {
 		return held, nil
 	}
 	request := &o.DefinitionCatalogRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}

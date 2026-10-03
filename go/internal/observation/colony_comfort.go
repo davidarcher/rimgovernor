@@ -1,13 +1,42 @@
 package observation
 
 import (
+	"math"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyComfort(v *o.ColonyFactsSnapshot) domain.Fact[policy.ComfortObservation] {
+// joyMethods are the joy buildings a colony can add for variety, in policy
+// preference order: each policy.RecreationDefinitions def the catalog lists
+// as a buildable joy building, with the joy kind its def gives and the power
+// its planning row draws (#1733). Research and builders are checked by the
+// planner, not here.
+func joyMethods(catalog *bridge.DefinitionCatalog) ([]policy.JoyBuildingMethod, error) {
+	var methods []policy.JoyBuildingMethod
+	if catalog == nil {
+		return methods, nil
+	}
+	for _, name := range policy.RecreationDefinitions {
+		planning := catalog.Definition(name)
+		if planning == nil {
+			continue
+		}
+		kind, err := catalog.JoyKind(name)
+		if err != nil {
+			return nil, err
+		}
+		if kind == "" {
+			continue
+		}
+		methods = append(methods, policy.JoyBuildingMethod{Definition: name, Kind: kind, PowerW: math.Max(0, planning.GetPowerW())})
+	}
+	return methods, nil
+}
+
+func colonyComfort(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) domain.Fact[policy.ComfortObservation] {
 	value := v.GetUpkeep().GetObserved().GetComfort().GetObserved()
 	if value == nil {
 		return domain.Unknown[policy.ComfortObservation]()
@@ -32,9 +61,11 @@ func colonyComfort(v *o.ColonyFactsSnapshot) domain.Fact[policy.ComfortObservati
 		for _, p := range j.Pawns {
 			r.Joy.Pawns = append(r.Joy.Pawns, policy.JoyTolerance{Pawn: policy.PawnID(p.Pawn), Tolerance: append([]float64(nil), p.Tolerance...), Bored: append([]bool(nil), p.Bored...)})
 		}
-		for _, m := range j.Methods {
-			r.Joy.Methods = append(r.Joy.Methods, policy.JoyBuildingMethod{Definition: m.Definition, Kind: m.Kind, PowerW: m.PowerW})
+		methods, err := joyMethods(catalog)
+		if err != nil {
+			return domain.Unknown[policy.ComfortObservation]()
 		}
+		r.Joy.Methods = methods
 	}
 	for _, s := range value.Surfaces {
 		row := policy.DiningSurface{ID: s.GetId(), RoomID: s.GetRoom().GetId()}

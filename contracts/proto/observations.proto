@@ -727,16 +727,19 @@ message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optiona
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // A thing's canonical row (#1343), from one native builder: the cells
 // read's things and the bundle's things table. thing.snapshot is the
-// thing's own CAS token. The food facts (14-27) are set for an ingestible
-// item or a corpse: rot_ticks at the current ambient temperature,
-// temperature_c that ambient temperature, roofed and room_id where a
-// spawned thing stands; a corpse adds forbidden, its meat yield
-// (meat_amount), body size, a one-cell footprint and whether it is
-// humanlike.
-message Thing { EntityRef thing = 1; optional string class_name = 2; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated rimgovernor.common.v1.Ref owners = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13;
-  optional bool perishable = 14; optional int64 rot_ticks = 15; optional double temperature_c = 16; optional bool roofed = 17; rimgovernor.common.v1.Ref room = 18;
+// thing's own CAS token. The food facts (15-23) are set for an ingestible
+// item or a corpse: rot_ticks at the current ambient temperature (present
+// exactly while the thing rots), temperature_c that ambient temperature,
+// roofed and room_id where a spawned thing stands, is_human_meat when the
+// thing or any ingredient it was made from (CompIngredients) is humanlike meat;
+// a corpse adds forbidden, its meat yield (meat_amount), body size and a
+// one-cell footprint. What the def alone says (class, vegetable, raw meat and
+// raw ingredient class, a corpse's humanlike race) is the definition catalog's
+// (#1733).
+message Thing { EntityRef thing = 1; reserved 2, 14, 24, 25, 26, 27; reserved "class_name", "perishable", "is_humanlike", "vegetable", "raw_meat", "raw_class"; optional int64 stack_count = 3; optional string stuff = 4; optional int32 hit_points = 5; optional bool forbidden = 6; repeated rimgovernor.common.v1.Ref owners = 7; optional bool medical = 8; optional double growth = 9; optional bool harvestable_now = 10; optional string build_def_name = 11; optional bool blueprint = 12; optional bool frame = 13;
+  optional int64 rot_ticks = 15; optional double temperature_c = 16; optional bool roofed = 17; rimgovernor.common.v1.Ref room = 18;
   optional bool corpse = 19; optional double meat_amount = 20; optional double body_size = 21; optional int64 tile_footprint = 22;
-  optional bool is_human_meat = 23; optional bool is_humanlike = 24; optional bool vegetable = 25; optional bool raw_meat = 26; optional FoodIngredientClass raw_class = 27;
+  optional bool is_human_meat = 23;
   // The thing's own CAS token (#1342).
   SnapshotRef snapshot = 28; }
 message ThingsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Thing things = 2;
@@ -1119,10 +1122,9 @@ message ComfortFacility { optional string id = 1; optional string kind = 2; repe
 // Complete building-backed kind census. Parallel tolerance/bored arrays follow
 // kinds; pawns without a joy need are omitted. Absent census means unavailable.
 message JoyTolerance { string pawn = 1; repeated double tolerance = 2; repeated bool bored = 3; }
-message JoyBuildingMethod { string definition = 1; string kind = 2; double power_w = 3; }
-message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; repeated JoyBuildingMethod methods = 3; }
+message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; reserved 3; reserved "methods"; }
 message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; reserved 5; RecreationCensus joy = 6; }
-message UpkeepItem { rimgovernor.common.v1.Ref item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; optional bool perishable = 10; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
+message UpkeepItem { rimgovernor.common.v1.Ref item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; reserved 10; reserved "perishable"; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
 message UpkeepBed { rimgovernor.common.v1.Ref bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated rimgovernor.common.v1.Ref owners = 7; repeated rimgovernor.common.v1.Ref users = 8; repeated rimgovernor.common.v1.Ref accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; rimgovernor.common.v1.Ref room = 12; optional string quality = 13; optional string stuff = 15; optional bool for_slaves = 16; }
 message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }
 message ItemStorageCapacity { optional string item_id = 1; optional int64 unreserved_covered_capacity = 2; optional uint32 accepting_cells = 3; }
@@ -1230,7 +1232,7 @@ message AnimalFeedStorage { rimgovernor.common.v1.Ref zone = 1; repeated string 
 // pawn refers to the bundle pawn table row (#1343), whose animal_state
 // carries the herd facts.
 message AnimalFeed { reserved 1; rimgovernor.common.v1.Ref pawn = 9; optional string diet = 2; optional bool requires_pen = 3; rimgovernor.common.v1.Ref suitable_pen = 4; repeated FoodStock reachable_stored_feed = 5; repeated rimgovernor.common.v1.Ref reachable_benches = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
-message DevelopmentPower { reserved 1; rimgovernor.common.v1.Ref building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6;
+message DevelopmentPower { reserved 1; rimgovernor.common.v1.Ref building = 8; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; reserved 5; reserved "rain_vulnerable"; optional bool roofed = 6;
   // A turret gun's damage per second from its own verb and burst timing (#1188); absent for other consumers.
   optional double turret_dps = 7; }
 message DevelopmentFurniture { rimgovernor.common.v1.Ref building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
@@ -1303,13 +1305,14 @@ message EdibleCrop { optional string def_name = 1; optional double nutrition_dem
 // The definitions themselves are the definition catalog's (#1340); crops
 // lists every edible crop, sorted by name.
 message PlanningFacts { reserved 1; reserved "definitions"; reserved 2; reserved "cells"; GearSnapshot gear = 3; reserved 4; repeated ReadIssue issues = 5; reserved 6; reserved "zone_map_snapshot"; ControlledEnvironment environment = 7; repeated EdibleCrop crops = 8; }
-message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7;
+// The static facts of a product (nutrition, rot days, perishability, baby
+// edibility) are its def row's in the definition catalog (#1733); the frame
+// carries what varies: count, whether a human can eat it, the colony's demand
+// and the storage room left.
+message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; reserved 4, 6, 7, 9; reserved "nutrition", "rot_days", "perishable", "baby_edible"; optional double nutrition_demand_per_day = 5;
   // storable is the product count roofed, reachable storage accepting it can
   // hold: stored stacks plus empty stack slots (#1359). Caps reserve bill targets.
-  optional int64 storable = 8;
-  // baby_edible is IngestibleProperties.babiesCanIngest of the product def: a
-  // baby can eat it (baby food, milk, insect jelly). Biotech only.
-  optional bool baby_edible = 9; }
+  optional int64 storable = 8; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { rimgovernor.common.v1.Ref bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; rimgovernor.common.v1.Ref room = 6;
   // auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel, #1180).
@@ -1605,12 +1608,6 @@ message AnomalyIncidentState {
 // use or a carried count; #1537); every other drug of it is off.
 message PolicyEntry { optional string id = 1; optional string label = 2; repeated string pawn_ids = 3; optional bool default = 4; repeated string allowed_defs = 5;
   repeated rimgovernor.operations.v1.DrugPolicyEntry drug_entries = 6; }
-// A book ThingDef and what reading it does (#1306), from its
-// CompProperties_Book outcome doers: skill experience (textbook), research
-// (schematic), Anomaly research or a mental break (tome), otherwise a
-// novel.
-enum BookKind { BOOK_KIND_UNSPECIFIED = 0; BOOK_KIND_TEXTBOOK = 1; BOOK_KIND_NOVEL = 2; BOOK_KIND_SCHEMATIC = 3; BOOK_KIND_TOME = 4; }
-message BookDefinition { optional string def_name = 1; optional BookKind kind = 2; }
 // A food ThingDef a food policy can allow (#1541): a nutrition-giving
 // ingestible that is no drug and no corpse. Meals carry their
 // FoodPreferability tier (awful, simple, fine, lavish) and ingredients
@@ -1633,7 +1630,7 @@ message AllowedAreaEntry { optional string id = 1; optional string label = 2; re
 message PolicyFacts {
   repeated PolicyEntry outfit = 1; repeated PolicyEntry drug = 2; repeated PolicyEntry food = 3; repeated PolicyEntry reading = 4;
   repeated AllowedAreaEntry allowed_areas = 5;
-  repeated BookDefinition books = 6;
+  reserved 6; reserved "books";
   // HediffDef defNames of the colony map biome's disease incidents
   // (BiomeDef.diseases; #1539), e.g. Malaria, Plague.
   repeated string biome_diseases = 7;

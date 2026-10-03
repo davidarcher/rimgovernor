@@ -551,7 +551,7 @@ func decodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog, tables 
 	}
 	pawns := tables.pawns
 	var err error
-	out.Tables = Tables{Buildings: tables.buildings, Pawns: pawns, Things: tables.things}
+	out.Tables = Tables{Buildings: tables.buildings, Pawns: pawns, Things: tables.things, Catalog: catalog}
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, identity); err != nil {
 			return RoutineFrame{}, err

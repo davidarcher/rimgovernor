@@ -127,14 +127,12 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 			produced[production.GetRecipe()] = true
 			defs := map[string]bool{}
 			for _, product := range production.Products {
-				if product == nil || validID(product.GetDefName()) != nil || defs[product.GetDefName()] || product.Count == nil || product.GetCount() <= 0 || product.Edible == nil || product.Nutrition == nil || product.NutritionDemandPerDay == nil {
+				if product == nil || validID(product.GetDefName()) != nil || defs[product.GetDefName()] || product.Count == nil || product.GetCount() <= 0 || product.Edible == nil || product.NutritionDemandPerDay == nil {
 					return contract("invalid food product")
 				}
 				defs[product.GetDefName()] = true
-				for _, n := range []*float64{product.Nutrition, product.NutritionDemandPerDay, product.RotDays} {
-					if n != nil && (math.IsNaN(*n) || math.IsInf(*n, 0) || *n < 0) {
-						return contract("invalid food product measure")
-					}
+				if n := product.NutritionDemandPerDay; math.IsNaN(*n) || math.IsInf(*n, 0) || *n < 0 {
+					return contract("invalid food product measure")
 				}
 			}
 		}

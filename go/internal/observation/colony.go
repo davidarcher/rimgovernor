@@ -316,6 +316,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeepResources = colonyDeepResources(v.DeepResources)
 	r.Policies = ColonyPolicies(v.Policies)
+	if policies, known := r.Policies.Value(); known {
+		policies.Books = tables.Catalog.Books()
+		r.Policies = domain.Known(policies)
+	}
 	r.Biotech = colonyBiotech(v.Biotech)
 	r.Odyssey = colonyOdyssey(v.Odyssey)
 	r.Anomaly = colonyAnomaly(v.Anomaly)
@@ -352,9 +356,18 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		for _, row := range development.Power {
 			b, _ := buildings.Row(row.Building)
 			s := b.Service
+			// Whether rain shorts the building is its def's, not the frame's (#1733).
+			rainVulnerable := domain.Unknown[bool]()
+			if def := b.GetBuilding().DefName; def != nil && tables.Catalog != nil {
+				vulnerable, err := tables.Catalog.RainVulnerable(*def)
+				if err != nil {
+					return ColonyProjection{}, err
+				}
+				rainVulnerable = domain.Known(vulnerable)
+			}
 			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(b.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
-				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
+				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: rainVulnerable, Roofed: optional(row.Roofed), TurretDPS: optional(row.TurretDps)})
 			ref := b.GetBuilding()
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1], Occupied: bridge.RectCells(b.Occupied)}
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(site.Occupied) > 0
@@ -408,7 +421,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	}
 	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)
-	r.ProductionBenches = colonyProductionBenches(v, buildings)
+	var benchesErr error
+	if r.ProductionBenches, benchesErr = colonyProductionBenches(v, buildings, tables.Catalog); benchesErr != nil {
+		return ColonyProjection{}, benchesErr
+	}
 	r.Facts.TradeMealIngredients = policy.TradeMealIngredients(r.ProductionBenches)
 	if !hasIssue(v.Issues, "butchering") && headed(buildings, v.Butchering, (*o.ButcheringFacts).GetBench) {
 		benches := []CookingBench{}
@@ -423,7 +439,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.ButcheringBenches = domain.Known(benches)
 	}
 	colonyDisaster(v, &r.Facts, buildings)
-	r.Facts.Comfort = colonyComfort(v)
+	r.Facts.Comfort = colonyComfort(v, tables.Catalog)
 	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v, buildings)
@@ -462,7 +478,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	// A food supply whose stock the things table misses stays unknown
 	// until a later frame (#1343).
 	if food := v.GetFoodSupply().GetObserved(); food != nil {
-		supply, known, err := DecodeFoodSupply(food, tables.Things)
+		supply, known, err := DecodeFoodSupply(food, tables.Things, tables.Catalog)
 		if err != nil {
 			return ColonyProjection{}, err
 		}
@@ -472,7 +488,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 	}
 	if forecast := v.GetForecast().GetObserved(); forecast != nil {
-		combined, resolved, err := DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things)
+		combined, resolved, err := DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, tables.Catalog)
 		if err != nil {
 			return ColonyProjection{}, err
 		}

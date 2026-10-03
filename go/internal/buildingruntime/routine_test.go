@@ -50,7 +50,30 @@ type routineNative struct {
 }
 
 func (n *routineNative) FrameTables(context.Context, *c.Identity) (bridge.Tables, error) {
-	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things}, nil
+	return bridge.Tables{Buildings: n.buildings, Pawns: n.pawns, Things: n.things, Catalog: n.thingCatalog()}, nil
+}
+
+// thingCatalog is a catalog with a plain def row for every def the frame's
+// things table holds (a corpse's source race is a humanlike "Human"): the def
+// rows a food stock joins to (#1733).
+func (n *routineNative) thingCatalog() *bridge.DefinitionCatalog {
+	catalog := &bridge.DefinitionCatalog{ThingDefs: map[string]*d.ThingDef{
+		"Human": {DefName: "Human", Race: &d.RaceProperties{Intelligence: d.Intelligence_INTELLIGENCE_HUMANLIKE}},
+	}}
+	// A def is a powered one too, so a power row of any building resolves.
+	add := func(name string) {
+		if name != "" && catalog.ThingDefs[name] == nil {
+			catalog.ThingDefs[name] = &d.ThingDef{DefName: name, Ingestible: &d.IngestibleProperties{SourceDef: "Human"},
+				Comps: []*d.CompPropertiesAny{{Value: &d.CompPropertiesAny_CompProperties_Power{CompProperties_Power: &d.CompProperties_Power{}}}}}
+		}
+	}
+	for row := range n.things.Values() {
+		add(row.GetThing().GetDefName())
+	}
+	for row := range n.buildings.Values() {
+		add(row.GetBuilding().GetDefName())
+	}
+	return catalog
 }
 
 func (n *routineNative) FrameThings(context.Context, *c.Identity) (bridge.Things, error) {

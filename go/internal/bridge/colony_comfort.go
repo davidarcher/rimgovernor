@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"math"
-	"slices"
 
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -76,7 +75,7 @@ func validateRecreationCensus(v *o.ComfortFacts, people map[string]bool) error {
 		return nil
 	}
 	bad := func() error { return contract("invalid recreation kind census") }
-	if len(j.Kinds) > 16 || len(j.Methods) > 4 {
+	if len(j.Kinds) > 16 {
 		return bad()
 	}
 	kinds := map[string]bool{}
@@ -107,13 +106,6 @@ func validateRecreationCensus(v *o.ComfortFacts, people map[string]bool) error {
 				return bad()
 			}
 		}
-	}
-	methods := map[string]bool{}
-	for _, m := range j.Methods {
-		if m == nil || !slices.Contains([]string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"}, m.Definition) || methods[m.Definition] || validID(m.Kind) != nil || math.IsNaN(m.PowerW) || math.IsInf(m.PowerW, 0) || m.PowerW < 0 {
-			return bad()
-		}
-		methods[m.Definition] = true
 	}
 	return nil
 }

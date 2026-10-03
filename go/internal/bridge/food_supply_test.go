@@ -105,9 +105,7 @@ func TestThingRowValidatesFoodFacts(t *testing.T) {
 	for _, change := range []func(*o.Thing){
 		func(v *o.Thing) { v.Corpse = proto.Bool(true) },
 		func(v *o.Thing) { v.MeatAmount = proto.Float64(300) },
-		func(v *o.Thing) { v.IsHumanlike = proto.Bool(true) },
-		func(v *o.Thing) { v.Perishable, v.RotTicks = proto.Bool(false), proto.Int64(60000) },
-		func(v *o.Thing) { v.RawClass = o.FoodIngredientClass(9).Enum() },
+		func(v *o.Thing) { v.RotTicks = proto.Int64(-1) },
 		func(v *o.Thing) { v.StackCount = proto.Int64(-1) },
 		func(v *o.Thing) { v.TemperatureC = proto.Float64(math.Inf(1)) },
 		func(v *o.Thing) { v.Thing.Id = proto.String("") },

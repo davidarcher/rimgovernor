@@ -366,7 +366,7 @@ namespace HomeBridge.BridgeTools
         {
             var entity = Entity(thing);
             var row = new Obs.Thing {
-                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) }, ClassName = thing.GetType().Name, StackCount = thing.stackCount,
+                Thing_ = entity, Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = entity.Id, Token = NativeWasteOperations.Token(context.Identity, thing) }, StackCount = thing.stackCount,
                 Forbidden = thing.IsForbidden(Faction.OfPlayer),
             };
             // A plant's growth marks the cell sown (#1567).
@@ -379,22 +379,16 @@ namespace HomeBridge.BridgeTools
         private static void FoodFacts(Thing thing, Obs.Thing row)
         {
             var rot = thing.TryGetComp<CompRottable>();
-            var perishable = rot != null && rot.Active;
-            row.Perishable = perishable;
-            if (perishable) row.RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp);
+            if (rot != null && rot.Active) row.RotTicks = Math.Max(0, rot!.TicksUntilRotAtCurrentTemp);
             row.TemperatureC = Finite(thing.AmbientTemperature);
             if (thing.Spawned) {
                 row.Roofed = thing.Position.Roofed(thing.Map);
                 var room = thing.Position.GetRoom(thing.Map);
                 if (room != null) row.Room = NativeRef.Room(room);
             }
-            row.RawClass = NativeMealRecipeFacts.RawClass(thing.def);
             row.IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing);
-            row.RawMeat = thing.def.IsMeat;
-            row.Vegetable = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.VegetableOrFruit) != 0;
             row.Corpse = thing is Corpse;
             if (thing is Corpse corpse) {
-                row.IsHumanlike = corpse.InnerPawn.RaceProps.Humanlike;
                 row.MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount)));
                 row.BodySize = Finite(corpse.InnerPawn.BodySize);
                 row.TileFootprint = 1;

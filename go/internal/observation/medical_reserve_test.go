@@ -10,7 +10,7 @@ import (
 )
 
 func TestMedicalReserveProjectionPreservesIndependentUnknowns(t *testing.T) {
-	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("med"), Count: proto.Int64(5), Medicine: proto.Bool(true), Forbidden: proto.Bool(false), Perishable: proto.Bool(false)}}}
+	u := &o.UpkeepFacts{Items: []*o.UpkeepItem{{Item: bridge.NewRef("med"), Count: proto.Int64(5), Medicine: proto.Bool(true), Forbidden: proto.Bool(false)}}}
 	tables := heads(&o.EntityRef{Id: proto.String("med"), DefName: proto.String("MedicineHerbal")})
 	v := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(3), Resources: []*o.Quantity{{DefName: proto.String("MedicineHerbal"), Units: proto.Int64(5)}}, Upkeep: &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: u}}}
 	f := ColonyMedicalReserve(v, tables)
