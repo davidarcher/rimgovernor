@@ -339,7 +339,7 @@ unknown references (categories, codex entries), nonfinite or negative numbers
 and an unnamed enum value. Creepjoiner and monolith level defs are not
 included; their children add them. The thing rows duplicate what the generated
 ThingDef rows of #1720 will carry (comps, stat bases); they become Go views
-over those rows when it lands.
+over those rows when it lands. `StudiableProps.study_amount_to_complete` is the def's value verbatim: vanilla Odyssey animal defs (Alligator) carry -1, whose meaning the study goal sources before it reads the field.
 
 `PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
 entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state

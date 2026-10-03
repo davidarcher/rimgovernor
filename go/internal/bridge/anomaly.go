@@ -111,7 +111,6 @@ func DecodeAnomalyCatalog(v *o.AnomalyCatalog) (*AnomalyCatalog, error) {
 			}{
 				{"frequencyTicks", float64(s.GetFrequencyTicks()), s.FrequencyTicks != nil},
 				{"minMonolithLevelForStudy", float64(s.GetMinMonolithLevelForStudy()), s.MinMonolithLevelForStudy != nil},
-				{"studyAmountToComplete", s.GetStudyAmountToComplete(), s.StudyAmountToComplete != nil},
 				{"anomalyKnowledge", s.GetAnomalyKnowledge(), s.AnomalyKnowledge != nil},
 			} {
 				if n.set && n.value < 0 {

@@ -55,7 +55,6 @@ func TestAnomalyCatalogDecode(t *testing.T) {
 		"duplicate link":       func(v *o.AnomalyCatalog) { v.CodexEntries[0].LinkedThings = []string{"Fingerspike", "Fingerspike"} },
 		"nan containment":      func(v *o.AnomalyCatalog) { v.Things[0].MinContainmentStrength = proto.Float64(math.NaN()) },
 		"negative containment": func(v *o.AnomalyCatalog) { v.Things[0].MinContainmentStrength = proto.Float64(-1) },
-		"negative study":       func(v *o.AnomalyCatalog) { v.Things[0].Studiable.StudyAmountToComplete = proto.Float64(-1) },
 		"nan escape": func(v *o.AnomalyCatalog) {
 			v.Things[0].HoldingTarget.BaseEscapeIntervalMtbDays = proto.Float64(math.Inf(1))
 		},
@@ -68,6 +67,16 @@ func TestAnomalyCatalogDecode(t *testing.T) {
 		if _, err := DecodeAnomalyCatalog(v); err == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+}
+
+// Vanilla Odyssey animal defs (Alligator in CI run 37128653267) carry
+// studyAmountToComplete = -1; the catalog mirrors the def, so it decodes.
+func TestAnomalyCatalogKeepsNegativeStudyAmount(t *testing.T) {
+	v := anomalyCatalogFixture()
+	v.Things[0].Studiable.StudyAmountToComplete = proto.Float64(-1)
+	if _, err := DecodeAnomalyCatalog(v); err != nil {
+		t.Fatal(err)
 	}
 }
 
