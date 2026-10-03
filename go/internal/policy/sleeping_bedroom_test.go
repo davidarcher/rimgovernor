@@ -168,6 +168,27 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 	}
 }
 
+// Spots built in the starter shell for the shelter stand vacant (a spot is
+// never an owned bed), and clearing them as "left behind" reopened the
+// shelter deficit in a loop (#1266): only a spare spot is cleared.
+func TestBedroomStepKeepsShellSpotsTheShelterNeeds(t *testing.T) {
+	plan, _, sleeping := bedroomFixture()
+	spot := func(id string) SleepingBed {
+		return SleepingBed{ID: id, Definition: SleepingSpotDefinition, Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Cell: domain.Cell{X: 1, Z: 1}}
+	}
+	sleeping.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Known("")}, {ID: "b", OwnedBed: domain.Known("")}}
+	sleeping.Beds = []SleepingBed{spot("b1"), spot("b2")}
+	rooms := RoomObservation{Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind == BedroomClear {
+		t.Fatalf("two spots for two colonists = %+v, want them kept", got)
+	}
+	sleeping.Beds = append(sleeping.Beds, spot("b3"))
+	rooms.Rooms[0].Beds = []string{"b1", "b2", "b3"}
+	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomClear {
+		t.Fatalf("a third spot = %+v, want the spare cleared", got)
+	}
+}
+
 func TestBedResearchRequestedOnceEveryoneHasABedroom(t *testing.T) {
 	plan, rooms, sleeping := bedroomFixture()
 	sleeping.BedBuildable = domain.Known(false)

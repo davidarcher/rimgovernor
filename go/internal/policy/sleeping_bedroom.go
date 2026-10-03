@@ -113,13 +113,30 @@ func NextBedroomStep(plan LayoutPlan, rooms RoomObservation, sleeping SleepingOb
 	}
 	// A spot its owner left behind in the shell is taken down (#1182), so
 	// the shell ends with no bunks.
+	// Only a spare one: a spot is never an owned bed (#1182), so a spot just
+	// built for the shelter reads vacant too, and clearing it re-opened the
+	// shelter deficit until the epoch's bed cap ran out one spot short
+	// (campaign/foothold, #1266). The clear leaves an indoor bed for every
+	// colonist.
+	indoor := 0
+	for _, room := range rooms.Rooms {
+		if enclosed, known := room.Enclosed.Value(); known && enclosed {
+			for _, id := range room.Beds {
+				if b, ok := beds[id]; ok {
+					if human, _ := b.Humanlike.Value(); human {
+						indoor++
+					}
+				}
+			}
+		}
+	}
 	var left []string
 	for id := range shell {
 		if b, ok := beds[id]; ok && b.Definition == SleepingSpotDefinition && len(b.Owners) == 0 {
 			left = append(left, id)
 		}
 	}
-	if len(left) > 0 {
+	if len(left) > 0 && indoor > len(people) {
 		sort.Strings(left)
 		b := beds[left[0]]
 		return BedroomStep{Kind: BedroomClear, Bed: b.ID, Cells: []domain.Cell{b.Cell}, Unhoused: len(unhoused)}
