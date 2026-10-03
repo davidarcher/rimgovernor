@@ -26,7 +26,7 @@ does (`stockWaitTicks`), since only ticks land the haul. A
 
 A draining network is sized by `ComputePowerBudget`, a 24 h balance built
 from the same-network census rows: demand is the sum of enabled consumer
-wattage plus the declared draw (`PlanningDefinition.PowerW`) of every
+wattage plus the declared draw (`observation.PlanningDefinition.PowerW`, the def's power comp) of every
 building action still open in other goals' held reservations, so a
 workbench about to be built is priced before it turns on; each producer's nominal wattage is spread over the day by its
 definition's profile (constant for fuel-burning, geothermal and watermill

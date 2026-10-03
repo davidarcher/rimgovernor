@@ -117,8 +117,8 @@ type FurnitureDefinition struct {
 	Name      string
 	Available domain.Fact[bool]
 	Size      domain.Fact[Bounds]
-	// Roles are the room-role furniture roles the native catalog assigns the
-	// definition (PlanningDefinition.room_roles).
+	// Roles are the room-role furniture roles the catalog's def rows give the
+	// definition (the PlanningDefinition view's RoomRoles).
 	Roles []string
 }
 

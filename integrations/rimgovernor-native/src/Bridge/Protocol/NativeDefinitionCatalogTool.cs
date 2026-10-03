@@ -50,13 +50,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.DefinitionCatalog Read(Common.ObservationContext context, Faction player)
         {
             var catalog = new Obs.DefinitionCatalog { Context = context };
-            var rows = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName) && NativeColonyObservationTools.Cataloged(d))
-                .Select(NativeColonyObservationTools.Definition)
-                .Concat(DefDatabase<TerrainDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName) && d.BuildableByPlayer)
-                    .Select(NativeColonyObservationTools.Terrain));
-            // A name both a ThingDef and a TerrainDef carry keeps the thing.
-            foreach (var row in rows.GroupBy(r => r.Definition.DefName, StringComparer.Ordinal).Select(g => g.First()).OrderBy(r => r.Definition.DefName, StringComparer.Ordinal))
-                catalog.Definitions.Add(row);
             foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName)).OrderBy(d => d.defName, StringComparer.Ordinal))
                 catalog.Research.Add(NativeResearchObservationTools.Static(def, player));
             // Every def with all its fields (#1730), by protobuf reflection over the

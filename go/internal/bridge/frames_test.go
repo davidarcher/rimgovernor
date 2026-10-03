@@ -108,14 +108,11 @@ type bundleFamilyServer struct {
 // catalogReply is a definition catalog under context: a wall, a bed behind
 // Beds research, and the research tree Beds <- Smithing.
 func catalogReply(context *c.ObservationContext) *o.DefinitionCatalogReply {
-	definition := func(name string, research ...string) *o.PlanningDefinition {
-		return &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, ResearchPrerequisites: research, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}
-	}
 	project := func(name string, prerequisites ...string) *o.ResearchProject {
 		return &o.ResearchProject{Project: &o.DefinitionRef{DefName: proto.String(name)}, Prerequisites: prerequisites}
 	}
 	return &o.DefinitionCatalogReply{Outcome: &o.DefinitionCatalogReply_Observed{Observed: &o.DefinitionCatalog{Context: proto.Clone(context).(*c.ObservationContext),
-		Definitions: []*o.PlanningDefinition{definition("Bed", "Beds"), definition("Wall")}, ThingDefs: []*d.ThingDef{{DefName: "Bed"}, {DefName: "Wall"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Constants: catalogConstants(), Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
+		ThingDefs: []*d.ThingDef{{DefName: "Bed", DesignationCategory: "Furniture", ResearchPrerequisites: []string{"Beds"}}, {DefName: "Wall", DesignationCategory: "Structure"}}, TerrainDefs: []*d.TerrainDef{{DefName: "Soil"}}, Constants: catalogConstants(), Defs: &d.DefSets{StatDefs: []*d.StatDef{{DefName: "MarketValue"}}}, Research: []*o.ResearchProject{project("Beds", "Smithing"), project("Smithing")}}}}
 }
 
 var bundleFamilyTools = []string{"rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population", "rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns"}
@@ -460,8 +457,8 @@ func TestFramesResolveAgainstTheCatalog(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if frame.Catalog.Definition("Bed") == nil || frame.Catalog.Definition("Hopper") != nil {
-			t.Fatalf("catalog %v", frame.Catalog.Definitions)
+		if frame.Catalog.ThingDef("Bed") == nil || frame.Catalog.ThingDef("Hopper") != nil {
+			t.Fatalf("catalog %v", frame.Catalog.ThingDefs)
 		}
 		research := frame.Research
 		if research.CurrentProject != "Beds" || !slices.Equal(research.Finished, []string{"Smithing"}) || len(research.Projects) != 2 {

@@ -20,9 +20,8 @@ import (
 // native definition catalog's, never constants here. Using the rooms
 // (feeding, play, lessons) is the next children's.
 
-// FurnitureRole is a room-role furniture role the native definition catalog
-// assigns each definition from the game's own defs (PlanningDefinition
-// .room_roles); a room's furniture is whichever catalog definitions carry the
+// FurnitureRole is a room-role furniture role the definition catalog's def
+// rows give each definition (the PlanningDefinition view's RoomRoles); a room's furniture is whichever catalog definitions carry the
 // role, never a name list here.
 type FurnitureRole string
 

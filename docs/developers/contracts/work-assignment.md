@@ -209,7 +209,7 @@ added here.
 charger is busy (a charger full of waste is #1683's; an idle unpowered one is the
 power planner's, which wires every power consumer), so gestation (#1686) should
 not add a mech first. The charger definitions are the catalog rows with
-`PlanningDefinition.mech_charger` (`Building_MechCharger` thing class),
+`PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
 `EnsureMechCharger` (`mech_charger_goal.go`, `routine_mech_charger.go`) is the goal
@@ -219,7 +219,7 @@ while a charger is owed. Its one method builds the first catalog-flagged,
 researched charger on the first footprint native previews as legal, safe and
 reachable, ranked by `MechChargerSites` over the polluting-machine rule
 `PollutionSites` (#1684): footprints lie wholly on known free ground (walkable,
-unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.size`,
+unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.Size`,
 far from field zones, bedroom and barracks cells, dining and recreation room
 cells and polluted cells, then near an atomizer. A charger blueprint, frame or
 open plan holds it. Powering the charger is the power goal's; emptying its waste is

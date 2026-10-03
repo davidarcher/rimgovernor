@@ -239,6 +239,12 @@ func decodeThingFacts(rows []*o.ThingDefFacts, things map[string]*d.ThingDef) (m
 		if row.FoodKind != nil && foodKinds[kind] == "" || row.MealIngredients != nil && (!meal || mealIngredients[row.GetMealIngredients()] == "") || row.FoodKind != nil && meal && row.MealIngredients == nil {
 			return nil, contract("catalog thing facts of %s carry an invalid food kind %v or ingredients %v", name, kind, row.GetMealIngredients())
 		}
+		roles := row.GetRoomRoles()
+		for i, role := range roles {
+			if !slices.Contains(policy.FurnitureRoles, policy.FurnitureRole(role)) || i > 0 && roles[i-1] >= role {
+				return nil, contract("catalog thing facts of %s carry invalid room roles %v", name, roles)
+			}
+		}
 		out[name] = row
 	}
 	return out, nil

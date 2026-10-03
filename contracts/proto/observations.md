@@ -561,16 +561,15 @@ the Odyssey section today.
 
 ## Room-role furniture
 
-`PlanningDefinition.room_roles` (#1728, #1690) lists the roles a building
-definition has as room furniture, sorted, computed natively from the game's own
-defs and empty for most rows: `BabyBed` (`building.bed_crib`), `Toy`,
-`Decoration`, `Board` and `Desk` (the game's `ThingDefOf` toy box, baby
-decoration, blackboard and school desk, the rows its baby and school jobs name),
-and `DeathrestCasket` or `DeathrestAccelerator` (a building carrying
-`CompProperties_DeathrestBindable`, a casket when its class is a bed).
-Go refuses an unknown, duplicate or unsorted role and plans child rooms and the
-deathrest chamber from the catalog rows carrying a role
-(`policy.FurnitureRole`, `bridge.DefinitionCatalog.RoomRoleDefinitions`). The
+`ThingDefFacts.room_roles` (#1728, #1690, #1731) lists the roles the game's code
+names a building definition for, sorted: `Toy`, `Decoration`, `Board` and `Desk`
+(its `ThingDefOf` toy box, baby decoration, blackboard and school desk, the rows
+its baby and school jobs name). Go derives the other two from the def rows:
+`BabyBed` (`building.bed_crib`) and `DeathrestCasket` or `DeathrestAccelerator`
+(a building carrying `CompProperties_DeathrestBindable`, a casket when its class
+is a bed). Go refuses an unknown, duplicate or unsorted role and plans child
+rooms and the deathrest chamber from the catalog rows carrying a role
+(`policy.FurnitureRole`, `bridge.DefinitionCatalog.RoomRoleRows`). The
 reference assembly carries no method bodies, so the game's room role workers'
 own counting is unverified against these rules (native acceptance verifies).
 
@@ -608,13 +607,12 @@ HAUL (`wastepack_haul`). Siting freezer storage is not planned yet (open on #168
 
 ## Polluting-building flag
 
-`PlanningDefinition.pollutes` (#1684) is set on every building row of the
-definition catalog: true when the def has `CompProperties_Toxifier`,
+`observation.PlanningDefinition.Pollutes` (#1684, #1731) is a view over the def
+row: true when the building def carries `CompProperties_Toxifier`,
 `CompProperties_PolluteOverTime` or `CompProperties_WasteProducer` (the comps
 behind the colony section's polluters and wastepack producers), false for any
-other building, absent on rows that are not buildings. It decodes to
-`observation.PlanningDefinition.Pollutes` (a `domain.Fact`, unknown when
-absent). Siting uses it, never a def-name list.
+other building, unknown for a def that is not a building. Siting uses it, never
+a def-name list.
 
 ## Quest census Empire fields
 

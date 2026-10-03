@@ -416,74 +416,6 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        // One definition's static planning row: what holds for the whole
-        // load, whatever the map or the research state.
-        internal static Obs.PlanningDefinition Definition(ThingDef def)
-        {
-            var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = def.defName, Label = PlacementPreviewOperation.Diagnostic(def.label ?? def.defName) } };
-            row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
-            row.ConstructionSkill = def.constructionSkillPrerequisite;
-            row.NeedsPower = def.GetCompProperties<CompProperties_Power>()?.PowerConsumption > 0;
-            row.Size = new Obs.MapSize { Width = (uint)def.size.x, Height = (uint)def.size.z };
-            // Starter wood where the definition allows it; otherwise the
-            // game's own default material (steel for metallic things such
-            // as turrets), so the costs and the stuff to build with are
-            // still observed rather than left unknown.
-            var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
-            var stuff = def.MadeFromStuff ? (wood != null && GenStuff.AllowedStuffsFor(def).Contains(wood) ? wood : GenStuff.DefaultStuffFor(def)) : null;
-            if (def.MadeFromStuff && (stuff == null || !GenStuff.AllowedStuffsFor(def).Contains(stuff))) {
-                row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "No native allowed material for the definition."));
-            } else {
-                if (stuff != null) row.Stuff = stuff.defName;
-                var costs = def.CostListAdjusted(stuff, false);
-                foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-                row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
-                if (def.building?.bed_humanlike == true) row.RestEffectiveness = Finite(def.GetStatValueAbstract(StatDefOf.BedRestEffectiveness, stuff));
-            }
-            // Every allowed material with its own cost list, so the
-            // planner picks one the colony has in stock.
-            if (def.MadeFromStuff) {
-                foreach (var option in GenStuff.AllowedStuffsFor(def).OrderBy(s => s.defName, StringComparer.Ordinal)) {
-                    var entry = new Obs.StuffOption { Stuff = option.defName };
-                    foreach (var cost in def.CostListAdjusted(option, false)) entry.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-                    row.StuffOptions.Add(entry);
-                }
-            }
-            var powerProps = def.GetCompProperties<CompProperties_Power>();
-            if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
-            var glowProps = def.GetCompProperties<CompProperties_Glower>();
-            if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
-            if (typeof(Building_MechCharger).IsAssignableFrom(def.thingClass)) row.MechCharger = true;
-            var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
-            if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
-            // Pollutes or produces wastepacks: the three Biotech comps, read from the def, never a name list (#1684).
-            if (def.building != null) row.Pollutes = def.GetCompProperties<CompProperties_Toxifier>() != null || def.GetCompProperties<CompProperties_PolluteOverTime>() != null || def.GetCompProperties<CompProperties_WasteProducer>() != null;
-            row.RoomRoles.Add(RoomRoles(def));
-            if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
-            if (def.plant != null) {
-                row.HarvestWork = Finite(def.plant.harvestWork);
-                row.RequiresPollution = def.plant.RequiresPollution;
-                row.RequiresCleanSoil = def.plant.RequiresNoPollution;
-                row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
-                row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
-                var product = def.plant.harvestedThingDef;
-                if (product != null) {
-                    row.RawPreferred = product.ingestible != null && product.ingestible.preferability >= FoodPreferability.RawTasty;
-                    row.Edible = NativeFoodPolicy.IsFood(product);
-                    row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
-                }
-            }
-            return row;
-        }
-        // The room-role furniture roles of a definition (#1728, #1690), from the
-        // game's own defs: a baby bed is a building flagged bed_crib; the toy
-        // box, baby decoration, blackboard and school desk are the game's own
-        // ThingDefOf rows, the ones its baby and school jobs name; a
-        // deathrest-bindable building is one carrying
-        // CompProperties_DeathrestBindable, a casket when it is a bed.
-        // Biotech-less games define none of them, so the list is empty. The
-        // reference assembly carries no method bodies, so the room role
-        // workers' own counting is unverified against these rules.
         // The roles the game's room-role workers score by ThingDefOf name (#1731),
         // sorted: the part of the room roles Go cannot derive from the def rows.
         internal static IEnumerable<string> GameRoomRoles(ThingDef def)
@@ -495,34 +427,6 @@ namespace HomeBridge.BridgeTools
             if (def == ThingDefOf.ToyBox) roles.Add("Toy");
             roles.Sort(StringComparer.Ordinal);
             return roles;
-        }
-        private static IEnumerable<string> RoomRoles(ThingDef def)
-        {
-            var roles = new List<string>(GameRoomRoles(def));
-            if (def.building?.bed_crib == true) roles.Add("BabyBed");
-            if (def.GetCompProperties<CompProperties_DeathrestBindable>() != null)
-                roles.Add(typeof(Building_Bed).IsAssignableFrom(def.thingClass) ? "DeathrestCasket" : "DeathrestAccelerator");
-            roles.Sort(StringComparer.Ordinal);
-            return roles;
-        }
-        // A floor definition: its research prerequisites, cost list and the
-        // abstract stats a laid floor carries (MaintainFlooring scores these).
-        // TerrainDefs are never made from stuff.
-        internal static Obs.PlanningDefinition Terrain(TerrainDef def)
-        {
-            var row = new Obs.PlanningDefinition { Definition = new Obs.DefinitionRef { DefName = def.defName, Label = PlacementPreviewOperation.Diagnostic(def.label ?? def.defName) } };
-            row.Terrain = true;
-            row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
-            row.ConstructionSkill = def.constructionSkillPrerequisite;
-            row.Size = new Obs.MapSize { Width = 1, Height = 1 };
-            var costs = def.CostListAdjusted(null, false);
-            foreach (var cost in costs) row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
-            row.Cleanliness = Finite(def.GetStatValueAbstract(StatDefOf.Cleanliness));
-            row.PathCost = def.pathCost;
-            row.WorkToBuild = Nonnegative(def.GetStatValueAbstract(StatDefOf.WorkToBuild));
-            row.Beauty = Finite(def.GetStatValueAbstract(StatDefOf.Beauty));
-            row.Flammability = Finite(def.GetStatValueAbstract(StatDefOf.Flammability));
-            return row;
         }
         // Sun lamps, plant growers and rooms inside the planning region plus every
         // power network's headroom split by source. Lamp growth cells are the

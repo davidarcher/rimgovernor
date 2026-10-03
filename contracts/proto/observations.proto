@@ -1256,39 +1256,6 @@ message EnvironmentCondition { optional string id = 1; optional string def_name 
 // day of the 60-day year.
 message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; optional double growing_days_until = 5; optional string season = 6; optional int32 day_of_year = 7; optional double non_growing_days = 8; }
 message FarmFacts { rimgovernor.common.v1.Ref zone = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
-// A definition's static planning facts, served by the definition catalog
-// (#1340): availability is the controller's, from the research
-// prerequisites and the finished projects.
-message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; reserved 3; reserved "available"; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; reserved 13; reserved "nutrition_demand_per_day"; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
-  // Floor (TerrainDef) facts: set only when the definition is a terrain. The
-  // stats are the native abstract stat values a laid floor would carry.
-  optional bool terrain = 23; optional double cleanliness = 24; optional int32 path_cost = 25; optional double beauty = 26; optional double flammability = 27;
-  optional double harvest_work = 28;
-  optional bool raw_preferred = 29; // Edible raw without the native bad-taste thought.
-  reserved 30; reserved "diet_allowed";
-  optional bool requires_pollution = 31; optional bool requires_clean_soil = 32;
-  optional double work_to_build = 33; // Native WorkToBuild stat (work ticks) for the row's stuff.
-  // Every native allowed stuff of a stuffed definition, ordered by defName,
-  // with its cost list; empty for a definition not made from stuff.
-  repeated StuffOption stuff_options = 34;
-  // Native explosive radius (CompProperties_Explosive) of an explosive
-  // building such as an IED trap; unset when the definition has none.
-  optional double explosive_radius = 35;
-  // True when the definition's thingClass is Building_MechCharger (a mech
-  // recharging station); unset otherwise.
-  optional bool mech_charger = 37;
-  // True when the building pollutes or produces wastepacks: it has a
-  // CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
-  optional bool pollutes = 36;
-  // Room-role furniture (#1728, #1690): the roles the game scores this
-  // definition into a room for, computed natively from the game's own defs,
-  // sorted. BabyBed (building.bed_crib), Toy (ThingDefOf.ToyBox), Decoration
-  // (ThingDefOf.BabyDecoration), Board (ThingDefOf.Blackboard), Desk
-  // (ThingDefOf.SchoolDesk), DeathrestCasket (a CompProperties_DeathrestBindable
-  // building that is a Building_Bed) and DeathrestAccelerator (any other
-  // deathrest-bindable building). Empty for a definition with no role.
-  repeated string room_roles = 38;
-}
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network
@@ -1891,12 +1858,11 @@ message SnapshotStreamRequest {
   // other open is a keyframe too.
   optional bool keyframe = 4;
 }
-// The definition catalog (#1340): every player-buildable or sowable
-// ThingDef and buildable TerrainDef with its static planning facts, sorted
-// by name, and every research project with its static facts (costs,
-// prerequisites, tab, tech level, required bench). It is fixed for a load:
-// the controller reads it once per load token.
-message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; repeated PlanningDefinition definitions = 2; repeated ResearchProject research = 3;
+// The definition catalog (#1340): the generated def rows and the stat table
+// the planning views read (#1731), and every research project with its static
+// facts (costs, prerequisites, tab, tech level, required bench). It is fixed
+// for a load: the controller reads it once per load token.
+message DefinitionCatalog { rimgovernor.common.v1.ObservationContext context = 1; reserved 2; reserved "definitions"; repeated ResearchProject research = 3;
   // Biotech defs (#1678); absent without Biotech.
   BiotechCatalog biotech = 4;
   // The Ideology definitions (#1654); absent without Ideology.

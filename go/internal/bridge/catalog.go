@@ -27,8 +27,6 @@ const methodDefinitionCatalog = "rimgovernor/observations_read_definition_catalo
 // DefinitionCatalog is one load's decoded catalog.
 type DefinitionCatalog struct {
 	LoadToken string
-	// Definitions are the planning rows by definition name.
-	Definitions map[string]*o.PlanningDefinition
 	// Research is every research project's static facts by name.
 	Research map[string]policy.ResearchProjectFacts
 	// Biotech is the Biotech defs (#1678); nil without Biotech.
@@ -120,30 +118,6 @@ func DefRow[T proto.Message](catalog *DefinitionCatalog, name string) T {
 	}
 	row, _ := catalog.Defs[zero.ProtoReflect().Descriptor().FullName()][name].(T)
 	return row
-}
-
-// Definition is name's catalog row, nil when the catalog has none.
-func (catalog *DefinitionCatalog) Definition(name string) *o.PlanningDefinition {
-	if catalog == nil {
-		return nil
-	}
-	return catalog.Definitions[name]
-}
-
-// RoomRoleDefinitions are the names of the definitions the native catalog
-// assigns a room-role furniture role, sorted.
-func (catalog *DefinitionCatalog) RoomRoleDefinitions() []string {
-	if catalog == nil {
-		return nil
-	}
-	var names []string
-	for name, row := range catalog.Definitions {
-		if len(row.RoomRoles) > 0 {
-			names = append(names, name)
-		}
-	}
-	slices.Sort(names)
-	return names
 }
 
 // catalogCache holds the catalog of the newest load token read.
@@ -324,7 +298,7 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	if err := buildingUnknown(v); err != nil {
 		return nil, err
 	}
-	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Definitions: make(map[string]*o.PlanningDefinition, len(v.Definitions)), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
+	out := &DefinitionCatalog{LoadToken: identity.GetLoadToken(), Research: make(map[string]policy.ResearchProjectFacts, len(v.Research))}
 	var err error
 	if out.Biotech, err = DecodeBiotechCatalog(v.Biotech); err != nil {
 		return nil, err
@@ -355,16 +329,6 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 	}
 	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs, out.TerrainDefs); err != nil {
 		return nil, err
-	}
-	for _, row := range v.Definitions {
-		if err := validatePlanningDefinition(row); err != nil {
-			return nil, err
-		}
-		name := row.Definition.GetDefName()
-		if out.Definitions[name] != nil {
-			return nil, contract("duplicate catalog definition %s", name)
-		}
-		out.Definitions[name] = row
 	}
 	for _, row := range v.Research {
 		if row == nil || row.Project == nil || validID(row.Project.GetDefName()) != nil {

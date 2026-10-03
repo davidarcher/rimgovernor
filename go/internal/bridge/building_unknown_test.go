@@ -31,10 +31,6 @@ func TestBuildingUnknownNamesField(t *testing.T) {
 	if err = buildingUnknown(decoded); err == nil || !strings.Contains(err.Error(), "[999]") {
 		t.Fatalf("decoded err = %v", err)
 	}
-	// explosive_radius (#1209) is a known PlanningDefinition field.
-	if err = buildingUnknown(&o.PlanningDefinition{ExplosiveRadius: proto.Float64(3.9)}); err != nil {
-		t.Fatalf("explosive_radius refused: %v", err)
-	}
 	// A scalar-valued map is walked without reading its values as messages.
 	if err = buildingUnknown(&o.SurgeryOperation{DoctorChances: map[string]float64{"Thing_Human1": 0.9}}); err != nil {
 		t.Fatalf("doctor_chances refused: %v", err)

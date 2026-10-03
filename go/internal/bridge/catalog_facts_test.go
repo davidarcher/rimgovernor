@@ -11,14 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func planningRow(name string, powerW float64) *o.PlanningDefinition {
-	row := &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}}
-	if powerW > 0 {
-		row.PowerW = proto.Float64(powerW)
-	}
-	return row
-}
-
 // factsReply is a catalog reply with three joy buildings (a television, a
 // chess table and a horseshoes pin), a terrain, the stat table that values
 // them and the game-computed ThingDef flags.
@@ -35,7 +27,6 @@ func factsReply() *o.DefinitionCatalog {
 	steel.DesignationCategory = ""
 	v.ThingDefs = []*d.ThingDef{building("Chess", "Cerebral"), building("Pin", "Dexterity"), steel, television, {DefName: "Wall"}, {DefName: "MeatRaw"}, {DefName: "Meal"}}
 	v.TerrainDefs = []*d.TerrainDef{{DefName: "Soil", PathCost: 2, Natural: true}, {DefName: "Lava"}}
-	v.Definitions = []*o.PlanningDefinition{planningRow("Chess", 0), planningRow("Pin", 0), planningRow("Television", 100), planningRow("Wall", 0)}
 	job := func(name string, rate float32, duration int32) *d.JobDef {
 		return &d.JobDef{DefName: name, JoyGainRate: rate, JoyDuration: duration}
 	}

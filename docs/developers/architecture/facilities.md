@@ -120,7 +120,7 @@ pawns: a bed per newborn or baby (at least the game's two), one toy box and
 one decoration, one blackboard and a desk per child.
 
 Furniture is never a def-name list: the native definition catalog gives each
-`PlanningDefinition` its `room_roles` (`BabyBed`, `Toy`, `Decoration`, `Board`,
+`PlanningDefinition` view its `RoomRoles` (`BabyBed`, `Toy`, `Decoration`, `Board`,
 `Desk`, `DeathrestCasket`, `DeathrestAccelerator`; see
 [observations.md](../../../contracts/proto/observations.md#room-role-furniture))
 and a room's pieces are the catalog definitions carrying the role, the first
