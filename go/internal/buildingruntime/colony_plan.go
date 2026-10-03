@@ -116,7 +116,19 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			growth.Shapes, growth.Built = policy.ChildRoomShapes(needs, defs), policy.BuiltRooms(layout.Plan, census)
 		}
 	}
-	children := (len(growth.Child) > 0 || growth.Built != nil) && hourly
+	// An unbuilt room whose need has ended (#1824) leaves the plan.
+	if haveLayout {
+		rooms, rk := projection.Rooms.Value()
+		construction, ck := projection.Facts.CurrentConstruction.Value()
+		if rk && ck && construction.Colony {
+			ended := policy.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Containment, childRoomNeeds(*projection))
+			if policy.RoomsOfRoles(layout.Plan, ended) > 0 {
+				growth.Ended = ended
+				growth.InUse = policy.RoomsInUse(layout.Plan, rooms, construction.Buildings, furnitureDefinitions(*projection))
+			}
+		}
+	}
+	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
 	if demand := r.stockpiles.gearDemand(stockpileWorld(snapshot)); haveLayout && (len(policy.GearRoomsOwed(layout.Plan, demand)) > 0 || policy.StorageRoomsOwed(layout.Plan, demand) > 0) {

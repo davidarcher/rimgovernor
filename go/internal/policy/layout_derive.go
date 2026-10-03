@@ -64,6 +64,11 @@ type RoomGrowth struct {
 	// set (the census is known).
 	Shapes []ChildRoomShape
 	Built  map[Rectangle]bool
+	// Ended are the roles whose need is gone and InUse the planned rooms
+	// standing or furnished: an ended role's rooms outside InUse leave the
+	// plan (#1824). InUse is set only when an ended role has a room.
+	Ended []ModuleRole
+	InUse map[Rectangle]bool
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,
@@ -101,6 +106,11 @@ func ReplanLayoutWithRooms(plan LayoutPlan, s MapSurvey, growth RoomGrowth, anim
 	if growth.Built != nil {
 		var retired bool
 		next, retired = retireDuplicateRooms(next, growth.Shapes, growth.Built)
+		dropped = dropped || retired
+	}
+	if growth.InUse != nil {
+		var retired bool
+		next, retired = retireEndedRooms(next, growth.Ended, growth.InUse)
 		dropped = dropped || retired
 	}
 	next, throne := growThroneRoom(next, growth.ThroneArea)

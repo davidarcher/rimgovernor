@@ -1,5 +1,7 @@
 package policy
 
+import "github.com/davidarcher/RimGovernor/go/internal/domain"
+
 // Duplicate add-on rooms (#1823, epic #1819): the planner only ever added
 // rooms, so a room it grew twice (nine worship rooms after a transposed
 // frame) stayed in the plan. A role's rooms reduce to one; the rest leave
@@ -124,4 +126,98 @@ func withoutRooms(rooms []LayoutRoom, drop map[Rectangle]bool) []LayoutRoom {
 		}
 	}
 	return out
+}
+
+// Ended needs (#1824, epic #1819): an unbuilt planned child, worship,
+// deathrest or containment room whose need has ended leaves the plan. A built
+// room stays (only #1823's duplicate rule retires one); an unknown fact is
+// never an ended need.
+
+// EndedRoomRoles are the add-on roles whose need is known to be gone: every
+// pawn's stage (and, for the deathrest chamber, deathrest) is known and none
+// owes the room; the ideoligion is known and requires no building; the
+// containment demand is known to be zero entities. needs are the rooms still
+// owed.
+func EndedRoomRoles(pawns domain.Fact[[]WorkPawn], ideology domain.Fact[Ideoligion], containment ContainmentPlanning, needs []ChildRoomNeed) []ModuleRole {
+	owed := map[ModuleRole]bool{}
+	for _, n := range needs {
+		owed[n.Module] = true
+	}
+	var ended []ModuleRole
+	add := func(known bool, roles ...ModuleRole) {
+		for _, role := range roles {
+			if known && !owed[role] {
+				ended = append(ended, role)
+			}
+		}
+	}
+	list, listKnown := pawns.Value()
+	stages, deathrests := listKnown, listKnown
+	for _, p := range list {
+		bt, ok := p.Biotech.Value()
+		if !ok {
+			stages, deathrests = false, false
+			break
+		}
+		if _, ok := bt.DevelopmentalStage.Value(); !ok {
+			stages = false
+		}
+		if _, ok := bt.Deathrest.Value(); !ok {
+			deathrests = false
+		}
+	}
+	add(stages && len(list) > 0, ModuleNursery, ModulePlayroom, ModuleClassroom)
+	add(deathrests && len(list) > 0, ModuleDeathrestChamber)
+	_, ideoKnown := ideology.Value()
+	add(ideoKnown, ModuleWorship)
+	demand, demandKnown := containment.Demand.Value()
+	add(demandKnown && demand.Entities == 0, ModuleContainmentCell)
+	return ended
+}
+
+// RoomsInUse are the interiors of the plan's rooms that stand as a census
+// room or hold a building of furniture's definitions.
+func RoomsInUse(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, furniture []FurnitureDefinition) map[Rectangle]bool {
+	inUse := BuiltRooms(plan, rooms)
+	var names []string
+	for _, d := range furniture {
+		names = append(names, d.Name)
+	}
+	for _, r := range plan.AllRooms() {
+		if !inUse[r.Interior] && standingChildPieces(r, names, built) > 0 {
+			inUse[r.Interior] = true
+		}
+	}
+	return inUse
+}
+
+// retireEndedRooms drops each planned room of an ended role that is not in
+// use. It reports whether it dropped any.
+func retireEndedRooms(plan LayoutPlan, ended []ModuleRole, inUse map[Rectangle]bool) (LayoutPlan, bool) {
+	drop := map[Rectangle]bool{}
+	for _, role := range ended {
+		for _, r := range plan.roomsOf(role) {
+			if !inUse[r.Interior] {
+				drop[r.Interior] = true
+			}
+		}
+	}
+	if len(drop) == 0 {
+		return plan, false
+	}
+	plan.Rooms = withoutRooms(plan.Rooms, drop)
+	plan.Wings = append([]Wing(nil), plan.Wings...)
+	for i := range plan.Wings {
+		plan.Wings[i].Rooms = withoutRooms(plan.Wings[i].Rooms, drop)
+	}
+	return plan, true
+}
+
+// RoomsOfRoles is how many planned rooms hold one of roles.
+func RoomsOfRoles(plan LayoutPlan, roles []ModuleRole) int {
+	n := 0
+	for _, role := range roles {
+		n += len(plan.roomsOf(role))
+	}
+	return n
 }
