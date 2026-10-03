@@ -33,7 +33,7 @@ func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 	// coverage failed (no cleaners): the kitchen's; the hospital filth is
 	// outside Home and the loose filth "a" has no room.
 	v.Filth = domain.Known([]UpkeepFilth{{ID: "a", Home: true, Thickness: 1}, {ID: "b", Home: true, Room: "Kitchen", RoomID: domain.Known("k"), Thickness: 2}, {ID: "c", Room: "Hospital", RoomID: domain.Known("h"), Thickness: 3}})
-	v.Rooms = domain.Known(RoomObservation{Rooms: []Room{
+	v.Rooms = domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-3.0)},
 		{ID: "h", Role: domain.Known(RoomRoleHospital), Enclosed: domain.Known(true), Cleanliness: domain.Known(-3.0)},
 	}})

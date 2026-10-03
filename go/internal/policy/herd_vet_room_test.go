@@ -29,7 +29,7 @@ func TestVetRoomReadyNeedsAShelledRoomAndAMedicalBed(t *testing.T) {
 		{"unflagged bed", standing(vet), built, census(domain.Known(false)), domain.Known(false)},
 		{"unread flag stays unknown", standing(vet), built, census(domain.Unknown[bool]()), domain.Unknown[bool]()},
 		{"bed without a census row stays unknown", standing(vet), built, nil, domain.Unknown[bool]()},
-		{"room not shelled", RoomObservation{}, built, census(domain.Known(true)), domain.Known(false)},
+		{"room not shelled", RoomObservation{Shapes: testShapes}, built, census(domain.Known(true)), domain.Known(false)},
 		{"no bed built", standing(vet), nil, nil, domain.Known(false)},
 	}
 	for _, c := range cases {

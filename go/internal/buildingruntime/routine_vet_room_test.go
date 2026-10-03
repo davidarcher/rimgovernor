@@ -23,7 +23,7 @@ func TestBotAreasPlanTheVetRoomAndKeepItOutOfSafe(t *testing.T) {
 	// One enclosed, roofed room exactly on the vet room interior.
 	room := policy.Room{ID: "1", Enclosed: domain.Known(true), Roofed: domain.Known(true), Cells: vet}
 	projection := observation.ColonyProjection{
-		Rooms:      domain.Known(policy.RoomObservation{Rooms: []policy.Room{room}}),
+		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{room}}),
 		LayoutPlan: domain.Known(plan),
 	}
 	var m safeAreaMemory

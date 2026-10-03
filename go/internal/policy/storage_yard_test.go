@@ -13,7 +13,7 @@ func yardField(zoned map[domain.Cell]bool) (StorageRequest, Rectangle) {
 	storage := LayoutRoom{Role: ModuleStorage, Interior: Rectangle{X: 52, Z: 40, Width: 5, Height: 5}}
 	layout := LayoutPlan{Rooms: []LayoutRoom{workshop, storage}}
 	var cells []SiteCell
-	rooms := RoomObservation{}
+	rooms := RoomObservation{Shapes: testShapes}
 	for i, r := range layout.Rooms {
 		rooms.Rooms = append(rooms.Rooms, Room{ID: string(rune('a' + i)), Enclosed: domain.Known(true), Cells: rectCells(r.Interior)})
 	}
@@ -82,7 +82,7 @@ func TestPlanStorageYardIsUnroofedInsideTheRingNearestTheWorkshop(t *testing.T) 
 		t.Fatalf("first candidate %v is not beside the workshop %+v", first, workshop)
 	}
 	// No standing workshop, no yard.
-	r.Rooms = &RoomObservation{}
+	r.Rooms = &RoomObservation{Shapes: testShapes}
 	for _, s := range PlanStorage(r).Sites {
 		if s.Role == domain.YardRole {
 			t.Fatalf("yard planned without a workshop: %+v", s)

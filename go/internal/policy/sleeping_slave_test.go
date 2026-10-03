@@ -57,7 +57,7 @@ func TestSleepingSlaveWithoutSpareBedBuilds(t *testing.T) {
 	v := slaveFixture()
 	v.Beds = v.Beds[:1]
 	r, _ := ReviewSleeping(domain.Known(v), SleepingHistory{}, 1)
-	rooms := domain.Known(RoomObservation{Rooms: []Room{sleepingRoom("warm", RoomRoleBedroom, 20)}})
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{sleepingRoom("warm", RoomRoleBedroom, 20)}})
 	defs := []BenchDefinition{{Name: "Bed", Available: domain.Known(true)}}
 	choice, err := SelectSleepingMethod(SleepingRequest{Targets: r.Targets, Sleeping: domain.Known(v), Rooms: rooms, Definitions: defs})
 	if err != nil || choice.Method != SleepingBuild || choice.Unhoused != 1 {

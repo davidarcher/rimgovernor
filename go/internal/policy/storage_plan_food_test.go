@@ -73,7 +73,7 @@ func TestFoodSitePrefersRoofedFloorOutsideTheBedrooms(t *testing.T) {
 		}
 	}
 	s.Cells = r.Cells
-	s.Rooms = &RoomObservation{Rooms: []Room{{ID: "bed", Cells: bedroom, Role: domain.Known(RoomRoleBedroom)}}}
+	s.Rooms = &RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "bed", Cells: bedroom, Role: domain.Known(RoomRoleBedroom)}}}
 	r.Sited = PlanStorage(s).Sites
 	for _, c := range foodSiteCreate(t, r).Cells {
 		if c.X >= 30 {

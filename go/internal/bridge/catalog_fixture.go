@@ -60,6 +60,14 @@ type FixtureDef struct {
 	Sittable   bool
 	Comfort    float32
 	EatSurface bool
+	// WorkTableRole makes the def a work table scored into that room role
+	// (workTableRoomRole), worked from the cell in front of it; Bench gives
+	// a def that states no role the same interaction cell; Bed makes it a
+	// humanlike bed counted for bedrooms and barracks, Medical one that is
+	// medical by default.
+	WorkTableRole string
+	Bench         bool
+	Bed, Medical  bool
 	// Weapon makes the def a weapon with the verb, projectile and tools it
 	// states (#1723).
 	Weapon *FixtureWeapon
@@ -163,6 +171,59 @@ func CoreWeaponFixtures() []FixtureDef {
 		{Name: "Shell_AntigrainWarhead", Shell: &FixtureShell{DamageDef: "BombSuper", ExplosionRadius: 14.9}},
 		{Name: "Shell_Toxic", Shell: &FixtureShell{DamageDef: "ToxGas", ExplosionRadius: 4}},
 		{Name: "Shell_Deadlife", Shell: &FixtureShell{DamageDef: "DeadlifeDust", ExplosionRadius: 0.1}},
+	}
+}
+
+// WithCoreFurniture is defs plus the Core furniture rows (CoreFurnitureFixtures)
+// a fixture catalog needs for PieceShapes: a def the caller already states
+// keeps its own costs and research and takes the core row's size, role and
+// bed flags.
+func WithCoreFurniture(defs []FixtureDef) []FixtureDef {
+	out := slices.Clone(defs)
+	at := map[string]int{}
+	for i, def := range out {
+		at[def.Name] = i
+	}
+	for _, core := range CoreFurnitureFixtures() {
+		i, ok := at[core.Name]
+		if !ok {
+			out = append(out, core)
+			continue
+		}
+		out[i].Width, out[i].Height = core.Width, core.Height
+		out[i].WorkTableRole, out[i].Bench, out[i].Bed, out[i].Medical = core.WorkTableRole, core.Bench, core.Bed, core.Medical
+	}
+	return out
+}
+
+// CoreFurnitureFixtures are the Core furniture the interior templates plan,
+// stated the way the game's rows carry it (size, work table room role, bed
+// flags, the interaction cell in front of a bench): the shapes a fixture
+// catalog needs for PieceShapes to validate.
+func CoreFurnitureFixtures() []FixtureDef {
+	return []FixtureDef{
+		{Name: "Bed", Width: 1, Height: 2, Bed: true},
+		{Name: "SleepingSpot", Width: 1, Height: 2, Bed: true},
+		{Name: "DoubleBed", Width: 2, Height: 2, Bed: true},
+		{Name: "RoyalBed", Width: 2, Height: 2, Bed: true},
+		{Name: "HospitalBed", Width: 1, Height: 2, Bed: true, Medical: true},
+		{Name: "EndTable", Width: 1, Height: 1},
+		{Name: "Dresser", Width: 2, Height: 1},
+		{Name: "StandingLamp", Width: 1, Height: 1},
+		{Name: "ToolCabinet", Width: 2, Height: 1},
+		{Name: "ShelfSmall", Width: 1, Height: 1},
+		{Name: "VitalsMonitor", Width: 1, Height: 1},
+		{Name: "Sarcophagus", Width: 1, Height: 2},
+		{Name: "FueledStove", Width: 3, Height: 1, WorkTableRole: "Kitchen"},
+		{Name: "ElectricStove", Width: 3, Height: 1, WorkTableRole: "Kitchen"},
+		{Name: "TableStonecutter", Width: 3, Height: 1, WorkTableRole: "Workshop"},
+		{Name: "ElectricSmithy", Width: 3, Height: 1, WorkTableRole: "Workshop"},
+		{Name: "HandTailoringBench", Width: 3, Height: 1, WorkTableRole: "Workshop"},
+		{Name: "FabricationBench", Width: 5, Height: 2, WorkTableRole: "Workshop"},
+		{Name: "TableButcher", Width: 3, Height: 1, Bench: true},
+		{Name: "ElectricCrematorium", Width: 3, Height: 2, Bench: true},
+		{Name: "SimpleResearchBench", Width: 3, Height: 2, WorkTableRole: "Laboratory"},
+		{Name: "HiTechResearchBench", Width: 5, Height: 2, WorkTableRole: "Laboratory"},
 	}
 }
 
@@ -314,6 +375,21 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 			}
 			t.Building.IsSittable = true
 			apparelStats[index(StatComfort)] = def.Comfort
+		}
+		if def.WorkTableRole != "" || def.Bench {
+			if t.Building == nil {
+				t.Building = &d.BuildingProperties{}
+			}
+			t.Building.WorkTableRoomRole = def.WorkTableRole
+			t.HasInteractionCell, t.InteractionCellOffset = true, &d.IntVec3{Z: -1}
+		}
+		if def.Bed {
+			if t.Building == nil {
+				t.Building = &d.BuildingProperties{}
+			}
+			t.ThingClass = ClassBed
+			chains[ClassBed] = nil
+			t.Building.BedHumanlike, t.Building.BedCountsForBedroomOrBarracks, t.Building.BedDefaultMedical = true, !def.Medical, def.Medical
 		}
 		if def.EatSurface {
 			t.SurfaceType = d.SurfaceType_SURFACE_TYPE_EAT

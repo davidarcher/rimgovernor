@@ -56,7 +56,7 @@ func (s *projectSource) ReadRoutineFrame(context.Context, *c.Identity) (bridge.R
 		frame.Emergency = bridge.EmergencyObservation{Context: observed.Context}
 	}
 	if s.extra != nil {
-		frame.Catalog = testCatalog(s.extra...)
+		frame.Catalog = testCatalog(bridge.WithCoreFurniture(s.extra)...)
 	}
 	return frame, nil
 }
@@ -76,7 +76,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
 			wall := bridge.FixtureDef{Name: "Wall", Stuffs: []bridge.FixtureStuff{{Stuff: "WoodLog", Costs: []policy.Amount{{Resource: "WoodLog", Count: 5}}}}}
-			row := bridge.FixtureDef{Name: "HospitalBed", ConstructionSkill: 8, Research: []string{"Medicine"}}
+			row := bridge.FixtureDef{Name: "SurgeryTable", ConstructionSkill: 8, Research: []string{"Medicine"}}
 			s := &projectSource{colonySource: &colonySource{reply: base}, extra: append([]bridge.FixtureDef{wall, row}, diningFixtureDefs()...)}
 			expected, err := DecodeIdentity(identity())
 			if err != nil {
@@ -85,7 +85,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			clock := testkit.NewManualClock(time.Now())
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			names := []string{"Wall", "HospitalBed"}
+			names := []string{"Wall", "SurgeryTable"}
 			switch phase {
 			case "default-only":
 				names = []string{"Wall"}
@@ -114,7 +114,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 				switch d.Name {
 				case "Wall":
 					wallRow = d
-				case "HospitalBed":
+				case "SurgeryTable":
 					bedRow = d
 				}
 			}
@@ -125,7 +125,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			if phase == "uncataloged" {
 				want = domain.Known(false)
 			}
-			if len(names) == 2 && (bedRow.Name != "HospitalBed" || bedRow.Available != want) {
+			if len(names) == 2 && (bedRow.Name != "SurgeryTable" || bedRow.Available != want) {
 				t.Fatal(bedRow)
 			}
 			if len(names) == 2 && !reflect.DeepEqual(out.Projection.Definitions[len(out.Projection.Definitions)-1].Name, names[len(names)-1]) {

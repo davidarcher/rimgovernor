@@ -1156,14 +1156,18 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		var anchors []domain.Cell
 		for _, room := range interiorRooms {
 			anchors = append(anchors, policy.InteriorSnapAnchors(room, occupied)...)
-			plan, ok := policy.PlanInterior(room, policy.InteriorPieceDefFor(r.definition))
+			// A definition with no buildable row has no shape or family: the
+			// template plans its default layout for it.
+			piece, _ := room.Piece(r.definition)
+			piece.Def = r.definition
+			plan, ok := policy.PlanInterior(room, piece)
 			if !ok {
 				continue
 			}
 			for _, p := range plan.Pieces {
 				// The search drops occupied anchors, so a slot whose
 				// anchor is taken cannot be previewed.
-				if p.Accepts(r.definition) && !slices.Contains(occupied, p.Anchor()) {
+				if p.Accepts(room.Shapes, r.definition) && !slices.Contains(occupied, p.Anchor()) {
 					slots = append(slots, p)
 				}
 			}

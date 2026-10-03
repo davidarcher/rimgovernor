@@ -80,7 +80,7 @@ func TestHostedComfortDropsFacilitiesOutsideHostingRooms(t *testing.T) {
 		Surfaces:   []DiningSurface{{ID: "hosted-table", RoomID: "dining", Adjacent: []domain.Cell{{X: 1, Z: 1}}}, {ID: "barracks-table", RoomID: "barracks"}, {ID: "unknown-table", RoomID: "gone"}, {ID: "outdoor-table"}},
 		Dining:     []ComfortFacility{{ID: "hosted-chair", RoomID: "rec", AccessibleTo: people}, {ID: "barracks-chair", RoomID: "barracks", AccessibleTo: people}},
 		Recreation: []ComfortFacility{{ID: "hosted-pin", RoomID: "dining", AccessibleTo: people}, {ID: "unroled-pin", RoomID: "unroled", AccessibleTo: people}, {ID: "outdoor-pin", AccessibleTo: people}}}
-	rooms := RoomObservation{Rooms: []Room{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "dining", Role: domain.Known(RoomRoleDiningRoom)}, {ID: "rec", Role: domain.Known(RoomRoleRecRoom)},
 		{ID: "barracks", Role: domain.Known(RoomRoleBarracks)}, {ID: "unroled"}}}
 	hosted, err := HostedComfort(v, rooms)
@@ -90,7 +90,7 @@ func TestHostedComfortDropsFacilitiesOutsideHostingRooms(t *testing.T) {
 	if len(hosted.People) != 1 || len(hosted.Surfaces) != 1 || hosted.Surfaces[0].ID != "hosted-table" || len(hosted.Dining) != 1 || hosted.Dining[0].ID != "hosted-chair" || len(hosted.Recreation) != 1 || hosted.Recreation[0].ID != "hosted-pin" {
 		t.Fatal(hosted)
 	}
-	cells := HostingCells(FacilityRequirement{Role: RoomRoleDiningRoom, Compatible: []RoomRole{RoomRoleRecRoom}}, RoomObservation{Rooms: []Room{
+	cells := HostingCells(FacilityRequirement{Role: RoomRoleDiningRoom, Compatible: []RoomRole{RoomRoleRecRoom}}, RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "dining", Role: domain.Known(RoomRoleDiningRoom), Cells: []domain.Cell{{X: 1, Z: 1}}},
 		{ID: "rec", Role: domain.Known(RoomRoleRecRoom), Cells: []domain.Cell{{X: 2, Z: 1}}},
 		{ID: "bed", Role: domain.Known(RoomRoleBedroom), Cells: []domain.Cell{{X: 3, Z: 1}}},

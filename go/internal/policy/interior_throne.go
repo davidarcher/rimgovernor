@@ -19,6 +19,10 @@ func init() {
 }
 
 func planThrone(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
+	fs, ok := f.furnishings()
+	if !ok {
+		return nil, false
+	}
 	size := piece.Size
 	span := int32(1)
 	var pieces []InteriorPiece
@@ -57,10 +61,10 @@ func planThrone(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool)
 		pieces = append(pieces, p)
 		return true
 	}
-	try(NewInteriorPiece("end_table", "EndTable", endTableSize, domain.South, domain.Cell{X: x - 1, Z: back}))
-	try(NewInteriorPiece("dresser", "Dresser", dresserSize, domain.South, domain.Cell{X: x + span, Z: back}))
+	try(NewInteriorPiece("end_table", endTableDef, fs.EndTable.Size, domain.South, domain.Cell{X: x - 1, Z: back}))
+	try(NewInteriorPiece("dresser", dresserDef, fs.Dresser.Size, domain.South, domain.Cell{X: x + span, Z: back}))
 	for _, u := range []int32{f.Width - 1, 0} {
-		if try(NewInteriorPiece("lamp", "StandingLamp", standLampSize, domain.South, domain.Cell{X: u, Z: back})) {
+		if try(NewInteriorPiece("lamp", standingLampDef, fs.Lamp.Size, domain.South, domain.Cell{X: u, Z: back})) {
 			break
 		}
 	}

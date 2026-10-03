@@ -29,7 +29,7 @@ func TestButcherSpotGoalIsOwedUntilABenchStandsApart(t *testing.T) {
 // the wood is in stock, and the table closes it.
 func TestButcherSpotGoalStaysOpenForTheTable(t *testing.T) {
 	f := stableRoutine()
-	f.Upkeep.Rooms = domain.Known(RoomObservation{})
+	f.Upkeep.Rooms = domain.Known(RoomObservation{Shapes: testShapes})
 	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot", Definition: "ButcherSpot"}})
 	f.Wood = domain.Known(ButcherTableWood)
 	if got := butcherSpotMet(f); got != domain.Known(false) {
@@ -50,7 +50,7 @@ func TestButcherSpotGoalStaysOpenForTheTable(t *testing.T) {
 // spot's removal.
 func TestButcherSpotGoalOwesTheSpotsRemovalBesideATable(t *testing.T) {
 	f := stableRoutine()
-	f.Upkeep.Rooms = domain.Known(RoomObservation{})
+	f.Upkeep.Rooms = domain.Known(RoomObservation{Shapes: testShapes})
 	f.Wood = domain.Known(int64(0))
 	f.ButcherBenches = domain.Known([]ButcherBench{{ID: "spot", Definition: "ButcherSpot"}, {ID: "table", Definition: "TableButcher"}})
 	if got := butcherSpotMet(f); got != domain.Known(false) {

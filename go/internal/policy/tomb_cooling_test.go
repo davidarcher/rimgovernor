@@ -11,8 +11,8 @@ func TestWarmTombsOnlyWhileAColonistLiesThere(t *testing.T) {
 	plan, room := tombFixture()
 	rooms := tombStanding(room)
 	rooms.Rooms[0].Temperature = domain.Known(18.0)
-	in, _ := InteriorRoomFromLayout(room)
-	interior, _ := PlanInterior(in, InteriorPieceDefFor(SarcophagusDefinition))
+	in, _ := InteriorRoomFromLayout(room, testShapes)
+	interior, _ := PlanInterior(in, testShapes[SarcophagusDefinition])
 	built := domain.Known(CurrentConstruction{Colony: true, Buildings: []CurrentBuilding{sarcophagus(t, "Sarcophagus_1", interior.Pieces[0])}})
 	buried := domain.Known([]WasteItem{{ID: "Corpse_1", State: WasteBuried, CorpseOf: domain.CorpseColonist, Grave: "Sarcophagus_1"}})
 	none := domain.Known([]WasteItem{})
@@ -42,7 +42,7 @@ func TestMealClosetOwedThenCooled(t *testing.T) {
 	dining := LayoutRoom{Role: ModuleDining, Interior: Rectangle{X: 10, Z: 20, Width: 9, Height: 7}, Door: domain.Cell{X: 14, Z: 19}, DoorRot: domain.North}
 	closet := LayoutRoom{Role: ModuleMealCloset, Interior: Rectangle{X: 13, Z: 28, Width: 2, Height: 2}, Door: domain.Cell{X: 14, Z: 27}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []LayoutRoom{dining, closet}}
-	if _, owed := plan.MealClosetOwed(RoomObservation{}); owed {
+	if _, owed := plan.MealClosetOwed(RoomObservation{Shapes: testShapes}); owed {
 		t.Fatal("closet owed before its dining room stands")
 	}
 	rooms := tombStanding(dining)

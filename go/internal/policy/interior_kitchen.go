@@ -16,11 +16,6 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // KitchenStoveDefinition is the stove the template plans.
 const KitchenStoveDefinition = "FueledStove"
 
-var (
-	kitchenStoveSize        = domain.Cell{X: 3, Z: 1}
-	kitchenStoveInteraction = domain.Cell{X: 0, Z: -1}
-)
-
 // kitchenMaxStoves bounds the row; two stoves feed a mid-sized colony.
 const kitchenMaxStoves = 2
 
@@ -29,62 +24,65 @@ func init() {
 }
 
 func planKitchen(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	def := BenchRowDef(piece, pieceFamilyStove, KitchenStoveDefinition).Def
+	stove, ok := BenchRowDef(f, piece, RoomRoleKitchen, KitchenStoveDefinition)
+	if !ok || !frontInteraction(stove) {
+		return nil, false
+	}
 	for _, d := range f.Doors {
-		if pieces, ok := kitchenRowBeside(f, d, def); ok {
+		if pieces, ok := kitchenRowBeside(f, d, stove); ok {
 			return pieces, true
 		}
 	}
-	return kitchenBackRow(f, def)
+	return kitchenBackRow(f, stove)
 }
 
-func kitchenStove(def string, i int, rot domain.Rotation, corner domain.Cell) InteriorPiece {
-	p := NewInteriorPiece("stove."+string(rune('1'+i)), def, kitchenStoveSize, rot, corner)
-	off := kitchenStoveInteraction
+func kitchenStove(stove InteriorPieceDef, i int, rot domain.Rotation, corner domain.Cell) InteriorPiece {
+	p := NewInteriorPiece("stove."+string(rune('1'+i)), stove.Def, stove.Size, rot, corner)
+	off := *stove.Interaction
 	p.InteractionOffset, p.Row = &off, "stoves"
 	return p
 }
 
 // kitchenBackRow centres the stoves on the back wall, facing the entrance.
 // The back row must leave a free row in front of it.
-func kitchenBackRow(f InteriorFrame, def string) ([]InteriorPiece, bool) {
-	if f.Depth < 3 {
+func kitchenBackRow(f InteriorFrame, stove InteriorPieceDef) ([]InteriorPiece, bool) {
+	if f.Depth < stove.Size.Z+2 {
 		return nil, false
 	}
-	n := min(RowCapacity(f.Width, kitchenStoveSize.X, 0), kitchenMaxStoves)
-	starts, ok := RowStarts(f.Width, kitchenStoveSize.X, 0, max(n, 1), RowCentred)
+	n := min(RowCapacity(f.Width, stove.Size.X, 0), kitchenMaxStoves)
+	starts, ok := RowStarts(f.Width, stove.Size.X, 0, max(n, 1), RowCentred)
 	if !ok {
 		return nil, false
 	}
 	var out []InteriorPiece
 	for i, u := range starts {
-		out = append(out, kitchenStove(def, i, domain.North, domain.Cell{X: u, Z: f.Depth - 1}))
+		out = append(out, kitchenStove(stove, i, domain.North, domain.Cell{X: u, Z: f.Depth - stove.Size.Z}))
 	}
 	return out, true
 }
 
 // kitchenRowBeside lines the wall holding a non-entrance door with stoves,
 // on the longer side of the door and anchored to that side's corner.
-func kitchenRowBeside(f InteriorFrame, d domain.Cell, def string) ([]InteriorPiece, bool) {
+func kitchenRowBeside(f InteriorFrame, d domain.Cell, stove InteriorPieceDef) ([]InteriorPiece, bool) {
 	var rot domain.Rotation
 	var along, at, length int32 // door position along the wall, the row's fixed coordinate, the wall length
 	vertical := true
 	switch {
 	case d.X == f.Width:
-		rot, along, at, length = domain.East, d.Z, f.Width-1, f.Depth
+		rot, along, at, length = domain.East, d.Z, f.Width-stove.Size.Z, f.Depth
 	case d.X == -1:
 		rot, along, at, length = domain.West, d.Z, 0, f.Depth
 	case d.Z == f.Depth:
-		rot, along, at, length, vertical = domain.North, d.X, f.Depth-1, f.Width, false
+		rot, along, at, length, vertical = domain.North, d.X, f.Depth-stove.Size.Z, f.Width, false
 	default:
 		return nil, false // the front wall: that door is another way in
 	}
 	// The row needs a free line in front of it for the worker cells.
-	if vertical && f.Width < 3 || !vertical && f.Depth < 3 {
+	if vertical && f.Width < stove.Size.Z+2 || !vertical && f.Depth < stove.Size.Z+2 {
 		return nil, false
 	}
 	below, above := along, length-along-1
-	span := kitchenStoveSize.X
+	span := stove.Size.X
 	var start int32
 	var n int32
 	if above >= below {
@@ -103,7 +101,7 @@ func kitchenRowBeside(f InteriorFrame, d domain.Cell, def string) ([]InteriorPie
 		if vertical {
 			c = domain.Cell{X: at, Z: start + i*span}
 		}
-		out = append(out, kitchenStove(def, int(i), rot, c))
+		out = append(out, kitchenStove(stove, int(i), rot, c))
 	}
 	return out, true
 }

@@ -85,7 +85,7 @@ func TestMechChargerSitesRankByPollutionSitingOverFreeGround(t *testing.T) {
 			c.Zone, c.ZoneID = yes(true), domain.Known("stock")
 		}
 	}
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "bed", Role: domain.Known(RoomRoleBedroom), Cells: []domain.Cell{{X: 1, Z: 3}}},
 		{ID: "unread", Cells: []domain.Cell{{X: 8, Z: 0}}},
 	}})

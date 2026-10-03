@@ -52,6 +52,8 @@ func hospitalFixture(t *testing.T) (*RoutineHospitalPlanner, *store.Store, *hosp
 	t.Helper()
 	base, db, _, _, sleeping := sleepingFixture(t)
 	native := &hospitalNative{sleepingNative: sleeping}
+	// The Core furniture rows put a Bed in the catalog; behind unfinished research it stays off the ladder, which stages the sleeping spot.
+	native.putCatalog(bridge.FixtureDef{Name: "Bed", Width: 1, Height: 2, Research: []string{"ComplexFurniture"}})
 	v := native.reply.GetObserved()
 	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
 	// A spare sleeping place beyond the colonist: converting one bed keeps
@@ -183,7 +185,7 @@ func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
 	definition := func(name string, available bool) observation.PlanningDefinition {
 		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}
 	}
-	rooms := domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Beds: []string{"bed"}}}})
+	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Beds: []string{"bed"}}}})
 	bed := func(medical bool) domain.Fact[policy.SleepingObservation] {
 		return domain.Known(policy.SleepingObservation{Beds: []policy.SleepingBed{{ID: "bed", Humanlike: domain.Known(true), Medical: domain.Known(medical), Prisoners: domain.Known(false)}}})
 	}

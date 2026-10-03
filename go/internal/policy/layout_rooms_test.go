@@ -184,7 +184,7 @@ func TestNextPlannedRoomSkipsStandingRooms(t *testing.T) {
 	open := coreRoom(ModulePrison, 30, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []LayoutRoom{built, open}}
 	centre := domain.Cell{X: built.Interior.X + 2, Z: built.Interior.Z + 2}
-	rooms := RoomObservation{Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
 	if r, ok := plan.NextPlannedRoom(ModulePrison, rooms); !ok || r.Interior != open.Interior {
 		t.Fatalf("next %+v %v", r, ok)
 	}

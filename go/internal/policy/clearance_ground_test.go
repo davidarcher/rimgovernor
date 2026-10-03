@@ -10,7 +10,7 @@ import (
 // A planned 3x3 room at interior (10,10): ground is (9,9) 5x5.
 func groundFixture() (LayoutPlan, RoomObservation) {
 	plan := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleBedroom, Interior: Rectangle{X: 10, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 11, Z: 9}, DoorRot: domain.South}}}
-	return plan, RoomObservation{}
+	return plan, RoomObservation{Shapes: testShapes}
 }
 
 func playerRow(id, def, class string, min, max domain.Cell, encloses bool) ClearanceTarget {

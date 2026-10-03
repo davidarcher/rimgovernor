@@ -90,7 +90,11 @@ func planDiningRec(f InteriorFrame, recFirst bool) ([]InteriorPiece, bool) {
 		}
 	}
 	room := InteriorRoom{Interior: Rectangle{Width: f.Width, Height: f.Depth}, Doors: f.Doors}
-	lamp := NewInteriorPiece("lamp", "StandingLamp", standLampSize, domain.South, domain.Cell{X: f.Width - 1, Z: f.Depth - 1})
+	lampShape, ok := f.Shapes.Get(standingLampDef)
+	if !ok {
+		return nil, false
+	}
+	lamp := NewInteriorPiece("lamp", standingLampDef, lampShape.Size, domain.South, domain.Cell{X: f.Width - 1, Z: f.Depth - 1})
 	if cells := rectCells(lamp.Rect); !blocked[cells[0]] && InteriorPlacementWalkable(room, blocked, cells) {
 		out = append(out, lamp)
 	}

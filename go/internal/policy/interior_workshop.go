@@ -32,7 +32,12 @@ func init() {
 }
 
 func planWorkshop(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	def := BenchRowDef(piece, pieceFamilyBench, workshopBenchDef)
+	def, ok := BenchRowDef(f, piece, RoomRoleWorkshop, workshopBenchDef)
+	cabinet, cok := f.Shapes.Get(workshopCabinetDef)
+	shelf, sok := f.Shapes.Get(workshopShelfDef)
+	if !ok || !cok || !sok {
+		return nil, false
+	}
 	benches, starts, pitch, ok := BenchRow(f, def, 1, 0, func(i int) string { return fmt.Sprintf("bench.%d", i) })
 	if !ok {
 		return nil, false
@@ -43,14 +48,14 @@ func planWorkshop(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, boo
 		out = append(out, b)
 		if i < len(starts)-1 {
 			// On end (East: 1 wide, 2 deep) in the gap against the back wall.
-			c := NewInteriorPiece(fmt.Sprintf("cabinet.%d", i), workshopCabinetDef, domain.Cell{X: 2, Z: 1}, domain.East, domain.Cell{X: starts[i] + pitch, Z: f.Depth - 2})
+			c := NewInteriorPiece(fmt.Sprintf("cabinet.%d", i), workshopCabinetDef, cabinet.Size, domain.East, domain.Cell{X: starts[i] + pitch, Z: f.Depth - cabinet.Size.X})
 			c.Row = "cabinets"
 			out = append(out, c)
 		}
 		// The shelf keeps its bench's spacing but sits off-centre beside the
 		// interaction cell, so it forms no row of its own.
 		ic, _ := b.Interaction()
-		out = append(out, NewInteriorPiece(fmt.Sprintf("shelf.%d", i), workshopShelfDef, domain.Cell{X: 1, Z: 1}, domain.North, domain.Cell{X: ic.X + 1, Z: ic.Z}))
+		out = append(out, NewInteriorPiece(fmt.Sprintf("shelf.%d", i), workshopShelfDef, shelf.Size, domain.North, domain.Cell{X: ic.X + 1, Z: ic.Z}))
 	}
 	return out, true
 }

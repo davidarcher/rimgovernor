@@ -12,7 +12,7 @@ func coupleBedFixture() (SleepingObservation, []TidyRoom) {
 	var rooms []TidyRoom
 	for i, id := range []string{"Room_1", "Room_2"} {
 		x := int32(i * 10)
-		room := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: x, Z: -1}}}
+		room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: x, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: x, Z: -1}}}
 		plan, _ := PlanInterior(room, InteriorPieceDef{})
 		tidy := TidyRoom{ID: id, Room: room}
 		for _, p := range plan.Pieces {
@@ -54,7 +54,7 @@ func TestCoupleBedPacksThenInstallsInTheBedSlot(t *testing.T) {
 		t.Fatalf("install = %+v %v (pack slot %v %v)", install, ok, step.Anchor, step.Rot)
 	}
 	// The slot is the bedroom template's DoubleBed bed slot.
-	plan, _ := PlanInterior(rooms[0].Room, InteriorPieceDefFor("DoubleBed"))
+	plan, _ := PlanInterior(rooms[0].Room, testShapes["DoubleBed"])
 	if plan.Pieces[0].Slot != "bed" || plan.Pieces[0].Def != "DoubleBed" || plan.Pieces[0].Anchor() != install.Anchor {
 		t.Fatalf("slot %+v, install %+v", plan.Pieces[0], install)
 	}
@@ -89,7 +89,7 @@ func TestCoupleBedIgnoresSinglesAndOthersBeds(t *testing.T) {
 func TestCoupleBedInstallsInTheRoomPackingEmptied(t *testing.T) {
 	interior := Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
 	door := domain.Cell{X: 0, Z: -1}
-	rooms := RoomObservation{Rooms: []Room{{ID: "Room_1", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: rectCells(interior)}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "Room_1", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: rectCells(interior)}}}
 	census := CurrentConstruction{Colony: true}
 	cells := []SiteCell{{Cell: door, Doorway: domain.Known(true)}}
 	if got := TidyFurnitureRooms(rooms, census, cells); len(got) != 0 {

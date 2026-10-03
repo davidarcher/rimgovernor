@@ -75,7 +75,7 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 	})
 	sleeping := domain.Known(SleepingObservation{People: []SleepingPerson{sleepingPerson("p1", 10, 30), sleepingPerson("p2", 16, 26), sleepingPerson("p3", 0, 40)}})
 	warm := domain.Cell{X: 1, Z: 1}
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		sleepingRoom("cold", RoomRoleBarracks, 12, domain.Cell{X: 5, Z: 5}),
 		sleepingRoom("warm", RoomRoleBedroom, 20, warm),
 		sleepingRoom("kitchen", RoomRoleKitchen, 21, domain.Cell{X: 9, Z: 9}),
@@ -88,7 +88,7 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 		t.Fatal("expected only the warm bedroom's cells", choice.Cells)
 	}
 	// No room in band: the build has no site, but the method is still Build.
-	rooms = domain.Known(RoomObservation{Rooms: []Room{sleepingRoom("cold", RoomRoleBarracks, 12)}})
+	rooms = domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{sleepingRoom("cold", RoomRoleBarracks, 12)}})
 	choice, err = SelectSleepingMethod(SleepingRequest{Targets: targets, Sleeping: sleeping, Rooms: rooms, Definitions: sleepingBedDefinition(true)})
 	if err != nil || choice.Method != SleepingBuild || len(choice.Cells) != 0 {
 		t.Fatal(choice, err)
@@ -116,7 +116,7 @@ func TestSelectSleepingMethodBuildsInRoomWithinComfortBand(t *testing.T) {
 func TestSelectSleepingMethodBedLadder(t *testing.T) {
 	targets := domain.Known([]SleepingTarget{{Pawn: "p1", Kind: SleepingUpgrade}})
 	sleeping := domain.Known(SleepingObservation{People: []SleepingPerson{sleepingPerson("p1", 10, 30)}})
-	rooms := domain.Known(RoomObservation{Rooms: []Room{sleepingRoom("r", RoomRoleBedroom, 20, domain.Cell{X: 1, Z: 1})}})
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{sleepingRoom("r", RoomRoleBedroom, 20, domain.Cell{X: 1, Z: 1})}})
 	ladder := func(bed bool) []BenchDefinition {
 		return []BenchDefinition{
 			{Name: "Bed", Available: domain.Known(bed)}, {Name: "DoubleBed", Available: domain.Known(bed)},

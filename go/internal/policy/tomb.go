@@ -79,12 +79,16 @@ func tombCensus(waste []WasteItem, built []CurrentBuilding) (TombStep, map[domai
 }
 
 // tombSlot is the room's first template sarcophagus slot no grave stands on.
-func tombSlot(r LayoutRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
-	in, ok := InteriorRoomFromLayout(r)
+func tombSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+	in, ok := InteriorRoomFromLayout(r, shapes)
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	interior, ok := PlanInterior(in, InteriorPieceDefFor(SarcophagusDefinition))
+	sarcophagus, ok := in.Piece(SarcophagusDefinition)
+	if !ok {
+		return InteriorPiece{}, false
+	}
+	interior, ok := PlanInterior(in, sarcophagus)
 	if !ok {
 		return InteriorPiece{}, false
 	}
@@ -116,7 +120,7 @@ func NextTombStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem, bui
 		if r.Role != ModuleTomb {
 			continue
 		}
-		piece, ok := tombSlot(r, taken)
+		piece, ok := tombSlot(r, rooms.Shapes, taken)
 		if !ok {
 			continue
 		}

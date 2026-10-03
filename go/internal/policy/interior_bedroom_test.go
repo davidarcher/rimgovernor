@@ -80,7 +80,7 @@ func TestBedroomCrampedRoomsKeepTheBed(t *testing.T) {
 }
 
 func TestBedroomDoubleBedLayout(t *testing.T) {
-	f := InteriorFrame{Width: 6, Depth: 5, Entrance: 1, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	f := InteriorFrame{Shapes: testShapes, Width: 6, Depth: 5, Entrance: 1, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	pieces, ok := planBedroomWith(f, "DoubleBed", domain.Cell{X: 2, Z: 2})
 	if !ok {
 		t.Fatal("no double-bed plan")
@@ -91,7 +91,7 @@ func TestBedroomDoubleBedLayout(t *testing.T) {
 	if s["bed"].Rect != (Rectangle{X: 2, Z: 3, Width: 2, Height: 2}) || s["end_table"].Rect.X != 1 || s["dresser"].Rect.X != 4 {
 		t.Errorf("double bed layout %+v", pieces)
 	}
-	if _, ok := planBedroomWith(InteriorFrame{Width: 1, Depth: 5, Doors: []domain.Cell{{X: 0, Z: -1}}}, "DoubleBed", domain.Cell{X: 2, Z: 2}); ok {
+	if _, ok := planBedroomWith(InteriorFrame{Shapes: testShapes, Width: 1, Depth: 5, Doors: []domain.Cell{{X: 0, Z: -1}}}, "DoubleBed", domain.Cell{X: 2, Z: 2}); ok {
 		t.Error("a double bed planned in a one-wide room")
 	}
 }
@@ -101,7 +101,7 @@ func TestBedroomDoubleBedLayout(t *testing.T) {
 func TestBedroomPlansTheRequestedBed(t *testing.T) {
 	for _, def := range []string{"DoubleBed", "RoyalBed"} {
 		for _, room := range interiorRoomsAround(RoomRoleBedroom, 6, 5, 1) {
-			plan, ok := PlanInterior(room, InteriorPieceDefFor(def))
+			plan, ok := PlanInterior(room, testShapes[def])
 			if !ok {
 				t.Fatalf("%s %+v: no plan", def, room)
 			}

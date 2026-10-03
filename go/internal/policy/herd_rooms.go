@@ -192,14 +192,14 @@ func (p LayoutPlan) herdTarget(role ModuleRole) (x, z float64, ok bool) {
 func (p LayoutPlan) herdCapacity(role ModuleRole) int {
 	n := 0
 	for _, room := range p.HerdRooms(role) {
-		n += herdRoomBeds(room, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
+		n += herdRoomBeds(room, nil, InteriorPieceDef{Def: "bed", Size: domain.Cell{X: 1, Z: 1}})
 	}
 	return n
 }
 
 // herdRoomBeds is the beds def's template holds in room.
-func herdRoomBeds(room LayoutRoom, def InteriorPieceDef) int {
-	in, ok := InteriorRoomFromLayout(room)
+func herdRoomBeds(room LayoutRoom, shapes PieceShapes, def InteriorPieceDef) int {
+	in, ok := InteriorRoomFromLayout(room, shapes)
 	if !ok {
 		return 0
 	}
@@ -270,7 +270,7 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			if want <= 0 {
 				break
 			}
-			in, ok := InteriorRoomFromLayout(room)
+			in, ok := InteriorRoomFromLayout(room, rooms.Shapes)
 			if !ok {
 				continue
 			}

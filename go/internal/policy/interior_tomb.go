@@ -24,16 +24,25 @@ func init() {
 const SarcophagusDefinition = "Sarcophagus"
 
 func planTomb(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
+	sarcophagus, ok := f.Shapes.Get(SarcophagusDefinition)
+	if !ok {
+		return nil, false
+	}
 	aisle := f.Entrance
-	size := domain.Cell{X: 1, Z: 2}
+	// Turned to face the aisle a sarcophagus is Size.Z cells wide and Size.X
+	// deep.
+	size, reach := sarcophagus.Size, sarcophagus.Size.Z
 	var out []InteriorPiece
-	for _, v := range AisleRows(f.Depth, 1) {
-		if aisle >= 2 {
-			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.w%d", v+1), SarcophagusDefinition, size, domain.West, domain.Cell{X: aisle - 2, Z: v})
+	for _, v := range AisleRows(f.Depth, size.X) {
+		if v+size.X > f.Depth {
+			continue
+		}
+		if aisle >= reach {
+			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.w%d", v+1), SarcophagusDefinition, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
 			p.Row = "sarcophagi.west"
 			out = append(out, p)
 		}
-		if aisle+3 <= f.Width {
+		if aisle+1+reach <= f.Width {
 			p := NewInteriorPiece(fmt.Sprintf("sarcophagus.e%d", v+1), SarcophagusDefinition, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
 			p.Row = "sarcophagi.east"
 			out = append(out, p)

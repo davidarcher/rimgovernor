@@ -17,6 +17,42 @@ var testDining = DiningFurniture{
 	Lane:  6,
 }
 
+// testShapes are the Core furniture shapes the interior templates lay out, as
+// the catalog rows give them.
+var testShapes = func() PieceShapes {
+	front := &domain.Cell{X: 0, Z: -1}
+	out := PieceShapes{}
+	add := func(def string, w, h int32, family RoomRole, interaction *domain.Cell) {
+		out[def] = InteriorPieceDef{Def: def, Size: domain.Cell{X: w, Z: h}, Family: family, Interaction: interaction}
+	}
+	for _, def := range []string{"Bed", "SleepingSpot", "Bedroll", "SlabBed"} {
+		add(def, 1, 2, RoomRoleBedroom, nil)
+	}
+	for _, def := range []string{"DoubleBed", "RoyalBed", "DoubleSleepingSpot"} {
+		add(def, 2, 2, RoomRoleBedroom, nil)
+	}
+	add("HospitalBed", 1, 2, RoomRoleHospital, nil)
+	add("EndTable", 1, 1, "", nil)
+	add("Dresser", 2, 1, "", nil)
+	add("StandingLamp", 1, 1, "", nil)
+	add("ToolCabinet", 2, 1, "", nil)
+	add("ShelfSmall", 1, 1, "", nil)
+	add("VitalsMonitor", 1, 1, "", nil)
+	add(SarcophagusDefinition, 1, 2, "", nil)
+	for _, def := range []string{KitchenStoveDefinition, "ElectricStove"} {
+		add(def, 3, 1, RoomRoleKitchen, front)
+	}
+	for _, def := range []string{workshopBenchDef, "TableStonecutter", "ElectricSmithy", "HandTailoringBench"} {
+		add(def, 3, 1, RoomRoleWorkshop, front)
+	}
+	add("FabricationBench", 5, 2, RoomRoleWorkshop, front)
+	add("TableButcher", 3, 1, "", front)
+	add(CrematoriumDefinition, 3, 2, "", front)
+	add(ResearchBenchDefinition, 3, 2, RoomRoleLaboratory, front)
+	add("HiTechResearchBench", 5, 2, RoomRoleLaboratory, front)
+	return out
+}()
+
 // testComfortFurniture names the comfort methods the comfort tests expect.
 var testComfortFurniture = DiningFurniture{
 	Chair: InteriorPieceDef{Def: "Chair", Size: domain.Cell{X: 1, Z: 1}},

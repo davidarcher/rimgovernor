@@ -28,7 +28,7 @@ func TestTribalSpotOwnersShellABedroom(t *testing.T) {
 	facts := observation.ColonyProjection{
 		BuildTier:  domain.Known(policy.BuildTierCamp),
 		LayoutPlan: domain.Known(plan),
-		Rooms:      domain.Known(policy.RoomObservation{Rooms: []policy.Room{shell}}),
+		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{shell}}),
 	}
 	facts.Facts.Sleeping = domain.Known(sleeping)
 	if step := bedroomStep(facts); step.Kind != policy.BedroomShell || step.Unhoused != 5 {

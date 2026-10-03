@@ -22,25 +22,30 @@ func init() {
 const vitalsMonitorDefinition = "VitalsMonitor"
 
 func planHospital(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
-	// Bed (two rows) and at least the entrance row in front of it.
-	if f.Depth < 3 {
+	bedShape, bok := f.Shapes.Get(HospitalBedDefinitions[0])
+	monitor, mok := f.Shapes.Get(vitalsMonitorDefinition)
+	// Bed (its rows) and at least the entrance row in front of it.
+	if !bok || !mok || f.Depth < bedShape.Size.Z+1 {
 		return nil, false
 	}
-	pairs := RowCapacity(f.Width, 3, 1)
-	beds, ok := RowStarts(f.Width, 1, 1, 2*pairs, RowCentred)
+	// A pair is bed, monitor, bed, with one free cell before the next.
+	span := 2*bedShape.Size.X + monitor.Size.X
+	pairs := RowCapacity(f.Width, span, 1)
+	starts, ok := RowStarts(f.Width, span, 1, pairs, RowCentred)
 	if !ok {
 		return nil, false
 	}
-	bedDef := HospitalBedDefinitions[0]
 	var out []InteriorPiece
-	for i, u := range beds {
-		bed := NewInteriorPiece(fmt.Sprintf("bed.%d", i+1), bedDef, domain.Cell{X: 1, Z: 2}, domain.South, domain.Cell{X: u, Z: f.Depth - 2})
-		bed.Row = "beds"
-		out = append(out, bed)
-		if i%2 == 0 {
-			m := NewInteriorPiece(fmt.Sprintf("monitor.%d", i/2+1), vitalsMonitorDefinition, domain.Cell{X: 1, Z: 1}, domain.North, domain.Cell{X: u + 1, Z: f.Depth - 1})
-			m.Row = "monitors"
-			out = append(out, m)
+	for p, start := range starts {
+		for side, u := range []int32{start, start + bedShape.Size.X + monitor.Size.X} {
+			bed := NewInteriorPiece(fmt.Sprintf("bed.%d", 2*p+side+1), bedShape.Def, bedShape.Size, domain.South, domain.Cell{X: u, Z: f.Depth - bedShape.Size.Z})
+			bed.Row = "beds"
+			out = append(out, bed)
+			if side == 0 {
+				m := NewInteriorPiece(fmt.Sprintf("monitor.%d", p+1), vitalsMonitorDefinition, monitor.Size, domain.North, domain.Cell{X: start + bedShape.Size.X, Z: f.Depth - monitor.Size.Z})
+				m.Row = "monitors"
+				out = append(out, m)
+			}
 		}
 	}
 	return out, true

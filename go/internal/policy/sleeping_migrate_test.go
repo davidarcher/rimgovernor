@@ -64,7 +64,7 @@ func migrateFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	standing := func(id string, x int32, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 2, Z: 2}}}
 	}
-	rooms := RoomObservation{Rooms: []Room{standing("o1", 0, "ob1"), standing("o2", 10, "ob2"), standing("n1", 20)}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{standing("o1", 0, "ob1"), standing("o2", 10, "ob2"), standing("n1", 20)}}
 	bed := func(id string, owners ...PawnID) SleepingBed {
 		return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: owners, AccessibleTo: []PawnID{"a", "b"}}
 	}

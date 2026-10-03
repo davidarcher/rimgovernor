@@ -213,8 +213,8 @@ func TestComfortFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testing
 		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks}}, {ID: "d", Role: domain.Known(policy.RoomRoleRecRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{barracks, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
 		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {

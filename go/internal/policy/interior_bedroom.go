@@ -49,25 +49,22 @@ func init() {
 	RegisterInteriorTemplate(RoomRoleBedroom, InteriorTemplate{Name: "bedroom", Plan: planBedroom})
 }
 
-var (
-	bedSize       = domain.Cell{X: 1, Z: 2}
-	endTableSize  = domain.Cell{X: 1, Z: 1}
-	dresserSize   = domain.Cell{X: 2, Z: 1}
-	standLampSize = domain.Cell{X: 1, Z: 1}
-)
-
 // planBedroom plans around the requested bed, else the room's standing
 // bed, else a single Bed, each at its real size.
 func planBedroom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	if piece.Family == pieceFamilyBed {
+	if piece.Family == RoomRoleBedroom {
 		return planBedroomWith(f, piece.Def, piece.Size)
 	}
 	for _, d := range f.Standing {
-		if d.Family == pieceFamilyBed {
+		if d.Family == RoomRoleBedroom {
 			return planBedroomWith(f, d.Def, d.Size)
 		}
 	}
-	return planBedroomWith(f, "Bed", bedSize)
+	bed, ok := f.Shapes.Get("Bed")
+	if !ok {
+		return nil, false
+	}
+	return planBedroomWith(f, bed.Def, bed.Size)
 }
 
 // planBedroomWith plans around a bed of the given definition and North
@@ -75,6 +72,10 @@ func planBedroom(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool
 func planBedroomWith(f InteriorFrame, bedDef string, size domain.Cell) ([]InteriorPiece, bool) {
 	// The row inside the entrance stays floor.
 	if f.Depth < size.Z+1 || f.Width < size.X {
+		return nil, false
+	}
+	fs, ok := f.furnishings()
+	if !ok {
 		return nil, false
 	}
 	back := f.Depth - 1
@@ -115,18 +116,18 @@ func planBedroomWith(f InteriorFrame, bedDef string, size domain.Cell) ([]Interi
 	// dresser on the far side; swap sides when only the near side fits a
 	// dresser.
 	left, right := x-1, x+size.X
-	tableLeft := x >= 1 && (right+dresserSize.X <= f.Width || x < dresserSize.X)
+	tableLeft := x >= 1 && (right+fs.Dresser.Size.X <= f.Width || x < fs.Dresser.Size.X)
 	tableU, dresserU := left, right
 	if !tableLeft {
-		tableU, dresserU = right, x-dresserSize.X
+		tableU, dresserU = right, x-fs.Dresser.Size.X
 	}
-	try(NewInteriorPiece("end_table", "EndTable", endTableSize, domain.South, domain.Cell{X: tableU, Z: back}))
+	try(NewInteriorPiece("end_table", endTableDef, fs.EndTable.Size, domain.South, domain.Cell{X: tableU, Z: back}))
 	if f.Width*f.Depth < bedroomFullSetTiles {
 		return pieces, true
 	}
-	try(NewInteriorPiece("dresser", "Dresser", dresserSize, domain.South, domain.Cell{X: dresserU, Z: back}))
+	try(NewInteriorPiece("dresser", dresserDef, fs.Dresser.Size, domain.South, domain.Cell{X: dresserU, Z: back}))
 	for _, u := range []int32{f.Width - 1, 0} {
-		if try(NewInteriorPiece("lamp", "StandingLamp", standLampSize, domain.South, domain.Cell{X: u, Z: back})) {
+		if try(NewInteriorPiece("lamp", standingLampDef, fs.Lamp.Size, domain.South, domain.Cell{X: u, Z: back})) {
 			break
 		}
 	}

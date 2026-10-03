@@ -1136,12 +1136,12 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 		rooms   domain.Fact[policy.RoomObservation]
 		adopted bool
 	}{
-		{"initial shelter waits on its roof", policy.MaintainHousing, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), true},
-		{"workshop waits while the ring is unroofed", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{unroofed}}), true},
+		{"initial shelter waits on its roof", policy.MaintainHousing, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), true},
+		{"workshop waits while the ring is unroofed", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{unroofed}}), true},
 		{"workshop waits without a census", policy.MaintainResource, domain.Unknown[policy.RoomObservation](), true},
-		{"a room elsewhere is not this ring's", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{elsewhere}}), true},
-		{"workshop passes a finished room by", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), false},
-		{"comfort passes a finished room by", policy.EnsureComfort, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), false},
+		{"a room elsewhere is not this ring's", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{elsewhere}}), true},
+		{"workshop passes a finished room by", policy.MaintainResource, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), false},
+		{"comfort passes a finished room by", policy.EnsureComfort, domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}}), false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: n, goal: test.goal, definition: "Wall", shelter: true}
@@ -1165,7 +1165,7 @@ func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
 	// wall.
 	gap := &adoptingNative{sleepingNative: base, standing: n.standing[:len(n.standing)-1], last: snapshot}
 	roomed := facts
-	roomed.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}})
+	roomed.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{inside}})
 	for _, test := range []struct {
 		goal    policy.GoalID
 		adopted bool

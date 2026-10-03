@@ -68,6 +68,10 @@ type DefinitionCatalog struct {
 	floorOnce     sync.Once
 	floorTerrains map[string]policy.FloorTerrain
 	floorErr      error
+	// shapes is PieceShapes, built once on first use.
+	shapesOnce sync.Once
+	shapes     policy.PieceShapes
+	shapesErr  error
 	// races is the animal race catalog, built once on first use (catalog_races.go).
 	racesOnce sync.Once
 	races     policy.AnimalRaceCatalog

@@ -17,7 +17,7 @@ func safeRoom(id string, x0, z0, w, h int32, roofed bool, doors ...RoomDoor) Roo
 }
 
 func TestSafeAreaCellsExclusions(t *testing.T) {
-	rooms := RoomObservation{Rooms: []Room{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{
 		safeRoom("bedroom", 0, 0, 2, 2, true),
 		safeRoom("workshop", 10, 0, 2, 1, true),
 		safeRoom("gate", 20, 0, 1, 1, true, RoomDoor{EnemyFacing: true}),
@@ -67,7 +67,7 @@ func TestSafeAreaOwedUnderThreatIsUrgent(t *testing.T) {
 }
 
 func TestPlanSafeAreaResetThenDiffs(t *testing.T) {
-	rooms := RoomObservation{Rooms: []Room{safeRoom("a", 0, 0, 2, 1, true)}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{safeRoom("a", 0, 0, 2, 1, true)}}
 	ops, cells, err := PlanSafeArea(rooms, nil, nil, false)
 	if err != nil || len(ops) != 2 || ops[0].Operation() != domain.AreaDelete || ops[1].Operation() != domain.AreaCreate || len(ops[1].Cells()) != 2 || ops[1].Key() != SafeAreaKey {
 		t.Fatal(ops, err)
@@ -92,7 +92,7 @@ func TestPlanSafeAreaResetThenDiffs(t *testing.T) {
 // The lab hut is the only roofed room and its door faces the killbox: the
 // Safe area keeps it rather than end empty, which sheltered no one (#1560).
 func TestSafeAreaCellsKeepsExposedRoomWhenNoOther(t *testing.T) {
-	rooms := RoomObservation{Rooms: []Room{safeRoom("hut", 0, 0, 2, 1, true, RoomDoor{EnemyFacing: true})}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{safeRoom("hut", 0, 0, 2, 1, true, RoomDoor{EnemyFacing: true})}}
 	if got := SafeAreaCells(rooms, nil); len(got) != 2 {
 		t.Fatal(got)
 	}

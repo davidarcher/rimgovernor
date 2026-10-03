@@ -11,7 +11,7 @@ import (
 func campfireFacts(benches []observation.CookingBench, buildings ...policy.CurrentBuilding) observation.ColonyProjection {
 	var facts observation.ColonyProjection
 	facts.CookingBenches = domain.Known(benches)
-	facts.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{
+	facts.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{
 		{ID: "shell", Role: domain.Known(policy.RoomRoleBarracks), Beds: []string{"spot1"}, Cells: []domain.Cell{{X: 1, Z: 1}, {X: 2, Z: 1}}},
 		{ID: "kitchen", Role: domain.Known(policy.RoomRoleKitchen), Cells: []domain.Cell{{X: 9, Z: 9}}},
 	}})

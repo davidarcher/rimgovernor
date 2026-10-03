@@ -21,7 +21,7 @@ func TestBedroomRowsPerWingAndSuite(t *testing.T) {
 		{Purpose: WingSuites, Rooms: []LayoutRoom{s1, s2}},
 		{Purpose: WingBedrooms, Rooms: []LayoutRoom{c}},
 	}}
-	rooms := RoomObservation{Rooms: []Room{standing("ra", a, "ba"), standing("rb", b, "bb"), standing("rs", s1, "bs")}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{standing("ra", a, "ba"), standing("rb", b, "bb"), standing("rs", s1, "bs")}}
 	sleeping := SleepingObservation{Beds: []SleepingBed{{ID: "ba", Owners: []PawnID{"Ann"}}, {ID: "bb"}, {ID: "bs", Owners: []PawnID{"Bo"}}}}
 	targets := map[string]RoomTarget{"rs": {Reasons: []string{"greedy", "tier", "title"}}}
 	got := BedroomRows(plan, rooms, sleeping, targets)

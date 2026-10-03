@@ -36,7 +36,14 @@ type InteriorRoom struct {
 	// Dining is the furniture the dining and rec templates place, from the
 	// catalog rows; the zero value for a room those templates never plan.
 	Dining DiningFurniture
+	// Shapes are the plannable shapes of the catalog's buildable
+	// definitions; a plan needs them to size and sort every piece.
+	Shapes PieceShapes
 }
+
+// Piece is def's shape for a plan in this room; false when the catalog has
+// no buildable row for it.
+func (r InteriorRoom) Piece(def string) (InteriorPieceDef, bool) { return r.Shapes.Get(def) }
 
 // InteriorFrame is the canonical view of a room a template plans in.
 type InteriorFrame struct {
@@ -48,6 +55,8 @@ type InteriorFrame struct {
 	Standing []InteriorPieceDef
 	// Dining is the room's dining furniture (InteriorRoom.Dining).
 	Dining DiningFurniture
+	// Shapes are the room's piece shapes (InteriorRoom.Shapes).
+	Shapes PieceShapes
 	// Doors are every door of the room in canonical cells, the entrance
 	// included; each lies one cell outside the frame.
 	Doors []domain.Cell
@@ -125,7 +134,7 @@ type InteriorPlan struct {
 }
 
 // PlanInterior derives the room's plan from its role's template for the
-// piece being placed (InteriorPieceDefFor). It is false when no template is
+// piece being placed (InteriorRoom.Piece). It is false when no template is
 // registered, the room has no door, the template does not fit, or the
 // template's output is malformed.
 func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool) {
@@ -138,9 +147,9 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 		return InteriorPlan{}, false
 	}
 	frame := x.frame()
-	frame.Dining = room.Dining
+	frame.Dining, frame.Shapes = room.Dining, room.Shapes
 	for _, d := range room.Standing {
-		frame.Standing = append(frame.Standing, InteriorPieceDefFor(d))
+		frame.Standing = append(frame.Standing, room.Shapes.standing(d))
 	}
 	pieces, ok := t.Plan(frame, piece)
 	if !ok || ValidateInteriorPieces(frame, pieces) != nil {
@@ -187,7 +196,7 @@ func ValidateInteriorPieces(f InteriorFrame, pieces []InteriorPiece) error {
 // InteriorRoomFromCensus reads a census room as a plan input under the
 // given role: only a room whose cells fill their bounding rectangle has an
 // interior, and its doors are the doorways beside that rectangle's sides.
-func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell) (InteriorRoom, bool) {
+func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell, shapes PieceShapes) (InteriorRoom, bool) {
 	if len(room.Cells) == 0 {
 		return InteriorRoom{}, false
 	}
@@ -199,7 +208,7 @@ func InteriorRoomFromCensus(room Room, role RoomRole, doorways []domain.Cell) (I
 	if int64(len(seen)) != int64(rect.Width)*int64(rect.Height) {
 		return InteriorRoom{}, false
 	}
-	out := InteriorRoom{Role: role, Interior: rect}
+	out := InteriorRoom{Role: role, Interior: rect, Shapes: shapes}
 	for _, d := range doorways {
 		if _, ok := doorSide(rect, d); ok {
 			out.Doors = append(out.Doors, d)
@@ -238,7 +247,7 @@ var moduleRoomRoles = map[ModuleRole]RoomRole{
 }
 
 // InteriorRoomFromLayout reads a v2 layout room as a plan input.
-func InteriorRoomFromLayout(r LayoutRoom) (InteriorRoom, bool) {
+func InteriorRoomFromLayout(r LayoutRoom, shapes PieceShapes) (InteriorRoom, bool) {
 	role, ok := moduleRoomRoles[r.Role]
 	if !ok || r.Interior.Width <= 0 || r.Interior.Height <= 0 {
 		return InteriorRoom{}, false
@@ -246,7 +255,7 @@ func InteriorRoomFromLayout(r LayoutRoom) (InteriorRoom, bool) {
 	if _, ok := doorSide(r.Interior, r.Door); !ok {
 		return InteriorRoom{}, false
 	}
-	return InteriorRoom{Role: role, Interior: r.Interior, Doors: []domain.Cell{r.Door}}, true
+	return InteriorRoom{Role: role, Interior: r.Interior, Doors: []domain.Cell{r.Door}, Shapes: shapes}, true
 }
 
 // doorSide is the direction from the room to a door in one of its walls
@@ -499,7 +508,7 @@ func InteriorRoomsFor(f FacilityRequirement, rooms RoomObservation, cells []Site
 		if role == RoomRoleRoom || role == RoomRoleNone {
 			role = f.Role
 		}
-		r, ok := InteriorRoomFromCensus(room, role, doorways)
+		r, ok := InteriorRoomFromCensus(room, role, doorways, rooms.Shapes)
 		if !ok {
 			continue
 		}

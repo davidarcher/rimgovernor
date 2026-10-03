@@ -29,7 +29,7 @@ func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.C
 			projection.Cells = append(projection.Cells, cell)
 		}
 	}
-	projection.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
+	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "Room_4", Role: domain.Known(policy.RoomRoleDiningRoom), Enclosed: domain.Known(true), Cells: roomCells}}})
 	projection.Facts.Comfort = domain.Known(policy.ComfortObservation{Surfaces: []policy.DiningSurface{{ID: "Table_1", RoomID: "Room_4", Adjacent: adjacent}}})
 	projection.Facts.FoodStorage = domain.Known(true)
 	var consumers []policy.FoodConsumer
@@ -167,12 +167,12 @@ func TestMealSpotAtTheFreezerDoor(t *testing.T) {
 		}
 		return policy.Room{ID: id, Enclosed: domain.Known(true), Cells: cells}
 	}
-	rooms := policy.RoomObservation{Rooms: []policy.Room{standing("Room_2", freezer.Interior), standing("Room_3", dining.Interior)}}
+	rooms := policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{standing("Room_2", freezer.Interior), standing("Room_3", dining.Interior)}}
 	spot, ok := coldMealSpot(plan, rooms)
 	if !ok || spot.room.ID != "Room_2" || spot.size != 4 || spot.anchor != link || spot.filter != mealShelfFilter() {
 		t.Fatalf("spot %+v %v", spot, ok)
 	}
-	if _, ok := coldMealSpot(plan, policy.RoomObservation{Rooms: rooms.Rooms[:1]}); ok {
+	if _, ok := coldMealSpot(plan, policy.RoomObservation{Shapes: testPieceShapes, Rooms: rooms.Rooms[:1]}); ok {
 		t.Fatal("cold spot without a standing dining room")
 	}
 }

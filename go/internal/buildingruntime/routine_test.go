@@ -262,7 +262,7 @@ func (n *routineNative) DefinitionCatalog(_ context.Context, id *c.Identity) (*b
 			defs = append(defs, w)
 		}
 	}
-	catalog := testCatalog(id, append(defs, n.catalog...)...)
+	catalog := testCatalog(id, bridge.WithCoreFurniture(append(defs, n.catalog...))...)
 	shirt := &d.ApparelProperties{BodyPartGroups: []string{"Torso", "Arms"}, Layers: []string{"OnSkin"}, DevelopmentalStageFilter: d.DevelopmentalStage_DEVELOPMENTAL_STAGE_ADULT}
 	for _, row := range []*d.ThingDef{{DefName: "Apparel_BasicShirt", Apparel: shirt}, {DefName: "Apparel_Parka", Apparel: shirt}, {DefName: "Bow_Short"}, {DefName: "WoodLog"}} {
 		if catalog.ThingDefs[row.DefName] == nil {
@@ -288,6 +288,16 @@ func testCatalog(id *c.Identity, rows ...bridge.FixtureDef) *bridge.DefinitionCa
 func madeOf(stuff string) []observation.StuffOption {
 	return []observation.StuffOption{{Stuff: stuff}}
 }
+
+// testPieceShapes are the piece shapes of the Core furniture rows, which the
+// room observations of these tests carry as the projection would.
+var testPieceShapes = func() policy.PieceShapes {
+	shapes, err := bridge.FixtureCatalog("load", bridge.CoreFurnitureFixtures()...).PieceShapes()
+	if err != nil {
+		panic(err)
+	}
+	return shapes
+}()
 
 // buildable is a plain buildable fixture def of the given construction skill
 // and size.

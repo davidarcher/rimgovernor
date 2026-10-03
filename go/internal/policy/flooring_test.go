@@ -100,7 +100,7 @@ func TestReviewFlooringUsesRoomCensusContents(t *testing.T) {
 		flooringRoom("stove", RoomRoleRoom, "Soil", 10, 10),
 		flooringRoom("barn", RoomRoleBedroom, "Soil", 20, 20),
 	}, Terrains: flooringTerrains()}
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "stove", Role: domain.Known(RoomRoleRoom), Enclosed: domain.Known(true), Contents: domain.Known([]Amount{{Resource: "FueledStove", Count: 1}})},
 		{ID: "barn", Role: domain.Known(RoomRoleBarn), Enclosed: domain.Known(true)},
 	}})

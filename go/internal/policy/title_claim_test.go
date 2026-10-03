@@ -11,7 +11,7 @@ import (
 func claimFixture(t *testing.T) TitleClaimFacts {
 	t.Helper()
 	plan, room, _ := throneFixture()
-	in, _ := InteriorRoomFromLayout(room)
+	in, _ := InteriorRoomFromLayout(room, testShapes)
 	def := InteriorPieceDef{Def: "Throne", Size: domain.Cell{X: 1, Z: 1}}
 	interior, _ := PlanInterior(in, def)
 	var built []CurrentBuilding

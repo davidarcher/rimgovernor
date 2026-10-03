@@ -22,7 +22,7 @@ func medicineView(role RoomRole, medical bool) StorageRequest {
 	bed := func(id string, at domain.Cell) SleepingBed {
 		return SleepingBed{ID: id, Medical: domain.Known(medical), Room: domain.Known("ward"), Cell: at}
 	}
-	rooms := RoomObservation{Rooms: []Room{{ID: "ward", Role: domain.Known(role), Cells: ward, Beds: []string{"b1", "b2"}}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "ward", Role: domain.Known(role), Cells: ward, Beds: []string{"b1", "b2"}}}}
 	sleeping := SleepingObservation{Beds: []SleepingBed{bed("b1", beds[0]), bed("b2", beds[1])}}
 	return StorageRequest{Bounds: Bounds{Width: 20, Height: 20}, Cells: cells, Protected: beds, Rooms: &rooms, Sleeping: &sleeping}
 }

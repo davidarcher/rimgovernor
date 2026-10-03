@@ -69,6 +69,7 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 	}
 	if rooms, known := r.Projection.Rooms.Value(); known {
 		rooms.Dining = dining
+		rooms.Shapes = recordedPower.shapes
 		r.Projection.Rooms = domain.Known(rooms)
 	}
 	return r
@@ -79,6 +80,7 @@ var recordedPower struct {
 	sources map[string]policy.PowerSourceProfile
 	battery policy.PowerBattery
 	dining  policy.DiningFurniture
+	shapes  policy.PieceShapes
 	err     error
 }
 
@@ -129,6 +131,9 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 			return
 		}
 		if table, recordedPower.err = catalog.DiningTable(); recordedPower.err != nil {
+			return
+		}
+		if recordedPower.shapes, recordedPower.err = catalog.PieceShapes(); recordedPower.err != nil {
 			return
 		}
 		recordedPower.dining = policy.DiningFurniture{Chair: shape(chair), Table: shape(table), Pin: shape("HorseshoesPin"), Lane: catalog.ThingDef("HorseshoesPin").GetBuilding().GetWatchBuildingStandDistanceRange().GetMax() + 1}

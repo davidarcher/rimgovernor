@@ -23,7 +23,7 @@ func throneRoyalty() domain.Fact[policy.RoyaltyFacts] {
 
 func throneProjection(standing bool) (observation.ColonyProjection, policy.LayoutRoom) {
 	room := policy.LayoutRoom{Role: policy.ModuleThrone, Interior: policy.Rectangle{X: 10, Z: 20, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
-	var rooms policy.RoomObservation
+	rooms := policy.RoomObservation{Shapes: testPieceShapes}
 	if standing {
 		var cells []domain.Cell
 		for z := room.Interior.Z; z < room.Interior.Z+room.Interior.Height; z++ {

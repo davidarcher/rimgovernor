@@ -7,7 +7,7 @@ import (
 )
 
 func TestInteriorPlanWalkable(t *testing.T) {
-	room := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}, {X: 4, Z: 2}}}
+	room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}, {X: 4, Z: 2}}}
 	piece := func(r Rectangle) InteriorPiece {
 		return InteriorPiece{Slot: "p", Def: "X", Size: domain.Cell{X: r.Width, Z: r.Height}, Rot: domain.North, Rect: r}
 	}
@@ -33,7 +33,7 @@ func TestInteriorPlanWalkable(t *testing.T) {
 }
 
 func TestPlanInteriorRefusesAPlanThatBlocksADoor(t *testing.T) {
-	corridor := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 1, Height: 3}, Doors: []domain.Cell{{X: 0, Z: -1}}}
+	corridor := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 1, Height: 3}, Doors: []domain.Cell{{X: 0, Z: -1}}}
 	if _, ok := PlanInterior(corridor, InteriorPieceDef{}); !ok {
 		t.Fatal("a one-door 1x3 room does not take a bed")
 	}
@@ -44,7 +44,7 @@ func TestPlanInteriorRefusesAPlanThatBlocksADoor(t *testing.T) {
 }
 
 func TestInteriorPlacementWalkable(t *testing.T) {
-	room := InteriorRoom{Interior: Rectangle{X: 0, Z: 0, Width: 3, Height: 3}, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	room := InteriorRoom{Shapes: testShapes, Interior: Rectangle{X: 0, Z: 0, Width: 3, Height: 3}, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	for name, c := range map[string]struct {
 		footprint []domain.Cell
 		ok        bool

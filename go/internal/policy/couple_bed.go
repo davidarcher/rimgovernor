@@ -47,7 +47,11 @@ func coupleBedSlot(room TidyRoom) (domain.Cell, domain.Rotation, bool) {
 	input := room.Room
 	input.Role = RoomRoleBedroom
 	input.Standing = nil
-	plan, ok := PlanInterior(input, InteriorPieceDefFor(SleepingCoupleBedDefinition))
+	bed, ok := input.Piece(SleepingCoupleBedDefinition)
+	if !ok {
+		return domain.Cell{}, domain.South, false
+	}
+	plan, ok := PlanInterior(input, bed)
 	if !ok {
 		return domain.Cell{}, domain.South, false
 	}

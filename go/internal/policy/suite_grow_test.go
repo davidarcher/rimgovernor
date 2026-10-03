@@ -24,7 +24,7 @@ func oldWall() CurrentConstruction {
 }
 
 func growthRooms(ext bool, extEnclosed bool) RoomObservation {
-	obs := RoomObservation{Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: rectCells(oldFloor)}}}
+	obs := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: rectCells(oldFloor)}}}
 	if ext {
 		obs.Rooms = append(obs.Rooms, Room{ID: "ext", Enclosed: domain.Known(extEnclosed), Cells: rectCells(extFloor)})
 	}
@@ -49,7 +49,7 @@ func TestSuiteGrowthRemovesTheOldWallOnlyOnceTheRingStandsRoofed(t *testing.T) {
 		t.Fatalf("closed ring = %+v %v, want the three old walls", g, ok)
 	}
 	// One wall down: the rooms merged, the rest still come down.
-	merged := RoomObservation{Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: append(append(rectCells(oldFloor), rectCells(extFloor)...), domain.Cell{X: 7, Z: 10})}}}
+	merged := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: append(append(rectCells(oldFloor), rectCells(extFloor)...), domain.Cell{X: 7, Z: 10})}}}
 	walls.Buildings = walls.Buildings[1:]
 	if g, ok := NextSuiteGrowth(plan, merged, walls, nil); !ok || g.Kind != SuiteGrowthOpen || len(g.Walls) != 2 {
 		t.Fatalf("half open = %+v %v, want the two walls left", g, ok)
@@ -58,10 +58,10 @@ func TestSuiteGrowthRemovesTheOldWallOnlyOnceTheRingStandsRoofed(t *testing.T) {
 
 func TestSuiteGrowthRelocatesFurnitureOntoTheGrownPlan(t *testing.T) {
 	plan := LayoutPlan{Wings: []Wing{{Purpose: WingSuites, Rooms: []LayoutRoom{grownRoom}}}}
-	full := RoomObservation{Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: rectCells(grownRoom.Interior)}}}
-	room := TidyRoom{ID: "home", Room: InteriorRoom{Role: RoomRoleBedroom, Interior: grownRoom.Interior, Doors: []domain.Cell{grownRoom.Door}, Standing: []string{"Bed"}}}
+	full := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "home", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"bed"}, Cells: rectCells(grownRoom.Interior)}}}
+	room := TidyRoom{ID: "home", Room: InteriorRoom{Role: RoomRoleBedroom, Interior: grownRoom.Interior, Doors: []domain.Cell{grownRoom.Door}, Standing: []string{"Bed"}, Shapes: testShapes}}
 	// The bed still against the old back wall (x 5..6).
-	room.Pieces = []TidyPiece{{Thing: "bed", Def: "Bed", Size: bedSize, Rot: domain.West, Rect: Rectangle{X: 5, Z: 11, Width: 2, Height: 1}}}
+	room.Pieces = []TidyPiece{{Thing: "bed", Def: "Bed", Size: testShapes["Bed"].Size, Rot: domain.West, Rect: Rectangle{X: 5, Z: 11, Width: 2, Height: 1}}}
 	g, ok := NextSuiteGrowth(plan, full, CurrentConstruction{Colony: true}, []TidyRoom{room})
 	if !ok || g.Kind != SuiteGrowthRelocate || len(g.Moves) != 1 || g.Moves[0].Thing != "bed" || g.Moves[0].To == room.Pieces[0].Rect {
 		t.Fatalf("grown room = %+v %v, want the bed re-sited", g, ok)
@@ -83,7 +83,7 @@ func suiteOwnerCase(t *testing.T) (LayoutPlan, RoomObservation, SleepingObservat
 		t.Fatal("no suite wing")
 	}
 	s := plan.Wings[i].Rooms[0]
-	rooms := RoomObservation{Rooms: []Room{{ID: "s1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"sb"}, Cells: rectCells(s.Interior)}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "s1", Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: []string{"sb"}, Cells: rectCells(s.Interior)}}}
 	sleeping := SleepingObservation{Colonists: 1,
 		People: []SleepingPerson{{ID: "a", OwnedBed: domain.Known("sb")}},
 		Beds:   []SleepingBed{{ID: "sb", Definition: "Bed", Room: domain.Known("s1"), Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: []PawnID{"a"}, AccessibleTo: []PawnID{"a"}}},

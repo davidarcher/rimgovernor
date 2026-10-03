@@ -15,7 +15,7 @@ func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
 		if campfire {
 			r.Contents = domain.Known([]Amount{{Resource: "Campfire", Count: 1}})
 		}
-		return RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{r}}
+		return RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{r}}
 	}
 	// The sleeper's own comfortable range is the band the refuel switch
 	// follows; a room with no sleeper whose range is known owes nothing.
@@ -71,7 +71,7 @@ func TestTemperatureMethodSleeperComfortBand(t *testing.T) {
 		if campfire {
 			r.Contents = domain.Known([]Amount{{Resource: "Campfire", Count: 1}})
 		}
-		return domain.Known(RoomObservation{EligibleBeds: domain.Known([]string{"bed", "bed2"}), Rooms: []Room{r}})
+		return domain.Known(RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"bed", "bed2"}), Rooms: []Room{r}})
 	}
 	fire := func(on bool, sleepers ...SleepingPerson) TemperatureCooling {
 		return TemperatureCooling{Sleepers: sleepers, HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room"), AutoRefuel: domain.Known(on)}}}

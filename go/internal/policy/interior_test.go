@@ -50,7 +50,7 @@ func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
 		{domain.Cell{X: 9, Z: 21}, Rectangle{X: 13, Z: 21, Width: 2, Height: 1}, domain.West, domain.Cell{X: 14, Z: 21}},
 	}
 	for _, c := range cases {
-		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}}, InteriorPieceDef{})
+		plan, ok := PlanInterior(InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: room, Doors: []domain.Cell{c.door}}, InteriorPieceDef{})
 		if !ok || len(plan.Pieces) == 0 || plan.Pieces[0].Slot != "bed" {
 			t.Fatalf("door %+v: plan %+v %v", c.door, plan, ok)
 		}
@@ -62,15 +62,15 @@ func TestBedroomBedHeadAgainstTheFarWall(t *testing.T) {
 }
 
 func TestPlanInteriorRefusesUnfitRooms(t *testing.T) {
-	shallow := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	shallow := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	if _, ok := PlanInterior(shallow, InteriorPieceDef{}); ok {
 		t.Error("a two-deep room fits the bedroom template")
 	}
-	doorless := InteriorRoom{Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}}
+	doorless := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}}
 	if _, ok := PlanInterior(doorless, InteriorPieceDef{}); ok {
 		t.Error("a doorless room planned")
 	}
-	untemplated := InteriorRoom{Role: RoomRole("Untemplated"), Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
+	untemplated := InteriorRoom{Shapes: testShapes, Role: RoomRole("Untemplated"), Interior: Rectangle{X: 0, Z: 0, Width: 5, Height: 4}, Doors: []domain.Cell{{X: 1, Z: -1}}}
 	if _, ok := PlanInterior(untemplated, InteriorPieceDef{}); ok {
 		t.Error("a role without a template planned")
 	}
@@ -84,17 +84,17 @@ func TestInteriorRoomFromCensus(t *testing.T) {
 		}
 	}
 	doors := []domain.Cell{{X: 3, Z: 2}, {X: -1, Z: -1}, {X: 7, Z: 7}}
-	room, ok := InteriorRoomFromCensus(Room{Cells: cells}, RoomRoleBedroom, doors)
+	room, ok := InteriorRoomFromCensus(Room{Cells: cells}, RoomRoleBedroom, doors, testShapes)
 	if !ok || room.Interior != (Rectangle{X: 0, Z: 0, Width: 3, Height: 4}) || len(room.Doors) != 1 || room.Doors[0] != (domain.Cell{X: 3, Z: 2}) {
 		t.Fatalf("room %+v %v", room, ok)
 	}
-	if _, ok := InteriorRoomFromCensus(Room{Cells: cells[1:]}, RoomRoleBedroom, doors); ok {
+	if _, ok := InteriorRoomFromCensus(Room{Cells: cells[1:]}, RoomRoleBedroom, doors, testShapes); ok {
 		t.Error("a non-rectangular room has an interior")
 	}
 }
 
 func TestInteriorRoomFromLayout(t *testing.T) {
-	room, ok := InteriorRoomFromLayout(LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Door: domain.Cell{X: 1, Z: -1}})
+	room, ok := InteriorRoomFromLayout(LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 0, Width: 4, Height: 4}, Door: domain.Cell{X: 1, Z: -1}}, testShapes)
 	if !ok || room.Role != RoomRoleBedroom {
 		t.Fatalf("room %+v %v", room, ok)
 	}
@@ -111,7 +111,7 @@ func TestRowHelpersAndRegularityChecker(t *testing.T) {
 	if RowCapacity(10, 3, 1) != 2 || RowCapacity(11, 3, 1) != 3 {
 		t.Error("row capacity")
 	}
-	f := InteriorFrame{Width: 9, Depth: 5, Doors: []domain.Cell{{X: 4, Z: -1}}, Entrance: 4}
+	f := InteriorFrame{Shapes: testShapes, Width: 9, Depth: 5, Doors: []domain.Cell{{X: 4, Z: -1}}, Entrance: 4}
 	var pieces []InteriorPiece
 	starts, _ = RowStarts(f.Width, 3, 0, 2, RowCentred)
 	for i, u := range starts {

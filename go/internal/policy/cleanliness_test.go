@@ -8,7 +8,7 @@ import (
 )
 
 func cleanlinessRooms(kitchenC, barnC float64) domain.Fact[RoomObservation] {
-	return domain.Known(RoomObservation{Rooms: []Room{
+	return domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Cells: []domain.Cell{{X: 5, Z: 5}, {X: 4, Z: 6}}, Role: domain.Known(RoomRoleRoom), Enclosed: domain.Known(true), Cleanliness: domain.Known(kitchenC), Contents: domain.Known([]Amount{{Resource: "FueledStove", Count: 1}})},
 		{ID: "b", Role: domain.Known(RoomRoleBarn), Enclosed: domain.Known(true), Cleanliness: domain.Known(barnC)},
 		{ID: "s", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-9.0), Contents: domain.Known([]Amount{{Resource: "ButcherSpot", Count: 1}})},
@@ -103,7 +103,7 @@ func TestCleanlinessHysteresisAndRelease(t *testing.T) {
 func TestCleanlinessOrderAndBound(t *testing.T) {
 	p := DefaultCleanlinessPolicy()
 	p.MaxTargets = 2
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "h", Role: domain.Known(RoomRoleHospital), Enclosed: domain.Known(true), Cleanliness: domain.Known(-2.0)},
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-6.0)},
 	}})
@@ -129,7 +129,7 @@ func TestCleanlinessOrderAndBound(t *testing.T) {
 // two cells away, in another room or outside the home area does not count.
 func TestCleanlinessTargetsFilthTouchingTheRoom(t *testing.T) {
 	p := DefaultCleanlinessPolicy()
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Cells: []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}}, Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-0.625)},
 		{ID: "d", Cells: []domain.Cell{{X: 7, Z: 5}}, Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(false), Cleanliness: domain.Known(-0.625)},
 	}})
@@ -152,7 +152,7 @@ func TestCleanlinessTargetsFilthTouchingTheRoom(t *testing.T) {
 }
 
 func TestKitchenSeparation(t *testing.T) {
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Cells: []domain.Cell{{X: 1, Z: 1}}, Contents: domain.Known([]Amount{{Resource: "ElectricStove", Count: 1}, {Resource: "ButcherSpot", Count: 1}})},
 		{ID: "c", Cells: []domain.Cell{{X: 2, Z: 2}}, Contents: domain.Known([]Amount{{Resource: "Campfire", Count: 1}})},
 		{ID: "b", Cells: []domain.Cell{{X: 3, Z: 3}}, Contents: domain.Known([]Amount{{Resource: "TableButcher", Count: 1}})},
@@ -167,7 +167,7 @@ func TestKitchenSeparation(t *testing.T) {
 	if cells := SeparationProtectedCells(rooms, false); !reflect.DeepEqual(cells, []domain.Cell{{X: 1, Z: 1}, {X: 3, Z: 3}}) {
 		t.Fatalf("cooking placement protects butcher rooms: %+v", cells)
 	}
-	bedrooms := domain.Known(RoomObservation{Rooms: []Room{
+	bedrooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "starter", Cells: []domain.Cell{{X: 126, Z: 135}}, Contents: domain.Known([]Amount{{Resource: "SleepingSpot", Count: 3}})},
 		{ID: "b", Cells: []domain.Cell{{X: 5, Z: 5}}, Role: domain.Known(RoomRoleBedroom), Contents: domain.Known([]Amount{})},
 		{ID: "open", Cells: []domain.Cell{{X: 9, Z: 9}}, Contents: domain.Known([]Amount{})},

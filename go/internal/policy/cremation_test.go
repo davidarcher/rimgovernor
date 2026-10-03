@@ -10,7 +10,7 @@ func TestCremationPlacesInAWorkshopThenBills(t *testing.T) {
 	room := LayoutRoom{Role: ModuleWorkshop, Interior: Rectangle{X: 10, Z: 20, Width: 7, Height: 5}, Door: domain.Cell{X: 13, Z: 19}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
 	raider := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseStranger}}
-	if step := NextCremationStep(plan, RoomObservation{}, raider, nil, false); step.Kind != CremationNone {
+	if step := NextCremationStep(plan, RoomObservation{Shapes: testShapes}, raider, nil, false); step.Kind != CremationNone {
 		t.Fatalf("no standing workshop: %+v", step)
 	}
 	step := NextCremationStep(plan, tombStanding(room), raider, nil, false)
@@ -64,7 +64,7 @@ func TestCremationNeverTakesColonistsOrAnimals(t *testing.T) {
 		t.Fatalf("no unburied stranger: %+v", step)
 	}
 	census := domain.Known(CurrentConstruction{Colony: true})
-	if v, known := CremationOwed(domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{}), domain.Known(waste), census, false).Value(); !known || v {
+	if v, known := CremationOwed(domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), domain.Known(waste), census, false).Value(); !known || v {
 		t.Fatalf("unavailable crematorium owed: %v %v", v, known)
 	}
 }

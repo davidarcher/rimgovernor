@@ -24,7 +24,7 @@ func suiteFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	room := func(id string, x int32, beds ...string) Room {
 		return Room{ID: id, Role: domain.Known(RoomRoleBedroom), Enclosed: domain.Known(true), Beds: beds, Cells: []domain.Cell{{X: x + 1, Z: 2}}}
 	}
-	rooms := RoomObservation{Rooms: []Room{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "barracks", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"spare"}, Cells: []domain.Cell{{X: 3, Z: 3}}},
 		room("r1", 10, "ra"), room("r2", 14, "rb"),
 	}}

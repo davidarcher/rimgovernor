@@ -19,7 +19,7 @@ func hospitalBed(id string, medical bool, owners ...PawnID) SleepingBed {
 }
 
 func hospitalRooms(role RoomRole, beds ...string) domain.Fact[RoomObservation] {
-	return domain.Known(RoomObservation{Rooms: []Room{{ID: "room", Role: domain.Known(role), Beds: beds}}})
+	return domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "room", Role: domain.Known(role), Beds: beds}}})
 }
 
 func TestHospitalIsHostedByBedroomsAndBarracks(t *testing.T) {
@@ -127,7 +127,7 @@ func TestSelectHospitalBedUnknownFacts(t *testing.T) {
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)
 	}
-	unknownRole := domain.Known(RoomObservation{Rooms: []Room{{ID: "room", Beds: []string{"bed1"}}}})
+	unknownRole := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "room", Beds: []string{"bed1"}}}})
 	choice, err = SelectHospitalBed(HospitalRequest{Patients: hospitalPatients("a"), Sleeping: domain.Known(SleepingObservation{Beds: []SleepingBed{hospitalBed("bed1", false)}}), Rooms: unknownRole})
 	if err != nil || choice.Method != HospitalUnknown {
 		t.Fatal(choice, err)

@@ -9,14 +9,14 @@ import (
 func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
 	jail := coreRoom(ModulePrison, 10, 30, 5, 5, true)
 	plan := LayoutPlan{Rooms: []LayoutRoom{jail}}
-	if s := NextJailStep(plan, RoomObservation{}, 0, nil, nil); s.Kind != JailNone {
+	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 0, nil, nil); s.Kind != JailNone {
 		t.Fatalf("no prisoner: %+v", s)
 	}
-	if s := NextJailStep(plan, RoomObservation{}, 1, nil, nil); s.Kind != JailShell || s.Room.Interior != jail.Interior {
+	if s := NextJailStep(plan, RoomObservation{Shapes: testShapes}, 1, nil, nil); s.Kind != JailShell || s.Room.Interior != jail.Interior {
 		t.Fatalf("unbuilt jail: %+v", s)
 	}
 	centre := domain.Cell{X: jail.Interior.X + 2, Z: jail.Interior.Z + 2}
-	rooms := RoomObservation{Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "j", Cells: []domain.Cell{centre}, Enclosed: domain.Known(true)}}}
 	plain := SleepingBed{ID: "bed1", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Room: domain.Known("j")}
 	if s := NextJailStep(plan, rooms, 1, []SleepingBed{plain}, nil); s.Kind != JailMark || s.Bed != "bed1" {
 		t.Fatalf("plain bed in the jail: %+v", s)
@@ -40,11 +40,11 @@ func TestNextJailStepShellsMarksThenPlaces(t *testing.T) {
 }
 
 func mustJailPieces(t *testing.T, r LayoutRoom) []InteriorPiece {
-	in, ok := InteriorRoomFromLayout(r)
+	in, ok := InteriorRoomFromLayout(r, testShapes)
 	if !ok {
 		t.Fatal("jail room")
 	}
-	plan, ok := PlanInterior(in, InteriorPieceDefFor(JailBedDefinition))
+	plan, ok := PlanInterior(in, testShapes[JailBedDefinition])
 	if !ok || len(plan.Pieces) == 0 {
 		t.Fatal("jail template placed no bed")
 	}

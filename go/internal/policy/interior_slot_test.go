@@ -27,7 +27,7 @@ func TestInteriorSlotAcceptsFamily(t *testing.T) {
 		{InteriorPiece{Def: "Bed"}, "DoubleBed", false},
 	}
 	for _, c := range cases {
-		if got := c.slot.Accepts(c.def); got != c.want {
+		if got := c.slot.Accepts(testShapes, c.def); got != c.want {
 			t.Errorf("%s slot accepts %s = %v, want %v", c.slot.Def, c.def, got, c.want)
 		}
 	}
@@ -39,7 +39,7 @@ func TestWideBenchesGetSlots(t *testing.T) {
 		role RoomRole
 		def  string
 	}{{RoomRoleWorkshop, "FabricationBench"}, {RoomRoleLaboratory, "HiTechResearchBench"}} {
-		piece := InteriorPieceDefFor(c.def)
+		piece := testShapes[c.def]
 		rooms := interiorRoomsAround(c.role, 11, 5, 1)
 		first, ok := PlanInterior(rooms[0], piece)
 		if !ok {
@@ -50,7 +50,7 @@ func TestWideBenchesGetSlots(t *testing.T) {
 		for _, p := range first.Canonical {
 			if p.Def == c.def {
 				n++
-				if p.Rect.Width != 5 || p.Rect.Height != 2 || p.Rect.Z+p.Rect.Height != first.Frame.Depth || !p.Accepts(c.def) {
+				if p.Rect.Width != 5 || p.Rect.Height != 2 || p.Rect.Z+p.Rect.Height != first.Frame.Depth || !p.Accepts(testShapes, c.def) {
 					t.Errorf("%s: slot %+v", c.def, p)
 				}
 			}
@@ -70,9 +70,9 @@ func TestWideBenchesGetSlots(t *testing.T) {
 // centred in the same slots, so the row stays one line with even spacing.
 func TestMixedBenchWidthsShareOneRow(t *testing.T) {
 	room := interiorRoomsAround(RoomRoleWorkshop, 11, 5, 1)[0]
-	wide, _ := PlanInterior(room, InteriorPieceDefFor("FabricationBench"))
+	wide, _ := PlanInterior(room, testShapes["FabricationBench"])
 	room.Standing = []string{"FabricationBench"}
-	narrow, ok := PlanInterior(room, InteriorPieceDefFor("ElectricSmithy"))
+	narrow, ok := PlanInterior(room, testShapes["ElectricSmithy"])
 	if !ok {
 		t.Fatal("no plan")
 	}
@@ -101,7 +101,7 @@ func TestMixedBenchWidthsShareOneRow(t *testing.T) {
 func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 	interior := Rectangle{X: 0, Z: 0, Width: 5, Height: 4}
 	inner, hall := domain.Cell{X: -1, Z: 1}, domain.Cell{X: 2, Z: -1}
-	room := InteriorRoom{Role: RoomRoleBedroom, Interior: interior, Doors: []domain.Cell{inner, hall}, InnerDoors: []domain.Cell{inner}}
+	room := InteriorRoom{Shapes: testShapes, Role: RoomRoleBedroom, Interior: interior, Doors: []domain.Cell{inner, hall}, InnerDoors: []domain.Cell{inner}}
 	plan, ok := PlanInterior(room, InteriorPieceDef{})
 	if !ok {
 		t.Fatal("no plan")
@@ -117,7 +117,7 @@ func TestInteriorEntrancePrefersTheHallwayDoor(t *testing.T) {
 		freezer = append(freezer, domain.Cell{X: -2, Z: x})
 		hallway = append(hallway, domain.Cell{X: x, Z: -2})
 	}
-	rooms := RoomObservation{Rooms: []Room{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cells: floor},
 		{ID: "f", Role: domain.Known(RoomRoleWorkshop), Enclosed: domain.Known(true), Cells: freezer},
 		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},
@@ -156,7 +156,7 @@ func TestKitchenStoreroomDoorIsTheFreezerDoor(t *testing.T) {
 	for x := int32(0); x < 6; x++ {
 		hallway = append(hallway, domain.Cell{X: x, Z: -2})
 	}
-	rooms := RoomObservation{Rooms: []Room{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cells: rectCells(interior)},
 		{ID: "f", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: freezer},
 		{ID: "h", Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(true), Cells: hallway},

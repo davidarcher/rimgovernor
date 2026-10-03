@@ -18,7 +18,7 @@ func tombStanding(room LayoutRoom) RoomObservation {
 			cells = append(cells, domain.Cell{X: x, Z: z})
 		}
 	}
-	return RoomObservation{Rooms: []Room{{ID: "r1", Enclosed: domain.Known(true), Cells: cells}}}
+	return RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r1", Enclosed: domain.Known(true), Cells: cells}}}
 }
 
 func sarcophagus(t *testing.T, id string, p InteriorPiece) CurrentBuilding {
@@ -33,7 +33,7 @@ func sarcophagus(t *testing.T, id string, p InteriorPiece) CurrentBuilding {
 func TestTombStepShellsThenPlacesForADeadColonist(t *testing.T) {
 	plan, room := tombFixture()
 	dead := []WasteItem{{ID: "Corpse_1", Kind: "corpse", State: WasteExposed, CorpseOf: domain.CorpseColonist}}
-	if step := NextTombStep(plan, RoomObservation{}, dead, nil, true); step.Kind != TombShell || step.Room != room {
+	if step := NextTombStep(plan, RoomObservation{Shapes: testShapes}, dead, nil, true); step.Kind != TombShell || step.Room != room {
 		t.Fatalf("unbuilt tomb: %+v", step)
 	}
 	step := NextTombStep(plan, tombStanding(room), dead, nil, true)
@@ -68,13 +68,13 @@ func TestTombOwedFallsBackToAGrave(t *testing.T) {
 	plan, _ := tombFixture()
 	dead := domain.Known([]WasteItem{{ID: "Corpse_1", State: WasteExposed, CorpseOf: domain.CorpseColonist}})
 	census := domain.Known(CurrentConstruction{Colony: true})
-	if v, known := TombOwed(domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{}), dead, census).Value(); !known || !v {
+	if v, known := TombOwed(domain.Known(false), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); !known || !v {
 		t.Errorf("unresearched sarcophagus still owes a grave: %v %v", v, known)
 	}
-	if v, known := TombOwed(domain.Known(true), domain.Known(plan), domain.Known(RoomObservation{}), dead, census).Value(); !known || !v {
+	if v, known := TombOwed(domain.Known(true), domain.Known(plan), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); !known || !v {
 		t.Errorf("a dead colonist owes a tomb: %v %v", v, known)
 	}
-	if _, known := TombOwed(domain.Known(true), domain.Unknown[LayoutPlan](), domain.Known(RoomObservation{}), dead, census).Value(); known {
+	if _, known := TombOwed(domain.Known(true), domain.Unknown[LayoutPlan](), domain.Known(RoomObservation{Shapes: testShapes}), dead, census).Value(); known {
 		t.Error("an unknown plan leaves the tomb unknown")
 	}
 }
@@ -90,8 +90,8 @@ func TestCoreGrowPlansATomb(t *testing.T) {
 
 func TestTombStepGrowsAnotherTombWhenFull(t *testing.T) {
 	plan, room := tombFixture()
-	in, _ := InteriorRoomFromLayout(room)
-	interior, ok := PlanInterior(in, InteriorPieceDefFor(SarcophagusDefinition))
+	in, _ := InteriorRoomFromLayout(room, testShapes)
+	interior, ok := PlanInterior(in, testShapes[SarcophagusDefinition])
 	if !ok {
 		t.Fatal("no template")
 	}

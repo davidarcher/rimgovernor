@@ -75,13 +75,47 @@ func NewInteriorPiece(slot, def string, size domain.Cell, rot domain.Rotation, c
 	return InteriorPiece{Slot: slot, Def: def, Size: size, Rot: rot, Rect: Rectangle{X: corner.X, Z: corner.Z, Width: w, Height: h}}
 }
 
+// The furnishing levers beside a bed or throne (#802): an end table and a
+// dresser (the bed's facilities) and a standing lamp.
+const (
+	endTableDef     = "EndTable"
+	dresserDef      = "Dresser"
+	standingLampDef = "StandingLamp"
+)
+
+// furnishings are the shapes of the furnishing levers.
+type furnishings struct{ EndTable, Dresser, Lamp InteriorPieceDef }
+
+// furnishings reads the levers from the frame's shapes; false when the
+// catalog has no row for one.
+func (f InteriorFrame) furnishings() (furnishings, bool) {
+	var fs furnishings
+	var a, b, c bool
+	fs.EndTable, a = f.Shapes.Get(endTableDef)
+	fs.Dresser, b = f.Shapes.Get(dresserDef)
+	fs.Lamp, c = f.Shapes.Get(standingLampDef)
+	return fs, a && b && c
+}
+
 // BenchRowDef is the definition a family's template plans: the piece being
 // placed when the family holds it, else the family's default.
-func BenchRowDef(piece InteriorPieceDef, family, fallback string) InteriorPieceDef {
+func BenchRowDef(f InteriorFrame, piece InteriorPieceDef, family RoomRole, fallback string) (InteriorPieceDef, bool) {
 	if piece.Family == family {
-		return piece
+		return piece, true
 	}
-	return InteriorPieceDefFor(fallback)
+	return f.Shapes.Get(fallback)
+}
+
+// frontInteraction reports whether a bench's interaction cell is the open
+// floor in front of it at North (the row below its footprint), where a bench
+// row leaves its worker row.
+func frontInteraction(def InteriorPieceDef) bool {
+	if def.Interaction == nil {
+		return false
+	}
+	r := OccupiedRect(domain.Cell{}, def.Size, domain.North)
+	o := *def.Interaction
+	return o.Z == r.Z-1 && o.X >= r.X && o.X < r.X+r.Width
 }
 
 // BenchRow lays def's benches in one centred row against the back wall,
@@ -93,7 +127,7 @@ func BenchRowDef(piece InteriorPieceDef, family, fallback string) InteriorPieceD
 // the entrance; limit caps the count (0 for none). It returns the benches
 // and each slot's start and the pitch.
 func BenchRow(f InteriorFrame, def InteriorPieceDef, gap, limit int32, slot func(i int) string) ([]InteriorPiece, []int32, int32, bool) {
-	if def.Interaction == nil || f.Depth < def.Size.Z+2 {
+	if !frontInteraction(def) || f.Depth < def.Size.Z+2 {
 		return nil, nil, 0, false
 	}
 	pitch := def.Size.X

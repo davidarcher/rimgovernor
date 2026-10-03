@@ -240,7 +240,7 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 	standing, stands := standingThroneIn(room, need, built)
 	if !stands {
 		def, ok := throneDefinition(need, defs)
-		in, rok := InteriorRoomFromLayout(room)
+		in, rok := InteriorRoomFromLayout(room, rooms.Shapes)
 		if !ok || !rok {
 			return ThroneStep{}
 		}

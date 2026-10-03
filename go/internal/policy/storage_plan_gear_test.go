@@ -21,7 +21,7 @@ func gearField(t *testing.T, prison *LayoutRoom) StorageRequest {
 	if prison != nil {
 		layout.Rooms = append(layout.Rooms, *prison)
 	}
-	rooms := RoomObservation{}
+	rooms := RoomObservation{Shapes: testShapes}
 	roofed := map[domain.Cell]bool{}
 	for i, r := range layout.Rooms {
 		rooms.Rooms = append(rooms.Rooms, Room{ID: string(rune('a' + i)), Enclosed: domain.Known(true), Cells: rectCells(r.Interior)})

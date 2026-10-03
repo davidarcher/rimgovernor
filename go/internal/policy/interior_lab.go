@@ -14,7 +14,10 @@ func init() {
 }
 
 func planLaboratory(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool) {
-	def := BenchRowDef(piece, pieceFamilyResearch, ResearchBenchDefinition)
+	def, ok := BenchRowDef(f, piece, RoomRoleLaboratory, ResearchBenchDefinition)
+	if !ok {
+		return nil, false
+	}
 	benches, _, _, ok := BenchRow(f, def, 1, 0, func(i int) string { return fmt.Sprintf("bench.%d", i+1) })
 	for i := range benches {
 		benches[i].Row = "benches"

@@ -15,7 +15,7 @@ func bedroomFixture() (LayoutPlan, RoomObservation, SleepingObservation) {
 	bed := func(id string, owners ...PawnID) SleepingBed {
 		return SleepingBed{ID: id, Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Roofed: domain.Known(true), Owners: owners, AccessibleTo: []PawnID{"a", "b"}}
 	}
-	rooms := RoomObservation{Rooms: []Room{{ID: "barracks", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2", "b3"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "barracks", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2", "b3"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
 	sleeping := SleepingObservation{Colonists: 2,
 		People: []SleepingPerson{{ID: "a", OwnedBed: domain.Known("b1")}, {ID: "b", OwnedBed: domain.Known("b2")}},
 		Beds:   []SleepingBed{bed("b1", "a"), bed("b2", "b"), bed("b3")}}
@@ -141,7 +141,7 @@ func TestBedroomStepMovesSpotOwnersOutOfTheShell(t *testing.T) {
 		return SleepingBed{ID: id, Definition: SleepingSpotDefinition, Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: owners, AccessibleTo: []PawnID{"a", "b"}, Cell: domain.Cell{X: 1, Z: 1}}
 	}
 	sleeping.Beds = []SleepingBed{spot("b1", "a"), spot("b2", "b")}
-	rooms := RoomObservation{Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind != BedroomShell || got.Room.Interior.X != 10 {
 		t.Fatalf("spot owners = %+v, want the first bedroom shelled", got)
 	}
@@ -178,7 +178,7 @@ func TestBedroomStepKeepsShellSpotsTheShelterNeeds(t *testing.T) {
 	}
 	sleeping.People = []SleepingPerson{{ID: "a", OwnedBed: domain.Known("")}, {ID: "b", OwnedBed: domain.Known("")}}
 	sleeping.Beds = []SleepingBed{spot("b1"), spot("b2")}
-	rooms := RoomObservation{Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "shell", Role: domain.Known(RoomRoleBarracks), Enclosed: domain.Known(true), Beds: []string{"b1", "b2"}, Cells: []domain.Cell{{X: 3, Z: 3}}}}}
 	if got := NextBedroomStep(plan, rooms, sleeping, nil, nil, nil); got.Kind == BedroomClear {
 		t.Fatalf("two spots for two colonists = %+v, want them kept", got)
 	}

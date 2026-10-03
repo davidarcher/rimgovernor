@@ -128,6 +128,9 @@ type RoomObservation struct {
 	// Dining is the dining and recreation furniture the catalog rows name; it
 	// rides with the rooms because the interior plans read it per room.
 	Dining DiningFurniture
+	// Shapes are the plannable shapes of the catalog's buildable definitions,
+	// for the same reason.
+	Shapes PieceShapes
 }
 
 // Room returns the census row for one native room ID.

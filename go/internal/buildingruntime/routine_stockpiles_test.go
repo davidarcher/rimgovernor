@@ -161,7 +161,7 @@ func TestStockpileRolesResolveByPrefix(t *testing.T) {
 // settings; an unknown census publishes nothing.
 func TestStockpileRoleOwnersPublishDesiredState(t *testing.T) {
 	projection := &observation.ColonyProjection{}
-	projection.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{
+	projection.Rooms = domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{
 		{ID: "Room_1", Role: domain.Known(policy.RoomRoleHospital)},
 		{ID: "Room_2", Role: domain.Known(policy.RoomRoleKitchen)},
 		{ID: "Room_3", Role: domain.Unknown[policy.RoomRole]()},

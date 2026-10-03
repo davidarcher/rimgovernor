@@ -28,7 +28,7 @@ func warehouseColony(standing bool) StockpileRequest {
 		{ID: "Zone_dump", Role: domain.CorpseDumpRole, Cells: []domain.Cell{{X: 30, Z: 20}}, Filter: domain.CorpseDumpFilter(), Priority: domain.LowPriority},
 	}
 	layout := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleStorage, Interior: Rectangle{X: 10, Z: 10, Width: 9, Height: 7}, Door: domain.Cell{X: 14, Z: 9}}}}
-	rooms := RoomObservation{}
+	rooms := RoomObservation{Shapes: testShapes}
 	if standing {
 		rooms.Rooms = []Room{{ID: "store", Enclosed: domain.Known(true), Cells: room}}
 	}

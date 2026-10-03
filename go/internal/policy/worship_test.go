@@ -52,7 +52,7 @@ func TestWorshipRoomIsGrownShelledAndFurnishedLikeAChildRoom(t *testing.T) {
 	}
 	room := LayoutRoom{Role: ModuleWorship, Interior: Rectangle{X: 10, Z: 20, Width: sizes[0][0], Height: sizes[0][1]}, Door: domain.Cell{X: 12, Z: 19}, DoorRot: domain.North}
 	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
-	if step := NextChildRoomStep(plan, RoomObservation{}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell || step.Room != room {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell || step.Room != room {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	step := NextChildRoomStep(plan, tombStanding(room), nil, []ChildRoomNeed{need}, defs)

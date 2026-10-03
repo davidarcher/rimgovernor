@@ -13,7 +13,7 @@ func TestMarkEnemyDoorsFacesKillbox(t *testing.T) {
 		t.Fatal(killbox)
 	}
 	out := domain.Known(true)
-	rooms := RoomObservation{Rooms: []Room{{ID: "r", Doors: []RoomDoor{
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "r", Doors: []RoomDoor{
 		{Cell: domain.Cell{X: 10, Z: 2}, Outside: domain.Cell{X: 11, Z: 2}, Outdoors: out}, // east, toward
 		{Cell: domain.Cell{X: 5, Z: 2}, Outside: domain.Cell{X: 4, Z: 2}, Outdoors: out},   // west, away
 		{Cell: domain.Cell{X: 8, Z: 2}, Outside: domain.Cell{X: 8, Z: 3}, Outdoors: out},   // north, perpendicular

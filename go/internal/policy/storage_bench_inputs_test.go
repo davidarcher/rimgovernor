@@ -54,7 +54,7 @@ func TestDeriveBenchInputs(t *testing.T) {
 func TestPlanStorageWorkstationStockpiles(t *testing.T) {
 	t.Parallel()
 	room, cells := workshopRoom(8, 4)
-	rooms := RoomObservation{Rooms: []Room{room}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{room}}
 	plan := PlanStorage(StorageRequest{Bounds: Bounds{Width: 10, Height: 10}, Cells: cells, Rooms: &rooms, BenchInputs: []BenchInput{
 		{Bench: "Bench_1", Cell: domain.Cell{X: 0, Z: 0}, Inputs: []string{"ChunkGranite"}},
 		{Bench: "Bench_2", Cell: domain.Cell{X: 7, Z: 3}, Inputs: []string{"Steel"}},

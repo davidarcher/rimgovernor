@@ -257,9 +257,9 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 		reason Verdict
 		cell   domain.Cell
 	}{
-		{"hosting room only", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"shared barracks", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
-		{"no hosting room", domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
+		{"hosting room only", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"shared barracks", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb}}, {ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Cells: []domain.Cell{hosting}}}}), Verdict{}, hosting},
+		{"no hosting room", domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "t", Role: domain.Known(policy.RoomRoleTomb), Cells: []domain.Cell{tomb, hosting}}}}), BuildingReasonNoSpace, domain.Cell{}},
 		{"census unknown", domain.Unknown[policy.RoomObservation](), fieldUnavailable("rooms"), domain.Cell{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -304,7 +304,7 @@ func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
 	t.Parallel()
 	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
 	hosting := domain.Cell{X: 3, Z: 2}
-	rooms := domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
+	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
 	facts := func(tick domain.Tick) observation.ColonyProjection {
 		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: hosting, Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
 	}

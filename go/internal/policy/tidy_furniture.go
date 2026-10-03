@@ -71,7 +71,7 @@ func TidyFurnitureRooms(rooms RoomObservation, census CurrentConstruction, cells
 		if !known || room.ID == "" {
 			continue
 		}
-		input, ok := InteriorRoomFromCensus(room, role, doorways)
+		input, ok := InteriorRoomFromCensus(room, role, doorways, rooms.Shapes)
 		if !ok {
 			continue
 		}

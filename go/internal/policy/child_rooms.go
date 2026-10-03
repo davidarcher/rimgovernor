@@ -272,7 +272,7 @@ func NextChildRoomStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBu
 			return ChildRoomStep{Kind: ChildRoomShell, Need: n, Room: room}
 		}
 		pieces, _ := n.resolve(defs)
-		in, rok := InteriorRoomFromLayout(room)
+		in, rok := InteriorRoomFromLayout(room, rooms.Shapes)
 		if !rok {
 			continue
 		}

@@ -10,7 +10,7 @@ func TestWorkshopLayoutRepeatsAcrossDoorsAndSizes(t *testing.T) {
 	for _, size := range [][3]int32{{7, 5, 1}, {7, 5, 3}, {3, 3, 1}, {8, 4, 0}, {11, 6, 2}, {12, 3, 5}} {
 		assertInteriorRepeatable(t, RoomRoleWorkshop, size[0], size[1], size[2])
 	}
-	if _, ok := PlanInterior(InteriorRoom{Role: RoomRoleWorkshop, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}, InteriorPieceDef{}); ok {
+	if _, ok := PlanInterior(InteriorRoom{Shapes: testShapes, Role: RoomRoleWorkshop, Interior: Rectangle{X: 0, Z: 0, Width: 7, Height: 2}, Doors: []domain.Cell{{X: 1, Z: -1}}}, InteriorPieceDef{}); ok {
 		t.Error("a two-deep room planned a workshop")
 	}
 }

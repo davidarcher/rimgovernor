@@ -211,6 +211,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 				if planned.Dining, err = frame.Catalog.DiningFurniture(); err != nil {
 					return RoutineReading{}, err
 				}
+				if planned.Shapes, err = frame.Catalog.PieceShapes(); err != nil {
+					return RoutineReading{}, err
+				}
 				temperature = domain.Known(planned)
 			}
 		}

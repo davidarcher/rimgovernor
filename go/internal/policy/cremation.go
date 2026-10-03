@@ -85,17 +85,24 @@ func NextCremationStep(plan LayoutPlan, rooms RoomObservation, waste []WasteItem
 		if _, ok := PlannedRoomStanding(r, rooms); !ok {
 			continue
 		}
-		in, ok := InteriorRoomFromLayout(r)
+		in, ok := InteriorRoomFromLayout(r, rooms.Shapes)
 		if !ok {
 			continue
 		}
-		interior, ok := PlanInterior(in, InteriorPieceDefFor(CrematoriumDefinition))
+		crematorium, ok := in.Piece(CrematoriumDefinition)
+		if !ok {
+			continue
+		}
+		// The game scores a crematorium into no room role; this routine puts
+		// it in a workshop row by design, so the piece asks for that family.
+		crematorium.Family = RoomRoleWorkshop
+		interior, ok := PlanInterior(in, crematorium)
 		if !ok {
 			continue
 		}
 	pieces:
 		for _, p := range interior.Pieces {
-			if !p.Accepts(CrematoriumDefinition) {
+			if !p.Accepts(rooms.Shapes, CrematoriumDefinition) {
 				continue
 			}
 			for _, c := range rectCells(p.Rect) {

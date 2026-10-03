@@ -169,7 +169,7 @@ func TestContainmentCellIsStagedLikeAnyChildRoom(t *testing.T) {
 		t.Fatal("grown plan has no containment cell")
 	}
 	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
-	if step := NextChildRoomStep(plan, RoomObservation{}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell {
+	if step := NextChildRoomStep(plan, RoomObservation{Shapes: testShapes}, nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomShell {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	if step := NextChildRoomStep(plan, tombStanding(room), nil, []ChildRoomNeed{need}, defs); step.Kind != ChildRoomPlace || step.Piece.Def != "HoldingPlatform" {

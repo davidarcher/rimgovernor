@@ -26,7 +26,7 @@ func TestPendingMigrationKeepsHousingOwed(t *testing.T) {
 		Beds:   []policy.SleepingBed{{ID: "ob1", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Owners: []policy.PawnID{"a"}}}}
 	facts := observation.ColonyProjection{
 		LayoutPlan: domain.Known(plan),
-		Rooms:      domain.Known(policy.RoomObservation{Rooms: []policy.Room{standing("o1", 0, "ob1"), standing("n1", 20)}}),
+		Rooms:      domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{standing("o1", 0, "ob1"), standing("n1", 20)}}),
 	}
 	facts.Facts.Sleeping = domain.Known(sleeping)
 	if step := migrateStep(facts); step.Kind != policy.BedroomFurnish || step.Room.Interior.X != 20 {

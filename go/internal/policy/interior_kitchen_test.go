@@ -30,7 +30,7 @@ func TestKitchenStovesBesideTheFreezerDoor(t *testing.T) {
 		{domain.Cell{X: 16, Z: 20}, domain.East, func(r Rectangle) bool { return r.X == 15 && r.Z >= 21 }},
 		{domain.Cell{X: 15, Z: 25}, domain.North, func(r Rectangle) bool { return r.Z == 24 && r.X+r.Width <= 15 }},
 	} {
-		plan, ok := PlanInterior(InteriorRoom{Role: RoomRoleKitchen, Interior: room, Doors: []domain.Cell{entrance, c.freezer}}, InteriorPieceDef{})
+		plan, ok := PlanInterior(InteriorRoom{Shapes: testShapes, Role: RoomRoleKitchen, Interior: room, Doors: []domain.Cell{entrance, c.freezer}}, InteriorPieceDef{})
 		if !ok || len(plan.Pieces) == 0 {
 			t.Fatalf("freezer door %v: no plan", c.freezer)
 		}
@@ -47,7 +47,7 @@ func TestKitchenStovesBesideTheFreezerDoor(t *testing.T) {
 }
 
 func TestButcherPlacementAvoidsKitchens(t *testing.T) {
-	rooms := domain.Known(RoomObservation{Rooms: []Room{
+	rooms := domain.Known(RoomObservation{Shapes: testShapes, Rooms: []Room{
 		{ID: "k", Role: domain.Known(RoomRoleKitchen), Cells: []domain.Cell{{X: 1, Z: 1}}, Contents: domain.Known([]Amount{})},
 		{ID: "w", Role: domain.Known(RoomRoleWorkshop), Cells: []domain.Cell{{X: 2, Z: 2}}, Contents: domain.Known([]Amount{})},
 	}})

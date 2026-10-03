@@ -85,7 +85,7 @@ func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal("routes:", err)
 	}
-	if in, ok := InteriorRoomFromLayout(suites.Rooms[0]); !ok || in.Role != RoomRoleSuite {
+	if in, ok := InteriorRoomFromLayout(suites.Rooms[0], testShapes); !ok || in.Role != RoomRoleSuite {
 		t.Fatal("suite interior role", in, ok)
 	}
 	if m, ok := LayoutModule(RoomRoleSuite); !ok || m != ModuleSuite {

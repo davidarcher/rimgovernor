@@ -48,14 +48,14 @@ func TestHerdRoomsHaveADoorAndHoldTheirBeds(t *testing.T) {
 			if _, ok := doorSide(room.Interior, room.Door); !ok {
 				t.Fatal("door is not in the room's ring", room)
 			}
-			if _, ok := InteriorRoomFromLayout(room); !ok {
+			if _, ok := InteriorRoomFromLayout(room, testShapes); !ok {
 				t.Fatal("room has no interior plan input", room)
 			}
 		}
-		if got := herdRoomBeds(barns[0], testHerdFurniture.Spot); got < animals {
+		if got := herdRoomBeds(barns[0], testShapes, testHerdFurniture.Spot); got < animals {
 			t.Fatal("barn holds fewer sleeping spots than animals", animals, got)
 		}
-		if got := herdRoomBeds(vets[0], testHerdFurniture.Bed); got < VetBeds(animals) || got < 2 {
+		if got := herdRoomBeds(vets[0], testShapes, testHerdFurniture.Bed); got < VetBeds(animals) || got < 2 {
 			t.Fatal("vet room holds fewer beds than the herd needs", animals, got)
 		}
 	}
@@ -65,7 +65,7 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn, vet := plan.HerdRooms(ModuleBarn)[0], plan.HerdRooms(ModuleVetRoom)[0]
 	const animals = 12
-	step := NextHerdStep(plan, RoomObservation{}, nil, nil, animals, testHerdFurniture)
+	step := NextHerdStep(plan, RoomObservation{Shapes: testShapes}, nil, nil, animals, testHerdFurniture)
 	if step.Kind != HerdShell || step.Room != barn {
 		t.Fatal("barn shell first", step)
 	}
@@ -168,7 +168,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 
 func mustInterior(t *testing.T, r LayoutRoom) InteriorRoom {
 	t.Helper()
-	in, ok := InteriorRoomFromLayout(r)
+	in, ok := InteriorRoomFromLayout(r, testShapes)
 	if !ok {
 		t.Fatal("no interior", r)
 	}

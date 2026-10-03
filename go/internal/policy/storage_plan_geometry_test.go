@@ -23,7 +23,7 @@ func TestRawFoodStockSitsInTheFreezerAtTheKitchenDoor(t *testing.T) {
 			}
 		}
 	}
-	rooms := RoomObservation{Rooms: []Room{{ID: "freezer", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: roomCells}}}
+	rooms := RoomObservation{Shapes: testShapes, Rooms: []Room{{ID: "freezer", Role: domain.Known(RoomRoleStoreroom), Enclosed: domain.Known(true), Cells: roomCells}}}
 	bounds := Bounds{Width: 30, Height: 30}
 	layout := LayoutPlan{Rooms: []LayoutRoom{{Role: ModuleKitchen, Interior: Rectangle{X: 3, Z: 10, Width: 5, Height: 5}}, freezer}}
 	room, sites, err := rawFoodStockSites(layout, rooms, bounds, cells, nil)
@@ -43,7 +43,7 @@ func TestRawFoodStockSitsInTheFreezerAtTheKitchenDoor(t *testing.T) {
 		t.Fatal(outer, err)
 	}
 	// No standing freezer means no stock.
-	if room, none, err := rawFoodStockSites(layout, RoomObservation{}, bounds, cells, nil); err != nil || room.ID != "" || none != nil {
+	if room, none, err := rawFoodStockSites(layout, RoomObservation{Shapes: testShapes}, bounds, cells, nil); err != nil || room.ID != "" || none != nil {
 		t.Fatal(room, none, err)
 	}
 }

@@ -26,7 +26,7 @@ func hotRoomSite(temperature float64) (RoomObservation, []SiteCell) {
 			}
 		}
 	}
-	return RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{room}}, cells
+	return RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{room}}, cells
 }
 
 func coolingReady(cells []SiteCell, spare float64) TemperatureCooling {
@@ -121,12 +121,12 @@ func TestTemperatureWallCoolerCountsAsExisting(t *testing.T) {
 }
 
 func TestTemperatureHottestRoomFirst(t *testing.T) {
-	v := RoomObservation{EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("warm", "a", 33, 1), thermalRoom("hot", "b", 40, 2)}}
+	v := RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("warm", "a", 33, 1), thermalRoom("hot", "b", 40, 2)}}
 	got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 	if err != nil || got.Room != "hot" {
 		t.Fatal(got, err)
 	}
-	v = RoomObservation{EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("cool", "a", 10, 1), thermalRoom("cold", "b", -5, 2)}}
+	v = RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("cool", "a", 10, 1), thermalRoom("cold", "b", -5, 2)}}
 	got, err = SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 	if err != nil || got.Room != "cold" {
 		t.Fatal(got, err)

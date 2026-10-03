@@ -20,16 +20,24 @@ func init() {
 // planJail lays beds the tomb's way (#831): a 1-cell aisle straight in
 // from the door, beds on both sides, heads to the side walls.
 func planJail(f InteriorFrame, _ InteriorPieceDef) ([]InteriorPiece, bool) {
+	bed, ok := f.Shapes.Get(JailBedDefinition)
+	if !ok {
+		return nil, false
+	}
 	aisle := f.Entrance
-	size := domain.Cell{X: 1, Z: 2}
+	// Turned to face the aisle a bed is Size.Z cells wide and Size.X deep.
+	size, reach := bed.Size, bed.Size.Z
 	var out []InteriorPiece
-	for _, v := range AisleRows(f.Depth, 1) {
-		if aisle >= 2 {
-			p := NewInteriorPiece(fmt.Sprintf("bed.w%d", v+1), JailBedDefinition, size, domain.West, domain.Cell{X: aisle - 2, Z: v})
+	for _, v := range AisleRows(f.Depth, size.X) {
+		if v+size.X > f.Depth {
+			continue
+		}
+		if aisle >= reach {
+			p := NewInteriorPiece(fmt.Sprintf("bed.w%d", v+1), JailBedDefinition, size, domain.West, domain.Cell{X: aisle - reach, Z: v})
 			p.Row = "beds.west"
 			out = append(out, p)
 		}
-		if aisle+3 <= f.Width {
+		if aisle+1+reach <= f.Width {
 			p := NewInteriorPiece(fmt.Sprintf("bed.e%d", v+1), JailBedDefinition, size, domain.East, domain.Cell{X: aisle + 1, Z: v})
 			p.Row = "beds.east"
 			out = append(out, p)
@@ -103,7 +111,7 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 				return step
 			}
 		}
-		if piece, ok := jailSlot(r, taken); ok {
+		if piece, ok := jailSlot(r, rooms.Shapes, taken); ok {
 			step.Kind, step.Piece = JailPlace, piece
 			return step
 		}
@@ -112,12 +120,16 @@ func NextJailStep(plan LayoutPlan, rooms RoomObservation, held int, beds []Sleep
 }
 
 // jailSlot is the room's first template bed slot nothing stands on.
-func jailSlot(r LayoutRoom, taken map[domain.Cell]bool) (InteriorPiece, bool) {
-	in, ok := InteriorRoomFromLayout(r)
+func jailSlot(r LayoutRoom, shapes PieceShapes, taken map[domain.Cell]bool) (InteriorPiece, bool) {
+	in, ok := InteriorRoomFromLayout(r, shapes)
 	if !ok {
 		return InteriorPiece{}, false
 	}
-	interior, ok := PlanInterior(in, InteriorPieceDefFor(JailBedDefinition))
+	bed, ok := in.Piece(JailBedDefinition)
+	if !ok {
+		return InteriorPiece{}, false
+	}
+	interior, ok := PlanInterior(in, bed)
 	if !ok {
 		return InteriorPiece{}, false
 	}

@@ -113,7 +113,7 @@ func standingThrone(t *testing.T, p InteriorPiece) CurrentBuilding {
 func TestThroneStepShellsPlacesThenAssigns(t *testing.T) {
 	plan, room, need := throneFixture()
 	defs := throneDefs(Bounds{Width: 1, Height: 1})
-	if step := NextThroneStep(plan, RoomObservation{}, nil, need, defs, nil); step.Kind != ThroneShell || step.Room != room || !step.Owed() {
+	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, defs, nil); step.Kind != ThroneShell || step.Room != room || !step.Owed() {
 		t.Fatalf("unbuilt room: %+v", step)
 	}
 	step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil)
@@ -179,7 +179,7 @@ func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 func TestThroneStepWaitsForARoomOfTheTitlesArea(t *testing.T) {
 	plan, _, need := throneFixture()
 	need.MinArea = 48
-	if step := NextThroneStep(plan, RoomObservation{}, nil, need, throneDefs(Bounds{Width: 1, Height: 1}), nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, RoomObservation{Shapes: testShapes}, nil, need, throneDefs(Bounds{Width: 1, Height: 1}), nil); step.Kind != ThroneNone {
 		t.Fatalf("a 30 cell room cannot meet 48: %+v", step)
 	}
 	if want := ThroneAreaOwed(plan, need, true); want != 48 {
@@ -196,7 +196,7 @@ func TestThroneStepWaitsForARoomOfTheTitlesArea(t *testing.T) {
 
 func TestThroneRoomTargetIsTheTitlesImpressiveness(t *testing.T) {
 	plan, room, need := throneFixture()
-	if got := ThroneRoomTargets(plan, RoomObservation{}, need); got != nil {
+	if got := ThroneRoomTargets(plan, RoomObservation{Shapes: testShapes}, need); got != nil {
 		t.Fatalf("room not standing: %+v", got)
 	}
 	got := ThroneRoomTargets(plan, tombStanding(room), need)
@@ -212,7 +212,7 @@ func TestThroneRoomTargetIsTheTitlesImpressiveness(t *testing.T) {
 
 func TestThroneTemplateFurnishesAroundTheThrone(t *testing.T) {
 	_, room, _ := throneFixture()
-	in, ok := InteriorRoomFromLayout(room)
+	in, ok := InteriorRoomFromLayout(room, testShapes)
 	if !ok {
 		t.Fatal("throne room has no interior role")
 	}
