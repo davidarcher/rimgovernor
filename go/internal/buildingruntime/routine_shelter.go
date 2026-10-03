@@ -88,12 +88,7 @@ func (r *RoutineBuildingPlanner) plannedRooms(facts observation.ColonyProjection
 	if !known || !ok {
 		return nil, nil
 	}
-	// The initial shelter falls back to the storage room when no barracks can
-	// stand, so a blocked barracks never holds the colony at Foothold.
 	roles := []policy.ModuleRole{want}
-	if r.shelter && r.phase == policy.HousingShelter {
-		roles = append(roles, policy.ModuleStorage)
-	}
 	var rooms []policy.LayoutRoom
 	var shells []domain.RoomFootprint
 	for _, role := range roles {
