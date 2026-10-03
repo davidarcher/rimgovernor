@@ -36,12 +36,13 @@ export default function ClockReview({token}: {token: string}) {
     } finally {writing.current = false; if (!lifetime.current.signal.aborted) setBusy(false);}
   };
   if (!review) return null;
+  const open = review.holds.length > 0 || BigInt(review.reviewedCursor) > BigInt(review.acknowledgedCursor);
   return <section aria-label="Clock interruption review">
     <h3>Clock supervision</h3>
     <p>{review.holds.length ? 'Clock stopped for review. Inspect the game and its notifications before acknowledging.' : 'No captured clock interruptions awaiting acknowledgement.'}</p>
     {review.holds.some(h => h.kind === 'gap') && <p>Some event history is missing. Inspect the colony before continuing.</p>}
     <p>Acknowledging does not resume time or enable orders. Enable the plan separately when ready.</p>
     {error && <p role="alert">{error}</p>}
-    <button type="button" disabled={busy || (!pending && (!fresh || review.holds.length === 0))} onClick={() => void acknowledge()}>{busy ? 'Acknowledging…' : pending ? 'Retry acknowledgement' : 'Acknowledge inspected interruptions'}</button>
+    <button type="button" disabled={busy || (!pending && (!fresh || !open))} onClick={() => void acknowledge()}>{busy ? 'Acknowledging…' : pending ? 'Retry acknowledgement' : 'Acknowledge inspected interruptions'}</button>
   </section>;
 }
