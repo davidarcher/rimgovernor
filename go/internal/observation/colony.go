@@ -51,6 +51,7 @@ type StuffOption struct {
 type ColonyProjection struct {
 	DeepResources       domain.Fact[DeepResources]
 	Policies            domain.Fact[Policies]
+	Biotech             domain.Fact[BiotechColony]
 	FoodFields          domain.Fact[[]policy.FoodField]
 	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
@@ -299,6 +300,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeepResources = colonyDeepResources(v.DeepResources)
 	r.Policies = ColonyPolicies(v.Policies)
+	r.Biotech = colonyBiotech(v.Biotech)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)

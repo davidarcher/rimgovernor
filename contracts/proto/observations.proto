@@ -1470,6 +1470,8 @@ message ColonyFactsSnapshot {
   reserved 48;
   // Every outfit, drug, food and reading policy and every allowed area (#1297).
   PolicySection policies = 49;
+  // Biotech pollution sources, wastepacks, gestators, chargers and baby care (#1679); absent without Biotech.
+  BiotechSection biotech = 50;
 }
 // One policy database row: Policy.GetUniqueLoadID(), label, the player
 // pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
@@ -1523,6 +1525,74 @@ message PolicyFacts {
 enum FoodEaterKind { FOOD_EATER_KIND_UNSPECIFIED = 0; FOOD_EATER_KIND_PRISONER = 1; FOOD_EATER_KIND_ANIMAL = 2; }
 message FoodEater { optional string pawn_id = 1; optional FoodEaterKind kind = 2; repeated string traits = 3; repeated string precepts = 4; repeated string edible_defs = 5; }
 message PolicySection { oneof outcome { PolicyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Biotech colony facts (#1679), a keyed colony section (#1347). The pollution
+// cell grid is a separate code; pollution here is its totals plus what makes
+// and removes it. Every row is a spawned player-map thing; a scalar absent
+// is unknown, never zero.
+// pollution: PollutionGrid totals (total_pollution is PollutionGrid.TotalPollution,
+// pollutable_cells the count of AllPollutableCells) and the player's
+// Area_PollutionClear (the cleanup crew's allowed area, clear_area_cells its
+// size). polluters: buildings with CompToxifier or CompPolluteOverTime.
+// wastepacks: spawned stacks of things with CompDissolution, which turn into
+// pollution when they dissolve. atomizers and pumps remove waste and
+// pollution (pumps: CompPollutionPump, off while disabled_by_artificial_buildings). gestators, chargers: Building_MechGestator and
+// Building_MechCharger, the producers of wastepacks. babies: each player
+// pawn whose developmental stage is Newborn or Baby; breastfeeders are the
+// pawns ChildcareUtility.CanBreastfeedPlayerPawns lists (pawn ids).
+message BiotechSection { oneof outcome { BiotechColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+message BiotechColonyFacts {
+  PollutionTotals pollution = 1;
+  repeated Polluter polluters = 2; repeated Wastepack wastepacks = 3;
+  repeated WastepackAtomizer atomizers = 4; repeated PollutionPump pumps = 5;
+  repeated MechGestatorState gestators = 6; repeated MechChargerState chargers = 7;
+  repeated BabyCare babies = 8; repeated string breastfeeders = 9;
+}
+message PollutionTotals {
+  optional int32 total_pollution = 1; optional uint32 pollutable_cells = 2;
+  optional string clear_area_id = 3; optional int32 clear_area_cells = 4;
+}
+// polluting is CompToxifier.CanPolluteNow; cells_per_day is
+// CompProperties_PolluteOverTime.cellsToPollutePerDay.
+message Polluter {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3;
+  optional bool polluting = 4; optional int32 cells_per_day = 5;
+}
+// frozen, outdoors, in_atomizer and can_dissolve_now are CompDissolution's
+// own verdicts; deterioration_rate is CompDissolution.DeterioarationRate.
+message Wastepack {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional int32 count = 4;
+  optional bool frozen = 5; optional bool outdoors = 6; optional bool in_atomizer = 7; optional bool can_dissolve_now = 8;
+  optional int32 deterioration_rate = 9; optional bool forbidden = 10;
+}
+// Building_WastepackAtomizer: its CompAtomizer's room and progress.
+message WastepackAtomizer {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional int32 space_left = 5; optional double fill_percent = 6; optional bool auto_load = 7; optional int32 ticks_left = 8;
+}
+message PollutionPump { optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4; optional bool disabled_by_artificial_buildings = 5; }
+// state is the active Bill_Mech's FormingState name (Gathering, Preparing,
+// Forming, Formed), absent with no bill. bound_pawn_id is the mech being
+// gestated, mech_kind its PawnKindDef; forming_percent is
+// CurrentBillFormingPercent. waste_count is the wastepacks held in the
+// gestator's CompWasteProducer.
+message MechGestatorState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional string bill_id = 5; optional string state = 6; optional string mech_kind = 7; optional string bound_pawn_id = 8;
+  optional int32 cycles_completed = 9; optional double bandwidth_cost = 10; optional double forming_percent = 11; optional int32 waste_count = 12;
+}
+// full_of_waste is Building_MechCharger.IsFullOfWaste.
+message MechChargerState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional string charging_mech_id = 5; optional int32 waste_count = 6; optional bool full_of_waste = 7;
+}
+// wants_suckle, can_suckle_now and being_played_with are ChildcareUtility's
+// verdicts; autofeeders are the feeders with an AutofeedMode set for the baby
+// (Pawn_MindState.Autofeeders, mode the AutofeedMode name).
+message BabyCare {
+  optional string pawn_id = 1; optional bool wants_suckle = 2; optional bool can_suckle_now = 3; optional bool being_played_with = 4;
+  optional bool in_bed = 5; repeated BabyAutofeeder autofeeders = 6;
+}
+message BabyAutofeeder { optional string pawn_id = 1; optional string mode = 2; }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; reserved 3, 4, 5; reserved "requested_definition_names"; }

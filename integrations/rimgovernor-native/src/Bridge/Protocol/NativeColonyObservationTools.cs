@@ -137,6 +137,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.foodChannels");
             result.DeepResources = NativeDeepResources.Read(map);
             result.Policies = NativePolicyFacts.Read(map);
+            result.Biotech = NativeBiotechColony.Read(map);
             Span("cf.deep");
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
             else result.Issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));

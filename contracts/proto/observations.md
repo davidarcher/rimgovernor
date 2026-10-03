@@ -265,6 +265,29 @@ profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
 Child) when it is known and the age rule otherwise. Both are derived state held
 in Go memory (persistence-contracts.md); they add no store.
 
+## Biotech colony section
+
+`ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide
+Biotech read, one keyed section with the snapshot's seq/tick (#1347); it is
+absent without Biotech and `Unavailable` when the read failed. The pollution
+cell grid is unchanged: the section carries `PollutionGrid` totals and the
+player's pollution-clear area size, then rows for what makes pollution
+(`polluters`: `CompToxifier`, `CompPolluteOverTime`), what removes it
+(`pumps`: `CompPollutionPump`, with its disabled-by-artificial-buildings flag;
+`atomizers`: `Building_WastepackAtomizer`), the wastepack stacks
+(`wastepacks`: spawned things with `CompDissolution`, with frozen, outdoors,
+in-atomizer and can-dissolve verdicts) and the producers of wastepacks
+(`gestators`: `Building_MechGestator` with its active mech bill; `chargers`:
+`Building_MechCharger`, each with the waste it holds). `babies` lists each
+player Newborn or Baby with `ChildcareUtility`'s suckle and play verdicts, its
+bed and its autofeeders; `breastfeeders` lists the pawns
+`ChildcareUtility.CanBreastfeedPlayerPawns` names. Verdicts come from the game
+(comps, buildings, `ChildcareUtility`), never def-name lists; an absent scalar
+is unknown, never zero. Go validates the rows (`bridge.validateBiotechColony`:
+unique ids per table, cells on the map, nonnegative counts) and projects them
+into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
+held in Go memory (persistence-contracts.md); it adds no store.
+
 ## Quest census Empire fields
 
 `QuestState.faction_id` is the first non-player faction in `Quest.InvolvedFactions`
