@@ -52,7 +52,6 @@ const (
 	// out.
 	burnThrowTicks domain.Tick = 300
 	burnFireTicks  domain.Tick = 1200
-	burnMolotov                = "Weapon_GrenadeMolotov"
 	// burnTopUpC is the hive temperature below which a molotov goes in;
 	// burnMaxC one no molotov is ever thrown at.
 	burnTopUpC = 150.0
@@ -377,7 +376,7 @@ func burnOut(view CombatView, m *CombatMemory) {
 			s := state[r.Pawn]
 			c, known := s.Cell.Value()
 			at = c
-			return s.Weapon == burnMolotov && known && dist(c, hive) <= grenadeReach(s)
+			return s.WeaponFacts.Burner() && known && dist(c, hive) <= grenadeReach(s)
 		})
 		if carrier < 0 {
 			return
@@ -392,7 +391,7 @@ func burnOut(view CombatView, m *CombatMemory) {
 		return
 	}
 	for i := range m.Roles {
-		if state[m.Roles[i].Pawn].Weapon == burnMolotov {
+		if state[m.Roles[i].Pawn].WeaponFacts.Burner() {
 			m.Roles[i].Ground = nil
 		}
 	}

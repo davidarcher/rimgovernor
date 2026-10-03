@@ -11,15 +11,6 @@ import (
 // from every colonist: a grenade scatters one tile (#1049).
 const grenadeScatterClear = 2
 
-// grenadeBlast is each area primary's blast radius in cells (vanilla
-// explosionRadius); a def not here is not a ground-target weapon.
-var grenadeBlast = map[string]float64{
-	"Weapon_GrenadeFrag":    1.9,
-	"Weapon_GrenadeMolotov": 1.1,
-	"Weapon_GrenadeEMP":     3.5,
-	"Gun_EmpLauncher":       3.5,
-}
-
 // GrenadeTarget is the decision under test for #1049: (carrier, hostiles,
 // colonist cells) -> the cell to attack_ground, or none. Candidates are the
 // live hostiles' cells in the carrier's range; each scores the hostiles
@@ -28,13 +19,13 @@ var grenadeBlast = map[string]float64{
 // nearer cell, then the lower x, z. A carrier whose primary is not an area
 // weapon, or with no cell, gets none.
 func GrenadeTarget(carrier CombatPawnState, hostiles []CombatPawnState, colonists []domain.Cell) (domain.Cell, bool) {
-	blast, ok := grenadeBlast[carrier.Weapon]
+	blast := carrier.WeaponFacts.Blast
 	from, known := carrier.Cell.Value()
-	if !ok || !known {
+	if blast <= 0 || !known {
 		return domain.Cell{}, false
 	}
 	reach := grenadeReach(carrier)
-	emp, fire := isEMP(carrier.Weapon), incendiary(carrier.Weapon)
+	emp, fire := carrier.WeaponFacts.EMP, carrier.WeaponFacts.Incendiary
 	var cells []domain.Cell
 	var worth []domain.Cell
 	for _, h := range hostiles {
@@ -51,12 +42,12 @@ func GrenadeTarget(carrier CombatPawnState, hostiles []CombatPawnState, colonist
 	return bestGround(from, reach, blast, cells, worth, colonists)
 }
 
-// grenadeReach is the carrier's range: its weapon range, else the profile's.
+// grenadeReach is the carrier's range: its weapon range, else the def's.
 func grenadeReach(carrier CombatPawnState) float64 {
 	if carrier.WeaponRange > 0 {
 		return carrier.WeaponRange
 	}
-	return ProfileWeapon(EquipCandidateWeapon{Definition: carrier.Weapon}).Range
+	return carrier.WeaponFacts.Range
 }
 
 // bestGround is the candidate cell in reach, clear of colonists, whose
@@ -91,11 +82,6 @@ func empWorth(h CombatPawnState) bool {
 		return true
 	}
 	return isMech(h)
-}
-
-// incendiary is a primary that sets fires (Molotovs, incendiary launchers).
-func incendiary(def string) bool {
-	return strings.Contains(def, "Molotov") || strings.Contains(def, "Incendiary")
 }
 
 // isMech is a mechanoid pawn kind.

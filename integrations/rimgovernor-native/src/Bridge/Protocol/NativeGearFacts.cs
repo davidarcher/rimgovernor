@@ -184,9 +184,9 @@ namespace HomeBridge.BridgeTools
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
             // Normally these events exclude each other. If mods overlap them,
             // retain the strongest current offset, then stable native identity.
+            // A condition is a temperature one by its own offset, not by def.
             var weather = conditions
-                .Where(c => (c.def == GameConditionDefOf.ColdSnap || c.def == GameConditionDefOf.HeatWave)
-                    && (c.Permanent || c.TicksLeft > 0))
+                .Where(c => c.TemperatureOffset() != 0f && (c.Permanent || c.TicksLeft > 0))
                 .OrderByDescending(c => Math.Abs(c.TemperatureOffset())).ThenBy(c => c.uniqueID).FirstOrDefault();
             if (weather != null) result.ActiveWeather = new Obs.GearWeatherCondition {
                 DefName = weather.def.defName,

@@ -262,6 +262,9 @@ type CombatPawnState struct {
 	// unknown), the pawn kind def, and a sapper or breacher at work.
 	Weapon      string
 	WeaponRange float64
+	// WeaponFacts is the weapon def's rows (#1723): its blast, EMP, fire and
+	// rocket facts.
+	WeaponFacts WeaponDef
 	Kind        string
 	Sapper      bool
 	// Rescuer facts (#867): the current job def, a worn shield belt and

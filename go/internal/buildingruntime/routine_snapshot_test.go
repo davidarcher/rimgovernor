@@ -370,7 +370,7 @@ func TestSnapshotTemperatureHeatwaveBuildsCooler(t *testing.T) {
 func TestSnapshotConditionResponse(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "condition-response-flare-eclipse-drone")
-	if !policy.SolarFlareHold(r.Facts.DisasterConditions) || !r.Review.Latches.Refrigeration {
+	if !policy.PowerOutageHold(r.Facts.DisasterConditions) || !r.Review.Latches.Refrigeration {
 		t.Fatal("want the flare hold with refrigeration latched")
 	}
 	if len(r.Review.Latches.Lighting) != 1 {
@@ -435,7 +435,7 @@ func TestSnapshotConditionCookAheadBill(t *testing.T) {
 	t.Parallel()
 	r := loadRecorded(t, "condition-response-flare-eclipse-drone")
 	p := r.Projection
-	if !policy.SolarFlareHold(p.Facts.DisasterConditions) {
+	if !policy.PowerOutageHold(p.Facts.DisasterConditions) {
 		t.Fatal("no flare hold")
 	}
 	reviewer := &RoutineReviewer{policy: r.Policy}

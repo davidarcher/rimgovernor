@@ -93,7 +93,7 @@ func TestTankGating(t *testing.T) {
 		melee.Threats[i].RangedEquipped = domain.Known(false)
 	}
 	emp := tankView()
-	emp.Pawns = append(emp.Pawns, CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: 5}), Weapon: "Gun_EmpLauncher"})
+	emp.Pawns = append(emp.Pawns, withWeapon(CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: 5})}, "Gun_EmpLauncher"))
 	for name, view := range map[string]CombatView{"melee": melee, "emp": emp} {
 		_, memory := decideStop(t, view, StopEvent{}, CombatMemory{})
 		if got := tankCellsOf(memory); len(got) != 0 {

@@ -96,13 +96,13 @@ func hiveGrenade(view CombatView, m *CombatMemory) {
 			continue
 		}
 		carrier := state[r.Pawn]
-		if carrier.Weapon == burnMolotov {
+		if carrier.WeaponFacts.Burner() {
 			// Molotovs belong to the burn-out alone (#1122): flame on an
 			// insect may send the hive to assault.
 			r.Ground = nil
 			continue
 		}
-		if _, ok := grenadeBlast[carrier.Weapon]; !ok || isEMP(carrier.Weapon) {
+		if carrier.WeaponFacts.Blast <= 0 || carrier.WeaponFacts.EMP {
 			continue
 		}
 		from, ok := carrier.Cell.Value()
@@ -111,7 +111,7 @@ func hiveGrenade(view CombatView, m *CombatMemory) {
 		}
 		reach := carrier.WeaponRange
 		if reach <= 0 {
-			reach = ProfileWeapon(EquipCandidateWeapon{Definition: carrier.Weapon}).Range
+			reach = carrier.WeaponFacts.Range
 		}
 		var best *domain.Cell
 		for _, s := range view.Structures {

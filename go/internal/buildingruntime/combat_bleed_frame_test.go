@@ -5,7 +5,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -23,7 +22,7 @@ func TestCombatFrameSparesFleeingBleeder(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := stops[7]
-	combat, err := bridge.DecodeCombat(s.Frame)
+	combat, err := decodeCombatWithCatalog(s.Frame)
 	if err != nil {
 		t.Fatal(err)
 	}

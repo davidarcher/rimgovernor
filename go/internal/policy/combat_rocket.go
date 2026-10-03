@@ -2,7 +2,6 @@ package policy
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -23,9 +22,8 @@ const (
 	rocketSafeRadius  = 5.0
 )
 
-// rocketLauncher reports a rocket launcher def (Gun_TripleRocket,
-// Gun_DoomsdayRocket).
-func rocketLauncher(weapon string) bool { return strings.Contains(weapon, "Rocket") }
+// rocketLauncher reports a weapon spent by its shot: a rocket launcher.
+func rocketLauncher(weapon WeaponDef) bool { return weapon.OneUse }
 
 // rocketClumps gives every orderable rocket carrier a ground shot at the
 // densest hostile clump in its range (#1051), nearest on a tie; a carrier
@@ -57,12 +55,12 @@ func rocketClumps(view CombatView, m *CombatMemory) {
 	}
 	for _, p := range view.Pawns {
 		from, ok := p.Cell.Value()
-		if !ok || !rocketLauncher(p.Weapon) || !slices.Contains(view.Orderable, p.ID) || !live[p.ID] || m.Rescue.carrying(p.ID) {
+		if !ok || !rocketLauncher(p.WeaponFacts) || !slices.Contains(view.Orderable, p.ID) || !live[p.ID] || m.Rescue.carrying(p.ID) {
 			continue
 		}
 		reach := p.WeaponRange
 		if reach <= 0 {
-			reach = weaponProfiles[p.Weapon].Range
+			reach = p.WeaponFacts.Range
 		}
 		i := slices.IndexFunc(m.Roles, func(r CombatRole) bool { return r.Pawn == p.ID })
 		if i >= 0 && m.Roles[i].Mortar != nil {

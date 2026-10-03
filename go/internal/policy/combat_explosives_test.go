@@ -12,7 +12,7 @@ func armRaider(view *CombatView, id domain.PawnID, weapon string, reach float64)
 	for _, d := range view.Positional {
 		if domain.PawnID(d.ID) == id {
 			cell, _ := d.Position.Value()
-			view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Weapon: weapon, WeaponRange: reach, Cell: domain.Known(cell)})
+			view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Weapon: weapon, WeaponFacts: coreWeapons[weapon], WeaponRange: reach, Cell: domain.Known(cell)})
 		}
 	}
 }

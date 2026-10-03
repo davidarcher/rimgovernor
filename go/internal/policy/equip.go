@@ -33,6 +33,8 @@ type EquipCandidateWeapon struct {
 	Class             WeaponClass
 	BiocodedTo        domain.PawnID
 	Biocoded          bool
+	// Facts is the weapon def's rows (#1723).
+	Facts WeaponDef
 }
 
 // WeaponClass ranks a loose equippable by what it is for. The native

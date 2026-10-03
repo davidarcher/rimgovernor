@@ -326,6 +326,9 @@ type combatInputs struct {
 	prey []string
 	// needed is plannedDrafts, set by the planner (#939).
 	needed map[domain.PawnID]bool
+	// weapons are the def rows' facts (#1723) of every weapon the frame's
+	// combat pawns hold.
+	weapons map[string]policy.WeaponDef
 }
 
 // combatFrameInputs is the fight's inputs from the frame; a reason means
@@ -364,6 +367,18 @@ func combatFrameInputs(combat bridge.Combat, huntPrey []domain.PawnID) (combatIn
 			// The frame's detail misses a pawn its census lists.
 			return combatInputs{}, Verdict{}, fmt.Errorf("%w: combatFrameInputs: row == nil", ErrControl)
 		}
+	}
+	in.weapons = map[string]policy.WeaponDef{}
+	for _, pawn := range combat.Pawns {
+		def := pawn.GetWeapon()
+		if _, done := in.weapons[def]; def == "" || done {
+			continue
+		}
+		facts, err := combat.Catalog.WeaponOf(def)
+		if err != nil {
+			return combatInputs{}, Verdict{}, err
+		}
+		in.weapons[def] = facts
 	}
 	return in, Verdict{}, nil
 }
@@ -446,7 +461,7 @@ func combatView(combat bridge.Combat, in combatInputs, orderable []domain.PawnID
 	for _, door := range combat.Doors {
 		damaged = append(damaged, domain.Cell{X: door.GetCell().GetX(), Z: door.GetCell().GetZ()})
 	}
-	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows), in), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
+	return policy.CombatView{Hunt: len(in.prey) > 0, Tick: domain.Tick(combat.Context.GetTick()), Pawns: preyStates(combatPawnStates(combat, in.rows, in.weapons), in), Defenders: defenders, Threats: threats, Positional: positional, Orderable: orderable, Layout: layout, Pods: podArrival(combat), Rooms: combat.Rooms, DamagedDoors: damaged, Mortars: combat.Mortars, Structures: structures, OutdoorTemperatureC: combat.OutdoorTemperatureC, HiveTemperatureC: combat.HiveTemperatureC,
 		Population: domain.Known(len(combat.Emergency.Facts.Colonists))}
 }
 

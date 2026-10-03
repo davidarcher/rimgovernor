@@ -34,7 +34,7 @@ func (c *GearClimate) Validate() error {
 		}
 	}
 	if w := c.Weather; w != nil {
-		if (w.Definition != "ColdSnap" && w.Definition != "HeatWave") || w.RemainingTicks < -1 || math.IsNaN(w.TemperatureOffset) || math.IsInf(w.TemperatureOffset, 0) || w.Definition == "ColdSnap" && w.TemperatureOffset > 0 || w.Definition == "HeatWave" && w.TemperatureOffset < 0 {
+		if w.Definition == "" || w.RemainingTicks < -1 || math.IsNaN(w.TemperatureOffset) || math.IsInf(w.TemperatureOffset, 0) || w.TemperatureOffset == 0 {
 			return errors.New("invalid gear weather condition")
 		}
 	}

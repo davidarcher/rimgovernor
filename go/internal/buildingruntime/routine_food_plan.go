@@ -59,11 +59,11 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 	if pawns, known := p.WorkPawns.Value(); known {
 		gunners = policy.SquadGunners(policy.Profiles(pawns))
 	}
-	var weather domain.Fact[string]
+	var weatherAccuracy domain.Fact[float64]
 	if env, known := p.Environment.Value(); known {
-		weather = env.Weather
+		weatherAccuracy = env.WeatherAccuracy
 	}
-	squads, lone := policy.SquadHunts(sources, gunners, weather)
+	squads, lone := policy.SquadHunts(sources, gunners, weatherAccuracy)
 	prey := 0
 	for _, src := range sources {
 		if src.SquadPrey() {

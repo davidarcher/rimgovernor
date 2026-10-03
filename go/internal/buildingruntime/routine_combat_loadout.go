@@ -30,7 +30,7 @@ type loadoutWeaponSource interface {
 // admits (#1115): policy.ThreatLoadout over the frame's defender rows, the
 // map's loose weapons and the stocked shield belts the gear census offers.
 // A loadout is optional: a failed read is logged and leaves that half out.
-func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state ControlState, view policy.CombatView, rows map[string]*n.PawnState, pawns []domain.PawnID) []policy.LoadoutOrder {
+func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state ControlState, view policy.CombatView, rows map[string]*n.PawnState, pawns []domain.PawnID, catalog *bridge.DefinitionCatalog) []policy.LoadoutOrder {
 	threat := policy.ClassifyLoadoutThreat(view, false)
 	live := map[domain.PawnID]policy.CombatPawnState{}
 	for _, p := range view.Pawns {
@@ -57,6 +57,13 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 				d.Primary = p.Weapon
 			}
 		}
+		// The primary's def rows (#1723): a def the catalog cannot state
+		// leaves the loadout out, as any failed read does.
+		var err error
+		if d.PrimaryFacts, err = catalog.WeaponOf(d.Primary); err != nil {
+			slog.Default().InfoContext(call, "fight loadout primary: "+err.Error(), telemetry.ComponentKey, "routine-defense")
+			return nil
+		}
 		beltless = beltless || !d.ShieldBelt
 		defenders = append(defenders, d)
 	}
@@ -66,7 +73,7 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 	identity := boundary.Identity(state.Snapshot)
 	var weapons []policy.EquipCandidateWeapon
 	if source, ok := r.native.(loadoutWeaponSource); ok && threat != policy.LoadoutNone {
-		read, err := loadoutWeapons(call, source, identity, state)
+		read, err := loadoutWeapons(call, source, identity, state, catalog)
 		if err != nil {
 			slog.Default().InfoContext(call, "fight loadout weapons: "+err.Error(), telemetry.ComponentKey, "routine-defense")
 		}
@@ -83,7 +90,7 @@ func (r *RoutineDefensePlanner) fightLoadout(call context.Context, state Control
 	return policy.ThreatLoadout(threat, defenders, weapons, belts)
 }
 
-func loadoutWeapons(call context.Context, source loadoutWeaponSource, identity *c.Identity, state ControlState) ([]policy.EquipCandidateWeapon, error) {
+func loadoutWeapons(call context.Context, source loadoutWeaponSource, identity *c.Identity, state ControlState, catalog *bridge.DefinitionCatalog) ([]policy.EquipCandidateWeapon, error) {
 	bounds, _, err := source.ReadMapBounds(call, identity, domain.Cell{})
 	if err != nil {
 		return nil, err
@@ -100,7 +107,11 @@ func loadoutWeapons(call context.Context, source loadoutWeaponSource, identity *
 	}
 	out := make([]policy.EquipCandidateWeapon, 0, len(read.Targets))
 	for _, w := range read.Targets {
-		out = append(out, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded})
+		facts, err := catalog.WeaponOf(w.Definition)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded, Facts: facts})
 	}
 	return out, nil
 }

@@ -3,7 +3,6 @@ package policy
 import (
 	"math"
 	"slices"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -15,10 +14,6 @@ import (
 // weapon focus the grenadiers from beyond their range. Shield-belt melee
 // fighters charge the rocketeers.
 
-// rocketWeapons are the explosiveWeapons fragments of a rocketeer (a
-// launcher) rather than a grenadier.
-var rocketWeapons = []string{"Rocket", "Launcher", "Doomsday"}
-
 // explosiveHostiles are the live hostiles carrying an explosive weapon,
 // by threat rank.
 func explosiveHostiles(view CombatView) []CombatPawnState {
@@ -27,9 +22,9 @@ func explosiveHostiles(view CombatView) []CombatPawnState {
 	})
 }
 
-func rocketeer(h CombatPawnState) bool {
-	return slices.ContainsFunc(rocketWeapons, func(f string) bool { return strings.Contains(h.Weapon, f) })
-}
+// rocketeer carries a launcher (an explosive weapon fired by a shoot verb)
+// rather than a grenade.
+func rocketeer(h CombatPawnState) bool { return h.WeaponFacts.Launcher }
 
 // explosiveCells are Formation's candidate cells against explosives: the
 // inner line joins the candidates, cover is not ranked, and the cells

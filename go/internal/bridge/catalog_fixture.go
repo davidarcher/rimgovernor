@@ -52,6 +52,51 @@ type FixtureDef struct {
 	Joy *FixtureJoy
 	// Apparel makes the def a garment of an adult wearer.
 	Apparel *FixtureApparel
+	// Weapon makes the def a weapon with the verb, projectile and tools it
+	// states (#1723).
+	Weapon *FixtureWeapon
+}
+
+// FixtureWeapon is a fixture weapon: a ranged one names its verb class and
+// projectile, a melee one the capacities of its tools (one tool each).
+type FixtureWeapon struct {
+	// VerbClass is the ranged verb's class ("Verse.Verb_Shoot"); empty makes
+	// the weapon a melee one.
+	VerbClass string
+	// Range and ForcedMissRadius are the verb's; ExplosionRadius, DamageDef
+	// and Incendiary the projectile's (named Name+"_Projectile").
+	Range, ForcedMissRadius, ExplosionRadius float32
+	DamageDef                                string
+	Incendiary                               bool
+	// Capacities is the capacity of each of a melee weapon's tools.
+	Capacities []string
+}
+
+// CoreWeaponFixtures are the Core weapons the planning tests name, stated the
+// way the game's XML does (#1723).
+func CoreWeaponFixtures() []FixtureDef {
+	shoot, oneUse, thrown := "Verse.Verb_Shoot", "RimWorld.Verb_ShootOneUse", "Verse.Verb_LaunchProjectile"
+	return []FixtureDef{
+		{Name: "Weapon_GrenadeFrag", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.9, DamageDef: "Bomb"}},
+		{Name: "Weapon_GrenadeMolotov", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true}},
+		{Name: "Weapon_GrenadeEMP", Weapon: &FixtureWeapon{VerbClass: thrown, Range: 12.9, ForcedMissRadius: 1.9, ExplosionRadius: 3.5, DamageDef: "EMP"}},
+		{Name: "Gun_EmpLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "EMP"}},
+		{Name: "Gun_IncendiaryLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 1.1, DamageDef: "Flame", Incendiary: true}},
+		{Name: "Gun_SmokeLauncher", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 23.9, ForcedMissRadius: 1.9, ExplosionRadius: 2.4, DamageDef: "Smoke"}},
+		{Name: "Gun_TripleRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 2.9, ExplosionRadius: 3.9, DamageDef: "Bomb"}},
+		{Name: "Gun_DoomsdayRocket", Weapon: &FixtureWeapon{VerbClass: oneUse, Range: 35.9, ForcedMissRadius: 1.9, ExplosionRadius: 7.8, DamageDef: "Bomb"}},
+		{Name: "Gun_AssaultRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet"}},
+		{Name: "Gun_Minigun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 30.9, DamageDef: "Bullet"}},
+		{Name: "Gun_PumpShotgun", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 18.9, DamageDef: "Bullet"}},
+		{Name: "Gun_SniperRifle", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 44.9, DamageDef: "Bullet"}},
+		{Name: "Bow_Short", Weapon: &FixtureWeapon{VerbClass: shoot, Range: 22.9, DamageDef: "Arrow"}},
+		{Name: "MeleeWeapon_Club", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
+		{Name: "MeleeWeapon_Mace", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
+		{Name: "MeleeWeapon_Warhammer", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Blunt"}}},
+		{Name: "MeleeWeapon_Knife", Weapon: &FixtureWeapon{Capacities: []string{"Cut", "Stab"}}},
+		{Name: "MeleeWeapon_Spear", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Stab"}}},
+		{Name: "MeleeWeapon_LongSword", Weapon: &FixtureWeapon{Capacities: []string{"Poke", "Cut", "Stab"}}},
+	}
 }
 
 // FixtureApparel is a garment's layers, covered body part groups, outfit tags
@@ -230,6 +275,23 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 		if len(def.Stuffs) > 0 || def.Stuffed {
 			t.StuffCategories = []string{"Fixture"}
 		}
+		if w := def.Weapon; w != nil {
+			if w.VerbClass != "" {
+				projectile := def.Name + "_Projectile"
+				t.Verbs = append(t.Verbs, &d.Opt_VerbProperties{Value: &d.VerbProperties{VerbClass: w.VerbClass, Range: w.Range, ForcedMissRadius: w.ForcedMissRadius, DefaultProjectile: projectile}})
+				wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: projectile, ThingClass: fixtureThingClass, Projectile: &d.ProjectileProperties{DamageDef: w.DamageDef, ExplosionRadius: w.ExplosionRadius, Ai_IsIncendiary: w.Incendiary}})
+				wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: projectile})
+				row(projectile, "", nil, nil)
+				chains["Verse.Verb"] = nil
+				chains["Verse.Verb_LaunchProjectile"] = []string{"Verse.Verb"}
+				chains["Verse.Verb_Shoot"] = []string{"Verse.Verb_LaunchProjectile", "Verse.Verb"}
+				chains["RimWorld.Verb_ShootOneUse"] = []string{"Verse.Verb_Shoot", "Verse.Verb_LaunchProjectile", "Verse.Verb"}
+				chains["RimWorld.Verb_MeleeAttack"] = []string{"Verse.Verb"}
+			}
+			for _, capacity := range w.Capacities {
+				t.Tools = append(t.Tools, &d.Opt_Tool{Value: &d.Tool{Capacities: []string{capacity}}})
+			}
+		}
 		wire.ThingDefs = append(wire.ThingDefs, t)
 		wire.ThingFacts = append(wire.ThingFacts, facts)
 		if len(t.StuffCategories) == 0 {
@@ -264,11 +326,53 @@ func fixtureWire(defs []FixtureDef) *o.DefinitionCatalog {
 	wire.ThingDefs = append(wire.ThingDefs, &d.ThingDef{DefName: "Anchor", ThingClass: fixtureThingClass})
 	wire.ThingFacts = append(wire.ThingFacts, &o.ThingDefFacts{DefName: "Anchor"})
 	row("Anchor", "", nil, nil)
+	FixtureEnvironmentDefs(wire)
+	fixtureDamageDefs(wire)
 	for class, bases := range chains {
 		wire.ClassChains = append(wire.ClassChains, &o.ClassChain{Name: class, Bases: bases})
 	}
 	slices.SortFunc(wire.ClassChains, func(a, b *o.ClassChain) int { return cmp.Compare(a.GetName(), b.GetName()) })
 	return wire
+}
+
+// FixtureEnvironmentDefs adds to a test catalog's wire form the weather and
+// game condition rows the game's Core defs carry (accuracy multipliers, the
+// electricity-disabling flare class), with the class chains they name.
+func FixtureEnvironmentDefs(v *o.DefinitionCatalog) {
+	if v.Defs == nil {
+		v.Defs = &d.DefSets{}
+	}
+	for name, accuracy := range map[string]float32{"Clear": 1, "Rain": 0.8, "RainyThunderstorm": 0.8, "SnowGentle": 0.8, "SnowHard": 0.8, "Fog": 0.5, "FoggyRain": 0.5} {
+		v.Defs.WeatherDefs = append(v.Defs.WeatherDefs, &d.WeatherDef{DefName: name, AccuracyMultiplier: accuracy})
+	}
+	const base = "RimWorld.GameCondition"
+	classes := map[string]string{"SolarFlare": electricityDisabledClass, "ColdSnap": "RimWorld.GameCondition_TemperatureOffset", "HeatWave": "RimWorld.GameCondition_TemperatureOffset",
+		"Eclipse": "RimWorld.GameCondition_Eclipse", "ToxicFallout": "RimWorld.GameCondition_ToxicFallout", "VolcanicWinter": "RimWorld.GameCondition_VolcanicWinter", "PsychicDrone": "RimWorld.GameCondition_PsychicEmanator"}
+	seen := map[string]bool{base: true}
+	v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: base})
+	for name, class := range classes {
+		v.Defs.GameConditionDefs = append(v.Defs.GameConditionDefs, &d.GameConditionDef{DefName: name, ConditionClass: class})
+		if !seen[class] {
+			seen[class] = true
+			v.ClassChains = append(v.ClassChains, &o.ClassChain{Name: class, Bases: []string{base}})
+		}
+	}
+}
+
+// fixtureDamageDefs adds the Core damage defs a weapon's projectile or melee
+// maneuver names, and a maneuver for each melee tool capacity (#1723).
+func fixtureDamageDefs(v *o.DefinitionCatalog) {
+	for _, def := range []*d.DamageDef{
+		{DefName: "Bomb", HarmsHealth: true}, {DefName: "Flame", HarmsHealth: true}, {DefName: "Bullet", HarmsHealth: true}, {DefName: "Arrow", HarmsHealth: true},
+		{DefName: "Smoke"}, {DefName: "EMP", CauseStun: true, ExternalViolenceForMechanoids: true},
+		{DefName: "Cut", HarmsHealth: true, ArmorCategory: "Sharp"}, {DefName: "Stab", HarmsHealth: true, ArmorCategory: "Sharp"},
+		{DefName: "Blunt", HarmsHealth: true, ArmorCategory: "Blunt"}, {DefName: "Poke", HarmsHealth: true, ArmorCategory: "Blunt"},
+	} {
+		v.Defs.DamageDefs = append(v.Defs.DamageDefs, def)
+	}
+	for _, capacity := range []string{"Cut", "Stab", "Blunt", "Poke"} {
+		v.Defs.ManeuverDefs = append(v.Defs.ManeuverDefs, &d.ManeuverDef{DefName: capacity + "Maneuver", RequiredCapacity: capacity, Verb: &d.VerbProperties{MeleeDamageDef: capacity}})
+	}
 }
 
 // FixtureRoomStats are the Impressiveness room stat's stages as Core's

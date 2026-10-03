@@ -343,6 +343,10 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		policies.Foods = tables.Catalog.Foods()
 		r.Policies = domain.Known(policies)
 	}
+	conditions, conditionsKnown, err := colonyConditions(v, tables.Catalog)
+	if err != nil {
+		return ColonyProjection{}, err
+	}
 	if tables.Catalog != nil {
 		r.RoofSupport = float64(tables.Catalog.Constants.RoofMaxSupportDistance)
 		if r.Impressiveness, err = tables.Catalog.ImpressivenessLevels(); err != nil {
@@ -382,11 +386,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		topology := policy.PowerTopology{}
 		geometryKnown := true
 		turrets := []policy.DefenseTurretFacts{}
-		if !hasIssue(v.Issues, "environment") {
+		if conditionsKnown {
 			blackout, eclipse := false, false
-			for _, condition := range v.Environment {
-				blackout = blackout || condition.GetDefName() == "SolarFlare"
-				eclipse = eclipse || condition.GetDefName() == "Eclipse"
+			for _, condition := range conditions {
+				blackout = blackout || condition.DisablesPower
+				eclipse = eclipse || condition.Definition == "Eclipse"
 			}
 			topology.Blackout, topology.Eclipse = domain.Known(blackout), domain.Known(eclipse)
 		}
@@ -481,7 +485,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		r.Facts.ButcherBenches = domain.Known(standing)
 		r.ButcheringBenches = domain.Known(benches)
 	}
-	colonyDisaster(v, &r.Facts, buildings)
+	colonyDisaster(v, &r.Facts, buildings, conditions, conditionsKnown)
 	var comfortErr error
 	if r.Facts.Comfort, comfortErr = colonyComfort(v, tables.Catalog); comfortErr != nil {
 		return ColonyProjection{}, comfortErr
@@ -612,7 +616,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") && headed(buildings, planning.Environment.Lights, (*o.GrowLight).GetBuilding) && headed(buildings, planning.Environment.Growers, (*o.PlantGrower).GetBuilding) {
-		r.Environment = domain.Known(colonyEnvironment(planning.Environment, v.OutdoorTemperatureC, buildings))
+		environment, err := colonyEnvironment(planning.Environment, v.OutdoorTemperatureC, buildings, tables.Catalog)
+		if err != nil {
+			return ColonyProjection{}, err
+		}
+		r.Environment = domain.Known(environment)
 	}
 	// r.Facts.Gear needs the catalog: ObserveColony fills it (#1732).
 	return r, nil
@@ -629,8 +637,15 @@ func cellsOf(rows []*c.Cell) []domain.Cell {
 // colonyEnvironment decodes the native controlled-growing census. Rows keep
 // their native order (ids ascending); every scalar stays unknown when the
 // native side omitted it.
-func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings bridge.Buildings) policy.ControlledEnvironment {
-	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight), Weather: optional(v.Weather)}
+func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (policy.ControlledEnvironment, error) {
+	e := policy.ControlledEnvironment{OutdoorTemperatureC: optional(outdoor), Daylight: optional(v.Daylight), WeatherAccuracy: domain.Unknown[float64]()}
+	if v.Weather != nil {
+		accuracy, err := catalog.WeatherAccuracy(v.GetWeather())
+		if err != nil {
+			return policy.ControlledEnvironment{}, err
+		}
+		e.WeatherAccuracy = domain.Known(accuracy)
+	}
 	for _, row := range v.Lights {
 		ref := buildings.Entity(row.Building)
 		e.Lights = append(e.Lights, policy.GrowLight{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Room: optionalRef(row.Room), Network: optional(row.PowerNetId), Powered: optional(row.Powered), PowerW: optional(row.PowerW), LitNow: optional(row.LitNow), GrowthCells: cellsOf(row.GrowthCells)})
@@ -645,7 +660,7 @@ func colonyEnvironment(v *o.ControlledEnvironment, outdoor *float64, buildings b
 	for _, row := range v.Networks {
 		e.Networks = append(e.Networks, policy.PowerHeadroom{ID: row.GetId(), GenerationW: optional(row.GenerationW), SolarW: optional(row.SolarW), WindW: optional(row.WindW), ConsumptionW: optional(row.ConsumptionW), StoredWattDays: optional(row.StoredWattDays), CapacityWattDays: optional(row.CapacityWattDays), ActiveSource: optional(row.HasActiveSource)})
 	}
-	return e
+	return e, nil
 }
 
 func count(p *uint32) domain.Fact[int] {

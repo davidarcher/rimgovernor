@@ -129,7 +129,7 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		}
 	}
 	if len(ids) == 0 || len(emergency.Facts.Colonists) == 0 || len(hostiles)+len(buildings) == 0 && !hasAggressiveBreak(emergency.Facts) {
-		return bridge.DecodeCombat(frame)
+		return decodeCombatWithCatalog(frame)
 	}
 	reply, _, err := f.ReadCombatPawns(ctx, identity, ids)
 	if err != nil {
@@ -190,7 +190,7 @@ func (f framed) ReadCombat(ctx context.Context, identity *c.Identity) (bridge.Co
 		}
 		frame.CombatLinesOfFire = snapshot
 	}
-	return bridge.DecodeCombat(frame)
+	return decodeCombatWithCatalog(frame)
 }
 
 // scopeRefs scopes every CAS snapshot ref in m to the frame's context, as

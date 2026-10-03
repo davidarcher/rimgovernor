@@ -8,11 +8,11 @@ import (
 )
 
 func loadoutDefender(id domain.PawnID, shooting int, primary string) LoadoutDefender {
-	return LoadoutDefender{EquipCandidatePawn: weaponPawn(id, shooting), Primary: primary}
+	return LoadoutDefender{EquipCandidatePawn: weaponPawn(id, shooting), Primary: primary, PrimaryFacts: coreWeapons[primary]}
 }
 
 func loose(thing, def string, class WeaponClass) EquipCandidateWeapon {
-	return EquipCandidateWeapon{Thing: thing, Definition: def, Class: class, Cell: domain.Cell{X: 5, Z: 5}}
+	return EquipCandidateWeapon{Thing: thing, Definition: def, Class: class, Cell: domain.Cell{X: 5, Z: 5}, Facts: coreWeapons[def]}
 }
 
 func orderPairs(orders []LoadoutOrder) [][3]string {
@@ -87,7 +87,7 @@ func TestLoadoutEMPCarrier(t *testing.T) {
 		loadoutDefender("b", 6, "Gun_AssaultRifle"),
 		loadoutDefender("c", 12, "Gun_AssaultRifle"),
 		{EquipCandidatePawn: weaponPawn("d", 12), Primary: "Gun_AssaultRifle", Squad: "west"},
-		{EquipCandidatePawn: weaponPawn("e", 3), Primary: "Weapon_GrenadeEMP", Squad: "east"}, // east already carries
+		{EquipCandidatePawn: weaponPawn("e", 3), Primary: "Weapon_GrenadeEMP", PrimaryFacts: coreWeapons["Weapon_GrenadeEMP"], Squad: "east"}, // east already carries
 		{EquipCandidatePawn: weaponPawn("f", 9), Primary: "Gun_AssaultRifle", Squad: "east"},
 	}
 	weapons := []EquipCandidateWeapon{

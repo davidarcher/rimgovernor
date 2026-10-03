@@ -48,11 +48,11 @@ func chargeChokes(view CombatView) []waveChoke {
 }
 
 // meleeHostile is a hostile whose weapon reaches about one cell: the known
-// range, else the weapon's profile.
+// range, else the weapon def's.
 func meleeHostile(h CombatPawnState) bool {
 	reach := h.WeaponRange
 	if reach <= 0 {
-		reach = ProfileWeapon(EquipCandidateWeapon{Definition: h.Weapon}).Range
+		reach = h.WeaponFacts.Range
 	}
 	return reach <= 1.5
 }

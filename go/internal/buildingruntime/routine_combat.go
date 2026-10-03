@@ -68,7 +68,7 @@ func (r *RoutineDefensePlanner) admitFight(call, epoch context.Context, incident
 	// The threat loadout (#1115) is the fight plan's own equip and wear
 	// actions, committed before the first combat.orders batch; its pawns
 	// draft once their action settles.
-	loadout := r.fightLoadout(call, state, combatView(a.combat, a.in, pawns, a.held), a.in.rows, pawns)
+	loadout := r.fightLoadout(call, state, combatView(a.combat, a.in, pawns, a.held), a.in.rows, pawns, a.combat.Catalog)
 	for _, order := range loadout {
 		fmt.Fprintf(hash, "loadout %s/%s/%t\n", order.Pawn, order.Thing, order.Wear)
 	}
@@ -449,12 +449,12 @@ func (r *RoutineDefensePlanner) answerRescuePath(ctx context.Context, identity *
 // combatPawnStates is the fight's live state: the frame's combat pawns
 // (#851, #858) when the frame carries them, else the detail rows
 // (position, downed, dead; no stance or target).
-func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState) []policy.CombatPawnState {
+func combatPawnStates(combat bridge.Combat, rows map[string]*n.PawnState, weapons map[string]policy.WeaponDef) []policy.CombatPawnState {
 	var out []policy.CombatPawnState
 	if len(combat.Pawns) > 0 {
 		for _, row := range combat.Pawns {
 			s := policy.CombatPawnState{ID: domain.PawnID(row.GetId()), Downed: row.GetDowned(), Dead: row.GetDead(), Target: domain.PawnID(row.GetTargetId()), Stance: combatStance(row.GetStance()),
-				Weapon: row.GetWeapon(), WeaponRange: row.GetWeaponRange(), FireMode: bridge.FireModeName(row.GetFireMode()),
+				Weapon: row.GetWeapon(), WeaponFacts: weapons[row.GetWeapon()], WeaponRange: row.GetWeaponRange(), FireMode: bridge.FireModeName(row.GetFireMode()),
 				Job: row.GetJob(), TargetMortar: row.GetTargetMortar(), ShieldBelt: row.GetShieldBelt(), MedicalSkill: int(row.GetMedicalSkill()), MoveSpeed: row.GetMoveSpeed(), StunTicks: int(row.GetStunTicksLeft()),
 				GoJuice: row.GetGoJuiceHigh(), Luciferium: row.GetLuciferiumAddicted(),
 				Animal: row.GetSide() == mp.CombatSide_COMBAT_SIDE_COLONY_ANIMAL}

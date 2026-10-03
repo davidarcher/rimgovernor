@@ -16,7 +16,7 @@ func rocketView() CombatView {
 		CombatPawnState{ID: "r1", Cell: domain.Known(domain.Cell{X: 9, Z: 5})},
 		CombatPawnState{ID: "r2", Cell: domain.Known(domain.Cell{X: 10, Z: 4})},
 		CombatPawnState{ID: "r3", Cell: domain.Known(domain.Cell{X: 8, Z: 5})})
-	view.Pawns[0].Weapon, view.Pawns[0].WeaponRange = "Gun_TripleRocket", 40
+	view.Pawns[0].Weapon, view.Pawns[0].WeaponFacts, view.Pawns[0].WeaponRange = "Gun_TripleRocket", coreWeapons["Gun_TripleRocket"], 40
 	return view
 }
 
@@ -47,7 +47,7 @@ func TestRocketClump(t *testing.T) {
 			v.Pawns[1].Cell = domain.Known(domain.Cell{X: 9, Z: 6})
 		},
 		"out of range": func(v *CombatView) { v.Pawns[0].WeaponRange = 20 },
-		"no launcher":  func(v *CombatView) { v.Pawns[0].Weapon = "Gun_AssaultRifle" },
+		"no launcher":  func(v *CombatView) { v.Pawns[0] = withWeapon(v.Pawns[0], "Gun_AssaultRifle") },
 	}
 	for name, edit := range cases {
 		view := rocketView()

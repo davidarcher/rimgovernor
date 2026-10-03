@@ -45,6 +45,9 @@ type DisasterCondition struct {
 	ID, Definition string
 	Permanent      bool   `json:",omitempty"`
 	TicksLeft      *int64 `json:",omitempty"`
+	// DisablesPower is the game's ElectricityDisabled for the condition: its
+	// def's class is GameCondition_DisableElectricity or derives from it.
+	DisablesPower bool `json:",omitempty"`
 }
 
 // RemainingTicks reports the observed remaining duration when known.
@@ -57,7 +60,6 @@ func (c DisasterCondition) RemainingTicks() domain.Fact[int64] {
 
 // Native game condition definitions the routine reviews consult by name.
 const (
-	ConditionSolarFlare     = "SolarFlare"
 	ConditionEclipse        = "Eclipse"
 	ConditionPsychicDrone   = "PsychicDrone"
 	ConditionVolcanicWinter = "VolcanicWinter"
@@ -73,13 +75,17 @@ const (
 // remaining-duration read contributes nothing: the reviews that consult this
 // plan against a duration, never against the bare presence of a condition.
 func ConditionRemainingTicks(conditions domain.Fact[[]DisasterCondition], definitions ...string) domain.Fact[int64] {
+	return conditionRemaining(conditions, func(c DisasterCondition) bool { return slices.Contains(definitions, c.Definition) })
+}
+
+func conditionRemaining(conditions domain.Fact[[]DisasterCondition], match func(DisasterCondition) bool) domain.Fact[int64] {
 	rows, known := conditions.Value()
 	if !known {
 		return domain.Unknown[int64]()
 	}
 	var longest int64
 	for _, c := range rows {
-		if !slices.Contains(definitions, c.Definition) {
+		if !match(c) {
 			continue
 		}
 		if ticks, k := c.RemainingTicks().Value(); k {
@@ -89,13 +95,13 @@ func ConditionRemainingTicks(conditions domain.Fact[[]DisasterCondition], defini
 	return domain.Known(longest)
 }
 
-// SolarFlareHold reports an active solar flare with a known remaining
-// duration: every powered building is off until it ends, so power and
-// refrigeration development is suspended (the goals stay open with no
-// method) rather than answered with generators or coolers for an outage
-// measured in hours.
-func SolarFlareHold(conditions domain.Fact[[]DisasterCondition]) bool {
-	ticks, known := ConditionRemainingTicks(conditions, ConditionSolarFlare).Value()
+// PowerOutageHold reports an active condition that disables electricity (a
+// solar flare) with a known remaining duration: every powered building is
+// off until it ends, so power and refrigeration development is suspended
+// (the goals stay open with no method) rather than answered with generators
+// or coolers for an outage measured in hours.
+func PowerOutageHold(conditions domain.Fact[[]DisasterCondition]) bool {
+	ticks, known := conditionRemaining(conditions, func(c DisasterCondition) bool { return c.DisablesPower }).Value()
 	return known && ticks > 0
 }
 

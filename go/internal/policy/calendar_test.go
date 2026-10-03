@@ -142,7 +142,7 @@ func TestHarvestGapDaysExtendsByAnObservedGrowthPause(t *testing.T) {
 		{"a pause outlasting the seasonal wait replaces it", winter, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 30*60000)}), 33},
 		{"a pause on an unknown calendar is the whole gap", domain.Unknown[Calendar](), domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 20*60000)}), 23},
 		{"a condition without a remaining-duration read contributes nothing", summer, domain.Known([]DisasterCondition{{ID: "cold", Definition: ConditionColdSnap}}), 0},
-		{"a solar flare is not a growth pause", summer, domain.Known([]DisasterCondition{timedCondition(ConditionSolarFlare, 6*60000)}), 0},
+		{"a solar flare is not a growth pause", summer, domain.Known([]DisasterCondition{timedCondition("SolarFlare", 6*60000)}), 0},
 		{"an unknown condition census is no pause", summer, domain.Unknown[[]DisasterCondition](), 0},
 		{"the whole is capped at one year", winter, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 90*60000)}), 60},
 	}

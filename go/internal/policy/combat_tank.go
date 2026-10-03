@@ -49,7 +49,7 @@ func tankThreat(view CombatView) bool {
 			ranged++
 		}
 	}
-	emp := slices.ContainsFunc(rankThreats(view), func(h CombatPawnState) bool { return isEMP(h.Weapon) })
+	emp := slices.ContainsFunc(rankThreats(view), func(h CombatPawnState) bool { return h.WeaponFacts.EMP })
 	return ranged*2 > live && !emp
 }
 

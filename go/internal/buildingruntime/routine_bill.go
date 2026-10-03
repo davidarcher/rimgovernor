@@ -229,7 +229,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// refrigeration review latched on is cooked instead. A bench whose
 		// meal recipe this load already claimed (the ordinary cooking bill)
 		// is dropped from the census: one claim per bench and recipe.
-		if !policy.SolarFlareHold(projection.Facts.DisasterConditions) {
+		if !policy.PowerOutageHold(projection.Facts.DisasterConditions) {
 			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
 		}
 		refrigeration, err := policy.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, r.reviewer.policy.FoodStorage)

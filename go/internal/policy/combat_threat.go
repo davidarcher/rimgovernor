@@ -35,16 +35,12 @@ const (
 	threatOther
 )
 
-// explosiveWeapons are def-name fragments of the launchers and grenades
-// that make a raider a rocketeer or grenadier.
-var explosiveWeapons = []string{"Rocket", "Grenade", "Molotov", "Launcher", "Doomsday"}
-
-// threatTier ranks one live hostile; colonists are our defenders.
+// threatTier ranks one live hostile; colonists are our defenders. A raider
+// with an explosive weapon (a launcher or a grenade, by its def rows) is a
+// rocketeer or grenadier.
 func threatTier(h CombatPawnState, colonists map[domain.PawnID]bool) int {
-	for _, frag := range explosiveWeapons {
-		if strings.Contains(h.Weapon, frag) {
-			return threatExplosive
-		}
+	if h.WeaponFacts.Explosive {
+		return threatExplosive
 	}
 	if h.Stance == StanceMelee && colonists[h.Target] {
 		return threatMeleeColonist

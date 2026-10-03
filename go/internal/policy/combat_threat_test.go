@@ -19,7 +19,7 @@ func threatView() CombatView {
 		{ID: "h2", Kind: "Mech_CentipedeBurner", Weapon: "Gun_InfernoCannon"},
 		{ID: "h3", Kind: "Mech_Termite"},
 		{ID: "h4", Kind: "Pirate", Weapon: "MeleeWeapon_Knife", Stance: StanceMelee, Target: "c"},
-		{ID: "h5", Kind: "Grenadier_Destructive", Weapon: "Weapon_GrenadeFrag"},
+		{ID: "h5", Kind: "Grenadier_Destructive", Weapon: "Weapon_GrenadeFrag", WeaponFacts: coreWeapons["Weapon_GrenadeFrag"]},
 	}
 	for i, h := range hostiles {
 		cell := domain.Cell{X: 8 + int32(i), Z: 10}
@@ -104,7 +104,7 @@ func TestDecideCombatFocusesTopThreat(t *testing.T) {
 func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 	view := threatView()
 	// Start with no grenadier: the melee raider on c is the focus.
-	view.Pawns[7].Weapon = "Gun_AssaultRifle"
+	view.Pawns[7] = withWeapon(view.Pawns[7], "Gun_AssaultRifle")
 	_, memory := decideStop(t, view, StopEvent{}, CombatMemory{})
 	for _, r := range memory.Roles {
 		if r.Target != "h4" {
@@ -113,7 +113,7 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 	}
 	// A grenade appears: the focus stays on h4.
 	view.Tick = 160
-	view.Pawns[7].Weapon = "Weapon_GrenadeFrag"
+	view.Pawns[7] = withWeapon(view.Pawns[7], "Weapon_GrenadeFrag")
 	for i := range view.Pawns[:3] {
 		view.Pawns[i].Target, view.Pawns[i].Stance = "h4", StanceIdle
 	}
@@ -146,7 +146,8 @@ func TestDecideCombatRetargetsOnlyWhenTargetGone(t *testing.T) {
 func TestGoJuiceFocus(t *testing.T) {
 	view := threatView()
 	for i := 3; i < len(view.Pawns); i++ {
-		view.Pawns[i].Kind, view.Pawns[i].Weapon, view.Pawns[i].Stance, view.Pawns[i].Target = "Pirate", "Gun_AssaultRifle", StanceUnknown, ""
+		view.Pawns[i].Kind, view.Pawns[i].Stance, view.Pawns[i].Target = "Pirate", StanceUnknown, ""
+		view.Pawns[i] = withWeapon(view.Pawns[i], "Gun_AssaultRifle")
 	}
 	view.Pawns[5].GoJuice = true
 	if ranked := rankThreats(view); len(ranked) == 0 || ranked[0].ID != "h3" {

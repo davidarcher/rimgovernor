@@ -66,7 +66,7 @@ func TestTribalPilaTier(t *testing.T) {
 	view := holdView()
 	view.Threats, view.Positional = nil, nil
 	hostiles := []CombatPawnState{
-		{ID: "h1", Kind: "Grenadier_Destructive", Weapon: "Weapon_GrenadeFrag"},
+		{ID: "h1", Kind: "Grenadier_Destructive", Weapon: "Weapon_GrenadeFrag", WeaponFacts: coreWeapons["Weapon_GrenadeFrag"]},
 		{ID: "h2", Kind: "Tribal_Berserker", Weapon: "MeleeWeapon_Club"},
 		{ID: "h3", Kind: "Tribal_Warrior", Weapon: "Pila"},
 		{ID: "h0", Kind: "Tribal_Archer", Weapon: "Bow_Recurve"},

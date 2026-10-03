@@ -412,7 +412,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	// solar flare darkens every turret for the outage: the tier is absent
 	// for its duration, not a deficit (#408).
 	workers, _ := read.Projection.WorkPawns.Value()
-	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources, policy.SolarFlareHold(read.Projection.Facts.DisasterConditions))
+	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources, policy.PowerOutageHold(read.Projection.Facts.DisasterConditions))
 	record.FuelShortage = upkeep.Shortage
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err

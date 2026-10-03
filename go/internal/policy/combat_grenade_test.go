@@ -29,7 +29,7 @@ func grenadeView(weapon string) CombatView {
 			view.Pawns[i].Cell = domain.Known(c)
 		}
 		if view.Pawns[i].ID == "a" {
-			view.Pawns[i].Weapon = weapon
+			view.Pawns[i] = withWeapon(view.Pawns[i], weapon)
 		}
 	}
 	return view
@@ -49,7 +49,7 @@ func TestGrenadeAimsCluster(t *testing.T) {
 // the throw goes to the lone raider instead; with every hostile near a
 // colonist, none.
 func TestGrenadeRejectsScatterNearColonist(t *testing.T) {
-	carrier := CombatPawnState{ID: "a", Cell: domain.Known(domain.Cell{X: 9, Z: 23}), Weapon: "Weapon_GrenadeFrag"}
+	carrier := withWeapon(CombatPawnState{ID: "a", Cell: domain.Known(domain.Cell{X: 9, Z: 23})}, "Weapon_GrenadeFrag")
 	var hostiles []CombatPawnState
 	for id, c := range map[domain.PawnID]domain.Cell{"h1": {X: 9, Z: 13}, "h2": {X: 10, Z: 13}, "h3": {X: 9, Z: 12}, "h4": {X: 5, Z: 16}} {
 		hostiles = append(hostiles, CombatPawnState{ID: id, Cell: domain.Known(c)})

@@ -939,7 +939,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// answering it with a generator is not, so the goal stays open with no
 	// method (it neither extends the startup hold nor is cancelled) until
 	// the flare ends and the planner can tell an outage from a shortfall.
-	flare := SolarFlareHold(f.DisasterConditions)
+	flare := PowerOutageHold(f.DisasterConditions)
 	if !positive(powerMet) {
 		addGoal(EnsureBasicPower, 2)
 		r.Goals[len(r.Goals)-1].MethodUnavailable = flare

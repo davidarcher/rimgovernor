@@ -851,8 +851,8 @@ type Combat struct {
 	// HiveTemperatureC is the hottest live hive's temperature (#1073).
 	HiveTemperatureC domain.Fact[float64]
 	Frame            *o.BundleSnapshot
-	// Catalog is the definition catalog, read only when Detail holds a mech
-	// row (#1736).
+	// Catalog is the load's definition catalog: the mech kinds (#1736) and
+	// the weapons' def rows (#1723) resolve against it.
 	Catalog *DefinitionCatalog
 }
 
@@ -874,15 +874,10 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 	if err != nil {
 		return Combat{}, err
 	}
-	// The mech guard orders resolve kinds against the Biotech catalog, read
-	// only when the frame holds a mech (#1736).
-	for row := range combat.Detail.Values() {
-		if row.GetBiotech().GetMech() != nil {
-			if combat.Catalog, err = caller.DefinitionCatalog(ctx, identity); err != nil {
-				return Combat{}, err
-			}
-			break
-		}
+	// The weapons' facts (#1723) and the mech guard orders (#1736) resolve
+	// against the catalog of the load.
+	if combat.Catalog, err = caller.DefinitionCatalog(ctx, identity); err != nil {
+		return Combat{}, err
 	}
 	return combat, nil
 }

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	snap "github.com/davidarcher/RimGovernor/go/internal/snapshot"
@@ -52,7 +51,7 @@ func replayCombat(path string) ([]combatReplayStop, error) {
 		if s.Frame == nil || domain.Tick(s.Frame.GetContext().GetTick()) != s.Tick {
 			return nil, fmt.Errorf("stop %d (tick %d): re-record: no frame at the stop's tick", i, s.Tick)
 		}
-		combat, err := bridge.DecodeCombat(s.Frame)
+		combat, err := decodeCombatWithCatalog(s.Frame)
 		if err != nil {
 			return nil, fmt.Errorf("stop %d (tick %d): %w", i, s.Tick, err)
 		}

@@ -9,16 +9,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildings bridge.Buildings) {
-	if !hasIssue(v.Issues, "environment") {
-		conditions := make([]policy.DisasterCondition, 0, len(v.Environment))
-		for _, row := range v.Environment {
-			condition := policy.DisasterCondition{ID: row.GetId(), Definition: row.GetDefName(), Permanent: row.GetPermanent()}
-			if row.TicksLeft != nil && !condition.Permanent && row.GetTicksLeft() >= 0 {
-				condition.TicksLeft = proto.Int64(row.GetTicksLeft())
-			}
-			conditions = append(conditions, condition)
+// colonyConditions are the frame's active game conditions, each with what its
+// def row says (a condition the catalog has no row for is an error); known is
+// false when the frame could not read the environment.
+func colonyConditions(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCatalog) (conditions []policy.DisasterCondition, known bool, err error) {
+	if hasIssue(v.Issues, "environment") {
+		return nil, false, nil
+	}
+	conditions = make([]policy.DisasterCondition, 0, len(v.Environment))
+	for _, row := range v.Environment {
+		condition := policy.DisasterCondition{ID: row.GetId(), Definition: row.GetDefName(), Permanent: row.GetPermanent()}
+		if condition.DisablesPower, err = catalog.DisablesElectricity(condition.Definition); err != nil {
+			return nil, false, err
 		}
+		if row.TicksLeft != nil && !condition.Permanent && row.GetTicksLeft() >= 0 {
+			condition.TicksLeft = proto.Int64(row.GetTicksLeft())
+		}
+		conditions = append(conditions, condition)
+	}
+	return conditions, true, nil
+}
+
+func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildings bridge.Buildings, conditions []policy.DisasterCondition, conditionsKnown bool) {
+	if conditionsKnown {
 		facts.DisasterConditions = domain.Known(conditions)
 	}
 	facts.DisasterTick = domain.Tick(v.Context.GetTick())

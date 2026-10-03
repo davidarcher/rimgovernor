@@ -19,7 +19,7 @@ func TestCombatPawnStatesWildSide(t *testing.T) {
 		{Id: proto.String("Thrumbo_1"), Side: mp.CombatSide_COMBAT_SIDE_WILD_ANIMAL.Enum(), Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(5)}, Health: proto.Float64(1)},
 		{Id: proto.String("Human_1"), Side: mp.CombatSide_COMBAT_SIDE_COLONIST.Enum(), Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}},
 	}}
-	got := combatPawnStates(combat, nil)
+	got := combatPawnStates(combat, nil, nil)
 	if len(got) != 2 || !got[0].Wild || got[0].Animal || got[0].Prisoner || got[1].Wild {
 		t.Fatalf("%+v", got)
 	}

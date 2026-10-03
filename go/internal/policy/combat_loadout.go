@@ -28,13 +28,6 @@ const (
 	loadoutPodsRange   = 26 // a close-range weapon: shotgun, SMG, pistol
 )
 
-// empWeapons are the EMP primaries a carrier throws or fires; the grenade
-// first (#1048: EMP is thrown as the carrier's equipped primary).
-var empWeapons = []string{"Weapon_GrenadeEMP", "Gun_EmpLauncher"}
-
-// bluntWeapons are the blunt melee weapons a warden subdues with.
-var bluntWeapons = map[string]bool{"MeleeWeapon_Club": true, "MeleeWeapon_Mace": true, "MeleeWeapon_Warhammer": true}
-
 // ClassifyLoadoutThreat names the loadout a fight's view calls for. A
 // prison break is not in the combat view; the caller says so.
 func ClassifyLoadoutThreat(view CombatView, prisonBreak bool) LoadoutThreat {
@@ -56,7 +49,7 @@ func ClassifyLoadoutThreat(view CombatView, prisonBreak bool) LoadoutThreat {
 		if strings.HasPrefix(p.Kind, "Mech_") {
 			return LoadoutEMP
 		}
-		if _, shielded := p.Shield.Value(); shielded && !rangedDef(p.Weapon) {
+		if _, shielded := p.Shield.Value(); shielded && !p.WeaponFacts.Ranged {
 			return LoadoutEMP
 		}
 		tribal = tribal || strings.HasPrefix(p.Kind, "Tribal_")
@@ -65,10 +58,6 @@ func ClassifyLoadoutThreat(view CombatView, prisonBreak bool) LoadoutThreat {
 		return LoadoutTribal
 	}
 	return LoadoutNone
-}
-
-func rangedDef(def string) bool {
-	return strings.HasPrefix(def, "Gun_") || strings.HasPrefix(def, "Bow_")
 }
 
 // LoadoutDefender is one defender the loadout may re-equip.
@@ -82,6 +71,8 @@ type LoadoutDefender struct {
 	// shield belt.
 	Primary    string
 	ShieldBelt bool
+	// PrimaryFacts is the primary's def rows (#1723).
+	PrimaryFacts WeaponDef
 }
 
 // LoadoutApparel is one stocked, unworn shield belt.
@@ -122,7 +113,7 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 	take := func(d LoadoutDefender, fits func(EquipCandidateWeapon) bool, better func(a, b EquipCandidateWeapon) bool) {
 		best := -1
 		for i, w := range weapons {
-			if used[w.Thing] || !fits(w) || ScoreWeapon(loadoutPawn(d), w) <= 0 && !isEMP(w.Definition) {
+			if used[w.Thing] || !fits(w) || ScoreWeapon(loadoutPawn(d), w) <= 0 && !w.Facts.EMP {
 				continue
 			}
 			if best < 0 || better(w, weapons[best]) {
@@ -166,7 +157,7 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 	case LoadoutEMP:
 		carried := map[string]bool{}
 		for _, d := range defenders {
-			if isEMP(d.Primary) {
+			if d.PrimaryFacts.EMP {
 				carried[d.Squad] = true
 			}
 		}
@@ -185,14 +176,16 @@ func ThreatLoadout(threat LoadoutThreat, defenders []LoadoutDefender, weapons []
 		}
 		sort.Strings(squads)
 		for _, s := range squads {
-			take(carrier[s], func(w EquipCandidateWeapon) bool { return isEMP(w.Definition) }, func(a, b EquipCandidateWeapon) bool {
-				return empRank(a.Definition) < empRank(b.Definition)
+			// The grenade first (#1048: EMP is thrown as the carrier's equipped
+			// primary): the shorter-ranged EMP weapon is the grenade.
+			take(carrier[s], func(w EquipCandidateWeapon) bool { return w.Facts.EMP }, func(a, b EquipCandidateWeapon) bool {
+				return a.Facts.Range < b.Facts.Range
 			})
 		}
 	case LoadoutPrisonBreak:
 		for _, d := range defenders {
-			if d.Warden && loadoutReady(d) && !bluntWeapons[d.Primary] {
-				take(d, func(w EquipCandidateWeapon) bool { return bluntWeapons[w.Definition] }, byDPS)
+			if d.Warden && loadoutReady(d) && !d.PrimaryFacts.Blunt {
+				take(d, func(w EquipCandidateWeapon) bool { return w.Facts.Blunt }, byDPS)
 			}
 		}
 	}
@@ -235,18 +228,8 @@ func loadoutMelee(d LoadoutDefender) bool {
 	if d.Role == WeaponRoleMelee || d.Profile.Effects.MeleeOnly || d.ShootingDisabled {
 		return true
 	}
-	return strings.HasPrefix(d.Primary, "MeleeWeapon_")
+	return d.PrimaryFacts.Melee
 }
 
 func shooting(d LoadoutDefender) int { return d.Profile.Skills["Shooting"].Level }
 
-func isEMP(def string) bool { return empRank(def) < len(empWeapons) }
-
-func empRank(def string) int {
-	for i, e := range empWeapons {
-		if e == def {
-			return i
-		}
-	}
-	return len(empWeapons)
-}

@@ -200,23 +200,23 @@ func TestReviewDisasterRejectsInconsistentDuration(t *testing.T) {
 	}
 }
 
-func TestConditionRemainingTicksAndSolarFlareHold(t *testing.T) {
+func TestConditionRemainingTicksAndPowerOutageHold(t *testing.T) {
 	flare := int64(12000)
-	untimed := domain.Known([]DisasterCondition{{ID: "f", Definition: ConditionSolarFlare}})
-	timed := domain.Known([]DisasterCondition{{ID: "f", Definition: ConditionSolarFlare, TicksLeft: &flare}, {ID: "c", Definition: ConditionColdSnap, TicksLeft: &flare}})
-	if _, known := ConditionRemainingTicks(domain.Unknown[[]DisasterCondition](), ConditionSolarFlare).Value(); known {
+	untimed := domain.Known([]DisasterCondition{{ID: "f", Definition: "SolarFlare", DisablesPower: true}})
+	timed := domain.Known([]DisasterCondition{{ID: "f", Definition: "SolarFlare", DisablesPower: true, TicksLeft: &flare}, {ID: "c", Definition: ConditionColdSnap, TicksLeft: &flare}})
+	if _, known := ConditionRemainingTicks(domain.Unknown[[]DisasterCondition](), "SolarFlare").Value(); known {
 		t.Fatal("unknown census produced a duration")
 	}
-	if got, known := ConditionRemainingTicks(untimed, ConditionSolarFlare).Value(); !known || got != 0 {
+	if got, known := ConditionRemainingTicks(untimed, "SolarFlare").Value(); !known || got != 0 {
 		t.Fatal(got, known)
 	}
-	if got, known := ConditionRemainingTicks(timed, ConditionSolarFlare).Value(); !known || got != flare {
+	if got, known := ConditionRemainingTicks(timed, "SolarFlare").Value(); !known || got != flare {
 		t.Fatal(got, known)
 	}
 	if got, known := ConditionRemainingTicks(timed, ConditionVolcanicWinter).Value(); !known || got != 0 {
 		t.Fatal(got, known)
 	}
-	if SolarFlareHold(untimed) || SolarFlareHold(domain.Unknown[[]DisasterCondition]()) || !SolarFlareHold(timed) {
+	if PowerOutageHold(untimed) || PowerOutageHold(domain.Unknown[[]DisasterCondition]()) || !PowerOutageHold(timed) {
 		t.Fatal("solar flare hold follows the remaining-duration read")
 	}
 	if got := GrowthPauseDays(timed); got != 0.2 {

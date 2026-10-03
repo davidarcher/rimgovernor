@@ -27,10 +27,10 @@ func prisonView(weapons map[domain.PawnID]string) CombatView {
 		if !ok {
 			continue
 		}
-		d := squadDefender(id, rangedDef(w))
-		d.Armed, d.MeleeEquipped, d.Warden = domain.Known(w != ""), domain.Known(w != "" && !rangedDef(w)), true
+		d := squadDefender(id, coreWeapons[w].Ranged)
+		d.Armed, d.MeleeEquipped, d.Warden = domain.Known(w != ""), domain.Known(w != "" && !coreWeapons[w].Ranged), true
 		view.Defenders = append(view.Defenders, d)
-		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: x, Z: 20}), Stance: StanceIdle, Weapon: w, FireMode: FireAtWill})
+		view.Pawns = append(view.Pawns, CombatPawnState{ID: id, Cell: domain.Known(domain.Cell{X: x, Z: 20}), Stance: StanceIdle, Weapon: w, WeaponFacts: coreWeapons[w], FireMode: FireAtWill})
 		view.Orderable = append(view.Orderable, id)
 		x++
 	}

@@ -3,7 +3,6 @@ package policy
 import (
 	"slices"
 	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -27,8 +26,8 @@ var prisonLethal = map[string]bool{
 
 // prisonSafeRanged is a low-DPS ranged weapon: no sniper, heavy, rocket,
 // launcher or grenade.
-func prisonSafeRanged(def string) bool {
-	return rangedDef(def) && !prisonLethal[def] && !strings.Contains(def, "Rocket") && !strings.Contains(def, "Launcher")
+func prisonSafeRanged(def string, facts WeaponDef) bool {
+	return facts.Ranged && !prisonLethal[def] && !facts.Explosive
 }
 
 // escapees are the live prison-breaking prisoners in id order.
@@ -140,15 +139,16 @@ func prisonBlocked(roles []CombatRole, out []CombatPawnState, state map[domain.P
 // defender left with a low-DPS gun is a ranged warden; the rest stay out.
 func prisonFormation(view CombatView, out []CombatPawnState) []CombatRole {
 	weapon := map[domain.PawnID]string{}
+	facts := map[domain.PawnID]WeaponDef{}
 	for _, p := range view.Pawns {
-		weapon[p.ID] = p.Weapon
+		weapon[p.ID], facts[p.ID] = p.Weapon, p.WeaponFacts
 	}
 	var melee, ranged []SquadDefenderFacts
 	for _, d := range byArmor(slices.Clone(view.Defenders)) {
 		switch {
 		case !squadDefenderEligible(d):
-		case positive(d.RangedEquipped) || rangedDef(weapon[d.ID]):
-			if prisonSafeRanged(weapon[d.ID]) {
+		case positive(d.RangedEquipped) || facts[d.ID].Ranged:
+			if prisonSafeRanged(weapon[d.ID], facts[d.ID]) {
 				ranged = append(ranged, d)
 			}
 		default:
@@ -156,10 +156,10 @@ func prisonFormation(view CombatView, out []CombatPawnState) []CombatRole {
 		}
 	}
 	grip := func(d SquadDefenderFacts) int {
-		switch w := weapon[d.ID]; {
-		case bluntWeapons[w]:
+		switch {
+		case facts[d.ID].Blunt:
 			return 0
-		case w == "" && !positive(d.Armed):
+		case weapon[d.ID] == "" && !positive(d.Armed):
 			return 1
 		}
 		return 2

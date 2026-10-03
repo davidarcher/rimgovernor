@@ -29,7 +29,7 @@ func mechChokeView(t *testing.T, weapon string) (CombatView, CombatMemory) {
 		}
 		switch p.ID {
 		case "a":
-			p.Weapon, p.WeaponRange = weapon, 0
+			p.Weapon, p.WeaponFacts, p.WeaponRange = weapon, coreWeapons[weapon], 0
 		case "e":
 			p.Target, p.Stance = "r1", StanceMelee
 		case "r1":
@@ -59,7 +59,7 @@ func TestMechEMPOnlyChokeScythers(t *testing.T) {
 	view, memory := mechChokeView(t, "Weapon_GrenadeEMP")
 	orders, _ := decideAny(t, view, StopEvent{Kind: StopMeleeContact, Pawn: "r1", Target: "e"}, memory)
 	ground := groundOrders(orders)
-	if len(ground) != 1 || ground[0].Pawn != "a" || dist(ground[0].Cell, domain.Cell{X: 9, Z: 17}) > grenadeBlast["Weapon_GrenadeEMP"] {
+	if len(ground) != 1 || ground[0].Pawn != "a" || dist(ground[0].Cell, domain.Cell{X: 9, Z: 17}) > coreWeapons["Weapon_GrenadeEMP"].Blast {
 		t.Fatalf("want one EMP onto r1: %+v", orders)
 	}
 	for _, b := range []domain.Cell{{X: 10, Z: 18}, {X: 9, Z: 18}, {X: 8, Z: 18}} {
@@ -125,7 +125,7 @@ func TestMechDisengageBeforeReactivate(t *testing.T) {
 // {a Molotov carrier, only mechs in reach} -> no throw; with a raider in
 // the mix the Molotov counts the raider only.
 func TestNoIncendiaryOnMechs(t *testing.T) {
-	carrier := CombatPawnState{ID: "a", Cell: domain.Known(domain.Cell{X: 9, Z: 23}), Weapon: "Weapon_GrenadeMolotov"}
+	carrier := withWeapon(CombatPawnState{ID: "a", Cell: domain.Known(domain.Cell{X: 9, Z: 23})}, "Weapon_GrenadeMolotov")
 	mechs := []CombatPawnState{
 		{ID: "m1", Kind: "Mech_Scyther", Cell: domain.Known(domain.Cell{X: 9, Z: 14})},
 		{ID: "m2", Kind: "Mech_Lancer", Cell: domain.Known(domain.Cell{X: 10, Z: 14})},
