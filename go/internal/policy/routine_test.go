@@ -14,11 +14,12 @@ func stableRoutine() RoutineFacts {
 	}
 	return RoutineFacts{
 		BabyFeeding:         domain.Known(BabyFeeding{}),
+		Pollution:           domain.Known(PollutionFacts{UncoveredCells: domain.Known(uint32(0))}),
 		ButcherBenches:      domain.Known([]ButcherBench{{ID: "bench"}}),
 		CurrentConstruction: domain.Known(CurrentConstruction{Colony: true}),
 		ConstructionClaims:  domain.Known([]ConstructionClaim{}), MapBounds: domain.Known(Bounds{Width: 250, Height: 250}),
 		HomeCoverage:      domain.Known(HomeCoverageObservation{Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)}),
-		SleepingRecovered: domain.Known(true), SculptureRoomsOwed: domain.Known(false), SafeAreaOwed: domain.Known(false), FirebreakOwed: domain.Known(false), MechGestationOwed: domain.Known(false), PsylinkOwed: domain.Known(false), RolesOwed: domain.Known(false), RitualsOwed: domain.Known(false), Royalty: domain.Known(RoyaltyFacts{}),
+		SleepingRecovered: domain.Known(true), SculptureRoomsOwed: domain.Known(false), SafeAreaOwed: domain.Known(false), FirebreakOwed: domain.Known(false), MechGestationOwed: domain.Known(false), PsylinkOwed: domain.Known(false), RolesOwed: domain.Known(false), MechChargerOwed: domain.Known(false), RitualsOwed: domain.Known(false), Royalty: domain.Known(RoyaltyFacts{}),
 		AnimalUpkeep:         AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{}), WildAnimals: domain.Known([]UpkeepAnimal{})},
 		Prisoners:            domain.Known([]PrisonerFacts{}),
 		Waste:                domain.Known([]WasteItem{}),

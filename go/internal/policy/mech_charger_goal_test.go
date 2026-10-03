@@ -6,15 +6,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestEnsureMechChargerOnlyExistsWhereTheNeedIsKnown(t *testing.T) {
+func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	t.Parallel()
 	f := stableRoutine()
 	f.MechChargerOwed = domain.Unknown[bool]()
 	r := needs(t, f, RoutineLatches{})
-	for _, a := range r.All() {
-		if a.ID == EnsureMechCharger {
-			t.Fatal("no charger fact, no assessment", a)
-		}
+	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.NeedUnknown {
+		t.Fatal("no charger fact: an unknown assessment and no goal", r)
 	}
 	f.AvailableMethods = domain.Known([]GoalID{EnsureMechCharger})
 	f.MechChargerOwed = domain.Known(true)

@@ -13,6 +13,22 @@ import (
 func routineRequest() RoutineReviewRequest {
 	return RoutineReviewRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}}
 }
+
+// A review whose facts carry the Biotech pollution read binds the same goals
+// the loader derives from empty facts, so the stored review loads back.
+func TestRoutineReviewWithPollutionFactsLoads(t *testing.T) {
+	t.Parallel()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Facts.Pollution = domain.Known(policy.PollutionFacts{UncoveredCells: domain.Known(uint32(0))})
+	r.Facts.MechChargerOwed = domain.Known(false)
+	out := reviewRoutine(t, s, &r)
+	loaded, err := s.LoadRoutineReview(context.Background())
+	if err != nil || !reflect.DeepEqual(out.Review, loaded) {
+		t.Fatal(loaded, err)
+	}
+}
+
 func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalState {
 	t.Helper()
 	for i, b := range r.Review.Goals {

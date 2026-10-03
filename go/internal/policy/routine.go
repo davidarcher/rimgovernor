@@ -401,11 +401,11 @@ type RoutineFacts struct {
 	Blight domain.Fact[[]BlightedPlant]
 	// Pollution carries ManagePollution's wastepack verdicts and the polluted
 	// cells outside the clear area (the Biotech colony section, #1679); unknown
-	// without Biotech or when the read failed, and then no assessment exists.
+	// without Biotech or when the read failed, and then the need is unknown.
 	Pollution domain.Fact[PollutionFacts]
 	// MechChargerOwed is whether the colony owes one more mech charger
 	// (MechChargerNeed, #1688); unknown without Biotech, mechs or chargers
-	// read, and then EnsureMechCharger has no assessment.
+	// read, and then the EnsureMechCharger need is unknown.
 	MechChargerOwed domain.Fact[bool]
 	// LayoutTidy is the layout tidying review (#611) the reviewer measures
 	// from the room census against each room's derived interior plan;
@@ -1549,24 +1549,22 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// deficit; availability is gated below through AvailableMethods.
 		addGoal(RemoveBlight, 3)
 	}
-	// ManagePollution (#1683) exists only where the Biotech read is known, so
-	// colonies without it keep their goal list unchanged.
-	if _, biotech := f.Pollution.Value(); biotech {
-		pollutionCleared := domain.Unknown[bool]()
-		if deficit, known := PollutionDeficit(f.Pollution).Value(); known {
-			pollutionCleared = domain.Known(!deficit)
-		}
-		addAssessment(ManagePollution, 3, pollutionCleared)
-		if !positive(pollutionCleared) {
-			addGoal(ManagePollution, 3)
-		}
+	// ManagePollution (#1683): without the Biotech read the need is unknown
+	// and raises no goal. It is always assessed so the stored bindings match
+	// the set the review loader derives from empty facts.
+	pollutionCleared := domain.Unknown[bool]()
+	if deficit, known := PollutionDeficit(f.Pollution).Value(); known {
+		pollutionCleared = domain.Known(!deficit)
 	}
-	// EnsureMechCharger (#1688) exists only where the charger need is known.
-	if owed, known := f.MechChargerOwed.Value(); known {
-		addAssessment(EnsureMechCharger, 3, domain.Known(!owed))
-		if owed {
-			addGoal(EnsureMechCharger, 3)
-		}
+	addAssessment(ManagePollution, 3, pollutionCleared)
+	if _, biotech := f.Pollution.Value(); biotech && !positive(pollutionCleared) {
+		addGoal(ManagePollution, 3)
+	}
+	// EnsureMechCharger (#1688): unknown without the charger read, and then
+	// it raises no goal. Always assessed, like ManagePollution above.
+	addAssessment(EnsureMechCharger, 3, measured(f.MechChargerOwed, func(owed bool) bool { return !owed }))
+	if owed, known := f.MechChargerOwed.Value(); known && owed {
+		addGoal(EnsureMechCharger, 3)
 	}
 	// TidyLayout (#611) is census-driven too: the layout review measures
 	// off-plan furniture against each room's interior plan and stands a
@@ -1648,10 +1646,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// but its method capability is declared at composition time, before
 		// any facts are read; it must validate against empty facts too.
 		recognized[RecoverDisasterServices] = true
-		// ManagePollution is assessed only on a colony whose Biotech read is
-		// known (#1683); its capability is declared the same way.
-		recognized[ManagePollution] = true
-		recognized[EnsureMechCharger] = true
 		for _, id := range methods {
 			if !recognized[id] || available[id] {
 				return RoutineNeeds{}, errors.New("invalid routine method capability " + string(id))

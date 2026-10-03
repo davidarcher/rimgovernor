@@ -8,15 +8,13 @@ import (
 
 func yes(v bool) domain.Fact[bool] { return domain.Known(v) }
 
-func TestManagePollutionOnlyExistsWithBiotechFacts(t *testing.T) {
+func TestManagePollutionRaisesGoalOnlyWithBiotechFacts(t *testing.T) {
 	t.Parallel()
 	f := stableRoutine()
 	f.Pollution = domain.Unknown[PollutionFacts]()
 	r := needs(t, f, RoutineLatches{})
-	for _, a := range r.All() {
-		if a.ID == ManagePollution {
-			t.Fatal("no Biotech fact, no assessment", a)
-		}
+	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.NeedUnknown {
+		t.Fatal("no Biotech fact: an unknown assessment and no goal", r)
 	}
 	f.Pollution = domain.Known(PollutionFacts{
 		Wastepacks:     []Wastepack{{ID: "Wastepack1", Frozen: yes(false), InAtomizer: yes(false), Forbidden: yes(false)}},
