@@ -85,6 +85,10 @@ func (caller *Client) FrameBuildings(ctx context.Context, identity *c.Identity) 
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, err
 	}
+	if caller.frames != nil {
+		held, err := caller.frameHeld(ctx, frameBuildingsMethod, identity)
+		return held.buildings, err
+	}
 	request := buildingsListRequest(identity)
 	reply := &o.ListBuildingsReply{}
 	served, err := caller.frameRead(ctx, "rimgovernor/observations_list_buildings", request, reply)

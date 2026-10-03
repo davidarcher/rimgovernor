@@ -151,10 +151,83 @@ func TestRowTableUpdatesInPlace(t *testing.T) {
 	}
 	table := h.tables["buildings"].(*buildingTable).rows
 	if allocs := testing.AllocsPerRun(100, func() {
-		table.apply([]*o.BuildingState{rows[3]}, nil)
+		table.apply([]*o.BuildingState{rows[3]}, nil, v.Context)
 		table.list()
 	}); allocs != 0 {
 		t.Fatalf("a one-row delta allocated %v times", allocs)
+	}
+}
+
+func rowPawn(id string) *o.PawnState {
+	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}}
+}
+
+// TestHeldPawnTableValidatesChangedRows (#1578): rows are validated as they
+// arrive, a bad row fails the table until a delta replaces or removes it,
+// and a frozen copy handed to a reader never changes under a later delta.
+func TestHeldPawnTableValidatesChangedRows(t *testing.T) {
+	var h sectionHold
+	pawnFrame := func(tick int64, p *o.PawnSnapshot, seq uint64, delta bool, base uint64) *o.BundleSnapshot {
+		ctx := &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(tick), NativeGeneration: proto.Uint64(7)}
+		v := &o.BundleSnapshot{Context: ctx, Pawns: p}
+		w := &o.SectionWatermark{Section: proto.String("pawns"), Seq: proto.Uint64(seq)}
+		if delta {
+			w.Delta, w.BaseSeq = proto.Bool(true), proto.Uint64(base)
+		}
+		v.Watermarks = []*o.SectionWatermark{w}
+		return v
+	}
+	h.fill(pawnFrame(1, &o.PawnSnapshot{Pawns: []*o.PawnState{rowPawn("a"), rowPawn("b")}}, 1, false, 0))
+	if err := h.pawnTable().err(); err != nil {
+		t.Fatal(err)
+	}
+	ctx := &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(1), NativeGeneration: proto.Uint64(7)}
+	first := h.pawnTable().frozen(ctx)
+	bad := rowPawn("b")
+	bad.AnimalState = &o.AnimalState{Contained: proto.Bool(false), MinimumHandlingSkill: proto.Int32(-1)}
+	h.fill(pawnFrame(2, &o.PawnSnapshot{Pawns: []*o.PawnState{bad, rowPawn("c")}}, 2, true, 1))
+	if h.pawnTable().err() == nil {
+		t.Fatal("an invalid changed row was accepted")
+	}
+	h.fill(pawnFrame(3, &o.PawnSnapshot{Removed: []string{"b"}}, 3, true, 2))
+	if err := h.pawnTable().err(); err != nil {
+		t.Fatalf("after the bad row left: %v", err)
+	}
+	if len(first.Pawns) != 2 || first.Pawns[1].GetPawn().GetId() != "b" || first.Pawns[1].AnimalState != nil {
+		t.Fatalf("a frozen copy changed: %v", first.Pawns)
+	}
+	now := h.pawnTable().frozen(ctx)
+	if len(now.Pawns) != 2 || now.Pawns[0].GetPawn().GetId() != "a" || now.Pawns[1].GetPawn().GetId() != "c" {
+		t.Fatalf("held table %v", now.Pawns)
+	}
+	if again := h.pawnTable().frozen(ctx); &again.Pawns[0] != &now.Pawns[0] {
+		t.Fatal("the frozen copy was rebuilt without a change")
+	}
+}
+
+// TestFramesBuildNothingUnread (#1578): a delta frame encodes no reply
+// until a reader asks for it.
+func TestFramesBuildNothingUnread(t *testing.T) {
+	s := &frameStream{}
+	frame := func(v *o.BundleSnapshot) []byte {
+		payload, err := proto.Marshal(v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return payload
+	}
+	rows := []*o.BuildingState{rowBuilding("a", 1), rowBuilding("b", 2)}
+	if _, _, _, _, gap, _, _, err := s.frameTable(frame(rowFrame(1, &o.BuildingsSnapshot{Buildings: rows}, "buildings", 1, false, 0))); err != nil || gap {
+		t.Fatal(err, gap)
+	}
+	table, _, _, _, _, _, _, err := s.frameTable(frame(rowFrame(2, &o.BuildingsSnapshot{Buildings: []*o.BuildingState{rowBuilding("a", 9)}}, "buildings", 2, true, 1)))
+	if err != nil || len(table) == 0 {
+		t.Fatal(err, len(table))
+	}
+	for key, reply := range table {
+		if reply.payload != nil || reply.build == nil {
+			t.Fatalf("%s encoded before a read", key.method)
+		}
 	}
 }
 

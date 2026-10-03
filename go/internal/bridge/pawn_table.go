@@ -21,6 +21,12 @@ func (p Pawns) Row(ref Reference) (*o.PawnState, bool) {
 	return row, ok && row != nil
 }
 
+// pawnLookup resolves pawn references against a pawn table: a Pawns map,
+// or the hold's live table while its frame is decoded.
+type pawnLookup interface {
+	Row(ref Reference) (*o.PawnState, bool)
+}
+
 // Tables are a frame's keyed row tables (#1343), what every reference in
 // its other sections resolves against.
 type Tables struct {
@@ -76,11 +82,16 @@ func PawnTable(v *o.PawnSnapshot, identity *c.Identity) (Pawns, error) {
 // Snapshot is the rows of ids in id order as a list read answers them,
 // false when the table misses one.
 func (p Pawns) Snapshot(context *c.ObservationContext, ids []string) (*o.PawnSnapshot, bool) {
+	return pawnSnapshot(context, ids, p)
+}
+
+// pawnSnapshot is the rows of ids in id order, false when rows misses one.
+func pawnSnapshot(context *c.ObservationContext, ids []string, rows pawnLookup) (*o.PawnSnapshot, bool) {
 	sorted := slices.Clone(ids)
 	slices.Sort(sorted)
 	out := &o.PawnSnapshot{Context: context, Completeness: &o.Completeness{}}
 	for _, id := range sorted {
-		row, ok := p[id]
+		row, ok := rows.Row(&c.Ref{Id: &id})
 		if !ok {
 			return nil, false
 		}
@@ -101,6 +112,16 @@ func uniqueRef(e *c.Ref, seen map[string]bool) bool {
 // FrameTables is the keyed tables of the newest frame, or each one's list
 // read over GABP without a stream.
 func (caller *Client) FrameTables(ctx context.Context, identity *c.Identity) (Tables, error) {
+	if caller.frames != nil {
+		if err := ValidateIdentity(identity); err != nil {
+			return Tables{}, err
+		}
+		held, err := caller.frameHeld(ctx, framePawnsMethod, identity)
+		if err != nil {
+			return Tables{}, err
+		}
+		return Tables{Buildings: held.buildings, Pawns: held.pawns, Things: held.things}, nil
+	}
 	buildings, err := caller.FrameBuildings(ctx, identity)
 	if err != nil {
 		return Tables{}, err
@@ -109,11 +130,18 @@ func (caller *Client) FrameTables(ctx context.Context, identity *c.Identity) (Ta
 	if err != nil {
 		return Tables{}, err
 	}
-	things, err := caller.FrameThings(ctx, identity)
-	if err != nil {
-		return Tables{}, err
+	return Tables{Buildings: buildings, Pawns: pawns, Things: Things{}}, nil
+}
+
+// frameHeld is the hold's keyed tables as of the newest frame past this
+// client's last write that carries method's table: the frame is read from
+// the stream, the tables from the hold, never from the frame's encoding.
+func (caller *Client) frameHeld(ctx context.Context, method string, identity *c.Identity) (heldTables, error) {
+	var held heldTables
+	if _, err := caller.frameReadView(ctx, method, readCacheKey{method: method}, identity, false, nil, func(s *frameStream) { held = s.heldTables() }); err != nil {
+		return heldTables{}, err
 	}
-	return Tables{Buildings: buildings, Pawns: pawns, Things: things}, nil
+	return held, held.err
 }
 
 // framePawnsMethod keys a frame's pawn table in its read table,
@@ -123,6 +151,16 @@ const framePawnsMethod = "rimgovernor/snapshot_frame_pawns"
 // FramePawns is the pawn table of the newest frame, or every spawned pawn
 // read over GABP without a stream.
 func (caller *Client) FramePawns(ctx context.Context, identity *c.Identity) (Pawns, error) {
+	if err := ValidateIdentity(identity); err != nil {
+		return nil, err
+	}
+	if caller.frames != nil {
+		held, err := caller.frameHeld(ctx, framePawnsMethod, identity)
+		if err != nil {
+			return nil, err
+		}
+		return held.pawns, nil
+	}
 	v, err := caller.framePawnSnapshot(ctx, identity)
 	if err != nil {
 		return nil, err
@@ -136,14 +174,11 @@ func (caller *Client) framePawnSnapshot(ctx context.Context, identity *c.Identit
 		return nil, err
 	}
 	if caller.frames != nil {
-		reply := &o.PawnSnapshot{}
-		served, err := caller.frameReadKey(ctx, framePawnsMethod, readCacheKey{method: framePawnsMethod}, identity, false, reply)
+		held, err := caller.frameHeld(ctx, framePawnsMethod, identity)
 		if err != nil {
 			return nil, err
 		}
-		if served {
-			return reply, nil
-		}
+		return held.pawnSnapshot, nil
 	}
 	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Details: &o.PawnDetails{Tend: proto.Bool(false)}}
 	reply := &o.ListPawnsReply{}

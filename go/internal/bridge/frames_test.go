@@ -200,6 +200,20 @@ type fakeRing struct {
 }
 
 func (r *fakeRing) publish(t *testing.T, v *o.BundleSnapshot, writes int64) {
+	// Native names every keyed table it carries in a watermark; a fixture
+	// frame that carries a table whole gets one.
+	for name, k := range keyedSections {
+		if k.get(v) == nil {
+			continue
+		}
+		marked := false
+		for _, w := range v.Watermarks {
+			marked = marked || w.GetSection() == name
+		}
+		if !marked {
+			v.Watermarks = append(v.Watermarks, &o.SectionWatermark{Section: proto.String(name), Seq: proto.Uint64(uint64(len(r.frames) + 1))})
+		}
+	}
 	payload, err := proto.Marshal(v)
 	if err != nil {
 		t.Fatal(err)

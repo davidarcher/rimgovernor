@@ -64,7 +64,8 @@ type frameStream struct {
 	epoch     uint64 // bumped by close: an open begun before it is discarded
 	number    uint64
 	identity  *c.Identity
-	table     map[readCacheKey][]byte
+	table     map[readCacheKey]*frameReply
+	context   *c.ObservationContext // the decoded frame's
 	// hold keeps the sections native omits while unchanged (#1347);
 	// keyframe asks native for a frame carrying every section after a
 	// seq gap.
@@ -74,6 +75,28 @@ type frameStream struct {
 	// the newest decoded frame's grid.
 	gridHold gridHold
 	grid     frameGrid
+}
+
+// frameReply is one reply a frame answers, encoded when first read: a
+// frame nobody reads costs no encoding. build runs under the stream's
+// lock before the next frame is applied, so it may read the hold's live
+// tables.
+type frameReply struct {
+	build   func() proto.Message
+	payload []byte
+	ok      bool
+}
+
+func (r *frameReply) bytes() ([]byte, bool) {
+	if r.build != nil {
+		if m := r.build(); m != nil {
+			if payload, err := proto.Marshal(m); err == nil {
+				r.payload, r.ok = payload, true
+			}
+		}
+		r.build = nil
+	}
+	return r.payload, r.ok
 }
 
 // readCacheKey names one reply a frame answers: the read's method and its
@@ -136,6 +159,13 @@ func (caller *Client) frameRead(ctx context.Context, name string, request, reply
 // the same world that answers the method only in other shapes, while no
 // subscription change is pending, sends the read over GABP instead.
 func (caller *Client) frameReadKey(ctx context.Context, name string, key readCacheKey, identity *c.Identity, fallback bool, reply proto.Message) (served bool, err error) {
+	return caller.frameReadView(ctx, name, key, identity, fallback, reply, nil)
+}
+
+// frameReadView is frameReadKey that also runs pick under the stream's
+// lock on the frame that answers, for the readers that take the hold's
+// keyed tables rather than an encoded reply; a nil reply decodes nothing.
+func (caller *Client) frameReadView(ctx context.Context, name string, key readCacheKey, identity *c.Identity, fallback bool, reply proto.Message, pick func(*frameStream)) (served bool, err error) {
 	s := caller.frames
 	ctx, cancel := context.WithTimeout(ctx, caller.timeout)
 	defer cancel()
@@ -169,7 +199,7 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 		if ok {
 			after = frame.Number
 			if frame.Writes >= needs {
-				payload, world, found, carries, decoded := s.lookup(frame, key)
+				payload, world, found, carries, decoded := s.lookup(frame, key, reply != nil, pick)
 				if decoded["gap"] == true {
 					caller.frameReader(ctx) // asks for the keyframe now
 				}
@@ -178,8 +208,10 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 				}
 				switch {
 				case found:
-					if err := proto.Unmarshal(payload, reply); err != nil {
-						return true, contract("frame reply decoding: %v", err)
+					if reply != nil {
+						if err := proto.Unmarshal(payload, reply); err != nil {
+							return true, contract("frame reply decoding: %v", err)
+						}
 					}
 					if caller.recorder != nil {
 						caller.recorder.Event("native_frame_hit", caller.snapshotRecordingContext(ctx), false, map[string]any{"tool": "games_call_tool", "native_tool": name, "frame": frame.Number})
@@ -206,12 +238,12 @@ func (caller *Client) frameReadKey(ctx context.Context, name string, key readCac
 // frame's size and cost (#858), one native_frame row per frame the
 // controller consumed. skipped counts the frames published since the last
 // one consumed and never read.
-func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any) {
+func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey, wantPayload bool, pick func(*frameStream)) (payload []byte, world *c.Identity, ok, carries bool, decoded map[string]any) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if frame.Number != s.number {
 		started := time.Now()
-		table, identity, held, gap, grid, gridKind, err := s.frameTable(frame.Payload)
+		table, identity, context, held, gap, grid, gridKind, err := s.frameTable(frame.Payload)
 		decoded = map[string]any{"frame": frame.Number, "bytes": len(frame.Payload), "capture_us": frame.CaptureMicros, "encode_us": frame.EncodeMicros,
 			"write_us": frame.WriteMicros, "decode_us": time.Since(started).Microseconds(), "replies": len(table)}
 		if s.number != 0 && frame.Number > s.number {
@@ -231,12 +263,20 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 			decoded["error"] = err.Error()
 			return nil, nil, false, false, decoded
 		}
-		s.number, s.table, s.identity = frame.Number, table, identity
+		s.number, s.table, s.identity, s.context = frame.Number, table, identity, context
 		if grid.grid != nil {
 			s.grid = grid
 		}
 	}
-	payload, ok = s.table[key]
+	if entry, present := s.table[key]; present {
+		ok = true
+		if wantPayload {
+			payload, ok = entry.bytes()
+		}
+		if ok && pick != nil {
+			pick(s)
+		}
+	}
 	for held := range s.table {
 		carries = carries || held.method == key.method
 	}
@@ -247,13 +287,13 @@ func (s *frameStream) lookup(frame snapshotshm.Frame, key readCacheKey) (payload
 // hold, into the replies its sections answer. held and gap are the hold's
 // (sectionHold.fill); grid is the frame's map grid and gridKind what it
 // carried (gridHold.apply), a grid gap also setting gap.
-func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte, world *c.Identity, held int, gap bool, grid frameGrid, gridKind string, err error) {
+func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey]*frameReply, world *c.Identity, ctx *c.ObservationContext, held int, gap bool, grid frameGrid, gridKind string, err error) {
 	v := &o.BundleSnapshot{}
 	if err := proto.Unmarshal(payload, v); err != nil {
-		return nil, nil, 0, false, frameGrid{}, "", err
+		return nil, nil, nil, 0, false, frameGrid{}, "", err
 	}
 	if err := ValidateContext(v.Context); err != nil {
-		return nil, nil, 0, false, frameGrid{}, "", err
+		return nil, nil, nil, 0, false, frameGrid{}, "", err
 	}
 	held, gap = s.hold.fill(v)
 	decodedGrid, gridKind, gridGap, gridErr := s.gridHold.apply(v)
@@ -263,16 +303,18 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 	}
 	var emergency EmergencyObservation
 	if v.Emergency != nil {
-		pawns, err := PawnTable(v.Pawns, v.Context.Identity)
-		if err != nil {
-			return nil, nil, held, gap, frameGrid{}, gridKind, err
+		pawns := pawnRows{s.hold.pawnTable()}
+		if pawns.t != nil {
+			if err := pawns.t.err(); err != nil {
+				return nil, nil, nil, held, gap, frameGrid{}, gridKind, err
+			}
 		}
 		if emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, v.Context.Identity); err != nil {
-			return nil, nil, held, gap, frameGrid{}, gridKind, err
+			return nil, nil, nil, held, gap, frameGrid{}, gridKind, err
 		}
 	}
-	table = map[readCacheKey][]byte{}
-	frameReplies(v, emergency, func(method string, request, reply proto.Message) {
+	table = map[readCacheKey]*frameReply{}
+	frameRepliesWith(v, emergency, &s.hold, func(method string, request proto.Message, reply func() proto.Message) {
 		var encoded []byte
 		if request != nil {
 			var err error
@@ -281,28 +323,39 @@ func (s *frameStream) frameTable(payload []byte) (table map[readCacheKey][]byte,
 				return
 			}
 		}
-		if payload, err := proto.Marshal(reply); err == nil {
-			table[readCacheKey{method: method, request: string(encoded)}] = payload
-		}
+		table[readCacheKey{method: method, request: string(encoded)}] = &frameReply{build: reply}
 	})
 	if decodedGrid != nil {
 		grid = frameGrid{context: v.Context, grid: decodedGrid, sky: v.GetSkyGlow()}
 		if payload, err := proto.Marshal(v.Context); err == nil {
-			table[readCacheKey{method: gridFrameMethod}] = payload
+			table[readCacheKey{method: gridFrameMethod}] = &frameReply{payload: payload, ok: true}
 		}
 	}
-	return table, v.Context.Identity, held, gap, grid, gridKind, nil
+	return table, v.Context.Identity, v.Context, held, gap, grid, gridKind, nil
 }
 
 // frameReplies hands seed every section of v as the (method, request,
-// reply) its dedicated read would have produced. The keyed tables are
-// views of the hold's persistent tables (#1578): a delta frame updates
-// them in place. The readers that still walk full copies are the replies
-// seeded below, each marshaling its table whole once per frame (the pawn,
-// thing and building table reads, the routine and combat frames, the
-// dedicated list reads); they are what remains of the full-table path.
-// Combat rows (CombatPawns) are not keyed and native sends them whole.
+// reply) its dedicated read would have produced, whole: a bundle read from
+// a recording or a step has its keyed tables as lists.
 func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func(method string, request, reply proto.Message)) {
+	frameRepliesWith(v, emergency, nil, func(method string, request proto.Message, reply func() proto.Message) {
+		seed(method, request, reply())
+	})
+}
+
+// frameRepliesWith is frameReplies for the live stream (#1578). Replies
+// are built when read, so a frame no consumer reads costs none. With hold,
+// v's keyed tables are views of the hold's persistent tables: the typed
+// table reads and the routine frame take them from the hold, and the
+// replies derived from them (the routine colonists, the built buildings,
+// the combat census) look rows up by id instead of walking the list. The
+// list reads that remain (the plain pawn and building lists, a combat
+// recording) marshal a table whole, and only when read. Combat rows
+// (CombatPawns) are not keyed and native sends them whole.
+func frameRepliesWith(v *o.BundleSnapshot, emergency EmergencyObservation, hold *sectionHold, seedLazy func(method string, request proto.Message, reply func() proto.Message)) {
+	seed := func(method string, request, reply proto.Message) {
+		seedLazy(method, request, func() proto.Message { return reply })
+	}
 	seed("rimgovernor/lifecycle_read_tick", &l.TickRequest{}, &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: v.Context, Paused: v.Paused}}})
 	identity := v.Context.Identity
 	if v.Emergency != nil {
@@ -314,9 +367,11 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 		// section the native answers it with (#984): without this shape
 		// every non-planning read missed the frame and hopped the game
 		// thread.
-		bare := proto.Clone(v.ColonyFacts).(*o.ColonyFactsSnapshot)
-		bare.Planning = NotRequestedPlanning()
-		seed("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, false), &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: bare}})
+		seedLazy("rimgovernor/observations_read_colony_facts", colonyFactsRequest(identity, false), func() proto.Message {
+			bare := proto.Clone(v.ColonyFacts).(*o.ColonyFactsSnapshot)
+			bare.Planning = NotRequestedPlanning()
+			return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: bare}}
+		})
 	}
 	if v.Population != nil {
 		seed("rimgovernor/observations_read_population", populationRequest(identity), &o.PopulationReply{Outcome: &o.PopulationReply_Observed{Observed: v.Population}})
@@ -329,15 +384,26 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	}
 	if v.Pawns != nil {
 		seed(framePawnsMethod, nil, v.Pawns)
-		if colonists, ok := routinePawns(v.Pawns, emergency); ok {
-			seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, routinePawnIDs(emergency), pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: colonists}})
-		}
+		seedLazy("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, routinePawnIDs(emergency), pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true}), func() proto.Message {
+			var colonists *o.PawnSnapshot
+			var ok bool
+			if hold != nil {
+				colonists, ok = routinePawnsHeld(v.Pawns, hold.pawnTable(), emergency)
+			} else {
+				colonists, ok = routinePawns(v.Pawns, emergency)
+			}
+			if !ok {
+				return nil
+			}
+			return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: colonists}}
+		})
 	}
 	if v.Buildings != nil {
+		seed(frameBuildingsMethod, nil, v.Buildings)
 		seed("rimgovernor/observations_list_buildings", buildingsListRequest(identity), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: v.Buildings}})
-	}
-	if built := builtBuildings(v.Buildings); built != nil {
-		seed("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: built}})
+		seedLazy("rimgovernor/observations_list_buildings", constructionBuildingsRequest(identity, nil), func() proto.Message {
+			return &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: builtBuildings(v.Buildings)}}
+		})
 	}
 	if v.Bills != nil {
 		seed("rimgovernor/observations_read_bills", billsListRequest(identity), &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: v.Bills}})
@@ -354,11 +420,42 @@ func frameReplies(v *o.BundleSnapshot, emergency EmergencyObservation, seed func
 	for _, sources := range v.ResourceSources {
 		seed("rimgovernor/observations_list_resource_sources", resourceSourcesRequest(identity, sources.GetResource()), &o.ResourceSourcesReply{Outcome: &o.ResourceSourcesReply_Observed{Observed: sources}})
 	}
-	seed(combatFrameMethod, nil, combatFrame(v))
-	seed(routineFrameMethod, nil, &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
-		Pawns: v.Pawns, Things: v.Things, Buildings: v.Buildings, Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression,
-		Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)})
+	seedLazy(combatFrameMethod, nil, func() proto.Message { return combatFrameHeld(v, hold) })
+	seedLazy(routineFrameMethod, nil, func() proto.Message {
+		routine := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, ColonyFacts: v.ColonyFacts, Population: v.Population, Research: v.Research,
+			Zones: v.Zones, Traders: v.Traders, WorldProgression: v.WorldProgression, Rooms: v.Rooms, CombatEvents: podArrivals(v.CombatEvents)}
+		if hold == nil {
+			// A whole bundle carries its tables; the stream's routine frame
+			// takes them from the hold (ReadRoutineFrame).
+			routine.Pawns, routine.Things, routine.Buildings = v.Pawns, v.Things, v.Buildings
+		}
+		return routine
+	})
 }
+
+// heldTables is the hold's keyed tables as frozen versions the reader may
+// keep (#1578): each is built once per changed table, however many reads
+// follow. A table the frame does not carry is empty. Call under s.mu.
+func (s *frameStream) heldTables() heldTables {
+	out := heldTables{pawns: Pawns{}, buildings: Buildings{}, things: Things{}}
+	if t := s.hold.pawnTable(); t != nil {
+		if out.err = t.err(); out.err == nil {
+			out.pawnSnapshot, out.pawns = t.frozen(s.context), Pawns(t.rows.freeze().byID)
+		}
+	}
+	if t := s.hold.buildingTable(); t != nil {
+		out.buildingSnapshot, out.buildings = t.frozen(s.context), Buildings(t.rows.freeze().byID)
+	}
+	if t := s.hold.thingTable(); t != nil && out.err == nil {
+		if out.err = t.err(); out.err == nil {
+			out.things = Things(t.rows.freeze().byID)
+		}
+	}
+	return out
+}
+
+// frameTablesMethods are the typed table reads' keys.
+const frameBuildingsMethod = "rimgovernor/snapshot_frame_buildings"
 
 // routineFrameMethod keys a frame's routine census sections in its table,
 // frames-only like combatFrameMethod.
@@ -412,11 +509,15 @@ func (caller *Client) ReadRoutineFrame(ctx context.Context, identity *c.Identity
 	if err != nil {
 		return RoutineFrame{}, err
 	}
+	var tables heldTables
 	reply := &o.BundleSnapshot{}
-	if _, err := caller.frameReadKey(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply); err != nil {
+	if _, err := caller.frameReadView(ctx, routineFrameMethod, readCacheKey{method: routineFrameMethod}, identity, true, reply, func(s *frameStream) { tables = s.heldTables() }); err != nil {
 		return RoutineFrame{}, err
 	}
-	frame, err := DecodeRoutineFrame(reply, catalog)
+	if tables.err != nil {
+		return RoutineFrame{}, tables.err
+	}
+	frame, err := decodeRoutineFrame(reply, catalog, tables)
 	if err != nil {
 		return RoutineFrame{}, err
 	}
@@ -437,7 +538,6 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 		return RoutineFrame{}, contract("routine frame without a context")
 	}
 	identity := v.Context.Identity
-	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Construction: builtBuildings(v.Buildings), Sites: v.Buildings, Catalog: catalog, Rooms: v.Rooms, Bills: v.Bills}
 	pawns, err := PawnTable(v.Pawns, identity)
 	if err != nil {
 		return RoutineFrame{}, err
@@ -446,14 +546,39 @@ func DecodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog) (Routin
 	if err != nil {
 		return RoutineFrame{}, err
 	}
-	out.Tables = Tables{Buildings: BuildingTable(v.Buildings), Pawns: pawns, Things: things}
+	return decodeRoutineFrame(v, catalog, heldTables{pawnSnapshot: v.Pawns, pawns: pawns, buildingSnapshot: v.Buildings, buildings: BuildingTable(v.Buildings), things: things})
+}
+
+// heldTables are the keyed tables a routine frame resolves against: the
+// stream's are frozen versions of the hold's persistent tables
+// (frameStream.heldTables), a recording's are indexed from its lists.
+// Snapshots are nil for a table the frame does not carry.
+type heldTables struct {
+	pawnSnapshot     *o.PawnSnapshot
+	pawns            Pawns
+	buildingSnapshot *o.BuildingsSnapshot
+	buildings        Buildings
+	things           Things
+	err              error
+}
+
+// decodeRoutineFrame decodes v's routine sections; its keyed tables are
+// tables, never v's lists.
+func decodeRoutineFrame(v *o.BundleSnapshot, catalog *DefinitionCatalog, tables heldTables) (RoutineFrame, error) {
+	identity := v.Context.Identity
+	out := RoutineFrame{Context: v.Context, Colony: v.ColonyFacts, Construction: builtBuildings(tables.buildingSnapshot), Sites: tables.buildingSnapshot, Catalog: catalog, Rooms: v.Rooms, Bills: v.Bills}
+	pawns := tables.pawns
+	var err error
+	out.Tables = Tables{Buildings: tables.buildings, Pawns: pawns, Things: tables.things}
 	if v.Emergency != nil {
 		if out.Emergency, err = DecodeEmergencyStatus(v.Emergency, pawns, identity); err != nil {
 			return RoutineFrame{}, err
 		}
 		podsPending(&out.Emergency, v.CombatEvents)
-		if colonists, ok := routinePawns(v.Pawns, out.Emergency); ok {
-			out.Pawns = colonists
+		if tables.pawnSnapshot != nil {
+			if colonists, ok := routinePawnRows(tables.pawnSnapshot, pawns, out.Emergency); ok {
+				out.Pawns = colonists
+			}
 		}
 	}
 	if v.Population != nil {
@@ -539,15 +664,33 @@ func podsPending(e *EmergencyObservation, events []*mp.CombatEventRow) {
 // list read answers them, false without a complete census or when the
 // table misses one.
 func routinePawns(table *o.PawnSnapshot, emergency EmergencyObservation) (*o.PawnSnapshot, bool) {
-	ids := routinePawnIDs(emergency)
-	if table == nil || len(ids) == 0 {
+	if table == nil {
 		return nil, false
 	}
 	rows := make(Pawns, len(table.Pawns))
 	for _, row := range table.Pawns {
 		rows[row.GetPawn().GetId()] = row
 	}
-	out, ok := rows.Snapshot(table.Context, ids)
+	return routinePawnRows(table, rows, emergency)
+}
+
+// routinePawnsHeld is routinePawns reading the rows from the held pawn
+// table, a lookup per census colonist.
+func routinePawnsHeld(table *o.PawnSnapshot, held *pawnTable, emergency EmergencyObservation) (*o.PawnSnapshot, bool) {
+	if table == nil || held == nil {
+		return nil, false
+	}
+	return routinePawnRows(table, pawnRows{held}, emergency)
+}
+
+// routinePawnRows answers the routine list read from table's envelope and
+// the rows census colonists resolve against.
+func routinePawnRows(table *o.PawnSnapshot, rows pawnLookup, emergency EmergencyObservation) (*o.PawnSnapshot, bool) {
+	ids := routinePawnIDs(emergency)
+	if len(ids) == 0 {
+		return nil, false
+	}
+	out, ok := pawnSnapshot(table.Context, ids, rows)
 	if ok {
 		out.MeditateAssignmentAvailable = table.MeditateAssignmentAvailable
 	}
@@ -749,8 +892,12 @@ func (caller *Client) ReadCombat(ctx context.Context, identity *c.Identity) (Com
 
 // combatFrame is the part of frame v a combat read answers: its pawn
 // table cut to the rows the emergency census references.
-func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
-	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
+func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot { return combatFrameHeld(v, nil) }
+
+// combatFrameHeld is combatFrame with the census rows looked up in the
+// hold's pawn table, when there is one, instead of walking v's list.
+func combatFrameHeld(v *o.BundleSnapshot, hold *sectionHold) *o.BundleSnapshot {
+	out := &o.BundleSnapshot{Context: v.Context, Emergency: v.Emergency, Pawns: censusPawns(v, hold), CombatPawns: v.CombatPawns, CombatEvents: v.CombatEvents, CombatLinesOfFire: v.CombatLinesOfFire, Rooms: v.Rooms, CombatDoors: v.CombatDoors, CombatMortars: v.CombatMortars, CombatHiveTemperatureC: v.CombatHiveTemperatureC}
 	if t := frameOutdoorC(v); t != nil {
 		out.ColonyFacts = &o.ColonyFactsSnapshot{OutdoorTemperatureC: t}
 	}
@@ -758,7 +905,7 @@ func combatFrame(v *o.BundleSnapshot) *o.BundleSnapshot {
 }
 
 // censusPawns is v's pawn table rows the emergency census references.
-func censusPawns(v *o.BundleSnapshot) *o.PawnSnapshot {
+func censusPawns(v *o.BundleSnapshot, hold *sectionHold) *o.PawnSnapshot {
 	if v.Pawns == nil || v.Emergency == nil {
 		return nil
 	}
@@ -779,6 +926,10 @@ func censusPawns(v *o.BundleSnapshot) *o.PawnSnapshot {
 		}
 	}
 	out := &o.PawnSnapshot{Context: v.Pawns.Context, Completeness: v.Pawns.Completeness, MeditateAssignmentAvailable: v.Pawns.MeditateAssignmentAvailable}
+	if table := hold.pawnTable(); table != nil {
+		out.Pawns = table.rows.pick(ids)
+		return out
+	}
 	for _, row := range v.Pawns.Pawns {
 		if ids[row.GetPawn().GetId()] {
 			out.Pawns = append(out.Pawns, row)

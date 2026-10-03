@@ -92,10 +92,6 @@ func (caller *Client) FrameThings(ctx context.Context, identity *c.Identity) (Th
 	if caller.frames == nil {
 		return Things{}, nil
 	}
-	reply := &o.ThingsSnapshot{}
-	served, err := caller.frameReadKey(ctx, frameThingsMethod, readCacheKey{method: frameThingsMethod}, identity, false, reply)
-	if err != nil || !served {
-		return Things{}, err
-	}
-	return ThingTable(reply, identity)
+	held, err := caller.frameHeld(ctx, frameThingsMethod, identity)
+	return held.things, err
 }

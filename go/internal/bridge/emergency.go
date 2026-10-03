@@ -53,7 +53,7 @@ func emergencyRequest(id *c.Identity) *o.StatusRequest {
 // Each pawn reference resolves against pawns, the frame's pawn table; one
 // the table lacks leaves that pawn's facts unknown until a later frame.
 // The returned facts carry no player authority or controller plan identity.
-func DecodeEmergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (EmergencyObservation, error) {
+func DecodeEmergencyStatus(v *o.StatusSnapshot, pawns pawnLookup, id *c.Identity) (EmergencyObservation, error) {
 	if err := ValidateIdentity(id); err != nil {
 		return EmergencyObservation{}, err
 	}
@@ -89,7 +89,7 @@ func emergencyIssues(issues []*o.ReadIssue, present func(string) bool) error {
 
 // emergencyPawn reads one census reference's facts from its table row,
 // returned too; an unresolved reference has only its id known.
-func emergencyPawn(ref *c.Ref, pawns Pawns) (policy.EmergencyPawn, *o.PawnState, error) {
+func emergencyPawn(ref *c.Ref, pawns pawnLookup) (policy.EmergencyPawn, *o.PawnState, error) {
 	if !uniqueRef(ref, map[string]bool{}) {
 		return policy.EmergencyPawn{}, nil, contract("emergency pawn reference malformed")
 	}
@@ -140,7 +140,7 @@ func emergencyFacts(row *o.PawnState) (policy.EmergencyPawn, error) {
 	}
 	return result, nil
 }
-func emergencyStatus(v *o.StatusSnapshot, pawns Pawns, id *c.Identity) (EmergencyObservation, error) {
+func emergencyStatus(v *o.StatusSnapshot, pawns pawnLookup, id *c.Identity) (EmergencyObservation, error) {
 	var result EmergencyObservation
 	if v == nil {
 		return result, contract("emergency status missing")
