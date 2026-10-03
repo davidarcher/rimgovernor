@@ -70,6 +70,12 @@ type ColonyStatusReport struct {
 	// with the research census has filed.
 	PlayerTechLevel domain.Fact[string]
 	BuildTier       domain.Fact[policy.BuildTier]
+	// Stockpiles counts the owned stockpile zones by role kind as the last
+	// stockpile review read them, and ForbiddenSupplies is whether starting
+	// supplies were still forbidden at the last routine review; both are
+	// unknown until a review with the fact has filed.
+	Stockpiles        domain.Fact[[]policy.StockpileRoleCount]
+	ForbiddenSupplies domain.Fact[bool]
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -147,6 +153,8 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		Shrines:              domain.Unknown[[]policy.AncientShrine](),
 		PlayerTechLevel:      optionalFact(observed.PlayerTechLevel),
 		BuildTier:            domain.Unknown[policy.BuildTier](),
+		Stockpiles:           domain.Unknown[[]policy.StockpileRoleCount](),
+		ForbiddenSupplies:    domain.Unknown[bool](),
 		Pawns:                []ColonyStatusPawn{},
 	}
 	if source, ok := s.native.(observation.ShrineSource); ok {
@@ -162,6 +170,10 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			if ak && bk && a == b {
 				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
+				report.ForbiddenSupplies = held.Value.Facts.ForbiddenSupplies
+				if review, known := held.Value.Facts.Stockpiles.Value(); known && review.Known {
+					report.Stockpiles = domain.Known(review.Zones)
+				}
 				if animals, known := held.Value.Facts.AnimalUpkeep.Animals.Value(); known {
 					report.PetLabels = map[policy.PawnID]string{}
 					for _, animal := range animals {

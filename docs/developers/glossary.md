@@ -29,6 +29,8 @@
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
 | Outpost | The dashboard's display name; repository and package names remain RimGovernor. |
 | Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
+| Storage planner | `policy.PlanStorage`: the one function that decides every room-bound stockpile (warehouse, yard, workstation, meal, medicine, food, gear); derived each pass, applied by `MaintainStockpiles`. See [storage](architecture/storage.md). |
+| Warehouse / yard | The roofed Low-priority general store (`indoor_only` filter) and the unroofed Low-priority store for items safe outside (`outdoor_safe` filter). |
 | Spoilage buffer | The margin `MaintainFoodStorage` tries to keep positive: perishable nutrition already stored, above the configured minimum share of total perishable nutrition on hand. |
 
 See [plans and Hands](architecture/plans-and-hands.md) for these terms in context.

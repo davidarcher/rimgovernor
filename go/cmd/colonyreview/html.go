@@ -85,6 +85,8 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <h2>Trends</h2><div class="charts">{{range .Charts}}<div class="chart"><span class="muted">{{.Label}}</span> <b>{{.Last}}</b>
 <svg viewBox="0 0 {{.W}} 100" preserveAspectRatio="none"><polyline points="{{.Points}}"/></svg>
 <span class="muted">{{.Min}} – {{.Max}}</span></div>{{end}}</div>
+<h2>Storage</h2>{{if .S.Zones}}<table>{{range .S.Zones}}<tr><td>{{.Role}}</td><td>{{.Zones}} zone{{if ne .Zones 1}}s{{end}}</td><td>{{.Used}} of {{.Cells}} cells in use</td></tr>{{end}}</table>
+<p class="muted">{{.S.ZoneDrops}} zone deletions or merges · starting supplies {{if .S.SuppliesForbidden}}<span class="warn">still forbidden</span>{{else}}allowed{{end}}</p>{{else}}<p class="muted">No stockpile review filed.</p>{{end}}
 <h2>Flags</h2>{{if .Flagged}}<ul class="flags">{{range .Flagged}}{{$a := .Anchor}}{{$d := .Label}}{{range .Flags}}<li class="{{.Severity}}"><a href="#{{$a}}">{{$d}}</a> {{.Text}}</li>{{end}}{{end}}</ul>{{else}}<p class="muted">None.</p>{{end}}
 <h2>Whole map, daily</h2><div class="days">{{range .Rows}}{{if .MapShot}}<figure><a href="review/{{.MapShot}}"><img loading="lazy" src="review/{{.MapShot}}" alt="Map {{.Label}}"></a><figcaption>{{.Label}}</figcaption></figure>{{end}}{{end}}</div>
 <h2>Hour by hour</h2>
@@ -94,7 +96,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 {{if .ColonyShot}}<a href="review/{{.ColonyShot}}"><img loading="lazy" src="review/{{.ColonyShot}}" alt="Colony {{.Label}}"></a>{{end}}
 <div class="body"><b>{{.Label}}</b> <span class="muted">tick {{.Tick}}{{if .Sampled}} · facts from {{.Sampled}}{{end}}</span><br>
 {{if .Census.Error}}<span class="muted">no colony readings this hour (the census call timed out)</span>{{end}}
-{{with .Census}}<span class="muted">food runway {{if .FoodRunwayDays}}{{f1 (deref .FoodRunwayDays)}}d{{end}} · wealth {{if .WealthTotal}}{{f0 (deref .WealthTotal)}}{{end}}{{if .BuildTier}} · {{deref .BuildTier}}{{end}}</span>
+{{with .Census}}<span class="muted">food runway {{if .FoodRunwayDays}}{{f1 (deref .FoodRunwayDays)}}d{{end}} · wealth {{if .WealthTotal}}{{f0 (deref .WealthTotal)}}{{end}}{{if .BuildTier}} · {{deref .BuildTier}}{{end}}{{if .Stockpiles}} · zones{{range .Stockpiles}} {{.Role}} {{.Zones}}{{end}}{{end}}{{if .ForbiddenSupplies}}{{if deref .ForbiddenSupplies}} · <span class="warn">supplies forbidden</span>{{end}}{{end}}</span>
 <table>{{range .Pawns}}<tr><td>{{.Label}}</td><td>mood {{pct .Mood}}</td><td>food {{pct .Food}}</td><td>{{if .Downed}}{{if deref .Downed}}<span class="bad">downed</span>{{end}}{{end}}</td></tr>{{end}}</table>{{end}}
 {{if .Flags}}<ul>{{range .Flags}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>{{end}}
 {{if .Changes}}<ul class="muted">{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}

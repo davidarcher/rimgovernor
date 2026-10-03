@@ -3,6 +3,7 @@ package policy
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -216,6 +217,43 @@ type StockpileReview struct {
 	Deferred int
 	Budget   int
 	Reason   string
+	// Zones counts the owned stockpile zones by role kind as the review
+	// read them, for the colony review's zone-count report.
+	Zones []StockpileRoleCount `json:",omitempty"`
+}
+
+// StockpileRoleCount is the owned zones of one role kind (the role key up
+// to its colon: general, yard, medicine, meals ...; untagged for a zone no
+// planner claimed): how many, their cells and the cells holding things.
+type StockpileRoleCount struct {
+	Role  string
+	Zones int
+	Cells int
+	Used  int
+}
+
+func stockpileRoleCounts(zones []StockpileZone) []StockpileRoleCount {
+	byRole := map[string]*StockpileRoleCount{}
+	for _, z := range zones {
+		kind, _, _ := strings.Cut(z.Role, ":")
+		if kind == "" {
+			kind = "untagged"
+		}
+		count := byRole[kind]
+		if count == nil {
+			count = &StockpileRoleCount{Role: kind}
+			byRole[kind] = count
+		}
+		count.Zones++
+		count.Cells += len(z.Cells)
+		count.Used += z.Used()
+	}
+	out := make([]StockpileRoleCount, 0, len(byRole))
+	for _, count := range byRole {
+		out = append(out, *count)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Role < out[j].Role })
+	return out
 }
 
 // PlanStockpileMaintenance proposes this cycle's edits, one per zone, in
@@ -231,7 +269,7 @@ func PlanStockpileMaintenance(r StockpileRequest) StockpileReview {
 		return StockpileReview{Reason: "colonists unknown"}
 	}
 	budget := int(max(colonists, 1)) * StockpileHaulsPerColonist
-	review := StockpileReview{Known: true, Budget: budget}
+	review := StockpileReview{Known: true, Budget: budget, Zones: stockpileRoleCounts(r.Zones)}
 	zones := append([]StockpileZone(nil), r.Zones...)
 	sort.Slice(zones, func(i, j int) bool { return zones[i].ID < zones[j].ID })
 	open := newStockpileOpen(r)

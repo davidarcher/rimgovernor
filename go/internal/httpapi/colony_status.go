@@ -25,28 +25,41 @@ type ColonyStatus interface {
 // native TechLevel name and buildTier the research-derived construction
 // tier (#604), null until a routine review with the research census filed.
 type colonyStatusDTO struct {
-	FoodPlan             *foodPlanDTO          `json:"foodPlan"`
-	FoodPlanTick         *domain.Tick          `json:"foodPlanTick"`
-	Tick                 domain.Tick           `json:"tick"`
-	RosterTick           domain.Tick           `json:"rosterTick"`
-	Colonists            *int64                `json:"colonists"`
-	Workers              *int64                `json:"workers"`
-	FoodNutrition        *float64              `json:"foodNutrition"`
-	NutritionPerDay      *float64              `json:"nutritionPerDay"`
-	FoodRunwayDays       *float64              `json:"foodRunwayDays"`
-	PendingFoodNutrition *float64              `json:"pendingFoodNutrition"`
-	FoodCorpses          int                   `json:"foodCorpses"`
-	RaidPoints           *float64              `json:"raidPoints"`
-	WealthTotal          *float64              `json:"wealthTotal"`
-	WealthItems          *float64              `json:"wealthItems"`
-	WealthBuildings      *float64              `json:"wealthBuildings"`
-	WealthPawns          *float64              `json:"wealthPawns"`
-	PlayerTechLevel      *string               `json:"playerTechLevel"`
-	BuildTier            *string               `json:"buildTier"`
-	Shrines              []colonyShrineDTO     `json:"shrines"`
-	Downed               int                   `json:"downed"`
-	MoodMean             *float64              `json:"moodMean"`
-	Pawns                []colonyStatusPawnDTO `json:"pawns"`
+	FoodPlan             *foodPlanDTO      `json:"foodPlan"`
+	FoodPlanTick         *domain.Tick      `json:"foodPlanTick"`
+	Tick                 domain.Tick       `json:"tick"`
+	RosterTick           domain.Tick       `json:"rosterTick"`
+	Colonists            *int64            `json:"colonists"`
+	Workers              *int64            `json:"workers"`
+	FoodNutrition        *float64          `json:"foodNutrition"`
+	NutritionPerDay      *float64          `json:"nutritionPerDay"`
+	FoodRunwayDays       *float64          `json:"foodRunwayDays"`
+	PendingFoodNutrition *float64          `json:"pendingFoodNutrition"`
+	FoodCorpses          int               `json:"foodCorpses"`
+	RaidPoints           *float64          `json:"raidPoints"`
+	WealthTotal          *float64          `json:"wealthTotal"`
+	WealthItems          *float64          `json:"wealthItems"`
+	WealthBuildings      *float64          `json:"wealthBuildings"`
+	WealthPawns          *float64          `json:"wealthPawns"`
+	PlayerTechLevel      *string           `json:"playerTechLevel"`
+	BuildTier            *string           `json:"buildTier"`
+	Shrines              []colonyShrineDTO `json:"shrines"`
+	// Stockpiles counts the owned stockpile zones by role kind and
+	// ForbiddenSupplies is whether starting supplies were still forbidden
+	// at the last review (the colony review report's zone check); null
+	// until a review has filed.
+	Stockpiles        []colonyStockpileDTO  `json:"stockpiles"`
+	ForbiddenSupplies *bool                 `json:"forbiddenSupplies"`
+	Downed            int                   `json:"downed"`
+	MoodMean          *float64              `json:"moodMean"`
+	Pawns             []colonyStatusPawnDTO `json:"pawns"`
+}
+
+type colonyStockpileDTO struct {
+	Role  string `json:"role"`
+	Zones int    `json:"zones"`
+	Cells int    `json:"cells"`
+	Used  int    `json:"used"`
 }
 
 // colonyShrineDTO is one ancient shrine (#456): the casket group, whether
@@ -95,6 +108,13 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 	}
 	out.FoodPlanTick = factPointer(v.FoodPlanTick)
 	out.PlayerTechLevel = factPointer(v.PlayerTechLevel)
+	out.ForbiddenSupplies = factPointer(v.ForbiddenSupplies)
+	if zones, known := v.Stockpiles.Value(); known {
+		out.Stockpiles = []colonyStockpileDTO{}
+		for _, z := range zones {
+			out.Stockpiles = append(out.Stockpiles, colonyStockpileDTO{Role: z.Role, Zones: z.Zones, Cells: z.Cells, Used: z.Used})
+		}
+	}
 	if tier, known := v.BuildTier.Value(); known {
 		name := tier.String()
 		out.BuildTier = &name

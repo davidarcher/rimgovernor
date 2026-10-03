@@ -28,7 +28,9 @@ Pages for a person (or a model) to skim for bugs.
   cards with each colonist's mood and food and every goal's state) and
   `run.json`; `site -runs <dir> -out <site>` indexes run dirs. Flags point
   at hours worth a look (a colonist lost, food runway under two days, a
-  downed colonist, low mood, a goal in deficit twelve hours); they gate
+  downed colonist, low mood, a goal in deficit twelve hours, a role's stockpile zone count falling, starting supplies still forbidden after a day); the
+  storage section lists the final zone count per role from the census's
+  `stockpiles` block (see [storage](../architecture/storage.md)). They gate
   nothing.
 - **Workflow** `.github/workflows/colony-review.yml`: nightly and on
   demand (`seed`, `days` inputs), on the remote-acceptance runner setup.

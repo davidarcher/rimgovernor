@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -197,5 +198,19 @@ func TestStockpileMergeNeverFoldsDifferentFilters(t *testing.T) {
 	frag.Filter = steel
 	if review := PlanStockpileMaintenance(stockpileField(big, frag)); len(review.Edits) != 1 || review.Edits[0].Kind != StockpileMerge {
 		t.Fatalf("same-filter fragment not merged %+v", review)
+	}
+}
+
+func TestStockpileReviewCountsZonesByRoleKind(t *testing.T) {
+	cell := func(x int32) domain.Cell { return domain.Cell{X: x} }
+	zones := []StockpileZone{
+		{ID: "a", Role: "general", Cells: []domain.Cell{cell(0), cell(1)}, Stored: []domain.Cell{cell(0)}},
+		{ID: "b", Role: "general", Cells: []domain.Cell{cell(2)}},
+		{ID: "c", Role: "medicine:r7", Cells: []domain.Cell{cell(3)}},
+		{ID: "d", Cells: []domain.Cell{cell(4)}},
+	}
+	want := []StockpileRoleCount{{"general", 2, 3, 1}, {"medicine", 1, 1, 0}, {"untagged", 1, 1, 0}}
+	if got := stockpileRoleCounts(zones); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v want %v", got, want)
 	}
 }

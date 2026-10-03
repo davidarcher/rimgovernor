@@ -14,7 +14,7 @@ automation and save your session.
 [Developer guide](developers/README.md): find the owner of a change, understand
 its contracts and run the relevant checks.
 
-- [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
+- [Architecture](developers/architecture/overview.md) (including [storage](developers/architecture/storage.md)) and [source map](developers/source-map.md)
 - [Development workflow](developers/development-process.md) and the
   [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
 - [Durable policy and Auto control](developers/contracts/durable-policy.md)

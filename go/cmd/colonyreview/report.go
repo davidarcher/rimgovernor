@@ -24,6 +24,15 @@ type Pawn struct {
 	Food   *float64 `json:"food"`
 }
 
+// Stockpile is one role kind's owned zones in a census (general, yard,
+// medicine, meals ...): how many, their cells and the cells holding things.
+type Stockpile struct {
+	Role  string `json:"role"`
+	Zones int    `json:"zones"`
+	Cells int    `json:"cells"`
+	Used  int    `json:"used"`
+}
+
 // Census is the timeline sample's colony block.
 type Census struct {
 	Error          string   `json:"error"`
@@ -33,7 +42,10 @@ type Census struct {
 	MoodMean       *float64 `json:"moodMean"`
 	Downed         int      `json:"downed"`
 	BuildTier      *string  `json:"buildTier"`
-	Pawns          []Pawn   `json:"pawns"`
+	// Stockpiles and ForbiddenSupplies are null until a review has filed.
+	Stockpiles        []Stockpile `json:"stockpiles"`
+	ForbiddenSupplies *bool       `json:"forbiddenSupplies"`
+	Pawns             []Pawn      `json:"pawns"`
 }
 
 // Goal is one sampled goal's state.
@@ -68,8 +80,15 @@ type Summary struct {
 	MinFoodDays    float64           `json:"min_food_days"`
 	FinalWealth    float64           `json:"final_wealth"`
 	Flags          int               `json:"flags"`
-	Thumb          string            `json:"thumb"`
-	Error          string            `json:"error,omitempty"`
+	// Zones is the last reading's owned stockpile zones per role kind,
+	// ZoneDrops how often a role's zone count fell between readings (a zone
+	// deleted or merged: churn) and SuppliesForbidden whether the last
+	// reading still had starting supplies forbidden (#1780, #1581).
+	Zones             []Stockpile `json:"zones,omitempty"`
+	ZoneDrops         int         `json:"zone_drops"`
+	SuppliesForbidden bool        `json:"supplies_forbidden"`
+	Thumb             string      `json:"thumb"`
+	Error             string      `json:"error,omitempty"`
 }
 
 // result is the slice of result.json the report reads.
@@ -188,6 +207,13 @@ func Derive(rows []Row, meta map[string]string) Summary {
 		r.Flags = flags(rows[:i+1], prev)
 		s.Flags += len(r.Flags)
 		c := r.Census
+		s.ZoneDrops += len(zoneDrops(prev, *r))
+		if c.Stockpiles != nil {
+			s.Zones = c.Stockpiles
+		}
+		if c.ForbiddenSupplies != nil {
+			s.SuppliesForbidden = *c.ForbiddenSupplies
+		}
 		if c.MoodMean != nil && *c.MoodMean < s.MinMood {
 			s.MinMood = *c.MoodMean
 		}

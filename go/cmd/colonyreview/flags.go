@@ -14,6 +14,9 @@ const (
 	lowMood     = 0.25 // near a minor break
 	lowFoodDays = 2.0
 	stuckHours  = 12 // a goal in deficit this long
+	// forbiddenHours is how long starting supplies may stay forbidden: the
+	// playtest that found them still forbidden was a day and a half in (#1581).
+	forbiddenHours = 24
 )
 
 // flags are the reviewer flags for the last row of rows; prev is the row
@@ -45,7 +48,50 @@ func flags(rows []Row, prev *Row) []Flag {
 			add("warn", "%s in deficit %d hours running (%s)", g.ID, n, g.Status)
 		}
 	}
+	for _, d := range zoneDrops(prev, r) {
+		add("warn", "%s zones fell %d → %d (a zone deleted or merged)", d.role, d.from, d.to)
+	}
+	if n := forbiddenRun(rows); n == forbiddenHours {
+		add("warn", "starting supplies still forbidden after %d hours", n)
+	}
 	return out
+}
+
+type zoneDrop struct {
+	role     string
+	from, to int
+}
+
+// zoneDrops are the roles whose zone count is lower in r than in prev: a
+// zone was deleted or merged since the previous reading.
+func zoneDrops(prev *Row, r Row) []zoneDrop {
+	if prev == nil || prev.Census.Stockpiles == nil || r.Census.Stockpiles == nil {
+		return nil
+	}
+	now := map[string]int{}
+	for _, z := range r.Census.Stockpiles {
+		now[z.Role] = z.Zones
+	}
+	var out []zoneDrop
+	for _, z := range prev.Census.Stockpiles {
+		if now[z.Role] < z.Zones {
+			out = append(out, zoneDrop{z.Role, z.Zones, now[z.Role]})
+		}
+	}
+	return out
+}
+
+// forbiddenRun is how many readings, ending at the last, report starting
+// supplies forbidden.
+func forbiddenRun(rows []Row) int {
+	n := 0
+	for i := len(rows) - 1; i >= 0; i-- {
+		if f := rows[i].Census.ForbiddenSupplies; f == nil || !*f {
+			break
+		}
+		n++
+	}
+	return n
 }
 
 // deficitRun is how many rows, ending at the last, hold goal id in deficit.
