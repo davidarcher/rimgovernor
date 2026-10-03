@@ -17,7 +17,9 @@ import (
 // reports handled=false when there is no rock left to dig, no excavation
 // read, or nothing the native side can dig now, so the caller builds as
 // before; while designations stand or the method already ran this epoch it
-// holds the build, since a shell or cooler cannot stand on rock.
+// holds the build, since a shell or cooler cannot stand on rock. A dig plan
+// that settles with rock still standing is followed by another round
+// (nextDigRound), up to digRoundLimit, then the step refuses naming the rock.
 //
 // A non-nil cooler is a planned cooler whose wall cell is among rock (#874):
 // the same plan places it, previewed as though the rock were mined and
@@ -64,10 +66,9 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 		clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
 		return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
 	}
-	if _, err := b.reviewer.player.journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineBuildingResult{}, false, err
+	method, wait, err := b.nextDigRound(call, s, method, len(excavations))
+	if err != nil || !wait.IsZero() {
+		return RoutineBuildingResult{Verdict: wait}, err == nil, err
 	}
 	snapshot.Plan = domain.MintPlanID()
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: s.facts.Identity.Tick}
@@ -103,6 +104,44 @@ func (b *RoutineBuildingPlanner) digPlanned(call, epoch context.Context, s excav
 	}
 	clockSchedulerLog("%s: %s: %d rock cells reason=%s", b.goal, method, len(actions), result.Verdict)
 	return result, true, nil
+}
+
+// digRoundLimit bounds the dig plans one method may spend in a goal epoch: the
+// first and two follow-ups for rock native took the designation off (a
+// collapse or lost support cancels a mine order mid-dig).
+const digRoundLimit = 3
+
+// nextDigRound names the method of the next dig plan for base. Round 0 is
+// base itself; a later round follows an earlier plan that settled with rock
+// still standing, so a partial dig is dug on instead of waiting forever. A
+// zero wait means method is free to admit; otherwise wait is the verdict: the
+// earlier round's work still open (a wait), or rock still standing after
+// digRoundLimit rounds (a refusal that names the rock; the layout never
+// repositions, so it stays stopped until the rock is dealt with).
+func (b *RoutineBuildingPlanner) nextDigRound(call context.Context, s excavationStep, base domain.MethodID, rock int) (method domain.MethodID, wait Verdict, err error) {
+	journal := b.reviewer.player.journal
+	for round := 0; round < digRoundLimit; round++ {
+		method = base
+		if round > 0 {
+			method = domain.MethodID(fmt.Sprintf("%s-round-%d", base, round))
+		}
+		prior, err := journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method)
+		if errors.Is(err, store.ErrNotFound) {
+			return method, Verdict{}, nil
+		}
+		if err != nil {
+			return "", Verdict{}, err
+		}
+		plan, err := journal.LoadPlan(call, prior.Plan)
+		if err != nil {
+			return "", Verdict{}, err
+		}
+		if domain.GoalWorkOpen(plan.Progress) {
+			return "", BuildingReasonUsed, nil
+		}
+	}
+	clockSchedulerLog("%s: %s: %d rock cells still standing after %d dig plans settled", b.goal, base, rock, digRoundLimit)
+	return "", rockNotDug(string(base), fmt.Sprintf("%d_cells_after_%d_dig_plans", rock, digRoundLimit)), nil
 }
 
 // overRockPreviewer is the native preview of a building as though natural

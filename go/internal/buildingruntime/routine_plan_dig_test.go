@@ -2,12 +2,15 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -42,15 +45,14 @@ func (n *rockCoolerNative) PreviewBuildingOverRock(ctx context.Context, action d
 	return n.PreviewBuilding(ctx, action, s)
 }
 
-// A standing freezer whose planned cooler cell is rock mines that cell and
-// the shaft and places the cooler in one plan, the cooler waiting on every
-// excavation and previewed over rock (#874).
-func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
-	t.Parallel()
+// rockCoolerStep is the refrigeration fixture with rock on a planned cooler
+// cell and its shaft, and the excavation step a dig plan runs from.
+func rockCoolerStep(t *testing.T) (p *RoutineBuildingPlanner, db *store.Store, n *rockCoolerNative, s excavationStep, site policy.PlannedCoolerSite, shaft domain.Cell) {
+	t.Helper()
 	p, db, base, _ := refrigerationFixture(t, false)
-	site := policy.PlannedCoolerSite{Cell: domain.Cell{X: 1, Z: 3}, Rotation: domain.North}
-	shaft := domain.Cell{X: 1, Z: 4}
-	n := &rockCoolerNative{refrigerationNative: base, rock: map[domain.Cell]bool{site.Cell: true, shaft: true}}
+	site = policy.PlannedCoolerSite{Cell: domain.Cell{X: 1, Z: 3}, Rotation: domain.North}
+	shaft = domain.Cell{X: 1, Z: 4}
+	n = &rockCoolerNative{refrigerationNative: base, rock: map[domain.Cell]bool{site.Cell: true, shaft: true}}
 	p.native = n
 	ctx := context.Background()
 	state := p.reviewer.player.session.State()
@@ -80,7 +82,17 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := excavationStep{state: state, review: review, goal: goal, facts: reading.Projection, read: reading.ColonyReading}
+	s = excavationStep{state: state, review: review, goal: goal, facts: reading.Projection, read: reading.ColonyReading}
+	return p, db, n, s, site, shaft
+}
+
+// A standing freezer whose planned cooler cell is rock mines that cell and
+// the shaft and places the cooler in one plan, the cooler waiting on every
+// excavation and previewed over rock (#874).
+func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
+	t.Parallel()
+	p, db, n, s, site, shaft := rockCoolerStep(t)
+	ctx := context.Background()
 	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
 	method := domain.MethodID("plan-dig-exhaust-test")
 	result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{site.Cell, shaft}, cold, method, &site, func() error { return nil })
@@ -120,4 +132,61 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 	if !dug[site.Cell] || !dug[shaft] || len(requires) != 2 {
 		t.Fatal(dug, requires)
 	}
+}
+
+// A dig plan that settles with rock still standing (native took the mine
+// order off a cell) is dug on in a follow-up round, never waited on forever;
+// after digRoundLimit rounds the step refuses naming the rock (#1588).
+func TestDigPlannedDigsOnAfterAPartialDigThenRefusesLoudly(t *testing.T) {
+	t.Parallel()
+	p, db, _, s, site, shaft := rockCoolerStep(t)
+	ctx := context.Background()
+	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
+	dig := func() RoutineBuildingResult {
+		t.Helper()
+		var err error
+		if s.goal, err = db.LoadGoal(ctx, s.goal.Goal.ID); err != nil {
+			t.Fatal(err)
+		}
+		result, handled, err := p.digPlanned(ctx, ctx, s, []domain.Cell{shaft}, cold, "plan-dig-test", nil, func() error { return nil })
+		if err != nil || !handled {
+			t.Fatal(result, handled, err)
+		}
+		return result
+	}
+	first := dig()
+	if first.Verdict != BuildingReasonAdmitted {
+		t.Fatal(first.Verdict)
+	}
+	if again := dig(); again.Verdict != BuildingReasonUsed {
+		t.Fatal("the open dig plan must be waited on, not doubled", again.Verdict)
+	}
+	completeRoutineBuildingMethod(t, db, first)
+	for round := 1; round < digRoundLimit; round++ {
+		result := dig()
+		if result.Verdict != BuildingReasonAdmitted {
+			t.Fatal("round", round, result.Verdict)
+		}
+		want := domain.MethodID(fmt.Sprintf("plan-dig-test-round-%d", round))
+		if !hasMethod(result.Decision.Goal.Methods, want) {
+			t.Fatal("follow-up round not named", want, result.Decision.Goal.Methods)
+		}
+		completeRoutineBuildingMethod(t, db, result)
+	}
+	stuck := dig()
+	if !stuck.Verdict.Is(RefusalRockNotDug) || stuck.Verdict.Outcome != OutcomeRefused {
+		t.Fatal(stuck.Verdict)
+	}
+	if text := stuck.Verdict.Text(); !strings.Contains(text, "still standing") || !strings.Contains(text, "plan dig test") {
+		t.Fatal(text)
+	}
+}
+
+func hasMethod(methods []domain.GoalMethod, want domain.MethodID) bool {
+	for _, m := range methods {
+		if m.Method == want {
+			return true
+		}
+	}
+	return false
 }

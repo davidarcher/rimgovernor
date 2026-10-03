@@ -56,6 +56,9 @@ const (
 	RefusalNoSpace RefusalKind = "no_space"
 	// RefusalSharedAdmission: the shared admission path turned the plan down.
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
+	// RefusalRockNotDug: planned rock still stands after the dig plans the
+	// step may spend; the subject names the dig, the detail the count.
+	RefusalRockNotDug RefusalKind = "rock_not_dug"
 )
 
 // Wait kinds: what an OutcomeWaiting goal waits on.
@@ -91,7 +94,7 @@ const (
 )
 
 var (
-	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission}
+	refusalKinds = []RefusalKind{RefusalCollapsePending, RefusalNoWorker, RefusalAwaitingPlan, RefusalFieldUnavailable, RefusalNoSpace, RefusalSharedAdmission, RefusalRockNotDug}
 	waitKinds    = []RefusalKind{WaitMethodUsed, WaitExistingWork, WaitBunksOpen, WaitBreachHeld, WaitComfortUse, WaitFacility, WaitHospitalConvert, WaitSleepingUse, WaitSeparation, WaitDialog, WaitClaim}
 )
 
@@ -129,9 +132,10 @@ func mustValid(v Verdict) Verdict {
 	return v
 }
 
-func fieldUnavailable(field string) Verdict { return refuse(RefusalFieldUnavailable, field, "") }
-func noSpace(subject string) Verdict        { return refuse(RefusalNoSpace, subject, "") }
-func noWorker(subject string) Verdict       { return refuse(RefusalNoWorker, subject, "") }
+func fieldUnavailable(field string) Verdict     { return refuse(RefusalFieldUnavailable, field, "") }
+func noSpace(subject string) Verdict            { return refuse(RefusalNoSpace, subject, "") }
+func rockNotDug(subject, detail string) Verdict { return refuse(RefusalRockNotDug, subject, detail) }
+func noWorker(subject string) Verdict           { return refuse(RefusalNoWorker, subject, "") }
 func collapsePending(subject string) Verdict {
 	return refuse(RefusalCollapsePending, subject, "")
 }
@@ -269,6 +273,8 @@ func (v Verdict) kindText() string {
 		return aside("no space found for it")
 	case RefusalSharedAdmission:
 		return aside("the shared admission check turned the plan down")
+	case RefusalRockNotDug:
+		return aside("rock it needs dug is still standing")
 	case WaitMethodUsed:
 		return aside("waiting for work it already started")
 	case WaitExistingWork:
