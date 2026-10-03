@@ -45,6 +45,31 @@ type DefinitionCatalog struct {
 	// Constants are the game constants the native read took from the game
 	// assemblies.
 	Constants *o.CatalogConstants
+	// statValues are the game's own stat values per (def, stuff) (#1759); nil
+	// in a reply that carries none.
+	statValues map[defStuff]*statRow
+}
+
+// defStuff keys a stat row: stuff is empty for a def not made from stuff.
+type defStuff struct{ def, stuff string }
+
+// StatValue is the game's GetStatValueAbstract(stat, stuff) of def, with stuff
+// empty for a def not made from stuff. A catalog without the stat table, a
+// (def, stuff) pair without a row and a stat the game does not show for the
+// def are errors, never a default.
+func (catalog *DefinitionCatalog) StatValue(def, stuff, stat string) (float32, error) {
+	if catalog == nil || catalog.statValues == nil {
+		return 0, contract("definition catalog carries no stat values")
+	}
+	row, ok := catalog.statValues[defStuff{def, stuff}]
+	if !ok {
+		return 0, contract("no stat values for def %s with stuff %q", def, stuff)
+	}
+	value, ok := row.values[stat]
+	if !ok {
+		return 0, contract("stat %s is not shown for def %s with stuff %q", stat, def, stuff)
+	}
+	return value, nil
 }
 
 // ThingDef is name's generated def row, nil when the catalog has none.
@@ -194,6 +219,9 @@ func DecodeDefinitionCatalog(v *o.DefinitionCatalog, identity *c.Identity) (*Def
 		return nil, err
 	}
 	if out.Constants, err = validateConstants(v.Constants); err != nil {
+		return nil, err
+	}
+	if out.statValues, err = decodeStatTable(v.StatValues, out.ThingDefs); err != nil {
 		return nil, err
 	}
 	for _, row := range v.Definitions {

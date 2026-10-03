@@ -232,6 +232,33 @@ reply stays under the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a
 decompression guard, not a row cap); a synthesized reply of about 3000 defs is
 9 MB.
 
+### Stat values and adjusted costs
+
+`DefinitionCatalog.stat_values` (`DefStatTable`, #1759) carries the game's own
+numbers that StatDef parts compute in code, once per load. For every
+`ThingDef` native emits one `DefStatRow` per allowed stuff
+(`GenStuff.AllowedStuffsFor`) when the def is made from stuff, else one row
+with an empty `stuff_name`. A row holds `GetStatValueAbstract(stat, stuff)` of
+every StatDef the game shows for that def and stuff
+(`StatWorker.ShouldShowFor(StatRequest.For(def, stuff))`; a stat the game hides
+is absent, not zero) and `costs`, the game's `ThingDef.CostListAdjusted(stuff)`
+(stuff volume and difficulty adjustments applied). Stat names are the shared
+`stats` table; a row's parallel `stat` (index) and `value` arrays are the
+compact form, chosen over repeated name strings per row. A stat or cost list
+that fails, or a non-finite value, fails the whole read naming def, stuff and
+stat. A def, stuff or stat whose name is not a valid identifier fails the read,
+as in the def rows. Go does not port StatWorker or type any stat constant.
+
+`DefinitionCatalog.StatValue(def, stuff, stat)` and `AdjustedCosts(def, stuff)`
+look the values up in the per-load-token cache; an absent table, a missing
+(def, stuff) row or a hidden stat is an error, never a default. Decode refuses
+an unknown def, stuff or cost def, a repeated row, stat or table name, an
+index outside the table, unequal arrays, a non-finite value and a non-positive
+cost. Go applies quality and condition itself. Size: a synthesized table of
+13700 rows (450 stuffed defs x 25 stuffs plus 2450 plain defs, 40 stats and 3
+costs each, 270 stats) is 3.9 MB; native timing and the real size are
+unmeasured.
+
 ## Royalty facts
 
 `ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed, and the throne-room requirement

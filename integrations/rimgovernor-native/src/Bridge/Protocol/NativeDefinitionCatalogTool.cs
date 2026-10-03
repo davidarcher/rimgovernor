@@ -65,11 +65,63 @@ namespace HomeBridge.BridgeTools
             foreach (var def in DefDatabase<TerrainDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "TerrainDef"), StringComparer.Ordinal))
                 catalog.TerrainDefs.Add(mirror.Build<Defs.TerrainDef>(def));
             catalog.Constants = Constants();
+            catalog.StatValues = StatValues();
             catalog.Biotech = NativeBiotechFacts.Catalog();
             catalog.Ideology = NativeIdeologyObservation.Catalog();
             catalog.Odyssey = NativeOdysseyFacts.Catalog();
             catalog.Anomaly = NativeAnomalyFacts.Catalog();
             return catalog;
+        }
+
+        // The game's own GetStatValueAbstract(stat, stuff) (#1759) for every
+        // ThingDef: once per allowed stuff when the def is made from stuff, once
+        // with no stuff otherwise. A stat the game does not show for the def
+        // (StatWorker.ShouldShowFor) is left out of its row. A stat that fails to
+        // compute, or computes a non-finite value, fails the read naming def,
+        // stuff and stat; nothing is skipped or defaulted.
+        private static Obs.DefStatTable StatValues()
+        {
+            var table = new Obs.DefStatTable();
+            var stats = DefDatabase<StatDef>.AllDefsListForReading.OrderBy(s => Named(s.defName, "StatDef"), StringComparer.Ordinal).ToList();
+            foreach (var stat in stats) table.Stats.Add(stat.defName);
+            foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.OrderBy(d => Named(d.defName, "ThingDef"), StringComparer.Ordinal))
+            {
+                if (!def.MadeFromStuff) { table.Rows.Add(StatRow(def, null, stats)); continue; }
+                foreach (var stuff in GenStuff.AllowedStuffsFor(def).OrderBy(s => Named(s.defName, "ThingDef"), StringComparer.Ordinal))
+                    table.Rows.Add(StatRow(def, stuff, stats));
+            }
+            return table;
+        }
+
+        private static Obs.DefStatRow StatRow(ThingDef def, ThingDef? stuff, System.Collections.Generic.List<StatDef> stats)
+        {
+            var row = new Obs.DefStatRow { DefName = def.defName, StuffName = stuff?.defName ?? "" };
+            for (var i = 0; i < stats.Count; i++)
+            {
+                var stat = stats[i];
+                try
+                {
+                    if (!stat.Worker.ShouldShowFor(StatRequest.For(def, stuff))) continue;
+                    var value = def.GetStatValueAbstract(stat, stuff);
+                    if (float.IsNaN(value) || float.IsInfinity(value)) throw new InvalidOperationException($"the value is {value}");
+                    row.Stat.Add(i);
+                    row.Value.Add(value);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Stat {stat.defName} of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
+                }
+            }
+            try
+            {
+                foreach (var cost in def.CostListAdjusted(stuff, false))
+                    row.Costs.Add(new Obs.Quantity { DefName = cost.thingDef.defName, Units = cost.count });
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Adjusted cost list of def {def.defName} with stuff {stuff?.defName ?? "(none)"} failed: {ex.Message}", ex);
+            }
+            return row;
         }
 
         // A def whose defName is not a protocol identifier cannot be a catalog key:
