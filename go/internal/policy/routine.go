@@ -1353,6 +1353,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(MaintainPsylink, 3)
 		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
 	}
+	// MaintainPermits (#1606): a colonist holds permit points for a permit
+	// worth taking. Unknown without the royalty read raises nothing.
+	addAssessment(MaintainPermits, 3, PermitsSpent(f.Royalty))
+	if _, owed := NextPermitOf(f.Royalty); owed {
+		addGoal(MaintainPermits, 3)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
 	animalContainment := domain.Unknown[bool]()
 	if targets, known := animals.Containment.Value(); known {
 		animalContainment = domain.Known(len(targets) == 0)

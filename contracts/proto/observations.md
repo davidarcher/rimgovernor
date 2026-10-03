@@ -197,7 +197,7 @@ a depleted drill for removal from the deep drill step's recorded read.
 `ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed, and the throne-room requirement
 read from `RoyalTitleDef.throneRoomRequirements`: minimum impressiveness and
 area, the accepted throne definitions and whether the throne is assigned),
-the permit catalog (minimum title, permit points, whether the permit acts and
+the permit catalog (minimum title, permit points, worker class, whether the permit acts and
 the favor a call spends) and each colonist's holdings per faction (title,
 favor, permit points, taken permits, and per taken permit its native cooldown:
 `last_used_tick` (`FactionPermit.LastUsedTick`, absent until first used) and

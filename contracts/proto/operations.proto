@@ -301,6 +301,7 @@ message Action {
     FoodPolicyIntent food_policy = 57;
     RitualIntent ritual = 63;
     AbilityIntent ability = 60;
+    RoyaltyIntent royalty = 64;
   }
 }
 // Use one ability of one pawn (#1607, epic #1598): one generic shape for every
@@ -710,6 +711,19 @@ message RitualIntent {
   optional string pawn_id = 1;
   optional string ritual = 2;
   optional string verb = 3;
+}
+// One royalty write to one colonist's standing with one faction (#1606, epic
+// #1598): a closed verb set so later royalty verbs add an arm, not a kind.
+// verb "choose_permit" spends permit points on the permit def `permit`
+// (Pawn_RoyaltyTracker.AddPermit) after the game's own checks (title high
+// enough, points available, permit not yet held). Applied means the permit is
+// held and the faction's permit points dropped by its cost; the evidence is a
+// RoyaltyEffect. A permit already held applies again.
+message RoyaltyIntent {
+  optional string pawn_id = 1;
+  optional string faction_def = 2;
+  optional string verb = 3;
+  optional string permit = 4;
 }
 // Order one alive, spawned, drafted pawn to walk to one standable,
 // reachable cell. Applied means the order was given, or already matched (the

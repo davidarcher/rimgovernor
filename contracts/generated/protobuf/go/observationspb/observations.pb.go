@@ -24939,6 +24939,7 @@ func (x *RoyalTitleRung) GetBedroomThings() []*BedroomThingRequirement {
 	return nil
 }
 
+// worker_class is the permit def's workerClass type name (RoyalTitlePermitWorker_CallAid, _CallLaborers, _CallShuttle, _DropResources, _OrbitalStrike; the base RoyalTitlePermitWorker for a permit with no worker of its own): what the permit does for the colony.
 type RoyalPermitDef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DefName       *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
@@ -24947,6 +24948,7 @@ type RoyalPermitDef struct {
 	Acts          *bool                  `protobuf:"varint,4,opt,name=acts,proto3,oneof" json:"acts,omitempty"`
 	FavorCost     *int32                 `protobuf:"varint,5,opt,name=favor_cost,json=favorCost,proto3,oneof" json:"favor_cost,omitempty"`
 	CooldownDays  *float64               `protobuf:"fixed64,6,opt,name=cooldown_days,json=cooldownDays,proto3,oneof" json:"cooldown_days,omitempty"`
+	WorkerClass   *string                `protobuf:"bytes,7,opt,name=worker_class,json=workerClass,proto3,oneof" json:"worker_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -25021,6 +25023,13 @@ func (x *RoyalPermitDef) GetCooldownDays() float64 {
 		return *x.CooldownDays
 	}
 	return 0
+}
+
+func (x *RoyalPermitDef) GetWorkerClass() string {
+	if x != nil && x.WorkerClass != nil {
+		return *x.WorkerClass
+	}
+	return ""
 }
 
 // permit_cooldowns (#1607): one row per held permit.
@@ -40390,7 +40399,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_throne_assignedB\x13\n" +
 	"\x11_bedroom_min_areaB\x1d\n" +
 	"\x1b_bedroom_min_impressivenessB\x12\n" +
-	"\x10_bedroom_floored\"\xba\x02\n" +
+	"\x10_bedroom_floored\"\xf3\x02\n" +
 	"\x0eRoyalPermitDef\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12 \n" +
 	"\tmin_title\x18\x02 \x01(\tH\x01R\bminTitle\x88\x01\x01\x12(\n" +
@@ -40398,14 +40407,16 @@ const file_observations_proto_rawDesc = "" +
 	"\x04acts\x18\x04 \x01(\bH\x03R\x04acts\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"favor_cost\x18\x05 \x01(\x05H\x04R\tfavorCost\x88\x01\x01\x12(\n" +
-	"\rcooldown_days\x18\x06 \x01(\x01H\x05R\fcooldownDays\x88\x01\x01B\v\n" +
+	"\rcooldown_days\x18\x06 \x01(\x01H\x05R\fcooldownDays\x88\x01\x01\x12&\n" +
+	"\fworker_class\x18\a \x01(\tH\x06R\vworkerClass\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
 	"_min_titleB\x10\n" +
 	"\x0e_permit_pointsB\a\n" +
 	"\x05_actsB\r\n" +
 	"\v_favor_costB\x10\n" +
-	"\x0e_cooldown_days\"\xd2\x01\n" +
+	"\x0e_cooldown_daysB\x0f\n" +
+	"\r_worker_class\"\xd2\x01\n" +
 	"\x0ePermitCooldown\x12\x1b\n" +
 	"\x06permit\x18\x01 \x01(\tH\x00R\x06permit\x88\x01\x01\x12)\n" +
 	"\x0elast_used_tick\x18\x02 \x01(\x05H\x01R\flastUsedTick\x88\x01\x01\x12=\n" +

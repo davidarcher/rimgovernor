@@ -114,14 +114,14 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 	}
 	for _, row := range v.Permits {
 		name := row.GetDefName()
-		if validID(name) != nil || row.MinTitle != nil && validID(row.GetMinTitle()) != nil {
+		if validID(name) != nil || row.MinTitle != nil && validID(row.GetMinTitle()) != nil || row.WorkerClass != nil && validID(row.GetWorkerClass()) != nil {
 			return nil, contract("invalid royalty permit")
 		}
 		if _, exists := out.Permits[name]; exists {
 			return nil, contract("duplicate royalty permit %s", name)
 		}
 		out.Permits[name] = policy.RoyalPermit{Name: name, MinTitle: optionalFact(row.MinTitle), PermitPoints: optionalFact(intPtr(row.PermitPoints)), Acts: optionalFact(row.Acts),
-			FavorCost: optionalFact(intPtr(row.FavorCost)), CooldownDays: optionalFact(row.CooldownDays)}
+			FavorCost: optionalFact(intPtr(row.FavorCost)), CooldownDays: optionalFact(row.CooldownDays), Worker: row.GetWorkerClass()}
 	}
 	for _, row := range v.Pawns {
 		id := row.GetPawn().GetId()

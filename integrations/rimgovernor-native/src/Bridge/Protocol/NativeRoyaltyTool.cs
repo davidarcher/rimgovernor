@@ -96,6 +96,8 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.RoyalPermitDef { DefName = permit.defName, PermitPoints = permit.permitPointCost, Acts = permit.royalAid != null, CooldownDays = permit.cooldownDays };
                 if (permit.minTitle != null && ProtoBoundary.IsIdentifier(permit.minTitle.defName)) row.MinTitle = permit.minTitle.defName;
                 if (permit.royalAid != null) row.FavorCost = permit.royalAid.favorCost;
+                // What the permit does for the colony (#1606): its worker class.
+                if (permit.workerClass != null && ProtoBoundary.IsIdentifier(permit.workerClass.Name)) row.WorkerClass = permit.workerClass.Name;
                 facts.Permits.Add(row);
             }
             foreach (var pawn in PawnsFinder.AllMaps_FreeColonists.Where(p => p.royalty != null).OrderBy(p => p.thingIDNumber))

@@ -3,19 +3,17 @@ package policy
 import (
 	"sort"
 	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The permit selection goal (#1606, epic #1598). A colonist with permit
-// points spends them on the permit that is worth most to this colony:
-// aid first, then trade and drop-pod access, then psycast permits (more
-// so once a colonist is a psycaster). The choice is a pure ranking over the
-// royalty read.
-//
-// Seam: choosing a permit is a write (Pawn_RoyaltyTracker.AddPermit, the
-// player's title UI) that no action kind carries, and recording the choice
-// as goal intent in the save needs a goal kind. Until a decision adds an
-// action kind (#1606), nothing acts on a PermitChoice; PermitIntent is the
-// shape the goal would persist.
+// MaintainPermits spends permit points (#1606, epic #1598). A colonist with
+// permit points takes the permit that is worth most to this colony: aid
+// first, then trade and drop-pod access, then psycast permits (more so once
+// a colonist is a psycaster). The choice is a pure ranking over the royalty
+// read; the goal commits it as a Royalty choose_permit write, and the plan
+// recorded on the goal (in the save with the goal) is the persisted intent.
+const MaintainPermits GoalID = "MaintainPermits"
 
 // PermitCategory groups permits by what they give the colony.
 type PermitCategory string
@@ -56,11 +54,17 @@ type PermitChoice struct {
 	Reason   PermitReason
 }
 
-// PermitIntent is the goal intent a chosen permit would record in the save.
+// PermitIntent is the goal intent a chosen permit records in the save.
 type PermitIntent struct {
 	Holder  PawnID
 	Faction string
 	Permit  string
+}
+
+// Royalty is the write that carries the intent: the colonist chooses the
+// permit with the faction.
+func (i PermitIntent) Royalty() (domain.Royalty, error) {
+	return domain.NewRoyalty(domain.PawnID(i.Holder), i.Faction, domain.RoyaltyChoosePermit, i.Permit)
 }
 
 // Intent is the goal intent for a choice.
@@ -68,9 +72,29 @@ func (c PermitChoice) Intent() PermitIntent {
 	return PermitIntent{Holder: c.Holder, Faction: c.Faction, Permit: c.Permit}
 }
 
-// permitCategory classifies a permit def by name; the catalog carries no
-// effect, only whether the permit acts.
-func permitCategory(name string) PermitCategory {
+// The worker classes of the permits that act (RoyalTitlePermitDef.workerClass,
+// carried by the royalty read): what the permit does for the colony.
+const (
+	permitWorkerCallAid       = "RoyalTitlePermitWorker_CallAid"
+	permitWorkerCallLaborers  = "RoyalTitlePermitWorker_CallLaborers"
+	permitWorkerCallShuttle   = "RoyalTitlePermitWorker_CallShuttle"
+	permitWorkerDropResources = "RoyalTitlePermitWorker_DropResources"
+	permitWorkerOrbitalStrike = "RoyalTitlePermitWorker_OrbitalStrike"
+)
+
+// permitCategory classifies a permit by its worker class. A permit with no
+// worker of its own (the passive trade permits) or a read that carries none
+// falls back to its def name.
+func permitCategory(p RoyalPermit) PermitCategory {
+	switch p.Worker {
+	case permitWorkerCallAid, permitWorkerCallLaborers:
+		return PermitAid
+	case permitWorkerCallShuttle, permitWorkerDropResources:
+		return PermitDropPod
+	case permitWorkerOrbitalStrike:
+		return PermitOther
+	}
+	name := p.Name
 	switch {
 	case strings.Contains(name, "Psy"):
 		return PermitPsycast
@@ -144,7 +168,7 @@ func RankPermits(f RoyaltyFacts) []PermitChoice {
 					continue
 				}
 				permit := f.Permits[name]
-				category := permitCategory(name)
+				category := permitCategory(permit)
 				c := PermitChoice{Holder: holder, Faction: h.FactionDef, Permit: name,
 					Category: category, Value: permitValue(category, psycaster)}
 				cost, costKnown := permit.PermitPoints.Value()
@@ -192,4 +216,22 @@ func NextPermit(f RoyaltyFacts) (PermitChoice, bool) {
 		return PermitChoice{}, false
 	}
 	return ranked[0], true
+}
+
+// NextPermitOf is NextPermit of a royalty read that may be unknown.
+func NextPermitOf(royalty domain.Fact[RoyaltyFacts]) (PermitChoice, bool) {
+	if f, ok := royalty.Value(); ok {
+		return NextPermit(f)
+	}
+	return PermitChoice{}, false
+}
+
+// PermitsSpent measures MaintainPermits: true once no worthwhile permit is
+// takeable now, unknown without the royalty read (nothing is raised then).
+func PermitsSpent(royalty domain.Fact[RoyaltyFacts]) domain.Fact[bool] {
+	if _, ok := royalty.Value(); !ok {
+		return domain.Unknown[bool]()
+	}
+	_, owed := NextPermitOf(royalty)
+	return domain.Known(!owed)
 }

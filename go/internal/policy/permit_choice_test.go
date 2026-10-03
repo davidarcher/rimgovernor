@@ -73,6 +73,67 @@ func TestNextPermitSkipsHeldAndPrefersPsycastForPsycasters(t *testing.T) {
 	}
 }
 
+// The read's worker class decides what an acting permit gives the colony; a
+// def name that says otherwise does not change it.
+func TestPermitCategoryFollowsWorkerClass(t *testing.T) {
+	for worker, want := range map[string]PermitCategory{
+		"RoyalTitlePermitWorker_CallAid":       PermitAid,
+		"RoyalTitlePermitWorker_CallLaborers":  PermitAid,
+		"RoyalTitlePermitWorker_CallShuttle":   PermitDropPod,
+		"RoyalTitlePermitWorker_DropResources": PermitDropPod,
+		"RoyalTitlePermitWorker_OrbitalStrike": PermitOther,
+	} {
+		if got := permitCategory(RoyalPermit{Name: "TradeSomething", Worker: worker}); got != want {
+			t.Fatalf("%s: %s want %s", worker, got, want)
+		}
+	}
+	// Passive permits carry no worker of their own: the def name decides.
+	if got := permitCategory(RoyalPermit{Name: "TradeSettlement", Worker: "RoyalTitlePermitWorker"}); got != PermitTrade {
+		t.Fatal(got)
+	}
+}
+
+// The chosen permit becomes the Royalty write the goal commits, and the
+// goal measures spent once nothing worthwhile is takeable.
+func TestPermitIntentIsTheRoyaltyWriteAndGoalMeasuresSpent(t *testing.T) {
+	got, ok := NextPermit(permitFacts(1))
+	if !ok {
+		t.Fatal("a permit is takeable")
+	}
+	royalty, err := got.Intent().Royalty()
+	if err != nil || royalty.Pawn() != "Alice" || royalty.Faction() != "Empire" || royalty.Verb() != domain.RoyaltyChoosePermit || royalty.Permit() != "CallMilitaryAidSmall" {
+		t.Fatalf("%+v %v", royalty, err)
+	}
+	if spent, known := PermitsSpent(domain.Known(permitFacts(1))).Value(); !known || spent {
+		t.Fatal("points for a worthwhile permit are not spent", spent, known)
+	}
+	if spent, known := PermitsSpent(domain.Known(permitFacts(0))).Value(); !known || !spent {
+		t.Fatal("no points is spent", spent, known)
+	}
+	if _, known := PermitsSpent(domain.Unknown[RoyaltyFacts]()).Value(); known {
+		t.Fatal("spent known without the royalty read")
+	}
+}
+
+func TestPermitsRaiseMaintainPermitsOnlyWhileOneIsTakeable(t *testing.T) {
+	has := func(royalty domain.Fact[RoyaltyFacts]) bool {
+		f := stableRoutine()
+		f.Royalty = royalty
+		for _, g := range needs(t, f, RoutineLatches{}).Goals {
+			if g.ID == MaintainPermits {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(domain.Known(permitFacts(1))) {
+		t.Fatal("a takeable permit raised no MaintainPermits goal")
+	}
+	if has(domain.Known(permitFacts(0))) || has(domain.Unknown[RoyaltyFacts]()) {
+		t.Fatal("no points or no read raised MaintainPermits")
+	}
+}
+
 func TestRankPermitsHoldsOnUnknownFacts(t *testing.T) {
 	f := permitFacts(1)
 	f.Holders["Alice"][0].PermitPoints = domain.Fact[int]{}

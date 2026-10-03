@@ -106,6 +106,9 @@ type RoyalPermit struct {
 	Acts         domain.Fact[bool]
 	FavorCost    domain.Fact[int]
 	CooldownDays domain.Fact[float64]
+	// Worker is the permit def's workerClass type name, "" when the read
+	// left it absent: what the permit does (PermitWorker* constants).
+	Worker string
 }
 
 // RoyalHolding is a colonist's standing with one faction. Title is empty for

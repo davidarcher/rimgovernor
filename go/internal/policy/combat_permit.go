@@ -33,7 +33,7 @@ func permitFightClass(name string) permitFightKind {
 	switch {
 	case strings.Contains(name, "Strike"), strings.Contains(name, "Bombard"):
 		return permitStrikeCall
-	case permitCategory(name) == PermitAid && !strings.Contains(name, "Laborer"):
+	case permitCategory(RoyalPermit{Name: name}) == PermitAid && !strings.Contains(name, "Laborer"):
 		return permitAidCall
 	}
 	return permitNotFight

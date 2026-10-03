@@ -814,6 +814,16 @@ var plannerCatalog = []plannerEntry{
 			out.Psylink = &method
 			return method.Reason, nil
 		}},
+	{name: "permits", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RoyaltyAction}, sections: sectionsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Permits != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
+			method, err := s.config.Permits.step(ctx, epoch, arbiter)
+			if err != nil {
+				return "", err
+			}
+			out.Permits = &method
+			return method.Reason, nil
+		}},
 	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.AreaAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {

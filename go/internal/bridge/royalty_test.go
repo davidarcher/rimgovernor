@@ -20,7 +20,7 @@ func royaltyRead() *o.RoyaltyFacts {
 		Ceremonies: []*o.BestowingCeremony{{Quest: proto.String("Quest_4"), Pawn: &c.Ref{Id: proto.String("Human12")}, Bestower: &c.Ref{Id: proto.String("Human30")}, FactionDef: proto.String("Empire"),
 			Title: proto.String("Knight"), Accepted: proto.Bool(true), BestowerWaiting: proto.Bool(true), Spot: &c.Cell{X: proto.Int32(4), Z: proto.Int32(9)}, Attendees: []*c.Ref{{Id: proto.String("Human13")}}}},
 		Permits: []*o.RoyalPermitDef{
-			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30)},
+			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30), WorkerClass: proto.String("RoyalTitlePermitWorker_CallLaborers")},
 			{DefName: proto.String("TradeSettlement"), Acts: proto.Bool(false)},
 		},
 		Pawns: []*o.PawnRoyalty{{Pawn: &c.Ref{Id: proto.String("Human12")}, Holdings: []*o.PawnRoyalHolding{
@@ -68,6 +68,9 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 		t.Fatal("absent throne area read as known")
 	}
 	call := facts.Permits["CallLaborerPack"]
+	if call.Worker != "RoyalTitlePermitWorker_CallLaborers" || facts.Permits["TradeSettlement"].Worker != "" {
+		t.Fatalf("worker classes %q %q", call.Worker, facts.Permits["TradeSettlement"].Worker)
+	}
 	if acts, _ := call.Acts.Value(); !acts {
 		t.Fatalf("call permit %+v", call)
 	}

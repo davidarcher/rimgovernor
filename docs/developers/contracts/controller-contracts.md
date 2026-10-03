@@ -288,6 +288,17 @@ fire target cell); `Focus`, `Invisibility`, `Overshield`-class self buffs
 (social targets the mood and prisoner planners do not measure); `Resurrect`
 (an irreversible spend on a corpse choice); and every combat psycast (#1611).
 
+`MaintainPermits` (#1606, `policy.NextPermit`) spends permit points. Each
+review ranks every untaken permit of every titled colonist's holding
+(`policy.RankPermits`): acting permits by the royalty read's permit worker
+class (aid and laborer calls first, then trade, then drop-pod and shuttle
+access, psycast permits ahead of trade once a colonist is a psycaster; a
+passive permit with no worker of its own is classed by def name), takeable
+before blocked (title, points). The goal is open while the best permit is
+takeable and worth something; the planner commits one `RoyaltyIntent`
+(`choose_permit`) for it, so the plan on the goal's method is the intent the
+save carries. Using a permit is the `Ability` action's, not this goal's.
+
 ### Environmental disruption
 
 `rimgovernor/observations_read_colony_facts` `environment` reports current-map native condition
