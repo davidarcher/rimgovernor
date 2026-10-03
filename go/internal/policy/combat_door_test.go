@@ -180,6 +180,70 @@ func TestDoorPotshotRaid(t *testing.T) {
 	}
 }
 
+// huntDoorView is huntView with a perimeter room door and one rhino at
+// rhinoZ south of the door, with the given melee power against riflemen's 2.
+func huntDoorView(rhinoZ int32, power float64) CombatView {
+	view := huntView(animal("rh", "Rhino", domain.Cell{X: 15, Z: rhinoZ}, 6))
+	view.Rooms = []CombatRoom{{Interior: Rectangle{X: 10, Z: 20, Width: 10, Height: 10}, Doors: []domain.Cell{{X: 15, Z: 19}}}}
+	view.Threats[0].MeleePower = domain.Known(power)
+	for i := range view.Defenders {
+		view.Defenders[i].MeleePower = domain.Known(2.0)
+	}
+	return view
+}
+
+// {hunt of prey that out-fights the squad in melee} -> the door potshot:
+// door gunners inside the door on the prey, the door open; within 3 cells it
+// closes and the gunners hold; backed off beyond 6 it reopens, and a damaged
+// door is repaired.
+func TestHuntDoorPotshotDangerousPrey(t *testing.T) {
+	orders, m := decideStop(t, huntDoorView(5, 15), StopEvent{}, CombatMemory{})
+	if d, ok := doorOrder(orders); m.Tactic != TacticHunt || !ok || d.Cell != (domain.Cell{X: 15, Z: 19}) || d.Door != DoorHoldOpen {
+		t.Fatalf("%s %+v", m.Tactic, orders)
+	}
+	posted := 0
+	for _, r := range m.Roles {
+		if r.Duty == DutyDoorway {
+			posted++
+			if r.Cell == nil || r.Cell.Z != 20 || r.Target != "rh" {
+				t.Fatalf("%+v", r)
+			}
+		}
+	}
+	if posted != doorGunners {
+		t.Fatalf("%+v", m.Roles)
+	}
+	view := huntDoorView(17, 15)
+	view.Tick = 160
+	orders, m = decideStop(t, view, StopEvent{}, m)
+	if d, ok := doorOrder(orders); !ok || d.Door != DoorClose {
+		t.Fatalf("%+v", orders)
+	}
+	for _, r := range m.Roles {
+		if r.Duty == DutyDoorway && r.Target != "" {
+			t.Fatalf("door gunner still engaging: %+v", r)
+		}
+	}
+	view = huntDoorView(5, 15)
+	view.Tick = 220
+	view.DamagedDoors = []domain.Cell{{X: 15, Z: 19}}
+	orders, _ = decideStop(t, view, StopEvent{}, m)
+	if d, ok := doorOrder(orders); !ok || d.Door != DoorHoldOpen {
+		t.Fatalf("%+v", orders)
+	}
+	if _, ok := repairOrder(orders); !ok {
+		t.Fatalf("no repair: %+v", orders)
+	}
+}
+
+// {prey the squad out-fights in melee} -> a plain hunt: no potshot door.
+func TestHuntNoDoorForHarmlessPrey(t *testing.T) {
+	orders, m := decideStop(t, huntDoorView(5, 1), StopEvent{}, CombatMemory{})
+	if _, ok := doorOrder(orders); ok || m.PotshotDoor != nil || m.Tactic != TacticHunt {
+		t.Fatalf("%s %+v", m.Tactic, orders)
+	}
+}
+
 // A killbox hold fights from its firing line: no potshot door.
 func TestDoorPotshotNotOnHold(t *testing.T) {
 	view := holdView()
