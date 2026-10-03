@@ -8,6 +8,7 @@ package child
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -49,9 +50,16 @@ func init() {
 	})
 }
 
+// babyFoodBill reports whether a bill is on the bench for one of the stove's
+// baby-edible recipes. The planner picks among them (the bulk recipe over its
+// single-item sibling), so the case accepts any.
+func babyFoodBill(bill domain.ProductionBill, bench string, recipes []string) bool {
+	return bill.Bench() == bench && slices.Contains(recipes, bill.Recipe())
+}
+
 // babyFoodBillPlaced reports whether the journal holds a completed bill for
-// the baby-edible recipe on the fixture's stove.
-func babyFoodBillPlaced(ctx context.Context, st *store.Store, bench, recipe string) (bool, error) {
+// a baby-edible recipe on the fixture's stove.
+func babyFoodBillPlaced(ctx context.Context, st *store.Store, bench string, recipes []string) (bool, error) {
 	plans, err := st.PlanHistoryWithMethods(ctx, 256, "bill-*")
 	if err != nil {
 		return false, err
@@ -59,7 +67,7 @@ func babyFoodBillPlaced(ctx context.Context, st *store.Store, bench, recipe stri
 	for _, p := range plans {
 		for _, progress := range p.Progress {
 			bill, ok := progress.Action().ProductionBill()
-			if ok && bill.Bench() == bench && bill.Recipe() == recipe && progress.View().Stage == domain.Completed {
+			if ok && babyFoodBill(bill, bench, recipes) && progress.View().Stage == domain.Completed {
 				return true, nil
 			}
 		}
@@ -69,11 +77,15 @@ func babyFoodBillPlaced(ctx context.Context, st *store.Store, bench, recipe stri
 
 func runFirstChild(ctx context.Context, s cases.Session) error {
 	report, h, prepared := s.Report(), s.Harness(), s.Prepared()
-	baby, bench, recipe := na.AsString(prepared["babyId"]), na.AsString(prepared["benchId"]), na.AsString(prepared["recipe"])
-	if baby == "" || bench == "" || recipe == "" || na.AsNumber(prepared["foodLevel"]) <= 0 {
+	baby, bench := na.AsString(prepared["babyId"]), na.AsString(prepared["benchId"])
+	var recipes []string
+	for _, raw := range na.AsSlice(prepared["recipes"]) {
+		recipes = append(recipes, na.AsString(raw))
+	}
+	if baby == "" || bench == "" || len(recipes) == 0 || na.AsNumber(prepared["foodLevel"]) <= 0 {
 		return fmt.Errorf("fixture: unexpected first-child staging: %#v", prepared)
 	}
-	report["baby"], report["bench"], report["recipe"], report["fixture"] = baby, bench, recipe, prepared
+	report["baby"], report["bench"], report["recipes"], report["fixture"] = baby, bench, recipes, prepared
 
 	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
@@ -96,7 +108,7 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 	// The colony's own answer to a baby it cannot breastfeed: the standing
 	// baby food bill on its stove.
 	err = na.WaitProgress(ctx, na.Wait{Ceiling: billCeiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
-		placed, err := babyFoodBillPlaced(ctx, st, bench, recipe)
+		placed, err := babyFoodBillPlaced(ctx, st, bench, recipes)
 		return na.Signature(placed), placed, err
 	})
 	if err != nil {
@@ -138,12 +150,12 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 	billed := false
 	for _, raw := range na.AsSlice(last["bills"]) {
 		row, _ := na.AsMap(raw)
-		if edible, _ := na.AsBool(row["babyEdible"]); edible && na.AsString(row["recipe"]) == recipe {
+		if edible, _ := na.AsBool(row["babyEdible"]); edible && slices.Contains(recipes, na.AsString(row["recipe"])) {
 			billed = true
 		}
 	}
 	if !billed {
-		return fmt.Errorf("no %s bill stands on bench %s: %v", recipe, bench, last["bills"])
+		return fmt.Errorf("no baby food bill (%v) stands on bench %s: %v", recipes, bench, last["bills"])
 	}
 	if !fed {
 		return fmt.Errorf("the baby's food level never rose, so it was never fed: %v", last)

@@ -127,6 +127,8 @@ namespace HomeBridge.BridgeTools
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame,
                     babyId = baby.GetUniqueLoadID(), benchId = stove.GetUniqueLoadID(), recipe = recipe.defName,
+                    // Every baby-edible recipe of the stove: the controller picks one (its bulk recipe over the single-item one).
+                    recipes = stove.def.AllRecipes.Where(r => r.products.Count == 1 && BabyEdible(r.products[0].thingDef)).Select(r => r.defName).ToList(),
                     product = recipe.products[0].thingDef.defName, ingredients = seeded,
                     childMinAgeYears = childStage.minAge, babyAgeTicks = ticks, daysToChild,
                     foodLevel = baby.needs.food.CurLevelPercentage, colonists = colonists.Count,
