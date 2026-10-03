@@ -33,14 +33,14 @@ ineligible modes, and a prisoner already set to the mode applies again. Routine 
 player-only exemption (`policy.prisonerUse`). The read also carries each prisoner's
 will, ideoligion, wild-man flag, biography (skills, passions, traits, incapable work
 types, age) and summary health, the free colonists' biographies, and the snapshot's
-`ideology_active`, `classic_ideo_mode`, `colony_ideo_id` and `slavery_precept`.
+`ideology_active`, `classic_ideo_mode` and `colony_ideo_id`; slavery reads the ideoligion through the precept rule (`PrisonerColony.Ideology`, `EnslavedPrisoner`).
 For organ harvest (#1169) each colony prisoner also carries `surgery` (its
 `missing_parts`, `operations`, with a harvest's `yield_market_value`, and
 `surgery_bills`, from the care read's producer), `faction_id`, and
 `harvest_goodwill_change`: the goodwill change vanilla's harvest violation report
 (-70) would make with its home faction after `CalculateAdjustedGoodwillChange` and
 the -100 floor, 0 when that goodwill cannot change. The snapshot carries
-`organ_use_precept`.
+nothing precept-shaped: `HarvestMood` reads the rule for `HarvestedOrgan` (and `SoldOrgan` when selling); without Ideology it is Core's thought.
 Each colony prisoner also carries `medical_care` (#1239), and an operation reads
 `medicine_care_limited` when medicine it takes is stocked but that care level
 forbids it. Prisoners stay at herbal care at most: MaintainSurgery pins a prisoner

@@ -261,7 +261,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	// Per-pawn food policies (#1541) likewise.
 	var food []domain.FoodPolicy
-	if changes := routineDietChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve); len(changes) > 0 {
+	if changes := routineDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve); len(changes) > 0 {
 		if len(changes) > 8 {
 			changes = changes[:8]
 		}
@@ -514,7 +514,7 @@ func routineDrugChanges(policies domain.Fact[observation.Policies], names domain
 
 // routineDietChanges is the food policy planner's input lift (#1541); none
 // while the policy databases or the owned-pawn names are unknown.
-func routineDietChanges(policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn, reserve domain.Fact[policy.FoodReserveReview]) []policy.FoodPolicyChange {
+func routineDietChanges(ideology domain.Fact[policy.Ideoligion], policies domain.Fact[observation.Policies], names domain.Fact[[]policy.OwnedName], pawns []policy.WorkPawn, reserve domain.Fact[policy.FoodReserveReview]) []policy.FoodPolicyChange {
 	p, ok := policies.Value()
 	owned, named := names.Value()
 	if !ok || !named || len(p.Foods) == 0 {
@@ -525,5 +525,5 @@ func routineDietChanges(policies domain.Fact[observation.Policies], names domain
 		entries = append(entries, policy.FoodPolicyEntry{ID: e.ID, Label: e.Label, Pawns: e.Pawns, Allowed: e.Allowed})
 	}
 	stock, _ := reserve.Value()
-	return policy.DietPolicyChanges(pawns, p.FoodEaters, owned, entries, p.Foods, stock.Short)
+	return policy.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock.Short)
 }

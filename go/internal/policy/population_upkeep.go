@@ -66,13 +66,13 @@ type PrisonerColony struct {
 	BestSkill      map[string]int
 	IdeologyActive bool
 	ClassicIdeo    bool
-	// Ideo is the player faction's primary ideoligion id; SlaveryPrecept
-	// the defName of its Slavery-issue precept. Empty without Ideology.
-	Ideo           string
-	SlaveryPrecept string
-	// OrganUsePrecept is the defName of the ideoligion's OrganUse-issue
-	// precept (#1169); empty reads as OrganUse_Classic.
-	OrganUsePrecept string
+	// Ideo is the player faction's primary ideoligion id; empty without
+	// Ideology.
+	Ideo string
+	// Ideology is the frame's ideoligion fact (#1654): slavery and organ
+	// use read it through the shared precept rule (#1656). The routine
+	// reading fills it; unknown without Ideology.
+	Ideology domain.Fact[Ideoligion]
 	// Medicine is each free colonist's Medicine level by pawn, doctors only
 	// (the skill not disabled): the doctor training floor counts it (#1236)
 	// and the training step names its surgeon from it (#1253).
@@ -80,11 +80,15 @@ type PrisonerColony struct {
 }
 
 // SlaveryAllowed reports whether the colony's ideoligion lets it enslave
-// without a mood cost: Slavery_Acceptable or Slavery_Honorable. Abhorrent,
-// Horrible and Disapproved all carry enslaved-prisoner and slaves-in-colony
-// mood thoughts (Ideology Precepts_Slavery.xml).
+// without a mood cost or refusal: the precept rule's stance for the
+// EnslavedPrisoner event is allowed or approved. Classic mode, an unread
+// ideoligion and a game without Ideology hold.
 func (c PrisonerColony) SlaveryAllowed() bool {
-	return c.IdeologyActive && (c.SlaveryPrecept == "Slavery_Acceptable" || c.SlaveryPrecept == "Slavery_Honorable")
+	if !c.IdeologyActive || c.ClassicIdeo {
+		return false
+	}
+	stance := ActionStance(c.Ideology, PreceptAction{HistoryEvent: "EnslavedPrisoner"}, PreceptSubject{}).Stance
+	return stance == PreceptAllowed || stance == PreceptApproved
 }
 
 // PrisonerFacts is one observed prisoner's population census row.

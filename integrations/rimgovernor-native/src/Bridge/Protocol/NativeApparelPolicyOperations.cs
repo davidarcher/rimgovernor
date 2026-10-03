@@ -53,9 +53,10 @@ namespace HomeBridge.BridgeTools
 
         internal static string ShortName(Pawn p) => p.Name?.ToStringShort ?? p.LabelShort;
 
-        // A nudist, or a pawn whose ideoligion makes nudity mandatory for its gender.
+        // A nudist, or a pawn whose ideoligion prefers nudity for its gender
+        // (the game's own PreceptDef.prefersNudity rule, no precept named).
         private static bool Nude(Pawn p) => p.story?.traits?.HasTrait(TraitDefOf.Nudist) == true
-            || ModsConfig.IdeologyActive && p.Ideo != null && p.Ideo.PreceptsListForReading.Any(v => v.def.defName == (p.gender == Gender.Female ? "Nudity_Female_Mandatory" : "Nudity_Male_Mandatory"));
+            || ModsConfig.IdeologyActive && p.Ideo != null && IdeoUtility.IdeoPrefersNudityForGender(p.Ideo, p.gender);
 
         // The apparel requirements of the pawn's royal title and ideoligion role.
         private static IEnumerable<ApparelRequirement> Requirements(Pawn p)

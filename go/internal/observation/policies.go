@@ -104,7 +104,7 @@ func ColonyPolicies(section *o.PolicySection) domain.Fact[Policies] {
 	}
 	for _, e := range f.FoodEaters {
 		r.FoodEaters = append(r.FoodEaters, policy.FoodEater{Pawn: policy.PawnID(e.GetPawnId()), Animal: e.GetKind() == o.FoodEaterKind_FOOD_EATER_KIND_ANIMAL,
-			Diet: policy.DietOf(e.Traits, e.Precepts), Edible: e.EdibleDefs})
+			Traits: e.Traits, Precepts: e.Precepts, Edible: e.EdibleDefs})
 	}
 	for _, row := range f.AllowedAreas {
 		r.AllowedAreas = append(r.AllowedAreas, AllowedArea{ID: row.GetId(), Label: row.GetLabel(), Pawns: pawnIDs(row.PawnIds)})

@@ -73,6 +73,16 @@ traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPA
 payload on the wire), is `unknown`: callers hold. There is no `required` stance: no effect kind types
 a requirement.
 
+Consumers (#1656): slavery (`EnslavedPrisoner`), organ harvest and sale
+(`HarvestedOrgan`, `SoldOrgan`; the doer's cost once, witnesses' on every
+colonist) and the diet facts (`AteHumanMeat*`, `AteInsectMeat*`, `AteMeat`,
+`AteNonMeat`, `AteFungus*`) read the rule; no precept name is listed. A pawn's
+diet reads the pawn row's own `precepts` against the catalog defs
+(`Ideoligion.HeldBy`), since a pawn's ideoligion may differ from the primary
+one. Apparel stays native: the nudity requirement is the game's
+`IdeoPrefersNudityForGender`, the apparel precepts and role requirements are
+typed rows on the pawn.
+
 Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker the rule forbids for
 `HistoryEventDefOf.ButcheredHuman`; an unread ideoligion forbids nothing there, and the native
 disposition still gates the worker. The game raises no history event for burying, entombing or

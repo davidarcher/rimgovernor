@@ -26,28 +26,35 @@ func harvestPrisoner(id string, goodwill int, ops ...SurgeryOperation) PrisonerF
 	return row
 }
 
+// organUse is an ideoligion whose organ-use precept has the given effects
+// (the game's HarvestedOrgan and SoldOrgan events).
+func organUse(effects ...PreceptEffect) domain.Fact[Ideoligion] {
+	return domain.Known(ruleIdeoligion(PreceptDef{Name: "OrganUse_Test", Effects: effects}))
+}
+
 func TestHarvestCost(t *testing.T) {
+	horrible := []PreceptEffect{saw("HarvestedOrgan", -4), took("HarvestedOrgan", -15)}
 	for _, c := range []struct {
-		precept   string
-		colonists int
-		goodwill  int
-		sale      bool
-		cost      float64
-		ok        bool
+		name     string
+		colony   PrisonerColony
+		goodwill int
+		sale     bool
+		cost     float64
+		ok       bool
 	}{
-		{"", 5, -70, false, 5*5*SilverPerMoodPoint + 70*SilverPerGoodwillPoint, true},
-		{"OrganUse_Classic", 4, 0, true, 4 * 5 * SilverPerMoodPoint, true},
-		{"OrganUse_Acceptable", 10, 0, true, 0, true},
-		{"OrganUse_Acceptable", 10, -70, false, 70 * SilverPerGoodwillPoint, true},
-		{"OrganUse_HorribleSellOK", 3, 0, true, (3*4 + 15) * SilverPerMoodPoint, true},
-		{"OrganUse_HorribleNoSell", 3, 0, false, (3*4 + 15) * SilverPerMoodPoint, true},
-		{"OrganUse_HorribleNoSell", 3, 0, true, (3*4 + 15 + 3*2 + 8) * SilverPerMoodPoint, true},
-		{"OrganUse_Abhorrent", 3, 0, false, 0, false},
-		{"OrganUse_Modded", 3, 0, false, 0, false},
+		{"no Ideology: Core thought", PrisonerColony{Colonists: 5}, -70, false, 5*5*SilverPerMoodPoint + 70*SilverPerGoodwillPoint, true},
+		{"witness thought on every colonist", PrisonerColony{Colonists: 4, IdeologyActive: true, Ideology: organUse(saw("HarvestedOrgan", -5))}, 0, true, 4 * 5 * SilverPerMoodPoint, true},
+		{"no effect costs nothing", PrisonerColony{Colonists: 10, IdeologyActive: true, Ideology: organUse()}, 0, true, 0, true},
+		{"goodwill only", PrisonerColony{Colonists: 10, IdeologyActive: true, Ideology: organUse()}, -70, false, 70 * SilverPerGoodwillPoint, true},
+		{"doer once, witnesses each", PrisonerColony{Colonists: 3, IdeologyActive: true, Ideology: organUse(horrible...)}, 0, true, (3*4 + 15) * SilverPerMoodPoint, true},
+		{"sale adds its thoughts", PrisonerColony{Colonists: 3, IdeologyActive: true, Ideology: organUse(append(horrible, saw("SoldOrgan", -2), took("SoldOrgan", -8))...)}, 0, true, (3*4 + 15 + 3*2 + 8) * SilverPerMoodPoint, true},
+		{"no sale ignores its thoughts", PrisonerColony{Colonists: 3, IdeologyActive: true, Ideology: organUse(append(horrible, saw("SoldOrgan", -2), took("SoldOrgan", -8))...)}, 0, false, (3*4 + 15) * SilverPerMoodPoint, true},
+		{"refusal", PrisonerColony{Colonists: 3, IdeologyActive: true, Ideology: organUse(unwilling("HarvestedOrgan", nil))}, 0, false, 0, false},
+		{"unread ideoligion holds", PrisonerColony{Colonists: 3, IdeologyActive: true}, 0, false, 0, false},
 	} {
-		cost, ok := HarvestCost(PrisonerColony{Colonists: c.colonists, OrganUsePrecept: c.precept}, c.goodwill, c.sale)
+		cost, ok := HarvestCost(c.colony, c.goodwill, c.sale)
 		if ok != c.ok || ok && cost != c.cost {
-			t.Fatalf("%+v: cost %v ok %v", c, cost, ok)
+			t.Fatalf("%s: cost %v ok %v", c.name, cost, ok)
 		}
 	}
 }
@@ -75,8 +82,8 @@ func TestSelectOrganHarvest(t *testing.T) {
 		{"silver deficit sells a lung (market value beats the kidney)", []PrisonerFacts{harvestPrisoner("p", 0)}, five, OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil), nil, "p/18/"},
 		{"sale refused when mood and goodwill outweigh the organ", []PrisonerFacts{harvestPrisoner("p", -70)}, PrisonerColony{Colonists: 7, BestSkill: core.BestSkill}, sale, nil, ""},
 		{"colonist need before sale", []PrisonerFacts{harvestPrisoner("p", 0)}, five, append(OrganNeeds(domain.Known([]CarePawn{}), nil, true, nil), colonistNeed...), nil, "p/20/c"},
-		{"abhorrent precept refuses", []PrisonerFacts{harvestPrisoner("p", 0)}, PrisonerColony{Colonists: 1, BestSkill: core.BestSkill, OrganUsePrecept: "OrganUse_Abhorrent"}, colonistNeed, nil, ""},
-		{"acceptable precept prices only goodwill", []PrisonerFacts{harvestPrisoner("p", -70)}, PrisonerColony{Colonists: 30, BestSkill: core.BestSkill, OrganUsePrecept: "OrganUse_Acceptable"}, sale, nil, "p/20/"},
+		{"abhorrent precept refuses", []PrisonerFacts{harvestPrisoner("p", 0)}, PrisonerColony{Colonists: 1, BestSkill: core.BestSkill, IdeologyActive: true, Ideology: organUse(unwilling("HarvestedOrgan", nil))}, colonistNeed, nil, ""},
+		{"acceptable precept prices only goodwill", []PrisonerFacts{harvestPrisoner("p", -70)}, PrisonerColony{Colonists: 30, BestSkill: core.BestSkill, IdeologyActive: true, Ideology: organUse()}, sale, nil, "p/20/"},
 		{"recruitable worthy prisoner is not harvested", []PrisonerFacts{func() PrisonerFacts {
 			row := harvestPrisoner("p", 0)
 			row.Recruitable, row.Prospect = domain.Known(true), domain.Known(strong)

@@ -48,20 +48,19 @@ const (
 	SilverPerCapacity      = 1500.0
 )
 
-// Vanilla thought magnitudes (Core Precepts_OrganUse.xml,
-// Thoughts_Memory_Misc.xml; Ideology Precepts_OrganUse.xml).
+// classicKnowHarvestMood is Core's KnowGuestOrganHarvested thought on every
+// colonist (Thoughts_Memory_Misc.xml): the cost of a harvest in a game
+// without the Ideology DLC, which has no precepts to read. With Ideology the
+// precepts' own thoughts price it (HarvestMood).
 const (
-	classicKnowHarvestMood   = 5  // KnowGuestOrganHarvested, every colonist
-	horribleKnowHarvestMood  = 4  // HarvestedOrgan_Know_Horrible_Mood
-	horribleDoerHarvestMood  = 15 // HarvestedOrgan_Horrible, the surgeon
-	horribleKnowSoldMood     = 2  // SoldOrgan_Know_Horrible_Mood (HorribleNoSell)
-	horribleSellerSoldMood   = 8  // SoldOrgan_Disapproved, the seller
-	organUseClassic          = "OrganUse_Classic"
-	organUseAbhorrent        = "OrganUse_Abhorrent"
-	organUseHorribleNoSell   = "OrganUse_HorribleNoSell"
-	organUseHorribleSellOK   = "OrganUse_HorribleSellOK"
-	organUseAcceptable       = "OrganUse_Acceptable"
+	classicKnowHarvestMood   = 5
 	harvestInstallRecipePref = "InstallNatural"
+)
+
+// The history events a harvest raises: the organ taken, and the organ sold.
+const (
+	harvestedOrganEvent = "HarvestedOrgan"
+	soldOrganEvent      = "SoldOrgan"
 )
 
 // HarvestOrgans are the paired organs harvest takes, by body part defName
@@ -77,33 +76,35 @@ func harvestOrgan(part string) bool {
 	return false
 }
 
-// HarvestMood is the colony mood points a harvest costs under the OrganUse
-// precept, plus the sale thoughts when the organ is sold. ok is false when
-// the precept refuses: Abhorrent, or one the model does not know.
-func HarvestMood(precept string, colonists int, sale bool) (mood float64, ok bool) {
-	n := float64(max(0, colonists))
-	switch precept {
-	case "", organUseClassic:
+// HarvestMood is the colony mood points a harvest costs: the precept rule's
+// verdict on the HarvestedOrgan event, plus SoldOrgan when the organ is
+// sold; the doer's cost once, the witnesses' on every colonist. ok is false
+// when a precept refuses (any chance of refusal) or the ideoligion is
+// unread. A game without Ideology has no precepts: Core's thought applies.
+func HarvestMood(c PrisonerColony, sale bool) (mood float64, ok bool) {
+	n := float64(max(0, c.Colonists))
+	if !c.IdeologyActive {
 		return classicKnowHarvestMood * n, true
-	case organUseAcceptable:
-		return 0, true
-	case organUseHorribleSellOK:
-		return horribleKnowHarvestMood*n + horribleDoerHarvestMood, true
-	case organUseHorribleNoSell:
-		mood = horribleKnowHarvestMood*n + horribleDoerHarvestMood
-		if sale {
-			mood += horribleKnowSoldMood*n + horribleSellerSoldMood
-		}
-		return mood, true
 	}
-	return 0, false
+	events := []string{harvestedOrganEvent}
+	if sale {
+		events = append(events, soldOrganEvent)
+	}
+	for _, event := range events {
+		v := ActionStance(c.Ideology, PreceptAction{HistoryEvent: event}, PreceptSubject{})
+		if v.Stance == PreceptUnknown || v.RefusalChance > 0 {
+			return 0, false
+		}
+		mood += v.DoerMoodCost + v.WitnessMoodCost*n
+	}
+	return mood, true
 }
 
 // HarvestCost is the silver a harvest costs the colony: mood at
 // SilverPerMoodPoint plus the goodwill change (<= 0) at
 // SilverPerGoodwillPoint. ok is false when the precept refuses.
 func HarvestCost(c PrisonerColony, goodwill int, sale bool) (float64, bool) {
-	mood, ok := HarvestMood(c.OrganUsePrecept, c.Colonists, sale)
+	mood, ok := HarvestMood(c, sale)
 	return SilverPerMoodPoint*mood + SilverPerGoodwillPoint*float64(max(0, -goodwill)), ok
 }
 

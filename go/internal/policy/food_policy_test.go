@@ -2,6 +2,7 @@ package policy
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -24,7 +25,24 @@ var testFoods = []Food{
 	{"MealSurvivalPack", FoodKindMealFine, MealAnyIngredients},
 }
 
+// dietIdeology holds the precept defs the diet tests name; events are the
+// game's HistoryEventDef names, as in the game's own precept comps.
+var dietIdeology = domain.Known(ruleIdeoligion(
+	PreceptDef{Name: "Cannibalism_Disapproved", Effects: []PreceptEffect{took("AteHumanMeat", -3)}},
+	PreceptDef{Name: "Cannibalism_Preferred", Effects: []PreceptEffect{took("AteHumanMeat", 3)}},
+	PreceptDef{Name: "MeatEating_Abhorrent", Effects: []PreceptEffect{took("AteMeat", -6)}},
+	PreceptDef{Name: "MeatEating_NonMeat_Horrible", Effects: []PreceptEffect{took("AteNonMeat", -4)}},
+	PreceptDef{Name: "InsectMeatEating_Loved", Effects: []PreceptEffect{took("AteInsectMeatDirect", 3)}},
+	PreceptDef{Name: "FungusEating_Preferred", Effects: []PreceptEffect{took("AteFungus", 3)}},
+	PreceptDef{Name: "FungusEating_Despised", Effects: []PreceptEffect{took("AteFungus", -3)}},
+))
+
+// eater is a pawn of an ideoligion holding the named precepts and, unless
+// one is named, Cannibalism_Disapproved (every ideoligion holds one).
 func eater(id string, traits []string, precepts ...string) WorkPawn {
+	if len(precepts) > 0 && !slices.ContainsFunc(precepts, func(p string) bool { return strings.HasPrefix(p, "Cannibalism_") }) {
+		precepts = append(precepts, "Cannibalism_Disapproved")
+	}
 	rows := []PawnTrait{}
 	for _, t := range traits {
 		rows = append(rows, PawnTrait{Name: t})
@@ -69,14 +87,14 @@ func TestDietFoods(t *testing.T) {
 		{"ascetic", eater("A", []string{"Ascetic"}), without("Meat_Human", "Meat_Megaspider", "MealFine", "MealFine_Meat", "MealFine_Veg", "MealLavish")},
 		{"gourmand", eater("A", []string{"Gourmand", "Ascetic"}), without("Meat_Human", "Meat_Megaspider")},
 	} {
-		diet, ok := PawnDiet(tc.pawn)
+		diet, ok := PawnDiet(tc.pawn, dietIdeology)
 		if got := DietFoods(diet, testFoods); !ok || !slices.Equal(got, tc.want) {
 			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)
 		}
 	}
 	unknown := eater("A", nil)
 	unknown.Traits = domain.Unknown[[]PawnTrait]()
-	if _, ok := PawnDiet(unknown); ok {
+	if _, ok := PawnDiet(unknown, dietIdeology); ok {
 		t.Error("unknown traits planned")
 	}
 }
@@ -88,7 +106,7 @@ func TestDietPolicyChanges(t *testing.T) {
 	pawns[5].FoodRestriction = domain.Unknown[FoodRestriction]()
 	names := []OwnedName{{"A", "Ann", 1}, {"B", "Bo", 2}, {"C", "Cy", 3}, {"D", "Dup", 4}, {"E", "dup", 5}, {"F", "Fay", 6}}
 	policies := []FoodPolicyEntry{{ID: "FoodPolicy_3", Label: "Cy", Pawns: []PawnID{"C"}, Allowed: without("Meat_Human", "Meat_Megaspider")}}
-	got := DietPolicyChanges(pawns, nil, names, policies, testFoods, false)
+	got := DietPolicyChanges(dietIdeology, pawns, nil, names, policies, testFoods, false)
 	if len(got) != 2 {
 		t.Fatalf("got %d changes: %+v", len(got), got)
 	}
@@ -104,7 +122,7 @@ func TestDietPolicyChanges(t *testing.T) {
 	}
 	// Held but drifted contents are rewritten without a reassignment.
 	policies[0].Allowed = []string{"MealSimple"}
-	got = DietPolicyChanges(pawns[2:3], nil, names, policies, testFoods, false)
+	got = DietPolicyChanges(dietIdeology, pawns[2:3], nil, names, policies, testFoods, false)
 	if len(got) != 1 || got[0].Write == nil || got[0].Assign != nil {
 		t.Fatalf("drift: %+v", got)
 	}
@@ -117,13 +135,13 @@ func TestDietPolicyChangesNonColonists(t *testing.T) {
 	slave := eater("S", nil, "MeatEating_Abhorrent")
 	slave.PolicyInputs = domain.Known(PawnPolicyInputs{Precepts: []string{"MeatEating_Abhorrent"}, GuestStatus: "Slave"})
 	eaters := []FoodEater{
-		{Pawn: "P", Diet: DietOf([]string{"Cannibal"}, nil)},
+		{Pawn: "P", Traits: []string{"Cannibal"}},
 		{Pawn: "H", Animal: true, Edible: []string{"Kibble", "Hay", "RawPotatoes", "MealSimple", "MealFine", "Milk"}},
 		{Pawn: "W", Animal: true, Edible: []string{"Kibble", "Meat_Cow", "MealLavish"}},
 	}
 	names := []OwnedName{{"S", "Sal", 1}, {"P", "Pip", 2}, {"H", "Hoof", 3}, {"W", "Wolf", 4}}
 	got := map[string][]string{}
-	for _, c := range DietPolicyChanges([]WorkPawn{slave}, eaters, names, nil, foods, false) {
+	for _, c := range DietPolicyChanges(dietIdeology, []WorkPawn{slave}, eaters, names, nil, foods, false) {
 		if c.Write == nil || c.Assign == nil {
 			t.Fatalf("change %+v", c)
 		}
@@ -160,7 +178,7 @@ func TestDietMoodTier(t *testing.T) {
 		{"high expectations", pawn(0.9, true), without("Meat_Human", "Meat_Megaspider")},
 		{"content", pawn(0.7, false), without(append(fine, "Meat_Human", "Meat_Megaspider")...)},
 	} {
-		diet, _ := PawnDiet(tc.pawn)
+		diet, _ := PawnDiet(tc.pawn, dietIdeology)
 		got := DietFoods(diet, testFoods)
 		if !slices.Equal(got, tc.want) {
 			t.Errorf("%s: got %v want %v", tc.name, got, tc.want)

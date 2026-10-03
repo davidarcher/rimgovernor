@@ -444,7 +444,7 @@ func transferPart(ctx context.Context, s cases.Session, label, prisoner, patient
 
 // harvestFacts checks the population read's #1169 fields on the prisoner:
 // a harvest operation on a kidney, its faction id and goodwill change,
-// and the colony's OrganUse precept (classic on a Core-only game).
+// and its harvest goodwill change.
 func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 	reply, err := s.Harness().Wire(ctx, "surgery-harvest-population", "observations_read_population", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
 	if err != nil {
@@ -454,7 +454,6 @@ func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 	if err != nil {
 		return err
 	}
-	precept := na.AsString(observed["organUsePrecept"])
 	for _, raw := range na.AsSlice(observed["persons"]) {
 		person, _ := na.AsMap(raw)
 		if na.PawnRef(person) != prisoner {
@@ -462,7 +461,7 @@ func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 		}
 		surgery, _ := na.AsMap(person["surgery"])
 		goodwill, gk := person["harvestGoodwillChange"].(float64)
-		s.Report()["harvest_facts"] = map[string]any{"precept": precept, "faction": person["factionId"], "goodwill": person["harvestGoodwillChange"]}
+		s.Report()["harvest_facts"] = map[string]any{"faction": person["factionId"], "goodwill": person["harvestGoodwillChange"]}
 		harvest := false
 		for _, raw := range na.AsSlice(surgery["operations"]) {
 			op, _ := na.AsMap(raw)
@@ -475,8 +474,6 @@ func harvestFacts(ctx context.Context, s cases.Session, prisoner string) error {
 			return fmt.Errorf("prisoner %s has no faction_id", prisoner)
 		case !gk || goodwill > 0:
 			return fmt.Errorf("prisoner %s harvest_goodwill_change absent or positive: %#v", prisoner, person["harvestGoodwillChange"])
-		case precept != "OrganUse_Classic":
-			return fmt.Errorf("organ_use_precept %q, want OrganUse_Classic on a Core game", precept)
 		}
 		return nil
 	}

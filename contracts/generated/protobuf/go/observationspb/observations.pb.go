@@ -18433,12 +18433,11 @@ type PopulationSnapshot struct {
 	Persons               []*PopulationPerson          `protobuf:"bytes,2,rep,name=persons,proto3" json:"persons,omitempty"`
 	SupportedInteractions []*DefinitionRef             `protobuf:"bytes,3,rep,name=supported_interactions,json=supportedInteractions,proto3" json:"supported_interactions,omitempty"`
 	// ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
-	// primary ideoligion load id and the defName of its Slavery-issue precept
-	// (Slavery_Abhorrent .. Slavery_Honorable); absent without Ideology.
+	// primary ideoligion load id;
+	// absent without Ideology; precepts ride the ideology section.
 	IdeologyActive  *bool   `protobuf:"varint,5,opt,name=ideology_active,json=ideologyActive,proto3,oneof" json:"ideology_active,omitempty"`
 	ClassicIdeoMode *bool   `protobuf:"varint,6,opt,name=classic_ideo_mode,json=classicIdeoMode,proto3,oneof" json:"classic_ideo_mode,omitempty"`
 	ColonyIdeoId    *string `protobuf:"bytes,7,opt,name=colony_ideo_id,json=colonyIdeoId,proto3,oneof" json:"colony_ideo_id,omitempty"`
-	SlaveryPrecept  *string `protobuf:"bytes,8,opt,name=slavery_precept,json=slaveryPrecept,proto3,oneof" json:"slavery_precept,omitempty"`
 	// Storyteller population outlook (#1031): StorytellerUtilityPopulation intent and
 	// adjusted population, and the capture odds that intent sets for a non-colony
 	// humanlike downed by violence (death chance) and for a new prisoner (unrecruitable).
@@ -18446,9 +18445,6 @@ type PopulationSnapshot struct {
 	AdjustedPopulation  *float64 `protobuf:"fixed64,10,opt,name=adjusted_population,json=adjustedPopulation,proto3,oneof" json:"adjusted_population,omitempty"`
 	DeathOnDownedChance *float64 `protobuf:"fixed64,11,opt,name=death_on_downed_chance,json=deathOnDownedChance,proto3,oneof" json:"death_on_downed_chance,omitempty"`
 	UnrecruitableChance *float64 `protobuf:"fixed64,12,opt,name=unrecruitable_chance,json=unrecruitableChance,proto3,oneof" json:"unrecruitable_chance,omitempty"`
-	// The defName of the player ideoligion's OrganUse-issue precept (#1169):
-	// OrganUse_Classic without the Ideology DLC or in classic mode.
-	OrganUsePrecept *string `protobuf:"bytes,13,opt,name=organ_use_precept,json=organUsePrecept,proto3,oneof" json:"organ_use_precept,omitempty"`
 	// Owned-pawn names (#1310): every living named pawn the colony owns --
 	// player-faction colonists, slaves and animals, and colony prisoners --
 	// on any map, caravan or transporter; unnamed animals are absent.
@@ -18529,13 +18525,6 @@ func (x *PopulationSnapshot) GetColonyIdeoId() string {
 	return ""
 }
 
-func (x *PopulationSnapshot) GetSlaveryPrecept() string {
-	if x != nil && x.SlaveryPrecept != nil {
-		return *x.SlaveryPrecept
-	}
-	return ""
-}
-
 func (x *PopulationSnapshot) GetPopulationIntent() float64 {
 	if x != nil && x.PopulationIntent != nil {
 		return *x.PopulationIntent
@@ -18562,13 +18551,6 @@ func (x *PopulationSnapshot) GetUnrecruitableChance() float64 {
 		return *x.UnrecruitableChance
 	}
 	return 0
-}
-
-func (x *PopulationSnapshot) GetOrganUsePrecept() string {
-	if x != nil && x.OrganUsePrecept != nil {
-		return *x.OrganUsePrecept
-	}
-	return ""
 }
 
 func (x *PopulationSnapshot) GetOwnedNames() []*OwnedName {
@@ -45592,32 +45574,28 @@ const file_observations_proto_rawDesc = "" +
 	"\x10_wearing_apparelB\x1a\n" +
 	"\x18_harvest_goodwill_changeB\x0f\n" +
 	"\r_medical_careB\r\n" +
-	"\v_withdrawalJ\x04\b\x01\x10\x02J\x04\b\a\x10\b\"\xe0\a\n" +
+	"\v_withdrawalJ\x04\b\x01\x10\x02J\x04\b\a\x10\b\"\xe3\x06\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +
 	"\x16supported_interactions\x18\x03 \x03(\v2*.rimgovernor.observations.v1.DefinitionRefR\x15supportedInteractions\x12,\n" +
 	"\x0fideology_active\x18\x05 \x01(\bH\x00R\x0eideologyActive\x88\x01\x01\x12/\n" +
 	"\x11classic_ideo_mode\x18\x06 \x01(\bH\x01R\x0fclassicIdeoMode\x88\x01\x01\x12)\n" +
-	"\x0ecolony_ideo_id\x18\a \x01(\tH\x02R\fcolonyIdeoId\x88\x01\x01\x12,\n" +
-	"\x0fslavery_precept\x18\b \x01(\tH\x03R\x0eslaveryPrecept\x88\x01\x01\x120\n" +
-	"\x11population_intent\x18\t \x01(\x01H\x04R\x10populationIntent\x88\x01\x01\x124\n" +
+	"\x0ecolony_ideo_id\x18\a \x01(\tH\x02R\fcolonyIdeoId\x88\x01\x01\x120\n" +
+	"\x11population_intent\x18\t \x01(\x01H\x03R\x10populationIntent\x88\x01\x01\x124\n" +
 	"\x13adjusted_population\x18\n" +
-	" \x01(\x01H\x05R\x12adjustedPopulation\x88\x01\x01\x128\n" +
-	"\x16death_on_downed_chance\x18\v \x01(\x01H\x06R\x13deathOnDownedChance\x88\x01\x01\x126\n" +
-	"\x14unrecruitable_chance\x18\f \x01(\x01H\aR\x13unrecruitableChance\x88\x01\x01\x12/\n" +
-	"\x11organ_use_precept\x18\r \x01(\tH\bR\x0forganUsePrecept\x88\x01\x01\x12G\n" +
+	" \x01(\x01H\x04R\x12adjustedPopulation\x88\x01\x01\x128\n" +
+	"\x16death_on_downed_chance\x18\v \x01(\x01H\x05R\x13deathOnDownedChance\x88\x01\x01\x126\n" +
+	"\x14unrecruitable_chance\x18\f \x01(\x01H\x06R\x13unrecruitableChance\x88\x01\x01\x12G\n" +
 	"\vowned_names\x18\x0e \x03(\v2&.rimgovernor.observations.v1.OwnedNameR\n" +
 	"ownedNamesB\x12\n" +
 	"\x10_ideology_activeB\x14\n" +
 	"\x12_classic_ideo_modeB\x11\n" +
-	"\x0f_colony_ideo_idB\x12\n" +
-	"\x10_slavery_preceptB\x14\n" +
+	"\x0f_colony_ideo_idB\x14\n" +
 	"\x12_population_intentB\x16\n" +
 	"\x14_adjusted_populationB\x19\n" +
 	"\x17_death_on_downed_chanceB\x17\n" +
-	"\x15_unrecruitable_chanceB\x14\n" +
-	"\x12_organ_use_preceptJ\x04\b\x04\x10\x05\"\x95\x01\n" +
+	"\x15_unrecruitable_chanceJ\x04\b\x04\x10\x05J\x04\b\b\x10\tJ\x04\b\r\x10\x0e\"\x95\x01\n" +
 	"\tOwnedName\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\"\n" +
 	"\n" +

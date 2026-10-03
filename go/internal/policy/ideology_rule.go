@@ -3,6 +3,7 @@ package policy
 import (
 	"math"
 	"slices"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -128,6 +129,37 @@ func (i Ideoligion) ActionStance(action PreceptAction, subject PreceptSubject) P
 		verdict.Stance = PreceptApproved
 	}
 	return verdict
+}
+
+// costsMood reports a stance that costs mood or is refused.
+func (s PreceptStance) costsMood() bool { return s == PreceptPenalised || s == PreceptForbidden }
+
+// HeldBy is the ideoligion's defs with exactly the named precept defs in
+// force: the ideoligion of a pawn whose row lists its own precepts, which
+// may differ from the colony's primary one (#1656).
+func (i Ideoligion) HeldBy(precepts []string) Ideoligion {
+	held := make([]HeldPrecept, 0, len(precepts))
+	for n, def := range precepts {
+		held = append(held, HeldPrecept{ID: strconv.Itoa(n), Def: def})
+	}
+	return Ideoligion{Defs: i.Defs, Facts: IdeoligionFacts{IdeoID: i.Facts.IdeoID, Precepts: held}}
+}
+
+// eventStances is the worst and the best stance over the events, in the
+// order approved, allowed, penalised, forbidden, unknown.
+func (i Ideoligion) eventStances(events []string) (worst, best PreceptStance) {
+	rank := map[PreceptStance]int{PreceptApproved: 0, PreceptAllowed: 1, PreceptPenalised: 2, PreceptForbidden: 3, PreceptUnknown: 4}
+	worst, best = PreceptApproved, PreceptUnknown
+	for _, e := range events {
+		s := i.ActionStance(PreceptAction{HistoryEvent: e}, PreceptSubject{}).Stance
+		if rank[s] > rank[worst] {
+			worst = s
+		}
+		if rank[s] < rank[best] {
+			best = s
+		}
+	}
+	return
 }
 
 func cancels(e PreceptEffect, s PreceptSubject) bool {

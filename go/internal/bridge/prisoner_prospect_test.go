@@ -19,14 +19,13 @@ func TestPopulationDecodesHarvestFacts(t *testing.T) {
 	prisoner.PolicyInputs = &o.PawnPolicyInputs{DrugPolicyId: proto.String("DrugPolicy_2"), GuestStatus: proto.String("Prisoner"),
 		Chemicals: []*o.ChemicalState{{Chemical: proto.String("Alcohol"), Addiction: proto.Float64(0.4), Withdrawal: proto.Bool(false)}}}
 	snapshot := populationReply(prisoner, prisonerPerson("q", "")).GetObserved()
-	snapshot.OrganUsePrecept = proto.String("OrganUse_Acceptable")
 	census, err := decodePopulation(snapshot, populationPawns(snapshot))
 	if err != nil {
 		t.Fatal(err)
 	}
 	colony, _ := census.Colony.Value()
 	rows, _ := census.Prisoners.Value()
-	if colony.OrganUsePrecept != "OrganUse_Acceptable" || len(rows) != 2 {
+	if len(rows) != 2 {
 		t.Fatalf("colony %+v rows %+v", colony, rows)
 	}
 	ops, ok := rows[0].Operations.Value()
@@ -66,13 +65,13 @@ func TestPopulationDecodesProspectAndColony(t *testing.T) {
 		Biography: &o.PawnBiography{BiologicalAgeYears: proto.Float64(40), Skills: []*o.Skill{skill("Cooking", 4), skill("Mining", 11)}}}
 	reply := populationReply(prisoner, colonist)
 	snapshot := reply.GetObserved()
-	snapshot.IdeologyActive, snapshot.ColonyIdeoId, snapshot.SlaveryPrecept = proto.Bool(true), proto.String("Ideo_1"), proto.String("Slavery_Acceptable")
+	snapshot.IdeologyActive, snapshot.ColonyIdeoId = proto.Bool(true), proto.String("Ideo_1")
 	census, err := decodePopulation(snapshot, populationPawns(snapshot))
 	if err != nil {
 		t.Fatal(err)
 	}
 	colony, known := census.Colony.Value()
-	if !known || colony.Colonists != 1 || colony.BestSkill["Cooking"] != 4 || colony.BestSkill["Mining"] != 11 || len(colony.Medicine) != 0 || !colony.SlaveryAllowed() || colony.Ideo != "Ideo_1" {
+	if !known || colony.Colonists != 1 || colony.BestSkill["Cooking"] != 4 || colony.BestSkill["Mining"] != 11 || len(colony.Medicine) != 0 || colony.Ideo != "Ideo_1" {
 		t.Fatalf("colony %+v", colony)
 	}
 	rows, _ := census.Prisoners.Value()

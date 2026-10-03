@@ -123,7 +123,7 @@ func decodePopulation(observed *o.PopulationSnapshot, pawns Pawns) (PrisonerCens
 		}
 		resolved[i] = row
 	}
-	colony := policy.PrisonerColony{BestSkill: map[string]int{}, Medicine: map[domain.PawnID]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId(), SlaveryPrecept: observed.GetSlaveryPrecept(), OrganUsePrecept: observed.GetOrganUsePrecept()}
+	colony := policy.PrisonerColony{BestSkill: map[string]int{}, Medicine: map[domain.PawnID]int{}, IdeologyActive: observed.GetIdeologyActive(), ClassicIdeo: observed.GetClassicIdeoMode(), Ideo: observed.GetColonyIdeoId()}
 	rows := make([]policy.PrisonerFacts, 0, len(observed.Persons))
 	guests := []policy.CarePatient{}
 	custody := make([]policy.CustodyFacts, 0, len(observed.Persons))

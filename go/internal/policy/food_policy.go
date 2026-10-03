@@ -108,15 +108,19 @@ func fineMeals(pawn WorkPawn) bool {
 	return mk && tk && mood < threshold+moodTierMargin
 }
 
+// The history events each diet fact reads the ideoligion on (the game's
+// HistoryEventDefOf members), for the shared precept rule (#1656).
 var (
-	cannibalPrecepts   = []string{"Cannibalism_Acceptable", "Cannibalism_Preferred", "Cannibalism_RequiredStrong", "Cannibalism_RequiredRavenous"}
-	vegetarianPrecepts = []string{"MeatEating_Disapproved", "MeatEating_Horrible", "MeatEating_Abhorrent"}
-	carnivorePrecepts  = []string{"MeatEating_NonMeat_Disapproved", "MeatEating_NonMeat_Horrible", "MeatEating_NonMeat_Abhorrent"}
+	humanMeatEvents  = []string{"AteHumanMeat", "AteHumanMeatDirect", "AteHumanMeatAsIngredient"}
+	insectMeatEvents = []string{"AteInsectMeatDirect", "AteInsectMeatAsIngredient"}
+	meatEvents       = []string{"AteMeat"}
+	nonMeatEvents    = []string{"AteNonMeat"}
+	fungusEvents     = []string{"AteFungus", "AteFungusAsIngredient"}
 )
 
 // PawnDiet reads the pawn's diet; unknown while its traits or policy
-// inputs (precepts) are.
-func PawnDiet(pawn WorkPawn) (Diet, bool) {
+// inputs are, or, for a pawn with precepts, the ideoligion defs.
+func PawnDiet(pawn WorkPawn, ideology domain.Fact[Ideoligion]) (Diet, bool) {
 	traits, ok := pawn.Traits.Value()
 	inputs, known := pawn.PolicyInputs.Value()
 	if !ok || !known {
@@ -126,13 +130,51 @@ func PawnDiet(pawn WorkPawn) (Diet, bool) {
 	for _, t := range traits {
 		names = append(names, t.Name)
 	}
-	d := DietOf(names, inputs.Precepts)
+	d, ok := DietOf(names, inputs.Precepts, ideology)
+	if !ok {
+		return Diet{}, false
+	}
 	d.FineMeals = fineMeals(pawn)
 	return d, true
 }
 
-// DietOf is the diet of trait and precept defNames.
-func DietOf(traits, precepts []string) Diet {
+// DietOf is the diet of trait defNames and of the precepts of the pawn's
+// own ideoligion, read through the shared precept rule. A pawn without
+// precepts has no ideoligion and so no precept diet; one with precepts is
+// unknown while the ideoligion defs are. Human meat is accepted when no
+// precept costs mood for it; insect meat and fungus where a precept
+// approves; vegetarian and carnivore are precepts that penalise meat or
+// non-meat; fungus is despised where a precept penalises it.
+func DietOf(traits, precepts []string, ideology domain.Fact[Ideoligion]) (Diet, bool) {
+	d := traitDiet(traits)
+	if len(precepts) == 0 {
+		return d, true
+	}
+	i, ok := ideology.Value()
+	if !ok {
+		return Diet{}, false
+	}
+	held := i.HeldBy(precepts)
+	if worst, _ := held.eventStances(humanMeatEvents); worst == PreceptAllowed || worst == PreceptApproved {
+		d.Cannibal = true
+	}
+	if _, best := held.eventStances(insectMeatEvents); best == PreceptApproved {
+		d.InsectMeat = true
+	}
+	if worst, _ := held.eventStances(meatEvents); worst.costsMood() {
+		d.Vegetarian = true
+	}
+	if worst, _ := held.eventStances(nonMeatEvents); worst.costsMood() {
+		d.Carnivore = true
+	}
+	worst, best := held.eventStances(fungusEvents)
+	d.Fungal = best == PreceptApproved
+	d.NoFungus = worst.costsMood()
+	return d, true
+}
+
+// traitDiet is the diet the pawn's traits give.
+func traitDiet(traits []string) Diet {
 	var d Diet
 	for _, t := range traits {
 		switch t {
@@ -142,22 +184,6 @@ func DietOf(traits, precepts []string) Diet {
 			d.Ascetic = true
 		case "Gourmand":
 			d.Gourmand = true
-		}
-	}
-	for _, p := range precepts {
-		switch {
-		case slices.Contains(cannibalPrecepts, p):
-			d.Cannibal = true
-		case p == "InsectMeatEating_Loved":
-			d.InsectMeat = true
-		case slices.Contains(vegetarianPrecepts, p):
-			d.Vegetarian = true
-		case slices.Contains(carnivorePrecepts, p):
-			d.Carnivore = true
-		case p == "FungusEating_Preferred":
-			d.Fungal = true
-		case p == "FungusEating_Despised":
-			d.NoFungus = true
 		}
 	}
 	return d
@@ -214,8 +240,9 @@ func DietFoods(d Diet, foods []Food) []string {
 type FoodEater struct {
 	Pawn   PawnID
 	Animal bool
-	Diet   Diet
-	Edible []string
+	// Traits and Precepts are the prisoner's diet inputs (DietOf).
+	Traits, Precepts []string
+	Edible           []string
 }
 
 // captiveKinds is what a prisoner or slave eats: nutrient paste and raw food.
@@ -256,7 +283,7 @@ func AnimalFoods(edible []string, foods []Food) []string {
 // slave or prisoner and AnimalFoods for a tame animal. A pawn whose short
 // name another owned pawn shares (#1310 renames it) or that several
 // policies carry waits.
-func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food, reserveFood bool) []FoodPolicyChange {
+func DietPolicyChanges(ideology domain.Fact[Ideoligion], pawns []WorkPawn, eaters []FoodEater, names []OwnedName, policies []FoodPolicyEntry, foods []Food, reserveFood bool) []FoodPolicyChange {
 	type owed struct {
 		id   PawnID
 		want []string
@@ -266,7 +293,7 @@ func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, 
 		if _, ok := pawn.FoodRestriction.Value(); !ok {
 			continue
 		}
-		diet, ok := PawnDiet(pawn)
+		diet, ok := PawnDiet(pawn, ideology)
 		if !ok {
 			continue
 		}
@@ -281,7 +308,11 @@ func DietPolicyChanges(pawns []WorkPawn, eaters []FoodEater, names []OwnedName, 
 		if e.Animal {
 			rows = append(rows, owed{e.Pawn, AnimalFoods(e.Edible, foods)})
 		} else {
-			rows = append(rows, owed{e.Pawn, CaptiveFoods(e.Diet, foods)})
+			diet, ok := DietOf(e.Traits, e.Precepts, ideology)
+			if !ok {
+				continue
+			}
+			rows = append(rows, owed{e.Pawn, CaptiveFoods(diet, foods)})
 		}
 	}
 	short, count := map[PawnID]string{}, map[string]int{}

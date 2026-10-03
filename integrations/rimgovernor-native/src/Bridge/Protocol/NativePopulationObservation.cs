@@ -137,10 +137,6 @@ namespace HomeBridge.BridgeTools
             foreach (var owned in NativePawnSettings.OwnedNamedPawns())
                 snapshot.OwnedNames.Add(new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber });
             snapshot.IdeologyActive = ModsConfig.IdeologyActive;
-            // OrganUse precept (#1169): every player ideoligion carries one;
-            // OrganUse_Classic stands without the Ideology DLC.
-            var organUse = player.ideos?.PrimaryIdeo?.PreceptsListForReading.FirstOrDefault(pr => pr.def.issue?.defName == "OrganUse");
-            if (organUse != null) snapshot.OrganUsePrecept = NativePawnObservationTools.Id(organUse.def.defName);
             if (ModsConfig.IdeologyActive)
             {
                 snapshot.ClassicIdeoMode = Find.IdeoManager.classicMode;
@@ -148,8 +144,6 @@ namespace HomeBridge.BridgeTools
                 if (ideo != null)
                 {
                     snapshot.ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID());
-                    var slavery = ideo.PreceptsListForReading.FirstOrDefault(pr => pr.def.issue?.defName == "Slavery");
-                    if (slavery != null) snapshot.SlaveryPrecept = NativePawnObservationTools.Id(slavery.def.defName);
                 }
             }
             // The installed subset of the modes PrisonerInteractionIntent accepts.

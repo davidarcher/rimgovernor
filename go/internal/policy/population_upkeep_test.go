@@ -23,10 +23,16 @@ func prisonerRow(id string, recruitable bool, current domain.PrisonerInteraction
 	}
 }
 
+// slaveryIdeology is an ideoligion whose slavery precept has the given
+// effects (the game's EnslavedPrisoner event).
+func slaveryIdeology(effects ...PreceptEffect) domain.Fact[Ideoligion] {
+	return domain.Known(ruleIdeoligion(PreceptDef{Name: "Slavery_Test", Effects: effects}))
+}
+
 var (
 	core      = PrisonerColony{Colonists: 4, BestSkill: map[string]int{"Construction": 6, "Plants": 8}}
-	slavers   = PrisonerColony{Colonists: 4, BestSkill: core.BestSkill, IdeologyActive: true, Ideo: "Ideo_1", SlaveryPrecept: "Slavery_Acceptable"}
-	abhorrent = PrisonerColony{Colonists: 4, BestSkill: core.BestSkill, IdeologyActive: true, Ideo: "Ideo_1", SlaveryPrecept: "Slavery_Disapproved"}
+	slavers   = PrisonerColony{Colonists: 4, BestSkill: core.BestSkill, IdeologyActive: true, Ideo: "Ideo_1", Ideology: slaveryIdeology()}
+	abhorrent = PrisonerColony{Colonists: 4, BestSkill: core.BestSkill, IdeologyActive: true, Ideo: "Ideo_1", Ideology: slaveryIdeology(took("EnslavedPrisoner", -2))}
 )
 
 func TestPrisonerUseDecisions(t *testing.T) {
