@@ -117,15 +117,16 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 	report["run_keepalive"] = service.Stop()
 
 	// Native postconditions after the service releases the game slot: the
-	// bill stands on the stove for a baby-edible recipe, and running the game
-	// on feeds the baby (its food level rises between samples, which only
-	// ingestion does) until it reaches the Child stage alive and not starved.
+	// bill stands on the stove for a baby-edible recipe, and the baby is fed
+	// (its food level is above the staged level, which only ingestion
+	// raises; the service run may already have carried it past the Child
+	// stage) and reaches the Child stage alive and not starved.
 	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen session after service stop: %w", err)
 	}
 	args := map[string]any{"babyId": baby, "benchId": bench}
 	var last map[string]any
-	fed, lastFood := false, 2.0
+	fed, stagedFood := false, na.AsNumber(prepared["foodLevel"])
 	elapsed, err := na.RunUntil(ctx, h, "child-grown", growTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		reply, err := h.Call(ctx, "baby-inspect", inspectTool, args)
 		if err != nil {
@@ -139,8 +140,7 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 			return "", false, fmt.Errorf("the baby died: %v", reply)
 		}
 		food := na.AsNumber(reply["foodLevel"])
-		fed = fed || food > lastFood
-		lastFood = food
+		fed = fed || food > stagedFood
 		return na.Signature(reply["stage"], food, fed), na.AsString(reply["stage"]) == "Child", nil
 	})
 	report["grow_ticks"], report["inspect"], report["fed"] = elapsed, last, fed
@@ -158,7 +158,7 @@ func runFirstChild(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("no baby food bill (%v) stands on bench %s: %v", recipes, bench, last["bills"])
 	}
 	if !fed {
-		return fmt.Errorf("the baby's food level never rose, so it was never fed: %v", last)
+		return fmt.Errorf("the baby's food level never rose above its staged %v, so it was never fed: %v", stagedFood, last)
 	}
 	if severity := na.AsNumber(last["malnutrition"]); severity > 0 {
 		return fmt.Errorf("the baby reached the Child stage malnourished (severity %v): %v", severity, last)
