@@ -271,6 +271,23 @@ func (a *app) prepareSetup() bool {
 		}
 		return true
 	}
+	if _, err := os.Stat(a.layout.GameCopy); err == nil && modState == StateOK {
+		// Nothing to rebuild: a controller left running on this root is no
+		// reason to refuse, so the existing game copy is adopted as it is.
+		a.set(artLayout, StateOK, "Ready")
+		a.set(artMod, StateOK, "Up to date")
+		return true
+	}
+	// Setup refuses while this root's own processes run; they are this
+	// root's to stop, by pid (the game itself was ruled out above).
+	if owned, err := setup.ListProcesses(setup.HarnessImages...); err == nil {
+		for _, p := range owned {
+			if p.PID != os.Getpid() && (p.Under(a.layout.GameCopy) || p.Under(a.layout.Root) || p.Under(a.layout.Bin)) {
+				a.logf("stopping %s (pid %d) left running on this root so setup can refresh it", p.Name, p.PID)
+				kill(p.PID)
+			}
+		}
+	}
 	a.set(artLayout, StateBuilding, "Refreshing")
 	if modState != StateOK {
 		a.set(artMod, StateBuilding, "Building ("+modReason+")")
