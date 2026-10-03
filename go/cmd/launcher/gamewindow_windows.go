@@ -20,22 +20,30 @@ var (
 	procIsWindowVisible = user32DLL.NewProc("IsWindowVisible")
 )
 
-// unityWindows lists the visible top-level Unity player windows.
-func unityWindows() []uintptr {
-	var found []uintptr
-	cb := syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
+// enumFound collects the windows of the unityWindows call in flight. The
+// callback is made once: Go never frees a syscall.NewCallback and allows only
+// about 2000 per process, so one per call panicked the launcher after ~33 min.
+// Only watchGameWindow's goroutine calls unityWindows.
+var (
+	enumFound []uintptr
+	enumCB    = syscall.NewCallback(func(hwnd, _ uintptr) uintptr {
 		if vis, _, _ := procIsWindowVisible.Call(hwnd); vis == 0 {
 			return 1
 		}
 		buf := make([]uint16, 64)
 		n, _, _ := procGetClassName.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
 		if syscall.UTF16ToString(buf[:n]) == "UnityWndClass" {
-			found = append(found, hwnd)
+			enumFound = append(enumFound, hwnd)
 		}
 		return 1
 	})
-	procEnumWindows.Call(cb, 0)
-	return found
+)
+
+// unityWindows lists the visible top-level Unity player windows.
+func unityWindows() []uintptr {
+	enumFound = nil
+	procEnumWindows.Call(enumCB, 0)
+	return enumFound
 }
 
 // windowed reports bounds that are a real window, not a screen-sized one.
