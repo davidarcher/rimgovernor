@@ -95,6 +95,13 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			return result, err
 		}
 	}
+	if choice.Reason == policy.CustodyNoDeficit {
+		// A downed entity the capture rule (#1742) takes goes to a holding
+		// platform through the same capture order.
+		if entity, ok := policy.EntityCaptureTarget(read.Projection.Facts.Containment); ok {
+			choice = policy.CustodyChoice{Pawn: entity, Decision: policy.CustodyCapture}
+		}
+	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
 		return RoutinePopulationCustodyResult{Verdict: BuildingReasonUsed}, nil

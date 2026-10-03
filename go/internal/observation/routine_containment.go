@@ -14,12 +14,13 @@ import (
 // the building table and the prediction's def inputs from the catalog. All
 // stay unknown without Anomaly.
 func containmentPlanning(frame bridge.RoutineFrame, definitions []PlanningDefinition) policy.ContainmentPlanning {
-	out := policy.ContainmentPlanning{Demand: domain.Unknown[policy.ContainmentDemand](), Holders: domain.Unknown[[]policy.BuiltHolder](), Defs: domain.Unknown[policy.ContainmentDefs]()}
+	out := policy.ContainmentPlanning{Demand: domain.Unknown[policy.ContainmentDemand](), Holders: domain.Unknown[[]policy.BuiltHolder](), Defs: domain.Unknown[policy.ContainmentDefs](), Entities: domain.Unknown[[]policy.CapturableEntity]()}
 	if frame.Catalog == nil || frame.Catalog.Anomaly == nil {
 		return out
 	}
 	out.Demand = containmentDemand(frame.Tables.Pawns.Values())
 	out.Holders = builtHolders(frame.Tables.Buildings.Values())
+	out.Entities = capturableEntities(frame.Tables.Pawns.Values())
 	definition := func(name string) (PlanningDefinition, string) {
 		for _, d := range definitions {
 			if d.Name == name {

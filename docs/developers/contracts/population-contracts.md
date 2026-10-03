@@ -148,7 +148,11 @@ a pawn that is no longer observable anywhere stays unknown.
 
 A `GiveJobIntent` Capture uses the installed game's capture eligibility, manipulation,
 reservation and bed checks, followed by its ordinary Capture job. Non-hostile capture
-is explicitly unsupported because it changes faction relations. Standing neutral shrine ancients use the existing `Arrest` operation through the Capture action instead: the journal's `OccupantCapture` decision and known JoinerCapacity create a MaintainPopulation deficit. Its custody planner runs before routine work, wakes after casket opening, reserves an exact vacant prisoner bed and couples arrest to a plan-owned draft (#939): the open plan keeps the arrester out of the undraft sweep. Native completion requires living custody in that bed; no second Arrest order kind is defined. Rescue remains the
+is explicitly unsupported because it changes faction relations. A Capture whose
+patient is an Anomaly entity (a pawn with `CompHoldingPlatformTarget`, #1742) is
+the game's holding-platform order instead: native sets the entity's `targetHolder`
+to the available platform of highest containment strength and gives the carrier
+`CarryToEntityHolder`; the rule that decides it is in facilities.md. Standing neutral shrine ancients use the existing `Arrest` operation through the Capture action instead: the journal's `OccupantCapture` decision and known JoinerCapacity create a MaintainPopulation deficit. Its custody planner runs before routine work, wakes after casket opening, reserves an exact vacant prisoner bed and couples arrest to a plan-owned draft (#939): the open plan keeps the arrester out of the undraft sweep. Native completion requires living custody in that bed; no second Arrest order kind is defined. Rescue remains the
 existing ordinary rescue path. Unknown prerequisites block new commitments.
 
 An issued order is not successful custody. The population goal observes actual

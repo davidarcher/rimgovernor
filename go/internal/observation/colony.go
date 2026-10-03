@@ -72,8 +72,6 @@ type ColonyProjection struct {
 	Biotech       domain.Fact[BiotechColony]
 	Odyssey       domain.Fact[OdysseyColony]
 	Anomaly       domain.Fact[AnomalyColony]
-	// Containment is the containment cell's inputs (#1741), set by the routine reading.
-	Containment policy.ContainmentPlanning
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
 	// (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero
 	// value without one.

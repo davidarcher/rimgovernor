@@ -80,7 +80,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		// Its downed raiders are stripped, and the ones not worth
 		// capturing finished, before it closes (#1079).
-		if result, held, err := r.postFight(call, epoch, incident, state, arbiter); err != nil || held {
+		if result, held, err := r.postFight(call, epoch, incident, state, review.Tick, arbiter); err != nil || held {
 			return result, err
 		}
 		// The fight is over: closing it lets the undraft sweep undraft its

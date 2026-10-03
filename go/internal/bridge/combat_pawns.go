@@ -46,16 +46,6 @@ func combatIDs(values []string) error {
 	}
 	return nil
 }
-func combatDefinition(v *o.DefinitionRef) error {
-	if v == nil {
-		return contract("combat definition missing")
-	}
-	if validID(v.GetDefName()) != nil || !presentationText(v.Label, 16384) {
-		return contract("combat definition invalid")
-	}
-	return nil
-}
-
 func combatDefName(v *string) error {
 	if v == nil {
 		return contract("combat definition missing")

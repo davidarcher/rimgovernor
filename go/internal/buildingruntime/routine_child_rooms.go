@@ -46,7 +46,7 @@ func (r *RoutineReviewer) reviewChildRooms(reading *observation.RoutineReading) 
 // containmentDefinitions are the holding platform the containment cell
 // places; none while the catalog's containment inputs are unknown.
 func containmentDefinitions(facts observation.ColonyProjection) []string {
-	if defs, known := facts.Containment.Defs.Value(); known {
+	if defs, known := facts.Facts.Containment.Defs.Value(); known {
 		return []string{defs.Holder}
 	}
 	return nil
@@ -54,7 +54,7 @@ func containmentDefinitions(facts observation.ColonyProjection) []string {
 
 // containmentCellNeed is the cell the capturable entities owe.
 func containmentCellNeed(facts observation.ColonyProjection) (policy.ChildRoomNeed, policy.ContainmentVerdict) {
-	return policy.ContainmentCellNeed(facts.Containment, furnitureDefinitions(facts))
+	return policy.ContainmentCellNeed(facts.Facts.Containment, furnitureDefinitions(facts))
 }
 
 // childRoomNeeds are the rooms the projection owes: the child rooms its

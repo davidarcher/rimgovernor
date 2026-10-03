@@ -87,12 +87,12 @@ func planning(entities int, required float64) ContainmentPlanning {
 }
 
 func TestContainmentCellIsOwedWhenTheDesignReachesTheEntity(t *testing.T) {
-	need, verdict := ContainmentCellNeed(planning(1, 150), platformFurniture())
+	need, verdict := ContainmentCellNeed(planning(1, 100), platformFurniture())
 	if !verdict.Owed || verdict.Reason != "" || need.Role != RoomRoleContainmentCell || need.Module != ModuleContainmentCell || len(need.Furniture) != 1 || need.Furniture[0].Defs[0] != "HoldingPlatform" {
 		t.Fatalf("%+v %+v", need, verdict)
 	}
-	// Equal strength is contained: the game's safe test is >=.
-	if _, v := ContainmentCellNeed(planning(1, 100+50.0/3+60), platformFurniture()); !v.Owed {
+	// The predicted 176.67 reaches 116.6 plus the margin of 60.
+	if _, v := ContainmentCellNeed(planning(1, 116.6), platformFurniture()); !v.Owed {
 		t.Fatalf("equal strength: %+v", v)
 	}
 }
@@ -121,12 +121,12 @@ func TestContainmentCellOwesNothingAndSaysWhy(t *testing.T) {
 }
 
 func TestStandingPlatformThatReachesTheEntityOwesNoCell(t *testing.T) {
-	p := planning(1, 150)
-	p.Holders = domain.Known([]BuiltHolder{{Strength: 120, Available: true}, {Strength: 200, Available: false}})
+	p := planning(1, 100)
+	p.Holders = domain.Known([]BuiltHolder{{Strength: 120, Available: true}, {Strength: 300, Available: false}})
 	if _, v := ContainmentCellNeed(p, platformFurniture()); !v.Owed {
 		t.Fatalf("a weak or taken platform leaves the cell owed: %+v", v)
 	}
-	p.Holders = domain.Known([]BuiltHolder{{Strength: 150, Available: true}})
+	p.Holders = domain.Known([]BuiltHolder{{Strength: 160, Available: true}})
 	if _, v := ContainmentCellNeed(p, platformFurniture()); v.Owed || v.Reason != "" {
 		t.Fatalf("a native strength that reaches it owes nothing: %+v", v)
 	}

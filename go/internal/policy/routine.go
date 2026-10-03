@@ -375,6 +375,9 @@ type RoutineFacts struct {
 	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
 	// can detect and select a downed hostile or unadmitted guest to dispatch.
 	Custody domain.Fact[[]CustodyFacts]
+	// Containment is the containment cell's inputs (#1741) and the entity
+	// rows the capture rule decides (#1742), set by the routine reading.
+	Containment ContainmentPlanning
 	// Outlook is the same population read's storyteller outlook (#1031).
 	Outlook PopulationOutlook
 	// OwnedNames is the same read's owned-pawn short-name census (#1310).
@@ -1514,7 +1517,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	_, ceremonyStarts := CeremonyStartOf(f.Royalty)
 	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, odysseyKnown && odysseyDeficit, letterKnown && letterDeficit, ceremonyStarts:
+	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, odysseyKnown && odysseyDeficit, letterKnown && letterDeficit, ceremonyStarts:
 		populationRecovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		populationRecovered = domain.Known(!prisonerDeficit)

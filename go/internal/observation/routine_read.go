@@ -125,7 +125,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 			return RoutineReading{}, err
 		}
 	}
-	p.Containment = containmentPlanning(frame, p.Definitions)
+	p.Facts.Containment = containmentPlanning(frame, p.Definitions)
 	if sleeping, known := p.Facts.Sleeping.Value(); known {
 		sleeping.BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed())
 		p.Facts.Sleeping = domain.Known(sleeping)

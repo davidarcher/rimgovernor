@@ -27,7 +27,7 @@ const stripJob = "Strip"
 // then one not CaptureWorthy is finished by its stripper, drafted and
 // given the attack order; a worthy one is left for the custody capture.
 // held says the fight stays open; the result is this stop's.
-func (r *RoutineDefensePlanner) postFight(call, epoch context.Context, incident store.IncidentState, state ControlState, arbiter *stepArbiter) (RoutineDefenseResult, bool, error) {
+func (r *RoutineDefensePlanner) postFight(call, epoch context.Context, incident store.IncidentState, state ControlState, tick domain.Tick, arbiter *stepArbiter) (RoutineDefenseResult, bool, error) {
 	p := r.reviewer.player
 	var fight store.CombatFight
 	var fightPlan domain.PlanID
@@ -79,7 +79,7 @@ func (r *RoutineDefensePlanner) postFight(call, epoch context.Context, incident 
 		result, err := r.finishRaider(call, epoch, state, fightPlan, fight.Memory, combat, raider, arbiter)
 		return result, true, err
 	}
-	return RoutineDefenseResult{}, false, nil
+	return r.postFightEntities(call, epoch, state, tick, fightPlan, fight.Memory, combat, arbiter)
 }
 
 // downedRaiders are the frame's downed live hostile humanlikes, by id.

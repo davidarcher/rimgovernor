@@ -55,6 +55,9 @@ type ContainmentPlanning struct {
 	// why they are unknown.
 	Defs       domain.Fact[ContainmentDefs]
 	DefsReason string
+	// Entities are the entity pawn rows the capture rule (#1742) decides;
+	// unknown without Anomaly.
+	Entities domain.Fact[[]CapturableEntity]
 }
 
 // ContainmentVerdict is whether a cell is owed and, when demand exists but a
@@ -81,21 +84,29 @@ func ContainmentCellNeed(p ContainmentPlanning, furniture []FurnitureDefinition)
 	if !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the standing holding platforms are unread"}
 	}
-	for _, h := range holders {
-		if h.Available && h.Strength >= demand.Required {
-			return ChildRoomNeed{}, ContainmentVerdict{}
-		}
-	}
 	defs, ok := p.Defs.Value()
 	if !ok {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the containment inputs cannot be read from the definitions: " + p.DefsReason}
+	}
+	// A cell is owed for what the capture rule would take: the need plus its
+	// margin (#1742), so a cell is never built for an entity that would then
+	// be killed.
+	margin, err := CaptureMargin(defs)
+	if err != nil {
+		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the capture margin is unknown: " + err.Error()}
+	}
+	required := demand.Required + margin
+	for _, h := range holders {
+		if h.Available && h.Strength >= required {
+			return ChildRoomNeed{}, ContainmentVerdict{}
+		}
 	}
 	strength, err := defs.Predict(ContainmentRoom{})
 	if err != nil {
 		return ChildRoomNeed{}, ContainmentVerdict{Reason: "the cell's strength cannot be predicted: " + err.Error()}
 	}
-	if strength < demand.Required {
-		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required)}
+	if strength < required {
+		return ChildRoomNeed{}, ContainmentVerdict{Reason: fmt.Sprintf("a cell of %s with the planned walls and door holds at most %.1f containment strength and an entity needs %.1f plus a margin of %.1f; facilities that add strength are not planned", defs.Holder, strength, demand.Required, margin)}
 	}
 	need := ChildRoomNeed{Role: RoomRoleContainmentCell, Module: ModuleContainmentCell, Furniture: []ChildFurniture{{Defs: []string{defs.Holder}, Count: 1}}}
 	if _, ok := need.resolve(furniture); !ok {

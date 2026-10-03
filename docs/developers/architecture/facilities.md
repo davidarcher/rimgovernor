@@ -196,12 +196,26 @@ its own planned room holding one holding platform, staged exactly like the
 worship room (`policy.ContainmentCellNeed` returns the `ChildRoomNeed`). The
 platform is the catalog's: the `ThingDef` with a
 `CompProperties_EntityHolderPlatform` comp and the greatest
-`containmentFactor`; no def name is listed in Go. Capture itself is not
-planned here.
+`containmentFactor`; no def name is listed in Go. Capture itself is the
+capture rule's (below).
 
 A cell is owed only when its predicted strength reaches the demand (the
-highest `min_containment_strength` among the entities; the margin to keep is
-the capture rule's, #1742). `ContainmentDefs.Predict` is the game's
+highest `min_containment_strength` among the entities) plus the capture
+margin (#1742): the door term of the strength formula, the strength a holder
+loses when its door is forced open (`policy.CaptureMargin`).
+
+**Capture rule (#1742).** A downed hostile entity is captured only when the
+strongest available standing platform's native strength reaches the entity's
+`min_containment_strength` plus that margin (`policy.EntityVerdicts`); an
+entity the game does not let the colony capture, or no available platform
+that strong, is killed (the post-fight finish, `postFightEntities`); an entity
+with any needed fact unread (dead, downed, held, capturable, needed strength,
+platform census, door hit points) is neither captured nor killed and is
+logged at warn (`entity_capture_refused`). Capture is a `GiveJobIntent`
+Capture whose native side, for a pawn with `CompHoldingPlatformTarget`, sets
+the entity's `targetHolder` and gives the carrier `CarryToEntityHolder` to the
+available platform of highest strength (the game's own order); MaintainPopulation's
+custody step carries it. `ContainmentDefs.Predict` is the game's
 `StatWorker_ContainmentStrength` (decompile, recorded on #1741): the
 holder's stat base plus facility offsets plus (lighting + wall + door +
 floor, each times 0.9 per other holder, + roof) times the holder's
