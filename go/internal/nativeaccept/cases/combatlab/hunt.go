@@ -99,6 +99,7 @@ func huntDoorKit(f *Fixture, cx, cz int) {
 	f.Things = nil
 	rz := cz - 12
 	f.Things = append(f.Things, walledRoom(cx, rz, huntDoorHalf, Cell{cx, rz + huntDoorHalf})...)
+	f.Things = append(f.Things, Thing{Def: "ButcherSpot", X: cx, Z: rz})
 	f.Roof = &Roof{Def: "RoofConstructed", MinX: cx - huntDoorHalf, MinZ: rz - huntDoorHalf, MaxX: cx + huntDoorHalf, MaxZ: rz + huntDoorHalf}
 	for i := range f.Pawns {
 		if f.Pawns[i].Side == Colonist {
