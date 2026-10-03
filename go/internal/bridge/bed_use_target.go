@@ -6,7 +6,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// BedUseTarget refreshes one exact humanlike bed's use flags and owners
+// BedUseTarget refreshes one exact bed's use flags and owners
 // from the rimgovernor/observations_list_buildings row.
 type BedUseTarget struct {
 	Context *c.ObservationContext
@@ -38,7 +38,7 @@ func (client *Client) ReadBedUseTarget(ctx context.Context, identity *c.Identity
 	}
 	settings := row.GetSettings()
 	if settings == nil || settings.Snapshot == nil || settings.Snapshot.GetEntityId() != thing || settings.Medical == nil || settings.TargetTemperatureC != nil {
-		return BedUseTarget{}, raw, contract("building is not a humanlike bed")
+		return BedUseTarget{}, raw, contract("building is not a bed")
 	}
 	return BedUseTarget{Context: v.Context, Thing: thing, Medical: settings.GetMedical(), Prisoners: settings.GetForPrisoners(), Owners: RefIDs(settings.AssignedPawns)}, raw, nil
 }

@@ -545,13 +545,18 @@ kept animal) and `AnimalBed`s in the vet room (`VetBeds`) one at a time
 (`policy.NextHerdStep`, `buildingruntime/routine_herd_rooms.go`); the review
 holds the goal open while a step is due (`HerdRoomsOwed`). Both definitions are
 read from the live native catalog; one the catalog lacks fails the review
-rather than being skipped. Not built yet: the medical flag on the vet beds (the
-native bed-use patch refuses beds that are not humanlike, so it needs a native
-contract decision), companion beds and pasture rotation. Assumed natively and
+rather than being skipped. Each standing vet bed is then flagged medical (a
+`BedUse` patch, once per bed per goal epoch, before the next bed is placed; the
+census's `Medical` fact says which are flagged). A bonded animal's master is its
+first bond partner by id on the roster (`policy.CompanionMaster`); each master
+with a solo bedroom gets one `AnimalSleepingSpot` in it per animal mastered
+(`policy.NextCompanionBed`, placed on free floor through the bedroom upgrade
+path, one per review). Not built yet: pasture rotation. Assumed natively and
 unverified: the two definition names, that a colonist operates on an animal in
-an animal bed, that a native room of animal beds scores `Barn` (so the
-cleanliness upkeep leaves the vet room alone), and that a room is roofed the
-way every other shelled room is.
+a medical animal bed, that a native room of animal beds scores `Barn` (so the
+cleanliness upkeep leaves the vet room alone), that a spot in a bedroom does
+not change its `Bedroom` role, and that a room is roofed the way every other
+shelled room is.
 
 `MaintainAnimalFeed` starts below two days of observed reachable feed per animal
 and recovers at four days, with configurable ordered thresholds. Each animal has

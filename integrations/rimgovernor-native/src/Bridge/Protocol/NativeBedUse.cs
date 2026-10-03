@@ -13,8 +13,9 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // BuildingPatchIntent's medical, for_prisoners and for_slaves arms. Building_Bed
-    // .Medical's setter early-returns on an equal value, otherwise calls
+    // BuildingPatchIntent's medical, for_prisoners and for_slaves arms. Any bed may be
+    // flagged medical (an animal bed or sleeping spot included); prisoner and
+    // slave use stay humanlike-only. Building_Bed.Medical's setter early-returns on an equal value, otherwise calls
     // RemoveAllOwners() and re-scores the room role. A bed whose def has
     // bed_canBeMedical false is refused rather than written, because the
     // game's setter would silently ignore it.
@@ -36,7 +37,7 @@ namespace HomeBridge.BridgeTools
             Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : bed.Medical == intent.Medical;
 
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
-            && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null && bed.def.building.bed_humanlike;
+            && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
 
         internal static string Token(Common.Identity identity, Building_Bed bed)
         {
@@ -76,8 +77,10 @@ namespace HomeBridge.BridgeTools
             bed = null;
             if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A bed patch requires an exact bed.");
             var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
-            if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact humanlike bed is unavailable.");
+            if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact bed is unavailable.");
             bed = (Building_Bed)thing;
+            if ((Prisoners(intent) || Slaves(intent)) && !bed.def.building.bed_humanlike)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a humanlike bed can be for prisoners or slaves.");
             if (Prisoners(intent) && (bed.ForHumanBabies || !(bed.GetRoom() is Room room) || !Building_Bed.RoomCanBePrisonCell(room)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell.");
             if (Slaves(intent) && (!ModsConfig.IdeologyActive || bed.ForHumanBabies || bed.Medical))

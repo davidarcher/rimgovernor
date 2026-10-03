@@ -65,40 +65,70 @@ func TestHerdStepShellsThenFurnishesBarnThenVetRoom(t *testing.T) {
 	plan := herdTestPlan(t, 20)
 	barn, vet := plan.HerdRooms(ModuleBarn)[0], plan.HerdRooms(ModuleVetRoom)[0]
 	const animals = 12
-	step := NextHerdStep(plan, RoomObservation{}, nil, animals, testHerdFurniture)
+	step := NextHerdStep(plan, RoomObservation{}, nil, nil, animals, testHerdFurniture)
 	if step.Kind != HerdShell || step.Room != barn {
 		t.Fatal("barn shell first", step)
 	}
 	var built []CurrentBuilding
 	rooms := standing(barn)
 	for i := 0; i < animals; i++ {
-		step = NextHerdStep(plan, rooms, built, animals, testHerdFurniture)
+		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
 		if step.Kind != HerdPlace || step.Role != ModuleBarn || step.Piece.Def != AnimalSleepingSpotDefinition || !rectInside(barn.Interior, step.Piece.Rect) {
 			t.Fatal("barn sleeping spot", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
 	}
-	step = NextHerdStep(plan, rooms, built, animals, testHerdFurniture)
+	step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
 	if step.Kind != HerdShell || step.Room != vet {
 		t.Fatal("vet room shell after the barn beds", step)
 	}
 	rooms = standing(barn, vet)
 	for i := 0; i < VetBeds(animals); i++ {
-		step = NextHerdStep(plan, rooms, built, animals, testHerdFurniture)
+		step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture)
 		if step.Kind != HerdPlace || step.Role != ModuleVetRoom || step.Piece.Def != AnimalBedDefinition || !rectInside(vet.Interior, step.Piece.Rect) {
 			t.Fatal("vet animal bed", i, step)
 		}
 		built = append(built, bedAt(t, step.Piece.Def, step.Piece))
 	}
-	if step = NextHerdStep(plan, rooms, built, animals, testHerdFurniture); step.Kind != HerdNone {
+	if step = NextHerdStep(plan, rooms, built, nil, animals, testHerdFurniture); step.Kind != HerdNone {
 		t.Fatal("every bed stands", step)
 	}
 	// The herd grows: the beds are topped up in the standing rooms.
-	if step = NextHerdStep(plan, rooms, built, animals+3, testHerdFurniture); step.Kind != HerdPlace || step.Role != ModuleBarn {
+	if step = NextHerdStep(plan, rooms, built, nil, animals+3, testHerdFurniture); step.Kind != HerdPlace || step.Role != ModuleBarn {
 		t.Fatal("barn topped up", step)
 	}
-	if step = NextHerdStep(plan, rooms, nil, 0, testHerdFurniture); step.Kind != HerdNone {
+	if step = NextHerdStep(plan, rooms, nil, nil, 0, testHerdFurniture); step.Kind != HerdNone {
 		t.Fatal("no animals owe no room", step)
+	}
+}
+
+func TestHerdStepFlagsEachStandingVetBedMedical(t *testing.T) {
+	plan := herdTestPlan(t, 20)
+	vet := plan.HerdRooms(ModuleVetRoom)[0]
+	layout, ok := PlanInterior(mustInterior(t, vet), testHerdFurniture.Bed)
+	if !ok {
+		t.Fatal("no vet layout")
+	}
+	bed := bedAt(t, AnimalBedDefinition, layout.Pieces[0])
+	census := func(medical domain.Fact[bool]) []SleepingBed {
+		return []SleepingBed{{ID: bed.ID, Medical: medical}}
+	}
+	// Without a barn, the vet room's own step is the first one read.
+	only := plan
+	only.Reservations = nil
+	for _, r := range plan.Reservations {
+		if r.Kind != ReserveBarn {
+			only.Reservations = append(only.Reservations, r)
+		}
+	}
+	step := NextHerdStep(only, standing(vet), []CurrentBuilding{bed}, census(domain.Known(false)), 1, testHerdFurniture)
+	if step.Kind != HerdMedical || step.Bed != bed.ID {
+		t.Fatal("flag the standing vet bed", step)
+	}
+	for _, medical := range []domain.Fact[bool]{domain.Known(true), domain.Unknown[bool]()} {
+		if step = NextHerdStep(only, standing(vet), []CurrentBuilding{bed}, census(medical), 1, testHerdFurniture); step.Kind == HerdMedical {
+			t.Fatal("a flagged or unread bed is not flagged again", step)
+		}
 	}
 }
 
@@ -130,7 +160,7 @@ func TestHerdOutgrowsItsRoomsAndAddsAnotherWithoutMovingAny(t *testing.T) {
 	for _, p := range layout.Pieces {
 		built = append(built, bedAt(t, p.Def, p))
 	}
-	step := NextHerdStep(grown, rooms, built, 60, testHerdFurniture)
+	step := NextHerdStep(grown, rooms, built, nil, 60, testHerdFurniture)
 	if step.Kind != HerdShell || step.Room != second {
 		t.Fatal("second barn shell once the first is full", step)
 	}

@@ -19,9 +19,8 @@ import (
 // The vet room is kept out of animals' reach by its absence from
 // LayoutPlan.AnimalAreas, not by its door: a plain door is no barrier to an
 // animal, so an animal enters only when colonists carry it in to be treated.
-// Flagging an animal bed medical is not staged: the native bed-use patch
-// refuses beds that are not humanlike (NativeBedUse.Eligible), so it waits
-// on a native contract decision (#1633).
+// Each standing vet room bed is then flagged medical (a BedUse patch; any bed
+// can carry the flag natively), so colonists treat animals in it.
 
 const (
 	// ModuleBarn is the barn's plan role, ModuleVetRoom the vet room's.
@@ -226,6 +225,8 @@ const (
 	HerdShell HerdStepKind = "shell"
 	// HerdPlace: place Piece, a bed, in Room.
 	HerdPlace HerdStepKind = "place"
+	// HerdMedical: flag Bed, a standing vet room bed, medical.
+	HerdMedical HerdStepKind = "medical"
 )
 
 // HerdStep is one bounded step towards the barn and vet room.
@@ -234,16 +235,22 @@ type HerdStep struct {
 	Role  ModuleRole
 	Room  LayoutRoom
 	Piece InteriorPiece
+	// Bed is the census id of the bed a HerdMedical step flags.
+	Bed string
 }
 
 // Owed reports whether the planner can act on the step now.
-func (s HerdStep) Owed() bool { return s.Kind == HerdShell || s.Kind == HerdPlace }
+func (s HerdStep) Owed() bool {
+	return s.Kind == HerdShell || s.Kind == HerdPlace || s.Kind == HerdMedical
+}
 
 // NextHerdStep picks the next barn or vet room step for a herd of animals
 // kept animals: the barn holds one sleeping spot per animal and the vet
 // room VetBeds of them, filled room by room in plan order, each room walled
-// before it is furnished. None for no animals or once every bed stands.
-func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, animals int, f HerdFurniture) HerdStep {
+// before it is furnished and each vet bed flagged medical (sleeping's Medical
+// fact says which are) before the next is placed. None for no animals or
+// once every bed stands and is flagged.
+func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, sleeping []SleepingBed, animals int, f HerdFurniture) HerdStep {
 	if animals <= 0 {
 		return HerdStep{}
 	}
@@ -276,6 +283,11 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 			if _, standing := PlannedRoomStanding(room, rooms); !standing {
 				return HerdStep{Kind: HerdShell, Role: site.role, Room: room}
 			}
+			if site.role == ModuleVetRoom {
+				if bed, due := unflaggedVetBed(room, built, sleeping, site.def.Def); due {
+					return HerdStep{Kind: HerdMedical, Role: site.role, Room: room, Bed: bed}
+				}
+			}
 			have := 0
 			for _, b := range built {
 				if b.Building.Definition() == site.def.Def && len(b.Cells) > 0 && rectInside(room.Interior, cellsRectangle(b.Cells)) {
@@ -297,4 +309,21 @@ func NextHerdStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuildin
 		}
 	}
 	return HerdStep{}
+}
+
+// unflaggedVetBed is the first standing bed of def in room whose census row
+// reads not medical; a bed the census lacks or whose flag is unread is not
+// due yet.
+func unflaggedVetBed(room LayoutRoom, built []CurrentBuilding, sleeping []SleepingBed, def string) (string, bool) {
+	for _, b := range built {
+		if b.Building.Definition() != def || len(b.Cells) == 0 || !rectInside(room.Interior, cellsRectangle(b.Cells)) {
+			continue
+		}
+		for _, s := range sleeping {
+			if medical, known := s.Medical.Value(); s.ID == b.ID && known && !medical {
+				return b.ID, true
+			}
+		}
+	}
+	return "", false
 }

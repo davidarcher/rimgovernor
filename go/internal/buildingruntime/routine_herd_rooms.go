@@ -2,8 +2,10 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -11,8 +13,8 @@ import (
 )
 
 // The barn and vet room (#1633): once the pen stands, MaintainAnimalContainment
-// raises each planned herd room and places its animal beds one at a time
-// (policy.NextHerdStep). The review holds the goal open while a step is due
+// raises each planned herd room, places its animal beds one at a time and
+// flags the vet room's beds medical (policy.NextHerdStep). The review holds the goal open while a step is due
 // (HerdRoomsOwed), so a herd that outgrows its beds is topped up.
 
 // herdDefinitions are the definitions the herd steps read availability,
@@ -58,7 +60,8 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	plan, pk := facts.LayoutPlan.Value()
 	rooms, rk := facts.Rooms.Value()
 	census, ck := facts.Facts.CurrentConstruction.Value()
-	if !ak || !pk || !rk || !ck || !census.Colony {
+	sleeping, sk := facts.Facts.Sleeping.Value()
+	if !ak || !pk || !rk || !ck || !sk || !census.Colony {
 		return policy.HerdStep{}, false, nil
 	}
 	if len(animals) == 0 || len(plan.HerdRooms(policy.ModuleBarn))+len(plan.HerdRooms(policy.ModuleVetRoom)) == 0 {
@@ -68,7 +71,7 @@ func herdStep(facts observation.ColonyProjection) (step policy.HerdStep, known b
 	if err != nil || !usable {
 		return policy.HerdStep{}, false, err
 	}
-	return policy.NextHerdStep(plan, rooms, census.Buildings, len(animals), furniture), true, nil
+	return policy.NextHerdStep(plan, rooms, census.Buildings, sleeping.Beds, len(animals), furniture), true, nil
 }
 
 // herdRoomsOwed is the review's HerdRoomsOwed fact: known true while a barn
@@ -111,10 +114,63 @@ func (r *RoutineAnimalContainmentPlanner) stageHerdRooms(call, epoch context.Con
 	}
 	clockSchedulerLog("%s: %s %s", goal.Goal.ID, step.Role, step.Kind)
 	var result RoutineBuildingResult
-	if step.Kind == policy.HerdShell {
+	switch step.Kind {
+	case policy.HerdShell:
 		result, err = r.building.shellRoom(call, epoch, state, review, goal, reading.ColonyReading, step.Room, herdMethod(step), string(step.Role))
-	} else {
+	case policy.HerdMedical:
+		result, err = r.markHerdBedMedical(call, epoch, state, goal, reading.Projection, step.Bed)
+	default:
 		result, err = r.building.placePiece(call, epoch, state, review, goal, reading, step.Piece, herdMethod(step))
 	}
 	return RoutineAnimalContainmentResult{Reason: result.Reason}, err
+}
+
+// markHerdBedMedical commits one CAS-gated patch flagging a vet room bed
+// medical, once per bed per goal epoch. A native that cannot read bed use
+// is an error, never a skipped step.
+func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context.Context, state ControlState, goal store.GoalState, facts observation.ColonyProjection, bed string) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
+	native, ok := r.reviewer.native.(RoutineHospitalSource)
+	if !ok {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: the native source cannot read bed use", ErrControl)
+	}
+	method := domain.MethodID("herd-medical-" + bed)
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineBuildingResult{}, err
+	}
+	target, _, err := native.ReadBedUseTarget(call, boundary.Identity(state.Snapshot), bed)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if _, err = boundary.Context(target.Context, state.Snapshot); err != nil || target.Context.GetTick() < int64(facts.Identity.Tick) {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: stale bed read", ErrControl)
+	}
+	if target.Medical {
+		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+	}
+	patch, err := domain.NewBedMedical(bed, true)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	id := domain.MintPlanID()
+	action, err := domain.NewBedUseAction(domain.ActionID(fmt.Sprintf("%s-0", id)), patch)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: p.session.State() != state", ErrControl)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	return RoutineBuildingResult{Reason: BuildingMethodAdmitted}, nil
 }

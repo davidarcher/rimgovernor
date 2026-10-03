@@ -99,6 +99,9 @@ func bedroomsOwed(facts observation.ColonyProjection) domain.Fact[bool] {
 		if _, upgrade := roomUpgrade(facts); upgrade {
 			return domain.Known(true)
 		}
+		if _, bed := companionBed(facts); bed {
+			return domain.Known(true)
+		}
 		if _, grow := suiteGrowth(facts); grow {
 			return domain.Known(true)
 		}

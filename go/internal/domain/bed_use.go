@@ -3,7 +3,7 @@ package domain
 import "errors"
 
 // BedUse is an immutable, comparable value: a one-shot patch of a
-// humanlike bed's use -- its medical flag (Building_Bed.Medical on the
+// bed's use -- its medical flag (Building_Bed.Medical on the
 // native side), or, for a prisoners patch (#880), setting it for
 // prisoners (a BuildingPatchIntent since #940; native revalidates at
 // apply, #991), or, for a slaves patch (#1036), setting it for slaves. There is no pawn/Job involved -- see NativeBedUse.cs and

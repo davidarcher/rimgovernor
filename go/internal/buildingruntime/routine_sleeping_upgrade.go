@@ -80,6 +80,26 @@ func titleFurniture(facts observation.ColonyProjection) (policy.RoomUpgrade, boo
 	return policy.NextTitleFurniture(obs, policy.TidyFurnitureRooms(rooms, census, facts.Cells), available)
 }
 
+// companionBed is the next animal sleeping spot for a master's solo
+// bedroom (#1633): none while the definition is unavailable or unsized.
+func companionBed(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {
+	obs, sk := facts.Facts.Sleeping.Value()
+	rooms, rk := facts.Rooms.Value()
+	census, ck := facts.Facts.CurrentConstruction.Value()
+	animals, ak := facts.Facts.AnimalUpkeep.Animals.Value()
+	if !sk || !rk || !ck || !ak || !census.Colony {
+		return policy.RoomUpgrade{}, false
+	}
+	d, found := animalContainmentDefinition(facts.Definitions, policy.AnimalSleepingSpotDefinition)
+	size, sizeKnown := d.Size.Value()
+	available, availableKnown := d.Available.Value()
+	if !found || !sizeKnown || !availableKnown || size.Width < 1 || size.Height < 1 {
+		return policy.RoomUpgrade{}, false
+	}
+	spot := policy.InteriorPieceDef{Def: d.Name, Size: domain.Cell{X: size.Width, Z: size.Height}}
+	return policy.NextCompanionBed(obs, animals, policy.TidyFurnitureRooms(rooms, census, facts.Cells), spot, available)
+}
+
 // beautyUpgrade is the next beauty lever (#830): a plant pot or a
 // prettier floor for a bedroom whose weakest stat is beauty.
 func beautyUpgrade(facts observation.ColonyProjection) (policy.RoomUpgrade, bool) {

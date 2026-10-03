@@ -370,6 +370,9 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 				if upgrade, due := titleFurniture(facts); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
 				}
+				if upgrade, due := companionBed(facts); due {
+					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
+				}
 				if upgrade, due := roomUpgrade(facts); due {
 					return r.upgradeBedroom(call, epoch, state, review, goal, reading, upgrade)
 				}
