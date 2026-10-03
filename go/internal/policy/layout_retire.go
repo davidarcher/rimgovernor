@@ -80,15 +80,7 @@ func retireDuplicateRooms(plan LayoutPlan, shapes []ChildRoomShape, built map[Re
 			}
 		}
 	}
-	if len(drop) == 0 {
-		return plan, false
-	}
-	plan.Rooms = withoutRooms(plan.Rooms, drop)
-	plan.Wings = append([]Wing(nil), plan.Wings...)
-	for i := range plan.Wings {
-		plan.Wings[i].Rooms = withoutRooms(plan.Wings[i].Rooms, drop)
-	}
-	return plan, true
+	return dropRooms(plan, drop)
 }
 
 func roleShape(shapes []ChildRoomShape, role ModuleRole) *ChildRoomShape {
