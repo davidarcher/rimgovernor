@@ -96,6 +96,17 @@ func DecodeBiotechCatalog(v *o.BiotechCatalog) (*BiotechCatalog, error) {
 	if out.MechWorkModes, err = biotechIndex("mech work mode", v.MechWorkModes, (*o.MechWorkModeRow).GetDefName); err != nil {
 		return nil, err
 	}
+	if len(v.MechWorkModes) > 0 {
+		recharge := 0
+		for _, row := range v.MechWorkModes {
+			if row.GetRecharge() {
+				recharge++
+			}
+		}
+		if recharge != 1 {
+			return nil, contract("biotech mech work modes carry %d recharge roles, want one", recharge)
+		}
+	}
 	for _, row := range v.LifeStages {
 		if err := biotechEffects("life stage", row.Effects); err != nil {
 			return nil, err
@@ -214,6 +225,17 @@ func validatePawnBiotech(b *o.PawnBiotech) error {
 		if m.Overseer != nil && !validRef(m.Overseer) || m.WorkMode != nil && validID(m.GetWorkMode()) != nil || m.ControlGroup != nil && m.GetControlGroup() < 0 {
 			return contract("invalid biotech mech")
 		}
+		if err := biotechNumbers("mech", m.Energy, m.RechargeBelow, m.RechargeAbove); err != nil {
+			return err
+		}
+		for _, n := range []*float64{m.Energy, m.RechargeBelow, m.RechargeAbove} {
+			if n != nil && (*n < 0 || *n > 1) {
+				return contract("mech energy outside 0-1")
+			}
+		}
+		if m.RechargeBelow != nil && m.RechargeAbove != nil && *m.RechargeBelow > *m.RechargeAbove {
+			return contract("mech recharge band inverted")
+		}
 	}
 	if d := b.Deathrest; d != nil {
 		if err := biotechNumbers("deathrest", d.Level, d.DeathrestPercent); err != nil {
@@ -267,7 +289,10 @@ func PawnBiotech(b *o.PawnBiotech) domain.Fact[policy.PawnBiotech] {
 	if field("mech") {
 		var m *policy.PawnMech
 		if v := b.Mech; v != nil {
-			m = &policy.PawnMech{Overseer: v.GetOverseer().GetId(), WorkMode: optionalFact(v.WorkMode), ControlGroup: optionalInt(v.ControlGroup)}
+			m = &policy.PawnMech{Overseer: v.GetOverseer().GetId(), WorkMode: optionalFact(v.WorkMode), ControlGroup: optionalInt(v.ControlGroup), Energy: optionalFact(v.Energy)}
+			if field("mech_thresholds") {
+				m.RechargeBelow, m.RechargeAbove = optionalFact(v.RechargeBelow), optionalFact(v.RechargeAbove)
+			}
 		}
 		r.Mech = domain.Known(m)
 	}
@@ -296,8 +321,11 @@ func (c *BiotechCatalog) MechCatalog() policy.MechCatalog {
 		}
 		out.Kinds[name] = kind
 	}
-	for name := range c.MechWorkModes {
+	for name, row := range c.MechWorkModes {
 		out.Modes[name] = true
+		if row.GetRecharge() {
+			out.Recharge = name
+		}
 	}
 	return out
 }

@@ -12,7 +12,7 @@ func mechCatalog() MechCatalog {
 			"Mech_Lifter":  {Name: "Mech_Lifter", WorkMech: true, WorkTypes: []WorkType{"Hauling"}, BandwidthCost: 1},
 			"Mech_Militor": {Name: "Mech_Militor", BandwidthCost: 1},
 		},
-		Modes: map[string]bool{"Work": true, "Escort": true, "Recharge": true},
+		Modes: map[string]bool{"Work": true, "Escort": true, "Recharge": true}, Recharge: "Recharge",
 	}
 }
 
@@ -65,7 +65,7 @@ func TestPlanMechControlSeparatesWorkersAndGuardsMovesFirst(t *testing.T) {
 	// Both in group 0, mode Work: the guard moves to group 1 first, then
 	// only the guard group's mode changes.
 	got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{
-		mech("W", "Mech_Lifter", 0, "Work"), mech("G", "Mech_Militor", 0, "Work")}, false)
+		mech("W", "Mech_Lifter", 0, "Work"), mech("G", "Mech_Militor", 0, "Work")}, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestPlanMechControlSeparatesWorkersAndGuardsMovesFirst(t *testing.T) {
 
 func TestPlanMechControlSettledGroupsWriteNothing(t *testing.T) {
 	got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{
-		mech("W", "Mech_Lifter", 0, "Work"), mech("G", "Mech_Militor", 1, "Escort")}, true)
+		mech("W", "Mech_Lifter", 0, "Work"), mech("G", "Mech_Militor", 1, "Escort")}, true, false)
 	if err != nil || len(got) != 0 {
 		t.Fatal(got, err)
 	}
@@ -86,7 +86,7 @@ func TestPlanMechControlSettledGroupsWriteNothing(t *testing.T) {
 func TestPlanMechControlKeepsTheBusierGroupForARole(t *testing.T) {
 	// Workers already sit in group 1, so they stay; the guard takes group 0.
 	got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{
-		mech("W1", "Mech_Lifter", 1, "Work"), mech("W2", "Mech_Lifter", 1, "Work"), mech("G", "Mech_Militor", 1, "Work")}, false)
+		mech("W1", "Mech_Lifter", 1, "Work"), mech("W2", "Mech_Lifter", 1, "Work"), mech("G", "Mech_Militor", 1, "Work")}, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,11 +98,11 @@ func TestPlanMechControlKeepsTheBusierGroupForARole(t *testing.T) {
 
 func TestPlanMechControlSingleGroupThreatBeatsWork(t *testing.T) {
 	in := []MechInput{mech("W", "Mech_Lifter", 0, "Work"), mech("G", "Mech_Militor", 0, "Work")}
-	calm, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, in, false)
+	calm, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, in, false, false)
 	if err != nil || len(calm) != 0 {
 		t.Fatal("a calm shared group keeps Work", calm, err)
 	}
-	raid, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, in, true)
+	raid, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, in, true, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestPlanMechControlSingleGroupThreatBeatsWork(t *testing.T) {
 }
 
 func TestPlanMechControlGuardsOnlyEscortWithoutThreat(t *testing.T) {
-	got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, []MechInput{mech("G", "Mech_Militor", 0, "Work")}, false)
+	got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(1)}, []MechInput{mech("G", "Mech_Militor", 0, "Work")}, false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,18 +127,18 @@ func TestPlanMechControlSkipsUnreadAndUncontrolledFailsLoudOnUnknownDefs(t *test
 	unread.ControlGroups = domain.Unknown[int]()
 	stray := mech("S", "Mech_Militor", 0, "Work")
 	stray.Overseer = ""
-	if got, err := PlanMechControl(mechCatalog(), []MechanitorInput{unread}, []MechInput{mech("G", "Mech_Militor", 0, "Work")}, false); err != nil || len(got) != 0 {
+	if got, err := PlanMechControl(mechCatalog(), []MechanitorInput{unread}, []MechInput{mech("G", "Mech_Militor", 0, "Work")}, false, false); err != nil || len(got) != 0 {
 		t.Fatal(got, err)
 	}
-	if got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{stray}, false); err != nil || len(got) != 0 {
+	if got, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{stray}, false, false); err != nil || len(got) != 0 {
 		t.Fatal(got, err)
 	}
-	if _, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{mech("X", "Mech_Nope", 0, "")}, false); err == nil {
+	if _, err := PlanMechControl(mechCatalog(), []MechanitorInput{mechanitor(2)}, []MechInput{mech("X", "Mech_Nope", 0, "")}, false, false); err == nil {
 		t.Fatal("an unknown mech kind must fail")
 	}
 	noEscort := mechCatalog()
 	delete(noEscort.Modes, "Escort")
-	if _, err := PlanMechControl(noEscort, nil, nil, false); err == nil {
+	if _, err := PlanMechControl(noEscort, nil, nil, false, false); err == nil {
 		t.Fatal("a catalog without the Escort mode must fail")
 	}
 }

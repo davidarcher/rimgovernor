@@ -248,7 +248,7 @@ suppressed traits, immunities, chemical dependency and tolerance factors,
 biostats, exclusion tags); `XenotypeDef` rows with their genes; controllable
 mech kinds (`PawnKindDef` of a mechanoid race with an overseer-subject comp:
 weight class, bandwidth cost, work types and priorities); and
-`MechWorkModeDef` rows. Effects come from the game defs, never Go name lists.
+`MechWorkModeDef` rows (`recharge` marks `MechWorkModeDefOf.Recharge`). Effects come from the game defs, never Go name lists.
 The Go client decodes the section into `bridge.BiotechCatalog` (rows by name,
 refusing duplicates, unknown cross references and nonfinite numbers) with the
 rest of the catalog, once per load token.

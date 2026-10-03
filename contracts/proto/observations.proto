@@ -473,7 +473,13 @@ message PawnMechanitor {
   optional int32 used_bandwidth = 1; optional int32 total_bandwidth = 2; optional int32 used_bandwidth_from_gestation = 3; optional int32 control_groups = 4;
   repeated rimgovernor.common.v1.Ref controlled_mechs = 5;
 }
-message PawnMech { rimgovernor.common.v1.Ref overseer = 1; optional string work_mode = 2; optional int32 control_group = 3; }
+// energy is the mech's Need_MechEnergy level (0-1); recharge_below and
+// recharge_above are its control group's mechRechargeThresholds (0-1), the
+// band the game itself recharges within; each is absent when not read.
+message PawnMech {
+  rimgovernor.common.v1.Ref overseer = 1; optional string work_mode = 2; optional int32 control_group = 3;
+  optional double energy = 4; optional double recharge_below = 5; optional double recharge_above = 6;
+}
 message PawnDeathrest {
   optional bool deathresting = 1; optional double level = 2; optional int32 last_deathrest_tick = 3; optional double deathrest_percent = 4;
   optional int32 capacity = 5; optional int32 bound_buildings = 6; optional bool auto_wake = 7;
@@ -1249,6 +1255,9 @@ message PlanningDefinition { DefinitionRef definition = 1; optional string stuff
   // Native explosive radius (CompProperties_Explosive) of an explosive
   // building such as an IED trap; unset when the definition has none.
   optional double explosive_radius = 35;
+  // True when the definition's thingClass is Building_MechCharger (a mech
+  // recharging station); unset otherwise.
+  optional bool mech_charger = 37;
   // True when the building pollutes or produces wastepacks: it has a
   // CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
   optional bool pollutes = 36;
@@ -1972,7 +1981,8 @@ message MechKindRow {
 }
 // MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
 // the def's flag.
-message MechWorkModeRow { optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4; }
+// recharge is the game's own role: def == MechWorkModeDefOf.Recharge.
+message MechWorkModeRow { optional string def_name = 1; optional string label = 2; optional int32 ui_order = 3; optional bool ignore_group_charge_limits = 4; optional bool recharge = 5; }
 message BiotechCatalog {
   repeated LifeStageRow life_stages = 1; repeated RaceLifeStages races = 2; repeated GeneRow genes = 3; repeated XenotypeRow xenotypes = 4;
   repeated MechKindRow mech_kinds = 5; repeated MechWorkModeRow mech_work_modes = 6;

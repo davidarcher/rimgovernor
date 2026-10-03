@@ -19,6 +19,8 @@ type PlanningDefinition struct {
 	Available                                                       domain.Fact[bool]
 	ConstructionSkill                                               domain.Fact[int32]
 	NeedsPower                                                      domain.Fact[bool]
+	// MechCharger is true for a Building_MechCharger definition (#1688).
+	MechCharger domain.Fact[bool]
 	// Pollutes is true for a building with a pollution or wastepack comp
 	// (CompToxifier, CompPolluteOverTime, CompWasteProducer); unknown when
 	// the row did not say.
@@ -544,7 +546,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 // planningDefinition decodes one catalog definition row: its static
 // facts, without availability or the map's crop facts.
 func planningDefinition(row *o.PlanningDefinition) PlanningDefinition {
-	d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), Pollutes: optional(row.Pollutes), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), ExplosiveRadius: optional(row.ExplosiveRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
+	d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), Pollutes: optional(row.Pollutes), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), ExplosiveRadius: optional(row.ExplosiveRadius), MechCharger: optional(row.MechCharger), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), WorkToBuild: optional(row.WorkToBuild), Research: append([]string{}, row.ResearchPrerequisites...)}
 	if row.GrowDays != nil {
 		d.SowTags = domain.Known(append([]string{}, row.SowTags...))
 	}

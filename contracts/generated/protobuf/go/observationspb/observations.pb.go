@@ -7253,11 +7253,17 @@ func (x *PawnMechanitor) GetControlledMechs() []*commonpb.Ref {
 	return nil
 }
 
+// energy is the mech's Need_MechEnergy level (0-1); recharge_below and
+// recharge_above are its control group's mechRechargeThresholds (0-1), the
+// band the game itself recharges within; each is absent when not read.
 type PawnMech struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Overseer      *commonpb.Ref          `protobuf:"bytes,1,opt,name=overseer,proto3" json:"overseer,omitempty"`
 	WorkMode      *string                `protobuf:"bytes,2,opt,name=work_mode,json=workMode,proto3,oneof" json:"work_mode,omitempty"`
 	ControlGroup  *int32                 `protobuf:"varint,3,opt,name=control_group,json=controlGroup,proto3,oneof" json:"control_group,omitempty"`
+	Energy        *float64               `protobuf:"fixed64,4,opt,name=energy,proto3,oneof" json:"energy,omitempty"`
+	RechargeBelow *float64               `protobuf:"fixed64,5,opt,name=recharge_below,json=rechargeBelow,proto3,oneof" json:"recharge_below,omitempty"`
+	RechargeAbove *float64               `protobuf:"fixed64,6,opt,name=recharge_above,json=rechargeAbove,proto3,oneof" json:"recharge_above,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7309,6 +7315,27 @@ func (x *PawnMech) GetWorkMode() string {
 func (x *PawnMech) GetControlGroup() int32 {
 	if x != nil && x.ControlGroup != nil {
 		return *x.ControlGroup
+	}
+	return 0
+}
+
+func (x *PawnMech) GetEnergy() float64 {
+	if x != nil && x.Energy != nil {
+		return *x.Energy
+	}
+	return 0
+}
+
+func (x *PawnMech) GetRechargeBelow() float64 {
+	if x != nil && x.RechargeBelow != nil {
+		return *x.RechargeBelow
+	}
+	return 0
+}
+
+func (x *PawnMech) GetRechargeAbove() float64 {
+	if x != nil && x.RechargeAbove != nil {
+		return *x.RechargeAbove
 	}
 	return 0
 }
@@ -27730,6 +27757,9 @@ type PlanningDefinition struct {
 	// Native explosive radius (CompProperties_Explosive) of an explosive
 	// building such as an IED trap; unset when the definition has none.
 	ExplosiveRadius *float64 `protobuf:"fixed64,35,opt,name=explosive_radius,json=explosiveRadius,proto3,oneof" json:"explosive_radius,omitempty"`
+	// True when the definition's thingClass is Building_MechCharger (a mech
+	// recharging station); unset otherwise.
+	MechCharger *bool `protobuf:"varint,37,opt,name=mech_charger,json=mechCharger,proto3,oneof" json:"mech_charger,omitempty"`
 	// True when the building pollutes or produces wastepacks: it has a
 	// CompToxifier, CompPolluteOverTime or CompWasteProducer (#1684).
 	Pollutes      *bool `protobuf:"varint,36,opt,name=pollutes,proto3,oneof" json:"pollutes,omitempty"`
@@ -27989,6 +28019,13 @@ func (x *PlanningDefinition) GetExplosiveRadius() float64 {
 		return *x.ExplosiveRadius
 	}
 	return 0
+}
+
+func (x *PlanningDefinition) GetMechCharger() bool {
+	if x != nil && x.MechCharger != nil {
+		return *x.MechCharger
+	}
+	return false
 }
 
 func (x *PlanningDefinition) GetPollutes() bool {
@@ -41130,12 +41167,14 @@ func (x *MechKindRow) GetCombatPower() float64 {
 
 // MechWorkModeDef: ui_order sorts the command UI; ignore_group_charge_limits
 // the def's flag.
+// recharge is the game's own role: def == MechWorkModeDefOf.Recharge.
 type MechWorkModeRow struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	DefName                 *string                `protobuf:"bytes,1,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	Label                   *string                `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	UiOrder                 *int32                 `protobuf:"varint,3,opt,name=ui_order,json=uiOrder,proto3,oneof" json:"ui_order,omitempty"`
 	IgnoreGroupChargeLimits *bool                  `protobuf:"varint,4,opt,name=ignore_group_charge_limits,json=ignoreGroupChargeLimits,proto3,oneof" json:"ignore_group_charge_limits,omitempty"`
+	Recharge                *bool                  `protobuf:"varint,5,opt,name=recharge,proto3,oneof" json:"recharge,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -41194,6 +41233,13 @@ func (x *MechWorkModeRow) GetUiOrder() int32 {
 func (x *MechWorkModeRow) GetIgnoreGroupChargeLimits() bool {
 	if x != nil && x.IgnoreGroupChargeLimits != nil {
 		return *x.IgnoreGroupChargeLimits
+	}
+	return false
+}
+
+func (x *MechWorkModeRow) GetRecharge() bool {
+	if x != nil && x.Recharge != nil {
+		return *x.Recharge
 	}
 	return false
 }
@@ -44038,14 +44084,20 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_used_bandwidthB\x12\n" +
 	"\x10_total_bandwidthB \n" +
 	"\x1e_used_bandwidth_from_gestationB\x11\n" +
-	"\x0f_control_groups\"\xae\x01\n" +
+	"\x0f_control_groups\"\xd4\x02\n" +
 	"\bPawnMech\x126\n" +
 	"\boverseer\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\boverseer\x12 \n" +
 	"\twork_mode\x18\x02 \x01(\tH\x00R\bworkMode\x88\x01\x01\x12(\n" +
-	"\rcontrol_group\x18\x03 \x01(\x05H\x01R\fcontrolGroup\x88\x01\x01B\f\n" +
+	"\rcontrol_group\x18\x03 \x01(\x05H\x01R\fcontrolGroup\x88\x01\x01\x12\x1b\n" +
+	"\x06energy\x18\x04 \x01(\x01H\x02R\x06energy\x88\x01\x01\x12*\n" +
+	"\x0erecharge_below\x18\x05 \x01(\x01H\x03R\rrechargeBelow\x88\x01\x01\x12*\n" +
+	"\x0erecharge_above\x18\x06 \x01(\x01H\x04R\rrechargeAbove\x88\x01\x01B\f\n" +
 	"\n" +
 	"_work_modeB\x10\n" +
-	"\x0e_control_group\"\xa3\x03\n" +
+	"\x0e_control_groupB\t\n" +
+	"\a_energyB\x11\n" +
+	"\x0f_recharge_belowB\x11\n" +
+	"\x0f_recharge_above\"\xa3\x03\n" +
 	"\rPawnDeathrest\x12'\n" +
 	"\fdeathresting\x18\x01 \x01(\bH\x00R\fdeathresting\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x01H\x01R\x05level\x88\x01\x01\x123\n" +
@@ -46789,7 +46841,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\xd7\x0f\n" +
+	"\v_sowing_now\"\x90\x10\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -46828,8 +46880,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x13requires_clean_soil\x18  \x01(\bH\x16R\x11requiresCleanSoil\x88\x01\x01\x12'\n" +
 	"\rwork_to_build\x18! \x01(\x01H\x17R\vworkToBuild\x88\x01\x01\x12M\n" +
 	"\rstuff_options\x18\" \x03(\v2(.rimgovernor.observations.v1.StuffOptionR\fstuffOptions\x12.\n" +
-	"\x10explosive_radius\x18# \x01(\x01H\x18R\x0fexplosiveRadius\x88\x01\x01\x12\x1f\n" +
-	"\bpollutes\x18$ \x01(\bH\x19R\bpollutes\x88\x01\x01B\b\n" +
+	"\x10explosive_radius\x18# \x01(\x01H\x18R\x0fexplosiveRadius\x88\x01\x01\x12&\n" +
+	"\fmech_charger\x18% \x01(\bH\x19R\vmechCharger\x88\x01\x01\x12\x1f\n" +
+	"\bpollutes\x18$ \x01(\bH\x1aR\bpollutes\x88\x01\x01B\b\n" +
 	"\x06_stuffB\x15\n" +
 	"\x13_construction_skillB\x15\n" +
 	"\x13_rest_effectivenessB\f\n" +
@@ -46859,7 +46912,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_requires_pollutionB\x16\n" +
 	"\x14_requires_clean_soilB\x10\n" +
 	"\x0e_work_to_buildB\x13\n" +
-	"\x11_explosive_radiusB\v\n" +
+	"\x11_explosive_radiusB\x0f\n" +
+	"\r_mech_chargerB\v\n" +
 	"\t_pollutesJ\x04\b\x03\x10\x04J\x04\b\r\x10\x0eJ\x04\b\x1e\x10\x1fR\tavailableR\x18nutrition_demand_per_dayR\fdiet_allowed\"\xaa\x03\n" +
 	"\tGrowLight\x126\n" +
 	"\bbuilding\x18\x01 \x01(\v2\x1a.rimgovernor.common.v1.RefR\bbuilding\x12.\n" +
@@ -48598,16 +48652,18 @@ const file_observations_proto_rawDesc = "" +
 	"_work_mechB\f\n" +
 	"\n" +
 	"_body_sizeB\x0f\n" +
-	"\r_combat_power\"\xf1\x01\n" +
+	"\r_combat_power\"\x9f\x02\n" +
 	"\x0fMechWorkModeRow\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1e\n" +
 	"\bui_order\x18\x03 \x01(\x05H\x02R\auiOrder\x88\x01\x01\x12@\n" +
-	"\x1aignore_group_charge_limits\x18\x04 \x01(\bH\x03R\x17ignoreGroupChargeLimits\x88\x01\x01B\v\n" +
+	"\x1aignore_group_charge_limits\x18\x04 \x01(\bH\x03R\x17ignoreGroupChargeLimits\x88\x01\x01\x12\x1f\n" +
+	"\brecharge\x18\x05 \x01(\bH\x04R\brecharge\x88\x01\x01B\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_labelB\v\n" +
 	"\t_ui_orderB\x1d\n" +
-	"\x1b_ignore_group_charge_limits\"\xc2\x03\n" +
+	"\x1b_ignore_group_charge_limitsB\v\n" +
+	"\t_recharge\"\xc2\x03\n" +
 	"\x0eBiotechCatalog\x12J\n" +
 	"\vlife_stages\x18\x01 \x03(\v2).rimgovernor.observations.v1.LifeStageRowR\n" +
 	"lifeStages\x12A\n" +

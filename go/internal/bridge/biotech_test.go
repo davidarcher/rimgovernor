@@ -20,7 +20,7 @@ func biotechCatalogFixture() *o.BiotechCatalog {
 		Genes:         []*o.GeneRow{{DefName: proto.String("Robust"), DisabledWorkTags: []string{"Violent"}, Effects: []*o.StatEffect{{Stat: proto.String("WorkSpeedGlobal"), Offset: proto.Float64(.1)}}, Aptitudes: []*o.SkillLevel{{Skill: proto.String("Shooting"), Level: proto.Int32(2)}}}},
 		Xenotypes:     []*o.XenotypeRow{{DefName: proto.String("Hussar"), Genes: []string{"Robust"}}},
 		MechKinds:     []*o.MechKindRow{{DefName: proto.String("Mech_Lifter"), BandwidthCost: proto.Float64(1), WorkTypes: []string{"Hauling"}, WorkPriorities: []*o.MechWorkPriority{{WorkType: proto.String("Hauling"), Priority: proto.Int32(1)}}}},
-		MechWorkModes: []*o.MechWorkModeRow{{DefName: proto.String("Work"), UiOrder: proto.Int32(1)}},
+		MechWorkModes: []*o.MechWorkModeRow{{DefName: proto.String("Work"), UiOrder: proto.Int32(1)}, {DefName: proto.String("Recharge"), UiOrder: proto.Int32(2), Recharge: proto.Bool(true)}},
 	}
 }
 
@@ -109,5 +109,55 @@ func TestPawnBiotechRow(t *testing.T) {
 		if validatePawnBiotech(v) == nil {
 			t.Errorf("%s accepted", name)
 		}
+	}
+}
+
+// TestMechEnergyAndRechargeRole (#1688): the mech block carries energy and
+// its group's recharge band, a failed band read stays unknown, and the
+// catalog names exactly one recharge mode from the row flag.
+func TestMechEnergyAndRechargeRole(t *testing.T) {
+	b := biotechPawnFixture()
+	b.Mech = &o.PawnMech{WorkMode: proto.String("Work"), ControlGroup: proto.Int32(0), Energy: proto.Float64(.4), RechargeBelow: proto.Float64(.3), RechargeAbove: proto.Float64(.7)}
+	if err := validatePawnBiotech(b); err != nil {
+		t.Fatal(err)
+	}
+	bt, _ := PawnBiotech(b).Value()
+	mech, _ := bt.Mech.Value()
+	if e, ok := mech.Energy.Value(); !ok || e != .4 {
+		t.Fatal("energy", e, ok)
+	}
+	if lo, ok := mech.RechargeBelow.Value(); !ok || lo != .3 {
+		t.Fatal("band", lo, ok)
+	}
+	failed := biotechPawnFixture()
+	failed.Mech = &o.PawnMech{Energy: proto.Float64(.4)}
+	failed.Issues = []*o.ReadIssue{{Field: proto.String("mech_thresholds"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
+	if err := validatePawnBiotech(failed); err != nil {
+		t.Fatal(err)
+	}
+	bt, _ = PawnBiotech(failed).Value()
+	mech, _ = bt.Mech.Value()
+	if _, ok := mech.RechargeBelow.Value(); ok {
+		t.Fatal("a failed band read must stay unknown")
+	}
+	for name, mutate := range map[string]func(*o.PawnMech){
+		"energy range":  func(m *o.PawnMech) { m.Energy = proto.Float64(1.2) },
+		"inverted band": func(m *o.PawnMech) { m.RechargeBelow, m.RechargeAbove = proto.Float64(.8), proto.Float64(.2) },
+	} {
+		v := biotechPawnFixture()
+		v.Mech = &o.PawnMech{Energy: proto.Float64(.4), RechargeBelow: proto.Float64(.3), RechargeAbove: proto.Float64(.7)}
+		mutate(v.Mech)
+		if validatePawnBiotech(v) == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+	catalog, err := DecodeBiotechCatalog(biotechCatalogFixture())
+	if err != nil || catalog.MechCatalog().Recharge != "Recharge" {
+		t.Fatal("recharge role", err)
+	}
+	two := biotechCatalogFixture()
+	two.MechWorkModes[0].Recharge = proto.Bool(true)
+	if _, err := DecodeBiotechCatalog(two); err == nil {
+		t.Fatal("two recharge modes accepted")
 	}
 }

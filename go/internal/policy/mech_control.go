@@ -17,8 +17,8 @@ import (
 //
 // Modes, from the wiki and MechWorkModeDefOf (Assembly-CSharp 1.6.4871: Work,
 // SelfShutdown, Escort, Recharge): Work does available work tasks, Escort
-// follows the mechanitor and fights enemies. Recharge and SelfShutdown are
-// not chosen here (recharging is out of scope, #1687).
+// follows the mechanitor and fights enemies. Recharge is chosen by
+// MechRechargeMode (#1688); SelfShutdown is not chosen here.
 //
 // Priority between colonist need and bandwidth, decided from the read:
 //   - Bandwidth is spent only by acquiring mechs (gestation, #1686); control
@@ -74,6 +74,9 @@ func (k MechKind) Role() MechRole {
 type MechCatalog struct {
 	Kinds map[string]MechKind
 	Modes map[string]bool
+	// Recharge is the work mode the game names MechWorkModeDefOf.Recharge
+	// (the catalog row's role flag); "" without Biotech.
+	Recharge string
 }
 
 // MechanitorInput is one colonist mechanitor.
@@ -105,11 +108,12 @@ type MechFleet struct {
 // PlanMechControl is the settings that bring each mechanitor's mechs into
 // role groups with the right modes: first every move, then every group
 // mode, so a mode lands on a group after its mechs are in it. hostile is a
-// hostile on the map. An unknown group count, an unknown mech group or a
+// hostile on the map; chargerReady is a charger a mech can use now
+// (MechRechargeMode). An unknown group count, an unknown mech group or a
 // mech whose overseer is not an input mechanitor is skipped; a mech kind or
 // mode the catalog lacks is an error.
-func PlanMechControl(catalog MechCatalog, mechanitors []MechanitorInput, mechs []MechInput, hostile bool) ([]domain.PawnSettings, error) {
-	for _, mode := range []string{MechModeWork, MechModeEscort} {
+func PlanMechControl(catalog MechCatalog, mechanitors []MechanitorInput, mechs []MechInput, hostile, chargerReady bool) ([]domain.PawnSettings, error) {
+	for _, mode := range []string{MechModeWork, MechModeEscort, catalog.Recharge} {
 		if !catalog.Modes[mode] {
 			return nil, fmt.Errorf("mech work mode %s is not in the catalog", mode)
 		}
@@ -168,6 +172,7 @@ func PlanMechControl(catalog MechCatalog, mechanitors []MechanitorInput, mechs [
 				}
 				moves = append(moves, s)
 			}
+			g.mode = MechRechargeMode(catalog, g, mechs, chargerReady)
 			if g.holdsMode(mechs) {
 				continue
 			}
@@ -190,14 +195,17 @@ type mechGroup struct {
 // holdsMode reports whether the group already runs the mode: a mech now in
 // the group has a known mode and every one that is has the wanted one. An
 // empty group, or one with an unread mode, is written.
-func (g mechGroup) holdsMode(all []MechInput) bool {
+func (g mechGroup) holdsMode(all []MechInput) bool { return g.holds(all, g.mode) }
+
+// holds is holdsMode for an arbitrary mode.
+func (g mechGroup) holds(all []MechInput, wanted string) bool {
 	seen := false
 	for _, mech := range all {
 		if group, ok := mech.ControlGroup.Value(); !ok || group != g.index {
 			continue
 		}
 		mode, ok := mech.WorkMode.Value()
-		if !ok || mode != g.mode {
+		if !ok || mode != wanted {
 			return false
 		}
 		seen = true

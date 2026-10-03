@@ -175,8 +175,8 @@ worker, any other kind a guard. With two or more control groups (vanilla default
 2) workers go to the group already holding most of them, guards to the busiest
 other group; workers run `Work`, guards `Escort` (the wiki's "do available work
 tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
-`Recharge` and `SelfShutdown`, unused here). The catalog must carry both modes
-and every mech's kind, else the plan fails. A mech with no overseer among the
+`SelfShutdown`, unused here). The catalog must carry both modes, the recharge
+mode and every mech's kind, else the plan fails. A mech with no overseer among the
 inputs, or an unread group, is left alone.
 
 Colonist need versus bandwidth, decided from the read: control never changes
@@ -187,6 +187,22 @@ covers that work type and a catalog work mech kind lists it; a guard otherwise;
 nothing with no free bandwidth. With a single control group threat beats work:
 `Escort` while a hostile is on the map or the group holds only guards, `Work`
 otherwise.
+
+Recharging (`mech_recharge.go`, #1688) rides the same group mode. Each mech row
+carries `PawnMech.energy` (`Need_MechEnergy`, 0-1) and its control group's own
+recharge band (`recharge_below`/`recharge_above`, the private
+`MechanitorControlGroup.mechRechargeThresholds` the game recharges within), so
+no threshold is a bot number. With a charger ready (`MechChargerReady`: powered,
+not full of waste) a group with any mech under its band's lower bound runs the
+catalog's recharge mode (`MechWorkModeRow.recharge`, native
+`def == MechWorkModeDefOf.Recharge`), stays there until every mech is at the
+band's upper bound, then returns to the role mode; with no charger ready it
+does not enter, and a charging group leaves. Unread energy never counts as low.
+`MechChargerOwed` is the build side: a mechanitor exists and every standing
+charger is busy (a charger full of waste is #1683's), so gestation (#1686)
+should not add a mech first. The charger definitions are the catalog rows with
+`PlanningDefinition.mech_charger` (`Building_MechCharger` thing class),
+`observation.MechChargerDefs`.
 
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native

@@ -451,6 +451,7 @@ namespace HomeBridge.BridgeTools
             if (powerProps != null) row.PowerW = Finite(powerProps.PowerConsumption);
             var glowProps = def.GetCompProperties<CompProperties_Glower>();
             if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
+            if (typeof(Building_MechCharger).IsAssignableFrom(def.thingClass)) row.MechCharger = true;
             var explosiveProps = def.GetCompProperties<CompProperties_Explosive>();
             if (explosiveProps != null) row.ExplosiveRadius = Nonnegative(explosiveProps.explosiveRadius);
             // Pollutes or produces wastepacks: the three Biotech comps, read from the def, never a name list (#1684).

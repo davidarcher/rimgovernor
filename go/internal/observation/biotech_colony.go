@@ -2,6 +2,7 @@ package observation
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -124,4 +125,30 @@ func colonyBiotech(section *o.BiotechSection) domain.Fact[BiotechColony] {
 		r.Babies = append(r.Babies, b)
 	}
 	return domain.Known(r)
+}
+
+// MechChargerRows are the section's chargers as the recharge policy reads
+// them (#1688): charging is a mech attached.
+func (b BiotechColony) MechChargerRows() []policy.MechCharger {
+	out := make([]policy.MechCharger, 0, len(b.Chargers))
+	for _, c := range b.Chargers {
+		// Native sets charging_mech_id exactly while a mech is attached.
+		_, charging := c.ChargingMechID.Value()
+		row := policy.MechCharger{Powered: c.Powered, FullOfWaste: c.FullOfWaste, Charging: domain.Known(charging)}
+		out = append(out, row)
+	}
+	return out
+}
+
+// MechChargerDefs are the catalog definitions that are mech chargers
+// (PlanningDefinition.MechCharger, from the game's Building_MechCharger
+// class), in catalog order; the build planner picks among them.
+func MechChargerDefs(defs []PlanningDefinition) []PlanningDefinition {
+	var out []PlanningDefinition
+	for _, d := range defs {
+		if charger, ok := d.MechCharger.Value(); ok && charger {
+			out = append(out, d)
+		}
+	}
+	return out
 }

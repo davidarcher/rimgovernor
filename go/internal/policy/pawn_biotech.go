@@ -47,11 +47,14 @@ type PawnMechanitor struct {
 }
 
 // PawnMech is a controllable mech's overseer (known "" when it has none),
-// work mode (MechWorkModeDef name) and control group index.
+// work mode (MechWorkModeDef name) and control group index. Energy is the
+// Need_MechEnergy level (0-1); RechargeBelow and RechargeAbove are the
+// control group's own recharge band (mechRechargeThresholds, 0-1).
 type PawnMech struct {
-	Overseer     string
-	WorkMode     domain.Fact[string]
-	ControlGroup domain.Fact[int]
+	Overseer                             string
+	WorkMode                             domain.Fact[string]
+	ControlGroup                         domain.Fact[int]
+	Energy, RechargeBelow, RechargeAbove domain.Fact[float64]
 }
 
 // PawnDeathrest is a deathrester's state.

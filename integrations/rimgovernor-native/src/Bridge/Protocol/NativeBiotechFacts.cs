@@ -46,7 +46,8 @@ namespace HomeBridge.BridgeTools
             foreach (var def in Sorted(DefDatabase<PawnKindDef>.AllDefsListForReading.Where(k => k.race?.race != null && k.race.race.IsMechanoid && k.race.HasComp(typeof(CompOverseerSubject)))))
                 catalog.MechKinds.Add(MechKind(def));
             foreach (var def in Sorted(DefDatabase<MechWorkModeDef>.AllDefsListForReading))
-                catalog.MechWorkModes.Add(new Obs.MechWorkModeRow { DefName = def.defName, Label = Label(def), UiOrder = def.uiOrder, IgnoreGroupChargeLimits = def.ignoreGroupChargeLimits });
+                catalog.MechWorkModes.Add(new Obs.MechWorkModeRow { DefName = def.defName, Label = Label(def), UiOrder = def.uiOrder, IgnoreGroupChargeLimits = def.ignoreGroupChargeLimits,
+                    Recharge = def == MechWorkModeDefOf.Recharge });
             return catalog;
         }
 
@@ -193,7 +194,21 @@ namespace HomeBridge.BridgeTools
                     if (MechanitorUtility.GetOverseer(pawn) is Pawn overseer) mech.Overseer = NativeRef.Thing(overseer);
                     if (Id(MechanitorUtility.GetMechWorkMode(pawn)?.defName) is string mode) mech.WorkMode = mode;
                     if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup group) mech.ControlGroup = group.Index;
+                    if (pawn.needs?.TryGetNeed<Need_MechEnergy>() is Need_MechEnergy energy && Finite(energy.CurLevelPercentage)) mech.Energy = energy.CurLevelPercentage;
                     row.Mech = mech;
+                    // The group's own recharge band; a game without the field fails
+                    // this read loudly instead of inventing a threshold.
+                    try
+                    {
+                        if (MechanitorUtility.GetMechControlGroup(pawn) is MechanitorControlGroup thresholdGroup)
+                        {
+                            var thresholds = BridgeCommon.PrivateInstanceField(typeof(MechanitorControlGroup), "mechRechargeThresholds")
+                                ?? throw new InvalidOperationException("MechanitorControlGroup.mechRechargeThresholds not found");
+                            var band = (FloatRange)thresholds.GetValue(thresholdGroup);
+                            if (Finite(band.min) && Finite(band.max)) { mech.RechargeBelow = band.min; mech.RechargeAbove = band.max; }
+                        }
+                    }
+                    catch (Exception ex) { row.Issues.Add(Failed("mech_thresholds", ex)); }
                 }
             }
             catch (Exception ex) { row.Issues.Add(Failed("mech", ex)); }
