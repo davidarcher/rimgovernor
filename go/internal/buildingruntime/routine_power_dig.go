@@ -2,11 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 // digGeothermal mines the rock on a geothermal generator's footprint ahead
@@ -92,9 +94,6 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	var pickCells []policy.RoleCell
 	for _, site := range policy.PlannedPowerSites(plan, r.definition) {
 		footprint := policy.RectangleCells(site.Area)
-		if slices.ContainsFunc(footprint, func(c domain.Cell) bool { return taken[c] }) {
-			continue
-		}
 		cells := make([]policy.RoleCell, 0, len(footprint))
 		for _, c := range footprint {
 			cells = append(cells, policy.RoleCell{Cell: c, Role: policy.RockNeedsSky})
@@ -103,6 +102,15 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 			cells = append(cells, policy.RoleCell{Cell: lane, Role: policy.RockNeedsSky})
 		}
 		step := policy.RockStep(cells, s.facts.Cells)
+		if slices.ContainsFunc(footprint, func(c domain.Cell) bool { return taken[c] }) {
+			if len(step.Unroof) > 0 {
+				stalled, err := r.roofStalled(call, s, skyMethod(r.definition, site.Area))
+				if err != nil || stalled {
+					return RoutineBuildingResult{Verdict: rockNotDug(r.definition, fmt.Sprintf("roof_standing_%d_cells_after_stall", len(step.Unroof)))}, stalled, err
+				}
+			}
+			continue
+		}
 		if len(step.Dig) == 0 && len(step.Unroof) == 0 && len(step.Unfit) == 0 {
 			return RoutineBuildingResult{}, false, nil
 		}
@@ -132,6 +140,37 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 	}
 	sky := *r
 	sky.exactFootprint, sky.windAllowance = footprint, int32(len(pickCells)-len(footprint))
-	method := domain.MethodID(fmt.Sprintf("plan-dig-sky-%s-%d-%d", r.definition, pick.Area.X, pick.Area.Z))
-	return sky.admitRockStep(call, epoch, s, pickCells, access, method, []domain.Building{building}, check)
+	return sky.admitRockStep(call, epoch, s, pickCells, access, skyMethod(r.definition, pick.Area), []domain.Building{building}, check)
+}
+
+func skyMethod(definition string, area policy.Rectangle) domain.MethodID {
+	return domain.MethodID(fmt.Sprintf("plan-dig-sky-%s-%d-%d", definition, area.X, area.Z))
+}
+
+// roofStalled reports whether the sky method's remove_roof action was
+// designated at least excavationStallTicks ago: a placed generator whose
+// roof is still on is then a named refusal, not a site skipped as taken
+// forever (#1872). A site without a journaled sky method was not ours.
+func (r *RoutineBuildingPlanner) roofStalled(call context.Context, s excavationStep, method domain.MethodID) (bool, error) {
+	journal := r.reviewer.player.journal
+	prior, err := journal.LoadGoalMethod(call, s.goal.Goal.ID, s.goal.Goal.Epoch, method)
+	if errors.Is(err, store.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	plan, err := journal.LoadPlan(call, prior.Plan)
+	if err != nil {
+		return false, err
+	}
+	for _, progress := range plan.Progress {
+		if _, ok := progress.Action().RemoveRoof(); !ok {
+			continue
+		}
+		if v := progress.View(); v.Stage == domain.Completed && int64(s.facts.Identity.Tick-v.Tick) >= excavationStallTicks {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -52,7 +52,8 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 		return RoutineBuildingResult{}, false, nil
 	}
 	dig := *b
-	if dig.excavation == nil {
+	// An unroof-only plan reads no rock, so it needs no excavation source.
+	if dig.excavation == nil && len(rock) > 0 {
 		source, ok := b.native.(RoutineExcavationSource)
 		if !ok {
 			return RoutineBuildingResult{}, false, nil
