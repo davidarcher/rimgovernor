@@ -50,7 +50,7 @@ func TestPlanStorageYardIsUnroofedInsideTheRingNearestTheWorkshop(t *testing.T) 
 	if site.Priority != domain.LowPriority || site.Filter != domain.YardFilter() || len(site.Candidates) == 0 {
 		t.Fatalf("%+v", site)
 	}
-	enclosure := planEnclosure(coreBox(*r.Layout), 100, 100)
+	enclosure := planEnclosureCells(coreFootprint(*r.Layout, 100, 100), 100, 100)
 	inRing := func(c domain.Cell) bool { return enclosure.in[c.Z*100+c.X] }
 	roofed := map[domain.Cell]bool{}
 	for _, room := range r.Rooms.Rooms {

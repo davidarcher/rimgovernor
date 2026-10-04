@@ -96,7 +96,7 @@ func planOuterRing(plan LayoutPlan, s MapSurvey, core enclosure, approaches []Re
 		case ReserveTurbine, ReserveTurbineLane:
 			// The core ring walls a turbine pair in; none stands outside.
 		default:
-			if outerEnclosed[r.Kind] && !coreTakesIn(plan, r) {
+			if outerEnclosed[r.Kind] && !coreTakesIn(plan, w, h, r) {
 				take(rectCells(r.Area))
 			}
 		}
@@ -248,63 +248,90 @@ func pitchGates(gates, stepGates []Rectangle) []Rectangle {
 	return gates
 }
 
-// coreBox is the core ring's box: the rooms with their walls and the
-// hallways, grown over the pen, barn, vet room and turbine pairs beside them,
-// and over any outer-ring unit crowding them (coreTakesIn).
-func coreBox(plan LayoutPlan) Rectangle {
-	core := coreBase(plan)
+// coreFootprint marks the cells of a w x h map the core ring walls in: each
+// room's interior with its walls, each hallway padded by SpineWidth/2, the
+// pen, barn, vet room and turbine pairs beside them, and any outer-ring unit
+// crowding that footprint (coreTakesIn). It follows the plan's real outline,
+// not its bounding rectangle (#1945).
+func coreFootprint(plan LayoutPlan, w, h int32) []bool {
+	fp := coreBaseFootprint(plan, w, h)
 	for _, r := range plan.Reservations {
-		if outerEnclosed[r.Kind] && crowdsCore(core, r.Area) {
-			core = unionRect(core, pad(r.Area, 1))
+		if outerEnclosed[r.Kind] && crowdsCore(fp, w, h, r.Area) {
+			markRect(fp, w, h, pad(r.Area, 1))
 		}
 	}
-	return core
+	return fp
 }
 
-// coreBase is coreBox before any outer-ring unit is taken in.
-func coreBase(plan LayoutPlan) Rectangle {
-	var core Rectangle
+// coreBaseFootprint is coreFootprint before any outer-ring unit is taken in.
+func coreBaseFootprint(plan LayoutPlan, w, h int32) []bool {
+	fp := make([]bool, max(w, 0)*max(h, 0))
 	for _, r := range plan.AllRooms() {
-		core = unionRect(core, pad(r.Interior, 1))
+		markRect(fp, w, h, pad(r.Interior, 1))
 	}
 	for _, sg := range plan.Hallways() {
-		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
+		markRect(fp, w, h, pad(rectOf(sg.From, sg.To), SpineWidth/2))
 	}
 	for _, r := range plan.Reservations {
 		if innerEnclosed[r.Kind] {
-			core = unionRect(core, pad(r.Area, 1))
+			markRect(fp, w, h, pad(r.Area, 1))
 		}
 	}
-	return core
+	return fp
+}
+
+// markRect sets the cells of r that lie on the w x h map.
+func markRect(fp []bool, w, h int32, r Rectangle) {
+	for z := max(r.Z, 0); z < min(r.Z+r.Height, h); z++ {
+		for x := max(r.X, 0); x < min(r.X+r.Width, w); x++ {
+			fp[z*w+x] = true
+		}
+	}
+}
+
+// planEnclosureCells traces the enclosure around a core footprint on a w x h
+// map: the footprint grown by the yard, closed so the outline has no notches
+// narrower than the closing.
+func planEnclosureCells(footprint []bool, w, h int32) enclosure {
+	m := LayoutEdgeMargin + perimeterThick
+	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
+	return newEnclosure(encloseRegion(footprint, w, h, yard, perimeterGap), w, h)
 }
 
 // outerClear is how far the outer ring needs a unit to stand off the core
-// box: the core ring's yard, its thickness, the gap and the outer ring's thickness.
+// footprint: the core ring's yard, its thickness, the gap and the outer ring's thickness.
 const outerClear = perimeterGap + perimeterThick + perimeterOuterGap + perimeterThick
 
-// crowdsCore reports whether area stands within outerClear of the core box.
-// The outer ring cannot wall such a unit whole, so the core ring takes it in.
-func crowdsCore(core, area Rectangle) bool {
-	return core.Width > 0 && rectsOverlap(pad(core, outerClear), area)
+// crowdsCore reports whether area stands within outerClear (Chebyshev) of
+// the core footprint. The outer ring cannot wall such a unit whole, so the
+// core ring takes it in.
+func crowdsCore(fp []bool, w, h int32, area Rectangle) bool {
+	for z := max(area.Z-outerClear, 0); z < min(area.Z+area.Height+outerClear, h); z++ {
+		for x := max(area.X-outerClear, 0); x < min(area.X+area.Width+outerClear, w); x++ {
+			if fp[z*w+x] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // coreTakesIn reports whether the core ring walls the outer-ring unit r in.
-func coreTakesIn(plan LayoutPlan, r LayoutReservation) bool {
-	return crowdsCore(coreBase(plan), r.Area)
+func coreTakesIn(plan LayoutPlan, w, h int32, r LayoutReservation) bool {
+	return crowdsCore(coreBaseFootprint(plan, w, h), w, h, r.Area)
 }
 
 // outerKeepOut marks the cells of a w x h map the core ring will occupy or
 // crowd: the core's enclosure and everything the outer ring must stand
 // clear of it. A unit sited off these is enclosed by the outer ring whole
-// (#1597); PlanUtilities runs before PlanPerimeter, so the core's box
-// stands in for the ring.
+// (#1597); PlanUtilities runs before PlanPerimeter, so the core's
+// footprint stands in for the ring.
 func outerKeepOut(plan LayoutPlan, w, h int32) []bool {
-	out := make([]bool, w*h)
-	core := coreBox(plan)
-	if core.Width == 0 || w < 1 || h < 1 {
+	out := make([]bool, max(w, 0)*max(h, 0))
+	if w < 1 || h < 1 || len(plan.AllRooms()) == 0 && len(plan.Hallways()) == 0 {
 		return out
 	}
-	enc := planEnclosure(core, w, h)
+	enc := planEnclosureCells(coreFootprint(plan, w, h), w, h)
 	for i, d := range chebyshevField(w, h, enc.in, perimeterThick+perimeterOuterGap+perimeterThick) {
 		out[i] = d >= 0
 	}

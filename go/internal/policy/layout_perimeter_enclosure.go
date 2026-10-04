@@ -77,20 +77,6 @@ func chebyshevField(w, h int32, src []bool, limit int32) []int32 {
 	return d
 }
 
-// planEnclosure traces the enclosure around core on a w x h map: the core
-// box grown by the yard, closed so the outline has no notches.
-func planEnclosure(core Rectangle, w, h int32) enclosure {
-	region := make([]bool, w*h)
-	for _, c := range rectCells(core) {
-		if c.X >= 0 && c.Z >= 0 && c.X < w && c.Z < h {
-			region[c.Z*w+c.X] = true
-		}
-	}
-	m := LayoutEdgeMargin + perimeterThick
-	yard := Rectangle{X: m, Z: m, Width: w - 2*m, Height: h - 2*m}
-	return newEnclosure(encloseRegion(region, w, h, yard, perimeterGap), w, h)
-}
-
 // newEnclosure traces the ring around in.
 func newEnclosure(in []bool, w, h int32) enclosure {
 	e := enclosure{w: w, h: h, in: in, ring: make([]bool, w*h), dist: chebyshevField(w, h, in, perimeterThick+perimeterCoverBand)}

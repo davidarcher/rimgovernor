@@ -25,7 +25,8 @@ func (r StorageRequest) yardSites() []StockpileSite {
 	if !ok || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 {
 		return nil
 	}
-	enclosure := planEnclosure(coreBox(*r.Layout), r.Bounds.Width, r.Bounds.Height)
+	enclosure := planEnclosureCells(coreFootprint(*r.Layout, r.Bounds.Width, r.Bounds.Height), r.Bounds.Width, r.Bounds.Height)
+	fields := r.Layout.FieldCells()
 	cells := make(map[domain.Cell]SiteCell, len(r.Cells))
 	for _, c := range r.Cells {
 		cells[c.Cell] = c
@@ -37,7 +38,7 @@ func (r StorageRequest) yardSites() []StockpileSite {
 	not := func(v bool) bool { return !v }
 	open := func(p domain.Cell) bool {
 		c, ok := cells[p]
-		return ok && inside(p) && positive(measured(c.Roofed, not)) && positive(measured(c.Indoors, not))
+		return ok && inside(p) && !fields[p] && positive(measured(c.Roofed, not)) && positive(measured(c.Indoors, not))
 	}
 	free := func(p domain.Cell) bool {
 		c := cells[p]

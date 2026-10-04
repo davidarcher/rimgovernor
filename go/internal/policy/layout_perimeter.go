@@ -88,11 +88,9 @@ func PlanPerimeter(plan LayoutPlan, s MapSurvey) LayoutPlan {
 		return ok && sc.Soft()
 	}
 
-	// The core box: rooms with walls and the hallway, then nearby fields.
-	core := coreBox(plan)
-	// The enclosure: the core box and its yard (killbox included); the ring
-	// traced outside it (#1286).
-	enc := planEnclosure(core, w, h)
+	// The enclosure: the core's footprint and its yard (killbox included);
+	// the ring traced outside it (#1286, #1945).
+	enc := planEnclosureCells(coreFootprint(plan, w, h), w, h)
 	if enc.bbox.Width == 0 {
 		return plan
 	}

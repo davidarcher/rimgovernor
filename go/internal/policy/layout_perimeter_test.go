@@ -39,9 +39,15 @@ func checkPerimeter(t *testing.T, p LayoutPlan) (killbox Rectangle) {
 		if g.Width*g.Height != 3 {
 			t.Fatal("gate spans the 3-cell wall", g)
 		}
-		in := false
-		for _, w := range walls {
-			in = in || contains(w, domain.Cell{X: g.X, Z: g.Z}) && contains(w, domain.Cell{X: g.X + g.Width - 1, Z: g.Z + g.Height - 1})
+		// A stepped outline splits its wall into several rectangles, so a
+		// gate may span two of them: every gate cell is a wall cell.
+		in := true
+		for _, c := range rectCells(g) {
+			cell := false
+			for _, w := range walls {
+				cell = cell || contains(w, c)
+			}
+			in = in && cell
 		}
 		if !in {
 			t.Fatal("gate off the wall", g)
@@ -475,13 +481,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 	ground := func(x, z int32) SurveyCell { return SurveyCell{Walkable: true} }
 	s := zoningSurvey(200, ground)
 	plan := PlanCore(Zone(s), 3, BuildTierCamp)
-	var core Rectangle
-	for _, r := range plan.AllRooms() {
-		core = unionRect(core, pad(r.Interior, 1))
-	}
-	for _, sg := range plan.Hallways() {
-		core = unionRect(core, pad(rectOf(sg.From, sg.To), SpineWidth/2))
-	}
+	core := footprintBox(plan, 200, 200)
 	right, top := core.X+core.Width-1, core.Z+core.Height-1
 	off := perimeterGap + perimeterThick + 3
 	patch := map[domain.Cell]bool{}
