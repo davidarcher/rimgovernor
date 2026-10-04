@@ -121,3 +121,13 @@ func (r *RoutineBuildingPlanner) plannedDiningFurnishing(call, epoch context.Con
 	furnish.facility, furnish.cells, furnish.environment = nil, plannedRoomInterior(room), policy.PlacementAnywhere
 	return &furnish, RoutineBuildingResult{}, false, nil
 }
+
+// baseStandInReach is how far from the layout's core the stand-in campfire
+// and butcher spot may stand.
+const baseStandInReach int32 = 30
+
+// standInDefinition is true for the stand-in campfire and the butcher spot
+// and table, which stand by the layout's core.
+func standInDefinition(r *RoutineBuildingPlanner) bool {
+	return r.goal == policy.EnsureCooking && r.definition == "Campfire" || r.definition == "ButcherSpot" || r.definition == "TableButcher"
+}
