@@ -133,6 +133,14 @@ func (p LayoutPlan) Overlay(bounds Bounds) LayoutOverlay {
 			label(style.label, centre(r.Interior))
 		}
 	}
+	var doors []domain.Cell
+	for _, r := range p.AllRooms() {
+		doors = append(doors, r.Door)
+		for _, d := range r.Doors {
+			doors = append(doors, d.Cell)
+		}
+	}
+	add(overlayStyle{planWhite, "door"}, OverlayFill, nil, cellRuns(doors))
 	return out
 }
 

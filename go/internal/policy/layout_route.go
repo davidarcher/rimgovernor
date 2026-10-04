@@ -93,6 +93,11 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 		if _, ok := walk[r.Door]; !ok {
 			walk[r.Door] = -1
 		}
+		for _, d := range r.Doors {
+			if _, ok := walk[d.Cell]; !ok {
+				walk[d.Cell] = -1
+			}
+		}
 		if r.Link != nil {
 			walk[*r.Link] = -1
 		}
@@ -114,15 +119,21 @@ func CheckRoutes(p LayoutPlan) (map[domain.Cell]int, error) {
 	}
 	traffic := map[domain.Cell]int{}
 	for _, trip := range routeTrips {
-		to, froms := cells(trip[1]), cells(trip[0])
-		if len(p.Entrances) == 0 && (trip[0] == "" && len(to) > 0 || trip[1] == "" && len(froms) > 0) {
+		tos, froms := cells(trip[1]), cells(trip[0])
+		if len(p.Entrances) == 0 && (trip[0] == "" && len(tos) > 0 || trip[1] == "" && len(froms) > 0) {
 			return nil, fmt.Errorf("no entrances for trip %s -> %s", trip[0], trip[1])
 		}
-		if len(to) == 0 {
+		if len(tos) == 0 {
 			continue
 		}
+		// Every room of the target role is a goal: a ring offers pawns the
+		// nearest one.
+		var to []domain.Cell
+		for _, g := range tos {
+			to = append(to, g...)
+		}
 		for _, from := range froms {
-			path := routePath(walk, from, to[0])
+			path := routePath(walk, from, to)
 			if path == nil {
 				return nil, fmt.Errorf("no route %s -> %s", trip[0], trip[1])
 			}

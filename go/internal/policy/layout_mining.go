@@ -49,6 +49,9 @@ func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
 	var planned []RoleCell
 	add := func(c domain.Cell) { planned = append(planned, RoleCell{Cell: c, Role: RockNeedsFloor}) }
 	add(room.Door)
+	for _, d := range room.Doors {
+		add(d.Cell)
+	}
 	for _, c := range RectangleCells(room.Interior) {
 		add(c)
 	}
@@ -74,6 +77,9 @@ func (p LayoutPlan) RoomRock(room LayoutRoom, cells []SiteCell) RockStepResult {
 			}
 		}
 		add(from)
+		for _, d := range shell.ExtraDoors() {
+			add(d.Threshold())
+		}
 		hall := p.hallwayCells()
 		corridor := make([]domain.Cell, 0, len(hall))
 		for c := range hall {

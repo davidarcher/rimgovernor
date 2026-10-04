@@ -1,77 +1,136 @@
 package policy
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func twoDoorRoom() LayoutRoom {
-	return LayoutRoom{
-		Role:     ModuleWorkshop,
-		Interior: Rectangle{X: 20, Z: 30, Width: 7, Height: 5},
-		Door:     domain.Cell{X: 23, Z: 29},
-		DoorRot:  domain.South,
-		Doors:    []Door{{Cell: domain.Cell{X: 23, Z: 35}, Rot: domain.North}},
+// bridgedHallways are two parallel hallways with no other link; the entrance
+// opens onto the lower one. A room between them with a door on each side is
+// the only way across.
+func bridgedHallways(bridge ModuleRole) LayoutPlan {
+	lower := []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 30, Z: 0}}}
+	upper := SpineSegment{From: domain.Cell{X: 0, Z: 12}, To: domain.Cell{X: 30, Z: 12}}
+	return LayoutPlan{
+		Spine:     append(lower, upper),
+		Entrances: spineEntrances(lower),
+		Rooms: []LayoutRoom{
+			{Role: bridge, Interior: Rectangle{X: 10, Z: 3, Width: 5, Height: 7},
+				Door: domain.Cell{X: 12, Z: 2}, DoorRot: domain.South,
+				Doors: []Door{{Cell: domain.Cell{X: 12, Z: 10}, Rot: domain.North}}},
+			{Role: ModuleStorage, Interior: Rectangle{X: 20, Z: 14, Width: 5, Height: 5},
+				Door: domain.Cell{X: 22, Z: 13}, DoorRot: domain.South},
+		},
 	}
 }
 
-func TestTwoDoorRoomShellEmitsBothDoorsAndSurvivesClearance(t *testing.T) {
-	room := twoDoorRoom()
-	shell, err := room.Footprint()
+func TestCheckRoutesRingBridgedByPassThroughRoom(t *testing.T) {
+	traffic, err := CheckRoutes(bridgedHallways(ModuleDining))
 	if err != nil {
 		t.Fatal(err)
 	}
-	placements := shell.Placements("Wall", "Door", "WoodLog")
-	doors := map[domain.Cell]domain.Rotation{}
-	for _, b := range placements {
-		if b.Definition() == "Door" {
-			doors[b.Cell()] = b.Rotation()
+	if traffic[domain.Cell{X: 12, Z: 10}] == 0 {
+		t.Fatal("the entrance trip does not use the second door")
+	}
+}
+
+func TestCheckRoutesRingBridgedByBedroomIsThoroughfare(t *testing.T) {
+	_, err := CheckRoutes(bridgedHallways(ModuleBedroom))
+	if err == nil || !strings.Contains(err.Error(), "crosses bedroom") {
+		t.Fatal("a bedroom bridge passed", err)
+	}
+}
+
+func TestCheckRoutesWithoutSecondDoorIsUnreachable(t *testing.T) {
+	p := bridgedHallways(ModuleDining)
+	p.Rooms[0].Doors = nil
+	if _, err := CheckRoutes(p); err == nil || !strings.Contains(err.Error(), "no route") {
+		t.Fatal("storage reached without the second door", err)
+	}
+}
+
+func TestCheckRoutesTripsConsiderEveryRoomOfTheTargetRole(t *testing.T) {
+	// The first storage sits behind a bedroom; a second one opens onto the
+	// hallway, so the entrance trip takes it and no thoroughfare is hit.
+	p := LayoutPlan{
+		Spine:     []SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}},
+		Entrances: spineEntrances([]SpineSegment{{From: domain.Cell{X: 0, Z: 0}, To: domain.Cell{X: 20, Z: 0}}}),
+		Rooms: []LayoutRoom{
+			{Role: ModuleBedroom, Interior: Rectangle{X: 0, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 2}, DoorRot: domain.South},
+			{Role: ModuleStorage, Interior: Rectangle{X: 0, Z: 20, Width: 5, Height: 5}, Door: domain.Cell{X: 2, Z: 19}, DoorRot: domain.South}, // walled off: no hallway or room touches its door
+			{Role: ModuleStorage, Interior: Rectangle{X: 8, Z: 3, Width: 5, Height: 5}, Door: domain.Cell{X: 10, Z: 2}, DoorRot: domain.South},
+		},
+	}
+	if _, err := CheckRoutes(p); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestInteriorRoomFromLayoutKeepsExtraDoors(t *testing.T) {
+	r := bridgedHallways(ModuleDining).Rooms[0]
+	in, ok := InteriorRoomFromLayout(r, testShapes)
+	in.Dining = testDining
+	if !ok || len(in.Doors) != 2 {
+		t.Fatalf("doors %+v %v", in.Doors, ok)
+	}
+	plan, ok := PlanInterior(in, InteriorPieceDef{})
+	if !ok {
+		t.Fatal("a two-door dining room does not plan")
+	}
+	doors := map[domain.Cell]bool{}
+	for _, d := range in.Doors {
+		doors[d] = true
+	}
+	// No piece stands on the cell just inside any door.
+	inside := map[domain.Cell]bool{}
+	for d := range doors {
+		switch side, _ := doorSide(r.Interior, d); side {
+		case domain.South:
+			inside[domain.Cell{X: d.X, Z: d.Z + 1}] = true
+		case domain.North:
+			inside[domain.Cell{X: d.X, Z: d.Z - 1}] = true
 		}
 	}
-	if len(doors) != 2 || doors[room.Door] != domain.South || doors[room.Doors[0].Cell] != domain.North {
-		t.Fatalf("doors %v", doors)
-	}
-	if len(placements) != len(shell.Walls()) {
-		t.Fatalf("%d placements for %d wall cells", len(placements), len(shell.Walls()))
-	}
-	plan := LayoutPlan{Rooms: []LayoutRoom{room}}
-	planned := PlannedDoors(plan)
-	if !planned[room.Door] || !planned[room.Doors[0].Cell] || len(planned) != 2 {
-		t.Fatalf("planned doors %v", planned)
-	}
-	ring := plan.ShellDoors(room)
-	if len(ring) != 2 || ring[0] != room.Door || ring[1] != room.Doors[0].Cell {
-		t.Fatalf("shell doors %v", ring)
+	for _, pc := range plan.Pieces {
+		for _, c := range RectangleCells(pc.Rect) {
+			if inside[c] {
+				t.Fatalf("piece %s blocks a door at %v", pc.Slot, c)
+			}
+		}
 	}
 }
 
-func TestTransposeRoomRoundTripsExtraDoors(t *testing.T) {
-	room := twoDoorRoom()
-	back := transposeRoom(transposeRoom(room))
-	if !back.Same(room) {
-		t.Fatalf("round trip %+v != %+v", back, room)
+func TestRoomRockDigsEveryDoorAndThreshold(t *testing.T) {
+	p := bridgedHallways(ModuleDining)
+	room := p.Rooms[0]
+	room.Dug = true
+	dig := map[domain.Cell]bool{}
+	for _, c := range p.RoomRock(room, nil).Dig {
+		dig[c] = true
 	}
-	once := transposeRoom(room)
-	if once.Doors[0].Cell != (domain.Cell{X: 35, Z: 23}) || once.Doors[0].Rot != domain.East || room.Doors[0].Rot != domain.North {
-		t.Fatalf("transposed %+v (source %+v)", once.Doors, room.Doors)
+	for _, c := range []domain.Cell{room.Door, room.Doors[0].Cell, {X: 12, Z: 1}, {X: 12, Z: 11}} {
+		if !dig[c] {
+			t.Fatalf("%v not dug", c)
+		}
 	}
 }
 
-func TestSingleDoorRoomJSONHasNoDoorsKey(t *testing.T) {
-	room := twoDoorRoom()
-	room.Doors = nil
-	raw, err := json.Marshal(room)
-	if err != nil {
-		t.Fatal(err)
+func TestOverlayDrawsEveryDoor(t *testing.T) {
+	o := bridgedHallways(ModuleDining).Overlay(Bounds{Width: 60, Height: 60})
+	for _, l := range o.Layers {
+		if l.Label != "door" {
+			continue
+		}
+		n := int32(0)
+		for _, r := range l.Runs {
+			n += r.Length
+		}
+		if n != 3 {
+			t.Fatalf("door cells %d, want 3", n)
+		}
+		return
 	}
-	if strings.Contains(string(raw), "Doors") {
-		t.Fatal(string(raw))
-	}
-	var back LayoutRoom
-	if err := json.Unmarshal(raw, &back); err != nil || !back.Same(room) || back.Doors != nil {
-		t.Fatal(err, back)
-	}
+	t.Fatal("no door layer")
 }

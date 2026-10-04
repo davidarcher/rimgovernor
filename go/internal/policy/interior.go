@@ -262,7 +262,14 @@ func InteriorRoomFromLayout(r LayoutRoom, shapes PieceShapes) (InteriorRoom, boo
 	if _, ok := doorSide(r.Interior, r.Door); !ok {
 		return InteriorRoom{}, false
 	}
-	return InteriorRoom{Role: role, Interior: r.Interior, Doors: []domain.Cell{r.Door}, Shapes: shapes}, true
+	doors := []domain.Cell{r.Door}
+	for _, d := range r.Doors {
+		if _, ok := doorSide(r.Interior, d.Cell); !ok {
+			return InteriorRoom{}, false
+		}
+		doors = append(doors, d.Cell)
+	}
+	return InteriorRoom{Role: role, Interior: r.Interior, Doors: doors, Shapes: shapes}, true
 }
 
 // doorSide is the direction from the room to a door in one of its walls
