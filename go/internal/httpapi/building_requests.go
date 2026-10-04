@@ -16,36 +16,6 @@ const buildingRequestLimit = 8192
 
 // These decoders establish syntax and typed intent only. Native facts, admission
 // and explicit authority remain responsibilities of their eventual callers.
-func decodeBuildingSubmission(reader io.Reader) (store.SubmissionRequest, error) {
-	var result store.SubmissionRequest
-	fields, err := buildingRequest(reader, "requestId", "expected", "building")
-	if err != nil {
-		return result, err
-	}
-	if err = json.Unmarshal(fields["requestId"], &result.RequestID); err != nil {
-		return result, err
-	}
-	if err = buildingRequestID(result.RequestID); err != nil {
-		return result, err
-	}
-	if result.World, err = buildingWorld(fields["expected"]); err != nil {
-		return result, err
-	}
-	b, err := buildingFields(fields["building"], "defName", "x", "z", "rotation", "stuff")
-	if err != nil {
-		return result, err
-	}
-	var definition, stuff string
-	var rotation domain.Rotation
-	var cell domain.Cell
-	for key, target := range map[string]any{"defName": &definition, "stuff": &stuff, "rotation": &rotation, "x": &cell.X, "z": &cell.Z} {
-		if err = json.Unmarshal(b[key], target); err != nil {
-			return result, err
-		}
-	}
-	result.Building, err = domain.NewBuilding(definition, cell, rotation, stuff)
-	return result, err
-}
 func decodeControl(reader io.Reader, kind store.ControlKind) (store.ControlRequest, error) {
 	result := store.ControlRequest{Kind: kind}
 	fields, err := buildingRequest(reader, "requestId", "expected")

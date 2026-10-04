@@ -136,26 +136,6 @@ func MatchesIdentity(v, want map[string]any) bool {
 		AsNumber(v["mapId"]) == AsNumber(want["mapId"])
 }
 
-// SubmitAndResume submits one player building plan (guidance the running
-// world carries) and resumes automatic control, returning the world's root
-// plan id from the resume reply.
-func (p *ServiceProcess) SubmitAndResume(prefix string, identity map[string]any, building map[string]any, token string, report Report) (rootPlanID string, err error) {
-	submission, status, err := p.API("POST", "/api/buildings/plans", map[string]any{
-		"requestId": prefix + "-construction-1", "expected": identity, "building": building,
-	}, token)
-	if err != nil {
-		return "", err
-	}
-	if status != 200 && status != 201 {
-		return "", fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission)
-	}
-	if AsString(submission["planId"]) == "" || AsString(submission["revision"]) == "" {
-		return "", fmt.Errorf("unexpected building submission: %#v", submission)
-	}
-	report["submission"] = submission
-	return p.Resume(prefix, identity, token, report)
-}
-
 // Resume enters automate mode without an anchor plan: authority is the
 // world's own root plan, created on first resume (SIMP02, #55). It returns
 // that root plan id. The request ID is unique per call: a run resumed from

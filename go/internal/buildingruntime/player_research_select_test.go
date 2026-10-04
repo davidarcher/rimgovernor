@@ -46,12 +46,12 @@ func TestPlayerResearchSelectSubmissionReplayAndSharedFamilyNamespace(t *testing
 	}
 	building := playerSubmission()
 	building.RequestID = q.RequestID
-	if _, _, err = p.Submit(context.Background(), building); !errors.Is(err, store.ErrConflict) {
+	if _, _, err = p.journal.SubmitBuilding(context.Background(), building); !errors.Is(err, store.ErrConflict) {
 		t.Fatal(err)
 	}
 	worlds.err = nil
 	building.RequestID = "building-submit"
-	if _, _, err = p.Submit(context.Background(), building); err != nil {
+	if _, _, err = p.journal.SubmitBuilding(context.Background(), building); err != nil {
 		t.Fatal(err)
 	}
 	q.RequestID = building.RequestID

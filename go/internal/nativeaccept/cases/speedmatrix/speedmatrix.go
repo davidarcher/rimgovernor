@@ -46,6 +46,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -355,7 +356,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	report["service_state_attached"] = attached
 	prefix := "speedmatrix-" + strings.ToLower(c.Name) + "-" + randomSuffix()
-	planIDs, err := m.submitWalls(service, prefix, identity, token, report)
+	journal, err := na.OpenStoreWithRetry(ctx, service.StatePath)
+	if err != nil {
+		return outcome, err
+	}
+	defer journal.Close()
+	planIDs, err := m.submitWalls(ctx, journal, prefix, identity, report)
 	if err != nil {
 		return outcome, err
 	}
@@ -379,11 +385,6 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	stopKeepAlive := keepAlive.Start(ctx)
 	defer func() { report["authority_reacquisitions"] = stopKeepAlive() }()
 
-	journal, err := na.OpenStoreWithRetry(ctx, service.StatePath)
-	if err != nil {
-		return outcome, err
-	}
-	defer journal.Close()
 	if _, _, err := service.WaitRoutineReview(ctx, journal, 90*time.Second); err != nil {
 		return outcome, err
 	}
@@ -538,31 +539,33 @@ func (m *matrix) control(ctx context.Context, h *na.Harness, identity map[string
 	return reply, nil
 }
 
-// submitWalls submits every staged wall segment as its own building plan
-// (the API takes one building per request) and returns the plan ids.
-func (m *matrix) submitWalls(service *na.ServiceProcess, prefix string, identity map[string]any, token string, report na.Report) ([]domain.PlanID, error) {
+// submitWalls writes every staged wall segment into the service's journal as
+// its own building plan (no player route exists since #1996) and returns the
+// plan ids. The service has not resumed yet, so it reads them as the world's
+// standing work.
+func (m *matrix) submitWalls(ctx context.Context, journal *store.Store, prefix string, identity map[string]any, report na.Report) ([]domain.PlanID, error) {
+	world := store.World{
+		Colony: domain.ColonyID(na.AsString(identity["colonyId"])),
+		Load:   domain.LoadID(na.AsString(identity["loadToken"])),
+		Map:    domain.MapID(na.AsNumber(identity["mapId"])),
+	}
 	var ids []domain.PlanID
 	var submissions []map[string]any
 	for i, site := range m.sites {
-		building := map[string]any{
-			"defName": na.AsString(site["defName"]), "x": int(na.AsNumber(site["x"])), "z": int(na.AsNumber(site["z"])),
-			"rotation": na.AsString(site["rotation"]), "stuff": na.AsString(site["stuff"]),
+		var rotation domain.Rotation
+		if err := json.Unmarshal([]byte(strconv.Quote(na.AsString(site["rotation"]))), &rotation); err != nil {
+			return nil, fmt.Errorf("wall %d: rotation: %w", i+1, err)
 		}
-		submission, status, err := service.API("POST", "/api/buildings/plans", map[string]any{
-			"requestId": fmt.Sprintf("%s-wall-%d", prefix, i+1), "expected": identity, "building": building,
-		}, token)
+		building, err := domain.NewBuilding(na.AsString(site["defName"]), domain.Cell{X: int32(na.AsNumber(site["x"])), Z: int32(na.AsNumber(site["z"]))}, rotation, na.AsString(site["stuff"]))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("wall %d: %w", i+1, err)
 		}
-		if status != 200 && status != 201 {
-			return nil, fmt.Errorf("wall %d: unexpected submission status=%d body=%#v", i+1, status, submission)
+		submission, _, err := journal.SubmitBuilding(ctx, store.SubmissionRequest{RequestID: fmt.Sprintf("%s-wall-%d", prefix, i+1), World: world, Building: building})
+		if err != nil {
+			return nil, fmt.Errorf("wall %d: %w", i+1, err)
 		}
-		id := na.AsString(submission["planId"])
-		if id == "" {
-			return nil, fmt.Errorf("wall %d: unexpected submission %#v", i+1, submission)
-		}
-		ids = append(ids, domain.PlanID(id))
-		submissions = append(submissions, submission)
+		ids = append(ids, submission.Plan)
+		submissions = append(submissions, map[string]any{"requestId": submission.Request.RequestID, "planId": string(submission.Plan), "revision": uint64(submission.Revision)})
 	}
 	report["submissions"] = submissions
 	return ids, nil

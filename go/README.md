@@ -834,8 +834,7 @@ permission and control history. Form drafts and request IDs survive background
 refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.
 
-Submit a single building through `POST /api/buildings/plans`; the running bot
-dispatches it under the world's root plan. Resume uses
+Resume uses
 `POST /api/player/control/resume` and Pause uses
 `POST /api/player/control/pause`, which stops local work before waiting for native
 cleanup. These routes require JSON and the process token returned by
@@ -870,7 +869,6 @@ pawns stay drafted and, with authority inactive, the game's own auto-undraft
 applies again.
 
 An uncertain HTTP reply is resolved by reading its request ID through
-`GET /api/buildings/submission?requestId=...` or
 `GET /api/player/control?requestId=...`. Historical results are separate from
 current permission. Repeating a control request never acquires another lease.
 

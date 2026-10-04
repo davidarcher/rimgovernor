@@ -129,7 +129,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if butcheryRect != nil {
 		butcheryID = fmt.Sprintf("%d,%d", int(na.AsNumber(butcheryRect["minX"]))+1, int(na.AsNumber(butcheryRect["minZ"]))+1)
 	}
-	spare, _ := na.AsMap(prepared["spareCell"])
 	kitchenFilth := map[string]bool{}
 	for _, raw := range na.AsSlice(prepared["kitchenFilth"]) {
 		kitchenFilth[na.AsString(raw)] = true
@@ -189,9 +188,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	report["service_state_attached"] = attached
-	rootPlanID, err := service.SubmitAndResume(prefix, identity, map[string]any{
-		"defName": "Wall", "x": int(na.AsNumber(spare["x"])), "z": int(na.AsNumber(spare["z"])), "rotation": "north", "stuff": "WoodLog",
-	}, token, report)
+	rootPlanID, err := service.Resume(prefix, identity, token, report)
 	if err != nil {
 		return err
 	}

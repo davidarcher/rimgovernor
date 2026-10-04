@@ -100,7 +100,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	interior, _ := na.AsMap(prepared["interior"])
-	spare, _ := na.AsMap(prepared["spareCell"])
 	walls := map[domain.Cell]bool{}
 	for _, raw := range na.AsSlice(prepared["walls"]) {
 		w, _ := na.AsMap(raw)
@@ -155,9 +154,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["service_state_attached"] = attached
-	rootPlanID, err := service.SubmitAndResume(prefix, identity, map[string]any{
-		"defName": "Wall", "x": int(na.AsNumber(spare["x"])), "z": int(na.AsNumber(spare["z"])), "rotation": "north", "stuff": "WoodLog",
-	}, token, report)
+	rootPlanID, err := service.Resume(prefix, identity, token, report)
 	if err != nil {
 		return err
 	}

@@ -83,7 +83,7 @@ func (*clockServiceFake) ReadGearBenches(context.Context, *c.Identity) ([]bridge
 	return nil, bridge.Result{}, nil
 }
 
-func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
+func TestBuildingServiceStartsManualAndShutdownJoins(t *testing.T) {
 	dir := t.TempDir()
 	fake := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	caps := unusedBuildingCapabilities{}
@@ -129,24 +129,8 @@ func TestBuildingServiceSubmissionDoesNotAcquireAndShutdownJoins(t *testing.T) {
 	if err := json.Unmarshal(read("/api/player/session"), &bootstrap); err != nil || len(bootstrap.Token) != 64 {
 		t.Fatal("bootstrap", err)
 	}
-	payload := `{"requestId":"submit-one","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"building":{"defName":"Wall","stuff":"WoodLog","x":0,"z":0,"rotation":"north"}}`
-	request, _ := http.NewRequest(http.MethodPost, address+"/api/buildings/plans", strings.NewReader(payload))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-RimGovernor-Player", bootstrap.Token)
-	response, err := client.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := io.ReadAll(response.Body)
-	response.Body.Close()
-	if err != nil || response.StatusCode != 201 {
-		t.Fatalf("submit %d %s %v", response.StatusCode, data, err)
-	}
-	if !strings.Contains(string(read("/api/buildings/submission?requestId=submit-one")), `"requestId":"submit-one"`) {
-		t.Fatal("submission not durable")
-	}
 	if !strings.Contains(string(read("/api/player/control")), `"enabled":false`) {
-		t.Fatal("submission enabled authority")
+		t.Fatal("startup enabled authority")
 	}
 	var state httpapi.State
 	if err := json.Unmarshal(read("/api/state"), &state); err != nil || state.Mode != "manual" || state.Generation != nil {

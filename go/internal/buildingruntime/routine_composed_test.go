@@ -258,7 +258,7 @@ func composedAcquire(t *testing.T, p *Player, requestID string, x, z int32) stor
 	if err != nil {
 		t.Fatal(err)
 	}
-	submission, created, err := p.Submit(context.Background(), store.SubmissionRequest{RequestID: requestID, World: store.World{Colony: "colony", Load: "load", Map: 0}, Building: building})
+	submission, created, err := p.journal.SubmitBuilding(context.Background(), store.SubmissionRequest{RequestID: requestID, World: store.World{Colony: "colony", Load: "load", Map: 0}, Building: building})
 	if err != nil || !created {
 		t.Fatal(submission, created, err)
 	}

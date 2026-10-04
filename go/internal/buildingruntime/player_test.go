@@ -130,7 +130,7 @@ func playerSubmission() store.SubmissionRequest {
 // plan is dispatched under the root plan's authority (see playerPlan).
 func playerAcquire(t *testing.T, p *Player) store.ControlRequest {
 	t.Helper()
-	s, created, err := p.Submit(context.Background(), playerSubmission())
+	s, created, err := p.journal.SubmitBuilding(context.Background(), playerSubmission())
 	if err != nil || !created {
 		t.Fatal(s, created, err)
 	}
@@ -177,7 +177,7 @@ func TestPlayerExactReplayAndChangedRequestConflict(t *testing.T) {
 	if _, err = p.Resume(context.Background(), changed); !errors.Is(err, store.ErrConflict) || s.acquires.Load() != 1 {
 		t.Fatal(err)
 	}
-	submission, created, err := p.Submit(context.Background(), playerSubmission())
+	submission, created, err := p.journal.SubmitBuilding(context.Background(), playerSubmission())
 	if err != nil || created || submission.Plan != playerPlan(t, p.journal).Spec.ID() {
 		t.Fatal(submission, created, err)
 	}
@@ -474,9 +474,6 @@ func TestPlayerCloseDrainsBeforeSessionCloseAndRetriesFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	if err := p.Close(ctx); !errors.Is(err, context.DeadlineExceeded) || s.closes.Load() != 0 {
-		t.Fatal(err)
-	}
-	if _, _, err := p.Submit(context.Background(), playerSubmission()); !errors.Is(err, ErrControl) {
 		t.Fatal(err)
 	}
 	close(release)

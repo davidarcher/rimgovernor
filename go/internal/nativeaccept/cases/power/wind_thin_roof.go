@@ -57,7 +57,6 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	if rock := na.AsNumber(prepared["rockCells"]); rock < 5000 {
 		return fmt.Errorf("fixture raised only %v rock cells: %#v", rock, prepared)
 	}
-	spare, _ := na.AsMap(prepared["spareCell"])
 	var ids, consumers []string
 	for _, raw := range na.AsSlice(prepared["consumers"]) {
 		consumers = append(consumers, fmt.Sprint(raw))
@@ -101,9 +100,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["service_state_attached"] = attached
-	rootPlanID, err := service.SubmitAndResume(prefix, identity, map[string]any{
-		"defName": "Wall", "x": int(na.AsNumber(spare["x"])), "z": int(na.AsNumber(spare["z"])), "rotation": "north", "stuff": "WoodLog",
-	}, token, report)
+	rootPlanID, err := service.Resume(prefix, identity, token, report)
 	if err != nil {
 		return err
 	}

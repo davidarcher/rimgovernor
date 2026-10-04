@@ -17,7 +17,6 @@ import (
 )
 
 type PlayerBuildings interface {
-	Submit(context.Context, store.SubmissionRequest) (store.Submission, bool, error)
 	SubmitResearchSelect(context.Context, store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error)
 	Resume(context.Context, store.ControlRequest) (store.ControlRecord, error)
 	Pause(context.Context, store.ControlRequest) (store.ControlRecord, error)
@@ -26,7 +25,6 @@ type PlayerBuildings interface {
 type ControlReader interface {
 	CurrentControl(context.Context) (store.ControlRecord, error)
 	LookupControl(context.Context, string) (store.ControlRecord, error)
-	LookupSubmission(context.Context, string) (store.Submission, error)
 	LookupResearchSelectSubmission(context.Context, string) (store.ResearchSelectSubmission, error)
 }
 
@@ -50,14 +48,6 @@ func NewWithPlayer(config Config, snapshots SnapshotProvider, plans PlanReader, 
 	return s, nil
 }
 
-type submissionDTO struct {
-	RequestID string              `json:"requestId"`
-	Expected  Identity            `json:"expected"`
-	Building  Building            `json:"building"`
-	PlanID    domain.PlanID       `json:"planId"`
-	ActionID  domain.ActionID     `json:"actionId"`
-	Revision  domain.PlanRevision `json:"revision,string"`
-}
 type controlRecordDTO struct {
 	RequestID        string                  `json:"requestId"`
 	Kind             store.ControlKind       `json:"kind"`
@@ -78,17 +68,6 @@ type controlDTO struct {
 
 func playerWorldDTO(world store.World) Identity {
 	return Identity{ColonyID: string(world.Colony), LoadToken: string(world.Load), MapID: int32(world.Map)}
-}
-func projectSubmission(v store.Submission) (submissionDTO, error) {
-	var zero submissionDTO
-	if buildingRequestID(v.Request.RequestID) != nil || v.Request.World.Validate() != nil || buildingRequestID(string(v.Plan)) != nil || buildingRequestID(string(v.Action)) != nil || v.Revision == 0 {
-		return zero, errors.New("invalid submission")
-	}
-	b := v.Request.Building
-	if _, err := domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), b.Stuff()); err != nil {
-		return zero, err
-	}
-	return submissionDTO{v.Request.RequestID, playerWorldDTO(v.Request.World), Building{b.Definition(), b.Cell().X, b.Cell().Z, b.Rotation(), b.Stuff()}, v.Plan, v.Action, v.Revision}, nil
 }
 func projectControl(v store.ControlRecord) (*controlRecordDTO, error) {
 	if v == (store.ControlRecord{}) {
@@ -177,8 +156,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission"
-	write := path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
+	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission"
+	write := path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
 	if !read && !write {
 		return false
 	}
@@ -254,34 +233,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if write {
-		if path == "/api/buildings/plans" {
-			q, err := decodeBuildingSubmission(r.Body)
-			if err != nil {
-				s.failure(w, r, 400, "invalid_request", "Invalid building submission")
-				return true
-			}
-			if ctx.Err() != nil {
-				s.readFailure(w, r, ctx.Err())
-				return true
-			}
-			v, created, err := s.player.Submit(ctx, q)
-			if err != nil {
-				status, failure := playerFailure(err)
-				s.write(w, r, status, failure)
-				return true
-			}
-			dto, err := projectSubmission(v)
-			if err != nil {
-				s.readFailure(w, r, err)
-				return true
-			}
-			status := 200
-			if created {
-				status = 201
-			}
-			s.write(w, r, status, dto)
-			return true
-		}
 		if path == "/api/research-selects/plans" {
 			s.submitResearchSelect(w, r, ctx)
 			return true
@@ -323,30 +274,13 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ids := query["requestId"]
-	submissionLookup := path == "/api/buildings/submission" || path == "/api/research-selects/submission"
+	submissionLookup := path == "/api/research-selects/submission"
 	if (len(query) != 0 && (len(query) != 1 || len(ids) != 1 || buildingRequestID(ids[0]) != nil)) || (submissionLookup && len(ids) != 1) {
 		s.failure(w, r, 400, "invalid_query", "One requestId is required")
 		return true
 	}
 	if path == "/api/research-selects/submission" {
 		s.lookupResearchSelect(w, r, ctx, ids[0])
-		return true
-	}
-	if path == "/api/buildings/submission" {
-		v, err := s.controls.LookupSubmission(ctx, ids[0])
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err != nil {
-			s.readFailure(w, r, err)
-			return true
-		}
-		dto, err := projectSubmission(v)
-		if err != nil {
-			s.readFailure(w, r, err)
-			return true
-		}
-		s.write(w, r, 200, dto)
 		return true
 	}
 	var record store.ControlRecord

@@ -216,31 +216,6 @@ func (p *Player) world(ctx context.Context, expected store.World) error {
 	return ctx.Err()
 }
 
-func (p *Player) Submit(ctx context.Context, request store.SubmissionRequest) (store.Submission, bool, error) {
-	call, epoch, done, err := p.enter(ctx, "submit", false)
-	if err != nil {
-		return store.Submission{}, false, err
-	}
-	defer done()
-	old, err := p.journal.LookupSubmission(call, request.RequestID)
-	if err == nil {
-		if old.Request != request {
-			return store.Submission{}, false, store.ErrConflict
-		}
-		return old, false, nil
-	}
-	if !errors.Is(err, store.ErrNotFound) {
-		return store.Submission{}, false, err
-	}
-	if err = p.world(call, request.World); err != nil {
-		return store.Submission{}, false, err
-	}
-	if err = p.current(call, epoch); err != nil {
-		return store.Submission{}, false, err
-	}
-	return p.journal.SubmitBuilding(call, request)
-}
-
 // Historical replay is returned before any native effect; even Granted never
 // restores a live lease. Actual permission is reported separately by State.
 func (p *Player) lookup(ctx context.Context, request store.ControlRequest) (store.ControlRecord, bool, error) {

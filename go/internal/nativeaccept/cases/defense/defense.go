@@ -208,12 +208,11 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return out, nil
 	}
 	var layout store.DefenseLayoutRecord
-	var siteX, siteZ int
 	// na.Serve keeps every service on this one state journal.
 	statePath := filepath.Join(output, "service.sqlite")
 	var svc *service
 	launch := func(name string) (*service, error) {
-		return launchService(ctx, s, name, identity, siteX, siteZ, report)
+		return launchService(ctx, s, name, identity, report)
 	}
 	// The band, the stock, the rifles and the construction site are
 	// staged here, in the run body, so a resume from the ring (#249)
@@ -223,7 +222,6 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	var staged bool
 	if entry, ok := s.Resumed(); ok {
 		if state, ok := na.AsMap(entry.State["fixture"]); ok {
-			siteX, siteZ = int(na.AsNumber(state["siteX"])), int(na.AsNumber(state["siteZ"]))
 			staged = true
 			report["fixture_resumed"] = state
 		}
@@ -237,7 +235,8 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 		report["ranged"] = ranged
-		if siteX, siteZ, err = prepareSite(ctx, h, identity, report); err != nil {
+		siteX, siteZ, err := prepareSite(ctx, h, identity, report)
+		if err != nil {
 			return err
 		}
 		if v.gates != nil {
@@ -640,9 +639,8 @@ func edgeSide(toward domain.Rotation) string {
 
 // launchService starts rimgovernor serve against the shared game (the
 // harness session must be closed), waits for it to attach to the fixture's
-// identity, submits the one player building plan the routine arbitration
-// slot needs, acquires authority and keeps it alive, and opens the journal.
-func launchService(ctx context.Context, s cases.Session, name string, identity map[string]any, siteX, siteZ int, report na.Report) (*service, error) {
+// identity, acquires authority and keeps it alive, and opens the journal.
+func launchService(ctx context.Context, s cases.Session, name string, identity map[string]any, report na.Report) (*service, error) {
 	// Every launch shares one profile and state journal (na.Serve): the
 	// journal binds its clock inbox to the first profile path and refuses
 	// any other. The declared spec carries the families (tend and rescue
@@ -659,23 +657,6 @@ func launchService(ctx context.Context, s cases.Session, name string, identity m
 	report["service_"+name] = proc.Entry()
 	svc := &service{ServiceProcess: proc}
 	fail := func(err error) (*service, error) { svc.stop(); return nil, err }
-	// The player's accepted building project occupies the routine
-	// arbitration slot (policy.RankDevelopment); it is submitted once per
-	// journal and replayed idempotently on a relaunch.
-	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
-		"requestId": s.RequestID("defense-layout-construction-1"), "expected": identity,
-		"building": map[string]any{"defName": "Wall", "x": siteX, "z": siteZ, "rotation": "north", "stuff": "WoodLog"},
-	}, svc.Token)
-	if err != nil {
-		return fail(err)
-	}
-	if status != 200 && status != 201 {
-		return fail(fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission))
-	}
-	if na.AsString(submission["planId"]) == "" || na.AsString(submission["revision"]) == "" {
-		return fail(fmt.Errorf("unexpected building submission: %#v", submission))
-	}
-	report["submission_"+name] = submission
 	keep := &authorityKeepAlive{apiCall: svc.API, identity: identity, token: svc.Token, name: name}
 	if err := keep.start(); err != nil {
 		return fail(err)

@@ -82,7 +82,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 	t.Helper()
 	q := playerSubmission()
 	q.RequestID = id
-	submission, _, err := w.player.Submit(context.Background(), q)
+	submission, _, err := w.player.journal.SubmitBuilding(context.Background(), q)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,9 +578,6 @@ func TestWorkerLifetimeCancellationStopsPlayer(t *testing.T) {
 	case <-running.done:
 	case <-time.After(time.Second):
 		t.Fatal("worker ignored cancellation")
-	}
-	if _, _, err = w.player.Submit(context.Background(), playerSubmission()); err == nil {
-		t.Fatal("stopped worker accepted request")
 	}
 	if err = running.Close(context.Background()); err != nil {
 		t.Fatal(err)

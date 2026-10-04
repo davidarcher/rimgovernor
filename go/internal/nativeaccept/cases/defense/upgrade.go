@@ -95,7 +95,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 	}
 	report["power"] = power
 
-	svc, err := launchService(ctx, s, "layout", identity, siteX, siteZ, report)
+	svc, err := launchService(ctx, s, "layout", identity, report)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 	report["armory"] = armory
 	topBefore := topArmoryTier(before)
 
-	svc, err = launchService(ctx, s, "upgrade", identity, siteX, siteZ, report)
+	svc, err = launchService(ctx, s, "upgrade", identity, report)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func runUpgrade(ctx context.Context, s cases.Session) error {
 		if round == gearRounds {
 			return fmt.Errorf("no colonist wields a weapon above the %s tier held before the rise after %d rounds: %v", topBefore, gearRounds, after["colonists"])
 		}
-		svc, err = launchService(ctx, s, fmt.Sprintf("gear-%d", round), identity, siteX, siteZ, report)
+		svc, err = launchService(ctx, s, fmt.Sprintf("gear-%d", round), identity, report)
 		if err != nil {
 			return err
 		}

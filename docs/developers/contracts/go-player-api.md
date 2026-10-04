@@ -18,8 +18,6 @@ control uses these routes.
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
-| POST | `/api/buildings/plans` | Store one building intent |
-| GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
 | GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
@@ -96,10 +94,10 @@ Ordinary `progress` keeps its current fields. The public projection omits leases
 native tokens and controller-session ownership data. Drafts carry no cleanup
 progress: the undraft sweep releases drafts no live plan needs (#939).
 
-The Go player surface (`httpapi.PlayerBuildings`) is `Submit`,
+The Go player surface (`httpapi.PlayerBuildings`) is
 `SubmitResearchSelect`, `Resume`, `Pause` and `State`; its reader
-(`httpapi.ControlReader`) is `CurrentControl`, `LookupControl`,
-`LookupSubmission` and `LookupResearchSelectSubmission`. Configuration routes
+(`httpapi.ControlReader`) is `CurrentControl`, `LookupControl`
+and `LookupResearchSelectSubmission`. Configuration routes
 have their own narrow interfaces. Production service composition supplies the
 same Player and store used by the worker.
 

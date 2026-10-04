@@ -56,7 +56,6 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	generatorID := na.AsString(prepared["generator"])
-	spare, _ := na.AsMap(prepared["spareCell"])
 	var ids, consumers []string
 	if generatorID != "" {
 		ids = append(ids, generatorID)
@@ -111,9 +110,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["service_state_attached"] = attached
-	rootPlanID, err := service.SubmitAndResume(prefix, identity, map[string]any{
-		"defName": "Wall", "x": int(na.AsNumber(spare["x"])), "z": int(na.AsNumber(spare["z"])), "rotation": "north", "stuff": "WoodLog",
-	}, token, report)
+	rootPlanID, err := service.Resume(prefix, identity, token, report)
 	if err != nil {
 		return err
 	}
