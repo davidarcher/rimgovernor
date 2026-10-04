@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
                 result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = GrowingCalendar.GrowingDaysRemaining(map),
                 GrowingDaysUntil = GrowingCalendar.GrowingDaysUntil(map), NonGrowingDays = GrowingCalendar.NonGrowingDays(map), Season = season, DayOfYear = dayOfYear,
-                SowingNow = DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
+                SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
             catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
@@ -201,6 +201,22 @@ namespace HomeBridge.BridgeTools
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             Span("cf.planning");
             return result;
+        }
+
+        // Whether the biome keeps the sky dark for the map's whole life (#1858):
+        // one of its map conditions is a GameCondition_NoSunlight or a subclass,
+        // read from the game defs with no name list. A biome or condition def
+        // missing its facts throws, so the food_climate read fails loudly
+        // instead of reporting light that may not exist.
+        static bool OutdoorsPermanentlyDark(Map map)
+        {
+            var biome = map.Biome ?? throw new InvalidOperationException("map has no biome");
+            foreach (var condition in biome.biomeMapConditions ?? new List<GameConditionDef>())
+            {
+                var conditionClass = condition?.conditionClass ?? throw new InvalidOperationException("biome " + biome.defName + " lists a map condition with no class");
+                if (typeof(GameCondition_NoSunlight).IsAssignableFrom(conditionClass)) return true;
+            }
+            return false;
         }
 
         // The game-condition census: every condition affecting the map, with

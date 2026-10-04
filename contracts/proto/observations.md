@@ -291,7 +291,10 @@ name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` (#1712) is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
 it as `RoutineFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
-without a biome read or catalog.
+without a biome read or catalog. Native `FoodClimate.sowing_now` (#1858) folds
+the same fact: false in a permanently dark biome (read from the game defs with
+`typeof(GameCondition_NoSunlight).IsAssignableFrom`), unset when the biome or a
+condition class cannot be read.
 
 ### Stat values and adjusted costs
 
