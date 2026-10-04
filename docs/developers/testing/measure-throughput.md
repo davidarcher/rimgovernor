@@ -16,9 +16,7 @@ across launches and each row's `run` names the launch that wrote it),
 `--flight-recorder <absolute path>` to record elsewhere (the acceptance
 runner's per-case path).
 Segments rotate beside the path (8 x 8 MiB); the reader picks them all
-up. A running service also serves the ring over `GET
-/api/telemetry/events` and `GET /api/telemetry/metrics` (see [the
-dashboard](../architecture/dashboard.md#telemetry)).
+up.
 
 ```bash
 go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.jsonl ...

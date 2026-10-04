@@ -111,50 +111,14 @@ and transport details.
 
 `serve` keeps a flight recorder under the profile by default
 (`<profile>/flight/flight.jsonl`, an 8 x 8 MiB ring; `--flight-recorder
-<path>` moves it, `--observe` has no
-profile and so none), and the same listener reads it back, so a live game
-that seems to be doing nothing has evidence beyond stderr:
-
-- `GET /api/telemetry/events?since=<seq>&kind=<k,...>&limit=<n>` pages the
-  retained rows by sequence (`next_since` is the value for the following
-  page, `more` says one is waiting); a `recording_gap` row stands in for a
-  corrupt line or a sequence the ring rotated away. The sequence continues
-  across launches; each row's `run` names the launch that wrote it.
-- `GET /api/telemetry/metrics` is the acceptance runner's metrics block
-  (#297) computed live over the current launch's rows, beside `tick`,
-  `tps`, `authority` (the live generation, or null) and `last_step_ms`.
-
-Both are read-only and unauthenticated like `/api/state`, and answer 404
-without a recorder. Neither follows the tail; both share one
-`bridge.TimelineReader`, which keeps rotated segments by content identity
-and decodes only the bytes appended to the active file since the last
-read, so a poll costs the new rows rather than the retained ring (#375;
-`go/internal/httpapi/telemetry.go`). See [measure
-throughput](../testing/measure-throughput.md) for what the rows carry.
-
-The Governor view (`dashboard/src/features/governor`, #300) is the
-read-only panel over both routes:
-
-- a health strip from `/api/telemetry/metrics` polled every 2 s — tick and
-  TPS, last step latency, native errors over calls, reads per step and the
-  authority generation, each with a sparkline over the session's samples;
-- an event feed from `/api/telemetry/events`, newest first: the first read
-  probes the ring's newest sequence and pages from a bounded backfill
-  behind it, then follows by `since`; rows are filtered by kind (decode
-  rows hidden by default) and by a substring over the row's context and
-  payload (a goal, plan, action or trace id);
-- a trace view: picking any row's trace renders the rows sharing its
-  `trace_id` (#298) as a waterfall, the browser twin of `rimgovernor
-  trace` — each native call one line with its gate wait, the companion's
-  queue/execute split and decoding, worker dispatches nested under the
-  step by `parent_id`; the pick is named in the hash
-  (`#governor/<trace_id>`) so a link reloads or shares it.
-
-A serve without a recorder (404) shows why instead of the panel. The
-offline [case timeline](../testing/measure-throughput.md#case-timeline) reads the same
-row kinds from a case output directory; the Governor view reads a live
-serve. `RIMGOVERNOR_API` points the Vite dev proxy at another serve, such
-as an acceptance run's `--listen 127.0.0.1:0` port.
+<path>` moves it, `--observe` has no profile and so none). The service no
+longer serves it over HTTP (the telemetry routes were deleted in #2001):
+the launcher and the acceptance harness read `flight.jsonl` in-process
+through `bridge.TimelineReader`. The dashboard's Governor view
+(`dashboard/src/features/governor`) has no backend left and goes with the
+dashboard (#1991). See [measure throughput](../testing/measure-throughput.md)
+for what the rows carry and for the offline
+[case timeline](../testing/measure-throughput.md#case-timeline).
 
 ## Chat
 

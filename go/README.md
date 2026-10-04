@@ -803,11 +803,7 @@ profile (`<profile>/flight/flight.jsonl`) by default; `--flight-recorder
 <absolute-path>` names another ring (the acceptance runner's per-case path),
 and `--observe` has no profile and so
 no default ring. The ring outlives each launch: a new launch continues the
-sequence and stamps its rows with its own `run` id. A running service serves
-the ring back over `GET /api/telemetry/events` (paged by sequence) and `GET
-/api/telemetry/metrics` (the acceptance metrics block computed live, with
-`tick`, `tps`, `authority` and `last_step_ms`); both answer 404 without a
-recorder. Every row is written to the OS
+sequence and stamps its rows with its own `run` id. Every row is written to the OS
 before the call returns and is fsynced only at segment rotation and close,
 so a process crash loses nothing and a machine crash can lose the unsynced
 tail (per-request fsync cost seconds per step on the CI disk). The

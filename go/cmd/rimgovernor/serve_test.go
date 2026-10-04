@@ -210,7 +210,7 @@ func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
 	for _, check := range []struct {
 		path, contains string
 		code           int
-	}{{"/", "Observation mode", 200}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/telemetry/events?kind=coverage", `"kind":"coverage"`, 200}, {"/api/telemetry/metrics", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
+	}{{"/", "Observation mode", 200}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
 		method := "GET"
 		if check.code == 501 {
 			method = "POST"

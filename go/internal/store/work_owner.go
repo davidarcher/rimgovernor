@@ -214,8 +214,8 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 	return d
 }
 
-// OwnerSummary is the lifecycle view of a goal or Project the HTTP API and the
-// chat interpreter report. A Project's status maps onto the goal vocabulary
+// OwnerSummary is the lifecycle view of a goal or Project the HTTP API
+// reports. A Project's status maps onto the goal vocabulary
 // the wire already uses (open is active, finished is satisfied); Epoch is 0
 // for a Project, which has none.
 type OwnerSummary struct {

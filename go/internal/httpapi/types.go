@@ -57,8 +57,7 @@ type Config struct {
 	// the routes answer 404.
 	Pprof bool
 	// FlightRecorder is the absolute path of the flight-recorder ring the
-	// /api/telemetry routes read (see telemetry.go); empty, the routes
-	// answer 404.
+	// spectator route reads; empty, the route projects no rows.
 	FlightRecorder string
 }
 type State struct {

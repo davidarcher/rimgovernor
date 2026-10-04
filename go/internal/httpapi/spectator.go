@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/spectator"
@@ -81,8 +80,7 @@ func (s *Server) handleSpectator(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		rows = currentRun(all)
-		metrics := telemetryMetrics(rows, snapshot, 0, time.Now())
-		in.TPS = metrics.TPS
+		in.TPS = bridge.SummarizePhases(rows).Clock.WallTPS
 	}
 	if err = ctx.Err(); err != nil {
 		s.readFailure(w, r, err)
