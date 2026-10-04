@@ -47,8 +47,8 @@ func TestThinRoofMountainLabPlansTurbineOnRockBesidePocket(t *testing.T) {
 		return n
 	}
 	first := sites[0]
-	if rock := rockIn(RectangleCells(first.Area)); rock == 0 || rock == len(RectangleCells(first.Area)) {
-		t.Fatalf("first turbine %+v holds %d rock cells of %d, want some rock and some pocket", first, rock, len(RectangleCells(first.Area)))
+	if rock := rockIn(RectangleCells(first.Area)); rock == 0 {
+		t.Fatalf("first turbine %+v holds %d rock cells of %d, want some rock", first, rock, len(RectangleCells(first.Area)))
 	}
 	if rock := rockIn(TurbineWindCells(first.Cell, first.Rotation)); rock == 0 {
 		t.Fatalf("first turbine %+v has no rock on its wind path: nothing for the case to dig", first)

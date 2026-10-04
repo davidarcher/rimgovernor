@@ -201,7 +201,7 @@ func grownSuite(plan LayoutPlan, w Wing, r LayoutRoom, target float64) (LayoutRo
 		strip.X = grown.Interior.X - 1
 	}
 	g := newCoreGrid(plan.Zones, plan.Reservations)
-	g.carveBedroomWings(plan.Wings, 0)
+	g.carveBedroomWings(plan.Wings)
 	if !g.wingGround(plan.Spine, plan.Rooms)(strip) {
 		return r, false
 	}

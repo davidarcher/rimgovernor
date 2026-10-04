@@ -54,7 +54,7 @@ func TestSuiteWingOnlyOnceASuiteIsWanted(t *testing.T) {
 func TestSuiteWingIsSeparateFromTheStandardWing(t *testing.T) {
 	targets := []float64{ImpressivenessSlightlyImpressive, ImpressivenessDull, ImpressivenessDecent}
 	p := Grow(PlanCore(coreTestZones(), 3, BuildTierCamp), 3, 1, BuildTierCamp, targets...)
-	std := checkWing(t, p, 3)
+	std := checkWing(t, p)
 	suites := testSuiteWing(t, p)
 	if len(suites.Rooms) != len(targets) {
 		t.Fatalf("suites %d, want %d", len(suites.Rooms), len(targets))

@@ -29,8 +29,8 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 			t.Fatal("retired room moved", r)
 		}
 	}
-	if len(active) != 1 || len(active[0].Rooms) != 4 {
-		t.Fatalf("active wings %+v, want one of 4 rooms", active)
+	if len(active) != 1 || len(active[0].Rooms) != wingMaxRooms {
+		t.Fatalf("active wings %+v, want one full wing", active)
 	}
 	for _, r := range active[0].Rooms {
 		if r.Interior.Width*r.Interior.Height != 16 {
@@ -45,7 +45,7 @@ func TestTierBumpRetiresWingAndSitesNewOne(t *testing.T) {
 	if _, err := CheckRoutes(g); err != nil {
 		t.Fatal("routes:", err)
 	}
-	// The retiring wing stops growing.
+	// The retiring wing stays as it is.
 	for _, w := range Grow(g, 6, 1, BuildTierPowered).Wings {
 		if w.Purpose == WingBedroomsRetiring && len(w.Rooms) != len(old.Rooms) {
 			t.Fatal("retiring wing grew", len(w.Rooms))

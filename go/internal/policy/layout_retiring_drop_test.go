@@ -29,7 +29,7 @@ func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
 		for _, w := range next.Wings {
 			kept = kept || (w.Purpose == WingBedroomsRetiring && w.Corridor == old.Corridor)
 		}
-		if kept == tc.drop || (tc.drop && activeWingRooms(next) != 6) {
+		if kept == tc.drop || (tc.drop && activeWingRooms(next) != wingMaxRooms) {
 			t.Fatal(tc.size, "retiring wing kept", kept, activeWingRooms(next))
 		}
 		for i, r := range camp.Rooms {

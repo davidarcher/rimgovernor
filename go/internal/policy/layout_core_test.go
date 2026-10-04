@@ -56,7 +56,7 @@ func checkCore(t *testing.T, p LayoutPlan, pawns int) {
 			}
 		}
 	}
-	if count[ModuleBedroom] != pawns {
+	if want := (pawns + wingMaxRooms - 1) / wingMaxRooms * wingMaxRooms; count[ModuleBedroom] != want {
 		t.Fatal("bedrooms", count)
 	}
 	for _, role := range coreBaseRooms {

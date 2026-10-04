@@ -116,7 +116,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 		g.carve(wingReserve(wings[i], len(suites)))
 		base.carve(wingReserve(wings[i], len(suites)))
 	}
-	g.carveBedroomWings(wings, pawns)
+	g.carveBedroomWings(wings)
 	if len(spine) == 1 {
 		// The centre crossing is laid first so no room takes its column (#952).
 		if next, ok := g.addCrossing(spine, rooms); ok {
@@ -146,7 +146,7 @@ func Grow(plan LayoutPlan, pawns, tombs int, tier BuildTier, suites ...float64) 
 	// The suite wing grows over its own ground and whatever no other room
 	// or the bedroom wing claimed.
 	sg := newCoreGrid(plan.Zones, plan.Reservations)
-	sg.carveBedroomWings(wings, pawns)
+	sg.carveBedroomWings(wings)
 	wings = growSuitesOutward(plan, wings, suites)
 	spine, wings = sg.growSuites(spine, rooms, wings, suites)
 	plan.Spine, plan.Rooms, plan.Wings = spine, rooms, wings
@@ -203,7 +203,7 @@ func (g coreGrid) placeRole(spine []SpineSegment, rooms []LayoutRoom, wings []Wi
 // wing ground carved out) and carves their ground out of g.
 func growWing(g, base coreGrid, spine []SpineSegment, rooms []LayoutRoom, wings []Wing, pawns int, tier BuildTier) ([]SpineSegment, []Wing) {
 	spine, wings = base.growWings(spine, rooms, wings, pawns, tier)
-	g.carveBedroomWings(wings, pawns)
+	g.carveBedroomWings(wings)
 	return spine, wings
 }
 

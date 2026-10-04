@@ -26,11 +26,12 @@ func wingCounts(p LayoutPlan) []int {
 	return out
 }
 
-// Several bedroom wings, each capped at wingMaxRooms (#1237).
-func TestBedroomWingsCapAtTenRooms(t *testing.T) {
+// A plan for N pawns holds ceil(N/10) bedroom wings, each planned at full
+// size when sited; one more pawn sites a new wing and moves nothing (#1950).
+func TestBedroomWingsPlannedAtFullSize(t *testing.T) {
 	p := PlanCore(coreTestZones(), 25, BuildTierCamp)
-	if got := wingCounts(p); len(got) != 3 || got[0] != 10 || got[1] != 10 || got[2] != 5 {
-		t.Fatalf("wings %v, want [10 10 5]", got)
+	if got := wingCounts(p); len(got) != 3 || got[0] != 10 || got[1] != 10 || got[2] != 10 {
+		t.Fatalf("wings %v, want [10 10 10]", got)
 	}
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal("routes:", err)
@@ -39,7 +40,7 @@ func TestBedroomWingsCapAtTenRooms(t *testing.T) {
 	for _, i := range bedroomWings(p.Wings) {
 		w := p.Wings[i]
 		// Each wing keeps its own reserve: no other wing's room is on it.
-		res := wingReserve(w, wingShares(p.Wings, 25)[i])
+		res := wingReserve(w, 0)
 		for _, j := range bedroomWings(p.Wings) {
 			if j == i {
 				continue
@@ -57,44 +58,37 @@ func TestBedroomWingsCapAtTenRooms(t *testing.T) {
 			all[r.Interior] = true
 		}
 	}
-	// Growing keeps every existing wing and room in place.
-	g := Grow(p, 28, 1, BuildTierCamp)
-	if got := wingCounts(g); len(got) != 3 || got[2] != 8 {
-		t.Fatalf("grown wings %v, want [10 10 8]", got)
+	// One pawn past capacity sites a fourth wing and leaves every existing
+	// wing, room and corridor exactly as it was.
+	g := Grow(p, 31, 1, BuildTierCamp)
+	if got := wingCounts(g); len(got) != 4 {
+		t.Fatalf("grown wings %v, want 4 wings", got)
 	}
 	for k, i := range bedroomWings(p.Wings) {
-		for n, r := range p.Wings[i].Rooms {
-			if g.Wings[bedroomWings(g.Wings)[k]].Rooms[n] != r {
+		before, after := p.Wings[i], g.Wings[bedroomWings(g.Wings)[k]]
+		if after.Corridor != before.Corridor || len(after.Rooms) != len(before.Rooms) {
+			t.Fatal("wing changed", before.Corridor, after.Corridor)
+		}
+		for n, r := range before.Rooms {
+			if after.Rooms[n] != r {
 				t.Fatal("room moved", r)
 			}
 		}
 	}
-	// A trim in the first wing is refilled there, not in the last.
-	first := p.Wings[bedroomWings(p.Wings)[0]]
-	drop := first.Rooms[len(first.Rooms)-1].Interior
-	p.Wings = keepWingRooms(p.Wings, func(r LayoutRoom) bool { return r.Interior != drop })
-	if got := wingCounts(p); got[0] != 9 {
-		t.Fatalf("trimmed %v", got)
-	}
-	r := Grow(p, 25, 1, BuildTierCamp)
-	if got := wingCounts(r); len(got) != 3 || got[0] != 10 || got[2] != 5 {
-		t.Fatalf("refilled %v, want [10 10 5]", got)
-	}
-	if !containsRoom(r.Wings[bedroomWings(r.Wings)[0]].Rooms, drop) {
-		t.Fatal("dropped room not refilled in its wing")
-	}
-	if _, err := CheckRoutes(r); err != nil {
+	if _, err := CheckRoutes(g); err != nil {
 		t.Fatal("routes:", err)
 	}
 }
 
-// checkWing asserts the wing's shape (#1213): pawns rooms, every door in
-// the corridor wall, rooms on a side sharing walls, and no thoroughfare.
-func checkWing(t *testing.T, p LayoutPlan, pawns int) Wing {
+// checkWing asserts the wing's shape (#1213): wingMaxRooms rooms, every
+// door in the corridor wall, rooms on a side sharing walls, and no
+// thoroughfare.
+func checkWing(t *testing.T, p LayoutPlan) Wing {
 	t.Helper()
 	w := testBedroomWing(t, p)
-	if len(w.Rooms) != pawns {
-		t.Fatalf("wing rooms %d, want %d", len(w.Rooms), pawns)
+	pawns := len(w.Rooms)
+	if pawns != wingMaxRooms {
+		t.Fatalf("wing rooms %d, want %d", pawns, wingMaxRooms)
 	}
 	corridor := spineRects([]SpineSegment{w.Corridor})[0]
 	sharing := 0
@@ -125,9 +119,8 @@ func checkWing(t *testing.T, p LayoutPlan, pawns int) Wing {
 			sharing++
 		}
 	}
-	// Only a lone room on the west side (three pawns) has no neighbour.
-	if want := map[bool]int{true: pawns, false: 2 * (pawns / 3)}[pawns >= 4]; sharing < want {
-		t.Fatalf("%d of %d rooms share a wall, want %d", sharing, pawns, want)
+	if sharing != pawns {
+		t.Fatalf("%d of %d rooms share a wall", sharing, pawns)
 	}
 	if _, err := CheckRoutes(p); err != nil {
 		t.Fatal("routes:", err)
@@ -136,9 +129,12 @@ func checkWing(t *testing.T, p LayoutPlan, pawns int) Wing {
 }
 
 func TestBedroomWingHousesEachPawn(t *testing.T) {
-	for _, pawns := range []int{1, 3, 6} {
+	for _, pawns := range []int{1, 3, 6, 10} {
 		p := PlanCore(coreTestZones(), pawns, BuildTierCamp)
-		checkWing(t, p, pawns)
+		checkWing(t, p)
+		if got := wingCounts(p); len(got) != 1 {
+			t.Fatalf("%d pawns: wings %v, want one", pawns, got)
+		}
 		for _, r := range p.Rooms {
 			if r.Role == ModuleBedroom {
 				t.Fatal("a spine bedroom", r)
@@ -147,13 +143,15 @@ func TestBedroomWingHousesEachPawn(t *testing.T) {
 	}
 }
 
-func TestBedroomWingExtendsAtItsOpenEnd(t *testing.T) {
+// Growing within a wing's capacity changes nothing; the corridor length is
+// fixed at siting.
+func TestBedroomWingNeverGrows(t *testing.T) {
 	p := PlanCore(coreTestZones(), 3, BuildTierCamp)
-	before := checkWing(t, p, 3)
+	before := checkWing(t, p)
 	g := Grow(p, 7, 1, BuildTierCamp)
-	after := checkWing(t, g, 7)
-	if after.Corridor.From != before.Corridor.From {
-		t.Fatal("wing moved", before.Corridor, after.Corridor)
+	after := checkWing(t, g)
+	if len(wingCounts(g)) != 1 || after.Corridor != before.Corridor {
+		t.Fatal("wing changed", before.Corridor, after.Corridor)
 	}
 	for i, r := range before.Rooms {
 		if after.Rooms[i] != r {
@@ -167,8 +165,8 @@ func TestBedroomWingExtendsAtItsOpenEnd(t *testing.T) {
 	}
 }
 
-// A new wing's rooms take the tier's size; an existing wing grown at a
-// later tier keeps its rooms' size (#1214).
+// A new wing's rooms take the tier's size; an existing wing keeps its
+// rooms' size at a later tier (#1214).
 func TestBedroomWingRoomSizeByTier(t *testing.T) {
 	size := func(t *testing.T, w Wing, want [2]int32) {
 		t.Helper()
@@ -180,7 +178,7 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 	}
 	for _, tier := range []BuildTier{BuildTierCamp, BuildTierPowered, BuildTierSpacer} {
 		p := PlanCore(coreTestZones(), 4, tier)
-		size(t, checkWing(t, p, 4), WingRoomSize(tier))
+		size(t, checkWing(t, p), WingRoomSize(tier))
 	}
 	camp := PlanCore(coreTestZones(), 3, BuildTierCamp)
 	// A later tier retires the smaller wing and sites a new one (#1219).
@@ -189,11 +187,12 @@ func TestBedroomWingRoomSizeByTier(t *testing.T) {
 	if grown.Wings[0].Purpose != WingBedroomsRetiring {
 		t.Fatal("camp wing not retiring", grown.Wings[0].Purpose)
 	}
-	size(t, checkWing(t, grown, 6), WingRoomSize(BuildTierSpacer))
+	active := grown.Wings[bedroomWings(grown.Wings)[0]]
+	size(t, active, WingRoomSize(BuildTierSpacer))
 }
 
-// A room the survey drops leaves a hole; the wing is refilled around it and
-// its other rooms stay put.
+// A room the survey drops shortens the corridor; the wing's other rooms
+// stay put and the wing is not refilled.
 func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 	p := PlanCore(coreTestZones(), 6, BuildTierCamp)
 	w := testBedroomWing(t, p)
@@ -201,13 +200,14 @@ func TestKeepWingRoomsTrimsTheCorridor(t *testing.T) {
 	kept := keepWingRooms(p.Wings, func(r LayoutRoom) bool {
 		return r.Interior != last.Interior && r.Interior != w.Rooms[len(w.Rooms)-2].Interior
 	})
-	if len(kept) != 1 || len(kept[0].Rooms) != 4 || kept[0].Corridor.To == w.Corridor.To {
+	if len(kept) != 1 || len(kept[0].Rooms) != 8 || kept[0].Corridor.To == w.Corridor.To {
 		t.Fatalf("kept %+v", kept)
 	}
 	p.Wings = kept
 	g := Grow(p, 6, 1, BuildTierCamp)
-	if got := checkWing(t, g, 6); got.Corridor != w.Corridor {
-		t.Fatal("corridor", got.Corridor, w.Corridor)
+	first := g.Wings[bedroomWings(g.Wings)[0]]
+	if len(first.Rooms) != 8 || first.Corridor != kept[0].Corridor {
+		t.Fatalf("trimmed wing %d rooms, corridor %+v", len(first.Rooms), first.Corridor)
 	}
 }
 
@@ -218,7 +218,7 @@ const bedroomWingReach = 20
 func TestBedroomsClusterNearStorage(t *testing.T) {
 	for _, pawns := range []int{3, 5, 8} {
 		p := PlanCore(coreTestZones(), pawns, BuildTierCamp)
-		w := checkWing(t, p, pawns)
+		w := checkWing(t, p)
 		var store *LayoutRoom
 		for i, r := range p.Rooms {
 			if r.Role == ModuleStorage {

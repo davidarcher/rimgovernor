@@ -242,7 +242,8 @@ func samePerimeter(a, b LayoutPlan) bool {
 	return true
 }
 
-// LayoutOutgrown reports fewer bedrooms than colonists.
+// LayoutOutgrown reports fewer bedrooms than colonists: another wing is
+// needed (#1950); wings never grow.
 func (p LayoutPlan) LayoutOutgrown(pawns int) bool {
 	n := 0
 	for _, r := range p.AllRooms() {
