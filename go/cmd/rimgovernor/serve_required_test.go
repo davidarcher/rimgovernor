@@ -11,7 +11,6 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -160,11 +159,6 @@ func TestServeRefusesAClientMissingARequiredNative(t *testing.T) {
 		}},
 		{"break response reads", "the break response reads", func() buildingServiceBridge {
 			return completeBuildingBridge(withoutBreaks{fake, fake, fake, fake}, caps)
-		}},
-		{"world evaluation reads", "the world evaluation reads", func() buildingServiceBridge {
-			b := completeBuildingBridge(fake, caps)
-			b.native = struct{ boundary.Native }{caps}
-			return b
 		}},
 	}
 	for _, tc := range cases {

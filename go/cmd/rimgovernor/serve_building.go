@@ -19,7 +19,6 @@ import (
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
-	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
@@ -310,16 +309,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if config.roundsEnabled {
 		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.roundsEnabled, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
 	}
-	worldEvaluation, err := buildingruntime.NewWorldEvaluation(player, natives.world, policy.WorldEvaluationPolicy{TravelFoodMarginDays: worldEvaluationFoodMarginDays})
-	if err != nil {
-		return err
-	}
 	// The live colony census route is a plain read every serve exposes (#261).
 	colonyStatus, err := buildingruntime.NewColonyStatus(player, natives.colony, sections)
 	if err != nil {
 		return err
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, ColonyStatus: colonyStatus, Notifications: natives.notifications, Presentation: natives.presentation, PresentationMedia: client.presentationMedia, Lifecycle: client.lifecycle, Attention: client.attention, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}
@@ -360,7 +355,6 @@ type serveNatives struct {
 	breaks        buildingruntime.BreakResponseSource
 	presentation  httpapi.PresentationReader
 	notifications httpapi.NotificationReader
-	world         buildingruntime.WorldEvaluationNative
 	colony        buildingruntime.ColonyStatusNative
 }
 
@@ -394,9 +388,6 @@ func requireServeNatives(client buildingServiceBridge) (natives serveNatives, er
 		return natives, err
 	}
 	if natives.breaks, err = requireNative[buildingruntime.BreakResponseSource](client.reads, "the break response reads (ReadEmergency, ReadCombatPawns; also the arrival hold reads)"); err != nil {
-		return natives, err
-	}
-	if natives.world, err = requireNative[buildingruntime.WorldEvaluationNative](client.native, "the world evaluation reads (ReadWorldProgression, ReadColonyFacts)"); err != nil {
 		return natives, err
 	}
 	natives.colony, err = requireNative[buildingruntime.ColonyStatusNative](client.native, "the colony census reads (ReadColonyFacts, ReadHomeColonists)")

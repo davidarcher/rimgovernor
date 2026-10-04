@@ -53,8 +53,6 @@ func lookupAnySubmission(ctx context.Context, tx *sql.Tx, id string) (submission
 	switch h.Kind {
 	case "building":
 		_, err = lookupSubmission(ctx, tx, id)
-	case "research_select":
-		_, err = lookupResearchSelectSubmission(ctx, tx, id)
 	default:
 		err = errors.New("invalid submission kind")
 	}
@@ -114,7 +112,7 @@ func (s *Store) PlayerPlans(ctx context.Context, w World) (map[domain.PlanID]uin
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT plan_id,revision FROM submissions WHERE kind IN ('building','research_select') AND colony=? AND load_token=? AND map_id=?", w.Colony, w.Load, w.Map)
+	rows, err := tx.QueryContext(ctx, "SELECT plan_id,revision FROM submissions WHERE kind='building' AND colony=? AND load_token=? AND map_id=?", w.Colony, w.Load, w.Map)
 	if err != nil {
 		return nil, err
 	}

@@ -18,7 +18,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// colonyStatusNativeFake mirrors worldEvaluationNativeFake: clockCoreFake's
+func colonyFactsFixture(context *c.ObservationContext) *o.ColonyFactsReply {
+	return &o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: &o.ColonyFactsSnapshot{
+		Context: proto.Clone(context).(*c.ObservationContext),
+		MapSize: &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)},
+		Center:  &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)},
+	}}}
+}
+
+// colonyStatusNativeFake: clockCoreFake's
 // Identity plus the colony census and home roster ColonyStatus.Read composes.
 type colonyStatusNativeFake struct {
 	*clockCoreFake
@@ -66,7 +74,7 @@ func colonyStatusFixture(t *testing.T) (*ColonyStatus, *colonyStatusNativeFake) 
 	}
 	native := &colonyStatusNativeFake{clockCoreFake: f}
 	ctx := native.status.Context
-	native.colony = worldEvaluationColonyFixture(ctx, nil)
+	native.colony = colonyFactsFixture(ctx)
 	native.roster = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(ctx).(*c.ObservationContext)}}}
 	status, err := NewColonyStatus(p, native)
 	if err != nil {

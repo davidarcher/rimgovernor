@@ -18,10 +18,7 @@ control uses these routes.
 | GET | `/api/player/control?requestId=…` | Historical request and actual permission |
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine goals and clean up owned work |
-| POST | `/api/research-selects/plans` | Store one research-selection intent |
-| GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
-| GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
 | GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster (each colonist's `id`, `label`, `downed`, `mood`, `food` and the read-only personal wealth share `share`, what is attributed to them now `spent`, and `remaining`, #1846; null until a review has filed fresh colony facts, for a slave's spent and for any unread input), raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) and the ancient shrine census (`shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`, `guardsKnown`, `guardsAlive`, `breachWalls`; #456; with the breach judgement `ready`, `reason`, `wall`, `squad`, `traps`; #457) (unknown facts are null) |
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. The
@@ -94,9 +91,8 @@ native tokens and controller-session ownership data. Drafts carry no cleanup
 progress: the undraft sweep releases drafts no live plan needs (#939).
 
 The Go player surface (`httpapi.PlayerBuildings`) is
-`SubmitResearchSelect`, `Resume`, `Pause` and `State`; its reader
-(`httpapi.ControlReader`) is `CurrentControl`, `LookupControl`
-and `LookupResearchSelectSubmission`. Configuration routes
+`Resume`, `Pause` and `State`; its reader
+(`httpapi.ControlReader`) is `CurrentControl` and `LookupControl`. Configuration routes
 have their own narrow interfaces. Production service composition supplies the
 same Player and store used by the worker.
 

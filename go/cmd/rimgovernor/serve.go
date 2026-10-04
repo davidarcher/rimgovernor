@@ -112,8 +112,7 @@ type serveConfig struct {
 
 // Fixed serve settings that were flags until #875.
 const (
-	serveRefresh                  = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
-	worldEvaluationFoodMarginDays = 0.5             // caravan food days beyond the home route
+	serveRefresh = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
 )
 
 // routineFamiliesEnv names the environment variable that narrows the routine

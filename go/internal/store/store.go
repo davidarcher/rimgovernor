@@ -271,7 +271,7 @@ CREATE TABLE clock_epochs(start_request_id TEXT PRIMARY KEY REFERENCES clock_att
 CREATE TABLE submissions(request_id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('building','research_select')), colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), action_id TEXT NOT NULL UNIQUE REFERENCES actions(id), revision TEXT NOT NULL) STRICT;
 CREATE INDEX action_transitions ON transitions(action_id,sequence);
 CREATE TABLE building_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), definition TEXT NOT NULL, x INTEGER NOT NULL, z INTEGER NOT NULL, rotation TEXT NOT NULL, stuff TEXT NOT NULL) STRICT;
-CREATE TABLE research_select_submissions(request_id TEXT PRIMARY KEY REFERENCES submissions(request_id), payload BLOB NOT NULL) STRICT;`)
+`)
 		if err != nil {
 			return err
 		}
@@ -369,9 +369,6 @@ CREATE TABLE research_select_submissions(request_id TEXT PRIMARY KEY REFERENCES 
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT request_id,definition,x,z,rotation,stuff FROM building_submissions LIMIT 0"); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, "SELECT request_id,payload FROM research_select_submissions LIMIT 0"); err != nil {
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, "SELECT "+controlColumns+" FROM control_intents LIMIT 0"); err != nil {

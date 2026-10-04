@@ -201,7 +201,3 @@ func TestPlayerHTTPHistoricalGrantDoesNotEnable(t *testing.T) {
 		t.Fatal("read acquired authority")
 	}
 }
-func (f *playerFixture) SubmitResearchSelect(ctx context.Context, q store.ResearchSelectSubmissionRequest) (store.ResearchSelectSubmission, bool, error) {
-	f.calls++
-	return f.journal.SubmitResearchSelect(ctx, q)
-}
