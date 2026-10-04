@@ -291,6 +291,10 @@ type ClockSchedulerResult struct {
 	// CriticalWave is the wall time of the admission cycle's wave: the
 	// routine review and the critical planners.
 	CriticalWave time.Duration
+	// PlannerMS is each queued planner's wall time in milliseconds (the
+	// elapsed time so far for one that missed the cutoff): the clock_step
+	// row's planner_ms (#1915).
+	PlannerMS map[string]float64
 	// NativeWorkTicks is the native-work window the planners asked for,
 	// the largest of their NativeWorkTicks, before the budget bounds it.
 	NativeWorkTicks uint32
@@ -809,6 +813,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		extra["budget"] = budget
 		if out.CriticalWave > 0 {
 			extra["critical_wave_ms"] = float64(out.CriticalWave) / float64(time.Millisecond)
+		}
+		if len(out.PlannerMS) > 0 {
+			extra["planner_ms"] = out.PlannerMS
 		}
 		if out.NativeWorkTicks > 0 {
 			extra["native_work_ticks"] = out.NativeWorkTicks
@@ -1585,6 +1592,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		clockSchedulerLog("optional planners %v still evaluating %s after the critical wave (%s) -> missed the cutoff", pending, grace.Round(time.Millisecond), out.CriticalWave.Round(time.Millisecond))
 	}
 	s.markStarved(wave.finishedNames(), out.MissedCutoff)
+	out.PlannerMS = wave.plannerMS()
 	wave.close()
 	arbiter.close()
 	// The migrated planners proposed instead of committing: rank their

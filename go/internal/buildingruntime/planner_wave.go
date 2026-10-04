@@ -84,11 +84,15 @@ type plannerWave struct {
 	// the entry's own class or a startup promotion of it (#658).
 	critical map[string]bool
 	closed   bool
+	// began and took are each planner's queue time and, once it returns,
+	// its wall time: the per-planner cost the clock_step row reports (#1915).
+	began map[string]time.Time
+	took  map[string]time.Duration
 }
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.GoalID{}, critical: map[string]bool{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]Verdict{}, goals: map[string]policy.GoalID{}, critical: map[string]bool{}, began: map[string]time.Time{}, took: map[string]time.Duration{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -103,6 +107,10 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 		ctx = w.optional
 	}
 	ctx = entry.auditReads(ctx)
+	start := time.Now()
+	w.mu.Lock()
+	w.began[entry.name] = start
+	w.mu.Unlock()
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
 		var reason Verdict
 		run := s.config.Faults.plannerFault(entry.name, ctx, func() (err error) {
@@ -110,6 +118,9 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 			return err
 		})
 		err := run()
+		w.mu.Lock()
+		w.took[entry.name] = time.Since(start)
+		w.mu.Unlock()
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}
@@ -193,6 +204,23 @@ func (w *plannerWave) close() []string {
 // merge copies the results of every planner that returned before the
 // cutoff onto out: each planner's private result holds its own pointer
 // field alone.
+// plannerMS is each queued planner's wall time in milliseconds since it was
+// queued: its full run once it returned, the elapsed time so far for one
+// still evaluating (a missed cutoff).
+func (w *plannerWave) plannerMS() map[string]float64 {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	out := make(map[string]float64, len(w.began))
+	for name, start := range w.began {
+		d, ok := w.took[name]
+		if !ok {
+			d = time.Since(start)
+		}
+		out[name] = float64(d) / float64(time.Millisecond)
+	}
+	return out
+}
+
 func (w *plannerWave) merge(out *ClockSchedulerResult) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
