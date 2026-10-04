@@ -700,7 +700,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		for _, n := range needs.Assessments {
 			g, exists := old[n.ID]
 			project := policy.GoalConcept(n.ID) == policy.ConceptProject
-			if exists && project && domain.ProjectRegressed(g.Goal, n.Need, false) {
+			if exists && project && domain.ProjectGoalRegressed(g.Goal, n.Need, false) {
 				// A finished Project that breaks opens a new Project row;
 				// the finished row stays as its record (#1022).
 				if open, err := goalOpenWork(ctx, tx, g); err != nil {
@@ -735,7 +735,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			next := g.Goal
 			next.Priority = n.Priority
 			if project {
-				next, err = domain.ReviewProject(next, b, request.Tick, n.Need, open)
+				next, err = domain.ReviewProjectGoal(next, b, request.Tick, n.Need, open)
 			} else {
 				next, err = domain.ReviewGoal(next, b, request.Tick, n.Need, open, policy.GoalConcept(n.ID) == policy.ConceptStandard)
 			}

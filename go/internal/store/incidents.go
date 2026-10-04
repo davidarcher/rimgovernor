@@ -50,6 +50,9 @@ func (i IncidentState) ownerPlans() []domain.PlanID {
 	return out
 }
 func (i IncidentState) ownerLabel() string { return "incident " + string(i.Incident.ID) }
+func (i IncidentState) ownerKey() (string, string, string) {
+	return "incident_id", string(i.Incident.ID), "0"
+}
 
 // OpenIncident opens the occurrence the assessment asserts, or, when one is
 // already open under its key, refreshes that row's Priority, Snapshot and
@@ -281,21 +284,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if err = (domain.GoalMethod{Goal: domain.GoalID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
 		return IncidentState{}, err
 	}
-	for _, m := range state.Methods {
-		if m.Method == method {
-			return IncidentState{}, fmt.Errorf("%w: incident %s already binds method %s to plan %s", ErrConflict, id, method, m.Plan)
-		}
-	}
-	if len(state.Methods) >= 256 {
-		return IncidentState{}, ErrCapacity
-	}
-	if err = admitOwnerMethod(ctx, tx, state, plan); err != nil {
-		return IncidentState{}, err
-	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO goal_methods(incident_id,epoch,method_id,plan_id,priority,reason) VALUES(?,'0',?,?,?,?)", id, method, plan.ID(), state.Incident.Priority, sql.NullString{String: reason, Valid: reason != ""}); err != nil {
-		return IncidentState{}, conflict(err)
-	}
-	if _, err = tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID()); err != nil {
+	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
 		return IncidentState{}, err
 	}
 	return loadIncident(ctx, tx, id)

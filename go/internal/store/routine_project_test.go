@@ -15,11 +15,11 @@ func TestRoutineProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 	r := routineRequest()
 	r.Facts.Cooking = domain.Known(true)
 	first := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if !domain.ProjectFinished(first.Goal) {
+	if !domain.ProjectGoalFinished(first.Goal) {
 		t.Fatal(first)
 	}
 	r.Facts.Cooking = domain.Unknown[bool]()
-	if g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking); g.Goal.ID != first.Goal.ID || !domain.ProjectFinished(g.Goal) {
+	if g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking); g.Goal.ID != first.Goal.ID || !domain.ProjectGoalFinished(g.Goal) {
 		t.Fatal("unknown reopened a finished project", g)
 	}
 	r.Facts.Cooking = domain.Known(false)
@@ -28,7 +28,7 @@ func TestRoutineProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 		t.Fatal(next)
 	}
 	old, err := s.LoadGoal(t.Context(), first.Goal.ID)
-	if err != nil || !domain.ProjectFinished(old.Goal) {
+	if err != nil || !domain.ProjectGoalFinished(old.Goal) {
 		t.Fatal("finished record lost", old, err)
 	}
 }

@@ -5,21 +5,21 @@ import "testing"
 func TestProjectFinishedIsTerminalUntilRegressed(t *testing.T) {
 	_, scope := fixture(t)
 	g, _ := NewGoal("cook", AutopilotGoal, 2, scope, 10)
-	g, e := ReviewProject(g, scope, 11, NeedRecovered, false)
-	if e != nil || !ProjectFinished(g) {
+	g, e := ReviewProjectGoal(g, scope, 11, NeedRecovered, false)
+	if e != nil || !ProjectGoalFinished(g) {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewProject(g, scope, 12, NeedUnknown, false)
-	if e != nil || !ProjectFinished(g) || g.Tick != 12 {
+	g, e = ReviewProjectGoal(g, scope, 12, NeedUnknown, false)
+	if e != nil || !ProjectGoalFinished(g) || g.Tick != 12 {
 		t.Fatal(g, e)
 	}
-	if g2, e := ReviewProject(g, scope, 13, NeedDeficit, true); e != nil || !ProjectFinished(g2) {
+	if g2, e := ReviewProjectGoal(g, scope, 13, NeedDeficit, true); e != nil || !ProjectGoalFinished(g2) {
 		t.Fatal("open work regressed a finished project", g2, e)
 	}
-	if !ProjectRegressed(g, NeedDeficit, false) {
+	if !ProjectGoalRegressed(g, NeedDeficit, false) {
 		t.Fatal("deficit did not regress")
 	}
-	if _, e = ReviewProject(g, scope, 13, NeedDeficit, false); e == nil {
+	if _, e = ReviewProjectGoal(g, scope, 13, NeedDeficit, false); e == nil {
 		t.Fatal("regressed project reviewed in place")
 	}
 }

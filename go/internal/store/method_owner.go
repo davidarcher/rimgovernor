@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -22,6 +24,13 @@ type methodOwner interface {
 	ownerPriority() int
 	ownerPlans() []domain.PlanID
 	ownerLabel() string
+	// ownerKey is the goal_methods owner column and id, and the epoch the
+	// row is keyed under ("0" for owners without epochs).
+	ownerKey() (column, id, epoch string)
+}
+
+func (g GoalState) ownerKey() (string, string, string) {
+	return "goal_id", string(g.Goal.ID), strconv.FormatUint(g.Goal.Epoch, 10)
 }
 
 func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }
@@ -67,6 +76,34 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 		}
 	}
 	return createPlan(ctx, tx, plan)
+}
+
+// bindOwnerMethod is the tail every owner's commit shares: refuse a method the
+// owner already binds in its epoch, bound the owner's methods, run the family
+// admission and store the plan, then write the goal_methods row and name the
+// plan's method.
+func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
+	column, id, epoch := owner.ownerKey()
+	// Plan ids are minted (#985); the real double-admission key is the
+	// goal_methods unique index (owner, epoch, method).
+	var bound string
+	switch err := tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", id, epoch, method).Scan(&bound); {
+	case err == nil:
+		return fmt.Errorf("%w: %s already binds method %s to plan %s", ErrConflict, owner.ownerLabel(), method, bound)
+	case !errors.Is(err, sql.ErrNoRows):
+		return err
+	}
+	if len(owner.ownerPlans()) >= 256 {
+		return ErrCapacity
+	}
+	if err := admitOwnerMethod(ctx, tx, owner, plan); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, "INSERT INTO goal_methods("+column+",epoch,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, epoch, method, plan.ID(), owner.ownerPriority(), sql.NullString{String: reason, Valid: reason != ""}); err != nil {
+		return conflict(err)
+	}
+	_, err := tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID())
+	return err
 }
 
 func (r RoutineReview) refuseNeed(need domain.GoalID, priority int) (policy.RuleRefusal, bool) {
