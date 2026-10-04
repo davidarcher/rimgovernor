@@ -64,7 +64,8 @@ func TestSurgeryPartBillOrTrade(t *testing.T) {
 		{"leg in production, eye next", []ProductionBench{partBench("fab", map[string]bool{"Make_BionicLeg": true, "Make_BionicEye": true}, "Make_BionicLeg")}, "Make_BionicEye", nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			got, ok := SelectProductionBill(SurgeryPartBill, domain.Known(c.benches), domain.Known[int64](3), domain.Fact[float64]{}, domain.Fact[float64]{}, 1, ProductionBillContext{Parts: parts})
+			got, gap := SelectSurgeryPartBill(c.benches, parts)
+			ok := gap == ""
 			if ok != (c.bill != "") || ok && (got.Recipe != c.bill || got.Mode != domain.GearBatch || got.Target != 1) {
 				t.Fatalf("bill %+v %v", got, ok)
 			}

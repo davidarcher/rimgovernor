@@ -108,8 +108,6 @@ type ProductionBillContext struct {
 	// Art sizes the ArtBill selection (#1191); nil chooses a small
 	// sculpture in any stuff.
 	Art *ArtDemand
-	// Parts are the SurgeryPartBill wants, highest priority first (#1168).
-	Parts []SurgeryPart
 }
 
 // billAdequate preserves unknown fields, but any observed drift is enough
@@ -203,7 +201,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if !known || !ck || count <= 0 || count > 256 || !fieldPositive(targetDays) || targetDays > 60 {
 		return BillSelection{}, false
 	}
-	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood && purpose != ArtBill && purpose != SurgeryPartBill && purpose != BabyFoodBill {
+	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood && purpose != ArtBill && purpose != BabyFoodBill {
 		return BillSelection{}, false
 	}
 	if len(context) > 1 {
@@ -214,12 +212,6 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 			return BillSelection{}, false
 		}
 		return SelectBabyFoodBill(benches, *context[0].BabyFeeding)
-	}
-	if purpose == SurgeryPartBill {
-		if len(context) != 1 || len(context[0].Parts) == 0 {
-			return BillSelection{}, false
-		}
-		return selectSurgeryPartBill(rows, context[0].Parts)
 	}
 	if purpose == ArtBill || len(context) == 1 && len(context[0].Artists) > 0 {
 		if purpose != ArtBill || len(context) != 1 || len(context[0].Artists) != 1 {

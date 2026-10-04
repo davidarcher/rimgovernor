@@ -189,7 +189,7 @@ func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot
 		return nil, stock, reason, err
 	}
 	if footprint, _ := previews[0].Footprint.Value(); len(footprint) != 1 || footprint[0] != cell {
-		return nil, stock, BuildingReasonNoSpace, nil
+		return nil, stock, noSpace("cooler_wall_footprint"), nil
 	}
 	return previews, stock, Verdict{}, nil
 }
@@ -230,14 +230,14 @@ func (r *RoutineBuildingPlanner) previewPlannedBuilding(ctx context.Context, sna
 		return nil, stock, Verdict{}, fmt.Errorf("%w: rock step: native refused %s at %v that the frame lists open and names no blocker", ErrControl, building.Definition(), building.Cell())
 	}
 	if made != (building.Stuff() != "") || !slices.Contains(footprint, building.Cell()) || !legal || !safe {
-		return nil, stock, BuildingReasonNoSpace, nil
+		return nil, stock, noSpace("refrigeration_site"), nil
 	}
 	if r.exactFootprint != nil && !sameCells(footprint, r.exactFootprint) {
-		return nil, stock, BuildingReasonNoSpace, nil
+		return nil, stock, noSpace("refrigeration_footprint"), nil
 	}
 	if building.Definition() == policy.WindTurbineDefinition {
 		if blocked, known := p.WindBlockedCells.Value(); !known || blocked > r.windAllowance {
-			return nil, stock, BuildingReasonNoSpace, nil
+			return nil, stock, noSpace("wind_turbine_blocked_cells"), nil
 		}
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {

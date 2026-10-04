@@ -170,7 +170,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		prefix := ""
 		if r.phase == policy.HousingExpansion {
 			if plan, known := facts.Facts.FoodPlan.Value(); known && plan.GapPerDay > 0 {
-				return 0, "", BuildingReasonRefused
+				return 0, "", awaitingFoodPlan("housing_expansion")
 			}
 			if count >= 1<<63-1 {
 				return 0, "", fieldUnavailable("colonist_count")
@@ -185,7 +185,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingReasonNoDeficit
 		}
 		if missing > 64 {
-			return 0, "", BuildingReasonNoSpace
+			return 0, "", noSpace("housing_bound")
 		}
 		if r.shelter {
 			return 32, domain.MethodID(prefix + "starter-shell"), Verdict{}

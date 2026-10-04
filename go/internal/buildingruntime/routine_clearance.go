@@ -263,7 +263,7 @@ func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state Contro
 	snap.NoteChunkDump(call, snap.ChunkDumpCall{Chunks: census.Chunks, DumpSites: census.DumpSites, Protected: protected})
 	cells, allow, ok := policy.SelectChunkDump(census.Chunks, census.DumpSites, protected)
 	if !ok {
-		return RoutineClearanceResult{Verdict: BuildingReasonNoSpace}, nil
+		return RoutineClearanceResult{Verdict: noSpace("chunk_dump_site")}, nil
 	}
 	value, err := allowListZone(domain.LowPriority, allow, cells)
 	if err != nil {

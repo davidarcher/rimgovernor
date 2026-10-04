@@ -210,10 +210,16 @@ func MechGestationOwed(g MechGestation) (domain.Fact[bool], error) {
 
 // SelectMechGestationBill queues the next mech's recipe on the best usable
 // gestator: the recipe whose MechKind is the choice, bulk recipes first,
-// then by recipe and bench name.
-func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSelection, bool, error) {
-	if UnclearedWaste(g) || !MechChargerReady(g.Chargers) {
-		return BillSelection{}, false, nil
+// then by recipe and bench name. When it queues nothing the gap says why:
+// uncleared waste, no ready charger, a gestation already in production, no
+// usable recipe for the mech wanted, full bench bill lists, or no mech
+// affordable (nothing wanted).
+func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSelection, BillGap, error) {
+	if UnclearedWaste(g) {
+		return BillSelection{}, BillGapWaste, nil
+	}
+	if !MechChargerReady(g.Chargers) {
+		return BillSelection{}, BillGapNoCharger, nil
 	}
 	gestation := map[string]bool{}
 	for _, bench := range benches {
@@ -227,7 +233,7 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 		for _, bill := range bench.Bills {
 			// A standing gestation bill, active or not, is in production.
 			if gestation[bill.Recipe] {
-				return BillSelection{}, false, nil
+				return BillSelection{}, BillGapInProduction, nil
 			}
 		}
 	}
@@ -241,12 +247,24 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 	}
 	for kind := range available {
 		if _, known := g.Catalog.Kinds[kind]; !known {
-			return BillSelection{}, false, fmt.Errorf("gestation recipe makes mech kind %s that is not in the catalog", kind)
+			return BillSelection{}, "", fmt.Errorf("gestation recipe makes mech kind %s that is not in the catalog", kind)
 		}
 	}
 	choice, ok, err := NextMech(g, func(kind string) bool { return available[kind] })
-	if err != nil || !ok {
-		return BillSelection{}, false, err
+	if err != nil {
+		return BillSelection{}, "", err
+	}
+	if !ok {
+		// A mech is wanted but no recipe on a usable bench makes it, or no
+		// mech is affordable at all.
+		_, wanted, err := NextMech(g, func(string) bool { return true })
+		if err != nil {
+			return BillSelection{}, "", err
+		}
+		if wanted {
+			return BillSelection{}, BillGapNoRecipe, nil
+		}
+		return BillSelection{}, BillGapNothingWanted, nil
 	}
 	var options []BillSelection
 	bulk := map[string]bool{}
@@ -263,7 +281,7 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 		}
 	}
 	if len(options) == 0 {
-		return BillSelection{}, false, nil
+		return BillSelection{}, BillGapBenchFull, nil
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
@@ -275,7 +293,7 @@ func SelectMechGestationBill(benches []ProductionBench, g MechGestation) (BillSe
 		}
 		return a.Bench < b.Bench
 	})
-	return options[0], true, nil
+	return options[0], "", nil
 }
 
 func usableBench(b ProductionBench) bool {

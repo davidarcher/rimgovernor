@@ -159,12 +159,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return result, err
 	}
 	if r.purpose == policy.MechGestationBill {
-		selected, known, err := r.mechSelection(call, state, projection)
+		selected, verdict, err := r.mechSelection(call, state, projection)
 		if err != nil {
 			return RoutineBillResult{}, err
 		}
-		if !known {
-			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
+		if !verdict.IsZero() {
+			return RoutineBillResult{Verdict: verdict}, nil
 		}
 		// Each gestation is a new method of the goal: the bill is the same
 		// bench, recipe and count as the one before it.
@@ -175,9 +175,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoutineBillResult{}, err
 		}
-		selected, known := policy.SelectProductionBill(r.purpose, domain.Known(benches), projection.Facts.Colonists, domain.Fact[float64]{}, domain.Fact[float64]{}, 1, policy.ProductionBillContext{Parts: parts})
-		if !known {
-			return RoutineBillResult{Verdict: BuildingReasonNoDeficit}, nil
+		selected, gap := policy.SelectSurgeryPartBill(benches, parts)
+		if gap != "" {
+			return RoutineBillResult{Verdict: billGapVerdict(gap, "surgery_part_bill")}, nil
 		}
 		return r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	}
@@ -304,6 +304,26 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	result, err := r.admit(call, epoch, arbiter, state, goal, read, selected, 0)
 	return r.lendReserveWork(result, reserveRunning), err
+}
+
+// billGapVerdict is the verdict of a bill selector that chose nothing: the
+// gap names why, the subject the bill the planner wanted.
+func billGapVerdict(gap policy.BillGap, subject string) Verdict {
+	switch gap {
+	case policy.BillGapNothingWanted:
+		return BuildingReasonNoDeficit
+	case policy.BillGapInProduction:
+		return waitFor(WaitExistingWork, subject)
+	case policy.BillGapNoRecipe:
+		return awaitingPlan(subject, string(gap))
+	case policy.BillGapBenchFull:
+		return awaitingPlan(subject, string(gap))
+	case policy.BillGapWaste:
+		return awaitingPlan("mech_waste", "")
+	case policy.BillGapNoCharger:
+		return awaitingPlan("mech_charger", "")
+	}
+	panic(fmt.Sprintf("bill gap %q is not one of the closed set", gap))
 }
 
 // noBill says why the food-bill selection chose nothing: a census it needs is

@@ -355,7 +355,7 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 			plan, reason, err := p.commit(ctx)
 			if err != nil {
 				failures = append(failures, fmt.Errorf("%s: %w", arrival.planner, err))
-				outcome.Verdict = BuildingReasonRefused
+				outcome.Verdict = refuse(RefusalSharedAdmission, "commit_failed", arrival.planner)
 			} else {
 				outcome.Admitted, outcome.Plan, outcome.Verdict = reason == BuildingReasonAdmitted, plan, reason
 			}

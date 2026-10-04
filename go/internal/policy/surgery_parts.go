@@ -130,10 +130,15 @@ func SurgeryTradeNeed(need domain.Fact[TradeNeed], parts []SurgeryPart) domain.F
 	return domain.Known(n)
 }
 
-// selectSurgeryPartBill picks the highest-priority part's best fabricable
+// SelectSurgeryPartBill picks the highest-priority part's best fabricable
 // item. A part whose items already have a bill on some bench is in
-// production and gets no second one.
-func selectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (BillSelection, bool) {
+// production and gets no second one. When it picks nothing the gap names why
+// for the highest-priority part it could not serve: nothing wanted, already in
+// production, no usable researched recipe, or every bench's bill list full.
+func SelectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (BillSelection, BillGap) {
+	if len(parts) == 0 {
+		return BillSelection{}, BillGapNothingWanted
+	}
 	billed := map[string]bool{}
 	for _, bench := range benches {
 		for _, bill := range bench.Bills {
@@ -142,9 +147,10 @@ func selectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (Bill
 			}
 		}
 	}
+	var gap BillGap
 	for _, part := range parts {
 		var pick *BillSelection
-		inProduction := false
+		inProduction, fabricable := false, false
 		for _, item := range part.Items {
 			for _, bench := range benches {
 				usable, uk := bench.Usable.Value()
@@ -155,17 +161,29 @@ func selectSurgeryPartBill(benches []ProductionBench, parts []SurgeryPart) (Bill
 					}
 					inProduction = inProduction || billed[recipe.Name]
 					available, ak := recipe.Available.Value()
-					if pick == nil && uk && usable && tk && foodID(token) && ak && available && len(bench.Bills) < 15 {
+					serves := uk && usable && tk && foodID(token) && ak && available
+					fabricable = fabricable || serves
+					if pick == nil && serves && len(bench.Bills) < 15 {
 						pick = &BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.GearBatch, Target: 1}
 					}
 				}
 			}
 		}
 		if !inProduction && pick != nil {
-			return *pick, true
+			return *pick, ""
+		}
+		if gap == "" {
+			switch {
+			case inProduction:
+				gap = BillGapInProduction
+			case !fabricable:
+				gap = BillGapNoRecipe
+			default:
+				gap = BillGapBenchFull
+			}
 		}
 	}
-	return BillSelection{}, false
+	return BillSelection{}, gap
 }
 
 // ChosenElective is the one elective colony-wide whose part is missing

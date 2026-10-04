@@ -154,8 +154,12 @@ func (r *RoutineFireSafetyPlanner) step(call, epoch context.Context) (RoutineFir
 		return RoutineFireSafetyResult{Verdict: BuildingReasonExistingWork, Outcome: outcome, NativeWorkTicks: fireSafetyNativeWorkTicks}, nil
 	case policy.FireSafetyUnknown:
 		return RoutineFireSafetyResult{Verdict: fieldUnavailable("fire_safety"), Outcome: outcome}, nil
+	case policy.FireSafetyBlocked:
+		return RoutineFireSafetyResult{Verdict: noWorker("firefighter"), Outcome: outcome}, nil
+	case policy.FireSafetyRecovered:
+		return RoutineFireSafetyResult{Verdict: BuildingReasonNoDeficit, Outcome: outcome}, nil
 	default:
-		return RoutineFireSafetyResult{Verdict: BuildingReasonRefused, Outcome: outcome}, nil
+		return RoutineFireSafetyResult{}, fmt.Errorf("fire safety outcome %q is not one of the closed set", outcome)
 	}
 }
 

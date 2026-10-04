@@ -43,10 +43,12 @@ func refusalSummary(refused []policy.Refusal) string {
 // admissionRefused is the verdict of a method the shared admission check
 // turned down: it keeps the shared_admission_refused kind and carries the
 // decision's first refusal, reason as the subject and resource as the
-// detail, so the status line and the journal name why (#1880).
+// detail, so the status line and the journal name why (#1880). A decision
+// with no refusal listed means the policy admitted fewer candidates than it
+// was given without refusing any; that names itself.
 func admissionRefused(decision store.BuildingMethodDecision) Verdict {
 	if len(decision.Refused) == 0 {
-		return BuildingReasonRefused
+		return refuse(RefusalSharedAdmission, "candidates_left_unadmitted", "")
 	}
 	first := decision.Refused[0]
 	return refuse(RefusalSharedAdmission, string(first.Reason), string(first.Resource))

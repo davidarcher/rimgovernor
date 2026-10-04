@@ -218,7 +218,7 @@ func (r *RoutineMechChargerPlanner) step(call, epoch context.Context, arbiter *s
 	if unknown {
 		return RoutineBuildingResult{Verdict: fieldUnavailable("mech_charger_preview")}, nil
 	}
-	return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, nil
+	return RoutineBuildingResult{Verdict: noSpace("charger_cell")}, nil
 }
 
 // footprintIsRect reports whether the footprint is exactly the rectangle's cells.

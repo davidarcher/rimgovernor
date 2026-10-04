@@ -55,7 +55,8 @@ const (
 	RefusalFieldUnavailable RefusalKind = "field_unavailable"
 	// RefusalNoSpace: no verified placement exists.
 	RefusalNoSpace RefusalKind = "no_space"
-	// RefusalSharedAdmission: the shared admission path turned the plan down.
+	// RefusalSharedAdmission: the shared admission path turned the plan down;
+	// the subject is the reason it gave, the detail its resource.
 	RefusalSharedAdmission RefusalKind = "shared_admission_refused"
 	// RefusalRetriesSpent: the step tried as often as it may; the subject
 	// names what it retried when the exit knows.
@@ -188,8 +189,9 @@ func researchWait(project string) Verdict { return awaitingPlan("research", proj
 func awaitingFoodPlan(capacity string) Verdict { return awaitingPlan("food_plan", capacity) }
 
 // Validate reports a verdict that is not one of the closed forms: an unknown
-// outcome, a refusal or wait without a kind from its closed set, or a
-// refusal on an outcome that carries none.
+// outcome, a refusal or wait without a kind from its closed set, a refusal
+// on an outcome that carries none, or a shared-admission refusal that names
+// no reason.
 func (v Verdict) Validate() error {
 	switch v.Outcome {
 	case "":
@@ -207,6 +209,9 @@ func (v Verdict) Validate() error {
 	case OutcomeRefused:
 		if !slices.Contains(refusalKinds, v.Refusal.Kind) {
 			return fmt.Errorf("refusal without a known kind: %+v", v.Refusal)
+		}
+		if v.Refusal.Kind == RefusalSharedAdmission && v.Refusal.Subject == "" {
+			return fmt.Errorf("shared admission refusal without the reason it names: %+v", v.Refusal)
 		}
 	default:
 		return fmt.Errorf("unknown outcome %q", v.Outcome)
@@ -405,8 +410,6 @@ var (
 	BuildingExistingFacility         = waitOn(WaitFacility)
 	BuildingHospitalConvert          = waitOn(WaitHospitalConvert)
 	BuildingSleepingUseNeeded        = waitOn(WaitSleepingUse)
-	BuildingReasonNoSpace            = noSpace("verified_space")
-	BuildingReasonRefused            = refuse(RefusalSharedAdmission, "", "")
 	BuildingReasonExhausted          = refuse(RefusalRetriesSpent, "", "")
 	BuildingReasonNoSquad            = noWorker("squad")
 	BuildingShellBlocked             = awaitingPlan("earlier_shell", "")

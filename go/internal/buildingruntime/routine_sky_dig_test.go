@@ -44,7 +44,7 @@ func TestAdmitRockStepDigsThenUnroofsThenBuilds(t *testing.T) {
 	sky := *p
 	sky.exactFootprint = []domain.Cell{site.Cell, shaft}
 	result, handled, err = sky.admitRockStep(ctx, ctx, s, planned, cold, "plan-dig-sky-shape", []domain.Building{building}, check)
-	if err != nil || !handled || result.Verdict != BuildingReasonNoSpace {
+	if err != nil || !handled || !result.Verdict.Is(RefusalNoSpace) {
 		t.Fatal("footprint mismatch not refused", result, handled, err)
 	}
 

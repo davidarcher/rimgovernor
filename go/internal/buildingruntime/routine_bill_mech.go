@@ -93,19 +93,27 @@ func mechBenches(reads []bridge.GearBenchRead) []policy.ProductionBench {
 
 // mechSelection is the next gestation bill: the gear bench census for the
 // gestators' recipes and bills, the projection for the rest.
-func (r *RoutineBillPlanner) mechSelection(call context.Context, state ControlState, projection observation.ColonyProjection) (policy.BillSelection, bool, error) {
+// A zero verdict means a bill was selected; otherwise the verdict says why not.
+func (r *RoutineBillPlanner) mechSelection(call context.Context, state ControlState, projection observation.ColonyProjection) (policy.BillSelection, Verdict, error) {
 	source, ok := r.native.(artBenchSource)
 	if !ok {
-		return policy.BillSelection{}, false, fmt.Errorf("%w: mechSelection: native cannot read the bill census", ErrControl)
+		return policy.BillSelection{}, Verdict{}, fmt.Errorf("%w: mechSelection: native cannot read the bill census", ErrControl)
 	}
 	identity := boundary.Identity(state.Snapshot)
 	gestation, known, err := mechGestation(call, r.native, identity, projection)
-	if err != nil || !known {
-		return policy.BillSelection{}, false, err
+	if err != nil {
+		return policy.BillSelection{}, Verdict{}, err
+	}
+	if !known {
+		return policy.BillSelection{}, fieldUnavailable("mech_colony"), nil
 	}
 	reads, _, err := source.ReadGearBenches(call, identity)
 	if err != nil {
-		return policy.BillSelection{}, false, err
+		return policy.BillSelection{}, Verdict{}, err
 	}
-	return policy.SelectMechGestationBill(mechBenches(reads), gestation)
+	selected, gap, err := policy.SelectMechGestationBill(mechBenches(reads), gestation)
+	if err != nil || gap == "" {
+		return selected, Verdict{}, err
+	}
+	return selected, billGapVerdict(gap, "gestation_bill"), nil
 }

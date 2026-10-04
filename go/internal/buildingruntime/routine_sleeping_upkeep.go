@@ -150,7 +150,7 @@ func (r *RoutineBuildingPlanner) selectSleeping(facts observation.ColonyProjecti
 // resolveSleeping is the building ladder resolved for a SleepingBuild choice.
 func (r *RoutineBuildingPlanner) resolveSleeping(facts observation.ColonyProjection, choice policy.SleepingChoice) (*RoutineBuildingPlanner, Verdict, error) {
 	if len(choice.Cells) == 0 {
-		return nil, BuildingReasonNoSpace, nil
+		return nil, noSpace("sleeping_cells"), nil
 	}
 	facility, err := policy.Facility(policy.RoomRoleBedroom)
 	if err != nil {

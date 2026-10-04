@@ -119,7 +119,16 @@ func (b *RoutineBuildingPlanner) digPlannedSky(call, epoch context.Context, s ex
 		}
 		if site.CollapsePending || site.Support == policy.ExcavationSupportUnsupported || !site.WorkerAvailable {
 			clockSchedulerLog("%s: %s: not diggable now: support=%d (%s) collapse=%v worker=%v", b.goal, method, site.Support, site.SupportBlocker, site.CollapsePending, site.WorkerAvailable)
-			return RoutineBuildingResult{Verdict: BuildingReasonNoSpace}, true, nil
+			// Each cause is named, but stays no_space: callers that fall
+			// back to another site test the kind.
+			cause := "dig_no_worker"
+			switch {
+			case site.CollapsePending:
+				cause = "dig_collapse_pending"
+			case site.Support == policy.ExcavationSupportUnsupported:
+				cause = "dig_roof_unsupported"
+			}
+			return RoutineBuildingResult{Verdict: noSpace(cause)}, true, nil
 		}
 	}
 	admitted := method

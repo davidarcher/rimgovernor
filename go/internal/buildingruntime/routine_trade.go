@@ -255,7 +255,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	trader, ok := policy.SelectTrader(traders, settled)
 	if !ok {
 		if waiting {
-			return RoutineTradeResult{Verdict: BuildingReasonRefused, NativeWorkTicks: tradeArrivalTicks}, nil
+			return RoutineTradeResult{Verdict: waitFor(WaitExistingWork, "caravan_departure"), NativeWorkTicks: tradeArrivalTicks}, nil
 		}
 		return RoutineTradeResult{Verdict: BuildingReasonUsed}, nil
 	}

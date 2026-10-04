@@ -169,7 +169,7 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 	}
 	step := excavationStep{state: s.state, review: s.review, goal: s.goal, facts: s.facts, read: s.read}
 	if !sited {
-		return nil, none, BuildingReasonNoSpace, nil, nil
+		return nil, none, noSpace("planned_shell_room"), nil, nil
 	}
 	if len(free) > 0 {
 		if _, ok := policy.BunkLayout([]policy.StarterLayout{layout}, record.beds, record.spots); !ok {

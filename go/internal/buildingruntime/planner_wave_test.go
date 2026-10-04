@@ -51,7 +51,7 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
-			out.Lighting = &RoutineBuildingResult{Verdict: BuildingReasonRefused}
+			out.Lighting = &RoutineBuildingResult{Verdict: refuse(RefusalSharedAdmission, "no_development_slot", "")}
 			return Verdict{}, ctx.Err()
 		}}
 }

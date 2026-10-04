@@ -598,7 +598,7 @@ func TestRoutineShelterRefusesABlockedPlannedStoreroom(t *testing.T) {
 	hutCells(n, 21, lit)
 	recordStoreroom(t, r, db, policy.Rectangle{X: 7, Z: 7, Width: 7, Height: 7})
 	result, err := r.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonNoSpace {
+	if err != nil || !result.Verdict.Is(RefusalNoSpace) {
 		t.Fatal(result, err)
 	}
 }

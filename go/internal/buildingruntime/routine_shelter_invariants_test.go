@@ -199,7 +199,7 @@ func TestRoutineShelterRefusesAlreadyRoofedGround(t *testing.T) {
 		cell.Roofed, cell.Roof = domain.Known(true), domain.Known("RoofRockThick")
 	}
 	result, err := planner.Step(context.Background())
-	if err != nil || result.Verdict != BuildingReasonNoSpace {
+	if err != nil || !result.Verdict.Is(RefusalNoSpace) {
 		t.Fatal("a shell was sited on roofed ground", result, err)
 	}
 }

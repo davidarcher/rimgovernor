@@ -88,7 +88,7 @@ func (r *RoutineTidyPlanner) abandonFurniture(call context.Context, state Contro
 			return RoutineTidyResult{}, err
 		}
 	}
-	return RoutineTidyResult{Verdict: BuildingReasonRefused}, nil
+	return RoutineTidyResult{Verdict: siteBlocked("furniture_move", "move_invalid")}, nil
 }
 
 // finishFurniture closes a moving furniture batch once its plan's work is

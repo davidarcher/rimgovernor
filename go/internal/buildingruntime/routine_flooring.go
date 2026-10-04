@@ -214,7 +214,7 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 	if unknown {
 		return nil, stock, fieldUnavailable("flooring_preview"), nil
 	}
-	return nil, stock, BuildingReasonNoSpace, nil
+	return nil, stock, noSpace("floor_cells"), nil
 }
 
 // trafficFindingsLogged is the last finding set logged, so the service log

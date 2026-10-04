@@ -130,7 +130,7 @@ func TestMechChargerPlannerSkipsRefusedFootprintsAndReportsNoSpace(t *testing.T)
 		p.Preview.CanPlace = domain.Known(false)
 	}
 	result, err := d.planner.step(d.call, d.epoch, nil)
-	if err != nil || result.Verdict != BuildingReasonNoSpace || refuse < 2 {
+	if err != nil || result.Verdict != noSpace("charger_cell") || refuse < 2 {
 		t.Fatal(result, err, refuse)
 	}
 }

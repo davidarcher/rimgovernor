@@ -133,5 +133,5 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 	if unknown {
 		return nil, stock, fieldUnavailable("lighting_preview"), nil
 	}
-	return nil, stock, BuildingReasonNoSpace, nil
+	return nil, stock, noSpace("light_cell"), nil
 }

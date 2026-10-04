@@ -177,7 +177,7 @@ func (r *RoutineBuildingPlanner) prepareShellRoom(call, epoch context.Context, s
 func (r *RoutineBuildingPlanner) previewPlannedRing(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, layout policy.StarterLayout, check func() error) ([]policy.Preview, policy.StockObservation, Verdict, error) {
 	if len(layout.Mined) > 0 {
 		clockSchedulerLog("%s: planned room at %+v still holds %d rock cells plan dig cannot mine now; the ring waits", r.goal, layout.Room, len(layout.Mined))
-		return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+		return nil, policy.StockObservation{}, noSpace("planned_room_rock"), nil
 	}
 	return r.previewFreshShell(call, snapshot, facts, []policy.StarterLayout{layout}, check)
 }
@@ -295,7 +295,7 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	}
 	layout, _, ok, err := r.plannedShell(ctx, facts, protected, nil, check)
 	if err != nil || !ok {
-		return nil, policy.StockObservation{}, BuildingReasonNoSpace, err
+		return nil, policy.StockObservation{}, noSpace("planned_shell_room"), err
 	}
 	return r.previewPlannedRing(ctx, snapshot, facts, layout, check)
 }
@@ -361,7 +361,7 @@ func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot
 			return selected, stock, Verdict{}, nil
 		}
 	}
-	return nil, policy.StockObservation{}, BuildingReasonNoSpace, nil
+	return nil, policy.StockObservation{}, noSpace("shell_perimeter"), nil
 }
 
 // unreused drops the placements on ring cells natural rock, a player wall

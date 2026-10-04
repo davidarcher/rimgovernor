@@ -27,6 +27,10 @@ func TestStalledClockMarksOnlyAdmissionRefusals(t *testing.T) {
 		{"lost claim", claimHeld("colonist"), false},
 		{"blocked paste site", siteBlocked("paste_dispenser_site", "preview_refused"), false},
 		{"no buildable bed", BuildingHospitalUnavailable, false},
+		{"food plan gap", awaitingFoodPlan("housing_expansion"), false},
+		{"unusable field zone", siteBlocked("field_zone", "preview_refused"), false},
+		{"no firefighter", noWorker("firefighter"), false},
+		{"commit failure", refuse(RefusalSharedAdmission, "commit_failed", "sleeping"), true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

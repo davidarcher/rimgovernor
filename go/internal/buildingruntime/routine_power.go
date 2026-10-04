@@ -45,7 +45,7 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection,
 	case policy.PowerNoMethod:
 		return nil, BuildingReasonNoDeficit, nil
 	case policy.PowerRouteBlocked:
-		return nil, BuildingReasonNoSpace, nil
+		return nil, noSpace("power_route"), nil
 	case policy.PowerNoGenerator:
 		// Every generator the family can compile is unavailable; when the
 		// research they require is unfinished, that is what the goal waits
@@ -224,7 +224,7 @@ func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapsh
 			return nil, stock, fieldUnavailable("power_preview"), nil
 		}
 		if len(footprint) != 1 || footprint[0] != c || !can || !safe || made != (stuff != "") {
-			return nil, stock, BuildingReasonNoSpace, nil
+			return nil, stock, noSpace("power_shelter_cell"), nil
 		}
 		if err = mergeRoutineStock(&stock, p.Stock, i == 0); err != nil {
 			return nil, stock, Verdict{}, err
@@ -310,7 +310,7 @@ func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot 
 	}
 	if made || len(footprint) == 0 || !legal || !safe {
 		clockSchedulerLog("%s: no site for %s on geyser %v: legal=%v safe=%v blockers=%v", r.goal, r.definition, r.power.Center, legal, safe, p.Blockers)
-		return nil, stock, BuildingReasonNoSpace, nil
+		return nil, stock, noSpace("geyser_site"), nil
 	}
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, Verdict{}, err
@@ -515,7 +515,7 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 			return nil, stock, fieldUnavailable("power_preview"), nil
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			return nil, stock, BuildingReasonNoSpace, nil
+			return nil, stock, noSpace("power_route_cell"), nil
 		}
 		selected = append(selected, p)
 		if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {

@@ -52,7 +52,7 @@ func TestGestationStaysInsideBandwidth(t *testing.T) {
 				for _, coverage := range [][]WorkCoverage{nil, {shortHauling}} {
 					g := gestation(gestMechanitor(total, used, gestating), coverage...)
 					free := total - used - gestating
-					sel, ok, err := SelectMechGestationBill([]ProductionBench{gestBench()}, g)
+					sel, ok, err := selectGestation([]ProductionBench{gestBench()}, g)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -80,7 +80,7 @@ func TestGestationNeedPicksTheRole(t *testing.T) {
 	m := gestMechanitor(8, 2, 0)
 	// Hauling is short and no mech covers it: a worker covering it, the
 	// one covering the most short work first.
-	sel, ok, _ := SelectMechGestationBill([]ProductionBench{gestBench()}, gestation(m, shortHauling, WorkCoverage{Work: "Crafting", Demand: 1, Owners: 0}))
+	sel, ok, _ := selectGestation([]ProductionBench{gestBench()}, gestation(m, shortHauling, WorkCoverage{Work: "Crafting", Demand: 1, Owners: 0}))
 	if !ok || sel.Recipe != "MakeFabri" {
 		t.Fatalf("short hauling and crafting: %+v %v", sel, ok)
 	}
@@ -89,12 +89,12 @@ func TestGestationNeedPicksTheRole(t *testing.T) {
 	g := gestation(m, shortHauling)
 	g.Mechs = []MechInput{{ID: "L", Kind: "Lifter", PawnMech: PawnMech{Overseer: "M"}}}
 	g.Mechs = append(g.Mechs, MechInput{ID: "F", Kind: "Fabri", PawnMech: PawnMech{Overseer: "M"}})
-	if sel, ok, _ = SelectMechGestationBill([]ProductionBench{gestBench()}, g); !ok || sel.Recipe != "MakeTunneler" {
+	if sel, ok, _ = selectGestation([]ProductionBench{gestBench()}, g); !ok || sel.Recipe != "MakeTunneler" {
 		t.Fatalf("covered work: %+v %v", sel, ok)
 	}
 	// No bandwidth for the role wanted: nothing is queued, never the other role.
 	g = gestation(gestMechanitor(3, 2, 0), WorkCoverage{Work: "Crafting", Demand: 1, Owners: 0})
-	if _, ok, _ = SelectMechGestationBill([]ProductionBench{gestBench()}, g); ok {
+	if _, ok, _ = selectGestation([]ProductionBench{gestBench()}, g); ok {
 		t.Fatal("a guard bought where a worker was needed")
 	}
 }
@@ -122,7 +122,7 @@ func TestGestationHoldsWhileWasteIsUncleared(t *testing.T) {
 	for _, c := range cases {
 		g := gestation(gestMechanitor(6, 1, 0))
 		c.edit(&g)
-		_, ok, err := SelectMechGestationBill([]ProductionBench{gestBench()}, g)
+		_, ok, err := selectGestation([]ProductionBench{gestBench()}, g)
 		owed, _ := MechGestationOwed(g)
 		if o, _ := owed.Value(); err != nil || ok == c.hold || o == c.hold {
 			t.Errorf("%s: selected %v owed %v, want hold=%v", c.name, ok, o, c.hold)
@@ -132,11 +132,11 @@ func TestGestationHoldsWhileWasteIsUncleared(t *testing.T) {
 
 func TestGestationIsOneAtATime(t *testing.T) {
 	g := gestation(gestMechanitor(6, 1, 0))
-	if _, ok, _ := SelectMechGestationBill([]ProductionBench{gestBench(ExistingProductionBill{ID: "b", Recipe: "MakeLifter", Active: domain.Known(false)})}, g); ok {
+	if _, ok, _ := selectGestation([]ProductionBench{gestBench(ExistingProductionBill{ID: "b", Recipe: "MakeLifter", Active: domain.Known(false)})}, g); ok {
 		t.Fatal("a second gestation bill beside a standing one")
 	}
 	// Another recipe's bill is no gestation.
-	if _, ok, _ := SelectMechGestationBill([]ProductionBench{gestBench(ExistingProductionBill{ID: "b", Recipe: "Make_Steel"})}, g); !ok {
+	if _, ok, _ := selectGestation([]ProductionBench{gestBench(ExistingProductionBill{ID: "b", Recipe: "Make_Steel"})}, g); !ok {
 		t.Fatal("an ordinary bill blocked the gestator")
 	}
 	g.Gestators[0].Active = domain.Known(true)
@@ -155,7 +155,7 @@ func TestGestationPrefersBulkRecipe(t *testing.T) {
 		{Name: "MakeLifterBulk", Bulk: true, MechKind: "Lifter", Available: domain.Known(true)},
 	}
 	g := gestation(gestMechanitor(4, 0, 0), shortHauling)
-	if sel, ok, _ := SelectMechGestationBill([]ProductionBench{bench}, g); !ok || sel.Recipe != "MakeLifterBulk" {
+	if sel, ok, _ := selectGestation([]ProductionBench{bench}, g); !ok || sel.Recipe != "MakeLifterBulk" {
 		t.Fatalf("bulk rule: %+v %v", sel, ok)
 	}
 }
@@ -163,7 +163,7 @@ func TestGestationPrefersBulkRecipe(t *testing.T) {
 func TestGestationUnknownKindFailsLoudly(t *testing.T) {
 	bench := gestBench()
 	bench.Recipes = append(bench.Recipes, ProductionRecipe{Name: "MakeModMech", MechKind: "Mod_Mech", Available: domain.Known(true)})
-	if _, _, err := SelectMechGestationBill([]ProductionBench{bench}, gestation(gestMechanitor(4, 0, 0))); err == nil {
+	if _, _, err := selectGestation([]ProductionBench{bench}, gestation(gestMechanitor(4, 0, 0))); err == nil {
 		t.Fatal("a recipe whose mech kind is not in the catalog was accepted")
 	}
 }
@@ -198,7 +198,7 @@ func TestGestationWaitsForAReadyCharger(t *testing.T) {
 	for _, c := range cases {
 		g := gestation(gestMechanitor(6, 1, 0))
 		g.Chargers = c.chargers
-		_, ok, err := SelectMechGestationBill([]ProductionBench{gestBench()}, g)
+		_, ok, err := selectGestation([]ProductionBench{gestBench()}, g)
 		owed, _ := MechGestationOwed(g)
 		if o, _ := owed.Value(); err != nil || ok == c.hold || o == c.hold {
 			t.Errorf("%s: selected %v owed %v, want hold=%v", c.name, ok, o, c.hold)

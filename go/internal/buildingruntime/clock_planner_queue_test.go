@@ -181,7 +181,7 @@ func TestSelectPlannersDropsWaitsOnStoppedClock(t *testing.T) {
 	t.Parallel()
 	// The verdict may carry the admission decision's real reason (#1880):
 	// recovery keys on the kind, not the whole verdict.
-	for _, refused := range []Verdict{BuildingReasonRefused, refuse(RefusalSharedAdmission, "no_development_slot", "wood")} {
+	for _, refused := range []Verdict{refuse(RefusalSharedAdmission, "candidates_left_unadmitted", ""), refuse(RefusalSharedAdmission, "no_development_slot", "wood")} {
 		t.Run(refused.String(), func(t *testing.T) { stoppedClockRecovers(t, refused) })
 	}
 }

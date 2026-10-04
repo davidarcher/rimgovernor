@@ -141,7 +141,7 @@ func (r *RoutineDefenseLayoutPlanner) admitFightBuilds(call, epoch context.Conte
 		}
 	}
 	if len(actions) == 0 {
-		return RoutineDefenseLayoutResult{Verdict: BuildingReasonRefused, Tier: tier}, nil
+		return RoutineDefenseLayoutResult{Verdict: siteBlocked("defense_layout", "preview_refused"), Tier: tier}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, actions)
 	if err != nil {

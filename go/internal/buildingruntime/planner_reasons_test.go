@@ -19,16 +19,16 @@ func filingOf(goals map[string]policy.GoalID, verdicts map[string]Verdict) func(
 func TestWavePlannerReasonsFilesRefusalsPerGoal(t *testing.T) {
 	goals := map[string]policy.GoalID{"power": policy.EnsureBasicPower, "equip": policy.MaintainEquipment, "gear": policy.MaintainEquipment, "research": policy.EnsureResearch, "clean": policy.MaintainCleanFacilities}
 	verdicts := map[string]Verdict{
-		"power":    BuildingReasonNoSpace,
+		"power":    noSpace("power_route"),
 		"equip":    BuildingReasonAdmitted,
 		"gear":     BuildingReasonExhausted,
 		"research": BuildingReasonNoReview,
 		"clean":    BuildingReasonExistingWork,
-		"naming":   BuildingReasonRefused,
+		"naming":   refuse(RefusalSharedAdmission, "no_development_slot", "wood"),
 	}
 	got := wavePlannerReasons([]string{"power", "equip", "gear", "research", "clean", "naming"}, filingOf(goals, verdicts))
 	want := map[policy.GoalID]policy.PlannerNote{
-		policy.EnsureBasicPower:        {Text: "no space found for it (verified space)"},
+		policy.EnsureBasicPower:        {Text: "no space found for it (power route)"},
 		policy.MaintainEquipment:       {Text: "tried as often as it may"},
 		policy.MaintainCleanFacilities: {Text: "already working on it", Waiting: true},
 	}
@@ -110,13 +110,13 @@ func TestWavePlannerReasonsFilesWaitsAndClearsThem(t *testing.T) {
 		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing] != (policy.PlannerNote{Text: text, Waiting: true}) {
 			t.Fatalf("an idle sibling cleared %s: %v", combat, got)
 		}
-		verdicts["sibling"] = BuildingReasonNoSpace
+		verdicts["sibling"] = noSpace("power_route")
 		if got := wavePlannerReasons(names, filingOf(goals, verdicts)); got[policy.MaintainHousing].Waiting || got[policy.MaintainHousing].Text == "" {
 			t.Fatalf("a refusal lost to %s: %v", combat, got)
 		}
 	}
 	verdicts["shelter"] = BuildingReasonNoDeficit
-	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, BuildingReasonNoSpace
+	verdicts["housing"], verdicts["sibling"] = BuildingSleepingUseNeeded, noSpace("power_route")
 	if refused := wavePlannerReasons(names, filingOf(goals, verdicts)); refused[policy.MaintainHousing].Waiting || refused[policy.MaintainHousing].Text == "" {
 		t.Fatalf("a refusal lost to a wait: %v", refused)
 	}
