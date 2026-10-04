@@ -45,6 +45,9 @@ type CapturableEntity struct {
 	// CurrentlyHeldOnPlatform); Need is MinimumContainmentStrength.
 	Dead, Downed, CanBeCaptured, Held domain.Fact[bool]
 	Need                              domain.Fact[float64]
+	// CurrentlyStudiable is CompStudiable.CurrentlyStudiable (#1744); a
+	// known false for an entity with no study block.
+	CurrentlyStudiable domain.Fact[bool]
 }
 
 // EntityDecision is what the rule does with one downed entity.

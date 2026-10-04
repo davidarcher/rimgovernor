@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
@@ -23,6 +25,17 @@ func fishingWork(p observation.ColonyProjection) []policy.WorkRequirement {
 		}
 	}
 	return nil
+}
+
+// studyWork is the DarkStudy owner the held entities owe (#1744); an unread
+// held or studiable fact is logged loudly and leaves the requirement unknown,
+// so the work planner waits.
+func studyWork(ctx context.Context, p observation.ColonyProjection) domain.Fact[[]policy.WorkRequirement] {
+	work, reason := policy.StudyWork(p.Facts.Containment)
+	if _, known := work.Value(); !known {
+		slog.Default().WarnContext(ctx, "entity study staffing waits: "+reason, telemetry.ComponentKey, "routine-work", telemetry.KindKey, "entity_study_unread")
+	}
+	return work
 }
 
 // censusResearchNeeds adds the research the latest census asks for: the

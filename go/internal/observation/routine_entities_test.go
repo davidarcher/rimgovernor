@@ -40,3 +40,27 @@ func TestCapturableEntitiesCarryTheRulesFacts(t *testing.T) {
 		t.Fatalf("an unread held block stays unknown: %+v", got[2])
 	}
 }
+
+// TestCapturableEntitiesCarryCurrentlyStudiable (#1744): the study block's
+// currently-studiable fact is lifted, no study block is a known false and an
+// unread study block stays unknown.
+func TestCapturableEntitiesCarryCurrentlyStudiable(t *testing.T) {
+	studied := entityRow(100, true, true)
+	studied.Pawn = &o.EntityRef{Id: proto.String("e1")}
+	studied.Anomaly.Study = &o.StudyState{CurrentlyStudiable: proto.Bool(true)}
+	bare := entityRow(100, true, true)
+	bare.Pawn = &o.EntityRef{Id: proto.String("e2")}
+	unread := entityRow(100, true, true)
+	unread.Pawn = &o.EntityRef{Id: proto.String("e3")}
+	unread.Anomaly.Issues = []*o.ReadIssue{{Field: proto.String("study")}}
+	got, _ := capturableEntities(slices.Values([]*o.PawnState{studied, bare, unread})).Value()
+	if v, ok := got[0].CurrentlyStudiable.Value(); !ok || !v {
+		t.Fatalf("%+v", got[0])
+	}
+	if v, ok := got[1].CurrentlyStudiable.Value(); !ok || v {
+		t.Fatalf("%+v", got[1])
+	}
+	if _, ok := got[2].CurrentlyStudiable.Value(); ok {
+		t.Fatalf("%+v", got[2])
+	}
+}

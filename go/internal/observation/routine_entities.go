@@ -23,7 +23,13 @@ func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.Captur
 		if entity, known := a.Entity.Value(); known && !entity {
 			continue
 		}
-		e := policy.CapturableEntity{Pawn: domain.PawnID(row.GetPawn().GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed), CanBeCaptured: domain.Unknown[bool](), Held: domain.Unknown[bool](), Need: a.MinContainmentStrength}
+		e := policy.CapturableEntity{Pawn: domain.PawnID(row.GetPawn().GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed), CanBeCaptured: domain.Unknown[bool](), Held: domain.Unknown[bool](), Need: a.MinContainmentStrength, CurrentlyStudiable: domain.Unknown[bool]()}
+		if study, known := a.Study.Value(); known {
+			e.CurrentlyStudiable = domain.Known(false)
+			if study != nil {
+				e.CurrentlyStudiable = study.CurrentlyStudiable
+			}
+		}
 		if held, known := a.Held.Value(); known {
 			if entity, _ := a.Entity.Value(); held == nil {
 				// No block proves "cannot be captured" only for a pawn read

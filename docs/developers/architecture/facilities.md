@@ -237,6 +237,21 @@ that reaches the demand owes no cell. One catalog file,
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
+**Study rule (#1744).** A held entity is studied through the work type
+`DarkStudy` (Anomaly `StudyInteract` work giver; relevant skill Intellectual).
+`policy.StudyWork` owes one `DarkStudy` owner to the work planner while any
+held entity's `study.currently_studiable` is true; the planner then ranks
+owners as for any required work type, and a missing owner reads as a capacity
+deficit. The study interval is the game's: `CompStudiable.CurrentlyStudiable`
+(decompile) is false for a thing not ever studiable, with study disabled, whose
+holding target's containment mode is not Study, or while `frequencyTicks` has
+not passed since `lastStudiedTick`, and `WorkGiver_DarkStudyInteract` offers no
+job then, so no owner is owed between studies and nothing forces a job.
+Capture leaves the mode at Study (`CompHoldingPlatformTarget`); no write sets
+a mode. A held entity whose held or studiable fact is unread makes the
+requirement unknown: the work review reports `study_work` unavailable and
+logs `entity_study_unread` at warn.
+
 ### Throne room
 
 A colonist who holds an Empire title, or has the favor to claim the next

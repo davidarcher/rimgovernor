@@ -575,6 +575,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			required = mergeWorkRequirements(required, rows)
 			required = mergeWorkRequirements(required, routineResearchWork(policy.ArmorResearchPolicy(r.policy, previous.Latches.Soldiers || policy.GearSoldierPresent(reading.Projection.Facts.Gear)), needs, reading.Projection.Facts.Research))
 			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
+			study, studyKnown := studyWork(ctx, reading.Projection).Value()
+			required = mergeWorkRequirements(required, study)
+			known = known && studyKnown
 		}
 		if known {
 			demand, err := routineDiseaseDemand(reading.Projection, definitions, previous, state.Snapshot)
