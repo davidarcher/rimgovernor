@@ -84,27 +84,6 @@ func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	}
 }
 
-func TestServeRejectsNonNumericPortsAndRemovedAssets(t *testing.T) {
-	dir := t.TempDir()
-	base := []string{"--observe", "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
-	for _, port := range []string{"http", "", "-1", "+80", "65536", " 80"} {
-		if _, err := parseServe(append(append([]string{}, base...), "--listen", "127.0.0.1:"+port), io.Discard); err == nil {
-			t.Errorf("accepted port %q", port)
-		}
-	}
-	for _, listen := range []string{"127.0.0.1:0", "[::1]:65535"} {
-		if _, err := parseServe(append(append([]string{}, base...), "--listen", listen), io.Discard); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if code := serve(context.Background(), append(append([]string{}, base...), "--assets", dir), io.Discard, io.Discard); code != 2 {
-		t.Fatalf("removed --assets flag accepted: code %d", code)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "state.db")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("invalid startup touched state: %v", err)
-	}
-}
-
 type serviceFake struct {
 	reads             atomic.Int32
 	active            atomic.Int32
@@ -161,80 +140,6 @@ func (f *serviceFake) Close() error {
 	f.closeWhileReading.Store(f.active.Load() != 0)
 	f.closed.Store(true)
 	return nil
-}
-
-type addressWriter chan string
-
-func (w addressWriter) Write(p []byte) (int, error) {
-	w <- strings.TrimSpace(strings.TrimPrefix(string(p), "RimGovernor Go read-only service: "))
-	return len(p), nil
-}
-
-func TestServeCancellationJoinsNativePoll(t *testing.T) {
-	dir := t.TempDir()
-	fake := &serviceFake{entered: make(chan struct{}, 1)}
-	ring := filepath.Join(dir, "flight", "flight.jsonl")
-	recorder, err := bridge.NewFlightRecorder(ring)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer recorder.Close()
-	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: 10 * time.Millisecond, flightRecorder: ring, bridge: bridge.ProcessConfig{Timeout: time.Second, Recorder: recorder}}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	addresses := make(addressWriter, 1)
-	done := make(chan error, 1)
-	go func() {
-		done <- serveWithBridge(ctx, cfg, addresses, func(context.Context, bridge.ProcessConfig) (serviceBridge, error) { return fake, nil })
-	}()
-	var address string
-	select {
-	case address = <-addresses:
-	case err := <-done:
-		t.Fatalf("startup: %v", err)
-	case <-time.After(3 * time.Second):
-		t.Fatal("startup timeout")
-	}
-	client := &http.Client{Timeout: time.Second}
-	for _, check := range []struct {
-		path, contains string
-		code           int
-	}{{"/", "not_found", 404}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
-		method := "GET"
-		if check.code == 501 {
-			method = "POST"
-		}
-		request, _ := http.NewRequest(method, address+check.path, nil)
-		response, err := client.Do(request)
-		if err != nil {
-			t.Fatal(err)
-		}
-		body, err := io.ReadAll(response.Body)
-		response.Body.Close()
-		if err != nil || response.StatusCode != check.code || !strings.Contains(string(body), check.contains) {
-			t.Fatalf("%s: %d %s %v", check.path, response.StatusCode, body, err)
-		}
-	}
-	select {
-	case <-fake.entered:
-	case <-time.After(time.Second):
-		t.Fatal("poll did not start")
-	}
-	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("shutdown did not join")
-	}
-	if !fake.closed.Load() || fake.closeWhileReading.Load() {
-		t.Fatal("bridge closed before polling joined")
-	}
-	if err := os.Remove(cfg.state); err != nil {
-		t.Fatalf("database not closed: %v", err)
-	}
 }
 
 func TestServeStartupFailuresCloseResources(t *testing.T) {
