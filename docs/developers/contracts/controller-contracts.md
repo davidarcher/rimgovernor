@@ -270,8 +270,10 @@ Biotech, Anomaly) and `_ForbidAltars` (`ForbidAltars`). A title with an empty
 list asks for no throne. A title the mirror has no `RoyalTitleDef` row for, an
 unset or malformed requirement (no defs, a count below one, a repeated
 singleton kind, a throne without an area) is an error wrapping
-`bridge.ErrThroneRequirements` that names the title and requirement; the review
-logs it and leaves royalty unknown. `disablingPrecepts` on a requirement is not
+`bridge.ErrThroneRequirements` that names the title and requirement;
+`WithThroneRequirements` also resolves the building defs the forbidden tags and
+altar rule name (`ForbiddenDefs`, from `ThingDef.building.buildingTags` and
+`isAltar`); the review logs it and leaves royalty unknown. `disablingPrecepts` on a requirement is not
 modelled. `policy.NextThroneNeed` picks the title the colony is working toward
 (the first rung above the holder's with a throne), so stricter rungs follow
 automatically.

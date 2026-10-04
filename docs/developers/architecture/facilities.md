@@ -292,8 +292,9 @@ requirement names a throne and a minimum area (`RoyalRung.Throne`, read from
 the def mirror's `RoyalTitleDef.throneRoomRequirements`, see the royalty read
 in controller-contracts; the largest room any colonist is owed wins).
 `policy.ThroneNeed` carries the whole requirement (floor tags, braziers,
-columns, instrument, glowing and forbidden buildings); the template, flooring
-and brazier upkeep that act on it are #1862-#1865. The sleeping
+columns, instrument, glowing and forbidden buildings); every requirement
+below is met from that one need, so a stricter title (the room follows the
+title the colony works toward) tightens all of them together. The sleeping
 planner raises it under MaintainHousing, like the tomb:
 
 1. The layout review grows a `throne` core room of at least
@@ -314,6 +315,34 @@ planner raises it under MaintainHousing, like the tomb:
    as the expected previous assignment, once per holder and throne per goal
    epoch. The step holds MaintainHousing open until the read lists the holder
    as the throne's owner.
+5. The template plans every counted piece of the title in its own slot
+   (the braziers of `AnyOfCounts`, the columns and drapes of `Counts`, the
+   instrument of `AnyOf`), each from the first available definition of its
+   list, and `NextThroneStep` places only the missing ones: a room that loses
+   a brazier, column or instrument plans exactly that piece. A requirement no
+   available definition serves plans nothing.
+6. The flooring review marks the standing room with the title's `FloorTags`
+   (`withThroneFloor`) and plans floors of any available terrain the mirror
+   tags so (the throne tier, `FloorTierThrone`). The flooring census lists
+   every proper indoor room with a cell in the home area, which a standing
+   throne room is (buildings extend the home area), under the same room id
+   as the room census; a room the census does not list is left as read.
+7. A standing building of a forbidden class (`ForbiddenDefs`: the building
+   defs whose `buildingTags` meet `ForbiddenBuildingTags`, plus altars when
+   forbidden) inside the room makes the step `ThroneBlocked`: planning
+   places nothing, a forbidden throne definition is never offered, and the
+   sleeping planner reports the named `site_blocked` failure listing each
+   intruder. Moving the building is the player's.
+8. Once everything stands and is assigned, an unlit light of the title's
+   `Glowing` defs inside the room that native measures out of fuel plans a
+   `ThroneRefuel`: one `recovery_service` refuel order for the best hauler
+   per light per game hour, so the braziers stay lit.
+
+Tests: `go/internal/policy/throne*_test.go` cover each step in the planner;
+`go/internal/buildingruntime/routine_throne_requirements_test.go` drives the
+recorded Knight title through the review's own path and asserts a missing
+brazier, column or instrument, an unfloored room, a forbidden building and an
+unlit brazier each plan their fix. There is no acceptance case.
 
 The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without
