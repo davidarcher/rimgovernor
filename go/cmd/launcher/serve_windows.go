@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/setup"
-	"golang.org/x/sys/windows"
 )
 
 func kill(pid int) {
@@ -258,13 +257,6 @@ func (a *app) closeGame() {
 		a.logf("closed RimWorld (pid %v)", pids)
 	}
 	a.poll()
-}
-
-func (a *app) openDashboard() error {
-	a.mu.Lock()
-	url := a.url(a.activePort())
-	a.mu.Unlock()
-	return windows.ShellExecute(0, windows.StringToUTF16Ptr("open"), windows.StringToUTF16Ptr(url), nil, nil, windows.SW_SHOWNORMAL)
 }
 
 // recordedAlive reports whether the recorded controller still runs from

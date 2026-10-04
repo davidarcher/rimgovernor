@@ -85,6 +85,10 @@
   .ev.open .evdetail { display: block; }
   .ev.WARN .dot { background: var(--warn); } .ev.ERROR .dot { background: var(--bad); } .ev.INFO .dot { background: var(--ok); }
   .evempty { color: var(--muted); padding: 8px 2px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tabs button { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); }
+  .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
+  .view[hidden], #view-launch[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -94,6 +98,15 @@
     <button class="icon" id="gear" aria-expanded="false" aria-controls="settings" title="Settings">&#9881; Settings</button>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
+    <button role="tab" id="tab-now" data-tab="now" aria-selected="false">Now</button>
+    <button role="tab" id="tab-problems" data-tab="problems" aria-selected="false">Problems</button>
+  </nav>
+  <div class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now" hidden><div class="evempty">Nothing here yet.</div></div>
+  <div class="view" id="view-problems" role="tabpanel" aria-labelledby="tab-problems" hidden><div class="evempty">Nothing here yet.</div></div>
+
+  <div id="view-launch" role="tabpanel" aria-labelledby="tab-launch">
   <div class="hero">
     <p class="headline" id="headline" aria-live="polite">Getting ready</p>
     <p class="sub" id="sub"></p>
@@ -165,6 +178,7 @@
     <summary>Details</summary>
     <pre id="log"></pre>
   </details>
+  </div>
 </main>
 
 <script>
@@ -216,6 +230,14 @@ function fillSaves(saves, selected) {
   sel.value = selected || '';
 }
 
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs [data-tab]').forEach(o => {
+    const on = o === b;
+    o.setAttribute('aria-selected', String(on));
+    $('view-' + o.dataset.tab).hidden = !on;
+  });
+});
+
 $('gear').onclick = () => {
   const open = $('settings').hidden;
   $('settings').hidden = !open;
@@ -227,7 +249,7 @@ function summarize(v) {
   const failed = arts.find(a => a.state === 'failed' || a.state === 'missing');
   const building = arts.find(a => a.state === 'building');
   const pending = arts.find(a => a.state === 'pending');
-  if (v.controller === 'running') return { head: 'Running', sub: 'Colony dashboard at ' + v.url, primary: 'Open dashboard', enabled: true, run: true };
+  if (v.controller === 'running') return { head: 'Running', sub: 'The autopilot is running.', primary: 'Running', run: true };
   if (v.controller === 'starting') return { head: 'Starting', sub: 'Launching the controller and RimWorld…', primary: 'Starting…', spin: true };
   if (failed) return { head: 'Needs attention', sub: failed.name + ': ' + failed.detail, primary: 'Play' };
   if (building) return { head: 'Getting ready', sub: building.name + ': ' + building.detail, primary: 'Preparing…', spin: true };
@@ -265,10 +287,7 @@ async function act(fn) {
   try { await fn(); } finally { setTimeout(() => { busyAction = false; refresh(); }, 400); }
 }
 
-$('primary').onclick = () => {
-  if (view && view.controller === 'running') openDashboard();
-  else act(play);
-};
+$('primary').onclick = () => act(play);
 $('restart').onclick = () => act(restart);
 $('stop').onclick = () => act(stopController);
 $('closeGame').onclick = () => act(closeGame);

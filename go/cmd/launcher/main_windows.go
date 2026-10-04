@@ -84,7 +84,6 @@ func main() {
 		"stopController": func() { go a.stop() },
 		"restart":        func() { go a.restart() },
 		"closeGame":      func() { go a.closeGame() },
-		"openDashboard":  a.openDashboard,
 		"getEvents":      a.tail.rows,
 	} {
 		if err := w.Bind(name, f); err != nil {

@@ -39,7 +39,6 @@ type View struct {
 	Artifacts  []Artifact `json:"artifacts"`
 	Controller string     `json:"controller"`
 	Message    string     `json:"message"`
-	URL        string     `json:"url"`
 	GameUp     bool       `json:"gameUp"`
 	Log        []string   `json:"log"`
 	Settings   Settings   `json:"settings"`
@@ -146,7 +145,6 @@ func (a *app) view() View {
 		Artifacts:  append([]Artifact(nil), a.artifacts...),
 		Controller: a.ctrl,
 		Message:    a.message,
-		URL:        a.url(a.activePort()),
 		GameUp:     a.gameUp,
 		Log:        append([]string{}, a.log...),
 		Settings:   a.settings,
