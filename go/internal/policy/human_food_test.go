@@ -27,7 +27,7 @@ func TestHumanButcherGate(t *testing.T) {
 }
 
 func TestHumanBillCoexistsWithAnimalBill(t *testing.T) {
-	b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: []HumanButcherCandidate{{ID: "z", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}, {ID: "a", PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}}, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}, Bills: []ExistingProductionBill{{Role: domain.RoleButcherFlesh, Recipe: "ButcherCorpseFlesh"}}}
+	b := ProductionBench{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: []HumanButcherCandidate{{ID: "z", CanWork: domain.Known(true)}, {ID: "a", CanWork: domain.Known(true)}}, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}, Bills: []ExistingProductionBill{{Role: domain.RoleButcherFlesh, Recipe: "ButcherCorpseFlesh"}}}
 	got, ok := SelectHumanButcher(domain.Known([]ProductionBench{b}), noIdeology)
 	if !ok || got.Worker != "a" || got.Mode != domain.HumanButcherForever {
 		t.Fatal(got, ok)
@@ -52,7 +52,7 @@ func TestHumanButcherRespectsPrecepts(t *testing.T) {
 		return domain.Known([]ProductionBench{{ID: "bench", Butcher: true, Usable: domain.Known(true), Token: domain.Known("token"), HumanButchers: workers, HumanCorpseNutrition: domain.Known(10.), Recipes: []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}}}})
 	}
 	worker := func(id string, trait string) HumanButcherCandidate {
-		return HumanButcherCandidate{ID: PawnID(id), Traits: domain.Known([]PawnTrait{testTrait(trait, 0)}), PreceptAcceptable: domain.Known(true), CanWork: domain.Known(true)}
+		return HumanButcherCandidate{ID: PawnID(id), Traits: domain.Known([]PawnTrait{testTrait(trait, 0)}), Held: domain.Known(HeldPrecepts{Ideo: "i"}), CanWork: domain.Known(true)}
 	}
 	forbidding := ruleIdeoligion(PreceptDef{Name: "Butcher_Abhorrent", Effects: []PreceptEffect{unwilling(ButcheredHumanEvent, nil, "Psychopath")}})
 	accepting := ruleIdeoligion(PreceptDef{Name: "Butcher_Approved", Effects: []PreceptEffect{took(ButcheredHumanEvent, 3)}})
@@ -200,8 +200,8 @@ func TestHumanFoodLedgerAndCookingFilters(t *testing.T) {
 func TestHumanButcheryFixtureDecisions(t *testing.T) {
 	butcher := ProductionBench{ID: "butcher", Butcher: true, Usable: domain.Known(true), Token: domain.Known("bt"),
 		HumanButchers: []HumanButcherCandidate{
-			{ID: "ordinary", Traits: domain.Known([]PawnTrait{}), PreceptAcceptable: domain.Known(false), CanWork: domain.Known(true)},
-			{ID: "psycho", Traits: domain.Known([]PawnTrait{testTrait("Psychopath", 0)}), PreceptAcceptable: domain.Known(false), CanWork: domain.Known(true)},
+			{ID: "ordinary", Traits: domain.Known([]PawnTrait{}), Held: domain.Known(HeldPrecepts{Ideo: "i", Defs: []string{"Butcher_Horrible"}}), CanWork: domain.Known(true)},
+			{ID: "psycho", Traits: domain.Known([]PawnTrait{testTrait("Psychopath", 0)}), Held: domain.Known(HeldPrecepts{Ideo: "i", Defs: []string{"Butcher_Horrible"}}), CanWork: domain.Known(true)},
 		},
 		HumanCorpseNutrition: domain.Known(30.),
 		Recipes:              []ProductionRecipe{{Name: "ButcherCorpseFlesh", Role: domain.RoleButcherFlesh, Available: domain.Known(true)}},
@@ -210,7 +210,7 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 		{Name: "CookMealSurvival", Available: domain.Known(true), NutrientEfficiency: domain.Known(1.), Products: []ProductionProduct{{Name: "MealSurvivalPack", Kind: FoodKindMealSimple, Perishable: domain.Known(false), Nutrition: domain.Known(.9), Edible: domain.Known(true)}}},
 	}}
 	benches := domain.Known([]ProductionBench{butcher, stove})
-	pick, ok := SelectHumanButcher(benches, noIdeology)
+	pick, ok := SelectHumanButcher(benches, horribleButchery)
 	if !ok || pick.Bench != "butcher" || pick.Worker != "psycho" || pick.Mode != domain.HumanButcherForever {
 		t.Fatal("qualified psychopath not selected", pick, ok)
 	}
@@ -225,7 +225,7 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 		{ID: "herd1", NutritionPerDay: domain.Known(1.)},
 		{ID: "herd2", NutritionPerDay: domain.Known(1.)},
 	}}
-	channel, ok := HumanFoodChannel([]ProductionBench{butcher, stove}, supply, []PawnID{"psycho", "ordinary"}, 3, noIdeology)
+	channel, ok := HumanFoodChannel([]ProductionBench{butcher, stove}, supply, []PawnID{"psycho", "ordinary"}, 3, horribleButchery)
 	if !ok {
 		t.Fatal("human food channel missing")
 	}
@@ -245,3 +245,32 @@ func TestHumanButcheryFixtureDecisions(t *testing.T) {
 // noIdeology is a colony without the Ideology expansion (#1922): nothing is
 // forbidden.
 var noIdeology = IdeologyRead{Installed: domain.Known(false)}
+
+// horribleButchery is an ideoligion whose precept costs the doer mood for
+// butchering a human.
+var horribleButchery = IdeologyRead{Ideology: domain.Known(ruleIdeoligion(PreceptDef{Name: "Butcher_Horrible", Effects: []PreceptEffect{took(ButcheredHumanEvent, -4)}})), Installed: domain.Known(true)}
+
+// TestPreceptAcceptable (#1924): per-pawn acceptability from the pawn's own
+// precepts and the mirrored defs.
+func TestPreceptAcceptable(t *testing.T) {
+	held := func(ideo string, defs ...string) domain.Fact[HeldPrecepts] {
+		return domain.Known(HeldPrecepts{Ideo: ideo, Defs: defs})
+	}
+	for name, tc := range map[string]struct {
+		held     domain.Fact[HeldPrecepts]
+		ideology IdeologyRead
+		want     domain.Fact[bool]
+	}{
+		"penalising precept":        {held("i", "Butcher_Horrible"), horribleButchery, domain.Known(false)},
+		"unrelated precept":         {held("i", "Other"), horribleButchery, domain.Known(true)},
+		"no ideoligion":             {held(""), horribleButchery, domain.Known(false)},
+		"row unread":                {domain.Unknown[HeldPrecepts](), horribleButchery, domain.Unknown[bool]()},
+		"defs unread":               {held("i", "Butcher_Horrible"), IdeologyRead{Installed: domain.Known(true)}, domain.Unknown[bool]()},
+		"Ideology absent":           {held(""), noIdeology, domain.Known(true)},
+		"Ideology absent, row read": {held("i", "Butcher_Horrible"), noIdeology, domain.Known(true)},
+	} {
+		if got := PreceptAcceptable(tc.held, tc.ideology); got != tc.want {
+			t.Fatalf("%s: got %v want %v", name, got, tc.want)
+		}
+	}
+}

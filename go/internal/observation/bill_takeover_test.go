@@ -16,7 +16,7 @@ import (
 // productionBenches decodes snapshot's benches without a catalog.
 func productionBenches(t *testing.T, snapshot *o.ColonyFactsSnapshot, buildings bridge.Buildings) domain.Fact[[]policy.ProductionBench] {
 	t.Helper()
-	benches, err := colonyProductionBenches(snapshot, buildings, nil)
+	benches, err := colonyProductionBenches(snapshot, buildings, bridge.Pawns{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -163,7 +163,18 @@ func productionProduct(product *o.FoodProduct, catalog *bridge.DefinitionCatalog
 	return row, nil
 }
 
-func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.ProductionBench], error) {
+// heldPrecepts is the pawn's own ideoligion and precepts from its row's
+// policy inputs; unknown while the table lacks the row or the inputs.
+func heldPrecepts(pawns bridge.Pawns, id string) domain.Fact[policy.HeldPrecepts] {
+	row, ok := pawns.Get(id)
+	if !ok || row == nil || row.Settings == nil || row.Settings.PolicyInputs == nil {
+		return domain.Unknown[policy.HeldPrecepts]()
+	}
+	p := row.Settings.PolicyInputs
+	return domain.Known(policy.HeldPrecepts{Ideo: p.GetIdeoId(), Defs: p.Precepts})
+}
+
+func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Buildings, pawns bridge.Pawns, catalog *bridge.DefinitionCatalog) (domain.Fact[[]policy.ProductionBench], error) {
 	if hasIssue(v.Issues, "cooking") || hasIssue(v.Issues, "butchering") || !headed(buildings, v.Cooking, (*o.CookingFacts).GetBench) || !headed(buildings, v.Butchering, (*o.ButcheringFacts).GetBench) {
 		return domain.Unknown[[]policy.ProductionBench](), nil
 	}
@@ -241,7 +252,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot, buildings bridge.Building
 				}
 				traits = append(traits, trait)
 			}
-			row.HumanButchers = append(row.HumanButchers, policy.HumanButcherCandidate{ID: policy.PawnID(candidate.PawnId), Traits: domain.Known(traits), PreceptAcceptable: optional(candidate.PreceptAcceptable), CanWork: optional(candidate.CanWork)})
+			row.HumanButchers = append(row.HumanButchers, policy.HumanButcherCandidate{ID: policy.PawnID(candidate.PawnId), Traits: domain.Known(traits), Held: heldPrecepts(pawns, candidate.PawnId), CanWork: optional(candidate.CanWork)})
 		}
 	}
 	if failed != nil {

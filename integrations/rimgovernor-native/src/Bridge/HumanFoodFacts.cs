@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             var people=map.mapPawns.FreeColonistsSpawned;
             foreach(var pawn in people.OrderBy(p=>p.GetUniqueLoadID(),System.StringComparer.Ordinal)) {
                 var candidate=new Obs.HumanButcherCandidate{PawnId=pawn.GetUniqueLoadID(),
-                    PreceptAcceptable=pawn.Ideo!=null && !pawn.Ideo.PreceptsListForReading.SelectMany(p=>p.def.comps??Enumerable.Empty<PreceptComp>()).OfType<PreceptComp_SelfTookMemoryThought>().Any(c=>c.eventDef==HistoryEventDefOf.ButcheredHuman && c.thought != null && c.thought.stages.Any(s=>s.baseMoodEffect<0)), CanWork=CanWorkButcher(pawn,bench) && IdeoUtility.DoerWillingToDo(HistoryEventDefOf.ButcheredHuman,pawn)};
+                    CanWork=CanWorkButcher(pawn,bench) && IdeoUtility.DoerWillingToDo(HistoryEventDefOf.ButcheredHuman,pawn)};
                 if(pawn.story?.traits!=null)candidate.PawnTraits.Add(pawn.story.traits.allTraits.Select(t=>new Obs.Trait{DefName=t.def.defName,Degree=t.Degree}));
                 row.HumanButchers.Add(candidate);
             }

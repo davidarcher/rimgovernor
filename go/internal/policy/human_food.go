@@ -7,9 +7,48 @@ import (
 )
 
 type HumanButcherCandidate struct {
-	ID                         PawnID
-	Traits                     domain.Fact[[]PawnTrait]
-	PreceptAcceptable, CanWork domain.Fact[bool]
+	ID     PawnID
+	Traits domain.Fact[[]PawnTrait]
+	// Held is the pawn's own ideoligion and precept defNames from its row;
+	// unknown when the row carries no policy inputs.
+	Held    domain.Fact[HeldPrecepts]
+	CanWork domain.Fact[bool]
+}
+
+// HeldPrecepts is a pawn's ideoligion load id (empty without one) and the
+// precept defNames of it.
+type HeldPrecepts struct {
+	Ideo string
+	Defs []string
+}
+
+// PreceptAcceptable is whether the pawn's ideoligion costs no mood for
+// butchering a human: it has one, and none of its precepts has a
+// self-took-action effect on ButcheredHuman with a mood-losing stage. A pawn
+// without an ideoligion is not acceptable (only a trait qualifies it); with
+// Ideology absent no precept exists to object. Unknown while the pawn row or
+// the ideoligion defs are unread.
+func PreceptAcceptable(held domain.Fact[HeldPrecepts], ideology IdeologyRead) domain.Fact[bool] {
+	if ideology.Absent() {
+		return domain.Known(true)
+	}
+	h, ok := held.Value()
+	if !ok {
+		return domain.Unknown[bool]()
+	}
+	if h.Ideo == "" {
+		return domain.Known(false)
+	}
+	i, ok := ideology.Ideology.Value()
+	if !ok {
+		return domain.Unknown[bool]()
+	}
+	for _, in := range i.HeldBy(h.Defs).EffectsInForce() {
+		if e := in.Effect; e.Kind == EffectSelfTookAction && e.HistoryEvent == ButcheredHumanEvent && e.Penalises() {
+			return domain.Known(false)
+		}
+	}
+	return domain.Known(true)
 }
 
 // ButcheredHumanEvent is the HistoryEventDef a butchered human raises
@@ -28,7 +67,7 @@ func QualifyingHumanButcher(rows []HumanButcherCandidate, ideology IdeologyRead)
 			return "", false
 		}
 		seen[row.ID] = true
-		if HumanButcherEligible(row.Traits, row.PreceptAcceptable, row.CanWork) && !butcherHeld(ideology, row.Traits) && (selected == "" || row.ID < selected) {
+		if HumanButcherEligible(row.Traits, PreceptAcceptable(row.Held, ideology), row.CanWork) && !butcherHeld(ideology, row.Traits) && (selected == "" || row.ID < selected) {
 			selected = row.ID
 		}
 	}

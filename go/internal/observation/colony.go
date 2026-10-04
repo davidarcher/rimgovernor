@@ -494,7 +494,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	colonyAcquisition(v, tables, &r)
 	colonyProduction(v, &r.Facts)
 	var benchesErr error
-	if r.ProductionBenches, benchesErr = colonyProductionBenches(v, buildings, tables.Catalog); benchesErr != nil {
+	if r.ProductionBenches, benchesErr = colonyProductionBenches(v, buildings, tables.Pawns, tables.Catalog); benchesErr != nil {
 		return ColonyProjection{}, benchesErr
 	}
 	r.Facts.TradeMealIngredients = policy.TradeMealIngredients(r.ProductionBenches)
