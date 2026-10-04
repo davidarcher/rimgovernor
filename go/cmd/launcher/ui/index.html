@@ -184,7 +184,18 @@
     <div class="secondary" id="gamebar" hidden>
       <button id="closeGame">Close game</button>
     </div>
-    <div class="secondary"><button id="logToggle" aria-expanded="false" aria-controls="events">Log</button></div>
+    <section class="ctl" id="controls" hidden aria-label="Operator controls">
+      <p class="note" id="botState" role="status"></p>
+      <div class="secondary">
+        <button id="botResume">Resume</button>
+        <button id="botPause">Pause</button>
+      </div>
+      <p class="note" id="botNote" role="status"></p>
+      <p class="note" id="clockState"></p>
+      <div class="secondary"><button id="ackClock">Acknowledge inspected interruptions</button></div>
+      <p class="note" id="ackNote" role="status"></p>
+    </section>
+    <div class="secondary"><button id="logToggle"aria-expanded="false" aria-controls="events">Log</button></div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
   </div>
@@ -336,7 +347,32 @@ async function refresh() {
   if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
   fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
   if (!loaded) { fill(v.settings); loaded = true; }
+  refreshControls();
 }
+
+// Operator controls (#1989): the launcher talks to serve; the page only
+// renders the view and sends clicks.
+async function refreshControls() {
+  let c;
+  try { c = await getControls(); } catch (e) { return; }
+  $('controls').hidden = !c.available;
+  if (!c.available) return;
+  $('botState').textContent = !c.stateKnown ? 'Bot state unavailable or refreshing.' : c.enabled ? 'Bot running: orders enabled.' : 'Bot paused: orders disabled.';
+  $('botResume').textContent = c.botBusy ? 'Working…' : c.resumeRetry ? 'Retry resume' : 'Resume';
+  $('botPause').textContent = c.botBusy ? 'Working…' : c.pauseRetry ? 'Retry pause' : 'Pause';
+  $('botResume').disabled = !c.canResume;
+  $('botPause').disabled = !c.canPause;
+  $('botNote').textContent = c.botNote;
+  $('botNote').style.color = c.botNoteIsBad ? 'var(--bad)' : '';
+  $('clockState').textContent = c.holds ? 'Clock stopped for review. Inspect the game before acknowledging.' + (c.gap ? ' Some event history is missing.' : '') : c.clockOpen ? 'Interruptions are awaiting acknowledgement.' : 'No clock interruptions awaiting acknowledgement.';
+  $('ackClock').textContent = c.ackBusy ? 'Acknowledging…' : c.ackRetry ? 'Retry acknowledgement' : 'Acknowledge inspected interruptions';
+  $('ackClock').disabled = !c.canAcknowledge;
+  $('ackNote').textContent = c.ackNote;
+  $('ackNote').style.color = c.ackNoteIsBad ? 'var(--bad)' : '';
+}
+$('botResume').onclick = () => botControl('resume');
+$('botPause').onclick = () => botControl('pause');
+$('ackClock').onclick = () => ackClock();
 
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
 
