@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -88,9 +87,6 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	if n, err := db.EstablishColonyExtent(ctx, world, 150, []policy.ExtentRegion{region}); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
-	if err = db.AddExpansionArea(ctx, world, 120, "east-field", []domain.Cell{{X: 10, Z: 1}, {X: 10, Z: 2}}, "player marked farmland"); err != nil {
-		t.Fatal(err)
-	}
 	db.Close()
 	db, err = Open(ctx, path)
 	if err != nil {
@@ -105,13 +101,6 @@ func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	want := EstablishedExtent{Snapshot: world, Tick: 100, Region: region}
 	if !reflect.DeepEqual(rows[0], want) {
 		t.Fatalf("got %+v want %+v", rows[0], want)
-	}
-	areas, err := db.ExpansionAreas(ctx, world, 200)
-	if err != nil || len(areas) != 1 || areas[0].ID != "east-field" || areas[0].Reason != "player marked farmland" || areas[0].Tick != 120 || areas[0].Snapshot != world {
-		t.Fatal(areas, err)
-	}
-	if !reflect.DeepEqual(areas[0].Cells, []domain.Cell{{X: 10, Z: 1}, {X: 10, Z: 2}}) {
-		t.Fatal(areas[0].Cells)
 	}
 }
 
@@ -146,9 +135,6 @@ func TestColonyExtentIsolatesWorlds(t *testing.T) {
 	if _, err := db.EstablishColonyExtent(ctx, world, 100, []policy.ExtentRegion{extentRegion("a", domain.Cell{X: 0, Z: 0})}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AddExpansionArea(ctx, world, 100, "area", []domain.Cell{{X: 1, Z: 1}}, "reason"); err != nil {
-		t.Fatal(err)
-	}
 	other := extentWorld("other-colony", "load-9", 1)
 	otherMap := world
 	otherMap.Map = 2
@@ -156,54 +142,14 @@ func TestColonyExtentIsolatesWorlds(t *testing.T) {
 		if rows, err := db.EstablishedColonyExtent(ctx, s, 500); err != nil || len(rows) != 0 {
 			t.Fatal(rows, err)
 		}
-		if areas, err := db.ExpansionAreas(ctx, s, 500); err != nil || len(areas) != 0 {
-			t.Fatal(areas, err)
-		}
 	}
 }
 
-func TestExpansionAreaLifecycle(t *testing.T) {
+func TestEstablishColonyExtentRejectsRegionWithoutProvenance(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := open(t, memoryPath(t))
 	world := extentWorld("colony", "load-1", 1)
-	cells := []domain.Cell{{X: 1, Z: 1}}
-	if err := db.RemoveExpansionArea(ctx, world, 10, "area", "nothing to remove"); !errors.Is(err, ErrNotFound) {
-		t.Fatal(err)
-	}
-	if err := db.AddExpansionArea(ctx, world, 10, "area", cells, "first"); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AddExpansionArea(ctx, world, 11, "area", cells, "replay"); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.AddExpansionArea(ctx, world, 12, "area", []domain.Cell{{X: 2, Z: 2}}, "moved"); !errors.Is(err, ErrConflict) {
-		t.Fatal(err)
-	}
-	if err := db.RemoveExpansionArea(ctx, world, 20, "area", "player cleared it"); err != nil {
-		t.Fatal(err)
-	}
-	if areas, err := db.ExpansionAreas(ctx, world, 30); err != nil || len(areas) != 0 {
-		t.Fatal(areas, err)
-	}
-	// The removal is a journal entry: the area is still live before it.
-	if areas, err := db.ExpansionAreas(ctx, world, 15); err != nil || len(areas) != 1 || areas[0].Reason != "first" {
-		t.Fatal(areas, err)
-	}
-	if err := db.AddExpansionArea(ctx, world, 40, "area", []domain.Cell{{X: 2, Z: 2}}, "re-added"); err != nil {
-		t.Fatal(err)
-	}
-	for _, bad := range []struct {
-		id, reason string
-		cells      []domain.Cell
-	}{
-		{"", "reason", cells}, {"area", " ", cells}, {"area", "reason", nil},
-		{"area", "reason", []domain.Cell{{X: 2, Z: 2}, {X: 1, Z: 1}}}, {"area", "reason", []domain.Cell{{X: -1, Z: 0}}},
-	} {
-		if err := db.AddExpansionArea(ctx, world, 50, bad.id, bad.cells, bad.reason); err == nil {
-			t.Fatal("accepted", bad)
-		}
-	}
 	if _, err := db.EstablishColonyExtent(ctx, world, 50, []policy.ExtentRegion{{Cells: []policy.ExtentCell{{Cell: domain.Cell{X: 1, Z: 1}}}}}); err == nil {
 		t.Fatal("accepted a region without provenance")
 	}

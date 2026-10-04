@@ -13,7 +13,7 @@ import (
 
 func init() {
 	sleeping := scenarios()["sleeping"]
-	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer and expansion add/remove leave the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.LabStart(), Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []string{"home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
+	cases.Register(cases.Case{Name: "upkeep/colony-extent", Scope: "Runtime extent producer leaves the complete native Home mask byte-identical (#519, #580); existing Home maintenance covers the ready corridor.", Start: cases.LabStart(), Keep: sleeping.keep, Serve: &cases.ServeSpec{Families: []string{"home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix}, Budget: 4 * time.Minute, Reason: "Ready connected rooms; Home orders require no construction waits.", Run: runColonyExtent})
 }
 
 func runColonyExtent(ctx context.Context, s cases.Session) error {
@@ -84,41 +84,12 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	if !occupied[domain.Cell{X: int32(cx), Z: int32(cz)}] {
 		return fmt.Errorf("runtime extent omitted observed corridor")
 	}
-	cell := domain.Cell{}
-	if occupied[cell] {
-		return fmt.Errorf("expansion fixture origin already belongs to extent")
-	}
-	// The service is stopped so the case is the journal's only writer; the
-	// tick is past anything the service journaled.
 	service.Stop()
-	const growTick = domain.Tick(1 << 40)
-	if err = journal.AddExpansionArea(ctx, review.Snapshot, growTick, "extent-smoke", []domain.Cell{cell}, "explicit expansion smoke"); err != nil {
-		return err
-	}
-	areas, err := journal.ExpansionAreas(ctx, review.Snapshot, domain.Tick(1<<60))
-	if err != nil || len(areas) != 1 || len(areas[0].Cells) != 1 || areas[0].Cells[0] != cell {
-		return fmt.Errorf("expansion did not grow extent: %v %v", areas, err)
-	}
 	s.Report()["established_regions"] = len(history)
-	s.Report()["extent_cells_before"] = len(occupied)
-	s.Report()["extent_cells_after"] = len(occupied) + 1
+	s.Report()["extent_cells"] = len(occupied)
 	h, err = reattachPaused(ctx, s)
 	if err != nil {
 		return err
-	}
-	grown, err := h.Call(ctx, "extent-home-expanded", "test/home_mask", nil)
-	if err != nil {
-		return err
-	}
-	if na.AsString(before["mask"]) == "" || na.AsString(before["mask"]) != na.AsString(grown["mask"]) {
-		return fmt.Errorf("expansion growth mutated native Home")
-	}
-	if err = journal.RemoveExpansionArea(ctx, review.Snapshot, growTick+1, "extent-smoke", "explicit expansion smoke removed"); err != nil {
-		return err
-	}
-	areas, err = journal.ExpansionAreas(ctx, review.Snapshot, domain.Tick(1<<60))
-	if err != nil || len(areas) != 0 {
-		return fmt.Errorf("expansion removal failed: %v %v", areas, err)
 	}
 	after, err := h.Call(ctx, "extent-home-after", "test/home_mask", nil)
 	if err != nil {

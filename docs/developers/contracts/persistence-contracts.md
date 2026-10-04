@@ -40,10 +40,8 @@ The rest of this page details the session journal.
 
 - **Colony extent history.** Established extent regions (with their
   provenance and the tick and native generation that first observed them)
-  and explicitly selected expansion areas (with the reason recorded on add
-  and on remove) are an append-only session cache per world (colony, map)
-  (`store.EstablishColonyExtent`, `AddExpansionArea`,
-  `RemoveExpansionArea`). A read sees the world's entries at or before its
+  are an append-only session cache per world (colony, map)
+  (`store.EstablishColonyExtent`). A read sees the world's entries at or before its
   tick. A world change empties it and the new session re-establishes its
   extent from the live world (#1009, #976 U4b); another colony or map sees
   nothing.

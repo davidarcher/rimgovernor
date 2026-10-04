@@ -13,7 +13,7 @@ implies that a cell or route is safe today.
 | Concept | Owner | Code |
 | --- | --- | --- |
 | Current extent | Pure policy derivation from held colony facts; no writer | `policy.DeriveColonyExtent` |
-| Established history and expansion areas | Controller durable store, append-only session cache per world | `store.EstablishColonyExtent`, `AddExpansionArea`, `RemoveExpansionArea`, `EstablishedColonyExtent`, `ExpansionAreas` |
+| Established history | Controller durable store, append-only session cache per world | `store.EstablishColonyExtent`, `EstablishedColonyExtent` |
 | Eligibility | Pure overlay of current evidence on history; read-only diagnostics | `policy.ExtentEligibility` |
 | Bounded consumer query | Pure geometry over extent plus areas | `policy.ExtentWindow` |
 | Native Home mask | The game, through `AreaIntent` home cell edits only | [Maintained jobs](upkeep-contracts.md#maintained-jobs) |
@@ -47,11 +47,10 @@ contracts](upkeep-contracts.md#maintained-jobs).
 
 ## Persistence and recovery (slice B, #517)
 
-Established regions and explicitly selected expansion areas are an
-append-only session cache per world (colony, map). A world change empties
-it and the new session re-establishes its extent from the live world (#1009,
-#976 U4b); another colony or map starts empty. Removal of an expansion area
-is a later entry, never an edit. See [persistence
+Established regions are an append-only session cache per world (colony,
+map). A world change empties it and the new session re-establishes its
+extent from the live world (#1009, #976 U4b); another colony or map starts
+empty. See [persistence
 contracts](persistence-contracts.md#what-must-survive).
 
 Established history may only grow. What shrinks is the *active* view:
@@ -78,8 +77,7 @@ A layout or site-selection consumer reads candidate area from the shared
 extent, not from its own per-facility derivation:
 
 1. Ask `policy.ExtentWindow` for a bounded rectangle: the extent (current
-   derivation or established history) plus expansion areas give a bounding
-   box; the window of the consumer's half-width is centred on it, shifted
+   derivation or established history) gives a bounding box; the window of the consumer's half-width is centred on it, shifted
    only as far as keeps the consumer's focus cell (a planner's Home cell)
    inside, then clipped to the map. The result names its source: `extent`
    when the shared extent anchored it, `focus` when the extent was unknown
@@ -101,32 +99,21 @@ facilities, with complete geometry separate from its 256-cell Home write
 batch. Enclosed traversable cells carry interior provenance; internal
 door cells carry corridor provenance. The clock scheduler establishes known
 regions after each rounds; missing or stale evidence writes nothing.
-The planner reads established history and live expansion areas for that
-world, falling back to current derivation when history is empty.
+The planner reads established history for that world, falling back to current derivation when history is empty.
 
 The stone-shell and storage site planners still derive their candidate
 area per facility (claims, starter room, the planning-cell window);
 adopting the extent window there follows the same three steps.
 
-## Expansion areas
-
-Expansion areas have no HTTP route (#1995). They are journal records
-written through `store.AddExpansionArea` and `RemoveExpansionArea`; only
-tests and the `upkeep/colony-extent` acceptance case write them. Repeated
-additions of identical cells are idempotent; a changed live area must be
-removed before its id is reused.
-
 ## Home mask rule
 
 Extent growth alone never changes the native Home mask. Establishing a
-region, adding or removing an expansion area record, and widening a consumer's
-window are Go-side records; the only path that paints Home is the existing
+region and widening a consumer's window are Go-side records; the only path that paints Home is the existing
 `AreaIntent` home set_cells, driven by the per-facility Home coverage
 review (#452, #461), whose targets and batches do not read the extent.
 Home coverage over a corridor between two controller-owned facilities is
 therefore produced, and restored, by that path whether or not the corridor
-is inside the extent, and an expansion area over open ground paints
-nothing. The converse also holds: Home cells are an *input* to derivation
+is inside the extent. The converse also holds: Home cells are an *input* to derivation
 (through the coverage targets' geometry), never a consumer of it.
 
 ## Related reading

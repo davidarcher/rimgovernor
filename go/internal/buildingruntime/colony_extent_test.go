@@ -43,14 +43,4 @@ func TestClockEstablishesOnlyKnownExtent(t *testing.T) {
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("known extent not idempotently established: %v %v", rows, err)
 	}
-	if err = s.player.journal.AddExpansionArea(ctx, snapshot, 150, "later", []domain.Cell{{X: 70, Z: 4}}, "newer than cached census"); err != nil {
-		t.Fatal(err)
-	}
-	if err = s.establishExtent(ctx, 200); err != nil {
-		t.Fatal(err)
-	}
-	areas, err := s.player.journal.ExpansionAreas(ctx, snapshot, 200)
-	if err != nil || len(areas) != 1 {
-		t.Fatalf("cached census rewound expansion: %v %v", areas, err)
-	}
 }
