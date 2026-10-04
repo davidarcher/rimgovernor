@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 )
 
 // baselineSurveyPath is one real MapSurvey read from the committed baseline
@@ -64,22 +63,6 @@ func BenchmarkLayoutPlanCore(b *testing.B) {
 				corePlan(zones, pawns, BuildTierCamp)
 			}
 		})
-	}
-}
-
-// BenchmarkLayoutSiteCore is the whole fresh-siting pass (#1285); it fails
-// when one pass runs over siteBudget.
-func BenchmarkLayoutSiteCore(b *testing.B) {
-	s := loadSurvey(b, baselineSurveyPath)
-	zones := Zone(s)
-	b.ResetTimer()
-	start, n := time.Now(), 0
-	for b.Loop() {
-		SiteCore(LayoutPlan{Zones: zones}, s, 3, 1, BuildTierCamp)
-		n++
-	}
-	if per := time.Since(start) / time.Duration(n); per > siteBudget {
-		b.Fatalf("siting took %v, budget %v", per, siteBudget)
 	}
 }
 

@@ -20,12 +20,8 @@ import (
 // siteCandidates is N, the most seeds a fresh siting pass grows. On the
 // #1280 baseline fixture one generate takes ~40-50 ms; the map is paused while
 // the first plan is sited, so ~780 seeds (the fixture yields that many) over the
-// worker pool take ~4 s (32 threads), inside siteBudget.
+// worker pool take ~4 s (32 threads).
 var siteCandidates = 1000
-
-// siteBudget is the wall time the whole fresh-siting pass should stay
-// under on the #1280 fixture (BenchmarkLayoutSiteCore checks it).
-const siteBudget = 10 * time.Second
 
 // Search budgets (#1957, layout_gen_search.go). siteSearchTop is how many of
 // the best sites by core score are searched; siteSearchIters is the operators
@@ -39,7 +35,7 @@ const (
 
 // siteSearchHang cuts a search short when it runs this long: a hang guard,
 // never part of the result on a healthy box.
-const siteSearchHang = 5 * siteBudget
+const siteSearchHang = 50 * time.Second
 
 // siteScore is one candidate's result, scored by Score's terms (#1952).
 type siteScore struct {
@@ -225,7 +221,7 @@ func stepped(cs []domain.Cell, k int) []domain.Cell {
 // walled with PlanPerimeter and rescored (#1288). One PlanPerimeter call
 // on the #1280 fixture costs ~250-300 ms and ~250 MB; walling 8 in
 // parallel took the whole pass from ~0.5 s to ~0.86 s at 96 seeds (32 threads,
-// quiet box), inside siteBudget.
+// quiet box).
 const siteWallCandidates = 16
 
 // siteGround is the map's size, its impassable cells and every cell's

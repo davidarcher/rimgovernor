@@ -205,7 +205,7 @@ commit, not a file-by-file narrative.
   on `context deadline exceeded` or a `checktesttimes` breach under load
   (`./...`, `-race`, a busy CI runner) has measured the machine, not the
   code: widen the guard to the accepted maximum (bridge `testBudget`,
-  `playerFixture` CallTimeout, the 60 s `checktesttimes` gate) or assert
+  `playerFixture` CallTimeout, the 60 s `checktesttimes` hang guard) or assert
   the event instead of the wall clock. Never tighten a deadline per test,
   shave a test to fit a budget, or open a per-test timing issue for it
   (#546, #551-#557 were all this, closed by one landing).

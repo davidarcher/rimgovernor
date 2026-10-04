@@ -1,7 +1,7 @@
-// Command checktesttimes enforces a per-test wall-clock budget over the
+// Command checktesttimes is a hang guard over the
 // output of `go test -json`. It fails the build when any single test
-// exceeds the budget, so a slow test regresses CI instead of silently
-// growing the suite's wall time.
+// runs past the hang bound, so a structurally hung test fails CI.
+// It is not a latency gate: the bound is far above any healthy run.
 //
 // It also trims the log: `go test -json` captures full verbose output
 // (every RUN/PASS line) regardless of -v, which is too noisy to be useful
@@ -32,7 +32,7 @@ type event struct {
 type testKey struct{ pkg, test string }
 
 func main() {
-	max := flag.Duration("max", 10*time.Second, "maximum wall-clock time allowed for a single test")
+	max := flag.Duration("hang", 60*time.Second, "hang guard: a single test running longer than this is treated as hung (not a latency gate)")
 	flag.Parse()
 	os.Exit(run(os.Stdin, os.Stderr, *max))
 }
@@ -138,17 +138,17 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 
 	if len(slowTests) > 0 {
 		sort.Slice(slowTests, func(i, j int) bool { return slowTests[i].elapsed > slowTests[j].elapsed })
-		fmt.Fprintf(w, "checktesttimes: %d test(s) exceeded the %s budget:\n", len(slowTests), max)
+		fmt.Fprintf(w, "checktesttimes: %d test(s) ran past the %s hang bound:\n", len(slowTests), max)
 		for _, s := range slowTests {
 			fmt.Fprintf(w, "  %s took %s\n", s.name, s.elapsed)
 		}
-		fmt.Fprintln(w, "A slow test usually means real transactions/IO/sleeps in a loop, not a slow environment.")
-		fmt.Fprintln(w, "Fix the test (shrink scale, remove real sleeps, batch IO) rather than raising the budget.")
+		fmt.Fprintln(w, "A test this long is hung or structurally broken, not merely slow.")
+		fmt.Fprintln(w, "Fix the test (find the hang) rather than raising the bound.")
 	}
 
 	if failed || len(slowTests) > 0 {
 		return 1
 	}
-	fmt.Fprintf(w, "checktesttimes: %d tests passed within the %s budget; slowest %s took %s\n", passed, max, slowest.name, slowest.elapsed.Round(time.Millisecond))
+	fmt.Fprintf(w, "checktesttimes: %d tests passed under the %s hang bound; slowest %s took %s\n", passed, max, slowest.name, slowest.elapsed.Round(time.Millisecond))
 	return 0
 }

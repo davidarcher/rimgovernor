@@ -25,8 +25,8 @@ tasks:
       - go build -trimpath -o {{.EVIDENCE}}/go/rimgovernor{{exeExt}} ./cmd/rimgovernor
 
   test:
-    desc: Unit tests under a 60s per-test ceiling
-    # The ceiling catches a test that has structurally become slow, not one
+    desc: Unit tests with a 60s per-test hang guard (not a latency gate)
+    # The 60s hang guard catches a test that has structurally hung, not one
     # that lands a few seconds late while ./... saturates the machine: a
     # 10s gate over tests that idle at 8-9s failed on load alone
     # (#546, #551-#554).
@@ -37,7 +37,7 @@ tasks:
     # (clock, bridge, buildingruntime, ownership), or `go test -race` on that
     # package alone.
     cmds:
-      - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 60s
+      - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -hang 60s
 
   test:race:
     desc: Whole-module go test -race; opt-in, needs a C compiler on PATH
