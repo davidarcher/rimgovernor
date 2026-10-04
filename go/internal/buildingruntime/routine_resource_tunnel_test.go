@@ -28,6 +28,11 @@ type buriedOreNative struct {
 	sites  int
 }
 
+// DefinitionCatalog serves the rock roofs the site read checks.
+func (n *buriedOreNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return rockRoofCatalog(), nil
+}
+
 func (n *buriedOreNative) buried() bool {
 	for _, d := range []domain.Cell{{X: -1}, {X: 1}, {Z: -1}, {Z: 1}} {
 		if n.rock[domain.Cell{X: buriedOreCell.X + d.X, Z: buriedOreCell.Z + d.Z}] == "" {

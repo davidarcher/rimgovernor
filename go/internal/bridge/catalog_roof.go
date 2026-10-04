@@ -9,7 +9,8 @@ import (
 )
 
 // The roof rule as a Go view of the def mirror (#1870, epic #1764):
-// RoofDef.isThickRoof decides whether a roof can be removed. Nothing is read
+// RoofDef.isThickRoof decides whether a roof can be removed and isNatural
+// whether it is a mountain roof. Nothing is read
 // from native and no roof name is listed here.
 
 // ErrRoofRules marks a catalog that carries no RoofDef rows.
@@ -28,7 +29,7 @@ func (catalog *DefinitionCatalog) RoofRules() (policy.RoofRules, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w: row %s is not a RoofDef", ErrRoofRules, name)
 		}
-		out[name] = policy.RoofRule{Thick: roof.GetIsThickRoof()}
+		out[name] = policy.RoofRule{Thick: roof.GetIsThickRoof(), Natural: roof.GetIsNatural()}
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("%w: the catalog has no RoofDef rows", ErrRoofRules)

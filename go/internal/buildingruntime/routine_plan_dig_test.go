@@ -28,12 +28,17 @@ type rockCoolerNative struct {
 
 // DefinitionCatalog serves the two natural rock roofs.
 func (n *rockCoolerNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return rockRoofCatalog(), nil
+}
+
+// rockRoofCatalog is a catalog of the two natural rock roofs and a built one.
+func rockRoofCatalog() *bridge.DefinitionCatalog {
 	rows := map[string]proto.Message{
 		"RoofRockThin":    &d.RoofDef{DefName: "RoofRockThin", IsNatural: true, CanCollapse: true},
 		"RoofRockThick":   &d.RoofDef{DefName: "RoofRockThick", IsNatural: true, IsThickRoof: true},
 		"RoofConstructed": &d.RoofDef{DefName: "RoofConstructed", CanCollapse: true},
 	}
-	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): rows}}, nil
+	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): rows}}
 }
 
 func (n *rockCoolerNative) ReadExcavationSite(ctx context.Context, _ *c.Identity, cells []domain.Cell, _ domain.Cell) (bridge.ExcavationSite, bridge.Result, error) {

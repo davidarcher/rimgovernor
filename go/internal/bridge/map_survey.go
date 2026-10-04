@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -17,9 +18,6 @@ import (
 // whole map in one reply is large.
 const mapSurveyBand = 16384
 
-// thickRoof is the native overhead-mountain roof.
-const thickRoof = "RoofRockThick"
-
 // ReadMapSurvey reads every cell of the map once, with its foundation
 // (#727), in row bands of at most mapSurveyBand cells, for the master
 // layout plan. A fogged cell is not held; it reads as solid rock to mine
@@ -31,6 +29,14 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 	}
 	if bounds.Width < 1 || bounds.Height < 1 {
 		return policy.MapSurvey{}, Result{}, contract("invalid map survey bounds")
+	}
+	catalog, err := client.DefinitionCatalog(ctx, identity)
+	if err != nil {
+		return policy.MapSurvey{}, Result{}, err
+	}
+	roofs, err := catalog.RoofRules()
+	if err != nil {
+		return policy.MapSurvey{}, Result{}, err
 	}
 	out := policy.MapSurvey{Bounds: bounds}
 	start, bands := time.Now(), 0
@@ -51,7 +57,11 @@ func (client *Client) ReadMapSurvey(ctx context.Context, identity *c.Identity, b
 			return policy.MapSurvey{}, raw, contract("map survey bands differ in world")
 		}
 		context = read.Context
-		out.Cells = append(out.Cells, surveyCells(read)...)
+		cells, err := surveyCells(read, roofs)
+		if err != nil {
+			return policy.MapSurvey{}, raw, err
+		}
+		out.Cells = append(out.Cells, cells...)
 	}
 	out.Cells = append(out.Cells, unseenRock(out.Cells, bounds)...)
 	// The survey read's wall time (#1280) is what an hourly replan pays.
@@ -77,8 +87,10 @@ func unseenRock(held []policy.SurveyCell, bounds policy.Bounds) []policy.SurveyC
 	return out
 }
 
-// surveyCells decodes a survey band's held cells.
-func surveyCells(read cellsRead) []policy.SurveyCell {
+// surveyCells decodes a survey band's held cells. A thick roof is the roof
+// rules' (#1890); a roof def they lack is an error wrapping
+// policy.ErrUnknownRoof.
+func surveyCells(read cellsRead, roofs policy.RoofRules) ([]policy.SurveyCell, error) {
 	held := read.Grid.Cells()
 	cells := make([]policy.SurveyCell, 0, len(held))
 	for _, cell := range held {
@@ -92,6 +104,10 @@ func surveyCells(read cellsRead) []policy.SurveyCell {
 				footing = policy.FootingLight
 			}
 		}
+		rule, known := roofs[roof]
+		if roof != "" && !known {
+			return nil, fmt.Errorf("%w %q at %v", policy.ErrUnknownRoof, roof, cell.Cell)
+		}
 		cells = append(cells, policy.SurveyCell{
 			Cell:       cell.Cell,
 			Walkable:   value(cell.Walkable),
@@ -101,7 +117,7 @@ func surveyCells(read cellsRead) []policy.SurveyCell {
 			Bridgeable: ground&foundationBridgeable != 0,
 			Dries:      ground&foundationDries != 0,
 			Hazard:     ground&foundationHazard != 0,
-			ThickRoof:  roof == thickRoof,
+			ThickRoof:  rule.Thick,
 			Fertility:  value(cell.Fertility),
 			Ore:        ground&foundationOre != 0,
 			Tree:       ground&foundationTree != 0,
@@ -110,7 +126,7 @@ func surveyCells(read cellsRead) []policy.SurveyCell {
 			Prop: value(cell.Occupied) && !rock && edifice == "" && !ruin,
 		})
 	}
-	return cells
+	return cells, nil
 }
 
 // value is a fact's value, the zero value when unknown.

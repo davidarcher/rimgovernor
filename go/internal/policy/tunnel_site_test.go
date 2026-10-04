@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -20,7 +21,7 @@ func mountainSite() ExcavationSiteRequest {
 			}
 		}
 	}
-	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Region: Rectangle{X: 0, Z: 0, Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, MinCorridor: 1, MaxCorridor: 4, RoofSupport: 6.9}
+	return ExcavationSiteRequest{Bounds: Bounds{Width: 30, Height: 30}, Region: Rectangle{X: 0, Z: 0, Width: 30, Height: 30}, Anchor: domain.Cell{X: 5, Z: 15}, Cells: cells, MinCorridor: 1, MaxCorridor: 4, RoofSupport: 6.9, Roofs: RoofRules{"RoofRockThick": {Thick: true, Natural: true}}}
 }
 
 var mountainOre = domain.Cell{X: 14, Z: 15}
@@ -162,5 +163,14 @@ func TestExcavationReviewBlockedCorridorNeedsResiting(t *testing.T) {
 	r := ReviewExcavation(target, s, 8)
 	if r.Corridor || r.Complete || len(r.Kept) != 1 || r.Kept[0] != target.Corridor[2] {
 		t.Fatal(r)
+	}
+}
+
+// A roof def the rules lack fails the site read loudly (#1890).
+func TestCorridorExcavationSitesUnknownRoof(t *testing.T) {
+	r := mountainSite()
+	r.Roofs = RoofRules{}
+	if _, err := CorridorExcavationSites(r, mountainOre); !errors.Is(err, ErrUnknownRoof) {
+		t.Fatal(err)
 	}
 }

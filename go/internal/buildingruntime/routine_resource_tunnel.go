@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -169,7 +170,19 @@ func (r *RoutineResourcePlanner) tunnelToBuriedOre(call, epoch context.Context, 
 		protected = append(protected, h.Footprint...)
 	}
 	facts := reading.Projection
-	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor, RoofSupport: facts.RoofSupport}
+	definitions, ok := r.native.(observation.DefinitionSource)
+	if !ok {
+		return RoutineResourceResult{}, false, errors.New("roof rules: the native source serves no definitions")
+	}
+	catalog, err := definitions.DefinitionCatalog(call, identity)
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	roofs, err := catalog.RoofRules()
+	if err != nil {
+		return RoutineResourceResult{}, false, err
+	}
+	request := policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, MinCorridor: 1, MaxCorridor: tunnelMaxCorridor, RoofSupport: facts.RoofSupport, Roofs: roofs}
 	snap.NoteExcavation(call, request)
 	targets, err := policy.CorridorExcavationSites(request, ore.Cell)
 	if err != nil {

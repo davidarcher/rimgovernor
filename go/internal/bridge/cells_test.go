@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -176,7 +177,7 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 		s := cellsSnapshot(t, rect, func(c domain.Cell) bool { return c == (domain.Cell{X: 5, Z: 1}) }, func(cell *policy.SiteCell) {
 			switch cell.Cell {
 			case domain.Cell{X: 1, Z: 1}:
-				cell.NaturalRock, cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(true), domain.Known(false), domain.Known(thickRoof)
+				cell.NaturalRock, cell.Occupied, cell.Walkable, cell.Roof = domain.Known(true), domain.Known(true), domain.Known(false), domain.Known("RoofRockThick")
 			case domain.Cell{X: 2, Z: 1}:
 				cell.Occupied, cell.Ruin = domain.Known(true), domain.Known(false)
 			case domain.Cell{X: 3, Z: 1}:
@@ -198,6 +199,8 @@ func TestReadMapSurveyDecodesFoundation(t *testing.T) {
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
 	}}
 	client := testClient(t, server, testBudget)
+	client.catalog.catalog = roofCatalog(&d.RoofDef{DefName: "RoofRockThick", IsNatural: true, IsThickRoof: true})
+	client.catalog.catalog.LoadToken = "load"
 	survey, _, err := client.ReadMapSurvey(context.Background(), pbIdentity(), policy.Bounds{Width: 20, Height: 30})
 	if err != nil || len(survey.Cells) != 20*30 || len(rects) != 1 {
 		t.Fatal(err, len(survey.Cells), rects)

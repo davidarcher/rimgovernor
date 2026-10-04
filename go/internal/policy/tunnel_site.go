@@ -19,10 +19,6 @@ import (
 // Native ReadExcavationSite remains the authority for roof support and
 // per-cell mining legality; this file only proposes geometry.
 
-// Natural rock roofs. Only these mark a cell as part of a mountain, so a
-// constructed wall under a built roof is never mistaken for a rock face.
-var rockRoofs = map[string]bool{"RoofRockThin": true, "RoofRockThick": true}
-
 // excavationMaxCells matches NativeExcavationSite.MaxCells so a whole target
 // fits in one site read.
 const excavationMaxCells = 64
@@ -41,6 +37,9 @@ type ExcavationSiteRequest struct {
 	// roof_max_support_distance): every target cell must lie within it of
 	// some non-target cell.
 	RoofSupport float64
+	// Roofs are the load's roof rules (#1890): a roofed cell whose def is not
+	// in them fails the site read with ErrUnknownRoof.
+	Roofs RoofRules
 }
 
 // ExcavationTarget is one proposed tunnel: Access is the walkable cell the
@@ -136,12 +135,15 @@ func rockCell(c SiteCell) bool {
 // excavatedCell is open ground still under a natural rock roof that is not
 // part of a proper room: rock that has already been dug (or a natural
 // pocket), so a half-dug tunnel is re-planned over the same cells.
-func excavatedCell(c SiteCell) bool {
+//
+// Only a natural roof (RoofRule.Natural) marks a cell as part of a mountain,
+// so a constructed wall under a built roof is never mistaken for a rock face.
+func excavatedCell(c SiteCell, roofs RoofRules) bool {
 	occupied, ok := c.Occupied.Value()
 	walkable, wk := c.Walkable.Value()
 	roof, rk := c.Roof.Value()
 	indoors, ik := c.Indoors.Value()
-	return ok && !occupied && wk && walkable && rk && rockRoofs[roof] && (!ik || !indoors)
+	return ok && !occupied && wk && walkable && rk && roofs[roof].Natural && (!ik || !indoors)
 }
 
 // CorridorExcavationSites proposes corridor targets whose door is
@@ -182,6 +184,11 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 		if _, exists := cells[c.Cell]; exists {
 			return nil, errors.New("duplicate site cell")
 		}
+		if roof, ok := c.Roof.Value(); ok && roof != "" {
+			if _, known := r.Roofs[roof]; !known {
+				return nil, fmt.Errorf("%w %q at %v", ErrUnknownRoof, roof, c.Cell)
+			}
+		}
 		cells[c.Cell] = c
 		ordered = append(ordered, c.Cell)
 	}
@@ -204,7 +211,7 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 			return false
 		}
 		c, exists := cells[p]
-		return !exists || rockCell(c) || excavatedCell(c)
+		return !exists || rockCell(c) || excavatedCell(c, r.Roofs)
 	}
 	// sealed: a bordering cell that is unknown or known impassable keeps the
 	// tunnel enclosed once dug.
@@ -263,7 +270,7 @@ func CorridorExcavationSites(r ExcavationSiteRequest, ore domain.Cell) ([]Excava
 		for _, d := range directions {
 			face := domain.Cell{X: access.X + d.X, Z: access.Z + d.Z}
 			c, exists := cells[face]
-			if !exists || !(rockCell(c) || excavatedCell(c)) {
+			if !exists || !(rockCell(c) || excavatedCell(c, r.Roofs)) {
 				continue
 			}
 			for length := r.MinCorridor; length <= r.MaxCorridor; length++ {

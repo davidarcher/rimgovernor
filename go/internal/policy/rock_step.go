@@ -64,9 +64,10 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 // RoofRule is what the game's RoofDef row says about a roof (#1870). The
 // game refuses to designate a no-roof area under a roof whose isThickRoof
 // is set (Designator_AreaNoRoof.CanDesignateCell, read with ilspycmd) and
-// checks nothing else when a roof is removed: isNatural and canCollapse
-// do not gate it, so neither is carried.
-type RoofRule struct{ Thick bool }
+// checks nothing else when a roof is removed: canCollapse does not gate it,
+// so it is not carried. Natural is the RoofDef isNatural flag: a mountain
+// roof (#1890).
+type RoofRule struct{ Thick, Natural bool }
 
 // Removable reports whether the roof can be taken off.
 func (r RoofRule) Removable() bool { return !r.Thick }
