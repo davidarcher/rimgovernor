@@ -198,6 +198,10 @@ const (
 	// forbids (Intruders). Planning moves nothing; the step names the
 	// failure (Detail) and is not Owed.
 	ThroneBlocked ThroneStepKind = "blocked"
+	// ThroneUnavailable: a requirement still unmet has no definition the
+	// catalog makes available with a known size (Missing). The step names the
+	// failure (Detail) and is not Owed (#1874).
+	ThroneUnavailable ThroneStepKind = "unavailable"
 )
 
 // ThroneStep is one bounded step towards the title's throne room.
@@ -215,11 +219,22 @@ type ThroneStep struct {
 	// Intruders are the standing buildings of a forbidden class inside the
 	// room, for ThroneBlocked.
 	Intruders []CurrentBuilding
+	// Missing are the unmet requirements no available definition serves, each
+	// the any-of list of definition names, for ThroneUnavailable.
+	Missing []string
 }
 
-// Detail names a blocked step's failure: the title, the room and each
-// intruding building.
+// Failed reports whether the step is a named failure planning cannot clear.
+func (s ThroneStep) Failed() bool {
+	return s.Kind == ThroneBlocked || s.Kind == ThroneUnavailable
+}
+
+// Detail names a failed step: the title, the room and each intruding building
+// or each requirement without an available definition.
 func (s ThroneStep) Detail() string {
+	if s.Kind == ThroneUnavailable {
+		return fmt.Sprintf("the %s throne room at (%d,%d) needs definitions the catalog does not make available with a known size: %s", s.Need.Title, s.Room.Interior.X, s.Room.Interior.Z, strings.Join(s.Missing, "; "))
+	}
 	names := make([]string, 0, len(s.Intruders))
 	for _, b := range s.Intruders {
 		names = append(names, fmt.Sprintf("%s %s", b.Building.Definition(), b.ID))
@@ -366,8 +381,8 @@ func throneAssignment(step ThroneStep, throne CurrentBuilding, thrones []RoyalTh
 // NextThroneStep picks the next throne step for need from the plan, the
 // room census, the colony's buildings and the throne definitions. None
 // while the plan holds no room of the title's area (the layout review owes
-// it) or no throne definition is available with a known size, and once the
-// throne stands and is assigned (or cannot be yet).
+// it), and once the throne stands and is assigned (or cannot be yet). An
+// unmet requirement with no available definition is ThroneUnavailable.
 func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuilding, need ThroneNeed, defs []FurnitureDefinition, thrones []RoyalThrone) ThroneStep {
 	room, ok := plan.ThroneRoomFor(need.MinArea)
 	if !ok {
@@ -391,6 +406,21 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		}
 	}
 	def, dok := throneDefinition(need, defs)
+	// An unmet requirement no available definition serves is a named
+	// failure, not a silent skip (#1874).
+	var missing []string
+	if !stands && !dok && len(need.Things) > 0 {
+		missing = append(missing, strings.Join(need.Things, " or "))
+	}
+	for _, w := range need.wants() {
+		if _, ok := availableDefinition(w.Things, defs); !ok && standingCount(room, w.Things, built) < w.Count {
+			missing = append(missing, strings.Join(w.Things, " or "))
+		}
+	}
+	if len(missing) > 0 {
+		step.Kind, step.Missing = ThroneUnavailable, missing
+		return step
+	}
 	if !stands && !dok {
 		return ThroneStep{}
 	}

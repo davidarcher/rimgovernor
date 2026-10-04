@@ -171,11 +171,11 @@ func TestThroneFootprintComesFromTheCatalog(t *testing.T) {
 		t.Fatalf("a 2x1 throne: %+v", step.Piece.Rect)
 	}
 	unknown := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(true), Size: domain.Unknown[Bounds]()}}
-	if step := NextThroneStep(plan, tombStanding(room), nil, need, unknown, nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), nil, need, unknown, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("no footprint, no placement: %+v", step)
 	}
 	locked := []FurnitureDefinition{{Name: "Throne", Available: domain.Known(false), Size: domain.Known(Bounds{Width: 1, Height: 1})}}
-	if step := NextThroneStep(plan, tombStanding(room), nil, need, locked, nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), nil, need, locked, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("unavailable throne: %+v", step)
 	}
 }

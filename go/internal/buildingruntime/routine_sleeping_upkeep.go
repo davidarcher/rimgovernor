@@ -351,9 +351,10 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 			// through the room upgrade below (#1601).
 			if throne := throneStep(facts); throne.Owed() {
 				return r.stageThrone(call, epoch, arbiter, state, review, goal, reading, throne)
-			} else if throne.Kind == policy.ThroneBlocked {
-				// Forbidden buildings in the room are a named failure; moving
-				// them is the player's (#1865).
+			} else if throne.Failed() {
+				// Forbidden buildings (moving them is the player's, #1865) and
+				// requirements without an available definition (#1874) are
+				// named failures.
 				return RoutineBuildingResult{Verdict: siteBlocked("throne room", throne.Detail())}, nil
 			}
 			// The Biotech child rooms: shell, then furniture (#1680).

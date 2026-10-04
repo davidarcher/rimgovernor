@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -62,5 +63,22 @@ func TestThroneRoomMissingPiecesPlansThem(t *testing.T) {
 	}
 	if step = NextThroneStep(plan, standing, rest, need, defs, owned); step.Kind != ThronePlace || step.Piece.Def != "Column" {
 		t.Fatalf("missing column: %+v", step)
+	}
+}
+
+func TestThroneRequirementWithoutAnAvailableDefFailsByName(t *testing.T) {
+	plan, room, need := throneFixture()
+	need.Counts = []ThingCount{{Def: "Column", Count: 2}}
+	need.AnyOf = [][]string{{"Harp", "Piano"}}
+	one := domain.Known(Bounds{Width: 1, Height: 1})
+	defs := append(throneDefs(Bounds{Width: 1, Height: 1}),
+		FurnitureDefinition{Name: "Column", Available: domain.Known(false), Size: one},
+		FurnitureDefinition{Name: "Piano", Available: domain.Known(true), Size: domain.Unknown[Bounds]()})
+	step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil)
+	if step.Kind != ThroneUnavailable || step.Owed() || !step.Failed() || len(step.Missing) != 2 || step.Missing[0] != "Column" || step.Missing[1] != "Harp or Piano" {
+		t.Fatalf("unavailable requirements: %+v", step)
+	}
+	if d := step.Detail(); !strings.Contains(d, "Knight") || !strings.Contains(d, "Column; Harp or Piano") {
+		t.Fatalf("detail: %s", d)
 	}
 }

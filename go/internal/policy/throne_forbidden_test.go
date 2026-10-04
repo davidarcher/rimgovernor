@@ -33,9 +33,9 @@ func TestThroneForbiddenClassReportsANamedFailure(t *testing.T) {
 	if step := NextThroneStep(plan, tombStanding(room), []CurrentBuilding{outside}, need, defs, nil); step.Kind != ThronePlace {
 		t.Fatalf("a bed outside the room is no intrusion: %+v", step)
 	}
-	// A throne definition of a forbidden class is never placed.
+	// A throne definition of a forbidden class is never placed; it fails by name (#1874).
 	need.ForbiddenDefs = []string{"Throne"}
-	if step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil); step.Kind != ThroneNone {
+	if step := NextThroneStep(plan, tombStanding(room), nil, need, defs, nil); step.Kind != ThroneUnavailable {
 		t.Fatalf("forbidden throne placed: %+v", step)
 	}
 }
