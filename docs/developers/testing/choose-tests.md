@@ -1234,7 +1234,9 @@ price: the total wall and boot time of the baseline's rows in the affected
 areas (cases the baseline never timed are not counted; `acceptance list
 -cost <area>/...` names them).
 `go run ./cmd/test` runs `go test -short` on the affected packages (slow
-tests skip; `-full` runs them, as the nightly does) and the probes build
+tests skip; the loop is about 30 s. `-full` runs every test once at the end
+of an epic, where the `implement` skill files an issue per failure; the
+nightly runs the whole module) and the probes build
 (the landing lane does not unless `-test`, which runs the same checks), after gofmt on the changed Go files and `go vet`
 plus staticcheck on the affected packages, the gates `task go:build`
 applies to the whole module (#334). The individual acceptance lines from

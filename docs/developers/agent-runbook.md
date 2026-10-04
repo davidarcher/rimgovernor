@@ -20,7 +20,9 @@ worktrees or player preferences. Local sessions follow the steps below.
    `cmd/test` and `cmd/land` come from `main`; a branch that predates them
    has neither).
 2. Nothing else until the task needs the game. Go work needs no game and no
-   mod build; `go run ./cmd/test` is the loop.
+   mod build; `go run ./cmd/test` (about 30 s, `-short`) is the loop;
+   `go run ./cmd/test -full` runs every test once at the end of an epic,
+   and the nightly runs the whole module.
 3. Before the first native acceptance run, `go run
    ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the
    private layout below (game copy, bridge root, fixture mod, binaries) and
