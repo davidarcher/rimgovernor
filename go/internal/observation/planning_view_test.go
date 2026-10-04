@@ -34,19 +34,11 @@ func readGzip(t *testing.T, path string) []byte {
 }
 
 // recordedCatalog is a definition catalog recorded from a running game: the
-// def rows and stat table the planning views read. RG_CATALOG names an
-// uncompressed full dump instead of the committed trimmed one.
+// def rows and stat table the planning views read: testdata/full_catalog.pb.gz,
+// the whole game with every expansion.
 func recordedCatalog(t *testing.T) *bridge.DefinitionCatalog {
 	t.Helper()
-	var data []byte
-	if path := os.Getenv("RG_CATALOG"); path != "" {
-		var err error
-		if data, err = os.ReadFile(path); err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		data = readGzip(t, "testdata/planning_catalog.pb.gz")
-	}
+	data := readGzip(t, "testdata/full_catalog.pb.gz")
 	wire := &o.DefinitionCatalog{}
 	if err := proto.Unmarshal(data, wire); err != nil {
 		t.Fatal(err)

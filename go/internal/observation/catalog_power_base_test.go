@@ -113,8 +113,7 @@ func powerComp(row *d.ThingDef) *powerCompRow {
 // holds every terrain a cell can stand on: the table native used to name was
 // the subset under the rooms' and routes' cells, so each terrain it could have
 // sent is priced here with the identical stat, path cost and natural values.
-// (The recorded catalog is trimmed to buildable terrains; the natural flag is
-// pinned by TestCatalogFloorTerrain.)
+// (The natural flag is also pinned by TestCatalogFloorTerrain.)
 func TestRecordedCatalogPricesEveryTerrainNativeCouldName(t *testing.T) {
 	catalog := recordedCatalog(t)
 	table, err := catalog.FloorTerrains()

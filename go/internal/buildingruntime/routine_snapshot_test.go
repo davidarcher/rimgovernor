@@ -54,7 +54,7 @@ func loadRecorded(t *testing.T, name string) snapshot.Routine {
 		t.Fatalf("%s: replayed latches %+v, recorded %+v", name, needs.Latches, r.Review.Latches)
 	}
 	// The catalog-derived power rows are not in a recording: read them from
-	// the recorded planning catalog.
+	// the recorded full catalog.
 	var dining policy.DiningFurniture
 	r.Projection.PowerSources, r.Projection.PowerBattery, dining = recordedPowerRows(t)
 	r.Projection.Shapes = recordedPower.shapes
@@ -129,11 +129,11 @@ var recordedPower struct {
 }
 
 // recordedPowerRows are the power source profiles and the battery of the
-// planning catalog recorded from the game (observation/testdata).
+// full catalog recorded from the game (observation/testdata).
 func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, policy.PowerBattery, policy.DiningFurniture) {
 	t.Helper()
 	recordedPower.once.Do(func() {
-		file, err := os.Open("../observation/testdata/planning_catalog.pb.gz")
+		file, err := os.Open("../observation/testdata/full_catalog.pb.gz")
 		if err != nil {
 			recordedPower.err = err
 			return
@@ -164,7 +164,7 @@ func recordedPowerRows(t *testing.T) (map[string]policy.PowerSourceProfile, poli
 		if recordedPower.battery, recordedPower.err = catalog.PowerBattery(policy.BatteryDefinition); recordedPower.err != nil {
 			return
 		}
-		// The recorded catalog carries no joy giver rows, so the pin is the
+		// The pin is the
 		// recorded HorseshoesPin row by name; the chair and table are the rules.
 		shape := func(def string) policy.InteriorPieceDef {
 			size := catalog.ThingDef(def).GetSize()

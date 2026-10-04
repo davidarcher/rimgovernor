@@ -11,8 +11,7 @@ import (
 // TestFullCatalogRecordingDecodes pins testdata/full_catalog.pb.gz: the whole
 // definition catalog of the game with every expansion, untrimmed (every
 // ThingDef, TerrainDef, RecipeDef and other def row, the research projects,
-// stat table and DLC sections). RG_CATALOG=<uncompressed copy> points
-// recordedCatalog at it for the planning tests.
+// stat table and DLC sections); recordedCatalog loads it for the planning tests.
 func TestFullCatalogRecordingDecodes(t *testing.T) {
 	wire := &o.DefinitionCatalog{}
 	if err := proto.Unmarshal(readGzip(t, "testdata/full_catalog.pb.gz"), wire); err != nil {
