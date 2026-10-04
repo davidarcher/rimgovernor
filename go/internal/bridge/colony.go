@@ -42,7 +42,7 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 // colonyFactsRequest is the exact request ReadColonyFacts issues; the
 // bundle seeds its colony_facts section under the planning form of it.
 // Project definitions beyond the default catalog ride the snapshot frame's
-// subscription (ReadRoutineFrame), not this read.
+// subscription (ReadRoundsFrame), not this read.
 func colonyFactsRequest(identity *c.Identity, planning bool) *o.ColonyFactsRequest {
 	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning)}
 }

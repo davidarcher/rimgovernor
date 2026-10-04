@@ -34,10 +34,10 @@ type TradeFoodGood struct {
 	Prepared, NonPerishable, Crop bool
 }
 
-// RoutineTradeFood uses the shared tick plan and the observed active meal
+// RoundsTradeFood uses the shared tick plan and the observed active meal
 // recipe. One day's ingredient buffer bridges a missing source without
 // pretending a proposed channel is already producing stock.
-func RoutineTradeFood(f RoutineFacts, p RoutinePolicy) TradeFoodContext {
+func RoundsTradeFood(f RoundsFacts, p RoundsPolicy) TradeFoodContext {
 	r := TradeFoodContext{Plan: f.FoodPlan, RunwayDays: f.FoodDays, MinDays: p.FoodMinDays, TargetDays: p.FoodTargetDays, DesiredIngredients: f.TradeMealIngredients}
 	if plan, known := f.FoodPlan.Value(); known {
 		if _, known := plan.Forecast.RunwayDays.Value(); known {
@@ -215,7 +215,7 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 			if slot != nil && (g.Prepared || !mealSlotsSupported([]FoodIngredientSlot{*slot}, map[FoodIngredientClass]bool{g.Class: true})) {
 				continue
 			}
-			count := min(row.TraderCount-used[row.DefName], tradeRoutineMaximumCount-row.ColonyCount-used[row.DefName])
+			count := min(row.TraderCount-used[row.DefName], tradeRoundsMaximumCount-row.ColonyCount-used[row.DefName])
 			if count <= 0 {
 				continue
 			}
@@ -242,7 +242,7 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 		buy(remaining, &need.Missing[i])
 	}
 	for _, row := range candidates {
-		if count := used[row.DefName]; count > 0 && len(out) < tradeRoutineMaximumTargets {
+		if count := used[row.DefName]; count > 0 && len(out) < tradeRoundsMaximumTargets {
 			out = append(out, domain.TradeTarget{Item: row.DefName, Stock: row.ColonyCount + count, MaxBuy: count, MaxBuyPrice: tradeBuyPriceCeiling})
 		}
 	}

@@ -142,7 +142,7 @@ func TestProvenanceIsolationReportsWhyTheProcessIsOwned(t *testing.T) {
 
 // A serve-driven case restricted to some routine families says so: the
 // result is silent about every family that was disabled.
-func TestProvenanceRecordsRestrictedRoutineFamilies(t *testing.T) {
+func TestProvenanceRecordsRestrictedRoundsFamilies(t *testing.T) {
 	c := provenanceCase()
 	c.Serve = &ServeSpec{Families: []string{"supply", "safety"}}
 	block := stamp(t, c, na.Report{})

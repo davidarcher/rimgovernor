@@ -12,7 +12,7 @@ import (
 // selected its goal must declare that goal as a method capability; a family
 // that wires the planner without declaring the goal ranks it
 // method_unavailable on every review and never dispatches.
-func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
+func TestRoundsCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		family string
@@ -43,7 +43,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	for _, tc := range cases {
 		var c serveConfig
 		found := false
-		for _, f := range routineFamilies(&c) {
+		for _, f := range roundsFamilies(&c) {
 			if f.Name == tc.family {
 				*f.Enabled, found = true, true
 			}
@@ -51,27 +51,27 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		if !found {
 			t.Fatalf("%s: unknown family", tc.family)
 		}
-		_, capabilities := routineCapabilities(c)
+		_, capabilities := roundsCapabilities(c)
 		if !slices.Contains(capabilities.Methods, tc.goal) {
 			t.Errorf("%s family does not declare %s: %v", tc.family, tc.goal, capabilities.Methods)
 		}
 		var none serveConfig
-		if _, bare := routineCapabilities(none); slices.Contains(bare.Methods, tc.goal) {
+		if _, bare := roundsCapabilities(none); slices.Contains(bare.Methods, tc.goal) {
 			t.Errorf("%s declared with no family enabled", tc.goal)
 		}
 	}
 }
 
-// DetectRoutine refuses a capability declared twice, so a serve with every
+// DetectRounds refuses a capability declared twice, so a serve with every
 // family and a resource target must declare each goal once (acquisition
 // and resource targets both declare MaintainResource, #728).
-func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
+func TestRoundsCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 	t.Parallel()
 	var c serveConfig
-	for _, f := range routineFamilies(&c) {
+	for _, f := range roundsFamilies(&c) {
 		*f.Enabled = true
 	}
-	_, capabilities := routineCapabilities(c)
+	_, capabilities := roundsCapabilities(c)
 	seen := map[policy.ConcernID]bool{}
 	for _, goal := range capabilities.Methods {
 		if seen[goal] {
@@ -82,16 +82,16 @@ func TestRoutineCapabilitiesDeclareEachGoalOnce(t *testing.T) {
 }
 
 // A serve composing every family must pass the reviewer's startup
-// validation: every declared method is a goal DetectRoutine recognizes on
+// validation: every declared method is a goal DetectRounds recognizes on
 // empty facts (#766, service/development died at serve start).
-func TestRoutineCapabilitiesValidateAtStartup(t *testing.T) {
+func TestRoundsCapabilitiesValidateAtStartup(t *testing.T) {
 	t.Parallel()
 	var c serveConfig
-	for _, f := range routineFamilies(&c) {
+	for _, f := range roundsFamilies(&c) {
 		*f.Enabled = true
 	}
-	thresholds, capabilities := routineCapabilities(c)
-	if _, err := policy.DetectRoutine(policy.RoutineFacts{AvailableMethods: domain.Known(capabilities.Methods)}, policy.RoutineLatches{}, thresholds); err != nil {
+	thresholds, capabilities := roundsCapabilities(c)
+	if _, err := policy.DetectRounds(policy.RoundsFacts{AvailableMethods: domain.Known(capabilities.Methods)}, policy.RoundsLatches{}, thresholds); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -99,17 +99,17 @@ func TestRoutineCapabilitiesValidateAtStartup(t *testing.T) {
 // A composition without the Foothold families cannot climb the stage, so
 // its staged families apply at every stage (light/dark stalled at Foothold
 // with MaintainLighting never raised); the full autopilot keeps the ladder.
-func TestRoutineCapabilitiesStageFloor(t *testing.T) {
+func TestRoundsCapabilitiesStageFloor(t *testing.T) {
 	t.Parallel()
-	lighting := serveConfig{routineLightingPlans: true, routineWorkPlans: true}
-	if thresholds, _ := routineCapabilities(lighting); thresholds.Stage.Floor != policy.StageDevelopment {
+	lighting := serveConfig{roundsLightingPlans: true, roundsWorkPlans: true}
+	if thresholds, _ := roundsCapabilities(lighting); thresholds.Stage.Floor != policy.StageDevelopment {
 		t.Fatalf("lighting slice floor = %v, want Development", thresholds.Stage.Floor)
 	}
 	var full serveConfig
-	for _, f := range routineFamilies(&full) {
+	for _, f := range roundsFamilies(&full) {
 		*f.Enabled = true
 	}
-	if thresholds, _ := routineCapabilities(full); thresholds.Stage.Floor != policy.StageFoothold {
+	if thresholds, _ := roundsCapabilities(full); thresholds.Stage.Floor != policy.StageFoothold {
 		t.Fatalf("full autopilot floor = %v, want Foothold", thresholds.Stage.Floor)
 	}
 }

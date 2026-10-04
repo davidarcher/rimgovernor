@@ -58,8 +58,8 @@ type scriptedBuildingNative struct {
 	places  int
 }
 
-func newScriptedBuildingNative(t *testing.T, facts *routineNative, generation func() uint64) *scriptedBuildingNative {
-	return &scriptedBuildingNative{sleepingNative: &sleepingNative{routineNative: facts}, t: t, generation: generation, tick: facts.reply.GetObserved().Context.GetTick(), applied: map[domain.ActionID]int{}}
+func newScriptedBuildingNative(t *testing.T, facts *roundsNative, generation func() uint64) *scriptedBuildingNative {
+	return &scriptedBuildingNative{sleepingNative: &sleepingNative{roundsNative: facts}, t: t, generation: generation, tick: facts.reply.GetObserved().Context.GetTick(), applied: map[domain.ActionID]int{}}
 }
 
 func (n *scriptedBuildingNative) context(identity *c.Identity) *c.ObservationContext {
@@ -136,7 +136,7 @@ type controllerRig struct {
 	session  *Session
 	player   *Player
 	reviewer *Rounder
-	planner  *RoutineBuildingPlanner
+	planner  *RoundsBuildingPlanner
 	worker   *Worker
 	native   *scriptedBuildingNative
 	worlds   *playerWorldSource
@@ -151,7 +151,7 @@ func openControllerRig(t *testing.T, path, dir string, authority *controlNative,
 		t.Fatal(err)
 	}
 	// Hang guards only, at the widest bound the constructors accept.
-	config := SessionConfig{RoutineMethods: true, Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Minute}, Executor: executor.Limits{MaxAge: time.Minute, RunTimeout: time.Minute, JournalTimeout: time.Minute}}
+	config := SessionConfig{RoundsMethods: true, Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Minute}, Executor: executor.Limits{MaxAge: time.Minute, RunTimeout: time.Minute, JournalTimeout: time.Minute}}
 	session, err := NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -161,15 +161,15 @@ func openControllerRig(t *testing.T, path, dir string, authority *controlNative,
 	if err != nil {
 		t.Fatal(err)
 	}
-	reviewer, err := NewRounder(player, native.routineNative, testkit.NewManualClock(time.Now()), policy.DefaultRoutinePolicy(), time.Minute)
+	reviewer, err := NewRounder(player, native.roundsNative, testkit.NewManualClock(time.Now()), policy.DefaultRoundsPolicy(), time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
-	planner, err := NewRoutineSleepingPlanner(reviewer, native.sleepingNative)
+	planner, err := NewRoundsSleepingPlanner(reviewer, native.sleepingNative)
 	if err != nil {
 		t.Fatal(err)
 	}
-	worker := &Worker{player: player, session: session, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Minute}, waits: make(map[domain.ActionID]workerWait)}
+	worker := &Worker{player: player, session: session, config: WorkerConfig{RoundsMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Minute}, waits: make(map[domain.ActionID]workerWait)}
 	rig := &controllerRig{db: db, session: session, player: player, reviewer: reviewer, planner: planner, worker: worker, native: native, worlds: worlds, world: world}
 	t.Cleanup(func() { rig.close(t) })
 	return rig
@@ -405,6 +405,6 @@ func TestControllerRefusalIsTerminal(t *testing.T) {
 	}
 }
 
-func (n *scriptedBuildingNative) ReadRoutineFrame(ctx context.Context, id *c.Identity) (bridge.RoutineFrame, error) {
+func (n *scriptedBuildingNative) ReadRoundsFrame(ctx context.Context, id *c.Identity) (bridge.RoundsFrame, error) {
 	return fakeFrame(ctx, n, id)
 }

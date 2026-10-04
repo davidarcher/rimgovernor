@@ -60,20 +60,20 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if !hasWork {
 		return nil
 	}
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}
 	// A stockpile zone is created one per method in this slice, unlike the
 	// bounded batches of growing-field zones EnsureFoodSupply may dispatch.
 	// MaintainResource places the production ladder's ingredient stockpile
-	// beside the bench (routine_ingredient_storage.go, #155: the rung was
+	// beside the bench (rounds_ingredient_storage.go, #155: the rung was
 	// refused here on every live run before it was bound); MaintainAnimalFeed
 	// places the feed stockpile inside the animals' area when no bench is
-	// reachable there (routine_animal_feed.go, #311: refused here the same
+	// reachable there (rounds_animal_feed.go, #311: refused here the same
 	// way until bound); ClearHomeObstructions places the chunk dump
-	// (routine_clearance.go, #394); TidyLayout re-sites one managed field
-	// or stockpile per method (routine_tidy.go, #611: refused here on the
+	// (rounds_clearance.go, #394); TidyLayout re-sites one managed field
+	// or stockpile per method (rounds_tidy.go, #611: refused here on the
 	// first live run until bound).
 	limit := 32
 	needs := []policy.ConcernID{policy.EnsureFoodSupply, policy.MaintainResource, policy.TidyLayout}
@@ -93,7 +93,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		social = need == policy.MaintainResource && !stockpile
 		// MaintainStockpiles creates the missing fixed-role zones and the
 		// opening stockpiles (general, food, dump, weapons) together as one
-		// method (routine_stockpiles.go create). Unbound here, every opening
+		// method (rounds_stockpiles.go create). Unbound here, every opening
 		// create failed this admission with ErrConflict on a live colony.
 		if stockpile && need == policy.MaintainStockpiles {
 			limit = 16

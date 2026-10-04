@@ -212,7 +212,7 @@ func moodUnowned(f domain.Fact[[]MoodThought]) []MoodThought {
 
 // MoodProvisionDeficits reports, per owner goal, the fraction of reviewed
 // pawns whose dominant thought pressure that goal's facility would remove.
-// DetectRoutine raises the owner's development deficit to at least this.
+// DetectRounds raises the owner's development deficit to at least this.
 func MoodProvisionDeficits(h MoodHistory) map[ConcernID]float64 {
 	if len(h.States) == 0 {
 		return nil

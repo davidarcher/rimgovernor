@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestRoutineResourceReachJSON(t *testing.T) {
+func TestRoundsResourceReachJSON(t *testing.T) {
 	for _, tt := range []struct {
 		request policy.ResourceReachRequest
 		reason  string
@@ -18,7 +18,7 @@ func TestRoutineResourceReachJSON(t *testing.T) {
 		{policy.ResourceReachRequest{}, "extent_unknown", false},
 		{policy.ResourceReachRequest{Threat: domain.Known(true), Extent: domain.Known(policy.ColonyExtent{})}, "threat_present", true},
 	} {
-		status := routineStatus(RoutineStatus{ResourceReach: tt.request})
+		status := roundsStatus(RoundsStatus{ResourceReach: tt.request})
 		if status.Extent.Known != tt.known {
 			t.Fatal(status.Extent)
 		}

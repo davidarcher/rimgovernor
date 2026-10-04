@@ -26,7 +26,7 @@ func TestPlanAuthorizerNamesTheRefusal(t *testing.T) {
 	target := root
 	target.Plan, target.Revision = "routine-defense-unknown", 1
 	for _, routine := range []bool{false, true} {
-		err := planAuthorizer{db, routine}.AuthorizeRoutinePlan(context.Background(), root, target)
+		err := planAuthorizer{db, routine}.AuthorizeRoundsPlan(context.Background(), root, target)
 		if !errors.Is(err, ErrUnauthorizedPlan) || !errors.Is(err, store.ErrConflict) {
 			t.Fatalf("routine=%v: err=%v, want ErrUnauthorizedPlan wrapping store.ErrConflict", routine, err)
 		}

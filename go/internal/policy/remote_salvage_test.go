@@ -46,8 +46,8 @@ func TestRemoteSalvageSafetyAndDemand(t *testing.T) {
 // with no steel in stock is demand LootDemand hands the salvage ranking,
 // so ship chunks and steel-yielding ruins score without an operator target.
 func TestLootDemandFromDefaultSteelShortage(t *testing.T) {
-	p := RoutinePolicy{ResourceTargets: DefaultResourceTargets()}
-	f := RoutineFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 0}})}
+	p := RoundsPolicy{ResourceTargets: DefaultResourceTargets()}
+	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 0}})}
 	demand, err := LootDemand(p, f)
 	if err != nil {
 		t.Fatal(err)

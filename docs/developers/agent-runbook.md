@@ -266,7 +266,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `GoalDetector` | Inspection | Checks one Concern. | done (#1968) |
 | `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
 | `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
-| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` event keeps the `routine_review` event name; the SQLite table is `rounds` since #1976). The `Routine*` family follows as `Rounds*`. | done (#1975); family pending #1979 |
+| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` event keeps the `routine_review` event name; the SQLite table is `rounds` since #1976). The whole `Routine*` family is now `Rounds*` (bare `config.Routine` is `config.Rounds`; C# fixtures `Routine*Fixture` became `Rounds*Fixture`). | done (#1975, #1979) |
 | `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | done #1972, #1976 (table `standards`, blob key `standard/<id>`, status words open / settled / voided) |
 | `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | done #1972, #1976 (column and JSON key `episode`) |
 | `Project` | Project | `Open / Completed / Voided`. | done #1972 |

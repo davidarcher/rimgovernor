@@ -31,8 +31,8 @@ func reviewCensus(t *testing.T, s *Store, current domain.GenerationSnapshot, tic
 	if len(blueprints) > 0 {
 		census.Sites = append(census.Sites, policy.ConstructionSite{Building: wall, Stage: "blueprint"})
 	}
-	r := RoundsRequest{Revision: previous.Revision, Current: current, Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
-	if _, err = s.ReviewRoutine(ctx, r); err != nil {
+	r := RoundsRequest{Revision: previous.Revision, Current: current, Tick: tick, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{CurrentConstruction: domain.Known(census)}}
+	if _, err = s.ReviewRounds(ctx, r); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -80,7 +80,7 @@ func TestBuildingDependencyWaitsForCensusBuilt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.ReviewRoutine(ctx, RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: 14, Policy: policy.DefaultRoutinePolicy()}); err != nil {
+	if _, err = s.ReviewRounds(ctx, RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: 14, Policy: policy.DefaultRoundsPolicy()}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Dispatch(ctx, "p", "bed", scope(), 14); err != nil {
@@ -105,8 +105,8 @@ func reviewWalls(t *testing.T, s *Store, tick domain.Tick, walls ...domain.Cell)
 		}
 		census.Buildings = append(census.Buildings, policy.CurrentBuilding{ID: fmt.Sprintf("Wall%d", i), Building: b, Cells: []domain.Cell{c}})
 	}
-	r := RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: tick, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}
-	if _, err = s.ReviewRoutine(ctx, r); err != nil {
+	r := RoundsRequest{Revision: previous.Revision, Current: scope(), Tick: tick, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{CurrentConstruction: domain.Known(census)}}
+	if _, err = s.ReviewRounds(ctx, r); err != nil {
 		t.Fatal(err)
 	}
 }

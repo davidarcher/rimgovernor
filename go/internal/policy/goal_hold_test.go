@@ -5,7 +5,7 @@ import (
 )
 
 func TestPlannerRefusalNamesTheBlock(t *testing.T) {
-	c := GoalProgressContract("", DefaultRoutinePolicy())
+	c := GoalProgressContract("", DefaultRoundsPolicy())
 	p := ReviewGoalProgress(GoalProgress{Goal: EnsureBasicPower, Method: "assess", Planner: "insufficient_verified_space"}, EnsureBasicPower, c, ProgressEvidence{}, 10)
 	if p.Blocked != BlockedPlanner("insufficient_verified_space") || !p.Blocked.Actionable() || ValidateGoalProgress(p, 10) != nil {
 		t.Fatalf("%+v", p)
@@ -22,7 +22,7 @@ func TestPlannerRefusalNamesTheBlock(t *testing.T) {
 // review that recomputes the record keeps the wait.
 func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
 	const text = "waiting for work it already started"
-	c := GoalProgressContract("", DefaultRoutinePolicy())
+	c := GoalProgressContract("", DefaultRoundsPolicy())
 	p := ReviewGoalProgress(GoalProgress{Goal: EnsureComfort, Method: "assess", Planner: text, PlannerWaiting: true}, EnsureComfort, c, ProgressEvidence{}, 10)
 	if p.Blocked != BlockedWaiting(text) || p.Blocked.Actionable() || p.Blocked.Held() || !p.Blocked.Waiting() || ValidateGoalProgress(p, 10) != nil {
 		t.Fatalf("%+v", p)

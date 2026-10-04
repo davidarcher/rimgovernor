@@ -124,14 +124,14 @@ func TestMovementHeldWithoutDraft(t *testing.T) {
 
 // The hold-the-line move belongs to a routine method plan, so it dispatches
 // under the root authority exactly like the draft it depends on (#70).
-func TestMovementDispatchesRoutinePlanUnderRootAuthority(t *testing.T) {
+func TestMovementDispatchesRoundsPlanUnderRootAuthority(t *testing.T) {
 	f, m := newMovementFixture(t)
 	root := f.authority
 	root.Snapshot.Plan = "player-plan"
 	if err := f.executor.UpdateAuthority(root); err != nil {
 		t.Fatal(err)
 	}
-	f.executor.routineScope = routineScopeFunc(func(_ context.Context, actual, target domain.GenerationSnapshot) error {
+	f.executor.roundsScope = roundsScopeFunc(func(_ context.Context, actual, target domain.GenerationSnapshot) error {
 		if actual != root.Snapshot || target != f.authority.Snapshot {
 			return ErrAuthority
 		}

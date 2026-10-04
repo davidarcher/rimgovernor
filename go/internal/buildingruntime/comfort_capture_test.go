@@ -59,7 +59,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The census shows the chair built, so its plan retires (#856).
-	markBuilt(t, db, native.routineNative)
+	markBuilt(t, db, native.roundsNative)
 	if _, err = planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

@@ -78,7 +78,7 @@ func TestSurgeryPartBillOrTrade(t *testing.T) {
 				{DefName: "BionicLeg", TraderCount: 1, BuyPriceKnown: true, BuyPrice: 1500},
 				{DefName: "BionicEye", TraderCount: 2, BuyPriceKnown: true, BuyPrice: 1400},
 			}
-			targets := routineTradeTargets(CoreItemFacts(), n, rows, nil, RoutineTradePolicy{}).Targets
+			targets := roundsTradeTargets(CoreItemFacts(), n, rows, nil, RoundsTradePolicy{}).Targets
 			if len(targets) != len(c.trade) {
 				t.Fatalf("targets %+v", targets)
 			}
@@ -98,23 +98,23 @@ func TestSurgeryPartTradeFallsBackToCarriedItem(t *testing.T) {
 	if len(targets) != 1 || targets[0].Item != "SimpleProstheticLeg" {
 		t.Fatalf("targets %+v", targets)
 	}
-	if got := RoutineTradeTargets(CoreItemFacts(), TradeNeed{SurgeryParts: parts}, rows, nil, RoutineTradePolicy{}, domain.Known[int64](3)); got.Validate() != nil {
+	if got := RoundsTradeTargets(CoreItemFacts(), TradeNeed{SurgeryParts: parts}, rows, nil, RoundsTradePolicy{}, domain.Known[int64](3)); got.Validate() != nil {
 		t.Fatalf("invalid policy %+v: %v", got, got.Validate())
 	}
 }
 
 // A part a bench can fabricate opens no caravan; one no bench can make does (#1255).
 func TestSurgeryPartCaravanSkipsFabricable(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.Resources = domain.Known([]Amount{})
 	f.Traders = domain.Known([]TraderFacts{{ID: "trader", CanTrade: true}})
 	f.MedicalPawns = domain.Known([]CarePawn{surgeryPawn("a", 0, restoreOp("InstallBionicEye", "Eye", 5, 0.9, 1, false))})
 	f.FabricableParts = map[Resource]bool{"BionicEye": true}
-	if got := needs(t, f, RoutineLatches{}); assessedDeficit(got, TradeWithCaravan) {
+	if got := needs(t, f, RoundsLatches{}); assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("a fabricable part opened a caravan", got)
 	}
 	f.FabricableParts = nil
-	if got := needs(t, f, RoutineLatches{}); !assessedDeficit(got, TradeWithCaravan) {
+	if got := needs(t, f, RoundsLatches{}); !assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("a part no bench can make opened no caravan", got)
 	}
 }

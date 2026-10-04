@@ -113,7 +113,7 @@ func TestClockSchedulerTimerStepSkipsPlannersUntilTickMoves(t *testing.T) {
 	}
 	reads := f.reads
 	timer, err := s.StepWithReason(ctx, StepReason{Cause: StepTimer})
-	if timer.Reason.Cause != StepTimer || timer.Reason.TickAdvanced || timer.Planners != nil || timer.Routine != nil || f.reads != reads+1 {
+	if timer.Reason.Cause != StepTimer || timer.Reason.TickAdvanced || timer.Planners != nil || timer.Rounds != nil || f.reads != reads+1 {
 		t.Fatal(timer, err, f.reads-reads)
 	}
 	s.lastFull = time.Time{}

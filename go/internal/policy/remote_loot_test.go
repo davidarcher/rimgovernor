@@ -135,9 +135,9 @@ func TestRemoteLootScoresAgainstDemand(t *testing.T) {
 }
 
 func TestLootDemandAndReachFromFacts(t *testing.T) {
-	p := DefaultRoutinePolicy()
+	p := DefaultRoundsPolicy()
 	p.ResourceTargets = map[Resource]int64{"Steel": 300}
-	f := RoutineFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}})}
+	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 120}, {Resource: "WoodLog", Count: 500}})}
 	demand, err := LootDemand(p, f)
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +146,7 @@ func TestLootDemandAndReachFromFacts(t *testing.T) {
 	if !known || len(rows) != 1 || rows[0].Key.Def != "Steel" || rows[0].Count != 180 {
 		t.Fatal(rows, known)
 	}
-	if demand, err = LootDemand(p, RoutineFacts{}); err != nil {
+	if demand, err = LootDemand(p, RoundsFacts{}); err != nil {
 		t.Fatal(err)
 	} else if _, known = demand.Value(); known {
 		t.Fatal("unknown stock certified demand")

@@ -17,7 +17,7 @@ import (
 // already-observed prisoner gets which write.
 const MaintainPopulation ConcernID = "MaintainPopulation"
 
-// PrisonerPolicy is the slice of RoutinePolicy MaintainPopulation plans
+// PrisonerPolicy is the slice of RoundsPolicy MaintainPopulation plans
 // from. ReleaseAfterDays is how long a prisoner the colony has no use for
 // is fed while the food runway holds FoodTargetDays; below that target it
 // is released at once. Zero releases a useless prisoner at once regardless.
@@ -137,7 +137,7 @@ type PrisonerFacts struct {
 	Kind        string
 }
 
-// PrisonerPlanReason names why RoutinePrisonerInteractionPlanner did or did
+// PrisonerPlanReason names why RoundsPrisonerInteractionPlanner did or did
 // not propose an interaction write.
 type PrisonerPlanReason string
 

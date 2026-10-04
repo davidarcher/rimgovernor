@@ -31,12 +31,12 @@ type Inspection struct {
 	Department Department
 	Inputs     []FactFamily
 	// Inspect appends the Concern's assessment, and its row when owed, to the
-	// run. DetectRoutine runs the inspections in registry order, so the order
+	// run. DetectRounds runs the inspections in registry order, so the order
 	// below is the order of RoundsFindings.Assessments (the stored bindings
 	// are index-aligned); an inspection may read what the shared reviews and
 	// every earlier inspection left on the run, and RecoverDisasterServices
 	// must stay last because it promotes everything filed before it.
-	Inspect func(*routineRun) error
+	Inspect func(*roundsRun) error
 }
 
 // inspections lists every inspection in evaluation order. Inputs name the

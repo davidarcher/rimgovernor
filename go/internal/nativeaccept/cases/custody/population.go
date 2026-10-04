@@ -201,7 +201,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	// personRow reads the prisoner through rimgovernor/observations_read_population,
-	// the same read bridge.ReadRoutinePopulation decodes the current
+	// the same read bridge.ReadRoundsPopulation decodes the current
 	// interaction from.
 	personRow := func(label string) (map[string]any, []string, error) {
 		reply, err := h.Wire(ctx, label, "observations_read_population", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})

@@ -26,6 +26,6 @@ func WealthBudget(raidPoints, capacity domain.Fact[float64], wealth domain.Fact[
 
 // WealthBudget is the headroom from f's raid points, defense capacity and
 // wealth.
-func (f RoutineFacts) WealthBudget() domain.Fact[float64] {
+func (f RoundsFacts) WealthBudget() domain.Fact[float64] {
 	return WealthBudget(f.RaidPoints, f.DefenseCapacity, f.Wealth)
 }

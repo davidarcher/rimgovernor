@@ -57,11 +57,11 @@ func TestClearanceRecoveryUnknownAndIssued(t *testing.T) {
 }
 
 func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.Upkeep.Clearance = domain.Known([]ClearanceTarget{{EntityID: "ruin", InHome: true, Deconstructible: true}})
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{{ID: "door", Home: true, HitPoints: 50, MaxHitPoints: 100}})
 	f.Upkeep.Filth = domain.Unknown[[]UpkeepFilth]()
-	previous := RoutineLatches{Upkeep: UpkeepHistory{Cleaning: true}}
+	previous := RoundsLatches{Upkeep: UpkeepHistory{Cleaning: true}}
 	check := func(repair bool) {
 		r := needs(t, f, previous)
 		found := map[ConcernID]bool{}

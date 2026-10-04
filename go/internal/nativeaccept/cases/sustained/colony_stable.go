@@ -170,7 +170,7 @@ func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report
 	// Use the controller's combined diet/rot/animal-feed forecast and
 	// seasonal target, not the census's simple nutrition/demand ratio.
 	days, known := projection.Facts.FoodDays.Value()
-	target := policy.DefaultRoutinePolicy().Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays
+	target := policy.DefaultRoundsPolicy().Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays
 	report["stable_food"] = map[string]any{"food_days": days, "food_target_days": target}
 	if !known || days < target {
 		return fmt.Errorf("final food days %v (known=%v) below FoodTargetDays %v", days, known, target)

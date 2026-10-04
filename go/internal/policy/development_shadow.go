@@ -43,7 +43,7 @@ type ForwardObserved struct {
 }
 
 // ForwardInputsOf assembles the projector inputs from the routine facts.
-func ForwardInputsOf(f RoutineFacts, p RoutinePolicy) ForwardInputs {
+func ForwardInputsOf(f RoundsFacts, p RoundsPolicy) ForwardInputs {
 	in := ForwardInputs{Power: f.Forward.Power, Sleeping: SleepingRange{Min: f.SleepingMin, Max: f.SleepingMax}, Conditions: f.DisasterConditions, Turrets: f.Forward.Turrets, Policy: p}
 	if supply, known := f.AnimalUpkeep.Food.Value(); known {
 		in.Food = supply

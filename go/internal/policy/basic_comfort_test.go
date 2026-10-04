@@ -62,7 +62,7 @@ func TestComfortFootholdComesFromTheCensus(t *testing.T) {
 }
 
 func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.BasicComfort = domain.Known(ComfortObservation{People: []PawnID{"a"}})
 	find := func(needs RoundsFindings) (DevelopmentGoal, bool) {
 		for _, g := range needs.Goals {
@@ -72,7 +72,7 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 		}
 		return DevelopmentGoal{}, false
 	}
-	needs, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
+	needs, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 	// While the initial shelter is owed there is nothing to furnish: the
 	// goal stays assessed but holds no method.
 	f.IndoorCapacity = domain.Known[int64](0)
-	needs, err = DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
+	needs, err = DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 	}
 	f.IndoorCapacity = domain.Known[int64](8)
 	f.BasicComfort = domain.Known(providedComfort("a"))
-	needs, err = DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
+	needs, err = DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

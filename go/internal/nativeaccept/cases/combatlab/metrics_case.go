@@ -249,7 +249,7 @@ func serveUntil(ctx context.Context, service *na.ServiceProcess, until int) (int
 // layout record for the staged world, into the save's governor state: the
 // service rebuilds its family tables from the save on the world change
 // (#1005), so combat reads it as the colony's standing layout
-// (routine_defense.go, LoadDefenseLayout). A row written into the journal
+// (rounds_defense.go, LoadDefenseLayout). A row written into the journal
 // before the serve was wiped by that rebuild (#1152).
 func storeLayout(ctx context.Context, h *na.Harness, identity map[string]any, l Layout) (store.DefenseLayoutRecord, error) {
 	typed, err := typedIdentity(identity)

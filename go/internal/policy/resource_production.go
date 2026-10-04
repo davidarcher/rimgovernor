@@ -12,7 +12,7 @@ import (
 // MaintainResource-* pure primitives:
 // ingredient deficits, mining progress, resource method,
 // and stock selection. The dispatch vertical built on top of these
-// (buildingruntime.RoutineResourcePlanner) is a single
+// (buildingruntime.RoundsResourcePlanner) is a single
 // config-only policy.MaintainResource goal, mirroring EnsureResearch's
 // posture, whose method is a generic bench/recipe StockTarget production
 // bill exactly like GearProduce/MaintainMedicalReserves dispatch through.
@@ -298,7 +298,7 @@ type ResourceTarget struct {
 }
 
 // SelectResourceTarget performs MaintainResource's dynamic-target selection:
-// given every operator-configured resource target (RoutinePolicy's future
+// given every operator-configured resource target (RoundsPolicy's future
 // ResourceTargets, one native stock floor per definition) and a fresh native
 // stock census, it picks the single resource whose stock is furthest below
 // its own target (by proportion, so a small target is not starved behind a

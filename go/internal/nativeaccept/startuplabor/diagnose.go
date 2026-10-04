@@ -52,7 +52,7 @@ type World struct {
 }
 
 // Slot is the review's own ranking row for the goal (the durable
-// RoutineDevelopmentRow), as the diagnosis reads it.
+// RoundsDevelopmentRow), as the diagnosis reads it.
 type Slot struct {
 	Reason              policy.DevelopmentReason
 	Bottleneck          policy.WorkType

@@ -271,7 +271,7 @@ scope and world, not the native generation, which moves with every stopped
 window. A goal epoch with no cooler method of its own (a freezer that settled
 in an earlier epoch and re-latched when the season warmed, or a cooler the
 player set) lends the same allowance from the tick the refrigeration latch
-engaged (`RoutineLatches.RefrigerationSince`), so a second cooler is still
+engaged (`RoundsLatches.RefrigerationSince`), so a second cooler is still
 proposed once it elapses; that lent time never covers `cooler_power_needed`,
 since no cooler is settling. Either allowance is lent one game hour (2500
 ticks) per window: a cooler exchanges heat every 250 ticks and the review
@@ -429,7 +429,7 @@ Beside the cache the scheduler keeps one `facts.Store` (`go/internal/facts`,
 `research`, `pawns`, `emergency`, `rooms`, `zones`, `buildings`), each held
 with the tick its reply described (`AsOf`), whether it covers the whole
 section and the method that produced it. Every rounds files the
-sections it decoded (`observation.RoutineReading.Sections`) and the
+sections it decoded (`observation.RoundsReading.Sections`) and the
 admission's emergency census is filed from the step's bundle; the store
 follows the cache's scope rule (a new (load, generation) empties it) and
 the same typed-event discards, by family (`facts.Section.Family`). Every
@@ -493,7 +493,7 @@ publishes the frame's colony facts (one section per
 every spawned pawn keyed by pawn id, #1343), its things table (section
 `things`, every thing a food stock references, keyed by thing id) and the bench census (`benches`, each bench's
 bills and recipes, keyed by bench thing id), and retains its census for
-the step's planners (`routineCensus`): a planner of the same load, map
+the step's planners (`roundsCensus`): a planner of the same load, map
 and native generation plans from it at any tick at or after the review,
 paused or running, until committed clock evidence invalidates it; the
 work planner serves the review's bench table the same way. There is no
@@ -614,7 +614,7 @@ attempts of its kinds it found (`plannerQueue.waits`): it is not selected
 again until one of them reaches its outcome row, its own next review tick
 passes, or a full step runs, and a step that skips it lists it under
 `waiting`. The rounder runs before any planner wave; its retained
-census is retired by any typed-event invalidation (`routineCensusStore`
+census is retired by any typed-event invalidation (`roundsCensusStore`
 generation) so a same-tick reuse never serves facts an event made stale.
 
 Every routine result embeds one `Verdict` (`buildingruntime/outcome.go`): an

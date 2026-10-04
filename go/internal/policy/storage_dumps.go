@@ -31,7 +31,7 @@ type DumpStore struct {
 // apparel and the worn-out garments pawns will shed for the worn dump,
 // spoiled items and rotting animal corpses for the rotten dump, humanlike
 // corpses for the corpse dump, exposed fresh animal corpses for the fresh dump. An unknown census counts nothing.
-func DumpNeeds(facts RoutineFacts) map[string]int {
+func DumpNeeds(facts RoundsFacts) map[string]int {
 	needs := map[string]int{}
 	if gear, ok := facts.Gear.Value(); ok {
 		if stored, ok := gear.Stored.Value(); ok {

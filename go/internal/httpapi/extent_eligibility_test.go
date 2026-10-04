@@ -9,12 +9,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestRoutineExtentEligibilityJSON(t *testing.T) {
-	r := RoutineStatus{ExtentEligibility: policy.ExtentEligibilityRequest{
+func TestRoundsExtentEligibilityJSON(t *testing.T) {
+	r := RoundsStatus{ExtentEligibility: policy.ExtentEligibilityRequest{
 		Extent:     domain.Known(policy.ColonyExtent{Regions: []policy.ExtentRegion{{Cells: []policy.ExtentCell{{Provenance: []policy.ExtentProvenance{{Origin: policy.ExtentFacility, Facility: "bed"}}}}}}}),
 		Facilities: domain.Known([]string{}), Threat: domain.Known(true),
 	}}
-	b, err := json.Marshal(routineStatus(r))
+	b, err := json.Marshal(roundsStatus(r))
 	if err != nil {
 		t.Fatal(err)
 	}

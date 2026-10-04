@@ -44,7 +44,7 @@ type Config struct {
 	PresentationMedia            PresentationMediaWriter
 	Notifications                NotificationReader
 	ClockReview                  ClockReview
-	Routines                     RoutineProvider
+	Routines                     RoundsProvider
 	ColonyStatus                 ColonyStatus
 	Lifecycle                    LifecycleWriter
 	// Attention, when set, lets a lifecycle mutation clear one blocking

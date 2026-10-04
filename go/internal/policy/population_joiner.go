@@ -43,7 +43,7 @@ type QuestFavor struct {
 	Favor  int32
 }
 
-// JoinerPlanReason names why RoutinePopulationJoinerPlanner did or did not
+// JoinerPlanReason names why RoundsPopulationJoinerPlanner did or did not
 // propose a quest acceptance.
 type JoinerPlanReason string
 
@@ -308,7 +308,7 @@ func SelectEmpireQuestMethod(offers domain.Fact[[]JoinerOffer], claims ...domain
 // JoinerCapacity is the slice of a review's facts JoinerCapacity measures:
 // the population census, the sleeping census, the population food runway
 // (falling back to the stock runway, as the foothold food gate does).
-func (f RoutineFacts) JoinerCapacity() JoinerCapacityFacts {
+func (f RoundsFacts) JoinerCapacity() JoinerCapacityFacts {
 	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: f.FoodDays}
 }
 

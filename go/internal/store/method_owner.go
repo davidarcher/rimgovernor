@@ -107,12 +107,12 @@ func (g StandardState) ownerPlans() []domain.PlanID {
 }
 func (g StandardState) ownerLabel() string { return "goal " + string(g.Standard.ID) }
 
-// admitRoutineSafeguards is method admission's backstop for the Safeguards the
+// admitRoundsSafeguards is method admission's backstop for the Safeguards the
 // planner already asked: a vetoed proposal is ErrNotAdmitted with the
 // Safeguard's reason. An owner the review does not bind (a player goal) is
 // outside the routine Safeguards.
-func admitRoutineSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
-	review, err := loadRoutine(ctx, tx)
+func admitRoundsSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ type ForwardInputs struct {
 	Sleeping   SleepingRange
 	Conditions domain.Fact[[]DisasterCondition]
 	Turrets    domain.Fact[[]DefenseTurretFacts]
-	Policy     RoutinePolicy
+	Policy     RoundsPolicy
 }
 
 // SleepingRange is the coldest and hottest observed sleeping-room temperature.

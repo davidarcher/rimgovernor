@@ -81,9 +81,9 @@ func TestRecreationSelectionUsesNativeKindAndAvailability(t *testing.T) {
 }
 
 func TestRecreationVarietyRanksAsMaintenance(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.BasicComfort = domain.Known(joyComfort("a", "b"))
-	r, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
+	r, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

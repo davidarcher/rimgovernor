@@ -60,7 +60,7 @@ func TestGearAllocatedStockCannotSatisfyAnotherBillGap(t *testing.T) {
 }
 
 func TestGearSparesUseResourceGoalAndCoveredStorage(t *testing.T) {
-	p := RoutinePolicy{GearSpareTargets: map[Resource]int64{"Apparel_BasicShirt": 3}}
+	p := RoundsPolicy{GearSpareTargets: map[Resource]int64{"Apparel_BasicShirt": 3}}
 	targets, err := p.EffectiveResourceTargets(domain.Known([]Amount{}), nil)
 	if err != nil || targets["Apparel_BasicShirt"] != 3 || !p.ResourceGoalConfigured() || !p.TracksResource(CoreItemFacts(), "Apparel_BasicShirt") {
 		t.Fatal(targets, err)

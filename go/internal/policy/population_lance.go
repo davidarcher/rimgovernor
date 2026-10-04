@@ -41,7 +41,7 @@ func lanceScore(p PrisonerProspect) int {
 
 // LanceTarget is LanceCandidate while some colonist wears a lance (f.Gear):
 // the review's MaintainPopulation deficit.
-func LanceTarget(f RoutineFacts) domain.PawnID {
+func LanceTarget(f RoundsFacts) domain.PawnID {
 	if !lanceWorn(f.Gear) {
 		return ""
 	}
@@ -54,7 +54,7 @@ func LanceTarget(f RoutineFacts) domain.PawnID {
 // lowest pawn ID. It is "" when the colony is at target, its size is
 // unknown or no row qualifies. Who wears a lance is the planner's combat
 // read (SelectLanceUse).
-func LanceCandidate(f RoutineFacts) domain.PawnID {
+func LanceCandidate(f RoundsFacts) domain.PawnID {
 	colony, known := f.PrisonerColony.Value()
 	if !known || colony.Colonists >= domain.PopulationTarget {
 		return ""

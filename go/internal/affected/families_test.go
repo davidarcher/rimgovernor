@@ -14,36 +14,36 @@ import (
 
 // The table names every routine_*.go source that owns a family, no file
 // that does not exist, and exactly serve's family list.
-func TestRoutineFamilyFilesCoverFamilies(t *testing.T) {
+func TestRoundsFamilyFilesCoverFamilies(t *testing.T) {
 	r := repo(t)
 	dir := filepath.Join(r, "go", buildingruntimeDir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	shared := map[string]bool{"routine_food_plan.go": true, "routine_census.go": true, "routine_yield.go": true, "routine_work_projects.go": true, "routine_sleeping.go": true, "routine_idle_draft.go": true, "routine_resource_runway.go": true}
+	shared := map[string]bool{"rounds_food_plan.go": true, "rounds_census.go": true, "rounds_yield.go": true, "rounds_work_projects.go": true, "rounds_sleeping.go": true, "rounds_idle_draft.go": true, "rounds_resource_runway.go": true}
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasPrefix(name, "routine_") || strings.HasSuffix(name, "_test.go") || !strings.HasSuffix(name, ".go") {
 			continue
 		}
-		if _, ok := routineFamilyFiles[name]; !ok && !shared[name] {
-			t.Errorf("%s is neither in routineFamilyFiles nor a known shared routine file", name)
+		if _, ok := roundsFamilyFiles[name]; !ok && !shared[name] {
+			t.Errorf("%s is neither in roundsFamilyFiles nor a known shared routine file", name)
 		}
 	}
-	for name := range routineFamilyFiles {
+	for name := range roundsFamilyFiles {
 		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
-			t.Errorf("routineFamilyFiles names %s: %v", name, err)
+			t.Errorf("roundsFamilyFiles names %s: %v", name, err)
 		}
 	}
-	got := routineFamilyNames()
+	got := roundsFamilyNames()
 	want := serveFamilies(t, filepath.Join(r, "go", "cmd", "rimgovernor", "serve.go"))
 	if !slices.Equal(got, want) {
 		t.Errorf("table families %v\nserve families %v", got, want)
 	}
 }
 
-// serveFamilies reads the routineFamilies table's names from serve.go.
+// serveFamilies reads the roundsFamilies table's names from serve.go.
 func serveFamilies(t *testing.T, path string) []string {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -54,7 +54,7 @@ func serveFamilies(t *testing.T, path string) []string {
 	var names []string
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "routineFamilies" {
+		if !ok || fn.Name.Name != "roundsFamilies" {
 			continue
 		}
 		ast.Inspect(fn.Body, func(n ast.Node) bool {
@@ -69,7 +69,7 @@ func serveFamilies(t *testing.T, path string) []string {
 		})
 	}
 	if len(names) == 0 {
-		t.Fatalf("no routineFamilies table in %s", path)
+		t.Fatalf("no roundsFamilies table in %s", path)
 	}
 	sort.Strings(names)
 	return names
@@ -79,23 +79,23 @@ func serveFamilies(t *testing.T, path string) []string {
 // files use scopes to that family; one a shared file uses, or that shared
 // helpers spread through the package, is every family; a test file or a
 // file outside buildingruntime never scopes.
-func TestRoutineFamilyScope(t *testing.T) {
+func TestRoundsFamilyScope(t *testing.T) {
 	goDir := filepath.Join(repo(t), "go")
 	cases := []struct {
 		file string
 		want familyScope
 	}{
-		{"go/internal/buildingruntime/routine_lighting.go", familyScope{Families: []string{"lighting"}}},
-		{"go/internal/buildingruntime/routine_refrigeration.go", familyScope{Families: []string{"refrigeration"}}},
-		{"go/internal/buildingruntime/routine_repair_stale.go", familyScope{Families: []string{"repair"}}},
-		{"go/internal/buildingruntime/routine_sleeping.go", familyScope{All: true}},
-		{"go/internal/buildingruntime/routine_shelter.go", familyScope{All: true}},
+		{"go/internal/buildingruntime/rounds_lighting.go", familyScope{Families: []string{"lighting"}}},
+		{"go/internal/buildingruntime/rounds_refrigeration.go", familyScope{Families: []string{"refrigeration"}}},
+		{"go/internal/buildingruntime/rounds_repair_stale.go", familyScope{Families: []string{"repair"}}},
+		{"go/internal/buildingruntime/rounds_sleeping.go", familyScope{All: true}},
+		{"go/internal/buildingruntime/rounds_shelter.go", familyScope{All: true}},
 		{"go/internal/buildingruntime/clock_scheduler.go", familyScope{All: true}},
-		{"go/internal/buildingruntime/routine_lighting_test.go", familyScope{All: true}},
+		{"go/internal/buildingruntime/rounds_lighting_test.go", familyScope{All: true}},
 		{"go/internal/policy/lighting.go", familyScope{All: true}},
 	}
 	for _, tc := range cases {
-		got, err := routineFamilyScope(goDir, tc.file)
+		got, err := roundsFamilyScope(goDir, tc.file)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -106,7 +106,7 @@ func TestRoutineFamilyScope(t *testing.T) {
 	// A file whose declarations other family files use scopes to the union
 	// of their families, not every family. (medical_retry's attempt counter
 	// is used by shared files too, so it is all-areas.)
-	got, err := routineFamilyScope(goDir, "go/internal/buildingruntime/routine_armory.go")
+	got, err := roundsFamilyScope(goDir, "go/internal/buildingruntime/rounds_armory.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,12 +153,12 @@ func TestReadAreaProfile(t *testing.T) {
 // family, with the reason; a scheduler change selects every area hosting
 // the binary and no bridge-only area; a buildingruntime test change
 // selects no area.
-func TestSelectScopesRoutineFamilies(t *testing.T) {
+func TestSelectScopesRoundsFamilies(t *testing.T) {
 	if testing.Short() {
 		t.Skip("slow: runs under cmd/test -full and nightly")
 	}
 	r := repo(t)
-	sel, err := Select(r, []string{"go/internal/buildingruntime/routine_lighting.go"})
+	sel, err := Select(r, []string{"go/internal/buildingruntime/rounds_lighting.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestSelectScopesRoutineFamilies(t *testing.T) {
 	if !slices.Contains(want, "lifecycle") || !slices.Equal(sel.Cases, want) {
 		t.Errorf("lighting change selected %v, want %v", sel.Cases, want)
 	}
-	if why := sel.Why["light"]; len(why) != 1 || !strings.Contains(why[0], "routine family lighting changed (go/internal/buildingruntime/routine_lighting.go) and the area composes it") {
+	if why := sel.Why["light"]; len(why) != 1 || !strings.Contains(why[0], "routine family lighting changed (go/internal/buildingruntime/rounds_lighting.go) and the area composes it") {
 		t.Errorf("light why = %v", why)
 	}
 	if why := sel.Why["lifecycle"]; len(why) != 1 || !strings.HasSuffix(why[0], "composes every family") {

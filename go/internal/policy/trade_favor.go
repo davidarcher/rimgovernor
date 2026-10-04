@@ -22,7 +22,7 @@ func IsTributeCollector(t TraderFacts) bool { return t.Kind == TributeCollectorK
 // FavorGoldKeep is the gold a favor sale never sells below: the largest of
 // the resource target, the economic floor (construction commitments) and the
 // retained minimum the wealth-surplus rule already keeps.
-func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, p RoutineTradePolicy) int64 {
+func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, p RoundsTradePolicy) int64 {
 	retained := p.RetainedMinimum
 	if retained == nil {
 		retained = DefaultTradeRetainedMinimum()
@@ -33,7 +33,7 @@ func FavorGoldKeep(targets map[Resource]int64, floors map[string]int64, p Routin
 // FavorGoldNeed adds the favor-sale reason to the need: a tribute collector
 // is present or arriving and the known gold stock exceeds FavorGoldKeep.
 // Unknown traders, stock or need add nothing.
-func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFacts], resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, p RoutineTradePolicy) domain.Fact[TradeNeed] {
+func FavorGoldNeed(need domain.Fact[TradeNeed], traders domain.Fact[[]TraderFacts], resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, p RoundsTradePolicy) domain.Fact[TradeNeed] {
 	n, nk := need.Value()
 	rows, tk := traders.Value()
 	stock, sk := resources.Value()
@@ -82,7 +82,7 @@ func FavorPrisonersHeld(ideology IdeologyRead) bool {
 // would enslave and not one the organ harvest or part recovery would cut
 // (judged row by row against the surgery planner's needs). Empty while any
 // needed fact is unknown or the precepts do not plainly allow the sale.
-func (f RoutineFacts) SurplusPrisoners(silverShort bool) map[string]bool {
+func (f RoundsFacts) SurplusPrisoners(silverShort bool) map[string]bool {
 	rows, rk := f.Prisoners.Value()
 	colony, ck := f.PrisonerColony.Value()
 	if _, mk := f.MedicalPawns.Value(); !rk || !ck || !mk || FavorPrisonersHeld(f.IdeologyRead()) {

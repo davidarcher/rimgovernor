@@ -42,12 +42,12 @@ func TestUnsafeLootIsNotEmergencyPriority(t *testing.T) {
 	}{
 		{true, true, true, 2}, {false, false, true, 2}, {false, false, false, 2},
 	} {
-		f := RoutineFacts{EventLoot: domain.Known([]LootItem{{Forbidden: tc.forbidden, SafeToHaul: tc.safe, SafetyKnown: tc.known}})}
+		f := RoundsFacts{EventLoot: domain.Known([]LootItem{{Forbidden: tc.forbidden, SafeToHaul: tc.safe, SafetyKnown: tc.known}})}
 		if got := supplySafetyPriority(f); got != tc.priority {
 			t.Fatalf("%+v: priority %d", tc, got)
 		}
 	}
-	if supplySafetyPriority(RoutineFacts{}) != 4 {
+	if supplySafetyPriority(RoundsFacts{}) != 4 {
 		t.Fatal("unavailable safety must not hold unrelated work")
 	}
 }

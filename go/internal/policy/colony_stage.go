@@ -135,7 +135,7 @@ type ColonyStageFacts struct {
 // ColonyStagePolicy holds the stage thresholds. Each transition has an
 // enter threshold and a laxer exit threshold so a colony oscillating around
 // one does not flip stage each review. Zero fields take the defaults
-// (RoutinePolicy.Stages).
+// (RoundsPolicy.Stages).
 type ColonyStagePolicy struct {
 	// FootholdExitDays is the food runway Foothold needs to exit;
 	// ReserveEnterDays the runway Reserves needs to exit; ReserveExitDays
@@ -150,7 +150,7 @@ type ColonyStagePolicy struct {
 	// it. DevelopmentTicks is how long Stable must hold to enter
 	// Development.
 	StableTicks, StableExitTicks, DevelopmentTicks domain.Tick
-	// Floor is the lowest stage whose goals and budgets StageRoutinePolicy
+	// Floor is the lowest stage whose goals and budgets StageRoundsPolicy
 	// applies, whatever the measured stage: a developed colony loaded
 	// mid-game, or a test of a later stage's planner, skips the ladder.
 	// Zero (Foothold) is no floor; the record keeps the measured stage.
@@ -162,7 +162,7 @@ type ColonyStagePolicy struct {
 // every stage above Foothold drops under two thirds of FootholdFoodDays; Development at twice the target, dropped under
 // it; two days of unblocked production and three stable days for
 // Development, one blocked day to drop Stable.
-func (p RoutinePolicy) Stages() ColonyStagePolicy {
+func (p RoundsPolicy) Stages() ColonyStagePolicy {
 	s := p.Stage
 	if s.FootholdExitDays <= 0 {
 		s.FootholdExitDays = p.FootholdFoodDays
@@ -381,7 +381,7 @@ func ProductionBlockedGoal(progress []GoalProgress) (ConcernID, BlockedReason) {
 // facts read live, the food runway, the wood latch, the built
 // research bench, the season, the doctors and the production goals'
 // progress records.
-func StageColonyFacts(needs RoundsFindings, f RoutineFacts, p RoutinePolicy, progress []GoalProgress) ColonyStageFacts {
+func StageColonyFacts(needs RoundsFindings, f RoundsFacts, p RoundsPolicy, progress []GoalProgress) ColonyStageFacts {
 	facts := ColonyStageFacts{
 		Shelter: allFacts(footholdShelter(f), footholdSleeping(f)), Cooking: f.Cooking, FoodStorage: f.FoodStorage, Armed: footholdArmed(f),
 		FoodDays:  f.FoodDays,
@@ -496,11 +496,11 @@ func StageGoalStallScale(stage ColonyStage) float64 {
 	return 1
 }
 
-// StageRoutinePolicy is p with its budgets set by the stage: the research
+// StageRoundsPolicy is p with its budgets set by the stage: the research
 // ladder (StageResearchLadder) and the goal-progress stall
 // deadline (StageGoalStallScale over GoalStallTicks). A stage that has not
 // been reviewed yet (the zero record) is Foothold.
-func StageRoutinePolicy(p RoutinePolicy, stage ColonyStage) RoutinePolicy {
+func StageRoundsPolicy(p RoundsPolicy, stage ColonyStage) RoundsPolicy {
 	if !stage.valid() {
 		stage = StageFoothold
 	}

@@ -80,7 +80,7 @@ const (
 	// bunk rungs, which do not hold the ring itself (#641).
 	WaitBunksOpen RefusalKind = "shelter_bunks_open"
 	// WaitBreachHeld: the shrine planner holds while every target shrine holds;
-	// RoutineShrineResult.Hold carries the reason.
+	// RoundsShrineResult.Hold carries the reason.
 	WaitBreachHeld RefusalKind = "breach_held"
 	// WaitComfortUse: native comfort use has to happen first.
 	WaitComfortUse RefusalKind = "waiting_for_native_comfort_use"
@@ -408,7 +408,7 @@ var (
 	// row's proposal outcome names the claim.
 	BuildingReasonWaiting = waitOn(WaitClaim)
 	// BuildingReasonHeld is the shrine planner's answer while every target
-	// shrine holds; RoutineShrineResult.Hold carries the reason.
+	// shrine holds; RoundsShrineResult.Hold carries the reason.
 	BuildingReasonHeld               = waitOn(WaitBreachHeld)
 	BuildingComfortWait              = waitOn(WaitComfortUse)
 	BuildingTemperatureWait          = waitOn(WaitRoomTemperature)

@@ -15,25 +15,25 @@ import (
 )
 
 type SessionConfig struct {
-	RoutineMethods bool
-	Control        ControlConfig
-	Executor       executor.Limits
-	Clock          *ClockCapabilities
-	Haul           *haul.HaulCapabilities
-	Movement       *MovementCapabilities
-	Trade          *TradeCapabilities
+	RoundsMethods bool
+	Control       ControlConfig
+	Executor      executor.Limits
+	Clock         *ClockCapabilities
+	Haul          *haul.HaulCapabilities
+	Movement      *MovementCapabilities
+	Trade         *TradeCapabilities
 }
 
 // Session binds the single profile owner to one journal and executor. Its caller
 // owns bridge/database handles and may close them only after Close succeeds.
 // Only an explicit trusted player path may call Acquire or create submitted plans.
 type Session struct {
-	routineMethods bool
-	control        *Control
-	executor       *executor.Executor
-	journal        *store.Store
-	clock          *ClockCoordinator
-	clockWorkers   *clockWorkerSlot
+	roundsMethods bool
+	control       *Control
+	executor      *executor.Executor
+	journal       *store.Store
+	clock         *ClockCoordinator
+	clockWorkers  *clockWorkerSlot
 }
 
 type sessionSink struct {
@@ -113,7 +113,7 @@ func (s sessionBuildingLeases) Lease(target domain.GenerationSnapshot) (string, 
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
-	if err := (planAuthorizer{s.journal, s.routine}).AuthorizeRoutinePlan(ctx, root.Snapshot, target); err != nil {
+	if err := (planAuthorizer{s.journal, s.routine}).AuthorizeRoundsPlan(ctx, root.Snapshot, target); err != nil {
 		return "", err
 	}
 	return s.control.Lease(root.Snapshot)
@@ -157,7 +157,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	sink.mu.Lock()
 	sink.control = control
 	sink.mu.Unlock()
-	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+	place, err := boundary.NewBoundary(native, writer, sessionBuildingLeases{control, journal, config.RoundsMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 	if err != nil {
 		return cleanup(err)
 	}
@@ -172,7 +172,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(fmt.Errorf("%w: NewSession: config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil)", ErrControl))
 	}
-	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
+	routine := []executor.RoundsScope{planAuthorizer{journal, config.RoundsMethods}}
 	if moves != nil {
 		worker, err = executor.NewWithMovement(journal, place, moves, clock, config.Executor, routine...)
 	} else {
@@ -191,7 +191,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 
 	if config.Haul != nil {
-		haulBoundary, err := haul.NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock)
+		haulBoundary, err := haul.NewHaulBoundary(config.Haul.Native, config.Haul.Writer, sessionBuildingLeases{control, journal, config.RoundsMethods, config.Executor.JournalTimeout}, clock)
 		if err != nil {
 			return cleanup(err)
 		}
@@ -212,7 +212,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{routineMethods: config.RoutineMethods, control: control, executor: worker, journal: journal, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{roundsMethods: config.RoundsMethods, control: control, executor: worker, journal: journal, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
@@ -276,4 +276,4 @@ func (s *Session) RunBatch(ctx context.Context, plan domain.PlanID, actions []do
 }
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }
 
-func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
+func (s *Session) RoundsMethodsEnabled() bool { return s.roundsMethods }

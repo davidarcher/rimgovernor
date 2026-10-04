@@ -13,7 +13,7 @@ import (
 
 // countingSurvey counts the survey reads.
 type countingSurvey struct {
-	observation.RoutineSource
+	observation.RoundsSource
 	survey policy.MapSurvey
 	reads  *int
 }

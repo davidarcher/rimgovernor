@@ -15,7 +15,7 @@ import (
 
 func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sleepingNative {
 	t.Helper()
-	n := schedulerRoutine(t, s, f)
+	n := schedulerRounds(t, s, f)
 	_, _, _, _, template := sleepingFixture(t)
 	planning := proto.Clone(template.reply.GetObserved().Planning.GetObserved()).(*o.PlanningFacts)
 	n.catalog = template.catalog
@@ -25,8 +25,8 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	n.cells = &window
 	n.reply.GetObserved().Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Observed{Observed: planning}}
 	n.reply.GetObserved().Center = proto.Clone(template.reply.GetObserved().Center).(*c.Cell)
-	source := &sleepingNative{routineNative: n}
-	planner, err := NewRoutineSleepingPlanner(s.config.Routine, source)
+	source := &sleepingNative{roundsNative: n}
+	planner, err := NewRoundsSleepingPlanner(s.config.Rounds, source)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestSchedulerFailedSleepingPreviewIsIsolated(t *testing.T) {
 	n := schedulerSleeping(t, s, f)
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) { p.Preview.Snapshot.Native++ }
 	result, err := s.Step(context.Background())
-	if err != nil || result.Routine == nil || result.Sleeping != nil || f.writes != 1 {
+	if err != nil || result.Rounds == nil || result.Sleeping != nil || f.writes != 1 {
 		t.Fatal(result, err, f.writes)
 	}
 	if len(result.PlannerFailures) != 1 || !strings.HasPrefix(result.PlannerFailures[0].Error(), "sleeping: ") {
@@ -92,7 +92,7 @@ func TestSchedulerRejectsSleepingWithoutMatchingReviewer(t *testing.T) {
 	if _, err := NewClockScheduler(s.player, s.session, f, config, s.clock); err == nil {
 		t.Fatal("sleeping without reviewer accepted")
 	}
-	schedulerRoutine(t, s, f)
+	schedulerRounds(t, s, f)
 	config = s.config
 	config.Sleeping = other
 	if _, err := NewClockScheduler(s.player, s.session, f, config, s.clock); err == nil {
@@ -117,11 +117,11 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	config := s.config
 	config.Sleeping = nil
 	var err error
-	config.Cooking, err = NewRoutineCookingPlanner(config.Routine, n)
+	config.Cooking, err = NewRoundsCookingPlanner(config.Rounds, n)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err = NewClockScheduler(s.player, s.session, windowedScheduler{f, n.routineNative}, config, s.clock)
+	s, err = NewClockScheduler(s.player, s.session, windowedScheduler{f, n.roundsNative}, config, s.clock)
 	if err != nil {
 		t.Fatal(err)
 	}

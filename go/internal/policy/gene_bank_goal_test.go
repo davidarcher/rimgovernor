@@ -8,9 +8,9 @@ import (
 
 func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	t.Parallel()
-	f := stableRoutine()
+	f := stableRounds()
 	f.GeneBankOwed = domain.Unknown[bool]()
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.FindingUnclear {
 		t.Fatal("no gene-bank fact: an unknown assessment and no goal", r)
 	}
@@ -20,7 +20,7 @@ func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if !hasNeed(r, MaintainGeneBank) {
 		t.Fatal("an owed bank opens the goal", r)
 	}
-	if got, _ := RoutineDevelopmentDeficit(MaintainGeneBank, f, RoutinePolicy{}).Value(); got != 1 {
+	if got, _ := RoundsDevelopmentDeficit(MaintainGeneBank, f, RoundsPolicy{}).Value(); got != 1 {
 		t.Fatal("owed is a full deficit", got)
 	}
 	f.GeneBankOwed = domain.Known(false)
@@ -28,11 +28,11 @@ func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.FindingMet {
 		t.Fatal("no bank owed settles the goal", r)
 	}
-	if got, ok := RoutineDevelopmentDeficit(MaintainGeneBank, f, RoutinePolicy{}).Value(); !ok || got != 0 {
+	if got, ok := RoundsDevelopmentDeficit(MaintainGeneBank, f, RoundsPolicy{}).Value(); !ok || got != 0 {
 		t.Fatal("none owed is no deficit", got, ok)
 	}
 	f.GeneBankOwed = domain.Unknown[bool]()
-	if _, ok := RoutineDevelopmentDeficit(MaintainGeneBank, f, RoutinePolicy{}).Value(); ok {
+	if _, ok := RoundsDevelopmentDeficit(MaintainGeneBank, f, RoundsPolicy{}).Value(); ok {
 		t.Fatal("an unread need is an unknown deficit")
 	}
 }

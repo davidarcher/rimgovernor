@@ -216,7 +216,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if !released {
 		return fmt.Errorf("facility %s still latched after %d plans", facility, len(plans))
 	}
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

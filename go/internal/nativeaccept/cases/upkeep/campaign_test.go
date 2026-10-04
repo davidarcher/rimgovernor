@@ -20,7 +20,7 @@ type campaignRestoreSession struct {
 
 func TestCampaignRebindsGuardsOnlyToLoadedReview(t *testing.T) {
 	old := closedGoal{Stage: "kitchen", Need: policy.MaintainCleanFacilities, Goal: "old-kitchen", Episode: 7}
-	review := store.Rounds{Goals: []store.RoutineGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
+	review := store.Rounds{Goals: []store.RoundsGoal{{Need: old.Need, Goal: "loaded-kitchen"}}}
 	for _, status := range []domain.StandardStatus{domain.StandardOpen, domain.StandardVoided} {
 		closed := []closedGoal{old}
 		err := rebindClosedGoals(context.Background(), closed, review, func(_ context.Context, id domain.ConcernID) (store.StandardState, error) {

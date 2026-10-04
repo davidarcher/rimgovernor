@@ -231,7 +231,7 @@ func (c ProgressContract) CooldownUntil(now domain.Tick) domain.Tick {
 // the census reports untaken for HuntStallTicks since native first saw it
 // (#1044) is withdrawn, so the planner tries other prey or a non-hunt
 // source.
-func (p RoutinePolicy) HuntProgress() ProgressContract {
+func (p RoundsPolicy) HuntProgress() ProgressContract {
 	return ProgressContract{Method: "hunt", Expected: "designated animal killed or the hunt settled", Deadline: domain.Tick(p.HuntStallTicks)}
 }
 
@@ -239,7 +239,7 @@ func (p RoutinePolicy) HuntProgress() ProgressContract {
 // the census reports designated and untaken for AcquisitionStallTicks
 // since native first saw it (#291, #1044) is cancelled so the goal re-plans from another
 // source (#291).
-func (p RoutinePolicy) AcquisitionProgress() ProgressContract {
+func (p RoundsPolicy) AcquisitionProgress() ProgressContract {
 	return ProgressContract{Method: "harvest", Expected: "designation taken and the yield hauled", Deadline: domain.Tick(p.AcquisitionStallTicks)}
 }
 
@@ -438,7 +438,7 @@ func ValidateGoalProgress(p GoalProgress, tick domain.Tick) error {
 // unknown gate is no evidence of a missing bench and blocks nothing. The
 // observable is the food runway's shortfall against FoodTargetDays, so a
 // day of food gained reads as progress whichever rung is current.
-func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressContract, ConcernID, domain.Fact[float64]) {
+func FoodProgress(f RoundsFacts, p RoundsPolicy, storageOpen bool) (ProgressContract, ConcernID, domain.Fact[float64]) {
 	owed := func(v domain.Fact[bool]) bool { b, k := v.Value(); return k && !b }
 	observed := domain.Unknown[float64]()
 	if days, known := f.FoodDays.Value(); known && p.FoodTargetDays > 0 {
@@ -463,9 +463,9 @@ func FoodProgress(f RoutineFacts, p RoutinePolicy, storageOpen bool) (ProgressCo
 
 // GoalProgressContract is the default contract for a goal's method: the
 // method id as the method, the goal's deficit as the observable,
-// RoutinePolicy.GoalStallTicks (scaled by colony stage) without progress as
+// RoundsPolicy.GoalStallTicks (scaled by colony stage) without progress as
 // the deadline.
-func GoalProgressContract(method string, p RoutinePolicy) ProgressContract {
+func GoalProgressContract(method string, p RoundsPolicy) ProgressContract {
 	if method == "" {
 		method = "assess"
 	}

@@ -95,7 +95,7 @@ func TestShadowRankLeavesAdmissionUnchanged(t *testing.T) {
 }
 
 func TestForwardInputsOfUnknownFoodStaysUnknown(t *testing.T) {
-	in := ForwardInputsOf(RoutineFacts{}, DefaultRoutinePolicy())
+	in := ForwardInputsOf(RoundsFacts{}, DefaultRoundsPolicy())
 	if _, ok := ProjectForward(in).Food.Value(); ok {
 		t.Fatal("no food supply must project unknown")
 	}

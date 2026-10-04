@@ -192,7 +192,7 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	// changedPkgs holds every changed package with its files, for go test;
 	// sources holds only the files that build into a binary (no _test.go,
 	// no testdata), since only those reach a case through the binary or
-	// the runner; a source scoped to routine families (routineFamilyScope)
+	// the runner; a source scoped to routine families (roundsFamilyScope)
 	// is kept out of sources and recorded under families instead.
 	changedPkgs := map[string][]string{}
 	productionPkgs := map[string]bool{}
@@ -222,7 +222,7 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 				harnessChanged = append(harnessChanged, file)
 				continue
 			}
-			scope, err := routineFamilyScope(goDir, file)
+			scope, err := roundsFamilyScope(goDir, file)
 			if err != nil {
 				return sel, err
 			}

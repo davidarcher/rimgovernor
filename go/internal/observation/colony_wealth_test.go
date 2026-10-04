@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestColonyWealthReachesRoutineFacts(t *testing.T) {
+func TestColonyWealthReachesRoundsFacts(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)

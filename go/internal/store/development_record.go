@@ -6,14 +6,14 @@ import (
 )
 
 // Nullable quantities preserve known zero separately from unavailable facts.
-type RoutineDevelopment struct {
+type RoundsDevelopment struct {
 	Snapshot  domain.GenerationSnapshot
 	Tick      domain.Tick
 	Workers   *int
 	Labor     map[policy.WorkType]int `json:",omitempty"`
 	Capacity  int
 	Committed []domain.ConcernID
-	Rows      []RoutineDevelopmentRow
+	Rows      []RoundsDevelopmentRow
 	Partial   bool `json:",omitempty"`
 	// The fields below (#649) are absent from records written before
 	// automatic admission existed.
@@ -23,7 +23,7 @@ type RoutineDevelopment struct {
 	// Blockers are the dependency edges that donated nothing (#651).
 	Blockers []policy.DependencyBlocker `json:",omitempty"`
 }
-type RoutineDevelopmentRow struct {
+type RoundsDevelopmentRow struct {
 	Goal                domain.ConcernID
 	Score               float64
 	Deficit             *float64
@@ -40,8 +40,8 @@ type RoutineDevelopmentRow struct {
 	Donation *policy.DevelopmentDonation `json:",omitempty"`
 }
 
-func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
-	r := RoutineDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.ConcernID(nil), s.Committed...), Partial: s.Partial,
+func developmentRecord(s policy.DevelopmentState) RoundsDevelopment {
+	r := RoundsDevelopment{Snapshot: s.Snapshot, Tick: s.Tick, Capacity: s.Capacity, Committed: append([]domain.ConcernID(nil), s.Committed...), Partial: s.Partial,
 		Holds: append([]policy.DevelopmentHold(nil), s.Holds...), StageHold: s.StageHold, Limiting: s.Limiting, Blockers: append([]policy.DependencyBlocker(nil), s.Blockers...)}
 	if v, k := s.Workers.Value(); k {
 		r.Workers = &v
@@ -53,7 +53,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		}
 	}
 	for _, row := range s.Rows {
-		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
+		v := RoundsDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, LaborEvidence: row.LaborEvidence, Labor: row.Labor, Donation: cloneDonation(row.Donation)}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -69,7 +69,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 }
 
 // State rebuilds the policy ranking this record persisted.
-func (r RoutineDevelopment) State() policy.DevelopmentState {
+func (r RoundsDevelopment) State() policy.DevelopmentState {
 	s := policy.DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Capacity: r.Capacity, Committed: append([]domain.ConcernID(nil), r.Committed...), Partial: r.Partial,
 		Holds: append([]policy.DevelopmentHold(nil), r.Holds...), StageHold: r.StageHold, Limiting: r.Limiting, Blockers: append([]policy.DependencyBlocker(nil), r.Blockers...)}
 	if r.Workers != nil {

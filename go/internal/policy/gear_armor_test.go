@@ -19,11 +19,11 @@ func TestArmorResearchLadderOrdering(t *testing.T) {
 	if got := ArmorResearchLadder([]string{"Stonecutting"}, true); !reflect.DeepEqual(got, []string{"Smithing", "ComplexClothing", "FlakArmor", "Shields", "Stonecutting"}) {
 		t.Fatal("no Electricity rung", got)
 	}
-	p := RoutinePolicy{ResearchLadder: base}
+	p := RoundsPolicy{ResearchLadder: base}
 	if got := ArmorResearchPolicy(p, true).ResearchLadder; !reflect.DeepEqual(got, want) {
 		t.Fatal(got)
 	}
-	if got := ArmorResearchPolicy(RoutinePolicy{}, true).ResearchLadder; len(got) != 0 {
+	if got := ArmorResearchPolicy(RoundsPolicy{}, true).ResearchLadder; len(got) != 0 {
 		t.Fatal("disabled roadmap grew a ladder", got)
 	}
 	facts := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity", "Smithing", "Batteries", "FlakArmor"}, Finished: []ResearchProjectID{"Stonecutting", "Electricity"}})

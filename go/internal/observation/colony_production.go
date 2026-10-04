@@ -98,7 +98,7 @@ func (p *ColonyProjection) ApplyFieldBudget(reserveDays float64) {
 	p.Facts.FieldCoverage = policy.FieldCoverage(p.Facts.Colonists, p.FieldCrops, reserveDays)
 }
 
-func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
+func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts) {
 	if !hasIssue(v.Issues, "cooking") {
 		ready, known := false, true
 		for _, bench := range v.Cooking {
@@ -275,7 +275,7 @@ func colonyCalendar(climate *o.FoodClimate) domain.Fact[policy.Calendar] {
 	return domain.Known(c)
 }
 
-func zoneProduction(farms []*o.FarmFacts, facts *policy.RoutineFacts) {
+func zoneProduction(farms []*o.FarmFacts, facts *policy.RoundsFacts) {
 	if farms != nil {
 		var growing int64
 		known := true

@@ -59,15 +59,15 @@ func TestKnowledgePickNeverFundsAnAdvancedProjectFromTheBasicSlot(t *testing.T) 
 // deficit even with every ordinary rung finished, and a disabled goal (no
 // target, empty ladder) funds none.
 func TestReviewCountsAnEmptyKnowledgeSlotAsAResearchDeficit(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	census := ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}, Finished: []ResearchProjectID{"Stonecutting", "Electricity"}}
 	f.Research = domain.Known(census)
-	if r := needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
+	if r := needs(t, f, RoundsLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
 		t.Fatal("no slot owed", r.Assessments)
 	}
 	census.KnowledgePick = "BioferriteExtraction"
 	f.Research = domain.Known(census)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if assessment(t, r, EnsureResearch) != domain.FindingUnmet || !hasNeed(r, EnsureResearch) {
 		t.Fatal("an empty knowledge slot is a spending need", r.Assessments)
 	}

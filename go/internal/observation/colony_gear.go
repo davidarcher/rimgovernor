@@ -249,7 +249,7 @@ func GearApparelFacts(equipment *o.PawnEquipment, tables bridge.Tables, catalog 
 	return domain.Known(apparel)
 }
 
-func routineGear(v domain.Fact[policy.GearObservation], emergency policy.EmergencyFacts) domain.Fact[policy.GearObservation] {
+func roundsGear(v domain.Fact[policy.GearObservation], emergency policy.EmergencyFacts) domain.Fact[policy.GearObservation] {
 	gear, known := v.Value()
 	complete, ck := emergency.ColonistsComplete.Value()
 	if !known || !ck || !complete || len(gear.Pawns) != len(emergency.Colonists) {

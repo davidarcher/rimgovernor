@@ -158,7 +158,7 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 	}
 	report["power_goal_bound"] = sawGoal
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

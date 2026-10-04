@@ -26,7 +26,7 @@ func SilverStock(items ItemFacts, resources domain.Fact[[]Amount]) domain.Fact[i
 }
 
 // Silver is the colony silver stock (SilverStock over f.Resources).
-func (f RoutineFacts) Silver() domain.Fact[int64] { return SilverStock(f.Items, f.Resources) }
+func (f RoundsFacts) Silver() domain.Fact[int64] { return SilverStock(f.Items, f.Resources) }
 
 // PurchasePrice is the rough silver the need's purchases cost at the game's
 // market values (ItemFacts): the cheapest medicine a replenish buys, a
@@ -93,20 +93,20 @@ func ArtSaleWanted(items ItemFacts, need domain.Fact[TradeNeed], silver, colonis
 }
 
 // reviewSilverShort is SilverShort over the review's trade need.
-func reviewSilverShort(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) domain.Fact[bool] {
-	need := ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p))
+func reviewSilverShort(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview) domain.Fact[bool] {
+	need := ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, p.ResourceTargets, RoundsTradeFloors(p, nil), f.Wealth, p.Trade, RoundsTradeFood(f, p))
 	return SilverShort(f.Items, need, f.Silver(), f.Colonists)
 }
 
 // artForSale is ArtSaleWanted over the review's trade need.
-func artForSale(f RoutineFacts, p RoutinePolicy, medicine MedicalReserveReview) bool {
+func artForSale(f RoundsFacts, p RoundsPolicy, medicine MedicalReserveReview) bool {
 	return positive(reviewSilverShort(f, p, medicine))
 }
 
-// RoutineSilverShort is the review's silver runway deficit recomputed by a
+// RoundsSilverShort is the review's silver runway deficit recomputed by a
 // planner from its own read: the seasonal policy and the medical reserve
-// review with the review's latch, as DetectRoutine derives them.
-func RoutineSilverShort(f RoutineFacts, p RoutinePolicy, medicineActive bool) domain.Fact[bool] {
+// review with the review's latch, as DetectRounds derives them.
+func RoundsSilverShort(f RoundsFacts, p RoundsPolicy, medicineActive bool) domain.Fact[bool] {
 	p = p.Seasonal(f.Calendar, f.DisasterConditions)
 	facts := f.MedicalReserve
 	facts.Colonists = f.Colonists
@@ -117,10 +117,10 @@ func RoutineSilverShort(f RoutineFacts, p RoutinePolicy, medicineActive bool) do
 	return reviewSilverShort(f, p, medicine)
 }
 
-// RoutineArtForSale is the review's sale decision recomputed by the art
+// RoundsArtForSale is the review's sale decision recomputed by the art
 // bill planner from its own read.
-func RoutineArtForSale(f RoutineFacts, p RoutinePolicy, medicineActive bool) bool {
-	return positive(RoutineSilverShort(f, p, medicineActive))
+func RoundsArtForSale(f RoundsFacts, p RoundsPolicy, medicineActive bool) bool {
+	return positive(RoundsSilverShort(f, p, medicineActive))
 }
 
 // valuePerWorkTick is the market value a work tick adds

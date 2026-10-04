@@ -31,7 +31,7 @@ type GeneBankFacts struct {
 	Packs []domain.Fact[bool]
 }
 
-// GeneBankNeed is RoutineFacts.GeneBankOwed's value: whether more packs lie
+// GeneBankNeed is RoundsFacts.GeneBankOwed's value: whether more packs lie
 // loose than the banks' free slots hold. Unknown while the section is
 // unread, a bank's capacity is unknown or a pack's whereabouts are.
 func GeneBankNeed(section domain.Fact[GeneBankFacts]) domain.Fact[bool] {

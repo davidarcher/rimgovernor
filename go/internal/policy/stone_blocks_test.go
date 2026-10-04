@@ -46,7 +46,7 @@ func TestStoneBlockTargetNeedsChunksAndAFloor(t *testing.T) {
 }
 
 func TestEffectiveResourceTargetsMergesStoneBlocks(t *testing.T) {
-	p := DefaultRoutinePolicy()
+	p := DefaultRoundsPolicy()
 	p.ResourceTargets = map[Resource]int64{"MeleeWeapon_Club": 2}
 	p.StoneBlockTarget = 40
 	stock := domain.Known([]Amount{{Resource: "ChunkGranite", Count: 7}})
@@ -78,7 +78,7 @@ func TestEffectiveResourceTargetsMergesStoneBlocks(t *testing.T) {
 }
 
 func TestEffectiveResourceTargetsWithoutChunksIsTheOperatorMap(t *testing.T) {
-	p := DefaultRoutinePolicy()
+	p := DefaultRoundsPolicy()
 	p.StoneBlockTarget = 40
 	targets, err := p.EffectiveResourceTargets(domain.Known([]Amount{}), nil)
 	if err != nil || len(targets) != 0 {

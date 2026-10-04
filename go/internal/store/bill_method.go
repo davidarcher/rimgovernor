@@ -17,7 +17,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if !has {
 		return nil
 	}
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -25,9 +25,9 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
-	// production path (RoutineResourcePlanner.dispatchResourceGoal) stages a
+	// production path (RoundsResourcePlanner.dispatchResourceGoal) stages a
 	// bench and then a StockTarget bill on it, the equipment goal whose
-	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
+	// replacement (RoundsGearPlanner, GearProduce) is a StockTarget bill on
 	// a standing bench (#233), and the refrigeration goal whose solar-flare
 	// answer is a cook-ahead bill (#408), and the art goal's pinned sculpture
 	// bills (#1190), and the baby feeding goal's baby food bill (#1681), and the mech goal's gestation bills (#1686), and the surgery goal's part bills (#1168, #1755).

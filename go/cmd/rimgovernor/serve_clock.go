@@ -33,10 +33,10 @@ func (s serviceClockReview) Acknowledge(ctx context.Context, ack store.ClockAckn
 	return s.journal.AcknowledgeClockEvents(ctx, s.profile, ack)
 }
 
-// serviceRoutineDiagnostics implements httpapi.RoutineProvider: a read-only,
+// serviceRoundsDiagnostics implements httpapi.RoundsProvider: a read-only,
 // runtime-queryable view of which composed routine planner families this
 // process wired up at startup and the durable review cursor's progress.
-type serviceRoutineDiagnostics struct {
+type serviceRoundsDiagnostics struct {
 	journal        *store.Store
 	reviewsEnabled bool
 	methodsEnabled bool
@@ -46,12 +46,12 @@ type serviceRoutineDiagnostics struct {
 	sections *facts.Store
 }
 
-func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.RoutineStatus, error) {
+func (s serviceRoundsDiagnostics) RoundsStatus(ctx context.Context) (httpapi.RoundsStatus, error) {
 	review, err := s.journal.LoadRounds(ctx)
 	if err != nil {
-		return httpapi.RoutineStatus{}, err
+		return httpapi.RoundsStatus{}, err
 	}
-	status := httpapi.RoutineStatus{
+	status := httpapi.RoundsStatus{
 		ReviewsEnabled:  s.reviewsEnabled,
 		MethodsEnabled:  s.methodsEnabled,
 		ActiveFamilies:  s.families,
@@ -73,14 +73,14 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 			Home: f.HomeCoverage,
 		})
 		if err != nil {
-			return httpapi.RoutineStatus{}, err
+			return httpapi.RoundsStatus{}, err
 		}
 		status.ResourceReach = r
 		id := held.Value.Identity
 		if id.Validate() == nil {
 			history, err := s.journal.EstablishedColonyExtent(ctx, domain.GenerationSnapshot{Colony: id.Colony, Map: id.Map, Load: id.Load, Plan: "extent-diagnostics"}, id.Tick)
 			if err != nil {
-				return httpapi.RoutineStatus{}, err
+				return httpapi.RoundsStatus{}, err
 			}
 			extent := policy.ColonyExtent{Regions: []policy.ExtentRegion{}}
 			for _, row := range history {
@@ -230,29 +230,29 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, sections *facts.Store, worldReady func(context.Context, *c.ObservationContext) (bool, error)) (*buildingruntime.ClockWorker, error) {
 	profile, routine := sc.profile, sc.roundsEnabled
-	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
+	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.roundsSleepingPlans, sc.roundsCookingPlans, sc.roundsShelterPlans, sc.roundsComfortPlans, sc.roundsExpansionPlans, sc.roundsPowerPlans, sc.roundsTemperaturePlans
 	workshop := sc.workshopPlans()
 	research := sc.researchPlans()
-	hospital := sc.routineHospitalPlans
-	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
-	repair, clean, gear, medical, foodStorageUpkeep := sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
-	refrigeration := sc.routineRefrigerationPlans
-	fireSafety := sc.routineFireSafetyPlans
-	lighting := sc.routineLightingPlans
-	flooring := sc.routineFlooringPlans
-	routes := sc.routineRoutesPlans
-	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
+	hospital := sc.roundsHospitalPlans
+	supplies, work, acquisition, defense, tend, rescue, equip := sc.roundsSupplyPlans, sc.roundsWorkPlans, sc.roundsAcquisitionPlans, sc.roundsDefensePlans, sc.roundsTendPlans, sc.roundsRescuePlans, sc.roundsEquipPlans
+	repair, clean, gear, medical, foodStorageUpkeep := sc.roundsRepairPlans, sc.roundsCleanPlans, sc.roundsGearPlans, sc.roundsMedicalPlans, sc.roundsFoodStorageUpkeepPlans
+	refrigeration := sc.roundsRefrigerationPlans
+	fireSafety := sc.roundsFireSafetyPlans
+	lighting := sc.roundsLightingPlans
+	flooring := sc.roundsFlooringPlans
+	routes := sc.roundsRoutesPlans
+	animalContainment, recovery, husbandry, homeCoverage := sc.roundsAnimalContainmentPlans, sc.roundsRecoveryPlans, sc.roundsHusbandryPlans, sc.roundsHomeCoveragePlans
 	resourceTargets := sc.resourceTargetsConfigured()
-	animalFeedPlans := sc.routineAnimalFeedPlans
-	fields, bills := sc.routineFieldPlans, sc.routineBillPlans
-	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
-	waste, moodRelief, naming, dialog, trade := sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
-	blight, pollution, mechCharger, geneBank := sc.routineBlightPlans, sc.routinePollutionPlans, sc.routineMechChargerPlans, sc.routineGeneBankPlans
-	armory := sc.routineArmoryPlans
-	clearance := sc.routineClearancePlans
-	shrine := sc.routineShrinePlans
-	tidy := sc.routineTidyPlans
-	stockpiles := sc.routineStockpilePlans
+	animalFeedPlans := sc.roundsAnimalFeedPlans
+	fields, bills := sc.roundsFieldPlans, sc.roundsBillPlans
+	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.roundsPrisonerInteractionPlans, sc.roundsPopulationCustodyPlans, sc.roundsStoneShellPlans, sc.roundsDefensiveLayoutPlans
+	waste, moodRelief, naming, dialog, trade := sc.roundsWastePlans, sc.roundsMoodPlans, sc.roundsNamingPlans, sc.roundsDialogPlans, sc.roundsTradePlans
+	blight, pollution, mechCharger, geneBank := sc.roundsBlightPlans, sc.roundsPollutionPlans, sc.roundsMechChargerPlans, sc.roundsGeneBankPlans
+	armory := sc.roundsArmoryPlans
+	clearance := sc.roundsClearancePlans
+	shrine := sc.roundsShrinePlans
+	tidy := sc.roundsTidyPlans
+	stockpiles := sc.roundsStockpilePlans
 	config := serviceClockConfig(profile, sc.clockTestAcceleration, defaultClockWindowTicks, uint32(sc.clockBlindTicks))
 	config.PaceHorizonTicks = domain.Tick(sc.clockBlindTicks)
 	if sc.resourceTargetsConfigured() {
@@ -277,16 +277,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		fmt.Fprintf(os.Stderr, "clock: fault injection active: %s\n", faults)
 	}
 	config.Faults = faults
-	config.RoutineMethods = session.RoutineMethodsEnabled()
-	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.routineArtPlans || sc.routineMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || sc.routineShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
+	config.RoundsMethods = session.RoundsMethodsEnabled()
+	if (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || clean || waste || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.roundsArtPlans || sc.roundsMechPlans || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.roundsPopulationJoinerPlans || homeCoverage || sc.roundsShelteringPlans || stoneShell || tidy || stockpiles || defensiveLayout || naming || dialog || trade || resourceTargets || animalFeedPlans) && !routine {
 		return nil, errors.New("building plans require rounds")
 	}
 	if routine {
-		native, ok := reads.(observation.RoutineSource)
+		native, ok := reads.(observation.RoundsSource)
 		if !ok {
 			return nil, errors.New("rounds require typed colony and emergency observations")
 		}
-		thresholds, capabilities := routineCapabilities(sc)
+		thresholds, capabilities := roundsCapabilities(sc)
 		// The undraft sweep releases drafts no live plan needs (#939).
 		if client, ok := reads.(*bridge.Client); ok {
 			if capabilities.Undraft, err = bridge.NewActionsWriter(client); err != nil {
@@ -297,56 +297,56 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		if err != nil {
 			return nil, err
 		}
-		config.Routine = reviewer
+		config.Rounds = reviewer
 		if bills {
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
 				return nil, errors.New("bill plans require typed preview")
 			}
-			config.CookingBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.CookFood)
+			config.CookingBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookFood)
 			if err != nil {
 				return nil, err
 			}
-			config.BabyFoodBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.BabyFoodBill)
+			config.BabyFoodBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.BabyFoodBill)
 			if err != nil {
 				return nil, err
 			}
-			config.PreservationBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.PreserveFood)
+			config.PreservationBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.PreserveFood)
 			if err != nil {
 				return nil, err
 			}
-			config.ButcherBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.ButcherFood)
+			config.ButcherBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.ButcherFood)
 			if err != nil {
 				return nil, err
 			}
-			buildingNative, ok := reads.(buildingruntime.RoutineBuildingSource)
+			buildingNative, ok := reads.(buildingruntime.RoundsBuildingSource)
 			if !ok {
 				return nil, errors.New("bill prerequisites require building observations")
 			}
-			config.Butcher, err = buildingruntime.NewRoutineButcherPlanner(reviewer, buildingNative)
+			config.Butcher, err = buildingruntime.NewRoundsButcherPlanner(reviewer, buildingNative)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineArtPlans {
+		if sc.roundsArtPlans {
 			// MaintainArt's pinned sculpture bills (#1190) are their own
 			// family, apart from the food bills.
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
 				return nil, errors.New("art bills require typed preview")
 			}
-			config.ArtBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.ArtBill)
+			config.ArtBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.ArtBill)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineMechPlans {
+		if sc.roundsMechPlans {
 			// MaintainMechs' gestation bills (#1686) are their own bill family.
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
 				return nil, errors.New("mech bills require typed preview")
 			}
-			config.MechBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.MechGestationBill)
+			config.MechBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.MechGestationBill)
 			if err != nil {
 				return nil, err
 			}
@@ -356,452 +356,452 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			if !ok {
 				return nil, errors.New("field planning requires typed preview")
 			}
-			config.Fields, err = buildingruntime.NewRoutineFieldPlanner(reviewer, fieldNative)
+			config.Fields, err = buildingruntime.NewRoundsFieldPlanner(reviewer, fieldNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if acquisition {
-			config.FoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.EnsureFoodSupply)
+			config.FoodAcquisition, err = buildingruntime.NewRoundsAcquisitionPlanner(reviewer, policy.EnsureFoodSupply)
 			if err != nil {
 				return nil, err
 			}
-			config.PestAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.ClearPests)
+			config.PestAcquisition, err = buildingruntime.NewRoundsAcquisitionPlanner(reviewer, policy.ClearPests)
 			if err != nil {
 				return nil, err
 			}
-			config.ResourceAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.MaintainResource)
+			config.ResourceAcquisition, err = buildingruntime.NewRoundsAcquisitionPlanner(reviewer, policy.MaintainResource)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if work {
-			config.Work, err = buildingruntime.NewRoutineWorkPlanner(reviewer)
+			config.Work, err = buildingruntime.NewRoundsWorkPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if defense {
-			defenseNative, ok := reads.(buildingruntime.RoutineDefenseSource)
+			defenseNative, ok := reads.(buildingruntime.RoundsDefenseSource)
 			if !ok {
 				return nil, errors.New("defense plans require typed combat observations")
 			}
-			config.Defense, err = buildingruntime.NewRoutineDefensePlanner(reviewer, defenseNative)
+			config.Defense, err = buildingruntime.NewRoundsDefensePlanner(reviewer, defenseNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if tend {
-			tendNative, ok := reads.(buildingruntime.RoutineTendSource)
+			tendNative, ok := reads.(buildingruntime.RoundsTendSource)
 			if !ok {
 				return nil, errors.New("tend plans require typed tend observations")
 			}
-			config.Tend, err = buildingruntime.NewRoutineTendPlanner(reviewer, tendNative)
+			config.Tend, err = buildingruntime.NewRoundsTendPlanner(reviewer, tendNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if rescue {
-			rescueNative, ok := reads.(buildingruntime.RoutineRescueSource)
+			rescueNative, ok := reads.(buildingruntime.RoundsRescueSource)
 			if !ok {
 				return nil, errors.New("rescue plans require typed combat observations")
 			}
-			config.Rescue, err = buildingruntime.NewRoutineRescuePlanner(reviewer, rescueNative)
+			config.Rescue, err = buildingruntime.NewRoundsRescuePlanner(reviewer, rescueNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if equip {
-			equipNative, ok := reads.(buildingruntime.RoutineEquipSource)
+			equipNative, ok := reads.(buildingruntime.RoundsEquipSource)
 			if !ok {
 				return nil, errors.New("equip plans require typed equip observations")
 			}
-			config.Equip, err = buildingruntime.NewRoutineEquipPlanner(reviewer, equipNative)
+			config.Equip, err = buildingruntime.NewRoundsEquipPlanner(reviewer, equipNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		// Shelves (#721) serve the stockpiles the methods create.
 		if stockpiles {
-			if shelvesNative, ok := reads.(buildingruntime.RoutineStorageShelvesSource); ok {
-				if config.StorageShelves, err = buildingruntime.NewRoutineStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
+			if shelvesNative, ok := reads.(buildingruntime.RoundsStorageShelvesSource); ok {
+				if config.StorageShelves, err = buildingruntime.NewRoundsStorageShelvesPlanner(reviewer, shelvesNative); err != nil {
 					return nil, err
 				}
 			}
 		}
 		if fireSafety {
-			fireNative, ok := reads.(buildingruntime.RoutineFireSafetySource)
+			fireNative, ok := reads.(buildingruntime.RoundsFireSafetySource)
 			if !ok {
 				return nil, errors.New("fire safety plans require typed colony and tend observations")
 			}
-			config.FireSafety, err = buildingruntime.NewRoutineFireSafetyPlanner(reviewer, fireNative)
+			config.FireSafety, err = buildingruntime.NewRoundsFireSafetyPlanner(reviewer, fireNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if repair {
-			repairNative, ok := reads.(buildingruntime.RoutineRepairSource)
+			repairNative, ok := reads.(buildingruntime.RoundsRepairSource)
 			if !ok {
 				return nil, errors.New("repair plans require typed colony and tend observations")
 			}
-			config.Repair, err = buildingruntime.NewRoutineRepairPlanner(reviewer, repairNative)
+			config.Repair, err = buildingruntime.NewRoundsRepairPlanner(reviewer, repairNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if clean {
-			cleanNative, ok := reads.(buildingruntime.RoutineCleanSource)
+			cleanNative, ok := reads.(buildingruntime.RoundsCleanSource)
 			if !ok {
 				return nil, errors.New("clean plans require typed colony and tend observations")
 			}
-			config.Clean, err = buildingruntime.NewRoutineCleanPlanner(reviewer, cleanNative)
+			config.Clean, err = buildingruntime.NewRoundsCleanPlanner(reviewer, cleanNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if clearance {
-			clearanceNative, ok := reads.(buildingruntime.RoutineClearanceSource)
+			clearanceNative, ok := reads.(buildingruntime.RoundsClearanceSource)
 			if !ok {
 				return nil, errors.New("clearance plans require typed colony observations")
 			}
-			config.Clearance, err = buildingruntime.NewRoutineClearancePlanner(reviewer, clearanceNative)
+			config.Clearance, err = buildingruntime.NewRoundsClearancePlanner(reviewer, clearanceNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if shrine {
-			shrineNative, ok := reads.(buildingruntime.RoutineShrineSource)
+			shrineNative, ok := reads.(buildingruntime.RoundsShrineSource)
 			if !ok {
 				return nil, errors.New("shrine plans require typed shrine observations")
 			}
-			config.Shrine, err = buildingruntime.NewRoutineShrinePlanner(reviewer, shrineNative)
+			config.Shrine, err = buildingruntime.NewRoundsShrinePlanner(reviewer, shrineNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if armory {
-			armoryNative, ok := reads.(buildingruntime.RoutineGearSource)
+			armoryNative, ok := reads.(buildingruntime.RoundsGearSource)
 			if !ok {
 				return nil, errors.New("armory plans require typed colony observations")
 			}
-			config.Armory, err = buildingruntime.NewRoutineArmoryPlanner(reviewer, armoryNative)
+			config.Armory, err = buildingruntime.NewRoundsArmoryPlanner(reviewer, armoryNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if blight {
-			blightNative, ok := reads.(buildingruntime.RoutineBlightSource)
+			blightNative, ok := reads.(buildingruntime.RoundsBlightSource)
 			if !ok {
 				return nil, errors.New("blight plans require typed colony observations")
 			}
-			config.Blight, err = buildingruntime.NewRoutineBlightPlanner(reviewer, blightNative)
+			config.Blight, err = buildingruntime.NewRoundsBlightPlanner(reviewer, blightNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if waste {
-			wasteNative, ok := reads.(buildingruntime.RoutineWasteSource)
+			wasteNative, ok := reads.(buildingruntime.RoundsWasteSource)
 			if !ok {
 				return nil, errors.New("waste plans require typed colony and tend observations")
 			}
-			config.Waste, err = buildingruntime.NewRoutineWastePlanner(reviewer, wasteNative)
+			config.Waste, err = buildingruntime.NewRoundsWastePlanner(reviewer, wasteNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if moodRelief {
-			config.MoodRelief, err = buildingruntime.NewRoutineMoodReliefPlanner(reviewer)
+			config.MoodRelief, err = buildingruntime.NewRoundsMoodReliefPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if gear {
-			gearNative, ok := reads.(buildingruntime.RoutineGearSource)
+			gearNative, ok := reads.(buildingruntime.RoundsGearSource)
 			if !ok {
 				return nil, errors.New("gear plans require typed colony observations")
 			}
-			config.Gear, err = buildingruntime.NewRoutineGearPlanner(reviewer, gearNative)
+			config.Gear, err = buildingruntime.NewRoundsGearPlanner(reviewer, gearNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if medical {
-			medicalNative, ok := reads.(buildingruntime.RoutineMedicalSource)
+			medicalNative, ok := reads.(buildingruntime.RoundsMedicalSource)
 			if !ok {
 				return nil, errors.New("medical reserve plans require typed colony observations")
 			}
-			config.Medical, err = buildingruntime.NewRoutineMedicalPlanner(reviewer, medicalNative)
+			config.Medical, err = buildingruntime.NewRoundsMedicalPlanner(reviewer, medicalNative)
 			if err != nil {
 				return nil, err
 			}
-			config.Surgery, err = buildingruntime.NewRoutineSurgeryPlanner(reviewer)
+			config.Surgery, err = buildingruntime.NewRoundsSurgeryPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 			// Parts a restore lacks are fabricated where researched (#1168).
 			if nativeBills, ok := reads.(buildingruntime.BillPlannerNative); ok {
-				config.SurgeryPartBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.SurgeryPartBill)
+				config.SurgeryPartBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.SurgeryPartBill)
 				if err != nil {
 					return nil, err
 				}
 			}
 		}
 		if foodStorageUpkeep {
-			foodStorageNative, ok := reads.(buildingruntime.RoutineFoodStorageUpkeepSource)
+			foodStorageNative, ok := reads.(buildingruntime.RoundsFoodStorageUpkeepSource)
 			if !ok {
 				return nil, errors.New("food storage upkeep plans require typed colony and resource-source observations")
 			}
-			config.FoodStorageUpkeep, err = buildingruntime.NewRoutineFoodStorageUpkeepPlanner(reviewer, foodStorageNative)
+			config.FoodStorageUpkeep, err = buildingruntime.NewRoundsFoodStorageUpkeepPlanner(reviewer, foodStorageNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if animalContainment {
-			containmentNative, ok := reads.(buildingruntime.RoutineBuildingSource)
+			containmentNative, ok := reads.(buildingruntime.RoundsBuildingSource)
 			if !ok {
 				return nil, errors.New("animal containment plans require typed placement previews")
 			}
-			config.AnimalContainment, err = buildingruntime.NewRoutineAnimalContainmentPlanner(reviewer, containmentNative)
+			config.AnimalContainment, err = buildingruntime.NewRoundsAnimalContainmentPlanner(reviewer, containmentNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if recovery {
-			config.Recovery, err = buildingruntime.NewRoutineRecoveryPlanner(reviewer)
+			config.Recovery, err = buildingruntime.NewRoundsRecoveryPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if husbandry {
-			config.Husbandry, err = buildingruntime.NewRoutineHusbandryPlanner(reviewer)
+			config.Husbandry, err = buildingruntime.NewRoundsHusbandryPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if prisonerInteraction {
-			config.PrisonerInteraction, err = buildingruntime.NewRoutinePrisonerInteractionPlanner(reviewer)
+			config.PrisonerInteraction, err = buildingruntime.NewRoundsPrisonerInteractionPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if sc.routinePopulationJoinerPlans {
-			config.PopulationJoiner, err = buildingruntime.NewRoutinePopulationJoinerPlanner(reviewer)
+		if sc.roundsPopulationJoinerPlans {
+			config.PopulationJoiner, err = buildingruntime.NewRoundsPopulationJoinerPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if populationCustody {
-			custodyNative, ok := reads.(buildingruntime.RoutineCustodySource)
+			custodyNative, ok := reads.(buildingruntime.RoundsCustodySource)
 			if !ok {
 				return nil, errors.New("population custody plans require typed combat observations")
 			}
-			config.PopulationCustody, err = buildingruntime.NewRoutinePopulationCustodyPlanner(reviewer, custodyNative)
+			config.PopulationCustody, err = buildingruntime.NewRoundsPopulationCustodyPlanner(reviewer, custodyNative)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineFirebreakPlans {
-			firebreakNative, ok := reads.(buildingruntime.RoutineFirebreakSource)
+		if sc.roundsFirebreakPlans {
+			firebreakNative, ok := reads.(buildingruntime.RoundsFirebreakSource)
 			if !ok {
 				return nil, errors.New("firebreak plans require typed defense site and plant cut census observations")
 			}
-			if config.Firebreak, err = buildingruntime.NewRoutineFirebreakPlanner(reviewer, firebreakNative); err != nil {
+			if config.Firebreak, err = buildingruntime.NewRoundsFirebreakPlanner(reviewer, firebreakNative); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routinePsylinkPlans {
-			psylinkNative, ok := reads.(buildingruntime.RoutinePsylinkSource)
+		if sc.roundsPsylinkPlans {
+			psylinkNative, ok := reads.(buildingruntime.RoundsPsylinkSource)
 			if !ok {
 				return nil, errors.New("psylink plans require the typed neuroformer item read")
 			}
-			if config.Psylink, err = buildingruntime.NewRoutinePsylinkPlanner(reviewer, psylinkNative); err != nil {
+			if config.Psylink, err = buildingruntime.NewRoundsPsylinkPlanner(reviewer, psylinkNative); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routinePermitPlans {
+		if sc.roundsPermitPlans {
 			// MaintainPermits (#1606) plans from the review's royalty read.
-			if config.Permits, err = buildingruntime.NewRoutinePermitsPlanner(reviewer); err != nil {
+			if config.Permits, err = buildingruntime.NewRoundsPermitsPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineIdeoRolePlans {
+		if sc.roundsIdeoRolePlans {
 			// MaintainIdeoRoles (#1661) plans from the review's ideology section and pawn rows.
-			if config.IdeoRoles, err = buildingruntime.NewRoutineIdeoRolesPlanner(reviewer); err != nil {
+			if config.IdeoRoles, err = buildingruntime.NewRoundsIdeoRolesPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineRitualPlans {
+		if sc.roundsRitualPlans {
 			// MaintainRituals (#1660) plans from the review's ideology section, pawn rows, building table and emergency census.
-			if config.Rituals, err = buildingruntime.NewRoutineRitualsPlanner(reviewer); err != nil {
+			if config.Rituals, err = buildingruntime.NewRoundsRitualsPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineCreepJoinerPlans {
+		if sc.roundsCreepJoinerPlans {
 			// ManageCreepJoiners (#1740) plans from the review's frame; no read of its own.
-			if config.CreepJoiners, err = buildingruntime.NewRoutineCreepJoinerPlanner(reviewer); err != nil {
+			if config.CreepJoiners, err = buildingruntime.NewRoundsCreepJoinerPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
-		if sc.routineShelteringPlans {
+		if sc.roundsShelteringPlans {
 			// MaintainShelter (#1325) plans from the review's rooms; no read of its own.
 			if config.MaintainShelter, err = buildingruntime.NewMaintainShelterPlanner(reviewer); err != nil {
 				return nil, err
 			}
 		}
 		if pollution {
-			config.Pollution, err = buildingruntime.NewRoutinePollutionPlanner(reviewer)
+			config.Pollution, err = buildingruntime.NewRoundsPollutionPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if homeCoverage {
-			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer)
+			config.HomeCoverage, err = buildingruntime.NewRoundsHomeCoveragePlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if stoneShell {
-			stoneShellNative, ok := reads.(buildingruntime.RoutineStoneShellSource)
+			stoneShellNative, ok := reads.(buildingruntime.RoundsStoneShellSource)
 			if !ok {
 				return nil, errors.New("stone shell plans require typed wall upgrade site and placement observations")
 			}
-			config.StoneShell, err = buildingruntime.NewRoutineStoneShellPlanner(reviewer, stoneShellNative)
+			config.StoneShell, err = buildingruntime.NewRoundsStoneShellPlanner(reviewer, stoneShellNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if tidy {
-			config.Tidy, err = buildingruntime.NewRoutineTidyPlanner(reviewer)
+			config.Tidy, err = buildingruntime.NewRoundsTidyPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if stockpiles {
-			stockpileNative, ok := reads.(buildingruntime.RoutineStockpileSource)
+			stockpileNative, ok := reads.(buildingruntime.RoundsStockpileSource)
 			if !ok {
 				return nil, errors.New("stockpile plans require typed zone target observations")
 			}
-			config.Stockpiles, err = buildingruntime.NewRoutineStockpilePlanner(reviewer, stockpileNative)
+			config.Stockpiles, err = buildingruntime.NewRoundsStockpilePlanner(reviewer, stockpileNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if defensiveLayout {
-			defenseNative, ok := reads.(buildingruntime.RoutineDefenseLayoutSource)
+			defenseNative, ok := reads.(buildingruntime.RoundsDefenseLayoutSource)
 			if !ok {
 				return nil, errors.New("defensive layout plans require typed defense site, lines of fire, spatial access, combat pawn and placement observations")
 			}
-			config.DefenseLayout, err = buildingruntime.NewRoutineDefenseLayoutPlanner(reviewer, defenseNative)
+			config.DefenseLayout, err = buildingruntime.NewRoundsDefenseLayoutPlanner(reviewer, defenseNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if research {
-			researchNative, ok := reads.(buildingruntime.RoutineResearchSource)
+			researchNative, ok := reads.(buildingruntime.RoundsResearchSource)
 			if !ok {
 				return nil, errors.New("research plans require typed research observations")
 			}
-			config.Research, err = buildingruntime.NewRoutineResearchPlanner(reviewer, researchNative)
+			config.Research, err = buildingruntime.NewRoundsResearchPlanner(reviewer, researchNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if naming {
-			namingNative, ok := reads.(buildingruntime.RoutineNamingSource)
+			namingNative, ok := reads.(buildingruntime.RoundsNamingSource)
 			if !ok {
 				return nil, errors.New("naming plans require typed colony observations")
 			}
-			config.Naming, err = buildingruntime.NewRoutineNamingPlanner(reviewer, namingNative)
+			config.Naming, err = buildingruntime.NewRoundsNamingPlanner(reviewer, namingNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if dialog {
-			dialogNative, ok := reads.(buildingruntime.RoutineDialogSource)
+			dialogNative, ok := reads.(buildingruntime.RoundsDialogSource)
 			if !ok {
 				return nil, errors.New("dialog plans require typed colony observations")
 			}
-			config.Dialog, err = buildingruntime.NewRoutineDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: policy.DefaultDialogAnswerPrefer})
+			config.Dialog, err = buildingruntime.NewRoundsDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: policy.DefaultDialogAnswerPrefer})
 			if err != nil {
 				return nil, err
 			}
 		}
 		if trade {
-			tradeNative, ok := reads.(buildingruntime.RoutineTradeSource)
+			tradeNative, ok := reads.(buildingruntime.RoundsTradeSource)
 			if !ok {
 				return nil, errors.New("trade plans require typed trader and trade sheet observations")
 			}
-			config.Trade, err = buildingruntime.NewRoutineTradePlanner(reviewer, tradeNative)
+			config.Trade, err = buildingruntime.NewRoundsTradePlanner(reviewer, tradeNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if resourceTargets {
-			resourceNative, ok := reads.(buildingruntime.RoutineResourceSource)
+			resourceNative, ok := reads.(buildingruntime.RoundsResourceSource)
 			if !ok {
 				return nil, errors.New("resource plans require typed colony observations")
 			}
-			config.Resource, err = buildingruntime.NewRoutineResourcePlanner(reviewer, resourceNative)
+			config.Resource, err = buildingruntime.NewRoundsResourcePlanner(reviewer, resourceNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if animalFeedPlans {
-			animalFeedNative, ok := reads.(buildingruntime.RoutineResourceSource)
+			animalFeedNative, ok := reads.(buildingruntime.RoundsResourceSource)
 			if !ok {
 				return nil, errors.New("animal feed plans require typed colony observations")
 			}
-			config.AnimalFeed, err = buildingruntime.NewRoutineAnimalFeedPlanner(reviewer, animalFeedNative)
+			config.AnimalFeed, err = buildingruntime.NewRoundsAnimalFeedPlanner(reviewer, animalFeedNative)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if supplies {
-			source, ok := reads.(buildingruntime.RoutineSupplySource)
+			source, ok := reads.(buildingruntime.RoundsSupplySource)
 			if !ok {
 				return nil, errors.New("supply plans require typed supply observations")
 			}
-			config.Supplies, err = buildingruntime.NewRoutineSupplyPlanner(reviewer, source)
+			config.Supplies, err = buildingruntime.NewRoundsSupplyPlanner(reviewer, source)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes || mechCharger || geneBank {
-			source, ok := reads.(buildingruntime.RoutineBuildingSource)
+			source, ok := reads.(buildingruntime.RoundsBuildingSource)
 			if !ok {
 				return nil, errors.New("building plans require typed placement previews")
 			}
 			if shelter {
-				config.Sleeping, err = buildingruntime.NewRoutineShelterPlanner(reviewer, source)
+				config.Sleeping, err = buildingruntime.NewRoundsShelterPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			} else if sleeping {
-				config.Sleeping, err = buildingruntime.NewRoutineSleepingPlanner(reviewer, source)
+				config.Sleeping, err = buildingruntime.NewRoundsSleepingPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if sleeping {
-				config.SleepingUpkeep, err = buildingruntime.NewRoutineSleepingUpkeepPlanner(reviewer, source)
+				config.SleepingUpkeep, err = buildingruntime.NewRoundsSleepingUpkeepPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if temperature {
-				config.Temperature, err = buildingruntime.NewRoutineTemperaturePlanner(reviewer, source)
+				config.Temperature, err = buildingruntime.NewRoundsTemperaturePlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if power {
-				config.Power, err = buildingruntime.NewRoutinePowerPlanner(reviewer, source)
+				config.Power, err = buildingruntime.NewRoundsPowerPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if refrigeration {
-				config.Refrigeration, err = buildingruntime.NewRoutineRefrigerationPlanner(reviewer, source)
+				config.Refrigeration, err = buildingruntime.NewRoundsRefrigerationPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
@@ -812,71 +812,71 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				if !ok {
 					return nil, errors.New("cook-ahead bills require typed preview")
 				}
-				config.CookAheadBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.CookAheadFood)
+				config.CookAheadBills, err = buildingruntime.NewRoundsBillPlanner(reviewer, nativeBills, policy.CookAheadFood)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if mechCharger {
-				config.MechCharger, err = buildingruntime.NewRoutineMechChargerPlanner(reviewer, source)
+				config.MechCharger, err = buildingruntime.NewRoundsMechChargerPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if geneBank {
-				config.GeneBank, err = buildingruntime.NewRoutineGeneBankPlanner(reviewer, source)
+				config.GeneBank, err = buildingruntime.NewRoundsGeneBankPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if lighting {
-				config.Lighting, err = buildingruntime.NewRoutineLightingPlanner(reviewer, source)
+				config.Lighting, err = buildingruntime.NewRoundsLightingPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if flooring {
-				config.Flooring, err = buildingruntime.NewRoutineFlooringPlanner(reviewer, source)
+				config.Flooring, err = buildingruntime.NewRoundsFlooringPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if routes {
-				config.Routes, err = buildingruntime.NewRoutineRoutesPlanner(reviewer, source)
+				config.Routes, err = buildingruntime.NewRoundsRoutesPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if cooking || bills {
-				config.Cooking, err = buildingruntime.NewRoutineCookingPlanner(reviewer, source)
+				config.Cooking, err = buildingruntime.NewRoundsCookingPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if expansion {
-				config.Expansion, err = buildingruntime.NewRoutineExpansionPlanner(reviewer, source)
+				config.Expansion, err = buildingruntime.NewRoundsExpansionPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if comfort {
-				config.Comfort, err = buildingruntime.NewRoutineComfortPlanner(reviewer, source)
+				config.Comfort, err = buildingruntime.NewRoundsComfortPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
-				config.BasicComfort, err = buildingruntime.NewRoutineBasicComfortPlanner(reviewer, source)
+				config.BasicComfort, err = buildingruntime.NewRoundsBasicComfortPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if workshop {
-				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
+				config.Workshop, err = buildingruntime.NewRoundsWorkshopPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if hospital {
-				config.Hospital, err = buildingruntime.NewRoutineHospitalPlanner(reviewer, source)
+				config.Hospital, err = buildingruntime.NewRoundsHospitalPlanner(reviewer, source)
 				if err != nil {
 					return nil, err
 				}
@@ -899,13 +899,13 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	})
 }
 
-// routineCapabilities derives the routine policy thresholds and the method
+// roundsCapabilities derives the routine policy thresholds and the method
 // capabilities a composed serve declares from its enabled families. Every
 // family whose planner acts only while the development ranking selected its
 // goal must declare that goal here, or the review ranks it method_unavailable
 // and the planner never runs.
-func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
-	thresholds := policy.DefaultRoutinePolicy()
+func roundsCapabilities(sc serveConfig) (policy.RoundsPolicy, buildingruntime.RoundsCapabilities) {
+	thresholds := policy.DefaultRoundsPolicy()
 	if !sc.footholdComposed() {
 		// Foothold's exit criteria (shelter, cooking, food storage, basic
 		// defense) have no planner in this composition, so the measured
@@ -914,128 +914,128 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		// all wait on a stage nothing can reach. Apply every stage's goals.
 		thresholds.Stage.Floor = policy.StageDevelopment
 	}
-	capabilities := buildingruntime.RoutineCapabilities{LayoutOverlay: sc.layoutOverlay}
-	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
+	capabilities := buildingruntime.RoundsCapabilities{LayoutOverlay: sc.layoutOverlay}
+	if sc.roundsAcquisitionPlans || sc.roundsFieldPlans || sc.roundsBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
 	}
-	if sc.routineAcquisitionPlans {
+	if sc.roundsAcquisitionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource, policy.ClearPests)
 	}
-	if sc.routineBillPlans {
+	if sc.roundsBillPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking, policy.MaintainButcherSpot, policy.MaintainBabyFeeding)
 	}
-	if sc.routineBillPlans || sc.routineFoodStorageUpkeepPlans {
+	if sc.roundsBillPlans || sc.roundsFoodStorageUpkeepPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFoodStorage)
 	}
-	if sc.routineTemperaturePlans {
+	if sc.roundsTemperaturePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
 	}
-	if sc.routinePowerPlans {
+	if sc.roundsPowerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicPower)
 	}
-	if sc.routineRefrigerationPlans {
+	if sc.roundsRefrigerationPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRefrigeration)
 	}
-	if sc.routineLightingPlans {
+	if sc.roundsLightingPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
 	}
-	if sc.routineArtPlans {
+	if sc.roundsArtPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainArt)
 	}
-	if sc.routineMechPlans {
+	if sc.roundsMechPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMechs)
 	}
-	if sc.routineFlooringPlans {
+	if sc.roundsFlooringPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFlooring)
 	}
-	if sc.routineRoutesPlans {
+	if sc.roundsRoutesPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRoutes)
 	}
-	if sc.routineComfortPlans {
+	if sc.roundsComfortPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
 	}
-	if sc.routineSleepingPlans || sc.routineExpansionPlans {
+	if sc.roundsSleepingPlans || sc.roundsExpansionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHousing)
 	}
-	if sc.routineAnimalContainmentPlans {
+	if sc.roundsAnimalContainmentPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalContainment)
 	}
-	if sc.routineRepairPlans {
+	if sc.roundsRepairPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainEssentialRepairs)
 	}
-	if sc.routineFireSafetyPlans {
+	if sc.roundsFireSafetyPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFireSafety)
 	}
-	if sc.routineCleanPlans {
+	if sc.roundsCleanPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainCleanFacilities)
 	}
-	if sc.routineWastePlans {
+	if sc.roundsWastePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)
 	}
-	if sc.routineGearPlans {
+	if sc.roundsGearPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainEquipment)
 	}
-	if sc.routineClearancePlans {
+	if sc.roundsClearancePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ClearHomeObstructions)
 	}
-	if sc.routineShrinePlans {
+	if sc.roundsShrinePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ClearAncientShrine)
 	}
-	if sc.routineBlightPlans {
+	if sc.roundsBlightPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.RemoveBlight)
 	}
-	if sc.routineRecoveryPlans {
+	if sc.roundsRecoveryPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
 	}
-	if sc.routineHusbandryPlans {
+	if sc.roundsHusbandryPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
-	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans || sc.routinePopulationJoinerPlans {
+	if sc.roundsPrisonerInteractionPlans || sc.roundsPopulationCustodyPlans || sc.roundsPopulationJoinerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 	}
-	if sc.routinePollutionPlans {
+	if sc.roundsPollutionPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ManagePollution)
 	}
-	if sc.routineMechChargerPlans {
+	if sc.roundsMechChargerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureMechCharger)
 	}
-	if sc.routineGeneBankPlans {
+	if sc.roundsGeneBankPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainGeneBank)
 	}
-	if sc.routineHomeCoveragePlans {
+	if sc.roundsHomeCoveragePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)
 	}
-	if sc.routineShelteringPlans {
+	if sc.roundsShelteringPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainShelter)
 	}
-	if sc.routineFirebreakPlans {
+	if sc.roundsFirebreakPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainFirebreak)
 	}
-	if sc.routinePsylinkPlans {
+	if sc.roundsPsylinkPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPsylink)
 	}
-	if sc.routineCreepJoinerPlans {
+	if sc.roundsCreepJoinerPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ManageCreepJoiners)
 	}
-	if sc.routinePermitPlans {
+	if sc.roundsPermitPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPermits)
 	}
-	if sc.routineIdeoRolePlans {
+	if sc.roundsIdeoRolePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainIdeoRoles)
 	}
-	if sc.routineRitualPlans {
+	if sc.roundsRitualPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRituals)
 	}
-	if sc.routineStoneShellPlans {
+	if sc.roundsStoneShellPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
 	}
-	if sc.routineTidyPlans {
+	if sc.roundsTidyPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.TidyLayout)
 	}
-	if sc.routineStockpilePlans {
+	if sc.roundsStockpilePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainStockpiles)
 	}
-	if sc.routineDefensiveLayoutPlans {
+	if sc.roundsDefensiveLayoutPlans {
 		thresholds.DefensiveLayout = true
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
 	}
@@ -1056,21 +1056,21 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		// chase targets nothing produces.
 		thresholds.ResourceTargets, thresholds.StoneBlockTarget = nil, 0
 	}
-	if sc.routineAnimalFeedPlans {
+	if sc.roundsAnimalFeedPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
 	}
-	if sc.routineMedicalPlans {
+	if sc.roundsMedicalPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainSurgery)
 	}
-	if sc.routineTradePlans {
-		thresholds.Trade = policy.RoutineTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}
+	if sc.roundsTradePlans {
+		thresholds.Trade = policy.RoundsTradePolicy{ComponentTarget: policy.DefaultResourceTargets()[policy.ComponentResource]}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner is EnsureBasicDefense's method: without this
 	// declaration the priority-3 goal reviews as method_unavailable, never
 	// wins a development slot, and every equip commit is refused (colony-2
 	// ended with every survivor unarmed beside loose bows).
-	if sc.routineEquipPlans {
+	if sc.roundsEquipPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicDefense)
 	}
 	return thresholds, capabilities

@@ -495,7 +495,7 @@ func lightingReleased(r store.Rounds, bench string) bool {
 func waitRunning(ctx context.Context, get na.HTTPGet, w na.Wait) error {
 	var last error
 	err := na.WaitProgress(ctx, w, func(context.Context) (string, bool, error) {
-		last = na.AssertRoutineRunning(get)
+		last = na.AssertRoundsRunning(get)
 		return "authority", last == nil, nil
 	})
 	if err != nil {

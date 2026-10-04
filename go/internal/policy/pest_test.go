@@ -72,23 +72,23 @@ func TestSelectPestAcquisitionHonoursBudgetHeldAndCensus(t *testing.T) {
 }
 
 func TestClearPestsOpensOnlyOnAKnownPest(t *testing.T) {
-	f := stableRoutine()
-	r := needs(t, f, RoutineLatches{})
+	f := stableRounds()
+	r := needs(t, f, RoundsLatches{})
 	if hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.FindingMet {
 		t.Fatal(r.Goals)
 	}
 	f.AnimalUpkeep.WildAnimals = domain.Unknown[[]UpkeepAnimal]()
-	r = needs(t, f, RoutineLatches{})
+	r = needs(t, f, RoundsLatches{})
 	if hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.FindingUnclear {
 		t.Fatal("unknown wild census opened or recovered the goal", r.Goals)
 	}
 	f.AnimalUpkeep.WildAnimals = domain.Known([]UpkeepAnimal{{ID: "d", Definition: "Deer"}})
-	r = needs(t, f, RoutineLatches{})
+	r = needs(t, f, RoundsLatches{})
 	if hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.FindingMet {
 		t.Fatal("a deer opened the goal", r.Goals)
 	}
 	f.AnimalUpkeep.WildAnimals = domain.Known([]UpkeepAnimal{{ID: "d", Definition: "Deer"}, {ID: "b", Definition: "Alphabeaver", Pest: true}})
-	r = needs(t, f, RoutineLatches{})
+	r = needs(t, f, RoundsLatches{})
 	if !hasNeed(r, ClearPests) || assessment(t, r, ClearPests) != domain.FindingUnmet {
 		t.Fatal(r.Goals)
 	}

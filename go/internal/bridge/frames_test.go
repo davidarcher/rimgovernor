@@ -170,13 +170,13 @@ func (s *bundleFamilyServer) familyReads(t *testing.T, ctx context.Context, clie
 	if _, _, err := client.ReadColonyFacts(ctx, pbIdentity(), true); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadRoutinePopulation(ctx, pbIdentity()); err != nil {
+	if _, _, err := client.ReadRoundsPopulation(ctx, pbIdentity()); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := client.ReadResearch(ctx, pbIdentity()); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := client.ReadRoutinePawns(ctx, pbIdentity(), []string{"pawn-1"}); err != nil {
+	if _, _, err := client.ReadRoundsPawns(ctx, pbIdentity(), []string{"pawn-1"}); err != nil {
 		t.Fatal(err)
 	}
 	return s.familyCalls() - before
@@ -477,7 +477,7 @@ func TestFramesResolveAgainstTheCatalog(t *testing.T) {
 	v.Research.Projects = []*o.ResearchProject{{Project: &o.DefinitionRef{DefName: proto.String("Beds")}, Current: proto.Bool(true), LockReasons: []string{"research_building_or_facilities"}}}
 	ring.publish(t, v, 0)
 	for range 3 {
-		frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity())
+		frame, err := client.ReadRoundsFrame(context.Background(), pbIdentity())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -499,7 +499,7 @@ func TestFramesResolveAgainstTheCatalog(t *testing.T) {
 	unknown := proto.Clone(v).(*o.BundleSnapshot)
 	unknown.Research.Projects[0].Project.DefName = proto.String("Hopper")
 	ring.publish(t, unknown, 0)
-	if _, err := client.ReadRoutineFrame(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {
+	if _, err := client.ReadRoundsFrame(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {
 		t.Fatalf("project outside the catalog: %v", err)
 	}
 	if n := server.familyCalls(); n != 0 {

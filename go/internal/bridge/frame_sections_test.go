@@ -67,7 +67,7 @@ func TestFramesHoldOmittedSections(t *testing.T) {
 		if got := reply.Context.GetTick(); got != tick {
 			t.Fatalf("held research at tick %d, want the frame's %d", got, tick)
 		}
-		frame, err := client.ReadRoutineFrame(context.Background(), pbIdentity())
+		frame, err := client.ReadRoundsFrame(context.Background(), pbIdentity())
 		if err != nil {
 			t.Fatalf("tick %d routine frame: %v", tick, err)
 		}

@@ -14,7 +14,7 @@ import "sort"
 // The shell planners expand their rings with WallStuff and DoorDef, the
 // flooring planner prefers FloorDef's floor for a deficient room's role and
 // the lighting planner ModuleLighting's fixture (buildingruntime's
-// routine_tier_style.go). The shape-family rules (double-module hall,
+// rounds_tier_style.go). The shape-family rules (double-module hall,
 // paired wings, courtyard) are shape_family.go's.
 
 // TierStyleStock is the resource census the rules read: available count per

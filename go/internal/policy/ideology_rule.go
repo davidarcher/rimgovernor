@@ -77,7 +77,7 @@ type IdeologyRead struct {
 }
 
 // IdeologyRead is the facts' Ideology reading.
-func (f RoutineFacts) IdeologyRead() IdeologyRead {
+func (f RoundsFacts) IdeologyRead() IdeologyRead {
 	return IdeologyRead{Ideology: f.Ideology, Installed: f.IdeologyInstalled}
 }
 

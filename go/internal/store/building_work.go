@@ -19,7 +19,7 @@ func PlanWorkOpen(p PlanState, census domain.Fact[policy.CurrentConstruction]) b
 
 // PlanOpen is a plan's open work without a census: an applied building on
 // a plan not yet retired is still open, since retirement is what reads the
-// census (retireRoutinePlans).
+// census (retireRoundsPlans).
 func PlanOpen(p PlanState) bool {
 	return PlanWorkOpen(p, domain.Unknown[policy.CurrentConstruction]())
 }

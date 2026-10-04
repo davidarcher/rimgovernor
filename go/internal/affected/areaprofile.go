@@ -40,7 +40,7 @@ func readAreaProfile(dir string) (areaProfile, error) {
 		return areaProfile{}, err
 	}
 	known := map[string]bool{}
-	for _, name := range routineFamilyNames() {
+	for _, name := range roundsFamilyNames() {
 		known[name] = true
 	}
 	values := map[string]ast.Expr{} // package-level constant or variable -> its value

@@ -78,7 +78,7 @@ func nickname(ctx context.Context, s cases.Session) error {
 	if err := protojson.Unmarshal(data, id); err != nil {
 		return err
 	}
-	census, _, err := h.Client.ReadRoutinePopulation(ctx, id)
+	census, _, err := h.Client.ReadRoundsPopulation(ctx, id)
 	if err != nil {
 		return err
 	}

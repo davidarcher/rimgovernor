@@ -92,9 +92,9 @@ func TestObservedSnapshotPreservesFalseAndZero(t *testing.T) {
 	}
 }
 
-type routineStatusFunc func(context.Context) (RoutineStatus, error)
+type roundsStatusFunc func(context.Context) (RoundsStatus, error)
 
-func (f routineStatusFunc) RoutineStatus(ctx context.Context) (RoutineStatus, error) { return f(ctx) }
+func (f roundsStatusFunc) RoundsStatus(ctx context.Context) (RoundsStatus, error) { return f(ctx) }
 
 func TestRoutinesRouteUnavailableWithoutProvider(t *testing.T) {
 	server := testHTTP(t, newTestAPI(t, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan)))
@@ -105,8 +105,8 @@ func TestRoutinesRouteUnavailableWithoutProvider(t *testing.T) {
 }
 func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true,
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+			return RoundsStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true,
 				Sections: []facts.Status{{Section: facts.Colony, Family: bridge.FactColony, AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)}}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
@@ -115,7 +115,7 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
-	var got routineStatusDTO
+	var got roundsStatusDTO
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
@@ -123,13 +123,13 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 		t.Fatalf("routine status: %s", body)
 	}
 	// The state store's sections ride along with the tick each describes (#354).
-	if len(got.Sections) != 1 || got.Sections[0] != (routineSectionDTO{Section: "colony", Family: "colony", AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: "2026-09-19T10:00:00Z"}) {
+	if len(got.Sections) != 1 || got.Sections[0] != (roundsSectionDTO{Section: "colony", Family: "colony", AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: "2026-09-19T10:00:00Z"}) {
 		t.Fatalf("routine sections: %s", body)
 	}
 }
 func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) { return RoutineStatus{}, nil })},
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })},
 		snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +137,7 @@ func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
-	var got routineStatusDTO
+	var got roundsStatusDTO
 	json.Unmarshal(body, &got)
 	if status != 200 || got.LastReviewTick != nil || len(got.ActiveFamilies) != 0 {
 		t.Fatalf("unknown review cursor: %s", body)
@@ -419,8 +419,8 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 			{Goal: "maintain-resource", WaitingSince: 300, Reason: policy.DevelopmentUnknown},
 		}}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Development: &development}, nil
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Development: &development}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -428,7 +428,7 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
-	var got routineStatusDTO
+	var got roundsStatusDTO
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
@@ -462,8 +462,8 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 		{Goal: policy.MaintainResource, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
 	}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress, Stage: &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 400, Blocker: policy.StageBlockerSettling, Reason: "production clear 0.5 of 2.0 days"}}, nil
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress, Stage: &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 400, Blocker: policy.StageBlockerSettling, Reason: "production clear 0.5 of 2.0 days"}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -471,7 +471,7 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
-	var got routineStatusDTO
+	var got roundsStatusDTO
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestRoutinesRouteExposesConcernProgress(t *testing.T) {
 	}
 	// Without a review the list is empty, never null.
 	s2, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) { return RoutineStatus{}, nil })}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return RoundsStatus{}, nil })}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -513,8 +513,8 @@ func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	report := policy.WorkRosterReport{Tick: 500, Coverage: []policy.WorkCoverage{{Work: policy.WorkMining, Demand: 1, Owners: 1, Capable: 1}, {Work: policy.WorkDoctor, Demand: 1, Owners: 0, Capable: 0}},
 		Decaying: []policy.DecayingSkill{{Pawn: "b", Skill: "Mining", Level: 12}}, Profiles: []policy.PawnProfile{pyro, plain}}
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Roster: &report}, nil
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) {
+			return RoundsStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Roster: &report}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -522,7 +522,7 @@ func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	t.Cleanup(func() { s.Close() })
 	server := testHTTP(t, s)
 	status, body := get(t, server.URL+"/api/routines")
-	var got routineStatusDTO
+	var got roundsStatusDTO
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}

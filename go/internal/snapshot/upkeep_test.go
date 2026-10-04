@@ -14,7 +14,7 @@ import (
 // recovery, the review that closed it.
 
 // assess replays path and returns its assessment of goal.
-func assess(t *testing.T, path string, goal policy.ConcernID) policy.RoutineAssessment {
+func assess(t *testing.T, path string, goal policy.ConcernID) policy.RoundsAssessment {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {

@@ -227,7 +227,7 @@ func TestClockWindowConservativeHolds(t *testing.T) {
 func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 	f, l := clockWindowFixture(t)
 	// "medical" is deliberately NOT refused: a colonist needing tend can only be
-	// resolved by ticks passing (RoutineTendPlanner's dispatched order needs the
+	// resolved by ticks passing (RoundsTendPlanner's dispatched order needs the
 	// native clock running to execute), so holding the window here would deadlock
 	// rather than protect anything. "threat" still refuses -- an unmanaged raid
 	// should not auto-advance.

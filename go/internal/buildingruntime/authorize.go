@@ -11,7 +11,7 @@ import (
 
 // planAuthorizer decides which non-root plans may dispatch under the root
 // plan's authority: routine methods (when enabled) and player submissions for
-// the same world. It satisfies executor.RoutineScope so the executor recheck
+// the same world. It satisfies executor.RoundsScope so the executor recheck
 // before every write uses the same rule as the worker and the leases.
 type planAuthorizer struct {
 	journal *store.Store
@@ -26,11 +26,11 @@ type planAuthorizer struct {
 // the refusal instead of the sentinel's identity-collision text (#214).
 var ErrUnauthorizedPlan = fmt.Errorf("%w: plan is not authorized under the root plan", store.ErrConflict)
 
-func (a planAuthorizer) AuthorizeRoutinePlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
+func (a planAuthorizer) AuthorizeRoundsPlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
 	if a.routine {
 		// A player plan has no method row, so any routine refusal
 		// falls through to the player check.
-		if err := a.journal.AuthorizeRoutinePlan(ctx, root, target); err == nil {
+		if err := a.journal.AuthorizeRoundsPlan(ctx, root, target); err == nil {
 			return nil
 		}
 	}

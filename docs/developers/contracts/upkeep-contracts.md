@@ -256,7 +256,7 @@ work-giver job a float-menu click issues, so a switched-off auto-refuel or
 an idle hauling roster does not leave the line unarmed. When no fuel
 definition is in stock the record carries the barrels' fuel gap as a
 `FuelShortage` and the rounds raises it as a derived
-`MaintainResource` floor (`RoutineFacts.ResourceNeeds`, merged by
+`MaintainResource` floor (`RoundsFacts.ResourceNeeds`, merged by
 `ResourceGoalTargets` without lowering an operator's floor), so the resource
 policy sources steel (bench recipe, then native mineable sources) until the
 census sees it; the gap is counted in fuel units, an estimate of the steel
@@ -547,7 +547,7 @@ Once the pen stands, `MaintainAnimalContainment` raises each barn and vet room
 (`policy.HerdRooms`, a room derived from its reservation with a door facing the
 pen or the colony core), then places `AnimalSleepingSpot`s in the barn (one per
 kept animal) and `AnimalBed`s in the vet room (`VetBeds`) one at a time
-(`policy.NextHerdStep`, `buildingruntime/routine_herd_rooms.go`); the review
+(`policy.NextHerdStep`, `buildingruntime/rounds_herd_rooms.go`); the review
 holds the goal open while a step is due (`HerdRoomsOwed`). Both definitions are
 read from the live native catalog; one the catalog lacks fails the review
 rather than being skipped. The barn also owes a climate slot (#1867): one

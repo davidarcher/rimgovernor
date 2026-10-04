@@ -26,7 +26,7 @@ type DevelopmentGoal struct {
 	// Labor is the goal's profile (GoalLabor); nil means no pawn work.
 	Labor LaborProfile
 	// Risk is observed exposure of the goal's work (0 none .. 1 unsafe), from
-	// RoutineDevelopmentRisk; unknown risk neither penalises nor defers.
+	// RoundsDevelopmentRisk; unknown risk neither penalises nor defers.
 	Risk domain.Fact[float64]
 }
 
@@ -188,7 +188,7 @@ type DevelopmentRequest struct {
 	Tick     domain.Tick
 	Workers  domain.Fact[int]
 	Labor    domain.Fact[map[WorkType]int]
-	// LaborUse is what the counted pawns are doing (RoutineLaborUse);
+	// LaborUse is what the counted pawns are doing (RoundsLaborUse);
 	// unknown releases no commitment.
 	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
@@ -196,7 +196,7 @@ type DevelopmentRequest struct {
 	Goals   []DevelopmentGoal
 	// Assessments are the review's routine needs; any EmergencyNeed holds
 	// freezes development, exactly as it suspends the review.
-	Assessments []RoutineAssessment
+	Assessments []RoundsAssessment
 	Commitments []Commitment
 	Previous    DevelopmentState
 	// Partial marks this review's planner pass as a wake subset.

@@ -445,12 +445,12 @@ func TestWorkChangesExactNumbers(t *testing.T) {
 
 func TestWorkAssignmentHaulBacklog(t *testing.T) {
 	stack := LootItem{SafeToHaul: true, SafetyKnown: true, Count: 1, StorageHeadroom: domain.Known(int64(10))}
-	census := func(n int, extra ...LootItem) RoutineFacts {
+	census := func(n int, extra ...LootItem) RoundsFacts {
 		rows := append([]LootItem(nil), extra...)
 		for i := 0; i < n; i++ {
 			rows = append(rows, stack)
 		}
-		return RoutineFacts{EventLoot: domain.Known(rows)}
+		return RoundsFacts{EventLoot: domain.Known(rows)}
 	}
 	forbidden, unsafe, full := stack, stack, stack
 	forbidden.Forbidden = true
@@ -458,15 +458,15 @@ func TestWorkAssignmentHaulBacklog(t *testing.T) {
 	full.StorageHeadroom = domain.Known(int64(0))
 	cases := []struct {
 		name  string
-		facts RoutineFacts
+		facts RoundsFacts
 		want  int
 	}{
-		{"unknown census", RoutineFacts{}, 4},
+		{"unknown census", RoundsFacts{}, 4},
 		{"no backlog", census(haulBacklogStacks-1, forbidden, unsafe, full), 4},
 		{"backlog", census(haulBacklogStacks), 3},
 	}
 	for _, c := range cases {
-		decision, err := PlanWork(workTeam(true), nil, RoutineWorkDemand(c.facts, false))
+		decision, err := PlanWork(workTeam(true), nil, RoundsWorkDemand(c.facts, false))
 		if err != nil {
 			t.Fatal(c.name, err)
 		}

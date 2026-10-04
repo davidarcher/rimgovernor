@@ -135,7 +135,7 @@ postcondition.
 
 ## Routine policy components
 
-`policy.DetectRoutine` evaluates typed survival facts and separate recovery
+`policy.DetectRounds` evaluates typed survival facts and separate recovery
 thresholds. Missing facts cannot certify foothold stability or clear active risk.
 Ongoing medical care is distinct from urgent tending: complete native health
 reads keep bad conditions and medical rest visible as a priority-2 maintained
@@ -149,7 +149,7 @@ Medical reserves use a separate maintained need with one medicine per colonist a
 its entry threshold and three as its recovery target. Native usable resource counts
 are capped against observed unexpired, allowed medicine stacks. Unknown reads
 preserve the reserve latch; Manual preserves it, while world replacement or tick
-rewind resets it. `RoutineMedicalPlanner` (the `medical` family)
+rewind resets it. `RoundsMedicalPlanner` (the `medical` family)
 proposes a `ProductionBillAction` through the shared GearProduce bench/recipe
 census.
 
@@ -221,7 +221,7 @@ required, a hostile one left to the defense family) and recovers when none remai
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
 Unavailable methods can yield their slot within the same review. A commitment
-whose labor idles (`RoutineLaborUse`: no pawn on any of its profile's work types
+whose labor idles (`RoundsLaborUse`: no pawn on any of its profile's work types
 while one enabled for them idles or works for another type) across reviews spanning
 `DevelopmentIdleTicks` releases its slot and reads `labor_idle` until the work is
 picked up again (#445). `PlannedLayout`
@@ -267,7 +267,7 @@ This also applies when completion is observed after cancellation: fresh stock
 replaces the historic cost hold while the action remains cancelled. Unknown effects
 and observations predating completion cannot release the reservation.
 
-`Store.ReviewRoutine` commits explicit deficit/unknown/recovered assessments and
+`Store.ReviewRounds` commits explicit deficit/unknown/recovered assessments and
 food, wood and temperature latch history with all maintained-goal reviews in one
 transaction. A review cursor rejects stale writers. Manual invalidates linked
 work without needing valid native facts; world changes and tick rewinds
@@ -315,7 +315,7 @@ both forecasts against the `RIMGOVERNOR_NATIVE_FOOD_FORECAST` and
 
 `buildingruntime.Rounder.Step` serializes observation and durable review
 through the existing player gate, rechecks authority after the read, and retains
-unknown needs. `observation.ObserveRoutine` includes the typed emergency census
+unknown needs. `observation.ObserveRounds` includes the typed emergency census
 inside the same paused brackets. Medical/combat need counts use the shared emergency
 rules, deduplicate patients/threats, and remain unknown on incomplete or conflicting
 evidence. The undraft sweep reads the complete shared journal for the live plans
@@ -335,7 +335,7 @@ only actively growing edible plants; cooking requires a usable bench with an
 unsuspended recipe-matching food bill. Unknown fields cannot certify recovery, and
 neither crops nor a cooking bill add credit to stored food runway. The native
 Protobuf acceptance scenario supports `--routine-production` with the private
-`RoutineProductionFixture` for populated read parity; no harvested or cooked food
+`RoundsProductionFixture` for populated read parity; no harvested or cooked food
 is injected. Retained captures can be replayed with
 `RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE` alongside the colony capture.
 
@@ -389,7 +389,7 @@ are 12/32 C and recovery thresholds are 16/28 C; unknown room evidence cannot pr
 recovery. Completed methods in the current load lend at most 10,000 ticks for ordinary
 refueling and heat exchange. Method identity follows the bed and thermal definition,
 so regenerated native room IDs cannot duplicate a method in the same goal epoch.
-The cold and hot variants use ForecastFixture, RoutineSleepingFixture and
+The cold and hot variants use ForecastFixture, RoundsSleepingFixture and
 ScenarioStartFixture. Replay uses
 `RIMGOVERNOR_NATIVE_TEMPERATURE_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativeTemperatureMethodsReplay`.
@@ -451,7 +451,7 @@ interaction cells lit from the measured native glow: `UpkeepFacts.lighting`
 lists every colonist work table/research bench interaction cell with its
 ground glow, roof and room, and every `CompGlower` fixture with radius, lit
 flag and service state. A roofed cell under 0.3 latches its bench
-(`RoutineLatches.Lighting`); an unknown census keeps the latch. The planner
+(`RoundsLatches.Lighting`); an unknown census keeps the latch. The planner
 defers to an in-range fixture that is merely unserviced (`lamp_power_needed`,
 `lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`; a lit one
 already within the placement radius that still leaves the cell dark is
@@ -486,7 +486,7 @@ cooking bench) are deficient while a cell's terrain cleanliness is negative;
 living rooms (bedroom, barracks, dining, recreation) while a cell is still
 natural ground; barns, butcher rooms and every other role have no
 requirement. A deficient room latches by its lowest cell
-(`RoutineLatches.Flooring`); an unknown census keeps the latch. The planner
+(`RoundsLatches.Flooring`); an unknown census keeps the latch. The planner
 serves clean workspaces first and picks from the policy's floor list
 (`SterileTile`, stone tiles, `PavedTile`, `Concrete`, `WoodPlankFloor`) the
 known-available terrain that meets the tier and pays for the most cells of a
@@ -517,7 +517,7 @@ ordered there. The census also reports observed traffic: every 30 ticks each
 walking colonist adds a sample to the cell it stands on, and the top cells
 by samples are listed with terrain, home flag and any floor ordered, along
 with the window's total and start tick. A deficient facility latches by ID
-(`RoutineLatches.Routes`); an unknown census keeps the latch, and a colony
+(`RoundsLatches.Routes`); an unknown census keeps the latch, and a colony
 with no mobile colonist can declare nothing unreachable. The planner serves
 storage and stockpiles first, then benches, dining, beds and defence, and
 previews a `Door` of `WoodLog` on the breach cells in order, admitting the
@@ -542,7 +542,7 @@ Player-forced work, draft and medical availability
 remain guards; relief action execution is not enabled. The isolated `--mood-review
 food|forced|mental` variants compare native inputs with durable Go needs.
 Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test
-./internal/observation -run TestNativeRoutineMoodReplay`. The same read
+./internal/observation -run TestNativeRoundsMoodReplay`. The same read
 carries each colonist's grouped thought rows; when removable environment
 thoughts dominate a pawn's pressure the review records the upkeep goals whose
 facilities remove them, raises those goals' development deficits and proposes
@@ -564,7 +564,7 @@ admission is still required. Manual clears these candidates. See the
 [contract](../docs/developers/contracts/disaster-planning.md); native acceptance
 is tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
 
-`ReadRoutinePawns` adds the work-only detail selection to the same exact-ID read,
+`ReadRoundsPawns` adds the work-only detail selection to the same exact-ID read,
 plus schedule (`TimetableSlot`) detail: the whole routine census is shared across
 every routine planner, and `EnsureMood-*` relief dispatch needs a pawn's current
 timetable assignment (`boundary.ExpectedScheduleDef`) to fence its native writes.
@@ -582,7 +582,7 @@ captures replay with `RIMGOVERNOR_NATIVE_WORK_CAPTURE=<capture directory>`.
 The native routine scenario's `--work-project` option checks a HospitalBed project
 outside the default definition census; it verifies work review, not construction.
 
-`NewRoutineSleepingPlanner` configures the shared `RoutineBuildingPlanner` to compile an active reviewed shelter deficit into
+`NewRoundsSleepingPlanner` configures the shared `RoundsBuildingPlanner` to compile an active reviewed shelter deficit into
 one complete method of ordinary indoor sleeping spots. It requires a known native
 definition with no construction-skill prerequisite, roofed indoor cells, disjoint
 safe native previews and shared resource admission. Existing admitted footprints
@@ -590,7 +590,7 @@ remain protected. Method identity survives retries; observed recovery opens a ne
 epoch. Every preview stays under the player gate, and Manual cancels compilation.
 The compiler stores pending actions only; the shared worker owns execution.
 
-`NewRoutineCookingPlanner` uses the same compiler for one ordinary campfire. It
+`NewRoundsCookingPlanner` uses the same compiler for one ordinary campfire. It
 requires a known cooking deficit and waits for usable benches, existing campfires
 or already committed campfire work. Native previews and shared reservations decide
 geometry and cost. Building the campfire does not certify a food bill or cooked
@@ -673,9 +673,9 @@ census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
 The comfort goals' decisions are colony snapshot tests
-(`buildingruntime/routine_facility_snapshot_test.go`, #750).
+(`buildingruntime/rounds_facility_snapshot_test.go`, #750).
 The workshop target ranking is a colony snapshot test
-(`buildingruntime/routine_workshop_snapshot_test.go`, #738). Replay a captured `upkeep-replay.json` through the Go
+(`buildingruntime/rounds_workshop_snapshot_test.go`, #738). Replay a captured `upkeep-replay.json` through the Go
 boundary and durable journal with `RIMBOT_NATIVE_UPKEEP_REPLAY=<absolute-path>`
 and `go test ./internal/observation -run TestNativeUpkeepReplay -count=1` from `go/`.
 The replay checks target ordering and metrics, all five direct upkeep needs,
@@ -745,7 +745,7 @@ player Allow designator, reviews their recovery, and re-forbids the same supplie
 Repeated same-database Go starts must preserve the empty cohort and issue no
 operations during those reviews. Each player edit happens while Go is joined;
 the final disabled restart preserves history without advancing time.
-Its `--sleeping-methods` variant also uses `RoutineSleepingFixture` to provide an
+Its `--sleeping-methods` variant also uses `RoundsSleepingFixture` to provide an
 empty roofed room and healthy starting colonists. It verifies one complete sleeping
 method, native observed completion, single attempts, indoor footprints and unchanged
 player authority through the shared worker. `--shelter-methods` instead starts with

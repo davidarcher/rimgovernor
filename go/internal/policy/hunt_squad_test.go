@@ -62,7 +62,7 @@ func TestHuntRequestAndCombatCleared(t *testing.T) {
 	if len(HuntRequest(held)) != 0 || len(HuntRequest(domain.Unknown[FoodPlan]())) != 0 {
 		t.Fatal("a held or unknown plan requested a hunt")
 	}
-	f := RoutineFacts{Hostiles: domain.Known(int64(0)), FoodPlan: plan}
+	f := RoundsFacts{Hostiles: domain.Known(int64(0)), FoodPlan: plan}
 	if positive(combatCleared(f)) {
 		t.Fatal("an open squad hunt left ActiveCombat cleared")
 	}

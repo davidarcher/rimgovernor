@@ -10,9 +10,9 @@ func yes(v bool) domain.Fact[bool] { return domain.Known(v) }
 
 func TestManagePollutionRaisesGoalOnlyWithBiotechFacts(t *testing.T) {
 	t.Parallel()
-	f := stableRoutine()
+	f := stableRounds()
 	f.Pollution = domain.Unknown[PollutionFacts]()
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.FindingUnclear {
 		t.Fatal("no Biotech fact: an unknown assessment and no goal", r)
 	}

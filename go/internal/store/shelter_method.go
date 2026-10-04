@@ -18,7 +18,7 @@ var shelterBunkMethods = map[domain.MethodID]bool{"shelter-spots": true, "shelte
 // must be pure construction on no cell an open bunk stands on; any other
 // open method (the shell itself) still holds the goal.
 func shelterOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
 	}

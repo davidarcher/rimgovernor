@@ -44,7 +44,7 @@ func publishPawns(m *facts.Store, scope facts.Scope, pawns bridge.Pawns, tick in
 // publishBenches reads the gear bench census (each bench's bill stack and
 // recipe catalog, bridge.ReadGearBenches) and publishes it as the bench
 // section keyed by bench thing id, stamped with the step's tick.
-func publishBenches(ctx context.Context, m *facts.Store, scope facts.Scope, native RoutineWorkBenchSource, id *c.Identity, tick int64) (facts.Table[string, bridge.GearBenchRead], error) {
+func publishBenches(ctx context.Context, m *facts.Store, scope facts.Scope, native RoundsWorkBenchSource, id *c.Identity, tick int64) (facts.Table[string, bridge.GearBenchRead], error) {
 	census, _, err := native.ReadGearBenches(ctx, id)
 	if err != nil {
 		return facts.Table[string, bridge.GearBenchRead]{}, err

@@ -1,7 +1,7 @@
 // Package defense holds the defensive-layout vertical (issue #5, B06c; the
 // v2 perimeter, #789) end to end against a live game and a live rimgovernor
 // "serve" service. On the tribal8 baseline with stone blocks stocked, the
-// RoutineDefenseLayoutPlanner anchors its corridor on the layout plan's
+// RoundsDefenseLayoutPlanner anchors its corridor on the layout plan's
 // killbox opening, builds every tier natively (firing line, funnel, trap
 // corridor) and the plan's 3-thick stone perimeter wall with its 3-door
 // gates, section by section. The stored layout is re-verified by an
@@ -9,7 +9,7 @@
 // blocked (the gates' doors open for colonists, so every colonist still
 // reaches the killbox entry and every colony door through them) and by a
 // native inspection that no colonist stands on a trap. A real RaidEnemy
-// edge assault is then raised at the opening and the RoutineDefensePlanner
+// edge assault is then raised at the opening and the RoundsDefensePlanner
 // must open one fight (method "combat-…") formed as hold-the-line (#852). The service then
 // holds the raid itself -- the scheduler admits bounded combat watch
 // windows acknowledging the live hostiles while the ActiveCombat goal has
@@ -29,7 +29,7 @@
 // The other threat responses and layout decisions (bypass, breach, siege,
 // drop, predator, hostile buildings, turrets, cover, stocked projection)
 // are go-test snapshot replays in
-// internal/buildingruntime/routine_defense_cases_test.go (#744).
+// internal/buildingruntime/rounds_defense_cases_test.go (#744).
 //
 // Only one GABP client may hold the game at a time: the case's fixture
 // session and the service's session are used strictly in turn.
@@ -753,7 +753,7 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 }
 
 // combatIncident is the review's ActiveCombat incident (#1020), if bound.
-func combatIncident(ctx context.Context, s *store.Store, review store.Rounds) (store.IncidentState, store.RoutineIncident, bool, error) {
+func combatIncident(ctx context.Context, s *store.Store, review store.Rounds) (store.IncidentState, store.RoundsIncident, bool, error) {
 	binding, ok := review.Incident(policy.ActiveCombat)
 	if !ok {
 		return store.IncidentState{}, binding, false, nil

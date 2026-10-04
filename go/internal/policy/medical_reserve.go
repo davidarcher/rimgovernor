@@ -40,7 +40,7 @@ func DefaultMedicalReservePolicy() MedicalReservePolicy { return MedicalReserveP
 // MedicineReserveTarget supplies MaintainResource's renewable herbal floor.
 // Industrial stock remains available for urgent treatment; glitterworld stock
 // never substitutes for the reserve that autonomous play replenishes.
-func (p RoutinePolicy) MedicineReserveTarget(colonists domain.Fact[int64], active bool) int64 {
+func (p RoundsPolicy) MedicineReserveTarget(colonists domain.Fact[int64], active bool) int64 {
 	count, known := colonists.Value()
 	if !active || !known || count <= 0 || p.MedicalReserve.TargetPerColonist <= 0 {
 		return 0

@@ -172,13 +172,13 @@ func hasBlocker(blockers []DependencyBlocker, reason string) bool {
 // the shortfall alone, leaves the latch off, and drops the goal once the
 // edge settles (#711).
 func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.Wood = domain.Known(int64(150))
-	if r := needs(t, f, RoutineLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
+	if r := needs(t, f, RoundsLatches{}); r.Latches.Wood || hasNeed(r, MaintainResource) {
 		t.Fatal("150 wood is above WoodMin", r)
 	}
 	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "WoodLog", Costs: []DependencyCost{{Action: "a", Count: 120}, {Action: "b", Count: 80}}, Available: domain.Known(int64(150))}}
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if r.Latches.Wood || !hasNeed(r, MaintainResource) {
 		t.Fatal("shortfall did not activate MaintainResource", r)
 	}
@@ -208,16 +208,16 @@ func TestNonWoodShortfallRaisesResourceFloor(t *testing.T) {
 	if g, ok := ResourcePrerequisite("Steel"); !ok || g != MaintainResource {
 		t.Fatal(g, ok)
 	}
-	f := stableRoutine()
+	f := stableRounds()
 	f.Resources = domain.Known([]Amount{{"Steel", 10}})
-	if hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
+	if hasNeed(needs(t, f, RoundsLatches{}), MaintainResource) {
 		t.Fatal("no floor configured")
 	}
 	f.Dependencies = []DevelopmentDependency{{Dependent: MaintainHousing, Goal: "g", Episode: 1, Method: "m", Prerequisite: MaintainResource, Resource: "Steel", Costs: []DependencyCost{{Action: "a", Count: 25}, {Action: "b", Count: 25}}, Available: domain.Known(int64(10))}}
 	if got := DependencyResourceNeeds(f.Dependencies); got["Steel"] != 50 || len(got) != 1 {
 		t.Fatal(got)
 	}
-	if !hasNeed(needs(t, f, RoutineLatches{}), MaintainResource) {
+	if !hasNeed(needs(t, f, RoundsLatches{}), MaintainResource) {
 		t.Fatal("steel shortfall did not activate MaintainResource")
 	}
 	f.Dependencies[0].Available = domain.Known(int64(50))

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestRoutineSurgeryFactsMapping(t *testing.T) {
+func TestRoundsSurgeryFactsMapping(t *testing.T) {
 	leg := &o.MissingBodyPart{PartIndex: proto.Int32(40), PartDefName: proto.String("Leg"), ParentIndex: proto.Int32(0), ParentDefName: proto.String("Torso"), Vital: proto.Bool(false)}
 	restore := &o.SurgeryOperation{
 		Recipe: &o.DefinitionRef{DefName: proto.String("InstallPegLeg")}, PartIndex: proto.Int32(40), PartDefName: proto.String("Leg"),

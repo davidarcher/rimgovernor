@@ -8,8 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ReadRoutinePawns also requests schedule (TimetableSlot) detail: the shared
-// routine census (ObserveRoutine, from the frame) feeds every routine
+// ReadRoundsPawns also requests schedule (TimetableSlot) detail: the shared
+// routine census (ObserveRounds, from the frame) feeds every routine
 // planner -- Work, Waste, Disaster, Mood and others -- from this one read, and
 // EnsureMood relief dispatch needs a pawn's current timetable assignment
 // (boundary.ExpectedScheduleDef) to fence its native writes. Requesting it
@@ -19,10 +19,10 @@ import (
 // takes each colonist's negative thought pressure from it so MaintainMood
 // can defer to the upkeep goal whose facility removes it (#255). A native
 // build that skips the block leaves thoughts unknown, never the read failed.
-func (client *Client) ReadRoutinePawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
+func (client *Client) ReadRoundsPawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
 	return client.readPawnDetails(ctx, id, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true})
 }
-func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []string) error {
+func ValidateRoundsPawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []string) error {
 	return validateDetailedPawnSnapshot(snapshot, id, ids, pawnDetails{Combat: true, Work: true, Care: true, Schedule: true, Social: true})
 }
 

@@ -77,7 +77,7 @@ func TestDevelopmentHolds(t *testing.T) {
 			r.Goals = r.Goals[:1]
 			switch kind {
 			case "emergency":
-				r.Assessments = []RoutineAssessment{{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet}}
+				r.Assessments = []RoundsAssessment{{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet}}
 			case "unknown":
 				r.Goals[0].Deficit = domain.Unknown[float64]()
 			case "blocked":

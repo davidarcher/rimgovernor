@@ -68,9 +68,9 @@ func TestIncidentMethodCommit(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "incidents.db"))
-	r := routineRequest()
+	r := roundsRequest()
 	r.Enabled = false
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	state, err := s.OpenIncident(ctx, IncidentAssessment{Kind: policy.ActiveCombat, Trigger: "raid", Priority: 0, Snapshot: scope(), Tick: 10})
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 	r.Enabled = true
 	r.Tick++
 	r.Facts.Hostiles = domain.Known(int64(3))
-	out := reviewRoutine(t, s, &r)
+	out := reviewRounds(t, s, &r)
 	if b, ok := out.Review.Incident(policy.ActiveCombat); !ok || b.Incident != id || b.Situation != domain.SituationActive {
 		t.Fatal("review did not bind the open occurrence", out.Review.Incidents)
 	}
@@ -140,10 +140,10 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "incidents.db"))
-	r := routineRequest()
+	r := roundsRequest()
 	r.Current.Native = 2
 	r.Facts.CriticalPatients = domain.Known(int64(1))
-	out := reviewRoutine(t, s, &r)
+	out := reviewRounds(t, s, &r)
 	for _, b := range out.Review.Goals {
 		if policy.IsIncidentKind(b.Need) {
 			t.Fatal("incident kind filed a goal", b)
@@ -160,7 +160,7 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	}
 	target := r.Current
 	target.Plan, target.Revision = p.ID(), p.Revision()
-	if err := s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
+	if err := s.AuthorizeRoundsPlan(ctx, r.Current, target); err != nil {
 		t.Fatal("incident plan not authorized", err)
 	}
 	if _, err := s.Prepare(ctx, p.ID(), "tend-action", target, r.Tick); err != nil {
@@ -172,16 +172,16 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	// Recovered with dispatched work: the occurrence stays bound, recovered,
 	// and authorizes nothing.
 	r.Facts.CriticalPatients = domain.Known(int64(0))
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	if b, ok = out.Review.Incident(policy.CriticalMedicine); !ok || b.Incident != first || b.Situation != domain.SituationClear {
 		t.Fatal("recovered occurrence with open work", out.Review.Incidents)
 	}
-	if err := s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
+	if err := s.AuthorizeRoundsPlan(ctx, r.Current, target); err == nil {
 		t.Fatal("recovered incident authorized its plan")
 	}
 	// A world change abandons it and cancels its work.
 	r.Current.Load = "second-load"
-	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+	if out = reviewRounds(t, s, &r); len(out.Review.Incidents) != 0 {
 		t.Fatal("world change kept the occurrence", out.Review.Incidents)
 	}
 	if closed, err := s.LoadIncident(ctx, first); err != nil || !closed.Incident.Closed {
@@ -190,21 +190,21 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	// Recovered with only undispatched work: it is cancelled and the
 	// occurrence closes at once; the next deficit opens a new row.
 	r.Facts.CriticalPatients = domain.Known(int64(2))
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	b, _ = out.Review.Incident(policy.CriticalMedicine)
 	pending := plan(t, "tend-pending", "tend-pending-action")
 	if _, err := s.CommitIncidentMethod(ctx, b.Incident, "tend-bob-0", "", pending); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.CriticalPatients = domain.Known(int64(0))
-	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+	if out = reviewRounds(t, s, &r); len(out.Review.Incidents) != 0 {
 		t.Fatal("settled occurrence stayed open", out.Review.Incidents)
 	}
 	if loaded, err := s.LoadPlan(ctx, pending.ID()); err != nil || domain.GoalWorkOpen(loaded.Progress) {
 		t.Fatal("recovery left undispatched work open", err)
 	}
 	r.Facts.CriticalPatients = domain.Known(int64(1))
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	if next, ok := out.Review.Incident(policy.CriticalMedicine); !ok || next.Incident == b.Incident {
 		t.Fatal("next deficit reused the closed occurrence", out.Review.Incidents)
 	}
@@ -216,11 +216,11 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	}
 	// Pausing keeps the occurrence; replacing the world ends it.
 	r.Enabled = false
-	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 1 {
+	if out = reviewRounds(t, s, &r); len(out.Review.Incidents) != 1 {
 		t.Fatal("disabled review dropped the occurrence", out.Review.Incidents)
 	}
 	r.Current.Load = "other-load"
-	if out = reviewRoutine(t, s, &r); len(out.Review.Incidents) != 0 {
+	if out = reviewRounds(t, s, &r); len(out.Review.Incidents) != 0 {
 		t.Fatal("world change kept the occurrence", out.Review.Incidents)
 	}
 	if abandoned, err := s.LoadIncident(ctx, second); err != nil || !abandoned.Incident.Closed {

@@ -10,19 +10,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// TestRoutinePlanRetirementNoDoubleSpend replays the double-spend the deleted
+// TestRoundsPlanRetirementNoDoubleSpend replays the double-spend the deleted
 // retirement floor blocked (#1008): once a settled plan retires, stock observed
 // before its evidence must not buy a second method. The goal tick check refuses
 // it without the floor, and the same stock at a fresh tick still admits.
-func TestRoutinePlanRetirementNoDoubleSpend(t *testing.T) {
+func TestRoundsPlanRetirementNoDoubleSpend(t *testing.T) {
 	t.Parallel()
 	for _, effect := range []domain.Effect{domain.EffectCompleted, domain.EffectUnsuccessful} {
 		t.Run(string(effect), func(t *testing.T) {
 			ctx := context.Background()
 			path := memoryPath(t)
 			s := open(t, path)
-			r := routineRequest()
-			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+			r := roundsRequest()
+			g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 			q := methodRequest(t, g, "old", 100)
 			d, err := s.AdmitBuildingMethod(ctx, q)
 			if err != nil || !d.Admitted {
@@ -45,7 +45,7 @@ func TestRoutinePlanRetirementNoDoubleSpend(t *testing.T) {
 			built, _ := q.Plan.Actions()[0].Building()
 			r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: built, Cells: []domain.Cell{built.Cell()}}}})
 			r.Tick = 20
-			reviewRoutine(t, s, &r)
+			reviewRounds(t, s, &r)
 			s.Close()
 			s = open(t, path)
 			p, err := s.LoadPlan(ctx, q.Plan.ID())
@@ -66,7 +66,7 @@ func TestRoutinePlanRetirementNoDoubleSpend(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
+func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	if testing.Short() {
 		t.Skip("slow: runs under cmd/test -full and nightly")
 	}
@@ -74,8 +74,8 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
-	r := routineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+	r := roundsRequest()
+	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 	for i := 0; i < 260; i++ {
 		id := fmt.Sprintf("method-%03d", i)
 		p := plan(t, domain.PlanID(id), domain.ActionID(id+"-a"))
@@ -89,7 +89,7 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 		if i == 0 {
 			r.Tick = g.Standard.Tick
 		}
-		g = routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+		g = roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 		if i == 0 {
 			if g.Revision <= committed.Revision {
 				t.Fatal("same-tick retirement retained stale revision")
@@ -127,19 +127,19 @@ func TestRoutinePlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
+func TestRoundsPlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+	r := roundsRequest()
+	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "current", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Cancel(ctx, "p", "a"); err != nil {
 		t.Fatal(err)
 	}
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	p, err := s.LoadPlan(ctx, "p")
 	if err != nil || p.Retired {
 		t.Fatal("current plan retired", p, err)
@@ -148,7 +148,7 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Current.Plan = "other"
-	if _, err = s.ReviewRoutine(ctx, r); err == nil {
+	if _, err = s.ReviewRounds(ctx, r); err == nil {
 		t.Fatal("injected failure ignored")
 	}
 	p, err = s.LoadPlan(ctx, "p")
@@ -157,14 +157,14 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementPinsUnfinishedMethods(t *testing.T) {
+func TestRoundsPlanRetirementPinsUnfinishedMethods(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"dependency", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, memoryPath(t))
-			r := routineRequest()
-			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
+			r := roundsRequest()
+			g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainResource)
 			p := plan(t, "method", "method-a", "method-b")
 			if kind == "dependency" {
 				var err error
@@ -198,7 +198,7 @@ func TestRoutinePlanRetirementPinsUnfinishedMethods(t *testing.T) {
 				}
 			}
 			r.Tick = 20
-			reviewRoutine(t, s, &r)
+			reviewRounds(t, s, &r)
 			got, err := s.LoadPlan(ctx, p.ID())
 			if err != nil || got.Retired {
 				t.Fatal("pinned work retired", kind, got, err)

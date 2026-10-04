@@ -21,7 +21,7 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    target (`policy.ResearchGoal`: the default research ladder follows when no need is
    recorded, see [research](../contracts/research.md)), raises the goal, and
    adds Research to the work requirements so a researcher is assigned;
-   `RoutineResearchPlanner` selects the prerequisite chain natively.
+   `RoundsResearchPlanner` selects the prerequisite chain natively.
    Finishing the project clears the record on the next workshop step.
 3. **Power**: a bench that needs power is staged only once a generator
    definition is buildable; standing unpowered it is an ordinary consumer for
@@ -35,7 +35,7 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    recipe ingredients (`policy.DeriveBenchInputs`; a stonecutter's is its stone
    chunks) on the free roofed 2x2 patch in the bench's room nearest it by
    walking distance. Hauling then brings the inputs to the bench. Once
-   ComplexFurniture is researched, `RoutineStorageShelvesPlanner` places a
+   ComplexFurniture is researched, `RoundsStorageShelvesPlanner` places a
    Shelf inside the planner's general store (and the ingredient zones
    `MaintainResource` created before the planner took them over), up to
    a third of its footprint; `MaintainStockpiles` patches each built shelf
@@ -50,7 +50,7 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    census and planning cells; its `StockpileSite`s are the standing-zone diff
    `MaintainStockpiles` applies, and the role registry supplies each role's
    filter and priority. The plan is derived each pass and stored nowhere.
-6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
+6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. Native
    applies a bill on an unfueled bench (`UsableForBillsAfterFueling`):
    a bill waiting on the bench is what makes haulers refuel it, and a bench
@@ -60,7 +60,7 @@ Each rung reports an explicit reason when it cannot proceed
 (`workshop_research_needed`, `workshop_bench_unavailable`, `no_space`,
 `unknown`) rather than staging something else. A research bench itself is the
 Laboratory row: when the research ladder's next rung is locked only for lack
-of a bench, `RoutineResearchPlanner` walks the same furnish-or-shell ladder
+of a bench, `RoundsResearchPlanner` walks the same furnish-or-shell ladder
 under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
 plans) and selects the rung once it stands (#254).
 
@@ -252,7 +252,7 @@ and the native strength read once built is the check.
 
 **Upkeep and breach response (#1743).** MaintainPopulation's custody step,
 once no capture or custody is owed, keeps a held entity contained
-(`routine_population_containment.go`, facts in `policy/entity_upkeep.go`).
+(`rounds_population_containment.go`, facts in `policy/entity_upkeep.go`).
 Doors: the native holder row carries the room's `Building_Door`s
 (`EntityHolderState.doors`: open, hold_open, containment_breached,
 blocked_open). A holder with a held pawn whose door is held open owes one
@@ -339,7 +339,7 @@ planner raises it under MaintainHousing, like the tomb:
    per light per game hour, so the braziers stay lit.
 
 Tests: `go/internal/policy/throne*_test.go` cover each step in the planner;
-`go/internal/buildingruntime/routine_throne_requirements_test.go` drives the
+`go/internal/buildingruntime/rounds_throne_requirements_test.go` drives the
 recorded Knight title through the review's own path and asserts a missing
 brazier, column or instrument, an unfloored room, a forbidden building and an
 unlit brazier each plan their fix. There is no acceptance case.
@@ -362,7 +362,7 @@ spot, attendees). While one is accepted:
 
 An offered quest is how a title is claimed: when `NextTitleClaim` says claim
 (favor, the next rung's bedroom and throne room met), the review lists the
-quest in `RoutineFacts.TitleClaimQuests` and MaintainPopulation's
+quest in `RoundsFacts.TitleClaimQuests` and MaintainPopulation's
 `SelectEmpireQuestMethod` accepts it through the existing QuestAccept (quest
 identified by the read's quest id, not its script def). The ritual starts
 only on the player's command (the bestower's Wait toil gizmo): once the

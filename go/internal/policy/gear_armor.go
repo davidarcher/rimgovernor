@@ -48,7 +48,7 @@ func ArmorResearchLadder(ladder []string, soldier bool) []string {
 
 // ArmorResearchPolicy is p with its ResearchLadder extended by
 // ArmorResearchLadder; an empty ladder (roadmap disabled) stays empty.
-func ArmorResearchPolicy(p RoutinePolicy, soldier bool) RoutinePolicy {
+func ArmorResearchPolicy(p RoundsPolicy, soldier bool) RoundsPolicy {
 	if len(p.ResearchLadder) == 0 {
 		return p
 	}

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
+func TestRoundsMoodNeedsValidationAndSelection(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		change func(*o.PawnNeeds)
@@ -40,7 +40,7 @@ func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
 				test.change(n)
 			}
 			s.Pawns[0].Needs = n
-			err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"})
+			err := ValidateRoundsPawnSnapshot(s, pbIdentity(), []string{"pawn-1"})
 			if (err == nil) != test.valid {
 				t.Fatal(err)
 			}
@@ -51,13 +51,13 @@ func TestRoutineMoodNeedsValidationAndSelection(t *testing.T) {
 	}
 }
 
-// TestRoutineScheduleDetailValidation covers the validateSettings schedule
-// gap: ReadRoutinePawns/ValidateRoutinePawnSnapshot must accept
+// TestRoundsScheduleDetailValidation covers the validateSettings schedule
+// gap: ReadRoundsPawns/ValidateRoundsPawnSnapshot must accept
 // PawnSettings.Schedule (EnsureMood relief dispatch needs a pawn's current
 // timetable assignment to fence its native writes via
 // boundary.ExpectedScheduleDef), while selections that never requested
 // schedule detail (combat, tend) must keep refusing it as unrequested.
-func TestRoutineScheduleDetailValidation(t *testing.T) {
+func TestRoundsScheduleDetailValidation(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		change  func(*o.PawnSettings)
@@ -81,7 +81,7 @@ func TestRoutineScheduleDetailValidation(t *testing.T) {
 				test.change(settings)
 			}
 			s.Pawns[0].Settings = settings
-			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
+			if err := ValidateRoundsPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
 				t.Fatal("routine", err)
 			}
 			if ValidateCombatPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
@@ -94,11 +94,11 @@ func TestRoutineScheduleDetailValidation(t *testing.T) {
 	}
 }
 
-// TestRoutineSocialDetailValidation covers the social block the routine
+// TestRoundsSocialDetailValidation covers the social block the routine
 // census reads for thought pressure (#255): the routine selection accepts a
 // bounded PawnSocial and refuses malformed thought rows, while selections
 // that never requested it keep refusing it as unrequested.
-func TestRoutineSocialDetailValidation(t *testing.T) {
+func TestRoundsSocialDetailValidation(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		change  func(*o.PawnSocial)
@@ -128,7 +128,7 @@ func TestRoutineSocialDetailValidation(t *testing.T) {
 				test.change(social)
 			}
 			s.Pawns[0].Social = social
-			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
+			if err := ValidateRoundsPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
 				t.Fatal("routine", err)
 			}
 			if ValidateCombatPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {

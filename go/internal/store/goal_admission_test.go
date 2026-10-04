@@ -30,7 +30,7 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 	s := summary.Snapshot
 	s.Plan = p.ID()
 	s.Revision = p.Revision()
-	r := BuildingMethodRequest{Owner: g, Method: "build", Plan: p, Current: s, Tick: summary.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
+	r := BuildingMethodRequest{Owner: g, Method: "build", Plan: p, Current: s, Tick: summary.Tick, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Rounds,
 		Stock: policy.StockObservation{Snapshot: s, Tick: summary.Tick, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(101))}}}}
 	for i, a := range actions {
 		b, _ := a.Building()

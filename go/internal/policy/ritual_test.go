@@ -182,17 +182,17 @@ func TestRitualsGatherOnlyAvailableBelievers(t *testing.T) {
 func TestRitualAttendeesAreHeldOffSleep(t *testing.T) {
 	ideo := ritualFixture(nil)
 	plans := PlanRituals(ideo, ritualPawns(), lecternSites(), 100*ritualDay, domain.Known(true))
-	hold := HeldOffSleep(RoutineFacts{RitualPlans: plans})
+	hold := HeldOffSleep(RoundsFacts{RitualPlans: plans})
 	if len(hold) != 4 || !hold["guide"] || !hold["alice"] || !hold["bob"] || !hold["carol"] || hold["outsider"] {
 		t.Fatalf("%v", hold)
 	}
-	if HeldOffSleep(RoutineFacts{RitualPlans: PlanRituals(ideo, ritualPawns(), lecternSites(), 100*ritualDay, domain.Known(false))}) != nil {
+	if HeldOffSleep(RoundsFacts{RitualPlans: PlanRituals(ideo, ritualPawns(), lecternSites(), 100*ritualDay, domain.Known(false))}) != nil {
 		t.Fatal("a held ritual holds nobody")
 	}
-	if HeldOffSleep(RoutineFacts{}) != nil {
+	if HeldOffSleep(RoundsFacts{}) != nil {
 		t.Fatal("unknown plans hold nobody")
 	}
-	both := HeldOffSleep(RoutineFacts{RitualPlans: plans, Royalty: domain.Known(RoyaltyFacts{Ceremonies: []BestowingCeremony{{Pawn: "Envoy", Accepted: domain.Known(true)}}})})
+	both := HeldOffSleep(RoundsFacts{RitualPlans: plans, Royalty: domain.Known(RoyaltyFacts{Ceremonies: []BestowingCeremony{{Pawn: "Envoy", Accepted: domain.Known(true)}}})})
 	if !both["Envoy"] || !both["guide"] {
 		t.Fatalf("the ceremony hold and the ritual hold merge: %v", both)
 	}
@@ -228,9 +228,9 @@ func TestRitualPlansTakeEachPawnOnce(t *testing.T) {
 }
 
 func TestRitualsOwedRaisesMaintainRituals(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.RitualsOwed = domain.Known(true)
-	for _, g := range needs(t, f, RoutineLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Goals {
 		if g.ID == MaintainRituals {
 			return
 		}

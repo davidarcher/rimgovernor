@@ -264,7 +264,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if state.Incident.Closed {
 		return IncidentState{}, fmt.Errorf("%w: incident %s is closed", ErrConflict, id)
 	}
-	if err = admitRoutineSafeguards(ctx, tx, state); err != nil {
+	if err = admitRoundsSafeguards(ctx, tx, state); err != nil {
 		return IncidentState{}, err
 	}
 	open, err := goalOpenWork(ctx, tx, state)
@@ -297,5 +297,5 @@ func guardIncidentWork(ctx context.Context, tx *sql.Tx, id domain.IncidentID, cu
 	if i.Closed || !i.Snapshot.SameWorld(current) || tick < i.Started {
 		return errors.New("incident does not admit current work")
 	}
-	return admitRoutineSafeguards(ctx, tx, state)
+	return admitRoundsSafeguards(ctx, tx, state)
 }

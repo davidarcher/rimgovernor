@@ -25,7 +25,7 @@ func TestStrangerCorpseRouting(t *testing.T) {
 // Only a rotting animal corpse waits for the rotten dump; a fresh one waits
 // for the freezer or the fresh dump, and a human one for the corpse dump.
 func TestDumpNeedsRoutesCorpsesByKindAndRot(t *testing.T) {
-	facts := RoutineFacts{Waste: domain.Known([]WasteItem{
+	facts := RoundsFacts{Waste: domain.Known([]WasteItem{
 		{Kind: "corpse", CorpseOf: domain.CorpseAnimal, RotStage: domain.RotFresh},
 		{Kind: "corpse", CorpseOf: domain.CorpseAnimal, RotStage: domain.RotRotting},
 		{Kind: "corpse", CorpseOf: domain.CorpseStranger, RotStage: domain.RotRotting},

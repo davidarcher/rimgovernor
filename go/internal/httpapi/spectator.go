@@ -42,7 +42,7 @@ func (s *Server) handleSpectator(w http.ResponseWriter, r *http.Request) bool {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
 	defer cancel()
-	status, err := s.config.Routines.RoutineStatus(ctx)
+	status, err := s.config.Routines.RoundsStatus(ctx)
 	if err == nil {
 		err = ctx.Err()
 	}

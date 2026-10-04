@@ -388,7 +388,7 @@ func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domai
 // powered Cooler through a vented wall when cooling reports the research
 // done and a network with spare capacity for its draw, otherwise a passive
 // cooler inside the room. Native temperature proves recovery.
-func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling TemperatureCooling, limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
+func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling TemperatureCooling, limits RoundsPolicy, latches RoundsLatches) (TemperatureProposal, error) {
 	if err := limits.Validate(); err != nil {
 		return TemperatureProposal{}, err
 	}

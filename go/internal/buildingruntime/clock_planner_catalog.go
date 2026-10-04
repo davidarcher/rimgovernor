@@ -103,7 +103,7 @@ var (
 // section it declares) re-runs it sooner.
 const (
 	reviewEveryUrgent  domain.Tick = domain.TicksPerHour
-	reviewEveryRoutine domain.Tick = domain.TicksPerHour
+	reviewEveryRounds  domain.Tick = domain.TicksPerHour
 	reviewEveryComfort domain.Tick = 15000
 )
 
@@ -115,7 +115,7 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 	}
 	switch e.priority {
 	case plannerMaintenance:
-		return reviewEveryRoutine
+		return reviewEveryRounds
 	case plannerComfort:
 		return reviewEveryComfort
 	}
@@ -123,14 +123,14 @@ func (e plannerEntry) reviewEvery() domain.Tick {
 }
 
 // plannerCatalog lists every routine planner in queue order. Priorities
-// follow policy.DetectRoutine's class for the planner's goal; queue order
+// follow policy.DetectRounds's class for the planner's goal; queue order
 // breaks priority ties (plannerGroup.Wait is stable), so the order here is
 // the order Step queued them inline.
 var plannerCatalog = []plannerEntry{
 	{name: "undraft", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, sections: sectionsThreat,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Routine != nil },
+		configured: func(c *ClockSchedulerConfig) bool { return c.Rounds != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			return Verdict{}, s.config.Routine.sweepDrafts(ctx, epoch, arbiter)
+			return Verdict{}, s.config.Rounds.sweepDrafts(ctx, epoch, arbiter)
 		}},
 	{name: "work", goal: policy.EnsureWorkAssignments, class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction, domain.PawnSettingsAction, domain.ReadingPolicyAction, domain.DrugPolicyAction, domain.FoodPolicyAction}, sections: sectionsWork,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },

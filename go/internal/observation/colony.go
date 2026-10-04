@@ -133,7 +133,7 @@ type ColonyProjection struct {
 	// Royalty is the Empire ladder, permits and holdings (#1599); unknown
 	// without Royalty or a royalty source.
 	Royalty domain.Fact[policy.RoyaltyFacts]
-	Facts   policy.RoutineFacts
+	Facts   policy.RoundsFacts
 	// BedPrice prices a bed by (def, stuff) from the catalog's MarketValue
 	// rows (#1840); nil without a catalog.
 	BedPrice policy.BedPrice
@@ -383,7 +383,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	if r.RoyaltyColony, err = colonyRoyalty(v.Royalty); err != nil {
 		return ColonyProjection{}, err
 	}
-	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
+	r.Facts = policy.RoundsFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)
 	r.Facts.NoDangerArea = allowedAreaID(r.Policies, policy.NoDangerAreaLabel)

@@ -252,7 +252,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	report["refrigeration_methods"] = len(methods)
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

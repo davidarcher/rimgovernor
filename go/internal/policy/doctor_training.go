@@ -178,8 +178,8 @@ func SelectPegCycle(prisoners domain.Fact[[]PrisonerFacts], colony domain.Fact[P
 }
 
 // PegCycleWanted reports whether a peg-leg step would be queued now;
-// DetectRoutine holds MaintainSurgery open on it (#1236).
-func PegCycleWanted(f RoutineFacts, p PrisonerPolicy) bool {
+// DetectRounds holds MaintainSurgery open on it (#1236).
+func PegCycleWanted(f RoundsFacts, p PrisonerPolicy) bool {
 	_, ok := SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants, f.Recipes, nil)
 	return ok
 }

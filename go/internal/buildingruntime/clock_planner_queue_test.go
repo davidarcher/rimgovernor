@@ -22,7 +22,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 	n := schedulerSleeping(t, s, f)
 	ctx := context.Background()
 	first, err := s.Step(ctx)
-	if err != nil || first.Routine == nil || first.Sleeping == nil {
+	if err != nil || first.Rounds == nil || first.Sleeping == nil {
 		t.Fatal(first, err)
 	}
 	reads := n.reads
@@ -143,7 +143,7 @@ func TestPlannerQueueRanRecordsCadenceAndWaits(t *testing.T) {
 		}
 		return []domain.ActionID{"repair-1"}
 	})
-	if q.due["repair"] != 1000+int64(reviewEveryRoutine) || q.due["tend"] != 1000+int64(reviewEveryUrgent) {
+	if q.due["repair"] != 1000+int64(reviewEveryRounds) || q.due["tend"] != 1000+int64(reviewEveryUrgent) {
 		t.Fatal(q.due)
 	}
 	if wait, ok := q.waitingOn("repair"); !ok || !reflect.DeepEqual(wait.On, []domain.ActionID{"repair-1"}) || wait.Deadline != q.due["repair"] {

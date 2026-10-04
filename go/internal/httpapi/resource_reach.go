@@ -5,7 +5,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-type routineExtentDTO struct {
+type roundsExtentDTO struct {
 	Known   bool `json:"known"`
 	Regions int  `json:"regions"`
 	Cells   int  `json:"cells"`
@@ -27,9 +27,9 @@ func lootHolds(rows []policy.LootHold) []lootHoldDTO {
 	return out
 }
 
-func routineExtent(f domain.Fact[policy.ColonyExtent]) routineExtentDTO {
+func roundsExtent(f domain.Fact[policy.ColonyExtent]) roundsExtentDTO {
 	e, known := f.Value()
-	d := routineExtentDTO{Known: known, Regions: len(e.Regions)}
+	d := roundsExtentDTO{Known: known, Regions: len(e.Regions)}
 	for _, region := range e.Regions {
 		d.Cells += len(region.Cells)
 	}

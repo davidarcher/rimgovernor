@@ -199,7 +199,7 @@ func TrimTo(in, out string, keep bool, tick int64, seq int, step string) error {
 		}
 		return os.WriteFile(out, data, 0o644)
 	}
-	var r Routine
+	var r Rounds
 	var err error
 	if IsStream(in) {
 		if tick < 0 {

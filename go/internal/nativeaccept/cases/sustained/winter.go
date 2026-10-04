@@ -135,8 +135,8 @@ func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared ma
 	winter := calendar
 	winter.GrowingDaysRemaining, winter.GrowingDaysUntil, winter.Sowing = 0, nonGrowing, false
 	noConditions := domain.Unknown[[]policy.DisasterCondition]()
-	before := policy.DefaultRoutinePolicy().Seasonal(domain.Known(calendar), noConditions)
-	seasonal := policy.DefaultRoutinePolicy().Seasonal(domain.Known(winter), noConditions)
+	before := policy.DefaultRoundsPolicy().Seasonal(domain.Known(calendar), noConditions)
+	seasonal := policy.DefaultRoundsPolicy().Seasonal(domain.Known(winter), noConditions)
 	if math.Abs(before.FoodMinDays-seasonal.FoodMinDays) > 1e-9 || math.Abs(before.FoodTargetDays-seasonal.FoodTargetDays) > 1e-9 {
 		return fmt.Errorf("seasonal food thresholds jump at the frost: %.2f/%.2f on the last growing day, %.2f/%.2f on the first non-growing day",
 			before.FoodMinDays, before.FoodTargetDays, seasonal.FoodMinDays, seasonal.FoodTargetDays)

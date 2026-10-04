@@ -69,7 +69,7 @@ func herdTrainQueue(herd HerdPolicy, a UpkeepAnimal) []HusbandryTrainable {
 	return wanted
 }
 
-// HusbandryPlanReason names why RoutineHusbandryPlanner did or did not
+// HusbandryPlanReason names why RoundsHusbandryPlanner did or did not
 // propose a training write.
 type HusbandryPlanReason string
 

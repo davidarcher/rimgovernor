@@ -55,7 +55,7 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 // keeps naming the acceptance runner's per-case path.
 func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
 	config, err := parseServe(base, io.Discard)
 	if err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
@@ -403,7 +403,7 @@ func TestServePresentationReadsUseTheAttachedClient(t *testing.T) {
 // retired --clock-window-seconds is refused (#244).
 func TestServeClockWindowTicksFlag(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
 	if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-seconds", "2"), io.Discard); err == nil {
 		t.Fatal("accepted the retired --clock-window-seconds")

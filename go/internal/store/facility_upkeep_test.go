@@ -72,7 +72,7 @@ func TestConstructionClaimsRejectUnprovenAndFutureWork(t *testing.T) {
 func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	t.Parallel()
 	s, path, _, building := completedFacility(t, true)
-	r := routineRequest()
+	r := roundsRequest()
 	r.Tick = 12
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}}}})
 	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
@@ -82,22 +82,22 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	// margin is missing Home while it stands, unknown while the census is.
 	assertNeeds := func(out RoundsResult, want domain.Finding) {
 		t.Helper()
-		if got := routineGoal(t, out, policy.MaintainStoneShell).Standard.Finding; got != want {
+		if got := roundsGoal(t, out, policy.MaintainStoneShell).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
 		}
-		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Standard.Finding; got != want {
+		if got := roundsGoal(t, out, policy.MaintainHomeCoverage).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainHomeCoverage, got)
 		}
 	}
-	assertNeeds(reviewRoutine(t, s, &r), domain.FindingUnmet)
+	assertNeeds(reviewRounds(t, s, &r), domain.FindingUnmet)
 	r.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
-	out := reviewRoutine(t, s, &r)
+	out := reviewRounds(t, s, &r)
 	assertNeeds(out, domain.FindingUnclear)
 	if !out.Review.Latches.StoneShell {
 		t.Fatal("unknown erased active history")
 	}
 	r.Enabled = false
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	if !out.Review.Latches.StoneShell {
 		t.Fatal("Manual erased completed ownership history")
 	}
@@ -105,17 +105,17 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	s = open(t, path)
 	defer s.Close()
 	r.Enabled = true
-	assertNeeds(reviewRoutine(t, s, &r), domain.FindingUnclear)
+	assertNeeds(reviewRounds(t, s, &r), domain.FindingUnclear)
 	// A complete census now reports the owned wall gone.
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
-	assertNeeds(reviewRoutine(t, s, &r), domain.FindingMet)
+	assertNeeds(reviewRounds(t, s, &r), domain.FindingMet)
 }
 
 func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	t.Parallel()
 	s, _, _ := goalFixture(t)
 	defer s.Close()
-	r := routineRequest()
+	r := roundsRequest()
 	b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 	// A caller-supplied claim is replaced by the journal's; the census holds
 	// no building, so nothing is owned (#719 counts census buildings).
@@ -124,9 +124,9 @@ func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	r.Facts.MapBounds = domain.Known(policy.Bounds{Width: 250, Height: 250})
 	r.Facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "zone", Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)), Cells: []domain.Cell{{X: 3, Z: 7}}}}, Home: domain.Known([]domain.Cell{}), AutoHome: domain.Known(false)})
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
-	out := reviewRoutine(t, s, &r)
+	out := reviewRounds(t, s, &r)
 	for _, id := range []domain.ConcernID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-		if got := routineGoal(t, out, id).Standard.Finding; got != domain.FindingMet {
+		if got := roundsGoal(t, out, id).Standard.Finding; got != domain.FindingMet {
 			t.Fatal(id, got)
 		}
 	}

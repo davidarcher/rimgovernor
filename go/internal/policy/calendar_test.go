@@ -61,7 +61,7 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 }
 
 func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
-	base := DefaultRoutinePolicy()
+	base := DefaultRoundsPolicy()
 	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12, NonGrowingDays: 12})
 	p := base.Seasonal(winter, noConditions)
 	if p.FoodTargetDays != base.FoodTargetDays+15 || p.FoodMinDays != base.FoodMinDays+15 || p.FootholdFoodDays != base.FootholdFoodDays {
@@ -89,17 +89,17 @@ func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
 	}
 }
 
-func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
-	f := stableRoutine()
+func TestRoundsFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
+	f := stableRounds()
 	// 8 days of food and 400 wood satisfy the flat targets (7 days, 350).
-	if r := needs(t, f, RoutineLatches{}); r.Latches.Food || r.Latches.Wood || hasNeed(r, EnsureFoodSupply) {
+	if r := needs(t, f, RoundsLatches{}); r.Latches.Food || r.Latches.Wood || hasNeed(r, EnsureFoodSupply) {
 		t.Fatal(r)
 	}
 	// The last growing day with a 20-day winter ahead: the same stock is a
 	// deficit against the seasonal thresholds (26/30 days, 515/1500 wood)
 	// and stays one until it covers the gap.
 	f.Calendar = domain.Known(Calendar{Season: "Fall", DayOfYear: 40, GrowingDays: 40, GrowingDaysRemaining: 1, NonGrowingDays: 20, Sowing: true})
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if !r.Latches.Food || !r.Latches.Wood || !hasNeed(r, EnsureFoodSupply) || !hasNeed(r, MaintainResource) {
 		t.Fatal(r)
 	}
@@ -117,11 +117,11 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 	}
 	// The foothold food gate keeps its flat minimum: a stocked larder short
 	// of the winter target is a development deficit, not a foothold failure.
-	if !positive(footholdFood(f, DefaultRoutinePolicy())) {
+	if !positive(footholdFood(f, DefaultRoundsPolicy())) {
 		t.Fatal(r)
 	}
 	f.Calendar = domain.Known(Calendar{GrowingDays: 61})
-	if _, err := DetectRoutine(f, r.Latches, DefaultRoutinePolicy()); err == nil {
+	if _, err := DetectRounds(f, r.Latches, DefaultRoundsPolicy()); err == nil {
 		t.Fatal("invalid calendar accepted")
 	}
 }
@@ -162,7 +162,7 @@ func TestHarvestGapDaysExtendsByAnObservedGrowthPause(t *testing.T) {
 	}
 	// The seasonal policy widens both thresholds by the pause, so a stocked
 	// summer larder reads as a deficit while a volcanic winter is observed.
-	base := DefaultRoutinePolicy()
+	base := DefaultRoundsPolicy()
 	p := base.Seasonal(summer, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 20*60000)}))
 	if p.FoodTargetDays != base.FoodTargetDays+20 || p.FoodMinDays != base.FoodMinDays+20 || p.WoodTarget <= base.WoodTarget {
 		t.Fatal(p)

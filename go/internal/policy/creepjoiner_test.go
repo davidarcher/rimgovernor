@@ -146,9 +146,9 @@ func TestCreepJoinerWeaponDrops(t *testing.T) {
 // a measured none recovers it, an unknown raises nothing.
 func TestCreepJoinerOwedRaisesTheGoal(t *testing.T) {
 	raised := func(f domain.Fact[bool]) bool {
-		r := stableRoutine()
+		r := stableRounds()
 		r.CreepJoinerOwed = f
-		res := needs(t, r, RoutineLatches{})
+		res := needs(t, r, RoundsLatches{})
 		for _, g := range res.Goals {
 			if g.ID == ManageCreepJoiners {
 				return true

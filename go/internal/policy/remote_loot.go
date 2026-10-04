@@ -104,7 +104,7 @@ func remoteLootHold(r RemoteWorkRequest, row LootItem) (string, error) {
 // LootDemand builds the demand remote loot scores against: the effective
 // stock targets (which carry the derived resource needs) and the current
 // usable stock.
-func LootDemand(p RoutinePolicy, f RoutineFacts) (domain.Fact[[]ResourceDemand], error) {
+func LootDemand(p RoundsPolicy, f RoundsFacts) (domain.Fact[[]ResourceDemand], error) {
 	targets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
 	if err != nil {
 		return domain.Unknown[[]ResourceDemand](), err
@@ -131,7 +131,7 @@ func LootDemand(p RoutinePolicy, f RoutineFacts) (domain.Fact[[]ResourceDemand],
 // facts: threat, defense and raid points from the colony census, hauling and
 // storyteller quietness from the loot census's own readiness, and storage
 // headroom from the census's accepting-storage figures. Unknown stays unknown.
-func LootReach(f RoutineFacts, bounds domain.Fact[Bounds], extent domain.Fact[ColonyExtent]) ResourceReachRequest {
+func LootReach(f RoundsFacts, bounds domain.Fact[Bounds], extent domain.Fact[ColonyExtent]) ResourceReachRequest {
 	r := ResourceReachRequest{Extent: extent, Bounds: bounds, RaidPoints: f.RaidPoints, Armed: f.Armed,
 		FreeHaulers: f.LootReadiness.FreeHaulers, StorytellerQuiet: f.LootReadiness.StorytellerQuiet}
 	if hostiles, known := f.Hostiles.Value(); known {

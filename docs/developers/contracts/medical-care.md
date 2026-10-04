@@ -141,7 +141,7 @@ nothing fabricates yields no demand there, and the purchase path (#1845) reads
 the same `ChosenElective`. `ElectiveSurgeryOwed` holds MaintainSurgery open for a
 chosen elective only while it is fabricable, and the demand clears when the
 part is stocked, installed, queued or no longer affordable. The trade side
-(`routine_trade.go`) still sees served parts only.
+(`rounds_trade.go`) still sees served parts only.
 
 Acceptance (#1848): `medical/surgery-elective-rich` and
 `medical/surgery-elective-poor` run the same hospital, three Medicine 20 doctors,

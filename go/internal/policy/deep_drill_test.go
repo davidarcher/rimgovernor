@@ -18,11 +18,11 @@ func TestDeepDrillingResearchRequiresMetalDeficit(t *testing.T) {
 				continue
 			}
 			facts := ResearchFacts{Projects: []ResearchProjectID{"DeepDrilling", "GroundPenetratingScanner"}}
-			if target, _ := ResearchGoal(DefaultRoutinePolicy(), needs, domain.Known(facts)); target != "DeepDrilling" {
+			if target, _ := ResearchGoal(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "DeepDrilling" {
 				t.Fatal(target)
 			}
 			facts.Finished = []ResearchProjectID{"DeepDrilling"}
-			if target, _ := ResearchGoal(DefaultRoutinePolicy(), needs, domain.Known(facts)); target != "GroundPenetratingScanner" {
+			if target, _ := ResearchGoal(DefaultRoundsPolicy(), needs, domain.Known(facts)); target != "GroundPenetratingScanner" {
 				t.Fatal(target)
 			}
 		}
@@ -30,14 +30,14 @@ func TestDeepDrillingResearchRequiresMetalDeficit(t *testing.T) {
 }
 
 func TestMetalRunwayRaisesResearchNeed(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"DeepDrilling", "GroundPenetratingScanner"}})
 	f.ResourceRunways = []ResourceRunway{{Resource: "Steel", Deficit: domain.Known(true)}}
-	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.FindingUnmet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), EnsureResearch); got != domain.FindingUnmet {
 		t.Fatal(got)
 	}
 	f.ResourceRunways = nil
-	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.FindingMet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), EnsureResearch); got != domain.FindingMet {
 		t.Fatal(got)
 	}
 }

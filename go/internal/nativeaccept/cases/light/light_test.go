@@ -16,7 +16,7 @@ func TestReleaseWaitsForEnabledLightingReview(t *testing.T) {
 	// review with no lighting latch while authority was being recovered.
 	reviews := []store.Rounds{
 		{Revision: 5},
-		{Revision: 6, Enabled: true, Latches: policy.RoutineLatches{Lighting: []string{"stove"}}},
+		{Revision: 6, Enabled: true, Latches: policy.RoundsLatches{Lighting: []string{"stove"}}},
 		{Revision: 7, Enabled: true},
 	}
 	for i, review := range reviews {

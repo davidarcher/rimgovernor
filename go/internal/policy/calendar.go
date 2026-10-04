@@ -93,7 +93,7 @@ const (
 // into the first frost. FootholdFoodDays and every other field are
 // unchanged, an unknown calendar with no observed growth pause leaves the
 // policy as configured, and the result still satisfies Validate.
-func (p RoutinePolicy) Seasonal(calendar domain.Fact[Calendar], conditions domain.Fact[[]DisasterCondition]) RoutinePolicy {
+func (p RoundsPolicy) Seasonal(calendar domain.Fact[Calendar], conditions domain.Fact[[]DisasterCondition]) RoundsPolicy {
 	gap, known := HarvestGapDays(calendar, conditions).Value()
 	if !known || gap <= 0 || p.FoodTargetDays <= 0 {
 		return p

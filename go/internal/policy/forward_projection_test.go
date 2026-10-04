@@ -45,7 +45,7 @@ func TestProjectForwardPower(t *testing.T) {
 }
 
 func TestProjectForwardTemperature(t *testing.T) {
-	in := ForwardInputs{Policy: DefaultRoutinePolicy(), Sleeping: SleepingRange{Min: k(8), Max: k(20)}, Conditions: domain.Known([]DisasterCondition{})}
+	in := ForwardInputs{Policy: DefaultRoundsPolicy(), Sleeping: SleepingRange{Min: k(8), Max: k(20)}, Conditions: domain.Known([]DisasterCondition{})}
 	got, ok := ProjectForward(in).Temperature.Value()
 	if !ok || got.BreachDays != ProjectionHorizonDays {
 		t.Fatal(got, ok)

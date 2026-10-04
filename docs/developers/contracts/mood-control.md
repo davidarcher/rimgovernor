@@ -45,7 +45,7 @@ facility removes them (a thought names every goal providing it): `AteWithoutTabl
 `NeedRoomSize` to `MaintainHousing`. When those thoughts carry at least half of
 the pawn's negative thought offset, the pawn's mood state records the owners
 (most negative first) and the method proposal is `facility_provision` naming the
-first owner instead of a relief job: `DetectRoutine` raises each owner's
+first owner instead of a relief job: `DetectRounds` raises each owner's
 development deficit to at least the fraction of reviewed pawns under it, and the
 owner's own census still decides whether it is active and what it builds. A
 recovered owner is never re-raised; when no owner goal is active with a deficit

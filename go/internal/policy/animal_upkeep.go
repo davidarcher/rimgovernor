@@ -116,7 +116,7 @@ type AnimalUpkeepReview struct {
 }
 
 // ReviewAnimalUpkeep reviews containment and, per race group, the standing
-// herd feed reserve of reserveDays days (RoutinePolicy.FoodReserveDays).
+// herd feed reserve of reserveDays days (RoundsPolicy.FoodReserveDays).
 func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory, reserveDays float64) (AnimalUpkeepReview, error) {
 	r := AnimalUpkeepReview{History: previous}
 	invalid := errors.New("invalid animal upkeep facts or history")

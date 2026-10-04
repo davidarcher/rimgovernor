@@ -1,0 +1,235 @@
+package buildingruntime
+
+import (
+	"context"
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
+)
+
+// hospitalNative is a one-colonist colony whose colonist should rest in a
+// medical bed but needs no tending: MaintainMedicalReserves is in deficit while
+// the tend and rescue families have nothing to do.
+type hospitalNative struct {
+	*sleepingNative
+	rooms       *o.ListRoomsReply
+	target      bridge.BedUseTarget
+	targetReads int
+}
+
+func (n *hospitalNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	v, r, e := n.sleepingNative.ReadEmergency(ctx, id)
+	v.Facts.Colonists = []policy.EmergencyPawn{{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}
+	return v, r, e
+}
+
+func (n *hospitalNative) ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error) {
+	return n.rooms, bridge.Result{}, nil
+}
+
+func (n *hospitalNative) ReadBedUseTarget(_ context.Context, _ *c.Identity, thing string) (bridge.BedUseTarget, bridge.Result, error) {
+	n.targetReads++
+	if thing != n.target.Thing {
+		return bridge.BedUseTarget{}, bridge.Result{}, bridge.ErrContract
+	}
+	return n.target, bridge.Result{}, nil
+}
+
+func hospitalCount(n uint64) *o.Completeness {
+	return &o.Completeness{Filtered: proto.Uint64(0)}
+}
+
+// hospitalFixture stages one barracks holding one unowned, non-medical
+// sleeping spot and one colonist who should seek medical rest.
+func hospitalFixture(t *testing.T) (*RoundsHospitalPlanner, *store.Store, *hospitalNative) {
+	t.Helper()
+	base, db, _, _, sleeping := sleepingFixture(t)
+	native := &hospitalNative{sleepingNative: sleeping}
+	// The Core furniture rows put a Bed in the catalog; behind unfinished research it stays off the ladder, which stages the sleeping spot.
+	native.putCatalog(bridge.FixtureDef{Name: "Bed", Width: 1, Height: 2, Research: []string{"ComplexFurniture"}})
+	v := native.reply.GetObserved()
+	v.ColonistCount, v.WorkerCount = proto.Uint32(1), proto.Uint32(1)
+	// A spare sleeping place beyond the colonist: converting one bed keeps
+	// bed and indoor capacity at the colony size.
+	v.BedCapacity, v.IndoorSleepingCapacity = proto.Uint32(2), proto.Uint32(2)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	v.Issues = append(v.Issues, missing("naming"))
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)},
+		Health: &o.PawnHealth{NeedsTend: proto.Bool(false), Bleeding: proto.Bool(false), ShouldSeekMedicalRest: proto.Bool(true), HediffCompleteness: hospitalCount(0), HiddenHediffs: proto.Uint32(0)},
+		Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
+		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{DefName: proto.String(skill), Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: o.Passion_PASSION_NONE.Enum()})
+	}
+	for _, work := range []string{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Firefighter"} {
+		row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String(work), Priority: proto.Int32(1), Disabled: proto.Bool(false)})
+	}
+	native.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: hospitalCount(1)}}}
+	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+	bed := &o.EntityRef{Id: proto.String("bed"), DefName: proto.String("SleepingSpot"), MapId: proto.Int32(0), Position: cell(0, 0)}
+	room := &o.RoomState{Id: proto.String("42"), Role: proto.String("Barracks"), ProperRoom: proto.Bool(true), Doorway: proto.Bool(false), Outdoors: proto.Bool(false), PsychologicallyOutdoors: proto.Bool(false), TouchesMapEdge: proto.Bool(false), OpenRoofCount: proto.Uint32(0), CellCount: proto.Uint32(4), TemperatureC: proto.Float64(20), Center: cell(0, 0), Extents: &o.Rectangle{Minimum: cell(0, 0), Maximum: cell(1, 1)}, Contents: []*o.Quantity{{DefName: proto.String("SleepingSpot"), Units: proto.Int64(1)}}, Beds: []*c.Ref{{Id: bed.Id}}}
+	native.rooms = &o.ListRoomsReply{Outcome: &o.ListRoomsReply_Observed{Observed: &o.RoomsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: hospitalCount(1), Rooms: []*o.RoomState{room}}}}
+	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{Beds: []*o.UpkeepBed{{Bed: native.head(bed), Slots: proto.Uint32(1), Humanlike: proto.Bool(true), Medical: proto.Bool(false), Prisoners: proto.Bool(false), Roofed: proto.Bool(true), TemperatureC: proto.Float64(20)}},
+		Comfort: &o.ComfortSection{Outcome: &o.ComfortSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}}}}
+	native.target = bridge.BedUseTarget{Context: proto.Clone(v.Context).(*c.ObservationContext), Thing: "bed"}
+	base.reviewer.native = native
+	base.reviewer.methods = domain.Known([]policy.ConcernID{policy.MaintainMedicalReserves})
+	base.reviewer.policy.Stage.Floor = policy.StageStable // MaintainMedicalReserves' care phase
+	if _, err := base.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoundsHospitalPlanner(base.reviewer, native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return planner, db, native
+}
+
+func TestHospitalConvertsSpareHostedBedOncePerEpoch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, db, native := hospitalFixture(t)
+	result, err := planner.Step(ctx)
+	if err != nil || result.Verdict != BuildingReasonAdmitted {
+		t.Fatal(result, err)
+	}
+	if native.targetReads != 1 || native.previews != 0 {
+		t.Fatal("convert previewed a building", native.targetReads, native.previews)
+	}
+	review, err := db.LoadRounds(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var goal store.StandardState
+	for _, binding := range review.Goals {
+		if binding.Need == policy.MaintainMedicalReserves {
+			if goal, err = db.LoadStandard(ctx, binding.Goal); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if len(goal.Methods) != 1 || goal.Methods[0].Method != "hospital-convert-bed" {
+		t.Fatal(goal.Methods)
+	}
+	plan, err := db.LoadPlan(ctx, goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 1 {
+		t.Fatal(plan, err)
+	}
+	patch, ok := plan.Progress[0].Action().BedUse()
+	if !ok || patch.Thing() != "bed" || !patch.Medical() {
+		t.Fatal(plan.Progress[0].Action())
+	}
+	// The open patch is existing work; once it retires, the used method is
+	// not retried within the epoch even though the bed still reads non-medical.
+	if result, err = planner.Step(ctx); err != nil || result.Verdict != BuildingReasonExistingWork {
+		t.Fatal(result, err)
+	}
+	if _, err = db.Cancel(ctx, plan.Spec.ID(), plan.Progress[0].Action().ID()); err != nil {
+		t.Fatal(err)
+	}
+	if result, err = planner.Step(ctx); err != nil || !result.Verdict.Is(WaitMethodUsed) {
+		t.Fatal(result, err)
+	}
+}
+
+func TestHospitalAcceptsExistingMedicalBed(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, _, native := hospitalFixture(t)
+	// The bed flips medical by the player's hand between reviews: the CAS
+	// read, not the census, is what the convert path trusts.
+	native.target.Medical = true
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingExistingFacility {
+		t.Fatal(result, err)
+	}
+	// A hosted medical bed in the census settles the deficit without a read.
+	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Medical = proto.Bool(true)
+	native.targetReads = 0
+	if result, err := planner.Step(ctx); err != nil || result.Verdict != BuildingExistingFacility || native.targetReads != 0 {
+		t.Fatal(result, err, native.targetReads)
+	}
+}
+
+func TestHospitalBuildsOnlyWhenNoHostedBedCanBeSpared(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, _, native := hospitalFixture(t)
+	// A prisoner bed never hosts a colonist patient, so the ladder stages a
+	// sleeping spot in the barracks (a Hospital-hosting room).
+	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Prisoners = proto.Bool(true)
+	native.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
+		b, _ := p.Preview.Action.Building()
+		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Verdict != BuildingReasonAdmitted || native.previews == 0 {
+		t.Fatal(result, err, native.previews)
+	}
+	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "hospital-SleepingSpot" {
+		t.Fatal(result.Decision.Goal.Methods)
+	}
+}
+
+func TestHospitalSelectMapsChoicesOntoTheLadder(t *testing.T) {
+	t.Parallel()
+	ladder := &RoundsBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "Wall", shelter: true}
+	patient := policy.CarePawn{ID: "p", Dead: domain.Known(false), NeedsRest: domain.Known(true), NeedsTend: domain.Known(false), BadConditions: domain.Known(false)}
+	definition := func(name string, available bool) observation.PlanningDefinition {
+		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuffed: true, StuffOptions: madeOf("WoodLog")}
+	}
+	rooms := domain.Known(policy.RoomObservation{Shapes: testPieceShapes, Rooms: []policy.Room{{ID: "b", Role: domain.Known(policy.RoomRoleBarracks), Beds: []string{"bed"}}}})
+	bed := func(medical bool) domain.Fact[policy.SleepingObservation] {
+		return domain.Known(policy.SleepingObservation{Beds: []policy.SleepingBed{{ID: "bed", Humanlike: domain.Known(true), Medical: domain.Known(medical), Prisoners: domain.Known(false)}}})
+	}
+	ill := domain.Known([]policy.CarePawn{patient})
+	for _, test := range []struct {
+		name   string
+		facts  observation.ColonyProjection
+		reason Verdict
+		want   string
+	}{
+		{"unknown", observation.ColonyProjection{}, fieldUnavailable("hospital"), ""},
+		{"no demand", observation.ColonyProjection{Facts: policy.RoundsFacts{MedicalPawns: domain.Known([]policy.CarePawn{})}}, BuildingReasonNoDeficit, ""},
+		{"existing", observation.ColonyProjection{Facts: policy.RoundsFacts{MedicalPawns: ill, Sleeping: bed(true)}, Rooms: rooms}, BuildingExistingFacility, ""},
+		{"convert", observation.ColonyProjection{Facts: policy.RoundsFacts{MedicalPawns: ill, Sleeping: bed(false)}, Rooms: rooms}, BuildingHospitalConvert, ""},
+		{"build", observation.ColonyProjection{Shapes: testPieceShapes, Facts: policy.RoundsFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", true)}}, Verdict{}, "SleepingSpot"},
+		{"unavailable", observation.ColonyProjection{Shapes: testPieceShapes, Facts: policy.RoundsFacts{MedicalPawns: ill, Sleeping: domain.Known(policy.SleepingObservation{})}, Rooms: rooms, Definitions: []observation.PlanningDefinition{definition("Bed", false), definition("SleepingSpot", false)}}, BuildingHospitalUnavailable, ""},
+	} {
+		selected, reason, err := ladder.selectHospital(test.facts)
+		if err != nil || reason != test.reason {
+			t.Fatal(test.name, selected, reason, err)
+		}
+		if test.want == "" {
+			if selected != nil {
+				t.Fatal(test.name, selected)
+			}
+			continue
+		}
+		if selected.definition != test.want || selected.stuff != "WoodLog" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleHospital {
+			t.Fatal(test.name, selected)
+		}
+		if ladder.definition != "Wall" || ladder.facility != nil {
+			t.Fatal("selection mutated reusable ladder", ladder)
+		}
+	}
+	facts := observation.ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(2))}}
+	if missing, method, reason := ladder.selection(facts); missing != 32 || method != "hospital-shell" || !reason.IsZero() {
+		t.Fatal(missing, method, reason)
+	}
+	spot := &RoundsBuildingPlanner{goal: policy.MaintainMedicalReserves, definition: "SleepingSpot"}
+	if missing, method, reason := spot.selection(facts); missing != 1 || method != "hospital-SleepingSpot" || !reason.IsZero() {
+		t.Fatal(missing, method, reason)
+	}
+}
+
+func (n *hospitalNative) ReadRoundsFrame(ctx context.Context, id *c.Identity) (bridge.RoundsFrame, error) {
+	return fakeFrame(ctx, n, id)
+}

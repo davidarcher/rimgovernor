@@ -24,11 +24,11 @@ func TestRounderLogsOdysseySkipsOncePerQuest(t *testing.T) {
 		return policy.JoinerOffer{Quest: domain.QuestID(id), ScriptDef: script, State: "NotYetAccepted", CanAccept: true, Class: class}
 	}
 	ship := domain.Known(policy.QuestClass{Scope: policy.QuestScopeShipOnly, SpaceLayer: "Orbit"})
-	facts := func(offers ...policy.JoinerOffer) policy.RoutineFacts {
-		return policy.RoutineFacts{QuestOffers: domain.Known(offers)}
+	facts := func(offers ...policy.JoinerOffer) policy.RoundsFacts {
+		return policy.RoundsFacts{QuestOffers: domain.Known(offers)}
 	}
 	ctx := context.Background()
-	r.logOdysseySkips(ctx, policy.RoutineFacts{})
+	r.logOdysseySkips(ctx, policy.RoundsFacts{})
 	r.logOdysseySkips(ctx, facts(offer("Quest_1", "MechanoidSignal", domain.Known(policy.QuestClass{Scope: policy.QuestScopeGround}))))
 	if out.Len() != 0 {
 		t.Fatalf("logged without a skip: %s", out.String())

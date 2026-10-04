@@ -80,7 +80,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 				hold(ClockWindowUnsafe)
 			}
 		case EmergencyCriticalMedical:
-			// Must NOT refuse the window here: RoutineTendPlanner dispatches the
+			// Must NOT refuse the window here: RoundsTendPlanner dispatches the
 			// tend order regardless of window admission, but the native side can
 			// only carry it out -- and NeedsTend can only clear -- while ticks are
 			// actually passing. Refusing to admit a window while NeedsTend is true

@@ -1,0 +1,230 @@
+package buildingruntime
+
+import (
+	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+)
+
+// planFood retains one complete review per observed tick and invalidation
+// generation, independently of additional definition/room reads by planners.
+func (r *Rounder) planFood(p observation.ColonyProjection) domain.Fact[policy.FoodPlan] {
+	s := &r.census
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seasonal := r.seasonal(p.Facts)
+	if _, known := s.foodPlan.Value(); known && s.foodGeneration == s.generation &&
+		s.foodMin == seasonal.FoodMinDays && s.foodTarget == seasonal.FoodTargetDays && sameObservedIdentity(s.foodIdentity, p.Identity) {
+		return s.foodPlan
+	}
+	plan := reviewFoodPlan(p, r.policy)
+	if v, known := plan.Value(); known && r.foodGapZero {
+		v.GapPerDay = 0
+		plan = domain.Known(v)
+	}
+	if _, known := plan.Value(); known {
+		s.foodIdentity, s.foodPlan, s.foodGeneration = p.Identity, plan, s.generation
+		s.foodMin, s.foodTarget = seasonal.FoodMinDays, seasonal.FoodTargetDays
+	}
+	return plan
+}
+
+// reviewFoodPlan budgets the complete competing-consumer census. It is called
+// by the rounds, before its reading is retained for method planners.
+// A missing census never becomes an empty portfolio that certifies surplus.
+func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoundsPolicy) domain.Fact[policy.FoodPlan] {
+	supply, sk := p.CombinedFoodSupply.Value()
+	sources, ak := p.Acquisition.Value()
+	if !sk || !ak {
+		return domain.Unknown[policy.FoodPlan]()
+	}
+	workers, wk := p.Workers.Value()
+	if pawns, pk := p.WorkPawns.Value(); pk {
+		workers, wk = policy.RoundsWorkers(pawns).Value()
+	}
+	if !wk {
+		return domain.Unknown[policy.FoodPlan]()
+	}
+	forecast, err := policy.ForecastFood(supply, nil)
+	if err != nil {
+		return domain.Unknown[policy.FoodPlan]()
+	}
+	if human, hk := p.FoodSupply.Value(); hk {
+		forecast = forecast.GateOnColonists(foodConsumerIDs(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays)
+	}
+	var gunners int
+	if pawns, known := p.WorkPawns.Value(); known {
+		gunners = policy.SquadGunners(policy.Profiles(pawns))
+	}
+	var weatherAccuracy domain.Fact[float64]
+	if env, known := p.Environment.Value(); known {
+		weatherAccuracy = env.WeatherAccuracy
+	}
+	squads, lone := policy.SquadHunts(sources, gunners, weatherAccuracy)
+	prey := 0
+	for _, src := range sources {
+		if src.SquadPrey() {
+			prey++
+		}
+	}
+	clockSchedulerLog("food plan: %d acquisition sources (%d squad prey), %d gunners, %d squad channels", len(sources), prey, gunners, len(squads))
+	channels := append(policy.ForageChannels(sources), policy.HuntChannels(lone)...)
+	channels = append(channels, squads...)
+	if benches, bk := p.ProductionBenches.Value(); bk {
+		if human, hk := p.FoodSupply.Value(); hk {
+			var ids []policy.PawnID
+			for _, c := range human.Consumers {
+				ids = append(ids, c.ID)
+			}
+			if channel, ok := policy.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.IdeologyRead()); ok {
+				channels = append(channels, channel)
+			}
+		}
+	}
+	if census, known := p.FoodChannels.Value(); known {
+		if water, known := census.FishableWater.Value(); known {
+			request := policy.FishingRequest{Researched: water.FishingResearched, ResearchLeadDays: water.ResearchLeadDays}
+			for _, region := range water.Regions {
+				request.Regions = append(request.Regions, policy.FishingRegion{ID: policy.FishingRegionID(region.Root), Population: region.Population, MaxPopulation: region.MaxPopulation,
+					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Open: region.Delivering, DistanceSquared: region.DistanceSquared})
+			}
+			fishing, err := policy.FishingChannels(request)
+			if err != nil {
+				return domain.Unknown[policy.FoodPlan]()
+			}
+			channels = append(channels, fishing...)
+		}
+	}
+	if animals, known := p.FoodChannels.Value(); known {
+		channels = append(channels, policy.AnimalProductChannels(animals.AnimalProducts())...)
+	}
+	channels = append(channels, policy.StockIngredientChannels(supply)...)
+	if fields, known := p.FoodFields.Value(); known {
+		channels = append(channels, policy.CropChannels(fields)...)
+	}
+	// Capacity and stock protection do not create nutrition by themselves.
+	// Zero-contribution Hold rows leave these supporting methods to their own
+	// observed preconditions; their existing admission owns labor and resources.
+	for _, support := range []struct {
+		kind policy.FoodChannelKind
+		id   string
+	}{
+		{policy.FoodCrop, "field-capacity"}, {policy.FoodCook, "cooking-capacity"}, {policy.FoodReserve, "stock-protection"},
+	} {
+		channels = append(channels, policy.FoodChannel{Kind: support.kind, ID: support.id,
+			NutritionPerDay: domain.Known(0.0), WorkPerDay: domain.Known(0.0), LeadDays: domain.Known(0.0), Open: domain.Known(false),
+			Terms: []policy.FoodPlanTerm{{Name: "supporting_method", Value: 1}}})
+	}
+	// Work capacity is a planning budget, not a promise of pawn work. Eight
+	// hours per available worker leaves the rest of the day for sleep and needs.
+	seasonal := thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions)
+	plan, err := policy.PlanFood(policy.FoodPlanRequest{Demand: forecast,
+		MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays,
+		Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
+	if err != nil {
+		return domain.Unknown[policy.FoodPlan]()
+	}
+	// A food slaughter offer protects productive animals selected
+	// by the non-destructive portfolio before adding a single removal method.
+	if animals, known := p.FoodChannels.Value(); known && plan.GapPerDay > 0 {
+		herd := herdPolicyOf(p.Facts, plan)
+		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
+		if len(offers) > 0 {
+			channels = append(channels, offers...)
+			plan, err = policy.PlanFood(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, EmergencyDays: seasonal.FootholdFoodDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
+			if err != nil {
+				return domain.Unknown[policy.FoodPlan]()
+			}
+		}
+	}
+	herd := herdPolicyOf(p.Facts, plan)
+	for i := range plan.Portfolio {
+		e := &plan.Portfolio[i]
+		if e.Channel.Kind == policy.FoodAnimalProduct {
+			floor := herd.PopulationMin[policy.Resource(e.Channel.ID)]
+			e.Terms = append(e.Terms, policy.FoodPlanTerm{Name: "effective_herd_floor", Value: float64(floor)})
+			e.Reason += fmt.Sprintf("; MaintainHerd-%s floor %d", e.Channel.ID, floor)
+		}
+	}
+	return domain.Known(plan)
+}
+
+func foodPlanSupport(p domain.Fact[policy.FoodPlan], kind policy.FoodChannelKind, id string) bool {
+	plan, known := p.Value()
+	if !known {
+		return false
+	}
+	for _, entry := range plan.Portfolio {
+		if entry.Channel.Kind == kind && entry.Channel.ID == id {
+			return entry.Decision == policy.FoodPlanOpen || entry.Decision == policy.FoodPlanHold
+		}
+	}
+	return false
+}
+
+// foodPlanAdditionalField counts only open zone creates and add-cells; completed zones are
+// already in the native field census. Infrastructure without a known crop yield
+// keeps the existing work barrier rather than guessing its future production.
+func foodPlanAdditionalField(p observation.ColonyProjection, plans []store.PlanState) bool {
+	plan, known := p.Facts.FoodPlan.Value()
+	if !known || plan.GapPerDay <= 0 {
+		return false
+	}
+	gap := plan.GapPerDay
+	for _, existing := range plans {
+		for _, progress := range existing.Progress {
+			if !domain.GoalWorkOpen([]domain.Progress{progress}) {
+				continue
+			}
+			crop, cells := "", 0
+			if zone, ok := progress.Action().ZoneCreate(); ok {
+				crop, cells = zone.Crop(), len(zone.Cells())
+			} else if edit, ok := progress.Action().ZoneCellEdit(); ok && edit.Mode() == domain.AddZoneCells {
+				// A field block grown by add-cells yields its zone's crop.
+				for _, farm := range p.Farms {
+					if farm.ID == edit.Zone() {
+						crop = farm.Crop
+					}
+				}
+				if crop == "" {
+					continue
+				}
+				cells = len(edit.Cells())
+			} else {
+				if b, building := progress.Action().Building(); building && b.Definition() != "ButcherSpot" {
+					return false
+				}
+				continue
+			}
+			found := false
+			for _, d := range p.Definitions {
+				if d.Name != crop {
+					continue
+				}
+				yield, yk := d.HarvestNutrition.Value()
+				days, dk := d.GrowDays.Value()
+				if !yk || !dk || yield < 0 || days <= 0 {
+					return false
+				}
+				gap -= yield * float64(cells) / days
+				found = true
+				break
+			}
+			if !found {
+				return false
+			}
+		}
+	}
+	return gap > 0
+}
+
+func foodConsumerIDs(supply policy.FoodSupply) []policy.PawnID {
+	ids := make([]policy.PawnID, 0, len(supply.Consumers))
+	for _, c := range supply.Consumers {
+		ids = append(ids, c.ID)
+	}
+	return ids
+}

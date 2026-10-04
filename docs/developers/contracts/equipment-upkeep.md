@@ -232,7 +232,7 @@ policy and never orders the tainted parka; a stripped twelve-pawn roster
 no bill while an offer stands. The soldier loadout (#470, #471) is covered
 by [weapon planner](weapon-planner.md#acceptance). The single
 shirt-from-leather path is a colony snapshot test (#894,
-`buildingruntime/routine_ladder_snapshot_test.go`): with no tailoring bench the
+`buildingruntime/rounds_ladder_snapshot_test.go`): with no tailoring bench the
 workshop step builds a HandTailoringBench, and once it stands the gear step
 produces the shirt on it from plain leather.
 
@@ -248,7 +248,7 @@ pawn and item identities cannot be claimed twice by open dressing methods.
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
 are different evidence levels.
 
-Optional `RoutinePolicy.GearSpareTargets` keeps unworn spares by definition.
+Optional `RoundsPolicy.GearSpareTargets` keeps unworn spares by definition.
 These targets bind to `MaintainResource`: its workshop ladder stages missing
 benches, and its storage prerequisite creates covered, reachable allow-listed
 stockpile space before the standing stock bill. Spares default to disabled.

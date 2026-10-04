@@ -186,7 +186,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	if err := followUps(ctx, journal, seen, report); err != nil {
 		return err
 	}
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

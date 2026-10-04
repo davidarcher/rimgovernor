@@ -10,7 +10,7 @@ import (
 
 // Independent pawn dressing may share a review; a bill remains exclusive.
 func gearOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
 	}

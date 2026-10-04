@@ -36,7 +36,7 @@ func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[P
 }
 
 // SaleAnimals is HerdSaleAnimals over the herd plan of f.
-func (f RoutineFacts) SaleAnimals() map[PawnID]bool {
+func (f RoundsFacts) SaleAnimals() map[PawnID]bool {
 	return HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy())
 }
 

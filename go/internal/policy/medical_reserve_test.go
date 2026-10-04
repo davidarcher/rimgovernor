@@ -8,7 +8,7 @@ import (
 )
 
 func TestMedicineReserveJoinsResourceFloors(t *testing.T) {
-	p := DefaultRoutinePolicy()
+	p := DefaultRoundsPolicy()
 	needs := map[Resource]int64{"Steel": 20, "MedicineHerbal": 30}
 	if got := p.MedicineReserveTarget(domain.Known(int64(8)), true); got != 24 {
 		t.Fatal(got)

@@ -11,14 +11,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestColonyGearExactRoutineCensus(t *testing.T) {
+func TestColonyGearExactRoundsCensus(t *testing.T) {
 	gear := domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "pawn", Loadout: "native-loadout"}}})
 	emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn"}}}
-	if _, known := routineGear(gear, emergency).Value(); !known {
+	if _, known := roundsGear(gear, emergency).Value(); !known {
 		t.Fatal("matching census lost")
 	}
 	emergency.Colonists[0].ID = "other"
-	if _, known := routineGear(gear, emergency).Value(); known {
+	if _, known := roundsGear(gear, emergency).Value(); known {
 		t.Fatal("same count concealed missing pawn")
 	}
 }
@@ -31,7 +31,7 @@ func TestStampGearSharesGatesEachModelledPawn(t *testing.T) {
 		{Pawn: "b", LoadoutModel: domain.Known(policy.GearLoadoutInput{})},
 		{Pawn: "c"},
 	}}
-	p := ColonyProjection{Facts: policy.RoutineFacts{PersonalShares: policy.PersonalShares(domain.Known(1000.0), []policy.ShareMember{{Profile: policy.PawnProfile{ID: "a"}, Free: true, Spent: domain.Known(0.0)}})}}
+	p := ColonyProjection{Facts: policy.RoundsFacts{PersonalShares: policy.PersonalShares(domain.Known(1000.0), []policy.ShareMember{{Profile: policy.PawnProfile{ID: "a"}, Free: true, Spent: domain.Known(0.0)}})}}
 	p.Facts.Gear = domain.Known(census)
 	stampGearShares(&p)
 	gear, _ := p.Facts.Gear.Value()

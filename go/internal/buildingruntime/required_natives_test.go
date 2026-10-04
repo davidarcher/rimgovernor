@@ -9,6 +9,6 @@ import (
 
 // The rounder requires the bench census read, so the base fake
 // answers it as empty; tests that exercise benches define their own.
-func (n *routineNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
+func (n *roundsNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
 	return nil, bridge.Result{}, nil
 }

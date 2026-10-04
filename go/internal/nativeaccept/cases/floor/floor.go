@@ -225,7 +225,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("room %s still latched after %d plans laid %d cells", roomKey, len(plans), len(laid))
 	}
 	report["floor_definition"] = definition
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

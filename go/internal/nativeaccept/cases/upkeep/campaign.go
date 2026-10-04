@@ -157,7 +157,7 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 	stages := campaignStages()
 	for _, st := range stages {
 		if !na.Contains(s.Names(), st.fixture) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture CleanlinessFixture,UpkeepFixture,ForecastFixture,RoutineSleepingFixture", st.fixture)
+			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture CleanlinessFixture,UpkeepFixture,ForecastFixture,RoundsSleepingFixture", st.fixture)
 		}
 	}
 	state, err := restoreCampaignState(s)
@@ -325,7 +325,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		return nil, err
 	}
 	report["reopened"] = tracker.reopens
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return nil, err
 	}
 	var recovered []closedGoal

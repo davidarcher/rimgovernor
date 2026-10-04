@@ -151,12 +151,12 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
+	r := roundsRequest()
 	r.Current.Native = 2
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
 	r.Facts.Resources = domain.Known([]policy.Amount{})
-	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainResource)
+	out := reviewRounds(t, s, &r)
+	g := roundsGoal(t, out, policy.MaintainResource)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}

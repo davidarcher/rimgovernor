@@ -33,7 +33,7 @@ func TestPrisonerCareLimitedHarvest(t *testing.T) {
 	if _, ok := CareLimitedHarvest(domain.Known([]PrisonerFacts{harvestPrisoner("p", 0)}), five, sale, nil, nil); ok {
 		t.Fatal("stocked harvest read as care-limited")
 	}
-	f := RoutineFacts{Items: CoreItemFacts(), Prisoners: limited, PrisonerColony: five, Resources: domain.Known([]Amount{{Resource: "MedicineIndustrial", Count: 5}})}
+	f := RoundsFacts{Items: CoreItemFacts(), Prisoners: limited, PrisonerColony: five, Resources: domain.Known([]Amount{{Resource: "MedicineIndustrial", Count: 5}})}
 	needs := PrisonerHerbalNeeds(map[Resource]int64{"Steel": 10}, f, domain.Known(true))
 	if needs["MedicineHerbal"] != PrisonerSurgeryHerbal || needs["Steel"] != 10 {
 		t.Fatalf("herbal want %v", needs)

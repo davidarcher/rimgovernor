@@ -13,7 +13,7 @@ a pawn's settings; the work review dispatches the differences as a
 ## Pawn profile
 
 `policy.BuildProfile` reads a `PawnProfile` from the same `WorkPawn` the review
-already carries (`observation/routine_work.go`): skills with the effective
+already carries (`observation/rounds_work.go`): skills with the effective
 level, the stored level beneath aptitude, passion and disabled flag; traits with
 degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
 Unknown traits, incapable rows or age leave those parts empty and the planner
@@ -58,7 +58,7 @@ For each:
   (`baselineDemand`: one doctor, one cook per eight pawns, one grower per 150
   field cells, one constructor — two with blueprints pending and six pawns —,
   one plant cutter, one hunter — two with four pawns —, a warden while a
-  prisoner is held; `RoutineWorkDemand` reads the census from the routine facts)
+  prisoner is held; `RoundsWorkDemand` reads the census from the routine facts)
   and, for any other skilled type, one owner when a natural specialist exists
   (level 6 or a passion). Handling also has one owner while the herd plan holds a
   milk or wool job (`WorkDemand.Handling`, #1650): gathering yield and speed scale
@@ -86,7 +86,7 @@ For each:
   4 for the research owner.
 
 `WorkDecision.Coverage` lists demand, owners and capable count per type
-(`RoutineFacts.WorkRoster`). `Capacity` is false when a required type or a core
+(`RoundsFacts.WorkRoster`). `Capacity` is false when a required type or a core
 role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
@@ -168,7 +168,7 @@ all 24 hours, `SettingsField.Schedule` in the applied result) together with the
 priorities. Native (`WorkSettingsActionHandler`) requires every
 `TimeAssignmentDef` and a 24-slot tracker when it applies, writes through
 `Pawn_TimetableTracker.SetAssignment`, and reads the timetable back into
-`Matches`. `RoutineFacts.WorkCoverage` is false while any planned timetable
+`Matches`. `RoundsFacts.WorkCoverage` is false while any planned timetable
 differs from the readback.
 
 ## Mech control
@@ -218,9 +218,9 @@ not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`EnsureMechCharger` (`mech_charger_goal.go`, `routine_mech_charger.go`) is the goal
+`EnsureMechCharger` (`mech_charger_goal.go`, `rounds_mech_charger.go`) is the goal
 for that need: a Standard in the Upkeep domain, assessed only where the Biotech
-colony read and the mechs are known (`RoutineFacts.MechChargerOwed`), in deficit
+colony read and the mechs are known (`RoundsFacts.MechChargerOwed`), in deficit
 while a charger is owed. Its one method builds the first catalog-flagged,
 researched charger on the first footprint native previews as legal, safe and
 reachable, ranked by `MechChargerSites` over the polluting-machine rule
@@ -232,14 +232,14 @@ open plan holds it. Powering the charger is the power goal's; emptying its waste
 `ManagePollution`'s. Biotech goals are bound only when assessed, so the store
 counts `policy.BiotechGoals` apart from the goals every colony has.
 
-`MaintainGeneBank` (`gene_bank_goal.go`, `routine_gene_bank.go`, #1933, epic
+`MaintainGeneBank` (`gene_bank_goal.go`, `rounds_gene_bank.go`, #1933, epic
 #1693) keeps every genepack in a gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each; design note on #1693). A Standard in the
 Upkeep domain over the Colony fact family, assessed from the keyed Biotech
 colony section (#1930): `GeneBankNeed` is unknown while the section, a bank's
 capacity or a pack's whereabouts (map position or bank id) are unread, and
 otherwise owed while more packs lie loose than the standing banks have free
-slots (`RoutineFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
+slots (`RoundsFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
 one method builds the first available catalog bank (the def carrying
 `CompProperties_GenepackContainer`, `bridge.GeneBanks`, never a name) on the
 first free footprint native previews as legal, safe and reachable, searched
@@ -256,7 +256,7 @@ overseer: the existing combat batch's draft (when undrafted) and `attack` order.
 Both are pure over recorded facts (`mech_control_test.go`) and fed from the pawn
 table, which already holds every spawned pawn with its `PawnBiotech` block
 (`observation.MechFleet`: living colonist mechanitors, living mechs). The routine
-read carries the fleet as `Projection.Mechs`; `RoutineWorkPlanner` appends
+read carries the fleet as `Projection.Mechs`; `RoundsWorkPlanner` appends
 `PlanMechControl`'s settings to the work plan's `PawnSettingsAction`s, with the
 Biotech catalog from the frame. The combat frame's pawn cut keeps mechanitor and
 mech rows (and `Combat.Catalog` is read when one is present), so each fight stop

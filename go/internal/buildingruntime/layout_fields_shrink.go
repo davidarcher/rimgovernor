@@ -44,59 +44,59 @@ func fieldTargets(projection observation.ColonyProjection, field policy.FieldReq
 
 // shrink gives up one surplus zone's bare cells with remove-cells (#1309),
 // committed directly like a grow. handled reports a committed edit.
-func (r *RoutineFieldPlanner) shrink(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoutineReading, field policy.FieldRequest) (RoutineFieldResult, bool, error) {
+func (r *RoundsFieldPlanner) shrink(call, epoch context.Context, state ControlState, goal store.StandardState, projection observation.ColonyProjection, read observation.RoundsReading, field policy.FieldRequest) (RoundsFieldResult, bool, error) {
 	plan, ok := planFieldShrink(projection, fieldTargets(projection, field))
 	if !ok {
-		return RoutineFieldResult{}, false, nil
+		return RoundsFieldResult{}, false, nil
 	}
 	native, ok := r.native.(interface {
 		ReadBareCells(context.Context, *c.Identity, []domain.Cell) (map[domain.Cell]bool, bridge.Result, error)
 	})
 	if !ok {
-		return RoutineFieldResult{}, false, nil
+		return RoundsFieldResult{}, false, nil
 	}
 	bare, _, err := native.ReadBareCells(call, boundary.Identity(state.Snapshot), plan.Order)
 	if err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	cells := shrinkCells(plan, bare)
 	if len(cells) == 0 {
-		return RoutineFieldResult{}, false, nil
+		return RoundsFieldResult{}, false, nil
 	}
 	p := r.reviewer.player
 	hash := sha256.New()
 	fmt.Fprintf(hash, "shrink/%s/%v", plan.ID, cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
 	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
-		return RoutineFieldResult{}, false, nil
+		return RoundsFieldResult{}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	id := domain.MintPlanID()
 	value, err := domain.NewZoneCellEdit(plan.ID, domain.RemoveZoneCells, cells)
 	if err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	action, err := domain.NewZoneCellEditAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	committed, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	if err = p.current(call, epoch); err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	now := r.reviewer.clock.Now()
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
-		return RoutineFieldResult{}, false, fmt.Errorf("%w: shrink: stale state or read", ErrControl)
+		return RoundsFieldResult{}, false, fmt.Errorf("%w: shrink: stale state or read", ErrControl)
 	}
 	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, committed); err != nil {
-		return RoutineFieldResult{}, false, err
+		return RoundsFieldResult{}, false, err
 	}
 	clockEvent(call, "layout", "fields", "field block shrunk", "zone", plan.ID, "crop", plan.Crop, "cells", len(cells), "plan", string(id))
-	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
+	return RoundsFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
 }
 
 // Field shrink hysteresis (#1309): a crop's growing zones shrink only once

@@ -11,7 +11,7 @@ import (
 
 func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{NutritionPerDay: proto.Float64(99), Farms: []*o.FarmFacts{{Crop: proto.String("Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73)}}}
-	p := ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3)), FoodDays: domain.Known(2.0)}}
+	p := ColonyProjection{Facts: policy.RoundsFacts{Colonists: domain.Known(int64(3)), FoodDays: domain.Known(2.0)}}
 	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
 	p.ApplyFieldBudget(7)
 	if n, known := p.Facts.FieldCoverage.Value(); !known || n != 1 {
@@ -56,7 +56,7 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			case "unknown-farm":
 				v.Farms[0].GrowingCells = nil
 			}
-			f := policy.RoutineFacts{Colonists: domain.Known(int64(3))}
+			f := policy.RoundsFacts{Colonists: domain.Known(int64(3))}
 			colonyProduction(v, &f)
 			zoneProduction(v.Farms, &f)
 			cooking, known := f.Cooking.Value()
@@ -67,11 +67,11 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			if known != (change != "unknown-farm") || known && growing != 30 {
 				t.Fatal(f.GrowingCells)
 			}
-			needs, err := policy.DetectRoutine(f, policy.RoutineLatches{}, policy.DefaultRoutinePolicy())
+			needs, err := policy.DetectRounds(f, policy.RoundsLatches{}, policy.DefaultRoundsPolicy())
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got, known := policy.DisasterServiceFacts(f, policy.DefaultRoutinePolicy())[policy.DisasterProduction].Value(); change != "unknown-farm" && (!known || !got) {
+			if got, known := policy.DisasterServiceFacts(f, policy.DefaultRoundsPolicy())[policy.DisasterProduction].Value(); change != "unknown-farm" && (!known || !got) {
 				t.Fatal(needs)
 			}
 		})

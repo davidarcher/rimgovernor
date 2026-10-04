@@ -118,7 +118,7 @@ const (
 // defender. This proposal covers the general N-opponent case only; the
 // single-raider tribal 3-defender/85%-health sub-case is the caller's
 // separate SelectTribalRaiderDefense preference, and an unarmed defender is
-// never sent to melee (#948) and is not equipped inline (RoutineEquipPlanner arms
+// never sent to melee (#948) and is not equipped inline (RoundsEquipPlanner arms
 // colonists on its own independently-scheduled goal).
 //
 // Assignments are a proposal only; native (melee intents) and
@@ -336,7 +336,7 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 // armed defenders instead of two. There is no synchronous per-encounter
 // weapon fetch: an unarmed candidate is simply excluded here rather than
 // equipped inline: EnsureBasicDefense arms colonists on its own
-// independently-scheduled goal (see RoutineEquipPlanner), so this method
+// independently-scheduled goal (see RoundsEquipPlanner), so this method
 // just holds — via the caller falling back to SelectSquadDefense's general,
 // unarmed-tolerant bound — until enough defenders are already armed.
 func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {

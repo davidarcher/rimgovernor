@@ -63,7 +63,7 @@ func TestBenchSectionServesPlannersOfTheCensus(t *testing.T) {
 	ctx := context.Background()
 	identity := observation.Identity{Colony: "c", Load: "l", Map: 1, Tick: 100, NativeGeneration: domain.Known(domain.NativeGeneration(3))}
 	r := &Rounder{store: facts.NewStore()}
-	reading := observation.RoutineReading{}
+	reading := observation.RoundsReading{}
 	reading.Projection.Identity = identity
 	r.census.retain(reading, false, domain.Unknown[[]policy.ConstructionClaim]())
 	native := &benchCountingNative{benches: []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "Bench_1"}}}}

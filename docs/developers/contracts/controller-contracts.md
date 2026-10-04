@@ -157,7 +157,7 @@ the labor census reads `blocked:no_worker`, a fresh native-ineligible hold
 `native_ineligible`, an order whose receipt is unknown `reconcile_write` (the review
 reconciles it by action identity before anything retries), and a goal with no open
 method `no_method`. The deadline (`DevelopmentStallTicks`; the hunt, haul and harvest
-stall contracts `RoutinePolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` are
+stall contracts `RoundsPolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` are
 instances of the same `ProgressContract`) keys the failed situation out for a bounded
 cooldown (`ProgressCooldownMax`, never a permanent ban) and the planners rotate the
 method or target: the acquisition planner records the source a stall cancelled under
@@ -197,7 +197,7 @@ Development. Emergencies and cross-stage monitors (tending, mood, fire, raids) a
 raised at every stage. The record (`ColonyStageRecord`: stage, since, the first unmet
 exit criterion as blocker + reason, held) persists on the review
 (`Rounds.Stage`) and sets the next review's budgets and goals
-(`policy.StageRoutinePolicy`): Development adds one to the development-project limit,
+(`policy.StageRoundsPolicy`): Development adds one to the development-project limit,
 the research ladder walks two rungs at Foothold, five at Reserves, eight at Stable and
 all at Development, and the food reserve and wood targets scale 1.5x at Stable and 2x
 at Development. Foothold with the shelter unmet holds the comfort-class development
@@ -551,13 +551,13 @@ colony read carries the tile's growing calendar (`policy.Calendar`: growing days
 year, days until the seasonal temperature leaves and next re-enters the crop range,
 the length of the current or coming non-growing stretch on the same daily walk, the
 native sowing flag, season and day of year), and each review widens the configured
-policy by its harvest gap (`RoutinePolicy.Seasonal`). The gap is the wait until growth
+policy by its harvest gap (`RoundsPolicy.Seasonal`). The gap is the wait until growth
 resumes plus one rice cycle while nothing grows, and the coming non-growing stretch
 plus that cycle, phased in over the gap plus one field cycle and complete on the last
 growing day, while crops grow, so the thresholds are the same on both sides of the
 frost; a year-round tile has none and an unknown calendar keeps the flat thresholds. An
 observed growth pause extends the gap: a `VolcanicWinter` or `ColdSnap` condition
-with a native remaining-duration read (`RoutineFacts.DisasterConditions`,
+with a native remaining-duration read (`RoundsFacts.DisasterConditions`,
 `policy.GrowthPauseDays`) adds its remaining days while crops grow, stands in for a
 shorter seasonal wait while they do not, and is the whole gap on an unknown
 calendar; a condition without that read contributes nothing. Food
@@ -782,7 +782,7 @@ acknowledged to the native watcher, which resolves every acknowledged id as a
 spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
 admits a combat window with an empty acknowledgement list. A building the
 planner cannot answer -- every colonist downed or incapable of violence, so
-`RoutineDefensePlanner` reports `no_worker:squad` at this stop -- is watched
+`RoundsDefensePlanner` reports `no_worker:squad` at this stop -- is watched
 rather than held (#326): the deficit stays open, colony windows run around it,
 and a plan admitted at a later stop makes the next window a combat one. A
 hostile pawn with no squad still holds; a raid never auto-advances. Squad defense assigns buildings only once no eligible hostile pawn remains (a

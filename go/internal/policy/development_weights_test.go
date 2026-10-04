@@ -94,20 +94,20 @@ func TestDevelopmentRiskPenalisesAndDefers(t *testing.T) {
 	}
 }
 
-func TestRoutineDevelopmentRiskFromObservedHazards(t *testing.T) {
-	f := stableRoutine()
-	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(0.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{Cold: true}) != domain.Known(0.0) {
+func TestRoundsDevelopmentRiskFromObservedHazards(t *testing.T) {
+	f := stableRounds()
+	if RoundsDevelopmentRisk(MaintainHousing, f, RoundsLatches{}) != domain.Known(0.0) || RoundsDevelopmentRisk(EnsureResearch, f, RoundsLatches{Cold: true}) != domain.Known(0.0) {
 		t.Fatal("no hazard must be zero risk")
 	}
-	if RoutineDevelopmentRisk(EnsureComfort, f, RoutineLatches{Hot: true}) != domain.Known(0.5) || RoutineDevelopmentRisk(MaintainResource, f, RoutineLatches{Cold: true}) != domain.Known(0.5) {
+	if RoundsDevelopmentRisk(EnsureComfort, f, RoundsLatches{Hot: true}) != domain.Known(0.5) || RoundsDevelopmentRisk(MaintainResource, f, RoundsLatches{Cold: true}) != domain.Known(0.5) {
 		t.Fatal("temperature latch must halve outdoor priority")
 	}
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
-	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(1.0) || RoutineDevelopmentRisk(EnsureResearch, f, RoutineLatches{}) != domain.Known(0.0) {
+	if RoundsDevelopmentRisk(MaintainHousing, f, RoundsLatches{}) != domain.Known(1.0) || RoundsDevelopmentRisk(EnsureResearch, f, RoundsLatches{}) != domain.Known(0.0) {
 		t.Fatal("outdoor hazard must defer outdoor work only")
 	}
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "1", Definition: "Eclipse"}})
-	if RoutineDevelopmentRisk(MaintainHousing, f, RoutineLatches{}) != domain.Known(0.0) {
+	if RoundsDevelopmentRisk(MaintainHousing, f, RoundsLatches{}) != domain.Known(0.0) {
 		t.Fatal("non-hazard condition")
 	}
 }

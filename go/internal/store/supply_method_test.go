@@ -41,20 +41,20 @@ func TestSupplyMethodRequiresOriginalCohortAndBoundedBatch(t *testing.T) {
 	for _, kind := range []string{"valid", "later", "moved", "oversized", "other-goal", "manual"} {
 		t.Run(kind, func(t *testing.T) {
 			s := open(t, memoryPath(t))
-			request := routineRequest()
+			request := roundsRequest()
 			cell := domain.Cell{X: 1, Z: 2}
 			request.Facts.StartingSupplies = domain.Known(supplyCohort(9, cell))
 			if kind == "later" {
 				request.Facts.StartingSupplies = domain.Known([]policy.StartingSupply{{Thing: "later", Definition: "Steel", Cell: cell}})
 			}
-			review := reviewRoutine(t, s, &request)
-			var goal WorkOwner = routineProject(t, review, policy.AllowStartingSupplies)
+			review := reviewRounds(t, s, &request)
+			var goal WorkOwner = roundsProject(t, review, policy.AllowStartingSupplies)
 			if kind == "manual" {
 				request.Enabled = false
-				reviewRoutine(t, s, &request)
+				reviewRounds(t, s, &request)
 			}
 			if kind == "other-goal" {
-				goal = routineGoal(t, review, policy.MaintainResource)
+				goal = roundsGoal(t, review, policy.MaintainResource)
 			}
 			count := 1
 			if kind == "moved" {
@@ -85,12 +85,12 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
-	request := routineRequest()
+	request := roundsRequest()
 	request.Current.Native = 1
 	cell := domain.Cell{X: 1, Z: 2}
 	request.Facts.StartingSupplies = domain.Known(supplyCohort(2, cell))
-	review := reviewRoutine(t, s, &request)
-	goal := routineProject(t, review, policy.AllowStartingSupplies)
+	review := reviewRounds(t, s, &request)
+	goal := roundsProject(t, review, policy.AllowStartingSupplies)
 	world := World{Colony: request.Current.Colony, Load: request.Current.Load, Map: request.Current.Map}
 	if _, err := s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow", "", supplyPlan(t, "first", 2, cell)); err != nil {
 		t.Fatal(err)
@@ -120,8 +120,8 @@ func TestSupplyClaimFollowsCompletedAllowNotCancelledAttempt(t *testing.T) {
 	s.Close()
 	s = open(t, path)
 	request.Current.Native++
-	review = reviewRoutine(t, s, &request)
-	goal = routineProject(t, review, policy.AllowStartingSupplies)
+	review = reviewRounds(t, s, &request)
+	goal = roundsProject(t, review, policy.AllowStartingSupplies)
 	if claims, err = s.SupplyClaims(ctx, world); err != nil || len(claims) != 1 || !claims["item-0"] {
 		t.Fatal("claim lost across restart and direction change", claims, err)
 	}

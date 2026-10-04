@@ -58,7 +58,7 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 
 // Set this to a retained official ProtoJSON payload from native acceptance.
 // This proves the actual C# projection reaches durable Go review unchanged.
-func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
+func TestColonyCalendarReachesRoundsFacts(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 		r.GetObserved().FoodClimate = climate
 	}
 }
-func TestColonyMapBoundsReachRoutineFacts(t *testing.T) {
+func TestColonyMapBoundsReachRoundsFacts(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
 		t.Fatal(err)
@@ -143,7 +143,7 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 		t.Fatal("missing native planning data")
 	}
 	if reference := os.Getenv("RIMGOVERNOR_NATIVE_PRODUCTION_REFERENCE"); reference != "" {
-		p.ApplyFieldBudget(policy.DefaultRoutinePolicy().FoodTargetDays)
+		p.ApplyFieldBudget(policy.DefaultRoundsPolicy().FoodTargetDays)
 		data, err := os.ReadFile(reference)
 		if err != nil {
 			t.Fatal(err)
@@ -228,7 +228,7 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 	}
 	defer s.Close()
 	current := domain.GenerationSnapshot{Colony: identity.Colony, Load: identity.Load, Map: identity.Map, Plan: "native-review", Revision: 1, Native: 1}
-	out, err := s.ReviewRoutine(context.Background(), store.RoundsRequest{Current: current, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: p.Facts})
+	out, err := s.ReviewRounds(context.Background(), store.RoundsRequest{Current: current, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: p.Facts})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 			if !known && assessment.Finding != domain.FindingUnclear {
 				t.Fatal("raw native runway certified food need", assessment)
 			}
-			if known && days < policy.DefaultRoutinePolicy().FoodMinDays && assessment.Finding != domain.FindingUnmet {
+			if known && days < policy.DefaultRoundsPolicy().FoodMinDays && assessment.Finding != domain.FindingUnmet {
 				t.Fatal("forecast shortage did not create deficit", assessment)
 			}
 		}

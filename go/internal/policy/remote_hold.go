@@ -74,7 +74,7 @@ const UrgentWorkPriority = 100
 // (bleeding, or downed with a tend outstanding) or a disaster still disrupts
 // a colony service. Unknown patients leave it unknown; the dispatch-time
 // emergency check holds on the same unknown facts.
-func UrgentWorkCompeting(f RoutineFacts) domain.Fact[bool] {
+func UrgentWorkCompeting(f RoundsFacts) domain.Fact[bool] {
 	patients, known := f.UrgentPatients.Value()
 	if !known {
 		return domain.Unknown[bool]()
@@ -94,7 +94,7 @@ func UrgentWorkCompeting(f RoutineFacts) domain.Fact[bool] {
 // RemoteCompetition turns the urgent work verdict into the scoring
 // competition: unknown urgency competes with nothing, since the emergency
 // path holds dispatch on unknown facts and reach never widens on them.
-func RemoteCompetition(f RoutineFacts) AcquisitionCompetition {
+func RemoteCompetition(f RoundsFacts) AcquisitionCompetition {
 	if urgent, known := UrgentWorkCompeting(f).Value(); known && urgent {
 		return AcquisitionCompetition{UrgentPriority: UrgentWorkPriority}
 	}

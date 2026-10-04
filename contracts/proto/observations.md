@@ -290,7 +290,7 @@ error. `ActiveCondition.condition_class` is the concrete `GetType().FullName`
 name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` (#1712) is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
-it as `RoutineFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
+it as `RoundsFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
 without a biome read or catalog. Native `FoodClimate.sowing_now` (#1858) folds
 the same fact: false in a permanently dark biome (read from the game defs with
 `typeof(GameCondition_NoSunlight).IsAssignableFrom`), unset when the biome or a
@@ -658,7 +658,7 @@ one place, a bank listed in `gene_banks` or a cell
 
 `pollution` also counts the polluted pollutable cells (`polluted_cells`) and
 those outside the pollution-clear area (`polluted_uncovered_cells`, #1683).
-`RoutineFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
+`RoundsFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
 verdicts and that count; it is unknown without Biotech, and `ManagePollution`
 (maintained, priority 3, labor Hauling) is assessed only while it is known. Its
 methods are the pollution-clear `AreaIntent` edit (polluted cells of the

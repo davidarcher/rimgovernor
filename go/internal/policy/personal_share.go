@@ -38,7 +38,7 @@ func PersonalPool(wealth domain.Fact[WealthFacts]) domain.Fact[float64] {
 // ElectiveShare is the elective surgery gate over f's held shares: a colonist
 // with no entry gets UnknownPersonalShare (necessities only); nil shares are
 // ungated.
-func (f RoutineFacts) ElectiveShare() ElectiveShare {
+func (f RoundsFacts) ElectiveShare() ElectiveShare {
 	if f.PersonalShares == nil {
 		return ElectiveShare{}
 	}
@@ -52,13 +52,13 @@ func (f RoutineFacts) ElectiveShare() ElectiveShare {
 
 // SurgeryContext is the surgery ranking context over f: the hospital bed, the
 // elective gate and the work profiles.
-func (f RoutineFacts) SurgeryContext() SurgeryContext {
+func (f RoundsFacts) SurgeryContext() SurgeryContext {
 	profiles, _ := f.WorkProfiles.Value()
 	return SurgeryContext{Profiles: profiles, HospitalBed: positive(HospitalBedReady(f.Sleeping)), Elective: f.ElectiveShare()}
 }
 
 // PersonalPool is the pool from f's wealth.
-func (f RoutineFacts) PersonalPool() domain.Fact[float64] { return PersonalPool(f.Wealth) }
+func (f RoundsFacts) PersonalPool() domain.Fact[float64] { return PersonalPool(f.Wealth) }
 
 // ShareMember is one colonist's input to PersonalShares. Soldier and Doctor
 // come from the caller's roster (SoldierSquad, the surgeon role); Spent is the

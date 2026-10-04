@@ -6,7 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func TestRoutineTradeConstructionFloor(t *testing.T) {
+func TestRoundsTradeConstructionFloor(t *testing.T) {
 	for _, tt := range []struct {
 		name                       string
 		construction, target, want int64
@@ -17,8 +17,8 @@ func TestRoutineTradeConstructionFloor(t *testing.T) {
 		{"target dominates", 350, 900, 900},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			p := RoutinePolicy{ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoutineTradePolicy{}}
-			floors := RoutineTradeFloors(p, map[string]int64{"Steel": tt.construction})
+			p := RoundsPolicy{ResourceTargets: map[Resource]int64{"Steel": tt.target}, Trade: RoundsTradePolicy{}}
+			floors := RoundsTradeFloors(p, map[string]int64{"Steel": tt.construction})
 			if floors["Steel"] != tt.construction {
 				t.Fatalf("floor = %v", floors)
 			}

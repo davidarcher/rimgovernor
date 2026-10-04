@@ -305,7 +305,7 @@ grep the old word to find the new one. Full table and per-rename status:
 | Old | New |
 | --- | --- |
 | `GoalID` / `GoalDetector` / `GoalConcept` / `Domain` | Concern / Inspection / Type / Department |
-| `RoutineReview` (`Routine*`) | Rounds (`Rounds*`) |
+| `RoutineReview` (`Routine*`, done #1979) | Rounds (`Rounds*`) |
 | `Goal` row, `Epoch` | Standard, Episode |
 | `Response` concept + `Incident` row | Incident (type and row); "Response" is prose |
 | `Rule` | Safeguard |

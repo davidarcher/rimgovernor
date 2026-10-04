@@ -48,7 +48,7 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		}
 	}
 	name := string(facts.PlanningCells)
-	var want []Routine
+	var want []Rounds
 	var wantSteps []Step
 	for i := 0; i < KeyEvery+2; i++ {
 		switch i % 3 {
@@ -116,7 +116,7 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		t.Error("cells elided on only", elided, "lines")
 	}
 	i := 0
-	err = Replay(paths[0], nil, func(at Review, got Routine) (bool, error) {
+	err = Replay(paths[0], nil, func(at Review, got Rounds) (bool, error) {
 		if !reflect.DeepEqual(got, want[i]) {
 			t.Errorf("review %d (%s) does not round-trip", i, at)
 		}
@@ -152,7 +152,7 @@ func TestRecordStreamsMirrorSections(t *testing.T) {
 		t.Fatal("no sync point before the last review", from, err)
 	}
 	found := false
-	err = replayFrom(paths[0], from, func(r Review) bool { return r.Tick == last.Tick }, func(_ Review, got Routine) (bool, error) {
+	err = replayFrom(paths[0], from, func(r Review) bool { return r.Tick == last.Tick }, func(_ Review, got Rounds) (bool, error) {
 		found = reflect.DeepEqual(got, last)
 		return false, nil
 	})

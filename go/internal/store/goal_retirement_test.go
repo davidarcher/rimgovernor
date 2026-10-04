@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
+func TestRoundsGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if testing.Short() {
 		t.Skip("slow: runs under cmd/test -full and nightly")
 	}
@@ -17,12 +17,12 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
-	r := routineRequest()
-	first := reviewRoutine(t, s, &r)
-	old := routineGoal(t, first, policy.MaintainResource)
+	r := roundsRequest()
+	first := reviewRounds(t, s, &r)
+	old := roundsGoal(t, first, policy.MaintainResource)
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
-		out := reviewRoutine(t, s, &r)
+		out := reviewRounds(t, s, &r)
 		if len(out.Goals) != 43 {
 			t.Fatal(out)
 		}
@@ -52,13 +52,13 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	}
 }
 
-func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
+func TestRoundsGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
-	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.MaintainResource)
+	r := roundsRequest()
+	out := reviewRounds(t, s, &r)
+	g := roundsGoal(t, out, policy.MaintainResource)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	}
 	r.Current.Load = "other"
 	r.Current.Plan = "other"
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	before, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil || before.Retired {
 		t.Fatal(before, err)
@@ -78,7 +78,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if _, err = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptAccepted); err != nil {
 		t.Fatal(err)
 	}
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	after, err := s.LoadStandard(ctx, g.Standard.ID)
 	if err != nil || !after.Retired || len(after.Methods) != 0 {
 		t.Fatal(after, err)
@@ -106,17 +106,17 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	}
 }
 
-func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
+func TestRoundsGoalRetirementRollsBackWithReview(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
-	out := reviewRoutine(t, s, &r)
+	r := roundsRequest()
+	out := reviewRounds(t, s, &r)
 	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON rounds BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	r.Current.Load = "other"
-	if _, err := s.ReviewRoutine(ctx, r); err == nil {
+	if _, err := s.ReviewRounds(ctx, r); err == nil {
 		t.Fatal("injected failure ignored")
 	}
 	for _, old := range out.Goals {

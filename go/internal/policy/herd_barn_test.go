@@ -20,7 +20,7 @@ func TestBarnCellsAreTheStandingBarnInterior(t *testing.T) {
 
 // barnShelterFacts is a herd of two pen animals (a muffalo and a thrumbo) with a
 // Barn area, the given conditions and outdoor temperature.
-func barnShelterFacts(temp float64, conditions ...string) RoutineFacts {
+func barnShelterFacts(temp float64, conditions ...string) RoundsFacts {
 	pen := func(id string, def Resource, area string) UpkeepAnimal {
 		a := planAnimal(id, def, "Male")
 		a.RequiresPen, a.SupportsAreas, a.AllowedArea = domain.Known(true), domain.Known(true), domain.Known(area)
@@ -33,7 +33,7 @@ func barnShelterFacts(temp float64, conditions ...string) RoutineFacts {
 	race := func(def Resource, lo, hi float64) AnimalRace {
 		return AnimalRace{Def: def, Comfort: domain.Known(AnimalComfort{Min: lo, Max: hi})}
 	}
-	var f RoutineFacts
+	var f RoundsFacts
 	f.AnimalUpkeep.Animals = domain.Known([]UpkeepAnimal{pen("a1", "Muffalo", ""), pen("a2", "Thrumbo", "")})
 	f.AnimalUpkeep.AnimalRaces = AnimalRaceCatalog{Races: map[Resource]AnimalRace{"Muffalo": race("Muffalo", -40, 50), "Thrumbo": race("Thrumbo", -10, 30)}}
 	f.DisasterConditions, f.OutdoorTemperature, f.BarnArea = domain.Known(rows), domain.Known(temp), domain.Known("Area_Barn")
@@ -42,7 +42,7 @@ func barnShelterFacts(temp float64, conditions ...string) RoutineFacts {
 }
 
 // moveAll applies a choice to the animal rows the way native does.
-func moveAll(f RoutineFacts, c HusbandryChoice) RoutineFacts {
+func moveAll(f RoundsFacts, c HusbandryChoice) RoundsFacts {
 	rows, _ := f.AnimalUpkeep.Animals.Value()
 	out := append([]UpkeepAnimal(nil), rows...)
 	for i := range out {

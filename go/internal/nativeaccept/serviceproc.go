@@ -69,7 +69,7 @@ func (p *ServiceProcess) API(method, path string, body map[string]any, token str
 	return out, resp.StatusCode, nil
 }
 
-// Get is API's HTTPGet-shaped adapter for AssertRoutineRunning.
+// Get is API's HTTPGet-shaped adapter for AssertRoundsRunning.
 func (p *ServiceProcess) Get(method, path string) (map[string]any, error) {
 	v, status, err := p.API(method, path, nil, "")
 	if err != nil {

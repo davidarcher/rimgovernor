@@ -253,8 +253,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		s.latched.remember(out.Wake)
 		// The reviewer's retained census observed through the same facts:
 		// whatever the page made stale retires it too.
-		if s.facts.apply(page) && s.config.Routine != nil {
-			s.config.Routine.census.invalidate()
+		if s.facts.apply(page) && s.config.Rounds != nil {
+			s.config.Rounds.census.invalidate()
 		}
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)

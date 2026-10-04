@@ -173,15 +173,15 @@ func TestMoodUnownedThoughtBlocker(t *testing.T) {
 	}
 }
 
-func TestDetectRoutineRaisesProvisionOwnerDeficit(t *testing.T) {
-	f := stableRoutine()
+func TestDetectRoundsRaisesProvisionOwnerDeficit(t *testing.T) {
+	f := stableRounds()
 	f.ComfortRecovered, f.ComfortDeficit = domain.Known(false), domain.Known(.5)
 	p := moodPawn()
 	p.Food = domain.Known(.8)
 	p.Thoughts = domain.Known([]MoodThought{{"NeedJoy", -20}})
 	h := moodReview(t, p, MoodHistory{})
 	f.Mood = h
-	detected := needs(t, f, RoutineLatches{})
+	detected := needs(t, f, RoundsLatches{})
 	found := false
 	for _, g := range detected.Goals {
 		if g.ID == EnsureComfort {
@@ -196,7 +196,7 @@ func TestDetectRoutineRaisesProvisionOwnerDeficit(t *testing.T) {
 	}
 	// A recovered owner is not re-raised: the goal is simply absent.
 	f.ComfortRecovered, f.ComfortDeficit = domain.Known(true), domain.Known(0.0)
-	for _, g := range needs(t, f, RoutineLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Goals {
 		if g.ID == EnsureComfort {
 			t.Fatal("recovered comfort re-raised by mood pressure")
 		}

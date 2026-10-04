@@ -21,7 +21,7 @@ import (
 // added back where a planner reads total light (cellgrid.Grid.Window).
 
 // gridFrameMethod keys a frame's grid in its table, frames-only like
-// routineFrameMethod; the reply is the frame's context.
+// roundsFrameMethod; the reply is the frame's context.
 const gridFrameMethod = "rimgovernor/snapshot_frame_grid"
 
 // gridHold is the keyframe deltas apply to, for one world and native

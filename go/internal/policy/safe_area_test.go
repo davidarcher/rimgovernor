@@ -37,9 +37,9 @@ func TestSafeAreaCellsExclusions(t *testing.T) {
 }
 
 func TestSafeAreaOwedRaisesMaintainShelter(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.SafeAreaOwed = domain.Known(true)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	for _, g := range r.Goals {
 		if g.ID == MaintainShelter {
 			return
@@ -51,10 +51,10 @@ func TestSafeAreaOwedRaisesMaintainShelter(t *testing.T) {
 // A threat raises an emergency that holds development; the owed Safe area
 // must not wait behind it, or PlanSheltering has no area to move pawns into.
 func TestSafeAreaOwedUnderThreatIsUrgent(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.SafeAreaOwed = domain.Known(true)
 	f.Hostiles = domain.Known[int64](3)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	for _, g := range r.Goals {
 		if g.ID == MaintainShelter {
 			if g.Priority >= 3 {

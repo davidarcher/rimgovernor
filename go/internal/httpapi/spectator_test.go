@@ -47,11 +47,11 @@ func spectatorServer(t *testing.T, withRecorder bool) *Server {
 		}
 	}
 	snapshot := Snapshot{Connected: true, Tick: domain.Known(domain.Tick(5050))}
-	status := RoutineStatus{ReviewsEnabled: true, MethodsEnabled: true,
+	status := RoundsStatus{ReviewsEnabled: true, MethodsEnabled: true,
 		Stage:    &policy.ColonyStageRecord{Stage: policy.StageReserves, Since: 4000, Blocker: policy.StageBlockerWood, Reason: "wood floor 120 of 400"},
 		Progress: []policy.GoalProgress{{Goal: "MaintainFoodStorage", Method: "hunt", Expected: "designated animal killed", LastProgress: 4500, NextReview: 6000, Blocked: policy.BlockedNoWorker}}}
 	s, err := New(Config{FlightRecorder: ring, ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
-		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) { return status, nil })},
+		Routines: roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return status, nil })},
 		snapshotFunc(func(context.Context) (Snapshot, error) { return snapshot, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -161,10 +161,10 @@ func viewerAPI(t *testing.T) (*Server, *presentationMediaFake, *playerFixture, *
 	}
 	fixture := &playerFixture{journal: db}
 	snapshot := Snapshot{Connected: true, Tick: domain.Known(domain.Tick(5)), Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 5})}
-	status := RoutineStatus{ReviewsEnabled: true, Stage: &policy.ColonyStageRecord{Stage: policy.StageFoothold, Since: 0, Blocker: policy.StageBlockerShelter, Reason: "no shelter for all", Held: true}}
+	status := RoundsStatus{ReviewsEnabled: true, Stage: &policy.ColonyStageRecord{Stage: policy.StageFoothold, Since: 0, Blocker: policy.StageBlockerShelter, Reason: "no shelter for all", Held: true}}
 	api, err := NewWithPlayer(Config{Presentation: &presentationFake{camera: &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: observed}}},
 		renderState: &p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: observed, Supported: proto.Bool(true), WindowVisible: proto.Bool(true)}}}}, PresentationMedia: media,
-		Routines:    routineStatusFunc(func(context.Context) (RoutineStatus, error) { return status, nil }),
+		Routines:    roundsStatusFunc(func(context.Context) (RoundsStatus, error) { return status, nil }),
 		ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20},
 		snapshotFunc(func(context.Context) (Snapshot, error) { return snapshot, nil }), planFunc(unavailablePlan), fixture, db)
 	if err != nil {

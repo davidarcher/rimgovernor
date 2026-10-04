@@ -15,7 +15,7 @@ import (
 const plannerWidth = bridge.MaxConcurrentCalls
 
 // Planner priorities, the priority class the planner's goal usually carries
-// in policy.DetectRoutine. A tight step budget is spent lowest-first.
+// in policy.DetectRounds. A tight step budget is spent lowest-first.
 const (
 	plannerPreempt     = 0 // naming, active combat
 	plannerCritical    = 1 // critical medicine, disaster recovery

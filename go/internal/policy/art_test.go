@@ -57,18 +57,18 @@ func TestSelectArtBills(t *testing.T) {
 }
 
 func TestMaintainArtNeedsARoomAndAnArtist(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.SculptureRoomsOwed = domain.Known(true)
 	f.WorkProfiles = domain.Known([]PawnProfile{artProfile("c", 6, "")})
-	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.FindingMet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), MaintainArt); got != domain.FindingMet {
 		t.Fatal("no artist:", got)
 	}
 	f.WorkProfiles = domain.Known([]PawnProfile{artProfile("a", 8, "")})
-	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.FindingUnmet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), MaintainArt); got != domain.FindingUnmet {
 		t.Fatal("room and artist:", got)
 	}
 	f.SculptureRoomsOwed = domain.Unknown[bool]()
-	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.FindingUnclear {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), MaintainArt); got != domain.FindingUnclear {
 		t.Fatal("unknown rooms:", got)
 	}
 }
@@ -154,14 +154,14 @@ func TestInspiredArtistGetsPriorityBill(t *testing.T) {
 		t.Fatalf("uninspired: %v", got)
 	}
 	// The inspired artist holds MaintainArt open with no room owed.
-	f := stableRoutine()
+	f := stableRounds()
 	f.SculptureRoomsOwed = domain.Known(false)
 	f.WorkProfiles = domain.Known(profiles)
-	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.FindingUnmet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), MaintainArt); got != domain.FindingUnmet {
 		t.Fatal("inspired, no room:", got)
 	}
 	f.WorkProfiles = domain.Known([]PawnProfile{plain})
-	if got := assessment(t, needs(t, f, RoutineLatches{}), MaintainArt); got != domain.FindingMet {
+	if got := assessment(t, needs(t, f, RoundsLatches{}), MaintainArt); got != domain.FindingMet {
 		t.Fatal("uninspired, no room:", got)
 	}
 }

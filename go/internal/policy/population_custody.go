@@ -35,7 +35,7 @@ type CustodyFacts struct {
 	Luciferium, WearingApparel domain.Fact[bool]
 }
 
-// CustodyPlanReason names why RoutinePopulationCustodyPlanner did or did
+// CustodyPlanReason names why RoundsPopulationCustodyPlanner did or did
 // not propose a capture/rescue write.
 type CustodyPlanReason string
 

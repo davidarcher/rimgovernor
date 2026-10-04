@@ -112,9 +112,9 @@ func TestSurfaceOreOnlySafeMineables(t *testing.T) {
 }
 
 func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
-	p := DefaultRoutinePolicy()
-	f := RoutineFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 100}}), ResourceRunways: []ResourceRunway{{Resource: "Steel", DaysLeft: domain.Known(2.0), Deficit: domain.Known(true)}}}
-	r, err := DetectRoutine(f, RoutineLatches{}, p)
+	p := DefaultRoundsPolicy()
+	f := RoundsFacts{Resources: domain.Known([]Amount{{Resource: "Steel", Count: 100}}), ResourceRunways: []ResourceRunway{{Resource: "Steel", DaysLeft: domain.Known(2.0), Deficit: domain.Known(true)}}}
+	r, err := DetectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +130,8 @@ func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
 }
 
 func TestUnknownRunwayCannotRecoverMaintenance(t *testing.T) {
-	f := RoutineFacts{Resources: domain.Known([]Amount{}), ResourceRunways: []ResourceRunway{{Resource: "Steel", WindowDays: 2}}}
-	r, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
+	f := RoundsFacts{Resources: domain.Known([]Amount{}), ResourceRunways: []ResourceRunway{{Resource: "Steel", WindowDays: 2}}}
+	r, err := DetectRounds(f, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,8 +8,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func foodDeficitRoutineRequest() RoundsRequest {
-	r := routineRequest()
+func foodDeficitRoundsRequest() RoundsRequest {
+	r := roundsRequest()
 	r.Current.Native = 2
 	r.Facts.FoodDays = domain.Known(0.0)
 	r.Facts.GrowingCells = domain.Known(int64(0))
@@ -42,10 +42,10 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := foodDeficitRoutineRequest()
+	r := foodDeficitRoundsRequest()
 	tick := r.Tick
-	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodSupply)
+	out := reviewRounds(t, s, &r)
+	g := roundsGoal(t, out, policy.EnsureFoodSupply)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -90,10 +90,10 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := foodDeficitRoutineRequest()
+	r := foodDeficitRoundsRequest()
 	tick := r.Tick
-	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.EnsureFoodSupply)
+	out := reviewRounds(t, s, &r)
+	g := roundsGoal(t, out, policy.EnsureFoodSupply)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
@@ -126,18 +126,18 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
+	r := roundsRequest()
 	r.Current.Native = 2
 	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver", Pest: true}})
-	out := reviewRoutine(t, s, &r)
-	g := routineGoal(t, out, policy.ClearPests)
+	out := reviewRounds(t, s, &r)
+	g := roundsGoal(t, out, policy.ClearPests)
 	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
 		t.Fatal(err)
 	}
-	other := routineGoal(t, out, policy.MaintainHousing)
+	other := roundsGoal(t, out, policy.MaintainHousing)
 	if _, err := s.CommitMethod(ctx, other.Standard.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
 		t.Fatal("a shelter goal admitted an acquisition method")
 	}

@@ -50,7 +50,7 @@ func TestStepArbiterTryClaimAllOrNothing(t *testing.T) {
 // regression this type exists for: ClockScheduler.Step now runs many
 // planners as concurrent goroutines (plannerGroup) sharing one
 // stepArbiter, so two "planners" -- here, goroutines standing in for two
-// real planners such as RoutineTendPlanner and RoutineRescuePlanner -- racing
+// real planners such as RoundsTendPlanner and RoundsRescuePlanner -- racing
 // to claim the same pawn must never both win, the same way two real planners
 // must never both commit a plan against one pawn in a single Step(). Run with
 // -race: tryClaim's own mutex is what must make this safe, not luck.

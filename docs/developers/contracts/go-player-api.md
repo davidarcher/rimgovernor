@@ -55,7 +55,7 @@ journaled in order and each `requestId` is durable. Resume creates or reuses
 the world's empty root plan (`root/<colony>/<load>/<map>`, revision 1) and
 runs the bot under it; the root plan holds no actions. Routine methods and
 player submissions (building, research) for the same world are dispatched
-under the root's authority once `AuthorizeRoutinePlan` or
+under the root's authority once `AuthorizeRoundsPlan` or
 `AuthorizePlayerPlan` accepts them — a submission is guidance the running
 bot executes, not a grant of its own, and there is no priority arbitration
 between guidance and routine work. Pause stops local work; drafted pawns stay

@@ -98,7 +98,7 @@ func TestRemoteWorkClearsHoldsWhenSafe(t *testing.T) {
 }
 
 func TestUrgentWorkCompeting(t *testing.T) {
-	var f RoutineFacts
+	var f RoundsFacts
 	if _, known := UrgentWorkCompeting(f).Value(); known {
 		t.Fatal("unknown patients must not decide urgency")
 	}

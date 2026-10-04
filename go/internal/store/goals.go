@@ -317,10 +317,10 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
 		return errors.New("goal does not admit a method")
 	}
-	if err := admitRoutineSafeguards(ctx, tx, state); err != nil {
+	if err := admitRoundsSafeguards(ctx, tx, state); err != nil {
 		return err
 	}
-	if err := admitRoutineDevelopment(ctx, tx, summary, plan); err != nil {
+	if err := admitRoundsDevelopment(ctx, tx, summary, plan); err != nil {
 		return err
 	}
 	open, err := goalOpenWork(ctx, tx, state)
@@ -484,5 +484,5 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	}
 	// A prepared plan does not prepare or dispatch while a Safeguard vetoes its
 	// goal (#1017).
-	return admitRoutineSafeguards(ctx, tx, state)
+	return admitRoundsSafeguards(ctx, tx, state)
 }

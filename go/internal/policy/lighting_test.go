@@ -149,10 +149,10 @@ func TestSelectLightingDefersToUnservicedLampInRange(t *testing.T) {
 	}
 }
 
-func TestDetectRoutineRanksLightingFromMeasuredCensus(t *testing.T) {
-	f := stableRoutine()
+func TestDetectRoundsRanksLightingFromMeasuredCensus(t *testing.T) {
+	f := stableRounds()
 	f.Upkeep.Lighting = domain.Known(lightingCensus())
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || r.Latches.Lighting[0] != "stove" || assessment(t, r, MaintainLighting) != domain.FindingUnmet {
 		t.Fatal(r.Latches, r.Assessments)
 	}

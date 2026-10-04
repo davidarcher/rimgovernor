@@ -19,14 +19,14 @@ func TestResourceRunwayReserveDeficitAndReviewPersistence(t *testing.T) {
 	if _, err := s.Dispatch(ctx, "plan", "bill", a.Snapshot, a.Tick); err != nil {
 		t.Fatal(err)
 	}
-	r := routineRequest()
+	r := roundsRequest()
 	r.Current = a.Snapshot
 	r.Tick = 60012
 	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 300}
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 200}, {Resource: "ComponentIndustrial", Count: 20}})
 	r.Facts.ResourceSurfaceOre = map[policy.Resource]domain.Fact[int64]{"Steel": domain.Known(int64(0)), "ComponentIndustrial": domain.Known(int64(0))}
-	out := reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
+	out := reviewRounds(t, s, &r)
+	if roundsGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal(out.Needs)
 	}
 	if len(out.Review.ResourceRunways) != 3 {

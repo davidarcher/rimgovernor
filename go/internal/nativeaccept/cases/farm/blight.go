@@ -218,7 +218,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	}
 	report["blight_goal"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Finding), "methods": len(settled.Methods)}
 	report["plants_designated"] = sortedKeys(seen)
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

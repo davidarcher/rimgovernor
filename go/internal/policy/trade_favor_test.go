@@ -64,7 +64,7 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 	merchant := domain.Known([]TraderFacts{{ID: "t", Kind: "Caravan_Outlander_BulkGoods", CanTrade: true}})
 	base := domain.Known(TradeNeed{})
 	need := func(traders domain.Fact[[]TraderFacts], stock domain.Fact[[]Amount]) int64 {
-		n, _ := FavorGoldNeed(base, traders, stock, nil, nil, RoutineTradePolicy{}).Value()
+		n, _ := FavorGoldNeed(base, traders, stock, nil, nil, RoundsTradePolicy{}).Value()
 		return n.FavorGold
 	}
 	if got := need(collector, goldStock(120)); got != 70 {
@@ -81,7 +81,7 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 		}
 	}
 	floors := map[string]int64{"Gold": 100}
-	if n, _ := FavorGoldNeed(base, collector, goldStock(120), nil, floors, RoutineTradePolicy{}).Value(); n.FavorGold != 20 {
+	if n, _ := FavorGoldNeed(base, collector, goldStock(120), nil, floors, RoundsTradePolicy{}).Value(); n.FavorGold != 20 {
 		t.Fatalf("floor ignored: %+v", n)
 	}
 }
@@ -89,19 +89,19 @@ func TestFavorGoldNeedRequiresACollectorAndGoldAboveKeep(t *testing.T) {
 // Snapshot: the goal stands for a collector with gold in stock and not
 // without one or with no gold.
 func TestTradeWithCaravanStandsForCollectorWithGold(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.Resources = domain.Known([]Amount{{Resource: "Gold", Count: 300}})
 	f.Traders = domain.Known([]TraderFacts{{ID: "c", Kind: TributeCollectorKind, CanTrade: true}})
-	if got := needs(t, f, RoutineLatches{}); !assessedDeficit(got, TradeWithCaravan) {
+	if got := needs(t, f, RoundsLatches{}); !assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("a collector with gold in stock opened no caravan goal", got)
 	}
 	f.Traders = domain.Known([]TraderFacts{{ID: "c", Kind: "Caravan_Outlander_BulkGoods", CanTrade: true}})
-	if got := needs(t, f, RoutineLatches{}); assessedDeficit(got, TradeWithCaravan) {
+	if got := needs(t, f, RoundsLatches{}); assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("a non-collector with gold in stock stood the goal", got)
 	}
 	f.Traders = domain.Known([]TraderFacts{{ID: "c", Kind: TributeCollectorKind, CanTrade: true}})
 	f.Resources = domain.Known([]Amount{})
-	if got := needs(t, f, RoutineLatches{}); assessedDeficit(got, TradeWithCaravan) {
+	if got := needs(t, f, RoundsLatches{}); assessedDeficit(got, TradeWithCaravan) {
 		t.Fatal("no gold stood the goal", got)
 	}
 }

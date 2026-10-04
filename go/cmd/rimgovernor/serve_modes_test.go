@@ -12,11 +12,11 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-func withRoutineFamilies(t *testing.T, value string, set bool) {
+func withRoundsFamilies(t *testing.T, value string, set bool) {
 	t.Helper()
 	previous := lookupEnv
 	lookupEnv = func(name string) (string, bool) {
-		if name == routineFamiliesEnv {
+		if name == roundsFamiliesEnv {
 			return value, set
 		}
 		return previous(name)
@@ -33,21 +33,21 @@ func serveBase(dir string) []string {
 // evaluation.
 func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.playerControl || !c.clockControl || !c.roundsEnabled || !c.routineMethods {
+	if !c.playerControl || !c.clockControl || !c.roundsEnabled || !c.roundsMethods {
 		t.Fatalf("autonomous composition: %+v", c)
 	}
-	families := routineFamilies(&c)
+	families := roundsFamilies(&c)
 	for _, entry := range families {
 		if !*entry.Enabled {
 			t.Fatalf("default left %s disabled", entry.Name)
 		}
 	}
-	if got := c.activeRoutineFamilies(); len(got) != len(families) {
+	if got := c.activeRoundsFamilies(); len(got) != len(families) {
 		t.Fatalf("active families %v did not cover every family", got)
 	}
 	if _, err := parseServe(serveBase(dir), io.Discard); err == nil {
@@ -63,7 +63,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 // --clock-speed is gone.
 func TestServeClockTestAccelerationPinsUltrafast(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Fast"), io.Discard); err == nil {
 		t.Fatal("accepted the retired --clock-speed")
 	}
@@ -83,9 +83,9 @@ func TestServeClockTestAccelerationPinsUltrafast(t *testing.T) {
 
 func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	c, err := parseServe(append(serveBase(dir), "--observe"), io.Discard)
-	if err != nil || c.playerControl || c.clockControl || c.roundsEnabled || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
+	if err != nil || c.playerControl || c.clockControl || c.roundsEnabled || c.roundsMethods || c.profile != "" || len(c.activeRoundsFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
 	for _, extra := range [][]string{{"--profile", dir}, {"--resume"}, {"--clock-test-acceleration"}, {"unexpected"}} {
@@ -93,7 +93,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 			t.Fatalf("observe accepted %v", extra)
 		}
 	}
-	withRoutineFamilies(t, "sleeping", true)
+	withRoundsFamilies(t, "sleeping", true)
 	if _, err := parseServe(append(serveBase(dir), "--observe"), io.Discard); err == nil {
 		t.Fatal("observe accepted a routine family selection")
 	}
@@ -101,24 +101,24 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 
 // RIMGOVERNOR_ROUTINE_FAMILIES narrows the composed families for targeted
 // or debug runs; an unknown name is refused rather than silently ignored.
-func TestServeRoutineFamiliesSelection(t *testing.T) {
+func TestServeRoundsFamiliesSelection(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, " sleeping, husbandry ", true)
+	withRoundsFamilies(t, " sleeping, husbandry ", true)
 	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(c.activeRoutineFamilies(), ","); got != "sleeping,husbandry" {
+	if got := strings.Join(c.activeRoundsFamilies(), ","); got != "sleeping,husbandry" {
 		t.Fatalf("selected families %q", got)
 	}
-	if !c.roundsEnabled || !c.routineMethods || c.routineComfortPlans {
+	if !c.roundsEnabled || !c.roundsMethods || c.roundsComfortPlans {
 		t.Fatalf("selection changed composition: %+v", c)
 	}
-	withRoutineFamilies(t, "sleeping,unknown", true)
+	withRoundsFamilies(t, "sleeping,unknown", true)
 	if _, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard); err == nil {
 		t.Fatal("unknown family accepted")
 	}
-	withRoutineFamilies(t, "", true)
+	withRoundsFamilies(t, "", true)
 	// The resource family keeps the default floors; no flag sets them (#875).
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || !c.resourceTargetsConfigured() || c.resourceTargets()["Steel"] != 200 || c.resourceTargets()["ComponentIndustrial"] != 10 {
@@ -133,7 +133,7 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 
 func TestServeResumeFlag(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || c.resume {
 		t.Fatal(c, err)
@@ -147,21 +147,21 @@ func TestServeResumeFlag(t *testing.T) {
 // target replaces them, and a serve without the resource family keeps none.
 func TestServeDefaultResourceFloors(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", true)
+	withRoundsFamilies(t, "", true)
 	c, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	thresholds, capabilities := routineCapabilities(c)
+	thresholds, capabilities := roundsCapabilities(c)
 	if !maps.Equal(thresholds.ResourceTargets, policy.DefaultResourceTargets()) || thresholds.StoneBlockTarget != policy.DefaultStoneBlockTarget || !slices.Contains(capabilities.Methods, policy.MaintainResource) {
 		t.Fatalf("default launch floors %v stone %d methods %v", thresholds.ResourceTargets, thresholds.StoneBlockTarget, capabilities.Methods)
 	}
-	withRoutineFamilies(t, "sleeping", true)
+	withRoundsFamilies(t, "sleeping", true)
 	c, err = parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if thresholds, _ = routineCapabilities(c); len(thresholds.ResourceTargets) != 0 || thresholds.StoneBlockTarget != 0 {
+	if thresholds, _ = roundsCapabilities(c); len(thresholds.ResourceTargets) != 0 || thresholds.StoneBlockTarget != 0 {
 		t.Fatalf("floors without the resource family: %v stone %d", thresholds.ResourceTargets, thresholds.StoneBlockTarget)
 	}
 }

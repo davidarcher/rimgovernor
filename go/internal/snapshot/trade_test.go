@@ -7,10 +7,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// tradeNeed replays the TradeNeed DetectRoutine measured for
+// tradeNeed replays the TradeNeed DetectRounds measured for
 // TradeWithCaravan (the medicine reserve, resource census, floors and food
 // ledger of the recorded review).
-func tradeNeed(t *testing.T, r Routine) policy.TradeNeed {
+func tradeNeed(t *testing.T, r Rounds) policy.TradeNeed {
 	t.Helper()
 	facts := r.Facts.MedicalReserve
 	facts.Colonists = r.Facts.Colonists
@@ -18,14 +18,14 @@ func tradeNeed(t *testing.T, r Routine) policy.TradeNeed {
 	if err != nil {
 		t.Fatal(err)
 	}
-	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Policy.ResourceTargets, policy.RoutineTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoutineTradeFood(r.Facts, r.Policy)).Value()
+	need, known := policy.ReviewTradeNeed(r.Facts.Items.Currency, medicine, r.Facts.Resources, r.Policy.ResourceTargets, policy.RoundsTradeFloors(r.Policy, nil), r.Facts.Wealth, r.Policy.Trade, policy.RoundsTradeFood(r.Facts, r.Policy)).Value()
 	if !known {
 		t.Fatal("trade need unknown")
 	}
 	return need
 }
 
-func loadTrade(t *testing.T, path string) Routine {
+func loadTrade(t *testing.T, path string) Rounds {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {

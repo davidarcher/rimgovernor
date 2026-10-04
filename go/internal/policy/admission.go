@@ -31,14 +31,14 @@ type Bounds struct{ Width, Height int32 }
 type Purpose string
 
 const (
-	Routine Purpose = "routine"
+	Rounds  Purpose = "routine"
 	Defense Purpose = "defense"
 	Shelter Purpose = "shelter"
 )
 
 // ValidPurpose reports whether p names a spending class.
 func ValidPurpose(p Purpose) bool {
-	return p == Routine || p == Defense || p == Shelter
+	return p == Rounds || p == Defense || p == Shelter
 }
 
 type Dependency struct {

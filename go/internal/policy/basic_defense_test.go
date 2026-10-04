@@ -22,9 +22,9 @@ func TestBasicDefenseOwedWhileAFighterIsUnarmed(t *testing.T) {
 	if _, k := basicDefenseRecovered(domain.Unknown[bool](), domain.Known(int64(2))).Value(); k {
 		t.Fatal("unknown gate became known")
 	}
-	p := DefaultRoutinePolicy()
-	f := RoutineFacts{Colonists: domain.Known(int64(3)), Armed: domain.Known(int64(2)), Unarmed: domain.Known(int64(1))}
-	if v, k := RoutineDevelopmentDeficit(EnsureBasicDefense, f, p).Value(); !k || v <= 0 {
+	p := DefaultRoundsPolicy()
+	f := RoundsFacts{Colonists: domain.Known(int64(3)), Armed: domain.Known(int64(2)), Unarmed: domain.Known(int64(1))}
+	if v, k := RoundsDevelopmentDeficit(EnsureBasicDefense, f, p).Value(); !k || v <= 0 {
 		t.Fatal("unarmed fighter left no development deficit", v, k)
 	}
 }

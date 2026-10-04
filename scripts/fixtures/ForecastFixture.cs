@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ForecastFixture
     {
         [Tool("test/routine_temperature_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare sleeping spots and native construction/fuel materials in a disposable roofed room. Initialize the room at actual outdoor temperature once; never create thermal facilities or force pawn construction/refueling jobs.")]
-        public async Task<object> RoutineTemperature(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z, bool hot = false,
+        public async Task<object> RoundsTemperature(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z, bool hot = false,
             [ToolParameter(Description = "When the outdoor temperature is too warm for the cold method, register ordinary ColdSnap conditions (ramp already complete) sized on the day's peak so the whole run stays under the cold threshold; no direct temperature edit.", DefaultValue = false)] bool coldSnap = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

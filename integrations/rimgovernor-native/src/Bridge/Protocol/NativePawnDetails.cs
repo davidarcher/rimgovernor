@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
                 // plus the allowed area under d.Work, the 24 timetable slots
                 // under d.Schedule.
                 // Callers that request several (e.g. ReadTendPawns,
-                // ReadRoutinePawns) must therefore get exactly their union,
+                // ReadRoundsPawns) must therefore get exactly their union,
                 // never the wider Assign-tab row (follow
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.

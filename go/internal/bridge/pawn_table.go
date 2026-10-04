@@ -188,7 +188,7 @@ func (caller *Client) frameHeld(ctx context.Context, method string, identity *c.
 }
 
 // framePawnsMethod keys a frame's pawn table in its read table,
-// frames-only like routineFrameMethod.
+// frames-only like roundsFrameMethod.
 const framePawnsMethod = "rimgovernor/snapshot_frame_pawns"
 
 // FramePawns is the pawn table of the newest frame, or every spawned pawn

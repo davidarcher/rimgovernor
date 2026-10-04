@@ -88,7 +88,7 @@ func ValidThing(row *o.Thing, ctx *c.ObservationContext) error {
 const ThingsSection = "things"
 
 // frameThingsMethod keys a frame's things table in its read table,
-// frames-only like routineFrameMethod.
+// frames-only like roundsFrameMethod.
 const frameThingsMethod = "rimgovernor/snapshot_frame_things"
 
 // FrameThings is the things table of the newest frame. There is no GABP

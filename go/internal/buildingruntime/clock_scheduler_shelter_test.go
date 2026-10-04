@@ -21,14 +21,14 @@ func TestClockShelterHeldReadsReviewFacts(t *testing.T) {
 	restrict := func(area string) domain.Fact[policy.RecoverySafety] {
 		return domain.Known(policy.RecoverySafety{Restrictions: []policy.RecoveryRestriction{{Pawn: "a", Area: domain.Known(area)}}})
 	}
-	f := policy.RoutineFacts{
+	f := policy.RoundsFacts{
 		Hostiles:           domain.Known(int64(2)),
 		DisasterConditions: domain.Known([]policy.DisasterCondition{}),
 		ShelterArea:        domain.Known("safe"),
 		RecoveryWorkers:    domain.Known([]policy.RecoveryWorker{worker}),
 		RecoverySafety:     restrict("safe"),
 	}
-	review := &store.RoundsResult{Detection: &store.RoutineDetection{Facts: f}}
+	review := &store.RoundsResult{Detection: &store.RoundsDetection{Facts: f}}
 	if held, known := clockShelterHeld(review).Value(); !known || !held {
 		t.Fatalf("restricted to Safe under a threat = %v, %v", held, known)
 	}

@@ -14,7 +14,7 @@ import (
 
 // clearance replays path's clearance census: the Home selection and the
 // review's journalled holds, which must match what the review recorded.
-func clearance(t *testing.T, path string) (Routine, policy.ClearanceSelection, []policy.ClearanceHold) {
+func clearance(t *testing.T, path string) (Rounds, policy.ClearanceSelection, []policy.ClearanceHold) {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -100,7 +100,7 @@ func TestReplayStandingDesignationAdopted(t *testing.T) {
 }
 
 // shrineTargets replays the shrine clearance targets of path's census.
-func shrineTargets(t *testing.T, r Routine) []string {
+func shrineTargets(t *testing.T, r Rounds) []string {
 	t.Helper()
 	rows, known := r.Facts.Upkeep.Shrines.Value()
 	if !known {

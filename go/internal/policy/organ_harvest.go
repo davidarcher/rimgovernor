@@ -280,8 +280,8 @@ func harvestAcceptable(op SurgeryOperation) bool {
 
 // SaleHarvestWanted reports whether a sale harvest would be queued now: the
 // silver runway is short and some eligible prisoner's organ clears its cost.
-// DetectRoutine holds MaintainSurgery open on it (#1169).
-func SaleHarvestWanted(f RoutineFacts, silverShort domain.Fact[bool]) bool {
+// DetectRounds holds MaintainSurgery open on it (#1169).
+func SaleHarvestWanted(f RoundsFacts, silverShort domain.Fact[bool]) bool {
 	if !positive(silverShort) {
 		return false
 	}
@@ -456,8 +456,8 @@ func partRecoveryCost(op SurgeryOperation, row PrisonerFacts, c PrisonerColony) 
 }
 
 // PartRecoveryWanted reports whether a stock recovery would be queued now;
-// DetectRoutine holds MaintainSurgery open on it (#1232).
-func PartRecoveryWanted(f RoutineFacts) bool {
+// DetectRounds holds MaintainSurgery open on it (#1232).
+func PartRecoveryWanted(f RoundsFacts) bool {
 	_, ok := SelectPartRecovery(f.Prisoners, f.PrisonerColony, nil, nil)
 	return ok
 }

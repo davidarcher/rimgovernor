@@ -15,8 +15,8 @@ func TestNoOpReasonValidate(t *testing.T) {
 	}
 }
 
-func TestDetectRoutineRecordsNoOpReasons(t *testing.T) {
-	r := needs(t, RoutineFacts{}, RoutineLatches{})
+func TestDetectRoundsRecordsNoOpReasons(t *testing.T) {
+	r := needs(t, RoundsFacts{}, RoundsLatches{})
 	reasons := map[ConcernID]NoOpReason{}
 	for _, n := range r.NoOps {
 		if err := n.Reason.Validate(); err != nil {

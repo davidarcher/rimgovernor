@@ -226,7 +226,7 @@ func RitualsOwed(plans domain.Fact[[]RitualPlan]) domain.Fact[bool] {
 // HeldOffSleep is the colonists a pending bestowing ceremony (CeremonyHold)
 // or a ritual about to begin (the attendees of every plan) needs awake: the
 // schedule planners keep them off the Sleep timetable (PlanSchedulesHeld).
-func HeldOffSleep(f RoutineFacts) map[PawnID]bool {
+func HeldOffSleep(f RoundsFacts) map[PawnID]bool {
 	hold := CeremonyHoldOf(f.Royalty)
 	plans, _ := f.RitualPlans.Value()
 	for _, plan := range plans {

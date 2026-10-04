@@ -84,13 +84,13 @@ func GoalLabor(id ConcernID) LaborProfile {
 	return nil
 }
 
-// RoutineLabor counts, per native work type, the pawns RoutineWorkers counts
+// RoundsLabor counts, per native work type, the pawns RoundsWorkers counts
 // whose work settings enable that type (priority above zero and not
 // disabled). Any counted pawn with unknown or empty work settings makes the
 // whole census unknown: native lists every WorkTypeDef for a pawn whose work
 // applies, so an empty list is an unobserved census, and partial labor
 // evidence must not admit or refuse work.
-func RoutineLabor(pawns []WorkPawn) domain.Fact[map[WorkType]int] {
+func RoundsLabor(pawns []WorkPawn) domain.Fact[map[WorkType]int] {
 	labor := map[WorkType]int{}
 	for _, p := range pawns {
 		available, known := p.Available.Value()
@@ -111,10 +111,10 @@ func RoutineLabor(pawns []WorkPawn) domain.Fact[map[WorkType]int] {
 	return domain.Known(labor)
 }
 
-// LaborUse is the census of what the pawns RoutineLabor counts are doing
+// LaborUse is the census of what the pawns RoundsLabor counts are doing
 // this review. Busy counts, per work type, the pawns whose current job a
 // work giver of that type issued (any pawn, drafted or not). Idle counts,
-// per work type, the pawns RoutineLabor counts for that type who are not on
+// per work type, the pawns RoundsLabor counts for that type who are not on
 // its work: a pawn with no job or wandering, or one a giver of another type
 // holds. Rest, meals, recreation, medical care and forced orders are
 // neither, so a colony asleep is no evidence about any commitment.
@@ -135,11 +135,11 @@ func idleJob(job PawnJob) bool {
 	return false
 }
 
-// RoutineLaborUse builds LaborUse from the same pawns RoutineLabor counts.
+// RoundsLaborUse builds LaborUse from the same pawns RoundsLabor counts.
 // Any counted pawn with an unknown job, or with unknown or empty work
-// settings, makes the census unknown, as RoutineLabor's is: partial
+// settings, makes the census unknown, as RoundsLabor's is: partial
 // evidence must not release a commitment's slot.
-func RoutineLaborUse(pawns []WorkPawn) domain.Fact[LaborUse] {
+func RoundsLaborUse(pawns []WorkPawn) domain.Fact[LaborUse] {
 	use := LaborUse{Busy: map[WorkType]int{}, Idle: map[WorkType]int{}}
 	for _, p := range pawns {
 		job, jobKnown := p.Job.Value()

@@ -27,7 +27,7 @@ type WorkerConfig struct {
 	// Pawns disables the hold; nil Moves never resends.
 	Pawns                                 ArrivalPawns
 	Moves                                 boundary.ActionsWriter
-	RoutineMethods                        bool
+	RoundsMethods                         bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
 	// MaxDispatches bounds the actions one step runs before it yields the
@@ -75,13 +75,13 @@ type WorkerConfig struct {
 	Flush func(context.Context) error
 }
 
-// routineExecutableKind lists every action kind the worker (and, for a
-// non-current plan, AuthorizeRoutinePlan) is allowed to dispatch or observe.
+// roundsExecutableKind lists every action kind the worker (and, for a
+// non-current plan, AuthorizeRoundsPlan) is allowed to dispatch or observe.
 // Growing this list is how a new action family joins live automatic
 // execution; each kind here already carries its own CAS-admission-guarded
 // executor/boundary pair, so this is an allowlist of what has that
 // machinery, not a bypass of it.
-func routineExecutableKind(kind domain.ActionKind) bool {
+func roundsExecutableKind(kind domain.ActionKind) bool {
 	switch kind {
 	case domain.BuildingAction, domain.OwnedDraftAction, domain.SubdueAction,
 		domain.SupplyAllowAction, domain.SupplyForbidAction, domain.WorkAssignmentAction, domain.AcquisitionAction, domain.AcquisitionWithdrawAction, domain.ZoneCreateAction,
@@ -198,8 +198,8 @@ func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session
 	if session == nil || player == nil || player.session != session || player.journal != session.journal {
 		return nil, fmt.Errorf("%w: NewWorker: session == nil || player == nil || player.session != session || player.journal != session.journal", ErrControl)
 	}
-	if config.RoutineMethods && !session.routineMethods {
-		return nil, fmt.Errorf("%w: NewWorker: config.RoutineMethods && !session.routineMethods", ErrControl)
+	if config.RoundsMethods && !session.roundsMethods {
+		return nil, fmt.Errorf("%w: NewWorker: config.RoundsMethods && !session.roundsMethods", ErrControl)
 	}
 	return newWorker(ctx, config, player, session)
 }
@@ -398,7 +398,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if scope.Enabled && scope.ObservationKnown && plan.Spec.ID() != scope.Snapshot.Plan {
 			target := scope.Snapshot
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
-			if authErr := (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target); authErr == nil {
+			if authErr := (planAuthorizer{w.player.journal, w.config.RoundsMethods}).AuthorizeRoundsPlan(call, scope.Snapshot, target); authErr == nil {
 				planScope.Snapshot = target
 			} else if clockDebug() {
 				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, authErr)
@@ -409,11 +409,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			if !v.Unresolved && breakHeld[v.Action] {
 				continue
 			}
-			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
+			roundsObservation := w.config.RoundsMethods && v.Unresolved && roundsExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
 			if clockDebug() && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
 			}
-			if worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
+			if worldErr == nil && (roundsObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, plan: plan.Spec.ID(), kind: progress.Action().Kind(), action: progress.Action(), snapshot: planScope.Snapshot})
 			}
@@ -810,7 +810,7 @@ func workerHeldStale(after domain.ProgressView, result executor.Result, err erro
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {
 	supported := false
 	for _, action := range plan.Spec.Actions() {
-		if action.ID() == v.Action && routineExecutableKind(action.Kind()) {
+		if action.ID() == v.Action && roundsExecutableKind(action.Kind()) {
 			supported = true
 			break
 		}

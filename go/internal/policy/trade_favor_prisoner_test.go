@@ -66,10 +66,10 @@ func TestSelectFavorSaleHoldsAnIneligiblePrisonerRow(t *testing.T) {
 	}
 }
 
-// prisonerRoutine is a stable colony of 3 holding the given prisoners under a
+// prisonerRounds is a stable colony of 3 holding the given prisoners under a
 // ruleset; a nil ideology is a game without Ideology.
-func prisonerRoutine(ideology *Ideoligion, rows ...PrisonerFacts) RoutineFacts {
-	f := stableRoutine()
+func prisonerRounds(ideology *Ideoligion, rows ...PrisonerFacts) RoundsFacts {
+	f := stableRounds()
 	f.Prisoners = domain.Known(rows)
 	colony := PrisonerColony{Colonists: 3, BestSkill: core.BestSkill}
 	f.IdeologyInstalled = domain.Known(false)
@@ -94,7 +94,7 @@ func TestSurplusPrisonersExcludesEveryUse(t *testing.T) {
 		f(&row)
 		return row
 	}
-	if got := prisonerRoutine(nil, surplusRow("p")).SurplusPrisoners(false); !got["p"] || len(got) != 1 {
+	if got := prisonerRounds(nil, surplusRow("p")).SurplusPrisoners(false); !got["p"] || len(got) != 1 {
 		t.Fatalf("surplus %v", got)
 	}
 	for name, row := range map[string]PrisonerFacts{
@@ -108,17 +108,17 @@ func TestSurplusPrisonersExcludesEveryUse(t *testing.T) {
 		"executing":          edit(func(r *PrisonerFacts) { r.Executing = true }),
 		"dead":               edit(func(r *PrisonerFacts) { r.Dead = domain.Known(true) }),
 	} {
-		if got := prisonerRoutine(nil, row).SurplusPrisoners(false); len(got) != 0 {
+		if got := prisonerRounds(nil, row).SurplusPrisoners(false); len(got) != 0 {
 			t.Fatalf("%s: surplus %v", name, got)
 		}
 	}
 	// Unknown census or medical facts hold everything.
-	f := prisonerRoutine(nil, surplusRow("p"))
+	f := prisonerRounds(nil, surplusRow("p"))
 	f.Prisoners = domain.Unknown[[]PrisonerFacts]()
 	if got := f.SurplusPrisoners(false); len(got) != 0 {
 		t.Fatalf("no census: %v", got)
 	}
-	f = prisonerRoutine(nil, surplusRow("p"))
+	f = prisonerRounds(nil, surplusRow("p"))
 	f.MedicalPawns = domain.Unknown[[]CarePawn]()
 	if got := f.SurplusPrisoners(false); len(got) != 0 {
 		t.Fatalf("no medical census: %v", got)
@@ -130,7 +130,7 @@ func TestSurplusPrisonersSkipsAnOrganHarvestCandidate(t *testing.T) {
 	// worthless prisoner: that prisoner is the organ plan's, not surplus.
 	harvest := harvestPrisoner("p", 0)
 	harvest.CreepJoiner = domain.Known(false)
-	f := prisonerRoutine(nil, harvest, surplusRow("q"))
+	f := prisonerRounds(nil, harvest, surplusRow("q"))
 	if got := f.SurplusPrisoners(true); got["p"] || !got["q"] {
 		t.Fatalf("short runway: surplus %v", got)
 	}
@@ -143,7 +143,7 @@ func TestSurplusPrisonersSkipsOneMaintainPopulationWouldEnslave(t *testing.T) {
 	ideo := ruleIdeoligion(PreceptDef{Name: "Slavery_Test"})
 	row := surplusRow("p")
 	row.Prospect = domain.Known(weak)
-	f := prisonerRoutine(&ideo, row)
+	f := prisonerRounds(&ideo, row)
 	f.Ideology = domain.Known(ideo)
 	if got := f.SurplusPrisoners(false); len(got) != 0 {
 		t.Fatalf("a labouring prisoner in a slaving colony is surplus: %v", got)
@@ -168,7 +168,7 @@ func TestSurplusPrisonersObeysPrecepts(t *testing.T) {
 		"refused":      {ideology(unwilling(SoldPrisonerEvent, nil)), false, false},
 		"unread":       {nil, true, false},
 	} {
-		f := prisonerRoutine(c.ideology, surplusRow("p"))
+		f := prisonerRounds(c.ideology, surplusRow("p"))
 		if c.unread {
 			f.IdeologyInstalled, f.Ideology = domain.Known(true), domain.Unknown[Ideoligion]()
 		}

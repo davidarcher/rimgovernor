@@ -82,7 +82,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan 
 	if !hasSupply {
 		return nil
 	}
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan 
 
 // A standing refill bill must not delay access to food in an emergency.
 func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal WorkOwner, plan domain.PlanSpec) (bool, error) {
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return false, err
 	}

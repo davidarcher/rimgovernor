@@ -15,7 +15,7 @@
 // Every case opens on the tribal8 baseline save (the fixture stages its
 // deficit on the loaded map) so a kept process serves the whole family.
 // Needs the native mod built with -Fixture
-// UpkeepFixture,ForecastFixture,RoutineSleepingFixture (the campaign adds
+// UpkeepFixture,ForecastFixture,RoundsSleepingFixture (the campaign adds
 // CleanlinessFixture).
 package upkeep
 
@@ -335,7 +335,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 		// The plan is followed to a terminal stage, but a need that recovers
 		// on its own while the plan is still undispatched ends the follow:
 		// a recovered routine goal never authorizes that write again
-		// (store.AuthorizeRoutinePlan), it merely keeps the plan for a
+		// (store.AuthorizeRoundsPlan), it merely keeps the plan for a
 		// returning deficit, so no terminal stage is coming.
 		state, incidental, undispatched, err := waitPlanOrRecovery(ctx, journal, method.Plan, recovered)
 		if err != nil {

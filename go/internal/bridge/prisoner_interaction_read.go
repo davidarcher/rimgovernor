@@ -24,9 +24,9 @@ var prisonerInteractionDefNames = map[string]domain.PrisonerInteractionMode{
 }
 
 // PrisonerCensus is one rounds cycle's whole prisoner census, read
-// once per cycle so RoutinePrisonerInteractionPlanner can detect
+// once per cycle so RoundsPrisonerInteractionPlanner can detect
 // MaintainPopulation's deficit and select a candidate the same way the
-// always-present generic colony census lets RoutineHusbandryPlanner detect
+// always-present generic colony census lets RoundsHusbandryPlanner detect
 // and select from AnimalState. Unlike that generic census, prisoner facts
 // live only on this dedicated rimgovernor/observations_read_population read,
 // so a full-list read is issued here instead of piggybacking on ObserveColony.
@@ -34,7 +34,7 @@ type PrisonerCensus struct {
 	Context   *c.ObservationContext
 	Prisoners domain.Fact[[]policy.PrisonerFacts]
 	// Custody carries the same read's capture/rescue candidate census: every
-	// observed humanlike, not only prisoners. See ReadRoutinePopulation.
+	// observed humanlike, not only prisoners. See ReadRoundsPopulation.
 	Custody domain.Fact[[]policy.CustodyFacts]
 	// Outlook is the snapshot's storyteller population outlook (#1031).
 	Outlook policy.PopulationOutlook
@@ -64,7 +64,7 @@ func prisonerProspect(person *o.PopulationPerson) domain.Fact[policy.PrisonerPro
 	return domain.Known(p)
 }
 
-// ReadRoutinePopulation reads the whole population census and extracts every
+// ReadRoundsPopulation reads the whole population census and extracts every
 // living-or-dead prisoner's recruit/maintain facts. It requires a single
 // complete page.
 // populationRequest is the exact request the population reads issue, the
@@ -73,7 +73,7 @@ func populationRequest(identity *c.Identity) *o.PopulationRequest {
 	return &o.PopulationRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
 }
 
-func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (PrisonerCensus, Result, error) {
+func (client *Client) ReadRoundsPopulation(ctx context.Context, identity *c.Identity) (PrisonerCensus, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return PrisonerCensus{}, Result{}, err
 	}

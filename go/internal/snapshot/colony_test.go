@@ -38,7 +38,7 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 	m := facts.NewStore()
 	m.SetRecorder(MirrorRecorder(dir))
 	scope := facts.Scope{Load: "l", Map: 1, Generation: 1}
-	var want []Routine
+	var want []Rounds
 	var wantSteps []Step
 	for i := 0; i < 4; i++ {
 		v := proto.Clone(reply.GetObserved()).(*o.ColonyFactsSnapshot)
@@ -88,7 +88,7 @@ func TestRecordRebuildsDecodedColonyFacts(t *testing.T) {
 		t.Fatal("no review line names the colony sections")
 	}
 	i := 0
-	err = Replay(paths[0], nil, func(at Review, got Routine) (bool, error) {
+	err = Replay(paths[0], nil, func(at Review, got Rounds) (bool, error) {
 		if !reflect.DeepEqual(got, want[i]) {
 			a, _ := Encode(got)
 			b, _ := Encode(want[i])

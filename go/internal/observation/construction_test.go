@@ -38,7 +38,7 @@ func TestConstructionReadsTheFramesBuiltBuildings(t *testing.T) {
 			}
 			row := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("wall"), DefName: proto.String("Wall"), MapId: proto.Int32(base.GetObserved().Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}, Maximum: &c.Cell{X: proto.Int32(3), Z: proto.Int32(7)}}, Rotation: pp.Rotation_ROTATION_NORTH.Enum(), Status: o.BuildingStatus_BUILDING_STATUS_BUILT.Enum(), Stuff: proto.String("WoodLog")}
 			snapshot := &o.BuildingsSnapshot{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Buildings: []*o.BuildingState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
-			s := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoutineFrame{Buildings: bridge.BuildingCensusOf(snapshot)}}
+			s := &projectSource{colonySource: &colonySource{reply: base}, frame: bridge.RoundsFrame{Buildings: bridge.BuildingCensusOf(snapshot)}}
 			b, _ := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 			claims := domain.Known([]policy.ConstructionClaim{{Plan: "method", Action: "placed", Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint", Current: "wall"}, Building: b}})
 			clock := testkit.NewManualClock(time.Now())
@@ -55,7 +55,7 @@ func TestConstructionReadsTheFramesBuiltBuildings(t *testing.T) {
 			case "empty-claims":
 				claims = domain.Known([]policy.ConstructionClaim{})
 			}
-			got, err := ObserveRoutineOwned(context.Background(), s, clock, expected, time.Second, claims)
+			got, err := ObserveRoundsOwned(context.Background(), s, clock, expected, time.Second, claims)
 			if err != nil {
 				t.Fatal(phase, err)
 			}

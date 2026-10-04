@@ -40,7 +40,7 @@ func TestPersonalSharesKnownAndWeighted(t *testing.T) {
 		{ID: "a", InstalledParts: domain.Known([]policy.InstalledPart{})},
 		{ID: "b", InstalledParts: domain.Known([]policy.InstalledPart{})},
 	})
-	personalShares(&p, bridge.RoutineFrame{}, unarmedRows("a", "b"))
+	personalShares(&p, bridge.RoundsFrame{}, unarmedRows("a", "b"))
 	// Pool 10000, f 0.2, a is the one doctor (weight 1.25) against b (1).
 	a, b := p.PersonalShareOf("a"), p.PersonalShareOf("b")
 	if share, _ := a.Share.Value(); share != 0.2*10000*1.25/2.25 {
@@ -64,7 +64,7 @@ func TestPersonalSharesUnknownInputsStayUnknown(t *testing.T) {
 	// No gear census: spent is unknown, so remaining is and a charged upgrade
 	// is refused while a necessity passes.
 	p := personalProjection(personalWorkPawn("a", 0))
-	personalShares(&p, bridge.RoutineFrame{}, unarmedRows("a"))
+	personalShares(&p, bridge.RoundsFrame{}, unarmedRows("a"))
 	s := p.PersonalShareOf("a")
 	if _, ok := s.Share.Value(); !ok {
 		t.Fatal("share should be known from the pool")
@@ -79,7 +79,7 @@ func TestPersonalSharesUnknownInputsStayUnknown(t *testing.T) {
 	q := personalProjection(personalWorkPawn("a", 0))
 	q.Facts.Wealth = domain.Unknown[policy.WealthFacts]()
 	q.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})}}})
-	personalShares(&q, bridge.RoutineFrame{}, unarmedRows("a"))
+	personalShares(&q, bridge.RoundsFrame{}, unarmedRows("a"))
 	if _, ok := q.PersonalShareOf("a").Share.Value(); ok {
 		t.Fatal("share from an unknown pool")
 	}
@@ -87,7 +87,7 @@ func TestPersonalSharesUnknownInputsStayUnknown(t *testing.T) {
 	r := personalProjection(personalWorkPawn("a", 0))
 	r.Facts.Sleeping = domain.Unknown[policy.SleepingObservation]()
 	r.Facts.Gear = q.Facts.Gear
-	personalShares(&r, bridge.RoutineFrame{}, unarmedRows("a"))
+	personalShares(&r, bridge.RoundsFrame{}, unarmedRows("a"))
 	if _, ok := r.PersonalShareOf("a").Spent.Value(); ok {
 		t.Fatal("spent without a sleeping census")
 	}
@@ -105,7 +105,7 @@ func TestPersonalShareOfMissingIsNecessitiesOnly(t *testing.T) {
 	sleeping.Slaves = []policy.SleepingPerson{{ID: "s"}}
 	q.Facts.Sleeping = domain.Known(sleeping)
 	q.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})}, {Pawn: "s", LoadoutModel: domain.Known(policy.GearLoadoutInput{})}}})
-	personalShares(&q, bridge.RoutineFrame{}, unarmedRows("a", "s"))
+	personalShares(&q, bridge.RoundsFrame{}, unarmedRows("a", "s"))
 	if share, ok := q.PersonalShareOf("s").Share.Value(); !ok || share != 0 {
 		t.Fatal("a slave's share is a known zero")
 	}
@@ -120,7 +120,7 @@ func TestPersonalSharesInstalledPartsDiscountedAndUnreadUnknown(t *testing.T) {
 		p.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", LoadoutModel: domain.Known(policy.GearLoadoutInput{})}}})
 		p.Facts.Items = policy.ItemFacts{Market: map[policy.Resource]float64{"BionicArm": 1000}}
 		p.Facts.MedicalPawns = domain.Known([]policy.CarePawn{{ID: "a", InstalledParts: parts}})
-		personalShares(&p, bridge.RoutineFrame{}, unarmedRows("a"))
+		personalShares(&p, bridge.RoundsFrame{}, unarmedRows("a"))
 		return p
 	}
 	arm := policy.InstalledPart{Hediff: "BionicArm", Item: domain.Known(policy.Resource("BionicArm")), Tier: 2}

@@ -56,7 +56,7 @@ type Planner struct {
 // (armor rungs applied), the recorded research needs and the native
 // research read without its observation context.
 type ResearchCall struct {
-	Policy policy.RoutinePolicy
+	Policy policy.RoundsPolicy
 	Needs  []string
 	Read   bridge.ResearchRead
 }

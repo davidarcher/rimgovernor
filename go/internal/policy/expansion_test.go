@@ -25,10 +25,10 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 		{"unknown", domain.Known(int64(3)), domain.Unknown[int64](), domain.FindingUnclear, HousingShelter, 2, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := stableRoutine()
+			f := stableRounds()
 			f.Colonists = tc.population
 			f.IndoorCapacity = tc.capacity
-			r := needs(t, f, RoutineLatches{})
+			r := needs(t, f, RoundsLatches{})
 			found := false
 			for _, a := range r.Assessments {
 				if a.ID == MaintainHousing {
@@ -44,7 +44,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 			if r.Latches.Housing != tc.phase {
 				t.Fatal(r.Latches.Housing)
 			}
-			v, k := RoutineDevelopmentDeficit(MaintainHousing, f, DefaultRoutinePolicy()).Value()
+			v, k := RoundsDevelopmentDeficit(MaintainHousing, f, DefaultRoundsPolicy()).Value()
 			if k != tc.known || k && v != tc.deficit {
 				t.Fatal(v, k)
 			}
@@ -53,27 +53,27 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 			}
 		})
 	}
-	f := stableRoutine()
+	f := stableRounds()
 	f.Colonists = domain.Known(int64(4))
 	f.BedCapacity = domain.Known(int64(4))
-	if !hasNeed(needs(t, f, RoutineLatches{}), MaintainHousing) {
+	if !hasNeed(needs(t, f, RoundsLatches{}), MaintainHousing) {
 		t.Fatal("arrival did not renew headroom deficit")
 	}
 	// A food gap holds the spare room.
-	f = stableRoutine()
+	f = stableRounds()
 	f.Colonists, f.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
 	f.FoodPlan = domain.Known(FoodPlan{GapPerDay: 1})
-	for _, g := range needs(t, f, RoutineLatches{}).Goals {
+	for _, g := range needs(t, f, RoundsLatches{}).Goals {
 		if g.ID == MaintainHousing && !g.Blocked {
 			t.Fatal(g)
 		}
 	}
 	// Before StageReserves the spare room is not raised.
-	f = stableRoutine()
+	f = stableRounds()
 	f.Colonists, f.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(3))
-	p := DefaultRoutinePolicy()
+	p := DefaultRoundsPolicy()
 	p.ColonyStage = StageFoothold
-	r, err := DetectRoutine(f, RoutineLatches{}, p)
+	r, err := DetectRounds(f, RoundsLatches{}, p)
 	if err != nil {
 		t.Fatal(err)
 	}

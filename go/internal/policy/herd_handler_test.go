@@ -9,10 +9,10 @@ import (
 // Milking and shearing are Handling work givers whose speed and yield stats
 // scale with the Animals skill (#1650): a milk or wool job gives Handling an
 // owner even when nobody is a natural specialist.
-func TestRoutineWorkDemandHandlingFollowsMilkOrWoolJob(t *testing.T) {
+func TestRoundsWorkDemandHandlingFollowsMilkOrWoolJob(t *testing.T) {
 	wool := AnimalRace{Def: "Sheep", BodySize: domain.Known(1.0), Products: []RaceProduct{{Kind: "wool", Def: "WoolSheep", Amount: domain.Known(30.0), IntervalDays: domain.Known(10.0)}}}
-	facts := func(owned []UpkeepAnimal, races ...AnimalRace) RoutineFacts {
-		var f RoutineFacts
+	facts := func(owned []UpkeepAnimal, races ...AnimalRace) RoundsFacts {
+		var f RoundsFacts
 		f.AnimalUpkeep.Animals = domain.Known(owned)
 		f.AnimalUpkeep.WildAnimals = domain.Known([]UpkeepAnimal{})
 		f.AnimalUpkeep.AnimalRaces = raceCatalog(races...)
@@ -20,17 +20,17 @@ func TestRoutineWorkDemandHandlingFollowsMilkOrWoolJob(t *testing.T) {
 	}
 	cases := []struct {
 		name string
-		f    RoutineFacts
+		f    RoundsFacts
 		want bool
 	}{
 		{"milk", facts(goatHerd(), milkRace("Goat", 2, 0.8)), true},
 		{"wool", facts([]UpkeepAnimal{planAnimal("s1", "Sheep", "Female")}, wool), true},
 		{"haul only", facts([]UpkeepAnimal{hauler(planAnimal("m1", "Muffalo", "Female"))}, haulRace("Muffalo", 100, 2)), false},
 		{"no animals", facts(nil, milkRace("Goat", 2, 0.8)), false},
-		{"unread animals", RoutineFacts{}, false},
+		{"unread animals", RoundsFacts{}, false},
 	}
 	for _, c := range cases {
-		if got := RoutineWorkDemand(c.f, false).Handling; got != c.want {
+		if got := RoundsWorkDemand(c.f, false).Handling; got != c.want {
 			t.Errorf("%s: Handling demand %v, want %v", c.name, got, c.want)
 		}
 	}

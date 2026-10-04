@@ -185,7 +185,7 @@ func TestColonyStatusReadPersonalSharesFromHeldProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	projection := observation.ColonyProjection{Identity: decoded, Facts: policy.RoutineFacts{PersonalShares: map[policy.PawnID]policy.PersonalShare{
+	projection := observation.ColonyProjection{Identity: decoded, Facts: policy.RoundsFacts{PersonalShares: map[policy.PawnID]policy.PersonalShare{
 		"p1": {Share: domain.Known(400.0), Spent: domain.Known(150.0), Remaining: domain.Known(250.0)},
 	}}}
 	generation, _ := decoded.NativeGeneration.Value()

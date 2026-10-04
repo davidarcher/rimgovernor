@@ -17,8 +17,8 @@ func projectFixture(t *testing.T) (*Store, ProjectState) {
 	t.Helper()
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "projects.db"))
-	r := routineRequest()
-	reviewRoutine(t, s, &r)
+	r := roundsRequest()
+	reviewRounds(t, s, &r)
 	p, err := domain.NewProject(testProjectID, policy.EnsureCooking, 2, scope(), 10)
 	if err != nil {
 		t.Fatal(err)

@@ -10,8 +10,8 @@ millisecond unit test over the facts that colony really produced.
 
 `snapshot.Routine`, one JSON file:
 
-- `Facts`: the `policy.RoutineFacts` the review passed
-  `policy.DetectRoutine`, after the journal's enrichment (runways, claims,
+- `Facts`: the `policy.RoundsFacts` the review passed
+  `policy.DetectRounds`, after the journal's enrichment (runways, claims,
   recovered comfort and sleep, filtered salvage). Every census a planner
   of that tick reads rides in it: upkeep rooms and
   clearance, research, resources, work profiles.
@@ -99,13 +99,13 @@ fresh run no longer shows it at that point, so pick another tick by hand.
 
 ```go
 r, err := snapshot.Load("testdata/clean-filthy-kitchen.json")
-needs, err := r.Detect()                                  // policy.DetectRoutine over the recording
+needs, err := r.Detect()                                  // policy.DetectRounds over the recording
 a, err := r.Assessment(policy.MaintainCleanFacilities)   // one goal's assessment
 ```
 
 A planner is a policy function over the same facts: call it with
 `r.Facts` (and `r.Policy`), or a building planner's `select*` with
-`*r.Projection` (`internal/buildingruntime/routine_snapshot_test.go`),
+`*r.Projection` (`internal/buildingruntime/rounds_snapshot_test.go`),
 and assert the chosen method, target or refusal.
 Tests edit the loaded facts to probe a variant of the recorded colony
 instead of hand-building a whole fixture.
@@ -145,13 +145,13 @@ step reads `step-<building|bill|hospital|deepdrill>-<goal>-<tick>-<seq>`, and
 (a `step-*.json` file recorded before the stream carried them trims as
 before), dropping the site cells unless `-keep-cells` (a lighting or
 placement test needs them). A test loads it with `loadStep` in
-`internal/buildingruntime/routine_snapshot_test.go` and calls the
+`internal/buildingruntime/rounds_snapshot_test.go` and calls the
 selector on `step.Projection`, taking the policy and latches from the
 review recording of the same run (`loadRecorded`, `recordedPlanner`).
 
 ## Defense snapshots
 
-A threat response is not a Rounds pass: `RoutineDefensePlanner` reads
+A threat response is not a Rounds pass: `RoundsDefensePlanner` reads
 the emergency census, the combat pawn rows and (for a hostile building)
 the lines of fire itself. With the recording variable set, every defense
 step that read the emergency census also writes

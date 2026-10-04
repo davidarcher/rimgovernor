@@ -265,7 +265,7 @@ decision; no hostile exists to make the window a combat one otherwise.
 
 An outmatched fight calls the royal permits its colonists hold (#1608,
 `combat_permit.go`): with the royalty read (`CombatView.Royalty`, the
-review's `RoutineFacts.Royalty`) known, a held acting aid or strike permit
+review's `RoundsFacts.Royalty`) known, a held acting aid or strike permit
 that is off cooldown and affordable (favor at least its cost) yields a
 `permit_call` order, once per holder and permit per fight
 (`CombatMemory.Permitted`). Aid lands on the defender nearest the squad's

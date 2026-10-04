@@ -2,7 +2,7 @@
 // native dispatch vertical (G01.07e, issue #27) end to end against a live
 // game: one rimgovernor/operations_apply batch of BuildingIntents (#856)
 // authors a durable Fence/FenceGate pen shell and a PenMarker exactly the way
-// buildingruntime.RoutineAnimalContainmentPlanner's buildShell/placeMarker
+// buildingruntime.RoundsAnimalContainmentPlanner's buildShell/placeMarker
 // compose it, then real game ticks build it and carry a genuinely uncontained,
 // pen-requiring herd animal into that pen -- observed via
 // rimgovernor/observations_read_colony_facts's native AnimalFeed/AnimalState

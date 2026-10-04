@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        [Tool("test/storage_haul_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: register one legal Steel stockpile zone, spawn ordinary Steel stacks outside it (only the first unforbidden), and set exactly one existing colonist's Hauling work priority (all others disabled) so RoutineHaulPlanner's MaintainStorage deficit and its single eligible hauler are deterministic. No quest/travel simulation, no new resources beyond the spawned Steel.")]
+        [Tool("test/storage_haul_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: register one legal Steel stockpile zone, spawn ordinary Steel stacks outside it (only the first unforbidden), and set exactly one existing colonist's Hauling work priority (all others disabled) so RoundsHaulPlanner's MaintainStorage deficit and its single eligible hauler are deterministic. No quest/travel simulation, no new resources beyond the spawned Steel.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int itemCount = 2)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

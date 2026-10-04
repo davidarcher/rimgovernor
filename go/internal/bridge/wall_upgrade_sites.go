@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// WallMaterial is one candidate stone stuff RoutineStoneShellPlanner may
+// WallMaterial is one candidate stone stuff RoundsStoneShellPlanner may
 // build the backups and permanent replacement from, and its per-wall cost.
 type WallMaterial struct {
 	Stuff string
@@ -20,7 +20,7 @@ type Amount struct {
 	Units    int64
 }
 
-// WallUpgradeSite is one wall-upgrade candidate RoutineStoneShellPlanner
+// WallUpgradeSite is one wall-upgrade candidate RoundsStoneShellPlanner
 // proposes a bundle from: the current native occupant at this exact geometry
 // and whether native lists the site as a legal, unblocked candidate. Native
 // excludes geometrically invalid sites from the listing entirely

@@ -12,12 +12,12 @@ func lanceRow(id domain.PawnID, downed, recruitable bool, skill int) CustodyFact
 		Prospect: domain.Known(PrisonerProspect{Skills: []PrisonerSkill{{Name: "Shooting", Level: skill}, {Name: "Crafting", Level: 20, Disabled: true}}})}
 }
 
-func lanceFacts(colonists int, worn bool, rows ...CustodyFacts) RoutineFacts {
+func lanceFacts(colonists int, worn bool, rows ...CustodyFacts) RoundsFacts {
 	apparel := []GearApparel{{Definition: "Apparel_Parka"}}
 	if worn {
 		apparel = append(apparel, GearApparel{Definition: "Apparel_PsychicShockLance"})
 	}
-	return RoutineFacts{
+	return RoundsFacts{
 		PrisonerColony: domain.Known(PrisonerColony{Colonists: colonists}),
 		Custody:        domain.Known(rows),
 		Gear:           domain.Known(GearObservation{Pawns: []GearPawn{{Pawn: "c1", Apparel: domain.Known(apparel)}}}),

@@ -228,7 +228,7 @@ an animal designated for removal, or one with an unread `sterilized` or
 `sterilize_queued` fact; and never a sex below its breeding pair of fertile
 animals (1 male, 2 females), which must exist to begin with. A queued bill
 counts as sterile, so bills cannot take a race below the pair. It runs only
-while `RoutineFacts.VetRoom` is ready: `Ready` is `policy.VetRoomReady` (a vet
+while `RoundsFacts.VetRoom` is ready: `Ready` is `policy.VetRoomReady` (a vet
 room of the plan standing shelled with a standing animal bed the sleeping
 census reads medical; unknown while a standing bed's census row or flag is
 unread), read by the husbandry planner from the room census; `Area` is the id
@@ -244,7 +244,7 @@ earlier restriction.
 
 **Exposure shelter (#1869).** A pen animal (`requires_pen`, supports allowed
 areas, not marked for release or slaughter) is sheltered while its race is in
-danger outdoors: `RoutineFacts.AnimalShelterChoice` runs `AnimalExposures`
+danger outdoors: `RoundsFacts.AnimalShelterChoice` runs `AnimalExposures`
 over the pen animals' races (an active `ColdSnap`, `HeatWave` or
 `ToxicFallout` condition, or the observed outdoor temperature outside the
 race's comfortable range, `ComfyTemperatureMin`/`Max` read from the def
@@ -262,7 +262,7 @@ MaintainHerd in deficit while a write is owed, and it comes before every
 other husbandry choice since the animals die of the exposure.
 
 **Threat shelter (#1899).** A hostile threat endangers every pen animal:
-while `RoutineFacts.Hostiles > 0` (the emergency census's unsafe-threat holds,
+while `RoundsFacts.Hostiles > 0` (the emergency census's unsafe-threat holds,
 that is live, discovered, engaging, non-distant Hostile, HuntingPredator and
 hostile-building rows, plus pending drop pods) `AnimalShelterChoice` lets each
 unrestricted pen animal into the `Barn` area, one per cycle, without reading

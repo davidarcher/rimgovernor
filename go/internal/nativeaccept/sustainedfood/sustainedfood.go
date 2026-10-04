@@ -473,7 +473,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	}
 	// The mood review's provisioning of this goal (#255): the fraction of
 	// reviewed pawns whose dominant thought pressure its facility removes,
-	// which DetectRoutine raises the ranked deficit to at least.
+	// which DetectRounds raises the ranked deficit to at least.
 	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
 		sample["mood_provision"] = pressure
 	}

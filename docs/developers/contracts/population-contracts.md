@@ -53,8 +53,8 @@ Ideology is active outside classic mode and it holds another ideoligion, then
 recruited. Otherwise one able to labor, not a wild man, is enslaved when the
 colony's slavery precept is `Slavery_Acceptable` or `Slavery_Honorable` (every
 other precept costs mood). Otherwise it is released: at once while the food runway
-is below `RoutinePolicy.FoodTargetDays`, else after
-`RoutinePolicy.PrisonerReleaseAfterDays` (15 by default) in custody. A prisoner
+is below `RoundsPolicy.FoodTargetDays`, else after
+`RoundsPolicy.PrisonerReleaseAfterDays` (15 by default) in custody. A prisoner
 already being recruited with its resistance broken keeps recruiting, and an unknown
 fact never authorizes a write. MaintainHousing gives each slave a bed set for
 slaves (`BuildingPatchIntent.for_slaves`). Native faction admission, resistance and recruitment

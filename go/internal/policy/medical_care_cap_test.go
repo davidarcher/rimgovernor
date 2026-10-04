@@ -13,7 +13,7 @@ func careRow(name string, severity, immunity, severityRate, immunityRate float64
 
 func healthy() domain.Fact[[]CareCondition] { return domain.Known([]CareCondition{}) }
 
-func careChanges(t *testing.T, f RoutineFacts) map[domain.PawnID]domain.MedicalCare {
+func careChanges(t *testing.T, f RoundsFacts) map[domain.PawnID]domain.MedicalCare {
 	t.Helper()
 	out := map[domain.PawnID]domain.MedicalCare{}
 	for _, s := range MedicalCareChanges(f, DefaultMedicalReservePolicy()) {
@@ -63,15 +63,15 @@ func TestColonistCareCap(t *testing.T) {
 	}
 	plague := domain.Known([]CareCondition{careRow("Plague", .1, .1, .1, .2)})
 	pawns := domain.Known([]CarePawn{colonist("a", "Best", healthy()), colonist("b", "NormalOrWorse", plague), colonist("c", "NormalOrWorse", domain.Unknown[[]CareCondition]())})
-	stocked := careChanges(t, RoutineFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: stock(9)})
+	stocked := careChanges(t, RoundsFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: stock(9)})
 	if len(stocked) != 2 || stocked["a"] != domain.CareNormal || stocked["b"] != domain.CareBest {
 		t.Fatalf("stocked %v", stocked)
 	}
-	short := careChanges(t, RoutineFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: stock(8)})
+	short := careChanges(t, RoundsFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: stock(8)})
 	if len(short) != 1 || short["a"] != domain.CareHerbal {
 		t.Fatalf("short %v", short)
 	}
-	if got := careChanges(t, RoutineFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: domain.Unknown[[]Amount]()}); len(got) != 0 {
+	if got := careChanges(t, RoundsFacts{Items: CoreItemFacts(), MedicalPawns: pawns, Resources: domain.Unknown[[]Amount]()}); len(got) != 0 {
 		t.Fatalf("unknown stock wrote %v", got)
 	}
 }
@@ -93,7 +93,7 @@ func TestPrisonerCareCap(t *testing.T) {
 		prisoner("m", domain.PrisonerInteractionMaintain, healthy()), prisoner("rel", domain.PrisonerInteractionRelease, plague),
 		harvest, execute,
 	}
-	got := careChanges(t, RoutineFacts{Items: CoreItemFacts(), Prisoners: domain.Known(rows)})
+	got := careChanges(t, RoundsFacts{Items: CoreItemFacts(), Prisoners: domain.Known(rows)})
 	want := map[domain.PawnID]domain.MedicalCare{"r": domain.CareNormal, "rr": domain.CareNormal, "c": domain.CareNormal, "e": domain.CareBest,
 		"m": domain.CareHerbal, "rel": domain.CareNormal, "h": domain.CareHerbal, "x": domain.CareHerbal}
 	for id, care := range want {
@@ -112,7 +112,7 @@ func TestGuestAndAnimalCareCap(t *testing.T) {
 	}
 	unread := animal("u", false, false)
 	unread.Bonded = domain.Unknown[bool]()
-	f := RoutineFacts{Items: CoreItemFacts(), Guests: guests, AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{animal("plain", false, false), animal("pet", true, false), animal("dog", false, true), unread})}}
+	f := RoundsFacts{Items: CoreItemFacts(), Guests: guests, AnimalUpkeep: AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{animal("plain", false, false), animal("pet", true, false), animal("dog", false, true), unread})}}
 	got := careChanges(t, f)
 	want := map[domain.PawnID]domain.MedicalCare{"g": domain.CareNormal, "plain": domain.CareHerbal, "pet": domain.CareNormal, "dog": domain.CareNormal}
 	if len(got) != len(want) {

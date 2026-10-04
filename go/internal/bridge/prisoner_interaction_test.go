@@ -72,7 +72,7 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 		t.Fatal(arg.Tool)
 		return nil, nil
 	}}, time.Second)
-	census, _, err := client.ReadRoutinePopulation(context.Background(), pbIdentity())
+	census, _, err := client.ReadRoundsPopulation(context.Background(), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
 	}

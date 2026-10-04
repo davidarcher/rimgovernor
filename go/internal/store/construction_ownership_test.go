@@ -23,11 +23,11 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
-	request := routineRequest()
+	request := roundsRequest()
 	request.Facts.Colonists = domain.Known(int64(3))
 	request.Facts.BedCapacity = domain.Known(int64(0))
 	request.Facts.IndoorCapacity = domain.Known(int64(0))
-	g := routineGoal(t, reviewRoutine(t, s, &request), policy.MaintainHousing)
+	g := roundsGoal(t, reviewRounds(t, s, &request), policy.MaintainHousing)
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "build", plan(t, "method", "placed")); err != nil {
 		t.Fatal(err)
 	}
@@ -50,13 +50,13 @@ func TestAutonomousConstructionClaimsSurviveRetirementAndManual(t *testing.T) {
 	}
 	// Retirement reads the census: the intent's building stands built (#856).
 	request.Facts.CurrentConstruction = builtCensus(t, "wall")
-	reviewRoutine(t, s, &request)
+	reviewRounds(t, s, &request)
 	retired, err := s.LoadPlan(ctx, "method")
 	if err != nil || !retired.Retired {
 		t.Fatal("fixture method not retired", err)
 	}
 	request.Enabled = false
-	reviewRoutine(t, s, &request)
+	reviewRounds(t, s, &request)
 	s.Close()
 	s = open(t, path)
 	defer s.Close()

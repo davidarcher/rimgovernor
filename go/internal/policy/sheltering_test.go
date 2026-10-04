@@ -9,8 +9,8 @@ import (
 
 // shelterFacts is a quiet colony with the Safe area "safe", two colonists
 // ("a", "b") and a pet, all restricted to area.
-func shelterFacts(area string) RoutineFacts {
-	f := stableRoutine()
+func shelterFacts(area string) RoundsFacts {
+	f := stableRounds()
 	f.ShelterArea = domain.Known("safe")
 	f.DisasterConditions = domain.Known([]DisasterCondition{})
 	f.Hostiles = domain.Known(int64(0))
@@ -36,7 +36,7 @@ func TestShelteringFalloutMovesEveryoneUndrafted(t *testing.T) {
 	if got := PlanSheltering(f); len(got) != 2 || got[0].Pawn != "a" || got[1].Pawn != "pet" {
 		t.Fatal("drafted pawn sheltered", got)
 	}
-	if !assessedDeficit(needs(t, f, RoutineLatches{}), RecoverDisasterServices) {
+	if !assessedDeficit(needs(t, f, RoundsLatches{}), RecoverDisasterServices) {
 		t.Fatal("sheltering raised no incident")
 	}
 }
@@ -108,7 +108,7 @@ func TestShelteringNeedsSafeAreaAndSkipsPenAnimals(t *testing.T) {
 
 // killboxFacts is shelterFacts after the fight: "a" hauls, "b" does not,
 // and the NoKillbox area "nokill" exists.
-func killboxFacts(area string, window bool) RoutineFacts {
+func killboxFacts(area string, window bool) RoundsFacts {
 	f := shelterFacts(area)
 	f.NoDangerArea = domain.Known("nokill")
 	f.DangerWindow = domain.Known(window)
@@ -225,7 +225,7 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 	f.Hostiles = domain.Known(int64(3))
 	f.ShelterCombatants = domain.Known([]PawnID{})
 	f.SafeAreaOwed = domain.Known(true)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	rule := SafeguardContext{Enabled: true, Emergency: []ConcernID{ActiveCombat}}
 	seen := map[ConcernID]bool{}
 	for _, g := range r.Goals {

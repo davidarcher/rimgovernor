@@ -171,9 +171,9 @@ func TestPsylinkOwedIsMeasuredNotAssumed(t *testing.T) {
 }
 
 func TestPsylinkOwedRaisesMaintainPsylink(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.PsylinkOwed = domain.Known(true)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	for _, g := range r.Goals {
 		if g.ID == MaintainPsylink {
 			return

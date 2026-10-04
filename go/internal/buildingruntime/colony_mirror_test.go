@@ -17,7 +17,7 @@ import (
 
 // colonyCountingNative answers colony facts at tick and counts the reads.
 type colonyCountingNative struct {
-	observation.RoutineSource
+	observation.RoundsSource
 	tick  int64
 	facts *o.ColonyFactsSnapshot
 	reads int
@@ -71,7 +71,7 @@ func TestColonySectionsServePlannersOfTheCensus(t *testing.T) {
 		t.Fatalf("resources section = %+v", table)
 	}
 	r.census.rememberColony(versions)
-	reading := observation.RoutineReading{}
+	reading := observation.RoundsReading{}
 	reading.Projection.Identity = identity
 	r.census.retain(reading, false, domain.Unknown[[]policy.ConstructionClaim]())
 

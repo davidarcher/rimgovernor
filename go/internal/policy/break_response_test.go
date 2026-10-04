@@ -60,9 +60,9 @@ func TestSocialFightingDoesNotRaiseCombatEmergency(t *testing.T) {
 	if d := EvaluateEmergency(f.Emergency, f.Current, f.Tick); !d.Clear {
 		t.Fatalf("social fight held the colony: %+v", d)
 	}
-	routine := stableRoutine()
+	routine := stableRounds()
 	routine.Hostiles, routine.CriticalPatients = EmergencyNeeds(f.Emergency, f.Current, f.Tick)
-	if r := needs(t, routine, RoutineLatches{}); hasNeed(r, ActiveCombat) {
+	if r := needs(t, routine, RoundsLatches{}); hasNeed(r, ActiveCombat) {
 		t.Fatalf("social fight raised ActiveCombat: %+v", r)
 	}
 	if d := EvaluateClockWindow(f, limits); !d.Admitted || d.Mode != ClockWindowColony || len(d.Hostiles) != 0 {

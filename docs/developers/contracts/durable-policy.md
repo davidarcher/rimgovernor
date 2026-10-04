@@ -12,7 +12,7 @@ native legality still guard every write.
 
 | Store or setting | Writer and lifetime | Auto behavior |
 | --- | --- | --- |
-| `RoutinePolicy.ResourceTargets` and `StoneBlockTarget` | Startup configuration, not imported from native bills or Manual edits. | `EffectiveResourceTargets` combines configured floors with current stock and derived goal needs each review. They are acquisition floors, not spending prohibitions. |
+| `RoundsPolicy.ResourceTargets` and `StoneBlockTarget` | Startup configuration, not imported from native bills or Manual edits. | `EffectiveResourceTargets` combines configured floors with current stock and derived goal needs each review. They are acquisition floors, not spending prohibitions. |
 | Pawn/animal allowed areas | Saved native pawn settings; colonist `WorkSettingsIntent`, animal husbandry `allowed_area`. | Recovery re-derives both from the fresh Auto census without requiring disaster history. A roof hazard retains/selects a roofed refuge; known absence clears restrictions for ordinary food/work access. Unknown safety never widens access. Native admission rechecks hazard, refuge reachability, current settings and world identity. Manual performs no correction. |
 | Animal training and removal designations | Native saved settings/designations; routine husbandry selects training, tame and opted-in removal from a fresh census. | Training is selected from current availability/learned facts. Fresh Auto reviews reconcile standing release/slaughter flags with current herd floors, ceilings, removal opt-ins and food offers. Shared Hands cancels obsolete flags with an exact-animal husbandry intent; valid pending removals still suppress duplicate work. Upkeep and training resume from native readback. |
 | Pawn food restrictions | Native saved food policies; `PolicyFacts.food` (holders and allowed foods) and `DefinitionCatalog.Foods` (each food's kind, game-computed once per load). | The Auto work planner gives each colonist, slave, prisoner and named tame animal the food policy labelled with its short name (#1541, #1543): `FoodPolicyIntent` writes the diet its traits and precepts allow (captives paste and raw food; animals kibble, hay and raw food, never meals or corpses), `PawnSettingsIntent.food_policy` assigns it. Native suitability, title, veneration, health and ordinary ingestion rules remain authoritative. Manual writes are refused. |
@@ -22,16 +22,16 @@ native legality still guard every write.
 
 `store/work_preferences.go` is the only work-preference writer;
 `buildingruntime/player_work.go` exposes it to the player API. Native priority
-reads live in `observation/routine_work.go`; proposals and explicit overrides meet
-in `policy/work_assignment.go` and `buildingruntime/routine_assignments.go`.
+reads live in `observation/rounds_work.go`; proposals and explicit overrides meet
+in `policy/work_assignment.go` and `buildingruntime/rounds_assignments.go`.
 
 Resource target derivation lives in `policy/stone_blocks.go` and
-`buildingruntime/routine_defense_layout.go`.
+`buildingruntime/rounds_defense_layout.go`.
 
-`store/routine_recovery.go` retains observed restrictions for reproducible proposal
+`store/rounds_recovery.go` retains observed restrictions for reproducible proposal
 readback and reconstructs them from each review's facts. It does not promote them
 to work overrides. The current typed refuge writer in
-`buildingruntime/routine_recovery.go` and `routine_areas.go` use explicit area
+`buildingruntime/rounds_recovery.go` and `rounds_areas.go` use explicit area
 assignment/clear actions, not the legacy `RecoveryTools` lease. Corrections use
 monotonic admission identities so repeated Manual restrictions remain correctable
 after plan retirement or restart. A snapshot test over a recorded

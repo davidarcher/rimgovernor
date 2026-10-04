@@ -11,16 +11,16 @@ boundary, one honest end-to-end path, and staged fixtures for recovery.
 | Claim | Check |
 | --- | --- |
 | Style selection by build tier, unknowns included | `buildingruntime.TestShelterStylePicksByTier` |
-| Every shell stands on its planned room (the shelter on the planned storeroom at every tier), refuses a blocked slot or a missing plan, reuses rock and player walls, marks rock for plan dig and claims matching ruins | `policy` `layout_rooms_test.go` (`TestPlannedLayout…`, `TestShelterStandsOnThePlannedStoreroom`), `buildingruntime.TestRoutineShelterRefusesABlockedPlannedStoreroom`, `…TestExpansionClaimsAMatchingRuinOnItsPlannedRing` |
-| Shape-blind properties of every admitted ring: census-offered ground only, previewed whole, encloses the staged beds with an aisle to spare, opens south off its own shell | `buildingruntime.TestRoutineShelterShellInvariantsAcrossSites` |
-| Bunk rungs before the ring; refused beds fall through to the shell | `buildingruntime` `routine_shelter_bunks_test.go` |
-| Whole-ring admission in one wave, no stock gate, spending rules and reserves | `buildingruntime.TestRoutineShelterAdmitsWholeShellInOneWave`, `…AdmitsShellWithoutStockCheck` |
-| Partial and unknown inputs: unknown room, unknown terrain, unknown material, mismatched footprint, stale or superseded preview, player zone, occupied cell, late refusal — nothing committed | `buildingruntime.TestRoutineShelterNeverCommitsPartialOrUnknownShell` |
-| Already roofed ground is no site | `buildingruntime.TestRoutineShelterRefusesAlreadyRoofedGround` |
-| Existing indoor space is furnished instead of walled | `buildingruntime.TestRoutineShelterPrefersExistingRoom` |
+| Every shell stands on its planned room (the shelter on the planned storeroom at every tier), refuses a blocked slot or a missing plan, reuses rock and player walls, marks rock for plan dig and claims matching ruins | `policy` `layout_rooms_test.go` (`TestPlannedLayout…`, `TestShelterStandsOnThePlannedStoreroom`), `buildingruntime.TestRoundsShelterRefusesABlockedPlannedStoreroom`, `…TestExpansionClaimsAMatchingRuinOnItsPlannedRing` |
+| Shape-blind properties of every admitted ring: census-offered ground only, previewed whole, encloses the staged beds with an aisle to spare, opens south off its own shell | `buildingruntime.TestRoundsShelterShellInvariantsAcrossSites` |
+| Bunk rungs before the ring; refused beds fall through to the shell | `buildingruntime` `rounds_shelter_bunks_test.go` |
+| Whole-ring admission in one wave, no stock gate, spending rules and reserves | `buildingruntime.TestRoundsShelterAdmitsWholeShellInOneWave`, `…AdmitsShellWithoutStockCheck` |
+| Partial and unknown inputs: unknown room, unknown terrain, unknown material, mismatched footprint, stale or superseded preview, player zone, occupied cell, late refusal — nothing committed | `buildingruntime.TestRoundsShelterNeverCommitsPartialOrUnknownShell` |
+| Already roofed ground is no site | `buildingruntime.TestRoundsShelterRefusesAlreadyRoofedGround` |
+| Existing indoor space is furnished instead of walled | `buildingruntime.TestRoundsShelterPrefersExistingRoom` |
 | Roofing budget: observed completion only, never renewed, survives furnishing and retirement | `buildingruntime.TestShelterRoofingBudget…`, `…RoofingContinuesAfterFurnishing…` |
-| Adoption matrix: missing cells only, a lone door, best-matched shape or wait, an earlier grown ring from its plan, a cancelled door, no match, repair under one epoch, a whole ring passed by | `buildingruntime` `routine_shelter_test.go` (`…Adopts…`, `…Reissues…`, `…Repairs…`) |
-| Manual cancellation of a pending ring | `buildingruntime.TestRoutineShelterManualCancelsWholePendingShell` |
+| Adoption matrix: missing cells only, a lone door, best-matched shape or wait, an earlier grown ring from its plan, a cancelled door, no match, repair under one epoch, a whole ring passed by | `buildingruntime` `rounds_shelter_test.go` (`…Adopts…`, `…Reissues…`, `…Repairs…`) |
+| Manual cancellation of a pending ring | `buildingruntime.TestRoundsShelterManualCancelsWholePendingShell` |
 
 A planner test's modeled reachability is not native reachability, and the
 fast checks derive nothing from the production geometry helpers they cover:

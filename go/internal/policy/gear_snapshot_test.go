@@ -13,7 +13,7 @@ import (
 // starter site), with a bolt-action rifle and a pump shotgun loose. The
 // equip step's weapon assignment reads outside the rounds, so its
 // AssignEquip input was recorded by a temporary dump at the policy call
-// (buildingruntime RoutineEquipPlanner) during `acceptance run
+// (buildingruntime RoundsEquipPlanner) during `acceptance run
 // gear/soldier` at 4e86b4663. In that run both soldiers were downed when
 // the equip step first planned (the case failed: nobody ended armed or
 // armored), so the recording hands the guns to others; the test stands

@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-func TestRoutineResourceRunwayJSON(t *testing.T) {
-	r := routineStatus(RoutineStatus{ResourceRunways: []policy.ResourceRunway{{Resource: "Steel", Tick: 60000, DaysLeft: domain.Known(2.5), Deficit: domain.Known(true)}}})
+func TestRoundsResourceRunwayJSON(t *testing.T) {
+	r := roundsStatus(RoundsStatus{ResourceRunways: []policy.ResourceRunway{{Resource: "Steel", Tick: 60000, DaysLeft: domain.Known(2.5), Deficit: domain.Known(true)}}})
 	data, err := json.Marshal(r)
 	if err != nil {
 		t.Fatal(err)

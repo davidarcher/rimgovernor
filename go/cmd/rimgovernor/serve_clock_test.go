@@ -46,9 +46,9 @@ func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.E
 	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
 }
 
-func (f *clockServiceFake) ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error) {
+func (f *clockServiceFake) ReadRoundsFrame(context.Context, *c.Identity) (bridge.RoundsFrame, error) {
 	f.colonyReads.Add(1)
-	return bridge.RoutineFrame{}, errors.New("routine frame unavailable")
+	return bridge.RoundsFrame{}, errors.New("routine frame unavailable")
 }
 
 func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
@@ -107,7 +107,7 @@ func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}
 	clock := &clockServiceFake{reads: reads, polled: make(chan struct{}, 1)}
 	caps := unusedBuildingCapabilities{}
-	config := serveConfig{playerControl: true, clockControl: true, roundsEnabled: true, routineSleepingPlans: true, routineCookingPlans: true, routineMethods: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	config := serveConfig{playerControl: true, clockControl: true, roundsEnabled: true, roundsSleepingPlans: true, roundsCookingPlans: true, roundsMethods: true, profile: dir, state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", refresh: time.Second, bridge: bridge.ProcessConfig{Timeout: time.Second}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(buildingAddressWriter, 1)

@@ -11,8 +11,8 @@ import (
 func TestFishingZoneMethodRoundTrip(t *testing.T) {
 	for _, extend := range []bool{false, true} {
 		s := open(t, memoryPath(t))
-		r := foodDeficitRoutineRequest()
-		goal := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureFoodSupply)
+		r := foodDeficitRoundsRequest()
+		goal := roundsGoal(t, reviewRounds(t, s, &r), policy.EnsureFoodSupply)
 		z, err := domain.NewFishingZone([]domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
 		if extend {
 			z, err = domain.NewFishingZoneExtension("Zone_5", z.Cells())

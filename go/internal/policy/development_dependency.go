@@ -359,7 +359,7 @@ func dependencyDemands(deps []DevelopmentDependency, prerequisite ConcernID) map
 
 // WoodFloor is the WoodLog floor the wood latch asks for: WoodTarget while
 // latched, 0 otherwise.
-func WoodFloor(latched bool, p RoutinePolicy) int64 {
+func WoodFloor(latched bool, p RoundsPolicy) int64 {
 	if !latched {
 		return 0
 	}

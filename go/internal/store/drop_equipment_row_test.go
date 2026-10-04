@@ -13,10 +13,10 @@ import (
 func TestDropEquipmentActionRowRoundTrips(t *testing.T) {
 	db := open(t, memoryPath(t))
 	defer db.Close()
-	r := routineRequest()
+	r := roundsRequest()
 	r.Policy.Stage.Floor = policy.StageDevelopment
 	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{gearDeficitPawn("a")}})
-	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
+	g := roundsGoal(t, reviewRounds(t, db, &r), policy.MaintainEquipment)
 	drop, err := domain.NewDropEquipment("joiner", "Gun_Revolver7")
 	if err != nil {
 		t.Fatal(err)

@@ -6,7 +6,7 @@
 (`policy.ResearchGoal`) is, in order: the project a maintained production target's workshop ladder recorded as gating
 its bench (a *derived* need: the goal stays in deficit while the project is
 current, so the ladder is not left waiting); else the first unfinished rung of
-the research ladder (`RoutinePolicy.ResearchLadder`, `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
+the research ladder (`RoundsPolicy.ResearchLadder`, `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
 Smithing, CarpetMaking, ComplexClothing, Machining, Gunsmithing). A rung is a deficit only while the
 research tab is idle: any current project, the player's own included, recovers
 it and is never replaced, and the research planner lends the clock ticks until it
@@ -84,7 +84,7 @@ capability cannot certify the requested unlock.
 Research acceptance: `production/ladder` proves a derived need (Smithing
 finished natively and the gated bench built) on the Core tribal baseline. The default
 ladder and its bench are a colony snapshot test (#894,
-`buildingruntime/routine_ladder_snapshot_test.go`): the research step's recorded census
+`buildingruntime/rounds_ladder_snapshot_test.go`): the research step's recorded census
 with Stonecutting at 97% and no bench selects Stonecutting and owes a bench, the bench
 step admits an indoor research bench, and with Stonecutting finished Electricity is
 next. Advanced

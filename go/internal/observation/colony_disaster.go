@@ -50,7 +50,7 @@ func colonyOutdoorsDark(v *o.ColonyFactsSnapshot, catalog *bridge.DefinitionCata
 	return domain.Known(dark), nil
 }
 
-func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts, buildings bridge.Buildings, conditions []policy.DisasterCondition, conditionsKnown bool) {
+func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoundsFacts, buildings bridge.Buildings, conditions []policy.DisasterCondition, conditionsKnown bool) {
 	if conditionsKnown {
 		facts.DisasterConditions = domain.Known(conditions)
 	}

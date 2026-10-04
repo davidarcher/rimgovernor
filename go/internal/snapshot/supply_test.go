@@ -20,7 +20,7 @@ const (
 // replayEventLoot is the review's loot pass (store.lootReachFilter then
 // policy.ReviewEventLoot) over the recorded facts: the census the
 // ManageSupplySafety planner forbids and allows from.
-func replayEventLoot(t *testing.T, r Routine) policy.EventLootHistory {
+func replayEventLoot(t *testing.T, r Rounds) policy.EventLootHistory {
 	t.Helper()
 	remote, err := policy.SalvageContext(r.Policy, r.Facts)
 	if err != nil {

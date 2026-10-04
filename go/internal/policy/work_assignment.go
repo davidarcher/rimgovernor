@@ -648,11 +648,11 @@ func sortedSkills(p PawnProfile) []string {
 	return names
 }
 
-// RoutineWorkDemand derives the planner's demand census from the routine
+// RoundsWorkDemand derives the planner's demand census from the routine
 // facts: field cells scale growers, pending blueprints (the definitions the
 // review is building) want a second constructor and a prisoner wants a
 // warden. Unknown facts fall back to the baseline.
-func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
+func RoundsWorkDemand(facts RoundsFacts, building bool) WorkDemand {
 	demand := WorkDemand{Construction: building}
 	jobs := PlanHerd(facts.HerdPlanInput()).Jobs
 	_, milk := jobs[HerdJobMilk]

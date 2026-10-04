@@ -9,380 +9,380 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	return s.StepWithReason(ctx, StepReason{Cause: StepFull})
 }
 
-func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitionResult, error) {
+func (r *RoundsAcquisitionPlanner) Step(ctx context.Context) (RoundsAcquisitionResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineAcquisitionResult{}, err
+		return RoundsAcquisitionResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineAnimalContainmentPlanner) Step(ctx context.Context) (RoutineAnimalContainmentResult, error) {
+func (r *RoundsAnimalContainmentPlanner) Step(ctx context.Context) (RoundsAnimalContainmentResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineAnimalContainmentResult{}, err
+		return RoundsAnimalContainmentResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineAnimalFeedPlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
+func (r *RoundsAnimalFeedPlanner) Step(ctx context.Context) (RoundsResourceResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineResourceResult{}, err
+		return RoundsResourceResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineWorkPlanner) Step(ctx context.Context) (RoutineWorkResult, error) {
+func (r *RoundsWorkPlanner) Step(ctx context.Context) (RoundsWorkResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineWorkResult{}, err
+		return RoundsWorkResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineBillPlanner) Step(ctx context.Context) (RoutineBillResult, error) {
+func (r *RoundsBillPlanner) Step(ctx context.Context) (RoundsBillResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineBillResult{}, err
+		return RoundsBillResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineBlightPlanner) Step(ctx context.Context) (RoutineBlightResult, error) {
+func (r *RoundsBlightPlanner) Step(ctx context.Context) (RoundsBlightResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineBlightResult{}, err
+		return RoundsBlightResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineCleanPlanner) Step(ctx context.Context) (RoutineCleanResult, error) {
+func (r *RoundsCleanPlanner) Step(ctx context.Context) (RoundsCleanResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineCleanResult{}, err
+		return RoundsCleanResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineClearancePlanner) Step(ctx context.Context) (RoutineClearanceResult, error) {
+func (r *RoundsClearancePlanner) Step(ctx context.Context) (RoundsClearanceResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineClearanceResult{}, err
+		return RoundsClearanceResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineDefensePlanner) Step(ctx context.Context) (RoutineDefenseResult, error) {
+func (r *RoundsDefensePlanner) Step(ctx context.Context) (RoundsDefenseResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineDefenseResult{}, err
+		return RoundsDefenseResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseLayoutResult, error) {
+func (r *RoundsDefenseLayoutPlanner) Step(ctx context.Context) (RoundsDefenseLayoutResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineDefenseLayoutResult{}, err
+		return RoundsDefenseLayoutResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineDialogPlanner) Step(ctx context.Context) (RoutineDialogResult, error) {
+func (r *RoundsDialogPlanner) Step(ctx context.Context) (RoundsDialogResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineDialogResult{}, err
+		return RoundsDialogResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineEquipPlanner) Step(ctx context.Context) (RoutineEquipResult, error) {
+func (r *RoundsEquipPlanner) Step(ctx context.Context) (RoundsEquipResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineEquipResult{}, err
+		return RoundsEquipResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineFieldPlanner) Step(ctx context.Context) (RoutineFieldResult, error) {
+func (r *RoundsFieldPlanner) Step(ctx context.Context) (RoundsFieldResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineFieldResult{}, err
+		return RoundsFieldResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineFireSafetyPlanner) Step(ctx context.Context) (RoutineFireSafetyResult, error) {
+func (r *RoundsFireSafetyPlanner) Step(ctx context.Context) (RoundsFireSafetyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineFireSafetyResult{}, err
+		return RoundsFireSafetyResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch)
 }
 
-func (r *RoutineFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoutineFoodStorageUpkeepResult, error) {
+func (r *RoundsFoodStorageUpkeepPlanner) Step(ctx context.Context) (RoundsFoodStorageUpkeepResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineFoodStorageUpkeepResult{}, err
+		return RoundsFoodStorageUpkeepResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineArmoryPlanner) Step(ctx context.Context) (RoutineArmoryResult, error) {
+func (r *RoundsArmoryPlanner) Step(ctx context.Context) (RoundsArmoryResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineArmoryResult{}, err
+		return RoundsArmoryResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error) {
+func (r *RoundsGearPlanner) Step(ctx context.Context) (RoundsGearResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineGearResult{}, err
+		return RoundsGearResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineHomeCoveragePlanner) Step(ctx context.Context) (RoutineHomeCoverageResult, error) {
+func (r *RoundsHomeCoveragePlanner) Step(ctx context.Context) (RoundsHomeCoverageResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineHomeCoverageResult{}, err
+		return RoundsHomeCoverageResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineHospitalPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
+func (r *RoundsHospitalPlanner) Step(ctx context.Context) (RoundsBuildingResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineBuildingResult{}, err
+		return RoundsBuildingResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineHusbandryPlanner) Step(ctx context.Context) (RoutineHusbandryResult, error) {
+func (r *RoundsHusbandryPlanner) Step(ctx context.Context) (RoundsHusbandryResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineHusbandryResult{}, err
+		return RoundsHusbandryResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineMedicalPlanner) Step(ctx context.Context) (RoutineMedicalResult, error) {
+func (r *RoundsMedicalPlanner) Step(ctx context.Context) (RoundsMedicalResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineMedicalResult{}, err
+		return RoundsMedicalResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineMoodReliefPlanner) Step(ctx context.Context) (RoutineMoodReliefResult, error) {
+func (r *RoundsMoodReliefPlanner) Step(ctx context.Context) (RoundsMoodReliefResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineMoodReliefResult{}, err
+		return RoundsMoodReliefResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineNamingPlanner) Step(ctx context.Context) (RoutineNamingResult, error) {
+func (r *RoundsNamingPlanner) Step(ctx context.Context) (RoundsNamingResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineNamingResult{}, err
+		return RoundsNamingResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutinePopulationCustodyPlanner) Step(ctx context.Context) (RoutinePopulationCustodyResult, error) {
+func (r *RoundsPopulationCustodyPlanner) Step(ctx context.Context) (RoundsPopulationCustodyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutinePopulationCustodyResult{}, err
+		return RoundsPopulationCustodyResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutinePopulationJoinerPlanner) Step(ctx context.Context) (RoutinePopulationJoinerResult, error) {
+func (r *RoundsPopulationJoinerPlanner) Step(ctx context.Context) (RoundsPopulationJoinerResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutinePopulationJoinerResult{}, err
+		return RoundsPopulationJoinerResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutinePrisonerInteractionPlanner) Step(ctx context.Context) (RoutinePrisonerInteractionResult, error) {
+func (r *RoundsPrisonerInteractionPlanner) Step(ctx context.Context) (RoundsPrisonerInteractionResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutinePrisonerInteractionResult{}, err
+		return RoundsPrisonerInteractionResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineRecoveryPlanner) Step(ctx context.Context) (RoutineRecoveryResult, error) {
+func (r *RoundsRecoveryPlanner) Step(ctx context.Context) (RoundsRecoveryResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineRecoveryResult{}, err
+		return RoundsRecoveryResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineRepairPlanner) Step(ctx context.Context) (RoutineRepairResult, error) {
+func (r *RoundsRepairPlanner) Step(ctx context.Context) (RoundsRepairResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineRepairResult{}, err
+		return RoundsRepairResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineRescuePlanner) Step(ctx context.Context) (RoutineRescueResult, error) {
+func (r *RoundsRescuePlanner) Step(ctx context.Context) (RoundsRescueResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineRescueResult{}, err
+		return RoundsRescueResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineResearchPlanner) Step(ctx context.Context) (RoutineResearchResult, error) {
+func (r *RoundsResearchPlanner) Step(ctx context.Context) (RoundsResearchResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineResearchResult{}, err
+		return RoundsResearchResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineResourcePlanner) Step(ctx context.Context) (RoutineResourceResult, error) {
+func (r *RoundsResourcePlanner) Step(ctx context.Context) (RoundsResourceResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineResourceResult{}, err
+		return RoundsResourceResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineShrinePlanner) Step(ctx context.Context) (RoutineShrineResult, error) {
+func (r *RoundsShrinePlanner) Step(ctx context.Context) (RoundsShrineResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineShrineResult{}, err
+		return RoundsShrineResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineBuildingPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
+func (r *RoundsBuildingPlanner) Step(ctx context.Context) (RoundsBuildingResult, error) {
 	p := r.reviewer.player
 	call, epoch, done, err := p.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineBuildingResult{}, err
+		return RoundsBuildingResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineSleepingUpkeepPlanner) Step(ctx context.Context) (RoutineBuildingResult, error) {
+func (r *RoundsSleepingUpkeepPlanner) Step(ctx context.Context) (RoundsBuildingResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineBuildingResult{}, err
+		return RoundsBuildingResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineStockpilePlanner) Step(ctx context.Context) (RoutineStockpileResult, error) {
+func (r *RoundsStockpilePlanner) Step(ctx context.Context) (RoundsStockpileResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineStockpileResult{}, err
+		return RoundsStockpileResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineStoneShellPlanner) Step(ctx context.Context) (RoutineStoneShellResult, error) {
+func (r *RoundsStoneShellPlanner) Step(ctx context.Context) (RoundsStoneShellResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineStoneShellResult{}, err
+		return RoundsStoneShellResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineStorageShelvesPlanner) Step(ctx context.Context) (RoutineStorageShelvesResult, error) {
+func (r *RoundsStorageShelvesPlanner) Step(ctx context.Context) (RoundsStorageShelvesResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineStorageShelvesResult{}, err
+		return RoundsStorageShelvesResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch)
 }
 
-func (r *RoutineSupplyPlanner) Step(ctx context.Context) (RoutineSupplyResult, error) {
+func (r *RoundsSupplyPlanner) Step(ctx context.Context) (RoundsSupplyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineSupplyResult{}, err
+		return RoundsSupplyResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineTendPlanner) Step(ctx context.Context) (RoutineTendResult, error) {
+func (r *RoundsTendPlanner) Step(ctx context.Context) (RoundsTendResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineTendResult{}, err
+		return RoundsTendResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineTidyPlanner) Step(ctx context.Context) (RoutineTidyResult, error) {
+func (r *RoundsTidyPlanner) Step(ctx context.Context) (RoundsTidyResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineTidyResult{}, err
+		return RoundsTidyResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineTradePlanner) Step(ctx context.Context) (RoutineTradeResult, error) {
+func (r *RoundsTradePlanner) Step(ctx context.Context) (RoundsTradeResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineTradeResult{}, err
+		return RoundsTradeResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())
 }
 
-func (r *RoutineWastePlanner) Step(ctx context.Context) (RoutineWasteResult, error) {
+func (r *RoundsWastePlanner) Step(ctx context.Context) (RoundsWasteResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, "test", false)
 	if err != nil {
-		return RoutineWasteResult{}, err
+		return RoundsWasteResult{}, err
 	}
 	defer done()
 	return r.step(call, epoch, newStepArbiter())

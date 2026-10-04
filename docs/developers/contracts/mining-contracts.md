@@ -43,7 +43,7 @@ recipe and a suitable bench, staged through the existing workshop prerequisites.
 Each additional component budgets twelve usable steel while retaining the steel
 reserve plus five days of consumption. Prospective ore cannot fund a bill.
 
-Colony snapshot tests (#894, `buildingruntime/routine_ladder_snapshot_test.go`)
+Colony snapshot tests (#894, `buildingruntime/rounds_ladder_snapshot_test.go`)
 cover the decisions from recorded step reads: the deep drill step sites the seeded
 steel lump, and the resource step funds a component bill on a standing fabrication
 bench. Native stock growth from either is not certified.

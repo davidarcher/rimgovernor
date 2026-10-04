@@ -3,15 +3,15 @@ package main
 import "testing"
 
 func TestGearWorkshopAndResearchDoNotRequireResourceTargets(t *testing.T) {
-	c := serveConfig{routineGearPlans: true, routineWorkshopPlans: true, routineResearchPlans: true}
+	c := serveConfig{roundsGearPlans: true, roundsWorkshopPlans: true, roundsResearchPlans: true}
 	if c.resourceTargetsConfigured() || !c.workshopPlans() || !c.researchPlans() {
 		t.Fatal("gear prerequisites must compose without resource targets")
 	}
-	c.routineGearPlans = false
+	c.roundsGearPlans = false
 	if c.workshopPlans() {
 		t.Fatal("unconfigured production enabled prerequisite planners")
 	}
-	c.routineGearPlans, c.routineWorkshopPlans = true, false
+	c.roundsGearPlans, c.roundsWorkshopPlans = true, false
 	if c.workshopPlans() {
 		t.Fatal("disabled workshop enabled gear prerequisites")
 	}

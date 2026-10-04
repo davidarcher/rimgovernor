@@ -64,7 +64,7 @@ type careOp struct {
 // PrisonerHerbalNeeds adds PrisonerSurgeryHerbal herbal medicine to needs
 // while a sale harvest or stock recovery (the ones that hold MaintainSurgery
 // open) is blocked only by the prisoner care limit.
-func PrisonerHerbalNeeds(needs map[Resource]int64, f RoutineFacts, silverShort domain.Fact[bool]) map[Resource]int64 {
+func PrisonerHerbalNeeds(needs map[Resource]int64, f RoundsFacts, silverShort domain.Fact[bool]) map[Resource]int64 {
 	stock := map[Resource]int64{}
 	rows, _ := f.Resources.Value()
 	for _, row := range rows {

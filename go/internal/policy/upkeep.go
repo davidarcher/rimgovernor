@@ -29,7 +29,7 @@ type UpkeepObservation struct {
 	// measures (#458); unknown under a native without the read.
 	Shrines domain.Fact[[]AncientShrine]
 	// ShrinePolicy is the operator's casket stance (#460), filled by the
-	// review from RoutinePolicy the way CleaningContext fills the cleaning
+	// review from RoundsPolicy the way CleaningContext fills the cleaning
 	// inputs, so every ReviewUpkeep caller measures the same targets.
 	ShrinePolicy ShrinePolicy
 	Structures   domain.Fact[[]UpkeepStructure]
@@ -265,8 +265,8 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Co
 
 // CleaningContext fills the cleaning-response inputs of f.Upkeep from the
 // review's own room census, labor census and tick, so every caller of
-// ReviewUpkeep sees the same coverage picture DetectRoutine did.
-func (f *RoutineFacts) CleaningContext(tick domain.Tick) {
+// ReviewUpkeep sees the same coverage picture DetectRounds did.
+func (f *RoundsFacts) CleaningContext(tick domain.Tick) {
 	f.Upkeep.Tick = tick
 	f.Upkeep.CleaningWorkers = domain.Unknown[int]()
 	if labor, known := f.Labor.Value(); known {

@@ -166,7 +166,7 @@ func drainBuilding(owner buildingCloser) error {
 }
 
 func haulExecutorRequired(config serveConfig) bool {
-	return config.routineFoodStorageUpkeepPlans
+	return config.roundsFoodStorageUpkeepPlans
 }
 
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {
@@ -220,7 +220,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockCapabilities = client.clock
 	}
 	var movementCapabilities *buildingruntime.MovementCapabilities
-	if config.routineDefensePlans {
+	if config.roundsDefensePlans {
 		movementCapabilities = client.movement
 	}
 	var haulCapabilities *haul.HaulCapabilities
@@ -231,10 +231,10 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		haulCapabilities = client.haul
 	}
 	var tradeCapabilities *buildingruntime.TradeCapabilities
-	if config.routineTradePlans {
+	if config.roundsTradePlans {
 		tradeCapabilities = client.trade
 	}
-	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
+	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoundsMethods: config.roundsMethods,
 		Control:  buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
 		Executor: executor.Limits{MaxAge: 5 * time.Second, RunTimeout: 8 * time.Second, JournalTimeout: 3 * time.Second},
 		Clock:    clockCapabilities,
@@ -284,7 +284,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
 	}
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: natives.breaks, Pawns: natives.breaks, Moves: client.movement.Writer, RoutineMethods: config.routineMethods,
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: natives.breaks, Pawns: natives.breaks, Moves: client.movement.Writer, RoundsMethods: config.roundsMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity, Flush: natives.flush.FlushSnapshot,
 	}, player, session)
@@ -302,12 +302,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	_ = reads.Refresh(lifetime)
 	var clockReview httpapi.ClockReview
-	var routines httpapi.RoutineProvider
+	var routines httpapi.RoundsProvider
 	if config.clockControl {
 		clockReview = serviceClockReview{database, config.profile}
 	}
 	if config.roundsEnabled {
-		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.roundsEnabled, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
+		routines = serviceRoundsDiagnostics{journal: database, reviewsEnabled: config.roundsEnabled, methodsEnabled: config.roundsMethods, families: config.activeRoundsFamilies(), sections: sections}
 	}
 	// The live colony census route is a plain read every serve exposes (#261).
 	colonyStatus, err := buildingruntime.NewColonyStatus(player, natives.colony, sections)

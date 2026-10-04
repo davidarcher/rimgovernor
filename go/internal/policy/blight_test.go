@@ -8,9 +8,9 @@ import (
 
 func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	t.Parallel()
-	f := stableRoutine()
+	f := stableRounds()
 	f.Blight = domain.Unknown[[]BlightedPlant]()
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	if assessment(t, r, RemoveBlight) != domain.FindingUnclear || !hasNeed(r, RemoveBlight) {
 		t.Fatal("unknown census must not count as recovered", r)
 	}

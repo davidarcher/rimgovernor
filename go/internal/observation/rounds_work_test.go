@@ -1,0 +1,208 @@
+package observation
+
+import (
+	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
+
+func TestNativeRoundsWorkParity(t *testing.T) {
+	directory := os.Getenv("RIMGOVERNOR_NATIVE_WORK_CAPTURE")
+	if directory == "" {
+		t.Skip("requires native work capture")
+	}
+	read := func(name string, message proto.Message) {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(directory, name+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = protojson.Unmarshal(data, message); err != nil {
+			t.Fatal(err)
+		}
+	}
+	colony := &o.ColonyFactsReply{}
+	pawns := &o.ListPawnsReply{}
+	status := &o.StatusReply{}
+	read("work-colony", colony)
+	read("work-pawns", pawns)
+	read("work-status", status)
+	v := colony.GetObserved()
+	s := status.GetObserved()
+	p := pawns.GetObserved()
+	if v == nil || s == nil || p == nil || len(s.Issues) > 0 || !proto.Equal(v.Context, s.Context) || !proto.Equal(v.Context, p.Context) {
+		t.Fatal("inconsistent native captures")
+	}
+	if err := bridge.ValidateColonyFacts(v, v.Context.Identity); err != nil {
+		t.Fatal(err)
+	}
+	e := policy.EmergencyFacts{ColonistsComplete: domain.Known(true)}
+	ids := []string{}
+	for _, ref := range s.Colonists {
+		row := censusRow(p, ref.GetId())
+		ids = append(ids, ref.GetId())
+		e.Colonists = append(e.Colonists, policy.EmergencyPawn{ID: policy.PawnID(ref.GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed)})
+	}
+	if err := bridge.ValidateRoundsPawnSnapshot(p, v.Context.Identity, ids); err != nil {
+		t.Fatal(err)
+	}
+	work, err := roundsWork(v, e, p, nil, bridge.Things{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workers, known := work.Value()
+	if !known {
+		t.Fatal("native workers unknown")
+	}
+	var expected struct {
+		Assignments         map[string]map[string]int
+		Capacity, Matches   bool
+		MinimumConstruction int `json:"minimum_construction"`
+	}
+	data, err := os.ReadFile(filepath.Join(directory, "work-reference.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(data, &expected); err != nil {
+		t.Fatal(err)
+	}
+	d, err := policy.AssignWork(workers, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: expected.MinimumConstruction}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := map[string]map[string]int{}
+	for _, pawn := range d.Assignments {
+		values := map[string]int{}
+		for _, v := range pawn.Priorities {
+			values[string(v.Work)] = v.Priority
+		}
+		actual[string(pawn.Pawn)] = values
+	}
+	if !reflect.DeepEqual(actual, expected.Assignments) {
+		t.Fatalf("work mismatch: got %#v want %#v", actual, expected.Assignments)
+	}
+	capacity, ck := d.Capacity.Value()
+	matches, mk := d.Matches.Value()
+	if !ck || !mk || capacity != expected.Capacity || matches != expected.Matches {
+		t.Fatal(d, expected)
+	}
+	t.Logf("Native work parity: %d assignments, capacity=%v matches=%v", len(actual), capacity, matches)
+}
+
+// WorkPawnRow lifts JobRow's evidence: no job (the current_job issue) is a
+// known empty job, a job carries its def and its work giver's type when a
+// giver issued it, and a missing or issued job block stays unknown.
+func TestWorkPawnRowJob(t *testing.T) {
+	row := func(job *o.JobEvidence, issues ...*o.ReadIssue) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("p")}, Job: job, Issues: issues}
+	}
+	cases := []struct {
+		row  *o.PawnState
+		want domain.Fact[policy.PawnJob]
+	}{
+		{row(&o.JobEvidence{Issues: []*o.ReadIssue{{Field: proto.String("current_job")}}}), domain.Known(policy.PawnJob{})},
+		{row(&o.JobEvidence{DefName: proto.String("CutPlant"), WorkTypeDefName: proto.String("PlantCutting")}), domain.Known(policy.PawnJob{Def: "CutPlant", Work: policy.WorkPlantCutting})},
+		{row(&o.JobEvidence{DefName: proto.String("LayDown")}), domain.Known(policy.PawnJob{Def: "LayDown"})},
+		{row(nil), domain.Unknown[policy.PawnJob]()},
+		{row(&o.JobEvidence{DefName: proto.String("CutPlant")}, &o.ReadIssue{Field: proto.String("job")}), domain.Unknown[policy.PawnJob]()},
+		{row(&o.JobEvidence{}), domain.Unknown[policy.PawnJob]()},
+	}
+	for i, c := range cases {
+		if got := workRow(t, c.row).Job; !reflect.DeepEqual(got, c.want) {
+			t.Fatal(i, got, c.want)
+		}
+	}
+}
+
+// TestWorkPawnRowPsyfocus: a psycaster's needs carry psyfocus (#1313); a
+// pawn without a psylink (or without Royalty) leaves all three unknown.
+func TestWorkPawnRowPsyfocus(t *testing.T) {
+	caster := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-1")}, Needs: &o.PawnNeeds{Psyfocus: proto.Float64(.4), PsyfocusTarget: proto.Float64(.7), PsylinkLevel: proto.Int32(2)}})
+	focus, fk := caster.Psyfocus.Value()
+	target, tk := caster.PsyfocusTarget.Value()
+	level, lk := caster.PsylinkLevel.Value()
+	if !fk || !tk || !lk || focus != .4 || target != .7 || level != 2 {
+		t.Fatalf("psycaster = %v %v %v", caster.Psyfocus, caster.PsyfocusTarget, caster.PsylinkLevel)
+	}
+	plain := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn-2")}, Needs: &o.PawnNeeds{Mood: proto.Float64(.5)}})
+	if _, known := plain.Psyfocus.Value(); known {
+		t.Fatal("psyfocus known without a psylink")
+	}
+	if _, known := plain.PsylinkLevel.Value(); known {
+		t.Fatal("psylink level known without a psylink")
+	}
+	if v, known := optional((&o.PawnSnapshot{MeditateAssignmentAvailable: proto.Bool(false)}).MeditateAssignmentAvailable).Value(); !known || v {
+		t.Fatal("Core-only Meditate availability not decoded as known false")
+	}
+}
+
+// censusRow is id's row in a captured pawn list, the table the status
+// census references (#1343); empty when the capture lacks it.
+func censusRow(p *o.PawnSnapshot, id string) *o.PawnState {
+	for _, row := range p.GetPawns() {
+		if row.GetPawn().GetId() == id {
+			return row
+		}
+	}
+	return &o.PawnState{}
+}
+
+// TestWorkPawnRowBiotech (#1678): the row's Biotech block reaches the work
+// pawn and the profile's Child flag; a Core-only row stays unknown.
+func TestWorkPawnRowBiotech(t *testing.T) {
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Child"), LifeStage: proto.String("HumanlikeChild"),
+		Genes: []*o.PawnGene{{DefName: proto.String("Robust"), Xenogene: proto.Bool(false), Active: proto.Bool(true)}}, XenotypeName: proto.String("Baseliner")}}
+	w := workRow(t, row)
+	bt, known := w.Biotech.Value()
+	if stage, _ := bt.LifeStage.Value(); !known || stage != "HumanlikeChild" {
+		t.Fatal("biotech block not lifted", bt)
+	}
+	if !policy.BuildProfile(w).Child {
+		t.Fatal("a Child developmental stage must make the profile a child")
+	}
+	if _, known := workRow(t, &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("core")}}).Biotech.Value(); known {
+		t.Fatal("Core-only row has biotech facts")
+	}
+}
+
+// TestWorkPawnRowBiotechStageRequired (#1784): a Biotech block without a
+// developmental stage fails the lift instead of reading as an adult.
+func TestWorkPawnRowBiotechStageRequired(t *testing.T) {
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("kid")}, Biotech: &o.PawnBiotech{LifeStage: proto.String("HumanlikeChild")}}
+	if _, err := WorkPawnRow(row, nil, bridge.Things{}); err == nil {
+		t.Fatal("a Biotech row with no developmental stage lifted")
+	}
+}
+
+// TestWorkPawnRowDeathrestingUnavailable (#1690): a deathresting pawn takes
+// no work; an awake deathrester does.
+func TestWorkPawnRowDeathrestingUnavailable(t *testing.T) {
+	row := func(resting bool) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("sang")}, Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false),
+			Biotech: &o.PawnBiotech{DevelopmentalStage: proto.String("Adult"), Deathrest: &o.PawnDeathrest{Deathresting: proto.Bool(resting)}}}
+	}
+	if avail, ok := workRow(t, row(true)).Available.Value(); !ok || avail {
+		t.Fatal("deathresting pawn is available for work")
+	}
+	if avail, ok := workRow(t, row(false)).Available.Value(); ok && !avail {
+		t.Fatal("awake deathrester is known unavailable")
+	}
+}
+
+// workRow is WorkPawnRow over a pawn row whose traits need no catalog.
+func workRow(t *testing.T, row *o.PawnState) policy.WorkPawn {
+	t.Helper()
+	w, err := WorkPawnRow(row, nil, bridge.Things{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return w
+}

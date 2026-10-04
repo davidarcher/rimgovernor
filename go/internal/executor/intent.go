@@ -177,7 +177,7 @@ func (e *Executor) runIntents(ctx context.Context, items []intentItem, authority
 		}
 		want := authority.Snapshot
 		if want.Plan != v.Plan || want.Revision != v.Revision {
-			if e.routineScope == nil {
+			if e.roundsScope == nil {
 				out[i].Err = ErrAuthority
 				continue
 			}

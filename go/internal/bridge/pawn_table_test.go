@@ -52,16 +52,16 @@ func TestPawnTableValidatesEveryKind(t *testing.T) {
 
 // The routine list read is the census colonists' table rows in id order;
 // a census colonist the table lacks leaves it unserved.
-func TestRoutinePawnsFromTable(t *testing.T) {
+func TestRoundsPawnsFromTable(t *testing.T) {
 	census := EmergencyObservation{}
 	census.Facts.Colonists = []policy.EmergencyPawn{{ID: "colonist"}}
 	census.Facts.ColonistsComplete = domain.Known(true)
-	out, ok := routinePawns(pawnTableFixture(), census)
+	out, ok := roundsPawns(pawnTableFixture(), census)
 	if !ok || len(out.Pawns) != 1 || out.Pawns[0].Pawn.GetId() != "colonist" || !out.GetMeditateAssignmentAvailable() {
 		t.Fatal(out, ok)
 	}
 	census.Facts.Colonists = append(census.Facts.Colonists, policy.EmergencyPawn{ID: "absent"})
-	if _, ok := routinePawns(pawnTableFixture(), census); ok {
+	if _, ok := roundsPawns(pawnTableFixture(), census); ok {
 		t.Fatal("a colonist missing from the table was served")
 	}
 }

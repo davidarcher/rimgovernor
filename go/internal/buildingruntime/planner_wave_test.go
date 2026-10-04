@@ -51,7 +51,7 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
-			out.Lighting = &RoutineBuildingResult{Verdict: refuse(RefusalSharedAdmission, "no_development_slot", "")}
+			out.Lighting = &RoundsBuildingResult{Verdict: refuse(RefusalSharedAdmission, "no_development_slot", "")}
 			return Verdict{}, ctx.Err()
 		}}
 }
@@ -61,7 +61,7 @@ func quickPlanner(name string, class plannerClass) plannerEntry {
 	return plannerEntry{name: name, class: class, priority: plannerCritical,
 		configured: func(*ClockSchedulerConfig) bool { return true },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
-			out.Sleeping = &RoutineBuildingResult{Verdict: BuildingReasonNoDeficit}
+			out.Sleeping = &RoundsBuildingResult{Verdict: BuildingReasonNoDeficit}
 			return BuildingReasonNoDeficit, nil
 		}}
 }
@@ -278,7 +278,7 @@ func TestPlannerCatalogStartupPlanners(t *testing.T) {
 func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
-	schedulerRoutine(t, s, f)
+	schedulerRounds(t, s, f)
 	// A hang guard: the quick critical planner must return within it under
 	// package load; the blocked shelter planner runs to it every time.
 	s.config.Budget.Wall = 2 * time.Second
@@ -291,8 +291,8 @@ func TestClockSchedulerPromotesTheShelterPlannerUnderTheFootholdHold(t *testing.
 	if !errors.Is(err, executor.ErrHeld) || got.Attempt != nil || f.writes != 0 {
 		t.Fatal(got, err, f.writes)
 	}
-	if got.Routine == nil || got.Routine.Review.Stage == nil || !got.Routine.Review.Stage.HoldsDevelopment() {
-		t.Fatalf("the fixture must review under the Foothold hold: %+v", got.Routine)
+	if got.Rounds == nil || got.Rounds.Review.Stage == nil || !got.Rounds.Review.Stage.HoldsDevelopment() {
+		t.Fatalf("the fixture must review under the Foothold hold: %+v", got.Rounds)
 	}
 	if !reflect.DeepEqual(got.HeldBy, []string{"sleeping"}) || len(got.MissedCutoff) != 0 {
 		t.Fatalf("held %v missed %v", got.HeldBy, got.MissedCutoff)
@@ -345,7 +345,7 @@ func TestClockSchedulerWallExcludesTheRounds(t *testing.T) {
 	}
 	t.Parallel()
 	s, f := schedulerFixture(t)
-	n := schedulerRoutine(t, s, f)
+	n := schedulerRounds(t, s, f)
 	s.config.Budget.Wall = 400 * time.Millisecond
 	slow := &slowWindow{windowedScheduler: windowedScheduler{f, n}, delay: 600 * time.Millisecond}
 	replacement, err := NewClockScheduler(s.player, s.session, slow, s.config, s.clock)

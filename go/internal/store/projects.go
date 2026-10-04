@@ -268,11 +268,11 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 	if p.Status != domain.ProjectOpen || p.Finding == domain.FindingUnclear || !p.Snapshot.SameWorld(current) || tick < p.Tick {
 		return errors.New("project does not admit current work")
 	}
-	return admitRoutineSafeguards(ctx, tx, state)
+	return admitRoundsSafeguards(ctx, tx, state)
 }
 
 // retireProjects takes invalidated autopilot projects without open work out of
-// capacity, as retireRoutineGoals does goals.
+// capacity, as retireRoundsGoals does goals.
 func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.ProjectID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {

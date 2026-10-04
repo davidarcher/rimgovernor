@@ -40,7 +40,7 @@ func TestTemperatureMethodHeatCampfireRefuel(t *testing.T) {
 		{"no known sleeper range owes nothing", 30, true, TemperatureCooling{HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room"), AutoRefuel: domain.Known(true)}}}, TemperatureNoMethod},
 		{"unknown toggle owes nothing", 30, true, TemperatureCooling{Sleepers: []SleepingPerson{sleeper}, HeatCampfires: []HeatCampfire{{ID: "Campfire1", Room: domain.Known("room")}}}, TemperatureNoMethod},
 	} {
-		got, err := SelectTemperatureMethod(domain.Known(room(tc.temp, tc.campfire)), tc.cooling, DefaultRoutinePolicy(), RoutineLatches{})
+		got, err := SelectTemperatureMethod(domain.Known(room(tc.temp, tc.campfire)), tc.cooling, DefaultRoundsPolicy(), RoundsLatches{})
 		if err != nil || got.Method != tc.want {
 			t.Fatalf("%s: %+v %v", tc.name, got, err)
 		}
@@ -94,7 +94,7 @@ func TestTemperatureMethodSleeperComfortBand(t *testing.T) {
 		{"the band intersects its sleepers", 10, false, TemperatureCooling{Sleepers: []SleepingPerson{parka, sleeper("c", "bed2", 16, 26)}}, TemperatureHeat, true},
 		{"another room's sleeper does not band it", 14, false, TemperatureCooling{Sleepers: []SleepingPerson{sleeper("d", "elsewhere", 16, 26)}}, TemperatureNoMethod, false},
 	} {
-		got, err := SelectTemperatureMethod(room(tc.temp, tc.campfire), tc.cooling, DefaultRoutinePolicy(), RoutineLatches{})
+		got, err := SelectTemperatureMethod(room(tc.temp, tc.campfire), tc.cooling, DefaultRoundsPolicy(), RoundsLatches{})
 		if err != nil || got.Method != tc.want {
 			t.Fatalf("%s: %+v %v", tc.name, got, err)
 		}

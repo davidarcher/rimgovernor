@@ -15,164 +15,164 @@ import (
 // to go/.
 const buildingruntimeDir = "internal/buildingruntime"
 
-// routineFamilyFiles maps each family-owned buildingruntime source file to
+// roundsFamilyFiles maps each family-owned buildingruntime source file to
 // the serve routine families (RIMGOVERNOR_ROUTINE_FAMILIES, the
-// routineFamilies table in cmd/rimgovernor/serve.go) that compose it. A
+// roundsFamilies table in cmd/rimgovernor/serve.go) that compose it. A
 // change confined to these files reaches the areas whose cases compose one
-// of the families, not every area (#361); routineFamilyScope widens the set
+// of the families, not every area (#361); roundsFamilyScope widens the set
 // through the files that use a changed file's declarations. Every other
 // buildingruntime file (the clock, worker, scheduler, review and boundary
-// code, routine_sleeping.go's shared building planner) is an input to every
-// window and stays all-areas. TestRoutineFamilyFilesCoverFamilies keeps the
+// code, rounds_sleeping.go's shared building planner) is an input to every
+// window and stays all-areas. TestRoundsFamilyFilesCoverFamilies keeps the
 // table equal to serve's family list and to the routine_*.go files.
-var routineFamilyFiles = map[string][]string{
-	"routine_acquisition.go":            {"acquisition"},
-	"routine_acquisition_fields.go":     {"acquisition"},
-	"routine_animal_containment.go":     {"animal-containment"},
-	"routine_herd_rooms.go":             {"animal-containment"},
-	"routine_animal_feed.go":            {"animal-feed"},
-	"routine_assignments.go":            {"work"},
-	"routine_mech.go":                   {"work"},
-	"routine_disease.go":                {"work"},
-	"routine_meals.go":                  {"bill", "cooking"},
-	"routine_paste.go":                  {"cooking"},
-	"routine_cooking_campfire.go":       {"cooking", "temperature"},
-	"routine_bill.go":                   {"bill", "art"},
-	"routine_bill_art.go":               {"art"},
-	"routine_bill_mech.go":              {"mechs"},
-	"routine_blight.go":                 {"blight"},
-	"routine_pollution.go":              {"pollution"},
-	"routine_mech_charger.go":           {"mechcharger"},
-	"routine_gene_bank.go":              {"genebank"},
-	"routine_building_selection.go":     {"cooking", "bill"},
-	"routine_clean.go":                  {"clean"},
-	"routine_clearance.go":              {"clearance"},
-	"routine_shrine.go":                 {"shrine"},
-	"routine_comfort.go":                {"comfort"},
-	"routine_defense.go":                {"defense"},
-	"routine_defense_postfight.go":      {"defense"},
-	"routine_defense_entities.go":       {"defense"},
-	"routine_combat.go":                 {"defense"},
-	"routine_combat_loadout.go":         {"defense"},
-	"routine_combat_permit.go":          {"defense"},
-	"routine_defense_snapshot.go":       {"defense", "defensive-layout"},
-	"routine_break.go":                  {"defense"},
-	"routine_incident.go":               {"defense", "defensive-layout", "rescue", "tend"},
-	"routine_defense_layout.go":         {"defensive-layout"},
-	"routine_defense_cover.go":          {"defensive-layout"},
-	"routine_defense_wait.go":           {"defensive-layout"},
-	"routine_defense_burn.go":           {"defensive-layout", "defense"},
-	"routine_defense_perimeter.go":      {"defensive-layout"},
-	"routine_dialog.go":                 {"dialog"},
-	"routine_equip.go":                  {"equip"},
-	"routine_equip_pawn.go":             {"equip", "gear", "defense"},
-	"routine_excavation.go":             {"shelter", "expansion"},
-	"routine_field.go":                  {"field"},
-	"routine_social_fields.go":          {"field"},
-	"routine_shell_interiors.go":        {"field"},
-	"routine_fishing.go":                {"field", "work", "research"},
-	"routine_fire_safety.go":            {"fire"},
-	"routine_flooring.go":               {"flooring"},
-	"routine_food_reserve.go":           {"bill", "food-storage-upkeep"},
-	"routine_baby_feeding.go":           {"bill"},
-	"routine_food_storage_upkeep.go":    {"food-storage-upkeep"},
-	"routine_corpse_larder.go":          {"food-storage-upkeep"},
-	"routine_gear.go":                   {"gear"},
-	"routine_armory.go":                 {"armory", "gear"},
-	"routine_armory_weapons.go":         {"armory", "gear", "equip"},
-	"routine_armory_shells.go":          {"armory"},
-	"routine_home_coverage.go":          {"home-coverage"},
-	"routine_hospital.go":               {"hospital"},
-	"routine_husbandry.go":              {"husbandry"},
-	"routine_hay.go":                    {"animal-feed"},
-	"routine_lighting.go":               {"lighting"},
-	"routine_medical.go":                {"medical"},
-	"routine_surgery.go":                {"medical"},
-	"routine_bill_surgery.go":           {"medical", "trade"},
-	"routine_medical_retry.go":          {"medical"},
-	"routine_mood_relief.go":            {"mood"},
-	"routine_mood_cast.go":              {"mood"},
-	"routine_naming.go":                 {"naming"},
-	"routine_population_custody.go":     {"population-custody"},
-	"routine_population_lance.go":       {"population-custody"},
-	"routine_population_containment.go": {"population-custody"},
-	"routine_shrine_arrest.go":          {"population-custody"},
-	"routine_population_joiner.go":      {"population-joiner"},
-	"routine_power.go":                  {"power"},
-	"routine_power_dig.go":              {"power"},
-	"routine_route_dig.go":              {"routes"},
-	"routine_planned_rooms.go":          {"cooking", "refrigeration", "prisoner-interaction"},
-	"routine_prisoner_interaction.go":   {"prisoner-interaction"},
-	"routine_recovery.go":               {"recovery"},
-	"routine_areas.go":                  {"recovery"},
-	"routine_refrigeration.go":          {"refrigeration"},
-	"routine_plan_dig.go":               {"shelter", "expansion", "sleeping", "waste", "refrigeration"},
-	"routine_repair.go":                 {"repair"},
-	"routine_repair_stale.go":           {"repair"},
-	"routine_rescue.go":                 {"rescue"},
-	"routine_research.go":               {"research"},
-	"routine_resource.go":               {"resource"},
-	"routine_resource_tunnel.go":        {"resource"},
-	"routine_deep_drill.go":             {"resource", "power", "research"},
-	"routine_routes.go":                 {"routes"},
-	"routine_shelter.go":                {"shelter", "expansion"},
-	"routine_maintain_shelter.go":       {"sheltering"},
-	"routine_firebreak.go":              {"firebreak"},
-	"routine_creepjoiner.go":            {"creepjoiner"},
-	"routine_psylink.go":                {"psylink"},
-	"routine_permits.go":                {"permits"},
-	"routine_ideo_roles.go":             {"ideo-roles"},
-	"routine_rituals.go":                {"rituals"},
-	"routine_shelter_bunks.go":          {"shelter", "sleeping"},
-	"routine_sleeping_couple.go":        {"sleeping"},
-	"routine_sleeping_upkeep.go":        {"sleeping"},
-	"routine_sleeping_bedroom.go":       {"sleeping"},
-	"routine_sleeping_sculpture.go":     {"sleeping"},
-	"routine_throne.go":                 {"sleeping"},
-	"routine_throne_refuel.go":          {"sleeping"},
-	"routine_child_rooms.go":            {"sleeping"},
-	"routine_sleeping_upgrade.go":       {"sleeping"},
-	"routine_sleeping_shell_bed.go":     {"sleeping"},
-	"routine_stone_shell.go":            {"stone-shell"},
-	"routine_tidy.go":                   {"tidy"},
-	"routine_tidy_review.go":            {"tidy"},
-	"routine_tidy_furniture.go":         {"tidy"},
-	"routine_stockpiles.go":             {"stockpiles"},
-	"stockpile_roles.go":                {"stockpiles"},
-	"stockpile_sited_roles.go":          {"stockpiles"},
-	"routine_storage_shelves.go":        {"stockpiles"},
-	"routine_supplies.go":               {"supply"},
-	"routine_temperature.go":            {"temperature"},
-	"routine_tend.go":                   {"tend"},
-	"routine_tier_style.go":             {"shelter", "expansion", "flooring", "lighting"},
-	"routine_trade.go":                  {"trade"},
-	"routine_waste.go":                  {"waste"},
-	"routine_waste_tomb.go":             {"waste"},
-	"routine_tomb_facts.go":             {"waste"},
-	"routine_waste_incinerator.go":      {"waste"},
-	"routine_waste_burn.go":             {"waste"},
-	"routine_workshop.go":               {"workshop"},
+var roundsFamilyFiles = map[string][]string{
+	"rounds_acquisition.go":            {"acquisition"},
+	"rounds_acquisition_fields.go":     {"acquisition"},
+	"rounds_animal_containment.go":     {"animal-containment"},
+	"rounds_herd_rooms.go":             {"animal-containment"},
+	"rounds_animal_feed.go":            {"animal-feed"},
+	"rounds_assignments.go":            {"work"},
+	"rounds_mech.go":                   {"work"},
+	"rounds_disease.go":                {"work"},
+	"rounds_meals.go":                  {"bill", "cooking"},
+	"rounds_paste.go":                  {"cooking"},
+	"rounds_cooking_campfire.go":       {"cooking", "temperature"},
+	"rounds_bill.go":                   {"bill", "art"},
+	"rounds_bill_art.go":               {"art"},
+	"rounds_bill_mech.go":              {"mechs"},
+	"rounds_blight.go":                 {"blight"},
+	"rounds_pollution.go":              {"pollution"},
+	"rounds_mech_charger.go":           {"mechcharger"},
+	"rounds_gene_bank.go":              {"genebank"},
+	"rounds_building_selection.go":     {"cooking", "bill"},
+	"rounds_clean.go":                  {"clean"},
+	"rounds_clearance.go":              {"clearance"},
+	"rounds_shrine.go":                 {"shrine"},
+	"rounds_comfort.go":                {"comfort"},
+	"rounds_defense.go":                {"defense"},
+	"rounds_defense_postfight.go":      {"defense"},
+	"rounds_defense_entities.go":       {"defense"},
+	"rounds_combat.go":                 {"defense"},
+	"rounds_combat_loadout.go":         {"defense"},
+	"rounds_combat_permit.go":          {"defense"},
+	"rounds_defense_snapshot.go":       {"defense", "defensive-layout"},
+	"rounds_break.go":                  {"defense"},
+	"rounds_incident.go":               {"defense", "defensive-layout", "rescue", "tend"},
+	"rounds_defense_layout.go":         {"defensive-layout"},
+	"rounds_defense_cover.go":          {"defensive-layout"},
+	"rounds_defense_wait.go":           {"defensive-layout"},
+	"rounds_defense_burn.go":           {"defensive-layout", "defense"},
+	"rounds_defense_perimeter.go":      {"defensive-layout"},
+	"rounds_dialog.go":                 {"dialog"},
+	"rounds_equip.go":                  {"equip"},
+	"rounds_equip_pawn.go":             {"equip", "gear", "defense"},
+	"rounds_excavation.go":             {"shelter", "expansion"},
+	"rounds_field.go":                  {"field"},
+	"rounds_social_fields.go":          {"field"},
+	"rounds_shell_interiors.go":        {"field"},
+	"rounds_fishing.go":                {"field", "work", "research"},
+	"rounds_fire_safety.go":            {"fire"},
+	"rounds_flooring.go":               {"flooring"},
+	"rounds_food_reserve.go":           {"bill", "food-storage-upkeep"},
+	"rounds_baby_feeding.go":           {"bill"},
+	"rounds_food_storage_upkeep.go":    {"food-storage-upkeep"},
+	"rounds_corpse_larder.go":          {"food-storage-upkeep"},
+	"rounds_gear.go":                   {"gear"},
+	"rounds_armory.go":                 {"armory", "gear"},
+	"rounds_armory_weapons.go":         {"armory", "gear", "equip"},
+	"rounds_armory_shells.go":          {"armory"},
+	"rounds_home_coverage.go":          {"home-coverage"},
+	"rounds_hospital.go":               {"hospital"},
+	"rounds_husbandry.go":              {"husbandry"},
+	"rounds_hay.go":                    {"animal-feed"},
+	"rounds_lighting.go":               {"lighting"},
+	"rounds_medical.go":                {"medical"},
+	"rounds_surgery.go":                {"medical"},
+	"rounds_bill_surgery.go":           {"medical", "trade"},
+	"rounds_medical_retry.go":          {"medical"},
+	"rounds_mood_relief.go":            {"mood"},
+	"rounds_mood_cast.go":              {"mood"},
+	"rounds_naming.go":                 {"naming"},
+	"rounds_population_custody.go":     {"population-custody"},
+	"rounds_population_lance.go":       {"population-custody"},
+	"rounds_population_containment.go": {"population-custody"},
+	"rounds_shrine_arrest.go":          {"population-custody"},
+	"rounds_population_joiner.go":      {"population-joiner"},
+	"rounds_power.go":                  {"power"},
+	"rounds_power_dig.go":              {"power"},
+	"rounds_route_dig.go":              {"routes"},
+	"rounds_planned_rooms.go":          {"cooking", "refrigeration", "prisoner-interaction"},
+	"rounds_prisoner_interaction.go":   {"prisoner-interaction"},
+	"rounds_recovery.go":               {"recovery"},
+	"rounds_areas.go":                  {"recovery"},
+	"rounds_refrigeration.go":          {"refrigeration"},
+	"rounds_plan_dig.go":               {"shelter", "expansion", "sleeping", "waste", "refrigeration"},
+	"rounds_repair.go":                 {"repair"},
+	"rounds_repair_stale.go":           {"repair"},
+	"rounds_rescue.go":                 {"rescue"},
+	"rounds_research.go":               {"research"},
+	"rounds_resource.go":               {"resource"},
+	"rounds_resource_tunnel.go":        {"resource"},
+	"rounds_deep_drill.go":             {"resource", "power", "research"},
+	"rounds_routes.go":                 {"routes"},
+	"rounds_shelter.go":                {"shelter", "expansion"},
+	"rounds_maintain_shelter.go":       {"sheltering"},
+	"rounds_firebreak.go":              {"firebreak"},
+	"rounds_creepjoiner.go":            {"creepjoiner"},
+	"rounds_psylink.go":                {"psylink"},
+	"rounds_permits.go":                {"permits"},
+	"rounds_ideo_roles.go":             {"ideo-roles"},
+	"rounds_rituals.go":                {"rituals"},
+	"rounds_shelter_bunks.go":          {"shelter", "sleeping"},
+	"rounds_sleeping_couple.go":        {"sleeping"},
+	"rounds_sleeping_upkeep.go":        {"sleeping"},
+	"rounds_sleeping_bedroom.go":       {"sleeping"},
+	"rounds_sleeping_sculpture.go":     {"sleeping"},
+	"rounds_throne.go":                 {"sleeping"},
+	"rounds_throne_refuel.go":          {"sleeping"},
+	"rounds_child_rooms.go":            {"sleeping"},
+	"rounds_sleeping_upgrade.go":       {"sleeping"},
+	"rounds_sleeping_shell_bed.go":     {"sleeping"},
+	"rounds_stone_shell.go":            {"stone-shell"},
+	"rounds_tidy.go":                   {"tidy"},
+	"rounds_tidy_review.go":            {"tidy"},
+	"rounds_tidy_furniture.go":         {"tidy"},
+	"rounds_stockpiles.go":             {"stockpiles"},
+	"stockpile_roles.go":               {"stockpiles"},
+	"stockpile_sited_roles.go":         {"stockpiles"},
+	"rounds_storage_shelves.go":        {"stockpiles"},
+	"rounds_supplies.go":               {"supply"},
+	"rounds_temperature.go":            {"temperature"},
+	"rounds_tend.go":                   {"tend"},
+	"rounds_tier_style.go":             {"shelter", "expansion", "flooring", "lighting"},
+	"rounds_trade.go":                  {"trade"},
+	"rounds_waste.go":                  {"waste"},
+	"rounds_waste_tomb.go":             {"waste"},
+	"rounds_tomb_facts.go":             {"waste"},
+	"rounds_waste_incinerator.go":      {"waste"},
+	"rounds_waste_burn.go":             {"waste"},
+	"rounds_workshop.go":               {"workshop"},
 }
 
-// routineDispatchFiles compose or dispatch to the family planners without
+// roundsDispatchFiles compose or dispatch to the family planners without
 // sharing their behaviour: the scheduler constructs and steps every
-// planner, the catalog logs each step, routine.go holds each family's review
+// planner, the catalog logs each step, rounds.go holds each family's review
 // memory and feeds its owed facts, and the shared building planner in
-// routine_sleeping.go selects a family's method behind the family's own
+// rounds_sleeping.go selects a family's method behind the family's own
 // gate. A reference from one of these to a family file does not widen the
 // file's scope; a change to one of them is all-areas like any other shared
 // file.
-var routineDispatchFiles = map[string]bool{
+var roundsDispatchFiles = map[string]bool{
 	"clock_scheduler.go":       true,
 	"clock_planner_catalog.go": true,
-	"routine_sleeping.go":      true,
-	"routine.go":               true,
+	"rounds_sleeping.go":       true,
+	"rounds.go":                true,
 }
 
-// routineFamilyNames is every family the table names, sorted.
-func routineFamilyNames() []string {
+// roundsFamilyNames is every family the table names, sorted.
+func roundsFamilyNames() []string {
 	set := map[string]bool{}
-	for _, families := range routineFamilyFiles {
+	for _, families := range roundsFamilyFiles {
 		for _, family := range families {
 			set[family] = true
 		}
@@ -192,20 +192,20 @@ type familyScope struct {
 	All      bool
 }
 
-// routineFamilyScope scopes a repo-relative changed file to routine
-// families. Only a non-test file of routineFamilyFiles scopes; the scope is
+// roundsFamilyScope scopes a repo-relative changed file to routine
+// families. Only a non-test file of roundsFamilyFiles scopes; the scope is
 // the file's own families plus, transitively, those of every family file
 // in the package that references one of its top-level declarations. A
 // reference from a file outside the table (other than a dispatch file)
 // makes the scope All: that file's behaviour, shared by every window,
 // depends on the change.
-func routineFamilyScope(goDir, file string) (familyScope, error) {
+func roundsFamilyScope(goDir, file string) (familyScope, error) {
 	file = filepath.ToSlash(file)
 	dir, base := strings.TrimPrefix(filepath.ToSlash(filepath.Dir(file)), "go/"), filepath.Base(file)
 	if dir != buildingruntimeDir || strings.HasSuffix(base, "_test.go") {
 		return familyScope{All: true}, nil
 	}
-	if _, ok := routineFamilyFiles[base]; !ok {
+	if _, ok := roundsFamilyFiles[base]; !ok {
 		return familyScope{All: true}, nil
 	}
 	users, err := buildingruntimeUsers(filepath.Join(goDir, filepath.FromSlash(buildingruntimeDir)))
@@ -220,14 +220,14 @@ func routineFamilyScope(goDir, file string) (familyScope, error) {
 			return true
 		}
 		seen[name] = true
-		for _, family := range routineFamilyFiles[name] {
+		for _, family := range roundsFamilyFiles[name] {
 			set[family] = true
 		}
 		for _, user := range users[name] {
-			if routineDispatchFiles[user] {
+			if roundsDispatchFiles[user] {
 				continue
 			}
-			if _, ok := routineFamilyFiles[user]; !ok {
+			if _, ok := roundsFamilyFiles[user]; !ok {
 				return false
 			}
 			if !visit(user) {

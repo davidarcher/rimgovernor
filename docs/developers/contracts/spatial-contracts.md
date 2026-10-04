@@ -296,10 +296,10 @@ rooms out of each other's clearance. The planner signals layout for a room when
 the warehouse can no longer hold what the colony has (every warehouse zone full
 with no cell to grow onto) and serviceable gear of its kind is held (`GearStore`:
 stored apparel from the gear census, weapons on the map); a planned room not yet
-standing is a `shell` edit, which `RoutineStockpilePlanner` raises through the
+standing is a `shell` edit, which `RoundsStockpilePlanner` raises through the
 planned-room shell path ahead of the zone edits.
 
-`RoutineStockpilePlanner` commits the edits as one plan per cycle, each
+`RoundsStockpilePlanner` commits the edits as one plan per cycle, each
 action under its target's fresh CAS token: `zone_cell_edit`,
 `stockpile_patch` (zone or shelf) or `zone_delete`. A create is a native
 zone preview and a `zone_create` method admitted alone, once no other edit

@@ -275,7 +275,7 @@ func TestWorldRebuildRunsBeforeTheWorkerReview(t *testing.T) {
 		t.Fatal("first step did not rebuild", reset, err)
 	}
 	snapshot := domain.GenerationSnapshot{Colony: "c", Map: 1, Load: "l", Plan: "p"}
-	if _, err = database.ReviewRoutine(ctx, store.RoundsRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoutinePolicy()}); err != nil {
+	if _, err = database.ReviewRounds(ctx, store.RoundsRequest{Current: snapshot, Tick: 27, Enabled: true, Policy: policy.DefaultRoundsPolicy()}); err != nil {
 		t.Fatal(err)
 	}
 	shadow := governorShadow{rebuild: rebuild}

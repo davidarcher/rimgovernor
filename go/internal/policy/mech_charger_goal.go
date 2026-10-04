@@ -19,7 +19,7 @@ import (
 // definition name: the catalog's mech_charger flag finds the definition.
 const EnsureMechCharger ConcernID = "EnsureMechCharger"
 
-// MechChargerNeed is RoutineFacts.MechChargerOwed's value: whether the colony
+// MechChargerNeed is RoundsFacts.MechChargerOwed's value: whether the colony
 // owes one more charger, unknown while the mechs or the charger list are
 // unread.
 func MechChargerNeed(fleet domain.Fact[MechFleet], chargers domain.Fact[[]MechCharger]) domain.Fact[bool] {

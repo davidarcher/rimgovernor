@@ -32,7 +32,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 		job := PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: thing, Cell: domain.Known(domain.Cell{X: 9, Z: 9})})}
 		return WorkPawn{ID: id, Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}, {Work: WorkCooking, Priority: 3}}), Job: domain.Known(job)}
 	}
-	use := RoutineLaborUse([]WorkPawn{hauler("a", "Thing_Other9"), hauler("b", "Thing_Steel2")})
+	use := RoundsLaborUse([]WorkPawn{hauler("a", "Thing_Other9"), hauler("b", "Thing_Steel2")})
 	if laborIdle(use, supplies.Labor) || laborIdle(use, feed.Labor) {
 		t.Fatal("fixture: the work-type rule already saw these commitments idle")
 	}
@@ -66,7 +66,7 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 
 	// The same work type on the supplies' own thing is attributed activity.
 	r.Previous, r.Tick = released, released.Tick+100
-	r.LaborUse = RoutineLaborUse([]WorkPawn{hauler("a", "Thing_Other9"), hauler("b", "Thing_Steel1")})
+	r.LaborUse = RoundsLaborUse([]WorkPawn{hauler("a", "Thing_Other9"), hauler("b", "Thing_Steel1")})
 	resumed := rank(t, r)
 	if row := s.row(resumed, "supplies"); row.Reason != DevelopmentCommitted || row.LaborEvidence != LaborAttributed || row.LaborIdleSince != domain.Unknown[domain.Tick]() {
 		t.Fatal("matched work did not retain its commitment", row)
@@ -81,14 +81,14 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	job.Target = domain.Unknown[JobTarget]()
 	old.Job = domain.Known(job)
 	r.Previous, r.Tick = first, first.Tick+2*DevelopmentIdleTicks
-	r.LaborUse = RoutineLaborUse([]WorkPawn{old})
+	r.LaborUse = RoundsLaborUse([]WorkPawn{old})
 	if row := s.row(rank(t, r), "supplies"); row.Reason != DevelopmentCommitted || row.LaborEvidence != LaborWorkTypeBusy {
 		t.Fatal("an untargeted job became idle evidence", row)
 	}
 	// A colony asleep is no evidence either way.
 	sleeper := hauler("a", "")
 	sleeper.Job = domain.Known(PawnJob{Def: "LayDown"})
-	if e := CommitmentLabor(RoutineLaborUse([]WorkPawn{sleeper}), supplies.Labor, supplies.Targets); e != LaborUnknown {
+	if e := CommitmentLabor(RoundsLaborUse([]WorkPawn{sleeper}), supplies.Labor, supplies.Targets); e != LaborUnknown {
 		t.Fatal("sleep read as", e)
 	}
 }
@@ -118,7 +118,7 @@ func TestLaborIdleSinceResetsOnRewindAndWorldChange(t *testing.T) {
 	c := s.commitment("supplies", 4, true)
 	c.Labor, c.Targets = GoalLabor(MaintainWaste), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
 	other := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Other9"})})}
-	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{other})}
+	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoundsLaborUse([]WorkPawn{other})}
 	first := rank(t, r)
 	if row := s.row(first, "supplies"); row.LaborIdleSince != domain.Known(domain.Tick(5000)) {
 		t.Fatal(row)

@@ -3,7 +3,7 @@ package policy
 import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // Phase is the step a phased goal (MaintainHousing, EnsureComfort,
-// MaintainMedicalReserves) leaves owed, latched per goal in RoutineLatches.
+// MaintainMedicalReserves) leaves owed, latched per goal in RoundsLatches.
 // MaintainHousing walks its phases in order and each has its own planner: the starter shelter
 // with its bunks, then bed ownership and bedrooms, then the spare room.
 type Phase string
@@ -34,7 +34,7 @@ type HousingReview struct {
 // A later phase never opens while an earlier one is owed, so the first
 // shelter and its beds come before any bedroom or spare room. A sleeping
 // census that is unknown and not latched active does not hold expansion.
-func reviewHousing(f RoutineFacts, previous RoutineLatches, p RoutinePolicy, sleepingActive bool) HousingReview {
+func reviewHousing(f RoundsFacts, previous RoundsLatches, p RoundsPolicy, sleepingActive bool) HousingReview {
 	shelter := allFacts(footholdShelter(f), footholdSleeping(f))
 	// The upkeep census counts any issued housing plan; only one the
 	// sleeping phase issued holds that phase open.
@@ -63,7 +63,7 @@ func reviewHousing(f RoutineFacts, previous RoutineLatches, p RoutinePolicy, sle
 	case !positive(sleeping) && (sleepingKnown || sleepingActive):
 		return sleepingHousing(sleeping, sleepingPriority)
 	case staged && !positive(expansion):
-		r := HousingReview{Phase: HousingExpansion, Priority: 4, Deficit: RoutineDevelopmentDeficit(MaintainHousing, f, p), Recovered: expansion}
+		r := HousingReview{Phase: HousingExpansion, Priority: 4, Deficit: RoundsDevelopmentDeficit(MaintainHousing, f, p), Recovered: expansion}
 		if plan, known := f.FoodPlan.Value(); known && plan.GapPerDay > 0 {
 			r.Blocked = true
 		}
@@ -86,7 +86,7 @@ func sleepingHousing(sleeping domain.Fact[bool], priority int) HousingReview {
 
 // Phase is goal's latched phase; empty for an unphased goal or once the goal
 // recovered.
-func (l RoutineLatches) Phase(goal ConcernID) Phase {
+func (l RoundsLatches) Phase(goal ConcernID) Phase {
 	switch goal {
 	case MaintainHousing:
 		return l.Housing

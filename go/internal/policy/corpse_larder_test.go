@@ -19,9 +19,9 @@ func larderObservation(stocks ...FoodStock) FoodStorageObservation {
 	return v
 }
 func TestLarderHandlingDoesNotWaitForDevelopmentSlot(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.FoodStorageUpkeep = larderObservation(larderCorpse("a", false, 300, 2))
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	for _, g := range r.Goals {
 		if g.ID == MaintainFoodStorage {
 			if g.Priority != 2 || g.MethodUnavailable {

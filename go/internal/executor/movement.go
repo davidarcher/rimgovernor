@@ -10,7 +10,7 @@ import (
 
 // NewWithMovement is New with explicit walk-to-cell orders for drafted
 // pawns.
-func NewWithMovement(journal MovementJournal, building Boundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoutineScope) (*Executor, error) {
+func NewWithMovement(journal MovementJournal, building Boundary, move MovementBoundary, clock Clock, limits Limits, routine ...RoundsScope) (*Executor, error) {
 	if move == nil {
 		return nil, errors.New("movement boundary required")
 	}
@@ -52,7 +52,7 @@ func (e *Executor) runMovement(ctx context.Context, action domain.Action, progre
 	if expected.Plan != v.Plan || expected.Revision != v.Revision {
 		// A routine method plan runs under the root authority; guard
 		// re-authorizes it before every native call.
-		if e.routineScope == nil {
+		if e.roundsScope == nil {
 			return result, ErrAuthority
 		}
 		expected.Plan, expected.Revision = v.Plan, v.Revision

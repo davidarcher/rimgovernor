@@ -13,7 +13,7 @@ import (
 // 04b0a98c: each is the first review Auto ran after the case staged a
 // player's Manual edit. A Manual edit is an ordinary deficit, never a hold.
 
-func load(t *testing.T, path string) Routine {
+func load(t *testing.T, path string) Rounds {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -22,7 +22,7 @@ func load(t *testing.T, path string) Routine {
 	return r
 }
 
-func deficit(t *testing.T, r Routine, id policy.ConcernID) {
+func deficit(t *testing.T, r Rounds, id policy.ConcernID) {
 	t.Helper()
 	a, err := r.Assessment(id)
 	if err != nil || a.Finding != domain.FindingUnmet || a.MethodUnavailable {

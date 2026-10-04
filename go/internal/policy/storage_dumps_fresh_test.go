@@ -12,7 +12,7 @@ import (
 // only, so a rotting one still goes to the rotten dump.
 func TestFreshAnimalCorpseHasAHomeWithoutAFreezerShelf(t *testing.T) {
 	t.Parallel()
-	facts := RoutineFacts{Waste: domain.Known([]WasteItem{
+	facts := RoundsFacts{Waste: domain.Known([]WasteItem{
 		{Kind: "corpse", CorpseOf: domain.CorpseAnimal, RotStage: domain.RotFresh, State: WasteExposed},
 		{Kind: "corpse", CorpseOf: domain.CorpseAnimal, RotStage: domain.RotRotting, State: WasteExposed},
 	})}

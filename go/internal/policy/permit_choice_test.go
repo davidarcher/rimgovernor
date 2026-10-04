@@ -118,9 +118,9 @@ func TestPermitIntentIsTheRoyaltyWriteAndGoalMeasuresSpent(t *testing.T) {
 
 func TestPermitsRaiseMaintainPermitsOnlyWhileOneIsTakeable(t *testing.T) {
 	has := func(royalty domain.Fact[RoyaltyFacts]) bool {
-		f := stableRoutine()
+		f := stableRounds()
 		f.Royalty = royalty
-		for _, g := range needs(t, f, RoutineLatches{}).Goals {
+		for _, g := range needs(t, f, RoundsLatches{}).Goals {
 			if g.ID == MaintainPermits {
 				return true
 			}

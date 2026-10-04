@@ -38,7 +38,7 @@ func (r ColonyProjection) SurgeryContext() policy.SurgeryContext {
 // derives to soldier; doctors are policy.ShareDoctors. Spent is unknown for
 // everyone while the sleeping census is, and for a colonist whose worn gear
 // or equipped weapon was not read. Nothing here calls native.
-func personalShares(p *ColonyProjection, frame bridge.RoutineFrame, pawns *o.PawnSnapshot) {
+func personalShares(p *ColonyProjection, frame bridge.RoundsFrame, pawns *o.PawnSnapshot) {
 	// A live reading always sets the map, so an empty one gates every colonist.
 	p.Facts.PersonalShares = map[policy.PawnID]policy.PersonalShare{}
 	work, known := p.WorkPawns.Value()

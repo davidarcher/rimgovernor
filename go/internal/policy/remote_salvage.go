@@ -12,7 +12,7 @@ type SalvageEvidence struct {
 // SalvageContext assembles the remote request every remote selection in a
 // review shares: reach from the derived extent, demand from the effective
 // targets and the urgent work competing for the colonists.
-func SalvageContext(p RoutinePolicy, f RoutineFacts) (RemoteWorkRequest, error) {
+func SalvageContext(p RoundsPolicy, f RoundsFacts) (RemoteWorkRequest, error) {
 	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Home: f.HomeCoverage})
 	if err != nil {
 		return RemoteWorkRequest{}, err
@@ -91,7 +91,7 @@ func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]Clearan
 // judgement over a known clearance census: every Home hold, with a remote
 // salvage hold replacing the Home reason for the same target, and the
 // selected salvage target ("" when none).
-func ReviewClearanceHolds(p RoutinePolicy, f RoutineFacts, rows []ClearanceTarget) ([]ClearanceHold, string, error) {
+func ReviewClearanceHolds(p RoundsPolicy, f RoundsFacts, rows []ClearanceTarget) ([]ClearanceHold, string, error) {
 	holds := SelectHomeClearance(rows, domain.Cell{}).Holds
 	remote, err := SalvageContext(p, f)
 	if err != nil {

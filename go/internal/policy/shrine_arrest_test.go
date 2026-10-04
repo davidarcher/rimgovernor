@@ -17,7 +17,7 @@ func TestShrineArrestRoutesOnlyStandingNeutralCaptureDecisions(t *testing.T) {
 		"prisoner":         {EntityID: "prisoner", Faction: "Ancients", Prisoner: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			facts := RoutineFacts{Custody: base.Custody, Sleeping: base.Sleeping, FoodDays: base.FoodDays}
+			facts := RoundsFacts{Custody: base.Custody, Sleeping: base.Sleeping, FoodDays: base.FoodDays}
 			facts.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", Occupants: []ShrineOccupant{occupant}}})
 			want := domain.PawnID("")
 			if name == "standing ancient" {
@@ -60,11 +60,11 @@ func TestShrineArrestBedRequiresVacantPrisonerBed(t *testing.T) {
 }
 
 func TestShrineArrestCreatesPopulationDeficitAndSelectsArmedPerformer(t *testing.T) {
-	facts := stableRoutine()
+	facts := stableRounds()
 	capacity := joinerFacts(t, 2)
 	facts.Custody, facts.Sleeping, facts.FoodDays = capacity.Custody, capacity.Sleeping, capacity.FoodDays
 	facts.Upkeep.Shrines = domain.Known([]AncientShrine{{ID: "shrine", Occupants: []ShrineOccupant{{EntityID: "ancient", Faction: "Ancients"}}}})
-	needs, err := DetectRoutine(facts, RoutineLatches{}, DefaultRoutinePolicy())
+	needs, err := DetectRounds(facts, RoundsLatches{}, DefaultRoundsPolicy())
 	if err != nil {
 		t.Fatal(err)
 	}

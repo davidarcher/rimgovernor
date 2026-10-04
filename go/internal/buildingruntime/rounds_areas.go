@@ -1,0 +1,114 @@
+package buildingruntime
+
+import (
+	"context"
+	"crypto/sha256"
+	"fmt"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
+)
+
+func areaMethodPrefix(c policy.AllowedAreaChange) string {
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%t/%s", c.Pawn, c.Animal, c.Area)))
+	return fmt.Sprintf("area-%x-", digest[:12])
+}
+
+// Attempt identity is separate from desired state: returning to a previously
+// corrected restriction must not exhaust a desired-state hash. Rotating
+// candidates also lets native admission refuse an unreachable refuge without
+// starving another reachable refuge or pawn.
+func nextAreaChange(changes []policy.AllowedAreaChange, admitted int) (policy.AllowedAreaChange, domain.MethodID) {
+	change := changes[admitted%len(changes)]
+	return change, domain.MethodID(fmt.Sprintf("%s%d", areaMethodPrefix(change), admitted))
+}
+
+func (r *RoundsRecoveryPlanner) commitAreaChange(call, epoch context.Context, arbiter *stepArbiter, snapshot domain.GenerationSnapshot, incident store.IncidentState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn, started time.Time) (RoundsRecoveryResult, error) {
+	change, method := nextAreaChange(changes, len(incident.Methods))
+	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(change.Pawn)}) {
+		return RoundsRecoveryResult{Verdict: waitFor(WaitMethodUsed, "area_change_pawn_claim")}, nil
+	}
+	id := domain.MintPlanID()
+	actionID := domain.ActionID(fmt.Sprintf("%s-0", id))
+	var action domain.Action
+	var err error
+	if change.Animal {
+		var husbandry domain.Husbandry
+		husbandry, err = domain.NewHusbandry(domain.PawnID(change.Pawn), domain.HusbandryAllowedArea, change.Area)
+		if err == nil {
+			action, err = domain.NewHusbandryAction(actionID, husbandry)
+		}
+	} else {
+		found := false
+		for _, worker := range workers {
+			found = found || worker.ID == change.Pawn
+		}
+		if !found {
+			return RoundsRecoveryResult{Verdict: noWorker("area_pawn")}, nil
+		}
+		var assignment domain.WorkAssignment
+		assignment, err = domain.NewAreaAssignment(domain.PawnID(change.Pawn), change.Area == "", change.Area)
+		if err == nil {
+			action, err = domain.NewWorkAssignmentAction(actionID, assignment)
+		}
+	}
+	if err != nil {
+		return RoundsRecoveryResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoundsRecoveryResult{}, err
+	}
+	p := r.reviewer.player
+	if err = p.current(call, epoch); err != nil {
+		return RoundsRecoveryResult{}, err
+	}
+	state := p.session.State()
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoundsRecoveryResult{}, fmt.Errorf("%w: commitAreaChange: !state.Enabled || state.Snapshot != snapshot || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
+	}
+	if _, err = p.journal.CommitIncidentMethod(call, incident.Incident.ID, method, "", plan); err != nil {
+		return RoundsRecoveryResult{}, err
+	}
+	return RoundsRecoveryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
+}
+
+func cancelStaleAreaActions(ctx context.Context, journal *store.Store, plan store.PlanState, changes []policy.AllowedAreaChange, workers []policy.WorkPawn) error {
+	for i, action := range plan.Spec.Actions() {
+		stage := plan.Progress[i].View().Stage
+		if stage != domain.Pending && stage != domain.Prepared {
+			continue
+		}
+		var candidate policy.AllowedAreaChange
+		if work, ok := action.WorkAssignment(); ok && work.HasArea() {
+			candidate = policy.AllowedAreaChange{Pawn: policy.PawnID(work.Pawn()), Area: work.Area()}
+			current := false
+			for _, worker := range workers {
+				current = current || worker.ID == candidate.Pawn
+			}
+			if !current {
+				candidate.Pawn = ""
+			}
+		} else if husbandry, ok := action.Husbandry(); ok && husbandry.Method() == domain.HusbandryAllowedArea {
+			candidate = policy.AllowedAreaChange{Pawn: policy.PawnID(husbandry.Animal()), Animal: true, Area: husbandry.Argument()}
+		} else {
+			continue
+		}
+		valid := false
+		for _, change := range changes {
+			if candidate == change {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			if _, err := journal.Cancel(ctx, plan.Spec.ID(), action.ID()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

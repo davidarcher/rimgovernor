@@ -25,7 +25,7 @@ import (
 
 func TestBuildingServeRequiresAbsoluteProfile(t *testing.T) {
 	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
+	withRoundsFamilies(t, "", false)
 	config, err := parseServe(append(serveBase(dir), "--profile", dir), io.Discard)
 	if err != nil || !config.playerControl || config.profile != dir {
 		t.Fatalf("config: %+v %v", config, err)

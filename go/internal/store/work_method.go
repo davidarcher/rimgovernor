@@ -16,7 +16,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if !hasWork {
 		return nil
 	}
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	// work assignments. A disaster area plan carries assignments alone.
 	pawns := map[domain.PawnID]bool{}
 	for _, action := range plan.Actions() {
-		if !areaOnly && routineSettingsKinds[action.Kind()] || isolation && action.Kind() != domain.WorkAssignmentAction {
+		if !areaOnly && roundsSettingsKinds[action.Kind()] || isolation && action.Kind() != domain.WorkAssignmentAction {
 			continue
 		}
 		w, ok := action.WorkAssignment()
@@ -59,7 +59,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	return nil
 }
 
-var routineSettingsKinds = map[domain.ActionKind]bool{
+var roundsSettingsKinds = map[domain.ActionKind]bool{
 	domain.PawnSettingsAction:  true,
 	domain.ReadingPolicyAction: true,
 	domain.DrugPolicyAction:    true,

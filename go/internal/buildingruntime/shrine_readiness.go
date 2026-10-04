@@ -128,14 +128,14 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 	return out, ctx.Err()
 }
 
-// routineShrineHolds judges every shrine the review's census lists for the
+// roundsShrineHolds judges every shrine the review's census lists for the
 // journal (#458): the readiness reason, guards_alive after a breach, or
 // ready with the chosen wall, then one row per casket naming its
 // CasketDecisionUnder (#459, #460, #875) so a sealed filled casket is not silence,
 // and one per released occupant naming its OccupantDecision (#460). A native
 // without the readiness reads leaves every shrine row readiness_unknown;
 // an unknown census leaves no rows.
-func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, policy.ShrinePolicy, error) {
+func roundsShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, policy.ShrinePolicy, error) {
 	shrines, known := projection.Facts.Upkeep.Shrines.Value()
 	if !known || len(shrines) == 0 {
 		return nil, policy.ShrinePolicy{}, nil

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
+func TestRoundsPawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 	for _, change := range []string{"valid", "unknown-mode", "duplicate", "priority", "inapplicable", "care", "extra-settings"} {
 		t.Run(change, func(t *testing.T) {
 			s := combatPawnsFixture()
@@ -51,7 +51,7 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 				}
 				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: s}}), nil
 			}}, time.Second)
-			_, _, err := client.ReadRoutinePawns(context.Background(), pbIdentity(), []string{"pawn-1"})
+			_, _, err := client.ReadRoundsPawns(context.Background(), pbIdentity(), []string{"pawn-1"})
 			valid := change == "valid" || change == "unknown-mode" || change == "care"
 			if (err == nil) != valid {
 				t.Fatal(change, err)
@@ -78,7 +78,7 @@ func TestWorkAllowedAreaDetailValidation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := combatPawnsFixture()
 			s.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), AllowedAreaId: test.area}
-			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.accept {
+			if err := ValidateRoundsPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.accept {
 				t.Fatal("routine", err)
 			}
 			if err := ValidateTendPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.accept {

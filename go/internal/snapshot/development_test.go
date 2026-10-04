@@ -16,7 +16,7 @@ const (
 	developmentAfter  = "testdata/service-development-after-restart.json.gz"
 )
 
-func loadDevelopment(t *testing.T, path string) (Routine, store.RoutineDevelopment) {
+func loadDevelopment(t *testing.T, path string) (Rounds, store.RoundsDevelopment) {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestDevelopmentSurvivesRestart(t *testing.T) {
 	if after.Tick < before.Tick {
 		t.Fatal("restart rewound the review tick", before.Tick, after.Tick)
 	}
-	prior := map[policy.ConcernID]store.RoutineDevelopmentRow{}
+	prior := map[policy.ConcernID]store.RoundsDevelopmentRow{}
 	for _, row := range before.Rows {
 		prior[row.Goal] = row
 	}

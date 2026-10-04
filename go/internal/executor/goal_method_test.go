@@ -41,7 +41,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := store.BuildingMethodRequest{Owner: g, Method: "walls", Plan: plan, Current: scope, Tick: 100, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine, Stock: policy.StockObservation{Snapshot: scope, Tick: 100, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(20))}}}}
+	r := store.BuildingMethodRequest{Owner: g, Method: "walls", Plan: plan, Current: scope, Tick: 100, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Rounds, Stock: policy.StockObservation{Snapshot: scope, Tick: 100, Values: []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(20))}}}}
 	for _, a := range actions {
 		b, _ := a.Building()
 		r.Previews = append(r.Previews, policy.Preview{Action: a, Snapshot: scope, Tick: 100, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(true), Footprint: domain.Known([]domain.Cell{b.Cell()}), Costs: domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 10}})})
@@ -73,7 +73,7 @@ func TestAdmittedMethodDependenciesGateNativeHands(t *testing.T) {
 	}
 	foundation, _ := actions[0].Building()
 	census := policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "Wall1", Building: foundation, Cells: []domain.Cell{foundation.Cell()}}}}
-	if _, err = f.store.ReviewRoutine(ctx, store.RoundsRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
+	if _, err = f.store.ReviewRounds(ctx, store.RoundsRequest{Current: scope, Tick: 101, Policy: policy.DefaultRoundsPolicy(), Facts: policy.RoundsFacts{CurrentConstruction: domain.Known(census)}}); err != nil {
 		t.Fatal(err)
 	}
 	f.env.tick = 102

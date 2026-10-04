@@ -11,14 +11,14 @@ import (
 // TradeWithCaravan is the routine trade goal (#234): while a tradeable
 // caravan stands on the map and the colony has something to buy from it
 // (the medicine shortfall MaintainMedicalReserves already reports, or a
-// component shortfall under RoutineTradePolicy.ComponentTarget) or to sell
-// to it (stock above a MaintainResource target), RoutineTradePlanner opens
+// component shortfall under RoundsTradePolicy.ComponentTarget) or to sell
+// to it (stock above a MaintainResource target), RoundsTradePlanner opens
 // one bounded session per caravan and settles it. It is config-only work
 // like a configuration push: a negotiator's conversation, not a development
 // project, so it holds no development slot.
 
 // ComponentResource is the one component definition the trade goal buys and
-// the resource family mines toward under RoutineTradePolicy.ComponentTarget.
+// the resource family mines toward under RoundsTradePolicy.ComponentTarget.
 const ComponentResource Resource = "ComponentIndustrial"
 
 // tradeBuyPriceCeiling bounds a routine purchase's unit price. Vanilla
@@ -26,12 +26,12 @@ const ComponentResource Resource = "ComponentIndustrial"
 // sheet the colony should not be buying from.
 const tradeBuyPriceCeiling = 250.0
 
-// tradeRoutineMaximumTargets and tradeRoutineMaximumCount are
+// tradeRoundsMaximumTargets and tradeRoundsMaximumCount are
 // domain.TradeEconomicPolicy's own bounds, which the routine targets clamp
 // to rather than fail validation over a large surplus.
 const (
-	tradeRoutineMaximumTargets = 30
-	tradeRoutineMaximumCount   = 100000
+	tradeRoundsMaximumTargets = 30
+	tradeRoundsMaximumCount   = 100000
 )
 
 // TraderFacts is one map trader from bridge.ListTraders as the routine
@@ -45,14 +45,14 @@ type TraderFacts struct {
 	GoodsStacks          int64
 }
 
-// RoutineTradePolicy is the operator's routine trade configuration.
+// RoundsTradePolicy is the operator's routine trade configuration.
 // ComponentTarget (zero disables) is the component stock the trade buys
 // toward and the resource family mines toward. RetainedMinimum is the stock
 // each WealthSurplusResources hoard keeps regardless of floor
 // (DefaultTradeRetainedMinimum when nil). The silver reserve is derived from
 // the colonist count (TradeSilverReserve) and hoard selling keys on the
 // constant TradeItemWealthShare (#875).
-type RoutineTradePolicy struct {
+type RoundsTradePolicy struct {
 	ComponentTarget int64
 	RetainedMinimum map[Resource]int64
 }
@@ -72,7 +72,7 @@ func TradeSilverReserve(colonists domain.Fact[int64]) (int64, bool) {
 	return max(200, min(100*n, 100000)), true
 }
 
-func (p RoutineTradePolicy) Validate() error {
+func (p RoundsTradePolicy) Validate() error {
 	if p.ComponentTarget < 0 || p.ComponentTarget > 1<<31 {
 		return errors.New("invalid routine trade policy")
 	}
@@ -97,11 +97,11 @@ func DefaultTradeRetainedMinimum() map[Resource]int64 {
 	return map[Resource]int64{"Steel": 500, "Plasteel": 100, "Gold": 50, "Uranium": 50, "Jade": 50}
 }
 
-// RoutineTradeFloors is the per-definition floor set the routine trade
+// RoundsTradeFloors is the per-definition floor set the routine trade
 // review sells against: EconomicReserves over native's outstanding
 // construction deficits when the caller has read them (nil otherwise);
 // stock targets, which carry the derived resource needs, apply separately.
-func RoutineTradeFloors(p RoutinePolicy, construction map[string]int64) map[string]int64 {
+func RoundsTradeFloors(p RoundsPolicy, construction map[string]int64) map[string]int64 {
 	floors, _ := EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Construction: construction})
 	return floors
 }
@@ -118,7 +118,7 @@ type WealthFacts struct{ Items, Buildings, Pawns, Total float64 }
 // is a surplus of the difference, so a sale lands exactly on the highest
 // floor. Unknown wealth, a zero share, an unmet share or a stock at its
 // floor yields nothing; the rows come back in WealthSurplusResources order.
-func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy) []Amount {
+func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoundsTradePolicy) []Amount {
 	facts, known := wealth.Value()
 	if !known || p.Validate() != nil {
 		return nil
@@ -208,7 +208,7 @@ func (n TradeNeed) Any() bool {
 // currency is the colony census's coin, which is neither target nor surplus.
 // A single optional food context adds the shared ledger's food needs; omitting
 // it leaves food purchases and protected crop exports disabled.
-func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
+func ReviewTradeNeed(currency Resource, medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoundsTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
 	replenish, known := medicine.Replenish.Value()
 	rows, rowsKnown := resources.Value()
 	if !known || !rowsKnown || p.Validate() != nil {
@@ -304,14 +304,14 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 	return best, found
 }
 
-// RoutineTradeTargets turns the measured need into SelectTrade's ordered
+// RoundsTradeTargets turns the measured need into SelectTrade's ordered
 // targets against one live sheet: food first, medicine (the cheapest definition
 // the trader carries), then components, then each surplus sale. Purchases
 // are capped at tradeBuyPriceCeiling per unit; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
-func RoutineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
+func RoundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoundsTradePolicy, colonists domain.Fact[int64]) domain.TradeEconomicPolicy {
 	reserve, buy := TradeSilverReserve(colonists)
-	out := routineTradeTargets(items, need, rows, targets, p)
+	out := roundsTradeTargets(items, need, rows, targets, p)
 	out.SilverReserve = reserve
 	for i := range out.Targets {
 		if !buy {
@@ -321,12 +321,12 @@ func RoutineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFa
 	return out
 }
 
-func routineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
+func roundsTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoundsTradePolicy) domain.TradeEconomicPolicy {
 	var out domain.TradeEconomicPolicy
 	// Leave room for medicine and components while prioritizing the food bridge.
 	foodTargets := tradeFoodTargets(need.Food, rows)
-	if len(foodTargets) > tradeRoutineMaximumTargets-2 {
-		foodTargets = foodTargets[:tradeRoutineMaximumTargets-2]
+	if len(foodTargets) > tradeRoundsMaximumTargets-2 {
+		foodTargets = foodTargets[:tradeRoundsMaximumTargets-2]
 	}
 	out.Targets = append(out.Targets, foodTargets...)
 	if need.MedicineReplenish > 0 {
@@ -341,34 +341,34 @@ func routineTradeTargets(items ItemFacts, need TradeNeed, rows []TradeSheetRowFa
 			}
 		}
 		if pick != nil {
-			out.Targets = append(out.Targets, domain.TradeTarget{Item: pick.DefName, Stock: min(pick.ColonyCount+need.MedicineReplenish, tradeRoutineMaximumCount), MaxBuy: min(need.MedicineReplenish, tradeRoutineMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+			out.Targets = append(out.Targets, domain.TradeTarget{Item: pick.DefName, Stock: min(pick.ColonyCount+need.MedicineReplenish, tradeRoundsMaximumCount), MaxBuy: min(need.MedicineReplenish, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
 		}
 	}
 	if need.ComponentShortfall > 0 {
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: min(p.ComponentTarget, tradeRoutineMaximumCount), MaxBuy: min(need.ComponentShortfall, tradeRoutineMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(ComponentResource), Stock: min(p.ComponentTarget, tradeRoundsMaximumCount), MaxBuy: min(need.ComponentShortfall, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
 	}
 	seen := map[string]bool{}
 	for _, target := range out.Targets {
 		seen[target.Item] = true
 	}
 	for _, target := range surgeryPartTargets(need.SurgeryParts, rows, seen) {
-		if len(out.Targets) < tradeRoutineMaximumTargets {
+		if len(out.Targets) < tradeRoundsMaximumTargets {
 			seen[target.Item] = true
 			out.Targets = append(out.Targets, target)
 		}
 	}
 	for _, short := range need.Shortfall {
-		if seen[string(short.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {
+		if seen[string(short.Resource)] || len(out.Targets) >= tradeRoundsMaximumTargets {
 			continue
 		}
 		seen[string(short.Resource)] = true
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(short.Resource), Stock: min(targets[short.Resource], tradeRoutineMaximumCount), MaxBuy: min(short.Count, tradeRoutineMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(short.Resource), Stock: min(targets[short.Resource], tradeRoundsMaximumCount), MaxBuy: min(short.Count, tradeRoundsMaximumCount), MaxBuyPrice: tradeBuyPriceCeiling})
 	}
 	for _, surplus := range need.Surplus {
-		if seen[string(surplus.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {
+		if seen[string(surplus.Resource)] || len(out.Targets) >= tradeRoundsMaximumTargets {
 			continue
 		}
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(max(targets[surplus.Resource], need.Retained[surplus.Resource]), tradeRoutineMaximumCount), MaxSell: min(surplus.Count, tradeRoutineMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(max(targets[surplus.Resource], need.Retained[surplus.Resource]), tradeRoundsMaximumCount), MaxSell: min(surplus.Count, tradeRoundsMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
 	}
 	return out
 }
@@ -392,11 +392,11 @@ func surgeryPartTargets(parts []SurgeryPart, rows []TradeSheetRowFact, seen map[
 				continue
 			}
 			if i, ok := index[row.DefName]; ok {
-				out[i].Stock = min(out[i].Stock+1, tradeRoutineMaximumCount)
+				out[i].Stock = min(out[i].Stock+1, tradeRoundsMaximumCount)
 				out[i].MaxBuy = min(out[i].MaxBuy+1, row.TraderCount)
 			} else if !seen[row.DefName] {
 				index[row.DefName] = len(out)
-				out = append(out, domain.TradeTarget{Item: row.DefName, Stock: min(row.ColonyCount+1, tradeRoutineMaximumCount), MaxBuy: 1, MaxBuyPrice: surgeryPartPriceCeiling})
+				out = append(out, domain.TradeTarget{Item: row.DefName, Stock: min(row.ColonyCount+1, tradeRoundsMaximumCount), MaxBuy: 1, MaxBuyPrice: surgeryPartPriceCeiling})
 			}
 			break
 		}

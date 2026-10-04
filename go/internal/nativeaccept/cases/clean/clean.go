@@ -213,7 +213,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if err = runFilthy(ctx, journal, service, report, kitchenID, butcheryID, kitchenFilth, inKitchen, cleanliness); err != nil {
 		return err
 	}
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := na.AssertRoundsRunning(service.Get); err != nil {
 		return err
 	}
 

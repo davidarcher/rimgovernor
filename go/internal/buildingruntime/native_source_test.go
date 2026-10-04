@@ -8,6 +8,6 @@ import (
 // Serve composes planners from the real client by type assertion; a method
 // dropped from the client used to surface only as a startup crash.
 var (
-	_ RoutineHospitalSource     = (*bridge.Client)(nil)
-	_ observation.RoutineSource = (*bridge.Client)(nil)
+	_ RoundsHospitalSource     = (*bridge.Client)(nil)
+	_ observation.RoundsSource = (*bridge.Client)(nil)
 )

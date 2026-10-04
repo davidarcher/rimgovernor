@@ -8,9 +8,9 @@ import (
 )
 
 func TestFirebreakOwedRaisesMaintainFirebreak(t *testing.T) {
-	f := stableRoutine()
+	f := stableRounds()
 	f.FirebreakOwed = domain.Known(true)
-	r := needs(t, f, RoutineLatches{})
+	r := needs(t, f, RoundsLatches{})
 	for _, g := range r.Goals {
 		if g.ID == MaintainFirebreak {
 			return

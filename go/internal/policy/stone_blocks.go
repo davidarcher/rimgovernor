@@ -73,13 +73,13 @@ func StoneBlockTarget(floor int64, stock domain.Fact[[]Amount]) (resource Resour
 
 // ResourceGoalConfigured reports whether MaintainResource has any target to
 // keep: an operator resource floor or a stone-block floor.
-func (p RoutinePolicy) ResourceGoalConfigured() bool {
+func (p RoundsPolicy) ResourceGoalConfigured() bool {
 	return len(p.ResourceTargets) > 0 || len(p.GearSpareTargets) > 0 || p.StoneBlockTarget > 0
 }
 
 // TracksResource reports whether resource is one MaintainResource keeps a
 // floor for, so a workshop ladder record for it still drives research.
-func (p RoutinePolicy) TracksResource(items ItemFacts, resource Resource) bool {
+func (p RoundsPolicy) TracksResource(items ItemFacts, resource Resource) bool {
 	herbal, err := items.MedicineAt(0)
 	return p.ResourceTargets[resource] > 0 || p.GearSpareTargets[resource] > 0 || p.StoneBlockTarget > 0 && StoneBlockResource(resource) || err == nil && resource == herbal && p.MedicalReserve.TargetPerColonist > 0
 }
@@ -91,7 +91,7 @@ func (p RoutinePolicy) TracksResource(items ItemFacts, resource Resource) bool {
 // needs other goals' evidence asks for (ResourceGoalTargets, which never
 // lowers a floor already present). With no stone chunks observed, or the
 // census unknown, the stone floor contributes nothing.
-func (p RoutinePolicy) EffectiveResourceTargets(stock domain.Fact[[]Amount], needs map[Resource]int64) (map[Resource]int64, error) {
+func (p RoundsPolicy) EffectiveResourceTargets(stock domain.Fact[[]Amount], needs map[Resource]int64) (map[Resource]int64, error) {
 	needs = ResourceGoalTargets(needs, p.GearSpareTargets)
 	resource, target, ok, err := StoneBlockTarget(p.StoneBlockTarget, stock)
 	if err != nil {

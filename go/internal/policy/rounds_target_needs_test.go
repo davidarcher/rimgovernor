@@ -1,0 +1,161 @@
+package policy
+
+import (
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
+
+func TestResearchTargetNeedMeasuresNativeState(t *testing.T) {
+	listed := ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}}
+	cases := []struct {
+		name      string
+		target    string
+		facts     domain.Fact[ResearchFacts]
+		recovered domain.Fact[bool]
+		deficit   domain.Fact[float64]
+	}{
+		{"no target", "", domain.Unknown[ResearchFacts](), domain.Known(true), domain.Known(0.0)},
+		{"missing facts", "Stonecutting", domain.Unknown[ResearchFacts](), domain.Unknown[bool](), domain.Unknown[float64]()},
+		{"unlisted target", "Fabrication", domain.Known(listed), domain.Unknown[bool](), domain.Unknown[float64]()},
+		{"idle tab", "Stonecutting", domain.Known(listed), domain.Known(false), domain.Known(1.0)},
+		{"player project respected", "Stonecutting", domain.Known(ResearchFacts{Current: "Electricity", Projects: listed.Projects}), domain.Known(true), domain.Known(0.0)},
+		{"finished", "Stonecutting", domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Stonecutting"}, Projects: listed.Projects}), domain.Known(true), domain.Known(0.0)},
+	}
+	for _, c := range cases {
+		recovered, deficit := ResearchTargetNeed(c.target, false, c.facts)
+		if recovered != c.recovered || deficit != c.deficit {
+			t.Fatal(c.name, recovered, deficit)
+		}
+	}
+}
+
+func TestResourceTargetNeedUsesWorstCoveredTarget(t *testing.T) {
+	targets := map[Resource]int64{"Steel": 100, "WoodLog": 200}
+	if recovered, deficit := ResourceTargetNeed(nil, domain.Unknown[[]Amount]()); recovered != domain.Known(true) || deficit != domain.Known(0.0) {
+		t.Fatal("no targets", recovered, deficit)
+	}
+	if recovered, deficit := ResourceTargetNeed(targets, domain.Unknown[[]Amount]()); recovered != domain.Unknown[bool]() || deficit != domain.Unknown[float64]() {
+		t.Fatal("unknown stock", recovered, deficit)
+	}
+	stock := domain.Known([]Amount{{Resource: "Steel", Count: 75}, {Resource: "WoodLog", Count: 50}})
+	if recovered, deficit := ResourceTargetNeed(targets, stock); recovered != domain.Known(false) || deficit != domain.Known(0.75) {
+		t.Fatal("worst target", recovered, deficit)
+	}
+	// A configured resource absent from the census is fully unstocked.
+	if _, deficit := ResourceTargetNeed(targets, domain.Known([]Amount{{Resource: "WoodLog", Count: 200}})); deficit != domain.Known(1.0) {
+		t.Fatal("absent resource", deficit)
+	}
+	if recovered, deficit := ResourceTargetNeed(targets, domain.Known([]Amount{{Resource: "Steel", Count: 100}, {Resource: "WoodLog", Count: 250}})); recovered != domain.Known(true) || deficit != domain.Known(0.0) {
+		t.Fatal("recovered", recovered, deficit)
+	}
+	if recovered, _ := ResourceTargetNeed(map[Resource]int64{"Steel": -1}, stock); recovered != domain.Unknown[bool]() {
+		t.Fatal("invalid target must not recover", recovered)
+	}
+}
+
+// Configured research and resource targets must be able to win a development
+// slot: a measured deficit ranks them alongside comfort and expansion instead
+// of leaving them permanently deficit_unknown.
+func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
+	p := DefaultRoundsPolicy()
+	p.ResearchLadder = []string{"Stonecutting"}
+	p.ResourceTargets = map[Resource]int64{"Steel": 100}
+	f := stableRounds()
+	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting"}})
+	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 40}})
+	r, err := DetectRounds(f, RoundsLatches{}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assessed := map[ConcernID]domain.Finding{}
+	for _, a := range r.Assessments {
+		assessed[a.ID] = a.Finding
+	}
+	if assessed[EnsureResearch] != domain.FindingUnmet || assessed[MaintainResource] != domain.FindingUnmet {
+		t.Fatal(assessed)
+	}
+	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := map[ConcernID]DevelopmentRow{}
+	for _, row := range state.Rows {
+		selected[row.Goal] = row
+	}
+	if !selected[EnsureResearch].Selected || selected[EnsureResearch].Score != 100 {
+		t.Fatal(selected[EnsureResearch])
+	}
+	if !selected[MaintainResource].Selected || selected[MaintainResource].Score != 60 {
+		t.Fatal(selected[MaintainResource])
+	}
+	// Missing native facts keep a configured resource target unknown, never
+	// recovered; the research ladder is not walked without a census.
+	f.Research, f.Resources = domain.Unknown[ResearchFacts](), domain.Unknown[[]Amount]()
+	r, err = DetectRounds(f, RoundsLatches{}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range r.Assessments {
+		if a.ID == MaintainResource && a.Finding != domain.FindingUnclear {
+			t.Fatal(a)
+		}
+	}
+}
+
+// A MaintainResource deficit whose bench waits on a recorded research need
+// holds no development slot of its own: with one slot, EnsureResearch takes
+// it; once the project is finished the resource goal competes again.
+func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
+	p := DefaultRoundsPolicy()
+	p.ResourceTargets = map[Resource]int64{"MeleeWeapon_Gladius": 1}
+	f := stableRounds()
+	f.ResearchNeeds = []string{"Smithing"}
+	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
+	f.Resources = domain.Known([]Amount{})
+	rank := func() map[ConcernID]DevelopmentRow {
+		r, err := DetectRounds(f, RoundsLatches{}, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows := map[ConcernID]DevelopmentRow{}
+		for _, row := range state.Rows {
+			rows[row.Goal] = row
+		}
+		return rows
+	}
+	rows := rank()
+	if !rows[EnsureResearch].Selected || rows[MaintainResource].Reason != DevelopmentMethodUnavailable {
+		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
+	}
+	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}, Finished: []ResearchProjectID{"Smithing"}})
+	rows = rank()
+	if _, raised := rows[EnsureResearch]; raised || !rows[MaintainResource].Selected {
+		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
+	}
+}
+
+// A derived resource need (the defensive layout's turret fuel the census
+// found no stock of, #205) opens MaintainResource without an operator
+// target, and stock at the derived floor recovers it.
+func TestDerivedResourceNeedOpensMaintainResource(t *testing.T) {
+	p := DefaultRoundsPolicy()
+	f := stableRounds()
+	f.ResourceNeeds = map[Resource]int64{"Steel": 60}
+	f.Resources = domain.Known([]Amount{{Resource: "WoodLog", Count: 400}})
+	r, err := DetectRounds(f, RoundsLatches{}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNeed(r, MaintainResource) {
+		t.Fatal("derived need did not open MaintainResource")
+	}
+	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 60}})
+	if r, err = DetectRounds(f, RoundsLatches{}, p); err != nil || hasNeed(r, MaintainResource) {
+		t.Fatal("stocked derived need still a deficit", err)
+	}
+}

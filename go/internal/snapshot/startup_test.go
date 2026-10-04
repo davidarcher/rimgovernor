@@ -19,7 +19,7 @@ const (
 	shelterRecovered = "testdata/startup-shelter-recovered.json.gz"
 )
 
-func deficits(t *testing.T, path string) (Routine, map[policy.ConcernID]bool) {
+func deficits(t *testing.T, path string) (Rounds, map[policy.ConcernID]bool) {
 	t.Helper()
 	r, err := Load(path)
 	if err != nil {
@@ -71,7 +71,7 @@ func TestReplayUpkeepOutlivesTheRecoveredShelter(t *testing.T) {
 // A wood shortage does not retire the owed shelter (#758): with the
 // recorded review's wood census emptied, the initial shelter stays open
 // and MaintainResource opens beside it to chop the wood back, so the
-// adopted shell holds (TestRoutineShelterHoldsThroughWoodShortage) rather
+// adopted shell holds (TestRoundsShelterHoldsThroughWoodShortage) rather
 // than the goal closing and a second shell being sited once wood returns.
 func TestReplayWoodShortageKeepsTheShelterOwed(t *testing.T) {
 	t.Parallel()

@@ -114,7 +114,7 @@ type TradeSelectionFacts struct {
 	// SelectFavorSale decides it, selling gold above FavorKeep.
 	Favor     bool
 	FavorKeep int64
-	// FavorPrisoners are the surplus prisoners (RoutineFacts.SurplusPrisoners,
+	// FavorPrisoners are the surplus prisoners (RoundsFacts.SurplusPrisoners,
 	// by pawn id) a favor session sells (#1971).
 	FavorPrisoners map[string]bool
 }
@@ -393,7 +393,7 @@ func sellRows(out *TradeSelection, rows []TradeSheetRowFact, stopped map[string]
 	}
 }
 
-// artMinSellPrice is the surplus sale's MinSellPrice (RoutineTradeTargets):
+// artMinSellPrice is the surplus sale's MinSellPrice (RoundsTradeTargets):
 // any positive price.
 const artMinSellPrice = math.SmallestNonzeroFloat64
 

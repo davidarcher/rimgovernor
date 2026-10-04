@@ -17,14 +17,14 @@ func completedStockpile(t *testing.T, zone string) (*Store, string, domain.Gener
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "zones.db")
 	s := open(t, path)
-	r := animalFeedRoutineRequest()
-	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainAnimalFeed)
+	r := animalFeedRoundsRequest()
+	g := roundsGoal(t, reviewRounds(t, s, &r), policy.MaintainAnimalFeed)
 	p := stockpilePlan(t, "storage-plan", []domain.Cell{{X: 3, Z: 7}})
 	a := p.Actions()[0]
 	current := r.Current
 	current.Plan, current.Revision = p.ID(), p.Revision()
 	preview := policy.Preview{Action: a, Snapshot: current, Tick: 10, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known([]domain.Cell{{X: 3, Z: 7}}), Costs: domain.Known([]policy.Amount{})}
-	request := BuildingMethodRequest{Owner: g, Method: "food-storage", Plan: p, Current: current, Tick: 10, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Routine,
+	request := BuildingMethodRequest{Owner: g, Method: "food-storage", Plan: p, Current: current, Tick: 10, Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}), Purpose: policy.Rounds,
 		Stock: policy.StockObservation{Snapshot: current, Tick: 10, Values: []policy.Stock{}}, Previews: []policy.Preview{preview}}
 	d, err := s.AdmitBuildingMethod(ctx, request)
 	if err != nil || !d.Admitted {

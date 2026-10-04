@@ -155,7 +155,7 @@ func AnimalCareBase(a UpkeepAnimal) (domain.MedicalCare, bool) {
 // MedicalCareChanges are the care settings to write: every pawn whose known
 // care differs from its cap. A pawn with unknown care, unknown cap inputs
 // or an unknown census is left alone.
-func MedicalCareChanges(f RoutineFacts, p MedicalReservePolicy) []domain.PawnSettings {
+func MedicalCareChanges(f RoundsFacts, p MedicalReservePolicy) []domain.PawnSettings {
 	var out []domain.PawnSettings
 	add := func(id PawnID, current domain.Fact[string], want domain.MedicalCare, ok bool) {
 		care, known := current.Value()
@@ -211,7 +211,7 @@ func MedicalCareChanges(f RoutineFacts, p MedicalReservePolicy) []domain.PawnSet
 
 // MedicalCareOwed is the review's MedicalCareOwed fact: a care change is
 // owed. Unknown pawns owe nothing.
-func MedicalCareOwed(f RoutineFacts, p MedicalReservePolicy) domain.Fact[bool] {
+func MedicalCareOwed(f RoundsFacts, p MedicalReservePolicy) domain.Fact[bool] {
 	return domain.Known(len(MedicalCareChanges(f, p)) > 0)
 }
 

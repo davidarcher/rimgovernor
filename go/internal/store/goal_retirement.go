@@ -9,7 +9,7 @@ import (
 
 // Retirement retains identities, methods and progress. Only invalidated
 // autopilot goals without observation or cleanup obligations leave capacity.
-func retireRoutineGoals(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
+func retireRoundsGoals(ctx context.Context, tx *sql.Tx, retained map[domain.ConcernID]bool) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards WHERE retired=0 ORDER BY id LIMIT 257")
 	if err != nil {
 		return err

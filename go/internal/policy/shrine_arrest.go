@@ -5,7 +5,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // ShrineArrestTarget routes the same OccupantCapture decision the journal
 // records. Ordinary visitors, hostile ancients and downed capture candidates
 // cannot enter this standing-neutral path. Unknown capacity authorizes nobody.
-func ShrineArrestTarget(f RoutineFacts) domain.PawnID {
+func ShrineArrestTarget(f RoundsFacts) domain.PawnID {
 	room, known := JoinerCapacity(f.JoinerCapacity()).Value()
 	if !known || !room {
 		return ""

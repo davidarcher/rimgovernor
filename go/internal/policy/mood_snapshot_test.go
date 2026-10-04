@@ -104,7 +104,7 @@ func TestMoodProvisionDefersRecordedEnvironmentPressure(t *testing.T) {
 // subdue squad and the rescue are chosen by the defense and rescue step
 // planners from reads outside the rounds, so their inputs were
 // recorded by a temporary dump at the policy call (buildingruntime
-// planBreak -> SelectBreakSquad, RoutineRescuePlanner -> SelectRescue)
+// planBreak -> SelectBreakSquad, RoundsRescuePlanner -> SelectRescue)
 // during `acceptance run mood/berserk` at 4e86b4663: the tribal8 fixture
 // with Thing_Human728 berserk and the two melee-armed squad pawns
 // Thing_Human724/726 standing beside it. That run completed the subdue and

@@ -70,7 +70,7 @@ func TestConcernTypeOfCoversEveryConcernID(t *testing.T) {
 }
 
 func TestValidateInspectionsRefusesFaults(t *testing.T) {
-	noop := func(*routineRun) error { return nil }
+	noop := func(*roundsRun) error { return nil }
 	ok := Inspection{"A", StandardConcern, DepartmentFood, []FactFamily{FactColony}, noop}
 	for name, c := range map[string]struct {
 		ds  []Inspection

@@ -13,7 +13,7 @@ import (
 // Room_4 over (10..19, 10..19) with a 1x2 table at (15,15)-(15,16), and
 // colonists eating need nutrition a day each.
 func mealSpotColony(needs ...float64) (*observation.ColonyProjection, []domain.Cell) {
-	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 30, Height: 30}, Facts: policy.RoutineFacts{Colonists: domain.Known(int64(len(needs)))}}
+	projection := &observation.ColonyProjection{Bounds: policy.Bounds{Width: 30, Height: 30}, Facts: policy.RoundsFacts{Colonists: domain.Known(int64(len(needs)))}}
 	projection.Identity.Tick = 9000
 	var roomCells, adjacent []domain.Cell
 	for x := int32(0); x < 30; x++ {

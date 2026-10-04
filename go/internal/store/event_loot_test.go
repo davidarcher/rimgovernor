@@ -13,9 +13,9 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	ctx := context.Background()
 	path := memoryPath(t)
 	s := open(t, path)
-	r := routineRequest()
+	r := roundsRequest()
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{})
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	s.Close()
 	s = open(t, path)
 	defer s.Close()
@@ -24,13 +24,13 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	// A safe forbidden stack outside any known extent is a reach hold, not
 	// an Allow (#522); the base extent covering its cell admits it.
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{row})
-	out := reviewRoutine(t, s, &r)
+	out := reviewRounds(t, s, &r)
 	if len(out.Review.EventLoot.Pending) != 0 || len(out.Review.EventLoot.Held) != 1 || out.Review.EventLoot.Held[0].Reason != "bounds_unknown" {
 		t.Fatal(out.Review.EventLoot)
 	}
 	lootExtentFacts(t, &r.Facts, cell)
-	out = reviewRoutine(t, s, &r)
-	goal := routineGoal(t, out, policy.ManageSupplySafety)
+	out = reviewRounds(t, s, &r)
+	goal := roundsGoal(t, out, policy.ManageSupplySafety)
 	if goal.Standard.Finding != domain.FindingUnmet || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
 		t.Fatal(out)
 	}
@@ -39,15 +39,15 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	}
 	row.Forbidden = false
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{row})
-	reviewRoutine(t, s, &r)
+	reviewRounds(t, s, &r)
 	row.Forbidden = true
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{row})
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	if len(out.Review.EventLoot.Pending) != 1 {
 		t.Fatal("safe re-forbid not adopted")
 	}
 	r.Current.Load = "new-load"
-	out = reviewRoutine(t, s, &r)
+	out = reviewRounds(t, s, &r)
 	if len(out.Review.EventLoot.Pending) != 1 {
 		t.Fatal("new load did not re-evaluate safety", out)
 	}
@@ -55,7 +55,7 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 
 // lootExtentFacts puts one wall and its Home coverage at cell, so the
 // derived colony extent covers it.
-func lootExtentFacts(t *testing.T, f *policy.RoutineFacts, cell domain.Cell) {
+func lootExtentFacts(t *testing.T, f *policy.RoundsFacts, cell domain.Cell) {
 	t.Helper()
 	b, err := domain.NewBuilding("Wall", cell, domain.North, "WoodLog")
 	if err != nil {
@@ -69,11 +69,11 @@ func lootExtentFacts(t *testing.T, f *policy.RoutineFacts, cell domain.Cell) {
 func TestSafetyForbidPersistsAsDistinctAction(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	r := routineRequest()
+	r := roundsRequest()
 	cell := domain.Cell{X: 70, Z: 80}
 	r.Facts.EventLoot = domain.Known([]policy.LootItem{{SafetyKnown: true, Supply: policy.StartingSupply{Thing: "loot", Definition: "Steel", Cell: cell}}})
-	out := reviewRoutine(t, s, &r)
-	goal := routineGoal(t, out, policy.ManageSupplySafety)
+	out := reviewRounds(t, s, &r)
+	goal := roundsGoal(t, out, policy.ManageSupplySafety)
 	target, err := domain.NewSupplyForbid("loot", "Steel", cell)
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))
-	request := routineRequest()
+	request := roundsRequest()
 	request.Current.Native = 1
 	cell := domain.Cell{X: 1, Z: 2}
 	request.Facts.StartingSupplies = domain.Known(supplyCohort(2, cell))
@@ -114,14 +114,14 @@ func TestUnsafeItemAllowVetoedAtDispatchOnly(t *testing.T) {
 		{Supply: supplyCohort(1, cell)[0], Forbidden: true, SafetyKnown: true},
 		{Supply: policy.StartingSupply{Thing: "burning", Definition: "Steel", Cell: cell}, SafetyKnown: true},
 	})
-	review := reviewRoutine(t, s, &request)
+	review := reviewRounds(t, s, &request)
 	if got := review.Review.Unsafe; len(got) != 2 || got[0] != "burning" || got[1] != "item-0" {
 		t.Fatal("unsafe not recorded", got)
 	}
 	if len(review.Review.Emergency) != 0 {
 		t.Fatal("unsafe loot raised an emergency", review.Review.Emergency)
 	}
-	goal := routineProject(t, review, policy.AllowStartingSupplies)
+	goal := roundsProject(t, review, policy.AllowStartingSupplies)
 	plan := supplyPlan(t, "allow", 2, cell)
 	if _, err := s.CommitProjectMethod(ctx, goal.Project.ID, goal.Revision, "allow", "", plan); err != nil {
 		t.Fatal(err)

@@ -119,7 +119,7 @@ func (rec *streamWriter) append(line streamLine) error {
 // line: a keyframe, then a patch against the previous review. A bound
 // field the mirror sections recorded in the stream materialise exactly is
 // left to them (mirror.go).
-func Record(dir string, r Routine) error {
+func Record(dir string, r Rounds) error {
 	tree, err := encodeTree(r)
 	if err != nil {
 		return err
@@ -162,10 +162,10 @@ func Record(dir string, r Routine) error {
 // encodeTree is r's Encode JSON as a generic tree (objects, slices,
 // json.Number and other scalars) the patches diff. The projection's Facts
 // ride once, as FromReview and Compress leave them.
-func encodeTree(r Routine) (any, error) {
+func encodeTree(r Rounds) (any, error) {
 	if r.Projection != nil {
 		trimmed := *r.Projection
-		trimmed.Facts = policy.RoutineFacts{}
+		trimmed.Facts = policy.RoundsFacts{}
 		r.Projection = &trimmed
 	}
 	data, err := Encode(r)
@@ -410,11 +410,11 @@ func (r Review) String() string { return fmt.Sprintf("%d-%d", r.Tick, r.Seq) }
 // Replay steps through the stream at path in order, calling fn with each
 // review that want accepts (nil accepts all) until fn returns false. Only
 // accepted reviews are decoded; the rest are patched as trees.
-func Replay(path string, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
+func Replay(path string, want func(Review) bool, fn func(Review, Rounds) (bool, error)) error {
 	return replayFrom(path, 0, want, fn)
 }
 
-func replayFrom(path string, from int64, want func(Review) bool, fn func(Review, Routine) (bool, error)) error {
+func replayFrom(path string, from int64, want func(Review) bool, fn func(Review, Rounds) (bool, error)) error {
 	return walkFrom(path, from, func(line streamLine, st *replayState) (bool, error) {
 		if line.Section != nil || line.Step != nil || line.combat() {
 			return true, nil
@@ -427,7 +427,7 @@ func replayFrom(path string, from int64, want func(Review) bool, fn func(Review,
 		if err != nil {
 			return false, err
 		}
-		r, err := treeRoutine(tree)
+		r, err := treeRounds(tree)
 		if err != nil {
 			return false, err
 		}
@@ -510,12 +510,12 @@ func walkFrom(path string, from int64, visit func(streamLine, *replayState) (boo
 	}
 }
 
-func treeRoutine(tree any) (Routine, error) {
+func treeRounds(tree any) (Rounds, error) {
 	data, err := json.Marshal(tree)
 	if err != nil {
-		return Routine{}, err
+		return Rounds{}, err
 	}
-	return decodeRoutine(data)
+	return decodeRounds(data)
 }
 
 // Reviews lists the reviews a stream recorded, in order.
@@ -527,12 +527,12 @@ func Reviews(path string) ([]Review, error) {
 
 // LoadReview materialises one review of the stream at path: seq 0 takes the
 // last review at tick.
-func LoadReview(path string, tick domain.Tick, seq int) (Routine, error) {
-	var out Routine
+func LoadReview(path string, tick domain.Tick, seq int) (Rounds, error) {
+	var out Rounds
 	found := false
 	err := seek(path, reviewBefore(tick, seq), func(from int64) (bool, error) {
 		found = false
-		err := replayFrom(path, from, func(r Review) bool { return r.Tick == tick && (seq == 0 || r.Seq == seq) }, func(_ Review, r Routine) (bool, error) {
+		err := replayFrom(path, from, func(r Review) bool { return r.Tick == tick && (seq == 0 || r.Seq == seq) }, func(_ Review, r Rounds) (bool, error) {
 			out, found = r, true
 			return seq == 0, nil
 		})
@@ -543,11 +543,11 @@ func LoadReview(path string, tick domain.Tick, seq int) (Routine, error) {
 	}
 	reviews, err := Reviews(path)
 	if err != nil {
-		return Routine{}, err
+		return Rounds{}, err
 	}
 	ticks := make([]string, 0, len(reviews))
 	for _, r := range reviews {
 		ticks = append(ticks, r.String())
 	}
-	return Routine{}, fmt.Errorf("%s: no review %d (seq %d); recorded %s", path, tick, seq, strings.Join(ticks, " "))
+	return Rounds{}, fmt.Errorf("%s: no review %d (seq %d); recorded %s", path, tick, seq, strings.Join(ticks, " "))
 }

@@ -30,84 +30,84 @@ type wallClock struct{}
 func (wallClock) Now() time.Time { return time.Now() }
 
 type serveConfig struct {
-	bridge                          bridge.ProcessConfig
-	flightRecorder                  string
-	state, listen, assets           string
-	profile                         string
-	playerControl                   bool
-	clockControl                    bool
-	roundsEnabled                   bool
-	routineSleepingPlans            bool
-	routineAcquisitionPlans         bool
-	routineFieldPlans               bool
-	routineBillPlans                bool
-	routineWorkPlans                bool
-	routineSupplyPlans              bool
-	routineCookingPlans             bool
-	routineShelterPlans             bool
-	routineComfortPlans             bool
-	routineWorkshopPlans            bool
-	routineResearchPlans            bool
-	routineHospitalPlans            bool
-	routineExpansionPlans           bool
-	routinePowerPlans               bool
-	routineTemperaturePlans         bool
-	routineDefensePlans             bool
-	routineTendPlans                bool
-	routineRescuePlans              bool
-	routineEquipPlans               bool
-	routineRepairPlans              bool
-	routineFireSafetyPlans          bool
-	routineCleanPlans               bool
-	routineWastePlans               bool
-	routineBlightPlans              bool
-	routinePollutionPlans           bool
-	routineMechChargerPlans         bool
-	routineGeneBankPlans            bool
-	routineArmoryPlans              bool
-	routineClearancePlans           bool
-	routineShrinePlans              bool
-	routineTidyPlans                bool
-	routineStockpilePlans           bool
-	routineMoodPlans                bool
-	routineGearPlans                bool
-	routineMedicalPlans             bool
-	routineFoodStorageUpkeepPlans   bool
-	routineRefrigerationPlans       bool
-	routineLightingPlans            bool
-	routineArtPlans                 bool
-	routineMechPlans                bool
-	routineFlooringPlans            bool
-	routineRoutesPlans              bool
-	routineAnimalContainmentPlans   bool
-	routineRecoveryPlans            bool
-	routineHusbandryPlans           bool
-	layoutOverlay                   bool
-	routinePrisonerInteractionPlans bool
-	routinePopulationCustodyPlans   bool
-	routinePopulationJoinerPlans    bool
-	routineHomeCoveragePlans        bool
-	routineShelteringPlans          bool
-	routineFirebreakPlans           bool
-	routinePsylinkPlans             bool
-	routineCreepJoinerPlans         bool
-	routinePermitPlans              bool
-	routineIdeoRolePlans            bool
-	routineRitualPlans              bool
-	routineStoneShellPlans          bool
-	routineDefensiveLayoutPlans     bool
-	routineNamingPlans              bool
-	routineDialogPlans              bool
-	routineTradePlans               bool
-	routineResourcePlans            bool
-	routineAnimalFeedPlans          bool
-	routineMethods                  bool
-	refresh                         time.Duration
-	clockTestAcceleration           bool
-	clockBlindTicks                 uint
-	resume                          bool
-	pprof                           bool
-	debug                           bool
+	bridge                         bridge.ProcessConfig
+	flightRecorder                 string
+	state, listen, assets          string
+	profile                        string
+	playerControl                  bool
+	clockControl                   bool
+	roundsEnabled                  bool
+	roundsSleepingPlans            bool
+	roundsAcquisitionPlans         bool
+	roundsFieldPlans               bool
+	roundsBillPlans                bool
+	roundsWorkPlans                bool
+	roundsSupplyPlans              bool
+	roundsCookingPlans             bool
+	roundsShelterPlans             bool
+	roundsComfortPlans             bool
+	roundsWorkshopPlans            bool
+	roundsResearchPlans            bool
+	roundsHospitalPlans            bool
+	roundsExpansionPlans           bool
+	roundsPowerPlans               bool
+	roundsTemperaturePlans         bool
+	roundsDefensePlans             bool
+	roundsTendPlans                bool
+	roundsRescuePlans              bool
+	roundsEquipPlans               bool
+	roundsRepairPlans              bool
+	roundsFireSafetyPlans          bool
+	roundsCleanPlans               bool
+	roundsWastePlans               bool
+	roundsBlightPlans              bool
+	roundsPollutionPlans           bool
+	roundsMechChargerPlans         bool
+	roundsGeneBankPlans            bool
+	roundsArmoryPlans              bool
+	roundsClearancePlans           bool
+	roundsShrinePlans              bool
+	roundsTidyPlans                bool
+	roundsStockpilePlans           bool
+	roundsMoodPlans                bool
+	roundsGearPlans                bool
+	roundsMedicalPlans             bool
+	roundsFoodStorageUpkeepPlans   bool
+	roundsRefrigerationPlans       bool
+	roundsLightingPlans            bool
+	roundsArtPlans                 bool
+	roundsMechPlans                bool
+	roundsFlooringPlans            bool
+	roundsRoutesPlans              bool
+	roundsAnimalContainmentPlans   bool
+	roundsRecoveryPlans            bool
+	roundsHusbandryPlans           bool
+	layoutOverlay                  bool
+	roundsPrisonerInteractionPlans bool
+	roundsPopulationCustodyPlans   bool
+	roundsPopulationJoinerPlans    bool
+	roundsHomeCoveragePlans        bool
+	roundsShelteringPlans          bool
+	roundsFirebreakPlans           bool
+	roundsPsylinkPlans             bool
+	roundsCreepJoinerPlans         bool
+	roundsPermitPlans              bool
+	roundsIdeoRolePlans            bool
+	roundsRitualPlans              bool
+	roundsStoneShellPlans          bool
+	roundsDefensiveLayoutPlans     bool
+	roundsNamingPlans              bool
+	roundsDialogPlans              bool
+	roundsTradePlans               bool
+	roundsResourcePlans            bool
+	roundsAnimalFeedPlans          bool
+	roundsMethods                  bool
+	refresh                        time.Duration
+	clockTestAcceleration          bool
+	clockBlindTicks                uint
+	resume                         bool
+	pprof                          bool
+	debug                          bool
 }
 
 // Fixed serve settings that were flags until #875.
@@ -115,11 +115,11 @@ const (
 	serveRefresh = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
 )
 
-// routineFamiliesEnv names the environment variable that narrows the routine
+// roundsFamiliesEnv names the environment variable that narrows the routine
 // planner families an autonomous serve composes, for targeted/debug runs. It
-// is a comma-separated list of the names in routineFamilies; empty or unset
+// is a comma-separated list of the names in roundsFamilies; empty or unset
 // composes every family.
-const routineFamiliesEnv = "RIMGOVERNOR_ROUTINE_FAMILIES"
+const roundsFamiliesEnv = "RIMGOVERNOR_ROUTINE_FAMILIES"
 
 // lookupEnv is os.LookupEnv, replaceable by tests.
 var lookupEnv = os.LookupEnv
@@ -158,12 +158,12 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
 		}
-		if _, set := lookupEnv(routineFamiliesEnv); set {
-			return c, fmt.Errorf("%s does not apply to --observe", routineFamiliesEnv)
+		if _, set := lookupEnv(roundsFamiliesEnv); set {
+			return c, fmt.Errorf("%s does not apply to --observe", roundsFamiliesEnv)
 		}
 	} else {
-		c.playerControl, c.clockControl, c.roundsEnabled, c.routineMethods = true, true, true, true
-		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
+		c.playerControl, c.clockControl, c.roundsEnabled, c.roundsMethods = true, true, true, true
+		if err := c.selectRoundsFamilies(lookupEnv(roundsFamiliesEnv)); err != nil {
 			return c, err
 		}
 		if !filepath.IsAbs(c.profile) {
@@ -203,10 +203,10 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	return c, nil
 }
 
-// selectRoutineFamilies enables every routine planner family, or exactly the
+// selectRoundsFamilies enables every routine planner family, or exactly the
 // comma-separated names in selection when it is non-empty.
-func (c *serveConfig) selectRoutineFamilies(selection string, set bool) error {
-	families := routineFamilies(c)
+func (c *serveConfig) selectRoundsFamilies(selection string, set bool) error {
+	families := roundsFamilies(c)
 	if !set || strings.TrimSpace(selection) == "" {
 		for _, entry := range families {
 			*entry.Enabled = true
@@ -221,88 +221,88 @@ func (c *serveConfig) selectRoutineFamilies(selection string, set bool) error {
 		name = strings.TrimSpace(name)
 		enabled, ok := byName[name]
 		if !ok {
-			return fmt.Errorf("%s: unknown routine family %q", routineFamiliesEnv, name)
+			return fmt.Errorf("%s: unknown routine family %q", roundsFamiliesEnv, name)
 		}
 		*enabled = true
 	}
 	return nil
 }
 
-// routineFamily names one routine planner family alongside a pointer into
+// roundsFamily names one routine planner family alongside a pointer into
 // the serveConfig that enables it.
-type routineFamily struct {
+type roundsFamily struct {
 	Name    string
 	Enabled *bool
 }
 
-// routineFamilies lists every routine planner family, in composition order.
+// roundsFamilies lists every routine planner family, in composition order.
 // It backs the autonomous default (every family on), RIMGOVERNOR_ROUTINE_FAMILIES
 // selection and the /api/routines diagnostics family list.
-func routineFamilies(c *serveConfig) []routineFamily {
-	return []routineFamily{
-		{"sleeping", &c.routineSleepingPlans},
-		{"bill", &c.routineBillPlans},
-		{"field", &c.routineFieldPlans},
-		{"acquisition", &c.routineAcquisitionPlans},
-		{"work", &c.routineWorkPlans},
-		{"supply", &c.routineSupplyPlans},
-		{"cooking", &c.routineCookingPlans},
-		{"shelter", &c.routineShelterPlans},
-		{"comfort", &c.routineComfortPlans},
-		{"workshop", &c.routineWorkshopPlans},
-		{"research", &c.routineResearchPlans},
-		{"hospital", &c.routineHospitalPlans},
-		{"expansion", &c.routineExpansionPlans},
-		{"temperature", &c.routineTemperaturePlans},
-		{"power", &c.routinePowerPlans},
-		{"defense", &c.routineDefensePlans},
-		{"tend", &c.routineTendPlans},
-		{"rescue", &c.routineRescuePlans},
-		{"equip", &c.routineEquipPlans},
-		{"repair", &c.routineRepairPlans},
-		{"fire", &c.routineFireSafetyPlans},
-		{"clean", &c.routineCleanPlans},
-		{"waste", &c.routineWastePlans},
-		{"blight", &c.routineBlightPlans},
-		{"pollution", &c.routinePollutionPlans},
-		{"mechcharger", &c.routineMechChargerPlans},
-		{"genebank", &c.routineGeneBankPlans},
-		{"armory", &c.routineArmoryPlans},
-		{"clearance", &c.routineClearancePlans},
-		{"shrine", &c.routineShrinePlans},
-		{"tidy", &c.routineTidyPlans},
-		{"stockpiles", &c.routineStockpilePlans},
-		{"mood", &c.routineMoodPlans},
-		{"gear", &c.routineGearPlans},
-		{"medical", &c.routineMedicalPlans},
-		{"food-storage-upkeep", &c.routineFoodStorageUpkeepPlans},
-		{"refrigeration", &c.routineRefrigerationPlans},
-		{"lighting", &c.routineLightingPlans},
-		{"art", &c.routineArtPlans},
-		{"mechs", &c.routineMechPlans},
-		{"flooring", &c.routineFlooringPlans},
-		{"routes", &c.routineRoutesPlans},
-		{"animal-containment", &c.routineAnimalContainmentPlans},
-		{"recovery", &c.routineRecoveryPlans},
-		{"husbandry", &c.routineHusbandryPlans},
-		{"prisoner-interaction", &c.routinePrisonerInteractionPlans},
-		{"population-custody", &c.routinePopulationCustodyPlans},
-		{"population-joiner", &c.routinePopulationJoinerPlans},
-		{"home-coverage", &c.routineHomeCoveragePlans},
-		{"sheltering", &c.routineShelteringPlans},
-		{"firebreak", &c.routineFirebreakPlans},
-		{"psylink", &c.routinePsylinkPlans},
-		{"creepjoiner", &c.routineCreepJoinerPlans},
-		{"permits", &c.routinePermitPlans},
-		{"ideo-roles", &c.routineIdeoRolePlans},
-		{"rituals", &c.routineRitualPlans},
-		{"stone-shell", &c.routineStoneShellPlans},
-		{"defensive-layout", &c.routineDefensiveLayoutPlans},
-		{"naming", &c.routineNamingPlans},
-		{"dialog", &c.routineDialogPlans},
-		{"trade", &c.routineTradePlans},
-		{"resource", &c.routineResourcePlans},
-		{"animal-feed", &c.routineAnimalFeedPlans},
+func roundsFamilies(c *serveConfig) []roundsFamily {
+	return []roundsFamily{
+		{"sleeping", &c.roundsSleepingPlans},
+		{"bill", &c.roundsBillPlans},
+		{"field", &c.roundsFieldPlans},
+		{"acquisition", &c.roundsAcquisitionPlans},
+		{"work", &c.roundsWorkPlans},
+		{"supply", &c.roundsSupplyPlans},
+		{"cooking", &c.roundsCookingPlans},
+		{"shelter", &c.roundsShelterPlans},
+		{"comfort", &c.roundsComfortPlans},
+		{"workshop", &c.roundsWorkshopPlans},
+		{"research", &c.roundsResearchPlans},
+		{"hospital", &c.roundsHospitalPlans},
+		{"expansion", &c.roundsExpansionPlans},
+		{"temperature", &c.roundsTemperaturePlans},
+		{"power", &c.roundsPowerPlans},
+		{"defense", &c.roundsDefensePlans},
+		{"tend", &c.roundsTendPlans},
+		{"rescue", &c.roundsRescuePlans},
+		{"equip", &c.roundsEquipPlans},
+		{"repair", &c.roundsRepairPlans},
+		{"fire", &c.roundsFireSafetyPlans},
+		{"clean", &c.roundsCleanPlans},
+		{"waste", &c.roundsWastePlans},
+		{"blight", &c.roundsBlightPlans},
+		{"pollution", &c.roundsPollutionPlans},
+		{"mechcharger", &c.roundsMechChargerPlans},
+		{"genebank", &c.roundsGeneBankPlans},
+		{"armory", &c.roundsArmoryPlans},
+		{"clearance", &c.roundsClearancePlans},
+		{"shrine", &c.roundsShrinePlans},
+		{"tidy", &c.roundsTidyPlans},
+		{"stockpiles", &c.roundsStockpilePlans},
+		{"mood", &c.roundsMoodPlans},
+		{"gear", &c.roundsGearPlans},
+		{"medical", &c.roundsMedicalPlans},
+		{"food-storage-upkeep", &c.roundsFoodStorageUpkeepPlans},
+		{"refrigeration", &c.roundsRefrigerationPlans},
+		{"lighting", &c.roundsLightingPlans},
+		{"art", &c.roundsArtPlans},
+		{"mechs", &c.roundsMechPlans},
+		{"flooring", &c.roundsFlooringPlans},
+		{"routes", &c.roundsRoutesPlans},
+		{"animal-containment", &c.roundsAnimalContainmentPlans},
+		{"recovery", &c.roundsRecoveryPlans},
+		{"husbandry", &c.roundsHusbandryPlans},
+		{"prisoner-interaction", &c.roundsPrisonerInteractionPlans},
+		{"population-custody", &c.roundsPopulationCustodyPlans},
+		{"population-joiner", &c.roundsPopulationJoinerPlans},
+		{"home-coverage", &c.roundsHomeCoveragePlans},
+		{"sheltering", &c.roundsShelteringPlans},
+		{"firebreak", &c.roundsFirebreakPlans},
+		{"psylink", &c.roundsPsylinkPlans},
+		{"creepjoiner", &c.roundsCreepJoinerPlans},
+		{"permits", &c.roundsPermitPlans},
+		{"ideo-roles", &c.roundsIdeoRolePlans},
+		{"rituals", &c.roundsRitualPlans},
+		{"stone-shell", &c.roundsStoneShellPlans},
+		{"defensive-layout", &c.roundsDefensiveLayoutPlans},
+		{"naming", &c.roundsNamingPlans},
+		{"dialog", &c.roundsDialogPlans},
+		{"trade", &c.roundsTradePlans},
+		{"resource", &c.roundsResourcePlans},
+		{"animal-feed", &c.roundsAnimalFeedPlans},
 	}
 }
 
@@ -310,24 +310,24 @@ func routineFamilies(c *serveConfig) []routineFamily {
 // exit criterion (policy.ReviewColonyStage): shelter, cooking, food storage
 // and basic defense. Only then can the measured colony stage climb.
 func (c serveConfig) footholdComposed() bool {
-	return (c.routineSleepingPlans || c.routineShelterPlans) && (c.routineBillPlans || c.routineCookingPlans) &&
-		c.routineStockpilePlans && (c.routineDefensePlans || c.routineEquipPlans)
+	return (c.roundsSleepingPlans || c.roundsShelterPlans) && (c.roundsBillPlans || c.roundsCookingPlans) &&
+		c.roundsStockpilePlans && (c.roundsDefensePlans || c.roundsEquipPlans)
 }
 
 // researchPlans reports whether EnsureResearch is composed: with the research
 // family, which always has the default research ladder (#230).
 func (c serveConfig) researchPlans() bool {
-	return c.routineResearchPlans
+	return c.roundsResearchPlans
 }
 
 func (c serveConfig) workshopPlans() bool {
-	return c.routineWorkshopPlans && (c.resourceTargetsConfigured() || c.routineGearPlans)
+	return c.roundsWorkshopPlans && (c.resourceTargetsConfigured() || c.roundsGearPlans)
 }
 
 // resourceTargetsConfigured reports whether MaintainResource runs: always
 // with the resource family, which keeps the default floors (#875).
 func (c serveConfig) resourceTargetsConfigured() bool {
-	return c.routineResourcePlans
+	return c.roundsResourcePlans
 }
 
 // resourceTargets is the MaintainResource floor map: the defaults
@@ -336,12 +336,12 @@ func (c serveConfig) resourceTargets() map[policy.Resource]int64 {
 	return policy.DefaultResourceTargets()
 }
 
-// activeRoutineFamilies reports the name of every routine planner family this
+// activeRoundsFamilies reports the name of every routine planner family this
 // configuration enabled, for runtime diagnostics.
-func (c serveConfig) activeRoutineFamilies() []string {
+func (c serveConfig) activeRoundsFamilies() []string {
 	cp := c
 	var names []string
-	for _, entry := range routineFamilies(&cp) {
+	for _, entry := range roundsFamilies(&cp) {
 		if *entry.Enabled {
 			names = append(names, entry.Name)
 		}

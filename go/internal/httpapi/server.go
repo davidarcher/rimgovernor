@@ -214,7 +214,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			s.failure(w, r, 404, "not_found", "Routine diagnostics are not enabled")
 			return
 		}
-		status, err := s.config.Routines.RoutineStatus(ctx)
+		status, err := s.config.Routines.RoundsStatus(ctx)
 		if err == nil {
 			err = ctx.Err()
 		}
@@ -222,7 +222,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			s.readFailure(w, r, err)
 			return
 		}
-		s.write(w, r, 200, routineStatus(status))
+		s.write(w, r, 200, roundsStatus(status))
 	case "/api/plan":
 		ids := query["id"]
 		if len(query) != 1 || len(ids) != 1 || strings.TrimSpace(ids[0]) == "" || len(ids[0]) > 256 || !utf8.ValidString(ids[0]) {

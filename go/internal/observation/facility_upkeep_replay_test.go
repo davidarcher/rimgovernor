@@ -123,12 +123,12 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 		t.Fatal(stones, err)
 	}
 	projection.Facts.CurrentConstruction = current
-	request := store.RoundsRequest{Revision: retained.Revision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: projection.Facts}
+	request := store.RoundsRequest{Revision: retained.Revision, Current: retained.Snapshot, Tick: identity.Tick, Enabled: true, Policy: policy.DefaultRoundsPolicy(), Facts: projection.Facts}
 	request.Current.Native, known = identity.NativeGeneration.Value()
 	if !known {
 		t.Fatal("native replay generation unavailable")
 	}
-	active, err := db.ReviewRoutine(ctx, request)
+	active, err := db.ReviewRounds(ctx, request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	assertNeeds(active.Review, domain.FindingUnmet)
 	request.Revision = active.Review.Revision
 	request.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
-	active, err = db.ReviewRoutine(ctx, request)
+	active, err = db.ReviewRounds(ctx, request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 		t.Fatal("unknown query erased native history")
 	}
 	request.Revision, request.Enabled = active.Review.Revision, false
-	if _, err = db.ReviewRoutine(ctx, request); err != nil {
+	if _, err = db.ReviewRounds(ctx, request); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()

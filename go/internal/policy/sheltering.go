@@ -141,7 +141,7 @@ const (
 // cold snap or heat wave whose outdoor temperature is outside the sleeping
 // comfort range, or hostiles on the map (a raid or manhunter pack). Known
 // false only when every trigger is known clear.
-func ShelterTriggerOf(f RoutineFacts) (ShelterTrigger, bool) {
+func ShelterTriggerOf(f RoundsFacts) (ShelterTrigger, bool) {
 	conditions, ck := f.DisasterConditions.Value()
 	weather := false
 	for _, c := range conditions {
@@ -178,7 +178,7 @@ func ShelterTriggerOf(f RoutineFacts) (ShelterTrigger, bool) {
 // back to unrestricted once it is known closed; other areas are left to
 // their own planners. It keeps no history: the same facts give the
 // same moves after a restart or reload.
-func PlanSheltering(f RoutineFacts) []AllowedAreaChange {
+func PlanSheltering(f RoundsFacts) []AllowedAreaChange {
 	safe, _ := f.ShelterArea.Value()
 	trigger, tk := ShelterTriggerOf(f)
 	if !tk {
@@ -261,7 +261,7 @@ func areaKnownFalse(f domain.Fact[bool]) bool { v, k := f.Value(); return k && !
 // colonist (at least one) is restricted to the Safe area. The clock window
 // then watches the threat instead of refusing it (#1560): sheltered
 // colonists wait it out on game time.
-func ShelterHeld(f RoutineFacts) bool {
+func ShelterHeld(f RoundsFacts) bool {
 	trigger, tk := ShelterTriggerOf(f)
 	safe, sk := f.ShelterArea.Value()
 	safety, known := f.RecoverySafety.Value()

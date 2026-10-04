@@ -172,9 +172,9 @@ func TestSelectJoinerMethodPicksTheLowestAnswerableOffer(t *testing.T) {
 	}
 }
 
-func TestRoutineFactsJoinerCapacityFallsBackToStockRunway(t *testing.T) {
+func TestRoundsFactsJoinerCapacityFallsBackToStockRunway(t *testing.T) {
 	t.Parallel()
-	f := RoutineFacts{FoodDays: domain.Known(4.0)}
+	f := RoundsFacts{FoodDays: domain.Known(4.0)}
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 4 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
 	}

@@ -260,7 +260,7 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	if err = p.session.Disable(); err != nil {
 		return store.ControlRecord{}, err
 	}
-	if _, err = p.stopRoutine(call); err != nil {
+	if _, err = p.stopRounds(call); err != nil {
 		return store.ControlRecord{}, err
 	}
 	if err = p.world(call, request.World); err != nil {
@@ -331,7 +331,7 @@ func (p *Player) Pause(ctx context.Context, request store.ControlRequest) (store
 		return store.ControlRecord{}, err
 	}
 	defer done()
-	if _, err = p.stopRoutine(call); err != nil {
+	if _, err = p.stopRounds(call); err != nil {
 		return store.ControlRecord{}, err
 	}
 	if request.Kind != store.PauseControl {

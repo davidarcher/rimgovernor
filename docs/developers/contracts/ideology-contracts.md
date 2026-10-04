@@ -9,7 +9,7 @@ concept is modelled once, and there is no Ideology read tool.
 | --- | --- | --- |
 | Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the catalog's generated def mirror (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
 | Per-pawn: ideoligion id, held role, certainty | Pawn row's `policy_inputs` (`ideo_id`, `ideo_role`, `ideo_certainty`) | `policy.PawnPolicyInputs` |
-| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` (#1347) | `bridge.RoutineFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
+| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` (#1347) | `bridge.RoundsFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
 
 Native names are from the game's reference assemblies (`PreceptDef`,
 `PreceptComp`, `MemeDef`, `RitualPatternDef`, `Ideo`, `Precept_Role`,
@@ -104,7 +104,7 @@ distinct DLC-absent signal: an absent ideology section alone is unread, never ab
 `policy.IdeologyRead.Absent`: the rule answers `allowed` ("Ideology not installed") and butchery
 falls through; unknown or `true` with no section stays unread and holds. An ideology section with
 `ideology_active` false fails the frame. Only butchery reads the signal so far
-(`RoutineFacts.IdeologyInstalled`, `IdeologyRead`). The game raises no history event for burying, entombing or
+(`RoundsFacts.IdeologyInstalled`, `IdeologyRead`). The game raises no history event for burying, entombing or
 burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing to bind to.
 
 ## Role assignment

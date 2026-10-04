@@ -25,7 +25,7 @@ func (e *Executor) runHaul(ctx context.Context, action domain.Action, p domain.P
 	}
 	expected := authority.Snapshot
 	if expected.Plan != v.Plan || expected.Revision != v.Revision {
-		if e.routineScope == nil {
+		if e.roundsScope == nil {
 			return result, ErrAuthority
 		}
 		expected.Plan, expected.Revision = v.Plan, v.Revision

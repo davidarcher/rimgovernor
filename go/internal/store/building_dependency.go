@@ -44,7 +44,7 @@ func checkDependencies(ctx context.Context, tx *sql.Tx, state PlanState, action 
 	if len(built) == 0 && len(cleared) == 0 {
 		return nil
 	}
-	review, err := loadRoutine(ctx, tx)
+	review, err := loadRounds(ctx, tx)
 	if err != nil {
 		return err
 	}

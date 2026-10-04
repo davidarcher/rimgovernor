@@ -77,7 +77,7 @@ func selfTend(ctx context.Context, s cases.Session) error {
 	if err := protojson.Unmarshal(data, id); err != nil {
 		return err
 	}
-	reply, _, err := h.Client.ReadRoutinePawns(ctx, id, []string{pawnID})
+	reply, _, err := h.Client.ReadRoundsPawns(ctx, id, []string{pawnID})
 	if err != nil {
 		return err
 	}

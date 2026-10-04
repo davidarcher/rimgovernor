@@ -34,7 +34,7 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 // AnimalShelterChoice is the husbandry write that shelters the pen animals
 // from exposure, one per cycle, derived from the animals' current allowed
 // area alone (no stored prior state): while the animal's race is in danger
-// outdoors (a hostile threat, RoutineFacts.Hostiles > 0 -- the colony's
+// outdoors (a hostile threat, RoundsFacts.Hostiles > 0 -- the colony's
 // non-distant Hostile and HuntingPredator holds -- endangers every race and
 // skips the weather reads; otherwise AnimalExposures over the pen animals'
 // races) an animal with no area restriction is let into the Barn area (allowed_area), and once its
@@ -45,7 +45,7 @@ func (p LayoutPlan) BarnCells(rooms RoomObservation) []domain.Cell {
 // removal fact. No standing Barn area or no pen animal chooses nothing; an
 // unread hostile count, or with no threat a race with no comfort range or an
 // unread census or temperature, is an error (ErrAnimalExposure).
-func (f RoutineFacts) AnimalShelterChoice() (HusbandryChoice, error) {
+func (f RoundsFacts) AnimalShelterChoice() (HusbandryChoice, error) {
 	none := HusbandryChoice{Reason: HusbandryNoDeficit}
 	rows, known := f.AnimalUpkeep.Animals.Value()
 	barn, barnKnown := f.BarnArea.Value()

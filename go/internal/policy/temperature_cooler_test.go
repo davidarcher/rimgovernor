@@ -39,7 +39,7 @@ func coolingReady(cells []SiteCell, spare float64) TemperatureCooling {
 
 func TestTemperaturePoweredCoolerThroughVentedWall(t *testing.T) {
 	v, cells := hotRoomSite(36)
-	got, err := SelectTemperatureMethod(domain.Known(v), coolingReady(cells, 500), DefaultRoutinePolicy(), RoutineLatches{})
+	got, err := SelectTemperatureMethod(domain.Known(v), coolingReady(cells, 500), DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Method != TemperatureCoolPowered || got.Room != "room" {
 		t.Fatal(got, err)
 	}
@@ -49,7 +49,7 @@ func TestTemperaturePoweredCoolerThroughVentedWall(t *testing.T) {
 	if len(got.Cells) != 9 {
 		t.Fatal("room cells not carried", got.Cells)
 	}
-	passive, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
+	passive, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || passive.Method != TemperatureCool || passive.Key == got.Key {
 		t.Fatal("powered and passive methods must be distinct methods", passive, err)
 	}
@@ -88,14 +88,14 @@ func TestTemperaturePoweredCoolerFallsBackToPassive(t *testing.T) {
 		}(),
 		"no-wall": coolingReady(nil, 500),
 	} {
-		got, err := SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoutinePolicy(), RoutineLatches{})
+		got, err := SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoundsPolicy(), RoundsLatches{})
 		if err != nil || got.Method != TemperatureCool {
 			t.Fatalf("%s: %+v %v", name, got, err)
 		}
 	}
 	// A cold room never gets a powered cooler.
 	cold, _ := hotRoomSite(5)
-	got, err := SelectTemperatureMethod(domain.Known(cold), coolingReady(cells, 500), DefaultRoutinePolicy(), RoutineLatches{})
+	got, err := SelectTemperatureMethod(domain.Known(cold), coolingReady(cells, 500), DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Method != TemperatureHeat {
 		t.Fatal(got, err)
 	}
@@ -107,14 +107,14 @@ func TestTemperatureWallCoolerCountsAsExisting(t *testing.T) {
 	topology, _ := cooling.Power.Value()
 	topology.Buildings = append(topology.Buildings, PowerSite{ID: "cooler", Definition: "Cooler", Cell: domain.Cell{X: 0, Z: 1}, PowerBuilding: PowerBuilding{BaseW: domain.Known(-200.0), Connected: domain.Known(true), Network: domain.Known("net")}})
 	cooling.Power = domain.Known(topology)
-	got, err := SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoutinePolicy(), RoutineLatches{})
+	got, err := SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Method != TemperatureWait {
 		t.Fatal("a cooler through the wall should hold the room as cooling", got, err)
 	}
 	// A cooler elsewhere on the map does not serve this room.
 	topology.Buildings[len(topology.Buildings)-1].Cell = domain.Cell{X: 20, Z: 20}
 	cooling.Power = domain.Known(topology)
-	got, err = SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoutinePolicy(), RoutineLatches{})
+	got, err = SelectTemperatureMethod(domain.Known(v), cooling, DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Method != TemperatureCoolPowered {
 		t.Fatal(got, err)
 	}
@@ -122,12 +122,12 @@ func TestTemperatureWallCoolerCountsAsExisting(t *testing.T) {
 
 func TestTemperatureHottestRoomFirst(t *testing.T) {
 	v := RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("warm", "a", 33, 1), thermalRoom("hot", "b", 40, 2)}}
-	got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
+	got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Room != "hot" {
 		t.Fatal(got, err)
 	}
 	v = RoomObservation{Shapes: testShapes, EligibleBeds: domain.Known([]string{"a", "b"}), Rooms: []Room{thermalRoom("cool", "a", 10, 1), thermalRoom("cold", "b", -5, 2)}}
-	got, err = SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
+	got, err = SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoundsPolicy(), RoundsLatches{})
 	if err != nil || got.Room != "cold" {
 		t.Fatal(got, err)
 	}

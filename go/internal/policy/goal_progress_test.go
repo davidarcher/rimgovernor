@@ -7,7 +7,7 @@ import (
 )
 
 func TestGoalProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
-	c := DefaultRoutinePolicy().AcquisitionProgress()
+	c := DefaultRoundsPolicy().AcquisitionProgress()
 	p := ReviewGoalProgress(GoalProgress{}, EnsureFoodSupply, c, ProgressEvidence{Open: true, Dispatched: true, WorkerAvailable: domain.Known(true)}, 1000)
 	if p.LastProgress != 1000 || p.NextReview != 1000+c.Deadline || p.Blocked != "" || p.Method != "harvest" {
 		t.Fatalf("fresh record %+v", p)
@@ -43,7 +43,7 @@ func TestGoalProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 }
 
 func TestGoalProgressDeadlineRotatesMethodWithCooldown(t *testing.T) {
-	policy := DefaultRoutinePolicy()
+	policy := DefaultRoundsPolicy()
 	hunt := policy.HuntProgress()
 	forage := policy.AcquisitionProgress()
 	p := ReviewGoalProgress(GoalProgress{}, EnsureFoodSupply, hunt, ProgressEvidence{Open: true, Dispatched: true}, 0)
@@ -92,7 +92,7 @@ func TestGoalProgressDeadlineRotatesMethodWithCooldown(t *testing.T) {
 }
 
 func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
-	hunt := DefaultRoutinePolicy().HuntProgress()
+	hunt := DefaultRoundsPolicy().HuntProgress()
 	p := GoalProgress{Goal: EnsureFoodSupply, Method: "hunt", NextReview: 100}
 	p, _ = ExpireGoalProgress(p, hunt, 100, CooldownKey("hunt", "Deer1", string(BlockedNoWorker)), nil)
 	if !p.Cooled(CooldownKey("hunt", "Deer1", string(BlockedNoWorker)), 200) {
@@ -109,26 +109,26 @@ func TestGoalProgressCooldownLiftsWhenConditionChanges(t *testing.T) {
 }
 
 func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T) {
-	f := RoutineFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), FoodStorage: domain.Known(true)}
-	c, prerequisite, observed := FoodProgress(f, DefaultRoutinePolicy(), false)
+	f := RoundsFacts{FoodDays: domain.Known(3.5), Cooking: domain.Known(false), FoodStorage: domain.Known(true)}
+	c, prerequisite, observed := FoodProgress(f, DefaultRoundsPolicy(), false)
 	if v, known := observed.Value(); c.Method != "cook" || prerequisite != EnsureCooking || !known || v != 0.5 {
 		t.Fatalf("cook rung %+v %s %v", c, prerequisite, observed)
 	}
 	f.FoodDays = domain.Known(1.0)
-	c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false)
+	c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), false)
 	if c.Method != "acquire" || prerequisite != EnsureCooking {
 		t.Fatalf("acquire rung keeps the bench prerequisite %+v %s", c, prerequisite)
 	}
 	f.FoodDays, f.Cooking, f.FoodStorage = domain.Known(3.5), domain.Known(true), domain.Known(false)
-	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), true); c.Method != "store" || prerequisite != MaintainFoodStorage {
 		t.Fatalf("store rung %+v %s", c, prerequisite)
 	}
 	// Storage owed but no storage method open: the ladder falls to grow.
-	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("store rung without a method %+v %s", c, prerequisite)
 	}
 	f.FoodStorage = domain.Known(true)
-	if c, prerequisite, _ = FoodProgress(f, DefaultRoutinePolicy(), false); c.Method != "grow" || prerequisite != "" {
+	if c, prerequisite, _ = FoodProgress(f, DefaultRoundsPolicy(), false); c.Method != "grow" || prerequisite != "" {
 		t.Fatalf("grow rung %+v %s", c, prerequisite)
 	}
 	food := ReviewGoalProgress(GoalProgress{}, EnsureFoodSupply, ProgressContract{Method: "cook", Deadline: 10}, ProgressEvidence{Prerequisite: EnsureCooking}, 5)
