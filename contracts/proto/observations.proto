@@ -1147,18 +1147,11 @@ message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Re
 // assigned. A throne appears once it stands, so a throne missing from the
 // list was built after the read.
 message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
-// Neuroformer stock, bestowing ceremonies and thrones are colony facts, read in
-// ColonyFactsSnapshot.royalty (#1877), not here. The title ladder and permit
-// catalog are static defs read from the def mirror (RoyalTitleDef,
-// RoyalTitlePermitDef; #1875).
-message RoyaltyFacts { reserved 2, 3, 4, 5, 6, 7; reserved "ladder", "permits", "neuroformers", "ceremonies", "thrones"; rimgovernor.common.v1.ObservationContext context = 1; }
 // Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
 // stock, the pending bestowing ceremonies and the standing thrones. Absent
 // without Royalty.
 message RoyaltySection { oneof outcome { RoyaltyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message RoyaltyColonyFacts { repeated NeuroformerStock neuroformers = 1; repeated BestowingCeremony ceremonies = 2; repeated RoyalThrone thrones = 3; }
-message RoyaltyFactsRequest { ReadScope scope = 1; }
-message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // reachable_benches lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
 // animal can eat it. reachable_storage lists the stockpile zones holding a
@@ -2243,7 +2236,6 @@ service Observations {
   rpc ListWallUpgradeSites(WallUpgradeSitesRequest) returns (WallUpgradeSitesReply);
   rpc ListResourceSources(ResourceSourcesRequest) returns (ResourceSourcesReply);
   rpc ReadHusbandry(HusbandryRequest) returns (HusbandryReply);
-  rpc ReadRoyaltyFacts(RoyaltyFactsRequest) returns (RoyaltyFactsReply);
   rpc ReadWaste(WasteRequest) returns (WasteReply);
   rpc ReadRecovery(RecoveryRequest) returns (RecoveryReply);
   rpc ReadPopulation(PopulationRequest) returns (PopulationReply);

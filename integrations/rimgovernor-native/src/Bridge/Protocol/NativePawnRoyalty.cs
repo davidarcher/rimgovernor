@@ -13,44 +13,11 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // The royalty read (#1599), now only the Royalty-applicable gate: the title
-    // ladder and permit catalog are def-mirror rows (#1875). It was once the title
-    // ladder, the permit catalog and each
-    // colonist's holdings. It changes on quest completion or a title change,
-    // so the controller reads it on its own slow cadence, not with the pawn rows.
-    public sealed class NativeRoyaltyTool
+    // The title ladder and permit catalog are def-mirror rows (#1875) and the
+    // colony facts are ColonyFactsSnapshot.royalty (#1877); the royalty-specific
+    // read tool is gone (#1879). What remains is each pawn row's royalty block.
+    public static class NativePawnRoyalty
     {
-        internal const string ToolName = "rimgovernor/observations_read_royalty_facts";
-
-        [Tool(ToolName, Title = "Read royalty facts", Description = "Royalty applicability only (the title ladder and permit catalog are def-mirror rows); once also thrones, ceremonies and neuroformers (each colonist's own royalty rides its pawn row). Not applicable without Royalty. Read-only.")]
-        [ToolResponse("payload", "string", "Official RoyaltyFactsReply ProtoJSON.", Always = true)]
-        public async Task<object> ReadRoyaltyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw RoyaltyFactsRequest ProtoJSON string.")] object? request = null)
-        {
-            if (!ProtoBoundary.TryParse(ctx, ToolName, request!, Obs.RoyaltyFactsRequest.Parser, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Failure = failure });
-            if (parsed.Scope?.ExpectedIdentity == null)
-                return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required.") });
-            return await ProtoBoundary.OnMainThread(ctx, () => {
-                if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out _, out var context, out var error))
-                    return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Failure = error });
-                if (!ModsConfig.RoyaltyActive)
-                    return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Royalty is not active." } });
-                try { return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Observed = Read(context) }); }
-                catch (Exception ex)
-                {
-                    Log.Error(ObservationWork.Failed("royaltyFacts", ex));
-                    return ProtoBoundary.Encode(new Obs.RoyaltyFactsReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "The royalty facts could not be read completely." } });
-                }
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static Obs.RoyaltyFacts Read(Common.ObservationContext context)
-        {
-            var facts = new Obs.RoyaltyFacts { Context = context };
-            return facts;
-        }
-
         // A free colonist's royalty facts on its pawn row (#1876): holdings per
         // faction with each held permit's cooldown, the known psycasts and the
         // caster's psyfocus and neural heat (combat casts hold on them, #1611).

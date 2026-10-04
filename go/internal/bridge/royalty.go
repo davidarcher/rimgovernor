@@ -1,89 +1,20 @@
 package bridge
 
 import (
-	"context"
-	"sync"
-
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
-// The royalty read (#1599): what remains of it is the Royalty-applicable gate
-// (the ladder and permits are def-mirror rows, DefinitionCatalog.WithTitleDefs,
-// #1875; the rest moved to PawnState.royalty and the colony section). The
-// client keeps the last read for a load until RoyaltyRefreshTicks pass.
-
-const methodRoyaltyFacts = "rimgovernor/observations_read_royalty_facts"
-
-// RoyaltyRefreshTicks is how long a royalty read is reused (a quarter day).
-const RoyaltyRefreshTicks = 15000
-
-type royaltyCache struct {
-	mu    sync.Mutex
-	token string
-	tick  int64
-	facts *policy.RoyaltyFacts
-}
-
-// RoyaltyFacts is identity's royalty read as of tick now, from the cache while
-// it is younger than RoyaltyRefreshTicks. A nil result with a nil error means
-// Royalty is not applicable.
-func (client *Client) RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
-	if err := ValidateIdentity(identity); err != nil {
-		return nil, err
-	}
-	held := &client.royalty
-	held.mu.Lock()
-	defer held.mu.Unlock()
-	if held.token == identity.GetLoadToken() && now >= held.tick && now-held.tick < RoyaltyRefreshTicks {
-		return held.facts, nil
-	}
-	request := &o.RoyaltyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
-	reply := &o.RoyaltyFactsReply{}
-	raw, err := client.protoRead(ctx, methodRoyaltyFacts, request, reply)
-	if err != nil {
-		return nil, err
-	}
-	var facts *policy.RoyaltyFacts
-	switch v := reply.Outcome.(type) {
-	case *o.RoyaltyFactsReply_Failure:
-		return nil, failure(v.Failure, raw)
-	case *o.RoyaltyFactsReply_Unavailable:
-		if v.Unavailable.GetReason() != c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
-			return nil, unavailable(v.Unavailable, raw)
-		}
-	case *o.RoyaltyFactsReply_Observed:
-		if facts, err = DecodeRoyaltyFacts(v.Observed, identity); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, contract("missing royalty outcome")
-	}
-	held.token, held.tick, held.facts = identity.GetLoadToken(), now, facts
-	return facts, nil
-}
-
-// DecodeRoyaltyFacts validates a royalty read under identity.
-func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.RoyaltyFacts, error) {
-	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
-		return nil, contract("invalid royalty context")
-	}
-	out := &policy.RoyaltyFacts{Holders: map[policy.PawnID][]policy.RoyalHolding{},
-		Psycasts: map[policy.PawnID][]policy.Psycast{}, Casters: map[policy.PawnID]policy.PsycasterState{}}
-	return out, nil
-}
-
-// WithPawnRoyalty adds each colonist's own royalty facts (PawnState.royalty,
-// #1876) to the colony-level read. facts is the client's cached read and is
-// not modified. A colonist with neither a holding nor a psycast is not
+// PawnRoyaltyFacts reads each colonist's own royalty facts (PawnState.royalty,
+// #1876; the ladder and permits are def-mirror rows, the neuroformers,
+// ceremonies and thrones the colony section). A colonist with neither a holding nor a psycast is not
 // listed. A row whose royalty read failed (ReadIssue "royalty") or whose block
 // is invalid is an error: royalty stays unknown rather than read as empty.
-func WithPawnRoyalty(facts policy.RoyaltyFacts, pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
+func PawnRoyaltyFacts(pawns *o.PawnSnapshot) (policy.RoyaltyFacts, error) {
 	if pawns == nil {
 		return policy.RoyaltyFacts{}, contract("no pawn rows for the royalty facts")
 	}
+	facts := policy.RoyaltyFacts{}
 	facts.Holders, facts.Psycasts, facts.Casters = map[policy.PawnID][]policy.RoyalHolding{}, map[policy.PawnID][]policy.Psycast{}, map[policy.PawnID]policy.PsycasterState{}
 	for _, pawn := range pawns.Pawns {
 		id := pawn.GetPawn().GetId()

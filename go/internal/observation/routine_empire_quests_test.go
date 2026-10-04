@@ -18,17 +18,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type royaltySource struct {
-	*projectSource
-	facts *policy.RoyaltyFacts
-	now   int64
-}
-
-func (r *royaltySource) RoyaltyFacts(_ context.Context, _ *c.Identity, now int64) (*policy.RoyaltyFacts, error) {
-	r.now = now
-	return r.facts, nil
-}
-
 func TestRoutineQuestCensusJoinsFactionAndMapAndReadsRoyalty(t *testing.T) {
 	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
 	if err != nil {
@@ -55,8 +44,7 @@ func TestRoutineQuestCensusJoinsFactionAndMapAndReadsRoyalty(t *testing.T) {
 			{ID: "Quest_4", State: "NotYetAccepted", FactionID: "Faction_2"},
 			{ID: "Quest_5", State: "NotYetAccepted", FactionID: "Faction_9", MapID: home, MapKnown: true},
 		}}
-	facts := &policy.RoyaltyFacts{}
-	source := &royaltySource{projectSource: questSource(base, read), facts: facts}
+	source := questSource(base, read)
 	out, err := observeRoutineUnowned(context.Background(), source, testkit.NewManualClock(time.Now()), expected, time.Second)
 	if err != nil {
 		t.Fatal(err)
@@ -79,8 +67,5 @@ func TestRoutineQuestCensusJoinsFactionAndMapAndReadsRoyalty(t *testing.T) {
 	// none, so royalty stays unknown.
 	if _, known := out.Projection.Facts.Royalty.Value(); known {
 		t.Fatal("royalty known without pawn rows")
-	}
-	if source.now != base.GetObserved().GetContext().GetTick() {
-		t.Fatal("royalty read not at the frame tick")
 	}
 }

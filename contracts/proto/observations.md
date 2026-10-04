@@ -361,16 +361,15 @@ cost the stat table cannot value are contract errors.
 
 ## Royalty facts
 
-`ReadRoyaltyFacts` (#1599) is now only the Royalty-applicable gate. The title
+There is no royalty read (#1879; `ReadRoyaltyFacts` is gone). The title
 ladder (seniority, favor needed, throne and bedroom requirements) and the permit
 catalog (minimum title, permit points, worker class, whether the permit acts and
 the favor a call spends) are static defs read from the def mirror
 (`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`,
-#1875), not carried by the read. It is separate from the
-pawn row and slow-changing: the Go client reuses a read for
-`RoyaltyRefreshTicks` and decodes it into `policy.RoyaltyFacts`, where an
+#1875). Each colonist's holdings and psycasts are its `PawnState.royalty`
+(#1876), decoded by `bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`, where an
 absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
-thrones are not in it: they are the colony section
+thrones are the colony section
 `ColonyFactsSnapshot.royalty` (`RoyaltySection`, #1877), absent without
 Royalty and `Unavailable` when the read failed, read on every colony frame.
 `neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
@@ -381,10 +380,9 @@ lord's Wait toil, started, spot and the lord's colonist attendees (#1602);
 `thrones` lists every spawned player throne (`Building_Throne`) with its
 assigned owner, absent when unassigned (#1601). `policy.RoyaltyFacts.WithColony`
 joins the section to the read; a colony frame without the section leaves the
-royalty fact unknown.
-Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
-returns as no facts. Reads are derived state (persistence-contracts.md); the
-read adds no store.
+royalty fact unknown, and the section's presence is the Royalty-applicable
+gate (`ColonyProjection.RoyaltyOf`). Reads are derived state
+(persistence-contracts.md); they add no store.
 
 ## Animal races
 
@@ -666,7 +664,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | WorkSettingsIntent.pawn_id | ReadPawnSettings (same pawn ID) |
 | ProductionBillIntent.bench_id | ReadBills.bench (same bench ID) |
 | ZoneIntent.zone (Ref) | ListZones.zone.id; ListBuildings storage row id |
-| AssignIntent.pawn_id/thing_id/expected_previous | ListPawns.pawn and owned bed; ListBuildings.building; RoyaltyFacts.thrones.thing for a throne |
+| AssignIntent.pawn_id/thing_id/expected_previous | ListPawns.pawn and owned bed; ListBuildings.building; ColonyFactsSnapshot.royalty.thrones.thing for a throne |
 | NeedReliefIntent.pawn/job/schedule | ListPawns.pawn.snapshot, JobEvidence, PawnSettings.schedule |
 | PawnOrderIntent WEAR pawn/target | ReadGear.pawn.snapshot, candidate.item.thing.snapshot, GearLoadout.snapshot |
 | HusbandryIntent.animal_id/target_id | ReadHusbandry.pawn (same animal ID), allowed area and master IDs |

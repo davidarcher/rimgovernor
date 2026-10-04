@@ -32,3 +32,24 @@ func (p ColonyProjection) WithRoyaltyColony(f policy.RoyaltyFacts) domain.Fact[p
 	}
 	return domain.Known(f.WithColony(colony))
 }
+
+// RoyaltyOf is the royalty fact: the colonists' own holdings and psycasts
+// from their pawn rows (#1876), the ladder and permits from the def mirror
+// (#1875) and the colony section's neuroformers, ceremonies and thrones. The
+// colony section's presence is the Royalty-applicable gate, as for the other
+// DLC sections: without it the fact is unknown and nothing is read. A pawn
+// row or def the read cannot use is an error and the fact stays unknown.
+func (p ColonyProjection) RoyaltyOf(pawns *o.PawnSnapshot, catalog *bridge.DefinitionCatalog) (domain.Fact[policy.RoyaltyFacts], error) {
+	if _, ok := p.RoyaltyColony.Value(); !ok {
+		return domain.Unknown[policy.RoyaltyFacts](), nil
+	}
+	facts, err := bridge.PawnRoyaltyFacts(pawns)
+	if err != nil {
+		return domain.Unknown[policy.RoyaltyFacts](), err
+	}
+	mirrored, err := catalog.WithTitleDefs(facts)
+	if err != nil {
+		return domain.Unknown[policy.RoyaltyFacts](), err
+	}
+	return p.WithRoyaltyColony(mirrored), nil
+}

@@ -238,23 +238,20 @@ priority for a work type it sets. Assignments the fresh decision still agrees
 with stay open; the method identity carries the before-token, so the same
 settings against a moved pawn are a fresh method rather than a retired one.
 
-### Royalty read
+### Royalty facts
 
-`rimgovernor/observations_read_royalty_facts` is a slow-refresh read (the client
-reuses it for `RoyaltyRefreshTicks`) and is `NOT_APPLICABLE` without Royalty. It
-carries the title ladder, the permit catalog, each colonist's holdings (with each
-taken permit's `last_used_tick` and `cooldown_remaining_ticks`) and, per
-psycaster, its known psycasts (def, unlocking psylink level, Psyfocus cost,
-neural heat, target kind, longest cooldown and `cooldown_remaining_ticks`; the
-psycaster's psyfocus, neural heat and ceiling, #1611), plus the colony's neuroformer
-stock: the psylink neuroformer and each psycast neurotrainer with `held`
-(unforbidden stacks on home maps), `craftable` (a recipe available now) and
-`tradeable` (a trader sells it), each rung's bedroom requirements and the
-pending bestowing ceremonies (observations.md, Royalty facts). Absent scalars are unknown, never zero. The
-pawn row keeps only the constantly refreshed psylink level and Psyfocus.
+There is no royalty read (#1879). The Royalty-applicable gate is the presence of
+the colony section `ColonyFactsSnapshot.royalty`, as for the other DLC sections.
+The title ladder and permit catalog are def-mirror rows; each colonist's
+holdings (with each taken permit's `last_used_tick` and
+`cooldown_remaining_ticks`) and known psycasts (def, unlocking psylink level,
+Psyfocus cost, neural heat, target kind, longest cooldown and
+`cooldown_remaining_ticks`; the psycaster's psyfocus, neural heat and ceiling,
+#1611) are `PawnState.royalty`; the neuroformer stock (`held`, `craftable`,
+`tradeable`), pending bestowing ceremonies and thrones are the colony section
+(observations.md, Royalty facts). Absent scalars are unknown, never zero.
 
-The throne-room requirements are not read from this reply (#1861): the rung's
-throne fields on the wire are ignored, and the client reads each title's
+The throne-room requirements are not a wire field (#1861): the client reads each title's
 `RoyalTitleDef.throneRoomRequirements` from the definition-catalog def mirror as
 a Go view (`DefinitionCatalog.ThroneRequirements`, `WithThroneRequirements`),
 filling `RoyalRung.Throne` (`policy.ThroneRequirements`) before the read

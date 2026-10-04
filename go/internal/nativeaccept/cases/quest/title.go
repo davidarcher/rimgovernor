@@ -19,7 +19,7 @@ import (
 
 const (
 	titlePrepareTool = "test/royal_title_prepare"
-	royaltyReadWire  = "observations_read_royalty_facts"
+	pawnsReadWire    = "observations_list_pawns"
 	// titleCeiling bounds the journal wait; the stall budget ends it earlier
 	// when nothing moves.
 	titleCeiling = 8 * time.Minute
@@ -68,8 +68,8 @@ func ritualStarted(ctx context.Context, st *store.Store, pawn domain.PawnID) (bo
 	return false, nil
 }
 
-// empireTitle is the title pawn holds from any faction in a royalty read's
-// holdings, with the favor held; "" when none.
+// empireTitle is the title pawn holds from any faction in a pawn list's
+// royalty holdings (PawnState.royalty), with the favor held; "" when none.
 func empireTitle(observed map[string]any, pawn string) (title string, favor float64) {
 	for _, raw := range na.AsSlice(observed["pawns"]) {
 		row, _ := na.AsMap(raw)
@@ -77,7 +77,8 @@ func empireTitle(observed map[string]any, pawn string) (title string, favor floa
 		if na.AsString(ref["id"]) != pawn {
 			continue
 		}
-		for _, h := range na.AsSlice(row["holdings"]) {
+		royalty, _ := na.AsMap(row["royalty"])
+		for _, h := range na.AsSlice(royalty["holdings"]) {
 			holding, _ := na.AsMap(h)
 			if t := na.AsString(holding["title"]); t != "" {
 				return t, na.AsNumber(holding["favor"])
@@ -155,7 +156,7 @@ func runFirstTitle(ctx context.Context, s cases.Session) error {
 	var held string
 	var favor float64
 	elapsed, err := na.RunUntil(ctx, h, "title-granted", titleTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
-		reply, err := h.Wire(ctx, "royalty-read", royaltyReadWire, map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+		reply, err := h.Wire(ctx, "pawn-royalty-read", pawnsReadWire, map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "filter": map[string]any{"ids": []string{pawn}}, "details": map[string]any{}})
 		if err != nil {
 			return "", false, err
 		}
@@ -164,8 +165,7 @@ func runFirstTitle(ctx context.Context, s cases.Session) error {
 			return "", false, err
 		}
 		held, favor = empireTitle(observed, pawn)
-		ceremonies := len(na.AsSlice(observed["ceremonies"]))
-		return na.Signature(held, favor, ceremonies), held != "", nil
+		return na.Signature(held, favor), held != "", nil
 	})
 	report["title_ticks"] = elapsed
 	if err != nil {

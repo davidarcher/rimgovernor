@@ -189,8 +189,6 @@ type Client struct {
 
 	frames  *frameStream
 	catalog catalogCache
-	// royalty is the last royalty read (royalty.go).
-	royalty royaltyCache
 	replies *replySlots
 
 	recorder         *FlightRecorder

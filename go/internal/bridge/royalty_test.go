@@ -8,12 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func royaltyRead() *o.RoyaltyFacts {
-	return &o.RoyaltyFacts{
-		Context: authorityTestContext(7),
-	}
-}
-
 // royaltyPawns is the pawn rows the royalty facts merge with (#1876): Human12
 // carries the holdings, psycasts and psycaster state.
 func royaltyPawns() *o.PawnSnapshot {
@@ -29,14 +23,10 @@ func royaltyPawns() *o.PawnSnapshot {
 	}}
 }
 
-// decodeRoyalty decodes the colony read and merges the pawn rows over it.
-func decodeRoyalty(read *o.RoyaltyFacts, pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
-	facts, err := DecodeRoyaltyFacts(read, pbIdentity())
-	if err != nil {
-		return nil, err
-	}
-	merged, err := WithPawnRoyalty(*facts, pawns)
-	return &merged, err
+// decodeRoyalty reads the pawn rows' royalty facts.
+func decodeRoyalty(pawns *o.PawnSnapshot) (*policy.RoyaltyFacts, error) {
+	facts, err := PawnRoyaltyFacts(pawns)
+	return &facts, err
 }
 
 // TestWithPawnRoyaltyRefusesMalformedRows: a pawn's royalty block that is
@@ -65,7 +55,7 @@ func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 			case "no-rows":
 				pawns = nil
 			}
-			if _, err := decodeRoyalty(royaltyRead(), pawns); err == nil {
+			if _, err := decodeRoyalty(pawns); err == nil {
 				t.Fatal("malformed royalty pawn rows accepted")
 			}
 		})
@@ -75,7 +65,7 @@ func TestWithPawnRoyaltyRefusesMalformedRows(t *testing.T) {
 // TestDecodeRoyaltyFacts (#1599): recorded facts decode, and an absent
 // scalar stays unknown rather than zero.
 func TestDecodeRoyaltyFacts(t *testing.T) {
-	facts, err := decodeRoyalty(royaltyRead(), royaltyPawns())
+	facts, err := decodeRoyalty(royaltyPawns())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,20 +101,5 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	}
 	if _, ok := casts[1].PsyfocusCost.Value(); ok || casts[1].Target != "" {
 		t.Fatalf("absent psycast facts read as known: %+v", casts[1])
-	}
-}
-
-func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"world"} {
-		t.Run(change, func(t *testing.T) {
-			v := royaltyRead()
-			switch change {
-			case "world":
-				v.Context.Identity.LoadToken = proto.String("other")
-			}
-			if _, err := DecodeRoyaltyFacts(v, pbIdentity()); err == nil {
-				t.Fatal("malformed royalty facts accepted")
-			}
-		})
 	}
 }

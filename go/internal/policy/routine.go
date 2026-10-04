@@ -391,9 +391,9 @@ type RoutineFacts struct {
 	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
 	QuestOffers domain.Fact[[]JoinerOffer]
-	// Royalty is the slow-refresh royalty read (#1599), read by a
-	// RoutineSource offering RoutineRoyaltySource; unknown when the source
-	// has none, the read failed or Royalty is not applicable.
+	// Royalty is the royalty facts (#1599) from the pawn rows, the def mirror
+	// and the colony section; unknown when Royalty is not applicable or a read
+	// failed.
 	Royalty domain.Fact[RoyaltyFacts]
 	// Ideology is the primary ideoligion (#1654) from the frame's ideology
 	// section with the catalog's defs; unknown when the frame carries no

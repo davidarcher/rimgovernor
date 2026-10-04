@@ -22,13 +22,6 @@ type RoutineSource interface {
 	ReadRoutineFrame(context.Context, *c.Identity) (bridge.RoutineFrame, error)
 }
 
-// RoutineRoyaltySource is the optional royalty read of a RoutineSource
-// (bridge.Client.RoyaltyFacts, cached between slow refreshes); a nil result
-// means Royalty is not applicable.
-type RoutineRoyaltySource interface {
-	RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error)
-}
-
 type RoutineReading struct {
 	ColonyReading
 	Emergency policy.EmergencyFacts
@@ -183,21 +176,9 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		return RoutineReading{}, err
 	}
 	p.Facts.AnimalUpkeep.Animals = policy.ApplyHerdPrecepts(p.Facts.AnimalUpkeep.Animals, p.Facts.Ideology, ideologyDefs != nil)
-	// A failed or inapplicable royalty read leaves the fact unknown; it must
-	// not fail the routine reading the whole review stands on.
-	p.Facts.Royalty = domain.Unknown[policy.RoyaltyFacts]()
-	if royalty, ok := source.(RoutineRoyaltySource); ok {
-		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil && pawns != nil {
-			// The colonists' own holdings and psycasts ride their pawn rows (#1876).
-			if merged, err := bridge.WithPawnRoyalty(*facts, pawns); err == nil {
-				// The ladder and permits are def-mirror rows (#1875); a catalog that
-				// cannot answer leaves royalty unknown.
-				if mirrored, err := frame.Catalog.WithTitleDefs(merged); err == nil {
-					p.Facts.Royalty = p.WithRoyaltyColony(mirrored)
-				}
-			}
-		}
-	}
+	// A pawn row or def the royalty read cannot use leaves the fact unknown; it
+	// must not fail the routine reading the whole review stands on.
+	p.Facts.Royalty, _ = p.RoyaltyOf(pawns, frame.Catalog)
 	p.Facts.Prisoners, p.Facts.Custody, p.Facts.PrisonerColony, p.Facts.Outlook = domain.Fact[[]policy.PrisonerFacts]{}, domain.Fact[[]policy.CustodyFacts]{}, domain.Fact[policy.PrisonerColony]{}, policy.PopulationOutlook{}
 	p.Facts.OwnedNames = domain.Fact[[]policy.OwnedName]{}
 	p.Facts.Guests = domain.Fact[[]policy.CarePatient]{}

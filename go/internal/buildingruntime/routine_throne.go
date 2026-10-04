@@ -10,7 +10,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // The throne room (#1601, epic #1598): MaintainHousing's sleeping planner
@@ -21,52 +20,29 @@ import (
 // its holder through the generic Assign action; the step holds
 // MaintainHousing open until the royalty read lists the holder as its owner.
 
-// RoyaltyNative is the optional native royalty read behind the throne room
-// (bridge.Client.RoyaltyFacts). A reviewer whose native lacks it, or whose
-// colony has no Royalty, owes no throne room. A nil result is Royalty not
-// applicable.
-type RoyaltyNative interface {
-	RoyaltyFacts(ctx context.Context, identity *c.Identity, now int64) (*policy.RoyaltyFacts, error)
-}
-
-// reviewRoyalty reads the royalty facts onto the projection (the native
-// client holds them for RoyaltyRefreshTicks), resolves the ladder's throne
-// definitions from the review's catalog and remembers the read for the
-// planners. A failed read leaves royalty unknown.
+// reviewRoyalty reads the royalty facts onto the projection, resolves the
+// ladder's throne definitions from the review's catalog and remembers the
+// read for the planners. A colony without Royalty owes no throne room; a
+// failed read leaves royalty unknown.
 func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.GenerationSnapshot, reading *observation.RoutineReading) error {
 	projection := &reading.Projection
-	native, ok := r.native.(RoyaltyNative)
-	if !ok || !r.methodEnabled(policy.MaintainHousing) && !r.methodEnabled(policy.MaintainPsylink) && !r.moodCasts {
+	if !r.methodEnabled(policy.MaintainHousing) && !r.methodEnabled(policy.MaintainPsylink) && !r.moodCasts {
 		return nil
 	}
-	facts, err := native.RoyaltyFacts(ctx, controlIdentity(snapshot), int64(projection.Identity.Tick))
+	// The colony section gates Royalty; the ladder and permits come from the
+	// def mirror (#1861, #1875) and the colonists' own holdings from their
+	// pawn rows (#1876). A read that cannot be used leaves royalty unknown.
+	royalty, err := projection.RoyaltyOf(reading.Frame.Pawns, reading.Frame.Catalog)
 	if err != nil {
 		clockSchedulerLog("royalty read deferred: %v", err)
 		return nil
 	}
-	if facts == nil {
-		return nil
-	}
-	// The ladder and permits come from the def mirror, not the native read
-	// (#1861, #1875); a def the mirror cannot answer for leaves royalty unknown.
-	// The colonists' own holdings and psycasts ride their pawn rows (#1876).
-	withPawns, err := bridge.WithPawnRoyalty(*facts, reading.Frame.Pawns)
-	if err != nil {
-		clockSchedulerLog("royalty read deferred: %v", err)
-		return nil
-	}
-	mirrored, err := reading.Frame.Catalog.WithTitleDefs(withPawns)
-	if err != nil {
-		clockSchedulerLog("royalty read deferred: %v", err)
-		return nil
-	}
-	facts = &mirrored
-	royalty := projection.WithRoyaltyColony(*facts)
-	if _, known := royalty.Value(); !known {
+	facts, known := royalty.Value()
+	if !known {
 		return nil
 	}
 	projection.Royalty = royalty
-	if err := projection.AddDefinitions(reading.Frame, append(throneThings(*facts), throneFloorTerrains(reading.Frame.Catalog, *facts)...)); err != nil {
+	if err := projection.AddDefinitions(reading.Frame, append(throneThings(facts), throneFloorTerrains(reading.Frame.Catalog, facts)...)); err != nil {
 		return err
 	}
 	r.census.rememberRoyalty(projection.Identity, projection.Royalty)
