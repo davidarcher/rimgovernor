@@ -228,7 +228,7 @@ namespace HomeBridge.BridgeTools
             var row = new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 DefName = condition.def.defName, Implementation = condition.GetType().FullName, Permanent = condition.Permanent };
             if (!condition.Permanent) row.TicksLeft = Math.Max(0, condition.TicksLeft);
-            var label = BridgeCommon.SafeString(() => condition.LabelCap);
+            var label = condition.LabelCap;
             if (!string.IsNullOrEmpty(label)) row.Label = label;
             return row;
         }

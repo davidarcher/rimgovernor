@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
                     var local = def;
                     var storable = allowed.Count > 0
                         ? allowed.Contains(local)
-                        : BridgeCommon.Try(() => local.EverStorable(true), false);
+                        : local.EverStorable(true);
                     if (storable)
                         universe.Add(local);
                 }
@@ -105,14 +105,14 @@ namespace HomeBridge.BridgeTools
         /// would miss them.</summary>
         internal static bool IsRottable(ThingDef def)
         {
-            return BridgeCommon.Try(() => def.HasComp<CompRottable>(), false);
+            return def.HasComp<CompRottable>();
         }
 
         /// <summary>ThingDef.IsNutritionGivingIngestible: an ingestible whose
         /// cached nutrition is above zero.</summary>
         internal static bool IsFood(ThingDef def)
         {
-            return BridgeCommon.Try(() => def.IsNutritionGivingIngestible, false);
+            return def.IsNutritionGivingIngestible;
         }
 
         /// <summary>Neither rots nor weathers. CanEverDeteriorate is checked
@@ -122,9 +122,9 @@ namespace HomeBridge.BridgeTools
         {
             if (IsRottable(def))
                 return false;
-            if (!BridgeCommon.Try(() => def.CanEverDeteriorate, true))
+            if (!def.CanEverDeteriorate)
                 return true;
-            return BridgeCommon.Try(() => def.GetStatValueAbstract(StatDefOf.DeteriorationRate, null), 1f) <= 0f;
+            return def.GetStatValueAbstract(StatDefOf.DeteriorationRate, null) <= 0f;
         }
 
         /// <summary>Non-perishable and not outdoor-safe: the complement of
@@ -403,7 +403,7 @@ namespace HomeBridge.BridgeTools
                     { "argument", "special:" + d.defName }, { "allowed", filter.Allows(d) }
                 }).ToList();
             var inUniverse = universe.Where(allowed.Contains).ToList();
-            summary["allowedDefCount"] = BridgeCommon.Try(() => filter.AllowedDefCount, inUniverse.Count);
+            summary["allowedDefCount"] = filter.AllowedDefCount;
 
             var rottable = inUniverse.Count(IsRottable);
             summary["allowedRottableCount"] = rottable;
@@ -463,10 +463,10 @@ namespace HomeBridge.BridgeTools
 
         internal static string Label(Def def)
         {
-            var label = BridgeCommon.SafeString(() => def.label);
+            var label = def.label;
             if (label != null && label.Length > 0)
                 return label;
-            return BridgeCommon.SafeString(() => def.defName) ?? "(unnamed)";
+            return def.defName ?? "(unnamed)";
         }
     }
 

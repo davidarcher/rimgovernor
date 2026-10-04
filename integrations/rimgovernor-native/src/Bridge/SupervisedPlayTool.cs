@@ -533,7 +533,7 @@ namespace HomeBridge.BridgeTools
                     if (l == null || l.def == null) continue;
                     if ((int)Prefs.AutomaticPauseMode < (int)l.def.pauseMode) continue;
                     if (tm.TicksGame - l.arrivalTick > 60) continue;
-                    result.Add(BridgeCommon.SafeString(() => l.Label.ToString())
+                    result.Add(l.Label.ToString()
                         + " (" + l.def.defName + ", pauseMode " + l.def.pauseMode + ")");
                 }
             }
@@ -851,7 +851,7 @@ namespace HomeBridge.BridgeTools
                 // every window at zero ticks, so the breach never ran (#1141).
                 if (!GameWatchReads.SafeIsColonist(p)
                     && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
-                    && !BridgeCommon.Try(() => p.Spawned && p.Map != null && p.Position.Fogged(p.Map), false)
+                    && !(p.Spawned && p.Map != null && p.Position.Fogged(p.Map))
                     && GameWatchReads.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))

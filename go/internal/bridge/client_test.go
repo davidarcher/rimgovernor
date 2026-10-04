@@ -533,3 +533,22 @@ func TestWithCallTimeoutNeverTightensAReadOrOutrunsTheBound(t *testing.T) {
 		t.Fatalf("plain context did not take the session timeout: %v", got)
 	}
 }
+
+// A hop that throws comes back from the RimBridge host as success:false with
+// message/exception and an operation envelope, no proto/slot (see
+// docs/developers/contracts/bridge-thrown-hop.md, #1887). A typed read must
+// surface that as a named refusal, never as an empty reply (#1888).
+func TestThrownHopSurfacesAsNamedRefusalOnTypedRead(t *testing.T) {
+	thrown := `{"success":false,"message":"Pawn is gone","exception":"System.InvalidOperationException: Pawn is gone\r\n   at HomeBridge.Read",` +
+		`"operation":{"OperationId":"op_1","Status":3,"Success":false,"Result":null,` +
+		`"Error":{"Code":"capability.failed","Message":"Pawn is gone","ExceptionType":"System.InvalidOperationException"}}}`
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
+		return structured(thrown), nil
+	}}
+	identity, _, err := testClient(t, s, testBudget).Identity(context.Background())
+	var refusal *Refusal
+	if identity != nil || !errors.As(err, &refusal) || !errors.Is(err, ErrRefused) ||
+		refusal.Cause != "System.InvalidOperationException: Pawn is gone" {
+		t.Fatalf("thrown hop decoded as %v, %v", identity, err)
+	}
+}

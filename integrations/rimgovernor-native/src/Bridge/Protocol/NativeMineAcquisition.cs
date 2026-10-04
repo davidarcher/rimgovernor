@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             var map = ProtoBoundary.LoadedMap(context);
             var found = RefIndex.Thing<Mineable>(map, command.SourceId);
-            var blocker = found == null ? null : BridgeCommon.Try(() => ResourceAcquisitionTools.MiningBlocker(found, map), "Unknown excavation geometry");
+            var blocker = found == null ? null : ResourceAcquisitionTools.MiningBlocker(found, map);
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact rock is no longer spawned on this map")

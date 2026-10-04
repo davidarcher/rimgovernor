@@ -65,18 +65,16 @@ namespace HomeBridge.BridgeTools
                         var giver = givers[i];
                         if (giver == null || !accept(giver))
                             continue;
-                        if (!BridgeCommon.Try(() => giver.directOrderable, false))
+                        if (!giver.directOrderable)
                             continue;
 
-                        var scanner = BridgeCommon.Try<WorkGiver_Scanner?>(() => giver.Worker as WorkGiver_Scanner, null);
+                        var scanner = giver.Worker as WorkGiver_Scanner;
                         if (scanner == null)
                             continue;
                         if (ScannerShouldSkip(pawn, scanner, thing))
                             continue;
 
-                        var job = BridgeCommon.Try<Job?>(
-                            () => scanner.HasJobOnThing(pawn, thing, true) ? scanner.JobOnThing(pawn, thing, true) : null,
-                            null);
+                        var job = scanner.HasJobOnThing(pawn, thing, true) ? scanner.JobOnThing(pawn, thing, true) : null;
                         if (job == null || (jobDef != null && job.def != jobDef))
                             continue;
 
@@ -85,8 +83,8 @@ namespace HomeBridge.BridgeTools
                     }
                 }
 
-                failReason = BridgeCommon.Try(() => JobFailReason.HaveReason, false)
-                    ? BridgeCommon.SafeString(() => JobFailReason.Reason)
+                failReason = JobFailReason.HaveReason
+                    ? JobFailReason.Reason
                     : null;
                 return null;
             }
@@ -105,16 +103,13 @@ namespace HomeBridge.BridgeTools
         /// before it is asked for a job.</summary>
         private static bool ScannerShouldSkip(Pawn? pawn, WorkGiver_Scanner scanner, Thing? t)
         {
-            return !BridgeCommon.Try(() =>
+            var accepts = scanner.PotentialWorkThingRequest.Accepts(t);
+            if (!accepts)
             {
-                var accepts = scanner.PotentialWorkThingRequest.Accepts(t);
-                if (!accepts)
-                {
-                    var global = scanner.PotentialWorkThingsGlobal(pawn);
-                    accepts = global != null && global.Contains(t);
-                }
-                return accepts && !scanner.ShouldSkip(pawn, true);
-            }, false);
+                var global = scanner.PotentialWorkThingsGlobal(pawn);
+                accepts = global != null && global.Contains(t);
+            }
+            return !(accepts && !scanner.ShouldSkip(pawn, true));
         }
     }
 }

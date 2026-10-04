@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var reward in indexed.choice.rewards)
                     {
                         var row = new Obs.QuestReward { ChoiceIndex = (uint)indexed.index, Kind = reward.GetType().Name };
-                        row.Label = BridgeCommon.SafeString(() => reward.GetDescription(default(RewardsGeneratorParams))) ?? "";
+                        row.Label = reward.GetDescription(default(RewardsGeneratorParams)) ?? "";
                         if (reward is Reward_RoyalFavor favor) row.Favor = favor.amount;
                         if (reward is Reward_Items items)
                             row.Items.Add(items.items.Select(t => new Obs.Quantity { DefName = t.def.defName, Units = t.stackCount }));

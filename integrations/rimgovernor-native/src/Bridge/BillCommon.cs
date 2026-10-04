@@ -19,15 +19,14 @@ namespace HomeBridge.BridgeTools
         {
             if (production == null)
                 return null;
-            var isTarget = BridgeCommon.Try(
-                () => production.repeatMode == BillRepeatModeDefOf.TargetCount, false);
-            if (!isTarget)
+            if (production.repeatMode != BillRepeatModeDefOf.TargetCount)
                 return null;
-            var canCount = BridgeCommon.Try(
-                () => production.recipe.WorkerCounter.CanCountProducts(production), false);
-            if (!canCount)
+            // CountProducts reads bill.Map, so an unattached bill has no count.
+            if (production.billStack?.billGiver?.Map == null)
                 return null;
-            return BridgeCommon.TryN(() => production.recipe.WorkerCounter.CountProducts(production));
+            if (!production.recipe.WorkerCounter.CanCountProducts(production))
+                return null;
+            return production.recipe.WorkerCounter.CountProducts(production);
         }
 
         /// <summary>A RepeatCount bill with no repetitions left.</summary>
@@ -35,9 +34,8 @@ namespace HomeBridge.BridgeTools
         {
             if (production == null)
                 return false;
-            return BridgeCommon.Try(() =>
-                production.repeatMode == BillRepeatModeDefOf.RepeatCount
-                && production.repeatCount <= 0, false);
+            return production.repeatMode == BillRepeatModeDefOf.RepeatCount
+                && production.repeatCount <= 0;
         }
     }
 }

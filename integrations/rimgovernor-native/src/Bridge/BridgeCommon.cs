@@ -144,29 +144,17 @@ namespace HomeBridge.BridgeTools
                 if (_journalProperty != null)
                     return _journalProperty;
 
-                try
-                {
-                    var assembly = AppDomain.CurrentDomain
-                        .GetAssemblies()
-                        .FirstOrDefault(a =>
-                        {
-                            try { return string.Equals(a.GetName().Name, "RimBridgeServer", StringComparison.Ordinal); }
-                            catch { return false; }
-                        });
-                    if (assembly == null)
-                        return null;
+                var assembly = AppDomain.CurrentDomain
+                    .GetAssemblies()
+                    .FirstOrDefault(a => string.Equals(a.GetName().Name, "RimBridgeServer", StringComparison.Ordinal));
+                if (assembly == null)
+                    return null;
 
-                    var type = assembly.GetType("RimBridgeServer.RimBridgeCapabilities", false);
-                    if (type == null)
-                        return null;
+                var type = assembly.GetType("RimBridgeServer.RimBridgeCapabilities", false);
+                if (type == null)
+                    return null;
 
-                    _journalProperty = type.GetProperty("Journal", BindingFlags.Public | BindingFlags.Static);
-                }
-                catch
-                {
-                    _journalProperty = null;
-                }
-
+                _journalProperty = type.GetProperty("Journal", BindingFlags.Public | BindingFlags.Static);
                 return _journalProperty;
             }
         }
@@ -182,37 +170,6 @@ namespace HomeBridge.BridgeTools
         }
 
         // ------------------------------------------------------------------
-        // Guards
-        // ------------------------------------------------------------------
-
-        /// <summary>
-        /// Swallow-and-return-default. Every game read in this companion is
-        /// behind one: an exception thrown inside a companion read reaches
-        /// Verse.Log.Error, which calls TickManager.Pause(), which the harness
-        /// reads as a person pausing the game.
-        /// </summary>
-        internal static T Try<T>(Func<T> read, T fallback)
-        {
-            try { return read(); }
-            catch { return fallback; }
-        }
-
-        /// <summary>Same guard, but a throwing read becomes null rather than a
-        /// value that cannot be told apart from a real one.</summary>
-        internal static T? TryN<T>(Func<T> read) where T : struct
-        {
-            try { return read(); }
-            catch { return null; }
-        }
-
-        /// <summary>A string read that becomes null rather than throwing.</summary>
-        internal static string? SafeString(Func<string?> read)
-        {
-            try { return read(); }
-            catch { return null; }
-        }
-
-        // ------------------------------------------------------------------
         // Reflection into RimWorld's private state
         // ------------------------------------------------------------------
 
@@ -221,15 +178,13 @@ namespace HomeBridge.BridgeTools
         /// would read as "nothing there".</summary>
         internal static FieldInfo? PrivateInstanceField(Type type, string name)
         {
-            try { return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance); }
-            catch { return null; }
+            return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
         /// <summary>A private static field, same contract.</summary>
         internal static FieldInfo? PrivateStaticField(Type type, string name)
         {
-            try { return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static); }
-            catch { return null; }
+            return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Static);
         }
 
 
