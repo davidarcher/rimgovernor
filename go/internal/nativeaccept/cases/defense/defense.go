@@ -721,26 +721,24 @@ func (b *buildProgress) signature(open []string, tick domain.Tick) string {
 // progress signature is the tier methods' plan stages, the stored record
 // and an open tier's construction (buildProgress).
 func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, w na.Wait, report na.Report) (store.DefenseLayoutRecord, error) {
-	var goalID domain.GoalID
+	var projectID domain.ProjectID
 	var record store.DefenseLayoutRecord
 	var stored bool
 	var building buildProgress
 	tiers := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
-		if err == nil && goalID == "" {
-			for _, binding := range review.Goals {
-				if binding.Need == policy.EnsureDefensiveLayout {
-					goalID = binding.Goal
-					report["layout_goal"] = string(goalID)
-				}
+		if err == nil && projectID == "" {
+			if id, ok := review.ProjectFor(policy.EnsureDefensiveLayout); ok {
+				projectID = id
+				report["layout_project"] = string(projectID)
 			}
 		}
 		var open []string
-		if goalID != "" {
-			if goal, err := s.LoadGoal(ctx, goalID); err == nil {
-				for _, m := range goal.Methods {
-					entry := map[string]any{"plan": string(m.Plan), "epoch": m.Epoch}
+		if projectID != "" {
+			if project, err := s.LoadProject(ctx, projectID); err == nil {
+				for _, m := range project.Methods {
+					entry := map[string]any{"plan": string(m.Plan)}
 					if plan, err := s.LoadPlan(ctx, m.Plan); err == nil {
 						entry["stages"] = stages(plan.Progress)
 						if store.PlanOpen(plan) {
@@ -765,10 +763,10 @@ func waitLayoutComplete(ctx context.Context, s *store.Store, world store.World, 
 			}
 		}
 		sort.Strings(open)
-		return na.Signature(goalID, tiers, stored, record.Complete, building.signature(open, review.Tick)), false, nil
+		return na.Signature(projectID, tiers, stored, record.Complete, building.signature(open, review.Tick)), false, nil
 	})
 	if err != nil {
-		return record, fmt.Errorf("layout not complete (goal=%q stored=%v): %w", goalID, stored, err)
+		return record, fmt.Errorf("layout not complete (project=%q stored=%v): %w", projectID, stored, err)
 	}
 	return record, nil
 }
@@ -1035,31 +1033,28 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 		} else if ok {
 			combat = string(latest.Incident.ID)
 		}
-		for _, binding := range review.Goals {
-			goal, err := s.LoadGoal(ctx, binding.Goal)
+		if id, ok := review.ProjectFor(policy.EnsureDefensiveLayout); ok {
+			project, err := s.LoadProject(ctx, id)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
-			switch binding.Need {
-			case policy.EnsureDefensiveLayout:
-				for _, m := range goal.Methods {
-					if _, seen := methods[string(m.Method)]; seen {
-						continue
-					}
-					plan, err := s.LoadPlan(ctx, m.Plan)
-					if err != nil {
-						return "", false, err
-					}
-					traps := 0
-					for _, a := range plan.Spec.Actions() {
-						if b, ok := a.Building(); ok && b.Definition() == "TrapSpike" {
-							traps++
-						}
-					}
-					trapsRebuilt += traps
-					plans[string(m.Method)] = m.Plan
-					methods[string(m.Method)] = map[string]any{"plan": string(m.Plan), "actions": len(plan.Spec.Actions()), "traps": traps}
+			for _, m := range project.Methods {
+				if _, seen := methods[string(m.Method)]; seen {
+					continue
 				}
+				plan, err := s.LoadPlan(ctx, m.Plan)
+				if err != nil {
+					return "", false, err
+				}
+				traps := 0
+				for _, a := range plan.Spec.Actions() {
+					if b, ok := a.Building(); ok && b.Definition() == "TrapSpike" {
+						traps++
+					}
+				}
+				trapsRebuilt += traps
+				plans[string(m.Method)] = m.Plan
+				methods[string(m.Method)] = map[string]any{"plan": string(m.Plan), "actions": len(plan.Spec.Actions()), "traps": traps}
 			}
 		}
 		record, ok, err := s.LoadDefenseLayout(ctx, world)

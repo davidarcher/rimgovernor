@@ -144,17 +144,14 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return err
 		}
-		for _, binding := range r.Goals {
-			if binding.Need != policy.EnsureBasicPower {
-				continue
-			}
+		if id, ok := r.ProjectFor(policy.EnsureBasicPower); ok {
 			sawGoal = true
-			goal, err := journal.LoadGoal(ctx, binding.Goal)
+			project, err := journal.LoadProject(ctx, id)
 			if err != nil {
 				return err
 			}
-			if len(goal.Methods) != 0 {
-				return fmt.Errorf("power family committed %d methods while the generator was only out of fuel: %#v", len(goal.Methods), goal.Methods)
+			if len(project.Methods) != 0 {
+				return fmt.Errorf("power family committed %d methods while the generator was only out of fuel: %#v", len(project.Methods), project.Methods)
 			}
 		}
 		select {

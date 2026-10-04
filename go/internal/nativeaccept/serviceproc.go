@@ -440,9 +440,12 @@ func WaitReview(ctx context.Context, s *store.Store, w Wait, ready func(store.Ro
 		if ready(r) {
 			return "", true, nil
 		}
-		needs := make([]string, 0, len(r.Goals))
+		needs := make([]string, 0, len(r.Goals)+len(r.Projects))
 		for _, binding := range r.Goals {
 			needs = append(needs, string(binding.Need)+"="+string(binding.Goal))
+		}
+		for _, binding := range r.Projects {
+			needs = append(needs, string(binding.Need)+"="+string(binding.Project))
 		}
 		return Signature(fmt.Sprintf("%+v", r.Latches), needs), false, nil
 	})
@@ -511,6 +514,24 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Goa
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
 			return "", false, err
+		}
+		if policy.IsProjectKind(need) {
+			// A Project's methods; the owner id comes back as the GoalID.
+			id, bound := review.ProjectFor(need)
+			if !bound {
+				return Signature("unbound", review.Revision > 0), false, nil
+			}
+			project, err := s.LoadProject(ctx, id)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			for _, method := range project.History {
+				if !seen[method.Plan] {
+					foundGoal, found = domain.GoalID(id), domain.GoalMethod{Goal: domain.GoalID(id), Method: method.Method, Plan: method.Plan}
+					return "", true, nil
+				}
+			}
+			return Signature(id, len(project.History)), false, nil
 		}
 		var goalID domain.GoalID
 		for _, binding := range review.Goals {

@@ -52,9 +52,24 @@ func TestProjectAndResponseKindsNeverCreateGoalRows(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	r.Facts.Cooking = domain.Known(false)
-	reviewRoutine(t, s, &r)
+	out := reviewRoutine(t, s, &r)
 	r.Facts.Cooking = domain.Known(true)
 	reviewRoutine(t, s, &r)
+	// The review binds Standards as goals and Projects as Projects; no
+	// Response is bound as either (Responses are incidents).
+	for _, b := range out.Review.Goals {
+		if c := policy.GoalConcept(b.Need); c != policy.ConceptStandard {
+			t.Fatalf("goal binding %s is a %s kind", b.Need, c)
+		}
+	}
+	for _, b := range out.Review.Projects {
+		if !policy.IsProjectKind(b.Need) {
+			t.Fatalf("project binding %s is a %s kind", b.Need, policy.GoalConcept(b.Need))
+		}
+	}
+	if len(out.Review.Projects) == 0 {
+		t.Fatal("review bound no Projects")
+	}
 	tx, err := s.begin(t.Context())
 	if err != nil {
 		t.Fatal(err)

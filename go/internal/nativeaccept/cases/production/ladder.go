@@ -237,17 +237,25 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	for _, binding := range review.Goals {
 		goals[binding.Need] = binding.Goal
 	}
-	for _, need := range []policy.GoalID{policy.MaintainResource, policy.EnsureResearch} {
-		id, ok := goals[need]
-		if !ok {
-			return fmt.Errorf("%s was never bound in the routine review", need)
-		}
-		goal, err := journal.LoadGoal(ctx, id)
-		if err != nil {
-			return err
-		}
-		report[strings.ToLower(string(need))+"_goal"] = map[string]any{"status": string(goal.Goal.Status), "need": string(goal.Goal.Need), "methods": len(goal.Methods)}
+	id, ok := goals[policy.MaintainResource]
+	if !ok {
+		return fmt.Errorf("%s was never bound in the routine review", policy.MaintainResource)
 	}
+	goal, err := journal.LoadGoal(ctx, id)
+	if err != nil {
+		return err
+	}
+	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Goal.Status), "need": string(goal.Goal.Need), "methods": len(goal.Methods)}
+	// EnsureResearch is a Project (#1911): its own row, not a goal.
+	projectID, ok := review.ProjectFor(policy.EnsureResearch)
+	if !ok {
+		return fmt.Errorf("%s was never bound in the routine review", policy.EnsureResearch)
+	}
+	research, err := journal.LoadProject(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	report[strings.ToLower(string(policy.EnsureResearch))+"_goal"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Need), "methods": len(research.Methods)}
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map})
 	if err != nil {
 		return err

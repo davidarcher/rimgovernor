@@ -104,7 +104,7 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 	if err != nil {
 		return err
 	}
-	var shrineGoal domain.GoalID
+	var shrineProject domain.ProjectID
 	drafted, breached, combat, claimed, salvaged, recovered := false, false, false, false, false, false
 	err = na.WaitProgress(ctx, na.Wait{Ceiling: 6 * time.Minute, Stall: 90 * time.Second, Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRoutineReview(ctx)
@@ -112,10 +112,8 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 			return "", false, err
 		}
 		s.Report()["shrine_holds"] = review.ShrineHolds
-		for _, binding := range review.Goals {
-			if binding.Need == policy.ClearAncientShrine {
-				shrineGoal = binding.Goal
-			}
+		if id, ok := review.ProjectFor(policy.ClearAncientShrine); ok {
+			shrineProject = id
 		}
 		if binding, ok := review.Incident(policy.ActiveCombat); ok {
 			incident, err := journal.LoadIncident(ctx, binding.Incident)
@@ -127,13 +125,13 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 				s.Report()["combat_incident"] = incident
 			}
 		}
-		if shrineGoal != "" {
-			goal, err := journal.LoadGoal(ctx, shrineGoal)
+		if shrineProject != "" {
+			goal, err := journal.LoadProject(ctx, shrineProject)
 			if err != nil {
 				return "", false, err
 			}
-			recovered = goal.Goal.Need == domain.NeedRecovered && goal.Goal.RecoveryObserved
-			s.Report()["shrine_goal"] = goal
+			recovered = goal.Project.Status == domain.ProjectFinished
+			s.Report()["shrine_project"] = goal
 		}
 		var states []string
 		for _, patterns := range [][]string{shrinePlanMethods, {"deconstruct-*"}} {

@@ -235,10 +235,6 @@ func observe(ctx context.Context, s cases.Session, variant string) (startuplabor
 // shelter is waiting on its beds rung.
 func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineReview) ([]startuplabor.Diagnosis, error) {
 	world := startuplabor.World{Colony: string(review.Snapshot.Colony), Load: string(review.Snapshot.Load), Map: int(review.Snapshot.Map)}
-	bound := map[domain.GoalID]domain.GoalID{}
-	for _, b := range review.Goals {
-		bound[b.Need] = b.Goal
-	}
 	var out []startuplabor.Diagnosis
 	for _, row := range review.Development.Rows {
 		slot := startuplabor.Slot{
@@ -249,8 +245,10 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineR
 			World: world, ReviewTick: review.Development.Tick, Goal: row.Goal, Slot: &slot,
 			ShelterBeds: domain.Unknown[bool](),
 		}
-		if goalID, ok := bound[row.Goal]; ok {
-			method, action, progress, beds, err := openWork(ctx, st, goalID)
+		if methods, ok, err := ownerMethods(ctx, st, review, row.Goal); err != nil {
+			return nil, err
+		} else if ok {
+			method, action, progress, beds, err := openWork(ctx, st, methods)
 			if err != nil {
 				return nil, err
 			}
@@ -264,17 +262,33 @@ func reviewDiagnoses(ctx context.Context, st *store.Store, review store.RoutineR
 	return out, nil
 }
 
-// openWork is the goal's first open action: its method, action id, the
-// progress view and whether the open rung is the shelter-beds one.
-func openWork(ctx context.Context, st *store.Store, goal domain.GoalID) (domain.MethodID, domain.ActionID, *domain.ProgressView, bool, error) {
-	state, err := st.LoadGoal(ctx, goal)
-	if err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			return "", "", nil, false, nil
+// ownerMethods is the open methods of the goal or Project the review binds to
+// need; ok is false when it binds none or the row is gone.
+func ownerMethods(ctx context.Context, st *store.Store, review store.RoutineReview, need domain.GoalID) ([]domain.GoalMethod, bool, error) {
+	var owner store.WorkOwner
+	var err error
+	if id, ok := review.ProjectFor(need); ok {
+		owner, err = st.LoadProject(ctx, id)
+	} else {
+		for _, b := range review.Goals {
+			if b.Need == need {
+				owner, err = st.LoadGoal(ctx, b.Goal)
+			}
 		}
-		return "", "", nil, false, err
 	}
-	for _, m := range state.Methods {
+	if owner == nil || errors.Is(err, store.ErrNotFound) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return owner.OwnerMethods(), true, nil
+}
+
+// openWork is the first open action among methods: its method, action id, the
+// progress view and whether the open rung is the shelter-beds one.
+func openWork(ctx context.Context, st *store.Store, methods []domain.GoalMethod) (domain.MethodID, domain.ActionID, *domain.ProgressView, bool, error) {
+	for _, m := range methods {
 		plan, err := st.LoadPlan(ctx, m.Plan)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {

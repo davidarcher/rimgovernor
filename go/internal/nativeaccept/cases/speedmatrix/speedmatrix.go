@@ -627,6 +627,21 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 			}
 		}
 	}
+	for _, binding := range review.Projects {
+		project, err := s.LoadProject(ctx, binding.Project)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				continue
+			}
+			return 0, 0, err
+		}
+		for _, method := range project.History {
+			if !seen[method.Plan] {
+				seen[method.Plan] = true
+				ids = append(ids, method.Plan)
+			}
+		}
+	}
 	unsuccessful := 0
 	for _, id := range ids {
 		state, err := s.LoadPlan(ctx, id)

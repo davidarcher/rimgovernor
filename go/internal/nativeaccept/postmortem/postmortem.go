@@ -609,6 +609,40 @@ func routineReview(ctx context.Context, db *sql.DB, note string) Section {
 		}
 		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("goal %s deficit/active priority %d epoch %d: %d live methods", id, goal.Priority, goal.Epoch, methods), Evidence: "service.sqlite goals#" + id})
 	}
+	rows.Close()
+	// Projects (#1911) are their own rows: an open Project in deficit with
+	// no live method is the same symptom.
+	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM goal_methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
+	if err != nil {
+		s.Lines = append(s.Lines, Line{Text: "projects: " + err.Error(), Evidence: "service.sqlite projects"})
+		return s
+	}
+	defer projects.Close()
+	for projects.Next() {
+		var id string
+		var payload []byte
+		var methods int
+		if projects.Scan(&id, &payload, &methods) != nil {
+			continue
+		}
+		var project struct {
+			Kind     string
+			Priority int
+			Status   string
+			Need     string
+		}
+		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Need != "deficit" {
+			continue
+		}
+		if refused, known := development[project.Kind]; known && refused {
+			continue
+		}
+		count++
+		if len(s.Lines) >= 2*maxLines {
+			continue
+		}
+		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("project %s deficit/open priority %d: %d live methods", id, project.Priority, methods), Evidence: "service.sqlite projects#" + id})
+	}
 	if count == 0 && s.Note == "" {
 		s.Lines = append(s.Lines, Line{Text: "no selected goal in deficit", Evidence: "service.sqlite goals"})
 	}

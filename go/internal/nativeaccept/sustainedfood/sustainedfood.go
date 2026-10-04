@@ -445,6 +445,9 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	if policy.IsIncidentKind(need) {
 		return sampleIncident(ctx, s, review, need, sample)
 	}
+	if policy.IsProjectKind(need) {
+		return sampleProject(ctx, s, review, need, sample)
+	}
 	var goalID domain.GoalID
 	for _, binding := range review.Goals {
 		if binding.Need == need {
@@ -488,25 +491,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["epoch"] = goal.Goal.Epoch
 	sample["method_count"] = len(goal.Methods)
 	describe := func(method domain.GoalMethod) map[string]any {
-		plan, err := s.LoadPlan(ctx, method.Plan)
-		if err != nil {
-			return map[string]any{"plan": string(method.Plan), "error": err.Error()}
-		}
-		stages, kinds := map[string]int{}, map[string]int{}
-		var unsuccessful []map[string]any
-		for _, p := range plan.Progress {
-			view := p.View()
-			stages[string(view.Stage)]++
-			kinds[string(p.Action().Kind())]++
-			if view.Stage == domain.Unsuccessful {
-				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(view.UnsuccessfulCause())})
-			}
-		}
-		described := map[string]any{"plan": string(method.Plan), "method": string(method.Method), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
-		if len(unsuccessful) > 0 {
-			described["unsuccessful"] = unsuccessful
-		}
-		return described
+		return describeMethod(ctx, s, method.Method, method.Plan)
 	}
 	var plans []map[string]any
 	active := map[domain.PlanID]bool{}
@@ -525,6 +510,76 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 			}
 		}
 	}
+	sample["retired_plans"] = retired
+	return sample, nil
+}
+
+// describeMethod is one method's plan: action count, stage and kind counts
+// and any unsuccessful actions.
+func describeMethod(ctx context.Context, s *store.Store, method domain.MethodID, planID domain.PlanID) map[string]any {
+	plan, err := s.LoadPlan(ctx, planID)
+	if err != nil {
+		return map[string]any{"plan": string(planID), "error": err.Error()}
+	}
+	stages, kinds := map[string]int{}, map[string]int{}
+	var unsuccessful []map[string]any
+	for _, p := range plan.Progress {
+		view := p.View()
+		stages[string(view.Stage)]++
+		kinds[string(p.Action().Kind())]++
+		if view.Stage == domain.Unsuccessful {
+			unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(view.UnsuccessfulCause())})
+		}
+	}
+	described := map[string]any{"plan": string(planID), "method": string(method), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
+	if len(unsuccessful) > 0 {
+		described["unsuccessful"] = unsuccessful
+	}
+	return described
+}
+
+// sampleProject is SampleGoal for a Project (#1911): the review's current
+// Project row for the kind, its status and need, and its plans.
+func sampleProject(ctx context.Context, s *store.Store, review store.RoutineReview, kind policy.GoalID, sample map[string]any) (map[string]any, error) {
+	id, bound := review.ProjectFor(kind)
+	sample["goal_bound"] = bound
+	if !bound {
+		return sample, nil
+	}
+	for _, row := range review.Development.Rows {
+		if row.Goal == kind {
+			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
+			if row.Deficit != nil {
+				development["deficit"] = *row.Deficit
+			}
+			sample["development"] = development
+		}
+	}
+	project, err := s.LoadProject(ctx, id)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return sample, nil
+		}
+		return sample, err
+	}
+	sample["project"] = string(id)
+	sample["status"] = string(project.Project.Status)
+	sample["need"] = string(project.Project.Need)
+	sample["priority"] = project.Project.Priority
+	sample["vetoed"] = review.VetoProject(project.Project) != ""
+	sample["method_count"] = len(project.Methods)
+	var plans, retired []map[string]any
+	active := map[domain.PlanID]bool{}
+	for _, method := range project.Methods {
+		active[method.Plan] = true
+		plans = append(plans, describeMethod(ctx, s, method.Method, method.Plan))
+	}
+	for _, method := range project.History {
+		if !active[method.Plan] {
+			retired = append(retired, describeMethod(ctx, s, method.Method, method.Plan))
+		}
+	}
+	sample["plans"] = plans
 	sample["retired_plans"] = retired
 	return sample, nil
 }
