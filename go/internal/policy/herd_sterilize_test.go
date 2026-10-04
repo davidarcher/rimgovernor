@@ -161,12 +161,12 @@ func TestSterilizedAnimalsAreNoPartOfThePair(t *testing.T) {
 	// The surplus cull takes a sterile cow before breaking the pair.
 	plain := cows(2)
 	plain[1].Sterilized = domain.Known(true)
-	got, unknown := herdSurplusCandidates(plain, map[Resource]int64{"Cow": 2}, false, nil)
+	got, unknown := herdSurplusCandidates(plain, map[Resource]int64{"Cow": 2}, false, HerdPolicy{})
 	if unknown || len(got) != 1 || got[0].animal.ID != "cowa" {
 		t.Fatal(got, unknown)
 	}
 	plain[1].Sterilized = domain.Known(false)
-	if got, _ := herdSurplusCandidates(plain, map[Resource]int64{"Cow": 2}, false, nil); len(got) != 0 {
+	if got, _ := herdSurplusCandidates(plain, map[Resource]int64{"Cow": 2}, false, HerdPolicy{}); len(got) != 0 {
 		t.Fatal("the pair of cows stays", got)
 	}
 }

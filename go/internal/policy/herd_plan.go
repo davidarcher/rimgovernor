@@ -408,6 +408,14 @@ func PlanHerd(in HerdPlanInput) HerdPlan {
 		}
 	}
 	plan.Policy.Roles = plan.Roles
+	for _, def := range order {
+		if layer, ok := herdLayerOf(stats[def].race); ok {
+			if plan.Policy.Layers == nil {
+				plan.Policy.Layers = map[Resource]HerdLayer{}
+			}
+			plan.Policy.Layers[def] = layer
+		}
+	}
 	for def, role := range plan.Roles {
 		switch {
 		case role.Retiring:

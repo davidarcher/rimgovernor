@@ -53,7 +53,10 @@ func ReconcileHerdRemoval(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy, 
 		sex := a.Definition + "/" + Resource(a.Gender)
 		// A sterilized animal is no part of a breeding pair.
 		fertile := herdFertile(a)
-		pair := fertile && (a.Gender == "Male" && sexes[sex] <= herdPairMales || a.Gender == "Female" && sexes[sex] <= herdPairFemales)
+		// A layer race keeps its rooster ratio (malesKept); an unknown ratio
+		// keeps every fertile male.
+		_, floorMales, mk := herd.malesKept(a.Definition, sexes[a.Definition+"/Female"])
+		pair := fertile && (a.Gender == "Male" && (!mk || sexes[sex] <= floorMales) || a.Gender == "Female" && sexes[sex] <= herdPairFemales)
 		if herd.Retired[a.Definition] {
 			floor, pair = 0, false
 		}

@@ -154,12 +154,12 @@ func TestBondedAnimalSkippedByEveryRemovalPath(t *testing.T) {
 	bonded.SafeToSlaughter, bonded.SafeToRelease = domain.Known(false), domain.Known(false)
 	free := bondedAs(planAnimal("a2", "Cow", "None"), false)
 	limits := map[Resource]int64{"Cow": 1}
-	got, unknown := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil)
+	got, unknown := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, HerdPolicy{})
 	if unknown || len(got) != 1 || got[0].animal.ID != "a2" {
 		t.Fatalf("surplus pick = %+v, want a2", got)
 	}
 	free.SafeToSlaughter, free.SafeToRelease = domain.Known(false), domain.Known(true)
-	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, nil); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
+	if got, _ := herdSurplusCandidates([]UpkeepAnimal{bonded, free}, limits, true, HerdPolicy{}); len(got) != 1 || got[0].animal.ID != "a2" || got[0].method != domain.HusbandryRelease {
 		t.Fatalf("release pick = %+v, want a2", got)
 	}
 	retired := HerdPolicy{PopulationMax: limits, Retired: map[Resource]bool{"Cow": true}}

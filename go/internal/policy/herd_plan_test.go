@@ -107,7 +107,7 @@ func TestHerdPlanLoneCowIsAFounder(t *testing.T) {
 		t.Fatal("goats stay until the cows are a pair")
 	}
 	rows := append(owned, planAnimal("c2", "Cow", "Female"))
-	if got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Cow": 0}, false, plan.Policy.Retired); len(got) != 0 {
+	if got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Cow": 0}, false, HerdPolicy{Retired: plan.Policy.Retired}); len(got) != 0 {
 		t.Fatal("the pair floor keeps founders", got)
 	}
 }
@@ -132,7 +132,7 @@ func TestHerdPlanGoatsRetireOnlyOnceCowsAreAdultPaired(t *testing.T) {
 	}
 	// Retired goats go entirely, the breeding pair included; the cows stay.
 	rows := append(goatHerd(), planAnimal("c1", "Cow", "Male"), planAnimal("c2", "Cow", "Female"))
-	got, unknown := herdSurplusCandidates(rows, plan.Policy.PopulationMax, false, plan.Policy.Retired)
+	got, unknown := herdSurplusCandidates(rows, plan.Policy.PopulationMax, false, HerdPolicy{Retired: plan.Policy.Retired})
 	if unknown || len(got) != 3 || got[0].animal.Definition != "Goat" || got[2].animal.Definition != "Goat" {
 		t.Fatal(got, unknown)
 	}

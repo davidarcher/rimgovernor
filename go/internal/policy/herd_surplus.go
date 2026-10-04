@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"math"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -45,6 +46,58 @@ const herdOldFraction = 0.8
 // herdMalesPerFemales: one breeding male per this many females; males
 // beyond max(1, ceil(females/5)) are excess.
 const herdMalesPerFemales = 5
+
+// HerdLayer is the breeding rule of one egg-laying race whose eggs can be
+// fertilized (#1898), derived from the catalog: HensPerRooster is the hens
+// one rooster keeps laying fertilized eggs, from how often he mates
+// (24/mateMtbHours a day) against the fertilized eggs one hen lays a day
+// (count/layInterval, each mating fertilizing eggFertilizationCountMax of
+// them). Unknown when any of those facts is.
+type HerdLayer struct {
+	HensPerRooster domain.Fact[float64]
+}
+
+// herdLayerOf is the layer rule of a race, false for a race that does not lay
+// fertilizable eggs.
+func herdLayerOf(race AnimalRace) (HerdLayer, bool) {
+	for _, p := range race.Products {
+		if p.Kind != "eggs" || p.FertilizedDef == "" {
+			continue
+		}
+		mtb, mk := race.MateMtbHours.Value()
+		count, ck := p.Amount.Value()
+		interval, ik := p.IntervalDays.Value()
+		if !mk || !ck || !ik || mtb <= 0 || count <= 0 || interval <= 0 || p.FertilizationCountMax <= 0 {
+			return HerdLayer{HensPerRooster: domain.Unknown[float64]()}, true
+		}
+		matingsPerDay := 24 / mtb
+		matingsPerHenDay := count / interval / float64(p.FertilizationCountMax)
+		return HerdLayer{HensPerRooster: domain.Known(matingsPerDay / matingsPerHenDay)}, true
+	}
+	return HerdLayer{}, false
+}
+
+// malesKept is the fertile males a race keeps for its fertile females: keep
+// is the count above which males are excess, floor the count no removal goes
+// below. A layer race below its hen target (PopulationMin) keeps enough
+// roosters to fertilize every egg and one at target, floor and keep alike;
+// any other race keeps one per herdMalesPerFemales females above a pair
+// floor of herdPairMales. known is false for a layer whose ratio is unknown.
+func (h HerdPolicy) malesKept(race Resource, females int64) (keep, floor int64, known bool) {
+	layer, isLayer := h.Layers[race]
+	if !isLayer {
+		return max(herdPairMales, (females+herdMalesPerFemales-1)/herdMalesPerFemales), herdPairMales, true
+	}
+	ratio, rk := layer.HensPerRooster.Value()
+	if !rk {
+		return 0, 0, false
+	}
+	keep = herdPairMales
+	if females < h.PopulationMin[race] {
+		keep = max(herdPairMales, int64(math.Ceil(float64(females)/ratio)))
+	}
+	return keep, keep, true
+}
 
 // herdStoredFeedDays spreads stored pen feed over one quadrum, the span the
 // worst-quadrum pasture rate describes.
@@ -164,7 +217,7 @@ func herdFeedPerMeat(a UpkeepAnimal) float64 {
 // A sterilized animal is no part of the pair and is removed freely.
 // Any tracked animal with an unknown designation or eligibility fact makes
 // the result unknown.
-func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juveniles bool, retired map[Resource]bool) ([]herdRemoval, bool) {
+func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juveniles bool, herd HerdPolicy) ([]herdRemoval, bool) {
 	kept := map[Resource]int64{}
 	sexes := map[Resource]map[string]int64{}
 	eligible := map[Resource][]herdRemoval{}
@@ -199,7 +252,11 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 	for race, limit := range limits {
 		surplus := kept[race] - limit
 		rows := eligible[race]
-		excessMales := sexes[race]["Male"] - max(herdPairMales, (sexes[race]["Female"]+herdMalesPerFemales-1)/herdMalesPerFemales)
+		keepMales, floorMales, mk := herd.malesKept(race, sexes[race]["Female"])
+		if !mk {
+			return nil, true
+		}
+		excessMales := sexes[race]["Male"] - keepMales
 		tier := func(a UpkeepAnimal) int {
 			sick, _ := a.Herd.Sick.Value()
 			switch {
@@ -246,8 +303,8 @@ func herdSurplusCandidates(rows []UpkeepAnimal, limits map[Resource]int64, juven
 				break
 			}
 			switch g := r.animal.Gender; {
-			case retired[race], !herdFertile(r.animal): // no pair to keep
-			case g == "Male" && sexes[race][g] > herdPairMales, g == "Female" && sexes[race][g] > herdPairFemales:
+			case herd.Retired[race], !herdFertile(r.animal): // no pair to keep
+			case g == "Male" && sexes[race][g] > floorMales, g == "Female" && sexes[race][g] > herdPairFemales:
 				sexes[race][g]--
 			case g == "None": // asexual race: no pair to keep
 			default:

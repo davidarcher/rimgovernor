@@ -34,6 +34,9 @@ type HerdPolicy struct {
 	// (herdTameLess) and training follows its job (herdTrainOrder). Absent
 	// for a policy not built by PlanHerd.
 	Roles map[Resource]HerdRole
+	// Layers is the breeding rule of each fertilizable egg-laying race the
+	// plan observed (#1898); a race absent keeps herdMalesPerFemales.
+	Layers map[Resource]HerdLayer
 }
 
 // herdTrainOrder is the trainables a race's job wants, in order. A hauler
@@ -153,7 +156,7 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort doma
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd.Retired); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd); unknown {
 		return domain.Unknown[bool]()
 	} else if len(removals) > 0 {
 		deficit = true
@@ -341,7 +344,7 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 			}
 		}
 	}
-	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd.Retired); unknown {
+	if removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, herd.FeedShort, herd); unknown {
 		return HusbandryChoice{Reason: HusbandryUnknown}
 	} else if len(removals) > 0 {
 		return HusbandryChoice{Animal: removals[0].animal.ID, Method: removals[0].method}

@@ -54,7 +54,11 @@ func sterilizeWanted(rows []UpkeepAnimal, herd HerdPolicy) map[PawnID]bool {
 		if males < herdPairMales || females < herdPairFemales {
 			continue
 		}
-		excessMales := males - max(herdPairMales, (females+herdMalesPerFemales-1)/herdMalesPerFemales)
+		keepMales, _, mk := herd.malesKept(race, females)
+		if !mk {
+			continue
+		}
+		excessMales := males - keepMales
 		for _, a := range animals {
 			switch {
 			case a.Gender == "Male" && males > herdPairMales && (role.Superseded || excessMales > 0):

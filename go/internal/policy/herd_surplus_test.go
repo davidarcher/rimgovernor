@@ -18,7 +18,7 @@ func TestHerdSurplusSlaughtersFirstAndKeepsBreedingPair(t *testing.T) {
 	rows := []UpkeepAnimal{herdAnimal("m1", "Male", true, true), herdAnimal("m2", "Male", true, true),
 		herdAnimal("f1", "Female", true, true), herdAnimal("f2", "Female", true, true), herdAnimal("f3", "Female", true, true)}
 	limits := map[Resource]int64{"Muffalo": 1}
-	got, unknown := herdSurplusCandidates(rows, limits, false, nil)
+	got, unknown := herdSurplusCandidates(rows, limits, false, HerdPolicy{})
 	// Surplus is 4 but only one male and one female may go.
 	if unknown || len(got) != 2 || got[0].animal.ID != "f1" || got[1].animal.ID != "m1" || got[0].method != domain.HusbandrySlaughter {
 		t.Fatal(got, unknown)
@@ -34,7 +34,7 @@ func TestHerdSurplusSlaughtersFirstAndKeepsBreedingPair(t *testing.T) {
 	}
 	rows[2].Gender = ""
 	rows[3].Gender = ""
-	if got, _ := herdSurplusCandidates(rows, limits, false, nil); len(got) != 1 || got[0].animal.ID != "m1" {
+	if got, _ := herdSurplusCandidates(rows, limits, false, HerdPolicy{}); len(got) != 1 || got[0].animal.ID != "m1" {
 		t.Fatal("unknown sex is kept", got)
 	}
 }
@@ -42,15 +42,15 @@ func TestHerdSurplusSlaughtersFirstAndKeepsBreedingPair(t *testing.T) {
 func TestHerdSurplusReleasesOnlyWhenSlaughterRefused(t *testing.T) {
 	rows := []UpkeepAnimal{herdAnimal("m1", "Male", false, true), herdAnimal("m2", "Male", false, false), herdAnimal("f1", "Female", true, true),
 		herdAnimal("f2", "Female", true, true)}
-	got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, nil)
+	got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, HerdPolicy{})
 	if len(got) != 1 || got[0].animal.ID != "m1" || got[0].method != domain.HusbandryRelease {
 		t.Fatal(got)
 	}
 	rows[1].SafeToSlaughter = domain.Unknown[bool]()
-	if _, unknown := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, nil); !unknown {
+	if _, unknown := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, HerdPolicy{}); !unknown {
 		t.Fatal("unknown eligibility stays unknown")
 	}
-	if _, unknown := herdSurplusCandidates(rows, map[Resource]int64{"Alpaca": 2}, false, nil); unknown {
+	if _, unknown := herdSurplusCandidates(rows, map[Resource]int64{"Alpaca": 2}, false, HerdPolicy{}); unknown {
 		t.Fatal("an untracked race's facts never block")
 	}
 }
@@ -59,7 +59,7 @@ func TestHerdSurplusRanksTrainedLast(t *testing.T) {
 	rows := []UpkeepAnimal{herdAnimal("m1", "Male", true, true), herdAnimal("m2", "Male", true, true), herdAnimal("m3", "Male", true, true)}
 	rows[0].Training = []HusbandryTrainable{trainable("Haul", true, true)}
 	rows[1].Training = []HusbandryTrainable{trainable("Obedience", true, true)}
-	got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, nil)
+	got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": 2}, false, HerdPolicy{})
 	if len(got) != 1 || got[0].animal.ID != "m2" {
 		t.Fatal("the hauler goes last", got)
 	}
@@ -74,7 +74,7 @@ func TestHerdCullOrder(t *testing.T) {
 	rows[5].Herd.FeedPerDay, rows[5].Herd.MeatNutrition = domain.Known(1.0), domain.Known(10.0)
 	rows[6].Herd.Adult = domain.Known(false)
 	order := func(limit int64, juveniles bool) []PawnID {
-		got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": limit}, juveniles, nil)
+		got, _ := herdSurplusCandidates(rows, map[Resource]int64{"Muffalo": limit}, juveniles, HerdPolicy{})
 		var ids []PawnID
 		for _, r := range got {
 			ids = append(ids, r.animal.ID)
@@ -92,7 +92,7 @@ func TestHerdCullOrder(t *testing.T) {
 	blobs := []UpkeepAnimal{herdAnimal("adult", "None", true, true), herdAnimal("young", "None", true, true)}
 	blobs[1].Herd.Adult = domain.Known(false)
 	for juveniles, want := range map[bool]int{false: 1, true: 2} {
-		if got, _ := herdSurplusCandidates(blobs, map[Resource]int64{"Muffalo": 0}, juveniles, nil); len(got) != want {
+		if got, _ := herdSurplusCandidates(blobs, map[Resource]int64{"Muffalo": 0}, juveniles, HerdPolicy{}); len(got) != want {
 			t.Fatal(juveniles, got)
 		}
 	}

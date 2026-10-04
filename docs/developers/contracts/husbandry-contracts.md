@@ -121,11 +121,22 @@ fails the reading loudly like any other required native read.
   the game raises no history event for selling an animal. Per-race meat kinds (insect meat) have no
   per-race eating read on the wire, so only `AteMeat` and venerated meat bind. `AnimalState.slaughter_barred`
   is no longer written or read. Cull order: old (past 80% of
-  `lifeExpectancy`) or sick; males beyond one per five females; untrained
+  `lifeExpectancy`) or sick; males beyond one per five females (a fertilizable egg-laying race follows the rooster rule below); untrained
   adults by highest grazing demand per meat; adults that learned Haul, Rescue
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties
   go to the lowest ID. Races without a cap are never culled for surplus.
-- **Breeding pair.** No removal leaves a race with fewer than one male and two
+- **Rooster ratio (#1898).** A race with an egg layer that has a fertilized def gets a
+  `HerdPolicy.Layers` entry from `PlanHerd`: `HensPerRooster` = (24 / `mateMtbHours`)
+  / (eggs per lay / `eggLayIntervalDays` / `eggFertilizationCountMax`), every egg wanted
+  fertilized. Below the hen target (fertile females < `PopulationMin`) the race keeps
+  `ceil(hens / HensPerRooster)` fertile males, at target one; males beyond that are
+  excess (`herdSurplusCandidates`, sterilize) and the kept count is also the male
+  removal floor (`ReconcileHerdRemoval` too). Hatching is controlled by rooster count
+  only. An unknown mating, count, interval or fertilization fact makes the removal
+  result unknown (nothing removed, no sterilize), never a literal fallback. A race
+  without a fertilizable egg comp keeps the one-per-five rule.
+- **Breeding pair.**
+ No removal leaves a race with fewer than one male and two
   females, except a retiring race; an animal of unknown sex is never removed.
   Only fertile animals make the pair: a sterilized animal (`AnimalState.sterilized`,
   `UpkeepAnimal.Sterilized`) counts toward a race's head count and cap but not
@@ -211,7 +222,7 @@ mastered animal outside a retired race.
 
 **Sterilize (#1631).** `SterilizeChoice` wants an animal sterilized when its race
 is `Superseded` (it keeps working but stops breeding until it retires) or it is
-a male beyond the plan's ratio (one per five females, `herdMalesPerFemales`) of
+a male beyond the plan's ratio (one per five females, `herdMalesPerFemales`; the rooster rule for a layer race) of
 a race kept within its cap. Never a founder, a retiring race (culled instead),
 an animal designated for removal, or one with an unread `sterilized` or
 `sterilize_queued` fact; and never a sex below its breeding pair of fertile

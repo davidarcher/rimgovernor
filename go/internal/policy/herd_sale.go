@@ -16,7 +16,7 @@ func HerdSaleAnimals(animals domain.Fact[[]UpkeepAnimal], herd HerdPolicy) map[P
 	if !known {
 		return nil
 	}
-	removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, true, herd.Retired)
+	removals, unknown := herdSurplusCandidates(rows, herd.PopulationMax, true, herd)
 	if unknown {
 		return nil
 	}
