@@ -34,7 +34,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 		t.Fatal(g, err)
 	}
 	var active, history int
-	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM goals").Scan(&history, &active); err != nil {
+	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM standards").Scan(&history, &active); err != nil {
 		t.Fatal(err)
 	}
 	if active != 43 || history != 43*33 {
@@ -112,7 +112,7 @@ func TestRoutineGoalRetirementRollsBackWithReview(t *testing.T) {
 	s := open(t, memoryPath(t))
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
-	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON rounds BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	r.Current.Load = "other"

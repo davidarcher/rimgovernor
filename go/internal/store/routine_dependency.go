@@ -22,7 +22,7 @@ import (
 type DependencyRecord struct {
 	Need     domain.ConcernID
 	Goal     domain.ConcernID
-	Episode  uint64 `json:"Epoch"`
+	Episode  uint64
 	Method   domain.MethodID
 	Plan     domain.PlanID
 	Resource policy.Resource
@@ -124,7 +124,7 @@ func (s *Store) RecordDependency(ctx context.Context, revision uint64, rec Depen
 	if len(data) > 1024*1024 {
 		return ErrCapacity
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO rounds(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return err
 	}
 	return tx.Commit()

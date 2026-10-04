@@ -80,9 +80,9 @@ code and storage still carry the old words until the rename children of
 finds Rounds.
 
 An Incident is a `incidents` row and a Project is a `projects` row (#1926);
-Standards are the only `goals` rows. Incident and Project methods live in
-`goal_methods` beside the Standards' ones, each row owned by exactly one of
-`goal_id`, `incident_id` or `project_id` (a Project's epoch is always `0`),
+Standards are the only `standards` rows. Incident and Project methods live in
+`methods` beside the Standards' ones, each row owned by exactly one of
+`standard_id`, `incident_id` or `project_id` (a Project's episode is always `0`),
 and go through the same admission. A Project is saved as `project/<id>`
 (`GovernorProjectBlob`, `GovernorStateSchemaVersion` 3); its methods are
 re-planned after a load. Rounds bind Projects separately from Standards
@@ -91,7 +91,7 @@ and kind, reused while it stands, invalidated with the world, and replaced by
 a new row when a Completed Project is measured broken with no work open. A
 player activation that forces a deficit on a Completed Project mints a new
 `project-player-<hex32>-<kind>` row the same way. No Project or Incident kind
-is ever a `goals` row.
+is ever a `standards` row.
 
 | Type | What it is | Lifecycle |
 | --- | --- | --- |

@@ -38,7 +38,7 @@ func settledRetirementOutcome(progress domain.Progress) bool {
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
 func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction], floors map[retirementWorld]domain.Tick) error {
-	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id,m.incident_id,m.project_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
+	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.standard_id,m.incident_id,m.project_id FROM plans p INDEXED BY active_plans CROSS JOIN methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 			}
 			continue
 		}
-		if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), v.goal.String); err != nil {
+		if _, err = tx.ExecContext(ctx, "UPDATE standards SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), v.goal.String); err != nil {
 			return err
 		}
 	}
@@ -158,8 +158,8 @@ func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uin
 		return domain.Method{}, err
 	}
 	m := domain.Method{Owner: goal, Episode: epoch, Method: method}
-	column, key := "goal_id", strconv.FormatUint(epoch, 10)
-	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
+	column, key := "standard_id", strconv.FormatUint(epoch, 10)
+	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE "+column+"=? AND episode=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
@@ -182,8 +182,8 @@ func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uin
 // epoch turnover (tidy re-sites, zone shelves) load it by this stored key.
 func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.ConcernID, method domain.MethodID) (domain.PlanID, error) {
 	var id domain.PlanID
-	column := "goal_id"
-	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND method_id=? ORDER BY CAST(epoch AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
+	column := "standard_id"
+	err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE "+column+"=? AND method_id=? ORDER BY CAST(episode AS INTEGER) DESC LIMIT 1", goal, method).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	}
@@ -205,8 +205,8 @@ func (s *Store) LoadMethods(ctx context.Context, goal domain.ConcernID, epoch ui
 	if epoch > g.Standard.Episode {
 		return nil, errors.New("invalid historical Episode")
 	}
-	column, key := "goal_id", strconv.FormatUint(epoch, 10)
-	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? ORDER BY method_id LIMIT 257", goal, key)
+	column, key := "standard_id", strconv.FormatUint(epoch, 10)
+	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM methods WHERE "+column+"=? AND episode=? ORDER BY method_id LIMIT 257", goal, key)
 	if err != nil {
 		return nil, err
 	}

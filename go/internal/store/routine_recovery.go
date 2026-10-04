@@ -130,7 +130,7 @@ func routineRecovery(ctx context.Context, tx *sql.Tx, f policy.RoutineFacts, h *
 	}
 	r := recoveryRecord(policy.RecoveryPlanning{Safety: f.RecoverySafety, Workers: f.RecoveryWorkers, Buildings: f.RecoveryBuildings})
 	r.Incident = binding.Incident
-	rows, err := tx.QueryContext(ctx, "SELECT method_id FROM goal_methods WHERE incident_id=? ORDER BY method_id LIMIT 257", r.Incident)
+	rows, err := tx.QueryContext(ctx, "SELECT method_id FROM methods WHERE incident_id=? ORDER BY method_id LIMIT 257", r.Incident)
 	if err != nil {
 		return nil, err
 	}

@@ -119,7 +119,7 @@ func TestRoutineDevelopmentRejectsCorruptDurableSelections(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.db.Exec("UPDATE routine_review SET payload=?", payload); err != nil {
+			if _, err = s.db.Exec("UPDATE rounds SET payload=?", payload); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = s.LoadRounds(context.Background()); err == nil {
@@ -142,7 +142,7 @@ func TestRoutineDevelopmentReloadsFoodStorageRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec("UPDATE routine_review SET payload=?", payload); err != nil {
+	if _, err = s.db.Exec("UPDATE rounds SET payload=?", payload); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.LoadRounds(context.Background()); err != nil {
@@ -411,7 +411,7 @@ func TestRoutineDevelopmentBypassAdmissionHoldsNoSlot(t *testing.T) {
 	if len(out.Review.Development.Committed) != 1 || !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
 		t.Fatal("slot work admitted at priority 3 holds the slot", out.Review.Development)
 	}
-	if _, err := s.db.ExecContext(ctx, "UPDATE goal_methods SET priority=2 WHERE plan_id='wood'"); err != nil {
+	if _, err := s.db.ExecContext(ctx, "UPDATE methods SET priority=2 WHERE plan_id='wood'"); err != nil {
 		t.Fatal(err)
 	}
 	out = reviewRoutine(t, s, &r)

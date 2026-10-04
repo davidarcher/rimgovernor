@@ -32,22 +32,22 @@ type StandardState struct {
 
 const maxActiveGoals = 512
 
-// initializeGoals creates the goal lifecycle tables. goals and routine_review
-// are session caches (#1011): RebuildGoals refills goals and projects from the save and
-// ResetRounds empties routine_review on every world change, and the
+// initializeGoals creates the goal lifecycle tables. goals and rounds
+// are session caches (#1011): RebuildStandards refills goals and projects from the save and
+// ResetRounds empties rounds on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, `CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
-CREATE INDEX active_goals ON goals(id) WHERE retired=0;
+	_, err := tx.ExecContext(ctx, `CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
+CREATE INDEX active_standards ON standards(id) WHERE retired=0;
 CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
 CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
 CREATE TABLE projects(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
 CREATE INDEX active_projects ON projects(id) WHERE retired=0;
-CREATE TABLE goal_methods(goal_id TEXT REFERENCES goals(id), incident_id TEXT REFERENCES incidents(id), project_id TEXT REFERENCES projects(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((goal_id IS NOT NULL) + (incident_id IS NOT NULL) + (project_id IS NOT NULL) = 1), CHECK(project_id IS NULL OR epoch='0')) STRICT;
-CREATE UNIQUE INDEX goal_method_keys ON goal_methods(goal_id,epoch,method_id) WHERE goal_id IS NOT NULL;
-CREATE UNIQUE INDEX incident_method_keys ON goal_methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
-CREATE UNIQUE INDEX project_method_keys ON goal_methods(project_id,method_id) WHERE project_id IS NOT NULL;
-CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
+CREATE TABLE methods(standard_id TEXT REFERENCES standards(id), incident_id TEXT REFERENCES incidents(id), project_id TEXT REFERENCES projects(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((standard_id IS NOT NULL) + (incident_id IS NOT NULL) + (project_id IS NOT NULL) = 1), CHECK(project_id IS NULL OR episode='0')) STRICT;
+CREATE UNIQUE INDEX standard_method_keys ON methods(standard_id,episode,method_id) WHERE standard_id IS NOT NULL;
+CREATE UNIQUE INDEX incident_method_keys ON methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
+CREATE UNIQUE INDEX project_method_keys ON methods(project_id,method_id) WHERE project_id IS NOT NULL;
+CREATE TABLE rounds(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;`)
@@ -59,7 +59,7 @@ func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 		return err
 	}
 	var count int
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goals WHERE retired=0").Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM standards WHERE retired=0").Scan(&count); err != nil {
 		return err
 	}
 	if count >= maxActiveGoals {
@@ -69,7 +69,7 @@ func createStandard(ctx context.Context, tx *sql.Tx, g domain.Standard) error {
 	if err != nil {
 		return err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO goals(id,revision,payload) VALUES(?,?,?)", g.ID, "0", data); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO standards(id,revision,payload) VALUES(?,?,?)", g.ID, "0", data); err != nil {
 		return conflict(err)
 	}
 	return nil
@@ -79,7 +79,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 	var out StandardState
 	var data []byte
 	var revision string
-	if err := tx.QueryRowContext(ctx, "SELECT revision,payload,retired FROM goals WHERE id=?", id).Scan(&revision, &data, &out.Retired); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT revision,payload,retired FROM standards WHERE id=?", id).Scan(&revision, &data, &out.Retired); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
@@ -109,10 +109,10 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 		return StandardState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
-	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE goal_id=?", id).Scan(&out.Admitted); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods WHERE standard_id=?", id).Scan(&out.Admitted); err != nil {
 		return StandardState{}, err
 	}
-	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE goal_id=? AND epoch=? ORDER BY method_id", id, strconv.FormatUint(out.Standard.Episode, 10))
+	history, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM methods WHERE standard_id=? AND episode=? ORDER BY method_id", id, strconv.FormatUint(out.Standard.Episode, 10))
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -129,7 +129,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 	if err != nil {
 		return StandardState{}, err
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT m.epoch,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id=? ORDER BY length(m.epoch),m.epoch,m.method_id", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.episode,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.standard_id=? ORDER BY length(m.episode),m.episode,m.method_id", id)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -187,7 +187,7 @@ func saveStandard(ctx context.Context, tx *sql.Tx, previous StandardState, g dom
 		return StandardState{}, err
 	}
 	next := previous.Revision + 1
-	if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=?,payload=? WHERE id=?", strconv.FormatUint(next, 10), data, g.ID); err != nil {
+	if _, err = tx.ExecContext(ctx, "UPDATE standards SET revision=?,payload=? WHERE id=?", strconv.FormatUint(next, 10), data, g.ID); err != nil {
 		return StandardState{}, err
 	}
 	previous.Standard = g
@@ -306,7 +306,7 @@ func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision
 // admitOwnerCommit is the commit every method owner shares, a goal or a
 // Project: the revision CAS, the open-deficit check, the Safeguards and development
 // admission, the open-work check with its exemptions, then the family
-// admission, the goal_methods row and the revision bump. The caller reloads
+// admission, the methods row and the revision bump. The caller reloads
 // the owner.
 func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	summary, _ := SummarizeOwner(state)
@@ -378,7 +378,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {
 		return err
 	}
-	table := "goals"
+	table := "standards"
 	if column, _, _ := state.ownerKey(); column == "project_id" {
 		table = "projects"
 	}
@@ -464,7 +464,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	var id sql.NullString
 	var incident, project sql.NullString
 	var epoch string
-	err := tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &incident, &project, &epoch)
+	err := tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id,episode FROM methods WHERE plan_id=?", plan).Scan(&id, &incident, &project, &epoch)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}

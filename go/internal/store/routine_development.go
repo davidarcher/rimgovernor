@@ -36,7 +36,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		world := World{}
 		admitted := 0
 		var owner, incident, project sql.NullString
-		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
+		err = tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id,priority FROM methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
 		goalID = domain.ConcernID(owner.String)
 		if err == nil && project.Valid {
 			// A Project's method serves its kind, which is its need.
@@ -165,7 +165,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoundsRequest, ne
 				// campfire plan completed and retired is served, not owed.
 				var served int
 				column, id, epoch := owner.ownerKey()
-				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE "+column+"=? AND epoch=?", id, epoch).Scan(&served); err != nil {
+				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM methods WHERE "+column+"=? AND episode=?", id, epoch).Scan(&served); err != nil {
 					return policy.DevelopmentState{}, policy.ReadyWorkReport{}, policy.ShadowRank{}, nil, err
 				}
 				goals[i].Served = served > 0

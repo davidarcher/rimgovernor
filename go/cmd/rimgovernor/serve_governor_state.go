@@ -118,11 +118,11 @@ func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native g
 		return err
 	}
 	read := time.Since(began)
-	var pass store.GoalOrphanPass
+	var pass store.StandardOrphanPass
 	if r.orphans != nil {
 		pass = orphanSweep(r.orphans, world, r.out)
 	}
-	if err = r.database.RebuildGoals(ctx, saved, pass); err != nil {
+	if err = r.database.RebuildStandards(ctx, saved, pass); err != nil {
 		return fmt.Errorf("rebuild goals: %w", err)
 	}
 	goals := time.Since(began) - read
@@ -194,7 +194,7 @@ type orphanNative interface {
 // each one listed is cancelled (D3: the Autopilot has full control). A read
 // or transport error aborts the rebuild so the next round retries; a native
 // refusal is logged.
-func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.GoalOrphanPass {
+func orphanSweep(native orphanNative, world governorWorld, out io.Writer) store.StandardOrphanPass {
 	return func(ctx context.Context, plans []store.PlanState) error {
 		identity := boundary.Identity(domain.GenerationSnapshot{Colony: world.Colony, Map: world.Map, Load: world.Load})
 		session, _, err := native.ReadTradeSession(ctx, identity)

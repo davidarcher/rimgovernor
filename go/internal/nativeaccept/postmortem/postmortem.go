@@ -508,9 +508,9 @@ func openRaw(dir string) (*sql.DB, string) {
 	return db, ""
 }
 
-// roundsSection reads routine_review raw: development rows not selected
+// roundsSection reads rounds raw: development rows not selected
 // (with the reason, which the goal's own status hides: a goal
-// "deficit/active, zero methods" is usually a development refusal, not a
+// "deficit/open, zero methods" is usually a development refusal, not a
 // planner that offered nothing) and every active goal in deficit with its
 // live method count.
 func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
@@ -522,12 +522,12 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 	// development is need -> refused (ranked and not selected).
 	development := map[string]bool{}
 	var payload []byte
-	err := db.QueryRowContext(ctx, "SELECT payload FROM routine_review WHERE singleton=1").Scan(&payload)
+	err := db.QueryRowContext(ctx, "SELECT payload FROM rounds WHERE singleton=1").Scan(&payload)
 	switch {
 	case err == sql.ErrNoRows:
-		s.Note = "routine_review is empty: the service never reviewed, or reset by a world rebuild"
+		s.Note = "rounds is empty: the service never reviewed, or reset by a world rebuild"
 	case err != nil:
-		s.Note = "routine_review: " + err.Error()
+		s.Note = "rounds: " + err.Error()
 	default:
 		var review struct {
 			Revision    uint64
@@ -548,10 +548,10 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			}
 		}
 		if err := json.Unmarshal(payload, &review); err != nil {
-			s.Note = "routine_review payload: " + err.Error()
+			s.Note = "rounds payload: " + err.Error()
 		} else {
 			text := fmt.Sprintf("review revision %d at tick %d enabled=%t; development capacity %d committed=%v", review.Revision, review.Tick, review.Enabled, review.Development.Capacity, review.Development.Committed)
-			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite routine_review"})
+			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds"})
 			for _, row := range review.Development.Rows {
 				development[row.Goal] = !row.Selected
 				if row.Selected {
@@ -566,14 +566,14 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 					text += " bottleneck " + row.Bottleneck
 				}
 				if len(s.Lines) < maxLines {
-					s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite routine_review Development.Rows[" + row.Goal + "]"})
+					s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite rounds Development.Rows[" + row.Goal + "]"})
 				}
 			}
 		}
 	}
 	// Goals in deficit that development selected (or never ranked) with no
 	// live method: the "zero methods" symptom the rows above do not explain.
-	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM goal_methods m JOIN plans p ON p.id=m.plan_id WHERE m.goal_id=g.id AND p.retired=0) FROM goals g WHERE g.retired=0")
+	rows, err := db.QueryContext(ctx, "SELECT g.id, g.payload, (SELECT count(*) FROM methods m JOIN plans p ON p.id=m.plan_id WHERE m.standard_id=g.id AND p.retired=0) FROM standards g WHERE g.retired=0")
 	if err != nil {
 		s.Lines = append(s.Lines, Line{Text: "goals: " + err.Error(), Evidence: "service.sqlite goals"})
 		return s
@@ -591,13 +591,13 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			Source   string
 			Priority int
 			Status   string
-			Need     string
-			Epoch    uint64
+			Finding  string
+			Episode  uint64
 		}
 		if json.Unmarshal(payload, &goal) != nil {
 			continue
 		}
-		if goal.Status != "active" || goal.Need != "deficit" {
+		if goal.Status != "open" || goal.Finding != "deficit" {
 			continue
 		}
 		if refused, known := development[needOf(id)]; known && refused {
@@ -607,12 +607,12 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		if len(s.Lines) >= 2*maxLines {
 			continue
 		}
-		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("goal %s deficit/active priority %d epoch %d: %d live methods", id, goal.Priority, goal.Epoch, methods), Evidence: "service.sqlite goals#" + id})
+		s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("goal %s deficit/open priority %d episode %d: %d live methods", id, goal.Priority, goal.Episode, methods), Evidence: "service.sqlite standards#" + id})
 	}
 	rows.Close()
 	// Projects (#1911) are their own rows: an open Project in deficit with
 	// no live method is the same symptom.
-	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM goal_methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
+	projects, err := db.QueryContext(ctx, "SELECT p.id, p.payload, (SELECT count(*) FROM methods m JOIN plans pl ON pl.id=m.plan_id WHERE m.project_id=p.id AND pl.retired=0) FROM projects p WHERE p.retired=0")
 	if err != nil {
 		s.Lines = append(s.Lines, Line{Text: "projects: " + err.Error(), Evidence: "service.sqlite projects"})
 		return s
@@ -629,9 +629,9 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			Kind     string
 			Priority int
 			Status   string
-			Need     string
+			Finding  string
 		}
-		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Need != "deficit" {
+		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Finding != "deficit" {
 			continue
 		}
 		if refused, known := development[project.Kind]; known && refused {

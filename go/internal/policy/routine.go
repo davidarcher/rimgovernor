@@ -699,7 +699,7 @@ type RoutineAssessment struct {
 	// for; empty otherwise. (ID, Subject) keys its incident (#1019).
 	Subject  domain.PawnID `json:",omitempty"`
 	Priority int
-	Finding  domain.Finding `json:"Need"`
+	Finding  domain.Finding
 	// MethodUnavailable marks an emergency-tier upkeep need (a home fire)
 	// whose serve family this runtime did not declare. The review still
 	// records the need, but it must not suspend every other goal: with no

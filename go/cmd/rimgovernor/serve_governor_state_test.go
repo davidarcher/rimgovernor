@@ -83,13 +83,13 @@ func TestShadowGovernorStateRereadsSaveOnWorldChange(t *testing.T) {
 	}
 }
 
-func governorGoalBlob(t *testing.T, id domain.ConcernID, colony domain.ColonyID, revision uint64) string {
+func governorStandardBlob(t *testing.T, id domain.ConcernID, colony domain.ColonyID, revision uint64) string {
 	t.Helper()
 	g, err := domain.NewStandard(id, 1, domain.GenerationSnapshot{Colony: colony, Load: "l", Plan: "p"}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := json.Marshal(store.GovernorGoalBlob{SchemaVersion: store.GovernorStateSchemaVersion, Goal: g, Revision: revision})
+	data, err := json.Marshal(store.GovernorStandardBlob{SchemaVersion: store.GovernorStateSchemaVersion, Standard: g, Revision: revision})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,14 +140,14 @@ func TestShadowGovernorStateRebuildsGoalsOnWorldChange(t *testing.T) {
 	defer database.Close()
 	var shadow governorShadow
 	var out bytes.Buffer
-	first := &fakeGovernorState{blobs: map[string]string{"goal/a": governorGoalBlob(t, "a", "one", 3)}}
+	first := &fakeGovernorState{blobs: map[string]string{"standard/a": governorStandardBlob(t, "a", "one", 3)}}
 	if err = shadow.round(ctx, governorWorld{Colony: "one", Map: 1, Load: "l", Generation: 1}, first, database, &out); err != nil {
 		t.Fatal(err)
 	}
 	if state, err := database.LoadStandard(ctx, "a"); err != nil || state.Revision != 3 {
 		t.Fatal("world 1 goals not rebuilt", state, err)
 	}
-	second := &fakeGovernorState{blobs: map[string]string{"goal/b": governorGoalBlob(t, "b", "two", 7)}}
+	second := &fakeGovernorState{blobs: map[string]string{"standard/b": governorStandardBlob(t, "b", "two", 7)}}
 	if err = shadow.round(ctx, governorWorld{Colony: "two", Map: 1, Load: "l", Generation: 1}, second, database, &out); err != nil {
 		t.Fatal(err)
 	}

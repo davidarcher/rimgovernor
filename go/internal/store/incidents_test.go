@@ -122,9 +122,9 @@ func TestIncidentMethodCommit(t *testing.T) {
 	if _, err = s.CommitIncidentMethod(ctx, id, "late", "", plan(t, "late", "late-action")); !errors.Is(err, ErrConflict) {
 		t.Fatal("closed incident admitted a method", err)
 	}
-	// goal_methods rows bind exactly one owner.
-	if _, err = s.db.ExecContext(ctx, "INSERT INTO goal_methods(epoch,method_id,plan_id,priority) VALUES('0','orphan','incident-plan',1)"); err == nil {
-		t.Fatal("ownerless goal_methods row accepted")
+	// methods rows bind exactly one owner.
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO methods(episode,method_id,plan_id,priority) VALUES('0','orphan','incident-plan',1)"); err == nil {
+		t.Fatal("ownerless methods row accepted")
 	}
 }
 

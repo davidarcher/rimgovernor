@@ -12,7 +12,7 @@ import (
 // The orphan pass sees the committed method's plan before the rebuild
 // deletes the method row and retires the plan (#998/#1000); a pass error
 // aborts the rebuild with both intact.
-func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
+func TestRebuildStandardsHandsOldPlansToOrphanPass(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
@@ -21,14 +21,14 @@ func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Standard, Revision: g.Revision})
+	blob, err := json.Marshal(GovernorStandardBlob{SchemaVersion: GovernorStateSchemaVersion, Standard: g.Standard, Revision: g.Revision})
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved := map[string]string{GovernorGoalKeyPrefix + string(g.Standard.ID): string(blob)}
+	saved := map[string]string{GovernorStandardKeyPrefix + string(g.Standard.ID): string(blob)}
 	state := func() (methods, retired int) {
 		t.Helper()
-		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE plan_id=?", id).Scan(&methods); err != nil {
+		if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods WHERE plan_id=?", id).Scan(&methods); err != nil {
 			t.Fatal(err)
 		}
 		if err := s.db.QueryRowContext(ctx, "SELECT retired FROM plans WHERE id=?", id).Scan(&retired); err != nil {
@@ -37,14 +37,14 @@ func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
 		return
 	}
 	refused := errors.New("refused")
-	if err = s.RebuildGoals(ctx, saved, func(context.Context, []PlanState) error { return refused }); !errors.Is(err, refused) {
+	if err = s.RebuildStandards(ctx, saved, func(context.Context, []PlanState) error { return refused }); !errors.Is(err, refused) {
 		t.Fatal("pass error did not abort the rebuild", err)
 	}
 	if methods, retired := state(); methods != 1 || retired != 0 {
 		t.Fatal("aborted rebuild touched the method", methods, retired)
 	}
 	var seen []domain.PlanID
-	if err = s.RebuildGoals(ctx, saved, func(_ context.Context, plans []PlanState) error {
+	if err = s.RebuildStandards(ctx, saved, func(_ context.Context, plans []PlanState) error {
 		if methods, retired := state(); methods != 1 || retired != 0 {
 			t.Error("pass ran after the retire", methods, retired)
 		}

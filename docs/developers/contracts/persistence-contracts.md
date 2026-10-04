@@ -2,17 +2,17 @@
 
 [Documentation](../../README.md)
 
-Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names (`goals`, `goal/<id>`, `goal_methods`, `epoch`, and the stored status words `active`, `satisfied`, `invalidated`, `finished`) stay until the schema bump (#1976).
+Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names follow it since the schema bump (#1976): tables `standards`, `methods` (`standard_id`, `episode`) and `rounds`, blob keys `standard/<id>`, the `standard` and `episode` JSON keys, and the status words `open`/`settled`/`voided` (Standards) and `open`/`completed`/`voided` (Projects). The finding strings `unknown`/`deficit`/`recovered` are unchanged. Old-version databases and saves are refused; there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a
 save is reloaded. A second copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`goal/<id>`, a Standard's own intent in its `Record`: ManageCreepJoiners' inspection record, #1740), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record, #1926), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`: ManageCreepJoiners' inspection record, #1740), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record, #1926), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
 | Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition, #1350, #1351; deep drilling; home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
-| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token, #1340) and the animal race catalog derived from its race rows (#1722); the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`, #1354); the `goals`, `projects`, `goal_methods` and family tables are such views of the save blobs (`RebuildGoals` rebuilds goals and projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
+| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token, #1340) and the animal race catalog derived from its race rows (#1722); the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`, #1354); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry; `--debug` goes to stderr only; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 
 Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go

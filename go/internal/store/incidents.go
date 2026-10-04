@@ -11,8 +11,8 @@ import (
 )
 
 // IncidentState is one Response occurrence and the methods bound to it
-// (#1019). Its methods live in goal_methods beside the goals' ones, with
-// incident_id set instead of goal_id, and go through the same admission.
+// (#1019). Its methods live in methods beside the goals' ones, with
+// incident_id set instead of standard_id, and go through the same admission.
 type IncidentState struct {
 	Incident domain.Incident
 	Methods  []IncidentMethod // every method ever committed, retired plans included
@@ -220,7 +220,7 @@ func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (Incide
 	if out.Incident.ID != id {
 		return IncidentState{}, errors.New("incident identity mismatch")
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM goal_methods WHERE incident_id=? ORDER BY method_id LIMIT 257", id)
+	rows, err := tx.QueryContext(ctx, "SELECT method_id,plan_id FROM methods WHERE incident_id=? ORDER BY method_id LIMIT 257", id)
 	if err != nil {
 		return IncidentState{}, err
 	}

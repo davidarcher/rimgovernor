@@ -84,7 +84,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	passes := 0
 	var seen []domain.PlanID
-	if err = s.RebuildGoals(ctx, blobs, func(_ context.Context, plans []PlanState) error {
+	if err = s.RebuildStandards(ctx, blobs, func(_ context.Context, plans []PlanState) error {
 		passes++
 		for _, p := range plans {
 			seen = append(seen, p.Spec.ID())
@@ -97,7 +97,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 		t.Fatal("orphan pass", passes, seen)
 	}
 	var rows, live int
-	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods").Scan(&rows); err != nil || rows != 0 {
+	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM methods").Scan(&rows); err != nil || rows != 0 {
 		t.Fatal("method rows survived the rebuild", rows, err)
 	}
 	if err = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM plans WHERE retired=0").Scan(&live); err != nil || live != 0 {
@@ -109,14 +109,14 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	// A project absent from the save is deleted; a stale schema is refused.
 	delete(blobs, key)
-	if err = s.RebuildGoals(ctx, blobs, nil); err != nil {
+	if err = s.RebuildStandards(ctx, blobs, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.LoadProject(ctx, state.Project.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatal("absent project kept", err)
 	}
 	stale, _ := json.Marshal(GovernorProjectBlob{SchemaVersion: GovernorStateSchemaVersion - 1, Project: state.Project, Revision: 1})
-	if err = s.RebuildGoals(ctx, map[string]string{key: string(stale)}, nil); err == nil {
+	if err = s.RebuildStandards(ctx, map[string]string{key: string(stale)}, nil); err == nil {
 		t.Fatal("stale project blob accepted")
 	}
 }
@@ -126,7 +126,7 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 	ctx := context.Background()
 	s, state := projectFixture(t)
 	// A method row binds exactly one owner, and a project row's epoch is 0.
-	if _, err := s.db.ExecContext(ctx, "INSERT INTO goal_methods(goal_id,project_id,epoch,method_id,plan_id,priority) VALUES('a','b','0','m','p',1)"); err == nil {
+	if _, err := s.db.ExecContext(ctx, "INSERT INTO methods(standard_id,project_id,episode,method_id,plan_id,priority) VALUES('a','b','0','m','p',1)"); err == nil {
 		t.Fatal("two-owner row accepted")
 	}
 	p := plan(t, "project-plan", "project-action")
@@ -134,7 +134,7 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.ExecContext(ctx, "INSERT INTO goal_methods(project_id,epoch,method_id,plan_id,priority) VALUES(?,'1','m','project-plan',1)", state.Project.ID); err == nil {
+	if _, err = s.db.ExecContext(ctx, "INSERT INTO methods(project_id,episode,method_id,plan_id,priority) VALUES(?,'1','m','project-plan',1)", state.Project.ID); err == nil {
 		t.Fatal("project row with epoch 1 accepted")
 	}
 	// A world change invalidates the project, cancelling its work; the row

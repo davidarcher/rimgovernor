@@ -20,7 +20,7 @@ type RoutineIncident struct {
 	Kind      domain.ConcernID
 	Subject   domain.PawnID `json:",omitempty"`
 	Incident  domain.IncidentID
-	Situation domain.Situation `json:"Need"`
+	Situation domain.Situation
 }
 
 // huntPayload is the payload of an ActiveCombat occurrence the food plan

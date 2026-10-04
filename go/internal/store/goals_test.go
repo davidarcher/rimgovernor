@@ -220,7 +220,7 @@ func TestGoalCorruptPayloadNeverAdmitsMethods(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
-	if _, e := s.db.ExecContext(ctx, "UPDATE goals SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Standard.ID); e != nil {
+	if _, e := s.db.ExecContext(ctx, "UPDATE standards SET payload=? WHERE id=?", []byte(`{"ID":"routine-0000000000000000-MaintainHousing-0"}`), g.Standard.ID); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.LoadStandard(ctx, g.Standard.ID); e == nil {

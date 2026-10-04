@@ -17,8 +17,8 @@ import (
 const maxActiveProjects = 512
 
 // ProjectState is one Project row and the methods bound to it (#1926, epic
-// #1911). Its methods live in goal_methods with project_id set instead of
-// goal_id, epoch "0", and go through the same admission. Revision is a local
+// #1911). Its methods live in methods with project_id set instead of
+// standard_id, epoch "0", and go through the same admission. Revision is a local
 // CAS token, as a goal's.
 type ProjectState struct {
 	Project  domain.Project
@@ -140,7 +140,7 @@ func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectS
 		return ProjectState{}, errors.New("invalid retired project")
 	}
 	out.Revision = n
-	rows, err := tx.QueryContext(ctx, "SELECT m.method_id,m.plan_id,p.retired FROM goal_methods m JOIN plans p ON p.id=m.plan_id WHERE m.project_id=? ORDER BY m.method_id LIMIT 257", id)
+	rows, err := tx.QueryContext(ctx, "SELECT m.method_id,m.plan_id,p.retired FROM methods m JOIN plans p ON p.id=m.plan_id WHERE m.project_id=? ORDER BY m.method_id LIMIT 257", id)
 	if err != nil {
 		return ProjectState{}, err
 	}

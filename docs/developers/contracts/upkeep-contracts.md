@@ -378,7 +378,7 @@ workspace (enclosed kitchen, hospital, laboratory, or any enclosed room with a
 cooking bench) whose native room Cleanliness stat has latched dirty (enter below
 -1, release at -0.25; the per-room latch, keyed by the room's lowest cell
 since native room IDs change on every region rebuild, and its entry tick
-persist in `routine_review`), and only after a 30,000-tick grace with a Cleaning-enabled
+persist in `rounds`), and only after a 30,000-tick grace with a Cleaning-enabled
 colonist present or at once with none. A clean order is player-forced: any
 colonist not incapable of Cleaning carries it whatever their Work-tab priority
 says, and the native worker cleans the ordered filth plus whatever the

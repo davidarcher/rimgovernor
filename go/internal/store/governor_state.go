@@ -19,8 +19,8 @@ import (
 // component; the store stays authoritative. Each value is ASCII JSON
 // (non-ASCII escaped as \uXXXX) with a top-level "schemaVersion".
 //
-//	goal/<goal id>            GovernorGoalBlob, one per unretired goal;
-//	                          a retired goal's key is deleted.
+//	standard/<concern id>     GovernorStandardBlob, one per unretired standard;
+//	                          a retired standard's key is deleted.
 //	project/<project id>      GovernorProjectBlob, one per unretired project
 //	                          (finished ones included: they are the record);
 //	                          a retired project's key is deleted.
@@ -35,10 +35,10 @@ import (
 // (colony, map, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
-const GovernorStateSchemaVersion = 3
+const GovernorStateSchemaVersion = 4
 
 const (
-	GovernorGoalKeyPrefix       = "goal/"
+	GovernorStandardKeyPrefix   = "standard/"
 	GovernorProjectKeyPrefix    = "project/"
 	GovernorLayoutPlanKey       = "family/layout_plan"
 	GovernorTidiesKey           = "family/tidies"
@@ -47,11 +47,11 @@ const (
 	GovernorSoldierSquadKey     = "family/soldier_squad"
 )
 
-// GovernorGoalBlob is one goal: its payload and CAS revision. Methods and
+// GovernorStandardBlob is one goal: its payload and CAS revision. Methods and
 // admission counts are session state, re-planned after a load (#997).
-type GovernorGoalBlob struct {
+type GovernorStandardBlob struct {
 	SchemaVersion int             `json:"schemaVersion"`
-	Goal          domain.Standard `json:"goal"`
+	Standard      domain.Standard `json:"standard"`
 	Revision      uint64          `json:"revision"`
 }
 
@@ -99,7 +99,7 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		}
 		return put(key, GovernorFamilyBlob{SchemaVersion: GovernorStateSchemaVersion, Scope: scope, Record: data})
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM goals WHERE retired=0 ORDER BY id")
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards WHERE retired=0 ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 		if err != nil {
 			return nil, fmt.Errorf("goal %s: %w", id, err)
 		}
-		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Standard, Revision: g.Revision}); err != nil {
+		if err = put(GovernorStandardKeyPrefix+string(id), GovernorStandardBlob{SchemaVersion: GovernorStateSchemaVersion, Standard: g.Standard, Revision: g.Revision}); err != nil {
 			return nil, err
 		}
 	}

@@ -144,7 +144,7 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	if err != nil || p.Retired {
 		t.Fatal("current plan retired", p, err)
 	}
-	if _, err = s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
+	if _, err = s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON rounds BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	r.Current.Plan = "other"

@@ -25,7 +25,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 194
+const schemaVersion = 195
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -66,7 +66,7 @@ type PlanState struct {
 	Retired bool
 	// Method is the goal or incident method id the plan was admitted
 	// under (#987), empty for a plan no method binds. It outlives the
-	// goal_methods row, which RebuildGoals clears on a world's first round.
+	// methods row, which RebuildStandards clears on a world's first round.
 	Method     domain.MethodID
 	Spec       domain.PlanSpec
 	Progress   []domain.Progress

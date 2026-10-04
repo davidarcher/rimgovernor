@@ -12,7 +12,7 @@ import (
 )
 
 // methodOwner is what method admission reads of the goal or incident a
-// goal_methods row binds to (#1019): the world it was last reviewed in,
+// methods row binds to (#1019): the world it was last reviewed in,
 // whether the autopilot owns it, the routine need it serves and its open
 // plans. StandardState, ProjectState and IncidentState implement it.
 type methodOwner interface {
@@ -23,13 +23,13 @@ type methodOwner interface {
 	ownerPriority() int
 	ownerPlans() []domain.PlanID
 	ownerLabel() string
-	// ownerKey is the goal_methods owner column and id, and the epoch the
+	// ownerKey is the methods owner column and id, and the epoch the
 	// row is keyed under ("0" for owners without epochs).
 	ownerKey() (column, id, epoch string)
 }
 
 func (g StandardState) ownerKey() (string, string, string) {
-	return "goal_id", string(g.Standard.ID), strconv.FormatUint(g.Standard.Episode, 10)
+	return "standard_id", string(g.Standard.ID), strconv.FormatUint(g.Standard.Episode, 10)
 }
 
 func (g StandardState) ownerSnapshot() domain.GenerationSnapshot { return g.Standard.Snapshot }
@@ -66,7 +66,7 @@ func admitRoutineSafeguards(ctx context.Context, tx *sql.Tx, owner methodOwner) 
 }
 
 // admitOwnerMethod runs the per-family admission checks every owner shares
-// and stores the plan; the caller then writes the goal_methods row.
+// and stores the plan; the caller then writes the methods row.
 func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan domain.PlanSpec) error {
 	for _, admit := range []func(context.Context, *sql.Tx, methodOwner, domain.PlanSpec) error{admitBillMethod, admitZoneMethod, admitAcquisitionMethod, admitWorkMethod, admitSupplyMethod} {
 		if err := admit(ctx, tx, owner, plan); err != nil {
@@ -78,14 +78,14 @@ func admitOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan d
 
 // bindOwnerMethod is the tail every owner's commit shares: refuse a method the
 // owner already binds in its epoch, bound the owner's methods, run the family
-// admission and store the plan, then write the goal_methods row and name the
+// admission and store the plan, then write the methods row and name the
 // plan's method.
 func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	column, id, epoch := owner.ownerKey()
 	// Plan ids are minted (#985); the real double-admission key is the
-	// goal_methods unique index (owner, epoch, method).
+	// methods unique index (owner, epoch, method).
 	var bound string
-	switch err := tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", id, epoch, method).Scan(&bound); {
+	switch err := tx.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE "+column+"=? AND episode=? AND method_id=?", id, epoch, method).Scan(&bound); {
 	case err == nil:
 		return fmt.Errorf("%w: %s already binds method %s to plan %s", ErrConflict, owner.ownerLabel(), method, bound)
 	case !errors.Is(err, sql.ErrNoRows):
@@ -97,7 +97,7 @@ func bindOwnerMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, method 
 	if err := admitOwnerMethod(ctx, tx, owner, plan); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, "INSERT INTO goal_methods("+column+",epoch,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, epoch, method, plan.ID(), owner.ownerPriority(), sql.NullString{String: reason, Valid: reason != ""}); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO methods("+column+",episode,method_id,plan_id,priority,reason) VALUES(?,?,?,?,?,?)", id, epoch, method, plan.ID(), owner.ownerPriority(), sql.NullString{String: reason, Valid: reason != ""}); err != nil {
 		return conflict(err)
 	}
 	_, err := tx.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan.ID())

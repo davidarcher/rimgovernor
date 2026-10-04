@@ -68,7 +68,7 @@ func (s *Store) RecordShrineStep(ctx context.Context, revision uint64, step Rout
 	if len(data) > 1024*1024 {
 		return Rounds{}, ErrCapacity
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO rounds(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return Rounds{}, err
 	}
 	return review, tx.Commit()

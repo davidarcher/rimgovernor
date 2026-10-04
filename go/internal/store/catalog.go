@@ -86,7 +86,7 @@ func (s *Store) SeedStandard(ctx context.Context, g domain.Standard) error {
 	return nil
 }
 
-// SeedPlanMethod records method on a committed plan without a goal_methods
+// SeedPlanMethod records method on a committed plan without a methods
 // row, for fixtures seeding the history PlanHistoryWithMethods reads.
 func (s *Store) SeedPlanMethod(ctx context.Context, plan domain.PlanID, method domain.MethodID) error {
 	result, err := s.db.ExecContext(ctx, "UPDATE plans SET method_id=? WHERE id=?", method, plan)

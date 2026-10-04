@@ -36,7 +36,7 @@ func TestGoalRecordRidesTheGoalBlobAndRebuilds(t *testing.T) {
 		t.Fatal(err)
 	}
 	other := open(t, filepath.Join(t.TempDir(), "other.db"))
-	if err = other.RebuildGoals(ctx, blobs, nil); err != nil {
+	if err = other.RebuildStandards(ctx, blobs, nil); err != nil {
 		t.Fatal(err)
 	}
 	back, err := other.LoadStandard(ctx, g.Standard.ID)

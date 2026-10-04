@@ -44,7 +44,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 		return ErrConflict
 	}
 	var goalID, incidentID, projectID sql.NullString
-	if err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id FROM goal_methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID, &projectID); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT standard_id,incident_id,project_id FROM methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID, &projectID); err != nil {
 		return err
 	}
 	if projectID.Valid {

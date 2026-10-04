@@ -58,24 +58,24 @@ func fixture(t *testing.T) string {
 			t.Fatalf("%s: %v", q, err)
 		}
 	}
-	exec(`CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY, payload BLOB NOT NULL)`)
-	exec(`CREATE TABLE goals(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
+	exec(`CREATE TABLE rounds(singleton INTEGER PRIMARY KEY, payload BLOB NOT NULL)`)
+	exec(`CREATE TABLE standards(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
 	exec(`CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
-	exec(`CREATE TABLE goal_methods(goal_id TEXT NOT NULL, epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
+	exec(`CREATE TABLE methods(standard_id TEXT NOT NULL, episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
 	exec(`CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL, payload BLOB NOT NULL)`)
 	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true, "Development": map[string]any{"Capacity": 2, "Rows": []map[string]any{
 		{"Goal": "EnsureComfort", "Score": 10, "Selected": false, "Reason": "startup_survival"},
 		{"Goal": "EnsureFoodStorage", "Score": 50, "Selected": true, "Reason": ""},
 	}}}
 	data, _ := json.Marshal(review)
-	exec(`INSERT INTO routine_review VALUES(1,?)`, data)
+	exec(`INSERT INTO rounds VALUES(1,?)`, data)
 	goal := func(id, status, need string) {
-		payload, _ := json.Marshal(map[string]any{"ID": id, "Status": status, "Need": need, "Priority": 2})
-		exec(`INSERT INTO goals(id,revision,payload) VALUES(?,'0',?)`, id, payload)
+		payload, _ := json.Marshal(map[string]any{"ID": id, "Status": status, "Finding": need, "Priority": 2})
+		exec(`INSERT INTO standards(id,revision,payload) VALUES(?,'0',?)`, id, payload)
 	}
-	goal("routine-c-EnsureComfort", "active", "deficit")
-	goal("routine-c-EnsureFoodStorage", "active", "deficit")
-	goal("routine-c-EnsureCooking", "satisfied", "met")
+	goal("routine-c-EnsureComfort", "open", "deficit")
+	goal("routine-c-EnsureFoodStorage", "open", "deficit")
+	goal("routine-c-EnsureCooking", "settled", "recovered")
 	transition := func(seq int, action string, event map[string]any) {
 		payload, _ := json.Marshal(event)
 		exec(`INSERT INTO transitions VALUES(?,?,?)`, seq, action, payload)
@@ -138,10 +138,10 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	if !hasLine(review, "EnsureComfort not selected: startup_survival", "Development.Rows[EnsureComfort]") {
 		t.Fatalf("review = %+v", review)
 	}
-	if !hasLine(review, "review revision 7 at tick 1200 enabled=true; development capacity 2 committed=[]", "routine_review") {
+	if !hasLine(review, "review revision 7 at tick 1200 enabled=true; development capacity 2 committed=[]", "rounds") {
 		t.Fatalf("review line missing: %+v", review)
 	}
-	if !hasLine(review, "goal routine-c-EnsureFoodStorage deficit/active priority 2 epoch 0: 0 live methods", "goals#routine-c-EnsureFoodStorage") {
+	if !hasLine(review, "goal routine-c-EnsureFoodStorage deficit/open priority 2 episode 0: 0 live methods", "standards#routine-c-EnsureFoodStorage") {
 		t.Fatalf("selected goal without methods missing: %+v", review)
 	}
 	if hasLine(review, "goal routine-c-EnsureComfort", "") || hasLine(review, "EnsureCooking", "") {

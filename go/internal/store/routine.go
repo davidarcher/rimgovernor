@@ -167,7 +167,7 @@ type RoutineDetection struct {
 
 func loadRoutine(ctx context.Context, tx *sql.Tx) (Rounds, error) {
 	var data []byte
-	if err := tx.QueryRowContext(ctx, "SELECT payload FROM routine_review WHERE singleton=1").Scan(&data); err != nil {
+	if err := tx.QueryRowContext(ctx, "SELECT payload FROM rounds WHERE singleton=1").Scan(&data); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Rounds{}, nil
 		}
@@ -860,7 +860,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 	if len(data) > 1024*1024 {
 		return RoundsResult{}, ErrCapacity
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO rounds(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
 		return RoundsResult{}, err
 	}
 	result.Review = r

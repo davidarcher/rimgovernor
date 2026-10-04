@@ -11,8 +11,8 @@ type ProjectStatus string
 
 const (
 	ProjectOpen      ProjectStatus = "open"
-	ProjectCompleted ProjectStatus = "finished"
-	ProjectVoided    ProjectStatus = "invalidated"
+	ProjectCompleted ProjectStatus = "completed"
+	ProjectVoided    ProjectStatus = "voided"
 )
 
 // MaxProjectRecord bounds Project.Record in bytes.
@@ -29,7 +29,7 @@ type Project struct {
 	Snapshot GenerationSnapshot
 	Tick     Tick
 	Status   ProjectStatus
-	Finding  Finding `json:"Need"`
+	Finding  Finding
 	// Record is the Project's durable planner intent, as Standard.Record.
 	Record string `json:",omitempty"`
 }

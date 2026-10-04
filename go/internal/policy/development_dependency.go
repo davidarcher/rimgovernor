@@ -42,7 +42,7 @@ type DependencyCost struct {
 type DevelopmentDependency struct {
 	Dependent    ConcernID
 	Goal         domain.ConcernID // the dependent's goal identity
-	Episode      uint64           `json:"Epoch"`
+	Episode      uint64
 	Method       domain.MethodID
 	Prerequisite ConcernID
 	Resource     Resource `json:",omitempty"`

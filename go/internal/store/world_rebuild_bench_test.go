@@ -30,14 +30,14 @@ func BenchmarkWorldRebuild(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.Standard, Revision: first.Revision})
+	blob, err := json.Marshal(GovernorStandardBlob{SchemaVersion: GovernorStateSchemaVersion, Standard: first.Standard, Revision: first.Revision})
 	if err != nil {
 		b.Fatal(err)
 	}
-	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Standard.ID): string(blob)}
+	saved := map[string]string{GovernorStandardKeyPrefix + string(first.Standard.ID): string(blob)}
 	b.ResetTimer()
 	for range b.N {
-		if err = s.RebuildGoals(ctx, saved, nil); err != nil {
+		if err = s.RebuildStandards(ctx, saved, nil); err != nil {
 			b.Fatal(err)
 		}
 		if err = s.RebuildFamilies(ctx, saved); err != nil {

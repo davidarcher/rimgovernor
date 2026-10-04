@@ -144,7 +144,7 @@ func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method dom
 		return s.LoadMethod(ctx, o.Standard.ID, o.Standard.Episode, method)
 	case ProjectState:
 		var plan domain.PlanID
-		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
+		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.Method{}, ErrNotFound
 		}
@@ -221,9 +221,9 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 type OwnerSummary struct {
 	ID       string
 	Status   domain.StandardStatus
-	Finding  domain.Finding `json:"Need"`
+	Finding  domain.Finding
 	Priority int
-	Episode  uint64 `json:"Epoch"`
+	Episode  uint64
 	Revision uint64
 	Tick     domain.Tick
 	Snapshot domain.GenerationSnapshot

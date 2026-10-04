@@ -126,7 +126,7 @@ func TestRoutineComfortWorldResetAndInvalidDisabledHistory(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err = s.db.Exec("UPDATE routine_review SET payload=? WHERE singleton=1", data); err != nil {
+			if _, err = s.db.Exec("UPDATE rounds SET payload=? WHERE singleton=1", data); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = s.LoadRounds(context.Background()); err == nil {

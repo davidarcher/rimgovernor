@@ -198,7 +198,7 @@ func TestRoundsTransactionRollbackAndStaleCursor(t *testing.T) {
 	if _, err := s.ReviewRoutine(ctx, stale); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
-	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON routine_review BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
+	if _, err := s.db.ExecContext(ctx, `CREATE TRIGGER fail_review BEFORE UPDATE ON rounds BEGIN SELECT RAISE(ABORT,'review failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	r.Enabled = false

@@ -7,9 +7,9 @@ type MethodID string
 type StandardStatus string
 
 const (
-	StandardOpen    StandardStatus = "active"
-	StandardSettled StandardStatus = "satisfied"
-	StandardVoided  StandardStatus = "invalidated"
+	StandardOpen    StandardStatus = "open"
+	StandardSettled StandardStatus = "settled"
+	StandardVoided  StandardStatus = "voided"
 )
 
 // Finding is an Inspection's measured result for a Standard or Project
@@ -47,9 +47,9 @@ type Standard struct {
 	Priority         int
 	Snapshot         GenerationSnapshot
 	Tick             Tick
-	Episode          uint64 `json:"Epoch"`
+	Episode          uint64
 	Status           StandardStatus
-	Finding          Finding `json:"Need"`
+	Finding          Finding
 	RecoveryObserved bool
 	// Record is the goal's own durable intent, JSON the goal's planner
 	// writes and reads (empty for most goals): what the world cannot show,
@@ -148,8 +148,8 @@ func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Find
 // Renewed deficits get a new Episode; the old plan remains available for readback.
 type Method struct {
 	// Owner is the Standard, Project or Incident id the method binds to.
-	Owner   ConcernID `json:"Goal"`
-	Episode uint64    `json:"Epoch"`
+	Owner   ConcernID
+	Episode uint64
 	Method  MethodID
 	Plan    PlanID
 }

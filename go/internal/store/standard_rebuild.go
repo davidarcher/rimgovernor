@@ -11,38 +11,38 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// GoalOrphanPass sees the plans a goal rebuild is about to retire, before
+// StandardOrphanPass sees the plans a goal rebuild is about to retire, before
 // they are retired (#998). The #1000 reconcile pass cancels their native
 // side effects here; nil skips it.
-type GoalOrphanPass func(context.Context, []PlanState) error
+type StandardOrphanPass func(context.Context, []PlanState) error
 
-// RebuildGoals replaces the store's goals and projects with the save's goal/*
+// RebuildStandards replaces the store's goals and projects with the save's goal/*
 // and project/* blobs (#998, #1926): the save wins. Goals and projects absent
 // from the save are deleted with their session-only create submissions; every
 // goal and project method row is deleted and its plan retired after one
 // orphans pass sees them all, so methods start empty and are re-planned. A
 // save without goal blobs leaves no goals (D5), without project blobs no
 // projects. An incident's method rows are not touched.
-func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orphans GoalOrphanPass) error {
-	goals := map[domain.ConcernID]GovernorGoalBlob{}
+func (s *Store) RebuildStandards(ctx context.Context, saved map[string]string, orphans StandardOrphanPass) error {
+	goals := map[domain.ConcernID]GovernorStandardBlob{}
 	for key, blob := range saved {
-		if !strings.HasPrefix(key, GovernorGoalKeyPrefix) {
+		if !strings.HasPrefix(key, GovernorStandardKeyPrefix) {
 			continue
 		}
-		var b GovernorGoalBlob
+		var b GovernorStandardBlob
 		if err := json.Unmarshal([]byte(blob), &b); err != nil {
 			return fmt.Errorf("%s: %w", key, err)
 		}
 		if b.SchemaVersion != GovernorStateSchemaVersion {
 			return fmt.Errorf("%s: schema version %d", key, b.SchemaVersion)
 		}
-		if err := b.Goal.Validate(); err != nil {
+		if err := b.Standard.Validate(); err != nil {
 			return fmt.Errorf("%s: %w", key, err)
 		}
-		if string(b.Goal.ID) != strings.TrimPrefix(key, GovernorGoalKeyPrefix) {
+		if string(b.Standard.ID) != strings.TrimPrefix(key, GovernorStandardKeyPrefix) {
 			return fmt.Errorf("%s: goal identity mismatch", key)
 		}
-		goals[b.Goal.ID] = b
+		goals[b.Standard.ID] = b
 	}
 	projects, err := parseProjectBlobs(saved)
 	if err != nil {
@@ -65,8 +65,8 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 	}
 	defer tx.Rollback()
 	for _, statement := range []string{
-		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM goal_methods WHERE goal_id IS NOT NULL OR project_id IS NOT NULL)",
-		"DELETE FROM goal_methods WHERE goal_id IS NOT NULL OR project_id IS NOT NULL",
+		"UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL)",
+		"DELETE FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL",
 	} {
 		if _, err = tx.ExecContext(ctx, statement); err != nil {
 			return err
@@ -80,16 +80,16 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 		if _, ok := goals[id]; ok {
 			continue
 		}
-		if _, err = tx.ExecContext(ctx, "DELETE FROM goals WHERE id=?", id); err != nil {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM standards WHERE id=?", id); err != nil {
 			return err
 		}
 	}
 	for id, b := range goals {
-		data, err := json.Marshal(b.Goal)
+		data, err := json.Marshal(b.Standard)
 		if err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO goals(id,revision,payload,retired) VALUES(?,?,?,0) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,retired=0", id, strconv.FormatUint(b.Revision, 10), data); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO standards(id,revision,payload,retired) VALUES(?,?,?,0) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,retired=0", id, strconv.FormatUint(b.Revision, 10), data); err != nil {
 			return err
 		}
 	}
@@ -110,7 +110,7 @@ func (s *Store) methodPlans(ctx context.Context) ([]PlanState, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM goal_methods WHERE goal_id IS NOT NULL OR project_id IS NOT NULL ORDER BY plan_id")
+	rows, err := tx.QueryContext(ctx, "SELECT plan_id FROM methods WHERE standard_id IS NOT NULL OR project_id IS NOT NULL ORDER BY plan_id")
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func parseProjectBlobs(saved map[string]string) (map[domain.ProjectID]GovernorPr
 	return projects, nil
 }
 
-// rebuildProjects is RebuildGoals' project half, in its transaction: its
+// rebuildProjects is RebuildStandards' project half, in its transaction: its
 // method rows are already deleted and their plans retired.
 func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.ProjectID]GovernorProjectBlob) error {
 	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects ORDER BY id")
@@ -204,7 +204,7 @@ func rebuildProjects(ctx context.Context, tx *sql.Tx, projects map[domain.Projec
 }
 
 func goalIDs(ctx context.Context, tx *sql.Tx) ([]domain.ConcernID, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM goals ORDER BY id")
+	rows, err := tx.QueryContext(ctx, "SELECT id FROM standards ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
