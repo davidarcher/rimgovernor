@@ -109,14 +109,14 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	items, known := reading.Projection.Facts.Waste.Value()
 	if !known || len(items) == 0 {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "waste_items")}, nil
 	}
 	rows, ok, err := r.colonistRows(call, state, review)
 	if err != nil {
 		return RoutineWasteResult{}, err
 	}
 	if !ok {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "colonist_rows")}, nil
 	}
 	var pawns []policy.WastePawn
 	seen := map[string]bool{}
@@ -130,7 +130,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	item, pawn, ok := policy.SelectWasteMethod(items, pawns)
 	if !ok {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "waste_method")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(pawn)}, "waste-item:"+item.ID) {
 		return RoutineWasteResult{Verdict: claimHeld("colonist")}, nil
@@ -144,7 +144,7 @@ func (r *RoutineWastePlanner) step(call, epoch context.Context, arbiter *stepArb
 	prefix := fmt.Sprintf("waste-%s-", item.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineWasteResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineWasteResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

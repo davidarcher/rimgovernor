@@ -209,7 +209,7 @@ func (b *RoutineBuildingPlanner) shellRoomOf(call, epoch context.Context, state 
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "shell_room_method")}, nil
 	}
 	wallDef, wok := animalContainmentDefinition(facts.Definitions, policy.ShellWallDefinition)
 	doorDef, dok := animalContainmentDefinition(facts.Definitions, policy.ShellDoorDefinition)

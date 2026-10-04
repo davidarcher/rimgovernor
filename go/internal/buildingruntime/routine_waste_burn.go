@@ -65,7 +65,7 @@ func (r *RoutineWastePlanner) stageBurn(call, epoch context.Context, state Contr
 		return RoutineWasteResult{}, true, err
 	}
 	if !ok {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, true, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "colonist_rows")}, true, nil
 	}
 	if cleaning {
 		return r.cleanAsh(call, epoch, state, goal, arbiter, ash, rows)
@@ -87,7 +87,7 @@ func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state Contro
 		ok = false
 	}
 	if !ok {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, true, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "clean_target")}, true, nil
 	}
 	clean, err := domain.NewClean(pawn, target.ID, target.Cell)
 	if err != nil {
@@ -96,7 +96,7 @@ func (r *RoutineWastePlanner) cleanAsh(call, epoch context.Context, state Contro
 	prefix := fmt.Sprintf("burn-ash-%s-", target.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineWasteResult{Verdict: BuildingReasonExhausted}, true, nil
+		return RoutineWasteResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, true, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewCleanAction(domain.ActionID(fmt.Sprintf("%s-0", id)), clean)
@@ -156,7 +156,7 @@ func (r *RoutineWastePlanner) burnRoom(call, epoch context.Context, state Contro
 		claims = append(claims, "equip-weapon:"+order.Molotov.Thing)
 	}
 	if !arbiter.tryClaim([]domain.PawnID{order.Burner}, claims...) {
-		return RoutineWasteResult{Verdict: BuildingReasonUsed}, true, nil
+		return RoutineWasteResult{Verdict: waitFor(WaitMethodUsed, "burn_claim")}, true, nil
 	}
 	id := domain.MintPlanID()
 	var actions []domain.Action

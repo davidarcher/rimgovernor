@@ -174,7 +174,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	if len(targets) == 0 {
-		return RoutineSupplyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineSupplyResult{Verdict: waitFor(WaitMethodUsed, "supply_targets")}, nil
 	}
 	sort.Slice(targets, func(i, j int) bool { return targets[i].Thing() < targets[j].Thing() })
 	if len(targets) > 8 {

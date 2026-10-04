@@ -73,7 +73,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineTendResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineTendResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -113,7 +113,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// No pair to order: the patient is up and out of bed, or every
 		// doctor is ineligible, busy or walled off from the patients. Only game time changes that, so
 		// the step lends a window rather than reporting no work (#636).
-		return RoutineTendResult{Verdict: BuildingReasonUsed, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineTendResult{Verdict: waitFor(WaitMethodUsed, "medical_pair"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	tend, err := domain.NewTend(doctor, patient)
 	if err != nil {
@@ -127,7 +127,7 @@ func (r *RoutineTendPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).
-		return RoutineTendResult{Verdict: BuildingReasonExhausted, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineTendResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

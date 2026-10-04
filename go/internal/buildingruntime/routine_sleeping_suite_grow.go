@@ -73,7 +73,7 @@ func (r *RoutineSleepingUpkeepPlanner) openSuiteWall(call, epoch context.Context
 	p := r.reviewer.player
 	method := suiteGrowthMethod(g, "")
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "suite_wall_open")}, nil
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = domain.MintPlanID()
@@ -114,7 +114,7 @@ func (r *RoutineSleepingUpkeepPlanner) relocateSuite(call, epoch context.Context
 	}
 	method := suiteGrowthMethod(g, strings.Join(things, ","))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "suite_moves")}, nil
 	}
 	id := domain.MintPlanID()
 	actionID := func(i int) domain.ActionID { return domain.ActionID(fmt.Sprintf("%s-%d", id, i)) }

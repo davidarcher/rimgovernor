@@ -153,7 +153,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 	if step.Kind == policy.ShelfBuild {
 		z := owner[step.Zone.Zone]
 		if next[z.ID] >= maxShelvesPerZone {
-			return RoutineStorageShelvesResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutineStorageShelvesResult{Verdict: refuse(RefusalRetriesSpent, "maxShelvesPerZone", "")}, nil
 		}
 		return r.build(call, epoch, state, review, goals[z.Goal], selected[z.Goal], reading, step, next[z.ID])
 	}

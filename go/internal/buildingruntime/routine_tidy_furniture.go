@@ -25,7 +25,7 @@ func (r *RoutineTidyPlanner) move(call, epoch context.Context, state ControlStat
 	}
 	method := tidyMethodID(proposal.Item.ID+"/"+strings.Join(things, ","), "furniture")
 	if _, err := p.journal.LatestMethodPlan(call, goal.Goal.ID, method); err == nil {
-		return RoutineTidyResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineTidyResult{Verdict: waitFor(WaitMethodUsed, "tidy_furniture")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineTidyResult{}, err
 	}

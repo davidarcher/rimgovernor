@@ -73,7 +73,7 @@ func (r *RoutineSleepingUpkeepPlanner) sculptBedroom(call, epoch context.Context
 	digest := sha256.Sum256([]byte(step.Packed))
 	method := domain.MethodID(fmt.Sprintf("bedroom-sculpture-install-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, true, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "sculpture_install")}, true, nil
 	}
 	item := inner[step.Packed]
 	id := domain.MintPlanID()

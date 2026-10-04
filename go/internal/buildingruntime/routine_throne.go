@@ -240,7 +240,7 @@ func (r *RoutineSleepingUpkeepPlanner) assignThrone(call, epoch context.Context,
 		return RoutineBuildingResult{}, err
 	}
 	if method == "" {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "throne_assignment")}, nil
 	}
 	previous := domain.ClearPrevious()
 	if step.PreviousThrone != "" {

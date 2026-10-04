@@ -588,7 +588,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			if p.session.State() != state {
 				return RoutineBuildingResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 			}
-			return RoutineBuildingResult{Verdict: BuildingReasonUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
+			return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "shelter_method"), NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
 		}
 		method = repaired
 	} else {
@@ -606,13 +606,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 		}
 		if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-			return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "sleeping_method")}, nil
 		} else if !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
 		}
 	}
 	if roofingOnly {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "roofing_method")}, nil
 	}
 	planID := domain.MintPlanID()
 	snapshot := state.Snapshot

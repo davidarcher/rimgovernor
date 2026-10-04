@@ -104,7 +104,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	for _, t := range tidies {
 		if t.Item == proposal.Item.ID {
-			return RoutineTidyResult{Verdict: BuildingReasonUsed}, nil
+			return RoutineTidyResult{Verdict: waitFor(WaitMethodUsed, "tidy_item")}, nil
 		}
 	}
 	claims, err := p.journal.ConstructionClaims(call, state.Snapshot, expected.Tick)

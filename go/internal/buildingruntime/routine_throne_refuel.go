@@ -47,10 +47,10 @@ func (r *RoutineSleepingUpkeepPlanner) refuelThrone(call, epoch context.Context,
 		return RoutineBuildingResult{}, err
 	}
 	if throneRefuelRecent(history, step.Lamp, tick) {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "throne_refuel")}, nil
 	}
 	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(step.Pawn)}, "throne-refuel:"+step.Lamp) {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "throne_refuel_claim")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", throneRefuelPrefix(step.Lamp), tick))
 	service, err := domain.NewRecoveryService(domain.PawnID(step.Pawn), step.Lamp, domain.RecoveryServiceRefuel)

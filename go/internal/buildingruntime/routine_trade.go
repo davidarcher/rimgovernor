@@ -257,7 +257,7 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 		if waiting {
 			return RoutineTradeResult{Verdict: waitFor(WaitExistingWork, "caravan_departure"), NativeWorkTicks: tradeArrivalTicks}, nil
 		}
-		return RoutineTradeResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineTradeResult{Verdict: waitFor(WaitMethodUsed, "caravan_trade")}, nil
 	}
 	if len(census.Negotiators) == 0 {
 		return RoutineTradeResult{Verdict: noWorker("negotiator")}, nil
@@ -343,7 +343,7 @@ func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlStat
 // reachability when the open applies and walks the negotiator over.
 func (r *RoutineTradePlanner) open(call, epoch context.Context, state ControlState, incident store.IncidentState, trader string, negotiator bridge.NegotiatorRead, attempt int, arbiter *stepArbiter, started time.Time) (RoutineTradeResult, error) {
 	if !arbiter.tryClaim(nil, "pawn:"+negotiator.ID) {
-		return RoutineTradeResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineTradeResult{Verdict: waitFor(WaitMethodUsed, "negotiator_claim")}, nil
 	}
 	value, err := domain.NewTradeOpen(trader, domain.PawnID(negotiator.ID), false)
 	if err != nil {
@@ -367,7 +367,7 @@ func (r *RoutineTradePlanner) drive(call, epoch context.Context, state ControlSt
 		// An end that failed leaves native holding the session; there is
 		// nothing further to propose, and tradeSettled already reads it as
 		// over.
-		return RoutineTradeResult{Verdict: BuildingReasonExhausted, Trader: trader, Phase: domain.TradeEnd}, nil
+		return RoutineTradeResult{Verdict: refuse(RefusalRetriesSpent, "trade_end", ""), Trader: trader, Phase: domain.TradeEnd}, nil
 	}
 	accept, err := r.phase(call, incident, domain.TradeAccept, trader)
 	if err != nil {

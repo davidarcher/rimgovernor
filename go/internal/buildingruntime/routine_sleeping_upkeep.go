@@ -407,7 +407,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		return RoutineBuildingResult{}, err
 	}
 	if method == "" {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "bed_assignment")}, nil
 	}
 	previous := domain.ClearPrevious()
 	if choice.PreviousBed != "" {
@@ -423,7 +423,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 		assign = assign.AsSwap()
 	}
 	if !arbiter.tryClaim(nil, "bed:"+choice.Bed) {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "bed_claim")}, nil
 	}
 	id := domain.MintPlanID()
 	action, err := domain.NewAssignAction(domain.ActionID(fmt.Sprintf("%s-0", id)), assign)
@@ -507,7 +507,7 @@ func (r *RoutineSleepingUpkeepPlanner) markSlaveBed(call, epoch context.Context,
 	p := r.reviewer.player
 	method := domain.MethodID("sleeping-slave-bed-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "slave_bed_marking")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}

@@ -435,7 +435,7 @@ func (r *RoutineStockpilePlanner) shell(call, epoch context.Context, state Contr
 	}
 	room, owed := plannedRoomOwed(read.Projection, policy.ModuleRole(edit.Role))
 	if !owed {
-		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, false, nil
+		return RoutineStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_room_built")}, false, nil
 	}
 	result, err := r.building.shellRoom(call, epoch, state, review, goal, read.ColonyReading, room, plannedRoomMethod(room), "storage-planner room")
 	clockEvent(call, "layout", "stockpiles", "stockpile edit: "+edit.Explanation, "role", edit.Role, "verdict", fmt.Sprint(result.Verdict))
@@ -539,7 +539,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
 	id := domain.MintPlanID()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_edits")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
 	}
@@ -618,7 +618,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	id := domain.MintPlanID()
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineStockpileResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_create")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
 	}

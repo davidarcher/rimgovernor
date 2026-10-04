@@ -99,7 +99,7 @@ func (b *RoutineBuildingPlanner) placePiece(call, epoch context.Context, state C
 	p := b.reviewer.player
 	facts := reading.Projection
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "interior_piece")}, nil
 	}
 	stuff := facts.BuildStuff(piece.Def)
 	snapshot := state.Snapshot
