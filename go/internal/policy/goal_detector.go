@@ -22,75 +22,86 @@ func FactFamilies() []FactFamily {
 	return []FactFamily{FactDefinitions, FactWorld, FactIdentity, FactColony, FactPawns, FactEmergency, FactRooms, FactResearch}
 }
 
-// GoalDetector declares one GoalID: its concept, its colony area and the fact
-// families its detection reads (#1907). The registry is the only place a
-// GoalID is classified.
+// GoalDetector declares one GoalID: its concept, its colony area, the fact
+// families its detection reads (#1907) and the detection itself (#1908).
+// The registry is the only place a GoalID is classified.
 type GoalDetector struct {
 	Goal    GoalID
 	Concept Concept
 	Domain  Domain
 	Inputs  []FactFamily
+	// Detect appends the goal's assessment, and its goal when owed, to the
+	// run. DetectRoutine runs the detectors in registry order, so the order
+	// below is the order of RoutineNeeds.Assessments (the stored bindings
+	// are index-aligned); a detector may read what the shared reviews and
+	// every earlier detector left on the run, and RecoverDisasterServices
+	// must stay last because it promotes everything filed before it.
+	Detect func(*routineRun) error
 }
 
+// goalDetectors lists every detector in evaluation order. Inputs name the
+// fact families the detector's body reads (traced in #1908); a goal that
+// reads only configuration still declares the families its stored review
+// facts come from.
 var goalDetectors = []GoalDetector{
-	{ActiveCombat, ConceptResponse, DomainMilitary, []FactFamily{FactEmergency, FactPawns}},
-	{CriticalMedicine, ConceptResponse, DomainMedical, []FactFamily{FactPawns, FactEmergency}},
-	{RestoreWorkers, ConceptResponse, DomainPeople, []FactFamily{FactPawns, FactColony}},
-	{AnswerDialog, ConceptResponse, DomainSystem, []FactFamily{FactEmergency}},
-	{ConfirmColonyNames, ConceptResponse, DomainSystem, []FactFamily{FactIdentity}},
-	{RecoverDisasterServices, ConceptResponse, DomainUpkeep, []FactFamily{FactEmergency, FactColony}},
-	{TradeWithCaravan, ConceptResponse, DomainUpkeep, []FactFamily{FactWorld, FactColony}},
-	{EnsureMood, ConceptResponse, DomainPeople, []FactFamily{FactPawns}},
-	{AllowStartingSupplies, ConceptProject, DomainUpkeep, []FactFamily{FactColony}},
-	{EnsureCooking, ConceptProject, DomainFood, []FactFamily{FactColony, FactDefinitions}},
-	{MaintainButcherSpot, ConceptProject, DomainFood, []FactFamily{FactColony, FactRooms}},
-	{EnsureBasicPower, ConceptProject, DomainIndustry, []FactFamily{FactColony, FactDefinitions}},
-	{EnsureWorkAssignments, ConceptProject, DomainPeople, []FactFamily{FactPawns}},
-	{EnsureResearch, ConceptProject, DomainIndustry, []FactFamily{FactResearch, FactPawns}},
-	{EnsureDefensiveLayout, ConceptProject, DomainMilitary, []FactFamily{FactColony, FactWorld}},
-	{ClearAncientShrine, ConceptProject, DomainMilitary, []FactFamily{FactColony, FactWorld}},
-	{MaintainWaste, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}},
-	{RemoveBlight, ConceptStandard, DomainFood, []FactFamily{FactColony}},
-	{ManagePollution, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactWorld}},
-	{EnsureMechCharger, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactPawns}},
-	{MaintainStockpiles, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}},
-	{TidyLayout, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}},
-	{ClearHomeObstructions, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}},
-	{EnsureFoodSupply, ConceptStandard, DomainFood, []FactFamily{FactColony, FactPawns}},
-	{EnsureBasicDefense, ConceptStandard, DomainMilitary, []FactFamily{FactColony, FactEmergency}},
-	{EnsureTemperatureSafety, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactPawns, FactWorld}},
-	{EnsureComfort, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactRooms}},
-	{MaintainHousing, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactRooms}},
-	{ManageSupplySafety, ConceptStandard, DomainUpkeep, []FactFamily{FactEmergency, FactColony}},
-	{ClearPests, ConceptStandard, DomainMilitary, []FactFamily{FactColony, FactWorld}},
-	{MaintainAnimalContainment, ConceptStandard, DomainPeople, []FactFamily{FactColony, FactPawns}},
-	{MaintainAnimalFeed, ConceptStandard, DomainPeople, []FactFamily{FactColony, FactPawns}},
-	{MaintainCleanFacilities, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}},
-	{MaintainEquipment, ConceptStandard, DomainMilitary, []FactFamily{FactPawns, FactColony}},
-	{MaintainEssentialRepairs, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}},
-	{MaintainFireSafety, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactEmergency}},
-	{MaintainFirebreak, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactWorld}},
-	{MaintainMechs, ConceptStandard, DomainIndustry, []FactFamily{FactColony, FactPawns}},
-	{MaintainPsylink, ConceptStandard, DomainPeople, []FactFamily{FactPawns}},
-	{ManageCreepJoiners, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactEmergency}},
-	{MaintainPermits, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactIdentity}},
-	{MaintainIdeoRoles, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactIdentity}},
-	{MaintainRituals, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactIdentity}},
-	{MaintainFlooring, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}},
-	{MaintainFoodStorage, ConceptStandard, DomainFood, []FactFamily{FactColony, FactRooms}},
-	{MaintainBabyFeeding, ConceptStandard, DomainFood, []FactFamily{FactPawns, FactColony}},
-	{MaintainHerd, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony}},
-	{MaintainHomeCoverage, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}},
-	{MaintainShelter, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}},
-	{MaintainLighting, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}},
-	{MaintainArt, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}},
-	{MaintainMedicalReserves, ConceptStandard, DomainMedical, []FactFamily{FactPawns, FactColony}},
-	{MaintainSurgery, ConceptStandard, DomainMedical, []FactFamily{FactPawns, FactColony}},
-	{MaintainPopulation, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony}},
-	{MaintainRefrigeration, ConceptStandard, DomainFood, []FactFamily{FactRooms, FactColony}},
-	{MaintainResource, ConceptStandard, DomainIndustry, []FactFamily{FactColony, FactDefinitions}},
-	{MaintainRoutes, ConceptStandard, DomainUpkeep, []FactFamily{FactWorld, FactColony}},
-	{MaintainStoneShell, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony, FactWorld}},
+	{ConfirmColonyNames, ConceptResponse, DomainSystem, []FactFamily{FactIdentity}, detectColonyNames},
+	{AnswerDialog, ConceptResponse, DomainSystem, []FactFamily{FactEmergency}, detectAnswerDialog},
+	{ActiveCombat, ConceptResponse, DomainMilitary, []FactFamily{FactEmergency, FactColony}, detectActiveCombat},
+	{CriticalMedicine, ConceptResponse, DomainMedical, []FactFamily{FactPawns, FactEmergency}, detectCriticalMedicine},
+	{RestoreWorkers, ConceptResponse, DomainPeople, []FactFamily{FactEmergency, FactPawns}, detectRestoreWorkers},
+	{AllowStartingSupplies, ConceptProject, DomainUpkeep, []FactFamily{FactColony}, detectAllowStartingSupplies},
+	{ManageSupplySafety, ConceptStandard, DomainUpkeep, []FactFamily{FactEmergency, FactColony}, detectManageSupplySafety},
+	{EnsureWorkAssignments, ConceptProject, DomainPeople, []FactFamily{FactPawns, FactIdentity, FactEmergency}, detectWorkAssignments},
+	{EnsureFoodSupply, ConceptStandard, DomainFood, []FactFamily{FactColony, FactPawns}, detectFoodSupply},
+	{MaintainHousing, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactRooms, FactPawns}, detectHousing},
+	{EnsureTemperatureSafety, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactRooms, FactWorld}, detectTemperatureSafety},
+	{EnsureCooking, ConceptProject, DomainFood, []FactFamily{FactColony}, detectCooking},
+	{MaintainButcherSpot, ConceptProject, DomainFood, []FactFamily{FactColony, FactRooms}, detectButcherSpot},
+	{EnsureBasicPower, ConceptProject, DomainIndustry, []FactFamily{FactColony, FactWorld}, detectBasicPower},
+	{EnsureBasicDefense, ConceptStandard, DomainMilitary, []FactFamily{FactPawns, FactEmergency}, detectBasicDefense},
+	{EnsureComfort, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactRooms}, detectComfort},
+	{ClearPests, ConceptStandard, DomainMilitary, []FactFamily{FactColony, FactWorld}, detectPests},
+	{MaintainEquipment, ConceptStandard, DomainMilitary, []FactFamily{FactPawns, FactColony}, detectEquipment},
+	{EnsureResearch, ConceptProject, DomainIndustry, []FactFamily{FactResearch, FactPawns, FactColony}, detectResearch},
+	{MaintainResource, ConceptStandard, DomainIndustry, []FactFamily{FactColony, FactDefinitions, FactResearch, FactPawns}, detectResource},
+	{TradeWithCaravan, ConceptResponse, DomainUpkeep, []FactFamily{FactWorld, FactColony, FactDefinitions, FactPawns}, detectTrade},
+	{EnsureDefensiveLayout, ConceptProject, DomainMilitary, []FactFamily{FactColony, FactWorld}, detectDefensiveLayout},
+	{MaintainFireSafety, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactEmergency}, upkeepDetector(MaintainFireSafety, holdFireSafety)},
+	{MaintainEssentialRepairs, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, upkeepDetector(MaintainEssentialRepairs, nil)},
+	{MaintainCleanFacilities, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}, upkeepDetector(MaintainCleanFacilities, holdCleaning)},
+	{ClearHomeObstructions, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, upkeepDetector(ClearHomeObstructions, holdClearance)},
+	{ClearAncientShrine, ConceptProject, DomainMilitary, []FactFamily{FactColony, FactWorld}, upkeepDetector(ClearAncientShrine, holdShrine)},
+	{MaintainHomeCoverage, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactWorld}, detectHomeCoverage},
+	{MaintainStoneShell, ConceptStandard, DomainShelter, []FactFamily{FactColony, FactResearch}, detectStoneShell},
+	{MaintainMedicalReserves, ConceptStandard, DomainMedical, []FactFamily{FactPawns, FactColony}, detectMedicalReserves},
+	{MaintainSurgery, ConceptStandard, DomainMedical, []FactFamily{FactPawns, FactColony, FactDefinitions}, detectSurgery},
+	{MaintainBabyFeeding, ConceptStandard, DomainFood, []FactFamily{FactPawns, FactColony}, detectBabyFeeding},
+	{MaintainFoodStorage, ConceptStandard, DomainFood, []FactFamily{FactColony}, detectFoodStorage},
+	{MaintainRefrigeration, ConceptStandard, DomainFood, []FactFamily{FactRooms, FactColony}, detectRefrigeration},
+	{MaintainLighting, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony, FactWorld}, detectLighting},
+	{MaintainFlooring, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony}, detectFlooring},
+	{MaintainRoutes, ConceptStandard, DomainUpkeep, []FactFamily{FactWorld, FactColony}, detectRoutes},
+	{MaintainArt, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactColony, FactPawns}, detectArt},
+	{MaintainShelter, ConceptStandard, DomainShelter, []FactFamily{FactRooms, FactWorld, FactEmergency}, detectShelter},
+	{MaintainFirebreak, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactWorld}, detectFirebreak},
+	{MaintainMechs, ConceptStandard, DomainIndustry, []FactFamily{FactColony, FactPawns}, detectMechs},
+	{MaintainPsylink, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony}, detectPsylink},
+	{MaintainIdeoRoles, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony}, detectIdeoRoles},
+	{MaintainRituals, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony}, detectRituals},
+	{MaintainPermits, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactDefinitions, FactColony}, detectPermits},
+	{ManageCreepJoiners, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactEmergency}, detectCreepJoiners},
+	{MaintainHerd, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony, FactRooms}, detectHerd},
+	{MaintainPopulation, ConceptStandard, DomainPeople, []FactFamily{FactPawns, FactColony, FactWorld}, detectPopulation},
+	{MaintainAnimalContainment, ConceptStandard, DomainPeople, []FactFamily{FactColony, FactPawns, FactRooms}, detectAnimalContainment},
+	{MaintainAnimalFeed, ConceptStandard, DomainPeople, []FactFamily{FactColony, FactPawns, FactWorld}, detectAnimalFeed},
+	{MaintainWaste, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, detectWaste},
+	{RemoveBlight, ConceptStandard, DomainFood, []FactFamily{FactColony}, detectBlight},
+	{ManagePollution, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactWorld}, detectPollution},
+	{EnsureMechCharger, ConceptStandard, DomainUpkeep, []FactFamily{FactColony, FactPawns}, detectMechCharger},
+	{TidyLayout, ConceptStandard, DomainUpkeep, []FactFamily{FactRooms, FactColony}, detectTidyLayout},
+	{MaintainStockpiles, ConceptStandard, DomainUpkeep, []FactFamily{FactColony}, detectStockpiles},
+	{EnsureMood, ConceptResponse, DomainPeople, []FactFamily{FactPawns}, detectMood},
+	{RecoverDisasterServices, ConceptResponse, DomainUpkeep, []FactFamily{FactEmergency, FactColony, FactWorld}, detectDisaster},
 }
 
 // goalDetectorIndex maps each registered GoalID to its detector.
@@ -113,7 +124,8 @@ func DetectorFor(id GoalID) (GoalDetector, bool) {
 
 // ValidateGoalDetectors reports the first registry fault: a GoalID in ids
 // without exactly one detector, a detector for no listed GoalID, or a
-// detector with no concept, no domain, no inputs or an unknown input family.
+// detector with no concept, no domain, no detect function, no inputs or an
+// unknown input family.
 func ValidateGoalDetectors(detectors []GoalDetector, ids []GoalID) error {
 	count := map[GoalID]int{}
 	known := map[FactFamily]bool{}
@@ -127,6 +139,8 @@ func ValidateGoalDetectors(detectors []GoalDetector, ids []GoalID) error {
 			return fmt.Errorf("goal detector %s: no concept", d.Goal)
 		case d.Domain == DomainUnknown:
 			return fmt.Errorf("goal detector %s: no domain", d.Goal)
+		case d.Detect == nil:
+			return fmt.Errorf("goal detector %s: no detect function", d.Goal)
 		case len(d.Inputs) == 0:
 			return fmt.Errorf("goal detector %s: declares no input fact families", d.Goal)
 		}

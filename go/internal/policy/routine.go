@@ -767,7 +767,9 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 }
 
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
-// survival goals. Family-specific needs join these same goals during review.
+// survival goals: it reviews the facts once, then runs every registered
+// goal detector in registry order (goalDetectors). Family-specific needs
+// join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
 	if c, known := f.Calendar.Value(); known && !c.Valid() {
 		return RoutineNeeds{}, errors.New("invalid calendar fact")
@@ -777,55 +779,38 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	home, err := PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage)
-	if err != nil {
+	c := &routineRun{f: f, previous: previous, p: p}
+	if c.home, err = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage); err != nil {
 		return RoutineNeeds{}, err
 	}
-	stone, err := ReviewStoneShell(owned, f.StoneStructures)
-	if err != nil {
+	if c.stone, err = ReviewStoneShell(owned, f.StoneStructures); err != nil {
 		return RoutineNeeds{}, err
 	}
-	animals, err := ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.FoodReserveDays)
-	if err != nil {
+	if c.animals, err = ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals, p.FoodReserveDays); err != nil {
 		return RoutineNeeds{}, err
 	}
 	medicineFacts := f.MedicalReserve
 	medicineFacts.Colonists = f.Colonists
-	medicine, err := ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve)
-	if err != nil {
+	if c.medicine, err = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve); err != nil {
 		return RoutineNeeds{}, err
 	}
-	foodStorage, err := ReviewFoodStorage(f.FoodStorageUpkeep, previous.FoodStorage, p.FoodStorage)
-	if err != nil {
+	if c.foodStorage, err = ReviewFoodStorage(f.FoodStorageUpkeep, previous.FoodStorage, p.FoodStorage); err != nil {
 		return RoutineNeeds{}, err
 	}
-	refrigeration, err := ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage)
-	if err != nil {
+	if c.refrigeration, err = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage); err != nil {
 		return RoutineNeeds{}, err
 	}
-	refrigeration = refrigeration.WithTombs(f.TombsWarm)
-	upkeep, err := ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness)
-	if err != nil {
+	c.refrigeration = c.refrigeration.WithTombs(f.TombsWarm)
+	if c.upkeep, err = ReviewUpkeepWith(f.Upkeep, previous.Upkeep, f.UpkeepIssued, p.Cleanliness); err != nil {
 		return RoutineNeeds{}, err
 	}
-	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark))
-	if err != nil {
+	if c.lighting, err = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark)); err != nil {
 		return RoutineNeeds{}, err
 	}
-	flooring, err := ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring)
-	if err != nil {
+	if c.flooring, err = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring); err != nil {
 		return RoutineNeeds{}, err
 	}
-	routes, err := ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes)
-	if err != nil {
-		return RoutineNeeds{}, err
-	}
-	gear, err := ReviewGear(f.Gear)
-	if err != nil {
-		return RoutineNeeds{}, err
-	}
-	basicComfort, err := ReviewBasicComfort(f.BasicComfort)
-	if err != nil {
+	if c.routes, err = ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes); err != nil {
 		return RoutineNeeds{}, err
 	}
 	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) {
@@ -849,798 +834,45 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			return RoutineNeeds{}, errors.New("negative food fact")
 		}
 	}
-	count := footholdCount(f)
-	sleepingMet, shelterMet, productionMet := footholdSleeping(f), footholdShelter(f), footholdProduction(f)
-	foodMet, temperatureMet, powerMet := footholdFood(f, p), footholdTemperature(f, p), footholdPower(f)
-	if positive(f.TemperatureOwed) {
-		// A refuel switch or a room below its sleepers' band holds the
-		// goal open (#1180, #1199).
-		temperatureMet = domain.Known(false)
-	}
-	medicalMet := measured(f.CriticalPatients, func(v int64) bool { return v == 0 })
-	workMet := allFacts(f.WorkCoverage, measured(f.CleanupPawns, func(v bool) bool { return !v }), measured(f.ColonyNaming, func(v bool) bool { return !v }))
-	if positive(f.HostilityOwed) || positive(f.SelfTendOwed) || positive(f.NamesOwed) || positive(f.MedicineCarryOwed) || positive(f.MedicalCareOwed) {
-		workMet = domain.Known(false)
-	}
-	defenseMet := allFacts(footholdArmed(f), measured(f.Hostiles, func(v int64) bool { return v == 0 }))
 	wood := domain.Unknown[float64]()
 	if n, k := f.Wood.Value(); k {
 		wood = domain.Known(float64(n))
 	}
-	sleepingActive := previous.Sleeping
+	c.sleepingActive = previous.Sleeping
 	if recovered, known := f.SleepingRecovered.Value(); known {
-		sleepingActive = !recovered
+		c.sleepingActive = !recovered
 	}
-	homeActive, stoneActive := previous.HomeCoverage, previous.StoneShell
-	if diff, known := home.Value(); known {
-		homeActive = !diff.Empty()
+	c.homeActive, c.stoneActive = previous.HomeCoverage, previous.StoneShell
+	if diff, known := c.home.Value(); known {
+		c.homeActive = !diff.Empty()
 	}
-	if rows, known := stone.Value(); known {
-		stoneActive = len(rows) > 0
+	if rows, known := c.stone.Value(); known {
+		c.stoneActive = len(rows) > 0
 	}
-	l := RoutineLatches{
-		HomeCoverage: homeActive, StoneShell: stoneActive,
-		Sleeping:       sleepingActive,
-		Animals:        animals.History,
-		MedicalReserve: medicine.Active,
-		FoodStorage:    foodStorage.Active,
-		Refrigeration:  refrigeration.Active,
-		Lighting:       lighting.Dark,
-		Flooring:       flooring.Latched,
-		Routes:         routes.Latched,
-		Upkeep:         upkeep.History,
+	c.l = RoutineLatches{
+		HomeCoverage: c.homeActive, StoneShell: c.stoneActive,
+		Sleeping:       c.sleepingActive,
+		Animals:        c.animals.History,
+		MedicalReserve: c.medicine.Active,
+		FoodStorage:    c.foodStorage.Active,
+		Refrigeration:  c.refrigeration.Active,
+		Lighting:       c.lighting.Dark,
+		Flooring:       c.flooring.Latched,
+		Routes:         c.routes.Latched,
+		Upkeep:         c.upkeep.History,
 		Food:           latchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
 		Hot:            latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
 		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
 		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
-	r := RoutineNeeds{Latches: l}
-	addGoal := func(id GoalID, priority int) {
-		r.Goals = append(r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, f, p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, f, l)})
-	}
-	if positive(f.ColonyNaming) {
-		addGoal(ConfirmColonyNames, 0)
-	}
-	if positive(f.ChoiceDialog) {
-		addGoal(AnswerDialog, 0)
-	}
-	if !positive(combatCleared(f)) {
-		addGoal(ActiveCombat, 0)
-	}
-	medicalPriority := criticalMedicinePriority(f)
-	if !positive(medicalMet) {
-		addGoal(CriticalMedicine, medicalPriority)
-	}
-	if positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) && positive(f.CleanupPawns) {
-		addGoal(RestoreWorkers, 1)
-	}
-	if positive(f.EventLootPending) {
-		addGoal(ManageSupplySafety, supplySafetyPriority(f))
-	}
-	if positive(f.ForbiddenSupplies) {
-		addGoal(AllowStartingSupplies, 2)
-	}
-	if !positive(workMet) {
-		addGoal(EnsureWorkAssignments, 2)
-	}
-	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(foodMet) || !positive(productionMet) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
-		addGoal(EnsureFoodSupply, 2)
-	}
-	housing := reviewHousing(f, previous, p, sleepingActive)
-	r.Latches.Housing = housing.Phase
-	if housing.Phase != "" {
-		addGoal(MaintainHousing, housing.Priority)
-		r.Goals[len(r.Goals)-1].Deficit = housing.Deficit
-		r.Goals[len(r.Goals)-1].Blocked = housing.Blocked
-		if housing.Phase == HousingShelter {
-			// The starter shelter is a foothold goal: no ranked labor, as
-			// before the housing goals merged.
-			r.Goals[len(r.Goals)-1].Labor, r.Goals[len(r.Goals)-1].Risk = nil, domain.Known(0.0)
+	c.r = RoutineNeeds{Latches: c.l}
+	for _, d := range goalDetectors {
+		if err := d.Detect(c); err != nil {
+			return RoutineNeeds{}, err
 		}
 	}
-	if l.Cold || l.Hot || !positive(temperatureMet) {
-		addGoal(EnsureTemperatureSafety, 2)
-	}
-	if !positive(cookingMet(f)) {
-		addGoal(EnsureCooking, 2)
-	}
-	if !positive(butcherSpotMet(f)) {
-		addGoal(MaintainButcherSpot, 2)
-	}
-	// A solar flare with a known remaining duration switches every powered
-	// building off for hours: the power deficit it measures is real but
-	// answering it with a generator is not, so the goal stays open with no
-	// method (it neither extends the startup hold nor is cancelled) until
-	// the flare ends and the planner can tell an outage from a shortfall.
-	flare := PowerOutageHold(f.DisasterConditions)
-	if !positive(powerMet) {
-		addGoal(EnsureBasicPower, 2)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
-	}
-	defense := basicDefenseRecovered(defenseMet, f.Unarmed)
-	if !positive(defense) {
-		addGoal(EnsureBasicDefense, 3)
-		n, k := count.Value()
-		stock, sk := f.Armed.Value()
-		if k && sk && n > 0 {
-			deficit := max(0, float64(min(2, n)-stock)/float64(min(2, n)))
-			if unarmed, uk := f.Unarmed.Value(); uk && unarmed > 0 && deficit == 0 {
-				deficit = float64(unarmed) / float64(unarmed+stock)
-			}
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(deficit)
-		}
-	}
-	// A table with a seat and a recreation source are provided with the
-	// starter hut, at foothold priority: the two cheapest mood debuffs to
-	// remove should not wait for the ranked comfort project (#232). While the
-	// initial shelter is still owed there is no room to furnish, so the goal
-	// holds no method and neither extends the startup hold nor competes.
-	comfortRanked := p.ColonyStage >= StageDevelopment
-	if !positive(basicComfort.Recovered()) {
-		r.Latches.Comfort = ComfortBasic
-		addGoal(EnsureComfort, basicComfort.Priority())
-		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
-		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(shelterMet) || !positive(sleepingMet) || basicComfort.Priority() == 3 && !basicComfort.VarietyKnown
-	} else if comfortRanked && !positive(f.ComfortRecovered) {
-		// The ranked phase: hosting rooms and proof of use, once the basic
-		// facilities stand and the colony reached StageDevelopment.
-		r.Latches.Comfort = ComfortRanked
-		addGoal(EnsureComfort, 4)
-		r.Goals[len(r.Goals)-1].Comfort = true
-		r.Goals[len(r.Goals)-1].Deficit = f.ComfortDeficit
-	}
-	comfortPriority, comfortRecovered := 4, basicComfort.Recovered()
-	if r.Latches.Comfort == ComfortBasic {
-		comfortPriority = basicComfort.Priority()
-	} else {
-		// The ranked phase is assessed at every stage, as before the merge;
-		// only its goal waits for StageDevelopment.
-		comfortRecovered = allFacts(comfortRecovered, f.ComfortRecovered)
-	}
-	// A recognised pest on the map (an alphabeaver pack eating the trees,
-	// #247) is a foothold deficit answered by hunting, priority 2: it is
-	// not an emergency (the census never holds the clock for a docile
-	// animal) but it outranks every ranked project while it lasts. Only a
-	// known census with a pest opens the goal: an unknown wild census
-	// (beyond the native bound) has nothing to hunt and must not hold the
-	// startup ladder for good.
-	pests := PestCensus(f.AnimalUpkeep.WildAnimals)
-	pestsClear := measured(pests, func(n int) bool { return n == 0 })
-	if n, known := pests.Value(); known && n > 0 {
-		addGoal(ClearPests, 2)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	if !positive(gear.Recovered) {
-		addGoal(MaintainEquipment, 3)
-		r.Goals[len(r.Goals)-1].Deficit = gear.Deficit
-	}
-	addAssessment := func(id GoalID, priority int, recovered domain.Fact[bool]) {
-		need := domain.NeedUnknown
-		if value, known := recovered.Value(); known {
-			need = domain.NeedDeficit
-			if value {
-				need = domain.NeedRecovered
-			}
-		}
-		r.Assessments = append(r.Assessments, RoutineAssessment{ID: id, Priority: priority, Need: need})
-	}
-	not := func(f domain.Fact[bool]) domain.Fact[bool] { return measured(f, func(v bool) bool { return !v }) }
-	// A retained latch with missing input preserves history, not fresh evidence.
-	latchRecovered := func(active bool, observed domain.Fact[float64]) domain.Fact[bool] {
-		return measured(observed, func(float64) bool { return !active })
-	}
-	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
-	addAssessment(AnswerDialog, 0, not(f.ChoiceDialog))
-	addAssessment(ActiveCombat, 0, combatCleared(f))
-	if cleared := measured(f.Hostiles, func(n int64) bool { return n == 0 }); positive(cleared) {
-		r.Assessments[len(r.Assessments)-1].Hunt = HuntRequest(f.FoodPlan)
-	}
-	addAssessment(CriticalMedicine, medicalPriority, medicalMet)
-	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
-	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
-	addAssessment(ManageSupplySafety, supplySafetyPriority(f), not(f.EventLootPending))
-	addAssessment(EnsureWorkAssignments, 2, workMet)
-	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
-	addAssessment(MaintainHousing, housing.Priority, housing.Recovered)
-	addAssessment(EnsureTemperatureSafety, 2, allFacts(temperatureMet, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
-	addAssessment(EnsureCooking, 2, cookingMet(f))
-	addAssessment(MaintainButcherSpot, 2, butcherSpotMet(f))
-	addAssessment(EnsureBasicPower, 2, powerMet)
-	addAssessment(EnsureBasicDefense, 3, defense)
-	addAssessment(EnsureComfort, comfortPriority, comfortRecovered)
-	addAssessment(ClearPests, 2, pestsClear)
-	equipped := gear.Recovered
-	if short, _ := f.ShellsShort.Value(); short {
-		equipped = domain.Known(false)
-	}
-	addAssessment(MaintainEquipment, 3, equipped)
-	// EnsureResearch and MaintainResource are operator-configured targets whose
-	// deficit is measured against native facts read in this review: no target
-	// configured is certain recovery, a configured target with missing facts is
-	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
-	// native state immediately before proposing a method.
-	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
-	researchTarget, researchDerived := ResearchGoal(ArmorResearchPolicy(p, l.Soldiers), researchNeeds, f.Research)
-	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
-	// An empty Anomaly knowledge slot with a project to fund is a spending
-	// need of its own (#1745); a disabled goal (no target, empty ladder)
-	// funds none.
-	if facts, known := f.Research.Value(); known && facts.KnowledgePick != "" && (len(researchNeeds) != 0 || len(ArmorResearchPolicy(p, l.Soldiers).ResearchLadder) != 0) {
-		deficit, _ := researchDeficit.Value()
-		researchRecovered, researchDeficit = domain.Known(false), domain.Known(max(deficit, 1.0))
-	}
-	if !positive(researchRecovered) {
-		addGoal(EnsureResearch, 4)
-		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
-	}
-	addAssessment(EnsureResearch, 4, researchRecovered)
-	// The wood latch is a WoodLog floor on MaintainResource (#728): below
-	// WoodMin it asks for WoodTarget until the latch recovers.
-	r.WoodFloor = WoodFloor(l.Wood, p)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, ResourceGoalTargets(ResourceGoalTargets(MedicineResourceNeeds(f.Items, ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)), DependencyResourceNeeds(f.Dependencies)), WoodFloorNeeds(r.WoodFloor)))
-	if err != nil {
-		return RoutineNeeds{}, err
-	}
-	r.ResourceTargets = resourceTargets
-	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, WoodStock(f.Resources, f.Wood, resourceTargets))
-	for _, runway := range f.ResourceRunways {
-		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
-			resourceRecovered = domain.Unknown[bool]()
-			resourceDeficit = domain.Unknown[float64]()
-		}
-		if deficit, known := runway.Deficit.Value(); known && deficit {
-			resourceRecovered = domain.Known(false)
-			if days, known := runway.DaysLeft.Value(); known {
-				old, _ := resourceDeficit.Value()
-				resourceDeficit = domain.Known(max(old, 1-days/ResourceRunwayDays))
-			}
-		}
-	}
-	resourcePriority := 4
-	if l.Wood {
-		// Low wood keeps the old wood goal's standing (#728).
-		resourcePriority = 3
-	}
-	if !positive(resourceRecovered) {
-		addGoal(MaintainResource, resourcePriority)
-		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
-		// The ladder's research rung: while a project the workshop recorded
-		// as gating the bench is unfinished, the goal has no method of its
-		// own and holds no slot, so EnsureResearch can take one (#4 M4).
-		// Wood and dependency floors are chopped or mined meanwhile.
-		r.Goals[len(r.Goals)-1].MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != "" && r.WoodFloor == 0 && len(DependencyResourceNeeds(f.Dependencies)) == 0
-	}
-	addAssessment(MaintainResource, resourcePriority, resourceRecovered)
-	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
-	// activates the goal at priority 3 (after the storage gate) and the
-	// planner reports no work once every tier stands.
-	// TradeWithCaravan is a Response (#1078): an incident per caravan
-	// visit, never a development goal. It needs a negotiator's
-	// conversation, not a development slot, and recovers by itself when
-	// the caravan leaves or nothing is left worth trading.
-	// Restore parts a bench could make do not stand the goal (#1255).
-	tradeNeed := AnimalSaleNeed(f.Items, ShedArtNeed(SurgeryTradeNeed(ReserveSurgeryStock(OrganSaleSurplus(f.Items, ReviewTradeNeed(f.Items.Currency, medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)), f.Resources, f.Colonists), f.MedicalPawns), SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContext(), SurgeryParts(SelectSurgery(f.MedicalPawns, nil, SurgeryContext{}).Wants), f.FabricableParts)), f.WealthBudget(), f.SaleArt), f.SaleAnimals(), f.Silver(), f.Colonists)
-	tradeRecovered := TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())))
-	addAssessment(TradeWithCaravan, 3, tradeRecovered)
-	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
-	if !positive(defensiveLayoutRecovered) {
-		addGoal(EnsureDefensiveLayout, 3)
-	}
-	addAssessment(EnsureDefensiveLayout, 3, defensiveLayoutRecovered)
-	for _, n := range upkeep.Needs {
-		recovered := domain.Unknown[bool]()
-		targetsKnown := false
-		if _, known := n.Targets.Value(); known {
-			recovered = domain.Known(!n.Active)
-			targetsKnown = true
-		}
-		addAssessment(n.Goal, n.Priority, recovered)
-		if !positive(recovered) {
-			addGoal(n.Goal, n.Priority)
-			// addGoal's Deficit defaults to RoutineDevelopmentDeficit(n.Goal, ...),
-			// which only covers a few measured goals
-			// and otherwise reports Unknown -- leaving every upkeep.Needs-sourced
-			// goal (Fire/Supplies/Repairs/Cleaning/Storage) permanently
-			// DevelopmentUnknown in RankDevelopment, so it could never win a
-			// capacity slot. These needs are binary (recovered/deficit, not a
-			// partial fraction -- see UpkeepNeed.Active/Targets above), so a
-			// confirmed active deficit reports the full Known(1.0), matching
-			// development_test.go's own fixture for this exact shape.
-			if targetsKnown {
-				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-			}
-			// MaintainEssentialRepairs and MaintainCleanFacilities now each have a composed dispatch method
-			// (G01.07c 05.4, G01.07b 05.2); the rest of the direct upkeep
-			// orders remain visible-only until their own dispatch verticals
-			// land.
-			if n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != ClearHomeObstructions && n.Goal != ClearAncientShrine {
-				r.Goals[len(r.Goals)-1].MethodUnavailable = true
-			}
-		}
-	}
-	// Clearance ranks below repairs and above direct cleaning. Safety goals
-	// already suspend all development work through the shared emergency gate.
-	// The shrine breach (#458) ranks with clearance below repairs; while its
-	// breach is issued, obstruction clearance waits so the construction hand
-	// is the breacher, not a wanderer past the trap line.
-	// Repairs hold the shrine only when their method is served: a repair
-	// deficit nothing can serve must not hold the breach forever.
-	repairsHold := upkeep.History.Repairs
-	if methods, known := f.AvailableMethods.Value(); known && repairsHold {
-		repairsHold = slices.Contains(methods, MaintainEssentialRepairs)
-	}
-	for i := range r.Goals {
-		switch r.Goals[i].ID {
-		case ClearAncientShrine:
-			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || repairsHold
-		case ClearHomeObstructions:
-			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Repairs || f.UpkeepIssued[ClearAncientShrine]
-		case MaintainCleanFacilities:
-			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Clearance
-		}
-	}
-	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()
-	if diff, known := home.Value(); known {
-		homeRecovered = domain.Known(diff.Empty())
-	}
-	if rows, known := stone.Value(); known {
-		stoneRecovered = domain.Known(len(rows) == 0)
-	}
-	for _, facility := range []struct {
-		id        GoalID
-		recovered domain.Fact[bool]
-		active    bool
-		priority  int
-	}{{MaintainHomeCoverage, homeRecovered, homeActive, 3}, {MaintainStoneShell, stoneRecovered, stoneActive, 4}} {
-		recovered, priority := facility.recovered, facility.priority
-		if _, known := recovered.Value(); !known && !facility.active && !f.UpkeepIssued[facility.id] {
-			priority = 4
-		}
-		if f.UpkeepIssued[facility.id] {
-			recovered = domain.Known(false)
-		}
-		addAssessment(facility.id, priority, recovered)
-		if !positive(recovered) {
-			addGoal(facility.id, priority)
-			// Binary need, like the upkeep.Needs goals above: a confirmed
-			// deficit ranks at Known(1.0); an unknown census stays
-			// DevelopmentUnknown. Method availability follows the composed
-			// capability list (AvailableMethods below), since both the
-			// MaintainHomeCoverage and MaintainStoneShell verticals dispatch.
-			if _, known := recovered.Value(); known {
-				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-			}
-		}
-	}
-	// A plan issued for the care phase is not a medicine bill.
-	medicalReserveActive := medicine.Active || f.UpkeepIssued[MaintainMedicalReserves] && previous.Medical != MedicalCare
-	medicalReserveRecovered := domain.Unknown[bool]()
-	medicalReservePriority := 3
-	if _, known := medicine.Stock.Value(); known {
-		medicalReserveRecovered = domain.Known(!medicalReserveActive)
-	} else if !medicalReserveActive {
-		medicalReservePriority = 4
-	}
-	// MaintainMedicalReserves is the one medical upkeep goal: resting and
-	// hospital care for the sick first (from StageStable), then the medicine
-	// stock. The care phase keeps its pre-merge shape: priority 2, no ranked
-	// method and no labor, since work assignments own disease rest and
-	// monitoring recovery must not reserve execution capacity while the pawn
-	// rests.
-	careRaised := p.ColonyStage >= StageStable
-	medicalUpkeepPriority, medicalRecovered := medicalReservePriority, medicalReserveRecovered
-	if careRaised {
-		medicalRecovered = allFacts(f.MedicalCareRecovered, medicalReserveRecovered)
-	}
-	if careRaised && !positive(f.MedicalCareRecovered) {
-		r.Latches.Medical, medicalUpkeepPriority = MedicalCare, 2
-		addGoal(MaintainMedicalReserves, 2)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
-		r.Goals[len(r.Goals)-1].Labor = nil
-	} else if !positive(medicalReserveRecovered) {
-		r.Latches.Medical = MedicalReserves
-		addGoal(MaintainMedicalReserves, medicalReservePriority)
-	}
-	addAssessment(MaintainMedicalReserves, medicalUpkeepPriority, medicalRecovered)
-	// MaintainSurgery (#1164): an operation the planner serves stands on a
-	// living colonist until the health change removes it.
-	// An actionable elective upgrade (#1167) keeps it open too.
-	surgeryRecovered := allFacts(SurgeryRecovered(f.MedicalPawns), measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContext(), f.FabricableParts), func(owed bool) bool { return !owed }))
-	// A sale organ harvest (#1169) holds it open while the silver runway
-	// is short and a prisoner's organ clears its cost; a prisoner's
-	// recoverable artificial part (#1232) too, and a peg-leg step: doctor
-	// training below the Medicine floor, prisoner control or a reinstall
-	// before release (#1236).
-	// A prisoner whose care allows better than herbal (#1239) too.
-	if SaleHarvestWanted(f, reviewSilverShort(f, p, medicine)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()) {
-		surgeryRecovered = domain.Known(false)
-	}
-	addAssessment(MaintainSurgery, surgeryPriority, surgeryRecovered)
-	if !positive(surgeryRecovered) {
-		addGoal(MaintainSurgery, surgeryPriority)
-	}
-	// MaintainBabyFeeding (#1681): owed while babies have no breastfeeder and
-	// too little baby-edible food; unknown raises nothing.
-	babyRecovered := measured(f.BabyFeeding, func(b BabyFeeding) bool { return !b.Short })
-	addAssessment(MaintainBabyFeeding, babyFeedingPriority, babyRecovered)
-	if recovered, known := babyRecovered.Value(); known && !recovered {
-		addGoal(MaintainBabyFeeding, babyFeedingPriority)
-	}
-	reserve, reserveKnown := f.FoodReserve.Value()
-	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
-	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
-	// MaintainFoodStorage is the one food storage goal: the foothold food
-	// stockpile (the storage gate) first, then the larder, the reserve and
-	// the stored-food upkeep.
-	stockpileOwed := !positive(f.FoodStorage)
-	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
-	foodStorageRecovered := domain.Unknown[bool]()
-	foodStoragePriority := foodStorageUpkeepPriority
-	larder, _ := SelectCorpseLarder(f.FoodStorageUpkeep)
-	// The stockpile, releasing cooking inputs and preserving fresh corpses
-	// must not wait behind development projects, just as refrigeration
-	// must not.
-	if larder.Kind != "" || reserveAccess || stockpileOwed {
-		foodStoragePriority = 2
-	}
-	if _, known := foodStorage.StoredNutrition.Value(); known {
-		foodStorageRecovered = domain.Known(!foodStorageActive)
-	} else if !foodStorageActive && !stockpileOwed {
-		foodStoragePriority = 4
-	}
-	if reserveAccess || reserveRefill {
-		foodStorageRecovered = domain.Known(false)
-	}
-	foodStorageRecovered = allFacts(f.FoodStorage, foodStorageRecovered)
-	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
-	if !positive(foodStorageRecovered) {
-		addGoal(MaintainFoodStorage, foodStoragePriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill
-	}
-	// Refrigeration answers the same at-risk perishable nutrition as
-	// MaintainFoodStorage by cooling the room the food already sits in. It
-	// runs at foothold priority like EnsureTemperatureSafety rather than as a
-	// ranked development project: the review only latches on food inside
-	// SafeRotDays of spoiling, and a cooler queued behind the project limit
-	// arrives after the food is gone.
-	refrigerationRecovered := domain.Unknown[bool]()
-	if _, known := refrigeration.WarmNutrition.Value(); known {
-		refrigerationRecovered = domain.Known(!refrigeration.Active)
-	}
-	closetOwed, _ := f.MealClosetOwed.Value()
-	if closetOwed {
-		refrigerationRecovered = domain.Known(false)
-	}
-	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
-	if !positive(refrigerationRecovered) {
-		addGoal(MaintainRefrigeration, refrigerationPriority)
-		// A cooler cannot run under a solar flare either (the cooler
-		// planner reports solar_flare), but the goal keeps a method: the
-		// warm stock is cooked ahead on a bench that still works (#408).
-		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
-		}
-		if len(refrigeration.Tombs) > 0 {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-		if d, _ := r.Goals[len(r.Goals)-1].Deficit.Value(); closetOwed && d < 0.5 {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(0.5)
-		}
-	}
-	// Lighting is a ranked development project: a dark bench costs work
-	// speed and mood, not lives, so it competes for a project slot like the
-	// other upkeep needs. The deficit is the measured dark fraction.
-	lightingRecovered := domain.Unknown[bool]()
-	lightingPriority := lightingPriority
-	if lighting.Known {
-		lightingRecovered = domain.Known(!lighting.Active)
-	} else if !lighting.Active {
-		lightingPriority = 4
-	}
-	addAssessment(MaintainLighting, lightingPriority, lightingRecovered)
-	if !positive(lightingRecovered) {
-		addGoal(MaintainLighting, lightingPriority)
-		if lighting.Known {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-	}
-	// Flooring is likewise a ranked project. A clean workspace on bare
-	// ground ranks with lighting; living rooms alone rank one step lower.
-	flooringRecovered := domain.Unknown[bool]()
-	flooringPriority := flooringPriority
-	if flooring.Known {
-		flooringRecovered = domain.Known(!flooring.Active)
-		if flooring.Active && flooring.Deficits[0].Tier != FloorTierClean {
-			flooringPriority = min(4, flooringPriority+floorTierOrder[flooring.Deficits[0].Tier])
-		}
-	} else if !flooring.Active {
-		flooringPriority = 4
-	}
-	addAssessment(MaintainFlooring, flooringPriority, flooringRecovered)
-	if !positive(flooringRecovered) {
-		addGoal(MaintainFlooring, flooringPriority)
-		if flooring.Known {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-	}
-	// Routes is likewise a ranked project: the deficit is the measured
-	// fraction of facilities no colonist reaches.
-	routesRecovered := domain.Unknown[bool]()
-	routesPriority := routesPriority
-	if routes.Known {
-		routesRecovered = domain.Known(!routes.Active)
-	} else if !routes.Active {
-		routesPriority = 4
-	}
-	addAssessment(MaintainRoutes, routesPriority, routesRecovered)
-	if !positive(routesRecovered) {
-		addGoal(MaintainRoutes, routesPriority)
-		if routes.Known {
-			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-		}
-	}
-	// Art is a ranked upkeep project too (#1190): owed only while a room
-	// needs a sculpture and a qualifying artist exists; unknown raises
-	// nothing.
-	// An inspired artist holds it open without a room (#1192).
-	artRecovered := domain.Unknown[bool]()
-	// Sale demand (#1193) holds it open the same way while an artist exists.
-	if profiles, pk := f.WorkProfiles.Value(); pk && (len(InspiredArtists(profiles)) > 0 || len(Artists(profiles)) > 0 && artForSale(f, p, medicine)) {
-		artRecovered = domain.Known(false)
-	} else if owed, known := f.SculptureRoomsOwed.Value(); known && !owed {
-		artRecovered = domain.Known(true)
-	} else if profiles, pk := f.WorkProfiles.Value(); known && pk {
-		artRecovered = domain.Known(len(Artists(profiles)) == 0)
-	}
-	addAssessment(MaintainArt, artPriority, artRecovered)
-	if recovered, known := artRecovered.Value(); known && !recovered {
-		addGoal(MaintainArt, artPriority)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainShelter (#1325): a Safe area edit is owed. A settings write,
-	// ranked with the upkeep projects; unknown raises nothing. While a
-	// sheltering trigger holds it is ShelterPriority, so a threat's
-	// emergency cannot veto the Safe area that PlanSheltering moves pawns
-	// into.
-	shelterPriority := 3
-	if trigger, _ := ShelterTriggerOf(f); trigger != ShelterNone {
-		shelterPriority = ShelterPriority(trigger)
-	}
-	addAssessment(MaintainShelter, shelterPriority, measured(f.SafeAreaOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.SafeAreaOwed.Value(); known && owed {
-		addGoal(MaintainShelter, shelterPriority)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainFirebreak (#1548): ring work is owed. Ranked with the upkeep
-	// projects; unknown raises nothing.
-	addAssessment(MaintainFirebreak, 3, measured(f.FirebreakOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.FirebreakOwed.Value(); known && owed {
-		addGoal(MaintainFirebreak, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainMechs (#1686): a mech is owed inside the bandwidth. Ranked with
-	// the upkeep projects; unknown raises nothing.
-	addAssessment(MaintainMechs, mechPriority, measured(f.MechGestationOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.MechGestationOwed.Value(); known && owed {
-		addGoal(MaintainMechs, mechPriority)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainPsylink (#1609): a held neuroformer waits for a willing
-	// colonist. Ranked with the upkeep projects; unknown raises nothing.
-	addAssessment(MaintainPsylink, 3, measured(f.PsylinkOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.PsylinkOwed.Value(); known && owed {
-		addGoal(MaintainPsylink, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainIdeoRoles (#1661): a role place and a fitting believer.
-	addAssessment(MaintainIdeoRoles, 3, measured(f.RolesOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.RolesOwed.Value(); known && owed {
-		addGoal(MaintainIdeoRoles, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainRituals (#1660): a ritual is due, calm and ready to begin.
-	addAssessment(MaintainRituals, 3, measured(f.RitualsOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.RitualsOwed.Value(); known && owed {
-		addGoal(MaintainRituals, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// MaintainPermits (#1606): a colonist holds permit points for a permit
-	// worth taking. Unknown without the royalty read raises nothing.
-	addAssessment(MaintainPermits, 3, PermitsSpent(f.Royalty))
-	if _, owed := NextPermitOf(f.Royalty); owed {
-		addGoal(MaintainPermits, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	// ManageCreepJoiners (#1740): a creepjoiner holds a weapon before its
-	// downside has shown. Ranked with the upkeep projects; unknown raises
-	// nothing.
-	addAssessment(ManageCreepJoiners, 3, measured(f.CreepJoinerOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.CreepJoinerOwed.Value(); known && owed {
-		addGoal(ManageCreepJoiners, 3)
-		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-	}
-	animalContainment := domain.Unknown[bool]()
-	if targets, known := animals.Containment.Value(); known {
-		animalContainment = domain.Known(len(targets) == 0)
-	}
-	if owed, known := f.HerdRoomsOwed.Value(); known && owed {
-		animalContainment = domain.Known(false)
-	}
-	animalFeed := domain.Unknown[bool]()
-	if targets, known := animals.Feed.Value(); known {
-		animalFeed = domain.Known(len(targets) == 0)
-	}
-	if need, known := HayNutritionNeed(f.PenGrazing, HarvestGapDays(f.Calendar, f.DisasterConditions)).Value(); known && need > 0 {
-		animalFeed = domain.Known(false)
-	}
-	herd := f.HerdPolicy()
-	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), herd).Value(); known {
-		herdRecovered = domain.Known(!deficit)
-	}
-	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, herd); choice.Method == domain.HusbandrySlaughter {
-		herdRecovered = domain.Known(false)
-	}
-	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, herd, f.FoodPlan); choice.Method != "" {
-		herdRecovered = domain.Known(false)
-	} else if choice.Reason == HusbandryUnknown {
-		herdRecovered = domain.Unknown[bool]()
-	}
-	// A standing designation with a capable handler is ordered to completion.
-	if PrioritizeSlaughterChoice(f.AnimalUpkeep.Animals, f.WorkProfiles).Method != "" {
-		herdRecovered = domain.Known(false)
-	}
-	if HerdMasterChoice(f.AnimalUpkeep.Animals, herd, f.WorkProfiles).Method != "" {
-		herdRecovered = domain.Known(false)
-	}
-	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.VetRoom).Method != "" {
-		herdRecovered = domain.Known(false)
-	}
-	shelter, err := f.AnimalShelterChoice()
-	if err != nil {
-		return RoutineNeeds{}, err
-	}
-	if shelter.Method != "" {
-		herdRecovered = domain.Known(false)
-	}
-	addAssessment(MaintainHerd, 3, herdRecovered)
-	if !positive(herdRecovered) {
-		addGoal(MaintainHerd, 3)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
-	}
-	// custodyDeficit is only known once a deployment reads the population
-	// census broadened for custody (RoutinePopulationCustodyPlanner); an
-	// unknown custody status is not held against recovery, matching every
-	// other optional sub-step fact in this function -- only a known deficit,
-	// in either prisoner recruitment or custody, blocks recovery.
-	// joinerDeficit likewise needs the quest census (RoutinePopulationJoinerPlanner).
-	populationRecovered := domain.Unknown[bool]()
-	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).Value()
-	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
-	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
-	empireDeficit, empireKnown := EmpireDeficit(f.QuestOffers, f.TitleClaimQuests...).Value()
-	odysseyDeficit, odysseyKnown := OdysseyDeficit(f.QuestOffers).Value()
-	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
-	_, ceremonyStarts := CeremonyStartOf(f.Royalty)
-	switch {
-	case ShrineArrestTarget(f) != "", LanceTarget(f) != "", entityCaptureOwed(f.Containment), entityDoorOwed(f.Containment), entityTendOwed(f.Containment), prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, empireKnown && empireDeficit, odysseyKnown && odysseyDeficit, letterKnown && letterDeficit, ceremonyStarts:
-		populationRecovered = domain.Known(false)
-	case prisonerDeficitKnown:
-		populationRecovered = domain.Known(!prisonerDeficit)
-	case custodyDeficitKnown:
-		populationRecovered = domain.Known(!custodyDeficit)
-	case joinerDeficitKnown:
-		populationRecovered = domain.Known(!joinerDeficit)
-	}
-	addAssessment(MaintainPopulation, 3, populationRecovered)
-	if !positive(populationRecovered) {
-		addGoal(MaintainPopulation, 3)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
-	}
-	for _, animalNeed := range []struct {
-		id        GoalID
-		recovered domain.Fact[bool]
-		active    bool
-	}{
-		{MaintainAnimalContainment, animalContainment, animals.History.Containment},
-		{MaintainAnimalFeed, animalFeed, false},
-	} {
-		recovered := animalNeed.recovered
-		priority := 3
-		if _, known := recovered.Value(); !known && !animalNeed.active && !f.UpkeepIssued[animalNeed.id] {
-			priority = 4
-		}
-		if f.UpkeepIssued[animalNeed.id] {
-			recovered = domain.Known(false)
-		}
-		addAssessment(animalNeed.id, priority, recovered)
-		if !positive(recovered) {
-			// Both animal needs have composed planners (RoutineAnimalContainment
-			// Planner, RoutineAnimalFeedPlanner); availability is gated below
-			// through AvailableMethods like MaintainWaste. Like waste, the
-			// deficit is census-driven: any uncontained or unfed target is a
-			// full deficit, so a known need ranks for a development slot.
-			addGoal(animalNeed.id, priority)
-			if _, known := recovered.Value(); known {
-				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
-			}
-		}
-	}
-	wasteRecovered := domain.Unknown[bool]()
-	if items, known := f.Waste.Value(); known {
-		wasteRecovered = domain.Known(len(pendingWaste(items)) == 0)
-	}
-	if owed, known := f.CorpsesOwed.Value(); known && owed {
-		wasteRecovered = domain.Known(false)
-	}
-	addAssessment(MaintainWaste, 3, wasteRecovered)
-	if !positive(wasteRecovered) {
-		addGoal(MaintainWaste, 3)
-		// MaintainWaste dispatches a GiveJobIntent HaulWaste (RoutineWastePlanner);
-		// availability
-		// is config-only, gated below through AvailableMethods like
-		// MaintainResource/EnsureResearch.
-	}
-	blightRecovered := domain.Unknown[bool]()
-	if deficit, known := BlightDeficit(f.Blight).Value(); known {
-		blightRecovered = domain.Known(!deficit)
-	}
-	addAssessment(RemoveBlight, 3, blightRecovered)
-	if !positive(blightRecovered) {
-		// Census-driven like waste: any standing blighted plant is a full
-		// deficit; availability is gated below through AvailableMethods.
-		addGoal(RemoveBlight, 3)
-	}
-	// ManagePollution (#1683): without the Biotech read the need is unknown
-	// and raises no goal. It is always assessed so the stored bindings match
-	// the set the review loader derives from empty facts.
-	pollutionCleared := domain.Unknown[bool]()
-	if deficit, known := PollutionDeficit(f.Pollution).Value(); known {
-		pollutionCleared = domain.Known(!deficit)
-	}
-	addAssessment(ManagePollution, 3, pollutionCleared)
-	if _, biotech := f.Pollution.Value(); biotech && !positive(pollutionCleared) {
-		addGoal(ManagePollution, 3)
-	}
-	// EnsureMechCharger (#1688): unknown without the charger read, and then
-	// it raises no goal. Always assessed, like ManagePollution above.
-	addAssessment(EnsureMechCharger, 3, measured(f.MechChargerOwed, func(owed bool) bool { return !owed }))
-	if owed, known := f.MechChargerOwed.Value(); known && owed {
-		addGoal(EnsureMechCharger, 3)
-	}
-	// TidyLayout (#611) is census-driven too: the layout review measures
-	// off-plan furniture against each room's interior plan and stands a
-	// proposal only while the colony is idle; a standing proposal is the
-	// deficit. It ranks last (tidyPriority, tidyDeficit), and its
-	// availability is gated below through AvailableMethods.
-	tidyRecovered := domain.Unknown[bool]()
-	if tidy, known := f.LayoutTidy.Value(); known && tidy.Known {
-		tidyRecovered = domain.Known(!tidy.Active)
-	}
-	addAssessment(TidyLayout, tidyPriority, tidyRecovered)
-	if !positive(tidyRecovered) {
-		addGoal(TidyLayout, tidyPriority)
-	}
-	// MaintainStockpiles (#725): a standing stockpile edit is the deficit;
-	// availability is gated below through AvailableMethods.
-	stockpilesRecovered := domain.Unknown[bool]()
-	if review, known := f.Stockpiles.Value(); known && review.Known {
-		stockpilesRecovered = domain.Known(!review.Active)
-	}
-	addAssessment(MaintainStockpiles, stockpilePriority, stockpilesRecovered)
-	if !positive(stockpilesRecovered) {
-		addGoal(MaintainStockpiles, stockpilePriority)
-	}
-	if err := f.Mood.Validate(); err != nil {
-		return RoutineNeeds{}, err
-	}
-	for _, state := range f.Mood.States {
-		// A pawn's mood is an EnsureMood incident keyed by the pawn (#1078),
-		// never a development goal. Its relief is optional and a mental
-		// break ends only as ticks pass, so it never suspends other work.
-		r.Assessments = append(r.Assessments, RoutineAssessment{ID: EnsureMood, Subject: domain.PawnID(state.Pawn.ID), Priority: state.Priority(), Need: state.Need(), MethodUnavailable: true})
-	}
+	r := c.r
 	// Dominant environment thought pressure raises the owning upkeep goal's
 	// deficit to at least the fraction of pawns under it (#255): the goal's
 	// own census still decides whether it is active and what it builds, so a
@@ -1655,30 +887,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[i].Deficit = domain.Known(pressure)
 		}
 	}
-	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick)
-	if err != nil {
-		return RoutineNeeds{}, err
-	}
-	areaChanges := PlanSheltering(f)
-	if _, safetyKnown := f.RecoverySafety.Value(); r.Disaster != nil || safetyKnown {
-		need := RecoveryNeed(r.Disaster)
-		if len(areaChanges) > 0 {
-			need = domain.NeedDeficit
-		}
-		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
-		if len(areaChanges) > 0 {
-			trigger, _ := ShelterTriggerOf(f)
-			priority = ShelterPriority(trigger)
-		}
-		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})
-		for i := range r.Goals {
-			r.Goals[i].Priority = r.Disaster.Promote(r.Goals[i].ID, r.Goals[i].Priority)
-		}
-		for i := range r.Assessments {
-			r.Assessments[i].Priority = r.Disaster.Promote(r.Assessments[i].ID, r.Assessments[i].Priority)
-		}
-	}
-	r.Goals = raisedAtStage(r.Goals, f, p, l)
+	r.Goals = raisedAtStage(r.Goals, f, p, c.l)
 	if methods, known := f.AvailableMethods.Value(); known {
 		available := map[GoalID]bool{}
 		recognized := map[GoalID]bool{}
@@ -1703,7 +912,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// Each upkeep need's method is its own serve family; an undeclared
 		// one at emergency priority is recorded without the suspension.
 		declarable := map[GoalID]bool{}
-		for _, n := range upkeep.Needs {
+		for _, n := range c.upkeep.Needs {
 			declarable[n.Goal] = true
 		}
 		for i := range r.Assessments {

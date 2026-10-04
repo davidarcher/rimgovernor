@@ -70,17 +70,19 @@ func TestGoalConceptCoversEveryGoalID(t *testing.T) {
 }
 
 func TestValidateGoalDetectorsRefusesFaults(t *testing.T) {
-	ok := GoalDetector{"A", ConceptStandard, DomainFood, []FactFamily{FactColony}}
+	noop := func(*routineRun) error { return nil }
+	ok := GoalDetector{"A", ConceptStandard, DomainFood, []FactFamily{FactColony}, noop}
 	for name, c := range map[string]struct {
 		ds  []GoalDetector
 		ids []GoalID
 	}{
 		"missing detector": {nil, []GoalID{"A"}},
 		"duplicate":        {[]GoalDetector{ok, ok}, []GoalID{"A"}},
-		"no inputs":        {[]GoalDetector{{"A", ConceptStandard, DomainFood, nil}}, []GoalID{"A"}},
-		"unknown input":    {[]GoalDetector{{"A", ConceptStandard, DomainFood, []FactFamily{"x"}}}, []GoalID{"A"}},
-		"no concept":       {[]GoalDetector{{"A", ConceptUnknown, DomainFood, []FactFamily{FactColony}}}, []GoalID{"A"}},
-		"no domain":        {[]GoalDetector{{"A", ConceptStandard, DomainUnknown, []FactFamily{FactColony}}}, []GoalID{"A"}},
+		"no inputs":        {[]GoalDetector{{"A", ConceptStandard, DomainFood, nil, noop}}, []GoalID{"A"}},
+		"unknown input":    {[]GoalDetector{{"A", ConceptStandard, DomainFood, []FactFamily{"x"}, noop}}, []GoalID{"A"}},
+		"no concept":       {[]GoalDetector{{"A", ConceptUnknown, DomainFood, []FactFamily{FactColony}, noop}}, []GoalID{"A"}},
+		"no domain":        {[]GoalDetector{{"A", ConceptStandard, DomainUnknown, []FactFamily{FactColony}, noop}}, []GoalID{"A"}},
+		"no detect":        {[]GoalDetector{{"A", ConceptStandard, DomainFood, []FactFamily{FactColony}, nil}}, []GoalID{"A"}},
 		"stray detector":   {[]GoalDetector{ok}, nil},
 	} {
 		if ValidateGoalDetectors(c.ds, c.ids) == nil {
