@@ -7,12 +7,11 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestAggregateCommandOverwritesStalePassOnMalformedEvidence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root := t.TempDir()
 	source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
 	if err := os.CopyFS(root, os.DirFS(source)); err != nil {

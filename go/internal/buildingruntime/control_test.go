@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -326,9 +327,7 @@ func TestControlObserveTargetFailureDoesNotPublishRequestedGeneration(t *testing
 }
 
 func TestControlFailedObservationClearsSeededTargetButRetainsCleanup(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, operation := range []string{"refresh", "retarget", "malformed", "timeout"} {
 		t.Run(operation, func(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // The baseline survey (#1280) is the world layout/rich-soil runs on.
@@ -32,9 +33,7 @@ func baselineSurvey(t *testing.T) policy.MapSurvey {
 // The fresh plan the case's colony derives passes the plan assertions
 // offline, and one more colonist outgrows it (#1291).
 func TestRichSoilBaselinePlan(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := baselineSurvey(t)
 	for _, pawns := range []int{8} {
 		plan, ok := policy.DeriveLayoutPlan(s, pawns, policy.BuildTierCamp, nil, 30).Value()
@@ -132,9 +131,7 @@ func plusSurvey(n int32) policy.MapSurvey {
 // The courtyard plan on a plus-shaped rich patch passes the audit: the
 // patch is one field zone, nothing is built on it (#1960).
 func TestAuditSoilCourtyardPlan(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140)
 	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {

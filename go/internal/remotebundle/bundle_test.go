@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 const testCiphertext = "age-encryption.org/v1\nsynthetic-test-bytes"
@@ -187,9 +188,7 @@ func TestTrustRejectsUnreviewedInputs(t *testing.T) {
 }
 
 func TestGeneratedStartCompatibilityAndStaging(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	repo, err := filepath.Abs("../../..")
 	if err != nil {
 		t.Fatal(err)

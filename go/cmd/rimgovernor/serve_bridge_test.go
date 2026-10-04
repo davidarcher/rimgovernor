@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // reattachFake loses its session on demand and fails a configurable number
@@ -53,9 +55,7 @@ func (f *reattachFake) Reattach(ctx context.Context) error {
 }
 
 func TestSuperviseBridgeReattachesWithBackoffUntilContextEnds(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	fake := newReattachFake(2)
 	var out bytes.Buffer
 	ctx, cancel := context.WithCancel(context.Background())

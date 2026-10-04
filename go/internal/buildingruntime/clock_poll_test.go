@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -96,9 +97,7 @@ func clockPollPage(f *schedulerNative, after int64, kind string) *k.EventsPage {
 	return page
 }
 func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	if _, err := s.Step(context.Background()); err != nil {
@@ -117,9 +116,7 @@ func TestClockPollPersistsAndReviewsWithoutPlayerGate(t *testing.T) {
 }
 
 func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, freshPage := range []bool{false, true} {
 		t.Run(fmt.Sprint(freshPage), func(t *testing.T) {
@@ -154,9 +151,7 @@ func TestClockPollDoesNotInvalidateAcquireDuringEventRead(t *testing.T) {
 	}
 }
 func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, stage := range []string{"append", "review"} {
 		t.Run(stage, func(t *testing.T) {
@@ -187,9 +182,7 @@ func TestClockPollPersistenceFailuresAndReviewOrder(t *testing.T) {
 	}
 }
 func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	result, err := s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 0, "gap")}, 128, 0)
@@ -221,9 +214,7 @@ func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 // service per speed, the poll loop runs before the resume's Acquire
 // finishes, and each replacement cancelled the SetMode in flight (#253).
 func TestClockPollStandingHoldKeepsAcquireEpoch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()
@@ -260,9 +251,7 @@ func TestClockPollStandingHoldKeepsAcquireEpoch(t *testing.T) {
 	}
 }
 func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, kind := range []string{"read", "cancel", "backlog"} {
 		t.Run(kind, func(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -232,9 +233,7 @@ func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
 }
 
 func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, mode := range []string{"unavailable", "existing", "recovered", "skill", "spill"} {
 		t.Run(mode, func(t *testing.T) {

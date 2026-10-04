@@ -11,14 +11,13 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // Run the actual job-loop body without bootstrap, credentials or a game. The
 // probe inherits the same cwd as a native suite in the hosted sibling layout.
 func TestWorkflowSuiteWorkingDirectory(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows workflow entry point")
 	}

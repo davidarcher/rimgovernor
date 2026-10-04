@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
@@ -23,9 +24,7 @@ func clockPollOutcome(attempt uint64) *k.OperationOutcome {
 // nothing is held, authority stays enabled, and the committed evidence is
 // summarized as a wake. An owner-less authority change is accepted too.
 func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	if _, err := s.Step(context.Background()); err != nil {
@@ -68,9 +67,7 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 // answered hold is not left for anyone else to clear (#322). The same stop
 // after the grant still disables and holds.
 func TestClockPollStopBeforeTheCurrentGrantKeepsAuthority(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, stopAfterGrant := range []bool{false, true} {
 		s, f, _ := clockPollFixture(t)
@@ -108,9 +105,7 @@ func TestClockPollStopBeforeTheCurrentGrantKeepsAuthority(t *testing.T) {
 // standing hold instead of disabling the new grant, and later polls admit
 // windows again (#322).
 func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()
@@ -152,9 +147,7 @@ func TestClockPollStandingHoldBeforeTheRememberedGrantKeepsAuthority(t *testing.
 // epoch (an acquisition in flight) in place, though its holds still stand.
 // A stop past the watermark is fresh evidence and replaces it (#322).
 func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()
@@ -211,9 +204,7 @@ func TestClockPollBacklogWhileDisabledKeepsAcquireEpoch(t *testing.T) {
 // watermark is history: it neither disables authority nor replaces the epoch.
 // A stop past the watermark still interrupts.
 func TestClockPollBacklogWhileEnabledKeepsAuthority(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()

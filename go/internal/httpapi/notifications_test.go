@@ -3,16 +3,18 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 type notificationFake struct {
@@ -91,9 +93,7 @@ func TestNotificationsConfinement(t *testing.T) {
 	}
 }
 func TestNotificationsRejectInvalidSource(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, name := range []string{"nil", "missing-arm", "missing-section", "empty-section", "context", "world", "tick", "unknown-wire", "source-error", "world-switch", "request-mutation", "stale", "unknown-identity", "disconnected", "limit", "timeout"} {
 		t.Run(name, func(t *testing.T) {
 			s, f, snapshot := notificationFixture(t)

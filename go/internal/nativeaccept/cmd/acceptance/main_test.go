@@ -17,6 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/doctor"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func absRoot() string {
@@ -267,9 +268,7 @@ func TestWarmRejectsBadRoots(t *testing.T) {
 }
 
 func TestDoctorRefusesBadFlagsAndFailsAnEmptyRoot(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"doctor"}, &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "-root is required") {
 		t.Fatalf("no root: code %d, stderr %q", code, stderr.String())

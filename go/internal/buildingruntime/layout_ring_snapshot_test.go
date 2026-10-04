@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // layout/ring (#1271): the expansion-phase MaintainHousing step that raised
@@ -12,9 +13,7 @@ import (
 // stone Door at the planned door cell, exactly the planned room's walls,
 // its door onto a spine hallway.
 func TestLayoutRingStepIsMasonry(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r := loadRecorded(t, "layout-ring-review")
 	if r.Review.Latches.Housing != policy.HousingExpansion {

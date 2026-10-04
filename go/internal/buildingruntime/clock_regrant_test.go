@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -16,9 +17,7 @@ import (
 // that epoch and reviews under the re-granted snapshot instead of failing
 // the same way every backoff.
 func TestClockSchedulerReviewsAfterAMidWindowRegrant(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()

@@ -4,6 +4,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestPlanShardsDependencyGroups(t *testing.T) {
@@ -23,9 +25,7 @@ func TestPlanShardsDependencyGroups(t *testing.T) {
 }
 
 func TestEvaluateDependencyAlgorithm(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	f := fixtureRun(t)
 	f.selection.Algorithm = DependencyAlgorithm
 	f.save(t)
@@ -66,9 +66,7 @@ func TestPlanShardsRejectsInvalidBudgets(t *testing.T) {
 }
 
 func TestEvaluateBudgetAlgorithm(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	f := fixtureRun(t)
 	f.selection.Algorithm = BudgetAlgorithm
 	// Equal costs reproduce the fixture's round-robin assignment.

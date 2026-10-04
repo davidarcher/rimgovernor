@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -91,9 +92,7 @@ func armoryArmorRecipe(t *testing.T, plasteelFloor int64) string {
 // A plasteel stock MaintainResource holds is not spent by an armor bill
 // (#1230): the marine need falls to flak, which spends only steel.
 func TestArmoryArmorBillLeavesHeldPlasteel(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	if got := armoryArmorRecipe(t, 0); got != "Make_Apparel_PowerArmor" {
 		t.Fatal("unheld plasteel did not fund marine armor", got)

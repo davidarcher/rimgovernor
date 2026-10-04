@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestGateCannotTreatRemoteReportAsLocalSuite(t *testing.T) {
@@ -18,9 +20,7 @@ func TestGateCannotTreatRemoteReportAsLocalSuite(t *testing.T) {
 }
 
 func TestRemoteRejectionPrecedesMainMerge(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "task\n")
 	mustGit(t, wt, "add", ".")

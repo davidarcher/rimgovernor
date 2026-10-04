@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -143,9 +144,7 @@ func TestRoundsPowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 }
 
 func TestRoundsPowerRejectsUnsafeIncompleteAndUnaffordableRoutes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, phase := range []string{"unsafe", "geometry", "unknown", "skill", "switched", "flare", "cancelled"} {
 		t.Run(phase, func(t *testing.T) {

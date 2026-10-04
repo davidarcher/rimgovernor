@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // Recorded royalty read: Alice holds Yeoman, the Knight rung asks for a 30
@@ -157,9 +158,7 @@ func TestThroneRoomFlooringPlansTheRequiredTag(t *testing.T) {
 // hourly layout review, sized to the title's area; the ladder's throne
 // definitions name what the planners read.
 func TestLayoutGrowsAThroneRoomForTheNextTitle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
 	survey := openSurvey(140)

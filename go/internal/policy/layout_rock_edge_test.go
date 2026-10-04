@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // rockEdgeMaps are 200x200 maps with mountain along an edge, a corner, a
@@ -68,9 +69,7 @@ func siteCellsOver(cells []DefenseCell) []SiteCell {
 // walkable from its entry to the kill zone.
 func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 	t.Skip("fails below the production seed count: #2004")
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for name, rock := range rockEdgeMaps {
 		t.Run(name, func(t *testing.T) {
 			s := rockEdgeSurvey(rock)
@@ -134,9 +133,7 @@ func TestRockEdgeMapsPlanWalkableAndBuildableLayouts(t *testing.T) {
 // rock to dig, and the layout stands and walks once it is open.
 func TestRockAcrossTheKillboxCorridorIsDugNotBuiltOn(t *testing.T) {
 	t.Skip("fails below the production seed count: #2004")
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := rockEdgeSurvey(rockEdgeMaps["east mountain"])
 	plan := PlanPerimeter(SiteCore(LayoutPlan{Zones: Zone(s)}, s, 3, 1, BuildTierCamp), s)
 	killbox, region, home, ok := LayoutKillbox(plan, s.Bounds)

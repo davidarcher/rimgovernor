@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestLibraryPaths(t *testing.T) {
@@ -128,9 +130,7 @@ func TestRenderModsConfigActivatesTheBridgeStack(t *testing.T) {
 }
 
 func TestEnsureJunction(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	if runtime.GOOS != "windows" {
 		t.Skip("junctions are NTFS")
 	}

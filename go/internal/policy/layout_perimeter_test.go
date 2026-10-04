@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func perimeterPlan(t *testing.T, cell func(x, z int32) SurveyCell) LayoutPlan {
@@ -543,9 +544,7 @@ func TestPerimeterLeavesRichPatchOutside(t *testing.T) {
 // On an all-soil map the opening once fell on the turbine lane: the
 // killbox keeps clear of every utility reservation.
 func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {
@@ -565,9 +564,7 @@ func TestPerimeterKillboxClearOfUtilities(t *testing.T) {
 // Plain soil is not walled in: on a map of 100% soil the ring stays near
 // the core instead of running out to the edge margin.
 func TestPerimeterPlainSoilStaysNearCore(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := zoningSurvey(200, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 	p, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 30).Value()
 	if !ok {

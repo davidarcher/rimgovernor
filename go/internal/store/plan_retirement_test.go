@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // TestRoundsPlanRetirementNoDoubleSpend replays the double-spend the deleted
@@ -67,9 +68,7 @@ func TestRoundsPlanRetirementNoDoubleSpend(t *testing.T) {
 }
 
 func TestRoundsPlanRetirementRepeatedMethodsAndHistory(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	path := memoryPath(t)

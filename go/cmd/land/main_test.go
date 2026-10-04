@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // A throwaway repository: main checked out at root, a task branch in a
@@ -44,9 +46,7 @@ func write(t *testing.T, path, content string) {
 }
 
 func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "b\n")
 	mustGit(t, wt, "add", ".")
@@ -93,9 +93,7 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 // With main checked out nowhere, land moves the ref alone and leaves the
 // detached primary checkout, dirt included, as it was.
 func TestLandNeedsNoMainCheckout(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	mustGit(t, root, "switch", "-q", "--detach", "main")
 	write(t, filepath.Join(root, "a.txt"), "scratch\n")
@@ -118,9 +116,7 @@ func TestLandNeedsNoMainCheckout(t *testing.T) {
 // A wip commit under a merge renamed to the milestone subject never titles
 // the squash (28f2a7184 landed as "wip").
 func TestLandNeverTitlesASquashWip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "b\n")
 	mustGit(t, wt, "add", ".")
@@ -156,9 +152,7 @@ func TestUntitled(t *testing.T) {
 }
 
 func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "a.txt"), "branch\n")
 	mustGit(t, wt, "commit", "-qam", "branch edit")
@@ -285,9 +279,7 @@ func TestLandRefusesAStaleTreeReparentedOntoMain(t *testing.T) {
 // A revert that names the reverted commit lands, and so does deleting a
 // file main added before the branch forked.
 func TestLandTakesANamedRevertAndOldDeletions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root, wt := newRepo(t)
 	write(t, filepath.Join(root, "old.txt"), "old\n")
 	mustGit(t, root, "add", ".")

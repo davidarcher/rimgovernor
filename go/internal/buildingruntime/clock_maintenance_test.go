@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -12,9 +13,7 @@ import (
 )
 
 func TestClockPollMaintainsAttemptsWithoutPlayerGate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, _ := clockPollFixture(t)
 	ctx := context.Background()
@@ -70,9 +69,7 @@ func TestClockPollMaintainsAttemptsWithoutPlayerGate(t *testing.T) {
 }
 
 func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f, db := clockPollFixture(t)
 	ctx := context.Background()
@@ -103,9 +100,7 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 // shared package state for its duration and restores it on cleanup, which
 // is only safe while the parallel tests are still paused.
 func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	const tail = 12
 	original := clock.HistoryTail
 	clock.HistoryTail = tail

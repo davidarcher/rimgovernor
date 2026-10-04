@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 type recordedAPI map[string][]byte
@@ -194,9 +196,7 @@ func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 	return api, p, repo, run
 }
 func TestCompleteImportAndNormalMainMerge(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, repo, run := importFixture(t)
 	out := filepath.Join(t.TempDir(), "import")
 	if err := Download(api, p, out, repo); err != nil {
@@ -224,9 +224,7 @@ func TestCompleteImportAndNormalMainMerge(t *testing.T) {
 	}
 }
 func TestImportRejectsUntrustedAndTamperedEvidence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, repo, _ := importFixture(t)
 	for name, edit := range map[string]func(*Provenance){
 		"repository":      func(p *Provenance) { p.Trust.Repository = "other/repo" },
@@ -309,9 +307,7 @@ func TestArchiveRejectsEscapesLinksAndCollisions(t *testing.T) {
 	}
 }
 func TestSourceAllowsEquivalentCherryPick(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	repo, base, head := sourceRepo(t)
 	testGit(t, repo, "checkout", "-qb", "equivalent", base)
 	testGit(t, repo, "cherry-pick", head)
@@ -321,9 +317,7 @@ func TestSourceAllowsEquivalentCherryPick(t *testing.T) {
 }
 
 func TestActionsCancellationAndForeignRepositoryFail(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, _, _ := importFixture(t)
 	endpoint := "repos/" + p.Trust.Repository + "/actions/runs/1000/attempts/1"
 	original := api[endpoint]
@@ -350,9 +344,7 @@ func TestActionsCancellationAndForeignRepositoryFail(t *testing.T) {
 }
 
 func TestArtifactDownloadUsesAuthenticatedSize(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	api, p, repo, _ := importFixture(t)
 	endpoint := "repos/" + p.Trust.Repository + "/actions/artifacts/10"
 	var metadata map[string]json.RawMessage

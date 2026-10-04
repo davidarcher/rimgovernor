@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -19,9 +20,7 @@ import (
 )
 
 func TestClockWorkerDisabledRestart(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, scenario := range []string{"applied", "lost-start-reply", "historical-unknown-renew"} {
 		t.Run(scenario, func(t *testing.T) {

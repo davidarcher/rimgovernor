@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // The table names every routine_*.go source that owns a family, no file
@@ -154,9 +156,7 @@ func TestReadAreaProfile(t *testing.T) {
 // the binary and no bridge-only area; a buildingruntime test change
 // selects no area.
 func TestSelectScopesRoundsFamilies(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	r := repo(t)
 	sel, err := Select(r, []string{"go/internal/buildingruntime/rounds_lighting.go"})
 	if err != nil {

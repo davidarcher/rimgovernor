@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -298,9 +299,7 @@ func TestRoundsShelterPrefersExistingRoom(t *testing.T) {
 }
 
 func TestShelterRoofingBudgetCountsFromTheApplyReceiptAndDoesNotRenew(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, _ := shelterFixture(t)
 	result, err := r.Step(context.Background())
@@ -446,9 +445,7 @@ func stageShelterBunks(t *testing.T, r *RoundsBuildingPlanner, db *store.Store, 
 }
 
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	ctx := context.Background()
@@ -761,9 +758,7 @@ func TestRoundsShelterAdoptsALoneDoor(t *testing.T) {
 }
 
 func TestRoundsShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -899,9 +894,7 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 }
 
 func TestRoundsShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
@@ -956,9 +949,7 @@ func TestRoundsShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 }
 
 func TestRoundsShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	r, db, base := shelterFixture(t)
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}

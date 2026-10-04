@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -104,9 +105,7 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	// Initialize storetest's process-wide template outside any bubble: its
 	// database/sql opener deliberately lives until the test binary exits.
 	_ = storetest.Path(t)

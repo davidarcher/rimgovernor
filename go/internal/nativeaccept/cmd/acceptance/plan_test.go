@@ -16,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func examplePlanRun(t *testing.T) planRun {
@@ -113,9 +114,7 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 }
 
 func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	// Exercise real Go discovery on a small module; the rules do not need
 	// the production repository's dependency closure or external modules.
 	repo := t.TempDir()
@@ -286,9 +285,7 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 }
 
 func TestRemoteComparisonHistoryAndRename(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	repo := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()

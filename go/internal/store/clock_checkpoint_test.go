@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 )
 
@@ -33,9 +34,7 @@ func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewSta
 // It must not run in parallel with any other test in this package: it
 // mutates shared package state for its duration and restores it on cleanup.
 func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	const capacity = 16
 	original := clock.ReviewCapacity
 	originalTail := clock.HistoryTail
@@ -104,9 +103,7 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 }
 
 func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	// Keep enough pages to compact beyond the retained eight-page tail.
 	// Run serially because HistoryTail is shared with the other clock tests.
 	originalTail := clock.HistoryTail
@@ -161,9 +158,7 @@ func TestClockCompactionPreservesUnreviewedAndUnacknowledged(t *testing.T) {
 }
 
 func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)
@@ -204,9 +199,7 @@ func TestClockCompactionPinsEarlyHoldUntilExplicitAcknowledgement(t *testing.T) 
 }
 
 func TestClockCompactionRollbackAndCheckpointValidation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	s, _, profile := boundInbox(t)

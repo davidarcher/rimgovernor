@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // The courtyard acceptance (#1960, epic #1938): a rich patch that is not a
@@ -37,9 +38,7 @@ func richSet(s MapSurvey) map[domain.Cell]bool {
 }
 
 func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
 	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30).Value()
@@ -95,9 +94,7 @@ func TestCourtyardPlusPatchStaysOneFarmedFieldEnclosedWhole(t *testing.T) {
 // The farmed patch is not yard room: the yard is sited on open ground, and
 // the field cells are excluded from it.
 func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s := plusSurvey(140, 0)
 	rich := richSet(s)
 	plan, ok := DeriveLayoutPlan(s, 8, BuildTierCamp, nil, 30).Value()
@@ -146,9 +143,7 @@ func TestCourtyardPatchIsNotYardRoom(t *testing.T) {
 // pads onto its edge by one cell.
 func TestCourtyardHundredColonistsCappedAndReachable(t *testing.T) {
 	t.Skip("fails below the production seed count: #2004")
-	if testing.Short() {
-		t.Skip("a 300x300 siting takes ~24 s")
-	}
+	slowtest.Skip(t, "a 300x300 siting takes ~24 s")
 	s := plusSurvey(300, 100)
 	rich := richSet(s)
 	zones := Zone(s)

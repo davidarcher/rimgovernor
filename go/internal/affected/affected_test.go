@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // TestMain reads the checkout's dependency graph and harness types before
@@ -33,9 +34,7 @@ func TestMain(m *testing.M) {
 
 func repo(t *testing.T) string {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("runs go list over the module")
-	}
+	slowtest.Skip(t, "runs go list over the module")
 	wd, _ := os.Getwd()
 	repo, ok := na.FindRepo(wd)
 	if !ok {
@@ -166,9 +165,7 @@ func TestSelectFollowsImports(t *testing.T) {
 // save the area loading it, and a fixture build file every area, none of
 // them as a shared-input change.
 func TestSelectScopesFixtures(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	r := repo(t)
 	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs"})
 	if err != nil {

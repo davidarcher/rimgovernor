@@ -9,6 +9,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -106,9 +107,7 @@ func composedRoundsFixture(t *testing.T) (*Rounder, *store.Store, *playerFakeSes
 // single player Manual direction change cancels every family's held plan
 // without one family's cancellation touching another's plan or actions.
 func TestComposedRoundsFamiliesManualCancelsWithoutCrossLeak(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	ctx := context.Background()
 	reviewer, db, _, request, native, planners := composedRoundsFixture(t)

@@ -6,15 +6,14 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // A paste site whose hopper cell is rock (listed or fogged) mines it and
 // builds dispenser and hopper in one method, both previewed with the rock
 // cell previewed over rock; an open site needs no dig.
 func TestDigPasteMinesRockUnderHopperThenBuildsBoth(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, fogged := range []bool{false, true} {
 		p, db, n, s, site, _ := rockCoolerStep(t)

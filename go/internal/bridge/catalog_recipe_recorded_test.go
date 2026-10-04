@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 var recordedBenchNumber = regexp.MustCompile(`\d+$`)
@@ -41,9 +43,7 @@ func walkRecordedRecipes(node any, bench string, visit func(bench string, recipe
 // the derived slot with the same count (the recording lacks the DLC stuffs the
 // full catalog adds), and the recorded work type and skill are the derived ones.
 func TestRecipeViewAgreesWithTheRecordedNativeCensus(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	catalog := fullCatalog(t)
 	files, err := filepath.Glob("../buildingruntime/testdata/*.json.gz")
 	if err != nil || len(files) == 0 {

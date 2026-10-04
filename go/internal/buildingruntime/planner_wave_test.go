@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -340,9 +341,7 @@ func TestClockSchedulerCutsOffTheShelterPlannerWithoutTheHold(t *testing.T) {
 // slow runner) leaves the critical planner its full wall instead of holding
 // the step with nothing evaluated.
 func TestClockSchedulerWallExcludesTheRounds(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerRounds(t, s, f)

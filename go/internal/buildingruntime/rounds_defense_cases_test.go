@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/snapshot"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	mp "github.com/davidarcher/RimGovernor/go/internal/wire/mirrorpb"
@@ -82,9 +83,7 @@ func meleeStep(t *testing.T, foe float64) (snapshot.Defense, []*mp.CombatPawn) {
 // defense/raid-bypass fought in melee: a pair whose melee power beats the
 // raider's engages it, a pair it outmatches does not and shelters (#969).
 func TestDefenseSnapshotMeleeEngagesOnlyABeatableRaider(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	step, mirror := meleeStep(t, 8)
 	results, methods, db := replayDefenseSteps(t, replayFrame{mirror: mirror}, step)
@@ -240,9 +239,7 @@ func TestDefenseSnapshotMortarShellsTheShipPart(t *testing.T) {
 // (#968; the recording has no roofed room). The later steps replay as one
 // fight.
 func TestDefenseReplayBreachWithoutArmedPairsFormsNoSquad(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	results, _, db := replayDefense(t,
 		"testdata/defense/raid-breach-1-hold.json.gz",

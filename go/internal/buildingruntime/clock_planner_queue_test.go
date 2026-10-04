@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -57,9 +58,7 @@ func TestClockSchedulerSectionWakeRunsDeclaringPlanners(t *testing.T) {
 // that attempt's outcome row or its deadline (#625); a step that skips it
 // reports it as waiting, and a full step clears every wait.
 func TestClockSchedulerWaitingPlannerSkipsUntilOutcomeOrDeadline(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)

@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestRenderedPNGExportAndImport(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	f := fixtureRun(t)
 	job := exportFixture(t, f, 0)
 	rel := f.attempts[0].Attempts[0].Case + "/frame.png"
@@ -61,9 +61,7 @@ func TestRenderedPNGExportAndImport(t *testing.T) {
 }
 
 func TestExportExecutableIdentityWithoutCopyingBinary(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	f := fixtureRun(t)
 	wantDigest := strings.Repeat("a", 64)
 	f.native(t, 0, 0, func(m map[string]json.RawMessage) {
@@ -140,9 +138,7 @@ func exportFixtureVerdict(t *testing.T, f *fixture, index int, fail bool) Export
 }
 
 func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "green", true: "red"}[fail], func(t *testing.T) {
 			// Read immutable contract inputs directly and stage one case once.
@@ -196,9 +192,7 @@ func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 }
 
 func TestExportWorkersCaseBesidePrivateRoots(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	f := fixtureRun(t)
 	f.attempts[0].Attempts[0].Case = "workers/coverage"
 	f.selection.Shards[0].Cases[0] = "workers/coverage"
@@ -231,9 +225,7 @@ func TestExportWorkersCaseBesidePrivateRoots(t *testing.T) {
 }
 
 func TestExportRejectsUnsafeOrIncompleteEvidence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, kind := range []string{"digest", "missing", "restricted", "budget", "extra"} {
 		t.Run(kind, func(t *testing.T) {
 			f := fixtureRun(t)

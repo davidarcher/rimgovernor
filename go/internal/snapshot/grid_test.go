@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // regrid records tables (a planning_cells history) into a fresh stream,
@@ -75,9 +76,7 @@ func regrid(t *testing.T, tables []map[domain.Cell]policy.SiteCell, scopes []fac
 // Every committed planning window records as a grid and rebuilds exactly,
 // through changed facts, dropped rows, a scope change and a sync point.
 func TestGridRoundTripsCommittedCells(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	paths, _ := filepath.Glob("testdata/*.json*")
 	windows := 0
 	for _, path := range paths {

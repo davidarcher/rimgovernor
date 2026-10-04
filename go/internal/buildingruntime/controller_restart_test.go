@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -333,9 +334,7 @@ func assertNoDuplicateEffect(t *testing.T, rig *controllerRig, plan store.PlanSt
 // a fresh attempt; native finds the blueprint already on the cell and
 // answers applied, so each spot completes and is placed exactly once.
 func TestControllerRestartResendsLostIntentWithoutDuplicateEffect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	path, dir := storetest.Path(t), t.TempDir()
 	authority := &controlNative{generation: 1}

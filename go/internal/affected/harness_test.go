@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // A harness source reaches an area through the objects its change taints
@@ -11,9 +13,7 @@ import (
 // runner's path names every area, sampled unless the area's own sources
 // use a tainted object; a harness test file names nothing.
 func TestSelectScopesHarnessSources(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	r := repo(t)
 	sel, err := Select(r, []string{"go/internal/nativeaccept/clock.go"})
 	if err != nil {

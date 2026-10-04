@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
@@ -37,9 +38,7 @@ func openSurvey(n int32) policy.MapSurvey {
 // survey at most once an hour and replans nothing; a new pawn or a new
 // tier replans at the next hourly review.
 func TestLayoutTriggersHourly(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	s, _ := schedulerFixture(t)
 	ctx := context.Background()
 	survey := openSurvey(120)

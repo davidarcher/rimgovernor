@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
@@ -54,9 +55,7 @@ func tierBuildings(record store.DefenseLayoutRecord, keep func(store.DefenseTier
 // removed ahead of the new sections, the pumps left standing (#954).
 
 func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	survey := func(dried bool) policy.MapSurvey {
 		return perimeterSurvey(func(x, z int32) policy.SurveyCell {
@@ -144,9 +143,7 @@ func TestDefenseRecutPerimeterOnDriedGround(t *testing.T) {
 // A new pump is planned only while spare watts cover its 150 W; one the
 // record already holds costs nothing more (#983).
 func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		if z%40 < 4 {
@@ -191,9 +188,7 @@ func TestDefenseRecutPerimeterPumpPower(t *testing.T) {
 // A replan that moves the killbox opening un-anchors the record, so the
 // layout is proposed afresh on the new one (#983).
 func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell { return policy.SurveyCell{Walkable: true, Fertility: 1} }), 3, policy.BuildTierCamp, nil, 30).Value()
 	if !ok {
@@ -214,9 +209,7 @@ func TestDefenseRecutPerimeterMovedKillbox(t *testing.T) {
 // deconstructed, then the bridge lifted, then the heavy bridge and its stone
 // wall laid (#954).
 func TestDefenseRecutPerimeterHeavyBridges(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		if z%40 < 4 {

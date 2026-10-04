@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -59,9 +60,7 @@ func TestRoundsCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.T
 }
 
 func TestRoundsCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, change := range []string{"usable", "campfire", "unknown", "definition"} {
 		t.Run(change, func(t *testing.T) {
@@ -96,9 +95,7 @@ func TestRoundsCookingWaitsForExistingFacilitiesAndUnknownInputs(t *testing.T) {
 // bench in the same Episode; the completed method yields to a numbered
 // successor instead of holding the goal at method_already_used (#217).
 func TestRoundsCookingRestagesBurntOutCampfire(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, native := cookingFixture(t)
 	ctx := context.Background()

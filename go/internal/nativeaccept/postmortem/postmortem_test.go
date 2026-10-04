@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -205,9 +206,7 @@ func TestCollectToleratesMissingEvidence(t *testing.T) {
 }
 
 func TestRevisionAgainstMain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	// The test runs inside the repository; a revision that is HEAD's
 	// parent or HEAD itself resolves either to "at main" or to landings.
 	d := Collect(context.Background(), t.TempDir(), map[string]any{"installed_package": map[string]any{"source_revision": "HEAD"}})

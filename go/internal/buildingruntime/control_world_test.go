@@ -5,13 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, field := range []string{"colony", "map", "load"} {
 		t.Run(field, func(t *testing.T) {
@@ -57,9 +56,7 @@ func TestControlCloseRetiresOnlyPositivelyReplacedWorld(t *testing.T) {
 	}
 }
 func TestControlCloseWorldFailureRetainsOwnershipForRetry(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, kind := range []string{"unavailable", "invalid", "cancelled"} {
 		t.Run(kind, func(t *testing.T) {

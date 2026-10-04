@@ -4,15 +4,14 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // An emptied Retiring wing stays unless a replan sited without it scores
 // clearly better and still houses the colonists (#1249, #1958); a wing with
 // owned beds never goes.
 func TestEmptiedRetiringWingDropsOnlyForGain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, size := range []int32{80, 120} {
 		s := zoningSurvey(size, func(x, z int32) SurveyCell { return SurveyCell{Walkable: true, Fertility: 1} })
 		camp, ok := DeriveLayoutPlan(s, 3, BuildTierCamp, nil, 0).Value()

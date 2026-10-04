@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // Score replay harness (#1953, epic #1938): every fixture survey runs Zone,
@@ -55,9 +56,7 @@ var replayFixtures = []replayFixture{
 }
 
 func TestReplayScoreFixtures(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	for _, f := range replayFixtures {
 		t.Run(f.name, func(t *testing.T) {
 			s := f.survey(t)

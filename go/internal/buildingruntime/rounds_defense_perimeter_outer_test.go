@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -52,9 +53,7 @@ func TestDefenseOuterRingGate(t *testing.T) {
 // The outer ring's reservations are ignored until the gate opens, then
 // join the record as stone sections of their own.
 func TestDefenseRecutPerimeterOuterRing(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	plan, ok := policy.DeriveLayoutPlan(perimeterSurvey(func(x, z int32) policy.SurveyCell {
 		return policy.SurveyCell{Walkable: true, Fertility: 1}

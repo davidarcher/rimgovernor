@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 // The test binary doubles as the game and as a short-lived controller:
@@ -186,9 +188,7 @@ func TestLaunchRefusesLiveGame(t *testing.T) {
 // TestGameOutlivesController launches from a separate controller process
 // that exits at once; the game must still be attachable afterwards.
 func TestGameOutlivesController(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	dir := t.TempDir()
 	envFile := filepath.Join(dir, "env.txt")
 	exe, _ := os.Executable()

@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
@@ -189,9 +190,7 @@ func TestExhaustDigMinesRockCoolerCellAndPlacesCoolerInOnePlan(t *testing.T) {
 // A dig plan that settled with rock still standing refuses at once, naming
 // the rock: no follow-up rounds (#1588).
 func TestDigPlannedRefusesLoudlyWhenADigSettlesWithRockStanding(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	p, db, _, s, site, shaft := rockCoolerStep(t)
 	ctx := context.Background()

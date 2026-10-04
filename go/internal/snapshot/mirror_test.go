@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func siteCells(rows map[domain.Cell]policy.SiteCell) []policy.SiteCell {
@@ -30,9 +31,7 @@ func siteCells(rows map[domain.Cell]policy.SiteCell) []policy.SiteCell {
 // step read whose cells the mirror holds leaves them to it, yet every line
 // materialises exactly what was recorded (#795 step 4).
 func TestRecordStreamsMirrorSections(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	base, err := Load(cleanFilthy)
 	if err != nil {
 		t.Fatal(err)

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -141,9 +142,7 @@ func TestIsMatchesOnlyRefusalsOfTheKind(t *testing.T) {
 }
 
 func TestNoUnknownPrerequisiteRemains(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	root := filepath.Join("..", "..", "..")
 	var found []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

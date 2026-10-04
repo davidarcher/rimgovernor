@@ -8,12 +8,12 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func TestWorkflowAuthorizationGates(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	if runtime.GOOS != "windows" {
 		t.Skip("Windows workflow entry point")
 	}

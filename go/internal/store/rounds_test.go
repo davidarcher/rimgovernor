@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 )
 
 func roundsRequest() RoundsRequest {
@@ -119,9 +120,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 }
 
 func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {

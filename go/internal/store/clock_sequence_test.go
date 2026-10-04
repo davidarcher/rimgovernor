@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/slowtest"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 )
 
@@ -157,9 +158,7 @@ func TestClockSequenceConcurrentCASAndRollback(t *testing.T) {
 	}
 }
 func TestClockSequenceRetirementAndCorruption(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
+	slowtest.Skip(t, "runs under cmd/test -full and nightly")
 	t.Parallel()
 	for _, kind := range []string{"retired", "missing-pinned", "missing-live", "extra-row", "noncanonical"} {
 		t.Run(kind, func(t *testing.T) {
