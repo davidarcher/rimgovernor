@@ -19,7 +19,7 @@ func caseOutput(t *testing.T, hours int) string {
 	var timeline []map[string]any
 	for h := 0; h < hours; h++ {
 		tick := h * 2500
-		mood, colonists, need := 0.6, 3, "recovered"
+		mood, colonists, need := 0.6, 3, "met"
 		if h >= 5 {
 			mood = 0.1
 		}
@@ -27,10 +27,10 @@ func caseOutput(t *testing.T, hours int) string {
 			colonists = 2
 		}
 		if h >= 2 {
-			need = "deficit"
+			need = "unmet"
 		}
 		timeline = append(timeline, map[string]any{
-			"tick": tick, "need": "recovered", "status": "active",
+			"tick": tick, "need": "met", "status": "active",
 			"MaintainHousing": map[string]any{"need": need, "status": "planning"},
 			"colony": map[string]any{"colonists": colonists, "foodRunwayDays": 4.2, "wealthTotal": 5000, "moodMean": 0.5,
 				"pawns": []map[string]any{{"label": "Ana", "mood": mood, "food": 0.8, "downed": false},
@@ -55,7 +55,7 @@ func TestReportAndSite(t *testing.T) {
 	}
 	page, _ := os.ReadFile(filepath.Join(runs, "2026-10-02-1", "index.html"))
 	for _, want := range []string{"Ana mood 10%", "colonists fell 3 → 2", "MaintainHousing in deficit 12 hours running",
-		"MaintainHousing recovered → deficit", "review/map-00000010.jpg", "TemperateForest", "Bo &lt;script&gt;"} {
+		"MaintainHousing met → unmet", "review/map-00000010.jpg", "TemperateForest", "Bo &lt;script&gt;"} {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("report lacks %q", want)
 		}

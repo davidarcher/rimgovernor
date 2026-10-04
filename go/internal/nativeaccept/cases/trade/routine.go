@@ -71,11 +71,11 @@ func init() {
 						if !bound {
 							return false
 						}
-						if na.AsString(sample["need"]) == "deficit" {
+						if na.AsString(sample["need"]) == "unmet" {
 							deficit = true
 							return false
 						}
-						return deficit && na.AsString(sample["need"]) == "recovered"
+						return deficit && na.AsString(sample["need"]) == "met"
 					},
 				},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {

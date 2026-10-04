@@ -100,7 +100,7 @@ func deficitRun(rows []Row, id string) int {
 	for i := len(rows) - 1; i >= 0; i-- {
 		found := false
 		for _, g := range rows[i].Concerns {
-			if g.ID == id && g.Need == "deficit" {
+			if g.ID == id && g.Need == "unmet" {
 				found = true
 			}
 		}

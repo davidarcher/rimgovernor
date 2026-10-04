@@ -73,9 +73,9 @@ func fixture(t *testing.T) string {
 		payload, _ := json.Marshal(map[string]any{"ID": id, "Status": status, "Finding": need, "Priority": 2})
 		exec(`INSERT INTO standards(id,revision,payload) VALUES(?,'0',?)`, id, payload)
 	}
-	goal("routine-c-EnsureComfort", "open", "deficit")
-	goal("routine-c-EnsureFoodStorage", "open", "deficit")
-	goal("routine-c-EnsureCooking", "settled", "recovered")
+	goal("routine-c-EnsureComfort", "open", "unmet")
+	goal("routine-c-EnsureFoodStorage", "open", "unmet")
+	goal("routine-c-EnsureCooking", "settled", "met")
 	transition := func(seq int, action string, event map[string]any) {
 		payload, _ := json.Marshal(event)
 		exec(`INSERT INTO transitions VALUES(?,?,?)`, seq, action, payload)

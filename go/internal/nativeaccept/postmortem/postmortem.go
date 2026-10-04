@@ -597,7 +597,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 		if json.Unmarshal(payload, &goal) != nil {
 			continue
 		}
-		if goal.Status != "open" || goal.Finding != "deficit" {
+		if goal.Status != "open" || goal.Finding != "unmet" {
 			continue
 		}
 		if refused, known := development[needOf(id)]; known && refused {
@@ -631,7 +631,7 @@ func roundsSection(ctx context.Context, db *sql.DB, note string) Section {
 			Status   string
 			Finding  string
 		}
-		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Finding != "deficit" {
+		if json.Unmarshal(payload, &project) != nil || project.Status != "open" || project.Finding != "unmet" {
 			continue
 		}
 		if refused, known := development[project.Kind]; known && refused {

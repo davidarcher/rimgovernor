@@ -13,14 +13,13 @@ const (
 )
 
 // Finding is an Inspection's measured result for a Standard or Project
-// Concern: Met, Unmet, or Unclear when the facts do not say. The stored
-// strings predate the rename.
+// Concern: Met, Unmet, or Unclear when the facts do not say.
 type Finding string
 
 const (
-	FindingUnclear Finding = "unknown"
-	FindingUnmet   Finding = "deficit"
-	FindingMet     Finding = "recovered"
+	FindingUnclear Finding = "unclear"
+	FindingUnmet   Finding = "unmet"
+	FindingMet     Finding = "met"
 )
 
 // Situation is an Inspection's measured result for an Incident Concern:

@@ -112,7 +112,7 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <table>{{range .Pawns}}<tr><td>{{.Label}}</td><td>mood {{pct .Mood}}</td><td>food {{pct .Food}}</td><td>{{if .Downed}}{{if deref .Downed}}<span class="bad">downed</span>{{end}}{{end}}</td></tr>{{end}}</table>{{end}}
 {{if .Flags}}<ul>{{range .Flags}}<li class="{{.Severity}}">{{.Text}}</li>{{end}}</ul>{{end}}
 {{if .Changes}}<ul class="muted">{{range .Changes}}<li>{{.}}</li>{{end}}</ul>{{end}}
-<details><summary class="muted">concerns</summary><table>{{range .Concerns}}<tr><td>{{.ID}}</td><td class="{{if eq .Need "deficit"}}warn{{end}}">{{.Need}}</td><td class="job">{{.Status}}</td></tr>{{end}}</table></details>
+<details><summary class="muted">concerns</summary><table>{{range .Concerns}}<tr><td>{{.ID}}</td><td class="{{if eq .Need "unmet"}}warn{{end}}">{{.Need}}</td><td class="job">{{.Status}}</td></tr>{{end}}</table></details>
 </div></section>{{end}}</div>
 <script>
 document.getElementById('only').addEventListener('change',e=>{for(const s of document.querySelectorAll('#hours .hour'))s.style.display=e.target.checked&&s.dataset.flags==='00'?'none':''})
@@ -169,7 +169,7 @@ func renderRun(w io.Writer, rows []Row, s Summary) error {
 		newChart("Concerns in deficit", rows, func(r Row) float64 {
 			n := 0
 			for _, g := range r.Concerns {
-				if g.Need == "deficit" {
+				if g.Need == "unmet" {
 					n++
 				}
 			}

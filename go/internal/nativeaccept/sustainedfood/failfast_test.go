@@ -31,7 +31,7 @@ func TestFailFastRetryableUnsuccessfulSkipsListedReasons(t *testing.T) {
 
 func idleSample(revision uint64, idle bool, methods int) map[string]any {
 	return map[string]any{
-		"review_revision": revision, "method_count": methods, "need": "deficit", "status": "active",
+		"review_revision": revision, "method_count": methods, "need": "unmet", "status": "active",
 		"development": map[string]any{"reason": "", "selected": true, "committed": methods > 0, "idle": idle},
 	}
 }
@@ -59,7 +59,7 @@ func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
 	// A satisfied goal is never a no-method failure, however idle.
 	g := newFailFast(FailFast{NoMethodReviews: 1}, policy.EnsureComfort, "")
 	recovered := idleSample(1, true, 0)
-	recovered["need"] = "recovered"
+	recovered["need"] = "met"
 	if _, failed := g.check(recovered); failed {
 		t.Fatal("a recovered goal with no method is not a refusal")
 	}
@@ -149,7 +149,7 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 	refused := `2026-09-18T19:46:03.123Z tick=4200 INFO [clock-worker] step done err=<nil> planner_failures="[resource: bridge read refused: bills/add_bill]" cause=timer`
 	clean := `2026-09-18T19:46:09.000Z tick=4300 INFO [clock-worker] step done err=<nil> planner_failures=[] cause=timer`
 	f := newFailFast(FailFast{RefusalSamples: 3}, policy.MaintainResource, path)
-	sample := map[string]any{"method_count": 0, "need": "deficit", "status": "active"}
+	sample := map[string]any{"method_count": 0, "need": "unmet", "status": "active"}
 	write(refused)
 	for i := 0; i < 2; i++ {
 		if v, failed := f.check(sample); failed {
@@ -181,7 +181,7 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 func TestFailFastEmergencyParkNeedsAnUnmovingTick(t *testing.T) {
 	f := newFailFast(FailFast{ParkSamples: 3}, policy.AllowStartingSupplies, "")
 	parked := func(tick uint64, vetoed bool, emergency ...string) map[string]any {
-		return map[string]any{"review_revision": uint64(42), "status": "active", "vetoed": vetoed, "need": "deficit", "tick": tick, "emergency": emergency}
+		return map[string]any{"review_revision": uint64(42), "status": "active", "vetoed": vetoed, "need": "unmet", "tick": tick, "emergency": emergency}
 	}
 	// A vetoed goal under an emergency with the tick moving is being served.
 	for _, tick := range []uint64{100, 160, 220} {

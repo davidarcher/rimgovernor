@@ -2372,39 +2372,39 @@
    "Phase": "disrupted",
    "Services": [
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "food"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "production"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "sleeping"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "shelter"
     },
     {
-     "Need": "unknown",
+     "Need": "unclear",
      "Service": "temperature"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "cooking"
     },
     {
-     "Need": "recovered",
+     "Need": "met",
      "Service": "power"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "storage"
     },
     {
-     "Need": "recovered",
+     "Need": "met",
      "Service": "infrastructure"
     }
    ],
@@ -13441,39 +13441,39 @@
    "Phase": "disrupted",
    "Services": [
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "food"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "production"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "sleeping"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "shelter"
     },
     {
-     "Need": "unknown",
+     "Need": "unclear",
      "Service": "temperature"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "cooking"
     },
     {
-     "Need": "recovered",
+     "Need": "met",
      "Service": "power"
     },
     {
-     "Need": "deficit",
+     "Need": "unmet",
      "Service": "storage"
     },
     {
-     "Need": "recovered",
+     "Need": "met",
      "Service": "infrastructure"
     }
    ],

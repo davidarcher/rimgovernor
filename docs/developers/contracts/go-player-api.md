@@ -133,4 +133,18 @@ as `EnsureFoodSupply`; the id strings did not change). The old `goal` and
 
 Every other field of those shapes (`method`, `expected`, `lastProgress`,
 `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) is unchanged.
-Persisted store names (`Need`, `Epoch`, `Goal` tags) stay until #1976.
+Persisted store names follow the glossary since #1976.
+
+## Finding value strings (epic #1964, #2002)
+
+The tri-state finding strings changed everywhere they are stored or emitted
+(no compatibility strings; store schema 196):
+
+| Where | Was | Now |
+| --- | --- | --- |
+| `domain.Finding` (Standard / Project `Finding`, disaster service `Need`, acceptance and colony-review `need` samples) | `unknown` / `deficit` / `recovered` | `unclear` / `unmet` / `met` |
+| `domain.Situation` (Incident bindings) | `unknown` / `deficit` / `recovered` | `unclear` / `active` / `clear` |
+
+The HTTP read routes (`/api/routines`, `/api/spectator/now`) carry no finding
+string; the value changes reach clients through the colony-review timeline
+(`need` per concern) and the acceptance reports. Field names did not change.

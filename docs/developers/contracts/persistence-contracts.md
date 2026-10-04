@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md)
 
-Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names follow it since the schema bump (#1976): tables `standards`, `methods` (`standard_id`, `episode`) and `rounds`, blob keys `standard/<id>`, the `standard` and `episode` JSON keys, and the status words `open`/`settled`/`voided` (Standards) and `open`/`completed`/`voided` (Projects). The finding strings `unknown`/`deficit`/`recovered` are unchanged. Old-version databases and saves are refused; there is no adoption path.
+Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names follow it since the schema bump (#1976): tables `standards`, `methods` (`standard_id`, `episode`) and `rounds`, blob keys `standard/<id>`, the `standard` and `episode` JSON keys, and the status words `open`/`settled`/`voided` (Standards) and `open`/`completed`/`voided` (Projects). The finding strings are `unclear`/`unmet`/`met` (#2002; Incident bindings store `unclear`/`active`/`clear`), schema 196. Old-version databases and saves are refused; there is no adoption path.
 
 Every fact has exactly one home, chosen by what must happen to it when a
 save is reloaded. A second copy of a fact is a bug, not a cache.
