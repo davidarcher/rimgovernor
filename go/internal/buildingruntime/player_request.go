@@ -158,7 +158,7 @@ func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.Gen
 		refuse("colonists unknown")
 		return
 	}
-	built, known := builtCells(*projection)
+	built, known := occupiedCells(*projection)
 	if !known {
 		refuse("building census unavailable")
 		return
@@ -190,10 +190,13 @@ func (r *RoutineReviewer) proposeLayout(ctx context.Context, snapshot domain.Gen
 	clockEvent(ctx, "layout", "layout_proposal", fmt.Sprintf("layout proposal +%d rooms -%d rooms %s", added, removed, next.Summary()), "added", added, "removed", removed, "tick", int64(tick))
 }
 
-// builtCells are the cells a building of the colony stands on (the census),
-// with every player edifice and doorway (a door blueprint or frame
-// included) the planning cells report. Unknown without a complete census.
-func builtCells(projection observation.ColonyProjection) (map[domain.Cell]bool, bool) {
+// occupiedCells are the cells of ours a room must not lose: every census
+// building, the anchor of every blueprint and frame site and of every
+// journal claim whose work has not closed gone, and every player edifice and
+// doorway (a door blueprint or frame included) the planning cells report.
+// Both replans read it (ReplanFresh's built set, RoomGrowth.Fixed), so they
+// never disagree. Unknown without a complete census.
+func occupiedCells(projection observation.ColonyProjection) (map[domain.Cell]bool, bool) {
 	census, known := projection.Facts.CurrentConstruction.Value()
 	if !known || !census.Colony {
 		return nil, false
@@ -202,6 +205,15 @@ func builtCells(projection observation.ColonyProjection) (map[domain.Cell]bool, 
 	for _, b := range census.Buildings {
 		for _, c := range b.Cells {
 			built[c] = true
+		}
+	}
+	for _, s := range census.Sites {
+		built[s.Building.Cell()] = true
+	}
+	claims, _ := projection.Facts.ConstructionClaims.Value()
+	for _, c := range claims {
+		if policy.WorkOpen(c.Building, projection.Facts.CurrentConstruction) != policy.BuildingGone {
+			built[c.Building.Cell()] = true
 		}
 	}
 	for _, c := range projection.Cells {

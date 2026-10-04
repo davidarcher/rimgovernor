@@ -75,6 +75,10 @@ type RoomGrowth struct {
 	// plan (#1824). InUse is set only when an ended role has a room.
 	Ended []ModuleRole
 	InUse map[Rectangle]bool
+	// Fixed are the interiors of every planned room with anything of ours
+	// on it (FixedRooms, #1943), set on every replan once the census is
+	// known. Grow never moves a room, fixed or not.
+	Fixed map[Rectangle]bool
 }
 
 // ReplanLayoutWithRooms is ReplanLayout that also keeps the rooms of growth,

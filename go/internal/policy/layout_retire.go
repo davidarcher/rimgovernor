@@ -35,6 +35,21 @@ func BuiltRooms(plan LayoutPlan, rooms RoomObservation) map[Rectangle]bool {
 	return built
 }
 
+// FixedRooms are the interiors of the plan's rooms with anything of ours on
+// them: a census room standing in one, or a cell of occupied (a building,
+// blueprint, frame, edifice, doorway or journal claim) on its walls or
+// floor. A replan must not move a fixed room; an untouched planned room is
+// not fixed.
+func FixedRooms(plan LayoutPlan, rooms RoomObservation, occupied map[domain.Cell]bool) map[Rectangle]bool {
+	fixed := BuiltRooms(plan, rooms)
+	for _, r := range plan.AllRooms() {
+		if !fixed[r.Interior] && rectHits(roomWalls(r), occupied) {
+			fixed[r.Interior] = true
+		}
+	}
+	return fixed
+}
+
 // DuplicateRooms is how many add-on rooms the plan holds beyond one per role.
 func DuplicateRooms(plan LayoutPlan) int {
 	n := 0

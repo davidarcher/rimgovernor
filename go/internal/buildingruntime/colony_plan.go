@@ -132,6 +132,12 @@ func (r *RoutineReviewer) reviewLayoutPlan(ctx context.Context, snapshot domain.
 			}
 		}
 	}
+	if haveLayout {
+		if occupied, ok := occupiedCells(*projection); ok {
+			rooms, _ := projection.Rooms.Value()
+			growth.Fixed = policy.FixedRooms(layout.Plan, rooms, occupied)
+		}
+	}
 	children := (len(growth.Child) > 0 || growth.Built != nil || growth.InUse != nil) && hourly
 	// Stored gear outgrew its zone (#1773): the storage planner's demand adds
 	// the armory or wardrobe the plan lacks, at most once an hour.
