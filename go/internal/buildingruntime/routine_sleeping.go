@@ -509,7 +509,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !reason.IsZero() {
 		return RoutineBuildingResult{Verdict: reason}, nil
 	}
-	if module, ok := r.plannedRoomModule(); ok {
+	// The stand-in campfire is free and instant and the colony cooks on it
+	// while the kitchen is dug: it goes down outdoors now, and the ring is
+	// shelled once it stands (the existing-facility path above).
+	standIn := r.goal == policy.EnsureCooking && method == "campfire"
+	if module, ok := r.plannedRoomModule(); ok && !standIn {
 		// The planned room is raised and furnished together (#835): the
 		// ring is admitted, and the stove or cooler goes onto the room's
 		// interior without waiting for the walls. A shell already tried
