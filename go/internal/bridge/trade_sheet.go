@@ -51,6 +51,17 @@ type TradeSheetRow struct {
 	Skills               []TradeSheetSkill
 	ViolenceCapable      bool
 	ViolenceCapableKnown bool
+	// A prisoner row's sale facts (#1969), read from the game: guest status
+	// (Guest, Prisoner, Slave), AllSellableColonyPawns' secure test, downed,
+	// and the extra home / host faction ids a sale (MemberSold) angers.
+	// Absent on a pawn without a guest tracker or faction.
+	GuestStatus         string
+	PrisonerSecure      bool
+	PrisonerSecureKnown bool
+	PawnDowned          bool
+	PawnDownedKnown     bool
+	ExtraHomeFaction    string
+	ExtraHostFaction    string
 
 	// A non-pawn row's first colony thing and its quality (#1194): a
 	// packed sculpture's row matches its packed item by ThingID.
@@ -202,13 +213,15 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		}
 		food = proto.CloneOf(f)
 	}
-	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "" || v.PawnGender != nil) {
+	if !v.GetPawn() && (len(v.Skills) != 0 || v.ViolenceCapable != nil || v.GetPawnId() != "" || v.PawnGender != nil ||
+		v.GuestStatus != nil || v.PrisonerSecure != nil || v.PawnDowned != nil || v.ExtraHomeFaction != nil || v.ExtraHostFaction != nil) {
 		return TradeSheetRow{}, contract("pawn facts on a non-pawn trade line")
 	}
 	if v.GetPawn() && (v.ThingId != nil || v.Quality != nil) || !diagnostic(v.ThingId) || v.Quality != nil && !validQuality(v.GetQuality()) || !diagnostic(v.ZoneId) || v.HitPointsFraction != nil && !(v.GetHitPointsFraction() >= 0 && v.GetHitPointsFraction() <= 1) {
 		return TradeSheetRow{}, contract("invalid trade sheet thing facts")
 	}
-	if !diagnostic(v.PawnId) || !diagnostic(v.PawnGender) {
+	if !diagnostic(v.PawnId) || !diagnostic(v.PawnGender) || !diagnostic(v.GuestStatus) ||
+		v.ExtraHomeFaction != nil && validID(v.ExtraHomeFaction.GetId()) != nil || v.ExtraHostFaction != nil && validID(v.ExtraHostFaction.GetId()) != nil {
 		return TradeSheetRow{}, contract("trade sheet pawn id invalid")
 	}
 	var skills []TradeSheetSkill
@@ -220,6 +233,8 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	}
 	return TradeSheetRow{
 		PawnID: v.GetPawnId(), PawnGender: v.GetPawnGender(), Skills: skills, ViolenceCapable: v.GetViolenceCapable(), ViolenceCapableKnown: v.ViolenceCapable != nil,
+		GuestStatus: v.GetGuestStatus(), PrisonerSecure: v.GetPrisonerSecure(), PrisonerSecureKnown: v.PrisonerSecure != nil, PawnDowned: v.GetPawnDowned(), PawnDownedKnown: v.PawnDowned != nil,
+		ExtraHomeFaction: v.GetExtraHomeFaction().GetId(), ExtraHostFaction: v.GetExtraHostFaction().GetId(),
 		Food: food, ThingID: v.GetThingId(), Quality: v.GetQuality(), QualityKnown: v.Quality != nil, HitPoints: v.GetHitPointsFraction(), HitPointsKnown: v.HitPointsFraction != nil, ZoneID: v.GetZoneId(),
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),

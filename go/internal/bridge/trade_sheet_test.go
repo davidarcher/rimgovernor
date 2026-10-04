@@ -119,6 +119,36 @@ func TestReadTradeSheetFavorCurrencyAndSilverSheets(t *testing.T) {
 	}
 }
 
+func TestReadTradeSheetFavorPrisonerRowFacts(t *testing.T) {
+	prisoner := tradeSheetLine("line-1", "Human", 1, 0)
+	prisoner.Pawn, prisoner.PawnId, prisoner.SellPrice = proto.Bool(true), proto.String("Thing_Human1"), proto.Float64(3)
+	prisoner.GuestStatus, prisoner.PrisonerSecure, prisoner.PawnDowned = proto.String("Prisoner"), proto.Bool(true), proto.Bool(false)
+	prisoner.ExtraHomeFaction = &c.Ref{Id: proto.String("Faction_7")}
+	prisoner.ExtraHostFaction = &c.Ref{Id: proto.String("Faction_9")}
+	sheet := tradeSheetFixture([]*o.TradeLine{prisoner, tradeSheetLine("line-2", "Steel", 1, 0)})
+	sheet.CurrencyKind = o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR.Enum()
+	client, _ := tradeSheetClient(t, sheet)
+	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := out.Rows[0]
+	if !row.Pawn || row.ProtectedExport || row.SellPrice != 3 || row.GuestStatus != "Prisoner" || !row.PrisonerSecure || !row.PrisonerSecureKnown ||
+		row.PawnDowned || !row.PawnDownedKnown || row.ExtraHomeFaction != "Faction_7" || row.ExtraHostFaction != "Faction_9" {
+		t.Fatalf("prisoner row %+v", row)
+	}
+	if steel := out.Rows[1]; steel.GuestStatus != "" || steel.PrisonerSecureKnown || steel.ExtraHomeFaction != "" {
+		t.Fatalf("an ordinary row carries prisoner facts: %+v", steel)
+	}
+
+	steel := tradeSheetLine("line-3", "Steel", 1, 0)
+	steel.PrisonerSecure = proto.Bool(true)
+	client, _ = tradeSheetClient(t, tradeSheetFixture([]*o.TradeLine{steel}))
+	if _, _, err := client.ReadTradeSheet(context.Background(), pbIdentity()); err == nil {
+		t.Fatal("prisoner facts on a non-pawn row must be refused")
+	}
+}
+
 func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 	line := tradeSheetLine("line-1", "Steel", 0, 0)
 	line.BuyPrice, line.SellPrice, line.TraderWillTrade, line.Currency, line.Pawn, line.ProtectedExport = nil, nil, nil, nil, nil, nil

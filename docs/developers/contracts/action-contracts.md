@@ -139,6 +139,12 @@ with an empty definition (a currency row, never `protected_export`), and its
 `transfer_count` is the favor the game grants the negotiator on accept. Accept
 needs no `Silver` economic floor there and exempts the currency rows from the
 reserve check, but still refuses a negotiator without a royalty tracker.
+In a favor session only, the secure, non-downed prisoners the game lists
+(`TradeUtility.AllSellableColonyPawns`) are sellable: their pawn rows are not
+`protected_export`, and accept admits them (a silver session and slaves stay
+protected). A pawn row carries `guest_status`, `prisoner_secure`,
+`pawn_downed` and the `extra_home_faction` / `extra_host_faction` refs; selling
+a prisoner with either faction costs goodwill (`MemberSold`).
 Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
 applied receipt completes the action with no observation phase, a refused
 one fails it, and a lost receipt sends the intent again. An accept whose

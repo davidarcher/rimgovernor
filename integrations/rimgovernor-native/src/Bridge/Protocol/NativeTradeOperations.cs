@@ -114,6 +114,20 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
+        // A colony prisoner row a favor session may sell (#1969): the pawns
+        // TradeUtility.AllSellableColonyPawns lists (secure prisoners; the
+        // trader tracker adds not-downed). Slaves, silver sessions and every
+        // other humanlike stay protected.
+        internal static bool IsSellableFavorPrisoner(Tradeable t)
+        {
+            try
+            {
+                var pawn = t.thingsColony.FirstOrDefault() as Pawn;
+                return IsFavorSession() && pawn != null && !pawn.Destroyed && pawn.guest != null && pawn.guest.IsPrisoner && pawn.guest.PrisonerIsSecure && !pawn.Downed;
+            }
+            catch { return false; }
+        }
+
         // Gear the controller's gear-sale plan names by thing id (#1831): every
         // colony thing of the row must be authorized, or the row stays protected.
         private static bool AuthorizedGear(Tradeable t, HashSet<string> authorized)
@@ -518,7 +532,7 @@ namespace HomeBridge.BridgeTools
                     // A positive floor is Go's authorisation to sell a surplus of this
                     // food (the crop/protein rule lives in policy, from the def rows).
                     var cropSurplus = floor > 0;
-                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon && !AuthorizedGear(row, exportThings) || def.IsApparel && !AuthorizedGear(row, exportThings) || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row)))
+                    if (!SafeBool(() => row.IsCurrency) && (def.IsWeapon && !AuthorizedGear(row, exportThings) || def.IsApparel && !AuthorizedGear(row, exportThings) || def.IsMedicine || def.IsNutritionGivingIngestible && !cropSurplus || IsPawnRow(row) && !IsSellableAnimal(row) && !IsSellableFavorPrisoner(row)))
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic export is protected."); return false; }
                 }
             }

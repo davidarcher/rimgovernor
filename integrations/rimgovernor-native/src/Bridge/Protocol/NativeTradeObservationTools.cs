@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
                 // The same classification AcceptTrade's economic floors refuse
                 // to export, so selection never stages what acceptance rejects.
-                ProtectedExport = !favor && (def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t)),
+                ProtectedExport = !favor && (def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t) && !NativeTradeOperations.IsSellableFavorPrisoner(t)),
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (!pawn)
@@ -152,6 +152,17 @@ namespace HomeBridge.BridgeTools
                     line.PawnId = SafeText(() => p.GetUniqueLoadID());
                     line.PawnGender = SafeText(() => p.gender.ToString());
                     line.ViolenceCapable = SafeBool(() => !p.WorkTagIsDisabled(WorkTags.Violent));
+                    // A prisoner's sale facts (#1969): what PreTraded charges
+                    // (MemberSold goodwill with the extra home or host faction)
+                    // and what AllSellableColonyPawns lists on.
+                    if (p.guest != null)
+                    {
+                        line.GuestStatus = SafeText(() => p.guest.GuestStatus.ToString());
+                        line.PrisonerSecure = SafeBool(() => p.guest.PrisonerIsSecure);
+                    }
+                    line.PawnDowned = SafeBool(() => p.Downed);
+                    try { var home = p.GetExtraHomeFaction(); if (home != null) line.ExtraHomeFaction = NativeRef.Of(home); } catch { }
+                    try { var host = p.GetExtraHostFaction(); if (host != null) line.ExtraHostFaction = NativeRef.Of(host); } catch { }
                     try
                     {
                         if (p.skills != null)
