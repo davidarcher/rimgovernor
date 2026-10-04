@@ -663,7 +663,7 @@ func (r *RoutineResourcePlanner) storageFloor(call, epoch context.Context, state
 // material-storage and animal-feed delivery fallbacks share: cells under a
 // held building reservation are dropped, the method ID is content-addressed
 // by resource and cells (methodPrefix; fingerprint dedup reports
-// BuildingReasonUsed), and the zone is previewed against the live zone-map
+// WaitMethodUsed), and the zone is previewed against the live zone-map
 // token and admitted through AdmitBuildingMethod, since a zone carries
 // footprint like a building.
 func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, resource policy.Resource, footprint []domain.Cell, started time.Time, methodPrefix string) (RoutineResourceResult, error) {
@@ -704,14 +704,14 @@ type zoneMethodNative interface {
 }
 
 // admitZoneMethod admits one already-shaped zone under goal as method: the
-// method ID is the caller's (fingerprint dedup reports BuildingReasonUsed),
+// method ID is the caller's (fingerprint dedup reports WaitMethodUsed),
 // the zone is previewed against the live zone-map token and admitted through
 // AdmitBuildingMethod, since a zone carries footprint like a building.
 func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, started time.Time) (RoutineResourceResult, error) {
 	p := reviewer.player
 	cells := value.Cells()
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineResourceResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineResourceResult{Verdict: waitFor(WaitMethodUsed, "zone_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
 	}
@@ -784,7 +784,7 @@ func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, e
 // materialStorageZoneFallback reports handled=false, i.e. either no mine
 // source was selected or its covered storage already suffices. dispatched is
 // false, with a zero result and nil error, when there is nothing to dispatch
-// -- the caller then falls back to its own BuildingReasonUsed reporting.
+// -- the caller then falls back to its own WaitMethodUsed reporting.
 func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context, state ControlState, goal store.GoalState, resource policy.Resource, sources []policy.ResourceSource, started time.Time) (RoutineResourceResult, bool, error) {
 	var source policy.ResourceSource
 	found := false

@@ -97,7 +97,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	}
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity:
-		return RoutinePopulationJoinerResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePopulationJoinerResult{Verdict: waitFor(WaitMethodUsed, "joiner_offers")}, nil
 	case policy.JoinerCensusUnknown:
 		return RoutinePopulationJoinerResult{Verdict: fieldUnavailable("joiner_census")}, nil
 	}
@@ -107,7 +107,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	prefix = fmt.Sprintf("%s-%s-", prefix, choice.Quest)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	accept, err := domain.NewQuestAccept(choice.Quest, "", choice.RewardChoice)
@@ -144,7 +144,7 @@ func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.
 	prefix := fmt.Sprintf("ritual-start-%s-", ceremony.Pawn)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	ritual, err := domain.NewRitual(domain.PawnID(ceremony.Pawn), domain.RitualBestowing, domain.RitualStart)
@@ -178,7 +178,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePopulationJoinerResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePopulationJoinerResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

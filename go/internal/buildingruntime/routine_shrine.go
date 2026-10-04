@@ -244,7 +244,7 @@ func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlS
 	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -302,13 +302,13 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	}
 	drafted := policy.ShrineBreachDrafts(report.Readiness.Squad, int(colonists))
 	if !arbiter.tryClaim(drafted) {
-		return RoutineShrineResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineShrineResult{Verdict: waitFor(WaitMethodUsed, "breach_defenders")}, nil
 	}
 	positions := policy.ShrineBreachPositions(wall, drafted, report.Standing, report.Traps)
 	prefix := fmt.Sprintf("breach-%s-%s-", shrine.ID, wall.EntityID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()
@@ -389,12 +389,12 @@ func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlSt
 		lockers = append(lockers, lock.Lockers[casket.EntityID])
 	}
 	if !arbiter.tryClaim(lockers) {
-		return RoutineShrineResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineShrineResult{Verdict: waitFor(WaitMethodUsed, "casket_lockers")}, nil
 	}
 	prefix := fmt.Sprintf("open-%s-", shrine.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineShrineResult{Verdict: BuildingReasonExhausted, Shrine: shrine.ID}, nil
+		return RoutineShrineResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), Shrine: shrine.ID}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

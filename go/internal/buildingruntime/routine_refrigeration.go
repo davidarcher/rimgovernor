@@ -252,7 +252,7 @@ func (r *RoutineBuildingPlanner) commitRefrigerationTarget(call context.Context,
 	}
 	method := proposal.Key
 	if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "refrigeration_target")}, nil
 	} else if !errors.Is(loadErr, store.ErrNotFound) {
 		return RoutineBuildingResult{}, loadErr
 	}

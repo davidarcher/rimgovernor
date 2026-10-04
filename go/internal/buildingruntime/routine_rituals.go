@@ -95,7 +95,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	plans, known := read.Projection.Facts.RitualPlans.Value()
 	if !known || len(plans) == 0 {
-		return RoutineRitualsResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRitualsResult{Verdict: waitFor(WaitMethodUsed, "ritual_plans")}, nil
 	}
 	// The first ritual and site whose attempts are not spent; one ritual
 	// begins per step.
@@ -153,5 +153,5 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineRitualsResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
 		}
 	}
-	return RoutineRitualsResult{Verdict: BuildingReasonExhausted}, nil
+	return RoutineRitualsResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 }

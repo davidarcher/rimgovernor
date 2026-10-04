@@ -196,7 +196,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		if deficit && policy.ResearchBenchNeeded(read.Projects[read.CurrentProject]) {
 			return r.bench(call, epoch, arbiter)
 		}
-		return RoutineResearchResult{Verdict: BuildingReasonUsed, NativeWorkTicks: researchNativeWorkTicks}, nil
+		return RoutineResearchResult{Verdict: waitFor(WaitMethodUsed, "current_research_project"), NativeWorkTicks: researchNativeWorkTicks}, nil
 	}
 	if !deficit {
 		return RoutineResearchResult{Verdict: BuildingReasonNoDeficit}, nil
@@ -222,7 +222,7 @@ func (r *RoutineResearchPlanner) admit(call, epoch context.Context, state Contro
 	digestNext := sha256.Sum256([]byte(next))
 	method := domain.MethodID(fmt.Sprintf("research-%x", digestNext[:16]))
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineResearchResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineResearchResult{Verdict: waitFor(WaitMethodUsed, "research_selection")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResearchResult{}, err
 	}
@@ -268,7 +268,7 @@ func researchKnowledgeNext(in snap.ResearchCall) (string, Verdict) {
 					continue
 				}
 				if slot.Current != "" {
-					return "", BuildingReasonUsed
+					return "", waitFor(WaitMethodUsed, "knowledge_slot")
 				}
 				if !row.Census || len(row.LockReasons) != 0 {
 					return "", fieldUnavailable("research_knowledge_project")

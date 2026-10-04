@@ -116,7 +116,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRepairResult{Verdict: waitFor(WaitMethodUsed, "essential_repairs")}, nil
 	}
 	byID := map[string]policy.UpkeepStructure{}
 	if rows, known := reading.Projection.Facts.Upkeep.Structures.Value(); known {
@@ -143,7 +143,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRepairResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -179,7 +179,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 		ok = false
 	}
 	if !ok {
-		return RoutineRepairResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRepairResult{Verdict: waitFor(WaitMethodUsed, "repair_pairing")}, nil
 	}
 	repair, err := domain.NewRepair(pawn, structure.ID, structure.Cell)
 	if err != nil {
@@ -190,7 +190,7 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	prefix := fmt.Sprintf("repair-%s-", structure.ID)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineRepairResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutineRepairResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

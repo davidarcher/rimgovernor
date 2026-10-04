@@ -75,7 +75,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineRescueResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRescueResult{Verdict: waitFor(WaitMethodUsed, "colonist_census")}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -114,7 +114,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if !ok {
 		// No pair to order: only game time frees a rescuer or resolves
 		// the casualty, so the step lends a window (#636).
-		return RoutineRescueResult{Verdict: BuildingReasonUsed, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineRescueResult{Verdict: waitFor(WaitMethodUsed, "rescue_pairing"), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	rescue, err := domain.NewRescue(rescuer, patient)
 	if err != nil {
@@ -128,7 +128,7 @@ func (r *RoutineRescuePlanner) step(call, epoch context.Context, arbiter *stepAr
 	if attempt >= maxMedicalAttemptsPerPatient {
 		// The attempts are spent and the deficit stays visible; the
 		// clock must still advance under it (#636).
-		return RoutineRescueResult{Verdict: BuildingReasonExhausted, NativeWorkTicks: medicalWaitTicks}, nil
+		return RoutineRescueResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", ""), NativeWorkTicks: medicalWaitTicks}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	id := domain.MintPlanID()

@@ -151,12 +151,12 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	choice, owed := policy.NextPsylinkUse(willing, items)
 	if !owed {
 		if len(candidates) > 0 && len(items) > 0 {
-			return RoutinePsylinkResult{Verdict: BuildingReasonExhausted}, nil
+			return RoutinePsylinkResult{Verdict: refuse(RefusalRetriesSpent, "maxPsylinkAttempts", "")}, nil
 		}
-		return RoutinePsylinkResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_item")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(choice.Pawn)}) {
-		return RoutinePsylinkResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePsylinkResult{Verdict: waitFor(WaitMethodUsed, "psylink_pawn_claim")}, nil
 	}
 	prefix := fmt.Sprintf("%s%s-", psylinkPrefix, choice.Pawn)
 	attempt := medicalAttemptCount(history, goal.Goal.Epoch, prefix)

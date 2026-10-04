@@ -89,7 +89,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
 	switch choice.Reason {
 	case policy.PrisonerNoDeficit:
-		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonUsed}, nil
+		return RoutinePrisonerInteractionResult{Verdict: waitFor(WaitMethodUsed, "prisoner_interaction")}, nil
 	case policy.PrisonerUnknown:
 		return RoutinePrisonerInteractionResult{Verdict: fieldUnavailable("prisoners")}, nil
 	}
@@ -103,7 +103,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
 	attempt := medicalAttemptCount(goal.History, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutinePrisonerInteractionResult{Verdict: BuildingReasonExhausted}, nil
+		return RoutinePrisonerInteractionResult{Verdict: refuse(RefusalRetriesSpent, "maxMedicalAttemptsPerPatient", "")}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	interaction, err := domain.NewPrisonerInteraction(choice.Pawn, choice.Interaction)
@@ -188,7 +188,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 	}
 	method := domain.MethodID("jail-mark-" + bed)
 	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
 	}
@@ -200,7 +200,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markJailBed: err != nil || target.Context.GetTick() < int64(facts.Identity.Tick)", ErrControl)
 	}
 	if target.Prisoners {
-		return RoutineBuildingResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_prisoners")}, nil
 	}
 	patch, err := domain.NewBedPrisoners(bed)
 	if err != nil {

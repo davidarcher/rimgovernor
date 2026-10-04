@@ -151,10 +151,10 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	if chosen == nil {
-		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRecoveryResult{Verdict: waitFor(WaitMethodUsed, "recovery_service_proposal")}, nil
 	}
 	if !arbiter.tryClaim([]domain.PawnID{domain.PawnID(chosen.Pawn)}) {
-		return RoutineRecoveryResult{Verdict: BuildingReasonUsed}, nil
+		return RoutineRecoveryResult{Verdict: waitFor(WaitMethodUsed, "recovery_pawn_claim")}, nil
 	}
 	id := domain.MintPlanID()
 	method, ok := recoveryServiceMethod(chosen.Method)
