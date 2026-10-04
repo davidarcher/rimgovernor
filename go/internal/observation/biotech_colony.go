@@ -26,6 +26,63 @@ type BiotechColony struct {
 	Chargers                              []MechCharger
 	Babies                                []BabyCare
 	Breastfeeders                         []string
+	// Gene-building rows (#1930). Genes are GeneDef defNames; the totals are the game's own GeneSet values.
+	GeneBanks      []GeneBank
+	GeneAssemblers []GeneAssembler
+	GeneExtractors []GeneExtractor
+	Genepacks      []Genepack
+	Xenogerms      []Xenogerm
+}
+
+// GeneBank is a genepack container; PackIDs are the packs it holds.
+type GeneBank struct {
+	BuildingRow
+	Powered, AutoLoad domain.Fact[bool]
+	Capacity          domain.Fact[int32]
+	PackIDs           []string
+}
+
+// GeneAssembler is a gene assembler. The run facts (progress, total work,
+// archites owed, can-work verdict) are unknown while it is idle.
+type GeneAssembler struct {
+	BuildingRow
+	Powered, Working, CanWorkNow domain.Fact[bool]
+	Progress, TotalWork          domain.Fact[float64]
+	ArchitesOwed, MaxComplexity  domain.Fact[int32]
+	PackIDs, LinkedBankIDs       []string
+}
+
+// GeneExtractor is a gene extractor; TicksRemaining and PowerCutTicks are
+// unknown while it is idle, the pawn ids unknown while none is set.
+type GeneExtractor struct {
+	BuildingRow
+	Powered, Working              domain.Fact[bool]
+	SelectedPawnID, OccupantID    domain.Fact[string]
+	TicksRemaining, PowerCutTicks domain.Fact[int32]
+}
+
+// GeneTotals are a gene set's own complexity, metabolism and archite totals.
+type GeneTotals struct{ Complexity, Metabolism, Archites domain.Fact[int32] }
+
+// Genepack is a pack in a bank (BankID known, no position) or loose on the
+// map (Position known).
+type Genepack struct {
+	ID, Definition string
+	Genes          []string
+	GeneTotals
+	BankID                  domain.Fact[string]
+	Position                domain.Fact[domain.Cell]
+	Deteriorating, AutoLoad domain.Fact[bool]
+	HitPoints               domain.Fact[int32]
+}
+
+// Xenogerm is a spawned xenogerm item; TargetPawnID is unknown with no pending implant.
+type Xenogerm struct {
+	BuildingRow
+	Genes []string
+	GeneTotals
+	TargetPawnID domain.Fact[string]
+	Forbidden    domain.Fact[bool]
 }
 
 // BuildingRow heads every building row: the thing id, definition and cell.
@@ -77,6 +134,10 @@ type BabyCare struct {
 }
 type BabyAutofeeder struct{ PawnID, Mode string }
 
+func geneTotals(complexity, metabolism, archites *int32) GeneTotals {
+	return GeneTotals{optional(complexity), optional(metabolism), optional(archites)}
+}
+
 func buildingRow(id, def *string, at *c.Cell) BuildingRow {
 	return BuildingRow{ID: *id, Definition: *def, Position: domain.Cell{X: at.GetX(), Z: at.GetZ()}}
 }
@@ -125,6 +186,31 @@ func colonyBiotech(section *o.BiotechSection) domain.Fact[BiotechColony] {
 			b.Autofeeders = append(b.Autofeeders, BabyAutofeeder{PawnID: a.GetPawnId(), Mode: a.GetMode()})
 		}
 		r.Babies = append(r.Babies, b)
+	}
+	for _, x := range f.GeneBanks {
+		r.GeneBanks = append(r.GeneBanks, GeneBank{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Powered: optional(x.Powered), AutoLoad: optional(x.AutoLoad),
+			Capacity: optional(x.Capacity), PackIDs: x.PackIds})
+	}
+	for _, x := range f.GeneAssemblers {
+		r.GeneAssemblers = append(r.GeneAssemblers, GeneAssembler{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Powered: optional(x.Powered), Working: optional(x.Working),
+			CanWorkNow: optional(x.CanWorkNow), Progress: optional(x.Progress), TotalWork: optional(x.TotalWork), ArchitesOwed: optional(x.ArchitesOwed),
+			MaxComplexity: optional(x.MaxComplexity), PackIDs: x.PackIds, LinkedBankIDs: x.LinkedBankIds})
+	}
+	for _, x := range f.GeneExtractors {
+		r.GeneExtractors = append(r.GeneExtractors, GeneExtractor{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Powered: optional(x.Powered), Working: optional(x.Working),
+			SelectedPawnID: optional(x.SelectedPawnId), OccupantID: optional(x.OccupantId), TicksRemaining: optional(x.TicksRemaining), PowerCutTicks: optional(x.PowerCutTicks)})
+	}
+	for _, x := range f.Genepacks {
+		p := Genepack{ID: x.GetThingId(), Definition: x.GetDefName(), Genes: x.Genes, GeneTotals: geneTotals(x.Complexity, x.Metabolism, x.Archites),
+			BankID: optional(x.BankId), Deteriorating: optional(x.Deteriorating), AutoLoad: optional(x.AutoLoad), HitPoints: optional(x.HitPoints)}
+		if x.Position != nil {
+			p.Position = domain.Known(domain.Cell{X: x.Position.GetX(), Z: x.Position.GetZ()})
+		}
+		r.Genepacks = append(r.Genepacks, p)
+	}
+	for _, x := range f.Xenogerms {
+		r.Xenogerms = append(r.Xenogerms, Xenogerm{BuildingRow: buildingRow(x.ThingId, x.DefName, x.Position), Genes: x.Genes,
+			GeneTotals: geneTotals(x.Complexity, x.Metabolism, x.Archites), TargetPawnID: optional(x.TargetPawnId), Forbidden: optional(x.Forbidden)})
 	}
 	return domain.Known(r)
 }

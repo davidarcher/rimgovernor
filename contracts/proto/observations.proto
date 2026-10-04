@@ -1563,6 +1563,53 @@ message BiotechColonyFacts {
   repeated WastepackAtomizer atomizers = 4; repeated PollutionPump pumps = 5;
   repeated MechGestatorState gestators = 6; repeated MechChargerState chargers = 7;
   repeated BabyCare babies = 8; repeated string breastfeeders = 9;
+  // Gene-building rows (#1930): the banks, assemblers, extractors, genepacks
+  // and xenogerms of the colony map.
+  repeated GeneBankState gene_banks = 10; repeated GeneAssemblerState gene_assemblers = 11; repeated GeneExtractorState gene_extractors = 12;
+  repeated GenepackState genepacks = 13; repeated XenogermState xenogerms = 14;
+}
+// Gene-building rows (#1930). A pawn or thing reference is a thing id. gene
+// lists are GeneDef defNames, sorted; complexity, metabolism and archites are
+// the game's own GeneSet totals (ComplexityTotal, MetabolismTotal,
+// ArchitesTotal), never summed in Go.
+// GeneBankState: a building with CompGenepackContainer. capacity is
+// CompProperties_GenepackContainer.maxCapacity, pack_ids the contained
+// packs, auto_load the container's own flag.
+message GeneBankState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional int32 capacity = 5; repeated string pack_ids = 6; optional bool auto_load = 7;
+}
+// GeneAssemblerState: Building_GeneAssembler. working is Working; the run
+// fields (progress, total_work, pack_ids, archites_owed, can_work_now) are
+// set only while working. max_complexity is MaxComplexity(), archites_owed
+// ArchitesRequiredNow, can_work_now CanBeWorkedOnNow, linked_bank_ids the
+// connected facilities that hold a genepack container.
+message GeneAssemblerState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional bool working = 5; optional double progress = 6; optional double total_work = 7; repeated string pack_ids = 8;
+  optional int32 archites_owed = 9; optional int32 max_complexity = 10; repeated string linked_bank_ids = 11; optional bool can_work_now = 12;
+}
+// GeneExtractorState: Building_GeneExtractor. selected_pawn_id is
+// Building_Enterable.SelectedPawn, occupant_id the pawn inside; ticks_remaining
+// and power_cut_ticks are set only while working.
+message GeneExtractorState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4;
+  optional bool working = 5; optional string selected_pawn_id = 6; optional string occupant_id = 7;
+  optional int32 ticks_remaining = 8; optional int32 power_cut_ticks = 9;
+}
+// GenepackState: a Genepack, in a bank (bank_id, no position) or spawned
+// loose (position). deteriorating is Genepack.Deteriorating.
+message GenepackState {
+  optional string thing_id = 1; optional string def_name = 2; repeated string genes = 3; optional string bank_id = 4;
+  rimgovernor.common.v1.Cell position = 5; optional bool deteriorating = 6; optional bool auto_load = 7; optional int32 hit_points = 8;
+  optional int32 complexity = 9; optional int32 metabolism = 10; optional int32 archites = 11;
+}
+// XenogermState: a spawned Xenogerm item; target_pawn_id is its pending
+// implant target.
+message XenogermState {
+  optional string thing_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3;
+  repeated string genes = 4; optional string target_pawn_id = 5;
+  optional int32 complexity = 6; optional int32 metabolism = 7; optional int32 archites = 8; optional bool forbidden = 9;
 }
 message PollutionTotals {
   optional int32 total_pollution = 1; optional uint32 pollutable_cells = 2;

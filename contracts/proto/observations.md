@@ -623,6 +623,26 @@ unique ids per table, cells on the map, nonnegative counts) and projects them
 into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
 held in Go memory (persistence-contracts.md); it adds no store.
 
+Gene-building rows (#1930, design note on #1693) sit in the same section:
+`gene_banks` (any building with `CompGenepackContainer`: powered, capacity,
+held pack ids, auto-load), `gene_assemblers` (`Building_GeneAssembler`: powered,
+working, `max_complexity` from `MaxComplexity()`, linked bank ids; while
+working also progress, total work, selected pack ids, archites owed and the
+`CanBeWorkedOnNow` verdict), `gene_extractors` (`Building_GeneExtractor`:
+powered, working, `SelectedPawn`, occupant; while working ticks remaining and
+cumulative power-cut ticks), `genepacks` (each pack held by a bank, with
+`bank_id`, or spawned loose, with a cell; genes as GeneDef defNames, hit
+points, `Genepack.Deteriorating`, auto-load) and `xenogerms` (spawned items
+with genes and the pending implant target). Complexity, metabolism and archite
+totals on packs and xenogerms are the game's own `GeneSet` values, never
+summed in Go. Run facts are absent while idle, a banked pack has no cell, and
+the xenogerm name is not on the wire (user text). Go validates unique ids per
+table, nonnegative counts, distinct gene ids and that a pack is in exactly
+one place, a bank listed in `gene_banks` or a cell
+(`bridge.validateGeneBuilding`), and projects into
+`BiotechColony.GeneBanks`/`GeneAssemblers`/`GeneExtractors`/`Genepacks`/
+`Xenogerms`. Read-only: no write or goal consumes these yet.
+
 `pollution` also counts the polluted pollutable cells (`polluted_cells`) and
 those outside the pollution-clear area (`polluted_uncovered_cells`, #1683).
 `RoutineFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack

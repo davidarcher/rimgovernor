@@ -113,8 +113,62 @@ func validateBiotechColony(v *o.ColonyFactsSnapshot) error {
 			}
 			feeders[id] = true
 		}
-		return nil
+		return validateGeneBuilding(f, head, unique)
 	default:
 		return contract("missing biotech colony outcome")
 	}
+}
+
+// validateGeneBuilding checks the gene-building rows (#1930): unique ids per
+// table, nonnegative counts and ticks, distinct valid gene and pack ids, and a
+// genepack that is in exactly one place (a listed bank, or a cell on the map).
+func validateGeneBuilding(f *o.BiotechColonyFacts, head func(id, def *string, at *c.Cell) bool, unique func(table, id string) bool) error {
+	ids := func(list []string) bool {
+		seen := map[string]bool{}
+		for _, id := range list {
+			if validID(id) != nil || seen[id] {
+				return false
+			}
+			seen[id] = true
+		}
+		return true
+	}
+	nonneg := func(v *int32) bool { return v == nil || *v >= 0 }
+	finite := func(v *float64) bool { return v == nil || !math.IsNaN(*v) && !math.IsInf(*v, 0) && *v >= 0 }
+	banks := map[string]bool{}
+	for _, r := range f.GeneBanks {
+		if r == nil || !head(r.ThingId, r.DefName, r.Position) || !unique("gene_bank", r.GetThingId()) || !nonneg(r.Capacity) || !ids(r.PackIds) ||
+			r.Capacity != nil && len(r.PackIds) > int(r.GetCapacity()) {
+			return contract("invalid gene bank")
+		}
+		banks[r.GetThingId()] = true
+	}
+	for _, r := range f.GeneAssemblers {
+		if r == nil || !head(r.ThingId, r.DefName, r.Position) || !unique("gene_assembler", r.GetThingId()) || !nonneg(r.ArchitesOwed) || !nonneg(r.MaxComplexity) ||
+			!finite(r.Progress) || !finite(r.TotalWork) || !ids(r.PackIds) || !ids(r.LinkedBankIds) {
+			return contract("invalid gene assembler")
+		}
+	}
+	for _, r := range f.GeneExtractors {
+		if r == nil || !head(r.ThingId, r.DefName, r.Position) || !unique("gene_extractor", r.GetThingId()) || !nonneg(r.TicksRemaining) || !nonneg(r.PowerCutTicks) ||
+			r.SelectedPawnId != nil && validID(r.GetSelectedPawnId()) != nil || r.OccupantId != nil && validID(r.GetOccupantId()) != nil {
+			return contract("invalid gene extractor")
+		}
+	}
+	for _, r := range f.Genepacks {
+		if r == nil || r.ThingId == nil || r.DefName == nil || validID(r.GetThingId()) != nil || validID(r.GetDefName()) != nil || !unique("genepack", r.GetThingId()) ||
+			!ids(r.Genes) || !nonneg(r.HitPoints) || !nonneg(r.Complexity) || !nonneg(r.Archites) {
+			return contract("invalid genepack")
+		}
+		if (r.BankId == nil) == (r.Position == nil) || r.BankId != nil && !banks[r.GetBankId()] {
+			return contract("genepack is not in exactly one place")
+		}
+	}
+	for _, r := range f.Xenogerms {
+		if r == nil || !head(r.ThingId, r.DefName, r.Position) || !unique("xenogerm", r.GetThingId()) || !ids(r.Genes) || !nonneg(r.Complexity) || !nonneg(r.Archites) ||
+			r.TargetPawnId != nil && validID(r.GetTargetPawnId()) != nil {
+			return contract("invalid xenogerm")
+		}
+	}
+	return nil
 }

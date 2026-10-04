@@ -14,6 +14,91 @@ import (
 
 func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 
+// A fixture-shaped gene-building message projects every row, keeps absent
+// scalars unknown (an idle assembler has no run facts, a banked pack no
+// cell) and refuses contract violations (#1930).
+func TestBiotechGeneBuildingProjection(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &o.ColonyFactsReply{}
+	if err = protojson.Unmarshal(data, r); err != nil {
+		t.Fatal(err)
+	}
+	id := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	f := &o.BiotechColonyFacts{
+		GeneBanks: []*o.GeneBankState{{ThingId: proto.String("bank"), DefName: proto.String("GeneBank"), Position: cell(20, 10), Powered: proto.Bool(true), Capacity: proto.Int32(4),
+			PackIds: []string{"packA"}, AutoLoad: proto.Bool(true)}},
+		GeneAssemblers: []*o.GeneAssemblerState{
+			{ThingId: proto.String("asm"), DefName: proto.String("GeneAssembler"), Position: cell(21, 10), Powered: proto.Bool(true), Working: proto.Bool(true), Progress: proto.Float64(0.25),
+				TotalWork: proto.Float64(7500), PackIds: []string{"packA"}, ArchitesOwed: proto.Int32(0), MaxComplexity: proto.Int32(8), LinkedBankIds: []string{"bank"}, CanWorkNow: proto.Bool(true)},
+			{ThingId: proto.String("idle"), DefName: proto.String("GeneAssembler"), Position: cell(22, 10), Working: proto.Bool(false), MaxComplexity: proto.Int32(6)}},
+		GeneExtractors: []*o.GeneExtractorState{{ThingId: proto.String("ext"), DefName: proto.String("GeneExtractor"), Position: cell(23, 10), Powered: proto.Bool(true), Working: proto.Bool(true),
+			SelectedPawnId: proto.String("pawn"), OccupantId: proto.String("pawn"), TicksRemaining: proto.Int32(1000), PowerCutTicks: proto.Int32(0)}},
+		Genepacks: []*o.GenepackState{
+			{ThingId: proto.String("packA"), DefName: proto.String("Genepack"), Genes: []string{"Robust", "Hardy"}, BankId: proto.String("bank"), Deteriorating: proto.Bool(false), AutoLoad: proto.Bool(true),
+				HitPoints: proto.Int32(30), Complexity: proto.Int32(3), Metabolism: proto.Int32(-1), Archites: proto.Int32(0)},
+			{ThingId: proto.String("packB"), DefName: proto.String("Genepack"), Genes: []string{"Hardy"}, Position: cell(24, 10), Deteriorating: proto.Bool(true)}},
+		Xenogerms: []*o.XenogermState{{ThingId: proto.String("germ"), DefName: proto.String("Xenogerm"), Position: cell(25, 10), Genes: []string{"Robust"}, TargetPawnId: proto.String("pawn"),
+			Complexity: proto.Int32(2), Metabolism: proto.Int32(-1), Archites: proto.Int32(0)}},
+	}
+	r.GetObserved().Biotech = &o.BiotechSection{Outcome: &o.BiotechSection_Observed{Observed: f}}
+	p, err := DecodeColony(r, id, bridge.Tables{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, known := p.Biotech.Value()
+	if !known || len(v.GeneBanks) != 1 || len(v.GeneAssemblers) != 2 || len(v.GeneExtractors) != 1 || len(v.Genepacks) != 2 || len(v.Xenogerms) != 1 {
+		t.Fatalf("lost rows: %+v", v)
+	}
+	if m, ok := v.GeneAssemblers[0].MaxComplexity.Value(); !ok || m != 8 || v.GeneAssemblers[0].Progress != domain.Known(0.25) {
+		t.Fatalf("assembler %+v", v.GeneAssemblers[0])
+	}
+	idle := v.GeneAssemblers[1]
+	if _, ok := idle.Progress.Value(); ok || len(idle.PackIDs) != 0 {
+		t.Fatalf("idle assembler reports a run: %+v", idle)
+	}
+	if _, ok := idle.Powered.Value(); ok {
+		t.Fatal("absent powered became known")
+	}
+	if m, ok := v.Genepacks[0].Metabolism.Value(); !ok || m != -1 || v.Genepacks[0].BankID != domain.Known("bank") {
+		t.Fatalf("banked pack %+v", v.Genepacks[0])
+	}
+	if _, ok := v.Genepacks[0].Position.Value(); ok {
+		t.Fatal("banked pack has a cell")
+	}
+	if _, ok := v.Genepacks[1].Complexity.Value(); ok {
+		t.Fatal("absent complexity became known")
+	}
+	if _, ok := v.Genepacks[1].BankID.Value(); ok || v.Genepacks[1].Position != domain.Known(domain.Cell{X: 24, Z: 10}) {
+		t.Fatalf("loose pack %+v", v.Genepacks[1])
+	}
+	if v.Xenogerms[0].TargetPawnID != domain.Known("pawn") {
+		t.Fatalf("xenogerm %+v", v.Xenogerms[0])
+	}
+	for name, change := range map[string]func(){
+		"duplicate bank":         func() { f.GeneBanks = append(f.GeneBanks, f.GeneBanks[0]) },
+		"overfull bank":          func() { f.GeneBanks[0].Capacity = proto.Int32(0) },
+		"negative ticks":         func() { f.GeneExtractors[0].TicksRemaining = proto.Int32(-1) },
+		"duplicate pack gene":    func() { f.Genepacks[0].Genes = []string{"Hardy", "Hardy"} },
+		"pack in no place":       func() { f.Genepacks[1].Position = nil },
+		"pack in two places":     func() { f.Genepacks[0].Position = cell(1, 1) },
+		"pack in unlisted bank":  func() { f.Genepacks[0].BankId = proto.String("ghost") },
+		"off map xenogerm":       func() { f.Xenogerms[0].Position = cell(-1, 0) },
+		"duplicate linked bank":  func() { f.GeneAssemblers[0].LinkedBankIds = []string{"bank", "bank"} },
+		"negative archites owed": func() { f.GeneAssemblers[0].ArchitesOwed = proto.Int32(-1) },
+	} {
+		saved := proto.Clone(f).(*o.BiotechColonyFacts)
+		change()
+		if _, err := DecodeColony(r, id, bridge.Tables{}); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+		proto.Reset(f)
+		proto.Merge(f, saved)
+	}
+}
+
 // A recorded Biotech colony read projects every row, keeps absent scalars
 // unknown, and a section that is absent or unavailable stays unknown.
 func TestBiotechColonyProjection(t *testing.T) {
