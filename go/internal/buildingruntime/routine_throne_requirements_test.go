@@ -18,7 +18,7 @@ import (
 // The full throne requirement set end to end (#1866): the Knight row of the
 // recorded def mirror (area, impressiveness, throne, floors, two braziers, two
 // columns, an instrument, glowing, forbidden buildings) becomes the need
-// through the review's own path (WithThroneRequirements, NextThroneNeed), and
+// through the review's own path (WithTitleDefs, NextThroneNeed), and
 // each unmet requirement of a standing room plans its fix through throneStep,
 // withThroneFloor and withThroneTargets, the planners' views of the snapshot.
 
@@ -57,8 +57,7 @@ func knightMirror(t *testing.T) *bridge.DefinitionCatalog {
 func knightSnapshot(t *testing.T) (observation.ColonyProjection, policy.LayoutRoom, *bridge.DefinitionCatalog) {
 	t.Helper()
 	catalog := knightMirror(t)
-	royalty, err := catalog.WithThroneRequirements(policy.RoyaltyFacts{
-		Ladder:  []policy.RoyalRung{{Title: "Yeoman", FavorNeeded: domain.Known(6)}, {Title: "Knight", FavorNeeded: domain.Known(10)}},
+	royalty, err := catalog.WithTitleDefs(policy.RoyaltyFacts{
 		Holders: map[policy.PawnID][]policy.RoyalHolding{"Alice": {{FactionDef: "Empire", Title: "Yeoman", Favor: domain.Known(2)}}},
 	})
 	if err != nil {

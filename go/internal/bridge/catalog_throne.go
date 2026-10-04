@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 )
@@ -146,21 +145,6 @@ func (catalog *DefinitionCatalog) ThroneRequirements(title string) (policy.Thron
 		return policy.ThroneRequirements{}, throneError(title, "a throne without an Area requirement")
 	}
 	return out, nil
-}
-
-// WithThroneRequirements is f with every rung's Throne read from the mirror,
-// the first unreadable title's error otherwise. f is not changed.
-func (catalog *DefinitionCatalog) WithThroneRequirements(f policy.RoyaltyFacts) (policy.RoyaltyFacts, error) {
-	f.Ladder = slices.Clone(f.Ladder)
-	for i := range f.Ladder {
-		req, err := catalog.ThroneRequirements(f.Ladder[i].Title)
-		if err != nil {
-			return policy.RoyaltyFacts{}, err
-		}
-		req.ForbiddenDefs = catalog.forbiddenDefs(req)
-		f.Ladder[i].Throne = domain.Known(req)
-	}
-	return f, nil
 }
 
 // forbiddenDefs are the building defs req forbids: those whose

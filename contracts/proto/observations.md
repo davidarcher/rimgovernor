@@ -361,17 +361,12 @@ cost the stat table cannot value are contract errors.
 
 ## Royalty facts
 
-`ReadRoyaltyFacts` (#1599) reports the title ladder (seniority, favor needed, and the throne-room requirement
-read from `RoyalTitleDef.throneRoomRequirements`: minimum impressiveness and
-area, the accepted throne definitions and whether the throne is assigned),
-the permit catalog (minimum title, permit points, worker class, whether the permit acts and
-the favor a call spends) and each colonist's holdings per faction (title,
-favor, permit points, taken permits, and per taken permit its native cooldown:
-`last_used_tick` (`FactionPermit.LastUsedTick`, absent until first used) and
-`cooldown_remaining_ticks`, 0 when ready, #1607; `Client.FreshRoyaltyFacts`
-bypasses the reuse window to re-read a cooldown). Each rung also carries the title's
-bedroom requirements (`RoyalTitleDef.bedroomRequirements`: minimum area and
-impressiveness, floor, furniture rows; without a holder's ideo exemptions). It is separate from the
+`ReadRoyaltyFacts` (#1599) is now only the Royalty-applicable gate. The title
+ladder (seniority, favor needed, throne and bedroom requirements) and the permit
+catalog (minimum title, permit points, worker class, whether the permit acts and
+the favor a call spends) are static defs read from the def mirror
+(`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`,
+#1875), not carried by the read. It is separate from the
 pawn row and slow-changing: the Go client reuses a read for
 `RoyaltyRefreshTicks` and decodes it into `policy.RoyaltyFacts`, where an
 absent scalar is unknown. The neuroformer stock, bestowing ceremonies and

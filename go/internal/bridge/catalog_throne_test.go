@@ -36,7 +36,13 @@ func recordedRoyalTitles(t *testing.T) *DefinitionCatalog {
 	if err := prototext.Unmarshal(raw, &sets); err != nil {
 		t.Fatal(err)
 	}
-	return royalTitleCatalog(sets.GetRoyalTitleDefs()...)
+	catalog := royalTitleCatalog(sets.GetRoyalTitleDefs()...)
+	permits := map[string]proto.Message{}
+	for _, row := range sets.GetRoyalTitlePermitDefs() {
+		permits[row.GetDefName()] = row
+	}
+	catalog.Defs[(&d.RoyalTitlePermitDef{}).ProtoReflect().Descriptor().FullName()] = permits
+	return catalog
 }
 
 // TestThroneRequirementsOfTheRecordedTitles (#1861): Knight and Baron decode
@@ -74,28 +80,85 @@ func TestThroneRequirementsOfTheRecordedTitles(t *testing.T) {
 	}
 }
 
-// TestWithThroneRequirementsFillsTheLadder: every rung of a royalty read
-// gets its mirror requirement and the read itself is untouched; NextThroneNeed
+// TestWithTitleDefsFillsTheLadder (#1875): the ladder is every title row by
+// seniority with its favor, bedroom and throne requirements, the permits are
+// every permit row, and the holdings of the read are untouched; NextThroneNeed
 // then names the title worked toward with that title's requirements.
-func TestWithThroneRequirementsFillsTheLadder(t *testing.T) {
+func TestWithTitleDefsFillsTheLadder(t *testing.T) {
 	catalog := recordedRoyalTitles(t)
 	read := policy.RoyaltyFacts{
-		Ladder:  []policy.RoyalRung{{Title: "Yeoman", FavorNeeded: domain.Known(6)}, {Title: "Knight", FavorNeeded: domain.Known(10)}, {Title: "Baron", FavorNeeded: domain.Known(16)}},
 		Holders: map[policy.PawnID][]policy.RoyalHolding{"Alice": {{FactionDef: "Empire", Title: "Knight", Favor: domain.Known(0)}}},
 	}
-	facts, err := catalog.WithThroneRequirements(read)
+	facts, err := catalog.WithTitleDefs(read)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := read.Ladder[1].Throne.Value(); ok {
-		t.Fatal("the input ladder was written")
+	if len(read.Ladder) != 0 || read.Permits != nil {
+		t.Fatal("the input read was written")
+	}
+	if len(facts.Ladder) != 3 || facts.Ladder[0].Title != "Yeoman" || facts.Ladder[1].Title != "Knight" || facts.Ladder[2].Title != "Baron" {
+		t.Fatalf("ladder %+v", facts.Ladder)
+	}
+	for i, want := range []int{6, 8, 14} {
+		if n, ok := facts.Ladder[i].FavorNeeded.Value(); !ok || n != want {
+			t.Fatalf("favor needed of %s: %v %v", facts.Ladder[i].Title, n, ok)
+		}
+	}
+	if n, ok := facts.Ladder[1].Seniority.Value(); !ok || n != 300 {
+		t.Fatalf("seniority %v %v", n, ok)
+	}
+	knight := facts.Ladder[1]
+	if n, ok := knight.BedroomMinArea.Value(); !ok || n != 24 {
+		t.Fatalf("bedroom area %v %v", n, ok)
+	}
+	if n, ok := knight.BedroomMinImpressiveness.Value(); !ok || n != 40 {
+		t.Fatalf("bedroom impressiveness %v %v", n, ok)
+	}
+	if floored, ok := knight.BedroomFloored.Value(); !ok || !floored {
+		t.Fatal("bedroom floor")
+	}
+	wantThings := []policy.BedroomThing{{AnyOf: []policy.Resource{"DoubleBed", "RoyalBed", "DeathrestCasket"}, Count: 1}, {AnyOf: []policy.Resource{"EndTable"}, Count: 1}, {AnyOf: []policy.Resource{"Dresser"}, Count: 1}}
+	if !reflect.DeepEqual(knight.BedroomThings, wantThings) {
+		t.Fatalf("bedroom things %+v", knight.BedroomThings)
+	}
+	yeoman := facts.Ladder[0]
+	if _, ok := yeoman.BedroomMinArea.Value(); ok || len(yeoman.BedroomThings) != 0 {
+		t.Fatalf("a title with no bedroom requirement: %+v", yeoman)
+	}
+	if _, ok := yeoman.BedroomFloored.Value(); ok {
+		t.Fatal("absent floor read as known")
+	}
+	drop, passive := facts.Permits["SilverDrop"], facts.Permits["TradeSettlement"]
+	if drop.Worker != "RoyalTitlePermitWorker_DropResources" || passive.Worker != "RoyalTitlePermitWorker" {
+		t.Fatalf("worker classes %q %q", drop.Worker, passive.Worker)
+	}
+	if acts, ok := drop.Acts.Value(); !ok || !acts {
+		t.Fatalf("call permit %+v", drop)
+	}
+	if cost, ok := drop.FavorCost.Value(); !ok || cost != 6 {
+		t.Fatalf("favor cost %v %v", cost, ok)
+	}
+	if title, ok := drop.MinTitle.Value(); !ok || title != "Knight" {
+		t.Fatalf("min title %q %v", title, ok)
+	}
+	if days, ok := drop.CooldownDays.Value(); !ok || days != 45 {
+		t.Fatalf("cooldown %v %v", days, ok)
+	}
+	if _, ok := passive.FavorCost.Value(); ok {
+		t.Fatal("passive permit has a favor cost")
+	}
+	if _, ok := passive.MinTitle.Value(); ok {
+		t.Fatal("permit with no minimum title read as known")
+	}
+	if acts, ok := passive.Acts.Value(); !ok || acts {
+		t.Fatalf("passive permit %+v", passive)
 	}
 	need, ok := policy.NextThroneNeed(facts)
 	if !ok || need.Title != "Baron" || need.MinArea != 60 || need.MinImpressiveness != 120 || len(need.FloorTags) != 1 || need.FloorTags[0] != "FineFloor" || need.Counts[0].Count != 4 {
 		t.Fatalf("a Knight is owed the Baron's room: %+v %v", need, ok)
 	}
 	read.Holders["Alice"][0].Title = "Yeoman"
-	facts, _ = catalog.WithThroneRequirements(read)
+	facts, _ = catalog.WithTitleDefs(read)
 	if need, ok = policy.NextThroneNeed(facts); !ok || need.Title != "Knight" || len(need.FloorTags) != 2 {
 		t.Fatalf("a Yeoman is owed the Knight's room: %+v %v", need, ok)
 	}
@@ -130,8 +193,14 @@ func TestThroneRequirementErrors(t *testing.T) {
 			t.Errorf("%s: %v", c.name, err)
 		}
 	}
-	if _, err := recordedRoyalTitles(t).WithThroneRequirements(policy.RoyaltyFacts{Ladder: []policy.RoyalRung{{Title: "Duke"}}}); !errors.Is(err, ErrThroneRequirements) {
-		t.Errorf("a ladder title the mirror lacks: %v", err)
+	if _, err := royalTitleCatalog().WithTitleDefs(policy.RoyaltyFacts{}); !errors.Is(err, ErrRoyaltyDefs) {
+		t.Errorf("a catalog with no title rows: %v", err)
+	}
+	if _, err := royalTitleCatalog(&d.RoyalTitleDef{DefName: "T", ThroneRoomRequirements: []*d.Opt_RoomRequirementAny{req(nil)}}).WithTitleDefs(policy.RoyaltyFacts{}); !errors.Is(err, ErrThroneRequirements) {
+		t.Errorf("a title with an unreadable requirement: %v", err)
+	}
+	if _, err := (*DefinitionCatalog)(nil).WithTitleDefs(policy.RoyaltyFacts{}); !errors.Is(err, ErrRoyaltyDefs) {
+		t.Errorf("no catalog: %v", err)
 	}
 }
 

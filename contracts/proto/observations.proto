@@ -1111,22 +1111,6 @@ message UpkeepPerson { rimgovernor.common.v1.Ref pawn = 9; rimgovernor.common.v1
 // things: each row is one requirement met by count of any listed def.
 message BedroomThingRequirement { repeated string any_of = 1; optional int32 count = 2; }
 message RoyalTitleFacts { optional string def_name = 1; optional int32 seniority = 2; optional int32 bedroom_min_area = 3; optional int32 bedroom_min_impressiveness = 4; optional bool bedroom_floored = 5; repeated BedroomThingRequirement bedroom_things = 6; }
-// Royalty read (#1599): the title ladder, the permit catalog and each
-// colonist's holdings. Slow-changing; read on its own, not with the pawn
-// rows. ladder: every RoyalTitleDef by seniority, favor_needed the favor
-// that earns it. permits: every RoyalTitlePermitDef; acts is true when the
-// permit is a call (it carries a royal aid) and favor_cost is then the favor
-// a call spends. A colonist's own holdings ride PawnState.royalty (#1876): one holding per
-// faction. Royalty inactive is Unavailable(NOT_APPLICABLE).
-// RoyalTitleRung throne fields read RoyalTitleDef.throneRoomRequirements:
-// throne_min_impressiveness and throne_min_area are absent when the title sets
-// no such requirement; throne_things are the throne definitions the title
-// accepts (empty when it needs no throne) and throne_assigned is true when the
-// throne must be assigned to the holder.
-// bedroom_*: the title's bedroom requirements (RoyalTitleDef.bedroomRequirements, as UpkeepFacts reads them for a holder, without the holder's ideo precept exemptions): bedroom_min_area and bedroom_min_impressiveness are absent when the title sets none, bedroom_floored is true when it needs a floor and bedroom_things are the required furniture rows (an empty list needs none).
-message RoyalTitleRung { optional string def_name = 1; optional int32 seniority = 2; optional int32 favor_needed = 3; optional int32 throne_min_impressiveness = 4; optional int32 throne_min_area = 5; repeated string throne_things = 6; optional bool throne_assigned = 7; optional int32 bedroom_min_area = 8; optional int32 bedroom_min_impressiveness = 9; optional bool bedroom_floored = 10; repeated BedroomThingRequirement bedroom_things = 11; }
-// worker_class is the permit def's workerClass type name (RoyalTitlePermitWorker_CallAid, _CallLaborers, _CallShuttle, _DropResources, _OrbitalStrike; the base RoyalTitlePermitWorker for a permit with no worker of its own): what the permit does for the colony.
-message RoyalPermitDef { optional string def_name = 1; optional string min_title = 2; optional int32 permit_points = 3; optional bool acts = 4; optional int32 favor_cost = 5; optional double cooldown_days = 6; optional string worker_class = 7; }
 // permit_cooldowns (#1607): one row per held permit.
 // last_used_tick is FactionPermit.LastUsedTick (absent when never used) and
 // cooldown_remaining_ticks the ticks until it can be used again (0 when ready),
@@ -1164,8 +1148,10 @@ message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Re
 // list was built after the read.
 message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
 // Neuroformer stock, bestowing ceremonies and thrones are colony facts, read in
-// ColonyFactsSnapshot.royalty (#1877), not here.
-message RoyaltyFacts { reserved 5, 6, 7; reserved "neuroformers", "ceremonies", "thrones"; rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; reserved 4; }
+// ColonyFactsSnapshot.royalty (#1877), not here. The title ladder and permit
+// catalog are static defs read from the def mirror (RoyalTitleDef,
+// RoyalTitlePermitDef; #1875).
+message RoyaltyFacts { reserved 2, 3, 4, 5, 6, 7; reserved "ladder", "permits", "neuroformers", "ceremonies", "thrones"; rimgovernor.common.v1.ObservationContext context = 1; }
 // Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
 // stock, the pending bestowing ceremonies and the standing thrones. Absent
 // without Royalty.

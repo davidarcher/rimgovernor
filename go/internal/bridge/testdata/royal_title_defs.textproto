@@ -4,10 +4,20 @@
 # throneRoomRequirements are carried; the mirror's other title fields are not read here.
 royal_title_defs: {
   defName: "Yeoman"
+  seniority: 100
+  favorCost: 6
   modPackageId: "ludeon.rimworld.royalty"
 }
 royal_title_defs: {
   defName: "Knight"
+  seniority: 300
+  favorCost: 8
+  bedroomRequirements: { value: { RoomRequirement_Area: { area: 24 } } }
+  bedroomRequirements: { value: { RoomRequirement_Impressiveness: { impressiveness: 40 } } }
+  bedroomRequirements: { value: { RoomRequirement_TerrainWithTags: { labelKey: "RoomRequirementAllFloored" tags: "Floor" tags: "FineFloor" } } }
+  bedroomRequirements: { value: { RoomRequirement_ThingAnyOf: { things: "DoubleBed" things: "RoyalBed" things: "DeathrestCasket" } } }
+  bedroomRequirements: { value: { RoomRequirement_Thing: { thingDef: "EndTable" } } }
+  bedroomRequirements: { value: { RoomRequirement_Thing: { thingDef: "Dresser" } } }
   throneRoomRequirements: { value: { RoomRequirement_HasAssignedThroneAnyOf: { things: "Throne" things: "GrandThrone" } } }
   throneRoomRequirements: { value: { RoomRequirement_Area: { area: 30 } } }
   throneRoomRequirements: { value: { RoomRequirement_Impressiveness: { impressiveness: 60 } } }
@@ -25,6 +35,8 @@ royal_title_defs: {
 }
 royal_title_defs: {
   defName: "Baron"
+  seniority: 500
+  favorCost: 14
   throneRoomRequirements: { value: { RoomRequirement_HasAssignedThroneAnyOf: { things: "GrandThrone" } } }
   throneRoomRequirements: { value: { RoomRequirement_Area: { area: 60 } } }
   throneRoomRequirements: { value: { RoomRequirement_Impressiveness: { impressiveness: 120 } } }
@@ -40,4 +52,19 @@ royal_title_defs: {
   throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoBiotechBuildings" buildingTags: "Biotech" } } }
   throneRoomRequirements: { value: { RoomRequirement_ForbiddenBuildings: { labelKey: "RoomRequirementNoAnomalyBuildings" buildingTags: "Anomaly" } } }
   modPackageId: "ludeon.rimworld.royalty"
+}
+# Permits (#1875), from RoyalPermits_Empire.xml: TradeSettlement (a passive permit, the base
+# worker) and SilverDrop (a call: DropResourcesBase supplies the worker, points and cooldown).
+royal_title_permit_defs: {
+  defName: "TradeSettlement"
+  workerClass: "RimWorld.RoyalTitlePermitWorker"
+}
+royal_title_permit_defs: {
+  defName: "SilverDrop"
+  workerClass: "RimWorld.RoyalTitlePermitWorker_DropResources"
+  royalAid: { favorCost: 6 }
+  cooldownDays: 45
+  minTitle: "Knight"
+  permitPointCost: 1
+  faction: "Empire"
 }

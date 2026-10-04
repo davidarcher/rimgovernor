@@ -13,14 +13,16 @@ using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
-    // The royalty read (#1599): the title ladder, the permit catalog and each
+    // The royalty read (#1599), now only the Royalty-applicable gate: the title
+    // ladder and permit catalog are def-mirror rows (#1875). It was once the title
+    // ladder, the permit catalog and each
     // colonist's holdings. It changes on quest completion or a title change,
     // so the controller reads it on its own slow cadence, not with the pawn rows.
     public sealed class NativeRoyaltyTool
     {
         internal const string ToolName = "rimgovernor/observations_read_royalty_facts";
 
-        [Tool(ToolName, Title = "Read royalty facts", Description = "Royal title ladder, permit catalog, thrones, ceremonies and neuroformers (each colonist's own royalty rides its pawn row). Not applicable without Royalty. Read-only.")]
+        [Tool(ToolName, Title = "Read royalty facts", Description = "Royalty applicability only (the title ladder and permit catalog are def-mirror rows); once also thrones, ceremonies and neuroformers (each colonist's own royalty rides its pawn row). Not applicable without Royalty. Read-only.")]
         [ToolResponse("payload", "string", "Official RoyaltyFactsReply ProtoJSON.", Always = true)]
         public async Task<object> ReadRoyaltyFacts(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw RoyaltyFactsRequest ProtoJSON string.")] object? request = null)
@@ -43,63 +45,9 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Rung reads RoyalTitleDef.throneRoomRequirements: the minimum
-        // impressiveness and area, and the throne definitions that must stand
-        // assigned to the holder.
-        private static Obs.RoyalTitleRung Rung(RoyalTitleDef title)
-        {
-            var rung = new Obs.RoyalTitleRung { DefName = title.defName, Seniority = title.seniority, FavorNeeded = title.favorCost };
-            foreach (var req in title.throneRoomRequirements ?? Enumerable.Empty<RoomRequirement>())
-            {
-                switch (req)
-                {
-                    case RoomRequirement_Area area: rung.ThroneMinArea = Math.Max(rung.ThroneMinArea, area.area); break;
-                    case RoomRequirement_Impressiveness imp: rung.ThroneMinImpressiveness = Math.Max(rung.ThroneMinImpressiveness, imp.impressiveness); break;
-                    case RoomRequirement_HasAssignedThroneAnyOf throne:
-                        rung.ThroneAssigned = true;
-                        rung.ThroneThings.AddRange((throne.things ?? new List<ThingDef>()).Where(d => d != null && ProtoBoundary.IsIdentifier(d.defName)).Select(d => d.defName));
-                        break;
-                }
-            }
-            foreach (var req in title.bedroomRequirements ?? Enumerable.Empty<RoomRequirement>())
-            {
-                switch (req)
-                {
-                    case RoomRequirement_Area area: rung.BedroomMinArea = Math.Max(rung.BedroomMinArea, area.area); break;
-                    case RoomRequirement_Impressiveness imp: rung.BedroomMinImpressiveness = Math.Max(rung.BedroomMinImpressiveness, imp.impressiveness); break;
-                    case RoomRequirement_TerrainWithTags _: rung.BedroomFloored = true; break;
-                    case RoomRequirement_ThingAnyOfCount anyCount: rung.BedroomThings.Add(BedroomThing(anyCount.things, anyCount.count)); break;
-                    case RoomRequirement_ThingAnyOf any: rung.BedroomThings.Add(BedroomThing(any.things, 1)); break;
-                    case RoomRequirement_ThingCount count: rung.BedroomThings.Add(BedroomThing(new List<ThingDef> { count.thingDef }, count.count)); break;
-                    case RoomRequirement_Thing thing: rung.BedroomThings.Add(BedroomThing(new List<ThingDef> { thing.thingDef }, 1)); break;
-                }
-            }
-            return rung;
-        }
-
-        private static Obs.BedroomThingRequirement BedroomThing(List<ThingDef> defs, int count)
-        {
-            var row = new Obs.BedroomThingRequirement { Count = count };
-            row.AnyOf.AddRange(defs.Where(d => d != null && ProtoBoundary.IsIdentifier(d.defName)).Select(d => d.defName));
-            return row;
-        }
-
         private static Obs.RoyaltyFacts Read(Common.ObservationContext context)
         {
             var facts = new Obs.RoyaltyFacts { Context = context };
-            foreach (var title in DefDatabase<RoyalTitleDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName))
-                .OrderBy(d => d.seniority).ThenBy(d => d.defName, StringComparer.Ordinal))
-                facts.Ladder.Add(Rung(title));
-            foreach (var permit in DefDatabase<RoyalTitlePermitDef>.AllDefsListForReading.Where(d => ProtoBoundary.IsIdentifier(d.defName))
-                .OrderBy(d => d.defName, StringComparer.Ordinal))
-            {
-                var row = new Obs.RoyalPermitDef { DefName = permit.defName, PermitPoints = permit.permitPointCost, Acts = permit.royalAid != null, CooldownDays = permit.cooldownDays };
-                if (permit.minTitle != null && ProtoBoundary.IsIdentifier(permit.minTitle.defName)) row.MinTitle = permit.minTitle.defName;
-                if (permit.royalAid != null) row.FavorCost = permit.royalAid.favorCost;
-                // What the permit does for the colony (#1606): its worker class.
-                if (permit.workerClass != null && ProtoBoundary.IsIdentifier(permit.workerClass.Name)) row.WorkerClass = permit.workerClass.Name;
-                facts.Permits.Add(row);
-            }
             return facts;
         }
 

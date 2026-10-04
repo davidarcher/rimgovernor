@@ -10,9 +10,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The royalty read (#1599): the title ladder, permit catalog and colonist
-// holdings. They change on quest completion or a title change, so the client
-// keeps the last read for a load until RoyaltyRefreshTicks pass.
+// The royalty read (#1599): what remains of it is the Royalty-applicable gate
+// (the ladder and permits are def-mirror rows, DefinitionCatalog.WithTitleDefs,
+// #1875; the rest moved to PawnState.royalty and the colony section). The
+// client keeps the last read for a load until RoyaltyRefreshTicks pass.
 
 const methodRoyaltyFacts = "rimgovernor/observations_read_royalty_facts"
 
@@ -69,44 +70,8 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return nil, contract("invalid royalty context")
 	}
-	out := &policy.RoyaltyFacts{Permits: map[string]policy.RoyalPermit{}, Holders: map[policy.PawnID][]policy.RoyalHolding{},
+	out := &policy.RoyaltyFacts{Holders: map[policy.PawnID][]policy.RoyalHolding{},
 		Psycasts: map[policy.PawnID][]policy.Psycast{}, Casters: map[policy.PawnID]policy.PsycasterState{}}
-	titles := map[string]bool{}
-	for _, row := range v.Ladder {
-		if validID(row.GetDefName()) != nil || titles[row.GetDefName()] {
-			return nil, contract("invalid royalty title")
-		}
-		titles[row.GetDefName()] = true
-		// The throne requirement is not read here: the def mirror supplies it
-		// (DefinitionCatalog.WithThroneRequirements, #1861).
-		rung := policy.RoyalRung{Title: row.GetDefName(), Seniority: optionalFact(intPtr(row.Seniority)), FavorNeeded: optionalFact(intPtr(row.FavorNeeded)),
-			BedroomMinArea: optionalFact(intPtr(row.BedroomMinArea)), BedroomMinImpressiveness: optionalFact(intPtr(row.BedroomMinImpressiveness)), BedroomFloored: optionalFact(row.BedroomFloored)}
-		for _, req := range row.BedroomThings {
-			if req == nil || len(req.AnyOf) == 0 || req.GetCount() < 1 {
-				return nil, contract("invalid royalty bedroom requirement")
-			}
-			thing := policy.BedroomThing{Count: int(req.GetCount())}
-			for _, def := range req.AnyOf {
-				if validID(def) != nil {
-					return nil, contract("invalid royalty bedroom definition")
-				}
-				thing.AnyOf = append(thing.AnyOf, policy.Resource(def))
-			}
-			rung.BedroomThings = append(rung.BedroomThings, thing)
-		}
-		out.Ladder = append(out.Ladder, rung)
-	}
-	for _, row := range v.Permits {
-		name := row.GetDefName()
-		if validID(name) != nil || row.MinTitle != nil && validID(row.GetMinTitle()) != nil || row.WorkerClass != nil && validID(row.GetWorkerClass()) != nil {
-			return nil, contract("invalid royalty permit")
-		}
-		if _, exists := out.Permits[name]; exists {
-			return nil, contract("duplicate royalty permit %s", name)
-		}
-		out.Permits[name] = policy.RoyalPermit{Name: name, MinTitle: optionalFact(row.MinTitle), PermitPoints: optionalFact(intPtr(row.PermitPoints)), Acts: optionalFact(row.Acts),
-			FavorCost: optionalFact(intPtr(row.FavorCost)), CooldownDays: optionalFact(row.CooldownDays), Worker: row.GetWorkerClass()}
-	}
 	return out, nil
 }
 

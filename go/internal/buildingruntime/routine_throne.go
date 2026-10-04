@@ -47,15 +47,15 @@ func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.Gen
 	if facts == nil {
 		return nil
 	}
-	// The throne requirements come from the def mirror, not the native read
-	// (#1861); a title the mirror cannot answer for leaves royalty unknown.
+	// The ladder and permits come from the def mirror, not the native read
+	// (#1861, #1875); a def the mirror cannot answer for leaves royalty unknown.
 	// The colonists' own holdings and psycasts ride their pawn rows (#1876).
 	withPawns, err := bridge.WithPawnRoyalty(*facts, reading.Frame.Pawns)
 	if err != nil {
 		clockSchedulerLog("royalty read deferred: %v", err)
 		return nil
 	}
-	mirrored, err := reading.Frame.Catalog.WithThroneRequirements(withPawns)
+	mirrored, err := reading.Frame.Catalog.WithTitleDefs(withPawns)
 	if err != nil {
 		clockSchedulerLog("royalty read deferred: %v", err)
 		return nil

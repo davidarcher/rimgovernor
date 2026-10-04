@@ -11,14 +11,6 @@ import (
 func royaltyRead() *o.RoyaltyFacts {
 	return &o.RoyaltyFacts{
 		Context: authorityTestContext(7),
-		Ladder: []*o.RoyalTitleRung{
-			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), BedroomMinImpressiveness: proto.Int32(50), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"EndTable"}, Count: proto.Int32(1)}}},
-			{DefName: proto.String("Yeoman")},
-		},
-		Permits: []*o.RoyalPermitDef{
-			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30), WorkerClass: proto.String("RoyalTitlePermitWorker_CallLaborers")},
-			{DefName: proto.String("TradeSettlement"), Acts: proto.Bool(false)},
-		},
 	}
 }
 
@@ -87,31 +79,6 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(facts.Ladder) != 2 || facts.Ladder[0].Title != "Knight" {
-		t.Fatalf("ladder %+v", facts.Ladder)
-	}
-	if n, ok := facts.Ladder[0].FavorNeeded.Value(); !ok || n != 6 {
-		t.Fatalf("favor needed %v %v", n, ok)
-	}
-	if _, ok := facts.Ladder[1].FavorNeeded.Value(); ok {
-		t.Fatal("absent favor needed read as known")
-	}
-	if _, ok := facts.Ladder[0].Throne.Value(); ok {
-		t.Fatal("the native read supplied a throne requirement: the def mirror owns it")
-	}
-	call := facts.Permits["CallLaborerPack"]
-	if call.Worker != "RoyalTitlePermitWorker_CallLaborers" || facts.Permits["TradeSettlement"].Worker != "" {
-		t.Fatalf("worker classes %q %q", call.Worker, facts.Permits["TradeSettlement"].Worker)
-	}
-	if acts, _ := call.Acts.Value(); !acts {
-		t.Fatalf("call permit %+v", call)
-	}
-	if cost, ok := call.FavorCost.Value(); !ok || cost != 6 {
-		t.Fatalf("favor cost %v %v", cost, ok)
-	}
-	if _, ok := facts.Permits["TradeSettlement"].FavorCost.Value(); ok {
-		t.Fatal("passive permit has a favor cost")
-	}
 	holdings := facts.Holders[policy.PawnID("Human12")]
 	if len(holdings) != 2 || holdings[0].Title != "Knight" || len(holdings[0].Permits) != 1 {
 		t.Fatalf("holdings %+v", holdings)
@@ -147,41 +114,13 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	}
 }
 
-// TestDecodeRoyaltyFactsBedroom (#1605): the rung's bedroom requirements
-// decode; an absent flag stays unknown.
-func TestDecodeRoyaltyFactsBedroom(t *testing.T) {
-	facts, err := DecodeRoyaltyFacts(royaltyRead(), pbIdentity())
-	if err != nil {
-		t.Fatal(err)
-	}
-	rung := facts.Ladder[0]
-	if n, ok := rung.BedroomMinImpressiveness.Value(); !ok || n != 50 || len(rung.BedroomThings) != 1 || rung.BedroomThings[0].AnyOf[0] != "EndTable" || rung.BedroomThings[0].Count != 1 {
-		t.Fatalf("bedroom %+v", rung)
-	}
-	if _, ok := rung.BedroomMinArea.Value(); ok {
-		t.Fatal("absent bedroom area read as known")
-	}
-}
-
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title"} {
+	for _, change := range []string{"world"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
-			case "bedroom-count":
-				v.Ladder[0].BedroomThings[0].Count = proto.Int32(0)
-			case "bedroom-def":
-				v.Ladder[0].BedroomThings[0].AnyOf = []string{""}
 			case "world":
 				v.Context.Identity.LoadToken = proto.String("other")
-			case "title-duplicate":
-				v.Ladder = append(v.Ladder, v.Ladder[0])
-			case "title-id":
-				v.Ladder[0].DefName = proto.String("")
-			case "permit-duplicate":
-				v.Permits = append(v.Permits, v.Permits[0])
-			case "permit-min-title":
-				v.Permits[0].MinTitle = proto.String("")
 			}
 			if _, err := DecodeRoyaltyFacts(v, pbIdentity()); err == nil {
 				t.Fatal("malformed royalty facts accepted")
