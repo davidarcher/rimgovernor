@@ -69,13 +69,19 @@ sleeping planner uses the existing bed-assignment operation for ordinary beds.
 ## Goal concepts
 
 Every goal the routine review raises is one of four concepts (epic #1012).
-Today all four are still stored as goal rows; the concept says which
-lifecycle a goal follows as they move apart.
+A Response is an incident row and a Project is a `projects` row (#1926);
+Standards are the only goal rows. The concept says which lifecycle a goal
+follows. Incident and Project methods live in `goal_methods` beside the
+goals' ones, each row owned by exactly one of `goal_id`, `incident_id` or
+`project_id` (a Project's epoch is always `0`), and go through the same
+admission. A Project is saved as `project/<id>` (`GovernorProjectBlob`,
+`GovernorStateSchemaVersion` 3); its methods are re-planned after a load.
+The review does not bind Projects yet (#1927).
 
 | Concept | What it is | Lifecycle |
 | --- | --- | --- |
 | Standard | A measured target held over time. A chore is a Standard whose target is no outstanding work. | Keyed by world and GoalID; re-arms with a new epoch when the target regresses. |
-| Project | A finite piece of work with a finished state and dependency links to other Projects. | Keyed by world and GoalID; finishes once. A finished Project that later breaks opens a new Project, never an epoch bump. The colony stage is derived from finished foothold Projects. |
+| Project | A finite piece of work with a finished state and dependency links to other Projects. | One `projects` row per `project-<hex8 world digest>-<kind>-<gen>` id (`domain.Project`, no epoch); finishes once. A finished Project that later breaks opens a new Project, never an epoch bump. The colony stage is derived from finished foothold Projects. |
 | Response | An incident triggered by an event, one row per occurrence (trigger, start, end). | Opens on the event, closes when it is handled. Methods and plans still go through the shared ColonyPlan and Admission. |
 | Rule | An admission veto. It rejects proposals; it pursues nothing and owns no methods. | Evaluated at Admission. Suspending other work is a Rule's job, not a priority value. |
 

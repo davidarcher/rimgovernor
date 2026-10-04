@@ -38,7 +38,7 @@ func settledRetirementOutcome(progress domain.Progress) bool {
 // Only settled autopilot methods retire. The current root plan, unresolved effects,
 // cleanup and unsuccessful work keep their complete catalog entries.
 func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick, census domain.Fact[policy.CurrentConstruction], floors map[retirementWorld]domain.Tick) error {
-	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id,m.incident_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
+	rows, err := tx.QueryContext(ctx, "SELECT p.id,m.goal_id,m.incident_id,m.project_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 ORDER BY p.id LIMIT 257")
 	if err != nil {
 		return err
 	}
@@ -46,11 +46,12 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		plan     domain.PlanID
 		goal     sql.NullString
 		incident sql.NullString
+		project  sql.NullString
 	}
 	var links []link
 	for rows.Next() {
 		var v link
-		if err = rows.Scan(&v.plan, &v.goal, &v.incident); err != nil {
+		if err = rows.Scan(&v.plan, &v.goal, &v.incident, &v.project); err != nil {
 			rows.Close()
 			return err
 		}
@@ -68,10 +69,19 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if v.plan == current.Plan {
 			continue
 		}
-		// Incidents are autopilot-owned (#1020); a goal is only when the
-		// autopilot sourced it.
+		// Incidents are autopilot-owned (#1020); a goal or project is only
+		// when the autopilot sourced it.
 		var g GoalState
-		if !v.incident.Valid {
+		var owned ProjectState
+		switch {
+		case v.project.Valid:
+			if owned, err = loadProject(ctx, tx, domain.ProjectID(v.project.String)); err != nil {
+				return err
+			}
+			if owned.Project.Source != domain.AutopilotGoal {
+				continue
+			}
+		case !v.incident.Valid:
 			if g, err = loadGoal(ctx, tx, domain.GoalID(v.goal.String)); err != nil {
 				return err
 			}
@@ -115,7 +125,7 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if !settled {
 			continue
 		}
-		if g.Revision == ^uint64(0) {
+		if g.Revision == ^uint64(0) || owned.Revision == ^uint64(0) {
 			return ErrCapacity
 		}
 		for _, progress := range p.Progress {
@@ -128,6 +138,12 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 			return err
 		}
 		if v.incident.Valid {
+			continue
+		}
+		if v.project.Valid {
+			if _, err = tx.ExecContext(ctx, "UPDATE projects SET revision=? WHERE id=?", strconv.FormatUint(owned.Revision+1, 10), v.project.String); err != nil {
+				return err
+			}
 			continue
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE goals SET revision=? WHERE id=?", strconv.FormatUint(g.Revision+1, 10), v.goal.String); err != nil {

@@ -21,6 +21,9 @@ import (
 //
 //	goal/<goal id>            GovernorGoalBlob, one per unretired goal;
 //	                          a retired goal's key is deleted.
+//	project/<project id>      GovernorProjectBlob, one per unretired project
+//	                          (finished ones included: they are the record);
+//	                          a retired project's key is deleted.
 //	family/layout_plan        GovernorFamilyBlob, Record = policy.LayoutPlan
 //	family/tidies             GovernorFamilyBlob, Record = []LayoutTidy
 //	                          (latest state per item, sorted by item)
@@ -32,10 +35,11 @@ import (
 // (colony, map, tick) of the newest row written. Field names are the
 // Go struct field names encoding/json emits; a breaking change bumps
 // GovernorStateSchemaVersion.
-const GovernorStateSchemaVersion = 2
+const GovernorStateSchemaVersion = 3
 
 const (
 	GovernorGoalKeyPrefix       = "goal/"
+	GovernorProjectKeyPrefix    = "project/"
 	GovernorLayoutPlanKey       = "family/layout_plan"
 	GovernorTidiesKey           = "family/tidies"
 	GovernorDefenseLayoutKey    = "family/defense_layout"
@@ -49,6 +53,14 @@ type GovernorGoalBlob struct {
 	SchemaVersion int         `json:"schemaVersion"`
 	Goal          domain.Goal `json:"goal"`
 	Revision      uint64      `json:"revision"`
+}
+
+// GovernorProjectBlob is one project: its payload and CAS revision. Methods
+// are session state, re-planned after a load, as a goal's.
+type GovernorProjectBlob struct {
+	SchemaVersion int            `json:"schemaVersion"`
+	Project       domain.Project `json:"project"`
+	Revision      uint64         `json:"revision"`
 }
 
 // GovernorFamilyBlob is one family record; Scope is set for timeline rows.
@@ -110,6 +122,32 @@ func (s *Store) GovernorStateBlobs(ctx context.Context) (map[string]string, erro
 			return nil, fmt.Errorf("goal %s: %w", id, err)
 		}
 		if err = put(GovernorGoalKeyPrefix+string(id), GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: g.Goal, Revision: g.Revision}); err != nil {
+			return nil, err
+		}
+	}
+	projectRows, err := tx.QueryContext(ctx, "SELECT id FROM projects WHERE retired=0 ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	var projectIDs []domain.ProjectID
+	for projectRows.Next() {
+		var id domain.ProjectID
+		if err = projectRows.Scan(&id); err != nil {
+			projectRows.Close()
+			return nil, err
+		}
+		projectIDs = append(projectIDs, id)
+	}
+	projectRows.Close()
+	if err = projectRows.Err(); err != nil {
+		return nil, err
+	}
+	for _, id := range projectIDs {
+		p, err := loadProject(ctx, tx, id)
+		if err != nil {
+			return nil, fmt.Errorf("project %s: %w", id, err)
+		}
+		if err = put(GovernorProjectKeyPrefix+string(id), GovernorProjectBlob{SchemaVersion: GovernorStateSchemaVersion, Project: p.Project, Revision: p.Revision}); err != nil {
 			return nil, err
 		}
 	}

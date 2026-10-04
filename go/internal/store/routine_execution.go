@@ -43,9 +43,13 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 	if !review.Enabled || !sameRoot(review.Snapshot, root) {
 		return ErrConflict
 	}
-	var goalID, incidentID sql.NullString
-	if err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id FROM goal_methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID); err != nil {
+	var goalID, incidentID, projectID sql.NullString
+	if err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id FROM goal_methods WHERE plan_id=?", target.Plan).Scan(&goalID, &incidentID, &projectID); err != nil {
 		return err
+	}
+	if projectID.Valid {
+		// Projects are not bound by the routine review until #1927.
+		return fmt.Errorf("%w: project %s is not bound by the review", ErrConflict, projectID.String)
 	}
 	if incidentID.Valid {
 		if err = authorizeIncidentPlan(ctx, tx, review, domain.IncidentID(incidentID.String), root, target); err != nil {

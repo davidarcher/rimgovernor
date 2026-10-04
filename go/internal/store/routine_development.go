@@ -37,10 +37,19 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		source, priority := domain.PlayerGoal, 3
 		world := World{}
 		admitted := 0
-		var owner, incident sql.NullString
-		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &admitted)
+		var owner, incident, project sql.NullString
+		err = tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,priority FROM goal_methods WHERE plan_id=?", plan.Spec.ID()).Scan(&owner, &incident, &project, &admitted)
 		goalID = domain.GoalID(owner.String)
-		if err == nil && incident.Valid {
+		if err == nil && project.Valid {
+			// A Project's method serves its kind; it is not a routine
+			// binding yet (#1927).
+			p, e := loadProject(ctx, tx, domain.ProjectID(project.String))
+			if e != nil {
+				return nil, e
+			}
+			goalID, source, priority = p.Project.Kind, p.Project.Source, admitted
+			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
+		} else if err == nil && incident.Valid {
 			// An incident's method serves its Response kind (#1020).
 			i, e := loadIncident(ctx, tx, domain.IncidentID(incident.String))
 			if e != nil {

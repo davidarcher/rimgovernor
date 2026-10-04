@@ -33,7 +33,7 @@ type GoalState struct {
 const maxActiveGoals = 512
 
 // initializeGoals creates the goal lifecycle tables. goals and routine_review
-// are session caches (#1011): RebuildGoals refills goals from the save and
+// are session caches (#1011): RebuildGoals refills goals and projects from the save and
 // ResetRoutineReview empties routine_review on every world change, and the
 // next review recomputes it. Goal-create request replay is in memory only.
 func initializeGoals(ctx context.Context, tx *sql.Tx) error {
@@ -41,9 +41,12 @@ func initializeGoals(ctx context.Context, tx *sql.Tx) error {
 CREATE INDEX active_goals ON goals(id) WHERE retired=0;
 CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload BLOB NOT NULL) STRICT;
 CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
-CREATE TABLE goal_methods(goal_id TEXT REFERENCES goals(id), incident_id TEXT REFERENCES incidents(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((goal_id IS NULL) <> (incident_id IS NULL))) STRICT;
+CREATE TABLE projects(id TEXT PRIMARY KEY, revision TEXT NOT NULL, payload BLOB NOT NULL, retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
+CREATE INDEX active_projects ON projects(id) WHERE retired=0;
+CREATE TABLE goal_methods(goal_id TEXT REFERENCES goals(id), incident_id TEXT REFERENCES incidents(id), project_id TEXT REFERENCES projects(id), epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE REFERENCES plans(id), priority INTEGER NOT NULL, reason TEXT, CHECK((goal_id IS NOT NULL) + (incident_id IS NOT NULL) + (project_id IS NOT NULL) = 1), CHECK(project_id IS NULL OR epoch='0')) STRICT;
 CREATE UNIQUE INDEX goal_method_keys ON goal_methods(goal_id,epoch,method_id) WHERE goal_id IS NOT NULL;
 CREATE UNIQUE INDEX incident_method_keys ON goal_methods(incident_id,method_id) WHERE incident_id IS NOT NULL;
+CREATE UNIQUE INDEX project_method_keys ON goal_methods(project_id,method_id) WHERE project_id IS NOT NULL;
 CREATE TABLE routine_review(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE defense_layout(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
 CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload BLOB NOT NULL) STRICT;
@@ -513,9 +516,9 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 		return err
 	}
 	var id sql.NullString
-	var incident sql.NullString
+	var incident, project sql.NullString
 	var epoch string
-	err := tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &incident, &epoch)
+	err := tx.QueryRowContext(ctx, "SELECT goal_id,incident_id,project_id,epoch FROM goal_methods WHERE plan_id=?", plan).Scan(&id, &incident, &project, &epoch)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -524,6 +527,9 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	}
 	if incident.Valid {
 		return guardIncidentWork(ctx, tx, domain.IncidentID(incident.String), current, tick)
+	}
+	if project.Valid {
+		return guardProjectWork(ctx, tx, domain.ProjectID(project.String), current, tick)
 	}
 	state, err := loadGoal(ctx, tx, domain.GoalID(id.String))
 	if err != nil {
