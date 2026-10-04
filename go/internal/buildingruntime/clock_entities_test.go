@@ -12,12 +12,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// entityFake answers the three entity reads whole and counts reads per
+// entityFake answers the two entity reads whole and counts reads per
 // section.
 type entityFake struct {
 	tick  int64
 	reads map[facts.Section]int
-	full  map[string]*o.ZoneState
+	full  map[string]*o.BuildingState
 	err   error
 }
 
@@ -28,17 +28,12 @@ func (f *entityFake) ask(section facts.Section) {
 	f.reads[section]++
 }
 
-func (f *entityFake) ReadZones(context.Context, *c.Identity) (bridge.EntityRows[*o.ZoneState], bridge.Result, error) {
-	f.ask(facts.Zones)
-	if f.err != nil {
-		return bridge.EntityRows[*o.ZoneState]{}, bridge.Result{}, f.err
-	}
-	return bridge.EntityRows[*o.ZoneState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.TableOf(f.full)}, bridge.Result{}, nil
-}
-
 func (f *entityFake) ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error) {
 	f.ask(facts.Buildings)
-	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.Table[*o.BuildingState]{}}, bridge.Result{}, nil
+	if f.err != nil {
+		return bridge.EntityRows[*o.BuildingState]{}, bridge.Result{}, f.err
+	}
+	return bridge.EntityRows[*o.BuildingState]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.TableOf(f.full)}, bridge.Result{}, nil
 }
 
 func (f *entityFake) ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error) {
@@ -46,8 +41,8 @@ func (f *entityFake) ReadBillStacks(context.Context, *c.Identity) (bridge.Entity
 	return bridge.EntityRows[*o.BillStack]{Context: &c.ObservationContext{Tick: proto.Int64(f.tick)}, Rows: bridge.Table[*o.BillStack]{}}, bridge.Result{}, nil
 }
 
-func zoneState(id, label string) *o.ZoneState {
-	return &o.ZoneState{Id: proto.String(id), Label: proto.String(label)}
+func buildingState(_, _ string) *o.BuildingState {
+	return &o.BuildingState{}
 }
 
 // Every refresh reads each section whole and replaces it; a failed read
@@ -56,23 +51,23 @@ func TestRefreshEntitySectionsWholeReads(t *testing.T) {
 	f := newClockFacts(nil)
 	scope := facts.Scope{Load: "load", Generation: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
-	native := &entityFake{tick: 100, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a"), "Zone_2": zoneState("Zone_2", "b")}}
+	native := &entityFake{tick: 100, full: map[string]*o.BuildingState{"Wall_1": buildingState("Wall_1", "a"), "Wall_2": buildingState("Wall_2", "b")}}
 	refreshEntitySections(context.Background(), native, f, identity, scope)
-	held, ok := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if !ok || held.Value.Len() != 2 || held.AsOf != 100 || held.Source != "rimgovernor/observations_list_zones" || native.reads[facts.Buildings] != 1 || native.reads[facts.Bills] != 1 {
+	held, ok := facts.Get[EntitySection[*o.BuildingState]](f.store, facts.Buildings)
+	if !ok || held.Value.Len() != 2 || held.AsOf != 100 || held.Source != "rimgovernor/observations_list_buildings" || native.reads[facts.Bills] != 1 {
 		t.Fatalf("%+v ok=%v reads=%v", held, ok, native.reads)
 	}
 	native.tick = 200
-	native.full = map[string]*o.ZoneState{"Zone_3": zoneState("Zone_3", "c")}
+	native.full = map[string]*o.BuildingState{"Wall_3": buildingState("Wall_3", "c")}
 	refreshEntitySections(context.Background(), native, f, identity, scope)
-	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if native.reads[facts.Zones] != 2 || held.AsOf != 200 || held.Value.Len() != 1 || held.Value.At("Zone_3") == nil {
+	held, _ = facts.Get[EntitySection[*o.BuildingState]](f.store, facts.Buildings)
+	if native.reads[facts.Buildings] != 2 || held.AsOf != 200 || held.Value.Len() != 1 || held.Value.At("Wall_3") == nil {
 		t.Fatalf("%+v reads=%v", held.Value, native.reads)
 	}
 	native.err = errors.New("transport")
 	native.tick = 300
 	refreshEntitySections(context.Background(), native, f, identity, scope)
-	if held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones); held.AsOf != 200 || held.Value.Len() != 1 {
+	if held, _ = facts.Get[EntitySection[*o.BuildingState]](f.store, facts.Buildings); held.AsOf != 200 || held.Value.Len() != 1 {
 		t.Fatalf("a failed read must keep the held section: %+v", held)
 	}
 	native.err = nil

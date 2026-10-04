@@ -81,6 +81,10 @@ type Game struct {
 
 	doneOnce sync.Once
 	done     chan struct{}
+
+	// reaped is closed once the launcher has reaped the child and written
+	// exit.json; nil for an attached game, which has no child handle.
+	reaped chan struct{}
 }
 
 // Addr is the loopback GABP address, host:port.
@@ -134,6 +138,15 @@ func (g *Game) Stop(ctx context.Context) error {
 				return fmt.Errorf("gamehost: pid %d did not exit: %w", g.ep.PID, ctx.Err())
 			case <-time.After(50 * time.Millisecond):
 			}
+		}
+	}
+	if g.reaped != nil {
+		// The launcher's reaper writes exit.json after the process dies;
+		// wait for it so nothing writes under the state dir after Stop.
+		select {
+		case <-g.reaped:
+		case <-time.After(stopBound):
+			return fmt.Errorf("gamehost: pid %d not reaped", g.ep.PID)
 		}
 	}
 	return g.removeEndpoint()
@@ -243,7 +256,9 @@ func Launch(ctx context.Context, spec Spec) (*Game, error) {
 	// zombie; the endpoint names the process by pid, not by this handle.
 	// The exit code is recorded for LastExit: a player closing the game
 	// exits 0, a crash or a kill does not.
+	reaped := make(chan struct{})
 	go func() {
+		defer close(reaped)
 		_ = cmd.Wait()
 		code := -1
 		if cmd.ProcessState != nil {
@@ -271,7 +286,7 @@ func Launch(ctx context.Context, spec Spec) (*Game, error) {
 		_ = killTree(pid)
 		return nil, err
 	}
-	return &Game{stateDir: spec.StateDir, ep: ep, done: make(chan struct{})}, nil
+	return &Game{stateDir: spec.StateDir, ep: ep, done: make(chan struct{}), reaped: reaped}, nil
 }
 
 // nextGeneration bumps the per-game launch counter kept beside the endpoint

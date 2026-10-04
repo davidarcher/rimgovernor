@@ -32,7 +32,7 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	}
 	config := s.config
 	config.Sleeping = planner
-	replacement, err := NewClockScheduler(s.player, s.session, f, config, s.clock)
+	replacement, err := NewClockScheduler(s.player, s.session, windowedScheduler{f, n}, config, s.clock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err = NewClockScheduler(s.player, s.session, f, config, s.clock)
+	s, err = NewClockScheduler(s.player, s.session, windowedScheduler{f, n.routineNative}, config, s.clock)
 	if err != nil {
 		t.Fatal(err)
 	}

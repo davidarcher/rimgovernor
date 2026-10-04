@@ -31,7 +31,7 @@ func TestEntityRefreshPreservesPolicyZoneSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	refreshEntitySections(context.Background(), native, f, id, scope)
-	if native.entityFake.reads[facts.Zones] != 0 || native.zonesFake.reads != 1 {
+	if native.zonesFake.reads != 1 {
 		t.Fatal("zone census read twice")
 	}
 	if held, ok := facts.Get[bridge.ZonesRead](f.store, facts.Zones); !ok || len(held.Value.Rows) != 1 {

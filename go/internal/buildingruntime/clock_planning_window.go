@@ -12,10 +12,8 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
-// PlanningWindowNative is the optional native read behind the planning
-// window (bridge.Client.ReadPlanningWindow); a scheduler whose native side
-// lacks it serves no window and a current native's colony read plans no
-// site.
+// PlanningWindowNative is the native read behind the planning window
+// (bridge.Client.ReadPlanningWindow); the scheduler requires it.
 type PlanningWindowNative interface {
 	ReadPlanningWindow(context.Context, *c.Identity, policy.Rectangle) (bridge.PlanningWindow, bridge.Result, error)
 }

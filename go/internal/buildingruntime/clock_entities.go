@@ -5,17 +5,15 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// EntityNative is the optional native side of the entity sections
-// (bridge.Client.ReadZones, ReadBuildings, ReadBillStacks): a scheduler
-// whose native lacks them holds no zones, buildings or bills section.
+// EntityNative is the native side of the buildings and bills sections
+// (bridge.Client.ReadBuildings, ReadBillStacks); the scheduler requires it.
+// The zone census is observation.ZonesNative's.
 type EntityNative interface {
-	ReadZones(context.Context, *c.Identity) (bridge.EntityRows[*o.ZoneState], bridge.Result, error)
 	ReadBuildings(context.Context, *c.Identity) (bridge.EntityRows[*o.BuildingState], bridge.Result, error)
 	ReadBillStacks(context.Context, *c.Identity) (bridge.EntityRows[*o.BillStack], bridge.Result, error)
 }
@@ -24,24 +22,15 @@ type EntityNative interface {
 // rows by entity id.
 type EntitySection[T proto.Message] = bridge.Table[T]
 
-// refreshEntitySections is the review step's refresher for the zones,
-// buildings and bills sections (#358). It runs once per full review step
+// refreshEntitySections is the review step's refresher for the buildings
+// and bills sections (#358). It runs once per full review step
 // after the bundle has fixed the step's scope, and reads each section
 // whole: the snapshot stream's frame serves them. A failed read keeps the
 // held section: a plan may reason over stale state, apply refuses stale
 // intent.
 func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFacts, identity *c.Identity, scope facts.Scope) {
-	if native == nil || f == nil {
-		return
-	}
-	// The policy zone refresher owns the typed zone census when available.
-	// Do not overwrite it with a second read under a different store type.
-	if _, policyZones := native.(observation.ZonesNative); !policyZones {
-		refreshEntitySection(f, scope, identity, facts.Zones, "rimgovernor/observations_list_zones", func() (bridge.EntityRows[*o.ZoneState], error) {
-			rows, _, err := native.ReadZones(ctx, identity)
-			return rows, err
-		})
-	}
+	// The zone census is the policy zone refresher's (observation.ZonesNative),
+	// typed differently under facts.Zones; this refresher never reads zones.
 	refreshEntitySection(f, scope, identity, facts.Buildings, "rimgovernor/observations_list_buildings", func() (bridge.EntityRows[*o.BuildingState], error) {
 		rows, _, err := native.ReadBuildings(ctx, identity)
 		return rows, err

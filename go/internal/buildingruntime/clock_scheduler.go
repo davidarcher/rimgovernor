@@ -31,8 +31,12 @@ import (
 // ClockWindowNative is the scheduler's native read side: the step read is
 // the one read a step or a renewal opens with (scope, clock status,
 // emergency census); the plain clock status read serves the renewal's
-// post-write re-check.
+// post-write re-check. The zone census, planning window and entity sections
+// are required reads: every step attaches them (bridge.Client serves all).
 type ClockWindowNative interface {
+	observation.ZonesNative
+	PlanningWindowNative
+	EntityNative
 	ReadStep(context.Context, bridge.StepRequest) (*o.BundleSnapshot, bridge.Result, error)
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
@@ -761,17 +765,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// The planning window's refresher (#356): its step scope, tick and
 	// whether this step reviews are fixed once the bundle below is read,
 	// before any planning read asks it.
-	var window *planningWindow
-	var zones *zoneRefresher
 	reviews := s.stepReviews(reason)
-	if native, ok := s.native.(observation.ZonesNative); ok {
-		zones = &zoneRefresher{native: native, store: s.facts.store}
-		call = observation.WithZones(call, zones)
-	}
-	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store}
-		call = observation.WithPlanningWindow(call, window)
-	}
+	zones := &zoneRefresher{native: s.native, store: s.facts.store}
+	call = observation.WithZones(call, zones)
+	window := &planningWindow{native: s.native, store: s.facts.store}
+	call = observation.WithPlanningWindow(call, window)
 	stepBegan := time.Now()
 	journal := &journalTimer{}
 	defer func() {
@@ -941,32 +939,24 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			reviews = s.stepReviews(reason)
 		}
 	}
-	if window != nil {
-		window.scope = factsScope(loaded.Context)
-		id, tick := loaded.Context.GetIdentity(), domain.Tick(loaded.Context.GetTick())
-		window.layout = func(ctx context.Context) (store.LayoutPlanRecord, bool, error) {
-			// The plan is keyed by colony and map; a session that holds no
-			// plan identity for this world has no layout to cover.
-			world := s.session.State().Snapshot
-			if world.Colony != domain.ColonyID(id.GetColonyId()) || world.Map != domain.MapID(id.GetMapId()) || world.Validate() != nil {
-				return store.LayoutPlanRecord{}, false, nil
-			}
-			return s.player.journal.LayoutPlan(ctx, world, tick)
+	window.scope = factsScope(loaded.Context)
+	id, tick := loaded.Context.GetIdentity(), domain.Tick(loaded.Context.GetTick())
+	window.layout = func(ctx context.Context) (store.LayoutPlanRecord, bool, error) {
+		// The plan is keyed by colony and map; a session that holds no
+		// plan identity for this world has no layout to cover.
+		world := s.session.State().Snapshot
+		if world.Colony != domain.ColonyID(id.GetColonyId()) || world.Map != domain.MapID(id.GetMapId()) || world.Validate() != nil {
+			return store.LayoutPlanRecord{}, false, nil
 		}
+		return s.player.journal.LayoutPlan(ctx, world, tick)
 	}
-	if zones != nil {
-		zones.scope, zones.tick, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
-	}
+	zones.scope, zones.tick, zones.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
 	// Every full review step refreshes the entity sections and the zone
 	// census, each read whole.
 	if reviews {
-		if native, ok := s.native.(EntityNative); ok {
-			refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context))
-		}
-		if zones != nil {
-			if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
-				clockSchedulerLog("zones: review refresh failed: %v", err)
-			}
+		refreshEntitySections(call, s.native, s.facts, loaded.Context.Identity, factsScope(loaded.Context))
+		if _, err := zones.Zones(call, loaded.Context.Identity); err != nil {
+			clockSchedulerLog("zones: review refresh failed: %v", err)
 		}
 	}
 	state := s.session.State()

@@ -275,7 +275,12 @@ func (e *exporter) copy(p string) (Ref, error) {
 	if err != nil {
 		return Ref{}, err
 	}
-	defer os.Remove(tmp.Name())
+	// Close before removing: a refusal returns with tmp still open, and an
+	// open file cannot be removed on Windows.
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
+	}()
 	out := bufio.NewWriterSize(&capWriter{w: tmp, remaining: e.remaining}, 1<<20)
 	if _, err = f.Seek(0, io.SeekStart); err != nil {
 		return Ref{}, err
