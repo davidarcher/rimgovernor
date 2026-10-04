@@ -229,11 +229,11 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	r, db, session, _, _ := sleepingFixture(t)
 	ctx := context.Background()
 	snapshot := session.State().Snapshot
-	g, err := domain.NewGoal("player-room", domain.PlayerGoal, 3, snapshot, 7)
+	g, err := domain.NewGoal("player-room", 3, snapshot, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = db.CreateGoal(ctx, g); err != nil {
+	if err = db.SeedGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	goal, err := db.ReviewGoal(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit)

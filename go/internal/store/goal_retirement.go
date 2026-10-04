@@ -39,7 +39,7 @@ func retireRoutineGoals(ctx context.Context, tx *sql.Tx, retained map[domain.Goa
 		if err != nil {
 			return err
 		}
-		if g.Goal.Source != domain.AutopilotGoal || g.Goal.Status != domain.GoalInvalidated {
+		if g.Goal.Status != domain.GoalInvalidated {
 			continue
 		}
 		open, err := goalOpenWork(ctx, tx, g)

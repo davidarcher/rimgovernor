@@ -13,11 +13,11 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.GoalState {
 	t.Helper()
 	ctx := context.Background()
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
-	g, err := domain.NewGoal("repairs", domain.AutopilotGoal, 3, snapshot, 10)
+	g, err := domain.NewGoal("repairs", 3, snapshot, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = journal.CreateGoal(ctx, g); err != nil {
+	if err = journal.SeedGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	state, err := journal.ReviewGoal(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)

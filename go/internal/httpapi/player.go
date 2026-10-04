@@ -177,8 +177,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
-	write := path == "/api/chat" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
+	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission"
+	write := path == "/api/chat" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
 	if !read && !write {
 		return false
 	}
@@ -223,10 +223,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	defer cancel()
 	if strings.HasPrefix(path, "/api/player/population-decision") {
 		s.handlePopulationDecision(ctx, w, r, query, path)
-		return true
-	}
-	if strings.HasPrefix(path, "/api/player/goals") {
-		s.handlePlayerGoals(ctx, w, r, query, path)
 		return true
 	}
 	if path == "/api/player/clock" || path == "/api/player/clock/acknowledge" {

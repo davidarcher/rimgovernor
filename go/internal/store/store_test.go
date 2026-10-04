@@ -38,6 +38,14 @@ func plan(t *testing.T, id domain.PlanID, ids ...domain.ActionID) domain.PlanSpe
 func scope() domain.GenerationSnapshot {
 	return domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: "p", Revision: domain.PlanRevision(^uint64(0))}
 }
+
+// otherMap is a world the fixtures' goals are not in: reviewing under it
+// invalidates the goal and cancels its captured work.
+func otherMap() domain.GenerationSnapshot {
+	s := scope()
+	s.Map++
+	return s
+}
 func open(t *testing.T, path string) *Store {
 	t.Helper()
 	s, err := Open(context.Background(), path)

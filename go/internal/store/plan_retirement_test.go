@@ -154,17 +154,14 @@ func TestRoutinePlanRetirementPinsCurrentAndRollsBack(t *testing.T) {
 	}
 }
 
-func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
+func TestRoutinePlanRetirementPinsUnfinishedMethods(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"dependency", "unknown", "player"} {
+	for _, kind := range []string{"dependency", "unknown"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, memoryPath(t))
 			r := routineRequest()
 			g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainResource)
-			if kind == "player" {
-				g = anotherGoal(t, s, "player-goal")
-			}
 			p := plan(t, "method", "method-a", "method-b")
 			if kind == "dependency" {
 				var err error
@@ -176,33 +173,25 @@ func TestRoutinePlanRetirementPinsUnfinishedAndPlayerMethods(t *testing.T) {
 			if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "method", p); err != nil {
 				t.Fatal(err)
 			}
-			if kind == "player" {
-				for _, a := range p.Actions() {
-					if _, err := s.Cancel(ctx, p.ID(), a.ID()); err != nil {
-						t.Fatal(err)
-					}
-				}
-			} else {
-				current := scope()
-				current.Plan = p.ID()
-				if _, err := s.Prepare(ctx, p.ID(), "method-a", current, 10); err != nil {
+			current := scope()
+			current.Plan = p.ID()
+			if _, err := s.Prepare(ctx, p.ID(), "method-a", current, 10); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Dispatch(ctx, p.ID(), "method-a", current, 10); err != nil {
+				t.Fatal(err)
+			}
+			// An unknown intent receipt leaves it to be sent again (#856).
+			receipt := domain.ReceiptAccepted
+			if kind == "unknown" {
+				receipt = domain.ReceiptUnknown
+			}
+			if _, err := s.RecordReceipt(ctx, p.ID(), "method-a", 1, receipt); err != nil {
+				t.Fatal(err)
+			}
+			if kind != "dependency" {
+				if _, err := s.Cancel(ctx, p.ID(), "method-b"); err != nil {
 					t.Fatal(err)
-				}
-				if _, err := s.Dispatch(ctx, p.ID(), "method-a", current, 10); err != nil {
-					t.Fatal(err)
-				}
-				// An unknown intent receipt leaves it to be sent again (#856).
-				receipt := domain.ReceiptAccepted
-				if kind == "unknown" {
-					receipt = domain.ReceiptUnknown
-				}
-				if _, err := s.RecordReceipt(ctx, p.ID(), "method-a", 1, receipt); err != nil {
-					t.Fatal(err)
-				}
-				if kind != "dependency" {
-					if _, err := s.Cancel(ctx, p.ID(), "method-b"); err != nil {
-						t.Fatal(err)
-					}
 				}
 			}
 			r.Tick = 20

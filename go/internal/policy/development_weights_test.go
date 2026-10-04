@@ -34,9 +34,9 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
-		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(EnsureComfort)},
-		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Labor: GoalLabor(MaintainHousing)},
-		{ID: "research", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.4), Labor: GoalLabor(EnsureResearch)},
+		{ID: "comfort", Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(EnsureComfort)},
+		{ID: "expansion", Priority: 4, Deficit: domain.Known(0.5), Labor: GoalLabor(MaintainHousing)},
+		{ID: "research", Priority: 4, Deficit: domain.Known(0.4), Labor: GoalLabor(EnsureResearch)},
 	}
 	s := rank(t, r)
 	if s.Rows[0].Goal != "comfort" || s.Rows[0].Score != 45 || s.Rows[1].Goal != "research" || s.Rows[1].Score != 40 || s.Rows[2].Goal != "expansion" || s.Rows[2].Score != 35 {
@@ -53,7 +53,7 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 	requireSelected(t, s, "comfort", "expansion", "research")
 	// A committed player construction project leaves nothing free: ratio 0.
 	r.Weights = DevelopmentWeights{}
-	r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
+	r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
 	s = rank(t, r)
 	if s.Rows[0].Goal != "research" || s.Rows[1].Goal != "comfort" || s.Rows[1].Score != 30 {
 		t.Fatal(s.Rows)
@@ -63,10 +63,10 @@ func TestDevelopmentBottleneckOrdering(t *testing.T) {
 func TestDevelopmentRiskPenalisesAndDefers(t *testing.T) {
 	r := developmentFixture()
 	r.Goals = []DevelopmentGoal{
-		{ID: "safe", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.5), Risk: domain.Known(0.0)},
-		{ID: "cold", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Risk: domain.Known(0.5)},
-		{ID: "fallout", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(1.0), Risk: domain.Known(1.0)},
-		{ID: "unmeasured", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.3)},
+		{ID: "safe", Priority: 4, Deficit: domain.Known(0.5), Risk: domain.Known(0.0)},
+		{ID: "cold", Priority: 4, Deficit: domain.Known(0.6), Risk: domain.Known(0.5)},
+		{ID: "fallout", Priority: 4, Deficit: domain.Known(1.0), Risk: domain.Known(1.0)},
+		{ID: "unmeasured", Priority: 4, Deficit: domain.Known(0.3)},
 	}
 	s := rank(t, r)
 	rows := map[GoalID]DevelopmentRow{}

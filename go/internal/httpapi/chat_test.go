@@ -156,34 +156,11 @@ func TestChatHTTPAppliesGuidanceThroughPolicyInputs(t *testing.T) {
 		t.Fatal("policy input calls", f.calls)
 	}
 
-	// The next message sees the decision it just recorded, and activating a goal
-	// records a player goal bound to the world's root plan at the observed tick.
-	completer.reply = `{"explanation":"Working on food now.","guidance":{"kind":"activate_goal","goal":"EnsureFoodSupply"}}`
+	// The next message sees the decision it just recorded.
+	completer.reply = `{"explanation":"Rescuing Bob.","guidance":null}`
 	w = playerCall(s, "POST", "/api/chat", strings.Replace(chatJSON, "chat-request", "chat-2", 1), s.playerToken)
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil || w.Code != 201 || resp.Guidance == nil || resp.Guidance.Kind != "activate_goal" || resp.Guidance.Goal == nil || resp.Guidance.Goal.Source != "player" || resp.Guidance.Goal.Need != "deficit" || resp.Guidance.Goal.Tick != 500 {
-		t.Fatal(w.Code, w.Body.String(), err)
-	}
-	if !strings.Contains(completer.seen[1].Messages[1].Content, `{"pawn":"Thing_Human9","decision":"rescue"}`) {
-		t.Fatal(completer.seen[1].Messages[1].Content)
-	}
-	goalID := resp.Guidance.Goal.GoalID
-	goal, err := f.journal.LoadGoal(context.Background(), domain.GoalID(goalID))
-	if err != nil || goal.Goal.Snapshot.Plan != "root/colony/load/0" {
-		t.Fatal(goal, err)
-	}
-
-	// Cancelling names the exact identity the facts listed; the store's own
-	// revision is presented, not one the model invented.
-	completer.reply = `{"explanation":"Stopping that.","guidance":{"kind":"cancel_goal","goalId":"` + string(goalID) + `"}}`
-	w = playerCall(s, "POST", "/api/chat", strings.Replace(chatJSON, "chat-request", "chat-3", 1), s.playerToken)
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil || w.Code != 201 || resp.Guidance == nil || resp.Guidance.Kind != "cancel_goal" || resp.Guidance.Goal == nil || resp.Guidance.Goal.Status != "cancelled" {
-		t.Fatal(w.Code, w.Body.String(), err)
-	}
-	if !strings.Contains(completer.seen[2].Messages[1].Content, string(goalID)) {
-		t.Fatal("cancellable goal absent from facts")
-	}
-	if f.calls != 3 {
-		t.Fatal("policy input calls", f.calls)
+	if w.Code != 201 || !strings.Contains(completer.seen[1].Messages[1].Content, `{"pawn":"Thing_Human9","decision":"rescue"}`) {
+		t.Fatal(w.Code, completer.seen[1].Messages[1].Content)
 	}
 }
 
@@ -194,7 +171,7 @@ func TestChatHTTPRefusesGuidanceOutsideFacts(t *testing.T) {
 		code        string
 	}{
 		{"unknown pawn", `{"explanation":"ok","guidance":{"kind":"set_population_decision","pawn":"Thing_Human77","decision":"rescue"}}`, 422, "unknown_facts"},
-		{"unknown goal", `{"explanation":"ok","guidance":{"kind":"cancel_goal","goalId":"routine-nope"}}`, 422, "unknown_facts"},
+		{"retired cancel_goal", `{"explanation":"ok","guidance":{"kind":"cancel_goal","goalId":"routine-nope"}}`, 422, "invalid_guidance"},
 		{"order-shaped", `{"explanation":"ok","guidance":{"kind":"build","defName":"Wall"}}`, 422, "invalid_guidance"},
 		{"malformed", `not json`, 422, "invalid_guidance"},
 	} {

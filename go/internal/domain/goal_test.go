@@ -2,9 +2,9 @@ package domain
 
 import "testing"
 
-func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
+func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 	_, scope := fixture(t)
-	g, e := NewGoal("food", AutopilotGoal, 2, scope, 10)
+	g, e := NewGoal("food", 2, scope, 10)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -24,9 +24,9 @@ func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
 	if e != nil || g.Status != GoalActive || g.Epoch != 1 {
 		t.Fatal(g, e)
 	}
-	g, e = CancelGoal(g)
-	if e != nil {
-		t.Fatal(e)
+	g, e = ReviewGoal(g, scope, 14, NeedDeficit, false)
+	if e != nil || g.Status != GoalInvalidated {
+		t.Fatal("tick rewind did not invalidate", g, e)
 	}
 	next, e := ReviewGoal(g, scope, 16, NeedDeficit, false)
 	if e != nil || next != g {
@@ -40,7 +40,7 @@ func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
 // same method can repair the regression (#161).
 func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T) {
 	_, scope := fixture(t)
-	g, e := NewGoal("lighting", AutopilotGoal, 3, scope, 10)
+	g, e := NewGoal("lighting", 3, scope, 10)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -69,7 +69,7 @@ func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T)
 }
 func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	progress, scope := dispatched(t)
-	g, e := NewGoal("shelter", AutopilotGoal, 2, scope, 10)
+	g, e := NewGoal("shelter", 2, scope, 10)
 	if e != nil {
 		t.Fatal(e)
 	}

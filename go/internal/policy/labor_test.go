@@ -38,10 +38,10 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1})
 	r.Goals = []DevelopmentGoal{
-		{ID: "comfort", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.9), Labor: GoalLabor(EnsureComfort)},
-		{ID: "expansion", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(MaintainHousing)},
-		{ID: "research", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.3), Labor: GoalLabor(EnsureResearch)},
-		{ID: "resource", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.2), Labor: GoalLabor(MaintainResource)},
+		{ID: "comfort", Priority: 4, Deficit: domain.Known(0.9), Labor: GoalLabor(EnsureComfort)},
+		{ID: "expansion", Priority: 4, Deficit: domain.Known(0.6), Labor: GoalLabor(MaintainHousing)},
+		{ID: "research", Priority: 4, Deficit: domain.Known(0.3), Labor: GoalLabor(EnsureResearch)},
+		{ID: "resource", Priority: 4, Deficit: domain.Known(0.2), Labor: GoalLabor(MaintainResource)},
 	}
 	s := rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "research", "resource")
@@ -54,7 +54,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	}
 	// A committed player construction project occupies the only builder.
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkResearch: 1, WorkMining: 1})
-	r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
+	r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: developmentProgress(t), Labor: LaborProfile{WorkConstruction}}}
 	s = rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "research", "resource")
 	// Unknown labor keeps only the coarse worker bound; an empty profile is
@@ -63,7 +63,7 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 	r.Labor = domain.Unknown[map[WorkType]int]()
 	requireSelected(t, rank(t, r), "comfort", "expansion", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{})
-	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(0.1)})
+	r.Goals = append(r.Goals, DevelopmentGoal{ID: "monitor", Priority: 4, Deficit: domain.Known(0.1)})
 	s = rank(t, r)
 	requireSelected(t, s, "comfort", "expansion", "monitor", "research", "resource")
 	r.Labor = domain.Known(map[WorkType]int{WorkResearch: 1})
@@ -77,6 +77,6 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 func TestEquipmentDevelopmentCanUseBuilderBeforeTailoringExists(t *testing.T) {
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1})
-	r.Goals = []DevelopmentGoal{{ID: MaintainEquipment, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: GoalLabor(MaintainEquipment)}}
+	r.Goals = []DevelopmentGoal{{ID: MaintainEquipment, Priority: 3, Deficit: domain.Known(1.0), Labor: GoalLabor(MaintainEquipment)}}
 	requireSelected(t, rank(t, r), MaintainEquipment)
 }

@@ -65,6 +65,27 @@ func loadPlans(ctx context.Context, tx *sql.Tx, limit int) ([]PlanState, error) 
 	return states, nil
 }
 
+// SeedGoal inserts a fresh goal row for fixtures; the routine review mints
+// every production goal (createGoal).
+func (s *Store) SeedGoal(ctx context.Context, g domain.Goal) error {
+	if g.Status != domain.GoalActive || g.Epoch != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {
+		return errors.New("new goal must start without completion evidence")
+	}
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = createGoal(ctx, tx, g); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	s.notifyGoalsWritten()
+	return nil
+}
+
 // SeedPlanMethod records method on a committed plan without a goal_methods
 // row, for fixtures seeding the history PlanHistoryWithMethods reads.
 func (s *Store) SeedPlanMethod(ctx context.Context, plan domain.PlanID, method domain.MethodID) error {

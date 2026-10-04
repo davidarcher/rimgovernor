@@ -32,11 +32,11 @@ func autoFixture() DevelopmentRequest {
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(5),
 		Goals: []DevelopmentGoal{
-			{ID: "build", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
-			{ID: "study", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkResearch}},
-			{ID: "wood", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.8), Labor: LaborProfile{WorkPlantCutting}},
-			{ID: "haul", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.7), Labor: LaborProfile{WorkHauling}},
-			{ID: "shed", Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(.6), Labor: LaborProfile{WorkConstruction}},
+			{ID: "build", Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
+			{ID: "study", Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkResearch}},
+			{ID: "wood", Priority: 3, Deficit: domain.Known(.8), Labor: LaborProfile{WorkPlantCutting}},
+			{ID: "haul", Priority: 3, Deficit: domain.Known(.7), Labor: LaborProfile{WorkHauling}},
+			{ID: "shed", Priority: 4, Deficit: domain.Known(.6), Labor: LaborProfile{WorkConstruction}},
 		},
 	}
 }
@@ -55,8 +55,8 @@ func rowOf(s DevelopmentState, goal GoalID) DevelopmentRow {
 func TestAutoDevelopmentAdmitsEveryGoal(t *testing.T) {
 	r := autoFixture()
 	r.Commitments = []Commitment{
-		{Goal: "keep-a", Source: AutopilotGoal, Priority: 3, Progress: actionProgress(t, "ka"), Labor: LaborProfile{WorkConstruction}},
-		{Goal: "keep-b", Source: AutopilotGoal, Priority: 4, Progress: actionProgress(t, "kb"), Labor: LaborProfile{WorkCooking}},
+		{Goal: "keep-a", Priority: 3, Progress: actionProgress(t, "ka"), Labor: LaborProfile{WorkConstruction}},
+		{Goal: "keep-b", Priority: 4, Progress: actionProgress(t, "kb"), Labor: LaborProfile{WorkCooking}},
 	}
 	requireSelected(t, rank(t, r), "build", "study", "wood", "haul", "shed")
 	r.Commitments = nil
@@ -80,8 +80,8 @@ func TestAutoDevelopmentStartupHoldsNoGoalBack(t *testing.T) {
 	r.Workers = domain.Known(1)
 	r.Goals = r.Goals[:1]
 	r.Commitments = []Commitment{
-		{Goal: "shelter", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}},
-		{Goal: "beds", Source: AutopilotGoal, Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}},
+		{Goal: "shelter", Priority: 2, Progress: actionProgress(t, "s"), Labor: LaborProfile{WorkConstruction}},
+		{Goal: "beds", Priority: 2, Progress: actionProgress(t, "b"), Labor: LaborProfile{WorkConstruction}},
 	}
 	requireSelected(t, rank(t, r), "build")
 }

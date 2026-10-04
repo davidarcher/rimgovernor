@@ -47,7 +47,7 @@ func TestRoutineProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 
 // Only Standards are goal rows: a Project or Response need never creates one,
 // however the review measures it.
-func TestProjectAndResponseKindsNeverCreateGoalRows(t *testing.T) {
+func TestProjectAndResponseKindsNeverMintGoalRows(t *testing.T) {
 	t.Parallel()
 	s := open(t, memoryPath(t))
 	r := routineRequest()

@@ -39,7 +39,7 @@ func routineUpkeepIssued(ctx context.Context, tx *sql.Tx, current domain.Generat
 			return nil, err
 		}
 		s := g.Goal.Snapshot
-		if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map || g.Goal.Source != domain.AutopilotGoal || !strings.HasPrefix(string(goal), "routine-") {
+		if s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map || !strings.HasPrefix(string(goal), "routine-") {
 			continue
 		}
 		// Invalidated methods keep their original goal binding while new routine

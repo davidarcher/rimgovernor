@@ -3,7 +3,6 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -24,14 +23,13 @@ type ChatFactsNative interface {
 }
 
 // ChatFactsJournal narrows *store.Store to the policy state chat reads: the
-// goals the routine reviewer and the player currently track, the open
+// goals the routine reviewer currently tracks, the open
 // incidents the review binds, and every
 // policy input a guidance nudge may change.
 type ChatFactsJournal interface {
 	LoadRoutineReview(context.Context) (store.RoutineReview, error)
 	LoadOwner(context.Context, string) (store.WorkOwner, error)
 	LoadIncident(context.Context, domain.IncidentID) (store.IncidentState, error)
-	PlayerGoals(context.Context, store.World) (map[domain.GoalKind]store.WorkOwner, error)
 	PopulationDecisions(context.Context, store.World) ([]domain.PopulationDirective, error)
 }
 
@@ -144,11 +142,11 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 			return err
 		}
 		g, _ := store.SummarizeOwner(owner)
-		if g.Snapshot.Colony != world.Colony || g.Snapshot.Load != world.Load || g.Snapshot.Map != world.Map || g.Retired || g.Status == domain.GoalCancelled || g.Status == domain.GoalInvalidated {
+		if g.Snapshot.Colony != world.Colony || g.Snapshot.Load != world.Load || g.Snapshot.Map != world.Map || g.Retired || g.Status == domain.GoalInvalidated {
 			return nil
 		}
 		goals[id] = true
-		facts.Goals = append(facts.Goals, interpreter.Goal{ID: domain.GoalID(id), Kind: kind, Source: g.Source, Status: g.Status, Need: g.Need, Priority: g.Priority})
+		facts.Goals = append(facts.Goals, interpreter.Goal{ID: domain.GoalID(id), Kind: kind, Status: g.Status, Need: g.Need, Priority: g.Priority})
 		return nil
 	}
 	if review.Snapshot.Colony == world.Colony && review.Snapshot.Load == world.Load && review.Snapshot.Map == world.Map {
@@ -173,21 +171,6 @@ func GatherChatFacts(ctx context.Context, native ChatFactsNative, journal ChatFa
 			facts.Incidents = append(facts.Incidents, interpreter.Incident{Kind: binding.Kind, Subject: binding.Subject, Need: binding.Need, Priority: state.Incident.Priority, Started: state.Incident.Started})
 		}
 	}
-	playerGoals, err := journal.PlayerGoals(ctx, world)
-	if err != nil {
-		return none, domain.GenerationSnapshot{}, err
-	}
-	kinds := make([]domain.GoalKind, 0, len(playerGoals))
-	for kind := range playerGoals {
-		kinds = append(kinds, kind)
-	}
-	sort.Slice(kinds, func(i, j int) bool { return kinds[i] < kinds[j] })
-	for _, kind := range kinds {
-		if err = addGoal(playerGoals[kind].OwnerID(), string(kind)); err != nil {
-			return none, domain.GenerationSnapshot{}, err
-		}
-	}
-
 	decisions, err := journal.PopulationDecisions(ctx, world)
 	if err != nil {
 		return none, domain.GenerationSnapshot{}, err

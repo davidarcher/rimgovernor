@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -17,9 +16,7 @@ import (
 // the same wire shapes the matching policy route returns. Kind selects which
 // field is populated; an explain-only reply carries no guidance at all.
 type chatGuidanceDTO struct {
-	Kind string `json:"kind"`
-	// Goal is the activated or cancelled goal's state now.
-	Goal               *goalStateDTO       `json:"goal,omitempty"`
+	Kind               string              `json:"kind"`
 	PopulationDecision *PopulationDecision `json:"populationDecision,omitempty"`
 }
 
@@ -102,7 +99,7 @@ func (s *Server) submitChat(w http.ResponseWriter, r *http.Request, ctx context.
 	}
 	resp := chatResponseDTO{RequestID: requestID, Expected: playerWorldDTO(world), Explanation: guidance.Explanation}
 	if guidance.Kind != interpreter.Explain {
-		applied, status, failure, err := s.applyChatGuidance(ctx, requestID, world, current, facts.Colony.Tick, guidance)
+		applied, status, failure, err := s.applyChatGuidance(ctx, requestID, world, guidance)
 		if err != nil {
 			s.readFailure(w, r, err)
 			return
@@ -119,7 +116,7 @@ func (s *Server) submitChat(w http.ResponseWriter, r *http.Request, ctx context.
 // applyChatGuidance feeds one nudge into its policy input. A nil failure with
 // a nil error means the guidance was applied; a non-nil failure carries the
 // same status and body the policy route would have returned.
-func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world store.World, current domain.GenerationSnapshot, tick domain.Tick, guidance interpreter.Guidance) (chatGuidanceDTO, int, *Failure, error) {
+func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world store.World, guidance interpreter.Guidance) (chatGuidanceDTO, int, *Failure, error) {
 	dto := chatGuidanceDTO{Kind: string(guidance.Kind)}
 	disabled := func(what string) (chatGuidanceDTO, int, *Failure, error) {
 		return dto, 404, &Failure{"not_found", what + " is not enabled"}, nil
@@ -134,40 +131,6 @@ func (s *Server) applyChatGuidance(ctx context.Context, requestID string, world 
 		return 0, nil
 	}
 	switch guidance.Kind {
-	case interpreter.ActivateGoal:
-		player, ok := s.player.(playerGoals)
-		if !ok {
-			return disabled("Maintained goals")
-		}
-		q := store.GoalCreateSubmissionRequest{RequestID: requestID, Kind: guidance.ActivateGoal, Snapshot: current, Tick: tick}
-		v, _, err := player.SubmitGoalCreate(ctx, q)
-		if status, failure := check(err); failure != nil {
-			return dto, status, failure, nil
-		}
-		projected, err := projectGoalCreateSubmission(v)
-		if err != nil {
-			return dto, 0, nil, err
-		}
-		dto.Goal = &projected.State
-	case interpreter.CancelGoal:
-		player, ok := s.player.(playerGoals)
-		if !ok {
-			return disabled("Maintained goals")
-		}
-		state, err := s.chatJournal.LoadOwner(ctx, string(guidance.CancelGoal))
-		if status, failure := check(err); failure != nil {
-			return dto, status, failure, nil
-		}
-		stateSummary, _ := store.SummarizeOwner(state)
-		v, err := player.CancelGoal(ctx, world, string(guidance.CancelGoal), stateSummary.Revision)
-		if status, failure := check(err); failure != nil {
-			return dto, status, failure, nil
-		}
-		if summary, ok := store.SummarizeOwner(v); !ok || summary.ID != string(guidance.CancelGoal) || summary.Status != domain.GoalCancelled {
-			return dto, 0, nil, errors.New("mismatched cancellation")
-		}
-		projected := goalStateWire(v)
-		dto.Goal = &projected
 	case interpreter.SetPopulationDecision:
 		player, ok := s.player.(playerPopulationDecision)
 		if !ok {

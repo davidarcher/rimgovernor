@@ -37,7 +37,6 @@ type IncidentAssessment struct {
 }
 
 func (i IncidentState) ownerSnapshot() domain.GenerationSnapshot { return i.Incident.Snapshot }
-func (i IncidentState) ownerAutopilot() bool                     { return true }
 func (i IncidentState) ownerNeed(RoutineReview) (domain.GoalID, bool) {
 	return i.Incident.Kind, true
 }

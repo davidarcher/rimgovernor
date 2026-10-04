@@ -19,7 +19,7 @@ func projectFixture(t *testing.T) (*Store, ProjectState) {
 	s := open(t, filepath.Join(t.TempDir(), "projects.db"))
 	r := routineRequest()
 	reviewRoutine(t, s, &r)
-	p, err := domain.NewProject(testProjectID, policy.EnsureCooking, domain.AutopilotGoal, 2, scope(), 10)
+	p, err := domain.NewProject(testProjectID, policy.EnsureCooking, 2, scope(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,11 +64,11 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 	// One orphan pass over the goal and the project: both plans are handed
 	// over, both method rows go, both owners come back from the save.
-	g, err := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", domain.AutopilotGoal, 2, scope(), 10)
+	g, err := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.CreateGoal(ctx, g); err != nil {
+	if err = s.SeedGoal(ctx, g); err != nil {
 		t.Fatal(err)
 	}
 	gs, err := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
@@ -121,7 +121,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	}
 }
 
-func TestProjectFinishCancelRetireAndOwnerKey(t *testing.T) {
+func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, state := projectFixture(t)
@@ -137,22 +137,23 @@ func TestProjectFinishCancelRetireAndOwnerKey(t *testing.T) {
 	if _, err = s.db.ExecContext(ctx, "INSERT INTO goal_methods(project_id,epoch,method_id,plan_id,priority) VALUES(?,'1','m','project-plan',1)", state.Project.ID); err == nil {
 		t.Fatal("project row with epoch 1 accepted")
 	}
-	// Cancelling cancels the work and the row stays at the new revision.
-	if _, err = s.CancelProject(ctx, state.Project.ID, state.Revision-1); !errors.Is(err, ErrConflict) {
-		t.Fatal("stale revision cancelled", err)
+	// A world change invalidates the project, cancelling its work; the row
+	// stays at the new revision.
+	if _, err = s.ReviewProject(ctx, state.Project.ID, state.Revision-1, otherMap(), 11, domain.NeedDeficit); !errors.Is(err, ErrConflict) {
+		t.Fatal("stale revision reviewed", err)
 	}
-	cancelled, err := s.CancelProject(ctx, state.Project.ID, state.Revision)
-	if err != nil || cancelled.Project.Status != domain.ProjectCancelled {
+	cancelled, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, otherMap(), 11, domain.NeedDeficit)
+	if err != nil || cancelled.Project.Status != domain.ProjectInvalidated {
 		t.Fatal(cancelled.Project, err)
 	}
 	loaded, err := s.LoadPlan(ctx, p.ID())
 	if err != nil || domain.GoalWorkOpen(loaded.Progress) {
-		t.Fatal("cancel left the method open", err)
+		t.Fatal("invalidation left the method open", err)
 	}
 	if _, err = s.CommitProjectMethod(ctx, state.Project.ID, cancelled.Revision, "late", "", plan(t, "late", "late-0")); err == nil {
-		t.Fatal("cancelled project admitted a method")
+		t.Fatal("invalidated project admitted a method")
 	}
-	// Retirement takes only invalidated autopilot projects without open work.
+	// Retirement takes an invalidated project without open work.
 	tx, err := s.begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -161,15 +162,8 @@ func TestProjectFinishCancelRetireAndOwnerKey(t *testing.T) {
 	if err = retireProjects(ctx, tx, nil); err != nil {
 		t.Fatal(err)
 	}
-	if kept, err := loadProject(ctx, tx, state.Project.ID); err != nil || kept.Retired {
-		t.Fatal("cancelled project retired", err)
-	}
-	tx.Rollback()
-	past := scope()
-	past.Load = "another-load"
-	rewound, err := s.ReviewProject(ctx, state.Project.ID, cancelled.Revision, past, 20, domain.NeedDeficit)
-	if err != nil || rewound.Project.Status != domain.ProjectCancelled {
-		t.Fatal("cancelled project reviewed", rewound.Project, err)
+	if kept, err := loadProject(ctx, tx, state.Project.ID); err != nil || !kept.Retired {
+		t.Fatal("invalidated project not retired", err)
 	}
 }
 

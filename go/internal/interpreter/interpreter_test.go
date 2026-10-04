@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	explainOnly  = `{"explanation":"The autopilot is growing rice because food runway is four days.","guidance":null}`
-	activateGoal = `{"explanation":"Prioritising food.","guidance":{"kind":"activate_goal","goal":"EnsureFoodSupply"}}`
-	valid        = activateGoal
+	explainOnly = `{"explanation":"The autopilot is growing rice because food runway is four days.","guidance":null}`
+	rescue      = `{"explanation":"Rescuing the downed stranger.","guidance":{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}}`
+	valid       = rescue
 )
 
 type completeFunc func(context.Context, model.Request) (model.Response, error)
@@ -31,7 +31,7 @@ func inputFixture() Input {
 		Generation: generation,
 		Colony:     Colony{Tick: 100, ColonistCount: 3, Resources: []Resource{{"Steel", 120}, {"WoodLog", 300}}},
 		Pawns:      []Pawn{{ID: "Thing_Human1", Label: "Bob", Colonist: true}, {ID: "Thing_Human9", Downed: true}},
-		Goals:      []Goal{{ID: "goal-food", Kind: "EnsureFoodSupply", Source: domain.AutopilotGoal, Status: domain.GoalActive, Need: domain.NeedDeficit, Priority: 1}},
+		Goals:      []Goal{{ID: "goal-food", Kind: "EnsureFoodSupply", Status: domain.GoalActive, Need: domain.NeedDeficit, Priority: 1}},
 	}}
 }
 func clientFixture(t *testing.T, fn completeFunc) *Interpreter {
@@ -70,7 +70,7 @@ func TestGuidanceFromActualLocalHTTP(t *testing.T) {
 		if !strings.Contains(request.Messages[1].Content, `"goal-food"`) || !strings.Contains(request.Messages[1].Content, `"Bob"`) {
 			t.Error("facts not supplied as data")
 		}
-		w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":` + string(mustJSON(activateGoal)) + `},"finish_reason":"stop"}]}`))
+		w.Write([]byte(`{"choices":[{"index":0,"message":{"role":"assistant","content":` + string(mustJSON(rescue)) + `},"finish_reason":"stop"}]}`))
 	}))
 	defer server.Close()
 	transport, err := model.NewClient(model.Config{BaseURL: server.URL + "/v1", Model: "local", Timeout: time.Second, MaxResponseBytes: 65536})
@@ -86,7 +86,7 @@ func TestGuidanceFromActualLocalHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if guidance.Kind != ActivateGoal || guidance.ActivateGoal != domain.EnsureFoodSupplyGoal || guidance.Explanation != "Prioritising food." || !guidance.Generation.Matches(inputFixture().Current) {
+	if guidance.Kind != SetPopulationDecision || guidance.PopulationDecision.Pawn() != "Thing_Human9" || guidance.Explanation != "Rescuing the downed stranger." || !guidance.Generation.Matches(inputFixture().Current) {
 		t.Fatalf("%+v", guidance)
 	}
 }
@@ -94,7 +94,7 @@ func mustJSON(value string) []byte { data, _ := json.Marshal(value); return data
 
 func TestExplainOnlyCarriesNoNudge(t *testing.T) {
 	guidance, err := replying(t, explainOnly).Interpret(context.Background(), inputFixture())
-	if err != nil || guidance.Kind != Explain || guidance.ActivateGoal != "" || guidance.CancelGoal != "" || guidance.PopulationDecision.Set() {
+	if err != nil || guidance.Kind != Explain || guidance.PopulationDecision.Set() {
 		t.Fatalf("%+v %v", guidance, err)
 	}
 	if !strings.Contains(guidance.Explanation, "rice") {
@@ -108,7 +108,6 @@ func TestEveryNudgeKindDecodesToItsPolicyInput(t *testing.T) {
 		name, guidance string
 		check          func(Guidance) bool
 	}{
-		{"cancel", `{"kind":"cancel_goal","goalId":"goal-food"}`, func(g Guidance) bool { return g.Kind == CancelGoal && g.CancelGoal == "goal-food" }},
 		{"decision", `{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"rescue"}`, func(g Guidance) bool {
 			return g.Kind == SetPopulationDecision && g.PopulationDecision.Pawn() == "Thing_Human9" && g.PopulationDecision.Decision() == domain.PopulationRescue
 		}},
@@ -186,10 +185,9 @@ func TestRefusesUnresolvedOrMalformedReplies(t *testing.T) {
 		{"old command shape", `{"command":"build","buildings":[]}`, InvalidGuidance},
 		{"unknown kind", wrap(`{"kind":"build","defName":"Wall"}`), InvalidGuidance},
 		{"research", wrap(`{"kind":"research","project":"Microelectronics"}`), InvalidGuidance},
-		{"duplicate key", wrap(`{"kind":"activate_goal","goal":"EnsureFoodSupply","goal":"EnsureFoodSupply"}`), InvalidGuidance},
-		{"unknown goal kind", wrap(`{"kind":"activate_goal","goal":"ConquerWorld"}`), InvalidGuidance},
-		{"cancel by kind name", wrap(`{"kind":"cancel_goal","goalId":"EnsureFoodSupply"}`), UnknownFacts},
-		{"cancel with extra field", wrap(`{"kind":"cancel_goal","goalId":"goal-food","revision":1}`), InvalidGuidance},
+		{"duplicate key", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","pawn":"Thing_Human9","decision":"rescue"}`), InvalidGuidance},
+		{"retired activate_goal", wrap(`{"kind":"activate_goal","goal":"EnsureFoodSupply"}`), InvalidGuidance},
+		{"retired cancel_goal", wrap(`{"kind":"cancel_goal","goalId":"goal-food"}`), InvalidGuidance},
 		{"population policy retired", wrap(`{"kind":"set_population_policy","maximum":8,"foodDays":20}`), InvalidGuidance},
 		{"unknown pawn", wrap(`{"kind":"set_population_decision","pawn":"Bob","decision":"rescue"}`), UnknownFacts},
 		{"unknown decision", wrap(`{"kind":"set_population_decision","pawn":"Thing_Human9","decision":"execute"}`), InvalidGuidance},
@@ -236,10 +234,10 @@ func TestCallerRefreshCannotChangeCapturedFacts(t *testing.T) {
 	i := clientFixture(t, func(context.Context, model.Request) (model.Response, error) {
 		input.Facts.Goals[0].ID = "changed"
 		input.Facts.Pawns[1].ID = "changed"
-		return model.Response{Text: `{"explanation":"ok","guidance":{"kind":"cancel_goal","goalId":"goal-food"}}`, FinishReason: model.Stop}, nil
+		return model.Response{Text: rescue, FinishReason: model.Stop}, nil
 	})
 	guidance, err := i.Interpret(context.Background(), input)
-	if err != nil || guidance.CancelGoal != "goal-food" {
+	if err != nil || guidance.PopulationDecision.Pawn() != "Thing_Human9" {
 		t.Fatalf("snapshot changed: %v", err)
 	}
 }

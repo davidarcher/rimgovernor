@@ -10,7 +10,7 @@ import (
 
 func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"valid", "direction", "native", "load", "revision", "unbound", "disabled", "cancelled", "unknown"} {
+	for _, change := range []string{"valid", "direction", "native", "load", "revision", "unbound", "disabled", "unknown"} {
 		t.Run(change, func(t *testing.T) {
 			ctx := context.Background()
 			s := open(t, memoryPath(t))
@@ -37,10 +37,6 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 			case "disabled":
 				r.Enabled = false
 				reviewRoutine(t, s, &r)
-			case "cancelled":
-				if _, err = s.CancelGoal(ctx, g.Goal.ID, d.Goal.Revision); err != nil {
-					t.Fatal(err)
-				}
 			case "unknown":
 				r.Facts.Wood = domain.Unknown[int64]()
 				reviewRoutine(t, s, &r)

@@ -95,7 +95,6 @@ export function pauseControl(token: string, body: ControlRequest, signal?: Abort
 export function readDraft(value: unknown): {pawnId: string} {const v = object(value, ['pawnId']); return {pawnId: id(v.pawnId)};}
 
 export type ChatRequest = {requestId: string; expected: World; message: string};
-type ChatGoal = {goalId: string; source: string; status: string; need: string; priority: number; revision: string};
 export type ChatGuidance =
   | {kind: 'activate_goal' | 'cancel_goal'; goal: ChatGoal}
   | {kind: 'set_population_decision'; populationDecision: {pawn: string; decision: string}};
@@ -107,7 +106,6 @@ function readChatGoal(value: unknown): ChatGoal {
 function readChatGuidance(value: unknown): ChatGuidance {
   if (!isObject(value) || typeof value.kind !== 'string') throw Error('Invalid chat guidance');
   switch (value.kind) {
-    case 'activate_goal': case 'cancel_goal': return {kind: value.kind, goal: readChatGoal(object(value, ['kind', 'goal']).goal)};
     case 'set_population_decision': {const p = object(object(value, ['kind', 'populationDecision']).populationDecision, ['pawn', 'decision']); return {kind: value.kind, populationDecision: {pawn: id(p.pawn), decision: id(p.decision)}};}
     default: throw Error('Unknown chat guidance kind');
   }

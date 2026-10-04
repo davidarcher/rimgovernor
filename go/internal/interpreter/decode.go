@@ -19,9 +19,6 @@ type modelReply struct {
 // populated; pointers distinguish required fields from absent or null values.
 type modelGuidance struct {
 	Kind GuidanceKind
-	// Goal holds activate_goal's kind; GoalID holds cancel_goal's exact
-	// tracked identity.
-	Goal, GoalID *string
 	// Pawn/Decision hold set_population_decision's named individual and
 	// direction.
 	Pawn, Decision *string
@@ -68,10 +65,6 @@ func decode(text string) (modelReply, error) {
 	var guidance modelGuidance
 	var err error
 	switch GuidanceKind(*kind) {
-	case ActivateGoal:
-		guidance, err = decodeOneString(guidanceFields, ActivateGoal, "goal")
-	case CancelGoal:
-		guidance, err = decodeOneString(guidanceFields, CancelGoal, "goalId")
 	case SetPopulationDecision:
 		guidance, err = decodeSetPopulationDecision(guidanceFields)
 	default:
@@ -82,26 +75,6 @@ func decode(text string) (modelReply, error) {
 	}
 	reply.Guidance = &guidance
 	return reply, nil
-}
-
-// decodeOneString reads the single string field activate_goal and cancel_goal
-// each carry. Membership (whitelisted kind, tracked identity) belongs to the
-// interpreter's bounding; this only rejects the wrong shape.
-func decodeOneString(fields map[string]json.RawMessage, kind GuidanceKind, key string) (modelGuidance, error) {
-	if len(fields) != 2 || fields[key] == nil {
-		return modelGuidance{}, fail(InvalidGuidance, "unexpected guidance fields")
-	}
-	var value string
-	if err := json.Unmarshal(fields[key], &value); err != nil || value == "" {
-		return modelGuidance{}, fail(InvalidGuidance, "invalid "+key+" field")
-	}
-	g := modelGuidance{Kind: kind}
-	if kind == ActivateGoal {
-		g.Goal = &value
-	} else {
-		g.GoalID = &value
-	}
-	return g, nil
 }
 
 // decodeSetPopulationDecision reads the pawn and direction; the vocabulary

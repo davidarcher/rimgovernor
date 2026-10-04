@@ -109,7 +109,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review RoutineReview, ow
 		return ErrConflict
 	}
 	g, _ := SummarizeOwner(owner)
-	if g.Retired || g.Source != domain.AutopilotGoal || g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
+	if g.Retired || g.Status != domain.GoalActive || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Safeguard vetoes its goal.

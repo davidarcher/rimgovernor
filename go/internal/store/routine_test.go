@@ -118,7 +118,7 @@ func TestRoutineReviewRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 }
 
-func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t *testing.T) {
+func TestRoutineReviewSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 	t.Parallel()
 	for _, change := range []string{"manual", "load", "map", "rewind"} {
 		t.Run(change, func(t *testing.T) {
@@ -134,10 +134,6 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 				t.Fatal(err)
 			}
 			if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
-				t.Fatal(err)
-			}
-			cancelled := routineProject(t, out, policy.EnsureCooking)
-			if _, err := s.CancelProject(ctx, cancelled.Project.ID, cancelled.Revision); err != nil {
 				t.Fatal(err)
 			}
 			switch change {
@@ -183,9 +179,6 @@ func TestRoutineReviewSuspendsOrInvalidatesLinkedWorkAndPreservesCancellation(t 
 				}
 			} else if resumed.Goal.ID == g.Goal.ID {
 				t.Fatal("reused invalidated goal")
-			}
-			if routineProject(t, out, policy.EnsureCooking).Project.Status != domain.ProjectCancelled {
-				t.Fatal("routine review revived player cancellation")
 			}
 		})
 	}

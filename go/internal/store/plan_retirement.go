@@ -69,8 +69,6 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if v.plan == current.Plan {
 			continue
 		}
-		// Incidents are autopilot-owned (#1020); a goal or project is only
-		// when the autopilot sourced it.
 		var g GoalState
 		var owned ProjectState
 		switch {
@@ -78,15 +76,9 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 			if owned, err = loadProject(ctx, tx, domain.ProjectID(v.project.String)); err != nil {
 				return err
 			}
-			if owned.Project.Source != domain.AutopilotGoal {
-				continue
-			}
 		case !v.incident.Valid:
 			if g, err = loadGoal(ctx, tx, domain.GoalID(v.goal.String)); err != nil {
 				return err
-			}
-			if g.Goal.Source != domain.AutopilotGoal {
-				continue
 			}
 		}
 		p, err := load(ctx, tx, v.plan)

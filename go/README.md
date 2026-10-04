@@ -119,8 +119,7 @@ live outside the plan/action tables, each with request-ID replay safety and one
 current value per colony/load/map: expedition policy (`/api/player/expedition-policy/update`, a
 partial patch merged over the limits in force, validated as a whole) and per-pawn
 population decisions (`/api/player/population-decision/*`). The population
-target and production policy (reserves and spending) belong to the autopilot alone. Player goals (`/api/player/goals/*`) activate or
-cancel autopilot-managed maintained goals by exact goal ID.
+target and production policy (reserves and spending) belong to the autopilot alone.
 
 Multi-instance colony directory serving (`--colonies`) does not exist in Go
 ([issue #47](https://github.com/davidarcher/rimgovernor/issues/47)).

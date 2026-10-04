@@ -61,11 +61,11 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 	current := base.reviewer.player.session.State().Snapshot
 	var err error
 	if history {
-		goal, err := domain.NewGoal("stone-owner", domain.AutopilotGoal, 4, current, 7)
+		goal, err := domain.NewGoal("stone-owner", 4, current, 7)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = db.CreateGoal(ctx, goal); err != nil {
+		if err = db.SeedGoal(ctx, goal); err != nil {
 			t.Fatal(err)
 		}
 		g, err := db.LoadGoal(ctx, goal.ID)

@@ -38,7 +38,7 @@ type routineRun struct {
 
 // raise appends an autopilot goal and returns it for the detector to adjust.
 func (c *routineRun) raise(id GoalID, priority int) *DevelopmentGoal {
-	c.r.Goals = append(c.r.Goals, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, c.f, c.p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, c.f, c.l)})
+	c.r.Goals = append(c.r.Goals, DevelopmentGoal{ID: id, Priority: priority, Deficit: RoutineDevelopmentDeficit(id, c.f, c.p), Labor: GoalLabor(id), Risk: RoutineDevelopmentRisk(id, c.f, c.l)})
 	return &c.r.Goals[len(c.r.Goals)-1]
 }
 

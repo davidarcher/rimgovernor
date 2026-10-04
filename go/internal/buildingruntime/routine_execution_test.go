@@ -47,7 +47,9 @@ func TestRoutineWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err = db.CancelGoal(ctx, method.Decision.Goal.Goal.ID, method.Decision.Goal.Revision); err != nil {
+	other := root.Snapshot
+	other.Map++
+	if _, err = db.ReviewGoal(ctx, method.Decision.Goal.Goal.ID, method.Decision.Goal.Revision, other, 0, domain.NeedDeficit); err != nil {
 		t.Fatal(err)
 	}
 	selected = map[domain.PlanID]bool{}

@@ -22,7 +22,6 @@ type developmentSim struct {
 	// open holds committed work: goal -> tick it completes.
 	open     map[GoalID]domain.Tick
 	duration domain.Tick
-	player   []Commitment
 	state    DevelopmentState
 	// wait counts consecutive reviews each goal was eligible but not selected.
 	wait, maxWait map[GoalID]int
@@ -33,7 +32,7 @@ func newDevelopmentSim(t *testing.T, limit int, goals ...DevelopmentGoal) *devel
 	return &developmentSim{t: t, snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, tick: 100, step: 2500, workers: domain.Known(4), limit: limit, goals: goals, open: map[GoalID]domain.Tick{}, duration: 5000, wait: map[GoalID]int{}, maxWait: map[GoalID]int{}, selections: map[GoalID]int{}}
 }
 
-func (s *developmentSim) commitment(goal GoalID, source GoalSource, priority int, dispatched bool) Commitment {
+func (s *developmentSim) commitment(goal GoalID, priority int, dispatched bool) Commitment {
 	s.t.Helper()
 	// An observed (non-intent) kind: commitments follow per-attempt effects.
 	cut, err := domain.NewAcquisition("plant", "WoodLog", domain.Cell{X: 1, Z: 2})
@@ -61,10 +60,7 @@ func (s *developmentSim) commitment(goal GoalID, source GoalSource, priority int
 		}
 	}
 	profile := GoalLabor(goal)
-	if source == PlayerGoal {
-		profile = LaborProfile{WorkConstruction}
-	}
-	return Commitment{Goal: goal, Source: source, Priority: priority, Progress: progress, Labor: profile}
+	return Commitment{Goal: goal, Priority: priority, Progress: progress, Labor: profile}
 }
 
 // review runs one ranking, commits every selected goal and completes work
@@ -78,9 +74,8 @@ func (s *developmentSim) review() DevelopmentState {
 	}
 	var commitments []Commitment
 	for goal := range s.open {
-		commitments = append(commitments, s.commitment(goal, AutopilotGoal, 4, true))
+		commitments = append(commitments, s.commitment(goal, 4, true))
 	}
-	commitments = append(commitments, s.player...)
 	state, err := RankDevelopment(DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Labor: s.labor, Goals: s.goals, Commitments: commitments, Previous: s.state})
 	if err != nil {
 		s.t.Fatal(err)
@@ -124,7 +119,7 @@ func (s *developmentSim) row(state DevelopmentState, id GoalID) DevelopmentRow {
 }
 
 func simGoal(id GoalID, deficit float64, labor LaborProfile) DevelopmentGoal {
-	return DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: 4, Deficit: domain.Known(deficit), Labor: labor}
+	return DevelopmentGoal{ID: id, Priority: 4, Deficit: domain.Known(deficit), Labor: labor}
 }
 
 // Four competing needs on one slot: the smallest constant deficit must still

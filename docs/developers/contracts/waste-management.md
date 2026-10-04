@@ -4,10 +4,9 @@
 
 `MaintainWaste` is a maintained priority-3 colony goal. Fresh native colony facts
 activate it for exposed spoiled goods and rotten anonymous animal corpses. Emergency
-goals preempt it. Once the observed deficit clears, a later deficit reopens the goal.
-Cancelling the goal preserves issued game orders and suppresses further maintenance.
+goals preempt it. Once the observed deficit clears, a later deficit reopens the goal..
 
-The player can use `CreateGoal` with `goal: MaintainWaste` and two optional lists:
+The goal accepts two optional lists:
 
 | Field | Authority |
 | --- | --- |

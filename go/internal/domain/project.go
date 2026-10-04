@@ -12,7 +12,6 @@ type ProjectStatus string
 const (
 	ProjectOpen        ProjectStatus = "open"
 	ProjectFinished    ProjectStatus = "finished"
-	ProjectCancelled   ProjectStatus = "cancelled"
 	ProjectInvalidated ProjectStatus = "invalidated"
 )
 
@@ -26,7 +25,6 @@ const MaxProjectRecord = 4096
 type Project struct {
 	ID       ProjectID
 	Kind     GoalID // the Project's GoalID (the routine need it serves)
-	Source   GoalSource
 	Priority int
 	Snapshot GenerationSnapshot
 	Tick     Tick
@@ -36,8 +34,8 @@ type Project struct {
 	Record string `json:",omitempty"`
 }
 
-func NewProject(id ProjectID, kind GoalID, source GoalSource, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
-	p := Project{ID: id, Kind: kind, Source: source, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Need: NeedUnknown}
+func NewProject(id ProjectID, kind GoalID, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
+	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Need: NeedUnknown}
 	return p, p.Validate()
 }
 
@@ -48,13 +46,8 @@ func (p Project) Validate() error {
 	if len(p.Record) > MaxProjectRecord {
 		return errors.New("project record exceeds bound")
 	}
-	switch p.Source {
-	case AutopilotGoal, PlayerGoal:
-	default:
-		return errors.New("invalid project source")
-	}
 	switch p.Status {
-	case ProjectOpen, ProjectFinished, ProjectCancelled, ProjectInvalidated:
+	case ProjectOpen, ProjectFinished, ProjectInvalidated:
 	default:
 		return errors.New("invalid project status")
 	}
@@ -93,7 +86,7 @@ func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedSt
 	default:
 		return p, errors.New("invalid observed need")
 	}
-	if p.Status == ProjectCancelled || p.Status == ProjectInvalidated {
+	if p.Status == ProjectInvalidated {
 		return p, nil
 	}
 	if ProjectRegressed(p, need, openWork) {
@@ -111,13 +104,5 @@ func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedSt
 	if need == NeedRecovered && !openWork {
 		p.Status = ProjectFinished
 	}
-	return p, nil
-}
-
-func CancelProject(p Project) (Project, error) {
-	if err := p.Validate(); err != nil {
-		return p, err
-	}
-	p.Status = ProjectCancelled
 	return p, nil
 }

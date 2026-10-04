@@ -4,19 +4,11 @@ import "errors"
 
 type GoalID string
 type MethodID string
-type GoalSource string
-
-const (
-	AutopilotGoal GoalSource = "autopilot"
-	PlayerGoal    GoalSource = "player"
-)
-
 type GoalStatus string
 
 const (
 	GoalActive      GoalStatus = "active"
 	GoalSatisfied   GoalStatus = "satisfied"
-	GoalCancelled   GoalStatus = "cancelled"
 	GoalInvalidated GoalStatus = "invalidated"
 )
 
@@ -32,7 +24,6 @@ const (
 // plans; their receipts, progress and uncertainty stay in those plans.
 type Goal struct {
 	ID               GoalID
-	Source           GoalSource
 	Priority         int
 	Snapshot         GenerationSnapshot
 	Tick             Tick
@@ -49,8 +40,8 @@ type Goal struct {
 // MaxGoalRecord bounds Goal.Record in bytes.
 const MaxGoalRecord = 4096
 
-func NewGoal(id GoalID, source GoalSource, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
-	g := Goal{ID: id, Source: source, Priority: priority, Snapshot: snapshot, Tick: tick, Status: GoalActive, Need: NeedUnknown}
+func NewGoal(id GoalID, priority int, snapshot GenerationSnapshot, tick Tick) (Goal, error) {
+	g := Goal{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: GoalActive, Need: NeedUnknown}
 	return g, g.Validate()
 }
 func (g Goal) Validate() error {
@@ -60,13 +51,8 @@ func (g Goal) Validate() error {
 	if len(g.Record) > MaxGoalRecord {
 		return errors.New("goal record exceeds bound")
 	}
-	switch g.Source {
-	case AutopilotGoal, PlayerGoal:
-	default:
-		return errors.New("invalid goal source")
-	}
 	switch g.Status {
-	case GoalActive, GoalSatisfied, GoalCancelled, GoalInvalidated:
+	case GoalActive, GoalSatisfied, GoalInvalidated:
 	default:
 		return errors.New("invalid goal status")
 	}
@@ -81,7 +67,7 @@ func (g Goal) Validate() error {
 	return nil
 }
 
-// ReviewGoal preserves cancellation and invalidates captured work on world,
+// ReviewGoal invalidates captured work on world,
 // direction or tick replacement. OpenWork is derived from linked shared plans,
 // including cancelled actions whose effects are still unresolved. A deficit
 // measured after a recovery starts a new method epoch once no work is open:
@@ -104,7 +90,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 	default:
 		return g, errors.New("invalid observed need")
 	}
-	if g.Status == GoalCancelled || g.Status == GoalInvalidated {
+	if g.Status == GoalInvalidated {
 		return g, nil
 	}
 	if !g.Snapshot.sameColonyMap(current) || tick < g.Tick {
@@ -135,14 +121,6 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, o
 	} else {
 		g.Status = GoalActive
 	}
-	return g, nil
-}
-
-func CancelGoal(g Goal) (Goal, error) {
-	if err := g.Validate(); err != nil {
-		return g, err
-	}
-	g.Status = GoalCancelled
 	return g, nil
 }
 

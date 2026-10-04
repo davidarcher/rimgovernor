@@ -86,7 +86,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan 
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 8 {
 		return ErrConflict
 	}
 	bound := false

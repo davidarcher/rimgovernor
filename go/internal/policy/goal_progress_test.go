@@ -147,8 +147,8 @@ func TestFoodProgressSurfacesCookingPrerequisiteAndWithholdsBuilder(t *testing.T
 	r := developmentFixture()
 	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1, WorkPlantCutting: 1})
 	r.Goals = []DevelopmentGoal{
-		{ID: EnsureBasicDefense, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
-		{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.5), Labor: LaborProfile{WorkPlantCutting}},
+		{ID: EnsureBasicDefense, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkConstruction}},
+		{ID: MaintainResource, Priority: 3, Deficit: domain.Known(.5), Labor: LaborProfile{WorkPlantCutting}},
 	}
 	r.Withheld = withheld
 	s := rank(t, r)

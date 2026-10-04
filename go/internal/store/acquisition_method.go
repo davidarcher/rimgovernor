@@ -70,7 +70,7 @@ func huntAcquisition(action domain.Action) bool {
 // planned animal by animal: a hunt still awaiting its kill never blocks
 // the next animal's method. The routine goal id names its need.
 func pestGoal(goal WorkOwner) bool {
-	return goal.ownerAutopilot() && routineGoalOwns(domain.GoalID(goal.OwnerID()), policy.ClearPests)
+	return routineGoalOwns(domain.GoalID(goal.OwnerID()), policy.ClearPests)
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does
@@ -96,7 +96,7 @@ func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, 
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 8 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 8 {
 		return ErrConflict
 	}
 	need, bound := owner.ownerNeed(review)

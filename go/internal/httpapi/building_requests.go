@@ -65,17 +65,6 @@ func buildingRequestID(id string) error {
 	_, err := domain.NewPlan(domain.PlanID(id), 1, nil)
 	return err
 }
-func buildingUint(raw json.RawMessage) (uint64, error) {
-	var value string
-	if err := json.Unmarshal(raw, &value); err != nil {
-		return 0, err
-	}
-	n, err := strconv.ParseUint(value, 10, 64)
-	if err != nil || strconv.FormatUint(n, 10) != value {
-		return 0, errors.New("expected canonical uint64 string")
-	}
-	return n, nil
-}
 func buildingWorld(raw json.RawMessage) (store.World, error) {
 	var world store.World
 	f, err := buildingFields(raw, "colonyId", "loadToken", "mapId")

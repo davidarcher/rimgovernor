@@ -17,7 +17,6 @@ import (
 // plans. GoalState, ProjectState and IncidentState implement it.
 type methodOwner interface {
 	ownerSnapshot() domain.GenerationSnapshot
-	ownerAutopilot() bool
 	// ownerNeed is the routine need the owner serves under this review:
 	// a goal's review binding, an incident's Kind.
 	ownerNeed(RoutineReview) (domain.GoalID, bool)
@@ -34,7 +33,6 @@ func (g GoalState) ownerKey() (string, string, string) {
 }
 
 func (g GoalState) ownerSnapshot() domain.GenerationSnapshot { return g.Goal.Snapshot }
-func (g GoalState) ownerAutopilot() bool                     { return g.Goal.Source == domain.AutopilotGoal }
 func (g GoalState) ownerNeed(r RoutineReview) (domain.GoalID, bool) {
 	return r.Need(g.Goal.ID)
 }

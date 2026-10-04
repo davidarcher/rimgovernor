@@ -41,7 +41,6 @@ func (p ProjectState) ownerKey() (string, string, string) {
 	return "project_id", string(p.Project.ID), "0"
 }
 func (p ProjectState) ownerSnapshot() domain.GenerationSnapshot { return p.Project.Snapshot }
-func (p ProjectState) ownerAutopilot() bool                     { return p.Project.Source == domain.AutopilotGoal }
 func (p ProjectState) ownerNeed(r RoutineReview) (domain.GoalID, bool) {
 	return r.projectNeed(p.Project.ID)
 }
@@ -137,7 +136,7 @@ func loadProject(ctx context.Context, tx *sql.Tx, id domain.ProjectID) (ProjectS
 	if out.Project.ID != id {
 		return ProjectState{}, errors.New("project identity mismatch")
 	}
-	if out.Retired && (out.Project.Source != domain.AutopilotGoal || out.Project.Status != domain.ProjectInvalidated) {
+	if out.Retired && out.Project.Status != domain.ProjectInvalidated {
 		return ProjectState{}, errors.New("invalid retired project")
 	}
 	out.Revision = n
@@ -228,35 +227,6 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 	return out, tx.Commit()
 }
 
-// CancelProject invalidates unissued work and cancels issued work through
-// the progress journal, atomically with the project row.
-func (s *Store) CancelProject(ctx context.Context, id domain.ProjectID, revision uint64) (ProjectState, error) {
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return ProjectState{}, err
-	}
-	defer tx.Rollback()
-	state, err := loadProject(ctx, tx, id)
-	if err != nil {
-		return ProjectState{}, err
-	}
-	if state.Revision != revision {
-		return ProjectState{}, ErrConflict
-	}
-	p, err := domain.CancelProject(state.Project)
-	if err != nil {
-		return ProjectState{}, err
-	}
-	if err = cancelGoalMethods(ctx, tx, state); err != nil {
-		return ProjectState{}, err
-	}
-	out, err := saveProject(ctx, tx, state, p)
-	if err != nil {
-		return ProjectState{}, err
-	}
-	return out, tx.Commit()
-}
-
 // CommitProjectMethod stores a method for an open project and its shared plan
 // atomically, through the Safeguards and per-family admission a goal's method
 // takes. Like CommitGoalMethod it grants no authority to dispatch.
@@ -336,7 +306,7 @@ func retireProjects(ctx context.Context, tx *sql.Tx, retained map[domain.Project
 		if err != nil {
 			return err
 		}
-		if p.Project.Source != domain.AutopilotGoal || p.Project.Status != domain.ProjectInvalidated {
+		if p.Project.Status != domain.ProjectInvalidated {
 			continue
 		}
 		open, err := goalOpenWork(ctx, tx, p)
@@ -361,22 +331,4 @@ const projectIDPrefix = "project-"
 // isProjectID reports whether id names a Project row, not a goal row.
 func isProjectID(id string) bool {
 	return strings.HasPrefix(id, projectIDPrefix)
-}
-
-// projectRowIDs lists every project id.
-func projectRowIDs(ctx context.Context, tx *sql.Tx) ([]domain.ProjectID, error) {
-	rows, err := tx.QueryContext(ctx, "SELECT id FROM projects ORDER BY id")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []domain.ProjectID
-	for rows.Next() {
-		var id domain.ProjectID
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
 }

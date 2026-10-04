@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 func TestGovernorStateBlobsMirrorGoals(t *testing.T) {
@@ -26,11 +28,11 @@ func TestGovernorStateBlobsMirrorGoals(t *testing.T) {
 	if json.Unmarshal([]byte(blobs[key]), &shape) != nil || len(shape) != 3 || shape["schemaVersion"] == nil || shape["goal"] == nil || shape["revision"] == nil {
 		t.Fatal("goal blob is not {schemaVersion, goal, revision}", blobs[key])
 	}
-	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err != nil {
+	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, scope(), 11, domain.NeedRecovered); err != nil {
 		t.Fatal(err)
 	}
 	after, err := s.GovernorStateBlobs(ctx)
 	if err != nil || after[key] == blobs[key] {
-		t.Fatal("cancel did not change the goal blob", err)
+		t.Fatal("review did not change the goal blob", err)
 	}
 }

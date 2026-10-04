@@ -8,23 +8,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirst bool) (*Store, string, GoalState, domain.Building) {
+func completedFacility(t *testing.T, proof bool) (*Store, string, GoalState, domain.Building) {
 	t.Helper()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
-	if source != domain.AutopilotGoal {
-		goal, err := domain.NewGoal("player", source, 2, scope(), 10)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = s.CreateGoal(ctx, goal); err != nil {
-			t.Fatal(err)
-		}
-		g, err = s.ReviewGoal(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
 	b, err := domain.NewBuilding("Wall", domain.Cell{X: 3, Z: 7}, domain.North, "WoodLog")
 	if err != nil {
 		t.Fatal(err)
@@ -50,12 +37,6 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 	if _, err = s.Dispatch(ctx, p.ID(), a.ID(), current, 11); err != nil {
 		t.Fatal(err)
 	}
-	if cancelFirst {
-		g, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
 	// Without proof the intent was refused: nothing was applied to claim.
 	receipt := domain.ReceiptRefused
 	if proof {
@@ -67,20 +48,11 @@ func completedFacility(t *testing.T, source domain.GoalSource, proof, cancelFirs
 	return s, path, g, b
 }
 
-func TestConstructionClaimsRejectPlayerUnprovenFutureAndCancelledWork(t *testing.T) {
+func TestConstructionClaimsRejectUnprovenAndFutureWork(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"player", "unproven", "future", "cancel-before", "cancel-after"} {
+	for _, kind := range []string{"unproven", "future"} {
 		t.Run(kind, func(t *testing.T) {
-			source := domain.AutopilotGoal
-			if kind == "player" {
-				source = domain.PlayerGoal
-			}
-			s, path, g, _ := completedFacility(t, source, kind != "unproven", kind == "cancel-before")
-			if kind == "cancel-after" {
-				if _, err := s.CancelGoal(context.Background(), g.Goal.ID, g.Revision); err != nil {
-					t.Fatal(err)
-				}
-			}
+			s, path, _, _ := completedFacility(t, kind != "unproven")
 			s.Close()
 			s = open(t, path)
 			defer s.Close()
@@ -99,7 +71,7 @@ func TestConstructionClaimsRejectPlayerUnprovenFutureAndCancelledWork(t *testing
 
 func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	t.Parallel()
-	s, path, _, building := completedFacility(t, domain.AutopilotGoal, true, false)
+	s, path, _, building := completedFacility(t, true)
 	r := routineRequest()
 	r.Tick = 12
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "wall", Building: building, Cells: []domain.Cell{building.Cell()}}}})

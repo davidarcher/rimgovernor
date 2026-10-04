@@ -19,15 +19,22 @@ func BenchmarkWorldRebuild(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.Cleanup(func() { _ = s.Close() })
-	first, _, err := s.SubmitGoalCreate(ctx, goalCreateRequest("create", domain.MaintainResourceGoal))
+	goal, err := domain.NewGoal("routine-0000000000000000-MaintainResource-0", 2, scope(), 10)
 	if err != nil {
 		b.Fatal(err)
 	}
-	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.State.(GoalState).Goal, Revision: first.State.OwnerRevision()})
+	if err = s.SeedGoal(ctx, goal); err != nil {
+		b.Fatal(err)
+	}
+	first, err := s.ReviewGoal(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
 	if err != nil {
 		b.Fatal(err)
 	}
-	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Goal): string(blob)}
+	blob, err := json.Marshal(GovernorGoalBlob{SchemaVersion: GovernorStateSchemaVersion, Goal: first.Goal, Revision: first.Revision})
+	if err != nil {
+		b.Fatal(err)
+	}
+	saved := map[string]string{GovernorGoalKeyPrefix + string(first.Goal.ID): string(blob)}
 	b.ResetTimer()
 	for range b.N {
 		if err = s.RebuildGoals(ctx, saved, nil); err != nil {

@@ -331,11 +331,10 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		}
 		seen[binding.Need] = true
 		identities[binding.Goal] = true
-		g, err := loadGoal(ctx, tx, binding.Goal)
-		if err != nil {
+		if _, err := loadGoal(ctx, tx, binding.Goal); err != nil {
 			return RoutineReview{}, err
 		}
-		if g.Goal.Source != domain.AutopilotGoal || !routineGoalOwns(binding.Goal, binding.Need) {
+		if !routineGoalOwns(binding.Goal, binding.Need) {
 			return RoutineReview{}, errors.New("routine goal ownership mismatch")
 		}
 	}
@@ -350,7 +349,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		if err != nil {
 			return RoutineReview{}, err
 		}
-		if p.Project.Source != domain.AutopilotGoal || p.Project.Kind != binding.Need || !routineProjectOwns(binding.Project, binding.Need) {
+		if p.Project.Kind != binding.Need || !routineProjectOwns(binding.Project, binding.Need) {
 			return RoutineReview{}, errors.New("routine project ownership mismatch")
 		}
 	}
@@ -554,7 +553,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
-			if g.Goal.Status != domain.GoalCancelled && g.Goal.Status != domain.GoalInvalidated {
+			if g.Goal.Status != domain.GoalInvalidated {
 				if err = cancelGoalMethods(ctx, tx, g); err != nil {
 					return RoutineReviewResult{}, err
 				}
@@ -578,7 +577,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
-			if p.Project.Status != domain.ProjectCancelled && p.Project.Status != domain.ProjectInvalidated {
+			if p.Project.Status != domain.ProjectInvalidated {
 				if err = cancelGoalMethods(ctx, tx, p); err != nil {
 					return RoutineReviewResult{}, err
 				}
@@ -775,7 +774,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				if err != nil {
 					return RoutineReviewResult{}, err
 				}
-				goal, err := domain.NewGoal(id, domain.AutopilotGoal, n.Priority, b, request.Tick)
+				goal, err := domain.NewGoal(id, n.Priority, b, request.Tick)
 				if err != nil {
 					return RoutineReviewResult{}, err
 				}
@@ -886,7 +885,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.GoalID]Projec
 		if err != nil {
 			return ProjectState{}, err
 		}
-		project, err := domain.NewProject(id, n.ID, domain.AutopilotGoal, n.Priority, current, tick)
+		project, err := domain.NewProject(id, n.ID, n.Priority, current, tick)
 		if err != nil {
 			return ProjectState{}, err
 		}

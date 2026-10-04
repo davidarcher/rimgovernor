@@ -356,7 +356,7 @@ func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.Ro
 		if err != nil {
 			return err
 		}
-		if goal.Goal.Status == domain.GoalCancelled || goal.Goal.Status == domain.GoalInvalidated {
+		if goal.Goal.Status == domain.GoalInvalidated {
 			return fmt.Errorf("restored %s is %s in the loaded world", c.Need, goal.Goal.Status)
 		}
 		c.Goal, c.Epoch = id, goal.Goal.Epoch
@@ -421,7 +421,7 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 			}
 			return nil, err
 		}
-		if goal.Goal.Status == domain.GoalCancelled || goal.Goal.Status == domain.GoalInvalidated {
+		if goal.Goal.Status == domain.GoalInvalidated {
 			return nil, fmt.Errorf("%s (recovered in stage %s) is %s at review %d", c.Need, c.Stage, goal.Goal.Status, review.Revision)
 		}
 		if goal.Goal.Epoch != c.Epoch {

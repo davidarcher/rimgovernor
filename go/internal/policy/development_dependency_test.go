@@ -33,10 +33,10 @@ func woodShortage() DevelopmentRequest {
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(1),
 		Goals: []DevelopmentGoal{
-			{ID: MaintainHousing, Source: AutopilotGoal, Priority: 2, Served: true},
-			{ID: MaintainAnimalFeed, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
-			{ID: MaintainWaste, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
-			{ID: MaintainResource, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
+			{ID: MaintainHousing, Priority: 2, Served: true},
+			{ID: MaintainAnimalFeed, Priority: 3, Deficit: domain.Known(1.0), Labor: LaborProfile{WorkCooking}},
+			{ID: MaintainWaste, Priority: 3, Deficit: domain.Known(.9), Labor: LaborProfile{WorkHauling}},
+			{ID: MaintainResource, Priority: 3, Deficit: domain.Known(.3), Labor: LaborProfile{WorkPlantCutting}},
 		},
 	}
 }
@@ -107,7 +107,7 @@ func TestSharedDemandCountsEachActionOnce(t *testing.T) {
 	b := a
 	b.Dependent, b.Goal, b.Method = EnsureComfort, "routine-comfort", "room"
 	b.Costs = []DependencyCost{{"wall-2", 60}, {"wall-3", 30}}
-	goals := append(woodShortage().Goals, DevelopmentGoal{ID: EnsureComfort, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)})
+	goals := append(woodShortage().Goals, DevelopmentGoal{ID: EnsureComfort, Priority: 3, Deficit: domain.Known(1.0)})
 	d, _ := ResolveDonations(goals, []DevelopmentDependency{a, b})
 	if got := d[MaintainResource]; got.Shortfall != 60+60+30-50 || got.Priority != 2 {
 		t.Fatalf("shared demand %+v", got)
@@ -116,9 +116,9 @@ func TestSharedDemandCountsEachActionOnce(t *testing.T) {
 
 func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 	goals := []DevelopmentGoal{
-		{ID: "A", Source: AutopilotGoal, Priority: 2},
-		{ID: "B", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)},
-		{ID: "C", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)},
+		{ID: "A", Priority: 2},
+		{ID: "B", Priority: 3, Deficit: domain.Known(1.0)},
+		{ID: "C", Priority: 3, Deficit: domain.Known(1.0)},
 	}
 	d, blockers := ResolveDonations(goals, []DevelopmentDependency{{Dependent: "A", Prerequisite: "B"}, {Dependent: "B", Prerequisite: "A"}})
 	if len(d) != 0 || len(blockers) == 0 || blockers[0].Reason != DependencyCycle {
@@ -131,10 +131,10 @@ func TestDependencyCyclesDepthAndInactiveBlock(t *testing.T) {
 	}
 	// Chain depth is bounded.
 	var chain []DevelopmentDependency
-	long := []DevelopmentGoal{{ID: "G0", Source: AutopilotGoal, Priority: 1}}
+	long := []DevelopmentGoal{{ID: "G0", Priority: 1}}
 	for i := 1; i <= MaxDependencyChain+2; i++ {
 		id := GoalID("G" + string(rune('0'+i)))
-		long = append(long, DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: 3})
+		long = append(long, DevelopmentGoal{ID: id, Priority: 3})
 		chain = append(chain, DevelopmentDependency{Dependent: long[i-1].ID, Prerequisite: id})
 	}
 	// Equal-priority structural links donate from mid-chain origins too;

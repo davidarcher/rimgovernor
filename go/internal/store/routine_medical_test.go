@@ -66,13 +66,6 @@ func TestRoutineMedicalRestartRecoveryRenewalAndCancellation(t *testing.T) {
 	if renewed.Goal.Need != domain.NeedDeficit || renewed.Goal.Epoch <= healed.Goal.Epoch {
 		t.Fatal(renewed)
 	}
-	if _, err = s.CancelGoal(ctx, renewed.Goal.ID, renewed.Revision); err != nil {
-		t.Fatal(err)
-	}
-	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainMedicalReserves).Goal.Status != domain.GoalCancelled {
-		t.Fatal("review overrode cancellation", out)
-	}
 }
 
 func TestRoutineMedicalWorldAndRewindResetHistory(t *testing.T) {

@@ -24,9 +24,9 @@ func TestUnrelatedHaulingIsNotEvidenceForCommitments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	supplies := s.commitment("supplies", AutopilotGoal, 4, true)
+	supplies := s.commitment("supplies", 4, true)
 	supplies.Labor, supplies.Targets = GoalLabor(MaintainWaste), ActionWorkTargets(haulAction)
-	feed := s.commitment("feed", AutopilotGoal, 4, true)
+	feed := s.commitment("feed", 4, true)
 	feed.Labor, feed.Targets = GoalLabor(MaintainAnimalFeed), domain.Known(WorkTargets{Things: []string{"Thing_Stove1"}})
 	hauler := func(id PawnID, thing string) WorkPawn {
 		job := PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: thing, Cell: domain.Known(domain.Cell{X: 9, Z: 9})})}
@@ -115,7 +115,7 @@ func TestJobTargetMatchesThingOrCell(t *testing.T) {
 func TestLaborIdleSinceResetsOnRewindAndWorldChange(t *testing.T) {
 	s := newDevelopmentSim(t, 1, simGoal("supplies", 0.5, GoalLabor(MaintainWaste)))
 	s.tick = 5000
-	c := s.commitment("supplies", AutopilotGoal, 4, true)
+	c := s.commitment("supplies", 4, true)
 	c.Labor, c.Targets = GoalLabor(MaintainWaste), domain.Known(WorkTargets{Things: []string{"Thing_Steel1"}})
 	other := WorkPawn{ID: "a", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]WorkPriority{{Work: WorkHauling, Priority: 3}}), Job: domain.Known(PawnJob{Def: "HaulToCell", Work: WorkHauling, Target: domain.Known(JobTarget{Thing: "Thing_Other9"})})}
 	r := DevelopmentRequest{Snapshot: s.snapshot, Tick: s.tick, Workers: s.workers, Goals: s.goals, Commitments: []Commitment{c}, LaborUse: RoutineLaborUse([]WorkPawn{other})}

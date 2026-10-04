@@ -272,7 +272,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `Rule` | Safeguard | An admission veto; not a Form. | pending #1970 |
 | `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | pending #1973 |
 | `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | pending #1974, #1976, #1980 |
-| player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | pending #1967 |
+| player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |
 | `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, dashboard, native panel, player docs | the new words | Player-visible surfaces take the same words. | pending #1977, #1978 |
 
 Unchanged: Plan, Method id, Priority, the Concern id strings and the log

@@ -17,7 +17,6 @@ import (
 type routinePlan struct {
 	state    PlanState
 	goal     domain.GoalID
-	source   domain.GoalSource
 	priority int
 }
 
@@ -33,7 +32,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 	var result []routinePlan
 	for _, plan := range plans {
 		var goalID domain.GoalID
-		source, priority := domain.PlayerGoal, 3
+		priority := 3
 		world := World{}
 		admitted := 0
 		var owner, incident, project sql.NullString
@@ -45,7 +44,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			if e != nil {
 				return nil, e
 			}
-			goalID, source, priority = p.Project.Kind, p.Project.Source, admitted
+			goalID, priority = p.Project.Kind, admitted
 			world = World{Colony: p.Project.Snapshot.Colony, Load: p.Project.Snapshot.Load, Map: p.Project.Snapshot.Map}
 		} else if err == nil && incident.Valid {
 			// An incident's method serves its Response kind (#1020).
@@ -53,7 +52,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			if e != nil {
 				return nil, e
 			}
-			goalID, source, priority = i.Incident.Kind, domain.AutopilotGoal, admitted
+			goalID, priority = i.Incident.Kind, admitted
 			world = World{Colony: i.Incident.Snapshot.Colony, Load: i.Incident.Snapshot.Load, Map: i.Incident.Snapshot.Map}
 		} else if err == nil {
 			g, e := loadGoal(ctx, tx, goalID)
@@ -64,10 +63,10 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 			// current one: work a priority-2 goal admitted outside the
 			// ranked queue never turns into a slot hold when the goal
 			// drops back to 3 (#705), and slot work stays one.
-			source, priority = g.Goal.Source, admitted
+			priority = admitted
 			world = World{Colony: g.Goal.Snapshot.Colony, Load: g.Goal.Snapshot.Load, Map: g.Goal.Snapshot.Map}
 			for _, b := range bindings {
-				if goalID == b.Goal || source == domain.AutopilotGoal && routineGoalOwns(goalID, b.Need) {
+				if goalID == b.Goal || routineGoalOwns(goalID, b.Need) {
 					goalID = b.Need
 					break
 				}
@@ -87,7 +86,7 @@ func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnap
 		if world != (World{Colony: current.Colony, Load: current.Load, Map: current.Map}) {
 			continue
 		}
-		result = append(result, routinePlan{plan, goalID, source, priority})
+		result = append(result, routinePlan{plan, goalID, priority})
 	}
 	return result, nil
 }
@@ -106,7 +105,7 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]poli
 			continue
 		}
 		labor := policy.GoalLabor(plan.goal)
-		if plan.source == domain.PlayerGoal && labor == nil {
+		if labor == nil && strings.HasPrefix(string(plan.goal), "player-project-") {
 			labor = policy.LaborProfile{policy.WorkConstruction}
 		}
 		targets := domain.Unknown[policy.WorkTargets]()
@@ -115,7 +114,7 @@ func commitmentsOf(ctx context.Context, tx *sql.Tx, plans []routinePlan) ([]poli
 				targets = policy.ActionWorkTargets(a)
 			}
 		}
-		result = append(result, policy.Commitment{Goal: plan.goal, Source: plan.source, Priority: plan.priority, Progress: open, Labor: labor, Targets: targets})
+		result = append(result, policy.Commitment{Goal: plan.goal, Priority: plan.priority, Progress: open, Labor: labor, Targets: targets})
 	}
 	return result, nil
 }
@@ -161,7 +160,6 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			if b.Need == goals[i].ID {
 				owner := states[j]
 				g, _ := SummarizeOwner(owner)
-				goals[i].Cancelled = g.Status == domain.GoalCancelled
 				goals[i].Blocked = g.Status != domain.GoalActive
 				// Served counts retired methods too: a startup goal whose
 				// campfire plan completed and retired is served, not owed.
@@ -248,7 +246,7 @@ func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
 // method that is a pure settings write (developmentExemptMethod) is
 // admitted without a slot.
 func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g OwnerSummary, plan domain.PlanSpec) error {
-	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !(strings.HasPrefix(g.ID, "routine-") || isProjectID(g.ID)) || developmentExemptMethod(plan) {
+	if g.Priority < 3 || !(strings.HasPrefix(g.ID, "routine-") || isProjectID(g.ID)) || developmentExemptMethod(plan) {
 		return nil
 	}
 	review, err := loadRoutine(ctx, tx)

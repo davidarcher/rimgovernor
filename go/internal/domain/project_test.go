@@ -4,7 +4,7 @@ import "testing"
 
 func TestProjectFinishesOnceAndRegressOpensNewRow(t *testing.T) {
 	_, scope := fixture(t)
-	p, e := NewProject("project-0011223344556677-cook-0", "cook", AutopilotGoal, 2, scope, 10)
+	p, e := NewProject("project-0011223344556677-cook-0", "cook", 2, scope, 10)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -29,24 +29,21 @@ func TestProjectFinishesOnceAndRegressOpensNewRow(t *testing.T) {
 	if _, e = ReviewProject(p, scope, 15, NeedDeficit, false); e == nil {
 		t.Fatal("regressed project reviewed in place")
 	}
-	next, e := NewProject("project-0011223344556677-cook-1", p.Kind, p.Source, p.Priority, scope, 15)
+	next, e := NewProject("project-0011223344556677-cook-1", p.Kind, p.Priority, scope, 15)
 	if e != nil || next.Status != ProjectOpen || next.ID == p.ID || p.Status != ProjectFinished {
 		t.Fatal("new row must open beside the finished record", next, e)
 	}
 }
 
-func TestProjectInvalidatedOnWorldChangeAndCancelled(t *testing.T) {
+func TestProjectInvalidatedOnWorldChange(t *testing.T) {
 	_, scope := fixture(t)
-	p, _ := NewProject("project-0011223344556677-cook-0", "cook", PlayerGoal, 2, scope, 10)
+	p, _ := NewProject("project-0011223344556677-cook-0", "cook", 2, scope, 10)
 	if g, e := ReviewProject(p, scope, 9, NeedDeficit, false); e != nil || g.Status != ProjectInvalidated {
 		t.Fatal("tick rewind did not invalidate", g, e)
 	}
-	c, e := CancelProject(p)
-	if e != nil || c.Status != ProjectCancelled {
-		t.Fatal(c, e)
-	}
-	if g, e := ReviewProject(c, scope, 11, NeedRecovered, false); e != nil || g.Status != ProjectCancelled {
-		t.Fatal("cancelled project reviewed back to life", g, e)
+	c, _ := ReviewProject(p, scope, 9, NeedDeficit, false)
+	if g, e := ReviewProject(c, scope, 11, NeedRecovered, false); e != nil || g.Status != ProjectInvalidated {
+		t.Fatal("invalidated project reviewed back to life", g, e)
 	}
 	bad := p
 	bad.Status, bad.Need = ProjectFinished, NeedDeficit

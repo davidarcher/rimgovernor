@@ -36,7 +36,7 @@ func CommitmentHolds(commitments []Commitment, now domain.Tick, released map[Goa
 		if !(v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation) {
 			continue
 		}
-		slot := c.Source == PlayerGoal || c.Priority >= 3
+		slot := c.Priority >= 3
 		if prev, seen := byGoal[c.Goal]; seen && (prev.Slot || !slot) {
 			continue
 		}

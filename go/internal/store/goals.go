@@ -54,28 +54,6 @@ CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), pay
 	return err
 }
 
-func (s *Store) CreateGoal(ctx context.Context, g domain.Goal) error {
-	if err := g.Validate(); err != nil {
-		return err
-	}
-	if g.Status != domain.GoalActive || g.Epoch != 0 || g.Need != domain.NeedUnknown || g.RecoveryObserved {
-		return errors.New("new goal must start without completion evidence")
-	}
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err = createGoal(ctx, tx, g); err != nil {
-		return err
-	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	s.notifyGoalsWritten()
-	return nil
-}
-
 func createGoal(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
 	if err := g.Validate(); err != nil {
 		return err
@@ -127,7 +105,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 	if out.Goal.ID != id {
 		return GoalState{}, errors.New("goal identity mismatch")
 	}
-	if out.Retired && (out.Goal.Source != domain.AutopilotGoal || out.Goal.Status != domain.GoalInvalidated) {
+	if out.Retired && out.Goal.Status != domain.GoalInvalidated {
 		return GoalState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
@@ -406,47 +384,6 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	}
 	_, err = tx.ExecContext(ctx, "UPDATE "+table+" SET revision=? WHERE id=?", strconv.FormatUint(state.OwnerRevision()+1, 10), summary.ID)
 	return err
-}
-
-// CancelGoal invalidates unissued work and marks issued work cancelled through
-// the normal progress journal, atomically with the goal. Effects still reconcile.
-func (s *Store) CancelGoal(ctx context.Context, id domain.GoalID, revision uint64) (GoalState, error) {
-	tx, err := s.begin(ctx)
-	if err != nil {
-		return GoalState{}, err
-	}
-	defer tx.Rollback()
-	state, err := loadGoal(ctx, tx, id)
-	if err != nil {
-		return GoalState{}, err
-	}
-	out, err := cancelGoalState(ctx, tx, state, revision)
-	if err != nil {
-		return GoalState{}, err
-	}
-	if err = tx.Commit(); err != nil {
-		return GoalState{}, err
-	}
-	return out, nil
-}
-
-// cancelGoalState is the shared cancellation body: CAS on the local revision,
-// cancel the goal's captured work through the ordinary progress journal, and
-// record the cancellation. CancelGoal and the player-facing CancelPlayerGoal
-// both go through exactly this, so the player path adds a world bound and a
-// reachable entry point, never different cancellation semantics.
-func cancelGoalState(ctx context.Context, tx *sql.Tx, state GoalState, revision uint64) (GoalState, error) {
-	if state.Revision != revision {
-		return GoalState{}, ErrConflict
-	}
-	g, err := domain.CancelGoal(state.Goal)
-	if err != nil {
-		return GoalState{}, err
-	}
-	if err = cancelGoalMethods(ctx, tx, state); err != nil {
-		return GoalState{}, err
-	}
-	return saveGoal(ctx, tx, state, g)
 }
 
 // cancelUndispatchedGoalMethods cancels every open method of the goal that

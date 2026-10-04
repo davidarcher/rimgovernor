@@ -126,7 +126,7 @@ haul eligibility remains authoritative; storage capacity is not completed haulin
 
 The census also reports installed scanner/drill definitions, costs, research, existing
 drill readiness and visible deep deposits when the native scanner overlay is available.
-`CreateGoal(MaintainResource, deep_extraction=true)` requires explicit player direction
+Deep extraction (`MaintainResource` with `deep_extraction`) requires explicit player direction
 accepting native drilling infestation risk. After surface sources are exhausted, the
 goal stages exact-resource storage and then researched scanner/drill facilities using
 ordinary construction preflight, resource commitments and Hands. Candidate footprints

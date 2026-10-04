@@ -43,8 +43,6 @@ var ErrNotFound = core.ErrNotFound
 type Store struct {
 	db     *sql.DB
 	floors *retirementFloors
-	// submissions is the session-only goal-create replay cache (#1011).
-	submissions goalCreateSubmissions
 	// goalsWritten wakes the governor-state mirror after a commit that may
 	// have created a goal (#1362), so a restart does not lose it.
 	goalsWritten chan struct{}

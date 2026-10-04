@@ -184,7 +184,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	}
 	executable := func(g GoalID) bool {
 		v, ok := byID[g]
-		return ok && !v.Cancelled && !v.Blocked && !v.MethodUnavailable
+		return ok && !v.Blocked && !v.MethodUnavailable
 	}
 
 	donations := map[GoalID]DevelopmentDonation{}
@@ -253,7 +253,7 @@ func ResolveDonations(goals []DevelopmentGoal, deps []DevelopmentDependency) (ma
 	sort.Slice(origins, func(i, j int) bool { return origins[i] < origins[j] })
 	for _, g := range origins {
 		origin, ok := byID[g]
-		if !ok || origin.Cancelled {
+		if !ok {
 			continue
 		}
 		walk(origin, g, []GoalID{g}, map[GoalID]bool{g: true})

@@ -20,7 +20,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict
 	}
 	bound := false

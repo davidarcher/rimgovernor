@@ -138,19 +138,13 @@ func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
 }
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
-// for EnsureDefensiveLayout when the routine policy opts in, otherwise the
-// player's create_goal binding for the same kind.
-func defenseLayoutGoal(ctx context.Context, p *Player, review store.RoutineReview, world store.World) (store.ProjectState, bool, error) {
+// for EnsureDefensiveLayout when the routine policy opts in.
+func defenseLayoutGoal(ctx context.Context, p *Player, review store.RoutineReview) (store.ProjectState, bool, error) {
 	if id, bound := review.ProjectFor(policy.EnsureDefensiveLayout); bound {
 		project, err := p.journal.LoadProject(ctx, id)
 		return project, err == nil, err
 	}
-	goals, err := p.journal.PlayerGoals(ctx, world)
-	if err != nil {
-		return store.ProjectState{}, false, err
-	}
-	project, ok := goals[domain.EnsureDefensiveLayoutGoal].(store.ProjectState)
-	return project, ok, nil
+	return store.ProjectState{}, false, nil
 }
 
 func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseLayoutResult, error) {
@@ -170,7 +164,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoReview}, nil
 	}
 	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
-	goal, found, err := defenseLayoutGoal(call, p, review, world)
+	goal, found, err := defenseLayoutGoal(call, p, review)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}

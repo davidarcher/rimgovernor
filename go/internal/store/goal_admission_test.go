@@ -41,11 +41,11 @@ func methodRequest(t *testing.T, g WorkOwner, id string, costs ...int64) Buildin
 func anotherGoal(t *testing.T, s *Store, id domain.GoalID) GoalState {
 	t.Helper()
 	ctx := context.Background()
-	g, e := domain.NewGoal(id, domain.PlayerGoal, 3, scope(), 10)
+	g, e := domain.NewGoal(id, 3, scope(), 10)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = s.CreateGoal(ctx, g); e != nil {
+	if e = s.SeedGoal(ctx, g); e != nil {
 		t.Fatal(e)
 	}
 	v, e := s.ReviewGoal(ctx, id, 0, scope(), 10, domain.NeedDeficit)
@@ -95,8 +95,8 @@ func TestBuildingMethodAdmitsUnderNewLoad(t *testing.T) {
 	}
 }
 
-// A goal create wakes the governor-state mirror (#1362).
-func TestCreateGoalWakesMirror(t *testing.T) {
+// A goal write wakes the governor-state mirror (#1362).
+func TestGoalWriteWakesMirror(t *testing.T) {
 	t.Parallel()
 	s, _, _ := goalFixture(t)
 	select {

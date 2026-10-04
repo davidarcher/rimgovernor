@@ -40,14 +40,11 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit); err == nil {
 		t.Fatal("retired goal reviewed")
 	}
-	if _, err = s.CancelGoal(ctx, g.Goal.ID, g.Revision); err == nil {
-		t.Fatal("retired goal changed")
-	}
-	replacement, err := domain.NewGoal(old.Goal.ID, domain.AutopilotGoal, 2, r.Current, r.Tick)
+	replacement, err := domain.NewGoal(old.Goal.ID, 2, r.Current, r.Tick)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.CreateGoal(ctx, replacement); err == nil {
+	if err = s.SeedGoal(ctx, replacement); err == nil {
 		t.Fatal("retired identity reused")
 	}
 }

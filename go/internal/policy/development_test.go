@@ -13,9 +13,9 @@ func developmentFixture() DevelopmentRequest {
 		Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100,
 		Workers: domain.Known(3),
 		Goals: []DevelopmentGoal{
-			{ID: "storage", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0)},
-			{ID: "defense", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(.5)},
-			{ID: "wood", Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(50.0 / 350)},
+			{ID: "storage", Priority: 3, Deficit: domain.Known(1.0)},
+			{ID: "defense", Priority: 3, Deficit: domain.Known(.5)},
+			{ID: "wood", Priority: 3, Deficit: domain.Known(50.0 / 350)},
 		},
 	}
 }
@@ -71,7 +71,7 @@ func TestUnavailableMethodDoesNotStarveExecutableDevelopment(t *testing.T) {
 }
 
 func TestDevelopmentHolds(t *testing.T) {
-	for _, kind := range []string{"emergency", "unknown", "cancelled", "blocked"} {
+	for _, kind := range []string{"emergency", "unknown", "blocked"} {
 		t.Run(kind, func(t *testing.T) {
 			r := developmentFixture()
 			r.Goals = r.Goals[:1]
@@ -80,8 +80,6 @@ func TestDevelopmentHolds(t *testing.T) {
 				r.Assessments = []RoutineAssessment{{ID: ActiveCombat, Priority: 0, Need: domain.NeedDeficit}}
 			case "unknown":
 				r.Goals[0].Deficit = domain.Unknown[float64]()
-			case "cancelled":
-				r.Goals[0].Cancelled = true
 			case "blocked":
 				r.Goals[0].Blocked = true
 			}
@@ -99,7 +97,7 @@ func TestDevelopmentComfortActsBesideUnservedStartupGoals(t *testing.T) {
 	r := developmentFixture()
 	r.Goals = r.Goals[:1]
 	r.Goals[0].Comfort = true
-	r.Goals = append(r.Goals, DevelopmentGoal{ID: "cooking", Source: AutopilotGoal, Priority: 2})
+	r.Goals = append(r.Goals, DevelopmentGoal{ID: "cooking", Priority: 2})
 	s := rank(t, r)
 	for _, row := range s.Rows {
 		if row.Goal == "storage" && !row.Selected {
@@ -108,11 +106,10 @@ func TestDevelopmentComfortActsBesideUnservedStartupGoals(t *testing.T) {
 	}
 }
 
-func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
+func TestDevelopmentAgeAndReset(t *testing.T) {
 	r := developmentFixture()
-	r.Goals[2].Source = PlayerGoal
 	s := rank(t, r)
-	requireSelected(t, s, "wood", "storage", "defense")
+	requireSelected(t, s, "storage", "defense", "wood")
 	for range 20 {
 		r.Previous = s
 		s = rank(t, r)
@@ -125,7 +122,7 @@ func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 	r.Tick = 600000
 	r.Previous = s
 	// Committed work resets only its own waiting age.
-	r.Commitments = []Commitment{{Goal: "wood", Source: PlayerGoal, Priority: 3, Progress: developmentProgress(t)}}
+	r.Commitments = []Commitment{{Goal: "wood", Priority: 3, Progress: developmentProgress(t)}}
 	s = rank(t, r)
 	requireSelected(t, s, "storage", "defense")
 	r.Previous = s
@@ -187,7 +184,7 @@ func TestDevelopmentSharedProgressCommitments(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, p := range []domain.Progress{pending, prepared, dispatched, cancelled} {
-		r.Commitments = []Commitment{{Goal: "player-room", Source: PlayerGoal, Priority: 2, Progress: p}}
+		r.Commitments = []Commitment{{Goal: "player-room", Priority: 3, Progress: p}}
 		s := rank(t, r)
 		requireSelected(t, s, "storage", "defense", "wood")
 		if !reflect.DeepEqual(s.Committed, []GoalID{"player-room"}) {
@@ -202,7 +199,6 @@ func TestDevelopmentRejectsInvalidInputs(t *testing.T) {
 		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(math.Inf(1)) },
 		func(r *DevelopmentRequest) { r.Goals[0].Deficit = domain.Known(1.1) },
 		func(r *DevelopmentRequest) { r.Goals = append(r.Goals, r.Goals[0]) },
-		func(r *DevelopmentRequest) { r.Goals[0].Source = "invalid" },
 	} {
 		r := developmentFixture()
 		mutate(&r)
@@ -220,7 +216,7 @@ func TestIdleTierOrderIsTotal(t *testing.T) {
 	r := developmentFixture()
 	r.Tick = 69054
 	goal := func(id GoalID, risk float64, blocked bool) DevelopmentGoal {
-		g := DevelopmentGoal{ID: id, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Blocked: blocked}
+		g := DevelopmentGoal{ID: id, Priority: 3, Deficit: domain.Known(1.0), Blocked: blocked}
 		if risk > 0 {
 			g.Risk = domain.Known(risk)
 		}

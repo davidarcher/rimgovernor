@@ -13,7 +13,7 @@ import (
 func TestIdleLaborRecordsButKeepsCommitmentAcrossReviews(t *testing.T) {
 	s := newDevelopmentSim(t, 1, simGoal("wood", 0.4, GoalLabor(MaintainResource)), simGoal("sleeping", 0.9, GoalLabor(MaintainHousing)))
 	s.tick = 5000
-	c := s.commitment("wood", AutopilotGoal, 4, true)
+	c := s.commitment("wood", 4, true)
 	c.Labor = GoalLabor(MaintainResource)
 	idle := domain.Known(LaborUse{Busy: map[WorkType]int{WorkConstruction: 2}, Idle: map[WorkType]int{WorkPlantCutting: 2}})
 	busy := domain.Known(LaborUse{Busy: map[WorkType]int{WorkPlantCutting: 1, WorkConstruction: 1}, Idle: map[WorkType]int{WorkPlantCutting: 1}})

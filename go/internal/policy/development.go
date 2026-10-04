@@ -10,20 +10,13 @@ import (
 
 // GoalID identifies a maintained need, independently of any one executable plan.
 type GoalID = domain.GoalID
-type GoalSource = domain.GoalSource
-
-const (
-	AutopilotGoal = domain.AutopilotGoal
-	PlayerGoal    = domain.PlayerGoal
-)
 
 type DevelopmentGoal struct {
-	ID                          GoalID
-	Source                      GoalSource
-	Priority                    int
-	Deficit                     domain.Fact[float64]
-	Cancelled, Blocked, Comfort bool
-	MethodUnavailable           bool
+	ID                GoalID
+	Priority          int
+	Deficit           domain.Fact[float64]
+	Blocked, Comfort  bool
+	MethodUnavailable bool
 	// Staged: the colony stage does not raise the goal yet; it waits, visible,
 	// and takes no slot.
 	Staged bool
@@ -43,8 +36,6 @@ type DevelopmentGoal struct {
 type DevelopmentWeights struct {
 	// Deficit scales the 0..1 observed deficit fraction.
 	Deficit float64
-	// Player is the flat preference for player-sourced goals.
-	Player float64
 	// AgeTicks is the game-tick wait that earns one point.
 	AgeTicks float64
 	// Hysteresis keeps a previously selected goal ahead of near ties.
@@ -58,11 +49,11 @@ type DevelopmentWeights struct {
 }
 
 func DefaultDevelopmentWeights() DevelopmentWeights {
-	return DevelopmentWeights{Deficit: 100, Player: 100, AgeTicks: 1000, Hysteresis: 20, Bottleneck: 30, Risk: 40}
+	return DevelopmentWeights{Deficit: 100, AgeTicks: 1000, Hysteresis: 20, Bottleneck: 30, Risk: 40}
 }
 
 func (w DevelopmentWeights) valid() bool {
-	for _, v := range []float64{w.Deficit, w.Player, w.AgeTicks, w.Hysteresis, w.Bottleneck, w.Risk} {
+	for _, v := range []float64{w.Deficit, w.AgeTicks, w.Hysteresis, w.Bottleneck, w.Risk} {
 		if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1e6 {
 			return false
 		}
@@ -74,7 +65,6 @@ func (w DevelopmentWeights) valid() bool {
 // claim of completion. All accepted player projects consume optional capacity.
 type Commitment struct {
 	Goal     GoalID
-	Source   GoalSource
 	Priority int
 	Progress domain.Progress
 	// Labor is the work the open commitment already occupies (GoalLabor for
@@ -100,7 +90,6 @@ const DevelopmentIdleTicks domain.Tick = domain.TicksPerHour
 type DevelopmentReason string
 
 const (
-	DevelopmentCancelled DevelopmentReason = "cancelled"
 	DevelopmentEmergency DevelopmentReason = "emergency"
 	DevelopmentStartup   DevelopmentReason = "startup_survival"
 	DevelopmentBlocked   DevelopmentReason = "blocked"
@@ -235,8 +224,8 @@ func donatedOrder(row DevelopmentRow) int {
 	return 5
 }
 
-func validGoal(id GoalID, source GoalSource, priority int) bool {
-	return validResource(Resource(id)) && (source == AutopilotGoal || source == PlayerGoal) && priority >= 0 && priority <= 4
+func validGoal(id GoalID, priority int) bool {
+	return validResource(Resource(id)) && priority >= 0 && priority <= 4
 }
 
 // RankDevelopment ports development_priorities.arbitrate. It grants selection
@@ -291,11 +280,11 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
-		if !validGoal(c.Goal, c.Source, c.Priority) || v.Stage == "" || seenActions[v.Action] || !validLabor(c.Labor) {
+		if !validGoal(c.Goal, c.Priority) || v.Stage == "" || seenActions[v.Action] || !validLabor(c.Labor) {
 			return DevelopmentState{}, errors.New("invalid development commitment")
 		}
 		seenActions[v.Action] = true
-		if c.Source != PlayerGoal && c.Priority < 3 {
+		if c.Priority < 3 {
 			continue
 		}
 		// Unknown effects retain capacity even after cancellation. A terminal
@@ -343,7 +332,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	for _, g := range r.Goals {
 		fraction, known := g.Deficit.Value()
 		risk, riskKnown := g.Risk.Value()
-		if !validGoal(g.ID, g.Source, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) || riskKnown && (math.IsNaN(risk) || risk < 0 || risk > 1) {
+		if !validGoal(g.ID, g.Priority) || seen[g.ID] || !validLabor(g.Labor) || known && (math.IsNaN(fraction) || math.IsInf(fraction, 0) || fraction < 0 || fraction > 1) || riskKnown && (math.IsNaN(risk) || risk < 0 || risk > 1) {
 			return DevelopmentState{}, errors.New("invalid development goal")
 		}
 		seen[g.ID] = true
@@ -368,9 +357,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !r.Previous.Partial || previous.Idle && !previous.Selected)
 		fraction, known := g.Deficit.Value()
 		score := weights.Deficit*fraction + float64(r.Tick-since)/weights.AgeTicks
-		if g.Source == PlayerGoal {
-			score += weights.Player
-		}
 		if previous.Selected && !idle {
 			score += weights.Hysteresis
 		}
@@ -386,8 +372,6 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.LaborEvidence = evidence[g.ID]
 		}
 		switch {
-		case g.Cancelled:
-			row.Reason = DevelopmentCancelled
 		case emergency:
 			row.Reason = DevelopmentEmergency
 		case g.Blocked:

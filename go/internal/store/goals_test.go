@@ -16,11 +16,11 @@ func goalFixture(t *testing.T) (*Store, string, GoalState) {
 	path := filepath.Join(t.TempDir(), "goals.db")
 	s := open(t, path)
 	// A Standard routine identity, so a regress re-arms its epoch (#1024).
-	g, e := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", domain.AutopilotGoal, 2, scope(), 10)
+	g, e := domain.NewGoal("routine-0000000000000000-MaintainHousing-0", 2, scope(), 10)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = s.CreateGoal(ctx, g); e != nil {
+	if e = s.SeedGoal(ctx, g); e != nil {
 		t.Fatal(e)
 	}
 	state, e := s.ReviewGoal(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
@@ -57,7 +57,7 @@ func TestGoalMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 		t.Fatal("stale review accepted", e)
 	}
 }
-func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
+func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
@@ -72,8 +72,8 @@ func TestGoalCancellationRetainsIssuedUncertainty(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "issued", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.CancelGoal(ctx, g.Goal.ID, g.Revision)
-	if e != nil || g.Goal.Status != domain.GoalCancelled {
+	g, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, otherMap(), 11, domain.NeedDeficit)
+	if e != nil || g.Goal.Status != domain.GoalInvalidated {
 		t.Fatal(g, e)
 	}
 	state, e := s.LoadPlan(ctx, "p")
@@ -186,7 +186,7 @@ func TestGoalDuplicateMethodRollsBackPlanAfterTerminalWork(t *testing.T) {
 	}
 }
 
-func TestGoalCancellationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
+func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
@@ -198,7 +198,7 @@ func TestGoalCancellationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.CancelGoal(ctx, g.Goal.ID, g.Revision); e == nil {
+	if _, e = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, otherMap(), 11, domain.NeedDeficit); e == nil {
 		t.Fatal("expected injected failure")
 	}
 	after, e := s.LoadGoal(ctx, g.Goal.ID)

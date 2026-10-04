@@ -220,7 +220,6 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 // for a Project, which has none.
 type OwnerSummary struct {
 	ID       string
-	Source   domain.GoalSource
 	Status   domain.GoalStatus
 	Need     domain.NeedState
 	Priority int
@@ -237,19 +236,17 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 	switch o := owner.(type) {
 	case GoalState:
 		g := o.Goal
-		return OwnerSummary{string(g.ID), g.Source, g.Status, g.Need, g.Priority, g.Epoch, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
+		return OwnerSummary{string(g.ID), g.Status, g.Need, g.Priority, g.Epoch, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
 	case ProjectState:
 		p := o.Project
 		status := domain.GoalActive
 		switch p.Status {
 		case domain.ProjectFinished:
 			status = domain.GoalSatisfied
-		case domain.ProjectCancelled:
-			status = domain.GoalCancelled
 		case domain.ProjectInvalidated:
 			status = domain.GoalInvalidated
 		}
-		return OwnerSummary{string(p.ID), p.Source, status, p.Need, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
+		return OwnerSummary{string(p.ID), status, p.Need, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
 	}
 	return OwnerSummary{}, false
 }

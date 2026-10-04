@@ -81,7 +81,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 		limit = 1
 		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource, policy.MaintainAnimalFeed, policy.ClearHomeObstructions, policy.TidyLayout, policy.MaintainStockpiles}
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() {
 		return ErrConflict
 	}
 	bound := false

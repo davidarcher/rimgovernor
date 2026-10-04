@@ -21,7 +21,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, owner methodOwner, plan do
 	if err != nil {
 		return err
 	}
-	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || !owner.ownerAutopilot() || len(plan.Actions()) > 4 {
+	if !review.Enabled || review.Snapshot != owner.ownerSnapshot() || len(plan.Actions()) > 4 {
 		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose

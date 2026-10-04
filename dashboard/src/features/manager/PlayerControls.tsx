@@ -11,8 +11,6 @@ import {ChatDisabledError, submitChat, type ChatGuidance, type ChatRequest, type
 const message = (error: unknown) => error instanceof Error ? error.message : 'Building operation unavailable';
 function describeGuidance(value: ChatGuidance): string {
   switch (value.kind) {
-    case 'activate_goal': return `Activated goal ${value.goal.goalId} (${value.goal.status}, ${value.goal.need})`;
-    case 'cancel_goal': return `Cancelled goal ${value.goal.goalId}`;
     case 'set_population_decision': return `Population decision: ${value.populationDecision.decision} ${value.populationDecision.pawn}`;
   }
 }
