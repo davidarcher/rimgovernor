@@ -88,8 +88,11 @@ type Summary struct {
 	ZoneDrops         int         `json:"zone_drops"`
 	SuppliesForbidden bool        `json:"supplies_forbidden"`
 	Score             Score       `json:"score"`
-	Thumb             string      `json:"thumb"`
-	Error             string      `json:"error,omitempty"`
+	// Delta is the score against the previous run of the same seed (#1936);
+	// nil when no baselines dir was given.
+	Delta *Delta `json:"delta,omitempty"`
+	Thumb string `json:"thumb"`
+	Error string `json:"error,omitempty"`
 }
 
 // result is the slice of result.json the report reads.
@@ -250,7 +253,7 @@ func colonists(r Row) int {
 }
 
 // Report reads the case output in and writes the run report to out.
-func Report(in, out string, meta map[string]string) error {
+func Report(in, out string, meta map[string]string, baselines string) error {
 	rows, res, err := Load(in)
 	if err != nil {
 		return err
@@ -264,6 +267,7 @@ func Report(in, out string, meta map[string]string) error {
 	}
 	summary := Derive(rows, merged)
 	summary.Error = res.Error
+	CompareToStore(&summary, baselines, filepath.Base(out))
 	if err := os.MkdirAll(filepath.Join(out, "review"), 0755); err != nil {
 		return err
 	}

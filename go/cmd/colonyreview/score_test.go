@@ -124,7 +124,7 @@ func TestScoreEmptyTimeline(t *testing.T) {
 
 func TestRunJSONCarriesScore(t *testing.T) {
 	out := t.TempDir()
-	if err := Report(caseOutput(t, 10), out, nil); err != nil {
+	if err := Report(caseOutput(t, 10), out, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(filepath.Join(out, "run.json"))

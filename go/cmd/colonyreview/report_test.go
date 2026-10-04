@@ -50,7 +50,7 @@ func TestReportAndSite(t *testing.T) {
 	in := caseOutput(t, 14)
 	site := t.TempDir()
 	runs := filepath.Join(site, "runs")
-	if err := Report(in, filepath.Join(runs, "2026-10-02-1"), map[string]string{"date": "2026-10-02"}); err != nil {
+	if err := Report(in, filepath.Join(runs, "2026-10-02-1"), map[string]string{"date": "2026-10-02"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	page, _ := os.ReadFile(filepath.Join(runs, "2026-10-02-1", "index.html"))
@@ -128,7 +128,7 @@ func TestStorageFlags(t *testing.T) {
 	data, _ = json.Marshal(res)
 	os.WriteFile(filepath.Join(dir, "result.json"), data, 0644)
 	out := t.TempDir()
-	if err := Report(dir, out, nil); err != nil {
+	if err := Report(dir, out, nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	page, _ := os.ReadFile(filepath.Join(out, "index.html"))

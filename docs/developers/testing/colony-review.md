@@ -55,6 +55,17 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   | `downed_time` | fraction of readings with a colonist downed | never | 1 |
   | `stage_days:<tier>` | days to the first reading of each build tier reached | day 0 (0 at 15 days) | 3 shared evenly by the tiers reached |
   | `raid_damage` | unknown: the timeline records none yet | | 2 |
+- **Previous-night comparison** (#1936) `report -baselines <dir of earlier
+  run dirs>` adds `delta` to `run.json` and a section to the run page: HEAD's
+  score minus the baseline's, per component (`delta` in score units, 0-1,
+  plus `value_delta` in the component's unit) and for the scalar (points).
+  The baseline is the newest earlier run dir with the same `seed` meta that
+  has a score: the previous nights' `colony-review-report` artifacts, the
+  same store the Pages site is built from (the render step downloads the
+  newest 8 successful runs). One run per seed makes it noisy: a signal, never
+  a gate. With no such run `delta.status` is `no_baseline`; a component
+  either side could not read (null score, or absent from one side) is
+  `unknown` with null numbers, never zero.
 - **Workflow** `.github/workflows/colony-review.yml`: nightly and on
   demand (`seed`, `days` inputs; defaults the pinned seed and 15 days), on the remote-acceptance runner setup.
   The report is rendered from whatever was recorded, uploaded as the

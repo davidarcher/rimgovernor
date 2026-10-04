@@ -46,6 +46,12 @@ var funcs = template.FuncMap{
 	"pct1": func(v float64) string { return fmt.Sprintf("%.0f%%", v*100) },
 	"f1":   func(v float64) string { return fmt.Sprintf("%.1f", v) },
 	"f0":   func(v float64) string { return fmt.Sprintf("%.0f", v) },
+	"sgn": func(v *float64, format string) string {
+		if v == nil {
+			return "unknown"
+		}
+		return fmt.Sprintf(format, *v)
+	},
 	"deref": func(v any) any {
 		switch p := v.(type) {
 		case *float64:
@@ -82,6 +88,8 @@ var runPage = template.Must(template.New("run").Funcs(funcs).Parse(`<!doctype ht
 <div class="tile"><span class="muted">Hours recorded</span><b>{{.S.Hours}}</b></div>
 <div class="tile"><span class="muted">Flags</span><b class="{{if .S.Flags}}warn{{end}}">{{.S.Flags}}</b></div>
 </div>
+{{with .S.Delta}}<h2>Against the previous night</h2>{{if eq .Status "no_baseline"}}<p class="muted">No earlier run with this seed to compare with (unknown, not zero).</p>{{else}}<p>Score {{sgn .Scalar "%+.1f"}} points against {{.Baseline}}{{if .BaselineCommit}} ({{.BaselineCommit}}){{end}}. <span class="muted">One run per seed: a signal, not a verdict.</span></p>
+<table>{{range .Components}}<tr><td>{{.Name}}</td><td>{{sgn .Delta "%+.2f"}}</td><td class="muted">{{if .ValueDelta}}{{sgn .ValueDelta "%+.2f"}} in its unit{{end}}</td></tr>{{end}}</table>{{end}}{{end}}
 <h2>Trends</h2><div class="charts">{{range .Charts}}<div class="chart"><span class="muted">{{.Label}}</span> <b>{{.Last}}</b>
 <svg viewBox="0 0 {{.W}} 100" preserveAspectRatio="none"><polyline points="{{.Points}}"/></svg>
 <span class="muted">{{.Min}} – {{.Max}}</span></div>{{end}}</div>

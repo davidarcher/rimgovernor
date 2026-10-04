@@ -46,6 +46,9 @@ env:
   CGO_ENABLED: '0'
   # How many reports the Pages site keeps, newest first.
   KEEP_RUNS: '14'
+  # How many earlier reports the render step searches for a same-seed score
+  # baseline (the newest with the run's seed wins).
+  BASELINE_RUNS: '8'
 
 concurrency:
   group: colony-review
@@ -57,6 +60,9 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 360
     environment: remote-acceptance
+    permissions:
+      contents: read
+      actions: read
     outputs:
       report: ${{ steps.report.outputs.name }}
     # The shards' Go caches (remote-acceptance.yml saves them from main
@@ -145,6 +151,20 @@ jobs:
           path: C:\rg\evidence\s1
           if-no-files-found: ignore
           retention-days: 7
+      # The previous nights' reports are the score baseline store (#1936):
+      # the same artifacts the pages job builds the site from. Only run.json
+      # is read; a failed download just leaves no baseline (unknown).
+      - name: Fetch earlier reports for the score baseline
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ids = gh run list -R $env:GITHUB_REPOSITORY -w colony-review.yml -s success -L $env:BASELINE_RUNS --json databaseId -q '.[].databaseId'
+          foreach ($id in $ids) {
+            if ("$id" -eq $env:GITHUB_RUN_ID) { continue }
+            gh run download $id -R $env:GITHUB_REPOSITORY -n colony-review-report -D C:\rg\baselines
+            if ($LASTEXITCODE) { Write-Host "run ${id}: no report artifact" }
+          }
       - name: Render the report
         id: report
         env:
@@ -159,7 +179,7 @@ jobs:
           $date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $name = "$date-$env:GITHUB_RUN_ID"
           $url = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          & C:\rg\colonyreview.exe report -in $result.DirectoryName -out "C:\rg\review-report\$name" `
+          & C:\rg\colonyreview.exe report -in $result.DirectoryName -out "C:\rg\review-report\$name" -baselines C:\rg\baselines `
             -meta "date=$date" -meta "commit=$($env:TESTED_COMMIT.Substring(0,9))" -meta "run=$url" -meta "outcome=$env:PLAYED"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "name=$name" >> $env:GITHUB_OUTPUT

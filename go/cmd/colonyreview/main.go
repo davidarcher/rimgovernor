@@ -2,7 +2,7 @@
 // test/colony_review recorder's stats.jsonl and JPEGs) into a static HTML
 // report a player can skim, and indexes reports into a site.
 //
-//	colonyreview report -in <review dir> -out <run dir> [-meta key=value ...]
+//	colonyreview report -in <review dir> -out <run dir> [-baselines <dir of earlier run dirs>] [-meta key=value ...]
 //	colonyreview site -runs <dir of run dirs> -out <site dir>
 //
 // report copies the images, writes index.html and run.json (meta plus the
@@ -27,13 +27,14 @@ func main() {
 		fs := flag.NewFlagSet("report", flag.ExitOnError)
 		in := fs.String("in", "", "recorder directory (stats.jsonl and images)")
 		out := fs.String("out", "", "run report directory to write")
+		base := fs.String("baselines", "", "directory of earlier run reports; the newest with the same seed is the score baseline")
 		meta := metaFlag{}
 		fs.Var(&meta, "meta", "key=value shown in the report header and saved in run.json (repeatable)")
 		fs.Parse(os.Args[2:])
 		if *in == "" || *out == "" {
 			usage()
 		}
-		err = Report(*in, *out, meta)
+		err = Report(*in, *out, meta, *base)
 	case "site":
 		fs := flag.NewFlagSet("site", flag.ExitOnError)
 		runs := fs.String("runs", "", "directory holding run report directories")
@@ -53,7 +54,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: colonyreview report -in <dir> -out <dir> [-meta k=v ...] | site -runs <dir> -out <dir>")
+	fmt.Fprintln(os.Stderr, "usage: colonyreview report -in <dir> -out <dir> [-baselines <dir>] [-meta k=v ...] | site -runs <dir> -out <dir>")
 	os.Exit(2)
 }
 
