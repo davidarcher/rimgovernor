@@ -7,7 +7,9 @@ import (
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -27,12 +29,37 @@ import (
 // mined first. A native refusal of a building whose cell the frame lists as
 // open and that names no blocker is an error, not a refusal to retry.
 func (b *RoutineBuildingPlanner) admitRockStep(call, epoch context.Context, s excavationStep, planned []policy.RoleCell, access domain.Cell, method domain.MethodID, buildings []domain.Building, check func() error) (RoutineBuildingResult, bool, error) {
-	step := policy.RockStep(planned, s.facts.Cells)
+	roofs, err := b.roofRulesFor(call, s.state.Snapshot, planned)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
+	step, err := policy.RockStepRoofs(planned, s.facts.Cells, roofs)
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
 	if len(step.Unfit) > 0 {
 		clockSchedulerLog("%s: %s: %d open-sky cells unfit (thick or unseen roof)", b.goal, method, len(step.Unfit))
 		return RoutineBuildingResult{Verdict: rockNotDug(string(method), fmt.Sprintf("%d_cells_thick_or_unseen_roof", len(step.Unfit)))}, true, nil
 	}
 	return b.digPlannedSky(call, epoch, s, step.Dig, step.Unroof, access, method, buildings, check)
+}
+
+// roofRulesFor is the load's roof rules (#1870) when planned has a needs-sky
+// cell, the only role that asks what a roof is; nil otherwise. A source that
+// serves no definitions is an error: the roof is not guessed.
+func (b *RoutineBuildingPlanner) roofRulesFor(ctx context.Context, snapshot domain.GenerationSnapshot, planned []policy.RoleCell) (policy.RoofRules, error) {
+	if !slices.ContainsFunc(planned, func(c policy.RoleCell) bool { return c.Role == policy.RockNeedsSky }) {
+		return nil, nil
+	}
+	source, ok := b.native.(observation.DefinitionSource)
+	if !ok {
+		return nil, errors.New("roof rules: the native source serves no definitions")
+	}
+	catalog, err := source.DefinitionCatalog(ctx, boundary.Identity(snapshot))
+	if err != nil {
+		return nil, err
+	}
+	return catalog.RoofRules()
 }
 
 // digPlanned is admitRockStep's executor over an already classified dig

@@ -1,7 +1,11 @@
 package policy
 
 import (
+	"errors"
+	"fmt"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -53,6 +57,34 @@ type RockStepResult struct {
 // unseen or under a thick roof. Duplicate cells collapse, and
 // needs-floor wins over blocks for the same cell.
 func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
+	out, _ := RockStepRoofs(planned, cells, nil)
+	return out
+}
+
+// RoofRule is what the game's RoofDef row says about a roof (#1870). The
+// game refuses to designate a no-roof area under a roof whose isThickRoof
+// is set (Designator_AreaNoRoof.CanDesignateCell, read with ilspycmd) and
+// checks nothing else when a roof is removed: isNatural and canCollapse
+// do not gate it, so neither is carried.
+type RoofRule struct{ Thick bool }
+
+// Removable reports whether the roof can be taken off.
+func (r RoofRule) Removable() bool { return !r.Thick }
+
+// RoofRules is the load's roof rules by RoofDef name (the bridge catalog's
+// RoofRules). A roof not in it is unknown.
+type RoofRules map[string]RoofRule
+
+// ErrUnknownRoof marks a needs-sky cell whose roof def is not in the rules.
+var ErrUnknownRoof = errors.New("unknown roof def")
+
+// RockStepRoofs is RockStep with the roof rules that decide a needs-sky
+// cell: a roof is removable when its RoofDef is not thick. A roofed cell
+// whose def is not in roofs is Unfit and the error wraps ErrUnknownRoof,
+// naming the def; the result is still complete for the other cells. RockStep
+// passes no rules, so it is for plans with no needs-sky cell.
+func RockStepRoofs(planned []RoleCell, cells []SiteCell, roofs RoofRules) (RockStepResult, error) {
+	var unknown []string
 	site := make(map[domain.Cell]SiteCell, len(cells))
 	for _, c := range cells {
 		site[c.Cell] = c
@@ -73,11 +105,23 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 		c, listed := site[cell]
 		if role[cell] == RockNeedsSky {
 			roof, known := c.Roof.Value()
-			if !listed || !known || roof == "RoofRockThick" {
+			if !listed || !known {
 				out.Unfit = append(out.Unfit, cell)
 				continue
 			}
 			if roof != "" {
+				rule, ok := roofs[roof]
+				if !ok {
+					if !slices.Contains(unknown, roof) {
+						unknown = append(unknown, roof)
+					}
+					out.Unfit = append(out.Unfit, cell)
+					continue
+				}
+				if !rule.Removable() {
+					out.Unfit = append(out.Unfit, cell)
+					continue
+				}
 				out.Unroof = append(out.Unroof, cell)
 			}
 			if rockCell(c) {
@@ -94,7 +138,11 @@ func RockStep(planned []RoleCell, cells []SiteCell) RockStepResult {
 		}
 		out.Dig = append(out.Dig, cell)
 	}
-	return out
+	if len(unknown) > 0 {
+		slices.Sort(unknown)
+		return out, fmt.Errorf("%w: %s", ErrUnknownRoof, strings.Join(unknown, ", "))
+	}
+	return out, nil
 }
 
 // MergeRockDigs unions the dig lists of several plans into one excavation

@@ -11,7 +11,9 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	d "github.com/davidarcher/RimGovernor/go/internal/wire/defspb"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // rockCoolerNative is the refrigeration fixture with natural rock on the
@@ -22,6 +24,16 @@ type rockCoolerNative struct {
 	overRock  int
 	refuse    bool
 	overCells []domain.Cell
+}
+
+// DefinitionCatalog serves the two natural rock roofs.
+func (n *rockCoolerNative) DefinitionCatalog(context.Context, *c.Identity) (*bridge.DefinitionCatalog, error) {
+	rows := map[string]proto.Message{
+		"RoofRockThin":    &d.RoofDef{DefName: "RoofRockThin", IsNatural: true, CanCollapse: true},
+		"RoofRockThick":   &d.RoofDef{DefName: "RoofRockThick", IsNatural: true, IsThickRoof: true},
+		"RoofConstructed": &d.RoofDef{DefName: "RoofConstructed", CanCollapse: true},
+	}
+	return &bridge.DefinitionCatalog{Defs: map[protoreflect.FullName]map[string]proto.Message{(&d.RoofDef{}).ProtoReflect().Descriptor().FullName(): rows}}, nil
 }
 
 func (n *rockCoolerNative) ReadExcavationSite(ctx context.Context, _ *c.Identity, cells []domain.Cell, _ domain.Cell) (bridge.ExcavationSite, bridge.Result, error) {

@@ -90,6 +90,10 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 			}
 		}
 	}
+	roofs, err := r.roofRulesFor(call, s.state.Snapshot, []policy.RoleCell{{Role: policy.RockNeedsSky}})
+	if err != nil {
+		return RoutineBuildingResult{}, false, err
+	}
 	var pick *policy.PlannedPowerSite
 	var pickCells []policy.RoleCell
 	for _, site := range policy.PlannedPowerSites(plan, r.definition) {
@@ -101,7 +105,10 @@ func (r *RoutineBuildingPlanner) digSky(call, epoch context.Context, s excavatio
 		for _, lane := range policy.TurbineCatchZone(plan, site.Area) {
 			cells = append(cells, policy.RoleCell{Cell: lane, Role: policy.RockNeedsSky})
 		}
-		step := policy.RockStep(cells, s.facts.Cells)
+		step, err := policy.RockStepRoofs(cells, s.facts.Cells, roofs)
+		if err != nil {
+			return RoutineBuildingResult{}, false, err
+		}
 		if slices.ContainsFunc(footprint, func(c domain.Cell) bool { return taken[c] }) {
 			if len(step.Unroof) > 0 {
 				stalled, err := r.roofStalled(call, s, skyMethod(r.definition, site.Area))

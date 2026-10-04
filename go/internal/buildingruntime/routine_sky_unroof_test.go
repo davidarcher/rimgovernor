@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // An unroof-only plan reads no rock, so a native with no excavation source
@@ -26,7 +28,7 @@ func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	cold := policy.RefrigerationCooler{Position: site.Cell, Rotation: site.Rotation}.Cold()
-	p.native = struct{ *refrigerationNative }{n.refrigerationNative}
+	p.native = noExcavationNative{n.refrigerationNative, n}
 	method := skyMethod("Cooler", policy.Rectangle{X: 1, Z: 3})
 	planned := []policy.RoleCell{{Cell: site.Cell, Role: policy.RockNeedsSky}}
 	result, handled, err := p.admitRockStep(ctx, ctx, s, planned, cold, method, []domain.Building{building}, func() error { return nil })
@@ -73,4 +75,15 @@ func TestUnroofOnlyPlanNeedsNoExcavationSourceAndStallIsNamed(t *testing.T) {
 	if stalled, err := p.roofStalled(ctx, s, method); err != nil || !stalled {
 		t.Fatal("stall not named", stalled, err)
 	}
+}
+
+// noExcavationNative is the refrigeration native without an excavation
+// source, still serving the roof rows.
+type noExcavationNative struct {
+	*refrigerationNative
+	roofs *rockCoolerNative
+}
+
+func (n noExcavationNative) DefinitionCatalog(ctx context.Context, id *c.Identity) (*bridge.DefinitionCatalog, error) {
+	return n.roofs.DefinitionCatalog(ctx, id)
 }
