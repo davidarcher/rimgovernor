@@ -136,9 +136,6 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,stuff) VALUES(?,?,?,'husbandry',?,?,?)", a.ID(), plan, ordinal, husbandry.Animal(), string(husbandry.Method()), argument)
 	} else if interaction, ok := a.PrisonerInteraction(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition) VALUES(?,?,?,'prisoner_interaction',?,?)", a.ID(), plan, ordinal, interaction.Pawn(), string(interaction.Interaction()))
-	} else if royalty, ok := a.Royalty(); ok {
-		// target is the faction def, definition the permit, stuff the verb (#1606).
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition,stuff) VALUES(?,?,?,'royalty',?,?,?,?)", a.ID(), plan, ordinal, royalty.Pawn(), royalty.Faction(), royalty.Permit(), string(royalty.Verb()))
 	} else if ritual, ok := a.Ritual(); ok {
 		// definition is the ritual, stuff the verb (#1639). A begin (#1659)
 		// also keeps its spot in x and z and its assignments in the payload.
@@ -1050,14 +1047,6 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewPrisonerInteractionAction(id, interaction)
 		return a, ordinal, err
 	}
-	if kind == "royalty" && pawn.Valid && target.Valid && def.Valid && stuff.Valid && !x.Valid && !z.Valid && !rotation.Valid && !draftAction.Valid {
-		royalty, err := domain.NewRoyalty(domain.PawnID(pawn.String), target.String, domain.RoyaltyVerb(stuff.String), def.String)
-		if err != nil {
-			return domain.Action{}, 0, err
-		}
-		a, err := domain.NewRoyaltyAction(id, royalty)
-		return a, ordinal, err
-	}
 	if kind == "ritual" && pawn.Valid && def.Valid && stuff.Valid && stuff.String == string(domain.RitualBegin) && x.Valid && z.Valid && ritualBlob != nil && !target.Valid && !rotation.Valid && !draftAction.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		var payload ritualPayload
 		if json.Unmarshal(ritualBlob, &payload) != nil {
@@ -1264,8 +1253,8 @@ func bedUseDefinition(b domain.BedUse) string {
 // hostility mode, "self_tend:<bool>" (#1305), "nickname:<name>" (#1310), a
 // MedicalCareCategory name (#1301), "reading_policy:<name>" (#1306),
 // "drug_policy:<name>" (#1537), "food_policy:<name>" (#1541),
-// "mech_work_mode:<def>" or "mech_control_group:<index>" (#1685); the names
-// never overlap.
+// "mech_work_mode:<def>" or "mech_control_group:<index>" (#1685) or
+// "choose_permit:<faction def>:<permit def>" (#1878); the names never overlap.
 func pawnSettingDefinition(s domain.PawnSettings) string {
 	if s.Kind() == domain.SettingSelfTend {
 		return "self_tend:" + strconv.FormatBool(s.SelfTend())
@@ -1293,6 +1282,9 @@ func pawnSettingDefinition(s domain.PawnSettings) string {
 	}
 	if group, ok := s.MechControlGroup(); ok {
 		return "mech_control_group:" + strconv.Itoa(group)
+	}
+	if faction, permit, ok := s.ChoosePermit(); ok {
+		return "choose_permit:" + faction + ":" + permit
 	}
 	return string(s.Hostility())
 }
@@ -1330,6 +1322,13 @@ func parsePawnSetting(pawn domain.PawnID, def string) (domain.PawnSettings, erro
 			return domain.PawnSettings{}, err
 		}
 		return domain.NewMechControlGroupSetting(pawn, group)
+	}
+	if rest, ok := strings.CutPrefix(def, "choose_permit:"); ok {
+		faction, permit, found := strings.Cut(rest, ":")
+		if !found {
+			return domain.PawnSettings{}, errors.New("a choose_permit row names a faction def and a permit def")
+		}
+		return domain.NewChoosePermitSetting(pawn, faction, permit)
 	}
 	if care := domain.MedicalCare(def); care.Valid() {
 		return domain.NewMedicalCareSetting(pawn, care)

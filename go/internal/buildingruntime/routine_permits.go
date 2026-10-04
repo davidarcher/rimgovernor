@@ -11,8 +11,8 @@ import (
 
 // RoutinePermitsPlanner is MaintainPermits' planner (#1606, epic #1598):
 // while a colonist holds permit points for a permit worth taking
-// (policy.NextPermit over the royalty read), it commits one Royalty
-// choose_permit write for that colonist, faction and permit. The committed
+// (policy.NextPermit over the royalty read), it commits one
+// choose_permit pawn setting for that colonist, faction and permit. The committed
 // plan is the persisted PermitIntent: it lives on the goal's method in the
 // save. A permit native refuses is not retried past the attempt limit, so the
 // next best waits behind it only after the goal epoch turns.
@@ -113,12 +113,12 @@ func permitMethod(intent policy.PermitIntent, history []domain.GoalMethod, epoch
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return "", domain.PlanSpec{}, true, nil
 	}
-	royalty, err := intent.Royalty()
+	setting, err := intent.Setting()
 	if err != nil {
 		return "", domain.PlanSpec{}, false, err
 	}
 	id := domain.MintPlanID()
-	action, err := domain.NewRoyaltyAction(domain.ActionID(fmt.Sprintf("%s-0", id)), royalty)
+	action, err := domain.NewPawnSettingsAction(domain.ActionID(fmt.Sprintf("%s-0", id)), setting)
 	if err != nil {
 		return "", domain.PlanSpec{}, false, err
 	}

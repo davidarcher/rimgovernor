@@ -93,16 +93,17 @@ func TestPermitCategoryFollowsWorkerClass(t *testing.T) {
 	}
 }
 
-// The chosen permit becomes the Royalty write the goal commits, and the
+// The chosen permit becomes the choose_permit pawn setting the goal commits, and the
 // goal measures spent once nothing worthwhile is takeable.
 func TestPermitIntentIsTheRoyaltyWriteAndGoalMeasuresSpent(t *testing.T) {
 	got, ok := NextPermit(permitFacts(1))
 	if !ok {
 		t.Fatal("a permit is takeable")
 	}
-	royalty, err := got.Intent().Royalty()
-	if err != nil || royalty.Pawn() != "Alice" || royalty.Faction() != "Empire" || royalty.Verb() != domain.RoyaltyChoosePermit || royalty.Permit() != "CallMilitaryAidSmall" {
-		t.Fatalf("%+v %v", royalty, err)
+	setting, err := got.Intent().Setting()
+	faction, permit, ok := setting.ChoosePermit()
+	if err != nil || !ok || setting.Pawn() != "Alice" || faction != "Empire" || permit != "CallMilitaryAidSmall" {
+		t.Fatalf("%+v %v", setting, err)
 	}
 	if spent, known := PermitsSpent(domain.Known(permitFacts(1))).Value(); !known || spent {
 		t.Fatal("points for a worthwhile permit are not spent", spent, known)

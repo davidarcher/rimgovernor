@@ -32,7 +32,10 @@ namespace HomeBridge.BridgeTools
     // colonist with a mechanitor tracker (never a wild, hostile or
     // unoverseen mech): the first sets the MechWorkModeDef of the mech's
     // control group, the second moves the mech into one of its overseer's
-    // control groups; both read the group back.
+    // control groups; both read the group back. choose_permit (#1878) spends
+    // a colonist's permit points on one permit of a faction through
+    // Pawn_RoyaltyTracker.AddPermit after the checks the game's permit window
+    // (PermitsCardUtility) applies, and reads the held permit back.
     // A setting that already holds applies again.
     internal static class NativePawnSettings
     {
@@ -84,6 +87,8 @@ namespace HomeBridge.BridgeTools
                 return ResolveFood(intent, context, out pawn, out _);
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || kind == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
                 return ResolveMech(intent, context, out pawn, out _, out _, out _);
+            if (kind == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
+                return ResolvePermit(intent, out pawn, out _, out _);
             if (kind != Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse && kind != Operations.PawnSettingsIntent.SettingOneofCase.SelfTend)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
             if (kind == Operations.PawnSettingsIntent.SettingOneofCase.HostilityResponse)
@@ -128,6 +133,8 @@ namespace HomeBridge.BridgeTools
                 return ApplyFood(intent, context);
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechWorkMode || intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MechControlGroup)
                 return ApplyMech(intent, context);
+            if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.ChoosePermit)
+                return ApplyPermit(intent);
             var settings = pawn!.playerSettings;
             if (intent.SettingCase == Operations.PawnSettingsIntent.SettingOneofCase.MedicalCare) {
                 var outcome = settings.medCare == care ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
@@ -354,6 +361,59 @@ namespace HomeBridge.BridgeTools
             return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn!.GetUniqueLoadID() },
                 Fields = { new Receipts.FieldResult { Field = field,
+                    Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
+        }
+
+        // choose_permit (#1878): a free colonist on any map takes one permit of
+        // a faction when the permit belongs to that faction, the colonist's
+        // title reaches its minimum, its prerequisite is held and the
+        // faction's permit points cover its cost. A permit already held is
+        // unchanged and spends nothing.
+        private static Common.Failure? ResolvePermit(Operations.PawnSettingsIntent intent, out Pawn? pawn, out Faction? faction, out RoyalTitlePermitDef? permit)
+        {
+            pawn = null; faction = null; permit = null;
+            var choice = intent.ChoosePermit;
+            if (choice == null || !choice.HasFactionDef || !ProtoBoundary.IsIdentifier(choice.FactionDef) || !choice.HasPermit || !ProtoBoundary.IsIdentifier(choice.Permit))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Choosing a permit requires a faction def and a permit def.");
+            pawn = PawnsFinder.AllMaps_FreeColonists.ById(intent.PawnId);
+            if (pawn == null || pawn.royalty == null)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist with royalty is unavailable.");
+            faction = Verse.Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f?.def != null && f.def.defName == choice.FactionDef);
+            if (faction == null)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Faction is unavailable.");
+            permit = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(choice.Permit);
+            if (permit == null)
+                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Permit def is unavailable.");
+            var royalty = pawn.royalty;
+            if (royalty.HasPermit(permit, faction)) return null;
+            var title = royalty.GetCurrentTitle(faction);
+            if (title == null)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The colonist holds no title with the faction.");
+            if (permit.faction != null && permit.faction != faction.def)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The permit belongs to another faction.");
+            if (permit.minTitle != null && title.seniority < permit.minTitle.seniority)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The colonist's title is below the permit's minimum.");
+            if (permit.prerequisite != null && !royalty.HasPermit(permit.prerequisite, faction))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The permit's prerequisite is not held.");
+            if (royalty.GetPermitPoints(faction) < permit.permitPointCost)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The colonist lacks the permit points.");
+            return null;
+        }
+
+        private static Receipts.EffectEvidence ApplyPermit(Operations.PawnSettingsIntent intent)
+        {
+            var failure = ResolvePermit(intent, out var pawn, out var faction, out var permit);
+            if (failure != null) throw new ApplyRefusedException(failure.Code, failure.Detail);
+            var royalty = pawn!.royalty;
+            var before = royalty.GetPermitPoints(faction!);
+            var unchanged = royalty.HasPermit(permit!, faction!);
+            if (!unchanged) royalty.AddPermit(permit!, faction!);
+            if (!royalty.HasPermit(permit!, faction!)) throw new InvalidOperationException("Native permit requires readback.");
+            if (!unchanged && royalty.GetPermitPoints(faction!) != before - permit!.permitPointCost)
+                throw new InvalidOperationException("Native permit points did not drop by the permit's cost.");
+            return new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect {
+                Snapshot = new Receipts.SnapshotEvidence { EntityId = pawn.GetUniqueLoadID() },
+                Fields = { new Receipts.FieldResult { Field = Receipts.SettingsField.Permit,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied } } } };
         }
 

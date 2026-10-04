@@ -75,6 +75,12 @@ func pawnSettingsAction(action domain.Action) (*o.Action, error) {
 			return nil, contract("%v", err)
 		}
 		intent.Setting = &o.PawnSettingsIntent_MechControlGroup{MechControlGroup: int32(group)}
+	case domain.SettingChoosePermit:
+		faction, permit, _ := v.ChoosePermit()
+		if _, err := domain.NewChoosePermitSetting(v.Pawn(), faction, permit); err != nil {
+			return nil, contract("%v", err)
+		}
+		intent.Setting = &o.PawnSettingsIntent_ChoosePermit{ChoosePermit: &o.PermitChoice{FactionDef: proto.String(faction), Permit: proto.String(permit)}}
 	default:
 		return nil, contract("unknown pawn setting")
 	}

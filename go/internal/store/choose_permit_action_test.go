@@ -7,16 +7,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// A royalty write (#1606) persists its pawn, faction, verb and permit.
-func TestRoyaltyActionRoundTrips(t *testing.T) {
+// A choose_permit pawn setting (#1878) persists its pawn, faction and permit.
+func TestChoosePermitSettingRoundTrips(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, path, g := goalFixture(t)
-	value, err := domain.NewRoyalty("pawn-3", "Empire", domain.RoyaltyChoosePermit, "CallMilitaryAidSmall")
+	value, err := domain.NewChoosePermitSetting("pawn-3", "Empire", "CallMilitaryAidSmall")
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := domain.NewRoyaltyAction("roy", value)
+	a, err := domain.NewPawnSettingsAction("roy", value)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestRoyaltyActionRoundTrips(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatal(got)
 	}
-	if v, ok := got[0].Royalty(); !ok || v != value {
+	if v, ok := got[0].PawnSettings(); !ok || v != value {
 		t.Fatal(v, value)
 	}
 }

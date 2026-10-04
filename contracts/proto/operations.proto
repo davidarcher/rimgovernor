@@ -300,7 +300,6 @@ message Action {
     FoodPolicyIntent food_policy = 57;
     RitualIntent ritual = 63;
     AbilityIntent ability = 60;
-    RoyaltyIntent royalty = 64;
     IgniteIntent ignite = 65;
   }
 }
@@ -390,7 +389,12 @@ message AbilityNoTarget {}
 // overseer's control group the pawn belongs to. Both take a mechanoid the
 // colony owns whose overseer is a living colonist with a mechanitor tracker;
 // native refuses any other pawn, an unknown mode or an index past the
-// overseer's control groups, and reads the group back.
+// overseer's control groups, and reads the group back. choose_permit (#1878)
+// takes one permit def of one faction def for a colonist of any map through
+// Pawn_RoyaltyTracker.AddPermit after the checks the game's permit window
+// applies (the permit belongs to the faction, the colonist's title reaches its
+// minimum, its prerequisite is held, the faction's permit points cover its
+// cost); native reads the held permit back, UNCHANGED when it was already held.
 message PawnSettingsIntent {
   optional string pawn_id = 1;
   oneof setting {
@@ -404,7 +408,13 @@ message PawnSettingsIntent {
     string food_policy = 9;
     string mech_work_mode = 10;
     int32 mech_control_group = 11;
+    PermitChoice choose_permit = 12;
   }
+}
+// The faction def and the RoyalTitlePermitDef a choose_permit setting takes.
+message PermitChoice {
+  optional string faction_def = 1;
+  optional string permit = 2;
 }
 // Create, edit or delete one bot-owned allowed area, or edit the home area
 // (#1321). A bot area is the Area_Allowed labelled with its key;
@@ -751,19 +761,6 @@ message RitualIntent {
 message RitualRoleAssignment {
   optional string slot = 1;
   repeated string pawn_ids = 2;
-}
-// One royalty write to one colonist's standing with one faction (#1606, epic
-// #1598): a closed verb set so later royalty verbs add an arm, not a kind.
-// verb "choose_permit" spends permit points on the permit def `permit`
-// (Pawn_RoyaltyTracker.AddPermit) after the game's own checks (title high
-// enough, points available, permit not yet held). Applied means the permit is
-// held and the faction's permit points dropped by its cost; the evidence is a
-// RoyaltyEffect. A permit already held applies again.
-message RoyaltyIntent {
-  optional string pawn_id = 1;
-  optional string faction_def = 2;
-  optional string verb = 3;
-  optional string permit = 4;
 }
 // Order one alive, spawned, drafted pawn to walk to one standable,
 // reachable cell. Applied means the order was given, or already matched (the

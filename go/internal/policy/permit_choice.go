@@ -11,7 +11,7 @@ import (
 // permit points takes the permit that is worth most to this colony: aid
 // first, then trade and drop-pod access, then psycast permits (more so once
 // a colonist is a psycaster). The choice is a pure ranking over the royalty
-// read; the goal commits it as a Royalty choose_permit write, and the plan
+// read; the goal commits it as a choose_permit pawn setting, and the plan
 // recorded on the goal (in the save with the goal) is the persisted intent.
 const MaintainPermits GoalID = "MaintainPermits"
 
@@ -61,10 +61,10 @@ type PermitIntent struct {
 	Permit  string
 }
 
-// Royalty is the write that carries the intent: the colonist chooses the
+// Setting is the write that carries the intent: the colonist chooses the
 // permit with the faction.
-func (i PermitIntent) Royalty() (domain.Royalty, error) {
-	return domain.NewRoyalty(domain.PawnID(i.Holder), i.Faction, domain.RoyaltyChoosePermit, i.Permit)
+func (i PermitIntent) Setting() (domain.PawnSettings, error) {
+	return domain.NewChoosePermitSetting(domain.PawnID(i.Holder), i.Faction, i.Permit)
 }
 
 // Intent is the goal intent for a choice.

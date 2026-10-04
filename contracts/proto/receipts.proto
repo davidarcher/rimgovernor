@@ -60,7 +60,6 @@ message EffectEvidence {
     AreaPlantCutEffect area_plant_cut = 31;
     RitualEffect ritual = 40;
     AbilityEffect ability = 32;
-    RoyaltyEffect royalty = 41;
   }
 }
 message SnapshotEvidence {
@@ -148,6 +147,7 @@ enum SettingsField {
   SETTINGS_FIELD_AUTO_HOME_AREA = 25; SETTINGS_FIELD_NICKNAME = 26;
   SETTINGS_FIELD_MEDICINE_CARRY = 27; SETTINGS_FIELD_READING_POLICY = 28;
   SETTINGS_FIELD_MECH_WORK_MODE = 29; SETTINGS_FIELD_MECH_CONTROL_GROUP = 30;
+  SETTINGS_FIELD_PERMIT = 31;
 }
 enum FieldOutcome { FIELD_OUTCOME_UNSPECIFIED = 0; FIELD_OUTCOME_UNCHANGED = 1; FIELD_OUTCOME_APPLIED = 2; FIELD_OUTCOME_REFUSED = 3; FIELD_OUTCOME_UNKNOWN = 4; }
 message FieldResult {
@@ -200,10 +200,6 @@ message AreaPlantCutEffect { optional int32 cut = 1; optional int32 chopped = 2;
 // and whether the ritual is started afterwards (the bestowing lord job's
 // ceremonyStarted flag).
 message RitualEffect { optional string pawn_id = 1; optional string ritual = 2; optional string verb = 3; optional bool started = 4; }
-// One RoyaltyIntent's result (#1606): the verb applied to the pawn's standing
-// with the faction, the permit, whether the pawn holds it afterwards and the
-// faction's permit points before and after (absent when unread).
-message RoyaltyEffect { optional string pawn_id = 1; optional string faction_def = 2; optional string verb = 3; optional string permit = 4; optional bool held = 5; optional int32 permit_points_before = 6; optional int32 permit_points = 7; }
 // Evidence of one AbilityIntent (#1607): the pawn that used it and one arm per
 // source. PermitUseEffect asserts the native postcondition: the permit's
 // cooldown started at the current tick and the favor cost was spent. Arrival of

@@ -7,16 +7,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// The Royalty write is dispatched under the routine worker too (#1606).
-func TestRoyaltyIsARoutineExecutableKind(t *testing.T) {
-	t.Parallel()
-	if !routineExecutableKind(domain.RoyaltyAction) {
-		t.Fatal("royalty must be routine executable")
-	}
-}
-
-// The permit intent is the plan the goal commits: one Royalty choose_permit
-// action carrying holder, faction and permit, keyed by an attempt count that
+// The permit intent is the plan the goal commits: one choose_permit
+// pawn setting carrying holder, faction and permit, keyed by an attempt count that
 // stops retrying a refused permit.
 func TestPermitMethodRecordsTheIntentAndBoundsAttempts(t *testing.T) {
 	t.Parallel()
@@ -29,9 +21,10 @@ func TestPermitMethodRecordsTheIntentAndBoundsAttempts(t *testing.T) {
 	if len(actions) != 1 {
 		t.Fatal(actions)
 	}
-	royalty, ok := actions[0].Royalty()
-	if !ok || royalty.Pawn() != "Alice" || royalty.Faction() != "Empire" || royalty.Permit() != "CallMilitaryAidSmall" || royalty.Verb() != domain.RoyaltyChoosePermit {
-		t.Fatal(royalty, ok)
+	setting, _ := actions[0].PawnSettings()
+	faction, permit, ok := setting.ChoosePermit()
+	if !ok || setting.Pawn() != "Alice" || faction != "Empire" || permit != "CallMilitaryAidSmall" {
+		t.Fatal(setting, ok)
 	}
 	var history []domain.GoalMethod
 	for i := 0; i < maxMedicalAttemptsPerPatient; i++ {

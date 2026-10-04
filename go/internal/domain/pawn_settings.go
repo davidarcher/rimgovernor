@@ -10,8 +10,9 @@ import (
 // per intent: hostility response (#1299), self-tend (#1305), nickname
 // (#1310), medicine carry (#1307), the medical care cap (#1301) and the
 // reading policy (#1306), the drug policy (#1537), the food policy
-// (#1541) and a mech's work mode and control group (#1685, the one arm pair
-// whose pawn is a mechanoid, not a colonist). Native treats a setting that
+// (#1541), a mech's work mode and control group (#1685, the one arm pair
+// whose pawn is a mechanoid, not a colonist) and a royal permit (#1878).
+// Native treats a setting that
 // already holds as applied.
 const PawnSettingsAction ActionKind = "pawn_settings"
 
@@ -57,6 +58,9 @@ const (
 	// SettingMechControlGroup moves a mech into one of its overseer's
 	// control groups (#1685).
 	SettingMechControlGroup SettingKind = "mech_control_group"
+	// SettingChoosePermit spends permit points on one permit of a faction
+	// (#1878).
+	SettingChoosePermit SettingKind = "choose_permit"
 )
 
 // MedicalCare is a vanilla MedicalCareCategory name: the best medicine a
@@ -114,6 +118,23 @@ type PawnSettings struct {
 	food      string
 	mechMode  string
 	mechGroup int
+	faction   string
+	permit    string
+}
+
+// NewChoosePermitSetting has the colonist take permit (a RoyalTitlePermitDef
+// name) with faction (a FactionDef name) through the game's own permit
+// checks (#1878). The faction def carries no ':' (the store joins the two).
+func NewChoosePermitSetting(pawn PawnID, faction, permit string) (PawnSettings, error) {
+	if !validID(string(pawn)) || !validID(faction) || strings.Contains(faction, ":") || !validID(permit) {
+		return PawnSettings{}, errors.New("a choose permit setting requires a colonist, a faction def and a permit def")
+	}
+	return PawnSettings{pawn: pawn, kind: SettingChoosePermit, faction: faction, permit: permit}, nil
+}
+
+// ChoosePermit is the faction and permit defs, and whether this is the permit arm.
+func (s PawnSettings) ChoosePermit() (faction, permit string, ok bool) {
+	return s.faction, s.permit, s.kind == SettingChoosePermit
 }
 
 // NewMechWorkModeSetting sets the work mode (a MechWorkModeDef name) of the
@@ -256,6 +277,8 @@ func canonicalPawnSettings(s PawnSettings) (PawnSettings, error) {
 		return NewMechWorkModeSetting(s.pawn, s.mechMode)
 	case SettingMechControlGroup:
 		return NewMechControlGroupSetting(s.pawn, s.mechGroup)
+	case SettingChoosePermit:
+		return NewChoosePermitSetting(s.pawn, s.faction, s.permit)
 	}
 	return PawnSettings{}, errors.New("unknown pawn setting")
 }

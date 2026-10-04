@@ -821,7 +821,7 @@ var plannerCatalog = []plannerEntry{
 			out.Rituals = &method
 			return method.Verdict, nil
 		}},
-	{name: "permits", goal: policy.MaintainPermits, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RoyaltyAction}, sections: sectionsBuilding,
+	{name: "permits", goal: policy.MaintainPermits, class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.PawnSettingsAction}, sections: sectionsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Permits != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (Verdict, error) {
 			method, err := s.config.Permits.step(ctx, epoch, arbiter)

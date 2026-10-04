@@ -329,8 +329,8 @@ class (aid and laborer calls first, then trade, then drop-pod and shuttle
 access, psycast permits ahead of trade once a colonist is a psycaster; a
 passive permit with no worker of its own is classed by def name), takeable
 before blocked (title, points). The goal is open while the best permit is
-takeable and worth something; the planner commits one `RoyaltyIntent`
-(`choose_permit`) for it, so the plan on the goal's method is the intent the
+takeable and worth something; the planner commits one `choose_permit`
+`PawnSettingsIntent` for it, so the plan on the goal's method is the intent the
 save carries. Using a permit is the `Ability` action's, not this goal's.
 
 ### Environmental disruption
