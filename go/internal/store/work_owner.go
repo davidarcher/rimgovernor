@@ -50,10 +50,10 @@ func (g StandardState) OwnerPriority() int { return g.Standard.Priority }
 func (p ProjectState) OwnerPriority() int  { return p.Project.Priority }
 
 func (g StandardState) OwnerDeficit() bool {
-	return g.Standard.Status == domain.StandardOpen && g.Standard.Need == domain.NeedDeficit
+	return g.Standard.Status == domain.StandardOpen && g.Standard.Finding == domain.FindingUnmet
 }
 func (p ProjectState) OwnerDeficit() bool {
-	return p.Project.Status == domain.ProjectOpen && p.Project.Need == domain.NeedDeficit
+	return p.Project.Status == domain.ProjectOpen && p.Project.Finding == domain.FindingUnmet
 }
 
 func (p ProjectState) domainMethods(rows []ProjectMethod) []domain.Method {
@@ -89,7 +89,7 @@ func (s *Store) WorkableProject(ctx context.Context, r Rounds, need policy.Conce
 		if err != nil {
 			return ProjectState{}, false, err
 		}
-		return p, p.Project.Status == domain.ProjectOpen && p.Project.Need == domain.NeedDeficit && r.VetoProject(p.Project) == "", nil
+		return p, p.Project.Status == domain.ProjectOpen && p.Project.Finding == domain.FindingUnmet && r.VetoProject(p.Project) == "", nil
 	}
 	return ProjectState{}, false, nil
 }
@@ -221,7 +221,7 @@ func decisionOf(owner WorkOwner, refused []policy.Refusal) BuildingMethodDecisio
 type OwnerSummary struct {
 	ID       string
 	Status   domain.StandardStatus
-	Need     domain.NeedState
+	Finding  domain.Finding `json:"Need"`
 	Priority int
 	Episode  uint64 `json:"Epoch"`
 	Revision uint64
@@ -236,7 +236,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 	switch o := owner.(type) {
 	case StandardState:
 		g := o.Standard
-		return OwnerSummary{string(g.ID), g.Status, g.Need, g.Priority, g.Episode, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
+		return OwnerSummary{string(g.ID), g.Status, g.Finding, g.Priority, g.Episode, o.Revision, g.Tick, g.Snapshot, o.Retired}, true
 	case ProjectState:
 		p := o.Project
 		status := domain.StandardOpen
@@ -246,7 +246,7 @@ func SummarizeOwner(owner WorkOwner) (OwnerSummary, bool) {
 		case domain.ProjectVoided:
 			status = domain.StandardVoided
 		}
-		return OwnerSummary{string(p.ID), status, p.Need, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
+		return OwnerSummary{string(p.ID), status, p.Finding, p.Priority, 0, o.Revision, p.Tick, p.Snapshot, o.Retired}, true
 	}
 	return OwnerSummary{}, false
 }

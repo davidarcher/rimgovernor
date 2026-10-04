@@ -291,7 +291,7 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 				if err != nil {
 					return nil, err
 				}
-				if goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit {
+				if goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet {
 					return ladder.Research, nil
 				}
 			}

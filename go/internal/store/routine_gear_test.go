@@ -74,7 +74,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	r.Facts.Gear = domain.Known(gear)
 	out := reviewRoutine(t, db, &r)
 	g := routineGoal(t, out, policy.MaintainEquipment)
-	if g.Standard.Need != domain.NeedDeficit || g.Standard.Priority != 3 {
+	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Priority != 3 {
 		t.Fatal(g)
 	}
 	epoch := g.Standard.Episode
@@ -82,7 +82,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	db = open(t, path)
 	r.Facts.Gear = domain.Unknown[policy.GearObservation]()
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
-	if g.Standard.Need != domain.NeedUnknown || g.Standard.Episode != epoch {
+	if g.Standard.Finding != domain.FindingUnclear || g.Standard.Episode != epoch {
 		t.Fatal("missing census recovered or renewed need", g)
 	}
 	gear.Pawns[0] = gearRecoveredPawn("pawn")
@@ -93,7 +93,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	}
 	gear.Pawns[0] = gearDeficitPawn("pawn")
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
-	if g.Standard.Need != domain.NeedDeficit || g.Standard.Episode <= epoch {
+	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= epoch {
 		t.Fatal("a new model gap did not reopen equipment need", g)
 	}
 	// The equipment goal ranks for a development slot like any other

@@ -43,7 +43,7 @@ func TestRoutineDisasterDurableManualAndContext(t *testing.T) {
 	r.Current.Native++
 	r.Facts.DisasterConditions = domain.Unknown[[]policy.DisasterCondition]()
 	out = reviewRoutine(t, s, &r)
-	if out.Review.Disaster.Phase != policy.DisasterUnknown || routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.NeedUnknown {
+	if out.Review.Disaster.Phase != policy.DisasterUnknown || routineIncidentNeed(t, out, policy.RecoverDisasterServices) != domain.SituationUnclear {
 		t.Fatal(out)
 	}
 	r.Current.Load = "replacement"

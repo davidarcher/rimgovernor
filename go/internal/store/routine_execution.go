@@ -78,7 +78,7 @@ func (s *Store) AuthorizeRoutinePlan(ctx context.Context, root, target domain.Ge
 // it and the plan is its unretired method.
 func authorizeIncidentPlan(ctx context.Context, tx *sql.Tx, review Rounds, id domain.IncidentID, root, target domain.GenerationSnapshot) error {
 	binding, bound := review.incidentBinding(id)
-	if !bound || binding.Need != domain.NeedDeficit {
+	if !bound || binding.Situation != domain.SituationActive {
 		return ErrConflict
 	}
 	state, err := loadIncident(ctx, tx, id)
@@ -109,7 +109,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner Wor
 		return ErrConflict
 	}
 	g, _ := SummarizeOwner(owner)
-	if g.Retired || g.Status != domain.StandardOpen || g.Need == domain.NeedUnknown || !sameRoot(g.Snapshot, root) {
+	if g.Retired || g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || !sameRoot(g.Snapshot, root) {
 		return ErrConflict
 	}
 	// A prepared plan does not dispatch while a Safeguard vetoes its goal.
@@ -132,7 +132,7 @@ func authorizeGoalPlan(ctx context.Context, tx *sql.Tx, review Rounds, owner Wor
 	if p.Retired || p.Spec.Revision() != target.Revision {
 		return ErrConflict
 	}
-	if g.Need == domain.NeedRecovered {
+	if g.Finding == domain.FindingMet {
 		// A configured bill has recovered setup, but its already-issued first output
 		// still needs ordinary pawn time. This never permits another setup write.
 		waiting := false
@@ -216,7 +216,7 @@ func (s *Store) Workable(ctx context.Context, r Rounds, need policy.ConcernID) (
 	if err != nil {
 		return StandardState{}, false, err
 	}
-	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit && r.Veto(goal.Standard) == "", nil
+	return goal, goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet && r.Veto(goal.Standard) == "", nil
 }
 
 // vetoAction asks the action Safeguards (#1018) at dispatch: a vetoed action is

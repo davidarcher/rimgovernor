@@ -17,10 +17,10 @@ import (
 // need the review measured for it. A recovered occurrence stays bound, and
 // open, while its dispatched work (a fight's drafts) settles.
 type RoutineIncident struct {
-	Kind     domain.ConcernID
-	Subject  domain.PawnID `json:",omitempty"`
-	Incident domain.IncidentID
-	Need     domain.NeedState
+	Kind      domain.ConcernID
+	Subject   domain.PawnID `json:",omitempty"`
+	Incident  domain.IncidentID
+	Situation domain.Situation `json:"Need"`
 }
 
 // huntPayload is the payload of an ActiveCombat occurrence the food plan
@@ -99,10 +99,10 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 		if err != nil {
 			return nil, nil, err
 		}
-		if n.Need != domain.NeedDeficit && !open {
+		if n.Finding != domain.FindingUnmet && !open {
 			continue
 		}
-		if n.Need == domain.NeedRecovered {
+		if n.Finding == domain.FindingMet {
 			state, err := loadIncident(ctx, tx, id)
 			if err != nil {
 				return nil, nil, err
@@ -122,7 +122,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 			}
 		}
 		assessment := IncidentAssessment{Kind: n.ID, Subject: n.Subject, Trigger: fmt.Sprintf("%s deficit", n.ID), Priority: n.Priority, Snapshot: current, Tick: tick}
-		if len(n.Hunt) > 0 && n.Need == domain.NeedDeficit {
+		if len(n.Hunt) > 0 && n.Finding == domain.FindingUnmet {
 			// The food plan raised this occurrence: its hunt origin (#1617).
 			if assessment.Payload, err = json.Marshal(huntPayload{Prey: n.Hunt}); err != nil {
 				return nil, nil, err
@@ -133,7 +133,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 		if err != nil {
 			return nil, nil, err
 		}
-		bindings = append(bindings, RoutineIncident{Kind: n.ID, Subject: n.Subject, Incident: state.Incident.ID, Need: n.Need})
+		bindings = append(bindings, RoutineIncident{Kind: n.ID, Subject: n.Subject, Incident: state.Incident.ID, Situation: n.Finding.Situation()})
 		states = append(states, state)
 	}
 	stale, err := openIncidentIDs(ctx, tx, World{Colony: current.Colony, Load: current.Load, Map: current.Map})
@@ -251,8 +251,8 @@ func validateRoutineIncidents(ctx context.Context, tx *sql.Tx, r Rounds) error {
 			return errors.New("invalid routine incident binding")
 		}
 		seen[key] = true
-		switch b.Need {
-		case domain.NeedDeficit, domain.NeedRecovered, domain.NeedUnknown:
+		switch b.Situation {
+		case domain.SituationActive, domain.SituationClear, domain.SituationUnclear:
 		default:
 			return errors.New("invalid routine incident need")
 		}

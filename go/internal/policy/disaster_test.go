@@ -131,7 +131,7 @@ func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mutate := range []func(*DisasterHistory){func(h *DisasterHistory) { h.Phase = DisasterRestored }, func(h *DisasterHistory) { h.Services[0].Need = domain.NeedDeficit }, func(h *DisasterHistory) { h.Observed = 0 }, func(h *DisasterHistory) { h.Affected = []DisasterService{"invented"} }} {
+	for _, mutate := range []func(*DisasterHistory){func(h *DisasterHistory) { h.Phase = DisasterRestored }, func(h *DisasterHistory) { h.Services[0].Need = domain.FindingUnmet }, func(h *DisasterHistory) { h.Observed = 0 }, func(h *DisasterHistory) { h.Affected = []DisasterService{"invented"} }} {
 		copy := cloneDisaster(h)
 		mutate(copy)
 		if copy.Validate() == nil {
@@ -176,7 +176,7 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 		t.Fatal(r.Disaster, err)
 	}
 	for _, n := range r.Assessments {
-		if n.ID == RecoverDisasterServices && n.Need != domain.NeedRecovered {
+		if n.ID == RecoverDisasterServices && n.Finding != domain.FindingMet {
 			t.Fatal(n)
 		}
 	}

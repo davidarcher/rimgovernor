@@ -132,7 +132,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertNeeds := func(review store.Rounds, want domain.NeedState) {
+	assertNeeds := func(review store.Rounds, want domain.Finding) {
 		t.Helper()
 		count := 0
 		for _, binding := range review.Goals {
@@ -140,7 +140,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 				continue
 			}
 			g, err := db.LoadStandard(ctx, binding.Goal)
-			if err != nil || g.Standard.Need != want {
+			if err != nil || g.Standard.Finding != want {
 				t.Fatal(g, want, err)
 			}
 			count++
@@ -149,14 +149,14 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 			t.Fatal("facility goals missing")
 		}
 	}
-	assertNeeds(active.Review, domain.NeedDeficit)
+	assertNeeds(active.Review, domain.FindingUnmet)
 	request.Revision = active.Review.Revision
 	request.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
 	active, err = db.ReviewRoutine(ctx, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertNeeds(active.Review, domain.NeedUnknown)
+	assertNeeds(active.Review, domain.FindingUnclear)
 	if !active.Review.Latches.HomeCoverage || !active.Review.Latches.StoneShell {
 		t.Fatal("unknown query erased native history")
 	}
@@ -174,5 +174,5 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if err != nil || retained.Enabled || !retained.Latches.HomeCoverage || !retained.Latches.StoneShell {
 		t.Fatal(retained, err)
 	}
-	assertNeeds(retained, domain.NeedUnknown)
+	assertNeeds(retained, domain.FindingUnclear)
 }

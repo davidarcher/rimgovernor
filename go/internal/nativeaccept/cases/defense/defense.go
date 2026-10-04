@@ -874,7 +874,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		if err != nil {
 			return "", false, err
 		}
-		need := string(binding.Need)
+		need := string(binding.Situation)
 		for _, m := range incident.Methods {
 			if strings.HasPrefix(string(m.Method), "combat-") {
 				holdPlans[m.Plan] = true
@@ -902,7 +902,7 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 		out["combat_goal_bound"] = bound
 		out["combat_goal_need"] = need
 		out["resolved_tick"] = int64(review.Tick)
-		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
+		if combatWindows > 0 && (!bound || need == string(domain.FindingMet)) {
 			if len(line) == 0 {
 				return "", false, fmt.Errorf("no defender completed its move to a firing cell during the raid: %#v", out)
 			}

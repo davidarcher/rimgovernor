@@ -28,7 +28,7 @@ func TestMoodThresholdsPressureAndRetainedNeeds(t *testing.T) {
 	}
 	p.Mood = domain.Known(.3)
 	h := moodReview(t, p, MoodHistory{})
-	if len(h.States) != 1 || h.States[0].Need() != domain.NeedDeficit {
+	if len(h.States) != 1 || h.States[0].Need() != domain.FindingUnmet {
 		t.Fatal(h)
 	}
 	p.Mood = domain.Known(.35)
@@ -39,7 +39,7 @@ func TestMoodThresholdsPressureAndRetainedNeeds(t *testing.T) {
 	}
 	p.Mood = domain.Known(.351)
 	h = moodReview(t, p, h)
-	if h.States[0].Need() != domain.NeedRecovered {
+	if h.States[0].Need() != domain.FindingMet {
 		t.Fatal(h)
 	}
 	p.Target = domain.Known(.2)
@@ -66,7 +66,7 @@ func TestMoodThresholdsPressureAndRetainedNeeds(t *testing.T) {
 	}
 	p.Food = domain.Known(.5)
 	h = moodReview(t, p, h)
-	if h.States[0].Need() != domain.NeedRecovered {
+	if h.States[0].Need() != domain.FindingMet {
 		t.Fatal(h)
 	}
 }
@@ -76,7 +76,7 @@ func TestMoodMissingDeathAndMentalBreak(t *testing.T) {
 	h := moodReview(t, p, MoodHistory{})
 	for _, observed := range []domain.Fact[[]MoodPawn]{domain.Unknown[[]MoodPawn](), domain.Known([]MoodPawn{})} {
 		out, err := ReviewMood(observed, h)
-		if err != nil || len(out.States) != 1 || !out.States[0].Missing || out.States[0].Need() != domain.NeedUnknown {
+		if err != nil || len(out.States) != 1 || !out.States[0].Missing || out.States[0].Need() != domain.FindingUnclear {
 			t.Fatal(out, err)
 		}
 		out.States[0].Causes[0].Need = MoodJoy
@@ -88,19 +88,19 @@ func TestMoodMissingDeathAndMentalBreak(t *testing.T) {
 	p.Mood = domain.Known(.9)
 	p.Food = domain.Known(.9)
 	out := moodReview(t, p, h)
-	if !out.States[0].Active || out.States[0].Need() != domain.NeedUnknown {
+	if !out.States[0].Active || out.States[0].Need() != domain.FindingUnclear {
 		t.Fatal("death certified recovery", out)
 	}
 	p = moodPawn()
 	p.Mood = domain.Unknown[float64]()
 	p.Mental = domain.Known(true)
 	out = moodReview(t, p, MoodHistory{})
-	if out.States[0].Priority() != 1 || out.States[0].Need() != domain.NeedDeficit {
+	if out.States[0].Priority() != 1 || out.States[0].Need() != domain.FindingUnmet {
 		t.Fatal(out)
 	}
 	p.Mental = domain.Unknown[bool]()
 	out = moodReview(t, p, out)
-	if out.States[0].Need() != domain.NeedUnknown || out.States[0].Priority() != 1 {
+	if out.States[0].Need() != domain.FindingUnclear || out.States[0].Priority() != 1 {
 		t.Fatal(out)
 	}
 }
@@ -173,7 +173,7 @@ func TestMoodPsychicDroneEntersEarlyForItsBearerOnly(t *testing.T) {
 	}
 	p.Thoughts = domain.Known([]MoodThought{{Def: PsychicDroneThought, Offset: -22}})
 	h := moodReview(t, p, MoodHistory{})
-	if len(h.States) != 1 || h.States[0].Need() != domain.NeedDeficit {
+	if len(h.States) != 1 || h.States[0].Need() != domain.FindingUnmet {
 		t.Fatal("drone bearer did not enter early", h)
 	}
 	if len(h.States[0].Causes) != 1 || h.States[0].Causes[0].Need != MoodJoy {

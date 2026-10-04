@@ -70,7 +70,7 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	zone, err := allowListZone(domain.ImportantPriority, []string{"Steel"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
@@ -104,7 +104,7 @@ func TestCommitStockpileZoneMethodBindsToAnimalFeedGoal(t *testing.T) {
 	}
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainAnimalFeed)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	zone, err := allowListZone(domain.ImportantPriority, []string{"Kibble"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
@@ -150,7 +150,7 @@ func TestCommitOpeningStockpilesBindToStockpilesGoal(t *testing.T) {
 	r.Facts.Stockpiles = domain.Known(policy.StockpileReview{Known: true, Active: true})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainStockpiles)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	plan := stockpilePlan(t, "opening-plan", []domain.Cell{{X: 4, Z: 6}}, []domain.Cell{{X: 8, Z: 6}}, []domain.Cell{{X: 12, Z: 6}}, []domain.Cell{{X: 16, Z: 6}})

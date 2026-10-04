@@ -111,7 +111,7 @@ func TestSleepingUpkeepAssignsVacantBedOncePerEpoch(t *testing.T) {
 	ctx := context.Background()
 	planner, db, native := sleepingUpkeepFixture(t)
 	goal := sleepingGoal(t, db)
-	if goal.Standard.Need != domain.NeedDeficit {
+	if goal.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("sleeping goal not in deficit", goal.Standard)
 	}
 	result, err := planner.Step(ctx)
@@ -244,7 +244,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 		t.Fatal(err)
 	}
 	goal := sleepingGoal(t, db)
-	if goal.Standard.Status != domain.StandardOpen || goal.Standard.Need != domain.NeedDeficit {
+	if goal.Standard.Status != domain.StandardOpen || goal.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("assignment receipt completed the sleeping goal", goal.Standard)
 	}
 	if result, err := planner.Step(ctx); err != nil || (result.Verdict != BuildingSleepingUseNeeded && result.Verdict != BuildingReasonExistingWork) {
@@ -254,7 +254,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 	if _, err := planner.reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if goal = sleepingGoal(t, db); goal.Standard.Need == domain.NeedDeficit {
+	if goal = sleepingGoal(t, db); goal.Standard.Finding == domain.FindingUnmet {
 		t.Fatal("observed sleep did not recover the goal", goal.Standard)
 	}
 }

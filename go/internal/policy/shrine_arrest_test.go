@@ -71,7 +71,7 @@ func TestShrineArrestCreatesPopulationDeficitAndSelectsArmedPerformer(t *testing
 	found := false
 	for _, assessment := range needs.Assessments {
 		if assessment.ID == MaintainPopulation {
-			found = assessment.Need == domain.NeedDeficit
+			found = assessment.Finding == domain.FindingUnmet
 		}
 	}
 	if !found {

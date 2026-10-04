@@ -20,7 +20,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedRecovered || g.Standard.Status != domain.StandardSettled {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
 	// The unissued method settles with the recovery (#290); the renewed
@@ -43,14 +43,14 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	r.Tick++
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedDeficit {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("issued target loss recovered need", g)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
 	r.Enabled = true
 	for i := 0; i < 2; i++ {
-		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedDeficit {
+		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
@@ -59,7 +59,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	// An applied building closes once the census shows it built (#856).
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Need != domain.NeedRecovered {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

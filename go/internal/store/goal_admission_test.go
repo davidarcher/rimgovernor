@@ -48,7 +48,7 @@ func anotherGoal(t *testing.T, s *Store, id domain.ConcernID) StandardState {
 	if e = s.SeedStandard(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	v, e := s.ReviewStandard(ctx, id, 0, scope(), 10, domain.NeedDeficit)
+	v, e := s.ReviewStandard(ctx, id, 0, scope(), 10, domain.FindingUnmet)
 	if e != nil {
 		t.Fatal(e)
 	}

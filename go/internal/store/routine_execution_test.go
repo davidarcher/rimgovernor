@@ -49,7 +49,7 @@ func TestRoutineExecutionRequiresCurrentReviewedMethod(t *testing.T) {
 	}
 }
 
-// Guards the narrow NeedRecovered exception: a bill goal whose setup gate has
+// Guards the narrow FindingMet exception: a bill goal whose setup gate has
 // recovered may still authorize its already-dispatched, still-unresolved bill
 // output, since that pending pawn time is what the recovered gate reflects.
 // It must never permit a fresh setup write once the gate has recovered.
@@ -63,7 +63,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineProject(t, out, policy.EnsureCooking)
-	if g.Project.Need != domain.NeedDeficit {
+	if g.Project.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
@@ -92,7 +92,7 @@ func TestRoutineExecutionRecoveredBillNeedPermitsPendingOutputOnly(t *testing.T)
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
 	g = routineProject(t, out, policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectOpen {
+	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
@@ -142,7 +142,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesOnceResolved(t *testing.T) {
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
 	g = routineProject(t, out, policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectCompleted {
+	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectCompleted {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
@@ -198,7 +198,7 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 	r.Facts.Cooking = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
 	g = routineProject(t, out, policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectOpen {
+	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectOpen {
 		t.Fatal(g)
 	}
 	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
@@ -218,7 +218,7 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 	r.Facts.ChoiceDialog = domain.Known(true)
 	out := reviewRoutine(t, s, &r)
 	b, ok := out.Review.Incident(policy.AnswerDialog)
-	if !ok || b.Need != domain.NeedDeficit {
+	if !ok || b.Situation != domain.SituationActive {
 		t.Fatal(out.Review.Incidents)
 	}
 	answer, err := domain.NewDialogAnswer(3, 1, "OK")
@@ -302,7 +302,7 @@ func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
 	r.Facts.ColonyNaming = domain.Known(true)
 	out := reviewRoutine(t, s, &r)
 	b, ok := out.Review.Incident(policy.ConfirmColonyNames)
-	if !ok || b.Need != domain.NeedDeficit {
+	if !ok || b.Situation != domain.SituationActive {
 		t.Fatal(out.Review.Incidents)
 	}
 	naming, err := domain.NewNamingConfirmation(7, "New Arrivals", "Hopeville")
@@ -377,7 +377,7 @@ func TestRoundsRecoverySettlesUndispatchedMethod(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(true)
 	g = routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if g.Project.Need != domain.NeedRecovered || g.Project.Status != domain.ProjectCompleted {
+	if g.Project.Finding != domain.FindingMet || g.Project.Status != domain.ProjectCompleted {
 		t.Fatal("recovered goal kept its undispatched method open", g.Project)
 	}
 	p, err := s.LoadPlan(ctx, "bill-plan")

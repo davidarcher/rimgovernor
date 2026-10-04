@@ -111,7 +111,7 @@ func TestRoutinePowerAdmitsSharedWorkAndManualCancels(t *testing.T) {
 			if conduit {
 				want = 3
 			}
-			if err != nil || len(plan.Progress) != want || first.Decision.Project.Project.Need != domain.NeedDeficit {
+			if err != nil || len(plan.Progress) != want || first.Decision.Project.Project.Finding != domain.FindingUnmet {
 				t.Fatal(plan, err)
 			}
 			for _, progress := range plan.Progress {

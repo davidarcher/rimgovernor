@@ -43,7 +43,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 		}
 	}
 	first, ok := moodIncident(out, p.ID)
-	if !ok || first.Need != domain.NeedDeficit {
+	if !ok || first.Situation != domain.SituationActive {
 		t.Fatal(out.Review.Incidents)
 	}
 	if state, err := s.LoadIncident(ctx, first.Incident); err != nil || state.Incident.Priority != 2 || state.Incident.Subject != "pawn" {
@@ -57,7 +57,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	}
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{})
 	out = reviewRoutine(t, s, &r)
-	if b, ok := moodIncident(out, p.ID); !ok || b.Incident != first.Incident || b.Need != domain.NeedUnknown {
+	if b, ok := moodIncident(out, p.ID); !ok || b.Incident != first.Incident || b.Situation != domain.SituationUnclear {
 		t.Fatal("unobserved pawn closed its occurrence", out.Review.Incidents)
 	}
 	r.Enabled = false
@@ -73,7 +73,7 @@ func TestRoutineMoodDurableLifecycleAndRetirement(t *testing.T) {
 	r.Enabled = true
 	r.Current.Native++
 	out = reviewRoutine(t, s, &r)
-	if b, ok := moodIncident(out, p.ID); !ok || b.Need != domain.NeedUnknown {
+	if b, ok := moodIncident(out, p.ID); !ok || b.Situation != domain.SituationUnclear {
 		t.Fatal("Manual recovered missing pawn")
 	}
 	p.Mood = domain.Known(.8)
@@ -190,7 +190,7 @@ func TestRoutineMentalBreakDoesNotSuspendOtherGoals(t *testing.T) {
 	p.Mental = domain.Known(true)
 	r.Facts.MoodPawns = domain.Known([]policy.MoodPawn{p})
 	out := reviewRoutine(t, s, &r)
-	if b, ok := moodIncident(out, p.ID); !ok || b.Need != domain.NeedDeficit || len(out.Review.Emergency) != 0 {
+	if b, ok := moodIncident(out, p.ID); !ok || b.Situation != domain.SituationActive || len(out.Review.Emergency) != 0 {
 		t.Fatal(out.Review.Incidents, out.Review.Emergency)
 	}
 	if g := routineGoal(t, out, policy.MaintainResource); out.Review.Veto(g.Standard) != "" {

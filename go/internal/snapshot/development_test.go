@@ -87,7 +87,7 @@ func TestDevelopmentSurvivesRestart(t *testing.T) {
 // holds research back on a fresh colony.
 func TestDevelopmentStageHoldsResearchAtFoothold(t *testing.T) {
 	r, d := loadDevelopment(t, developmentBefore)
-	if a, err := r.Assessment(policy.EnsureResearch); err != nil || a.Need != "deficit" {
+	if a, err := r.Assessment(policy.EnsureResearch); err != nil || a.Finding != "deficit" {
 		t.Fatal("research assessment", a, err)
 	}
 	if policy.StageGoalAllowed(policy.EnsureResearch, r.Policy.ColonyStage) {

@@ -24,7 +24,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 	for _, a := range needs.Assessments {
 		if a.ID == EnsureComfort {
 			found = true
-			if a.Need != domain.NeedDeficit {
+			if a.Finding != domain.FindingUnmet {
 				t.Fatal(a)
 			}
 		}
@@ -148,7 +148,7 @@ func TestRoutineFireEmergencyFollowsDeclaredCapability(t *testing.T) {
 				continue
 			}
 			found = true
-			if a.Priority != 1 || a.Need != domain.NeedDeficit || a.MethodUnavailable != tc.unavailable {
+			if a.Priority != 1 || a.Finding != domain.FindingUnmet || a.MethodUnavailable != tc.unavailable {
 				t.Fatal(tc.name, a)
 			}
 		}

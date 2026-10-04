@@ -20,7 +20,7 @@ func TestRoundsHuntOrigin(t *testing.T) {
 	r.Facts.FoodPlan = domain.Known(policy.FoodPlan{Portfolio: []policy.FoodPlanEntry{{Channel: squads[0], Decision: policy.FoodPlanOpen}}})
 	out := reviewRoutine(t, s, &r)
 	b, ok := out.Review.Incident(policy.ActiveCombat)
-	if !ok || b.Need != domain.NeedDeficit {
+	if !ok || b.Situation != domain.SituationActive {
 		t.Fatal("hunt raised no ActiveCombat incident", out.Review.Incidents)
 	}
 	incident := routineIncident(t, out, policy.ActiveCombat).Incident

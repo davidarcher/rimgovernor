@@ -13,16 +13,16 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 	for _, tc := range []struct {
 		name                 string
 		population, capacity domain.Fact[int64]
-		need                 domain.NeedState
+		need                 domain.Finding
 		phase                Phase
 		priority             int
 		deficit              float64
 		known                bool
 	}{
-		{"spare", domain.Known(int64(3)), domain.Known(int64(4)), domain.NeedRecovered, "", 2, 0, true},
-		{"full", domain.Known(int64(3)), domain.Known(int64(3)), domain.NeedDeficit, HousingExpansion, 4, .25, true},
-		{"short", domain.Known(int64(3)), domain.Known(int64(2)), domain.NeedDeficit, HousingShelter, 2, .5, true},
-		{"unknown", domain.Known(int64(3)), domain.Unknown[int64](), domain.NeedUnknown, HousingShelter, 2, 0, false},
+		{"spare", domain.Known(int64(3)), domain.Known(int64(4)), domain.FindingMet, "", 2, 0, true},
+		{"full", domain.Known(int64(3)), domain.Known(int64(3)), domain.FindingUnmet, HousingExpansion, 4, .25, true},
+		{"short", domain.Known(int64(3)), domain.Known(int64(2)), domain.FindingUnmet, HousingShelter, 2, .5, true},
+		{"unknown", domain.Known(int64(3)), domain.Unknown[int64](), domain.FindingUnclear, HousingShelter, 2, 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := stableRoutine()
@@ -33,7 +33,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 			for _, a := range r.Assessments {
 				if a.ID == MaintainHousing {
 					found = true
-					if a.Need != tc.need || a.Priority != tc.priority {
+					if a.Finding != tc.need || a.Priority != tc.priority {
 						t.Fatal(a)
 					}
 				}
@@ -48,7 +48,7 @@ func TestExpansionHeadroomUnknownAndHousingGate(t *testing.T) {
 			if k != tc.known || k && v != tc.deficit {
 				t.Fatal(v, k)
 			}
-			if tc.need == domain.NeedRecovered && hasNeed(r, MaintainHousing) {
+			if tc.need == domain.FindingMet && hasNeed(r, MaintainHousing) {
 				t.Fatal("spare capacity requested work")
 			}
 		})

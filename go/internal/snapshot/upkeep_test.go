@@ -31,10 +31,10 @@ func assess(t *testing.T, path string, goal policy.ConcernID) policy.RoutineAsse
 // in closed.
 func transition(t *testing.T, open, closed string, goal policy.ConcernID) {
 	t.Helper()
-	if a := assess(t, open, goal); a.Need != domain.NeedDeficit || a.MethodUnavailable {
+	if a := assess(t, open, goal); a.Finding != domain.FindingUnmet || a.MethodUnavailable {
 		t.Errorf("%s: %s %+v, want an actionable deficit", open, goal, a)
 	}
-	if a := assess(t, closed, goal); a.Need != domain.NeedRecovered {
+	if a := assess(t, closed, goal); a.Finding != domain.FindingMet {
 		t.Errorf("%s: %s %+v, want recovered", closed, goal, a)
 	}
 }
@@ -67,7 +67,7 @@ func TestReplayHomeFireIsAnEmergencyUntilOut(t *testing.T) {
 // being dropped as unreachable.
 func TestReplayUnreachableUpkeepStaysInDeficit(t *testing.T) {
 	for _, goal := range []policy.ConcernID{policy.MaintainEssentialRepairs} {
-		if a := assess(t, "testdata/upkeep-blocked.json", goal); a.Need != domain.NeedDeficit {
+		if a := assess(t, "testdata/upkeep-blocked.json", goal); a.Finding != domain.FindingUnmet {
 			t.Errorf("%s %+v, want deficit", goal, a)
 		}
 	}
@@ -136,7 +136,7 @@ func TestReplayStoneShellReplacesOwnedWoodWall(t *testing.T) {
 	if got := stoneShellTargets(t, "testdata/upkeep-stone-shell-unowned.json"); len(got) != 0 {
 		t.Errorf("unowned colony has stone shell targets %v", got)
 	}
-	if a := assess(t, "testdata/upkeep-stone-shell-wood.json", policy.MaintainStoneShell); a.Need != domain.NeedDeficit {
+	if a := assess(t, "testdata/upkeep-stone-shell-wood.json", policy.MaintainStoneShell); a.Finding != domain.FindingUnmet {
 		t.Errorf("owned wood walls: %+v, want deficit", a)
 	}
 	const replaced = "Thing_Wall24289"
@@ -158,7 +158,7 @@ func TestReplayScatteredSuppliesSecuredAndWallRepaired(t *testing.T) {
 	const open, closed = "testdata/upkeep-scattered.json", "testdata/upkeep-scattered-secured.json"
 	transition(t, open, closed, policy.MaintainEssentialRepairs)
 	for _, path := range []string{open, closed} {
-		if a := assess(t, path, policy.MaintainCleanFacilities); a.Need == domain.NeedDeficit {
+		if a := assess(t, path, policy.MaintainCleanFacilities); a.Finding == domain.FindingUnmet {
 			t.Errorf("%s: outdoor dirt opened MaintainCleanFacilities", path)
 		}
 	}

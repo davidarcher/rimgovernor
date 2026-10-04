@@ -177,7 +177,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	if wait == nil && (goal.Project.Need != domain.NeedDeficit || review.VetoProject(goal.Project) != "") {
+	if wait == nil && (goal.Project.Finding != domain.FindingUnmet || review.VetoProject(goal.Project) != "") {
 		return RoutineDefenseLayoutResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

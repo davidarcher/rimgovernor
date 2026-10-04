@@ -8,7 +8,7 @@ import (
 
 // A changed bill can keep producing after its original order fails inspection
 // (the herd feed reserve is still short).
-// This only hands off to watchFeed's bounded NeedRecovered wait and verifyFeed's
+// This only hands off to watchFeed's bounded FindingMet wait and verifyFeed's
 // native reachable-stock check; it does not credit production or complete a plan.
 func feedBillNeedsRecovery(need policy.ConcernID, state store.PlanState) bool {
 	if need != policy.MaintainAnimalFeed || len(state.Spec.Actions()) != 1 || len(state.Progress) != 1 {

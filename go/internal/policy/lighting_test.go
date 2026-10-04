@@ -153,7 +153,7 @@ func TestDetectRoutineRanksLightingFromMeasuredCensus(t *testing.T) {
 	f := stableRoutine()
 	f.Upkeep.Lighting = domain.Known(lightingCensus())
 	r := needs(t, f, RoutineLatches{})
-	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || r.Latches.Lighting[0] != "stove" || assessment(t, r, MaintainLighting) != domain.NeedDeficit {
+	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || r.Latches.Lighting[0] != "stove" || assessment(t, r, MaintainLighting) != domain.FindingUnmet {
 		t.Fatal(r.Latches, r.Assessments)
 	}
 	for _, g := range r.Goals {
@@ -168,12 +168,12 @@ func TestDetectRoutineRanksLightingFromMeasuredCensus(t *testing.T) {
 	}
 	f.Upkeep.Lighting = domain.Unknown[LightingObservation]()
 	r = needs(t, f, r.Latches)
-	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || assessment(t, r, MaintainLighting) != domain.NeedUnknown {
+	if !hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 1 || assessment(t, r, MaintainLighting) != domain.FindingUnclear {
 		t.Fatal("unknown census dropped the latch", r.Latches, r.Assessments)
 	}
 	f.Upkeep.Lighting = domain.Known(LightingObservation{})
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 0 || assessment(t, r, MaintainLighting) != domain.NeedRecovered {
+	if hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 0 || assessment(t, r, MaintainLighting) != domain.FindingMet {
 		t.Fatal(r.Latches, r.Assessments)
 	}
 }

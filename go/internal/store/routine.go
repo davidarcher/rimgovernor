@@ -783,7 +783,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 				}
 				g = StandardState{Standard: goal}
 			}
-			if n.Need == domain.NeedRecovered {
+			if n.Finding == domain.FindingMet {
 				if err = cancelUndispatchedMethods(ctx, tx, g); err != nil {
 					return RoundsResult{}, err
 				}
@@ -794,7 +794,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 			}
 			next := g.Standard
 			next.Priority = n.Priority
-			next, err = domain.ReviewStandard(next, b, request.Tick, n.Need, open)
+			next, err = domain.ReviewStandard(next, b, request.Tick, n.Finding, open)
 			if err != nil {
 				return RoundsResult{}, err
 			}
@@ -873,7 +873,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 // it against the assessment.
 func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]ProjectState, n policy.RoutineAssessment, current domain.GenerationSnapshot, tick domain.Tick) (ProjectState, error) {
 	p, exists := old[n.ID]
-	if exists && domain.ProjectRegressed(p.Project, n.Need, false) {
+	if exists && domain.ProjectRegressed(p.Project, n.Finding, false) {
 		open, err := goalOpenWork(ctx, tx, p)
 		if err != nil {
 			return ProjectState{}, err
@@ -894,7 +894,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 		}
 		p = ProjectState{Project: project}
 	}
-	if n.Need == domain.NeedRecovered {
+	if n.Finding == domain.FindingMet {
 		if err := cancelUndispatchedMethods(ctx, tx, p); err != nil {
 			return ProjectState{}, err
 		}
@@ -905,7 +905,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 	}
 	next := p.Project
 	next.Priority = n.Priority
-	if next, err = domain.ReviewProject(next, current, tick, n.Need, open); err != nil {
+	if next, err = domain.ReviewProject(next, current, tick, n.Finding, open); err != nil {
 		return ProjectState{}, err
 	}
 	return saveProject(ctx, tx, p, next)

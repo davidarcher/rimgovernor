@@ -49,7 +49,7 @@ func TestRoutineWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 	}
 	other := root.Snapshot
 	other.Map++
-	if _, err = db.ReviewStandard(ctx, method.Decision.Goal.Standard.ID, method.Decision.Goal.Revision, other, 0, domain.NeedDeficit); err != nil {
+	if _, err = db.ReviewStandard(ctx, method.Decision.Goal.Standard.ID, method.Decision.Goal.Revision, other, 0, domain.FindingUnmet); err != nil {
 		t.Fatal(err)
 	}
 	selected = map[domain.PlanID]bool{}

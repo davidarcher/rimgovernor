@@ -87,7 +87,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 	r.Tick++
 	r.Facts.Hostiles = domain.Known(int64(3))
 	out := reviewRoutine(t, s, &r)
-	if b, ok := out.Review.Incident(policy.ActiveCombat); !ok || b.Incident != id || b.Need != domain.NeedDeficit {
+	if b, ok := out.Review.Incident(policy.ActiveCombat); !ok || b.Incident != id || b.Situation != domain.SituationActive {
 		t.Fatal("review did not bind the open occurrence", out.Review.Incidents)
 	}
 	state, err = s.CommitIncidentMethod(ctx, id, "fight", "raid at the edge", p)
@@ -145,7 +145,7 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 		}
 	}
 	b, ok := out.Review.Incident(policy.CriticalMedicine)
-	if !ok || b.Need != domain.NeedDeficit || len(out.Incidents) != 1 {
+	if !ok || b.Situation != domain.SituationActive || len(out.Incidents) != 1 {
 		t.Fatal("deficit opened no incident", out.Review.Incidents)
 	}
 	first := b.Incident
@@ -168,7 +168,7 @@ func TestRoundsIncidentLifecycle(t *testing.T) {
 	// and authorizes nothing.
 	r.Facts.CriticalPatients = domain.Known(int64(0))
 	out = reviewRoutine(t, s, &r)
-	if b, ok = out.Review.Incident(policy.CriticalMedicine); !ok || b.Incident != first || b.Need != domain.NeedRecovered {
+	if b, ok = out.Review.Incident(policy.CriticalMedicine); !ok || b.Incident != first || b.Situation != domain.SituationClear {
 		t.Fatal("recovered occurrence with open work", out.Review.Incidents)
 	}
 	if err := s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {

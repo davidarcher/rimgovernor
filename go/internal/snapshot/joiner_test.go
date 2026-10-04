@@ -26,7 +26,7 @@ func TestWandererLetterAnsweredWithoutAPlayerPolicy(t *testing.T) {
 		t.Fatal("letter not selected", letter, ok)
 	}
 	a, err := r.Assessment(policy.MaintainPopulation)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal(a, err)
 	}
 }

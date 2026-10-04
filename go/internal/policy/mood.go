@@ -267,24 +267,24 @@ func (s MoodState) Priority() int {
 	return 2
 }
 
-func (s MoodState) Need() domain.NeedState {
+func (s MoodState) Need() domain.Finding {
 	if s.Missing {
-		return domain.NeedUnknown
+		return domain.FindingUnclear
 	}
 	dead, dk := s.Pawn.Dead.Value()
 	_, mk := s.Pawn.Mood.Value()
 	_, tk := s.Pawn.Threshold.Value()
 	mental, mentalKnown := s.Pawn.Mental.Value()
 	if mentalKnown && mental {
-		return domain.NeedDeficit
+		return domain.FindingUnmet
 	}
 	if !dk || dead || !mk || !tk || !mentalKnown {
-		return domain.NeedUnknown
+		return domain.FindingUnclear
 	}
 	if s.Active {
-		return domain.NeedDeficit
+		return domain.FindingUnmet
 	}
-	return domain.NeedRecovered
+	return domain.FindingMet
 }
 
 type MoodMethodReason string
@@ -335,7 +335,7 @@ func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 		}
 		seen[n] = true
 	}
-	if s.Missing || s.Need() == domain.NeedUnknown {
+	if s.Missing || s.Need() == domain.FindingUnclear {
 		r.Reason = MoodUnavailable
 		return r, nil
 	}

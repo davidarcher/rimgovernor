@@ -19,7 +19,7 @@ func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
 	v := policy.SleepingObservation{Colonists: 1, People: []policy.SleepingPerson{{ID: "pawn", OwnedBed: domain.Known("bed"), ComfortableMin: domain.Known(10.0), ComfortableMax: domain.Known(30.0)}}, Beds: []policy.SleepingBed{{ID: "bed", Definition: "Bed", Humanlike: domain.Known(true), Medical: domain.Known(false), Prisoners: domain.Known(false), Roofed: domain.Known(true), RestEffectiveness: domain.Known(1.0), Temperature: domain.Known(20.0), Owners: []policy.PawnID{"pawn"}, Users: []policy.PawnID{"pawn"}, AccessibleTo: []policy.PawnID{"pawn"}}}}
 	r.Facts.Sleeping = domain.Known(v)
 	out := reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainHousing).Standard.Need != domain.NeedRecovered || len(out.Review.Sleeping.Uses) != 1 {
+	if routineGoal(t, out, policy.MaintainHousing).Standard.Finding != domain.FindingMet || len(out.Review.Sleeping.Uses) != 1 {
 		t.Fatal(out)
 	}
 	r.Enabled = false
@@ -36,19 +36,19 @@ func TestSleepingUseSurvivesManualRestartAndResetsWithWorld(t *testing.T) {
 	v.Beds[0].Users = nil
 	r.Facts.Sleeping = domain.Known(v)
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainHousing).Standard.Need != domain.NeedRecovered {
+	if routineGoal(t, out, policy.MaintainHousing).Standard.Finding != domain.FindingMet {
 		t.Fatal(out)
 	}
 	r.Facts.Sleeping = domain.Unknown[policy.SleepingObservation]()
 	r.Facts.SleepingRecovered = domain.Known(true)
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainHousing).Standard.Need != domain.NeedUnknown || len(out.Review.Sleeping.Uses) != 1 {
+	if routineGoal(t, out, policy.MaintainHousing).Standard.Finding != domain.FindingUnclear || len(out.Review.Sleeping.Uses) != 1 {
 		t.Fatal(out)
 	}
 	r.Facts.Sleeping = domain.Known(v)
 	r.Current.Load = "replacement"
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainHousing).Standard.Need != domain.NeedDeficit || len(out.Review.Sleeping.Uses) != 0 {
+	if routineGoal(t, out, policy.MaintainHousing).Standard.Finding != domain.FindingUnmet || len(out.Review.Sleeping.Uses) != 0 {
 		t.Fatal(out)
 	}
 }

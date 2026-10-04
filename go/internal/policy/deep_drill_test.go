@@ -33,11 +33,11 @@ func TestMetalRunwayRaisesResearchNeed(t *testing.T) {
 	f := stableRoutine()
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"DeepDrilling", "GroundPenetratingScanner"}})
 	f.ResourceRunways = []ResourceRunway{{Resource: "Steel", Deficit: domain.Known(true)}}
-	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.NeedDeficit {
+	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.FindingUnmet {
 		t.Fatal(got)
 	}
 	f.ResourceRunways = nil
-	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.NeedRecovered {
+	if got := assessment(t, needs(t, f, RoutineLatches{}), EnsureResearch); got != domain.FindingMet {
 		t.Fatal(got)
 	}
 }

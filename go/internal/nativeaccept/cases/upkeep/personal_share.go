@@ -87,7 +87,7 @@ func runPersonalShare(ctx context.Context, s cases.Session, wealth string) error
 	if err == nil {
 		recoverCtx, cancel := context.WithTimeout(ctx, 25*time.Minute)
 		for _, need := range []policy.ConcernID{policy.MaintainHousing, policy.MaintainEquipment} {
-			g, werr := waitNeed(recoverCtx, journal, need, domain.NeedRecovered)
+			g, werr := waitNeed(recoverCtx, journal, need, domain.FindingMet)
 			if werr != nil {
 				err = werr
 				break

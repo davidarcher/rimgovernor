@@ -17,7 +17,7 @@ import (
 // the colonists mended themselves). It runs before the need gate, since a
 // recovered goal with open work is exactly the case.
 func cancelSettledRepairMethods(ctx context.Context, journal *store.Store, goal store.StandardState) error {
-	if goal.Standard.Need != domain.NeedRecovered {
+	if goal.Standard.Finding != domain.FindingMet {
 		return nil
 	}
 	for _, method := range goal.Methods {

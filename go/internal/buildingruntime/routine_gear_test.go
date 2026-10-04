@@ -319,7 +319,7 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 			continue
 		}
 		g, err := db.LoadStandard(ctx, binding.Goal)
-		if err != nil || g.Standard.Need != domain.NeedDeficit || g.Standard.Status != domain.StandardOpen {
+		if err != nil || g.Standard.Finding != domain.FindingUnmet || g.Standard.Status != domain.StandardOpen {
 			t.Fatal("MaintainEquipment is not an active deficit", g, err)
 		}
 		found = true

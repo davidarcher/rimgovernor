@@ -28,7 +28,7 @@ func TestComfortUseAllowanceRetainsRetiredMethodAndExpires(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err = db.ReviewStandard(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit)
+	g, err = db.ReviewStandard(ctx, goal.ID, g.Revision, current, 7, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}

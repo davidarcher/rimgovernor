@@ -20,7 +20,7 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.StandardState {
 	if err = journal.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := journal.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
+	state, err := journal.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,11 +57,11 @@ func TestCancelSettledRepairMethodsCancelsPendingWorkOfARecoveredGoal(t *testing
 		t.Fatal(err)
 	}
 	snapshot := goal.Standard.Snapshot
-	if goal, err = journal.ReviewStandard(ctx, goal.Standard.ID, goal.Revision, snapshot, 200, domain.NeedRecovered); err != nil {
+	if goal, err = journal.ReviewStandard(ctx, goal.Standard.ID, goal.Revision, snapshot, 200, domain.FindingMet); err != nil {
 		t.Fatal(err)
 	}
-	if goal.Standard.Need != domain.NeedRecovered || goal.Standard.Status != domain.StandardOpen {
-		t.Fatalf("recovered goal with open work: need=%s status=%s", goal.Standard.Need, goal.Standard.Status)
+	if goal.Standard.Finding != domain.FindingMet || goal.Standard.Status != domain.StandardOpen {
+		t.Fatalf("recovered goal with open work: need=%s status=%s", goal.Standard.Finding, goal.Standard.Status)
 	}
 	if err = cancelSettledRepairMethods(ctx, journal, goal); err != nil {
 		t.Fatal(err)

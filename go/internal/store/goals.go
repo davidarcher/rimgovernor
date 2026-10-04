@@ -225,7 +225,7 @@ func planOpenWork(ctx context.Context, tx *sql.Tx, owner methodOwner) (bool, err
 	return false, nil
 }
 
-func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (StandardState, error) {
+func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.Finding) (StandardState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return StandardState{}, err
@@ -313,7 +313,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	if state.OwnerRevision() != revision {
 		return fmt.Errorf("%w: %s is at revision %d, not %d", ErrConflict, state.ownerLabel(), state.OwnerRevision(), revision)
 	}
-	if summary.Status != domain.StandardOpen || summary.Need != domain.NeedDeficit {
+	if summary.Status != domain.StandardOpen || summary.Finding != domain.FindingUnmet {
 		return errors.New("goal does not admit a method")
 	}
 	if err := admitRoutineSafeguards(ctx, tx, state); err != nil {
@@ -483,7 +483,7 @@ func guardGoalWork(ctx context.Context, tx *sql.Tx, floors *retirementFloors, pl
 	}
 	g := state.Standard
 	s := g.Snapshot
-	if g.Status != domain.StandardOpen || g.Need == domain.NeedUnknown || epoch != strconv.FormatUint(g.Episode, 10) ||
+	if g.Status != domain.StandardOpen || g.Finding == domain.FindingUnclear || epoch != strconv.FormatUint(g.Episode, 10) ||
 		s.Colony != current.Colony || s.Map != current.Map || tick < g.Tick {
 		return errors.New("maintained goal does not admit current work")
 	}

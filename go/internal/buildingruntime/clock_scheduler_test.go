@@ -248,7 +248,7 @@ func combatGoalPlan(t *testing.T, s *ClockScheduler) domain.PlanID {
 		t.Fatal(err)
 	}
 	binding, ok := review.Review.Incident(policy.ActiveCombat)
-	if !ok || binding.Need != domain.NeedDeficit {
+	if !ok || binding.Situation != domain.SituationActive {
 		t.Fatal(review.Review.Incidents)
 	}
 	draft, err := domain.NewOwnedDraft("pawn")

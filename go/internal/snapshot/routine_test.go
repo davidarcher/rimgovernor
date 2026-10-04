@@ -49,7 +49,7 @@ func TestReplayFilthyKitchenOpensCleaning(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, err := r.Assessment(policy.MaintainCleanFacilities)
-	if err != nil || a.Need != domain.NeedDeficit || a.MethodUnavailable {
+	if err != nil || a.Finding != domain.FindingUnmet || a.MethodUnavailable {
 		t.Fatal(a, err)
 	}
 }

@@ -180,7 +180,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	// failure mode is readable without wading through every sample.
 	var events []map[string]any
 	lastMethodCount := -1
-	lastNeed := domain.NeedState("")
+	lastNeed := domain.Finding("")
 	goalID := cfg.Goal
 	if goalID == "" {
 		goalID = policy.EnsureFoodSupply
@@ -236,9 +236,9 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		timeline = append(timeline, sample)
 		methodCount, _ := sample["method_count"].(int)
 		need, _ := sample["need"].(string)
-		if methodCount != lastMethodCount || domain.NeedState(need) != lastNeed {
+		if methodCount != lastMethodCount || domain.Finding(need) != lastNeed {
 			events = append(events, sample)
-			lastMethodCount, lastNeed = methodCount, domain.NeedState(need)
+			lastMethodCount, lastNeed = methodCount, domain.Finding(need)
 		}
 		if cfg.Until != nil && err == nil && cfg.Until(sample) {
 			report["watch_ended_early"] = true
@@ -485,7 +485,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 		return sample, err
 	}
 	sample["status"] = string(goal.Standard.Status)
-	sample["need"] = string(goal.Standard.Need)
+	sample["need"] = string(goal.Standard.Finding)
 	sample["priority"] = goal.Standard.Priority
 	sample["vetoed"] = review.Veto(goal.Standard) != ""
 	sample["epoch"] = goal.Standard.Episode
@@ -564,7 +564,7 @@ func sampleProject(ctx context.Context, s *store.Store, review store.Rounds, kin
 	}
 	sample["project"] = string(id)
 	sample["status"] = string(project.Project.Status)
-	sample["need"] = string(project.Project.Need)
+	sample["need"] = string(project.Project.Finding)
 	sample["priority"] = project.Project.Priority
 	sample["vetoed"] = review.VetoProject(project.Project) != ""
 	sample["method_count"] = len(project.Methods)
@@ -601,7 +601,7 @@ func sampleIncident(ctx context.Context, s *store.Store, review store.Rounds, ki
 	if !incident.Incident.Closed {
 		sample["status"] = "open"
 	}
-	sample["need"] = string(binding.Need)
+	sample["need"] = string(binding.Situation)
 	sample["priority"] = incident.Incident.Priority
 	sample["vetoed"] = review.VetoIncident(incident.Incident) != ""
 	sample["method_count"] = len(incident.Methods)

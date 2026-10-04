@@ -80,19 +80,19 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	// Home follows the building census (#1328): the wall's footprint plus
 	// margin is missing Home while it stands, unknown while the census is.
-	assertNeeds := func(out RoundsResult, want domain.NeedState) {
+	assertNeeds := func(out RoundsResult, want domain.Finding) {
 		t.Helper()
-		if got := routineGoal(t, out, policy.MaintainStoneShell).Standard.Need; got != want {
+		if got := routineGoal(t, out, policy.MaintainStoneShell).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainStoneShell, got, want)
 		}
-		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Standard.Need; got != want {
+		if got := routineGoal(t, out, policy.MaintainHomeCoverage).Standard.Finding; got != want {
 			t.Fatal(policy.MaintainHomeCoverage, got)
 		}
 	}
-	assertNeeds(reviewRoutine(t, s, &r), domain.NeedDeficit)
+	assertNeeds(reviewRoutine(t, s, &r), domain.FindingUnmet)
 	r.Facts.CurrentConstruction = domain.Unknown[policy.CurrentConstruction]()
 	out := reviewRoutine(t, s, &r)
-	assertNeeds(out, domain.NeedUnknown)
+	assertNeeds(out, domain.FindingUnclear)
 	if !out.Review.Latches.StoneShell {
 		t.Fatal("unknown erased active history")
 	}
@@ -105,10 +105,10 @@ func TestFacilityUpkeepDurableUnknownManualAndPlayerReplacement(t *testing.T) {
 	s = open(t, path)
 	defer s.Close()
 	r.Enabled = true
-	assertNeeds(reviewRoutine(t, s, &r), domain.NeedUnknown)
+	assertNeeds(reviewRoutine(t, s, &r), domain.FindingUnclear)
 	// A complete census now reports the owned wall gone.
 	r.Facts.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
-	assertNeeds(reviewRoutine(t, s, &r), domain.NeedRecovered)
+	assertNeeds(reviewRoutine(t, s, &r), domain.FindingMet)
 }
 
 func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRoundsCannotInventConstructionOrZoneOwnership(t *testing.T) {
 	r.Facts.StoneStructures = domain.Known([]policy.StoneStructure{{ID: "wall", Definition: "Wall", Flammability: domain.Known(1.0)}})
 	out := reviewRoutine(t, s, &r)
 	for _, id := range []domain.ConcernID{policy.MaintainHomeCoverage, policy.MaintainStoneShell} {
-		if got := routineGoal(t, out, id).Standard.Need; got != domain.NeedRecovered {
+		if got := routineGoal(t, out, id).Standard.Finding; got != domain.FindingMet {
 			t.Fatal(id, got)
 		}
 	}

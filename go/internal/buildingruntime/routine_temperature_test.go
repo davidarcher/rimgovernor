@@ -180,7 +180,7 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 			if hot {
 				want = "PassiveCooler"
 			}
-			if b.Definition() != want || b.Cell().X > 1 || b.Cell().Z > 1 || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Standard.Need != domain.NeedDeficit {
+			if b.Definition() != want || b.Cell().X > 1 || b.Cell().Z > 1 || plan.Progress[0].View().Attempt != 0 || result.Decision.Goal.Standard.Finding != domain.FindingUnmet {
 				t.Fatal(b, plan.Progress, result)
 			}
 			if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || n.previews != 1 {
@@ -282,15 +282,15 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				want := domain.NeedUnknown
+				want := domain.FindingUnclear
 				if mode == "recovered" {
-					want = domain.NeedRecovered
+					want = domain.FindingMet
 				}
 				found := false
 				for _, binding := range review.Review.Goals {
 					if binding.Need == policy.EnsureTemperatureSafety {
 						g, err := db.LoadStandard(context.Background(), binding.Goal)
-						if err != nil || mode == "recovered" && g.Standard.Need != want || mode == "unavailable" && g.Standard.Need == domain.NeedRecovered {
+						if err != nil || mode == "recovered" && g.Standard.Finding != want || mode == "unavailable" && g.Standard.Finding == domain.FindingMet {
 							t.Fatal(g, err)
 						}
 						found = true

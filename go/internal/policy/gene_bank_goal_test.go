@@ -11,7 +11,7 @@ func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	f := stableRoutine()
 	f.GeneBankOwed = domain.Unknown[bool]()
 	r := needs(t, f, RoutineLatches{})
-	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.NeedUnknown {
+	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.FindingUnclear {
 		t.Fatal("no gene-bank fact: an unknown assessment and no goal", r)
 	}
 	f.AvailableMethods = domain.Known([]ConcernID{MaintainGeneBank})
@@ -25,7 +25,7 @@ func TestMaintainGeneBankRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	}
 	f.GeneBankOwed = domain.Known(false)
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.NeedRecovered {
+	if hasNeed(r, MaintainGeneBank) || assessment(t, r, MaintainGeneBank) != domain.FindingMet {
 		t.Fatal("no bank owed settles the goal", r)
 	}
 	if got, ok := RoutineDevelopmentDeficit(MaintainGeneBank, f, RoutinePolicy{}).Value(); !ok || got != 0 {

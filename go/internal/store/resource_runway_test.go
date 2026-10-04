@@ -26,7 +26,7 @@ func TestResourceRunwayReserveDeficitAndReviewPersistence(t *testing.T) {
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 200}, {Resource: "ComponentIndustrial", Count: 20}})
 	r.Facts.ResourceSurfaceOre = map[policy.Resource]domain.Fact[int64]{"Steel": domain.Known(int64(0)), "ComponentIndustrial": domain.Known(int64(0))}
 	out := reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
+	if routineGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal(out.Needs)
 	}
 	if len(out.Review.ResourceRunways) != 3 {

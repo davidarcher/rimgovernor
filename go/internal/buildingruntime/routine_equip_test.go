@@ -299,7 +299,7 @@ func TestEquipPlannerSkipsClaimedPawn(t *testing.T) {
 			continue
 		}
 		g, err := db.LoadStandard(ctx, binding.Goal)
-		if err != nil || g.Standard.Need != domain.NeedDeficit {
+		if err != nil || g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("EnsureBasicDefense is not in deficit", g, err)
 		}
 		found = true

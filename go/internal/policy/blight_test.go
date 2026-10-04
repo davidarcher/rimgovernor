@@ -11,7 +11,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	f := stableRoutine()
 	f.Blight = domain.Unknown[[]BlightedPlant]()
 	r := needs(t, f, RoutineLatches{})
-	if assessment(t, r, RemoveBlight) != domain.NeedUnknown || !hasNeed(r, RemoveBlight) {
+	if assessment(t, r, RemoveBlight) != domain.FindingUnclear || !hasNeed(r, RemoveBlight) {
 		t.Fatal("unknown census must not count as recovered", r)
 	}
 	f.Blight = domain.Known([]BlightedPlant{{ID: "Plant_Rice1", Designated: true}})
@@ -36,7 +36,7 @@ func TestRemoveBlightOpensOnCensusAndSettlesOnEmpty(t *testing.T) {
 	}
 	f.Blight = domain.Known([]BlightedPlant{})
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, RemoveBlight) || assessment(t, r, RemoveBlight) != domain.NeedRecovered {
+	if hasNeed(r, RemoveBlight) || assessment(t, r, RemoveBlight) != domain.FindingMet {
 		t.Fatal("empty census settles the goal", r)
 	}
 }

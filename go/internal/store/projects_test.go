@@ -26,7 +26,7 @@ func projectFixture(t *testing.T) (*Store, ProjectState) {
 	if err = s.CreateProject(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	state, err := s.ReviewProject(ctx, p.ID, 0, scope(), 10, domain.NeedDeficit)
+	state, err := s.ReviewProject(ctx, p.ID, 0, scope(), 10, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	if err = s.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	gs, err := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
+	gs, err := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,10 +139,10 @@ func TestProjectFinishInvalidateRetireAndOwnerKey(t *testing.T) {
 	}
 	// A world change invalidates the project, cancelling its work; the row
 	// stays at the new revision.
-	if _, err = s.ReviewProject(ctx, state.Project.ID, state.Revision-1, otherMap(), 11, domain.NeedDeficit); !errors.Is(err, ErrConflict) {
+	if _, err = s.ReviewProject(ctx, state.Project.ID, state.Revision-1, otherMap(), 11, domain.FindingUnmet); !errors.Is(err, ErrConflict) {
 		t.Fatal("stale revision reviewed", err)
 	}
-	cancelled, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, otherMap(), 11, domain.NeedDeficit)
+	cancelled, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, otherMap(), 11, domain.FindingUnmet)
 	if err != nil || cancelled.Project.Status != domain.ProjectVoided {
 		t.Fatal(cancelled.Project, err)
 	}
@@ -173,7 +173,7 @@ func TestProjectInvalidatedByWorldChangeRetires(t *testing.T) {
 	s, state := projectFixture(t)
 	other := scope()
 	other.Colony = "another-colony"
-	invalid, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, other, 20, domain.NeedDeficit)
+	invalid, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, other, 20, domain.FindingUnmet)
 	if err != nil || invalid.Project.Status != domain.ProjectVoided {
 		t.Fatal(invalid.Project, err)
 	}
@@ -204,14 +204,14 @@ func TestProjectFinishesOnceAndBlobSkipsRetired(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s, state := projectFixture(t)
-	done, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, scope(), 20, domain.NeedRecovered)
+	done, err := s.ReviewProject(ctx, state.Project.ID, state.Revision, scope(), 20, domain.FindingMet)
 	if err != nil || done.Project.Status != domain.ProjectCompleted {
 		t.Fatal(done.Project, err)
 	}
-	if !domain.ProjectRegressed(done.Project, domain.NeedDeficit, false) {
+	if !domain.ProjectRegressed(done.Project, domain.FindingUnmet, false) {
 		t.Fatal("regress rule moved")
 	}
-	if _, err = s.ReviewProject(ctx, done.Project.ID, done.Revision, scope(), 30, domain.NeedDeficit); err == nil {
+	if _, err = s.ReviewProject(ctx, done.Project.ID, done.Revision, scope(), 30, domain.FindingUnmet); err == nil {
 		t.Fatal("regressed project reviewed in place")
 	}
 	if blobs, err := s.GovernorStateBlobs(ctx); err != nil || blobs[GovernorProjectKeyPrefix+string(done.Project.ID)] == "" {

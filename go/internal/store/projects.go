@@ -58,7 +58,7 @@ func (s *Store) CreateProject(ctx context.Context, p domain.Project) error {
 	if err := p.Validate(); err != nil {
 		return err
 	}
-	if p.Status != domain.ProjectOpen || p.Need != domain.NeedUnknown {
+	if p.Status != domain.ProjectOpen || p.Finding != domain.FindingUnclear {
 		return errors.New("new project must start without completion evidence")
 	}
 	tx, err := s.begin(ctx)
@@ -194,7 +194,7 @@ func saveProject(ctx context.Context, tx *sql.Tx, previous ProjectState, p domai
 // ReviewProject reviews a project against the current world under its CAS
 // revision. A regressed finished project is not reviewed here: the caller
 // opens a new row (domain.ProjectRegressed).
-func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.NeedState) (ProjectState, error) {
+func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision uint64, current domain.GenerationSnapshot, tick domain.Tick, need domain.Finding) (ProjectState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return ProjectState{}, err
@@ -268,7 +268,7 @@ func guardProjectWork(ctx context.Context, tx *sql.Tx, id domain.ProjectID, curr
 		return err
 	}
 	p := state.Project
-	if p.Status != domain.ProjectOpen || p.Need == domain.NeedUnknown || !p.Snapshot.SameWorld(current) || tick < p.Tick {
+	if p.Status != domain.ProjectOpen || p.Finding == domain.FindingUnclear || !p.Snapshot.SameWorld(current) || tick < p.Tick {
 		return errors.New("project does not admit current work")
 	}
 	return admitRoutineSafeguards(ctx, tx, state)

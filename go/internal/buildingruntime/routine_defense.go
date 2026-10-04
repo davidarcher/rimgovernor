@@ -68,7 +68,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
-	if found && need == domain.NeedRecovered {
+	if found && need == domain.SituationClear {
 		// The raid ended before every action was issued: a squad draft the
 		// worker prepared but never dispatched, and the moves and attacks
 		// waiting on it or on a target that is now dead, would hold the
@@ -95,7 +95,7 @@ func (r *RoutineDefensePlanner) decide(call, epoch context.Context, arbiter *ste
 		}
 		return RoutineDefenseResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
-	if !found || need != domain.NeedDeficit || review.VetoIncident(incident.Incident) != "" {
+	if !found || need != domain.SituationActive || review.VetoIncident(incident.Incident) != "" {
 		return RoutineDefenseResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	// One ActiveCombat plan owns the fight (#852): its combat method whose

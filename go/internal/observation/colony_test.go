@@ -239,11 +239,11 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 		if assessment.ID == policy.ConfirmColonyNames {
 			if expected := os.Getenv("RIMGOVERNOR_NATIVE_NAMING"); expected != "" {
 				naming, known := p.Facts.ColonyNaming.Value()
-				want := domain.NeedRecovered
+				want := domain.FindingMet
 				if expected == "present" {
-					want = domain.NeedDeficit
+					want = domain.FindingUnmet
 				}
-				if !known || naming != (expected == "present") || assessment.Need != want {
+				if !known || naming != (expected == "present") || assessment.Finding != want {
 					t.Fatal("native naming did not reach durable review", p.Facts.ColonyNaming, assessment)
 				}
 				t.Logf("Native naming %s reaches durable need %s", expected, want)
@@ -251,21 +251,21 @@ func TestColonyNativeCaptureReachesRounds(t *testing.T) {
 		}
 		if assessment.ID == policy.EnsureCooking {
 			if ready, known := p.Facts.Cooking.Value(); known {
-				want := domain.NeedDeficit
+				want := domain.FindingUnmet
 				if ready {
-					want = domain.NeedRecovered
+					want = domain.FindingMet
 				}
-				if assessment.Need != want {
+				if assessment.Finding != want {
 					t.Fatal("native cooking did not reach durable need", assessment)
 				}
 			}
 		}
 		if assessment.ID == policy.EnsureFoodSupply {
 			days, known := p.Facts.FoodDays.Value()
-			if !known && assessment.Need != domain.NeedUnknown {
+			if !known && assessment.Finding != domain.FindingUnclear {
 				t.Fatal("raw native runway certified food need", assessment)
 			}
-			if known && days < policy.DefaultRoutinePolicy().FoodMinDays && assessment.Need != domain.NeedDeficit {
+			if known && days < policy.DefaultRoutinePolicy().FoodMinDays && assessment.Finding != domain.FindingUnmet {
 				t.Fatal("forecast shortage did not create deficit", assessment)
 			}
 		}

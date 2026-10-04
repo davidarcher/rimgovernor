@@ -31,10 +31,10 @@ func TestIdleDraftsAtPeaceOpenRestoreWorkers(t *testing.T) {
 		t.Fatalf("hostiles %v", r.Facts.Hostiles)
 	}
 	a, err := r.Assessment(policy.RestoreWorkers)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal("drafted idle colonists at peace must open RestoreWorkers:", a, err)
 	}
-	if a, err = r.Assessment(policy.ActiveCombat); err == nil && a.Need == domain.NeedDeficit {
+	if a, err = r.Assessment(policy.ActiveCombat); err == nil && a.Finding == domain.FindingUnmet {
 		t.Fatal("no combat at peace", a)
 	}
 }
@@ -45,16 +45,16 @@ func TestIdleDraftsUnderHostilesStayWithCombat(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, err := r.Assessment(policy.ActiveCombat)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal("hostiles must open ActiveCombat:", a, err)
 	}
-	if a, err = r.Assessment(policy.RestoreWorkers); err == nil && a.Need == domain.NeedDeficit {
+	if a, err = r.Assessment(policy.RestoreWorkers); err == nil && a.Finding == domain.FindingUnmet {
 		t.Fatal("idle drafts released while hostiles stand:", a)
 	}
 	// The same colony at peace releases them: the hostile count alone
 	// decides.
 	r.Facts.Hostiles = domain.Known(int64(0))
-	if a, err = r.Assessment(policy.ActiveCombat); err == nil && a.Need == domain.NeedDeficit {
+	if a, err = r.Assessment(policy.ActiveCombat); err == nil && a.Finding == domain.FindingUnmet {
 		t.Fatal("combat without hostiles", a)
 	}
 }

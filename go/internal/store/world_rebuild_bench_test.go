@@ -26,7 +26,7 @@ func BenchmarkWorldRebuild(b *testing.B) {
 	if err = s.SeedStandard(ctx, goal); err != nil {
 		b.Fatal(err)
 	}
-	first, err := s.ReviewStandard(ctx, goal.ID, 0, scope(), 10, domain.NeedDeficit)
+	first, err := s.ReviewStandard(ctx, goal.ID, 0, scope(), 10, domain.FindingUnmet)
 	if err != nil {
 		b.Fatal(err)
 	}

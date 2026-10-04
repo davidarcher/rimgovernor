@@ -31,7 +31,7 @@ func TestEventLootRestartAdmissionAndReset(t *testing.T) {
 	lootExtentFacts(t, &r.Facts, cell)
 	out = reviewRoutine(t, s, &r)
 	goal := routineGoal(t, out, policy.ManageSupplySafety)
-	if goal.Standard.Need != domain.NeedDeficit || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
+	if goal.Standard.Finding != domain.FindingUnmet || len(out.Review.EventLoot.Pending) != 1 || len(out.Review.EventLoot.Held) != 0 {
 		t.Fatal(out)
 	}
 	if _, err := s.CommitMethod(ctx, goal.Standard.ID, goal.Revision, "loot", supplyPlan(t, "loot", 1, cell)); err != nil {

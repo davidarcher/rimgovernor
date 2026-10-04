@@ -272,7 +272,7 @@ a **Project** (built once) or an **Incident** (handled when it happens).
 | `Project` | Project | `Open / Completed / Voided`. | done #1972 |
 | `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | done #1972 |
 | `Rule` | Safeguard | An admission veto; not a Type. | done (#1970) |
-| `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | pending #1973 |
+| `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | done (#1973); stored strings unknown / deficit / recovered and the `Need` JSON key stay until #1976 |
 | `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); the table is renamed in place, then split per owner. | done #1974 (`domain.Method`, field `Owner`); table rename pending #1976, split #1980 |
 | player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |
 | `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, dashboard, native panel, player docs | the new words | Player-visible surfaces take the same words. | pending #1977, #1978 |

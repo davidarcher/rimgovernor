@@ -157,7 +157,7 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	r.Facts.Resources = domain.Known([]policy.Amount{})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	bill, err := domain.NewProductionBill("spot", "Make_MeleeWeapon_Club", domain.StockTarget, 3)

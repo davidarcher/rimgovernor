@@ -14,14 +14,14 @@ func TestEmergencyNeedExclusionsAgreeWithDevelopmentFreeze(t *testing.T) {
 		a    RoutineAssessment
 		want bool
 	}{
-		{"priority 0 deficit", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedDeficit}, true},
-		{"priority 1 unknown", RoutineAssessment{ID: ActiveCombat, Priority: 1, Need: domain.NeedUnknown}, true},
-		{"priority 2", RoutineAssessment{ID: ActiveCombat, Priority: 2, Need: domain.NeedDeficit}, false},
-		{"colony naming", RoutineAssessment{ID: ConfirmColonyNames, Priority: 0, Need: domain.NeedDeficit}, false},
-		{"choice dialog", RoutineAssessment{ID: AnswerDialog, Priority: 0, Need: domain.NeedDeficit}, false},
-		{"mood relief", RoutineAssessment{ID: EnsureMood, Subject: "pawn", Priority: 1, Need: domain.NeedDeficit, MethodUnavailable: true}, false},
-		{"recovered", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedRecovered}, false},
-		{"method unavailable", RoutineAssessment{ID: ActiveCombat, Priority: 0, Need: domain.NeedDeficit, MethodUnavailable: true}, false},
+		{"priority 0 deficit", RoutineAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet}, true},
+		{"priority 1 unknown", RoutineAssessment{ID: ActiveCombat, Priority: 1, Finding: domain.FindingUnclear}, true},
+		{"priority 2", RoutineAssessment{ID: ActiveCombat, Priority: 2, Finding: domain.FindingUnmet}, false},
+		{"colony naming", RoutineAssessment{ID: ConfirmColonyNames, Priority: 0, Finding: domain.FindingUnmet}, false},
+		{"choice dialog", RoutineAssessment{ID: AnswerDialog, Priority: 0, Finding: domain.FindingUnmet}, false},
+		{"mood relief", RoutineAssessment{ID: EnsureMood, Subject: "pawn", Priority: 1, Finding: domain.FindingUnmet, MethodUnavailable: true}, false},
+		{"recovered", RoutineAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingMet}, false},
+		{"method unavailable", RoutineAssessment{ID: ActiveCombat, Priority: 0, Finding: domain.FindingUnmet, MethodUnavailable: true}, false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := EmergencyNeed(c.a); got != c.want {

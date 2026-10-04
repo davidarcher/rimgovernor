@@ -102,12 +102,12 @@ func (p RecoveryPlanning) Validate() error {
 	return nil
 }
 
-func RecoveryNeed(h *DisasterHistory) domain.NeedState {
+func RecoveryNeed(h *DisasterHistory) domain.Finding {
 	if h.Validate() != nil || h != nil && h.Phase == DisasterUnknown {
-		return domain.NeedUnknown
+		return domain.FindingUnclear
 	}
 	if h == nil || h.Phase == DisasterRestored {
-		return domain.NeedRecovered
+		return domain.FindingMet
 	}
 	return h.Services[len(h.Services)-1].Need
 }
@@ -238,7 +238,7 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 		out.Reason = RecoveryAdmissionRequired
 	case len(work) > 0:
 		out.Reason = RecoveryMethodsSeen
-	case h.Services[len(h.Services)-1].Need != domain.NeedRecovered:
+	case h.Services[len(h.Services)-1].Need != domain.FindingMet:
 		out.Reason = RecoveryTrackedMissing
 	default:
 		out.Reason = RecoveryNoWork

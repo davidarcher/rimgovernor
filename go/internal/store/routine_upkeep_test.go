@@ -14,14 +14,14 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	db := open(t, path)
 	r := routineRequest()
 	out := reviewRoutine(t, db, &r)
-	if g := routineGoal(t, out, policy.MaintainFireSafety); g.Standard.Priority != 4 || g.Standard.Need != domain.NeedUnknown || len(out.Emergency) != 0 {
+	if g := routineGoal(t, out, policy.MaintainFireSafety); g.Standard.Priority != 4 || g.Standard.Finding != domain.FindingUnclear || len(out.Emergency) != 0 {
 		t.Fatal(g, out.Emergency)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	out = reviewRoutine(t, db, &r)
 	g := routineGoal(t, out, policy.MaintainFireSafety)
 	epoch := g.Standard.Episode
-	if g.Standard.Priority != 1 || g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Priority != 1 || g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	// The review names the need behind the emergency: a home fire vetoes
@@ -43,7 +43,7 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	r.Enabled = true
 	r.Facts.Upkeep.Fires = domain.Unknown[[]policy.UpkeepFire]()
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety)
-	if g.Standard.Priority != 1 || g.Standard.Need != domain.NeedUnknown {
+	if g.Standard.Priority != 1 || g.Standard.Finding != domain.FindingUnclear {
 		t.Fatal("unknown erased observed fire risk", g)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
@@ -53,13 +53,13 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "new-fire", Home: true, Size: domain.Known(.5)}})
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety)
-	if g.Standard.Need != domain.NeedDeficit || g.Standard.Episode <= epoch {
+	if g.Standard.Finding != domain.FindingUnmet || g.Standard.Episode <= epoch {
 		t.Fatal("renewed fire not reopened", g)
 	}
 	// Caller-supplied pending work is not trusted as a native obligation.
 	r.Facts.UpkeepIssued = map[policy.ConcernID]bool{policy.MaintainFireSafety: true}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Need != domain.NeedRecovered {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }
@@ -76,7 +76,7 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Need != domain.NeedRecovered || g.Standard.Status != domain.StandardSettled {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet || g.Standard.Status != domain.StandardSettled {
 		t.Fatal("unissued plan invented a deficit", g)
 	}
 	// The unissued method settles with the recovery (#290); the renewed
@@ -99,14 +99,14 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 	}
 	r.Tick++
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Need != domain.NeedDeficit {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal("issued target loss recovered need", g)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
 	r.Enabled = true
 	for i := 0; i < 2; i++ {
-		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Need != domain.NeedDeficit {
+		if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("replacement binding lost unresolved work", g)
 		}
 	}
@@ -115,7 +115,7 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 	}
 	// An applied building closes once the census shows it built (#856).
 	r.Facts.CurrentConstruction = builtCensus(t, "wall")
-	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Need != domain.NeedRecovered {
+	if g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety); g.Standard.Finding != domain.FindingMet {
 		t.Fatal(g)
 	}
 }

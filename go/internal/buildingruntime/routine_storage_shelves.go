@@ -102,7 +102,7 @@ func (r *RoutineStorageShelvesPlanner) step(call, epoch context.Context) (Routin
 			}
 			goals[z.Goal] = g
 		}
-		if g := goals[z.Goal].Standard; g.Status == domain.StandardOpen && g.Need == domain.NeedDeficit {
+		if g := goals[z.Goal].Standard; g.Status == domain.StandardOpen && g.Finding == domain.FindingUnmet {
 			zones = append(zones, z)
 		}
 	}

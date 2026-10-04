@@ -12,13 +12,33 @@ const (
 	StandardVoided  StandardStatus = "invalidated"
 )
 
-type NeedState string
+// Finding is an Inspection's measured result for a Standard or Project
+// Concern: Met, Unmet, or Unclear when the facts do not say. The stored
+// strings predate the rename.
+type Finding string
 
 const (
-	NeedUnknown   NeedState = "unknown"
-	NeedDeficit   NeedState = "deficit"
-	NeedRecovered NeedState = "recovered"
+	FindingUnclear Finding = "unknown"
+	FindingUnmet   Finding = "deficit"
+	FindingMet     Finding = "recovered"
 )
+
+// Situation is an Inspection's measured result for an Incident Concern:
+// Active, Clear, or Unclear. It is a distinct type so an Incident cannot be
+// read as Met or Unmet; both reduce to the same tri-state fact.
+type Situation string
+
+const (
+	SituationUnclear Situation = Situation(FindingUnclear)
+	SituationActive  Situation = Situation(FindingUnmet)
+	SituationClear   Situation = Situation(FindingMet)
+)
+
+// Situation is the Incident reading of f: Unmet is Active, Met is Clear.
+func (f Finding) Situation() Situation { return Situation(f) }
+
+// Finding is the tri-state fact under s.
+func (s Situation) Finding() Finding { return Finding(s) }
 
 // Standard records a maintained outcome. Executable methods reference ordinary shared
 // plans; their receipts, progress and uncertainty stay in those plans.
@@ -29,7 +49,7 @@ type Standard struct {
 	Tick             Tick
 	Episode          uint64 `json:"Epoch"`
 	Status           StandardStatus
-	Need             NeedState
+	Finding          Finding `json:"Need"`
 	RecoveryObserved bool
 	// Record is the goal's own durable intent, JSON the goal's planner
 	// writes and reads (empty for most goals): what the world cannot show,
@@ -41,7 +61,7 @@ type Standard struct {
 const MaxStandardRecord = 4096
 
 func NewStandard(id ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Standard, error) {
-	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: StandardOpen, Need: NeedUnknown}
+	g := Standard{ID: id, Priority: priority, Snapshot: snapshot, Tick: tick, Status: StandardOpen, Finding: FindingUnclear}
 	return g, g.Validate()
 }
 func (g Standard) Validate() error {
@@ -56,12 +76,12 @@ func (g Standard) Validate() error {
 	default:
 		return errors.New("invalid standard status")
 	}
-	switch g.Need {
-	case NeedUnknown, NeedDeficit, NeedRecovered:
+	switch g.Finding {
+	case FindingUnclear, FindingUnmet, FindingMet:
 	default:
 		return errors.New("invalid standard need")
 	}
-	if g.Status == StandardSettled && (g.Need != NeedRecovered || !g.RecoveryObserved) {
+	if g.Status == StandardSettled && (g.Finding != FindingMet || !g.RecoveryObserved) {
 		return errors.New("settled standard needs observed recovery")
 	}
 	return nil
@@ -77,7 +97,7 @@ func (g Standard) Validate() error {
 // episode's methods may be proposed again. Priority orders work only: an
 // emergency or a pause vetoes proposals through the policy Safeguards (#1017).
 // Projects are not goals (Project, ReviewProject).
-func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Standard, error) {
+func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Standard, error) {
 	original := g
 	if err := g.Validate(); err != nil {
 		return g, err
@@ -86,7 +106,7 @@ func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Need
 		return g, errors.New("invalid standard review scope")
 	}
 	switch need {
-	case NeedUnknown, NeedDeficit, NeedRecovered:
+	case FindingUnclear, FindingUnmet, FindingMet:
 	default:
 		return g, errors.New("invalid observed need")
 	}
@@ -100,22 +120,22 @@ func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Need
 	// Review revisions may advance without changing the player's direction.
 	g.Snapshot = current
 	g.Tick = tick
-	if need == NeedUnknown {
+	if need == FindingUnclear {
 		if g.Status == StandardSettled {
 			g.Status = StandardOpen
 		}
-		g.Need = need
+		g.Finding = need
 		return g, nil
 	}
-	if need == NeedDeficit && (g.RecoveryObserved || g.Need == NeedRecovered) && !openWork {
+	if need == FindingUnmet && (g.RecoveryObserved || g.Finding == FindingMet) && !openWork {
 		if g.Episode == ^uint64(0) {
 			return original, errors.New("standard episode exhausted")
 		}
 		g.Episode++
 		g.RecoveryObserved = false
 	}
-	g.Need = need
-	if need == NeedRecovered && !openWork {
+	g.Finding = need
+	if need == FindingMet && !openWork {
 		g.Status = StandardSettled
 		g.RecoveryObserved = true
 	} else {

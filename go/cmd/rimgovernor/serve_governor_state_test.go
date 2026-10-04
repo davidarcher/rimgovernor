@@ -220,7 +220,7 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	if err = database.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	state, err := database.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.NeedDeficit)
+	state, err := database.ReviewStandard(ctx, g.ID, 0, snapshot, 10, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}

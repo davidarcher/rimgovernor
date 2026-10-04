@@ -2011,7 +2011,7 @@ func clockSchedulerCombatPlan(ctx context.Context, journal *store.Store, current
 		return false, false, nil, err
 	}
 	incident, need, found, err := routineIncident(ctx, journal, review, policy.ActiveCombat)
-	if err != nil || !found || need != domain.NeedDeficit {
+	if err != nil || !found || need != domain.SituationActive {
 		return false, false, nil, err
 	}
 	for _, method := range incident.Methods {

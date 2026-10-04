@@ -23,7 +23,7 @@ func TestRoutineNamingPlannerCommitsToIncident(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, ok := out.Review.Incident(policy.ConfirmColonyNames)
-	if !ok || b.Need != domain.NeedDeficit {
+	if !ok || b.Situation != domain.SituationActive {
 		t.Fatal(out.Review.Incidents)
 	}
 	planner, err := NewRoutineNamingPlanner(r, n)
@@ -60,7 +60,7 @@ func TestRoutineMoodReliefPlannerCommitsToPawnIncident(t *testing.T) {
 		t.Fatal(err)
 	}
 	bindings := mood.Review.SubjectIncidents(policy.EnsureMood)
-	if len(bindings) != 1 || bindings[0].Subject != "pawn" || bindings[0].Need != domain.NeedDeficit {
+	if len(bindings) != 1 || bindings[0].Subject != "pawn" || bindings[0].Situation != domain.SituationActive {
 		t.Fatal(mood.Review.Incidents)
 	}
 	planner, err := NewRoutineMoodReliefPlanner(r)

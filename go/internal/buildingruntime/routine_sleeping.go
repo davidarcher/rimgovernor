@@ -1267,7 +1267,7 @@ func initialShelterOwed(ctx context.Context, p *Player, review store.Rounds) (bo
 		if err != nil {
 			return false, err
 		}
-		return goal.Standard.Status == domain.StandardOpen && goal.Standard.Need == domain.NeedDeficit, nil
+		return goal.Standard.Status == domain.StandardOpen && goal.Standard.Finding == domain.FindingUnmet, nil
 	}
 	return false, nil
 }

@@ -23,7 +23,7 @@ func goalFixture(t *testing.T) (*Store, string, StandardState) {
 	if e = s.SeedStandard(ctx, g); e != nil {
 		t.Fatal(e)
 	}
-	state, e := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.NeedDeficit)
+	state, e := s.ReviewStandard(ctx, g.ID, 0, scope(), 10, domain.FindingUnmet)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -53,7 +53,7 @@ func TestMethodAtomicCommitReopenAndDuplicate(t *testing.T) {
 	if _, e = s.LoadPlan(ctx, "orphan"); !errors.Is(e, ErrNotFound) {
 		t.Fatal("failed method left a plan", e)
 	}
-	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision-1, scope(), 11, domain.NeedRecovered); !errors.Is(e, ErrConflict) {
+	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision-1, scope(), 11, domain.FindingMet); !errors.Is(e, ErrConflict) {
 		t.Fatal("stale review accepted", e)
 	}
 }
@@ -72,7 +72,7 @@ func TestGoalInvalidationRetainsIssuedUncertainty(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "issued", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.NeedDeficit)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.FindingUnmet)
 	if e != nil || g.Standard.Status != domain.StandardVoided {
 		t.Fatal(g, e)
 	}
@@ -104,7 +104,7 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.Dispatch(ctx, "p", "a", scope(), 10); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedRecovered)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.FindingMet)
 	if e != nil || g.Standard.Status == domain.StandardSettled {
 		t.Fatal(g, e)
 	}
@@ -113,15 +113,15 @@ func TestGoalObservedRecoveryThenRenewalKeepsOldPlan(t *testing.T) {
 	if _, e = s.RecordReceipt(ctx, "p", "a", 1, domain.ReceiptRefused); e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 12, domain.NeedRecovered)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 12, domain.FindingMet)
 	if e != nil || g.Standard.Status != domain.StandardSettled {
 		t.Fatal(g, e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 13, domain.NeedUnknown)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 13, domain.FindingUnclear)
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 14, domain.NeedDeficit)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 14, domain.FindingUnmet)
 	if e != nil || g.Standard.Episode != 1 {
 		t.Fatal(g, e)
 	}
@@ -144,7 +144,7 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	}
 	loaded := scope()
 	loaded.Load = "other"
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, loaded, 11, domain.NeedDeficit)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, loaded, 11, domain.FindingUnmet)
 	if e != nil || g.Standard.Status == domain.StandardVoided {
 		t.Fatal("load change must keep the goal", g, e)
 	}
@@ -153,7 +153,7 @@ func TestGoalWorldInvalidationCancelsPendingPlan(t *testing.T) {
 	}
 	changed := scope()
 	changed.Map++
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, changed, 11, domain.NeedDeficit)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, changed, 11, domain.FindingUnmet)
 	if e != nil || g.Standard.Status != domain.StandardVoided {
 		t.Fatal(g, e)
 	}
@@ -198,7 +198,7 @@ func TestGoalInvalidationRollbackDoesNotPartiallyCancelActions(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.NeedDeficit); e == nil {
+	if _, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, otherMap(), 11, domain.FindingUnmet); e == nil {
 		t.Fatal("expected injected failure")
 	}
 	after, e := s.LoadStandard(ctx, g.Standard.ID)
@@ -239,7 +239,7 @@ func TestGoalUnknownReviewGuardsEveryPreparationPath(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedUnknown)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.FindingUnclear)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -263,7 +263,7 @@ func TestGoalRecoveredNeedFinishesAcceptedMethodWithoutStartingAnother(t *testin
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedRecovered)
+	g, e = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.FindingMet)
 	if e != nil || g.Standard.Status == domain.StandardSettled {
 		t.Fatal(g, e)
 	}

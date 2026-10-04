@@ -40,7 +40,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if active != 43 || history != 43*33 {
 		t.Fatal(active, history)
 	}
-	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit); err == nil {
+	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, r.Current, r.Tick, domain.FindingUnmet); err == nil {
 		t.Fatal("retired goal reviewed")
 	}
 	replacement, err := domain.NewStandard(old.Standard.ID, 2, r.Current, r.Tick)

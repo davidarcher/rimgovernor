@@ -68,11 +68,11 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assessed := map[ConcernID]domain.NeedState{}
+	assessed := map[ConcernID]domain.Finding{}
 	for _, a := range r.Assessments {
-		assessed[a.ID] = a.Need
+		assessed[a.ID] = a.Finding
 	}
-	if assessed[EnsureResearch] != domain.NeedDeficit || assessed[MaintainResource] != domain.NeedDeficit {
+	if assessed[EnsureResearch] != domain.FindingUnmet || assessed[MaintainResource] != domain.FindingUnmet {
 		t.Fatal(assessed)
 	}
 	state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Goals: r.Goals})
@@ -97,7 +97,7 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == MaintainResource && a.Need != domain.NeedUnknown {
+		if a.ID == MaintainResource && a.Finding != domain.FindingUnclear {
 			t.Fatal(a)
 		}
 	}

@@ -50,7 +50,7 @@ func TestRoutineCookingAdmitsSingleCostedMethodWithoutCertifyingFood(t *testing.
 		t.Fatal(plan, err)
 	}
 	b, _ := plan.Spec.Actions()[0].Building()
-	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Need != domain.NeedDeficit {
+	if b.Definition() != "Campfire" || plan.Progress[0].View().Attempt != 0 || result.Decision.Project.Project.Finding != domain.FindingUnmet {
 		t.Fatal(plan, result)
 	}
 	if next, err := p.Step(context.Background()); err != nil || next.Verdict != BuildingReasonExistingWork || native.previews != 1 {

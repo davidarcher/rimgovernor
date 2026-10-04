@@ -133,7 +133,7 @@ func TestNativeRoutineMoodReplay(t *testing.T) {
 		for i, binding := range out.Review.Incidents {
 			if binding.Kind == policy.EnsureMood && binding.Subject == domain.PawnID(state.Pawn.ID) {
 				found = true
-				if binding.Need != domain.NeedDeficit || out.Incidents[i].Incident.Priority != state.Priority() {
+				if binding.Situation != domain.SituationActive || out.Incidents[i].Incident.Priority != state.Priority() {
 					t.Fatal(out.Incidents[i])
 				}
 			}

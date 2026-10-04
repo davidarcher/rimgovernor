@@ -21,18 +21,18 @@ func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
 	native.putCatalog(consumer)
 	for _, phase := range []string{"no-consumers", "disconnected", "powered", "unknown"} {
 		p := &o.DevelopmentFacts{}
-		want := domain.NeedRecovered
+		want := domain.FindingMet
 		if phase != "no-consumers" {
 			p.Power = []*o.DevelopmentPower{{Building: bridge.NewRef(native.building(&o.BuildingState{Building: &o.EntityRef{Id: proto.String("consumer"), DefName: proto.String("PowerConsumer"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Service: &o.BuildingServiceState{Connected: proto.Bool(false), PowerOn: proto.Bool(false), PowerOutputW: proto.Float64(0), SwitchedOn: proto.Bool(true)}, Settings: &o.BuildingSettings{Forbidden: proto.Bool(false)}}).GetId())}}
-			want = domain.NeedDeficit
+			want = domain.FindingUnmet
 			if phase == "powered" {
 				s := native.buildings.At("consumer").Service
 				s.Connected, s.PowerOn, s.PowerNetId = proto.Bool(true), proto.Bool(true), proto.String("net")
-				want = domain.NeedRecovered
+				want = domain.FindingMet
 			}
 			if phase == "unknown" {
 				native.buildings.At("consumer").Building.DefName = nil
-				want = domain.NeedUnknown
+				want = domain.FindingUnclear
 			}
 		}
 		v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: p}}
@@ -44,7 +44,7 @@ func TestRoutinePowerCensusReachesDurableNeed(t *testing.T) {
 		for _, a := range out.Needs.Assessments {
 			if a.ID == policy.EnsureBasicPower {
 				found = true
-				if a.Need != want {
+				if a.Finding != want {
 					t.Fatal(phase, a, want)
 				}
 			}

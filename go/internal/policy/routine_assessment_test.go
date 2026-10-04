@@ -6,11 +6,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-func assessment(t *testing.T, r RoundsFindings, id ConcernID) domain.NeedState {
+func assessment(t *testing.T, r RoundsFindings, id ConcernID) domain.Finding {
 	t.Helper()
 	for _, n := range r.All() {
 		if n.ID == id {
-			return n.Need
+			return n.Finding
 		}
 	}
 	t.Fatal("missing assessment", id)
@@ -34,13 +34,13 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 		if n.ID == EnsureResearch || n.ID == MaintainResource || n.ID == EnsureDefensiveLayout || n.ID == TradeWithCaravan {
 			continue
 		}
-		if n.Need != domain.NeedUnknown {
+		if n.Finding != domain.FindingUnclear {
 			t.Fatal("missing native facts became evidence", n)
 		}
 	}
 	r = needs(t, stableRoutine(), RoutineLatches{})
 	for _, n := range r.All() {
-		if n.Need != domain.NeedRecovered {
+		if n.Finding != domain.FindingMet {
 			t.Fatal("stable evidence not recovered", n)
 		}
 	}
@@ -52,23 +52,23 @@ func TestRoutineAssessmentsRetainHysteresisButRequireFreshEvidence(t *testing.T)
 	r := needs(t, f, RoutineLatches{})
 	f.FoodDays = domain.Known(5.0)
 	r = needs(t, f, r.Latches)
-	if assessment(t, r, EnsureFoodSupply) != domain.NeedDeficit {
+	if assessment(t, r, EnsureFoodSupply) != domain.FindingUnmet {
 		t.Fatal(r)
 	}
 	f.FoodDays = domain.Unknown[float64]()
 	r = needs(t, f, r.Latches)
-	if !r.Latches.Food || assessment(t, r, EnsureFoodSupply) != domain.NeedUnknown {
+	if !r.Latches.Food || assessment(t, r, EnsureFoodSupply) != domain.FindingUnclear {
 		t.Fatal(r)
 	}
 	f.FoodDays = domain.Known(8.0)
 	r = needs(t, f, r.Latches)
-	if assessment(t, r, EnsureFoodSupply) != domain.NeedRecovered {
+	if assessment(t, r, EnsureFoodSupply) != domain.FindingMet {
 		t.Fatal(r)
 	}
 	f.BedCapacity = domain.Known(int64(0))
 	f.IndoorCapacity = domain.Unknown[int64]()
 	r = needs(t, f, r.Latches)
-	if assessment(t, r, MaintainHousing) != domain.NeedDeficit {
+	if assessment(t, r, MaintainHousing) != domain.FindingUnmet {
 		t.Fatal("known shortage masked by unknown neighbor", r)
 	}
 }

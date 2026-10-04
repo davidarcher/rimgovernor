@@ -44,7 +44,7 @@ func TestPendingLetterRaisesPopulationNeedOnlyWithRoom(t *testing.T) {
 		for _, assessment := range needs.Assessments {
 			if assessment.ID == MaintainPopulation {
 				found = true
-				if (assessment.Need == domain.NeedDeficit) != (food == 20) {
+				if (assessment.Finding == domain.FindingUnmet) != (food == 20) {
 					t.Fatal(food, assessment)
 				}
 			}

@@ -25,7 +25,7 @@ func load(t *testing.T, path string) Routine {
 func deficit(t *testing.T, r Routine, id policy.ConcernID) {
 	t.Helper()
 	a, err := r.Assessment(id)
-	if err != nil || a.Need != domain.NeedDeficit || a.MethodUnavailable {
+	if err != nil || a.Finding != domain.FindingUnmet || a.MethodUnavailable {
 		t.Fatal(id, a, err)
 	}
 }
@@ -129,7 +129,7 @@ func TestTakeoverRemovedHomeOpensHomeCoverage(t *testing.T) {
 		}
 		home.Home = domain.Known(plan.Set)
 		r.Facts.HomeCoverage = domain.Known(home)
-		if a, err := r.Assessment(policy.MaintainHomeCoverage); err != nil || a.Need == domain.NeedDeficit {
+		if a, err := r.Assessment(policy.MaintainHomeCoverage); err != nil || a.Finding == domain.FindingUnmet {
 			t.Fatal(path, "covered colony still a deficit", a, err)
 		}
 	}

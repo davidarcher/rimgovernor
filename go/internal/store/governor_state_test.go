@@ -28,7 +28,7 @@ func TestGovernorStateBlobsMirrorGoals(t *testing.T) {
 	if json.Unmarshal([]byte(blobs[key]), &shape) != nil || len(shape) != 3 || shape["schemaVersion"] == nil || shape["goal"] == nil || shape["revision"] == nil {
 		t.Fatal("goal blob is not {schemaVersion, goal, revision}", blobs[key])
 	}
-	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.NeedRecovered); err != nil {
+	if _, err = s.ReviewStandard(ctx, g.Standard.ID, g.Revision, scope(), 11, domain.FindingMet); err != nil {
 		t.Fatal(err)
 	}
 	after, err := s.GovernorStateBlobs(ctx)

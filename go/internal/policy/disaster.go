@@ -140,7 +140,7 @@ func GrowthPauseDays(conditions domain.Fact[[]DisasterCondition]) float64 {
 
 type DisasterEvidence struct {
 	Service DisasterService
-	Need    domain.NeedState
+	Need    domain.Finding
 }
 
 // History is observed disruption evidence. It grants neither orders nor recovery
@@ -284,7 +284,7 @@ func (h *DisasterHistory) Validate() error {
 		seen[id] = true
 	}
 	for i, e := range h.Services {
-		if e.Service != disasterServices[i] || (e.Need != domain.NeedUnknown && e.Need != domain.NeedDeficit && e.Need != domain.NeedRecovered) {
+		if e.Service != disasterServices[i] || (e.Need != domain.FindingUnclear && e.Need != domain.FindingUnmet && e.Need != domain.FindingMet) {
 			return errors.New("invalid disaster service evidence")
 		}
 	}
@@ -297,9 +297,9 @@ func (h *DisasterHistory) Validate() error {
 	}
 	deficit, unknown := false, false
 	for _, e := range h.Services {
-		deficit = deficit || e.Need == domain.NeedDeficit
-		unknown = unknown || e.Need == domain.NeedUnknown
-		if e.Need == domain.NeedDeficit && !services[e.Service] {
+		deficit = deficit || e.Need == domain.FindingUnmet
+		unknown = unknown || e.Need == domain.FindingUnclear
+		if e.Need == domain.FindingUnmet && !services[e.Service] {
 			return errors.New("untracked disaster deficit")
 		}
 	}
@@ -455,11 +455,11 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 	deficit, unknown := false, false
 	for i, f := range facts {
 		value, k := f.Value()
-		need := domain.NeedUnknown
+		need := domain.FindingUnclear
 		if k {
-			need = domain.NeedRecovered
+			need = domain.FindingMet
 			if !value {
-				need = domain.NeedDeficit
+				need = domain.FindingUnmet
 				deficit = true
 				affected[disasterServices[i]] = true
 			}
@@ -494,7 +494,7 @@ func (h *DisasterHistory) Promote(id ConcernID, priority int) int {
 		return priority
 	}
 	for _, e := range h.Services {
-		if e.Need != domain.NeedDeficit {
+		if e.Need != domain.FindingUnmet {
 			continue
 		}
 		goal := map[DisasterService]ConcernID{DisasterFood: EnsureFoodSupply, DisasterProduction: EnsureFoodSupply, DisasterSleeping: MaintainHousing, DisasterShelter: MaintainHousing, DisasterTemperature: EnsureTemperatureSafety, DisasterCooking: EnsureCooking, DisasterPower: EnsureBasicPower, DisasterStorage: MaintainFoodStorage, DisasterInfrastructure: RecoverDisasterServices}[e.Service]

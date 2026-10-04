@@ -61,13 +61,13 @@ func init() {
 }
 
 // fightState reads the review's ActiveCombat binding: bound, and its need.
-func fightState(ctx context.Context, st *store.Store) (review store.Rounds, bound bool, need domain.NeedState, err error) {
+func fightState(ctx context.Context, st *store.Store) (review store.Rounds, bound bool, need domain.Situation, err error) {
 	review, err = st.LoadRounds(ctx)
 	if err != nil {
 		return review, false, "", nil
 	}
 	binding, ok := review.Incident(policy.ActiveCombat)
-	return review, ok, binding.Need, nil
+	return review, ok, binding.Situation, nil
 }
 
 func runHorrorIncident(ctx context.Context, s cases.Session) error {
@@ -127,7 +127,7 @@ func runHorrorIncident(ctx context.Context, s cases.Session) error {
 			return "", false, err
 		}
 		sawFight = sawFight || bound
-		resolved := sawFight && (!bound || need == domain.NeedRecovered)
+		resolved := sawFight && (!bound || need == domain.SituationClear)
 		report["combat_bound"], report["combat_need"], report["saw_fight"] = bound, string(need), sawFight
 		return na.Signature(bound, need, uint64(review.Tick)/(na.TicksPerDay/24)), resolved, nil
 	})

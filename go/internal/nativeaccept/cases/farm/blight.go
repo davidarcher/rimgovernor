@@ -216,7 +216,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	}
-	report["blight_goal"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Need), "methods": len(settled.Methods)}
+	report["blight_goal"] = map[string]any{"status": string(settled.Standard.Status), "need": string(settled.Standard.Finding), "methods": len(settled.Methods)}
 	report["plants_designated"] = sortedKeys(seen)
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
 		return err
@@ -381,7 +381,7 @@ func readBlightCensus(ctx context.Context, h *na.Harness, identity map[string]an
 }
 
 func blightSettled(goal store.StandardState) bool {
-	return goal.Standard.Need == domain.NeedRecovered && goal.Standard.Status == domain.StandardSettled
+	return goal.Standard.Finding == domain.FindingMet && goal.Standard.Status == domain.StandardSettled
 }
 
 // waitBlightMethodOrSettled polls the journal for RemoveBlight's goal
@@ -420,12 +420,12 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 				settled = true
 				return "", true, nil
 			}
-			return na.Signature(goal.Standard.Need, goal.Standard.Status, len(methods)), false, nil
+			return na.Signature(goal.Standard.Finding, goal.Standard.Status, len(methods)), false, nil
 		}
 		return na.Signature("unbound", review.Revision), false, nil
 	})
 	if err != nil {
-		return "", domain.Method{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
+		return "", domain.Method{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Standard.Finding, goal.Standard.Status, err)
 	}
 	return goal.Standard.ID, found, goal, settled, nil
 }
@@ -450,12 +450,12 @@ func waitBlightSettled(ctx context.Context, s *store.Store, service *na.ServiceP
 			if blightSettled(goal) {
 				return "", true, nil
 			}
-			return na.Signature(goal.Standard.Need, goal.Standard.Status, goal.Revision), false, nil
+			return na.Signature(goal.Standard.Finding, goal.Standard.Status, goal.Revision), false, nil
 		}
 		return na.Signature("unbound", review.Revision), false, nil
 	})
 	if err != nil {
-		return goal, fmt.Errorf("RemoveBlight never settled on the emptied census (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
+		return goal, fmt.Errorf("RemoveBlight never settled on the emptied census (need=%s status=%s): %w", goal.Standard.Finding, goal.Standard.Status, err)
 	}
 	return goal, nil
 }

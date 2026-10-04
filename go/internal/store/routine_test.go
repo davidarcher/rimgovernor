@@ -54,13 +54,13 @@ func routineIncident(t *testing.T, r RoundsResult, kind domain.ConcernID) Incide
 }
 
 // routineIncidentNeed is the need the review bound kind's occurrence at.
-func routineIncidentNeed(t *testing.T, r RoundsResult, kind domain.ConcernID) domain.NeedState {
+func routineIncidentNeed(t *testing.T, r RoundsResult, kind domain.ConcernID) domain.Situation {
 	t.Helper()
 	b, ok := r.Review.Incident(kind)
 	if !ok {
 		t.Fatal("missing routine incident", kind)
 	}
-	return b.Need
+	return b.Situation
 }
 
 func reviewRoutine(t *testing.T, s *Store, r *RoundsRequest) RoundsResult {
@@ -82,7 +82,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	initial := routineGoal(t, out, policy.MaintainResource)
-	if initial.Standard.Need != domain.NeedDeficit || !out.Review.Latches.Wood {
+	if initial.Standard.Finding != domain.FindingUnmet || !out.Review.Latches.Wood {
 		t.Fatal(out)
 	}
 	s.Close()
@@ -93,13 +93,13 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	}
 	r.Facts.Wood = domain.Known(int64(200))
 	out = reviewRoutine(t, s, &r)
-	if routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
+	if routineGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("restart lost recovery threshold")
 	}
 	r.Facts.Wood = domain.Unknown[int64]()
 	out = reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if g.Standard.Need != domain.NeedUnknown || !out.Review.Latches.Wood {
+	if g.Standard.Finding != domain.FindingUnclear || !out.Review.Latches.Wood {
 		t.Fatal(g)
 	}
 	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "unknown", plan(t, "p", "a")); err == nil {
@@ -113,7 +113,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(100))
 	out = reviewRoutine(t, s, &r)
 	g = routineGoal(t, out, policy.MaintainResource)
-	if g.Standard.Episode != 1 || g.Standard.ID != initial.Standard.ID || g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Episode != 1 || g.Standard.ID != initial.Standard.ID || g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 }
@@ -250,14 +250,14 @@ func TestRoutineDirectionAndManualDoNotEraseRecoveryTarget(t *testing.T) {
 	r.Facts.Wood = domain.Known(int64(200))
 	r.Current.Native++
 	out := reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("direction erased known recovery target")
 	}
 	r.Enabled = false
 	reviewRoutine(t, s, &r)
 	r.Enabled = true
 	out = reviewRoutine(t, s, &r)
-	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Need != domain.NeedDeficit {
+	if !out.Review.Latches.Wood || routineGoal(t, out, policy.MaintainResource).Standard.Finding != domain.FindingUnmet {
 		t.Fatal("Manual erased known recovery target")
 	}
 }

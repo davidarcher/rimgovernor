@@ -167,7 +167,7 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	development, _ := sample["development"].(map[string]any)
 	idle, _ := development["idle"].(bool)
 	committed, _ := development["committed"].(bool)
-	deficit := asString(sample["need"]) == string(domain.NeedDeficit) && asString(sample["status"]) == string(domain.StandardOpen)
+	deficit := asString(sample["need"]) == string(domain.FindingUnmet) && asString(sample["status"]) == string(domain.StandardOpen)
 	if !deficit || methodCount > 0 || committed || !idle {
 		f.idleReviews = f.idleReviews[:0]
 		return Verdict{}, false

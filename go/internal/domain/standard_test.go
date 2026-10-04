@@ -8,27 +8,27 @@ func TestMaintainedGoalUnknownRenewalAndInvalidation(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = ReviewStandard(g, scope, 11, NeedRecovered, false)
+	g, e = ReviewStandard(g, scope, 11, FindingMet, false)
 	if e != nil || g.Status != StandardSettled {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 12, NeedUnknown, false)
+	g, e = ReviewStandard(g, scope, 12, FindingUnclear, false)
 	if e != nil || g.Status == StandardSettled {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 13, NeedDeficit, false)
+	g, e = ReviewStandard(g, scope, 13, FindingUnmet, false)
 	if e != nil || g.Episode != 1 || g.Status != StandardOpen {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 15, NeedDeficit, false)
+	g, e = ReviewStandard(g, scope, 15, FindingUnmet, false)
 	if e != nil || g.Status != StandardOpen || g.Episode != 1 {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 14, NeedDeficit, false)
+	g, e = ReviewStandard(g, scope, 14, FindingUnmet, false)
 	if e != nil || g.Status != StandardVoided {
 		t.Fatal("tick rewind did not invalidate", g, e)
 	}
-	next, e := ReviewStandard(g, scope, 16, NeedDeficit, false)
+	next, e := ReviewStandard(g, scope, 16, FindingUnmet, false)
 	if e != nil || next != g {
 		t.Fatal(next, e)
 	}
@@ -44,25 +44,25 @@ func TestMaintainedGoalRecoveredWithOpenWorkThenDeficitRenewsEpoch(t *testing.T)
 	if e != nil {
 		t.Fatal(e)
 	}
-	g, e = ReviewStandard(g, scope, 11, NeedRecovered, true)
-	if e != nil || g.Status != StandardOpen || g.Need != NeedRecovered || g.RecoveryObserved || g.Episode != 0 {
+	g, e = ReviewStandard(g, scope, 11, FindingMet, true)
+	if e != nil || g.Status != StandardOpen || g.Finding != FindingMet || g.RecoveryObserved || g.Episode != 0 {
 		t.Fatal(g, e)
 	}
 	// Still open: the episode belongs to the working method.
-	g, e = ReviewStandard(g, scope, 12, NeedDeficit, true)
+	g, e = ReviewStandard(g, scope, 12, FindingUnmet, true)
 	if e != nil || g.Episode != 0 || g.Status != StandardOpen {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 13, NeedRecovered, true)
-	if e != nil || g.Episode != 0 || g.Need != NeedRecovered {
+	g, e = ReviewStandard(g, scope, 13, FindingMet, true)
+	if e != nil || g.Episode != 0 || g.Finding != FindingMet {
 		t.Fatal(g, e)
 	}
-	g, e = ReviewStandard(g, scope, 14, NeedDeficit, false)
+	g, e = ReviewStandard(g, scope, 14, FindingUnmet, false)
 	if e != nil || g.Episode != 1 || g.Status != StandardOpen || g.RecoveryObserved {
 		t.Fatal(g, e)
 	}
 	// A deficit repeated within the episode does not renew it again.
-	g, e = ReviewStandard(g, scope, 15, NeedDeficit, false)
+	g, e = ReviewStandard(g, scope, 15, FindingUnmet, false)
 	if e != nil || g.Episode != 1 {
 		t.Fatal(g, e)
 	}
@@ -80,7 +80,7 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	if e != nil || !GoalWorkOpen([]Progress{progress}) {
 		t.Fatal(e)
 	}
-	review, e := ReviewStandard(g, scope, 11, NeedRecovered, true)
+	review, e := ReviewStandard(g, scope, 11, FindingMet, true)
 	if e != nil || review.Status == StandardSettled {
 		t.Fatal(review, e)
 	}
@@ -94,7 +94,7 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 			case "rewind":
 				tick = 9
 			}
-			r, e := ReviewStandard(g, s, tick, NeedDeficit, false)
+			r, e := ReviewStandard(g, s, tick, FindingUnmet, false)
 			if e != nil || r.Status != StandardVoided {
 				t.Fatal(r, e)
 			}
@@ -102,7 +102,15 @@ func TestMaintainedGoalInvalidatesScopeAndWaitsForEffects(t *testing.T) {
 	}
 	loaded := scope
 	loaded.Load = "other"
-	if r, e := ReviewStandard(g, loaded, 11, NeedDeficit, false); e != nil || r.Status == StandardVoided {
+	if r, e := ReviewStandard(g, loaded, 11, FindingUnmet, false); e != nil || r.Status == StandardVoided {
 		t.Fatal("load change must keep the goal (#1082)", r, e)
+	}
+}
+
+func TestSituationReducesToFinding(t *testing.T) {
+	for s, f := range map[Situation]Finding{SituationActive: FindingUnmet, SituationClear: FindingMet, SituationUnclear: FindingUnclear} {
+		if s.Finding() != f || f.Situation() != s {
+			t.Fatal(s, f)
+		}
 	}
 }

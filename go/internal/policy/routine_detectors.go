@@ -44,14 +44,14 @@ func (c *routineRun) raise(id ConcernID, priority int) *DevelopmentGoal {
 
 // assess appends id's assessment and returns it for the detector to adjust.
 func (c *routineRun) assess(id ConcernID, priority int, recovered domain.Fact[bool]) *RoutineAssessment {
-	need := domain.NeedUnknown
+	need := domain.FindingUnclear
 	if value, known := recovered.Value(); known {
-		need = domain.NeedDeficit
+		need = domain.FindingUnmet
 		if value {
-			need = domain.NeedRecovered
+			need = domain.FindingMet
 		}
 	}
-	c.r.Assessments = append(c.r.Assessments, RoutineAssessment{ID: id, Priority: priority, Need: need})
+	c.r.Assessments = append(c.r.Assessments, RoutineAssessment{ID: id, Priority: priority, Finding: need})
 	return &c.r.Assessments[len(c.r.Assessments)-1]
 }
 
@@ -1007,7 +1007,7 @@ func detectMood(c *routineRun) error {
 		return err
 	}
 	for _, state := range c.f.Mood.States {
-		c.r.Assessments = append(c.r.Assessments, RoutineAssessment{ID: EnsureMood, Subject: domain.PawnID(state.Pawn.ID), Priority: state.Priority(), Need: state.Need(), MethodUnavailable: true})
+		c.r.Assessments = append(c.r.Assessments, RoutineAssessment{ID: EnsureMood, Subject: domain.PawnID(state.Pawn.ID), Priority: state.Priority(), Finding: state.Need(), MethodUnavailable: true})
 	}
 	return nil
 }
@@ -1025,14 +1025,14 @@ func detectDisaster(c *routineRun) error {
 	if _, safetyKnown := f.RecoverySafety.Value(); r.Disaster != nil || safetyKnown {
 		need := RecoveryNeed(r.Disaster)
 		if len(areaChanges) > 0 {
-			need = domain.NeedDeficit
+			need = domain.FindingUnmet
 		}
 		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
 		if len(areaChanges) > 0 {
 			trigger, _ := ShelterTriggerOf(f)
 			priority = ShelterPriority(trigger)
 		}
-		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})
+		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Finding: need})
 		for i := range r.Goals {
 			r.Goals[i].Priority = r.Disaster.Promote(r.Goals[i].ID, r.Goals[i].Priority)
 		}

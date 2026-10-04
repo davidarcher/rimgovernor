@@ -20,13 +20,13 @@ func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
 		v := n.reply.GetObserved()
 		v.Naming = nil
 		v.Issues = append([]*o.ReadIssue(nil), base...)
-		want := domain.NeedDeficit
+		want := domain.FindingUnmet
 		switch phase {
 		case "absent":
-			want = domain.NeedRecovered
+			want = domain.FindingMet
 			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
 		case "unknown":
-			want = domain.NeedUnknown
+			want = domain.FindingUnclear
 		default:
 			v.Naming = &o.ColonyNaming{WindowId: proto.Int32(42), FactionName: proto.String("Faction"), SettlementName: proto.String("Settlement")}
 		}
@@ -37,13 +37,13 @@ func TestRoutineNamingRecoveryUnknownAndRenewedDialog(t *testing.T) {
 		// ConfirmColonyNames is an incident (#1078): recovered closes it,
 		// unknown keeps the open one, a renewed dialog opens a new one.
 		b, found := out.Review.Incident(policy.ConfirmColonyNames)
-		if want == domain.NeedRecovered {
+		if want == domain.FindingMet {
 			if found {
 				t.Fatal(phase, "recovered naming kept its occurrence", b)
 			}
 			continue
 		}
-		if !found || b.Need != want {
+		if !found || b.Situation != want.Situation() {
 			t.Fatal(phase, b, found)
 		}
 		switch phase {

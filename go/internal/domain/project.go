@@ -29,13 +29,13 @@ type Project struct {
 	Snapshot GenerationSnapshot
 	Tick     Tick
 	Status   ProjectStatus
-	Need     NeedState
+	Finding  Finding `json:"Need"`
 	// Record is the Project's durable planner intent, as Standard.Record.
 	Record string `json:",omitempty"`
 }
 
 func NewProject(id ProjectID, kind ConcernID, priority int, snapshot GenerationSnapshot, tick Tick) (Project, error) {
-	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Need: NeedUnknown}
+	p := Project{ID: id, Kind: kind, Priority: priority, Snapshot: snapshot, Tick: tick, Status: ProjectOpen, Finding: FindingUnclear}
 	return p, p.Validate()
 }
 
@@ -51,12 +51,12 @@ func (p Project) Validate() error {
 	default:
 		return errors.New("invalid project status")
 	}
-	switch p.Need {
-	case NeedUnknown, NeedDeficit, NeedRecovered:
+	switch p.Finding {
+	case FindingUnclear, FindingUnmet, FindingMet:
 	default:
 		return errors.New("invalid project need")
 	}
-	if p.Status == ProjectCompleted && p.Need != NeedRecovered {
+	if p.Status == ProjectCompleted && p.Finding != FindingMet {
 		return errors.New("completed project needs observed recovery")
 	}
 	return nil
@@ -65,8 +65,8 @@ func (p Project) Validate() error {
 // ProjectRegressed reports whether a completed Project was measured broken
 // with no work open; the caller opens a new Project row and leaves this one
 // as its record.
-func ProjectRegressed(p Project, need NeedState, openWork bool) bool {
-	return p.Status == ProjectCompleted && need == NeedDeficit && !openWork
+func ProjectRegressed(p Project, need Finding, openWork bool) bool {
+	return p.Status == ProjectCompleted && need == FindingUnmet && !openWork
 }
 
 // ReviewProject reviews a Project against the current world. An uncompleted
@@ -74,7 +74,7 @@ func ProjectRegressed(p Project, need NeedState, openWork bool) bool {
 // stays completed (an unknown measurement does not reopen it) until the world
 // changes or the tick rewinds. Callers check ProjectRegressed first and open a
 // new row instead.
-func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedState, openWork bool) (Project, error) {
+func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need Finding, openWork bool) (Project, error) {
 	if err := p.Validate(); err != nil {
 		return p, err
 	}
@@ -82,7 +82,7 @@ func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedSt
 		return p, errors.New("invalid project review scope")
 	}
 	switch need {
-	case NeedUnknown, NeedDeficit, NeedRecovered:
+	case FindingUnclear, FindingUnmet, FindingMet:
 	default:
 		return p, errors.New("invalid observed need")
 	}
@@ -100,8 +100,8 @@ func ReviewProject(p Project, current GenerationSnapshot, tick Tick, need NeedSt
 	if p.Status == ProjectCompleted {
 		return p, nil
 	}
-	p.Need = need
-	if need == NeedRecovered && !openWork {
+	p.Finding = need
+	if need == FindingMet && !openWork {
 		p.Status = ProjectCompleted
 	}
 	return p, nil

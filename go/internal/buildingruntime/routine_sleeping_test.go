@@ -236,7 +236,7 @@ func TestRoutineSleepingProtectsOtherAdmittedFootprints(t *testing.T) {
 	if err = db.SeedStandard(ctx, g); err != nil {
 		t.Fatal(err)
 	}
-	goal, err := db.ReviewStandard(ctx, g.ID, 0, snapshot, 7, domain.NeedDeficit)
+	goal, err := db.ReviewStandard(ctx, g.ID, 0, snapshot, 7, domain.FindingUnmet)
 	if err != nil {
 		t.Fatal(err)
 	}

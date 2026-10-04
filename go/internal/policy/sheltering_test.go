@@ -237,7 +237,7 @@ func TestShelteringUnderThreatEscapesEmergencyVeto(t *testing.T) {
 		}
 	}
 	for _, a := range r.All() {
-		if a.ID == RecoverDisasterServices && a.Need == domain.NeedDeficit {
+		if a.ID == RecoverDisasterServices && a.Finding == domain.FindingUnmet {
 			seen[a.ID] = true
 			if reason := VetoProposal(rule, SafeguardProposal{Need: a.ID, Priority: a.Priority}); reason != "" {
 				t.Fatal("sheltering vetoed under a threat:", reason)

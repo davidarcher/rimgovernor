@@ -10,5 +10,5 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 //   - has no declared method to clear it (#435), or is optional relief
 //     (EnsureMood: a mental break ends only as ticks pass).
 func EmergencyNeed(a RoutineAssessment) bool {
-	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && a.Need != domain.NeedRecovered && !a.MethodUnavailable
+	return a.Priority < 2 && a.ID != ConfirmColonyNames && a.ID != AnswerDialog && a.Finding != domain.FindingMet && !a.MethodUnavailable
 }

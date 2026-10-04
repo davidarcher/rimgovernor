@@ -81,7 +81,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return r.finishFurniture(call, state, expected.Tick, tidies, t.PlanID)
 		}
 	}
-	if goal.Standard.Need != domain.NeedDeficit {
+	if goal.Standard.Finding != domain.FindingUnmet {
 		return RoutineTidyResult{Verdict: BuildingReasonNoDeficit}, nil
 	}
 	for _, method := range goal.Methods {

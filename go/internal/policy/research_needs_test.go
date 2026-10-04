@@ -62,13 +62,13 @@ func TestReviewCountsAnEmptyKnowledgeSlotAsAResearchDeficit(t *testing.T) {
 	f := stableRoutine()
 	census := ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}, Finished: []ResearchProjectID{"Stonecutting", "Electricity"}}
 	f.Research = domain.Known(census)
-	if r := needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.NeedRecovered {
+	if r := needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
 		t.Fatal("no slot owed", r.Assessments)
 	}
 	census.KnowledgePick = "BioferriteExtraction"
 	f.Research = domain.Known(census)
 	r := needs(t, f, RoutineLatches{})
-	if assessment(t, r, EnsureResearch) != domain.NeedDeficit || !hasNeed(r, EnsureResearch) {
+	if assessment(t, r, EnsureResearch) != domain.FindingUnmet || !hasNeed(r, EnsureResearch) {
 		t.Fatal("an empty knowledge slot is a spending need", r.Assessments)
 	}
 	for _, g := range r.Goals {

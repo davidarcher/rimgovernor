@@ -205,7 +205,7 @@ func readUpkeep(ctx context.Context, h *na.Harness, identity map[string]any, lab
 
 // waitNeed polls until need's goal binding reports state (deficit or
 // recovered) and returns the goal.
-func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.NeedState) (store.StandardState, error) {
+func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, state domain.Finding) (store.StandardState, error) {
 	var found store.StandardState
 	err := na.WaitProgress(ctx, na.Wait{Stall: needStall, Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		review, err := journal.LoadRounds(ctx)
@@ -220,7 +220,7 @@ func waitNeed(ctx context.Context, journal *store.Store, need policy.ConcernID, 
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return "", false, err
 			}
-			if err == nil && goal.Standard.Need == state {
+			if err == nil && goal.Standard.Finding == state {
 				found = goal
 				return "", true, nil
 			}
@@ -273,7 +273,7 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 				}
 				return false, err
 			}
-			if goal.Standard.Need == domain.NeedRecovered {
+			if goal.Standard.Finding == domain.FindingMet {
 				return true, nil
 			}
 		}
@@ -429,7 +429,7 @@ func waitPlanOrRecovery(ctx context.Context, journal *store.Store, planID domain
 func watchMedicine(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainMedicalReserves, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainMedicalReserves, domain.FindingUnmet); err != nil {
 		return err
 	}
 	// The method is an ordinary resource acquisition of the native
@@ -446,7 +446,7 @@ func watchMedicine(ctx context.Context, journal *store.Store, prepared map[strin
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainMedicalReserves, domain.NeedRecovered)
+	goal, err := waitNeed(recoverCtx, journal, policy.MaintainMedicalReserves, domain.FindingMet)
 	if err != nil {
 		return err
 	}
@@ -488,7 +488,7 @@ func countColonists(ctx context.Context, h *na.Harness, identity map[string]any)
 func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainAnimalFeed, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainAnimalFeed, domain.FindingUnmet); err != nil {
 		return err
 	}
 	reachableBench := na.AsString(prepared["bench"])
@@ -511,7 +511,7 @@ func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]an
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.NeedRecovered)
+	goal, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.FindingMet)
 	if err != nil {
 		return err
 	}
@@ -556,7 +556,7 @@ func verifyFeed(ctx context.Context, h *na.Harness, identity, prepared map[strin
 func watchSleeping(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainHousing, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainHousing, domain.FindingUnmet); err != nil {
 		return err
 	}
 	// The fixture leaves no vacant suitable bed, so the first method builds
@@ -590,7 +590,7 @@ func watchSleeping(ctx context.Context, journal *store.Store, prepared map[strin
 	report["sleeping_action_kinds"] = kinds
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 15*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.NeedRecovered)
+	goal, err := waitNeed(recoverCtx, journal, policy.MaintainHousing, domain.FindingMet)
 	if err != nil {
 		return err
 	}
@@ -672,7 +672,7 @@ func prepareColdWith(coldSnap bool) func(ctx context.Context, h *na.Harness, ide
 func watchCold(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.EnsureTemperatureSafety, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.EnsureTemperatureSafety, domain.FindingUnmet); err != nil {
 		return err
 	}
 	definition := na.AsString(prepared["definition"])
@@ -690,7 +690,7 @@ func watchCold(ctx context.Context, journal *store.Store, prepared map[string]an
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.EnsureTemperatureSafety, domain.NeedRecovered)
+	goal, err := waitNeed(recoverCtx, journal, policy.EnsureTemperatureSafety, domain.FindingMet)
 	if err != nil {
 		return err
 	}

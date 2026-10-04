@@ -181,7 +181,7 @@ func startSurgeryRun(ctx context.Context, s cases.Session, prefix string) (*surg
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return false, err
 			}
-			if err == nil && goal.Standard.Need == domain.NeedRecovered {
+			if err == nil && goal.Standard.Finding == domain.FindingMet {
 				return true, nil
 			}
 		}

@@ -120,7 +120,7 @@ func TestRunwaySurfacesMaintainResourceDeficit(t *testing.T) {
 	}
 	for _, a := range r.Assessments {
 		if a.ID == MaintainResource {
-			if a.Need != domain.NeedDeficit {
+			if a.Finding != domain.FindingUnmet {
 				t.Fatal(a)
 			}
 			return
@@ -137,7 +137,7 @@ func TestUnknownRunwayCannotRecoverMaintenance(t *testing.T) {
 	}
 	for _, a := range r.Assessments {
 		if a.ID == MaintainResource {
-			if a.Need != domain.NeedUnknown {
+			if a.Finding != domain.FindingUnclear {
 				t.Fatal(a)
 			}
 			return

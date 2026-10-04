@@ -29,7 +29,7 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.PowerHeadroom = domain.Known(-100.0)
 		r.Facts.DisabledConsumers = domain.Known(false)
 		g := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureBasicPower)
-		if g.Project.Need != domain.NeedDeficit || g.Project.Status != domain.ProjectOpen {
+		if g.Project.Finding != domain.FindingUnmet || g.Project.Status != domain.ProjectOpen {
 			t.Fatal(declared, g)
 		}
 		q := methodRequest(t, g, "enclosure", 10)
@@ -50,7 +50,7 @@ func TestRoutineUndeclaredFireEmergencyKeepsMethodsAuthorized(t *testing.T) {
 		r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 		out := reviewRoutine(t, s, &r)
 		fire := routineGoal(t, out, policy.MaintainFireSafety)
-		if fire.Standard.Priority != 1 || fire.Standard.Need != domain.NeedDeficit {
+		if fire.Standard.Priority != 1 || fire.Standard.Finding != domain.FindingUnmet {
 			t.Fatal("fire need not recorded", declared, fire)
 		}
 		target := q.Current

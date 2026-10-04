@@ -330,7 +330,7 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 	}
 	var recovered []closedGoal
 	for _, need := range st.needs {
-		goal, err := waitNeed(ctx, journal, need, domain.NeedRecovered)
+		goal, err := waitNeed(ctx, journal, need, domain.FindingMet)
 		if err != nil {
 			return nil, err
 		}
@@ -431,7 +431,7 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 			})
 			c.Episode = goal.Standard.Episode
 		}
-		if goal.Standard.Need != domain.NeedDeficit {
+		if goal.Standard.Finding != domain.FindingUnmet {
 			delete(t.deficitSince, c.Goal)
 			continue
 		}
@@ -540,7 +540,7 @@ func kitchenRect(prepared map[string]any) func(domain.Cell) bool {
 func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainCleanFacilities, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainCleanFacilities, domain.FindingUnmet); err != nil {
 		return err
 	}
 	kitchenFilth := map[string]bool{}
@@ -576,7 +576,7 @@ func watchKitchen(ctx context.Context, journal *store.Store, prepared map[string
 			break
 		}
 		recoverCtx, recoverCancel := context.WithTimeout(ctx, 90*time.Second)
-		goal, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.NeedRecovered)
+		goal, err := waitNeed(recoverCtx, journal, policy.MaintainCleanFacilities, domain.FindingMet)
 		recoverCancel()
 		if err == nil {
 			report["kitchen_recovered_tick"] = int64(goal.Standard.Tick)

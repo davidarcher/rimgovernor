@@ -44,7 +44,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		}
 		Colony   json.RawMessage
 		Expected map[policy.ConcernID]struct {
-			Need     domain.NeedState
+			Need     domain.Finding
 			Priority int
 			Targets  []string
 			Metric   float64
@@ -117,7 +117,7 @@ func TestNativeUpkeepReplay(t *testing.T) {
 		want, ok := fixture.Expected[need.Goal]
 		targets, known := need.Targets.Value()
 		metric, measured := need.Metric.Value()
-		if !ok || !known || !measured || !reflect.DeepEqual(targets, want.Targets) || metric != want.Metric || want.Need != domain.NeedDeficit || !need.Active {
+		if !ok || !known || !measured || !reflect.DeepEqual(targets, want.Targets) || metric != want.Metric || want.Need != domain.FindingUnmet || !need.Active {
 			t.Fatal("native upkeep policy differs", need, want)
 		}
 	}
@@ -140,40 +140,40 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	if len(active.Goals) != 28 {
 		t.Fatal("incomplete maintained goals")
 	}
-	medicalNeed := domain.NeedRecovered
+	medicalNeed := domain.FindingMet
 	if fixture.Medical != nil && fixture.Medical["initial"].Active {
-		medicalNeed = domain.NeedDeficit
+		medicalNeed = domain.FindingUnmet
 	}
-	animalNeeds := map[policy.ConcernID]domain.NeedState{}
+	animalNeeds := map[policy.ConcernID]domain.Finding{}
 	if fixture.Sleeping != nil {
-		animalNeeds[policy.MaintainHousing] = domain.NeedRecovered
+		animalNeeds[policy.MaintainHousing] = domain.FindingMet
 		if len(fixture.Sleeping.Targets) > 0 {
-			animalNeeds[policy.MaintainHousing] = domain.NeedDeficit
+			animalNeeds[policy.MaintainHousing] = domain.FindingUnmet
 		}
 	}
 	if fixture.Animals != nil {
-		animalNeeds[policy.MaintainAnimalContainment] = domain.NeedRecovered
-		animalNeeds[policy.MaintainAnimalFeed] = domain.NeedRecovered
+		animalNeeds[policy.MaintainAnimalContainment] = domain.FindingMet
+		animalNeeds[policy.MaintainAnimalFeed] = domain.FindingMet
 		if len(fixture.Animals.Containment) > 0 {
-			animalNeeds[policy.MaintainAnimalContainment] = domain.NeedDeficit
+			animalNeeds[policy.MaintainAnimalContainment] = domain.FindingUnmet
 		}
 		if len(fixture.Animals.Feed) > 0 {
-			animalNeeds[policy.MaintainAnimalFeed] = domain.NeedDeficit
+			animalNeeds[policy.MaintainAnimalFeed] = domain.FindingUnmet
 		}
 	}
 	for i, binding := range active.Review.Goals {
-		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Standard.Need != want {
+		if want, ok := animalNeeds[binding.Need]; ok && active.Goals[i].Standard.Finding != want {
 			t.Fatal(active.Goals[i], want)
 		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
 			g, err := db.LoadStandard(ctx, binding.Goal)
-			if err != nil || g.Standard.Need != medicalNeed {
+			if err != nil || g.Standard.Finding != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
 			g := active.Goals[i].Standard
-			if g.Need != want.Need || g.Priority != want.Priority {
+			if g.Finding != want.Need || g.Priority != want.Priority {
 				t.Fatal(g, want)
 			}
 		}
@@ -198,19 +198,19 @@ func TestNativeUpkeepReplay(t *testing.T) {
 	for _, binding := range retained.Goals {
 		if want, ok := animalNeeds[binding.Need]; ok {
 			g, err := db.LoadStandard(ctx, binding.Goal)
-			if err != nil || g.Standard.Need != want || g.Standard.Status != domain.StandardVoided {
+			if err != nil || g.Standard.Finding != want || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, want, err)
 			}
 		}
 		if fixture.Medical != nil && binding.Need == policy.MaintainMedicalReserves {
 			g, err := db.LoadStandard(ctx, binding.Goal)
-			if err != nil || g.Standard.Need != medicalNeed {
+			if err != nil || g.Standard.Finding != medicalNeed {
 				t.Fatal(g, err)
 			}
 		}
 		if want, ok := fixture.Expected[binding.Need]; ok {
 			g, err := db.LoadStandard(ctx, binding.Goal)
-			if err != nil || g.Standard.Need != want.Need || g.Standard.Status != domain.StandardVoided {
+			if err != nil || g.Standard.Finding != want.Need || g.Standard.Status != domain.StandardVoided {
 				t.Fatal(g, err)
 			}
 		}

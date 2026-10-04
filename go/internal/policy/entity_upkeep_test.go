@@ -105,7 +105,7 @@ func TestHeldEntityNeedingTendIsTended(t *testing.T) {
 	}
 }
 
-func populationNeed(t *testing.T, f RoutineFacts) domain.NeedState {
+func populationNeed(t *testing.T, f RoutineFacts) domain.Finding {
 	t.Helper()
 	needs, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
 	if err != nil {
@@ -113,7 +113,7 @@ func populationNeed(t *testing.T, f RoutineFacts) domain.NeedState {
 	}
 	for _, a := range needs.Assessments {
 		if a.ID == MaintainPopulation {
-			return a.Need
+			return a.Finding
 		}
 	}
 	t.Fatal("no population assessment")
@@ -125,18 +125,18 @@ func populationNeed(t *testing.T, f RoutineFacts) domain.NeedState {
 func TestUpkeepOwedKeepsPopulationInDeficit(t *testing.T) {
 	quiet := stableRoutine()
 	base := populationNeed(t, quiet)
-	if base == domain.NeedDeficit {
+	if base == domain.FindingUnmet {
 		t.Fatal("the stable routine already has a population deficit")
 	}
 	doors := stableRoutine()
 	doors.Containment = holding("e1", door(9, 4, true, true, false, false))
-	if got := populationNeed(t, doors); got != domain.NeedDeficit {
+	if got := populationNeed(t, doors); got != domain.FindingUnmet {
 		t.Fatalf("held-open door: %v", got)
 	}
 	tend := stableRoutine()
 	tend.Containment = planning(0, 0)
 	tend.Containment.Entities = domain.Known([]CapturableEntity{tendEntity("e1", true, true, true)})
-	if got := populationNeed(t, tend); got != domain.NeedDeficit {
+	if got := populationNeed(t, tend); got != domain.FindingUnmet {
 		t.Fatalf("tend: %v", got)
 	}
 }

@@ -11,7 +11,7 @@ func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	f := stableRoutine()
 	f.MechChargerOwed = domain.Unknown[bool]()
 	r := needs(t, f, RoutineLatches{})
-	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.NeedUnknown {
+	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.FindingUnclear {
 		t.Fatal("no charger fact: an unknown assessment and no goal", r)
 	}
 	f.AvailableMethods = domain.Known([]ConcernID{EnsureMechCharger})
@@ -25,7 +25,7 @@ func TestEnsureMechChargerRaisesGoalOnlyWhereTheNeedIsKnown(t *testing.T) {
 	}
 	f.MechChargerOwed = domain.Known(false)
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.NeedRecovered {
+	if hasNeed(r, EnsureMechCharger) || assessment(t, r, EnsureMechCharger) != domain.FindingMet {
 		t.Fatal("no charger owed settles the goal", r)
 	}
 	if got, ok := RoutineDevelopmentDeficit(EnsureMechCharger, f, RoutinePolicy{}).Value(); !ok || got != 0 {

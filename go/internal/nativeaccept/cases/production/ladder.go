@@ -245,7 +245,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Need), "methods": len(goal.Methods)}
+	report[strings.ToLower(string(policy.MaintainResource))+"_goal"] = map[string]any{"status": string(goal.Standard.Status), "need": string(goal.Standard.Finding), "methods": len(goal.Methods)}
 	// EnsureResearch is a Project (#1911): its own row, not a goal.
 	projectID, ok := review.ProjectFor(policy.EnsureResearch)
 	if !ok {
@@ -255,7 +255,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if err != nil {
 		return err
 	}
-	report[strings.ToLower(string(policy.EnsureResearch))+"_goal"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Need), "methods": len(research.Methods)}
+	report[strings.ToLower(string(policy.EnsureResearch))+"_goal"] = map[string]any{"status": string(research.Project.Status), "need": string(research.Project.Finding), "methods": len(research.Methods)}
 	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: review.Snapshot.Colony, Load: review.Snapshot.Load, Map: review.Snapshot.Map})
 	if err != nil {
 		return err

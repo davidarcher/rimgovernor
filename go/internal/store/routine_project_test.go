@@ -36,7 +36,7 @@ func TestRoutineProjectFinishesAndRegressionOpensNewRow(t *testing.T) {
 	}
 	r.Facts.Cooking = domain.Known(false)
 	next := routineProject(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
-	if next.Project.ID == first.Project.ID || next.Project.Status != domain.ProjectOpen || next.Project.Need != domain.NeedDeficit {
+	if next.Project.ID == first.Project.ID || next.Project.Status != domain.ProjectOpen || next.Project.Finding != domain.FindingUnmet {
 		t.Fatal(next)
 	}
 	old, err := s.LoadProject(t.Context(), first.Project.ID)

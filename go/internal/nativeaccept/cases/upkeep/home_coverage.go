@@ -185,7 +185,7 @@ func watchHomeBeds(ctx context.Context, journal *store.Store, report na.Report) 
 func watchConnectedHome(ctx context.Context, journal *store.Store, report na.Report) error {
 	bounded, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	if _, err := waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.NeedDeficit); err != nil {
+	if _, err := waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.FindingUnmet); err != nil {
 		return err
 	}
 	_, err := followMethods(bounded, journal, policy.MaintainHomeCoverage, "home", func(a domain.Action) error {
@@ -201,7 +201,7 @@ func watchConnectedHome(ctx context.Context, journal *store.Store, report na.Rep
 	if report["home_recovered_by"] != "controller_order" {
 		return fmt.Errorf("home extension lacks controller completion")
 	}
-	_, err = waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.NeedRecovered)
+	_, err = waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.FindingMet)
 	return err
 }
 

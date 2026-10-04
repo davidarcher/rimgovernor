@@ -27,13 +27,13 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 			row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(n.reply.GetObserved().Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Issues: []*o.ReadIssue{{Field: proto.String("pawn.snapshot"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}}
 			snapshot := &o.PawnSnapshot{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}
 			n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}
-			want := domain.NeedUnknown
+			want := domain.FindingUnclear
 			switch change {
 			case "armed":
-				want = domain.NeedRecovered
+				want = domain.FindingMet
 			case "unarmed":
 				row.Equipment.Armed = proto.Bool(false)
-				want = domain.NeedDeficit
+				want = domain.FindingUnmet
 			case "unknown-equipment":
 				row.Equipment = nil
 			case "missing-pawn":
@@ -60,7 +60,7 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, assessment := range out.Needs.Assessments {
-				if assessment.ID == policy.EnsureBasicDefense && assessment.Need != want {
+				if assessment.ID == policy.EnsureBasicDefense && assessment.Finding != want {
 					t.Fatal(change, assessment, want)
 				}
 			}
@@ -216,7 +216,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		return out.Review.Incident(policy.ActiveCombat)
 	}
 	goal, ok := combat(review(1))
-	if !ok || goal.Need != domain.NeedDeficit {
+	if !ok || goal.Situation != domain.SituationActive {
 		t.Fatal(goal)
 	}
 	squad := func(suffix string) []domain.Action {
@@ -254,7 +254,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := goal.Incident
-	if goal, ok = combat(review(0)); !ok || goal.Incident != first || goal.Need != domain.NeedRecovered {
+	if goal, ok = combat(review(0)); !ok || goal.Incident != first || goal.Situation != domain.SituationClear {
 		t.Fatal("recovered incident with open work should stay open", goal)
 	}
 	got, err := planner.Step(ctx)
@@ -275,7 +275,7 @@ func TestRecoveredCombatGoalSettlesUndispatchedDraft(t *testing.T) {
 	}
 	// The next raid opens the next incident and the planner no longer
 	// reports the stale squad plan as existing work.
-	if goal, ok = combat(review(1)); !ok || goal.Incident == first || goal.Need != domain.NeedDeficit {
+	if goal, ok = combat(review(1)); !ok || goal.Incident == first || goal.Situation != domain.SituationActive {
 		t.Fatal(goal)
 	}
 	if got, err = planner.Step(ctx); err != nil || got.Verdict == BuildingReasonExistingWork {

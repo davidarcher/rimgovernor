@@ -46,7 +46,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	bill, err := domain.NewProductionBill("bench", "recipe", domain.FoodTarget, 10)
@@ -94,7 +94,7 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	first := acquisitionPlan(t, "acquire-plan-1", "WoodLog")
@@ -131,7 +131,7 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver", Pest: true}})
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.ClearPests)
-	if g.Standard.Need != domain.NeedDeficit {
+	if g.Standard.Finding != domain.FindingUnmet {
 		t.Fatal(g)
 	}
 	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {

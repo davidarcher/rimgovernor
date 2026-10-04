@@ -100,7 +100,7 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 		t.Fatal("provided comfort still a goal")
 	}
 	for _, a := range needs.Assessments {
-		if a.ID == EnsureComfort && a.Need != domain.NeedRecovered {
+		if a.ID == EnsureComfort && a.Finding != domain.FindingMet {
 			t.Fatal("provided comfort not assessed recovered", a)
 		}
 	}

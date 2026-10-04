@@ -43,7 +43,7 @@ func runColonyExtent(ctx context.Context, s cases.Session) error {
 	if _, err = followMethods(ctx, journal, policy.MaintainHomeCoverage, "home", func(domain.Action) error { return nil }, s.Report()); err != nil {
 		return err
 	}
-	if _, err = waitNeed(ctx, journal, policy.MaintainHomeCoverage, domain.NeedRecovered); err != nil {
+	if _, err = waitNeed(ctx, journal, policy.MaintainHomeCoverage, domain.FindingMet); err != nil {
 		return err
 	}
 	service.Stop()

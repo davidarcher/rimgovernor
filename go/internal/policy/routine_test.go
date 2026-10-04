@@ -60,7 +60,7 @@ func hasNeed(r RoundsFindings, id ConcernID) bool {
 // (#1078) is assessed, never filed as a development goal.
 func assessedDeficit(r RoundsFindings, id ConcernID) bool {
 	for _, a := range r.All() {
-		if a.ID == id && a.Need != domain.NeedRecovered {
+		if a.ID == id && a.Finding != domain.FindingMet {
 			return true
 		}
 	}
@@ -182,7 +182,7 @@ func TestRoutineStablePatientsAreNotAnEmergency(t *testing.T) {
 		t.Fatal(r)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == CriticalMedicine && (a.Priority != 2 || a.Need != domain.NeedDeficit) {
+		if a.ID == CriticalMedicine && (a.Priority != 2 || a.Finding != domain.FindingUnmet) {
 			t.Fatal(a)
 		}
 	}

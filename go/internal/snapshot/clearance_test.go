@@ -63,7 +63,7 @@ func TestReplayAncientHomeWallAdmitted(t *testing.T) {
 	if reason := held(holds, wall); reason != "" {
 		t.Errorf("%s held for %s", wall, reason)
 	}
-	if a, err := r.Assessment(policy.ClearHomeObstructions); err != nil || a.Need != domain.NeedDeficit {
+	if a, err := r.Assessment(policy.ClearHomeObstructions); err != nil || a.Finding != domain.FindingUnmet {
 		t.Errorf("ClearHomeObstructions %+v %v, want deficit", a, err)
 	}
 }
@@ -120,7 +120,7 @@ func TestReplaySealedHomeShrineOpensClearance(t *testing.T) {
 	if got := shrineTargets(t, r); !slices.Equal(got, []string{"AncientShrineGroup_9460"}) {
 		t.Errorf("shrine targets %v, want only the staged Home shrine", got)
 	}
-	if a, err := r.Assessment(policy.ClearAncientShrine); err != nil || a.Need != domain.NeedDeficit {
+	if a, err := r.Assessment(policy.ClearAncientShrine); err != nil || a.Finding != domain.FindingUnmet {
 		t.Errorf("ClearAncientShrine %+v %v, want deficit", a, err)
 	}
 }
@@ -161,7 +161,7 @@ func TestReplayShrineCasketsOpenOnlyWhenReady(t *testing.T) {
 	if got := policy.ShrineOpenTargets([]policy.AncientShrine{row}, policy.ShrinePolicy{}); len(got) != 0 {
 		t.Errorf("default policy opens %v", got)
 	}
-	if a := assess(t, filled, policy.ClearAncientShrine); a.Need != domain.NeedDeficit {
+	if a := assess(t, filled, policy.ClearAncientShrine); a.Finding != domain.FindingUnmet {
 		t.Errorf("filled caskets: %+v, want deficit", a)
 	}
 	row, p = homeShrine(t, opened)

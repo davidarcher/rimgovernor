@@ -40,7 +40,7 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, ok := out.Review.Incident(policy.AnswerDialog)
-	if !ok || b.Need != domain.NeedDeficit {
+	if !ok || b.Situation != domain.SituationActive {
 		t.Fatal(out.Review.Incidents)
 	}
 	planner, err := NewRoutineDialogPlanner(r, n, policy.DialogAnswerPolicy{Prefer: policy.DefaultDialogAnswerPrefer})

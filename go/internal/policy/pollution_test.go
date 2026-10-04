@@ -13,7 +13,7 @@ func TestManagePollutionRaisesGoalOnlyWithBiotechFacts(t *testing.T) {
 	f := stableRoutine()
 	f.Pollution = domain.Unknown[PollutionFacts]()
 	r := needs(t, f, RoutineLatches{})
-	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.NeedUnknown {
+	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.FindingUnclear {
 		t.Fatal("no Biotech fact: an unknown assessment and no goal", r)
 	}
 	f.Pollution = domain.Known(PollutionFacts{
@@ -30,7 +30,7 @@ func TestManagePollutionRaisesGoalOnlyWithBiotechFacts(t *testing.T) {
 		UncoveredCells: domain.Known(uint32(0)),
 	})
 	r = needs(t, f, r.Latches)
-	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.NeedRecovered {
+	if hasNeed(r, ManagePollution) || assessment(t, r, ManagePollution) != domain.FindingMet {
 		t.Fatal("a frozen pack and a covered map settle the goal", r)
 	}
 }

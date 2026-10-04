@@ -32,7 +32,7 @@ func loadTrade(t *testing.T, path string) Routine {
 		t.Fatal(err)
 	}
 	a, err := r.Assessment(policy.TradeWithCaravan)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal("TradeWithCaravan not in deficit with the caravan present", a, err)
 	}
 	return r
@@ -48,7 +48,7 @@ func TestReplayCaravanOpensTradeOnMedicineShortfall(t *testing.T) {
 		t.Fatalf("no medicine shortfall measured: %+v", need)
 	}
 	r.Facts.Traders = domain.Known([]policy.TraderFacts{})
-	if a, err := r.Assessment(policy.TradeWithCaravan); err != nil || a.Need == domain.NeedDeficit {
+	if a, err := r.Assessment(policy.TradeWithCaravan); err != nil || a.Finding == domain.FindingUnmet {
 		t.Fatal("trade stood with no caravan on the map", a, err)
 	}
 }

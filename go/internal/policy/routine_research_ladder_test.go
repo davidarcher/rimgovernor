@@ -51,7 +51,7 @@ func TestReviewMeasuresTheLadderAgainstTheCensus(t *testing.T) {
 	f := stableRoutine()
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}})
 	r := needs(t, f, RoutineLatches{})
-	if assessment(t, r, EnsureResearch) != domain.NeedDeficit || !hasNeed(r, EnsureResearch) {
+	if assessment(t, r, EnsureResearch) != domain.FindingUnmet || !hasNeed(r, EnsureResearch) {
 		t.Fatal("idle tab with a rung remaining", r.Assessments)
 	}
 	for _, g := range r.Goals {
@@ -60,15 +60,15 @@ func TestReviewMeasuresTheLadderAgainstTheCensus(t *testing.T) {
 		}
 	}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}, Current: "Electricity"})
-	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.NeedRecovered {
+	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
 		t.Fatal("a current project recovers a ladder rung", r.Assessments)
 	}
 	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Stonecutting", "Electricity"}, Finished: []ResearchProjectID{"Stonecutting", "Electricity"}})
-	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.NeedRecovered {
+	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
 		t.Fatal("every listed rung finished", r.Assessments)
 	}
 	f.Research = domain.Unknown[ResearchFacts]()
-	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.NeedRecovered {
+	if r = needs(t, f, RoutineLatches{}); assessment(t, r, EnsureResearch) != domain.FindingMet {
 		t.Fatal("no census, no roadmap", r.Assessments)
 	}
 }

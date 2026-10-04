@@ -31,7 +31,7 @@ func deficits(t *testing.T, path string) (Routine, map[policy.ConcernID]bool) {
 	}
 	open := map[policy.ConcernID]bool{}
 	for _, a := range needs.Assessments {
-		if a.Need == domain.NeedDeficit {
+		if a.Finding == domain.FindingUnmet {
 			open[a.ID] = true
 		}
 	}
@@ -94,7 +94,7 @@ func TestReplayWoodShortageKeepsTheShelterOwed(t *testing.T) {
 	}
 	open := map[policy.ConcernID]bool{}
 	for _, a := range needs.Assessments {
-		open[a.ID] = a.Need == domain.NeedDeficit
+		open[a.ID] = a.Finding == domain.FindingUnmet
 	}
 	if !open[policy.MaintainHousing] || !open[policy.MaintainResource] {
 		t.Fatalf("wood shortage: shelter owed=%v resource open=%v", open[policy.MaintainHousing], open[policy.MaintainResource])

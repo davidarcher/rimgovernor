@@ -51,10 +51,10 @@ func noOpOf(id ConcernID, goals []DevelopmentGoal, assessments []RoutineAssessme
 		if a.ID != id {
 			continue
 		}
-		switch a.Need {
-		case domain.NeedDeficit:
+		switch a.Finding {
+		case domain.FindingUnmet:
 			return NoOpRecord{}, false
-		case domain.NeedUnknown:
+		case domain.FindingUnclear:
 			reason = NoOpInputsUnknown
 		default:
 			if reason != NoOpInputsUnknown {

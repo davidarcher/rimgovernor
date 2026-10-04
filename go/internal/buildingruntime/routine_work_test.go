@@ -32,19 +32,19 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 	row.Settings.Work = append(row.Settings.Work, &o.WorkSetting{DefName: proto.String("Hunting"), Priority: proto.Int32(0), Disabled: proto.Bool(false)})
 	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Filtered: proto.Uint64(0)}}}}
 	for _, phase := range []string{"numbered", "project-skill", "restored-project", "mismatch", "unknown", "checkbox"} {
-		want := domain.NeedRecovered
+		want := domain.FindingMet
 		switch phase {
 		case "project-skill":
 			n.catalog[0].ConstructionSkill = 11
-			want = domain.NeedDeficit
+			want = domain.FindingUnmet
 		case "restored-project":
 			n.catalog[0].ConstructionSkill = 0
 		case "mismatch":
 			row.Settings.Work[0].Priority = proto.Int32(3)
-			want = domain.NeedDeficit
+			want = domain.FindingUnmet
 		case "unknown":
 			row.Settings.ManualWorkPriorities = nil
-			want = domain.NeedUnknown
+			want = domain.FindingUnclear
 		case "checkbox":
 			row.Settings.ManualWorkPriorities = proto.Bool(false)
 			for _, w := range row.Settings.Work {
@@ -52,7 +52,7 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 					w.Priority = proto.Int32(3)
 				}
 			}
-			want = domain.NeedUnknown
+			want = domain.FindingUnclear
 		}
 		out, err := r.Step(context.Background())
 		if err != nil {
@@ -62,7 +62,7 @@ func TestRoutineWorkReadbackRecoversInBothModesAndPreservesUnknown(t *testing.T)
 		for _, assessment := range out.Needs.Assessments {
 			if assessment.ID == policy.EnsureWorkAssignments {
 				found = true
-				if assessment.Need != want {
+				if assessment.Finding != want {
 					t.Fatal(phase, assessment, want)
 				}
 			}

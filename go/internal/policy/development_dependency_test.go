@@ -183,7 +183,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 		t.Fatal("shortfall did not activate MaintainResource", r)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == MaintainResource && a.Need != domain.NeedDeficit {
+		if a.ID == MaintainResource && a.Finding != domain.FindingUnmet {
 			t.Fatal(a)
 		}
 	}
@@ -196,7 +196,7 @@ func TestShelterShortfallActivatesMaintainResource(t *testing.T) {
 		t.Fatal("settled edge kept MaintainResource", r)
 	}
 	for _, a := range r.Assessments {
-		if a.ID == MaintainResource && a.Need != domain.NeedRecovered {
+		if a.ID == MaintainResource && a.Finding != domain.FindingMet {
 			t.Fatal(a)
 		}
 	}

@@ -72,7 +72,7 @@ func TestStartingSuppliesLoadCensusIsTheCohort(t *testing.T) {
 		t.Fatalf("load census: deficit %v, %d pending", deficit, len(history.Pending))
 	}
 	a, err := r.Assessment(policy.AllowStartingSupplies)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal(a, err)
 	}
 }
@@ -99,7 +99,7 @@ func TestStartingSuppliesRecoverOnceEveryStackIsAllowed(t *testing.T) {
 		t.Fatal("later forbid adopted", deficit, history.Pending)
 	}
 	a, err := r.Assessment(policy.AllowStartingSupplies)
-	if err != nil || a.Need != domain.NeedRecovered {
+	if err != nil || a.Finding != domain.FindingMet {
 		t.Fatal(a, err)
 	}
 }
@@ -155,7 +155,7 @@ func TestLootOnATrapIsForbidden(t *testing.T) {
 		t.Fatalf("trapped loot not queued for Forbid: %+v %v", row, ok)
 	}
 	a, err := r.Assessment(policy.ManageSupplySafety)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal(a, err)
 	}
 }
@@ -176,7 +176,7 @@ func TestLootIsAllowedOnceItsTrapIsGone(t *testing.T) {
 		}
 	}
 	a, err := r.Assessment(policy.ManageSupplySafety)
-	if err != nil || a.Need != domain.NeedDeficit {
+	if err != nil || a.Finding != domain.FindingUnmet {
 		t.Fatal(a, err)
 	}
 }

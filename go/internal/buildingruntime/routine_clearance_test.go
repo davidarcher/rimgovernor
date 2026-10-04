@@ -128,7 +128,7 @@ func TestRoutineClearanceAdmitsChunkDumpForPendingChunks(t *testing.T) {
 		if binding.Need != policy.ClearHomeObstructions {
 			continue
 		}
-		if goal, err := db.LoadStandard(ctx, binding.Goal); err != nil || goal.Standard.Need == domain.NeedDeficit {
+		if goal, err := db.LoadStandard(ctx, binding.Goal); err != nil || goal.Standard.Finding == domain.FindingUnmet {
 			t.Fatal("forbidden and stored chunks are no clearance deficit", goal, err)
 		}
 	}

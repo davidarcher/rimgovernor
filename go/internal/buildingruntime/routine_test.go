@@ -562,16 +562,16 @@ func TestRounderUsesConfiguredFieldReserve(t *testing.T) {
 		if !n.planning {
 			t.Fatal("routine did not request crop definitions")
 		}
-		want := domain.NeedUnknown // Stored-food forecast remains unknown.
+		want := domain.FindingUnclear // Stored-food forecast remains unknown.
 		if reserve == 14 {
-			want = domain.NeedDeficit
+			want = domain.FindingUnmet
 		}
 		for _, binding := range out.Review.Goals {
 			if binding.Need != policy.EnsureFoodSupply {
 				continue
 			}
 			g, err := db.LoadStandard(context.Background(), binding.Goal)
-			if err != nil || g.Standard.Need != want {
+			if err != nil || g.Standard.Finding != want {
 				t.Fatal("field budget did not reach durable food need", reserve, g, err)
 			}
 		}
@@ -622,7 +622,7 @@ func TestRounderPersistsNeedsAndManualVetoesWithoutRead(t *testing.T) {
 	for _, binding := range got.Review.Goals {
 		if binding.Need == domain.ConcernID(policy.EnsureFoodSupply) {
 			g, err := db.LoadStandard(context.Background(), binding.Goal)
-			if err != nil || g.Standard.Need != domain.NeedUnknown {
+			if err != nil || g.Standard.Finding != domain.FindingUnclear {
 				t.Fatal("raw food became recovery", g, err)
 			}
 		}
@@ -756,7 +756,7 @@ func TestRounderUsesSameTickMedicalCensus(t *testing.T) {
 				}
 				return
 			}
-			if !ok || binding.Need != domain.NeedDeficit {
+			if !ok || binding.Situation != domain.SituationActive {
 				t.Fatal("medical incident missing", got.Review.Incidents)
 			}
 			if _, err := db.LoadIncident(context.Background(), binding.Incident); err != nil {

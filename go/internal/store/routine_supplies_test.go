@@ -21,7 +21,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	later := policy.StartingSupply{Thing: "c", Definition: "Steel", Cell: domain.Cell{X: 3, Z: 3}}
 	r.Facts.StartingSupplies = domain.Known([]policy.StartingSupply{a, b})
 	out := reviewRoutine(t, s, &r)
-	if routineProject(t, out, policy.AllowStartingSupplies).Project.Need != domain.NeedDeficit {
+	if routineProject(t, out, policy.AllowStartingSupplies).Project.Finding != domain.FindingUnmet {
 		t.Fatal(out)
 	}
 	s.Close()
@@ -34,7 +34,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	r.Facts.StartingSupplies = domain.Unknown[[]policy.StartingSupply]()
 	r.Facts.ForbiddenSupplies = domain.Known(false)
 	out = reviewRoutine(t, s, &r)
-	if routineProject(t, out, policy.AllowStartingSupplies).Project.Need != domain.NeedUnknown || len(out.Review.StartingSupplies.Pending) != 1 {
+	if routineProject(t, out, policy.AllowStartingSupplies).Project.Finding != domain.FindingUnclear || len(out.Review.StartingSupplies.Pending) != 1 {
 		t.Fatal("aggregate overrode unknown census", out)
 	}
 	r.Enabled = false
@@ -58,7 +58,7 @@ func TestRoutineSuppliesRestartManualAndLaterForbids(t *testing.T) {
 	s = open(t, path)
 	r.Facts.StartingSupplies = domain.Known([]policy.StartingSupply{a, b, later})
 	out = reviewRoutine(t, s, &r)
-	if routineProject(t, out, policy.AllowStartingSupplies).Project.Need != domain.NeedRecovered || len(out.Review.StartingSupplies.Pending) != 0 {
+	if routineProject(t, out, policy.AllowStartingSupplies).Project.Finding != domain.FindingMet || len(out.Review.StartingSupplies.Pending) != 0 {
 		t.Fatal("restart adopted player forbid", out)
 	}
 	loaded, err := s.LoadRounds(ctx)
