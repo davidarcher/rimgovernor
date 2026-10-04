@@ -1,7 +1,10 @@
 package policy
 
 import (
+	"fmt"
+	"slices"
 	"sort"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
@@ -198,7 +201,47 @@ func (s ThroneStep) Owed() bool {
 // throneDefinition is the first of need's throne definitions the catalog
 // makes available with a known footprint.
 func throneDefinition(need ThroneNeed, defs []FurnitureDefinition) (InteriorPieceDef, bool) {
-	for _, thing := range need.Things {
+	return availableDefinition(need.Things, defs)
+}
+
+// throneWant is one counted piece requirement of the title: Count buildings
+// of any of Things, planned in slots named Key.0, Key.1 and so on.
+type throneWant struct {
+	Key    string
+	Things []string
+	Count  int
+}
+
+// wants are the title's counted piece requirements (the braziers, the
+// columns, the instrument), in the mirror's order, besides the throne.
+func (n ThroneNeed) wants() []throneWant {
+	var out []throneWant
+	for i, r := range n.AnyOfCounts {
+		out = append(out, throneWant{fmt.Sprintf("anyofcount%d", i), r.Things, r.Count})
+	}
+	for i, r := range n.Counts {
+		out = append(out, throneWant{fmt.Sprintf("count%d", i), []string{r.Def}, r.Count})
+	}
+	for i, set := range n.AnyOf {
+		out = append(out, throneWant{fmt.Sprintf("anyof%d", i), set, 1})
+	}
+	return out
+}
+
+// DefNames are every definition the title's piece requirements name, the
+// throne's included: the definitions whose catalog rows the step needs.
+func (n ThroneNeed) DefNames() []string {
+	names := append([]string(nil), n.Things...)
+	for _, w := range n.wants() {
+		names = append(names, w.Things...)
+	}
+	return names
+}
+
+// availableDefinition is the first of things the catalog makes available
+// with a known footprint.
+func availableDefinition(things []string, defs []FurnitureDefinition) (InteriorPieceDef, bool) {
+	for _, thing := range things {
 		for _, d := range defs {
 			if d.Name != thing {
 				continue
@@ -280,37 +323,86 @@ func NextThroneStep(plan LayoutPlan, rooms RoomObservation, built []CurrentBuild
 		return step
 	}
 	standing, stands := standingThroneIn(room, need, built)
-	if !stands {
-		def, ok := throneDefinition(need, defs)
-		in, rok := InteriorRoomFromLayout(room, rooms.Shapes)
-		if !ok || !rok {
-			return ThroneStep{}
+	if stands {
+		if step := throneAssignment(step, standing, thrones); step.Kind != ThroneNone {
+			return step
 		}
-		interior, ok := PlanInterior(in, def)
+	}
+	def, dok := throneDefinition(need, defs)
+	if !stands && !dok {
+		return ThroneStep{}
+	}
+	in, rok := InteriorRoomFromLayout(room, rooms.Shapes)
+	if !rok {
+		return ThroneStep{}
+	}
+	// The template plans every required piece in its slot whether or not
+	// it stands; only the missing ones are placed, each from the first
+	// available definition of its any-of list (a requirement no available
+	// definition serves plans nothing).
+	deficit := map[string]int{}
+	for _, w := range need.wants() {
+		d, ok := availableDefinition(w.Things, defs)
 		if !ok {
-			return ThroneStep{}
+			continue
 		}
-		taken := map[domain.Cell]bool{}
-		for _, b := range built {
-			for _, c := range b.Cells {
-				taken[c] = true
+		deficit[w.Key] = w.Count - standingCount(room, w.Things, built)
+		for i := 0; i < w.Count; i++ {
+			in.Required = append(in.Required, RequiredPiece{Slot: fmt.Sprintf("%s.%d", w.Key, i), Piece: d})
+		}
+	}
+	interior, ok := PlanInterior(in, def)
+	if !ok {
+		return ThroneStep{}
+	}
+	taken := map[domain.Cell]bool{}
+	for _, b := range built {
+		for _, c := range b.Cells {
+			taken[c] = true
+		}
+	}
+	free := func(p InteriorPiece) bool {
+		for _, c := range rectCells(p.Rect) {
+			if taken[c] {
+				return false
 			}
 		}
+		return true
+	}
+	if !stands {
 		for _, p := range interior.Pieces {
-			if p.Slot != throneSlot || p.Def != def.Def {
-				continue
-			}
-			for _, c := range rectCells(p.Rect) {
-				if taken[c] {
+			if p.Slot == throneSlot && p.Def == def.Def {
+				if !free(p) {
 					return ThroneStep{}
 				}
+				step.Kind, step.Piece = ThronePlace, p
+				return step
 			}
-			step.Kind, step.Piece = ThronePlace, p
-			return step
 		}
 		return ThroneStep{}
 	}
-	return throneAssignment(step, standing, thrones)
+	// The throne stands and is assigned (or cannot be yet): furnish the
+	// room to the title's piece requirements.
+	for _, p := range interior.Pieces {
+		key, _, _ := strings.Cut(p.Slot, ".")
+		if deficit[key] > 0 && p.Slot != throneSlot && free(p) {
+			step.Kind, step.Piece = ThronePlace, p
+			return step
+		}
+	}
+	return ThroneStep{}
+}
+
+// standingCount is the number of buildings of any of things standing inside
+// r's interior.
+func standingCount(r LayoutRoom, things []string, built []CurrentBuilding) int {
+	n := 0
+	for _, b := range built {
+		if len(b.Cells) > 0 && rectInside(r.Interior, cellsRectangle(b.Cells)) && slices.Contains(things, b.Building.Definition()) {
+			n++
+		}
+	}
+	return n
 }
 
 // ThroneRoomTargets is the impressiveness target of the standing throne

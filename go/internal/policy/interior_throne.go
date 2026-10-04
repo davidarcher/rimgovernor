@@ -14,6 +14,13 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // throneSlot names the throne in the template.
 const throneSlot = "throne"
 
+// RequiredPiece is one piece a title's room requirement asks for besides the
+// throne, planned in the slot (ThroneNeed.requiredPieces names them).
+type RequiredPiece struct {
+	Slot  string
+	Piece InteriorPieceDef
+}
+
 func init() {
 	RegisterInteriorTemplate(RoomRoleThroneRoom, InteriorTemplate{Name: "throne", Plan: planThrone})
 }
@@ -60,6 +67,32 @@ func planThrone(f InteriorFrame, piece InteriorPieceDef) ([]InteriorPiece, bool)
 		}
 		pieces = append(pieces, p)
 		return true
+	}
+	// The title's required pieces (InteriorFrame.Required) take the side
+	// walls, alternating left and right, every other row from the back
+	// first so the floor between them stays walkable, before the
+	// furnishing levers take what is left. A piece no wall cell fits is
+	// left out of the plan.
+	var rows []int32
+	for z := f.Depth - 2; z >= 1; z -= 2 {
+		rows = append(rows, z)
+	}
+	for z := f.Depth - 3; z >= 1; z -= 2 {
+		rows = append(rows, z)
+	}
+	for _, req := range f.Required {
+		sz := req.Piece.Size
+		if sz.X <= 0 || sz.Z <= 0 {
+			continue
+		}
+	place:
+		for _, z := range rows {
+			for _, u := range []int32{0, f.Width - sz.X} {
+				if try(NewInteriorPiece(req.Slot, req.Piece.Def, sz, domain.South, domain.Cell{X: u, Z: z})) {
+					break place
+				}
+			}
+		}
 	}
 	try(NewInteriorPiece("end_table", fs.EndTable.Def, fs.EndTable.Size, domain.South, domain.Cell{X: x - 1, Z: back}))
 	try(NewInteriorPiece("dresser", fs.Dresser.Def, fs.Dresser.Size, domain.South, domain.Cell{X: x + span, Z: back}))

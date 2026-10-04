@@ -39,6 +39,10 @@ type InteriorRoom struct {
 	// Shapes are the plannable shapes of the catalog's buildable
 	// definitions; a plan needs them to size and sort every piece.
 	Shapes PieceShapes
+	// Required are the pieces the throne template plans besides the throne
+	// (the title's braziers, columns and instrument), each with the
+	// definition and shape the catalog gave it.
+	Required []RequiredPiece
 }
 
 // Piece is def's shape for a plan in this room; false when the catalog has
@@ -57,6 +61,8 @@ type InteriorFrame struct {
 	Dining DiningFurniture
 	// Shapes are the room's piece shapes (InteriorRoom.Shapes).
 	Shapes PieceShapes
+	// Required is InteriorRoom.Required.
+	Required []RequiredPiece
 	// Doors are every door of the room in canonical cells, the entrance
 	// included; each lies one cell outside the frame.
 	Doors []domain.Cell
@@ -147,7 +153,7 @@ func PlanInterior(room InteriorRoom, piece InteriorPieceDef) (InteriorPlan, bool
 		return InteriorPlan{}, false
 	}
 	frame := x.frame()
-	frame.Dining, frame.Shapes = room.Dining, room.Shapes
+	frame.Dining, frame.Shapes, frame.Required = room.Dining, room.Shapes, room.Required
 	for _, d := range room.Standing {
 		frame.Standing = append(frame.Standing, room.Shapes.standing(d))
 	}

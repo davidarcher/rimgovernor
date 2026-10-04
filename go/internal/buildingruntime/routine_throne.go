@@ -134,9 +134,10 @@ func throneStep(facts observation.ColonyProjection) policy.ThroneStep {
 	if !owed || !pk || !rk || !ck || !census.Colony {
 		return policy.ThroneStep{}
 	}
-	defs := make([]policy.FurnitureDefinition, 0, len(need.Things))
+	names := need.DefNames()
+	defs := make([]policy.FurnitureDefinition, 0, len(names))
 	for _, d := range facts.Definitions {
-		if slices.Contains(need.Things, d.Name) {
+		if slices.Contains(names, d.Name) {
 			defs = append(defs, policy.FurnitureDefinition{Name: d.Name, Available: d.Available, Size: d.Size})
 		}
 	}
