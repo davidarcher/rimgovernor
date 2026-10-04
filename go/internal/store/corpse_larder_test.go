@@ -35,7 +35,7 @@ func TestLarderSupplyAdmissionRequiresReviewedCorpseAndDirection(t *testing.T) {
 			}
 			action, _ := domain.NewSupplyAllowAction("release", supply)
 			plan, _ := domain.NewPlan("larder", 1, []domain.Action{action})
-			_, err = s.CommitGoalMethod(context.Background(), goal.Standard.ID, goal.Revision, "release", plan)
+			_, err = s.CommitMethod(context.Background(), goal.Standard.ID, goal.Revision, "release", plan)
 			if (err == nil) != (change == "valid") {
 				t.Fatal(change, err)
 			}

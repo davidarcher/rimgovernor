@@ -596,7 +596,7 @@ func stageWorkDone(ctx context.Context, s *store.Store, walls []domain.PlanID) (
 }
 
 // countUnsuccessful counts Unsuccessful action stages over the wall plans
-// and every routine goal method the service dispatched. LoadPlan sees retired plans; LoadPlans would
+// and every routine method the service dispatched. LoadPlan sees retired plans; LoadPlans would
 // hide them.
 func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanID) (int, int, error) {
 	seen := map[domain.PlanID]bool{}
@@ -620,7 +620,7 @@ func countUnsuccessful(ctx context.Context, s *store.Store, walls []domain.PlanI
 			return 0, 0, err
 		}
 		methods := goal.Methods
-		if more, err := s.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode); err == nil {
+		if more, err := s.LoadMethods(ctx, binding.Goal, goal.Standard.Episode); err == nil {
 			methods = append(methods, more...)
 		}
 		for _, method := range methods {

@@ -36,7 +36,7 @@ func staleRepairGoal(t *testing.T, journal *store.Store) store.StandardState {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if state, err = journal.CommitGoalMethod(ctx, g.ID, state.Revision, "repair-0", plan); err != nil {
+	if state, err = journal.CommitMethod(ctx, g.ID, state.Revision, "repair-0", plan); err != nil {
 		t.Fatal(err)
 	}
 	return state

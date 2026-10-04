@@ -26,9 +26,9 @@ func TestPermitMethodRecordsTheIntentAndBoundsAttempts(t *testing.T) {
 	if !ok || setting.Pawn() != "Alice" || faction != "Empire" || permit != "CallMilitaryAidSmall" {
 		t.Fatal(setting, ok)
 	}
-	var history []domain.GoalMethod
+	var history []domain.Method
 	for i := 0; i < maxMedicalAttemptsPerPatient; i++ {
-		history = append(history, domain.GoalMethod{Method: domain.MethodID("permit-Alice-CallMilitaryAidSmall-" + string(rune('0'+i))), Episode: 1})
+		history = append(history, domain.Method{Method: domain.MethodID("permit-Alice-CallMilitaryAidSmall-" + string(rune('0'+i))), Episode: 1})
 	}
 	if _, _, exhausted, err := permitMethod(intent, history, 1); err != nil || !exhausted {
 		t.Fatal("attempts must be bounded", exhausted, err)

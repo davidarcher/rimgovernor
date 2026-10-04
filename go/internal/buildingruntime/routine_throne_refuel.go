@@ -21,7 +21,7 @@ func throneRefuelPrefix(lamp string) string { return "throne-refuel-" + lamp + "
 
 // throneRefuelRecent reports whether an order for lamp was admitted within
 // the spacing before tick.
-func throneRefuelRecent(history []domain.GoalMethod, lamp string, tick domain.Tick) bool {
+func throneRefuelRecent(history []domain.Method, lamp string, tick domain.Tick) bool {
 	prefix := throneRefuelPrefix(lamp)
 	for _, m := range history {
 		if !strings.HasPrefix(string(m.Method), prefix) {

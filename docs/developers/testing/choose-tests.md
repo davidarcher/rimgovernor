@@ -480,7 +480,7 @@ by review alone.
 5. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
    signature over the thing that must move and `Terminal: service.Exited`
    when a serve subprocess is involved; use the shared `WaitReview`,
-   `WaitPlan`, `WaitGoalMethod`, `WaitPlanTerminal` and `WaitRounds`
+   `WaitPlan`, `WaitMethod`, `WaitPlanTerminal` and `WaitRounds`
    where they fit. No bare `for { ...; time.Sleep }` loops bounded only by
    the run timeout, and no per-phase ceilings measured in tens of minutes:
    a ceiling is the safety net, the stall budget is what ends a broken run.
@@ -686,7 +686,7 @@ unless the wait tolerates a plan that is not moving while the game runs.
 `Terminal` fails fast on a signal that nothing can recover from, typically
 the serve subprocess having exited (`service.Exited`). The shared
 `WaitReview` (a latch or binding on the rounds), `WaitPlan` (a
-plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
+plan's stages, with `PlanSignature`), `WaitMethod`, `WaitPlanTerminal`
 and `WaitRounds` already do this
 with `na.StallBudget()` (1 minute; a case whose passing runs hold a
 signature longer declares `Case.Stall`, and `RIMGOVERNOR_ACCEPT_STALL` or

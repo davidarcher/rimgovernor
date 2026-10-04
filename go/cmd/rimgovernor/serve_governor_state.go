@@ -100,7 +100,7 @@ type worldRebuild struct {
 // ensure rebuilds the store for world unless it was the last one rebuilt.
 // The native generation is not a new world (#1141): authority toggles
 // (resume, Manual, a reason=None bump) raise it with the save unchanged,
-// and rebuilding on each one wiped every goal method and the review.
+// and rebuilding on each one wiped every method and the review.
 func (r *worldRebuild) ensure(ctx context.Context, world governorWorld, native governorStateNative) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -190,7 +190,7 @@ type orphanNative interface {
 }
 
 // orphanSweep is the #1000 orphan pass for one world. A rebuild deletes
-// every goal method (#998), so no rebuilt goal owns a native side effect and
+// every method (#998), so no rebuilt goal owns a native side effect and
 // each one listed is cancelled (D3: the Autopilot has full control). A read
 // or transport error aborts the rebuild so the next round retries; a native
 // refusal is logged.

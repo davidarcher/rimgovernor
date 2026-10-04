@@ -138,7 +138,7 @@ func closeIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick d
 	if err != nil {
 		return IncidentState{}, err
 	}
-	if err = cancelUndispatchedGoalMethods(ctx, tx, state); err != nil {
+	if err = cancelUndispatchedMethods(ctx, tx, state); err != nil {
 		return IncidentState{}, err
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE incidents SET ended_tick=?,payload=? WHERE id=?", tick, data, id); err != nil {
@@ -237,7 +237,7 @@ func loadIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID) (Incide
 
 // CommitIncidentMethod stores a method for an open incident and its shared
 // plan atomically, through the Safeguards and per-family admission a goal's
-// method takes. Like CommitGoalMethod it grants no authority to dispatch.
+// method takes. Like CommitMethod it grants no authority to dispatch.
 func (s *Store) CommitIncidentMethod(ctx context.Context, id domain.IncidentID, method domain.MethodID, reason string, plan domain.PlanSpec) (IncidentState, error) {
 	if err := plan.Validate(); err != nil {
 		return IncidentState{}, err
@@ -280,7 +280,7 @@ func commitIncidentMethod(ctx context.Context, tx *sql.Tx, id domain.IncidentID,
 	if open {
 		return IncidentState{}, errors.New("existing method requires observation")
 	}
-	if err = (domain.GoalMethod{Goal: domain.ConcernID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
+	if err = (domain.Method{Owner: domain.ConcernID(id), Method: method, Plan: plan.ID()}).Validate(); err != nil {
 		return IncidentState{}, err
 	}
 	if err = bindOwnerMethod(ctx, tx, state, method, reason, plan); err != nil {

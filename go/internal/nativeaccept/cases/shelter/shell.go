@@ -247,7 +247,7 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 			}
 			// Retired bindings too: a shell plan completes on its placement
 			// receipts and retires at once, as the bunk rungs do (8221a21).
-			methods, err := st.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode)
+			methods, err := st.LoadMethods(ctx, binding.Goal, goal.Standard.Episode)
 			if err != nil {
 				return "", false, err
 			}

@@ -19,7 +19,7 @@ const maxMedicalAttemptsPerPatient = 8
 // rescuer, so a fresh attempt after an interrupted or failed try naturally
 // picks whichever candidate is currently best — this is how doctor/rescuer
 // replacement happens, without a second bespoke recovery mechanism.
-func medicalAttemptCount(methods []domain.GoalMethod, epoch uint64, prefix string) int {
+func medicalAttemptCount(methods []domain.Method, epoch uint64, prefix string) int {
 	count := 0
 	for _, m := range methods {
 		if m.Episode == epoch && strings.HasPrefix(string(m.Method), prefix) {

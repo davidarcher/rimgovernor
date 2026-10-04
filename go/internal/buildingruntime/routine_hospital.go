@@ -168,7 +168,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	// that already ran this epoch (the patch was refused, or a player undid
 	// it) is not retried; the next epoch reconsiders.
 	method := domain.MethodID("hospital-convert-" + choice.Bed)
-	if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "hospital_convert_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err
@@ -234,6 +234,6 @@ func (p *Player) commitBedPatch(call, epoch context.Context, state ControlState,
 			return err
 		}
 	}
-	_, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan)
 	return err
 }

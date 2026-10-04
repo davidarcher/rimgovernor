@@ -154,7 +154,7 @@ func (r *RoutineGeneBankPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{Verdict: BuildingReasonExistingWork}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("gene-bank-%s-%d", definition, len(biotech.GeneBanks)))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "gene_bank_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err

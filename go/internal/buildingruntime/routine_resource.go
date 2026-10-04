@@ -422,7 +422,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineResourceResult{}, fmt.Errorf("%w: dispatchResourceGoal: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineResourceResult{}, err
 	}
 	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -608,7 +608,7 @@ func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlS
 // yield needs a new covered stockpile zone (policy.SelectResourceStorageZone).
 // It builds the zone
 // (allowListZone/PreviewZone/AdmitBuildingMethod, not
-// CommitGoalMethod, since a zone carries footprint like a building), but the
+// CommitMethod, since a zone carries footprint like a building), but the
 // candidate cells come directly from native's own hauler-reachable, roofed,
 // unreserved scan rather than policy.CoveredStorageSites -- no geometry is
 // recomputed here. The zone's method ID is content-addressed by resource and
@@ -820,7 +820,7 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineResourceResult{}, false, fmt.Errorf("%w: dispatchMineSource: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, methodID, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, methodID, plan); err != nil {
 		return RoutineResourceResult{}, false, err
 	}
 	return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil

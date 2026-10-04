@@ -28,7 +28,7 @@ var ErrUnauthorizedPlan = fmt.Errorf("%w: plan is not authorized under the root 
 
 func (a planAuthorizer) AuthorizeRoutinePlan(ctx context.Context, root, target domain.GenerationSnapshot) error {
 	if a.routine {
-		// A player plan has no goal method row, so any routine refusal
+		// A player plan has no method row, so any routine refusal
 		// falls through to the player check.
 		if err := a.journal.AuthorizeRoutinePlan(ctx, root, target); err == nil {
 			return nil

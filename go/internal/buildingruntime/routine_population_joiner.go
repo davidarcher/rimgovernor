@@ -130,7 +130,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -167,7 +167,7 @@ func (r *RoutinePopulationJoinerPlanner) admitCeremonyStart(call, epoch context.
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitCeremonyStart: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -201,7 +201,7 @@ func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePopulationJoinerResult{}, fmt.Errorf("%w: admitLetter: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
 	return RoutinePopulationJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

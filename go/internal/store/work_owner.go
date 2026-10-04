@@ -26,8 +26,8 @@ type WorkOwner interface {
 	OwnerRevision() uint64
 	// OwnerMethods lists the open methods; OwnerHistory every method of
 	// the current epoch, retired plans included.
-	OwnerMethods() []domain.GoalMethod
-	OwnerHistory() []domain.GoalMethod
+	OwnerMethods() []domain.Method
+	OwnerHistory() []domain.Method
 	// OwnerDeficit reports an active or open owner whose review found a
 	// deficit: the state a planner may work.
 	OwnerDeficit() bool
@@ -35,16 +35,16 @@ type WorkOwner interface {
 	OwnerPriority() int
 }
 
-func (g StandardState) OwnerID() string                   { return string(g.Standard.ID) }
-func (g StandardState) OwnerEpoch() uint64                { return g.Standard.Episode }
-func (g StandardState) OwnerRevision() uint64             { return g.Revision }
-func (g StandardState) OwnerMethods() []domain.GoalMethod { return g.Methods }
-func (g StandardState) OwnerHistory() []domain.GoalMethod { return g.History }
-func (p ProjectState) OwnerID() string                    { return string(p.Project.ID) }
-func (p ProjectState) OwnerEpoch() uint64                 { return 0 }
-func (p ProjectState) OwnerRevision() uint64              { return p.Revision }
-func (p ProjectState) OwnerMethods() []domain.GoalMethod  { return p.goalMethods(p.Methods) }
-func (p ProjectState) OwnerHistory() []domain.GoalMethod  { return p.goalMethods(p.History) }
+func (g StandardState) OwnerID() string               { return string(g.Standard.ID) }
+func (g StandardState) OwnerEpoch() uint64            { return g.Standard.Episode }
+func (g StandardState) OwnerRevision() uint64         { return g.Revision }
+func (g StandardState) OwnerMethods() []domain.Method { return g.Methods }
+func (g StandardState) OwnerHistory() []domain.Method { return g.History }
+func (p ProjectState) OwnerID() string                { return string(p.Project.ID) }
+func (p ProjectState) OwnerEpoch() uint64             { return 0 }
+func (p ProjectState) OwnerRevision() uint64          { return p.Revision }
+func (p ProjectState) OwnerMethods() []domain.Method  { return p.domainMethods(p.Methods) }
+func (p ProjectState) OwnerHistory() []domain.Method  { return p.domainMethods(p.History) }
 
 func (g StandardState) OwnerPriority() int { return g.Standard.Priority }
 func (p ProjectState) OwnerPriority() int  { return p.Project.Priority }
@@ -56,10 +56,10 @@ func (p ProjectState) OwnerDeficit() bool {
 	return p.Project.Status == domain.ProjectOpen && p.Project.Need == domain.NeedDeficit
 }
 
-func (p ProjectState) goalMethods(rows []ProjectMethod) []domain.GoalMethod {
-	var out []domain.GoalMethod
+func (p ProjectState) domainMethods(rows []ProjectMethod) []domain.Method {
+	var out []domain.Method
 	for _, m := range rows {
-		out = append(out, domain.GoalMethod{Goal: domain.ConcernID(p.Project.ID), Method: m.Method, Plan: m.Plan})
+		out = append(out, domain.Method{Owner: domain.ConcernID(p.Project.ID), Method: m.Method, Plan: m.Plan})
 	}
 	return out
 }
@@ -122,12 +122,12 @@ func (r Rounds) ProjectFor(need policy.ConcernID) (domain.ProjectID, bool) {
 	return "", false
 }
 
-// CommitOwnerMethod stores a method for the owner like CommitGoalMethodReason
+// CommitOwnerMethod stores a method for the owner like CommitMethodReason
 // or CommitProjectMethod, whichever the owner is.
 func (s *Store) CommitOwnerMethod(ctx context.Context, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) error {
 	switch o := owner.(type) {
 	case StandardState:
-		_, err := s.CommitGoalMethodReason(ctx, o.Standard.ID, o.Revision, method, reason, plan)
+		_, err := s.CommitMethodReason(ctx, o.Standard.ID, o.Revision, method, reason, plan)
 		return err
 	case ProjectState:
 		_, err := s.CommitProjectMethod(ctx, o.Project.ID, o.Revision, method, reason, plan)
@@ -138,27 +138,27 @@ func (s *Store) CommitOwnerMethod(ctx context.Context, owner WorkOwner, method d
 
 // LoadOwnerMethod reads the owner's binding of method in its current epoch,
 // including a retired plan's.
-func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method domain.MethodID) (domain.GoalMethod, error) {
+func (s *Store) LoadOwnerMethod(ctx context.Context, owner WorkOwner, method domain.MethodID) (domain.Method, error) {
 	switch o := owner.(type) {
 	case StandardState:
-		return s.LoadGoalMethod(ctx, o.Standard.ID, o.Standard.Episode, method)
+		return s.LoadMethod(ctx, o.Standard.ID, o.Standard.Episode, method)
 	case ProjectState:
 		var plan domain.PlanID
 		err := s.db.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE project_id=? AND method_id=?", o.Project.ID, method).Scan(&plan)
 		if errors.Is(err, sql.ErrNoRows) {
-			return domain.GoalMethod{}, ErrNotFound
+			return domain.Method{}, ErrNotFound
 		}
-		return domain.GoalMethod{Goal: domain.ConcernID(o.Project.ID), Method: method, Plan: plan}, err
+		return domain.Method{Owner: domain.ConcernID(o.Project.ID), Method: method, Plan: plan}, err
 	}
-	return domain.GoalMethod{}, fmt.Errorf("unsupported method owner %T", owner)
+	return domain.Method{}, fmt.Errorf("unsupported method owner %T", owner)
 }
 
 // LoadOwnerMethods lists the owner's methods in its current epoch, retired
 // bindings included.
-func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain.GoalMethod, error) {
+func (s *Store) LoadOwnerMethods(ctx context.Context, owner WorkOwner) ([]domain.Method, error) {
 	switch o := owner.(type) {
 	case StandardState:
-		return s.LoadGoalMethods(ctx, o.Standard.ID, o.Standard.Episode)
+		return s.LoadMethods(ctx, o.Standard.ID, o.Standard.Episode)
 	case ProjectState:
 		p, err := s.LoadProject(ctx, o.Project.ID)
 		if err != nil {
@@ -196,7 +196,7 @@ func ownerTick(owner WorkOwner) domain.Tick {
 func commitOwnerMethod(ctx context.Context, tx *sql.Tx, owner WorkOwner, method domain.MethodID, reason string, plan domain.PlanSpec) (WorkOwner, error) {
 	switch o := owner.(type) {
 	case StandardState:
-		return commitGoalMethod(ctx, tx, o.Standard.ID, o.Revision, method, reason, plan)
+		return commitMethod(ctx, tx, o.Standard.ID, o.Revision, method, reason, plan)
 	case ProjectState:
 		return commitProjectMethod(ctx, tx, o.Project.ID, o.Revision, method, reason, plan)
 	}

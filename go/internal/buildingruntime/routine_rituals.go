@@ -147,7 +147,7 @@ func (r *RoutineRitualsPlanner) step(call, epoch context.Context, arbiter *stepA
 			}
 			method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 			reason := fmt.Sprintf("ideology: %s leads %s at (%d,%d) with %d attending", plan.Organizer, plan.Def, site.X, site.Z, len(attendees))
-			if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, reason, spec); err != nil {
+			if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, reason, spec); err != nil {
 				return RoutineRitualsResult{}, err
 			}
 			return RoutineRitualsResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

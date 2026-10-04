@@ -145,34 +145,34 @@ func retireRoutinePlans(ctx context.Context, tx *sql.Tx, current domain.Generati
 	return nil
 }
 
-// LoadGoalMethod reads an exact historical binding, including retired plans.
+// LoadMethod reads an exact historical binding, including retired plans.
 // History is never fed back into active capacity or dependency accounting.
-func (s *Store) LoadGoalMethod(ctx context.Context, goal domain.ConcernID, epoch uint64, method domain.MethodID) (domain.GoalMethod, error) {
+func (s *Store) LoadMethod(ctx context.Context, goal domain.ConcernID, epoch uint64, method domain.MethodID) (domain.Method, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
-		return domain.GoalMethod{}, err
+		return domain.Method{}, err
 	}
 	defer tx.Rollback()
 	g, err := loadGoal(ctx, tx, goal)
 	if err != nil {
-		return domain.GoalMethod{}, err
+		return domain.Method{}, err
 	}
-	m := domain.GoalMethod{Goal: goal, Episode: epoch, Method: method}
+	m := domain.Method{Owner: goal, Episode: epoch, Method: method}
 	column, key := "goal_id", strconv.FormatUint(epoch, 10)
 	if err = tx.QueryRowContext(ctx, "SELECT plan_id FROM goal_methods WHERE "+column+"=? AND epoch=? AND method_id=?", goal, key, method).Scan(&m.Plan); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
-		return domain.GoalMethod{}, err
+		return domain.Method{}, err
 	}
 	if err = m.Validate(); err != nil {
-		return domain.GoalMethod{}, err
+		return domain.Method{}, err
 	}
 	if m.Episode > g.Standard.Episode {
-		return domain.GoalMethod{}, errors.New("invalid historical Episode")
+		return domain.Method{}, errors.New("invalid historical Episode")
 	}
 	if err = tx.Commit(); err != nil {
-		return domain.GoalMethod{}, err
+		return domain.Method{}, err
 	}
 	return m, nil
 }
@@ -190,9 +190,9 @@ func (s *Store) LatestMethodPlan(ctx context.Context, goal domain.ConcernID, met
 	return id, err
 }
 
-// LoadGoalMethods includes retired bindings for one epoch. The bounded history
+// LoadMethods includes retired bindings for one epoch. The bounded history
 // is evidence only; it cannot restore retired work to execution or accounting.
-func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.ConcernID, epoch uint64) ([]domain.GoalMethod, error) {
+func (s *Store) LoadMethods(ctx context.Context, goal domain.ConcernID, epoch uint64) ([]domain.Method, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err
@@ -210,9 +210,9 @@ func (s *Store) LoadGoalMethods(ctx context.Context, goal domain.ConcernID, epoc
 	if err != nil {
 		return nil, err
 	}
-	var result []domain.GoalMethod
+	var result []domain.Method
 	for rows.Next() {
-		m := domain.GoalMethod{Goal: goal, Episode: epoch}
+		m := domain.Method{Owner: goal, Episode: epoch}
 		if err = rows.Scan(&m.Method, &m.Plan); err != nil {
 			rows.Close()
 			return nil, err

@@ -73,7 +73,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	}
 	// A completed bill plan retires at the next review and leaves
 	// StandardState.Methods, so the standing-bill check reads the epoch's history.
-	history, err := p.journal.LoadGoalMethods(call, goal.Standard.ID, goal.Standard.Episode)
+	history, err := p.journal.LoadMethods(call, goal.Standard.ID, goal.Standard.Episode)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

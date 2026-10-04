@@ -122,7 +122,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.EnsureBasicPower, nil)
+	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.EnsureBasicPower, nil)
 	methodCancel()
 	if err != nil {
 		return fmt.Errorf("first power method: %w", err)
@@ -158,7 +158,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
 		if incidental {
 			renewals++
-			_, method, err = na.WaitGoalMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
+			_, method, err = na.WaitMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
 			renewCancel()
 			if err != nil {
 				return fmt.Errorf("renewed power method after incidental cancellation #%d: %w", renewals, err)
@@ -172,7 +172,7 @@ func runWindThinRoof(ctx context.Context, s cases.Session) error {
 		}
 		waves++
 		report[fmt.Sprintf("dig_wave_%d", waves)] = map[string]any{"plan": string(method.Plan), "excavations": digs, "roof_cells": roofs}
-		_, method, err = na.WaitGoalMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
+		_, method, err = na.WaitMethodExcluding(renewCtx, journal, policy.EnsureBasicPower, seen)
 		renewCancel()
 		if err != nil {
 			return fmt.Errorf("power method after dig wave %d: %w", waves, err)
@@ -340,7 +340,7 @@ func checkSkyPlan(actions []domain.Action) (excavations, roofCells int, turbine 
 func followUps(ctx context.Context, journal *store.Store, seen map[domain.PlanID]bool, report na.Report) error {
 	for n := 1; n <= 4; n++ {
 		waitCtx, waitCancel := context.WithTimeout(ctx, 2*time.Minute)
-		_, next, err := na.WaitGoalMethodExcluding(waitCtx, journal, policy.EnsureBasicPower, seen)
+		_, next, err := na.WaitMethodExcluding(waitCtx, journal, policy.EnsureBasicPower, seen)
 		waitCancel()
 		if err != nil {
 			// A satisfied goal admits nothing more: the bounded wait running

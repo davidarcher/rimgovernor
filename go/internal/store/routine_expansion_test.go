@@ -86,7 +86,7 @@ func TestRoutineCapabilitiesPreserveCommittedExpansion(t *testing.T) {
 	if !developmentRow(t, out.Review, policy.MaintainHousing).Selected {
 		t.Fatal(out)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "expansion", plan(t, "expansion", "additional-place")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.AvailableMethods = domain.Known([]policy.ConcernID{})

@@ -27,7 +27,7 @@ func TestGoalRecordRidesTheGoalBlobAndRebuilds(t *testing.T) {
 	if _, err = s.RecordStandard(ctx, g.Standard.ID, recorded.Revision, strings.Repeat("x", domain.MaxStandardRecord+1)); err == nil {
 		t.Fatal("an oversized record was saved")
 	}
-	withMethod, err := s.CommitGoalMethodRecord(ctx, g.Standard.ID, recorded.Revision, "m", "why", plan(t, "record-plan", "record-action"), `{"k":2}`)
+	withMethod, err := s.CommitMethodRecord(ctx, g.Standard.ID, recorded.Revision, "m", "why", plan(t, "record-plan", "record-action"), `{"k":2}`)
 	if err != nil || withMethod.Standard.Record != `{"k":2}` || len(withMethod.Methods) != 1 {
 		t.Fatal(withMethod, err)
 	}

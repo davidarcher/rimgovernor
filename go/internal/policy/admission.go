@@ -130,7 +130,7 @@ const (
 	DependencyBlocked Reason = "dependency_incomplete"
 	GeometryBlocked   Reason = "geometry_conflict"
 	InvalidHeld       Reason = "held_reservation_unverifiable"
-	// NoDevelopmentSlot refuses a routine goal method whose goal the routine
+	// NoDevelopmentSlot refuses a routine method whose goal the routine
 	// review has not selected for development (store.ErrNotAdmitted).
 	NoDevelopmentSlot Reason = "no_development_slot"
 )

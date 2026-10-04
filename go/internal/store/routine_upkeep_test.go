@@ -72,7 +72,7 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety)
 	// Shared journal semantics do not depend on the future upkeep action family.
-	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
+	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{})
@@ -86,7 +86,7 @@ func TestRoutineUpkeepIssuedWorkCannotRecoverFromTargetDisappearance(t *testing.
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety)
-	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
+	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)
 	}
 	scope2 := scope()

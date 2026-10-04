@@ -131,7 +131,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineHomeCoverageResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
 	return RoutineHomeCoverageResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

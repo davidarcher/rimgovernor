@@ -124,18 +124,19 @@ func ReviewStandard(g Standard, current GenerationSnapshot, tick Tick, need Need
 	return g, nil
 }
 
-// GoalMethod binds a selected method to its original Episode and executable plan.
+// Method binds a selected method to its original Episode and executable plan.
 // Renewed deficits get a new Episode; the old plan remains available for readback.
-type GoalMethod struct {
-	Goal    ConcernID
-	Episode uint64 `json:"Epoch"`
+type Method struct {
+	// Owner is the Standard, Project or Incident id the method binds to.
+	Owner   ConcernID `json:"Goal"`
+	Episode uint64    `json:"Epoch"`
 	Method  MethodID
 	Plan    PlanID
 }
 
-func (m GoalMethod) Validate() error {
-	if !validID(string(m.Goal)) || !validID(string(m.Method)) || !validID(string(m.Plan)) {
-		return errors.New("invalid goal method")
+func (m Method) Validate() error {
+	if !validID(string(m.Owner)) || !validID(string(m.Method)) || !validID(string(m.Plan)) {
+		return errors.New("invalid method")
 	}
 	return nil
 }

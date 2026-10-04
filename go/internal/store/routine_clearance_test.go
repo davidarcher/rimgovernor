@@ -16,7 +16,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
 	g := routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions)
 	// Shared journal semantics do not depend on the future upkeep action family.
-	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
+	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{})
@@ -30,7 +30,7 @@ func TestClearanceIssuedWorkRecoveryAndManual(t *testing.T) {
 	}
 	r.Facts.Upkeep.Clearance = domain.Known([]policy.ClearanceTarget{{EntityID: "ruin", DefName: "Wall", InHome: true, Deconstructible: true}})
 	g = routineGoal(t, reviewRoutine(t, db, &r), policy.ClearHomeObstructions)
-	if _, err := db.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
+	if _, err := db.CommitMethod(ctx, g.Standard.ID, g.Revision, "owned-work", plan(t, "p2", "a2")); err != nil {
 		t.Fatal(err)
 	}
 	scope2 := scope()

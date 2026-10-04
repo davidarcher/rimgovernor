@@ -102,7 +102,7 @@ func TestRoundsRestartUnknownRecoveryAndRenewal(t *testing.T) {
 	if g.Standard.Need != domain.NeedUnknown || !out.Review.Latches.Wood {
 		t.Fatal(g)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "unknown", plan(t, "p", "a")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "unknown", plan(t, "p", "a")); err == nil {
 		t.Fatal("unknown need admitted method")
 	}
 	r.Facts.Wood = domain.Known(int64(400))
@@ -130,7 +130,7 @@ func TestRoundsSuspendsOrInvalidatesLinkedWork(t *testing.T) {
 			r := routineRequest()
 			out := reviewRoutine(t, s, &r)
 			g := routineGoal(t, out, policy.MaintainResource)
-			if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+			if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err != nil {
@@ -224,7 +224,7 @@ func TestRoutineEmergencyHoldsSharedMethodUntilObservedRecovery(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	r.Facts.Hostiles = domain.Unknown[int64]()

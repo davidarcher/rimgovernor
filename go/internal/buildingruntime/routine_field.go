@@ -322,7 +322,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%v/%v", candidate.Kind, crop.Name, candidate.Sites.Patches, candidate.Buildings)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -476,7 +476,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 	hash := sha256.New()
 	fmt.Fprintf(hash, "block/%s/%s/%v", edit.Zone, edit.Crop, edit.Cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "field_block_method"), NativeWorkTicks: wait}, true, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -507,7 +507,7 @@ func (r *RoutineFieldPlanner) enactBlock(call, epoch context.Context, state Cont
 		if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 			return RoutineFieldResult{}, false, fmt.Errorf("%w: enactBlock: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 		}
-		if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+		if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 			return RoutineFieldResult{}, false, err
 		}
 		clockEvent(call, "layout", "fields", "field block grown", "zone", edit.Zone, "crop", edit.Crop, "cells", len(edit.Cells), "plan", string(id))
@@ -553,7 +553,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 	}
 	p := r.reviewer.player
 	method := domain.MethodID("fields-recrop-" + choice.Grower)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{Verdict: waitFor(WaitMethodUsed, "recrop_method"), NativeWorkTicks: wait}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -595,7 +595,7 @@ func (r *RoutineFieldPlanner) recrop(call, epoch context.Context, state ControlS
 		return RoutineFieldResult{}, false, fmt.Errorf("%w: recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
 	clockSchedulerLog("Fields recrop: grower=%s %s -> %s | %s", choice.Grower, choice.Current, choice.Crop.Name, choice.Reason)
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineFieldResult{}, false, err
 	}
 	return RoutineFieldResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil
@@ -658,7 +658,7 @@ func uniqueFieldDefinitions(values []string) []string {
 // deadline starts at durable creation and cannot be renewed by polling or
 // restarting.
 func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Standard, current domain.GenerationSnapshot, facts observation.ColonyProjection) (uint32, error) {
-	methods, err := r.reviewer.player.journal.LoadGoalMethods(ctx, goal.ID, goal.Episode)
+	methods, err := r.reviewer.player.journal.LoadMethods(ctx, goal.ID, goal.Episode)
 	if err != nil {
 		return 0, err
 	}

@@ -61,7 +61,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "cook", billPlan)
+	g, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cook", billPlan)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestCommitAcquisitionMethodExemptFromBillOpenWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire", acquisitionPlan(t, "acquire-plan", "WoodLog")); err != nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire", acquisitionPlan(t, "acquire-plan", "WoodLog")); err != nil {
 		t.Fatal("bill-only open work blocked acquisition commit", err)
 	}
 }
@@ -98,7 +98,7 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 		t.Fatal(g)
 	}
 	first := acquisitionPlan(t, "acquire-plan-1", "WoodLog")
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", first); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", first); err != nil {
 		t.Fatal(err)
 	}
 	target := r.Current
@@ -114,7 +114,7 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := acquisitionPlan(t, "acquire-plan-2", "Steel")
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", second); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", second); err == nil {
 		t.Fatal("open non-bill work did not block a second acquisition method")
 	}
 }
@@ -134,11 +134,11 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	if g.Standard.Need != domain.NeedDeficit {
 		t.Fatal(g)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
 		t.Fatal(err)
 	}
 	other := routineGoal(t, out, policy.MaintainHousing)
-	if _, err := s.CommitGoalMethod(ctx, other.Standard.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
+	if _, err := s.CommitMethod(ctx, other.Standard.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
 		t.Fatal("a shelter goal admitted an acquisition method")
 	}
 	// The first hunt is open (pending) and the pack has another animal:
@@ -147,7 +147,7 @@ func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-2", acquisitionPlan(t, "routine-pest-hunt-2", "Corpse_Alphabeaver")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "pest-hunt-2", acquisitionPlan(t, "routine-pest-hunt-2", "Corpse_Alphabeaver")); err != nil {
 		t.Fatal(err)
 	}
 }

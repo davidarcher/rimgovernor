@@ -121,7 +121,7 @@ func (r *RoutineTidyPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	return r.move(call, epoch, state, goal, read, *proposal)
 }
 
-// commit journals one goal method after the freshness checks every planner
+// commit journals one method after the freshness checks every planner
 // makes between its native reads and its write.
 func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlState, goal store.StandardState, started observation.RoutineReading, method domain.MethodID, plan domain.PlanSpec) error {
 	p := r.reviewer.player
@@ -132,6 +132,6 @@ func (r *RoutineTidyPlanner) commit(call, epoch context.Context, state ControlSt
 	if p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge {
 		return fmt.Errorf("%w: commit: p.session.State() != state || now.Before(started.StartedAt) || now.Sub(started.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
-	_, err := p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan)
+	_, err := p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan)
 	return err
 }

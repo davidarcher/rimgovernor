@@ -33,7 +33,7 @@ type Defense struct {
 	CombatPawns      json.RawMessage
 	LinesContext     json.RawMessage
 	Lines            []bridge.LineOfFire
-	// Reason and Plan are the step's result; Method is the goal method the
+	// Reason and Plan are the step's result; Method is the method the
 	// admitted plan was committed under.
 	Reason string
 	Plan   domain.PlanID

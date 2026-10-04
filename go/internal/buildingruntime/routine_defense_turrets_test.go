@@ -267,7 +267,7 @@ func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 
 func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
 	t.Parallel()
-	history := []domain.GoalMethod{
+	history := []domain.Method{
 		{Method: domain.MethodID(defenseRearmPrefix("T1") + "1000")},
 		{Method: domain.MethodID(defenseRearmPrefix("T1") + "2000")},
 		{Method: domain.MethodID(defenseRearmPrefix("T2") + "2000")},

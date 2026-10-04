@@ -462,7 +462,7 @@ func PlanSignature(state store.PlanState) string {
 	return Signature(parts...)
 }
 
-// WaitGoalMethod polls the durable rounds for need's goal binding
+// WaitMethod polls the durable rounds for need's goal binding
 // and a committed method on it other than previous, exactly what the
 // building planners themselves read (review.Goals then the goal's Methods).
 // A method whose plan completed and retired within a single clock window
@@ -470,26 +470,26 @@ func PlanSignature(state store.PlanState) string {
 // live Methods, so the current epoch's bounded history is consulted too.
 // The wait stalls (StallBudget) when the binding and its method count stop
 // changing.
-func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.ConcernID, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, error) {
+func WaitMethod(ctx context.Context, s *store.Store, need policy.ConcernID, previous *domain.Method) (domain.ConcernID, domain.Method, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
 	}
-	return WaitGoalMethodExcluding(ctx, s, need, seen)
+	return WaitMethodExcluding(ctx, s, need, seen)
 }
 
-// WaitGoalMethodExcluding is WaitGoalMethod over a set of already-followed
+// WaitMethodExcluding is WaitMethod over a set of already-followed
 // plans: a goal whose history holds several settled methods (retired attempts
-// stay in LoadGoalMethods) would otherwise hand the same old plan back on
+// stay in LoadMethods) would otherwise hand the same old plan back on
 // every call that names only the last one.
-func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
-	return waitGoalMethod(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, need, seen)
+func WaitMethodExcluding(ctx context.Context, s *store.Store, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
+	return waitMethod(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, need, seen)
 }
 
-// waitGoalMethod is WaitGoalMethodExcluding under an explicit Wait.
-func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
+// waitMethod is WaitMethodExcluding under an explicit Wait.
+func waitMethod(ctx context.Context, s *store.Store, w Wait, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
 	var foundGoal domain.ConcernID
-	var found domain.GoalMethod
+	var found domain.Method
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
 		if err != nil {
@@ -507,7 +507,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 			}
 			for _, method := range project.History {
 				if !seen[method.Plan] {
-					foundGoal, found = domain.ConcernID(id), domain.GoalMethod{Goal: domain.ConcernID(id), Method: method.Method, Plan: method.Plan}
+					foundGoal, found = domain.ConcernID(id), domain.Method{Owner: domain.ConcernID(id), Method: method.Method, Plan: method.Plan}
 					return "", true, nil
 				}
 			}
@@ -529,7 +529,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 		}
 		methods := goal.Methods
 		if err == nil && len(methods) == 0 {
-			if methods, err = s.LoadGoalMethods(ctx, goalID, goal.Standard.Episode); err != nil {
+			if methods, err = s.LoadMethods(ctx, goalID, goal.Standard.Episode); err != nil {
 				return "", false, err
 			}
 		}
@@ -542,7 +542,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 		return Signature(goalID, len(methods)), false, nil
 	})
 	if err != nil {
-		return "", domain.GoalMethod{}, fmt.Errorf("goal method for %s: %w", need, err)
+		return "", domain.Method{}, fmt.Errorf("goal method for %s: %w", need, err)
 	}
 	return foundGoal, found, nil
 }
@@ -550,7 +550,7 @@ func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.Con
 // WaitPlanTerminal polls plan until every action reaches a terminal stage.
 // incidental reports the executor's own authority-discontinuity cancellation
 // (Cancelled with Effect Absent, see domain.Progress.Observe), which the
-// caller should follow with a fresh WaitGoalMethod rather than fail on. The
+// caller should follow with a fresh WaitMethod rather than fail on. The
 // wait stalls (StallBudget) when no action's stage or attempt changes.
 func WaitPlanTerminal(ctx context.Context, s *store.Store, planID domain.PlanID) (state store.PlanState, incidental bool, err error) {
 	return waitPlanTerminal(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, planID)

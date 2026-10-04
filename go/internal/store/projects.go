@@ -216,7 +216,7 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 		return ProjectState{}, err
 	}
 	if p.Status == domain.ProjectVoided {
-		if err = cancelGoalMethods(ctx, tx, state); err != nil {
+		if err = cancelMethods(ctx, tx, state); err != nil {
 			return ProjectState{}, err
 		}
 	}
@@ -229,7 +229,7 @@ func (s *Store) ReviewProject(ctx context.Context, id domain.ProjectID, revision
 
 // CommitProjectMethod stores a method for an open project and its shared plan
 // atomically, through the Safeguards and per-family admission a goal's method
-// takes. Like CommitGoalMethod it grants no authority to dispatch.
+// takes. Like CommitMethod it grants no authority to dispatch.
 func (s *Store) CommitProjectMethod(ctx context.Context, id domain.ProjectID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (ProjectState, error) {
 	if err := plan.Validate(); err != nil {
 		return ProjectState{}, err

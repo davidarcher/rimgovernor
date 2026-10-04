@@ -187,7 +187,7 @@ func run(ctx context.Context, s cases.Session) error {
 
 	// The refrigeration method: a Cooler build on a wall cell.
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
+	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRefrigeration, nil)
 	methodCancel()
 	if err != nil {
 		return fmt.Errorf("refrigeration method: %w", err)
@@ -230,7 +230,7 @@ func run(ctx context.Context, s cases.Session) error {
 			break
 		}
 		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
-		_, method, err = na.WaitGoalMethod(renewCtx, journal, policy.MaintainRefrigeration, &method)
+		_, method, err = na.WaitMethod(renewCtx, journal, policy.MaintainRefrigeration, &method)
 		renewCancel()
 		if err != nil {
 			return fmt.Errorf("renewed refrigeration method after incidental cancellation #%d: %w", renewals+1, err)
@@ -619,12 +619,12 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 
 // refrigerationMethods lists every method ever committed on a
 // MaintainRefrigeration goal, across Episodes, from the journal.
-func refrigerationMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, error) {
+func refrigerationMethods(ctx context.Context, s *store.Store) ([]domain.Method, error) {
 	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var out []domain.GoalMethod
+	var out []domain.Method
 	for _, binding := range review.Goals {
 		if binding.Need != policy.MaintainRefrigeration {
 			continue

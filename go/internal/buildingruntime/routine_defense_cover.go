@@ -35,7 +35,7 @@ const (
 
 // defenseCoverAttempts counts the epoch's cover methods ordered within the
 // window before tick.
-func defenseCoverAttempts(history []domain.GoalMethod, tick domain.Tick) int {
+func defenseCoverAttempts(history []domain.Method, tick domain.Tick) int {
 	count := 0
 	for _, m := range history {
 		if !strings.HasPrefix(string(m.Method), defenseCoverPrefix) {

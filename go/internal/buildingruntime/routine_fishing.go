@@ -97,7 +97,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			}
 			method := domain.MethodID("fishing-" + entry.Channel.ID)
 			journal := r.reviewer.player.journal
-			if _, err := journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+			if _, err := journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 				continue
 			} else if !errors.Is(err, store.ErrNotFound) {
 				return RoutineFieldResult{}, false, err

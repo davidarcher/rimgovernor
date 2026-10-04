@@ -9,7 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func TestOperationIntentLabelsGoalMethod(t *testing.T) {
+func TestOperationIntentLabelsMethod(t *testing.T) {
 	for _, c := range []struct {
 		goal   domain.ConcernID
 		method domain.MethodID
@@ -23,7 +23,7 @@ func TestOperationIntentLabelsGoalMethod(t *testing.T) {
 		{"routine-01-EnsureFoodSupply", "acquire-0123456789abcdef0123456789abcdef", "food runway 1.5d", "Food supply: acquire, food runway 1.5d"},
 		{"routine-01-MaintainHousing", "bedroom-shell-3-4", "  room for 2 unhoused ", "Housing: bedroom shell 3 4, room for 2 unhoused"},
 	} {
-		got := OperationIntent(store.PlanMethod{GoalMethod: domain.GoalMethod{Goal: c.goal, Method: c.method}, Reason: c.reason})
+		got := OperationIntent(store.PlanMethod{Concern: c.goal, Method: c.method, Reason: c.reason})
 		if got != c.want {
 			t.Errorf("%s/%s = %q, want %q", c.goal, c.method, got, c.want)
 		}
@@ -32,13 +32,13 @@ func TestOperationIntentLabelsGoalMethod(t *testing.T) {
 
 type fakePlanGoals map[domain.PlanID]store.PlanMethod
 
-func (f fakePlanGoals) PlanGoalMethod(_ context.Context, plan domain.PlanID) (store.PlanMethod, bool, error) {
+func (f fakePlanGoals) PlanMethod(_ context.Context, plan domain.PlanID) (store.PlanMethod, bool, error) {
 	m, ok := f[plan]
 	return m, ok, nil
 }
 
 func TestDispatchContextCarriesPlanIntent(t *testing.T) {
-	goals := fakePlanGoals{"p": {GoalMethod: domain.GoalMethod{Goal: "routine-01-MaintainResource", Method: "chop-0123456789abcdef", Plan: "p"}, Reason: "WoodLog low"}}
+	goals := fakePlanGoals{"p": {Concern: "routine-01-MaintainResource", Method: "chop-0123456789abcdef", Plan: "p", Reason: "WoodLog low"}}
 	ctx := withPlanIntent(context.Background(), goals, "p")
 	if got := bridge.OperationIntentFrom(ctx); got != "Resource: chop, WoodLog low" {
 		t.Fatal(got)

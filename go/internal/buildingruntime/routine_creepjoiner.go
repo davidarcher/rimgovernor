@@ -314,7 +314,7 @@ func (r *RoutineCreepJoinerPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	method := nextWaveMethod(goal, "creepjoiner-drop-")
 	reason := fmt.Sprintf("creepjoiner: %v are held back (weapon dropped, surgical inspection, isolation room, arrested ones disarmed) until their downside shows", claimed)
-	if _, err = p.journal.CommitGoalMethodRecord(call, goal.Standard.ID, goal.Revision, method, reason, plan, ordered.Encode()); err != nil {
+	if _, err = p.journal.CommitMethodRecord(call, goal.Standard.ID, goal.Revision, method, reason, plan, ordered.Encode()); err != nil {
 		return RoutineCreepJoinerResult{}, err
 	}
 	return RoutineCreepJoinerResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

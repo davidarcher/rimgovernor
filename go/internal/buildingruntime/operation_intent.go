@@ -73,7 +73,7 @@ func methodReason(method domain.MethodID) string {
 	return strings.Join(parts, " ")
 }
 
-// OperationIntent is Operation.intent for a goal method's writes: the
+// OperationIntent is Operation.intent for a method's writes: the
 // planner's admission reason follows the method, "Food supply: acquire,
 // food runway 1.5d" (#846).
 func OperationIntent(method store.PlanMethod) string {
@@ -81,7 +81,7 @@ func OperationIntent(method store.PlanMethod) string {
 	if reason := strings.TrimSpace(method.Reason); reason != "" {
 		why += ", " + reason
 	}
-	return bridge.FormatOperationIntent(GoalLabel(method.Goal), why)
+	return bridge.FormatOperationIntent(GoalLabel(method.Concern), why)
 }
 
 func splitWords(s string) string {
@@ -96,13 +96,13 @@ func splitWords(s string) string {
 	return b.String()
 }
 
-// withPlanIntent carries the plan's goal method intent to the writes the
+// withPlanIntent carries the plan's method intent to the writes the
 // dispatch issues; a plan no goal admitted, or a failed lookup, dispatches
 // without one.
 func withPlanIntent(ctx context.Context, intents interface {
-	PlanGoalMethod(context.Context, domain.PlanID) (store.PlanMethod, bool, error)
+	PlanMethod(context.Context, domain.PlanID) (store.PlanMethod, bool, error)
 }, plan domain.PlanID) context.Context {
-	method, ok, err := intents.PlanGoalMethod(ctx, plan)
+	method, ok, err := intents.PlanMethod(ctx, plan)
 	if err != nil {
 		slog.Default().Debug("operation intent lookup failed", telemetry.ComponentKey, "dispatch", "plan", string(plan), "error", err)
 		return ctx

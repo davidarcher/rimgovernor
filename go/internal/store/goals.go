@@ -17,7 +17,7 @@ import (
 type StandardState struct {
 	Standard domain.Standard
 	Revision uint64
-	Methods  []domain.GoalMethod // Active plans; retired methods remain in LoadGoalMethod.
+	Methods  []domain.Method // Active plans; retired methods remain in LoadMethod.
 	// Admitted counts every method ever committed for the goal, retired
 	// plans included: a monotonic salt for method identities that must not
 	// collide with a retired plan's row (#214).
@@ -26,7 +26,7 @@ type StandardState struct {
 	// Planners that number attempts count it, not Methods: a retired plan
 	// drops out of Methods, and re-deriving its ID fails plans.id's unique
 	// constraint.
-	History []domain.GoalMethod
+	History []domain.Method
 	Retired bool
 }
 
@@ -117,7 +117,7 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 		return StandardState{}, err
 	}
 	for history.Next() {
-		m := domain.GoalMethod{Goal: id, Episode: out.Standard.Episode}
+		m := domain.Method{Owner: id, Episode: out.Standard.Episode}
 		if err = history.Scan(&m.Method, &m.Plan); err != nil {
 			history.Close()
 			return StandardState{}, err
@@ -135,9 +135,9 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.ConcernID) (StandardSta
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var m domain.GoalMethod
+		var m domain.Method
 		var epoch string
-		m.Goal = id
+		m.Owner = id
 		if err = rows.Scan(&epoch, &m.Method, &m.Plan); err != nil {
 			return StandardState{}, err
 		}
@@ -247,7 +247,7 @@ func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revisio
 		return StandardState{}, err
 	}
 	if g.Status == domain.StandardVoided {
-		if err = cancelGoalMethods(ctx, tx, state); err != nil {
+		if err = cancelMethods(ctx, tx, state); err != nil {
 			return StandardState{}, err
 		}
 	}
@@ -261,16 +261,16 @@ func (s *Store) ReviewStandard(ctx context.Context, id domain.ConcernID, revisio
 	return out, nil
 }
 
-// CommitGoalMethod stores the method and its shared plan atomically. Admission
+// CommitMethod stores the method and its shared plan atomically. Admission
 // and dispatch still belong to existing policy/Hands; this grants no authority.
-func (s *Store) CommitGoalMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (StandardState, error) {
-	return s.CommitGoalMethodReason(ctx, id, revision, method, "", plan)
+func (s *Store) CommitMethod(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, plan domain.PlanSpec) (StandardState, error) {
+	return s.CommitMethodReason(ctx, id, revision, method, "", plan)
 }
 
-// CommitGoalMethodReason is CommitGoalMethod with the planner's short reason
+// CommitMethodReason is CommitMethod with the planner's short reason
 // for admitting it (runway, deficit, target); the dispatcher appends it to
 // Operation.intent (#846). Empty stores none.
-func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
+func (s *Store) CommitMethodReason(ctx context.Context, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	if err := plan.Validate(); err != nil {
 		return StandardState{}, err
 	}
@@ -282,7 +282,7 @@ func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID,
 		return StandardState{}, err
 	}
 	defer tx.Rollback()
-	state, err := commitGoalMethod(ctx, tx, id, revision, method, reason, plan)
+	state, err := commitMethod(ctx, tx, id, revision, method, reason, plan)
 	if err != nil {
 		return StandardState{}, err
 	}
@@ -292,7 +292,7 @@ func (s *Store) CommitGoalMethodReason(ctx context.Context, id domain.ConcernID,
 	return state, nil
 }
 
-func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
+func commitMethod(ctx context.Context, tx *sql.Tx, id domain.ConcernID, revision uint64, method domain.MethodID, reason string, plan domain.PlanSpec) (StandardState, error) {
 	state, err := loadGoal(ctx, tx, id)
 	if err != nil {
 		return StandardState{}, err
@@ -368,7 +368,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 			return errors.New("existing method requires observation")
 		}
 	}
-	m := domain.GoalMethod{Goal: domain.ConcernID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}
+	m := domain.Method{Owner: domain.ConcernID(summary.ID), Episode: summary.Episode, Method: method, Plan: plan.ID()}
 	if err = m.Validate(); err != nil {
 		return err
 	}
@@ -386,7 +386,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 	return err
 }
 
-// cancelUndispatchedGoalMethods cancels every open method of the goal that
+// cancelUndispatchedMethods cancels every open method of the goal that
 // no step ever dispatched: each action is still Pending or Prepared on its
 // first attempt. A review that observes the goal recovered runs it before
 // counting open work, so a plan admitted for a deficit the colonists (or the
@@ -394,7 +394,7 @@ func admitOwnerCommit(ctx context.Context, tx *sql.Tx, state WorkOwner, revision
 // Active and never authorized: the worker refuses a recovered goal's fresh
 // write on every step, and nothing else ever retires the plan (#290). Work
 // already dispatched keeps its own settlement path.
-func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+func cancelUndispatchedMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
 		if err != nil {
@@ -426,7 +426,7 @@ func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, owner method
 	return nil
 }
 
-func cancelGoalMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
+func cancelMethods(ctx context.Context, tx *sql.Tx, owner methodOwner) error {
 	for _, plan := range owner.ownerPlans() {
 		p, err := load(ctx, tx, plan)
 		if err != nil {

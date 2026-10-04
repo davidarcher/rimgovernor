@@ -282,14 +282,14 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 	deadline := time.Now().Add(10 * time.Minute)
 	for {
 		var goalID domain.ConcernID
-		var method domain.GoalMethod
+		var method domain.Method
 		for {
 			if time.Now().After(deadline) {
 				return store.PlanState{}, fmt.Errorf("%s method: no method within 10 minutes", label)
 			}
 			methodCtx, methodCancel := context.WithTimeout(ctx, 15*time.Second)
 			var err error
-			goalID, method, err = na.WaitGoalMethodExcluding(methodCtx, journal, need, seen)
+			goalID, method, err = na.WaitMethodExcluding(methodCtx, journal, need, seen)
 			methodCancel()
 			if err == nil {
 				break

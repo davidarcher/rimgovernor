@@ -37,11 +37,11 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot", butcherSpotPlan(t, "spot-plan-1"))
+	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot", butcherSpotPlan(t, "spot-plan-1"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "RawBerries")); err != nil {
+	if g, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "RawBerries")); err != nil {
 		t.Fatal("pending butcher spot blocked an acquisition", err)
 	}
 	target := r.Current
@@ -55,10 +55,10 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	if g, err = s.LoadStandard(ctx, g.Standard.ID); err != nil {
 		t.Fatal(err)
 	}
-	if g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "field-1", growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})); err != nil {
+	if g, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "field-1", growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}})); err != nil {
 		t.Fatal("pending butcher spot blocked a field batch", err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot-2", butcherSpotPlan(t, "spot-plan-2")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot-2", butcherSpotPlan(t, "spot-plan-2")); err == nil {
 		t.Fatal("a pending butcher spot did not block a second one")
 	}
 	other, err := domain.NewBuilding("Campfire", domain.Cell{X: 6, Z: 6}, domain.North, "")
@@ -73,7 +73,7 @@ func TestCommitButcherSpotExemptFromFieldAndAcquisitionOpenWork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "campfire", campfire); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "campfire", campfire); err == nil {
 		t.Fatal("open field work did not block an unrelated building")
 	}
 }
@@ -86,11 +86,11 @@ func TestCommitButcherSpotOverOpenFieldWork(t *testing.T) {
 	r := foodDeficitRoutineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "field-1", growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}}))
+	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "field-1", growingPlan(t, "field-plan-1", []domain.Cell{{X: 0, Z: 0}}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot", butcherSpotPlan(t, "spot-plan-1")); err != nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "butcher-spot", butcherSpotPlan(t, "spot-plan-1")); err != nil {
 		t.Fatal("open field work blocked the butcher spot", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	tick := r.Tick
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.EnsureFoodSupply)
-	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "RawBerries"))
+	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "RawBerries"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,10 +120,10 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	if g, err = s.LoadStandard(ctx, g.Standard.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", acquisitionPlan(t, "acquire-plan-2", "RawAgave")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", acquisitionPlan(t, "acquire-plan-2", "RawAgave")); err == nil {
 		t.Fatal("open forage did not block a second forage")
 	}
-	if g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "hunt-1", acquisitionPlan(t, "hunt-plan-1", "Corpse_Hare")); err != nil {
+	if g, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "hunt-1", acquisitionPlan(t, "hunt-plan-1", "Corpse_Hare")); err != nil {
 		t.Fatal("open forage blocked a hunt", err)
 	}
 	target.Plan = "hunt-plan-1"
@@ -136,7 +136,7 @@ func TestCommitHuntOverOpenForage(t *testing.T) {
 	if g, err = s.LoadStandard(ctx, g.Standard.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "hunt-2", acquisitionPlan(t, "hunt-plan-2", "Corpse_Deer")); err == nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "hunt-2", acquisitionPlan(t, "hunt-plan-2", "Corpse_Deer")); err == nil {
 		t.Fatal("an open hunt did not block the next hunt")
 	}
 }

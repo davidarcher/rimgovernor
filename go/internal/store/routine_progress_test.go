@@ -119,7 +119,7 @@ func TestRoutineProgressDesignationWithoutWorkerIsBlocked(t *testing.T) {
 		t.Fatalf("wood record %+v", wood)
 	}
 	g := routineGoal(t, first, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "cut-0123456789abcdef", plan(t, "wood", "wood-action")); err != nil {
 		t.Fatal(err)
 	}
 	target := scope()

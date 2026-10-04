@@ -203,7 +203,7 @@ func (f *fakeOrphanNative) Apply(_ context.Context, _ *c.Identity, actions []*o.
 	return reply, bridge.Result{}, nil
 }
 
-// Loading a world with a committed goal method cancels the open trade
+// Loading a world with a committed method cancels the open trade
 // session no rebuilt goal owns (#1000, D3); with no session nothing is sent.
 func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	ctx := context.Background()
@@ -237,7 +237,7 @@ func TestShadowGovernorStateCancelsOrphanTrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = database.CommitGoalMethod(ctx, g.ID, state.Revision, "trade", spec); err != nil {
+	if _, err = database.CommitMethod(ctx, g.ID, state.Revision, "trade", spec); err != nil {
 		t.Fatal(err)
 	}
 	world := governorWorld{Colony: "c", Map: 1, Load: "l", Generation: 1}

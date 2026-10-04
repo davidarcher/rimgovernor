@@ -167,7 +167,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+				if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 					continue
 				} else if !errors.Is(err, store.ErrNotFound) {
 					return RoutineAcquisitionResult{}, err
@@ -181,7 +181,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				if p.session.State() != state {
 					return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 				}
-				if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
+				if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, "withdraw stalled "+row.Resource, plan); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
 				return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
@@ -307,7 +307,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		prefix = "resource-acquire"
 	}
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineAcquisitionResult{Verdict: waitFor(WaitMethodUsed, "acquisition_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
@@ -335,7 +335,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if p.session.State() != state {
 		return RoutineAcquisitionResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, acquisitionReason(food, pest, runway, selected), plan); err != nil {
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

@@ -101,7 +101,7 @@ func TestIncidentMethodCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The plan's method names the Response kind and the incident.
-	if m, ok, err := s.PlanGoalMethod(ctx, p.ID()); !ok || err != nil || m.Goal != policy.ActiveCombat || m.Incident != id || m.Reason != "raid at the edge" {
+	if m, ok, err := s.PlanMethod(ctx, p.ID()); !ok || err != nil || m.Concern != policy.ActiveCombat || m.Incident != id || m.Reason != "raid at the edge" {
 		t.Fatal("incident plan method", m, err)
 	}
 	// Open work blocks a second method, as it does a goal's.

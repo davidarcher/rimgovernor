@@ -262,11 +262,11 @@ func TestNextEquipWaveMethodSkipsRetiredWaves(t *testing.T) {
 	if got := nextEquipWaveMethod(goal); got != "equip-wave-0" {
 		t.Fatal(got)
 	}
-	goal.History = []domain.GoalMethod{{Method: "equip-wave-0"}, {Method: "equip-wave-1"}}
+	goal.History = []domain.Method{{Method: "equip-wave-0"}, {Method: "equip-wave-1"}}
 	if got := nextEquipWaveMethod(goal); got != "equip-wave-2" {
 		t.Fatal(got)
 	}
-	goal.Methods = []domain.GoalMethod{{Method: "equip-wave-2"}}
+	goal.Methods = []domain.Method{{Method: "equip-wave-2"}}
 	if got := nextEquipWaveMethod(goal); got != "equip-wave-3" {
 		t.Fatal(got)
 	}

@@ -161,7 +161,7 @@ func (r *RoutineAnimalContainmentPlanner) markHerdBedMedical(call, epoch context
 		return RoutineBuildingResult{}, fmt.Errorf("%w: markHerdBedMedical: the native source cannot read bed use", ErrControl)
 	}
 	method := domain.MethodID("herd-medical-" + bed)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "herd_bed_medical_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err

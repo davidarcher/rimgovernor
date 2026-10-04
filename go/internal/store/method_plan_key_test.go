@@ -16,7 +16,7 @@ func TestMethodPlanKey(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	first := domain.MintPlanID()
-	g, e := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, first, domain.ActionID(first+"-0")))
+	g, e := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, first, domain.ActionID(first+"-0")))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -24,7 +24,7 @@ func TestMethodPlanKey(t *testing.T) {
 		t.Fatal(e)
 	}
 	again := domain.MintPlanID()
-	if _, e = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, again, domain.ActionID(again+"-0"))); !errors.Is(e, ErrConflict) {
+	if _, e = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, again, domain.ActionID(again+"-0"))); !errors.Is(e, ErrConflict) {
 		t.Fatal("same key admitted twice under a fresh plan id", e)
 	}
 	// Later epochs of the same method, as a re-opened goal writes them.

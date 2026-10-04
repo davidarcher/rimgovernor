@@ -538,7 +538,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	tick := projection.Identity.Tick
 	method := domain.MethodID(fmt.Sprintf("stockpiles-%d", tick))
 	id := domain.MintPlanID()
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_edits")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err
@@ -584,7 +584,7 @@ func (r *RoutineStockpilePlanner) step(call, epoch context.Context, _ *stepArbit
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineStockpileResult{}, fmt.Errorf("%w: step: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineStockpileResult{}, err
 	}
 	for _, e := range proposal.Edits {
@@ -617,7 +617,7 @@ func (r *RoutineStockpilePlanner) create(call, epoch context.Context, state Cont
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/create/%s/%d", goal.Standard.ID, goal.Standard.Episode, strings.Join(roles, ","), tick)))
 	id := domain.MintPlanID()
 	method := domain.MethodID(fmt.Sprintf("stockpile-create-%x", digest[:8]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineStockpileResult{Verdict: waitFor(WaitMethodUsed, "stockpile_create")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineStockpileResult{}, err

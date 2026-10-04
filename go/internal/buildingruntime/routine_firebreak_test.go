@@ -12,14 +12,14 @@ import (
 // The daily bound counts only firebreak methods inside the last game day.
 func TestFirebreakAttemptsDailyBound(t *testing.T) {
 	now := domain.Tick(10 * firebreakWindowTicks)
-	var history []domain.GoalMethod
+	var history []domain.Method
 	for i := 0; i < maxFirebreakAttempts; i++ {
-		history = append(history, domain.GoalMethod{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-domain.Tick(i*1000)))})
+		history = append(history, domain.Method{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-domain.Tick(i*1000)))})
 	}
 	if got := firebreakAttempts(history, now); got != maxFirebreakAttempts {
 		t.Fatal(got)
 	}
-	history = append(history[:1], domain.GoalMethod{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-firebreakWindowTicks))}, domain.GoalMethod{Method: "cut-other"})
+	history = append(history[:1], domain.Method{Method: domain.MethodID(fmt.Sprintf("%s%d", firebreakPrefix, now-firebreakWindowTicks))}, domain.Method{Method: "cut-other"})
 	if got := firebreakAttempts(history, now); got != 1 {
 		t.Fatal(got)
 	}

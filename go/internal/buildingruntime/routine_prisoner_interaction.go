@@ -126,7 +126,7 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePrisonerInteractionResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
 	return RoutinePrisonerInteractionResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -187,7 +187,7 @@ func (r *RoutinePrisonerInteractionPlanner) markJailBed(call, epoch context.Cont
 		return RoutineBuildingResult{Verdict: fieldUnavailable("hospital_source")}, nil
 	}
 	method := domain.MethodID("jail-mark-" + bed)
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineBuildingResult{Verdict: waitFor(WaitMethodUsed, "jail_bed_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineBuildingResult{}, err

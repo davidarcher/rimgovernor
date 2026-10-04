@@ -67,7 +67,7 @@ func (r *RoutineFieldPlanner) shrink(call, epoch context.Context, state ControlS
 	hash := sha256.New()
 	fmt.Fprintf(hash, "shrink/%s/%v", plan.ID, cells)
 	method := domain.MethodID(fmt.Sprintf("fields-%x", hash.Sum(nil)[:16]))
-	if _, err := p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err := p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineFieldResult{}, false, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineFieldResult{}, false, err
@@ -92,7 +92,7 @@ func (r *RoutineFieldPlanner) shrink(call, epoch context.Context, state ControlS
 	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 		return RoutineFieldResult{}, false, fmt.Errorf("%w: shrink: stale state or read", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, committed); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, committed); err != nil {
 		return RoutineFieldResult{}, false, err
 	}
 	clockEvent(call, "layout", "fields", "field block shrunk", "zone", plan.ID, "crop", plan.Crop, "cells", len(cells), "plan", string(id))

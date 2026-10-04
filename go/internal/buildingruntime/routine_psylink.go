@@ -145,7 +145,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !ok {
 		return RoutinePsylinkResult{Verdict: BuildingReasonNoReview}, nil
 	}
-	history, err := p.journal.LoadGoalMethods(call, goal.Standard.ID, goal.Standard.Episode)
+	history, err := p.journal.LoadMethods(call, goal.Standard.ID, goal.Standard.Episode)
 	if err != nil {
 		return RoutinePsylinkResult{}, err
 	}
@@ -190,7 +190,7 @@ func (r *RoutinePsylinkPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutinePsylinkResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("psylink: %s uses neuroformer %s", choice.Pawn, choice.Item), plan); err != nil {
 		return RoutinePsylinkResult{}, err
 	}
 	return RoutinePsylinkResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

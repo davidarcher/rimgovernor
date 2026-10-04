@@ -41,7 +41,7 @@ func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		next, err := db.CommitGoalMethod(context.Background(), g.Standard.ID, g.Revision, domain.MethodID(fmt.Sprintf("method-%d", index)), p)
+		next, err := db.CommitMethod(context.Background(), g.Standard.ID, g.Revision, domain.MethodID(fmt.Sprintf("method-%d", index)), p)
 		if err == nil {
 			g = next
 		}
@@ -111,7 +111,7 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.CommitGoalMethod(context.Background(), g.Standard.ID, g.Revision, "method", method); err != nil {
+	if _, err := db.CommitMethod(context.Background(), g.Standard.ID, g.Revision, "method", method); err != nil {
 		t.Fatal("selected equipment goal refused a bill", err)
 	}
 	g, err = db.LoadStandard(context.Background(), g.Standard.ID)

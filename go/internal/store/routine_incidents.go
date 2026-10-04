@@ -107,7 +107,7 @@ func reviewIncidents(ctx context.Context, tx *sql.Tx, assessments []policy.Routi
 			if err != nil {
 				return nil, nil, err
 			}
-			if err = cancelUndispatchedGoalMethods(ctx, tx, state); err != nil {
+			if err = cancelUndispatchedMethods(ctx, tx, state); err != nil {
 				return nil, nil, err
 			}
 			work, err := goalOpenWork(ctx, tx, state)
@@ -158,7 +158,7 @@ func abandonIncident(ctx context.Context, tx *sql.Tx, id domain.IncidentID, tick
 	if err != nil || state.Incident.Closed {
 		return err
 	}
-	if err = cancelGoalMethods(ctx, tx, state); err != nil {
+	if err = cancelMethods(ctx, tx, state); err != nil {
 		return err
 	}
 	_, err = closeIncident(ctx, tx, id, max(tick, state.Incident.Started))

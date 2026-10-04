@@ -124,7 +124,7 @@ func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Contex
 		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 			return RoutineResourceResult{}, true, fmt.Errorf("%w: removeExhaustedDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
-		if _, err = player.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+		if _, err = player.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 			return RoutineResourceResult{}, true, err
 		}
 		return RoutineResourceResult{Verdict: BuildingReasonAdmitted, Plan: planID}, true, nil
@@ -236,7 +236,7 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 			}
 		}
 		method := domain.MethodID(fmt.Sprintf("deep-drill-%s-%d-%d", site.Definition, site.Centre.X, site.Centre.Z))
-		if _, err := r.reviewer.player.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+		if _, err := r.reviewer.player.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 			return RoutineResourceResult{Verdict: waitFor(WaitMethodUsed, "deep_drill_method")}, true, nil
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineResourceResult{}, true, err

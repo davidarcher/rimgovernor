@@ -72,7 +72,7 @@ func IsExcavationMethod(method domain.MethodID) bool {
 
 // excavationProgress reads a Episode's tunnel stages: the target the
 // latest (highest) stage carries and the next stage number.
-func excavationProgress(methods []domain.GoalMethod) (latest *policy.ExcavationTarget, next int) {
+func excavationProgress(methods []domain.Method) (latest *policy.ExcavationTarget, next int) {
 	for _, m := range methods {
 		if stage, target, ok := ExcavationMethod(m.Method); ok && stage >= next {
 			next, latest = stage+1, &target

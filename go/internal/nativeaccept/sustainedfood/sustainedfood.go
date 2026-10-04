@@ -490,7 +490,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	sample["vetoed"] = review.Veto(goal.Standard) != ""
 	sample["epoch"] = goal.Standard.Episode
 	sample["method_count"] = len(goal.Methods)
-	describe := func(method domain.GoalMethod) map[string]any {
+	describe := func(method domain.Method) map[string]any {
 		return describeMethod(ctx, s, method.Method, method.Plan)
 	}
 	var plans []map[string]any
@@ -503,7 +503,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.ConcernID) (map
 	// A completed method leaves goal.Methods at the next review, so a
 	// "did the bench plan finish" question needs this epoch's history too.
 	var retired []map[string]any
-	if history, err := s.LoadGoalMethods(ctx, goalID, goal.Standard.Episode); err == nil {
+	if history, err := s.LoadMethods(ctx, goalID, goal.Standard.Episode); err == nil {
 		for _, method := range history {
 			if !active[method.Plan] {
 				retired = append(retired, describe(method))

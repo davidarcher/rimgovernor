@@ -162,7 +162,7 @@ in Go.
 The planner commits one Ritual `begin` per step: the plan's organizer, the
 site, the slot fills and the spectators. A refused begin is retried at most
 `maxMedicalAttemptsPerPatient` times per ritual and site per Episode; the
-goal method's reason records the organizer, ritual, site and attendance.
+method's reason records the organizer, ritual, site and attendance.
 Postcondition: a `LordJob_Ritual` of the precept is running
 (`RitualEffect.started`), read back as `running`. Composed by the `rituals`
 routine family.

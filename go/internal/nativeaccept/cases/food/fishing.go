@@ -118,7 +118,7 @@ func runFishing(ctx context.Context, s cases.Session) error {
 	defer journal.Close()
 	methodCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	_, method, err := na.WaitGoalMethod(methodCtx, journal, policy.EnsureFoodSupply, nil)
+	_, method, err := na.WaitMethod(methodCtx, journal, policy.EnsureFoodSupply, nil)
 	if err != nil {
 		return err
 	}

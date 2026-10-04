@@ -225,7 +225,7 @@ func (r *RoutineWastePlanner) commitBurnPlan(call, epoch context.Context, state 
 	if p.session.State() != state {
 		return RoutineWasteResult{}, true, fmt.Errorf("%w: commitBurnPlan: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineWasteResult{}, true, err
 	}
 	return RoutineWasteResult{Verdict: BuildingReasonAdmitted, Plan: id}, true, nil

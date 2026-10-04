@@ -279,7 +279,7 @@ active catalog only after all linked work is observed and cleanup is settled.
 Retired goals remain readable with their original IDs, methods and receipts, and
 cannot be modified or reused. Disabled bindings and player cancellations remain
 retained. Enabled reviews also retire settled autopilot method plans from active
-capacity. `GoalState.Methods` lists active bindings; `LoadGoalMethod` reads an exact
+capacity. `GoalState.Methods` lists active bindings; `LoadMethod` reads an exact
 historical binding, and `LoadPlan` preserves its progress and admissions. Plan and
 method IDs remain reserved. Current plans, unfinished dependencies, uncertain effects
 and unsuccessful outcomes stay pinned.

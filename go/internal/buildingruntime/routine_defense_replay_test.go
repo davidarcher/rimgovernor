@@ -94,7 +94,7 @@ func (n *defenseReplayNative) ReadLinesOfFire(ctx context.Context, _ *c.Identity
 // replayDefense runs the RoutineDefensePlanner over recorded steps in
 // order, on one journal: the first step's layout is stored and a review
 // opens ActiveCombat, then each step is served its own replies. It returns
-// each step's result, the goal method it admitted, if any, and the journal.
+// each step's result, the method it admitted, if any, and the journal.
 func replayDefense(t *testing.T, paths ...string) ([]RoutineDefenseResult, []domain.MethodID, *store.Store) {
 	t.Helper()
 	steps := make([]snapshot.Defense, 0, len(paths))
@@ -163,7 +163,7 @@ func replayDefenseSteps(t *testing.T, frame replayFrame, steps ...snapshot.Defen
 	return results, methods, db
 }
 
-// admittedMethod is the ActiveCombat goal method plan was committed under.
+// admittedMethod is the ActiveCombat method plan was committed under.
 func admittedMethod(t *testing.T, db *store.Store, plan domain.PlanID) domain.MethodID {
 	t.Helper()
 	if plan == "" {

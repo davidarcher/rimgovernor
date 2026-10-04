@@ -73,7 +73,7 @@ type ServeSpec struct {
 // LaunchService) against the game the harness prepared. The harness's own
 // bridge session must be released first, since only one GABP client may be
 // connected to a running game at a time. Its waits (WaitReview, WaitPlan,
-// WaitGoalMethod, WaitPlanTerminal, WaitStep) end as soon as the service
+// WaitMethod, WaitPlanTerminal, WaitStep) end as soon as the service
 // exits on its own.
 type ServiceProcess struct {
 	URL       string
@@ -593,23 +593,23 @@ func (p *ServiceProcess) WaitPlan(ctx context.Context, w Wait, planID domain.Pla
 	return WaitPlan(ctx, s, p.wait(w), planID, check)
 }
 
-// WaitGoalMethod is WaitGoalMethod on this service's store, ended by its exit.
-func (p *ServiceProcess) WaitGoalMethod(ctx context.Context, need policy.ConcernID, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, error) {
+// WaitMethod is WaitMethod on this service's store, ended by its exit.
+func (p *ServiceProcess) WaitMethod(ctx context.Context, need policy.ConcernID, previous *domain.Method) (domain.ConcernID, domain.Method, error) {
 	var seen map[domain.PlanID]bool
 	if previous != nil {
 		seen = map[domain.PlanID]bool{previous.Plan: true}
 	}
-	return p.WaitGoalMethodExcluding(ctx, need, seen)
+	return p.WaitMethodExcluding(ctx, need, seen)
 }
 
-// WaitGoalMethodExcluding is WaitGoalMethodExcluding on this service's
+// WaitMethodExcluding is WaitMethodExcluding on this service's
 // store, ended by its exit.
-func (p *ServiceProcess) WaitGoalMethodExcluding(ctx context.Context, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.GoalMethod, error) {
+func (p *ServiceProcess) WaitMethodExcluding(ctx context.Context, need policy.ConcernID, seen map[domain.PlanID]bool) (domain.ConcernID, domain.Method, error) {
 	s, err := p.Store(ctx)
 	if err != nil {
-		return "", domain.GoalMethod{}, err
+		return "", domain.Method{}, err
 	}
-	return waitGoalMethod(ctx, s, p.wait(Wait{Interval: time.Second}), need, seen)
+	return waitMethod(ctx, s, p.wait(Wait{Interval: time.Second}), need, seen)
 }
 
 // WaitPlanTerminal is WaitPlanTerminal on this service's store, ended by

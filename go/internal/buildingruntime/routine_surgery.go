@@ -202,7 +202,7 @@ func (r *RoutineSurgeryPlanner) step(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state {
 		return RoutineSurgeryResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineSurgeryResult{}, err
 	}
 	result.Verdict, result.Plan = BuildingReasonAdmitted, id

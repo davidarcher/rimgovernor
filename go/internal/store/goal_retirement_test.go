@@ -59,7 +59,7 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	r := routineRequest()
 	out := reviewRoutine(t, s, &r)
 	g := routineGoal(t, out, policy.MaintainResource)
-	if _, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
+	if _, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "wood", plan(t, "p", "a")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Prepare(ctx, "p", "a", scope(), 10); err != nil {
@@ -88,13 +88,13 @@ func TestRoutineGoalRetirementWaitsForObservedEffects(t *testing.T) {
 	if len(after.History) != 1 || after.History[0].Method != "wood" || after.History[0].Plan != "p" || after.History[0].Episode != g.Standard.Episode {
 		t.Fatal("retired method missing from history", after.History)
 	}
-	if method, err := s.LoadGoalMethod(ctx, g.Standard.ID, g.Standard.Episode, "wood"); err != nil || method.Plan != "p" {
+	if method, err := s.LoadMethod(ctx, g.Standard.ID, g.Standard.Episode, "wood"); err != nil || method.Plan != "p" {
 		t.Fatal(method, err)
 	}
-	if methods, err := s.LoadGoalMethods(ctx, g.Standard.ID, g.Standard.Episode); err != nil || len(methods) != 1 || methods[0].Plan != "p" {
+	if methods, err := s.LoadMethods(ctx, g.Standard.ID, g.Standard.Episode); err != nil || len(methods) != 1 || methods[0].Plan != "p" {
 		t.Fatal("retired method evidence missing", methods, err)
 	}
-	if _, err := s.LoadGoalMethods(ctx, g.Standard.ID, g.Standard.Episode+1); err == nil {
+	if _, err := s.LoadMethods(ctx, g.Standard.ID, g.Standard.Episode+1); err == nil {
 		t.Fatal("future Episode accepted")
 	}
 	p, err := s.LoadPlan(ctx, "p")

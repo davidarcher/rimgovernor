@@ -115,6 +115,6 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitReserve(ctx, epoch context.Contex
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineFoodStorageUpkeepResult{}, fmt.Errorf("%w: admitReserve: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	_, err = p.journal.CommitGoalMethod(ctx, goal.Standard.ID, goal.Revision, method, plan)
+	_, err = p.journal.CommitMethod(ctx, goal.Standard.ID, goal.Revision, method, plan)
 	return RoutineFoodStorageUpkeepResult{Verdict: BuildingReasonAdmitted, Plan: id}, err
 }

@@ -48,7 +48,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 	expansion := routineGoal(t, first, policy.MaintainHousing)
-	if _, err = s.CommitGoalMethod(ctx, expansion.Standard.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
+	if _, err = s.CommitMethod(ctx, expansion.Standard.ID, expansion.Revision, "wall", plan(t, "wall", "wall-action")); err != nil {
 		t.Fatal("builder limit refused a goal", err)
 	}
 	research := routineProject(t, first, policy.EnsureResearch)
@@ -60,7 +60,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 		t.Fatal("retry admitted twice")
 	}
 	wood := routineGoal(t, first, policy.MaintainResource)
-	if _, err = s.CommitGoalMethod(ctx, wood.Standard.ID, wood.Revision, "cut", plan(t, "cut", "cut-action")); err != nil {
+	if _, err = s.CommitMethod(ctx, wood.Standard.ID, wood.Revision, "cut", plan(t, "cut", "cut-action")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Cancel(ctx, sub.Plan, sub.Action); err != nil {
@@ -70,7 +70,7 @@ func TestRoutineDevelopmentAutoAdmission(t *testing.T) {
 	r.Current.Load = "reloaded"
 	reviewRoutine(t, s, &r)
 	stale := routineGoal(t, first, policy.MaintainHousing)
-	if _, err = s.CommitGoalMethod(ctx, stale.Standard.ID, stale.Revision, "wall", plan(t, "wall2", "wall2-action")); err == nil {
+	if _, err = s.CommitMethod(ctx, stale.Standard.ID, stale.Revision, "wall", plan(t, "wall2", "wall2-action")); err == nil {
 		t.Fatal("stale review admitted")
 	}
 }

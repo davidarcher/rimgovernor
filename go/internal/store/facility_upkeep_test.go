@@ -24,7 +24,7 @@ func completedFacility(t *testing.T, proof bool) (*Store, string, StandardState,
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "build", p)
+	g, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "build", p)
 	if err != nil {
 		t.Fatal(err)
 	}

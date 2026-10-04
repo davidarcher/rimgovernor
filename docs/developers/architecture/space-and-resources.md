@@ -247,7 +247,7 @@ is stored beside them.
 A proposal the free stock cannot cover is refused as demand with its
 shortfall on the step row, unless less urgent commitments can release it: a
 strictly more urgent proposal retires the smallest set of undispatched,
-less urgent plans that covers the shortage through `store.PreemptGoalMethod`
+less urgent plans that covers the shortage through `store.PreemptMethod`
 (the ordinary cancellation rows, as a recovered goal's undispatched methods
 retire), and claims what they held in the same step. The preempted goal stays
 active and its planner re-evaluates it at the next review. Dispatched work is

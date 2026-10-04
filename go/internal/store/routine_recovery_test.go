@@ -130,7 +130,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 	}
 }
 
-func TestRoutineRecoverySkipsSharedGoalMethodHistory(t *testing.T) {
+func TestRoutineRecoverySkipsSharedMethodHistory(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	s := open(t, memoryPath(t))

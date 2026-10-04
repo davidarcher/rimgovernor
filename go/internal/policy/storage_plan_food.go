@@ -4,7 +4,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 
 // The food stockpile (#1777): the colony's food storage zone, a 3x3 beside
 // the kitchen, on roofed floor when any is free and outdoors before the
-// first roof stands. It replaces the food-storage goal method and the
+// first roof stands. It replaces the food-storage method and the
 // opening food zone.
 //
 // The census counts a food zone as the colony's food storage only with nine

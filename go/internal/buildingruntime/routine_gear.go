@@ -410,7 +410,7 @@ func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineGearResult{}, fmt.Errorf("%w: stepOne: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -457,7 +457,7 @@ func (r *RoutineGearPlanner) commitPolicyPlan(call, epoch context.Context, state
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineGearResult{}, fmt.Errorf("%w: commitPolicyPlan: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if *goal, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if *goal, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineGearResult{}, err
 	}
 	return RoutineGearResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

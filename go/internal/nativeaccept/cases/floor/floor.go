@@ -151,14 +151,14 @@ func run(ctx context.Context, s cases.Session) error {
 	// The flooring methods: each plan lays one policy floor on deficient
 	// interior cells only, never twice on a cell, until the measured census
 	// releases the room. Incidental cancellations renew the method.
-	var previous *domain.GoalMethod
+	var previous *domain.Method
 	var plans []string
 	laid := map[domain.Cell]string{}
 	definition := ""
 	released := false
 	for renewals := 0; !released && len(plans) < 8; {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-		goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainFlooring, previous)
+		goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainFlooring, previous)
 		methodCancel()
 		if err != nil {
 			return fmt.Errorf("flooring method: %w", err)

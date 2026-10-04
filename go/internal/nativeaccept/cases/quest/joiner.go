@@ -81,7 +81,7 @@ func joinerAnswers(ctx context.Context, st *store.Store) (map[domain.QuestID]joi
 			return nil, false, err
 		}
 		for epoch := uint64(0); epoch <= g.Standard.Episode; epoch++ {
-			methods, err := st.LoadGoalMethods(ctx, binding.Goal, epoch)
+			methods, err := st.LoadMethods(ctx, binding.Goal, epoch)
 			if err != nil && !errors.Is(err, store.ErrNotFound) {
 				return nil, false, err
 			}

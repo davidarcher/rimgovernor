@@ -142,7 +142,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// settle on the emptied census before a second method is needed; the
 	// vertical is proven by at least one designation the executor observed
 	// through to completion and the goal settling on the census.
-	var previous *domain.GoalMethod
+	var previous *domain.Method
 	var plans []string
 	cut, seen := map[string]bool{}, map[string]bool{}
 	var settled store.StandardState
@@ -388,9 +388,9 @@ func blightSettled(goal store.StandardState) bool {
 // binding and either a committed method on it other than previous (the
 // goal's live methods, then the epoch's bounded history) or the goal
 // settled: recovered and satisfied on the emptied census.
-func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.GoalMethod) (domain.ConcernID, domain.GoalMethod, store.StandardState, bool, error) {
+func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.ServiceProcess, previous *domain.Method) (domain.ConcernID, domain.Method, store.StandardState, bool, error) {
 	var goal store.StandardState
-	var found domain.GoalMethod
+	var found domain.Method
 	settled := false
 	err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRounds(ctx)
@@ -406,7 +406,7 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 			}
 			methods := goal.Methods
 			if len(methods) == 0 {
-				if methods, err = s.LoadGoalMethods(ctx, binding.Goal, goal.Standard.Episode); err != nil {
+				if methods, err = s.LoadMethods(ctx, binding.Goal, goal.Standard.Episode); err != nil {
 					return "", false, err
 				}
 			}
@@ -425,7 +425,7 @@ func waitBlightMethodOrSettled(ctx context.Context, s *store.Store, service *na.
 		return na.Signature("unbound", review.Revision), false, nil
 	})
 	if err != nil {
-		return "", domain.GoalMethod{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
+		return "", domain.Method{}, goal, false, fmt.Errorf("RemoveBlight neither admitted a new method nor settled (need=%s status=%s): %w", goal.Standard.Need, goal.Standard.Status, err)
 	}
 	return goal.Standard.ID, found, goal, settled, nil
 }

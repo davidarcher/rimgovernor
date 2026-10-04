@@ -112,7 +112,7 @@ func (r *RoutineIdeoRolesPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineIdeoRolesResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 		}
 		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-		if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("ideology: %s takes role %s (%s)", choice.Pawn, choice.Def, choice.Role), plan); err != nil {
+		if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("ideology: %s takes role %s (%s)", choice.Pawn, choice.Def, choice.Role), plan); err != nil {
 			return RoutineIdeoRolesResult{}, err
 		}
 		return RoutineIdeoRolesResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

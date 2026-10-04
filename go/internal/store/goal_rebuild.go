@@ -49,7 +49,7 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 		return err
 	}
 	if orphans != nil {
-		plans, err := s.goalMethodPlans(ctx)
+		plans, err := s.methodPlans(ctx)
 		if err != nil {
 			return err
 		}
@@ -103,8 +103,8 @@ func (s *Store) RebuildGoals(ctx context.Context, saved map[string]string, orpha
 	return nil
 }
 
-// goalMethodPlans loads every plan a goal method row binds.
-func (s *Store) goalMethodPlans(ctx context.Context) ([]PlanState, error) {
+// methodPlans loads every plan a method row binds.
+func (s *Store) methodPlans(ctx context.Context) ([]PlanState, error) {
 	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err

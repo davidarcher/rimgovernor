@@ -87,7 +87,7 @@ func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPla
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.CommitGoalMethod(ctx, goal.ID, g.Revision, "owner-Wall", spec); err != nil {
+		if _, err = db.CommitMethod(ctx, goal.ID, g.Revision, "owner-Wall", spec); err != nil {
 			t.Fatal(err)
 		}
 		scope := current

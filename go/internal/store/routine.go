@@ -554,7 +554,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
 			if g.Standard.Status != domain.StandardVoided {
-				if err = cancelGoalMethods(ctx, tx, g); err != nil {
+				if err = cancelMethods(ctx, tx, g); err != nil {
 					return RoundsResult{}, err
 				}
 				next := g.Standard
@@ -578,7 +578,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 		}
 		if changed || (request.Enabled && !assessed[binding.Need]) {
 			if p.Project.Status != domain.ProjectVoided {
-				if err = cancelGoalMethods(ctx, tx, p); err != nil {
+				if err = cancelMethods(ctx, tx, p); err != nil {
 					return RoundsResult{}, err
 				}
 				next := p.Project
@@ -784,7 +784,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoundsRequest, set
 				g = StandardState{Standard: goal}
 			}
 			if n.Need == domain.NeedRecovered {
-				if err = cancelUndispatchedGoalMethods(ctx, tx, g); err != nil {
+				if err = cancelUndispatchedMethods(ctx, tx, g); err != nil {
 					return RoundsResult{}, err
 				}
 			}
@@ -895,7 +895,7 @@ func reviewProject(ctx context.Context, tx *sql.Tx, old map[domain.ConcernID]Pro
 		p = ProjectState{Project: project}
 	}
 	if n.Need == domain.NeedRecovered {
-		if err := cancelUndispatchedGoalMethods(ctx, tx, p); err != nil {
+		if err := cancelUndispatchedMethods(ctx, tx, p); err != nil {
 			return ProjectState{}, err
 		}
 	}

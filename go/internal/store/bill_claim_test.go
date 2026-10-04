@@ -172,7 +172,7 @@ func TestBillMethodAcceptsResourceTargetGoal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "resource-club", plan); err != nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "resource-club", plan); err != nil {
 		t.Fatal(err)
 	}
 }

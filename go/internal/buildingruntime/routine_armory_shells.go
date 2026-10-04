@@ -118,7 +118,7 @@ func (r *RoutineArmoryPlanner) stockShells(call, epoch context.Context, state Co
 		return RoutineArmoryResult{}, fmt.Errorf("%w: stockShells: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
 	method := domain.MethodID(fmt.Sprintf("armory-shell-%s-%s", choice.Recipe, id))
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineArmoryResult{}, err
 	}
 	return RoutineArmoryResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil

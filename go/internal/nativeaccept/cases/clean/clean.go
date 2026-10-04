@@ -283,7 +283,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 	// rather than after it. Poll the journal until the first method.
 	methodCtx, methodCancel := context.WithTimeout(ctx, 12*time.Minute)
 	defer methodCancel()
-	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainCleanFacilities, nil)
+	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainCleanFacilities, nil)
 	if err != nil {
 		return fmt.Errorf("first clean method: %w", err)
 	}
@@ -357,7 +357,7 @@ func runFilthy(ctx context.Context, journal *store.Store, service *na.ServicePro
 			return fmt.Errorf("kitchen latch never released after %d clean orders", orders)
 		}
 		nextCtx, nextCancel := context.WithTimeout(ctx, 5*time.Minute)
-		_, method, err = na.WaitGoalMethod(nextCtx, journal, policy.MaintainCleanFacilities, &method)
+		_, method, err = na.WaitMethod(nextCtx, journal, policy.MaintainCleanFacilities, &method)
 		nextCancel()
 		if err != nil {
 			return fmt.Errorf("next clean method after %d orders: %w", orders, err)

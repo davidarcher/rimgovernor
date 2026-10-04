@@ -156,13 +156,13 @@ func run(ctx context.Context, s cases.Session) error {
 	// The routes method: one door of the policy's material on a breach wall
 	// of the room, never inside it. Incidental cancellations renew the
 	// method; the measured census releases the facility once reachable.
-	var previous *domain.GoalMethod
+	var previous *domain.Method
 	var plans []string
 	var door domain.Cell
 	released := false
 	for renewals := 0; !released && len(plans) < 4; {
 		methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-		goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainRoutes, previous)
+		goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainRoutes, previous)
 		methodCancel()
 		if err != nil {
 			return fmt.Errorf("routes method: %w", err)

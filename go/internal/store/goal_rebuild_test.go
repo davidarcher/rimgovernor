@@ -17,7 +17,7 @@ func TestRebuildGoalsHandsOldPlansToOrphanPass(t *testing.T) {
 	ctx := context.Background()
 	s, _, g := goalFixture(t)
 	id := domain.MintPlanID()
-	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, id, domain.ActionID(id+"-0")))
+	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "shell", plan(t, id, domain.ActionID(id+"-0")))
 	if err != nil {
 		t.Fatal(err)
 	}

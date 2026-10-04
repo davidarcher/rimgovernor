@@ -105,9 +105,9 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 	return planner, db, n
 }
 
-// shellMethod is the goal method the ring was admitted under: the one that
+// shellMethod is the method the ring was admitted under: the one that
 // is not a bunk rung, or the last bound when only bunks are.
-func shellMethod(goal store.StandardState) domain.GoalMethod {
+func shellMethod(goal store.StandardState) domain.Method {
 	for _, m := range goal.Methods {
 		if m.Method != shelterSpotsMethod && m.Method != shelterBedsMethod {
 			return m
@@ -1091,7 +1091,7 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	if err != nil || second.Verdict != BuildingReasonAdmitted {
 		t.Fatal("a settled shell with a gap must be repaired:", second, err)
 	}
-	var repair *domain.GoalMethod
+	var repair *domain.Method
 	for _, m := range second.Decision.Goal.Methods {
 		if m.Method == "starter-shell-repair-1" {
 			m := m

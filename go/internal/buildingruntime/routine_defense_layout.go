@@ -440,7 +440,7 @@ func defenseRearmPrefix(turret string) string { return "defense-rearm-" + turret
 
 // defenseRearmAttempts counts the epoch's rearm methods for the turret
 // ordered within the window before tick.
-func defenseRearmAttempts(history []domain.GoalMethod, turret string, tick domain.Tick) int {
+func defenseRearmAttempts(history []domain.Method, turret string, tick domain.Tick) int {
 	prefix := defenseRearmPrefix(turret)
 	count := 0
 	for _, m := range history {

@@ -97,7 +97,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutinePermitsResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("permits: %s takes %s with %s", intent.Holder, intent.Permit, intent.Faction), plan); err != nil {
+	if _, err = p.journal.CommitMethodReason(call, goal.Standard.ID, goal.Revision, method, fmt.Sprintf("permits: %s takes %s with %s", intent.Holder, intent.Permit, intent.Faction), plan); err != nil {
 		return RoutinePermitsResult{}, err
 	}
 	return RoutinePermitsResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
@@ -107,7 +107,7 @@ func (r *RoutinePermitsPlanner) step(call, epoch context.Context, arbiter *stepA
 // method key that names it: keyed by holder, permit and attempt count, like
 // the other one-write planners, so a retry after an interrupted try
 // re-selects the current best. exhausted reports the attempt limit spent.
-func permitMethod(intent policy.PermitIntent, history []domain.GoalMethod, epoch uint64) (method domain.MethodID, plan domain.PlanSpec, exhausted bool, err error) {
+func permitMethod(intent policy.PermitIntent, history []domain.Method, epoch uint64) (method domain.MethodID, plan domain.PlanSpec, exhausted bool, err error) {
 	prefix := fmt.Sprintf("permit-%s-%s-", intent.Holder, intent.Permit)
 	attempt := medicalAttemptCount(history, epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {

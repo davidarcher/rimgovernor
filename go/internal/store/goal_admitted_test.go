@@ -21,7 +21,7 @@ func TestLoadGoalAdmittedCountsRetiredMethods(t *testing.T) {
 	if g.Admitted != 0 || len(g.Methods) != 0 {
 		t.Fatalf("fresh goal: admitted=%d methods=%d", g.Admitted, len(g.Methods))
 	}
-	g, err := s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog"))
+	g, err := s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-1", acquisitionPlan(t, "acquire-plan-1", "WoodLog"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestLoadGoalAdmittedCountsRetiredMethods(t *testing.T) {
 	if len(g.Methods) != 0 || g.Admitted != 1 {
 		t.Fatalf("after retirement: admitted=%d methods=%v", g.Admitted, g.Methods)
 	}
-	if _, err = s.CommitGoalMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", acquisitionPlan(t, "acquire-plan-2", "WoodLog")); err != nil {
+	if _, err = s.CommitMethod(ctx, g.Standard.ID, g.Revision, "acquire-2", acquisitionPlan(t, "acquire-plan-2", "WoodLog")); err != nil {
 		t.Fatal(err)
 	}
 	if g, err = s.LoadStandard(ctx, g.Standard.ID); err != nil {

@@ -23,7 +23,7 @@ type routinePlan struct {
 // routinePlans maps every non-retired plan of the current world to its
 // goal: routine plans to their bound need, player submissions to a
 // per-plan project id. Plans of another world, and plans with neither a
-// goal method nor a submission, are skipped.
+// method nor a submission, are skipped.
 func routinePlans(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, bindings []RoutineGoal) ([]routinePlan, error) {
 	plans, err := loadPlans(ctx, tx, 256)
 	if err != nil {

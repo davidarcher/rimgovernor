@@ -45,7 +45,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 	if len(state.Methods) != 1 || state.Methods[0].Plan != id || state.Admitted != 1 || len(state.History) != 1 || state.Revision != 2 {
 		t.Fatalf("committed %+v", state)
 	}
-	if m, ok, err := s.PlanGoalMethod(ctx, id); err != nil || !ok || m.Project != state.Project.ID || m.Goal != policy.EnsureCooking || m.Reason != "no cooking bill" {
+	if m, ok, err := s.PlanMethod(ctx, id); err != nil || !ok || m.Project != state.Project.ID || m.Concern != policy.EnsureCooking || m.Reason != "no cooking bill" {
 		t.Fatal("plan method", m, err)
 	}
 	// The same method twice, or a method over open work, is refused.
@@ -76,7 +76,7 @@ func TestProjectMethodRoundTripBlobAndRebuild(t *testing.T) {
 		t.Fatal(err)
 	}
 	gid := domain.MintPlanID()
-	if _, err = s.CommitGoalMethod(ctx, gs.Standard.ID, gs.Revision, "shell", plan(t, gid, domain.ActionID(gid+"-0"))); err != nil {
+	if _, err = s.CommitMethod(ctx, gs.Standard.ID, gs.Revision, "shell", plan(t, gid, domain.ActionID(gid+"-0"))); err != nil {
 		t.Fatal(err)
 	}
 	if blobs, err = s.GovernorStateBlobs(ctx); err != nil {

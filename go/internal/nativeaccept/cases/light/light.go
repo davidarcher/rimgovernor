@@ -230,7 +230,7 @@ type admission struct {
 	// previous, when set, is the plan of a lamp already admitted on the
 	// same journal: the repair wait must see a newer method. keys prefixes
 	// the report keys ("" on the first pass, "repair_" on the second).
-	previous *domain.GoalMethod
+	previous *domain.Method
 	keys     string
 }
 
@@ -239,7 +239,7 @@ type admission struct {
 type admitted struct {
 	cell       domain.Cell
 	definition string
-	method     domain.GoalMethod
+	method     domain.Method
 	// released is the review revision that let go of the latch.
 	released uint64
 }
@@ -252,7 +252,7 @@ func admitAndRelease(ctx context.Context, a admission) (admitted, error) {
 	journal, service, report := a.journal, a.service, a.report
 	key := func(name string) string { return a.keys + name }
 	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainLighting, a.previous)
+	goalID, method, err := na.WaitMethod(methodCtx, journal, policy.MaintainLighting, a.previous)
 	methodCancel()
 	if err != nil {
 		return admitted{}, fmt.Errorf("lighting method: %w", err)
@@ -294,7 +294,7 @@ func admitAndRelease(ctx context.Context, a admission) (admitted, error) {
 			break
 		}
 		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
-		_, method, err = na.WaitGoalMethod(renewCtx, journal, policy.MaintainLighting, &method)
+		_, method, err = na.WaitMethod(renewCtx, journal, policy.MaintainLighting, &method)
 		renewCancel()
 		if err != nil {
 			return admitted{}, fmt.Errorf("renewed lighting method after incidental cancellation #%d: %w", renewals+1, err)
@@ -465,12 +465,12 @@ func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess
 
 // lightingMethods lists every method ever committed on a MaintainLighting
 // goal, across Episodes, from the journal.
-func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, error) {
+func lightingMethods(ctx context.Context, s *store.Store) ([]domain.Method, error) {
 	review, err := s.LoadRounds(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var out []domain.GoalMethod
+	var out []domain.Method
 	for _, binding := range review.Goals {
 		if binding.Need != policy.MaintainLighting {
 			continue

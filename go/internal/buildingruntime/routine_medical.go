@@ -134,7 +134,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoutineMedicalResult{}, err
 		}
-		if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+		if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 			continue
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return RoutineMedicalResult{}, err
@@ -145,7 +145,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		if p.session.State() != state {
 			return RoutineMedicalResult{}, fmt.Errorf("%w: step: p.session.State() != state", ErrControl)
 		}
-		if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+		if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 			return RoutineMedicalResult{}, err
 		}
 		return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: plan.ID()}, nil
@@ -234,7 +234,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, choice.ID, plan); err != nil {
 		return RoutineMedicalResult{}, err
 	}
 	return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
@@ -297,7 +297,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 		fmt.Fprintf(hash, "%s/%s/%s/%d/%d\n", row.ID, row.Resource, row.Token, row.Cell.X, row.Cell.Z)
 	}
 	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
+	if _, err = p.journal.LoadMethod(call, goal.Standard.ID, goal.Standard.Episode, method); err == nil {
 		return RoutineMedicalResult{Verdict: waitFor(WaitMethodUsed, "acquire_method")}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineMedicalResult{}, err
@@ -326,7 +326,7 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
 		return RoutineMedicalResult{}, fmt.Errorf("%w: harvestMedicine: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge", ErrControl)
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
+	if _, err = p.journal.CommitMethod(call, goal.Standard.ID, goal.Revision, method, plan); err != nil {
 		return RoutineMedicalResult{}, err
 	}
 	return RoutineMedicalResult{Verdict: BuildingReasonAdmitted, Plan: id}, nil
