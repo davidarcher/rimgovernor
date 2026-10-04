@@ -243,7 +243,10 @@ type RoutineFacts struct {
 	Recipes RecipeFacts `json:",omitzero"`
 	// VetRoom is the layout's vet room; unread (the zero value) until
 	// the layout exposes it, which keeps sterilize off.
-	VetRoom     VetRoom
+	VetRoom VetRoom
+	// BarnArea is the id of the bot-owned Barn allowed area (#1869), "" until
+	// a standing barn has created it.
+	BarnArea    domain.Fact[string]
 	FoodPlan    domain.Fact[FoodPlan]
 	FoodReserve domain.Fact[FoodReserveReview]
 	// BabyFeeding is the babies' food review (#1681); unknown without
@@ -1492,6 +1495,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		herdRecovered = domain.Known(false)
 	}
 	if SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.VetRoom).Method != "" {
+		herdRecovered = domain.Known(false)
+	}
+	shelter, err := f.AnimalShelterChoice()
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	if shelter.Method != "" {
 		herdRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)

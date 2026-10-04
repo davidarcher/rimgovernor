@@ -231,8 +231,27 @@ into the vet room, `sterilize`, then `allowed_area` cleared once sterilized
 animal with a bill queued is waited on. Clearing the area does not restore an
 earlier restriction.
 
-Selection order each cycle is train, then tame, then surplus removal, then
-master assignment, then sterilize; one write
+**Exposure shelter (#1869).** A pen animal (`requires_pen`, supports allowed
+areas, not marked for release or slaughter) is sheltered while its race is in
+danger outdoors: `RoutineFacts.AnimalShelterChoice` runs `AnimalExposures`
+over the pen animals' races (an active `ColdSnap`, `HeatWave` or
+`ToxicFallout` condition, or the observed outdoor temperature outside the
+race's comfortable range, `ComfyTemperatureMin`/`Max` read from the def
+mirror into `AnimalRace.Comfort`; no proto change, native read or def-name
+list). An animal with no area restriction is let into the bot-owned `Barn`
+allowed area (`BarnAreaKey`, the interior of a standing planned barn,
+planned by MaintainShelter beside `VetRoom`; `""` until a barn stands, which
+chooses nothing). Once its race is out of danger an animal in the `Barn` area
+is released with `allowed_area` cleared: the pen is re-derived from the
+animal's current area each cycle, no prior area is stored. An animal in any
+other area (the vet room) is left to the flow that put it there. A race with
+no comfort range, a race outside the catalog, or an unread condition census
+or temperature fails the review with `ErrAnimalExposure`. The check also keeps
+MaintainHerd in deficit while a write is owed, and it comes before every
+other husbandry choice since the animals die of the exposure.
+
+Selection order each cycle is exposure shelter, then train, then tame, then
+surplus removal, then master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
 Auto safety facts: a roofed refuge during roof hazards, otherwise unrestricted
 food/work access. It skips pen-managed animals and unknown area/safety facts.

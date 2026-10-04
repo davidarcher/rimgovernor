@@ -559,7 +559,10 @@ is optional until researched, so the beds never wait on it; the power planner
 connects it as any unpowered consumer, and the temperature planner counts a
 room holding a powered heater as already heated (`TemperatureCooling.Conditioned`).
 A barn cooler is not planned: the temperature planner places coolers only for
-sleeping rooms. Each standing vet bed is then flagged medical (a
+sleeping rooms. The barn's interior is the bot-owned `Barn` allowed area
+(`BarnAreaKey`, planned by MaintainShelter once the barn stands shelled) that
+pen animals are moved into while exposure endangers their race, and released
+from afterwards (#1869, [husbandry contracts](husbandry-contracts.md)). Each standing vet bed is then flagged medical (a
 `BedUse` patch, once per bed per goal epoch, before the next bed is placed; the
 census's `Medical` fact says which are flagged). A bonded animal's master is its
 first bond partner by id on the roster (`policy.CompanionMaster`); each master

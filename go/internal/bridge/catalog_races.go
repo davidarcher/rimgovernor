@@ -94,6 +94,11 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 			*into = domain.Known(float64(value))
 		}
 	}
+	comfort, err := catalog.animalComfort(name)
+	if err != nil {
+		return race, err
+	}
+	race.Comfort = comfort
 	skill, shown, err := catalog.ShownStatValue(name, "", StatMinimumHandlingSkill)
 	if err != nil {
 		return race, err

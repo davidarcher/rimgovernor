@@ -99,7 +99,15 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		handlers = domain.Known(policy.Profiles(pawns))
 	}
 	herd := read.Projection.Facts.HerdPolicy()
-	choice := policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
+	// Sheltering a race in danger outdoors comes first: its animals die of
+	// the exposure while a training or surplus write waits a cycle.
+	choice, err := read.Projection.Facts.AnimalShelterChoice()
+	if err != nil {
+		return RoutineHusbandryResult{}, err
+	}
+	if choice.Reason == policy.HusbandryNoDeficit {
+		choice = policy.ReconcileHerdRemoval(animals, herd, read.Projection.Facts.FoodPlan)
+	}
 	if choice.Reason == policy.HusbandryNoDeficit {
 		choice = policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), herd, handlers)
 	}

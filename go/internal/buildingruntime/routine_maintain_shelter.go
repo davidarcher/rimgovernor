@@ -68,9 +68,9 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	if !known {
 		return domain.Unknown[bool](), nil
 	}
-	var killbox, vet, isolation []domain.Cell
+	var killbox, vet, isolation, barn []domain.Cell
 	if plan, ok := projection.LayoutPlan.Value(); ok {
-		killbox, vet, isolation = plan.KillboxCells(), plan.VetRoomCells(), plan.IsolationRoomCells()
+		killbox, vet, isolation, barn = plan.KillboxCells(), plan.VetRoomCells(), plan.IsolationRoomCells(), plan.BarnCells(rooms)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -84,6 +84,13 @@ func (m *safeAreaMemory) review(world string, projection observation.ColonyProje
 	}
 	if len(vet) > 0 {
 		if err := m.plan(policy.VetRoomAreaKey, vet); err != nil {
+			return domain.Unknown[bool](), err
+		}
+	}
+	// The barn's interior is the area pen animals are sheltered in while
+	// their race is in danger outdoors (AnimalShelterChoice, #1869).
+	if len(barn) > 0 {
+		if err := m.plan(policy.BarnAreaKey, barn); err != nil {
 			return domain.Unknown[bool](), err
 		}
 	}

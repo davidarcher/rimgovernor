@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -10,21 +11,27 @@ const (
 	StatComfyTemperatureMax = "ComfyTemperatureMax"
 )
 
-// AnimalComfort is race's comfortable outdoor temperature range from the stat
-// table (the game's GetStatValueAbstract of ComfyTemperatureMin/Max). A race
-// with no row, a stat the game does not show for it, or an inverted range is
-// an error: no default range is assumed.
-func (catalog *DefinitionCatalog) AnimalComfort(race string) (policy.AnimalComfort, error) {
-	lo, err := catalog.StatValue(race, "", StatComfyTemperatureMin)
+// animalComfort is the race's comfortable outdoor temperature range from the
+// stat table (the game's GetStatValueAbstract of ComfyTemperatureMin/Max):
+// unknown when the game shows neither stat for it, never a default (the
+// exposure view then fails for that race, #1869). A single shown stat or an
+// inverted range is a contract breach.
+func (catalog *DefinitionCatalog) animalComfort(race string) (domain.Fact[policy.AnimalComfort], error) {
+	lo, loShown, err := catalog.ShownStatValue(race, "", StatComfyTemperatureMin)
 	if err != nil {
-		return policy.AnimalComfort{}, err
+		return domain.Unknown[policy.AnimalComfort](), err
 	}
-	hi, err := catalog.StatValue(race, "", StatComfyTemperatureMax)
+	hi, hiShown, err := catalog.ShownStatValue(race, "", StatComfyTemperatureMax)
 	if err != nil {
-		return policy.AnimalComfort{}, err
+		return domain.Unknown[policy.AnimalComfort](), err
 	}
-	if lo > hi {
-		return policy.AnimalComfort{}, contract("race %s comfort range is inverted (%v > %v)", race, lo, hi)
+	switch {
+	case !loShown && !hiShown:
+		return domain.Unknown[policy.AnimalComfort](), nil
+	case !loShown || !hiShown:
+		return domain.Unknown[policy.AnimalComfort](), contract("race %s shows only one of its comfort range stats", race)
+	case lo > hi:
+		return domain.Unknown[policy.AnimalComfort](), contract("race %s comfort range is inverted (%v > %v)", race, lo, hi)
 	}
-	return policy.AnimalComfort{Min: float64(lo), Max: float64(hi)}, nil
+	return domain.Known(policy.AnimalComfort{Min: float64(lo), Max: float64(hi)}), nil
 }

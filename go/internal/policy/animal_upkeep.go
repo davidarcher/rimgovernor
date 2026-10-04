@@ -326,6 +326,9 @@ type AnimalRace struct {
 	// Edible are the foods the race can ever eat (RaceProperties.CanEverEat),
 	// sorted.
 	Edible []string
+	// Comfort is the comfortable outdoor temperature range (#1869); unknown
+	// when the game shows neither comfort stat for the race.
+	Comfort domain.Fact[AnimalComfort]
 }
 
 // RaceFeedItem is one producible feed item and its nutrition per item.
