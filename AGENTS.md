@@ -152,6 +152,9 @@ Each of these fails the same way in every session; none is a judgment call.
 - Never `sleep N && <check>` to wait on a run; the harness blocks it. Launch
   long commands with `run_in_background: true` and wait for the notification,
   or use `Monitor` with an until-loop.
+- Never start background timers, sleeps or poll loops ("wait for test output",
+  "pause", "timer") to wait on an agent or a background command; both
+  re-invoke the session when they finish. Report status and end the turn.
 - Write files with the Write tool, not `cat <<'EOF'` in Bash: the Bash tool
   re-escapes heredoc bodies, so any apostrophe or backslash in the content
   breaks the whole command (`unexpected EOF while looking for matching`).
