@@ -1,5 +1,5 @@
 // Package review holds the colony review run: the governor plays a fresh
-// random map for an in-game week while the game records hourly screenshots
+// pinned-seed map for an in-game season while the game records hourly screenshots
 // and colony facts for a person (or a model) to read (cmd/colonyreview
 // renders the report). It gates nothing.
 package review
@@ -23,31 +23,41 @@ import (
 // RecorderTool is the native recorder op (scripts/fixtures/ColonyReviewFixture.cs).
 const RecorderTool = "test/colony_review"
 
-// SeedEnv pins the world seed; unset, the seed is the UTC date, so each
-// nightly run plays a different map and a rerun the same day repeats it.
+// SeedEnv overrides the world seed; unset, the run plays PinnedSeed.
 const SeedEnv = "RIMGOVERNOR_REVIEW_SEED"
 
-// DaysEnv overrides the in-game length in days (default 7).
+// DaysEnv overrides the in-game length in days (default SeasonDays).
 const DaysEnv = "RIMGOVERNOR_REVIEW_DAYS"
+
+// PinnedSeed is the nightly's fixed world seed (#1935): one run per seed, so
+// a night's result compares with the last. It picks the biome (biomes).
+const PinnedSeed = "review-pinned-1"
+
+// SeasonDays is one in-game quadrum, the default run length.
+const SeasonDays = 15
+
+// minutesPerDay is the wall-clock allowance per in-game day on a hosted
+// runner, for the case's watch and budget.
+const minutesPerDay = 12
 
 // biomes are the starts a run picks from by seed: survivable without a
 // specialised opening, different enough to show layout and food problems.
 var biomes = []string{"TemperateForest", "AridShrubland", "BorealForest", "TropicalRainforest"}
 
-// Seed is SeedEnv or today's UTC date.
+// Seed is SeedEnv or PinnedSeed.
 func Seed() string {
 	if s := os.Getenv(SeedEnv); s != "" {
 		return s
 	}
-	return "review-" + time.Now().UTC().Format("2006-01-02")
+	return PinnedSeed
 }
 
-// Days is DaysEnv or 7.
+// Days is DaysEnv or SeasonDays.
 func Days() uint64 {
 	if n, err := strconv.ParseUint(os.Getenv(DaysEnv), 10, 64); err == nil && n > 0 {
 		return n
 	}
-	return 7
+	return SeasonDays
 }
 
 // Variant is the run's start: Crashlanded's three colonists on a 250 map in
@@ -67,10 +77,10 @@ func init() {
 	days := Days()
 	cases.Register(cases.Case{
 		Name: "review/colony-week",
-		Scope: "Review run, not a gate: the governor plays a fresh " + v.Scenario + " map (seed " + seed + ", " + v.Biome +
+		Scope: "Review run, not a gate: the governor plays a " + v.Scenario + " map (seed " + seed + ", " + v.Biome +
 			") for " + strconv.FormatUint(days, 10) + " in-game days under the storyteller while " + RecorderTool +
 			" records an hourly colony screenshot into <output>/review beside the run timeline (colony census and goal states each in-game hour) for cmd/colonyreview. A " +
-			"snapshot test cannot cover it: the point is what the colony looks like to a player after a week.",
+			"snapshot test cannot cover it: the point is what the colony looks like to a player after a season.",
 		Start:       cases.Scenario{Spec: v.Start()},
 		Keep:        []string{string(na.LiveNeeds)},
 		Quiet:       na.Loud,
@@ -80,8 +90,8 @@ func init() {
 		Graphics: true,
 		NoKeep:   true,
 		Serve:    &cases.ServeSpec{NativeTimeout: 15 * time.Second, StepStall: 90 * time.Second, Prefix: "colony-review"},
-		Reason:   "a week of whole-colony play with the storyteller on is the thing under review",
-		Budget:   100 * time.Minute,
+		Reason:   "a season of whole-colony play with the storyteller on is the thing under review",
+		Budget:   time.Duration(days*minutesPerDay+10) * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			dir := filepath.Join(s.Config().Output, "review")
 			s.Report()["review_dir"] = dir
@@ -90,7 +100,7 @@ func init() {
 				"colonists": v.Count, "days": days}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
-					Watch: 90 * time.Minute, Window: days * 60000, Poll: 30 * time.Second, PollTicks: 2500,
+					Watch: time.Duration(days*minutesPerDay) * time.Minute, Window: days * 60000, Poll: 30 * time.Second, PollTicks: 2500,
 					Goal: policy.EnsureFoodSupply, Extra: sustained.ColonyGoals,
 					// A review records whatever happens; nothing ends it early
 					// but a stalled clock.

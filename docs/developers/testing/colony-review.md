@@ -1,14 +1,19 @@
 # Colony review
 
-A nightly review run, not a gate: the governor plays a fresh random map for
-an in-game week and the run publishes an hour-by-hour report to GitHub
-Pages for a person (or a model) to skim for bugs.
+A nightly review run, not a gate: the governor plays a pinned-seed map for
+an in-game season (a quadrum, 15 days) and the run publishes an hour-by-hour
+report to GitHub Pages for a person (or a model) to skim for bugs.
 
-- **Case** `review/colony-week` (`go/internal/nativeaccept/cases/review`):
-  Crashlanded, three colonists, a 250 map, storyteller on. The seed is
-  `review-<UTC date>` (`RIMGOVERNOR_REVIEW_SEED` pins it) and picks the
-  biome; `RIMGOVERNOR_REVIEW_DAYS` changes the length (default 7). The case
-  is off every tier.
+- **Case** `review/colony-week` (`go/internal/nativeaccept/cases/review`;
+  the name predates the season length): Crashlanded, three colonists, a 250
+  map, storyteller on. The seed is `review.PinnedSeed` (`review-pinned-1`)
+  every night, one run per seed, so nights compare; it picks the biome. To
+  add a seed, add it to that constant's documentation and dispatch with the
+  `seed` input; `RIMGOVERNOR_REVIEW_SEED` overrides it and
+  `RIMGOVERNOR_REVIEW_DAYS` changes the length (default 15). The case's
+  watch is 12 wall minutes per in-game day (180 min for a season) and its
+  budget that plus 10; the workflow job allows 360. The case is off every
+  tier.
 - **Recorder** `test/colony_review` (`scripts/fixtures/ColonyReviewFixture.cs`):
   every in-game hour it renders the colony from above to
   `<case output>/review/colony-<tick>.jpg`, and once a day the whole map to
@@ -33,7 +38,7 @@ Pages for a person (or a model) to skim for bugs.
   `stockpiles` block (see [storage](../architecture/storage.md)). They gate
   nothing.
 - **Workflow** `.github/workflows/colony-review.yml`: nightly and on
-  demand (`seed`, `days` inputs), on the remote-acceptance runner setup.
+  demand (`seed`, `days` inputs; defaults the pinned seed and 15 days), on the remote-acceptance runner setup.
   The report is rendered from whatever was recorded, uploaded as the
   `colony-review-report` artifact (90 days) and deployed with the newest
   14 earlier reports to Pages. Pages must use "GitHub Actions" as its

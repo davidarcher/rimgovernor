@@ -1,6 +1,6 @@
 name: Colony review
 
-# Plays review/colony-week (a fresh random map for an in-game week with the
+# Plays review/colony-week (a pinned-seed map for an in-game season with the
 # governor in charge, recording an hourly screenshot and colony facts) on
 # the remote-acceptance runner setup, renders the recording with
 # cmd/colonyreview and publishes the newest reports to GitHub Pages. A
@@ -16,12 +16,12 @@ on:
         default: main
         type: string
       seed:
-        description: World seed (empty picks review-<UTC date>)
+        description: World seed (empty plays the pinned nightly seed)
         required: false
         type: string
       days:
-        description: In-game days to play
-        default: '7'
+        description: In-game days to play (a quadrum is 15)
+        default: '15'
         type: string
   schedule:
     - cron: '17 4 * * *'
@@ -107,7 +107,7 @@ jobs:
       - name: Audit process exits so a vanished game leaves its exit status
         continue-on-error: true
         run: auditpol /set /subcategory:"Process Termination" /success:enable
-      - name: Bootstrap and play the review week
+      - name: Bootstrap and play the review season
         id: play
         continue-on-error: true
         env:
