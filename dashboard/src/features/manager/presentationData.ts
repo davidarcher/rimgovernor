@@ -1,15 +1,15 @@
 import {HTTPError} from '../http';
-export type PresentationWorld = {colonyId: string; mapId: number; loadToken: string};
-export type PresentationContext = {identity: PresentationWorld; tick: string; nativeGeneration: string | null};
+import type {World} from '../world';
+export type PresentationContext = {identity: World; tick: string; nativeGeneration: string | null};
 export type Listing = {totalCount: number | null; returnedCount: number | null; complete: boolean | null; truncated: boolean | null};
 type Cell = {x: number | null; z: number | null};
 export type Camera = {context: PresentationContext; mapPosition: Cell | null; rootSize: number | null; zoomRootSize: number | null; minimumRootSize: number | null; maximumRootSize: number | null; nativeZoomRange: string | null; zoomExtensionEnabled: boolean | null; viewRect: {minX: number | null; minZ: number | null; maxX: number | null; maxZ: number | null} | null};
-export type SelectedObject = {id: string | null; nativeKind: string | null; nativeType: string | null; label: string | null; defName: string | null; mapId: number | null; position: Cell | null; inspectLabel: string | null; inspectText: string | null};
+type SelectedObject = {id: string | null; nativeKind: string | null; nativeType: string | null; label: string | null; defName: string | null; mapId: number | null; position: Cell | null; inspectLabel: string | null; inspectText: string | null};
 export type Selection = {context: PresentationContext; fingerprint: string | null; selectedObjects: SelectedObject[]; listing: Listing | null; visibleGizmoCount: number | null};
-export type Named = {defName: string | null; label: string | null};
-export type DossierSkill = Named & {level: number | null; passion: string | null; disabled: boolean};
-export type DossierHediff = Named & {partLabel: string | null; severityLabel: string | null; visible: boolean; bad: boolean | null};
-export type DossierThought = {label: string | null; count: number | null; moodOffsetTotal: number | null};
+type Named = {defName: string | null; label: string | null};
+type DossierSkill = Named & {level: number | null; passion: string | null; disabled: boolean};
+type DossierHediff = Named & {partLabel: string | null; severityLabel: string | null; visible: boolean; bad: boolean | null};
+type DossierThought = {label: string | null; count: number | null; moodOffsetTotal: number | null};
 // The observation PawnState the roster attaches; ProtoJSON keys the dashboard
 // does not show are ignored rather than rejected.
 export type Dossier = {
@@ -56,7 +56,7 @@ function loose(v: unknown): Record<string, unknown> {if (!isObject(v)) throw Err
 function fraction(v: unknown): number {const n = finite(v); if (n < 0 || n > 1.5) throw Error('Invalid presentation fraction'); return n;}
 function named(v: unknown): Named {const n = loose(v); return {defName: optional(n.defName, text), label: optional(n.label, text)};}
 function gear(v: unknown): Named {const g = loose(v); return named(g.thing ?? {});}
-export function readDossier(value: unknown, pawnId: string | null): Dossier {
+function readDossier(value: unknown, pawnId: string | null): Dossier {
   const d = loose(value), pawn = loose(d.pawn ?? {});
   if (optional(pawn.id, id) !== pawnId) throw Error('Dossier belongs to another colonist');
   const needs = loose(d.needs ?? {}), health = loose(d.health ?? {}), equipment = loose(d.equipment ?? {}), biography = loose(d.biography ?? {}), social = loose(d.social ?? {}), job = loose(d.job ?? {});
@@ -77,7 +77,6 @@ export function readRoster(value: unknown): Roster {
   const colonists = array(s.colonists, 4096, value => {const v = object(value, ['pawnId', 'name', 'mapId', 'spawned', 'position', 'dossier']); const pawnId = optional(v.pawnId, id); return {pawnId, name: optional(v.name, text), mapId: optional(v.mapId, mapID), spawned: optional(v.spawned, bool), position: optional(v.position, cell), dossier: optional(v.dossier, d => readDossier(d, pawnId))};});
   unique(colonists.map(v => v.pawnId)); if (colonists.some(v => v.mapId !== null && v.mapId !== actual.identity.mapId)) throw Error('Roster belongs to another map'); return {context: actual, colonists, listing: optional(s.listing, v => listing(v, colonists.length))};
 }
-export function samePresentationWorld(a: PresentationWorld, b: PresentationWorld): boolean {return a.colonyId === b.colonyId && a.mapId === b.mapId && a.loadToken === b.loadToken;}
 export async function fetchPresentation<T>(kind: 'camera' | 'selection' | 'colonists', read: (value: unknown) => T, signal: AbortSignal): Promise<T> {
   const response = await fetch(`/api/presentation/${kind}`, {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
   if (!response.ok) {let detail = `Presentation unavailable (${response.status})`; try {const error = object(await response.json(), ['code', 'detail']); id(error.code); detail = text(error.detail);} catch { /* Keep a bounded local diagnostic when error evidence is malformed. */ } throw new HTTPError(response.status, detail);}

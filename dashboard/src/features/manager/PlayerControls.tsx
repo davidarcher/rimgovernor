@@ -1,7 +1,9 @@
 import {useEffect, useRef, useState} from 'react';
+import {pollIntervalMs, requestTimeoutMs} from '../http';
 import ClockReview from './ClockReview';
 import type {ObservationState} from './observationData';
-import {PlayerHTTPError, definiteRejection, pauseControl, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, resumeControl, sameWorld, submitBuilding, type ControlKind, type ControlRecord, type ControlReply, type ControlRequest, type Submission, type SubmissionRequest, type World} from './playerData';
+import {PlayerHTTPError, definiteRejection, pauseControl, readBuilding, readControlResult, readCurrentControl, readPlayerSession, readSubmissionResult, resumeControl, submitBuilding, type ControlKind, type ControlRecord, type ControlReply, type ControlRequest, type Submission, type SubmissionRequest} from './playerData';
+import {sameWorld, type World} from '../world';
 
 import {ChatDisabledError, submitChat, type ChatGuidance, type ChatRequest, type ChatReply} from './playerData';
 
@@ -47,11 +49,11 @@ export default function PlayerControls({observation, observationFresh}: {observa
     version.current++; setToken(null); setCurrentFresh(false);
     const bootstrap = async () => {
       try {
-        const next = await readPlayerSession(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
+        const next = await readPlayerSession(AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)]));
         if (stopped) return;
         setToken(next); setAvailable(next !== null); setRefreshError('');
       } catch (reason) {
-        if (!stopped) {setRefreshError(message(reason)); timer = setTimeout(() => void bootstrap(), 1500);}
+        if (!stopped) {setRefreshError(message(reason)); timer = setTimeout(() => void bootstrap(), pollIntervalMs);}
       }
     };
     void bootstrap(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
@@ -62,10 +64,10 @@ export default function PlayerControls({observation, observationFresh}: {observa
     const poll = async () => {
       const expected = version.current;
       try {
-        const next = await readCurrentControl(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]));
+        const next = await readCurrentControl(AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)]));
         if (!stopped && expected === version.current) {setCurrent(next); setCurrentFresh(next.error === null); setRefreshError(next.error?.detail ?? '');}
       } catch (reason) {if (!stopped && expected === version.current) {setCurrentFresh(false); setRefreshError(message(reason));}}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
+      finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
     };
     void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [token, worldKey]);

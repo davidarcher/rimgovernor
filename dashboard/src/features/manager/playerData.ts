@@ -1,12 +1,11 @@
 import {HTTPError} from '../http';
-export type World = {colonyId: string; mapId: number; loadToken: string};
+import type {Generation, World} from '../world';
 export type Building = {defName: string; stuff: string; x: number; z: number; rotation: 'north' | 'east' | 'south' | 'west'};
 export type SubmissionRequest = {requestId: string; expected: World; building: Building};
 export type Submission = SubmissionRequest & {planId: string; actionId: string; revision: string};
 export type ControlRequest = {requestId: string; expected: World};
-export type Generation = {colony: string; map: number; load: string; plan: string; revision: string; native: string};
-export type PlayerState = {enabled: boolean; observationKnown: boolean; generation: Generation | null};
-export type Failure = {code: string; detail: string};
+type PlayerState = {enabled: boolean; observationKnown: boolean; generation: Generation | null};
+type Failure = {code: string; detail: string};
 export type ControlKind = 'resume' | 'pause';
 export type ControlRecord = {requestId: string; kind: ControlKind; expected: World; phase: 'pending' | 'running' | 'paused' | 'refused' | 'uncertain'; nativeGeneration: string};
 export type ControlReply = {record: ControlRecord | null; state: PlayerState; error: Failure | null};
@@ -23,8 +22,7 @@ function integer(value: unknown): number {if (typeof value !== 'number' || !Numb
 function decimal(value: unknown): string {const result = text(value); if (!/^(0|[1-9][0-9]{0,19})$/.test(result) || BigInt(result) > 18446744073709551615n) throw Error('Invalid uint64 value'); return result;}
 function positive(value: unknown): string {const result = decimal(value); if (result === '0') throw Error('Expected positive revision'); return result;}
 function choice<T extends string>(value: unknown, values: readonly T[]): T {const result = values.find(item => item === value); if (result === undefined) throw Error('Unknown player response variant'); return result;}
-export function readWorld(value: unknown): World {const v = object(value, ['colonyId', 'mapId', 'loadToken']); return {colonyId: id(v.colonyId), mapId: integer(v.mapId), loadToken: id(v.loadToken)};}
-export function sameWorld(a: World, b: World): boolean {return a.colonyId === b.colonyId && a.mapId === b.mapId && a.loadToken === b.loadToken;}
+function readWorld(value: unknown): World {const v = object(value, ['colonyId', 'mapId', 'loadToken']); return {colonyId: id(v.colonyId), mapId: integer(v.mapId), loadToken: id(v.loadToken)};}
 export function readBuilding(value: unknown): Building {
   const v = object(value, ['defName', 'stuff', 'x', 'z', 'rotation']);
   return {defName: id(v.defName), stuff: v.stuff === '' ? '' : id(v.stuff), x: integer(v.x), z: integer(v.z), rotation: choice(v.rotation, ['north', 'east', 'south', 'west'])};
@@ -37,7 +35,7 @@ function readGeneration(value: unknown): Generation {
   const v = object(value, ['colony', 'map', 'load', 'plan', 'revision', 'native']);
   return {colony: id(v.colony), map: integer(v.map), load: id(v.load), plan: id(v.plan), revision: decimal(v.revision), native: decimal(v.native)};
 }
-export function readPlayerState(value: unknown): PlayerState {
+function readPlayerState(value: unknown): PlayerState {
   const v = object(value, ['enabled', 'observationKnown', 'generation']);
   const state = {enabled: bool(v.enabled), observationKnown: bool(v.observationKnown), generation: v.generation === null ? null : readGeneration(v.generation)};
   if (state.observationKnown !== (state.generation !== null) || state.enabled && (!state.generation || [state.generation.revision, state.generation.native].includes('0'))) throw Error('Invalid current permission');
@@ -97,7 +95,7 @@ export function pauseControl(token: string, body: ControlRequest, signal?: Abort
 export function readDraft(value: unknown): {pawnId: string} {const v = object(value, ['pawnId']); return {pawnId: id(v.pawnId)};}
 
 export type ChatRequest = {requestId: string; expected: World; message: string};
-export type ChatGoal = {goalId: string; source: string; status: string; need: string; priority: number; revision: string};
+type ChatGoal = {goalId: string; source: string; status: string; need: string; priority: number; revision: string};
 export type ChatGuidance =
   | {kind: 'activate_goal' | 'cancel_goal'; goal: ChatGoal}
   | {kind: 'set_population_decision'; populationDecision: {pawn: string; decision: string}};
@@ -114,7 +112,7 @@ function readChatGuidance(value: unknown): ChatGuidance {
     default: throw Error('Unknown chat guidance kind');
   }
 }
-export function readChatReply(value: unknown): ChatReply {
+function readChatReply(value: unknown): ChatReply {
   const v = object(value, ['requestId', 'expected', 'explanation', 'guidance']);
   return {requestId: id(v.requestId), expected: readWorld(v.expected), explanation: text(v.explanation), guidance: v.guidance === null ? null : readChatGuidance(v.guidance)};
 }

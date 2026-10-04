@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react';
-import {HTTPError} from '../http';
+import {HTTPError, pollIntervalMs, requestTimeoutMs} from '../http';
+import {sameWorld} from '../world';
 import type {ObservationState} from './observationData';
-import {samePresentationWorld} from './presentationData';
 import {fetchNotifications, type Notifications, type NoticeSection} from './notificationData';
 type Reading = {key: string; value: Notifications | null; stale: boolean; hidden: boolean; error: string};
 function Section({name, value}: {name: string; value: NoticeSection}) {
@@ -24,9 +24,9 @@ export default function NotificationPanel({observation, observationFresh}: {obse
   if (!enabled || !world) {setState(previous => ({...previous, stale: true})); return;}
   const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
   const poll = async () => {
-   try {const value = await fetchNotifications(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])); if (!samePresentationWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching notifications'); if (!stopped) setState({key, value, stale: false, hidden: false, error: ''});}
+   try {const value = await fetchNotifications(AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)])); if (!sameWorld(value.context.identity, world)) throw Error('Observed world changed; waiting for matching notifications'); if (!stopped) setState({key, value, stale: false, hidden: false, error: ''});}
    catch (error) {if (!stopped) setState(previous => ({key, value: previous.key === key ? previous.value : null, stale: true, hidden: error instanceof HTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Notifications unavailable'}));}
-   finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
+   finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
   };
   void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
  }, [key, enabled]);

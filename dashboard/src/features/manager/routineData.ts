@@ -1,10 +1,10 @@
 import {HTTPError} from '../http';
 // Read-only view of /api/routines: the composed routine runtime and the
 // development ranking its last review recorded. Nulls are unknown facts.
-export const developmentReasons = ['', 'cancelled', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold', 'workers_overcommitted'] as const;
+const developmentReasons = ['', 'cancelled', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled', 'stage_foothold', 'workers_overcommitted'] as const;
 export type DevelopmentReason = typeof developmentReasons[number];
-export type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
-export type LaborRow = {work: string; free: number};
+type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
+type LaborRow = {work: string; free: number};
 // mode 'auto' admits by distinct observed workers (capacity bounds planner
 // cost only); heldWorkers is labor startup work holds without a slot,
 // limiting the first reason an eligible goal waits.
@@ -13,21 +13,21 @@ export type Development = {tick: number; workers: number | null; labor: LaborRow
 // skills no assignment exercises and each pawn's typed profile as the
 // planner scored it. Pawn ids are the native pawn ids the colonist roster
 // carries, so the dossier joins on them.
-export type CoverageRow = {work: string; demand: number; owners: number; capable: number};
-export type DecayingRow = {pawn: string; skill: string; level: number};
-export type ProfileTrait = {name: string; degree: number};
-export type TraitEffects = {workSpeed: number; learnRate: number; moveSpeed: number; sociable: number; chemicalInterest: number; flags: string[]};
-export type ProfileSkill = {name: string; level: number; stored: number; passion: string; disabled: boolean; learnFactor: number};
+type CoverageRow = {work: string; demand: number; owners: number; capable: number};
+type DecayingRow = {pawn: string; skill: string; level: number};
+type ProfileTrait = {name: string; degree: number};
+type TraitEffects = {workSpeed: number; learnRate: number; moveSpeed: number; sociable: number; chemicalInterest: number; flags: string[]};
+type ProfileSkill = {name: string; level: number; stored: number; passion: string; disabled: boolean; learnFactor: number};
 export type PawnProfile = {pawn: string; age: number; child: boolean; ranged: boolean; traits: ProfileTrait[]; effects: TraitEffects; skills: ProfileSkill[]; incapable: string[]; forbidden: string[]};
 export type WorkRoster = {tick: number; coverage: CoverageRow[]; decaying: DecayingRow[]; pawns: PawnProfile[]};
-export type SectionStatus = {section: string; family: string; asOf: number; complete: boolean; source: string; storedAt: string};
+type SectionStatus = {section: string; family: string; asOf: number; complete: boolean; source: string; storedAt: string};
 export type ResourceRunway = {resource: string; tick: number; windowDays: number; thresholdDays: number; reserve: number; stock: number | null; surfaceOre: number | null; consumptionPerDay: number | null; stockDays: number | null; daysLeft: number | null; deficit: boolean | null; target: number};
-export type ExtentRegion = {region: number; stage: string; cells: number; origins: string[]; facilities: string[]; activeFacilities: string[]; eligible: boolean; holdReasons: string[]};
-export type ExtentEligibility = {known: boolean; reason: string; regions: ExtentRegion[]};
+type ExtentRegion = {region: number; stage: string; cells: number; origins: string[]; facilities: string[]; activeFacilities: string[]; eligible: boolean; holdReasons: string[]};
+type ExtentEligibility = {known: boolean; reason: string; regions: ExtentRegion[]};
 // The TidyLayout review (#611): whether a re-site proposal stands, why none does, how many rooms hold off-plan furniture, and the pending proposal with its explanation.
-export type TidyRect = {x: number; z: number; width: number; height: number};
-export type TidyProposal = {kind: string; item: string; from: TidyRect; to: TidyRect; crop: string; gain: number; distance: number; explanation: string};
-export type LayoutTidy = {active: boolean; reason: string; candidates: number; proposal: TidyProposal | null};
+type TidyRect = {x: number; z: number; width: number; height: number};
+type TidyProposal = {kind: string; item: string; from: TidyRect; to: TidyRect; crop: string; gain: number; distance: number; explanation: string};
+type LayoutTidy = {active: boolean; reason: string; candidates: number; proposal: TidyProposal | null};
 // GoalProgress is one active goal's progress record (#629): the method in
 // play, the observable it should move, the tick native evidence last moved
 // it, the tick the review inspects the blocker, and why it is blocked ('' when
@@ -37,7 +37,7 @@ export type GoalProgress = {goal: string; method: string; expected: string; last
 // its name, the tick it was entered, the first unmet condition of the next
 // stage (blocker '' at Development) with the measured values, and whether
 // the Foothold hold refuses the comfort-class development.
-export type ColonyStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
+type ColonyStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
 export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; stage: ColonyStage | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; layoutTidy: LayoutTidy | null};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
@@ -53,7 +53,7 @@ function nullable<T>(v: unknown, read: (value: unknown) => T): T | null {return 
 function list(v: unknown, limit: number): unknown[] {if (!Array.isArray(v) || v.length > limit) throw Error('Routine collection limit exceeded'); return v;}
 function reason(v: unknown): DevelopmentReason {const r = developmentReasons.find(item => item === v); if (r === undefined) throw Error('Unknown development reason'); return r;}
 
-export function readDevelopment(value: unknown): Development {
+function readDevelopment(value: unknown): Development {
   const v = object(value, ['tick', 'workers', 'labor', 'capacity', 'committed', 'rows', 'heldWorkers', 'limiting']);
   const labor = list(v.labor, 64).map(item => {const l = object(item, ['work', 'free']); return {work: id(l.work), free: count(l.free)};});
   const rows = list(v.rows, 256).map((item): DevelopmentRow => {

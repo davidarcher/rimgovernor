@@ -6,7 +6,7 @@ import {useTelemetryEvents, useTelemetryMetrics} from './useTelemetry';
 import './governor.css';
 
 // traceFromHash is the trace a #governor/<trace_id> link names, or ''.
-export function traceFromHash(): string {
+function traceFromHash(): string {
   const match = /^#governor\/([^/?]+)$/.exec(location.hash);
   return match ? decodeURIComponent(match[1]) : '';
 }

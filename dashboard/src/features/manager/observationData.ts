@@ -10,7 +10,7 @@ const stages = ['pending', 'prepared', 'dispatched', 'awaiting_observation', 'co
 const effects = ['unknown', 'pending', 'completed', 'absent', 'unsuccessful'] as const;
 const unsuccessfulReasons = ['native_failure', 'cancelled', 'interrupted', 'expired', 'target_dead', 'outcome_not_achieved'] as const;
 export type UnsuccessfulReason = typeof unsuccessfulReasons[number];
-export type ActionProgress = {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null};
+type ActionProgress = {stage: typeof stages[number]; attempt: string; tick: number; unresolved: boolean; receipt: string | null; effect: typeof effects[number] | null; unsuccessfulReason: UnsuccessfulReason | null};
 export type BuildingAction = {id: string; progress: ActionProgress} & (
   {kind: 'building'; building: {defName: string; x: number; z: number; rotation: string; stuff: string}} |
   {kind: 'owned_draft'; draft: {pawnId: string}}

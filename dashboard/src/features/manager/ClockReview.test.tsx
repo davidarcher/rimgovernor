@@ -1,4 +1,5 @@
 import {act, fireEvent, render, screen, cleanup} from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import {afterEach, expect, it, vi} from 'vitest';
 import ClockReview from './ClockReview';
 import {decodeClockReview} from './playerData';
@@ -22,12 +23,12 @@ it('acknowledges only an explicit click using the displayed revision without ena
 it('enables acknowledge whenever reviewed events are unacknowledged, even with no holds', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({...review, holds: []}), {status: 200})));
   await act(async () => {render(<ClockReview token="secret"/>);});
-  expect((screen.getByRole('button', {name: 'Acknowledge inspected interruptions'}) as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.getByRole('button', {name: 'Acknowledge inspected interruptions'})).toBeEnabled();
 });
 it('disables acknowledge when nothing is open', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({...review, acknowledgedCursor: '3', holds: []}), {status: 200})));
   await act(async () => {render(<ClockReview token="secret"/>);});
-  expect((screen.getByRole('button', {name: 'Acknowledge inspected interruptions'}) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole('button', {name: 'Acknowledge inspected interruptions'})).toBeDisabled();
 });
 it('rejects malformed or contradictory cursor evidence', () => {
   expect(() => decodeClockReview({...review, reviewedCursor: '4'})).toThrow();

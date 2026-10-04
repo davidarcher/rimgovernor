@@ -1,8 +1,8 @@
 // The controller owns admission and rates; this decoder only validates its view.
-export type FoodDecision = 'Open' | 'Hold' | 'Close';
-export type FoodChannel = {kind: string; id: string; decision: FoodDecision; reason: string; deliveredPerDay: number};
-export type PetShortfall = {id: string; label: string | null; runwayDays: number; nutritionPerDay: number};
-export type FoodPlan = {portfolio: FoodChannel[]; unknown: FoodChannel[]; deliveredPerDay: number; demandPerDay: number; gapPerDay: number; explain: string; petShortfalls: PetShortfall[]};
+type FoodDecision = 'Open' | 'Hold' | 'Close';
+type FoodChannel = {kind: string; id: string; decision: FoodDecision; reason: string; deliveredPerDay: number};
+type PetShortfall = {id: string; label: string | null; runwayDays: number; nutritionPerDay: number};
+type FoodPlan = {portfolio: FoodChannel[]; unknown: FoodChannel[]; deliveredPerDay: number; demandPerDay: number; gapPerDay: number; explain: string; petShortfalls: PetShortfall[]};
 export type FoodPlanStatus = {tick: number | null; plan: FoodPlan | null};
 function object(v: unknown): Record<string, unknown> {if (typeof v !== 'object' || v === null || Array.isArray(v)) throw Error('Invalid food plan'); return v as Record<string, unknown>;}
 function text(v: unknown): string {if (typeof v !== 'string') throw Error('Invalid food plan text'); return v;}

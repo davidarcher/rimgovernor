@@ -54,9 +54,9 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
     </section>}
     {state.value?.layoutTidy && <section aria-label="Layout tidy"><h3>Layout tidy</h3>
       {state.value.layoutTidy.proposal ? <>
-        <p>Pending re-site: {state.value.layoutTidy.proposal.kind} {state.value.layoutTidy.proposal.item} from {state.value.layoutTidy.proposal.from.width}×{state.value.layoutTidy.proposal.from.height} at {state.value.layoutTidy.proposal.from.x}, {state.value.layoutTidy.proposal.from.z}{state.value.layoutTidy.proposal.kind === 'shell' ? ' (deconstruct)' : ` to ${state.value.layoutTidy.proposal.to.width}×${state.value.layoutTidy.proposal.to.height} at ${state.value.layoutTidy.proposal.to.x}, ${state.value.layoutTidy.proposal.to.z}`}{state.value.layoutTidy.proposal.crop && ` · crop ${state.value.layoutTidy.proposal.crop}`} · gain {state.value.layoutTidy.proposal.gain}</p>
+        <p>Pending re-site: {state.value.layoutTidy.proposal.kind} {state.value.layoutTidy.proposal.item} from {state.value.layoutTidy.proposal.from.width}ï¿½{state.value.layoutTidy.proposal.from.height} at {state.value.layoutTidy.proposal.from.x}, {state.value.layoutTidy.proposal.from.z}{state.value.layoutTidy.proposal.kind === 'shell' ? ' (deconstruct)' : ` to ${state.value.layoutTidy.proposal.to.width}ï¿½${state.value.layoutTidy.proposal.to.height} at ${state.value.layoutTidy.proposal.to.x}, ${state.value.layoutTidy.proposal.to.z}`}{state.value.layoutTidy.proposal.crop && ` ï¿½ crop ${state.value.layoutTidy.proposal.crop}`} ï¿½ gain {state.value.layoutTidy.proposal.gain}</p>
         <p>{state.value.layoutTidy.proposal.explanation}</p>
-      </> : <p>No re-site pending{state.value.layoutTidy.reason && ` · ${state.value.layoutTidy.reason}`}{state.value.layoutTidy.candidates > 0 && ` · ${state.value.layoutTidy.candidates} to tidy`}</p>}
+      </> : <p>No re-site pending{state.value.layoutTidy.reason && ` ï¿½ ${state.value.layoutTidy.reason}`}{state.value.layoutTidy.candidates > 0 && ` ï¿½ ${state.value.layoutTidy.candidates} to tidy`}</p>}
       <p>One re-site moves at a time, only while no construction or hauling work is open; a tidied item is never re-sited again.</p>
     </section>}
     {state.value && <section aria-label="Material runway"><h3>Material runway</h3>

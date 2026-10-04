@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {acknowledgeClock, definiteRejection, readClockReview, type ClockAcknowledgement, type ClockReview as Review} from './playerData';
+const clockReviewIntervalMs = 3000;
 
 export default function ClockReview({token}: {token: string}) {
   const [review, setReview] = useState<Review | null>(null);
@@ -19,7 +20,7 @@ export default function ClockReview({token}: {token: string}) {
         try {const value = await readClockReview(controller.signal); if (!controller.signal.aborted && serial === version.current) {setReview(value); setFresh(true); setError('');}}
         catch (e) {if (!controller.signal.aborted && serial === version.current) {setFresh(false); setError(e instanceof Error ? e.message : 'Clock review unavailable');}}
       }
-      if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), 3000);
+      if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), clockReviewIntervalMs);
     };
     void refresh();
     return () => {controller.abort(); clearTimeout(timer);};

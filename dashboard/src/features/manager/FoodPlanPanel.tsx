@@ -2,6 +2,7 @@ import {useEffect, useState} from 'react';
 import {fetchFoodPlan, type FoodPlanStatus} from './foodPlanData';
 import './FoodPlanPanel.css';
 
+const foodPlanTimeoutMs = 20000, foodPlanIntervalMs = 5000;
 const rate = (n: number) => n.toLocaleString(undefined, {maximumFractionDigits: 2});
 export default function FoodPlanPanel({active}: {active: boolean}) {
   const [reading, setReading] = useState<FoodPlanStatus | null>(null);
@@ -12,10 +13,10 @@ export default function FoodPlanPanel({active}: {active: boolean}) {
     let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
       try {
-        const value = await fetchFoodPlan(AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]));
+        const value = await fetchFoodPlan(AbortSignal.any([controller.signal, AbortSignal.timeout(foodPlanTimeoutMs)]));
         if (!stopped) {setReading(value); setError('');}
       } catch (e) {if (!stopped) setError(e instanceof Error ? e.message : 'Food plan unavailable');}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), 5000);}
+      finally {if (!stopped) timer = setTimeout(() => void poll(), foodPlanIntervalMs);}
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

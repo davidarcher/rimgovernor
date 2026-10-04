@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react';
+import {pollIntervalMs, requestTimeoutMs} from '../http';
 import {readObservation, readPlan, type BuildingAction, type BuildingPlan, type ObservationState, type UnsuccessfulReason} from './observationData';
 import './ObservationDashboard.css';
 import PlayerControls from './PlayerControls';
@@ -54,7 +55,7 @@ export default function ObservationDashboard() {
     let currentKey = '';
     const controller = new AbortController();
     const read = async (path: string): Promise<unknown> => {
-      const response = await fetch(path, {signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])});
+      const response = await fetch(path, {signal: AbortSignal.any([controller.signal, AbortSignal.timeout(requestTimeoutMs)])});
       if (!response.ok) throw Error(`Refresh unavailable (${response.status})`);
       return response.json();
     };
@@ -74,7 +75,7 @@ export default function ObservationDashboard() {
         setError('');
       } catch (reason) {
         if (!stopped) setError(reason instanceof Error ? reason.message : 'Refresh unavailable');
-      } finally {if (!stopped) timer = setTimeout(() => void poll(), 1500);}
+      } finally {if (!stopped) timer = setTimeout(() => void poll(), pollIntervalMs);}
     };
     void poll();
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};

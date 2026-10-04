@@ -20,7 +20,7 @@ import {bool, isObject, num, path, str} from './json';
 import {parseStderr, type StderrStep} from './stderr';
 
 export type LaneId = 'clock' | 'steps' | 'admissions' | 'events' | 'calls' | 'harness';
-export type Severity = 'info' | 'ok' | 'warn' | 'error';
+type Severity = 'info' | 'ok' | 'warn' | 'error';
 export type Item = {
   id: string;
   lane: LaneId;
@@ -38,9 +38,9 @@ export type Item = {
   delivered: number | null;
 };
 export type Launch = {index: number; name: string; first: number; last: number; rowSteps: number; stderrSteps: number; aligned: boolean; gaps: FlightGap[]};
-export type TickSample = {wall: number; tick: number};
-export type SummaryField = {label: string; value: string};
-export type Unplaced = {name: string; detail: unknown};
+type TickSample = {wall: number; tick: number};
+type SummaryField = {label: string; value: string};
+type Unplaced = {name: string; detail: unknown};
 export type Timeline = {t0: number; t1: number; launches: Launch[]; items: Item[]; ticks: TickMap; summary: SummaryField[]; error: string | null; notes: string[]; unplaced: Unplaced[]};
 
 export type LaunchFiles = {name: string; flight: Flight; stderr: string | null; http: {name: string; body: unknown}[]};
@@ -298,7 +298,7 @@ function deepNumber(v: unknown, key: string, depth = 0): number {
 // tick went backwards: a load or rewind). `cumulative` counts ticks
 // advanced since the first sample with resets excluded, the tick axis the
 // page can lay the timeline out on.
-export type TickMap = {samples: TickSample[]; resets: number; tickAt(wall: number): number | null; cumulativeAt(wall: number): number; wallAtCumulative(cumulative: number): number | null; ticksAdvanced: number};
+type TickMap = {samples: TickSample[]; resets: number; tickAt(wall: number): number | null; cumulativeAt(wall: number): number; wallAtCumulative(cumulative: number): number | null; ticksAdvanced: number};
 
 export function buildTickMap(raw: TickSample[]): TickMap {
   const samples = [...raw].sort((a, b) => a.wall - b.wall).filter((s, i, all) => i === 0 || s.wall > all[i - 1].wall || s.tick !== all[i - 1].tick);

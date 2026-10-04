@@ -6,7 +6,7 @@ import {shortId} from './trace';
 // Row kinds hidden until asked for: a decode row shadows its response and
 // says nothing a reader wants at feed scale.
 const hiddenByDefault = new Set(['native_decode']);
-export const feedLength = 200;
+const feedLength = 200;
 
 export function eventSummary(event: TelemetryEvent): string {
   switch (event.kind) {

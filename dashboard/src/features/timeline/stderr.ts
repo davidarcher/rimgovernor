@@ -7,7 +7,7 @@
 // caller prints right after. The block holds what the row does not: the
 // planners' admission results, the window the step sized, the refusals of
 // EvaluateClockWindow, a deferred admission and the pause-bound hold.
-export type PlannerResult = {planner: string; reason: string; plan: string};
+type PlannerResult = {planner: string; reason: string; plan: string};
 export type StderrStep = {
   index: number;
   lines: string[];
@@ -27,7 +27,7 @@ export type StderrStep = {
   elapsedMs: number | null;
   error: string | null;
 };
-export type StderrLog = {steps: StderrStep[]; trailing: string[]; other: string[]};
+type StderrLog = {steps: StderrStep[]; trailing: string[]; other: string[]};
 
 const closers = [/\] step done:/, /\[clock-worker\] step failed:/];
 

@@ -2,12 +2,12 @@ import {HTTPError} from '../http';
 // The raid-threat slice of /api/player/colony (#395): the raid points the
 // storyteller would draw now and the wealth split behind them. Every figure
 // is null when the native census could not observe it.
-export type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal: number | null; wealthItems: number | null; wealthBuildings: number | null; wealthPawns: number | null; shrines: ShrineStatus[] | null; playerTechLevel: string | null; buildTier: string | null};
+type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal: number | null; wealthItems: number | null; wealthBuildings: number | null; wealthPawns: number | null; shrines: ShrineStatus[] | null; playerTechLevel: string | null; buildTier: string | null};
 // One ancient shrine (#456): a casket group, sealed until breached; guards
 // are unknown while sealed and count as alive until seen dead.
 // ready/reason are the breach judgement (#457): null until judged, reason
 // empty when ready, otherwise the hold (squad_too_small, no_traps, ...).
-export type ShrineStatus = {id: string; sealed: boolean; inHome: boolean; caskets: number; filledCaskets: number; guardsKnown: boolean; guardsAlive: boolean; breachWalls: number; ready: boolean | null; reason: string | null; squad: number; traps: number};
+type ShrineStatus = {id: string; sealed: boolean; inHome: boolean; caskets: number; filledCaskets: number; guardsKnown: boolean; guardsAlive: boolean; breachWalls: number; ready: boolean | null; reason: string | null; squad: number; traps: number};
 
 
 function figure(value: unknown, field: string): number | null {

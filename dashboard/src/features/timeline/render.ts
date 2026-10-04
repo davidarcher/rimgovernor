@@ -7,7 +7,7 @@ import {compact} from './json';
 import {lanes, type Item, type LaneId, type Timeline} from './model';
 
 export type AxisMode = 'wall' | 'tick';
-export type ViewOptions = {axis: AxisMode; hidden: Set<LaneId>; launch: number | null};
+type ViewOptions = {axis: AxisMode; hidden: Set<LaneId>; launch: number | null};
 
 const SVG = 'http://www.w3.org/2000/svg';
 const GUTTER = 118;

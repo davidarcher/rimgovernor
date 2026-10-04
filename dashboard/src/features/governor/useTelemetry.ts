@@ -7,16 +7,17 @@ import {HTTPError} from '../http';
 import {useEffect, useState} from 'react';
 import {fetchTelemetryEvents, fetchTelemetryMetrics, type TelemetryEvent, type TelemetryMetrics} from './telemetryData';
 
-export const metricsInterval = 2000, eventsInterval = 2000, seriesLength = 150;
+const telemetryTimeoutMs = 8000;
+const metricsInterval = 2000, eventsInterval = 2000, seriesLength = 150;
 // The buffer holds this many rows; the first read starts this far behind
 // the ring's newest sequence so a trace picked from the feed has its rows.
-export const eventBuffer = 4000, backfill = 2500, pageLimit = 500;
+const eventBuffer = 4000, backfill = 2500, pageLimit = 500;
 
 export type Sample = {at: number; tps: number; lastStepMs: number; nativeErrors: number; readsPerStep: number; nativeCalls: number};
 export type MetricsReading = {value: TelemetryMetrics | null; series: Sample[]; stale: boolean; unavailable: boolean; error: string};
 export type EventsReading = {events: TelemetryEvent[]; lastSequence: number; caughtUp: boolean; stale: boolean; error: string};
 
-const timeout = (controller: AbortController) => AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]);
+const timeout = (controller: AbortController) => AbortSignal.any([controller.signal, AbortSignal.timeout(telemetryTimeoutMs)]);
 const describe = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 export function useTelemetryMetrics(active: boolean): MetricsReading {

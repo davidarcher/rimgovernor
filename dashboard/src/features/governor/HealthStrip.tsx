@@ -1,7 +1,7 @@
 import type {MetricsReading, Sample} from './useTelemetry';
 
 // Sparkline is the sample series as one polyline, newest at the right.
-export function Sparkline({values, label}: {values: number[]; label: string}) {
+function Sparkline({values, label}: {values: number[]; label: string}) {
   const width = 120, height = 28;
   if (values.length < 2) return <svg className="governor-spark" width={width} height={height} role="img" aria-label={`${label}: collecting samples`}/>;
   const max = Math.max(...values), min = Math.min(...values), range = max - min || 1;

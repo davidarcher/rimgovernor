@@ -8,13 +8,13 @@ import {fetchNow, type Now, type NowStop, type PacingReason} from './spectatorDa
 // a failed refresh; watching the panel never changes the simulation — no
 // journal row, no speed request, no native call.
 export const nowInterval = 2000;
-export type NowReading = Reading<Now>;
+type NowReading = Reading<Now>;
 
-export const useNow = (active: boolean): NowReading => useReading(active, fetchNow, nowInterval, 'The now panel is unavailable');
+const useNow = (active: boolean): NowReading => useReading(active, fetchNow, nowInterval, 'The now panel is unavailable');
 
 // Pacing reasons as the controller records them (spectator.PacingReason); the
 // panel names the evidence, it does not advise.
-export const pacingLabels: Record<PacingReason, string> = {
+const pacingLabels: Record<PacingReason, string> = {
   unknown: 'Pace unknown: no step has run yet',
   governor_off: 'Governor off: routine reviews are disabled',
   held: 'Held: a clock event awaits review',

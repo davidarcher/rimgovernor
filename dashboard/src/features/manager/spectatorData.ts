@@ -7,12 +7,12 @@ import {HTTPError} from '../http';
 
 export type PacingReason = 'unknown' | 'governor_off' | 'held' | 'window_refused' | 'running' | 'tick_budget' | 'stopped' | 'cinematic'
   | 'accelerated' | 'frame_budget' | 'forced_slowdown' | 'regulated' | 'backoff';
-export const pacingReasons: PacingReason[] = ['unknown', 'governor_off', 'held', 'window_refused', 'running', 'tick_budget', 'stopped', 'cinematic',
+const pacingReasons: PacingReason[] = ['unknown', 'governor_off', 'held', 'window_refused', 'running', 'tick_budget', 'stopped', 'cinematic',
   'accelerated', 'frame_budget', 'forced_slowdown', 'regulated', 'backoff'];
 
-export type NowStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
-export type NowGoal = {goal: string; method: string; expected: string; lastProgress: number; nextReview: number; blocked: string; prerequisite: string; observed: number | null};
-export type NowPacing = {reason: PacingReason; detail: string; mode: string; effectiveTps: number; windowTicks: number; pacedTps: number};
+type NowStage = {stage: string; since: number; blocker: string; reason: string; held: boolean};
+type NowGoal = {goal: string; method: string; expected: string; lastProgress: number; nextReview: number; blocked: string; prerequisite: string; observed: number | null};
+type NowPacing = {reason: PacingReason; detail: string; mode: string; effectiveTps: number; windowTicks: number; pacedTps: number};
 // The stop's latency split: the tick legs from the hazard arising through the
 // supervisor raising the stop to the stop landing, then the wall legs — how
 // long it sat unobserved in native, how long the controller took to act on it
@@ -22,7 +22,7 @@ export type NowStop = {
   detectedTick: number | null; occurrenceTick: number | null; detectTicks: number | null; stopTicks: number | null;
   observeMs: number | null; actedMs: number | null; readmitMs: number | null;
 };
-export type NowStops = {stops: number; budget: number; reactive: number};
+type NowStops = {stops: number; budget: number; reactive: number};
 export type Now = {tick: number | null; stage: NowStage | null; goals: NowGoal[]; pacing: NowPacing; lastStop: NowStop | null; stops: NowStops};
 
 

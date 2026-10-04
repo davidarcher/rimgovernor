@@ -1,7 +1,7 @@
 // Fixture rows shared by the governor tests: one traced scheduler step
 // and one untraced clock_step, as /api/telemetry/events serves them.
 export const T = 'a1b2c3d4e5f60718', root = 'span-root', child = 'span-child';
-export const ctx = (span: string, parent = '', extra: Record<string, unknown> = {}) => ({trace_id: T, span_id: span, parent_id: parent, ...extra});
+const ctx = (span: string, parent = '', extra: Record<string, unknown> = {}) => ({trace_id: T, span_id: span, parent_id: parent, ...extra});
 const row = (sequence: number, wall: number, kind: string, context: Record<string, unknown>, payload: Record<string, unknown>) => ({sequence, run: 'run-1', wall_time: 1000 + wall / 1000, kind, context, payload});
 
 // One scheduler step: a cached read, a timed native read with the

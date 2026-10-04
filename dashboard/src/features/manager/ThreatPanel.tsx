@@ -1,17 +1,19 @@
 import {useReading} from '../useReading';
 import {fetchThreatStatus} from './threatData';
 
+const threatIntervalMs = 5000;
+
 // Raid points and the wealth split the storyteller scales them by (#395):
 // evidence from the live colony census, read every few seconds while the
 // Colony view is open. Hidden when the service does not serve the census.
 const silver = (v: number | null) => v === null ? 'â€”' : Math.round(v).toLocaleString();
 export default function ThreatPanel({active}: {active: boolean}) {
-  const state = useReading(active, fetchThreatStatus, 5000, 'Colony status unavailable');
+  const state = useReading(active, fetchThreatStatus, threatIntervalMs, 'Colony status unavailable');
   if (state.hidden) return null;
   const v = state.value;
   return <section className="observation-panel" aria-label="Raid threat"><h2>Raid threat</h2>
     {state.stale && <p role="status">{v ? 'Stale â€” last recorded census. ' : 'Unavailable. '}{state.error || 'Waiting for the colony census.'}</p>}
-    <p className="observation-value">{!v ? '—' : v.raidPoints === null ? 'Raid points unknown' : `${silver(v.raidPoints)} raid points`}</p>
+    <p className="observation-value">{!v ? 'ï¿½' : v.raidPoints === null ? 'Raid points unknown' : `${silver(v.raidPoints)} raid points`}</p>
     {v && <dl className="observation-identity">
       <div><dt>Wealth</dt><dd>{silver(v.wealthTotal)}</dd></div>
       <div><dt>Items</dt><dd>{silver(v.wealthItems)}</dd></div>
@@ -20,7 +22,7 @@ export default function ThreatPanel({active}: {active: boolean}) {
       <div><dt>Build tier</dt><dd>{v.buildTier ?? 'â€”'}{v.playerTechLevel ? ` (${v.playerTechLevel} faction)` : ''}</dd></div>
     </dl>}
     {v && v.shrines && v.shrines.length > 0 && <dl className="observation-identity" aria-label="Ancient shrines">
-      {v.shrines.map(shrine => <div key={shrine.id}><dt>Shrine {shrine.id}</dt><dd>{shrine.sealed ? 'sealed' : shrine.guardsAlive ? 'breached, guards alive' : 'cleared'}, {shrine.filledCaskets}/{shrine.caskets} caskets filled{shrine.inHome ? ', in Home' : ''}{shrine.ready === null ? '' : shrine.ready ? ` — breach ready (${shrine.squad} armed, ${shrine.traps} traps)` : ` — hold: ${shrine.reason}`}</dd></div>)}
+      {v.shrines.map(shrine => <div key={shrine.id}><dt>Shrine {shrine.id}</dt><dd>{shrine.sealed ? 'sealed' : shrine.guardsAlive ? 'breached, guards alive' : 'cleared'}, {shrine.filledCaskets}/{shrine.caskets} caskets filled{shrine.inHome ? ', in Home' : ''}{shrine.ready === null ? '' : shrine.ready ? ` ï¿½ breach ready (${shrine.squad} armed, ${shrine.traps} traps)` : ` ï¿½ hold: ${shrine.reason}`}</dd></div>)}
     </dl>}
     <p className="observation-note">Points a default threat incident would draw at tick {v ? v.tick.toLocaleString() : 'â€”'}, as the game computes them from colony wealth, colonists, adaptation and difficulty.</p>
   </section>;

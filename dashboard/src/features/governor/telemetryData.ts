@@ -1,4 +1,5 @@
 import {HTTPError} from '../http';
+import type {Generation} from '../world';
 // Read-only view of /api/telemetry/events and /api/telemetry/metrics (#299):
 // the flight-recorder rows serve keeps under the profile and the live
 // metrics block. Context and payload are the recorder's free-form objects;
@@ -12,9 +13,8 @@ export type TelemetryEvent = {
   // Lower-cased text of the context and payload, for substring filters.
   text: string;
 };
-export type TelemetryPage = {events: TelemetryEvent[]; nextSince: number; lastSequence: number; more: boolean};
-export type Authority = {colony: string; map: number; load: string; plan: string; revision: string; native: string};
-export type TelemetryMetrics = {tick: number | null; tps: number; authority: Authority | null; lastStepMs: number; run: string; metrics: Record<string, number>};
+type TelemetryPage = {events: TelemetryEvent[]; nextSince: number; lastSequence: number; more: boolean};
+export type TelemetryMetrics = {tick: number | null; tps: number; authority: Generation | null; lastStepMs: number; run: string; metrics: Record<string, number>};
 
 
 function isObject(v: unknown): v is Json {return typeof v === 'object' && v !== null && !Array.isArray(v);}
@@ -53,7 +53,7 @@ export function readTelemetryPage(value: unknown): TelemetryPage {
   return {events: v.events.map(readTelemetryEvent), nextSince: sequence(v.next_since, 'next_since'), lastSequence: sequence(v.last_sequence, 'last_sequence'), more: bool(v.more, 'more')};
 }
 
-function readAuthority(value: unknown): Authority | null {
+function readAuthority(value: unknown): Generation | null {
   if (value === null || value === undefined) return null;
   const v = record(value, 'authority');
   return {colony: text(v.colony, 'authority colony'), map: finite(v.map, 'authority map'), load: text(v.load, 'authority load'), plan: text(v.plan, 'authority plan'), revision: text(v.revision, 'authority revision'), native: text(v.native, 'authority native')};
@@ -79,7 +79,7 @@ async function get(path: string, signal: AbortSignal): Promise<unknown> {
   return response.json();
 }
 
-export type EventsQuery = {since?: number; kinds?: readonly string[]; limit?: number};
+type EventsQuery = {since?: number; kinds?: readonly string[]; limit?: number};
 export async function fetchTelemetryEvents(query: EventsQuery, signal: AbortSignal): Promise<TelemetryPage> {
   const params = new URLSearchParams();
   if (query.since !== undefined && query.since > 0) params.set('since', String(query.since));

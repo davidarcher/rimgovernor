@@ -19,7 +19,7 @@ export function shortId(id: string): string {return id.length > 8 ? id.slice(0, 
 
 // traceRows is the trace's rows in sequence order (the feed holds them
 // newest first), or none when nothing under that id is retained.
-export function traceRows(events: readonly TelemetryEvent[], traceId: string): TelemetryEvent[] {
+function traceRows(events: readonly TelemetryEvent[], traceId: string): TelemetryEvent[] {
   if (!traceId) return [];
   return events.filter(e => e.sequence !== null && traceIdOf(e) === traceId).sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 }

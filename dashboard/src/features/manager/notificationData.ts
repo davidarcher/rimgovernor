@@ -1,6 +1,6 @@
 import {HTTPError} from '../http';
 import type {Listing, PresentationContext} from './presentationData';
-export type Notice = {id: string | null; label: string | null; text: string | null; tick: string | null; ageTicks: string | null; ageSeconds: number | null; active: boolean | null; expired: boolean | null; detail: string | null};
+type Notice = {id: string | null; label: string | null; text: string | null; tick: string | null; ageTicks: string | null; ageSeconds: number | null; active: boolean | null; expired: boolean | null; detail: string | null};
 export type NoticeSection = {kind: 'observed'; rows: Notice[]; listing: Listing | null} | {kind: 'unavailable'; reason: string; detail: string | null};
 export type Notifications = {context: PresentationContext; letters: NoticeSection; messages: NoticeSection; alerts: NoticeSection};
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
