@@ -20,7 +20,7 @@ Unknown traits, incapable rows or age leave those parts empty and the planner
 skill-only for that pawn; they never make the review unknown.
 
 Trait effects are read from the TraitDef rows of the catalog at observation
-time (`DefinitionCatalog.TraitEffects`, #1724) and carried on each
+time (`DefinitionCatalog.TraitEffects`) and carried on each
 `PawnTrait.Effects`; a trait or degree the catalog lacks fails the read with a
 named error. The rows give:
 
@@ -61,7 +61,7 @@ For each:
   prisoner is held; `RoundsWorkDemand` reads the census from the routine facts)
   and, for any other skilled type, one owner when a natural specialist exists
   (level 6 or a passion). Handling also has one owner while the herd plan holds a
-  milk or wool job (`WorkDemand.Handling`, #1650): gathering yield and speed scale
+  milk or wool job (`WorkDemand.Handling`): gathering yield and speed scale
   with Animals.
 - **Capable** is not incapable, not trait-forbidden (Pyromaniac Firefighter,
   Brawler Hunting, Abrasive Warden), Hunting only with a ranged primary, and
@@ -94,8 +94,8 @@ priorities are off (enabled or not, never the rank).
 ## Construction helpers
 
 Owners stay the skilled constructors; `WorkDemand.Help`
-(`construction_helpers.go`, #653) adds bounded help below the floor. Demand
-is `ConstructionHelpDemand` over the review's recorded ready work (#645): the
+(`construction_helpers.go`) adds bounded help below the floor. Demand
+is `ConstructionHelpDemand` over the review's recorded ready work: the
 parallelism of runnable `building:<def>` candidates on
 `HelperConstructionDefinitions` (Wall, Door, SleepingSpot,
 DoubleSleepingSpot, Campfire, Sandbags, PowerConduit: no native skill
@@ -130,8 +130,7 @@ name why spare capacity went unused.
 
 `go/internal/policy/pawn_roles.go` answers the questions other concerns ask of the
 roster from the same profiles, each a pure function returning the pawn and
-whether one qualifies: `SurgeonFor(minimum, harvest)` (Medicine at least the
-recipe's minimum and 4, Psychopath preferred for a harvest), `WardenFor(execution)`
+whether one qualifies: `WardenFor(execution)`
 (Social, Kind preferred, Abrasive never; Psychopath or Bloodlust for an
 execution), `TraderFor` (Social, Abrasive only when nobody else can talk),
 `TamerFor(minimum)` (Animals at the animal's `minimum_handling_skill`),
@@ -147,20 +146,17 @@ unknown. The custody review sends `WardenFor` to capture a downed hostile while
 that pawn is available. The husbandry review tames only a wild animal `TamerFor`
 finds a handler for at its minimum handling skill. The acquisition reviews
 (food, wood, pests) spend the hunting budget only while `HunterFor` finds a
-hunter on a known roster. The medical review has no surgery dispatch in Go,
-so `SurgeonFor` waits for one.
+hunter on a known roster.
 
 ## Schedules
 
 `policy.PlanSchedules` (`pawn_schedule.go`) gives each available pawn a
-role-based timetable from the same profile: the native day sleeps 22h-5h
-(#1314); a NightOwl sleeps 10h-17h and is free overnight; a QuickSleeper's
+role-based timetable from the same profile: the native day sleeps 22h-5h; a NightOwl sleeps 10h-17h and is free overnight; a QuickSleeper's
 Sleep block shrinks to six hours. Joy is the hour right before sleep and
 every other hour is Anything. The planner never writes Work: Work blocks
-ignore rest and recreation and wake sleeping pawns (#1293). Every
+ignore rest and recreation and wake sleeping pawns. Every
 known timetable is planned, whoever wrote it: a timetable edited under Manual
-is replanned like any other once Auto holds (control-loop.md, Manual
-control; #461); an unknown timetable (issue `schedule`) is skipped.
+is replanned like any other once Auto holds (control-loop.md, Manual control); an unknown timetable (issue `schedule`) is skipped.
 
 The work review sends a mismatching timetable in the pawn's
 `WorkSettingsIntent` (`domain.NewScheduleAssignment`, `Schedule.assignment_defs`
@@ -173,7 +169,7 @@ differs from the readback.
 
 ## Mech control
 
-`policy.PlanMechControl` (`mech_control.go`, #1687) puts each mechanitor's
+`policy.PlanMechControl` (`mech_control.go`) puts each mechanitor's
 mechs in role groups and sets each group's mode through the `mech_control_group`
 and `mech_work_mode` arms of `PawnSettingsAction`: every move first, then each
 group's mode (the mode is per group). A work mech (`MechKindRow.work_mech`) is a
@@ -188,7 +184,7 @@ catalog fails to decode. The plan fails without those modes or any mech's kind. 
 inputs, or an unread group, is left alone.
 
 Colonist need versus bandwidth, decided from the read: control never changes
-bandwidth, which only acquiring mechs spends (gestation, #1686). Colonist need
+bandwidth, which only acquiring mechs spends (gestation). Colonist need
 decides what the next free bandwidth buys (`MechRoleNext`): a worker while a
 `WorkCoverage` has fewer owners than demand, no work mech of the mechanitor
 covers that work type and a catalog work mech kind lists it; a guard otherwise;
@@ -196,7 +192,7 @@ nothing with no free bandwidth. With a single control group threat beats work:
 `Escort` while a hostile is on the map or the group holds only guards, `Work`
 otherwise.
 
-Recharging (`mech_recharge.go`, #1688) rides the same group mode. Each mech row
+Recharging (`mech_recharge.go`) rides the same group mode. Each mech row
 carries `PawnMech.energy` (`Need_MechEnergy`, 0-1) and its control group's own
 recharge band (`recharge_below`/`recharge_above`, the private
 `MechanitorControlGroup.mechRechargeThresholds` the game recharges within), so
@@ -212,31 +208,31 @@ every mech is at the upper bound it returns to its role mode, as after a charge
 the bot started. The system keeps no per-setting player-owned state, so none is
 added here.
 `MechChargerOwed` is the build side: a mechanitor exists and every standing
-charger is busy (a charger full of waste is #1683's; an idle unpowered one is the
-power planner's, which wires every power consumer), so gestation (#1686) should
+charger is busy (a charger full of waste is the pollution concern's; an idle unpowered one is the
+power planner's, which wires every power consumer), so gestation should
 not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`EnsureMechCharger` (`rounds_mech_charger.go`) is the concern
+`EnsureMechCharger` (`mech_charger_concern.go`, `rounds_mech_charger.go`) is the concern
 for that need: a Standard in the Upkeep domain, assessed only where the Biotech
 colony read and the mechs are known (`RoundsFacts.MechChargerOwed`), in deficit
 while a charger is owed. Its one method builds the first catalog-flagged,
 researched charger on the first footprint native previews as legal, safe and
 reachable, ranked by `MechChargerSites` over the polluting-machine rule
-`PollutionSites` (#1684): footprints lie wholly on known free ground (walkable,
+`PollutionSites`: footprints lie wholly on known free ground (walkable,
 unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.Size`,
 far from field zones, bedroom and barracks cells, dining and recreation room
 cells and polluted cells, then near an atomizer. A charger blueprint, frame or
 open plan holds it. Powering the charger is the power concern's; emptying its waste is
 `ManagePollution`'s. Biotech concerns are bound only when assessed, so the store
-counts them apart from the concerns every colony has.
+counts `policy.BiotechConcerns` apart from the concerns every colony has.
 
-`MaintainGeneBank` (`rounds_gene_bank.go`, #1933, epic
-#1693) keeps every genepack in a gene bank: a Genepack deteriorates unless it
-sits in a powered bank (4 packs each; design note on #1693). A Standard in the
+`MaintainGeneBank` (`gene_bank_concern.go`, `rounds_gene_bank.go`, epic #1693) keeps every genepack in a
+gene bank: a Genepack deteriorates unless it
+sits in a powered bank (4 packs each). A Standard in the
 Upkeep domain over the Colony fact family, assessed from the keyed Biotech
-colony section (#1930): `GeneBankNeed` is unknown while the section, a bank's
+colony section: `GeneBankNeed` is unknown while the section, a bank's
 capacity or a pack's whereabouts (map position or bank id) are unread, and
 otherwise owed while more packs lie loose than the standing banks have free
 slots (`RoundsFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
@@ -247,7 +243,7 @@ outward from the first gene assembler (a bank links to an assembler within 12.9
 cells), else the first bank, else the production district. A bank blueprint,
 frame or open plan holds it. Powering it is the power concern's (a bank is a 40 W
 consumer wired like any other); harvesting, assembly and implanting are other
-concerns (#1693).
+concerns.
 
 `policy.PlanMechGuards` orders every standing guard at the hostile nearest to it
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
@@ -265,7 +261,7 @@ the drafts join the fight roster and are undrafted when it closes.
 
 ## Mech gestation
 
-`MaintainMechs` (#1686, `policy/mech_gestation.go`, planner flag `mechs`) queues
+`MaintainMechs` (`policy/mech_gestation.go`, planner flag `mechs`) queues
 one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
 production bill on a gestator (the `mech` branch of the production bill write).
 `MechGestationOwed` raises the concern while a gestator is idle, no waste is
@@ -277,8 +273,7 @@ and `NextMech` finds a kind a mechanitor can afford. The rules:
   `bandwidth_cost`; native re-checks the game's `HasBandwidthForBill`.
 - Waste holds gestation: a gestator holding waste, or a wastepack stack that is
   not frozen, not in an atomizer and not dissolved (count 0), or any unread
-  count or flag, blocks the next bill (the wastepack research in epic #1667;
-  cleanup is #1683).
+  count or flag, blocks the next bill (waste cleanup is the pollution concern's).
 - Colonist need picks the role through `MechRoleNext` over the work roster and
   the mechs the mechanitors control (`bridge.ReadMechs`, one pawn read by id);
   a worker is bought only if it covers a short, uncovered work type, a guard
@@ -297,8 +292,7 @@ Planner behaviour is table-driven in `work_assignment_test.go`,
 growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
 stability, timetable templates) and `construction_helpers_test.go` (helper
 restrictions, risky and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start
-colonists' pawn reads recorded from the retired `workers/*` native cases
-(#748), seeded sheet and written readback: a major passion owns a tied
+colonists' pawn reads recorded from native runs, with seeded sheet and written readback: a major passion owns a tied
 kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction
 sheet; every core role is owned once and the written matrix replans
@@ -310,8 +304,8 @@ through a real `WorkSettingsIntent` and reads it back natively.
 ## Drug policy
 
 The work routine gives each colonist its own drug policy, labelled with its
-short name, through a `DrugPolicyIntent` and `PawnSettingsIntent.drug_policy`
-(#1537); the [`drug_policy` action](action-contracts.md) states the contents.
+short name, through a `DrugPolicyIntent` and `PawnSettingsIntent.drug_policy`;
+the [`drug_policy` action](action-contracts.md) states the contents.
 
 After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
 Once food fields are sufficient, the field planner adds at most nine cells each

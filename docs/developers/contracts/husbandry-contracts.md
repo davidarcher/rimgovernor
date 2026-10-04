@@ -3,9 +3,9 @@
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 `MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` concern in
-ColonyPlan. It sizes each race itself (#875); there are no operator flags.
+ColonyPlan. It sizes each race itself; there are no operator flags.
 
-**Race catalog (#1625, #1722).** Static per-race facts (carrying capacity,
+**Race catalog.** Static per-race facts (carrying capacity,
 trainability and trainables, wildness, body size, combat power, market value,
 minimum handling skill, life expectancy, the manhunter chances and products
 with item and interval) are derived from the definition catalog's race rows
@@ -16,7 +16,7 @@ unknown, never zero. It is derived state: no save, journal or per-animal copy
 (an animal row carries none of its race's numbers). An unbuildable race table
 fails the reading loudly like any other required native read.
 
-- **Herd plan (#1628).** `policy.PlanHerd` derives every race's job each cycle
+- **Herd plan.** `policy.PlanHerd` derives every race's job each cycle
   from colony facts and the race catalog; nothing is stored. A job (milk, wool,
   chemfuel, food = eggs, haul, war) is wanted while a kept animal holds it: a
   catalog product, or a learned `Haul` / `Release` (attack) training. Its
@@ -28,7 +28,7 @@ fails the reading loudly like any other required native read.
   re-ranks every cycle as availability changes. A race with an unread yield or
   size cannot hold or be ranked for the job that needs it. Other roles: companion (a bonded animal on a race with no work job) and
   none.
-- **War animals (#1637).** Unlike the other jobs, `war` is also wanted before
+- **War animals.** Unlike the other jobs, `war` is also wanted before
   any animal holds it: while the wealth budget is read and has no negative
   headroom (defense capacity keeps pace with the wealth the animals add), the
   plan targets a pair of the race with the highest catalog combat power (not
@@ -63,15 +63,15 @@ fails the reading loudly like any other required native read.
   leave that ceiling out.
 - **Founder.** A preferred race with animals but no breeding pair (a lone
   animal, or one sex only) is a founder: never culled or sold, no cap, and
-  `HerdRole.WantMale` / `WantFemale` name the missing sex for taming (#1629)
-  and buying (#1636). No sterilize applies to a founder.
+  `HerdRole.WantMale` / `WantFemale` name the missing sex for taming
+  and buying. No sterilize applies to a founder.
 - **Retirement.** A holder that is not the target keeps working until the
   target's adults cover the job: the target has a breeding pair and its adult
   capacity is at least the holder's (trained capacity counts only animals that
   learned the training, so small haulers retire only after larger ones learn
   Haul). Then, if it holds no other kept job, the race is `Retiring`: cap 0, no
   breeding pair kept, `HerdPolicy.Retired`; its animals are surplus (slaughter
-  or release below; selling is #1632). A holder that keeps working only until
+  or release below; see Sale). A holder that keeps working only until
   a better race covers its job is `HerdRole.Superseded`: it is sterilized
   (below), not culled. A bonded animal (`Bonded`, `bonded_pawn_ids`) is never
   removed: `herdRemovalMethod` returns none for it (so surplus slaughter,
@@ -83,7 +83,7 @@ fails the reading loudly like any other required native read.
   are what the taming, training, sterilize, sale, purchase and pen issues read;
   `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` concerns
   execute.
-- **Sale (#1632).** `HerdSaleAnimals` lists the animals over a race's ceiling
+- **Sale.** `HerdSaleAnimals` lists the animals over a race's ceiling
   (all of a retired race) that are known unbonded and, outside a retired race,
   not trained for work; founders have no ceiling and never sell, and any
   unknown designation or bond sells nothing. The ideology slaughter bar does
@@ -95,7 +95,7 @@ fails the reading loudly like any other required native read.
   native `AcceptTrade` exports a pawn row only when it is an unbonded
   player-faction animal and the deal's floors name its definition. Native's
   preview stays the authority.
-- **Purchase (#1636).** The trader's pawn rows of catalog races are the plan's
+- **Purchase.** The trader's pawn rows of catalog races are the plan's
   `Offers` (`HerdOffers`), so a map with no cows can still plan milk.
   `HerdWants` lists what the plan lacks: each job's target race, then each
   founder's missing sex. `SelectAnimalPurchase` buys the first want with an
@@ -109,7 +109,7 @@ fails the reading loudly like any other required native read.
 - **Removal.** Above the cap, surplus goes by `slaughter` whenever native
   `SafeToSlaughter` allows it (not bonded, no master, not pregnant, not
   designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `SafeToRelease`
-  allows it (same exclusions). The bar is `policy.ActionStance` (#1644, [ideology contracts](ideology-contracts.md#precept-rule))
+  allows it (same exclusions). The bar is `policy.ActionStance` ([ideology contracts](ideology-contracts.md#precept-rule))
   applied once per frame (`ApplyHerdPrecepts`) to the history events slaughter raises:
   `SlaughteredAnimal`, plus `SlaughteredVeneratedAnimal` for a race `AnimalState.venerated` names.
   Penalised or forbidden bars slaughter (`HerdFacts.SlaughterBarred`); the same bar excludes the race
@@ -119,13 +119,12 @@ fails the reading loudly like any other required native read.
   Ideology defs nothing is barred; with them, an unread ideoligion or veneration leaves the bar
   unknown and fails the removal, food and Prioritize choices (no fallback). Selling is not barred:
   the game raises no history event for selling an animal. Per-race meat kinds (insect meat) have no
-  per-race eating read on the wire, so only `AteMeat` and venerated meat bind. `AnimalState.slaughter_barred`
-  is no longer written or read. Cull order: old (past 80% of
+  per-race eating read on the wire, so only `AteMeat` and venerated meat bind. Cull order: old (past 80% of
   `lifeExpectancy`) or sick; males beyond one per five females (a fertilizable egg-laying race follows the rooster rule below); untrained
   adults by highest grazing demand per meat; adults that learned Haul, Rescue
   or Release (attack); juveniles only while pasture is short (`B < D`). Ties
   go to the lowest ID. Races without a cap are never culled for surplus.
-- **Rooster ratio (#1898).** A race with an egg layer that has a fertilized def gets a
+- **Rooster ratio.** A race with an egg layer that has a fertilized def gets a
   `HerdPolicy.Layers` entry from `PlanHerd`: `HensPerRooster` = (24 / `mateMtbHours`)
   / (eggs per lay / `eggLayIntervalDays` / `eggFertilizationCountMax`), every egg wanted
   fertilized. Below the hen target (fertile females < `PopulationMin`) the race keeps
@@ -135,8 +134,7 @@ fails the reading loudly like any other required native read.
   only. An unknown mating, count, interval or fertilization fact makes the removal
   result unknown (nothing removed, no sterilize), never a literal fallback. A race
   without a fertilizable egg comp keeps the one-per-five rule.
-- **Breeding pair.**
- No removal leaves a race with fewer than one male and two
+- **Breeding pair.** No removal leaves a race with fewer than one male and two
   females, except a retiring race; an animal of unknown sex is never removed.
   Only fertile animals make the pair: a sterilized animal (`AnimalState.sterilized`,
   `UpkeepAnimal.Sterilized`) counts toward a race's head count and cap but not
@@ -144,7 +142,6 @@ fails the reading loudly like any other required native read.
   itself. Standing designations
   that would break the pair, or no longer match a surplus or an open food
   offer, are cancelled.
-
 
 ## Methods
 
@@ -175,7 +172,7 @@ follow flags need `Obedient` (learned Obedience; native refuses otherwise). An
 area or master id the map does not carry is refused as not found. Each follow
 method writes only its own flag.
 
-**Tame ranking (#1629).** Candidates are ordered by the plan, not by ID: the race
+**Tame ranking.** Candidates are ordered by the plan, not by ID: the race
 the plan wants most (a preferred race, then job order milk, wool, chemfuel,
 food, haul, war; a race with no job last), then within a race the sex a founder
 is missing (`WantMale`/`WantFemale`; the wild census carries `Gender`), then
@@ -183,7 +180,7 @@ lower `manhunterOnTameFailChance`, then lower `minimum_handling_skill`, then ID.
 A candidate no handler can tame is skipped for the next. `HerdPolicy.Roles`
 carries the plan's roles to this ranking.
 
-**Handler leveling (#1634).** While a target race is short of its head count and
+**Handler leveling.** While a target race is short of its head count and
 its catalog `minimum_handling_skill` is above what every handler has
 (`TamerFor` finds none), the plan names one easy race to level on
 (`HerdPlan.Leveling`): the first of alpaca, boar, hare, husky, labrador with a
@@ -192,7 +189,7 @@ of 1 (taming it, then the usual training, raises the Animals skill). Once a
 handler clears the wanted race, or no easy wild animal exists, the plan carries
 no leveling race. The easy animal has no retirement rule yet.
 
-**Master assignment (#1635).** After removal, `HerdMasterChoice` assigns masters
+**Master assignment.** After removal, `HerdMasterChoice` assigns masters
 bond first, for any planned, non-retiring race:
 
 1. A bonded animal is mastered by its bonded colonist: `AnimalState.bonded_pawn_ids`
@@ -209,7 +206,7 @@ bond first, for any planned, non-retiring race:
 4. An unbonded haul animal gets no master and no follow flag (haul training
    hauls on its own).
 
-`follow_fieldwork` and the other follow flag are never written. The census
+`follow_fieldwork` is never written. The census
 carries `master_id`, the follow flags and `obedient` on `UpkeepAnimal`. An
 animal is skipped unless obedient (native refuses master and follow without
 learned Obedience), when marked for release or slaughter, when its race is
@@ -220,7 +217,7 @@ write per cycle. Native reports `master_id` and
 `bonded_pawn_ids` as `GetUniqueLoadID()`, the same id as the pawn rows. The sale guard (`HerdSaleAnimals`) never sells a bonded animal, nor a
 mastered animal outside a retired race.
 
-**Sterilize (#1631).** `SterilizeChoice` wants an animal sterilized when its race
+**Sterilize.** `SterilizeChoice` wants an animal sterilized when its race
 is `Superseded` (it keeps working but stops breeding until it retires) or it is
 a male beyond the plan's ratio (one per five females, `herdMalesPerFemales`; the rooster rule for a layer race) of
 a race kept within its cap. Never a founder, a retiring race (culled instead),
@@ -242,7 +239,7 @@ into the vet room, `sterilize`, then `allowed_area` cleared once sterilized
 animal with a bill queued is waited on. Clearing the area does not restore an
 earlier restriction.
 
-**Exposure shelter (#1869).** A pen animal (`requires_pen`, supports allowed
+**Exposure shelter.** A pen animal (`requires_pen`, supports allowed
 areas, not marked for release or slaughter) is sheltered while its race is in
 danger outdoors: `RoundsFacts.AnimalShelterChoice` runs `AnimalExposures`
 over the pen animals' races (an active `ColdSnap`, `HeatWave` or
@@ -261,7 +258,7 @@ or temperature fails the review with `ErrAnimalExposure`. The check also keeps
 MaintainHerd in deficit while a write is owed, and it comes before every
 other husbandry choice since the animals die of the exposure.
 
-**Threat shelter (#1899).** A hostile threat endangers every pen animal:
+**Threat shelter.** A hostile threat endangers every pen animal:
 while `RoundsFacts.Hostiles > 0` (the emergency census's unsafe-threat holds,
 that is live, discovered, engaging, non-distant Hostile, HuntingPredator and
 hostile-building rows, plus pending drop pods) `AnimalShelterChoice` lets each
@@ -300,7 +297,7 @@ exclusions `SafeToSlaughter`/`SafeToRelease` add; a tame candidate must pass
 `TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
 areas, following, sterilization and breeding separation are ordinary game
 settings: while native authority reads Auto the controller may change any of
-them, including ones the player just set (see the working agreement). Masters,
+them, including ones the player just set. Masters,
 areas, following and sterilization are written through the methods above.
 
 Births are never counted as pending: a shortfall with no tameable wild animal
@@ -323,7 +320,7 @@ flag, not the step count or time to decay.
 Handling joins shared deterministic work allocation with the observed native minimum
 skill. Milking and shearing are the `Milk` and `Shear` work givers of the Handling
 work type (WorkGiverDefs), and the gather speed and yield stats (`AnimalGatherSpeed`,
-`AnimalGatherYield`) scale with the Animals skill alone (#1650). While the herd plan
+`AnimalGatherYield`) scale with the Animals skill alone. While the herd plan
 holds a milk or wool job (`HerdPlan.Jobs`), Handling has demand for one owner
 (`WorkDemand.Handling`), so the best Animals pawn the planner finds capable owns
 Handling at priority 1 even when nobody is a natural specialist. Player work overrides remain authoritative. The herd observation retains safe
@@ -355,7 +352,7 @@ does not establish indefinite herd sustainability.
 ## Acceptance
 
 `husbandry/dispatch` proves each method's native write on a fixture colony.
-`husbandry/plan` (#1638) proves the herd plan end to end on the lab: the race
+`husbandry/plan` proves the herd plan end to end on the lab: the race
 catalog read (cows with a milk product, wild and tame races, minimum handling
 skill); a lone cow founder kept beside an old milk race; the controller-built
 vet room (its planned ring is staged finished from `LayoutPlan.VetRoomCells`;
@@ -368,9 +365,6 @@ semantics still unconfirmed (wildness stat, combat power and trainables
 approximation, animal bed medical flag, surgery in the vet bed, bedroom role
 with a sleeping spot, the `VetRoom` area, native master ids equal pawn ids);
 a failure there names the one it hit.
-
-See husbandry acceptance for the native fixture
-and the distinction between setup, orders and pawn outcomes.
 
 ## Food channel planning
 

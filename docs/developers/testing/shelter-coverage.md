@@ -2,9 +2,9 @@
 
 Which check owns which shelter claim, so a planner change is proven by the
 cheapest check that can prove it and the native cases keep only what needs a
-real game (#615). The same split is the pattern for other building
-routines: shape-blind properties and every input combination below the game
-boundary, one honest end-to-end path, and staged fixtures for recovery.
+real game. The same split is the pattern for other building routines:
+shape-blind properties and every input combination below the game boundary,
+one honest end-to-end path, and staged fixtures for recovery.
 
 ## Below the game boundary (`go run ./cmd/test`)
 
@@ -21,11 +21,14 @@ boundary, one honest end-to-end path, and staged fixtures for recovery.
 | Roofing budget: observed completion only, never renewed, survives furnishing and retirement | `buildingruntime.TestShelterRoofingBudget…`, `…RoofingContinuesAfterFurnishing…` |
 | Adoption matrix: missing cells only, a lone door, best-matched shape or wait, an earlier grown ring from its plan, a cancelled door, no match, repair under one epoch, a whole ring passed by | `buildingruntime` `rounds_shelter_test.go` (`…Adopts…`, `…Reissues…`, `…Repairs…`) |
 | Manual cancellation of a pending ring | `buildingruntime.TestRoundsShelterManualCancelsWholePendingShell` |
+| Starter-search siting per terrain (recorded searches) | `buildingruntime.TestShelterSitingSnapshots` |
+| Which concerns open beside the initial shelter | `snapshot.TestReplay*Shelter*` |
 
 A planner test's modeled reachability is not native reachability, and the
 fast checks derive nothing from the production geometry helpers they cover:
 interiors are flood-filled and roof support measured against RimWorld's
-documented radius in the test itself.
+documented radius in the test itself. Shell adoption through a wood shortage
+is not replayed.
 
 ## Native acceptance (`acceptance run shelter/<case>`)
 
@@ -33,21 +36,16 @@ documented radius in the test itself.
 | --- | --- | --- |
 | `shelter/bunks-first` | The complete path: an unhoused colony, the controller discovers the deficit, places spots, builds beds, raises the whole ring by ordinary pawn work, the game roofs it, and the native census then holds one bed per colonist inside. The precondition is asserted not to satisfy the outcome. | nothing |
 
-The `startup/composed-*` cases were converted to colony snapshot tests (#745):
-`buildingruntime.TestShelterSitingSnapshots` replays each terrain's recorded
-starter search, and `snapshot.TestReplay*Shelter*` replays which concerns open beside the
-initial shelter. Shell adoption through a wood shortage is not replayed.
+## Composition
 
-## Composition and the shortage fixture
+The shelter cases serve the `shelter,sleeping` families alone, which keeps
+them minutes long, so they cannot catch a competing-concern or executor-wiring
+defect. `campaign/foothold` is the normal-composition evidence: every
+routine family on the player control path over three game days, asserting
+indoor sleeping capacity for every colonist. Run the pair together: a
+shelter change that passes one and fails the other is a composition defect,
+not a planner defect.
 
-The shelter cases serve the `shelter,sleeping` families alone, which is what
-keeps them minutes long, so they cannot catch a competing-concern or
-executor-wiring defect. `campaign/foothold` is the normal-composition
-evidence: every routine family on the player control path over three game
-days, asserting indoor sleeping capacity for every colonist. Keep that pair
-together -- a shelter change that passes here and fails there is a
-composition defect, not a planner defect.
-
-Retiring a native check needs the replacement
-assertion landed first, a note of where each assertion went, and a negative
-control showing the replacement fails for the behaviour the old case caught.
+Retiring a native check needs the replacement assertion landed first, a note
+of where each assertion went, and a negative control showing the replacement
+fails for the behavior the old case caught.

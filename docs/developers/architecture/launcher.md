@@ -6,9 +6,8 @@ The launcher (`RimGovernorLauncher.exe`, built from
 [go/cmd/launcher](../../../go/cmd/launcher)) is the only player-facing surface:
 it starts and stops the controller and the game, shows what the colony is doing
 and offers the three player controls. It is a small WebView2 window around one
-embedded page ([ui/index.html](../../../go/cmd/launcher/ui/index.html)); there
-is no web server for it, no Node or pnpm build and no separate browser UI. The
-page holds no planner and no labels or ordering of its own: every view is a
+embedded page ([ui/index.html](../../../go/cmd/launcher/ui/index.html)) with no
+web server and no front-end build. The page holds no planner and no labels or ordering of its own: every view is a
 Go-side view model read through `Bind`ed functions.
 
 ## Why the page never calls serve
@@ -33,17 +32,17 @@ while its tab is showing and skips a tick while a call is in flight.
 | Problems | The flight recorder as a filterable feed with kind counts, health and Copy. | `<profile>/flight/flight.jsonl` read in-process. |
 
 [now.go](../../../go/cmd/launcher/now.go) builds the Now view models. **Now**
-answers what the colony is doing at a glance (`GET /api/spectator/now`, #632):
+answers what the colony is doing at a glance (`GET /api/spectator/now`):
 
-- the colony stage (#630) with the first unmet condition of the next and its
+- the colony stage with the first unmet condition of the next and its
   measured values;
-- the active concerns' progress records (#629): method, the native observable it
+- the active concerns' progress records: method, the native observable it
   should move, the tick evidence last moved it, the review deadline and the
   status, the most urgent first;
 - the pacing reason with the effective ticks per second: `running`,
   `tick_budget` between windows, `window_refused`, `held` while a clock event
   awaits review, `governor_off`, `stopped` or `cinematic`;
-- the last clock stop with its latency split (#621).
+- the last clock stop with its latency split.
 
 `internal/spectator` projects these from the last review's records and the
 flight-recorder rows of the current launch. Reading issues no native call,
@@ -73,18 +72,16 @@ not running, runs in Observe mode or serves no player routes.
 | Acknowledge inspected interruptions | `POST /api/player/clock/acknowledge` | Releases clock holds the player has inspected. |
 
 An unresolved Resume (pending or uncertain) blocks another Resume until a later
-journaled Pause supersedes it. The surviving player routes are session, control,
-control/pause and resume, clock, clock/acknowledge and colony; there is no chat,
-building, draft, free-form input or take-control surface, and player edits get no
-exemption from the autopilot. See the [player API](../contracts/go-player-api.md)
+journaled Pause supersedes it. The player routes are session, control,
+control/pause and resume, clock, clock/acknowledge and colony; the player has no
+other control surface, and player edits get no exemption from the autopilot. See the [player API](../contracts/go-player-api.md)
 and [interface contracts](../contracts/interface-contracts.md).
 
 ## Help
 
-The Launch tab shows the URL of the player documentation instead of rendering
-it. WebView2 would open a plain link inside the launcher window (replacing the
-page), and the launcher binds no "open in browser" function, so the URL is
-displayed text to copy rather than a link.
+The Launch tab shows the player-documentation URL as copyable text, not a link:
+WebView2 would open a link inside the launcher window (replacing the page) and the
+launcher binds no "open in browser" function.
 
 ## Telemetry
 

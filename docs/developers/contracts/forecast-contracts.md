@@ -16,7 +16,7 @@ implementation serves deterministic facts and player fact inspection.
 
 Food stock is apportioned only among eaters permitted by native diet, policy and
 safe access; kibble is apportioned among animals only, since a colonist eats it
-only when nothing better is reachable (#311). Held food belongs to its observed
+only when nothing better is reachable. Held food belongs to its observed
 holder. Earliest-expiry allocation
 uses native rot deadlines at the current temperature. The food gate uses the
 lowest colonist runway after reserving competing animal shares; unknown combined
@@ -27,8 +27,8 @@ lower bound, and crop work does not reserve future production.
 Fresh animal corpses carry their native meat amount times meat nutrition,
 body size, forbid state and a one-tile footprint. Unforbidden corpses count
 as pending-butcher stock for eaters eligible for their meat; forbidden
-corpses remain observable but contribute no runway. Corpse stock replaces
-the separate pending-hunt corpse credit; live designated prey remains pending.
+corpses remain observable but contribute no runway. Live designated prey
+remains pending.
 The [corpse larder](upkeep-contracts.md#corpse-larder) owns reserve release.
 
 A corpse is humanlike when its source race row is (`DefinitionCatalog.HumanlikeCorpse`);
@@ -49,8 +49,7 @@ trade surplus, then eligible diners' reserved demand. Feed and eligible shared
 meal bills use explicit ingredients; shared meals require all diners to accept
 human meat. Human survival-meal output is forbidden sale stock, excluded from
 ordinary reserve release. `policy.TestHumanButcheryFixtureDecisions` checks
-the selection and routing decisions over the former `food/human-butchery`
-fixture's facts.
+the selection and routing decisions.
 
 Cooking recipes expose their product's base taste mood offset, nutrition output
 per nutrition input and native work per output nutrition (batch counts included).
@@ -71,7 +70,8 @@ controller hysteresis, not a forecast. Missing thresholds retain established ris
 Power reserve risk likewise persists across unavailable reads and serialization;
 recovery requires readable current networks.
 
-See native forecast acceptance for the distinction between forecast validation and pawn outcomes.
+Forecast validation and pawn outcomes are different evidence levels.
+
 ## Food reserve components
 
 Native reports forbidden stacks (the thing row's `forbidden`) with their
@@ -81,8 +81,9 @@ describes who could eat the stack after release; `ForecastFood` validates it
 but excludes it from runway and usable nutrition. Other forbidden food is
 dropped from the food census by the decoder.
 
-`ReviewFoodReserve` budgets `reserveDays × observed daily demand` (the default
-is `policy.DefaultFoodReserveDays`, five days). It proposes whole-stack holds
+`ReviewFoodReserve` budgets `reserveDays × observed daily demand`
+(`RoundsPolicy.FoodReserveDays`, fixed at `policy.DefaultFoodReserveDays`, five
+days). It proposes whole-stack holds
 only after roofed storage is observed, up to the target rounded by the final
 stack. Release requires runway below the supplied food minimum and a complete
 channel read with no delivery before exhaustion. Unknown delivery facts cannot
@@ -96,8 +97,7 @@ product; other reserve products reduce that target. Existing recipe bills keep
 their settings. The policy review proposes IDs only; the shared concern and Hands
 integration owns holds, releases, replenishment timing and policy configuration.
 
-RoundsPolicy.FoodReserveDays (policy.DefaultFoodReserveDays, 5 days,
-fixed) sizes the reserve. MaintainFoodStorage schedules refill independently
+MaintainFoodStorage schedules refill independently
 of ordinary food deficit and commits bounded supply actions for holds/releases.
 Release uses the shared portfolio delivery leads; unknown channels cannot prove
 an emergency. Reserve access has foothold priority and does not wait for a
@@ -105,9 +105,8 @@ standing preservation bill. Forbidden stock is already excluded from the forecas
 so the portfolio does not subtract the reserve a second time.
 
 A caravan formed with `FormCaravanIntent` takes reserve stock first for each
-cargo definition (#942); MaintainFoodStorage
-observes the reduced reserve stock afterwards and refills it through its
-ordinary holds and preservation bills.
+cargo definition; MaintainFoodStorage then
+refills the reduced reserve through its ordinary holds and preservation bills.
 
 ## Meal tier policy
 
@@ -142,7 +141,7 @@ rows carry accessible nutrition with zero production rate, preventing double
 counting. Only unsuspended observed bills establish the previous tier.
 
 Hands replaces a superseded meal bill through the ordinary durable bill action,
-whoever wrote it (#461): an older-tier bill on any cooking bench, or a bill of
+whoever wrote it: an older-tier bill on any cooking bench, or a bill of
 the chosen recipe that is suspended or repeats to a smaller target than the
 colony needs. A bill of the chosen recipe that is active and repeats forever or
 to at least that target ends the review. Native admits the replacement for any
@@ -204,8 +203,7 @@ means no protected crop sale.
 Rounds and fresh trade selection both use the shared per-tick food
 plan with seasonal runway thresholds. Active fine or lavish meal bills supply
 the desired ingredient slots; existing raw protein stock reduces the purchase
-quantity. Crop exports retain the maximum of the resource target and economic
-floor, and require a selected raw protein purchase.
+quantity.
 
 Native trade sheets provide validated definition nutrition and ingredient
 classification; drugs, corpses, kibble and human meat are excluded. Typed native

@@ -3,10 +3,11 @@
 [Contracts](README.md) · [Choosing checks](../testing/choose-tests.md) ·
 [Delivery epic #363](https://github.com/davidarcher/rimgovernor/issues/363)
 
-This is the implementation contract for #377–#383. Bundle/bootstrap tooling is
-documented [here](../remote-bundles.md); hosted workflow activation is separate. Local `acceptance list`, `acceptance suite` and `cmd/land` remain the
-execution and landing interfaces. The coordinated JSON [examples](remote-acceptance/)
-are synthetic fixtures, never acceptance evidence or downloadable game files.
+Implementation contract for #377–#383. Bundle/bootstrap tooling is in
+[remote-bundles](../remote-bundles.md); hosted workflow activation is separate. Local
+`acceptance list`, `acceptance suite` and `cmd/land` are the execution and landing
+interfaces. The JSON [examples](remote-acceptance/) are synthetic fixtures, never
+acceptance evidence or game files.
 
 ## Ownership and compatibility
 
@@ -21,7 +22,7 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 
 | Document / field owner | Fields and meaning |
 | --- | --- |
-| #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`, false since #1260); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes the game with every official expansion, Harmony, bridge SDK and cached starts; no production mod/controller binaries from another revision. |
+| #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`, false); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes the game with every official expansion, Harmony, bridge SDK and cached starts; no production mod/controller binaries from another revision. |
 | #377 bundle publisher, `inventory.json` | `schema_version`, `files`: exhaustive, path-sorted `{path, bytes, sha256}` of extracted regular files. Component inventory digest hashes the UTF-8 LF-terminated lines `path\tbytes\tsha256\n` for its files. Components have disjoint `path_prefix` roots covering the inventory. |
 | #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `base_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
 | #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `diff_mode`, sorted unique `changed_files`, `cases` (`name`, nonempty `reasons` array), `sampled_areas`, `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `affected:<area>`, `sampled:<area>` or `full` for the nightly full tier. |
@@ -57,9 +58,8 @@ requested commit to a same-repository ref, then dispatches from the trusted
 default-branch workflow with `tested_ref` or `tested_commit`, `base_commit`, `tier`
 (`smoke`, `land` or `full`), and pinned bundle reference. A maintainer may
 explicitly authorize an agent to dispatch an already published commit; the issue
-alone does not authorize publication. The source repository is public (maintainer
-confirmation, 2026-09-19). Source upload, R2 and spot/self-hosted runners remain
-alternatives outside v1; repository conversion is not a delivery prerequisite.
+alone does not authorize publication. The source repository is public. Source
+upload, R2 and spot/self-hosted runners are outside v1.
 
 For manual dispatch, the operator chooses the exact comparison base, ordinarily
 the task's merge base with local main when requesting publication. Both objects
@@ -78,12 +78,10 @@ for land. Smoke and scheduled full may compare equal commits because neither sel
 base (`diff_mode: "ancestor-tree"`), including additions, deletions and both
 paths of renames. It uses the tested revision's registry and affected rules,
 plus the complete smoke set for land, honoring existing matrix exclusion and
-documented sampling. #366 remains its correctness dependency. Never run the
-default `-base main` on checked-out main: that can reduce a real push to smoke.
-The current `ChangedFiles` uses a merge base and working-tree changes; the
-ancestor requirement and a verified clean checkout make the remote comparison
-equivalent without changing local semantics. Detect dirty/generated tracked
-changes before planning and fail.
+documented sampling. Never run the default `-base main` on checked-out main: that
+can reduce a real push to smoke. `ChangedFiles` uses a merge base and working-tree
+changes; the ancestor requirement and a verified clean checkout make the remote
+comparison equivalent. Dirty/generated tracked changes fail planning.
 
 The planner uses `algorithm: "dependency-budget-lpt-v3"`: sort selected case
 names bytewise and group each `sustained/matrix-<save>` with its required
@@ -105,7 +103,7 @@ timing history influences assignment. Legacy `dependency-round-robin-v2`
 evidence remains readable and assigns name-sorted groups round-robin;
 `sorted-round-robin-v1` assigns each sorted case independently by index modulo
 shard count. Both legacy versions ignore the optional `budget_ns` field.
-Future cost balancing must name a new algorithm and pin its cost input.
+A new cost-balancing scheme must name a new algorithm and pin its cost input.
 Reject empty, unknown, duplicated or omitted cases before starting runners.
 
 ## Planning command
@@ -128,7 +126,6 @@ a runner binary compiled from another revision is not a valid planner.
 The command verifies provenance, duplicate JSON keys, limits, detached HEAD,
 tracked and untracked cleanliness, both commit objects and base ancestry. It includes both
 paths of renames and shares `landCases` and `affected.Select` with local tiers.
-The #366 entry-point dependency is included in those affected rules.
 
 Planner output adds optional case metadata: `fixture_ops` names declared Start
 fixture operations, `roles` lists `bridge` and, where needed, `controller`, and
@@ -152,10 +149,9 @@ are consulted, so untimed cases are assigned identically on every machine.
 
 Initial target: public source repository, standard GitHub-hosted Windows x64,
 `windows-2022`, with **age-encrypted release assets in the public source
-repository** (maintainer choice, 2026-09-19). Only ciphertext is public; the age
-identity remains a trusted-run secret. #377 pins the repository/release/asset
-IDs during explicit maintainer publication; the example origin is synthetic.
-See [bundle tooling and bootstrap](../remote-bundles.md). Each job gets one private game
+repository**. Only ciphertext is public; the age identity is a trusted-run secret.
+#377 pins the repository/release/asset IDs during explicit maintainer publication;
+the example origin is synthetic. Each job gets one private game
 layout and one suite worker. Each job downloads the encrypted archive parts
 from the pinned release assets into `C:\rg\ciphertext` and verifies their
 digests before decryption; nothing about the bundle is kept in the Actions
@@ -216,21 +212,19 @@ billing estimate or assurance the full land selection fits. #382 enforces the
 bounds, #383 measures the actual selection and resources; raising limits needs
 an explicit maintainer decision. Run the small smoke proof first.
 
-Public documentation checked 2026-09-19 lists public standard Windows runners
-as 4 CPUs, 16 GB RAM and 14 GB SSD; actual runner capacity must still be checked.
-GitHub documents a six-hour hosted job maximum. These are service descriptions,
-not verified capacity for this account: #378 must measure available disk after
-checkout/extraction and probe the actual image; #382 must recheck account
-concurrency and service limits before enabling the workflow.
-See [runner specifications](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)
-and [Actions limits](https://docs.github.com/en/actions/reference/limits).
+GitHub documents public standard Windows runners as 4 CPUs, 16 GB RAM, 14 GB SSD
+and a six-hour job maximum ([runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners),
+[limits](https://docs.github.com/en/actions/reference/limits)). These are service
+descriptions, not verified capacity: #378 measures disk after checkout/extraction
+and probes the actual image; #382 rechecks account concurrency and limits before
+enabling the workflow.
 
-Standard hosted runner use is free for public repositories; larger runners are
-not included in that choice. Storage still needs account-specific checks; do not
-copy the epic's price or allowance estimates into provisioning. Budget alerts
-alone do not stop usage. The maintainer verifies applicable billing controls at
-activation; this contract has not inspected account billing. See [billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
-and [stop-usage budgets](https://docs.github.com/en/billing/how-tos/set-up-budgets).
+Standard hosted runners are free for public repositories; larger runners are
+excluded. Storage needs account-specific checks; do not copy the epic's price or
+allowance estimates into provisioning. Budget alerts alone do not stop usage; the
+maintainer verifies [billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
+and [stop-usage budgets](https://docs.github.com/en/billing/how-tos/set-up-budgets)
+at activation.
 
 ## Attempts, completeness and landing import
 
@@ -243,8 +237,7 @@ infrastructure failures can retry, once, fresh and restaged, in a recovered
 private layout. Assertions, generic deadline/latency errors, unknown failures,
 cancellations and exhausted time budgets never retry by text matching alone.
 `retry_of` must name the immediately preceding failed eligible attempt. Retain
-its complete evidence even when the retry passes. Do not silently inherit the
-epic's superseded #349 retry proposal.
+its complete evidence even when the retry passes.
 
 Local suites expose `retry_policy`, and each case row adds `attempts`,
 `attempt_count`, nullable `final_attempt` and `disposition` (`passed`, `failed`,
@@ -259,14 +252,11 @@ include both attempts. The first output stays in its usual location; the second
 uses `attempts/2/<area>/<case>`, after stopping the worker-owned game, with fresh
 staging and checkpoint resume disabled. Resumed suites never retry.
 
-The installed policy is `native-read-v1-empty`: there are no enabled production
-classifiers. Retained supply failures contain observation-read timeouts alongside
-unresolved gameplay attempts, and do not establish a transient read as the cause.
-Neither nested diagnostics nor a caller-provided classification authorize retry.
-A new rule needs captured causal evidence, a narrow classifier, negative tests for
-writes/assertions/budgets/setup, and a new policy ID. Synthetic execution tests
-exercise an eligible failure followed by a fresh pass without enabling a rule.
-The remote envelope and aggregation projection remain owned by #378/#380/#382.
+The installed policy is `native-read-v1-empty`: no production classifiers are
+enabled, so nothing retries. Neither nested diagnostics nor a caller-provided
+classification authorize retry. A new rule needs captured causal evidence, a narrow
+classifier, negative tests for writes/assertions/budgets/setup, and a new policy ID.
+The remote envelope and aggregation projection are owned by #378/#380/#382.
 
 Aggregation runs even after shard failure. Shard `status` is `complete`,
 `missing`, `cancelled` or `timed_out`; absent attempts references are null.
@@ -284,14 +274,14 @@ digests, exact case/shard coverage and native reports, and emits the existing
 suite-shaped `result.json` beside the untouched remote manifests. Use the
 [aggregation and import commands](../testing/remote-evidence.md), then
 `go run ./cmd/land -results <import-directory>/evidence` from the task's `go/`.
-Smoke evidence satisfies the landing gate (#387); the nightly full tier owns
-broader affected-area validation. Match the
-tested task changes and inputs before the lane's normal main merge. Record that
-association, then preserve it through the clean lane merge: unrelated main
-movement, squash/rebase or a clean cherry-pick alone does not invalidate evidence.
-Unmatched changes or changed relevant inputs require evidence covering them.
+Smoke evidence satisfies the landing gate; the nightly full tier owns broader
+affected-area validation. Match the tested task changes and inputs before the
+lane's normal main merge, record that association, and preserve it through the
+clean lane merge: unrelated main movement, squash/rebase or a clean cherry-pick
+alone does not invalidate evidence. Unmatched changes or changed relevant inputs
+require evidence covering them.
 
-The current [gate](../../../go/cmd/land/gate.go) reads `passed`, `tier`, `cases`,
+The [gate](../../../go/cmd/land/gate.go) reads `passed`, `tier`, `cases`,
 and the resume/stage/postmortem markers. It rejects failed, staged and
 postmortem-only reports, but allows and names local resumed rows. Remote imports
 also require authenticated artifact provenance, complete shard evidence and a
@@ -301,20 +291,20 @@ evidence must not be presented as a fresh remote pass. Do not merely rename
 
 ## Fixture review
 
-The examples contain the six current smoke cases partitioned into two shards,
-with synthetic native reports and one successful attempt each. Their manifest
-references are real hashes of the checked-in fixture bytes; component/archive
-identities and GitHub IDs are synthetic and cannot bootstrap a game. The
-`suite-s1.json` / `suite-s2.json` projections use today's `-suite` array format;
+The examples contain six smoke cases in two shards, with synthetic native reports
+and one successful attempt each. Manifest references are real hashes of the
+checked-in fixture bytes; component/archive identities and GitHub IDs are synthetic
+and cannot bootstrap a game. The
+`suite-s1.json` / `suite-s2.json` projections use the `-suite` array format;
 the larger selection object is not accepted by that flag. A shard invokes
 `acceptance suite -suite <projection> -workers 1 -timeout 45m -root <private-root>
 -output <fresh-output> -rimgovernor <built-exe>`; do not combine `-suite` and
 `-tier`. The importer restores the requested tier from verified run metadata.
 
-Downstream fixtures should mutate these examples to prove rejection of missing
-shards, mismatched digests/source/base, missing/extra cases, unapproved retries,
-failed native reports, and staged/postmortem reports even when the aggregate
-claims success. Add an eligible failure followed by a fresh pass to prove all
-attempts survive import. #379 additionally proves multi-commit pushes, explicit
-manual bases, equal/missing bases and deterministic assignment. #383 owns the
-real complete land run and measurements; no native run validates this document.
+Downstream fixtures mutate these examples to prove rejection of missing shards,
+mismatched digests/source/base, missing/extra cases, unapproved retries, failed
+native reports, and staged/postmortem reports even when the aggregate claims
+success, and that all attempts of an eligible failure plus fresh pass survive
+import. #379 additionally proves multi-commit pushes, explicit manual bases,
+equal/missing bases and deterministic assignment. #383 owns the real complete land
+run and measurements; no native run validates this document.

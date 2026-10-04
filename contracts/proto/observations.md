@@ -60,7 +60,7 @@ Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
 absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
 `tools/deepresources` checks seeded aggregation, both scanner kinds and a
-yielding drill beside a depleted one; a colony snapshot test (#894) selects
+yielding drill beside a depleted one; a colony snapshot test selects
 a depleted drill for removal from the deep drill step's recorded read.
 
 ## Required semantic validation
@@ -132,12 +132,12 @@ a depleted drill for removal from the deep drill step's recorded read.
   harvestable acquisition items, food corpses, Boolean qualifying food storage,
   forbidden supply cells, the bounded `blighted_plants` census (up to 64
   blighted plants in growing zones or the home area with position, zone and
-  designation state, #245), the player faction's tech level (`player_tech_level`,
+  designation state), the player faction's tech level (`player_tech_level`,
   which selects the starter shelter's shape), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Planning definitions are explicit
   requested open definition names.
-- `dialog` section (#156): the topmost open force-pausing
+- `dialog` section: the topmost open force-pausing
   `Verse.Dialog_NodeTree` (window id, type, title, text, interactive) with its
   current node's options in native order, each carrying its index, label,
   `selectable`/`disabled_reason` and whether activating it resolves (closes or
@@ -150,7 +150,7 @@ a depleted drill for removal from the deep drill step's recorded read.
 - BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout,
   ResearchSnapshot and TradeSheet expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
-- PawnHealth carries surgery facts (#1161): `missing_parts` (each missing or
+- PawnHealth carries surgery facts: `missing_parts` (each missing or
   destroyed part at its common missing ancestor, its parent and the vital flag)
   and `operations` (every available medical recipe per target part with its
   kind, vanilla `success_chance` for the best eligible doctor, best colony
@@ -196,10 +196,10 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Generated def rows and constants
 
-`DefinitionCatalog.thing_defs` and `terrain_defs` (#1730, epic #1720) carry
+`DefinitionCatalog.thing_defs` and `terrain_defs` carry
 every `ThingDef` and every `TerrainDef` as the generated messages of
 [`defs.proto`](defs.proto) (all fields, comps and verbs included), sorted by
-`defName`, beside the planning rows, which are unchanged until #1731 makes
+`defName`, beside the planning rows, which are unchanged until a later change makes
 them views over these. Unlike the planning rows they are unfiltered: no
 buildable or sowable test. A def whose name is not a valid identifier is
 left out, as in the planning rows.
@@ -249,7 +249,7 @@ not a row cap).
 
 ### Every other def class
 
-`DefinitionCatalog.defs` (`DefSets`, #1761) carries the defs of every other
+`DefinitionCatalog.defs` (`DefSets`) carries the defs of every other
 concrete `Verse.Def` class (251 in the game and its DLCs, so the catalog holds
 every def the game loads): one repeated field per class, named by the class
 (`stat_defs`, `recipe_defs`, ...) and numbered in ordinal order of the class's
@@ -281,24 +281,24 @@ messages, so a quest script carries its whole node tree. Every row's
 exclusions are listed in the `defs.proto` header; see
 [schema generation](../schema-generation.md#def-mirror).
 
-`DefinitionCatalog.class_chains` (`ClassChain`, #1785) carries the base classes
+`DefinitionCatalog.class_chains` (`ClassChain`) carries the base classes
 of every class the fill touched, def classes and every `System.Type` value in a
 row alike, sorted by name. `bridge.DefinitionCatalog.ClassIsA(class, base)` and
 `RowIsA(row, base)` match a family against it; a class with no chain is an
-error. `ActiveCondition.condition_class` is the concrete `GetType().FullName`
-(#1794), the key the chains use. A family is matched by base class, never by a
-name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` (#1712) is
+error. `ActiveCondition.condition_class` is the concrete `GetType().FullName`,
+the key the chains use. A family is matched by base class, never by a
+name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
 it as `RoundsFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
-without a biome read or catalog. Native `FoodClimate.sowing_now` (#1858) folds
+without a biome read or catalog. Native `FoodClimate.sowing_now` folds
 the same fact: false in a permanently dark biome (read from the game defs with
 `typeof(GameCondition_NoSunlight).IsAssignableFrom`), unset when the biome or a
 condition class cannot be read.
 
 ### Stat values and adjusted costs
 
-`DefinitionCatalog.stat_values` (`DefStatTable`, #1759) carries the game's own
+`DefinitionCatalog.stat_values` (`DefStatTable`) carries the game's own
 numbers that StatDef parts compute in code, once per load. For every
 `ThingDef` native emits one `DefStatRow` per allowed stuff
 (`GenStuff.AllowedStuffsFor`) when the def is made from stuff, else one row
@@ -319,7 +319,7 @@ costs; kept apart from `rows` because a terrain defName may also name a
 ThingDef); `DefinitionCatalog.TerrainStatValue` reads them and
 `FloorTerrain(name)` joins cleanliness, beauty and flammability with the def
 row's `pathCost` and `natural`; `FloorTerrains()` prices every terrain row once
-per load, so a flooring frame names no terrain (#1733, #1726).
+per load, so a flooring frame names no terrain.
 
 `DefinitionCatalog.StatValue(def, stuff, stat)` and `AdjustedCosts(def, stuff)`
 look the values up in the per-load-token cache; an absent table, a missing
@@ -333,7 +333,7 @@ unmeasured.
 
 ### Game-computed ThingDef flags
 
-`DefinitionCatalog.thing_facts` (`ThingDefFacts`, #1733) is one row for every
+`DefinitionCatalog.thing_facts` (`ThingDefFacts`) is one row for every
 ThingDef: what the game's own code says about the def, computed natively once
 per load and read by Go, never ported. `food_kind` is set for a food a policy
 can allow (a nutrition-giving ingestible that is no drug and no corpse): meal
@@ -361,24 +361,23 @@ cost the stat table cannot value are contract errors.
 
 ## Royalty facts
 
-There is no royalty read (#1879; `ReadRoyaltyFacts` is gone). The title
+There is no royalty read. The title
 ladder (seniority, favor needed, throne and bedroom requirements) and the permit
 catalog (minimum title, permit points, worker class, whether the permit acts and
 the favor a call spends) are static defs read from the def mirror
-(`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`,
-#1875). Each colonist's holdings and psycasts are its `PawnState.royalty`
-(#1876), decoded by `bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`, where an
+(`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`).
+Each colonist's holdings and psycasts are its `PawnState.royalty`, decoded by `bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`, where an
 absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
 thrones are the colony section
-`ColonyFactsSnapshot.royalty` (`RoyaltySection`, #1877), absent without
+`ColonyFactsSnapshot.royalty` (`RoyaltySection`), absent without
 Royalty and `Unavailable` when the read failed, read on every colony frame.
 `neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
 held, craftable and tradeable; `ceremonies` lists each offered or ongoing
 bestowing-ceremony quest (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`):
 quest id, colonist, bestower, awarded title, accepted, bestower waiting in the
-lord's Wait toil, started, spot and the lord's colonist attendees (#1602);
+lord's Wait toil, started, spot and the lord's colonist attendees;
 `thrones` lists every spawned player throne (`Building_Throne`) with its
-assigned owner, absent when unassigned (#1601). `policy.RoyaltyFacts.WithColony`
+assigned owner, absent when unassigned. `policy.RoyaltyFacts.WithColony`
 joins the section to the read; a colony frame without the section leaves the
 royalty fact unknown, and the section's presence is the Royalty-applicable
 gate (`ColonyProjection.RoyaltyOf`). Reads are derived state
@@ -386,12 +385,12 @@ gate (`ColonyProjection.RoyaltyOf`). Reads are derived state
 
 ## Animal races
 
-There is no race read (#1722; `ReadAnimalRaceCatalog` is gone). The definition
+There is no race read. The definition
 catalog's `ThingDef` rows carry every race's whole `RaceProperties` and its
 comps, `PawnKindDef` rows the combat power, and the stat table the race's
 carrying capacity, wildness, market value and minimum handling skill. What only
 the game's own race code can say rides the race's `ThingDefFacts.race`
-(`RaceFacts`, #1722): `animal` (`RaceProperties.Animal`), `mechanoid`
+(`RaceFacts`): `animal` (`RaceProperties.Animal`), `mechanoid`
 (`IsMechanoid`), `insect` (`Insect`), the `trainables` the race can ever learn
 (`Pawn_TrainingTracker.CanAssignToTrain`'s race rules) and the `edible_defs`
 (`RaceProperties.CanEverEat`, over the foods the facts mark). The Go catalog
@@ -407,11 +406,11 @@ scalar, `FoodEater` and `FoodRestriction` no food list.
 
 ## Biotech defs and pawn facts
 
-Biotech facts follow the shared wire pattern (#1333): static defs ride the
+Biotech facts follow the shared wire pattern: static defs ride the
 definition catalog and per-pawn facts ride the canonical pawn row. There is no
 separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`).
 
-`DefinitionCatalog.biotech` (#1678) holds, each sorted by name: `LifeStageDef`
+`DefinitionCatalog.biotech` holds, each sorted by name: `LifeStageDef`
 rows (developmental stage, flags, stat effects); `RaceLifeStages` for every
 humanlike race (`lifeStageAges` with the age each stage begins and
 `lifeStageWorkSettings`, the minimum age per work type); `GeneDef` rows with
@@ -422,7 +421,7 @@ biostats, exclusion tags); `XenotypeDef` rows with their genes; controllable
 mech kinds (`PawnKindDef` of a mechanoid race with an overseer-subject comp:
 weight class, bandwidth cost, work types and priorities); and
 `MechWorkModeDef` rows (`work`, `escort` and `recharge` mark `MechWorkModeDefOf.Work`, `.Escort` and `.Recharge`). Effects come from the game defs, never Go name lists.
-`gene_tuning` (`GeneTuningFacts`, #1932) is a singleton of the game's own
+`gene_tuning` (`GeneTuningFacts`) is a singleton of the game's own
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when
@@ -438,7 +437,7 @@ mechs, a mech's overseer, work mode and control group index, and deathrest
 state. An absent scalar is unknown, never zero; a failed sub-read leaves its
 fields absent and adds a `ReadIssue` named `life_stage`, `developmental_stage`,
 `learning`, `genes`, `mechanitor`, `mech`, `deathrest`, `gene_lifecycle` or
-`extractable`. Gene-lifecycle fields (#1931): `xenogerm_regrow_ticks_left` and
+`extractable`. Gene-lifecycle fields: `xenogerm_regrow_ticks_left` and
 `xenogerm_coma_ticks_left` are the `HediffComp_Disappears` timers of
 `XenogermReplicating` and `XenogerminationComa` (known 0 with no such hediff;
 a pawn with regrow ticks left dies if extracted again), `in_extractor` a pawn
@@ -456,12 +455,12 @@ in Go memory (persistence-contracts.md); they add no store.
 
 ## Odyssey defs and facts
 
-Odyssey (ground only, #1707) follows the shared wire pattern (#1333): static
+Odyssey (ground only) follows the shared wire pattern: static
 defs ride the definition catalog and per-thing facts ride the canonical
 building row. There is no separate read tool and no Odyssey intent. All of it
 is absent without Odyssey (`ModsConfig.OdysseyActive`).
 
-`DefinitionCatalog.odyssey` (#1708, #1791) holds only what the def mirror
+`DefinitionCatalog.odyssey` holds only what the def mirror
 (`defs.proto`) cannot give, read from the game defs: each `BiomeDef`'s wild
 animal kinds with a nonzero commonality in the inland, pollution and coastal
 tables (the game joins `BiomeDef.wildAnimals` with each race's `wildBiomes`;
@@ -481,8 +480,8 @@ lists the colony map tile's mutators next to `biome`. Go lifts the blocks into
 all of it is derived state held in Go memory (persistence-contracts.md) and
 adds no store.
 
-`ColonyFactsSnapshot.odyssey` (`OdysseySection`, #1709) is the colony-wide
-Odyssey read, one keyed section with the snapshot's seq/tick (#1347); it is
+`ColonyFactsSnapshot.odyssey` (`OdysseySection`) is the colony-wide
+Odyssey read, one keyed section with the snapshot's seq/tick; it is
 absent without Odyssey and `Unavailable` when the read failed. It carries
 `conditions` (every `GameCondition` active on the colony map with its def,
 class, ticks passed and left, permanence and causing thing: lava flow, volcanic
@@ -503,12 +502,12 @@ condition) and projects them into `observation.OdysseyColony`
 
 ## Anomaly defs and facts
 
-Anomaly (#1694) follows the shared wire pattern (#1333): static defs ride the
+Anomaly follows the shared wire pattern: static defs ride the
 definition catalog and per-pawn and per-building facts ride the canonical rows.
 There is no separate read tool and no Anomaly intent. All of it is absent
 without Anomaly (`ModsConfig.AnomalyActive`).
 
-`DefinitionCatalog.anomaly` (#1737) holds, each sorted by name and read from the
+`DefinitionCatalog.anomaly` holds, each sorted by name and read from the
 game defs (never Go name lists): `EntityCategoryDef` and `KnowledgeCategoryDef`
 rows; `EntityCodexEntryDef` rows (category, how and when the entry is
 discovered, the linked thing defs, provocation incidents and discovering
@@ -522,11 +521,11 @@ values); and `AnomalyIncidentRow`, one per `IncidentDef.IsAnomalyIncident`
 chance and threat-point gates, the codex entry it discovers).
 `bridge.DecodeAnomalyCatalog` indexes them by name and refuses duplicates,
 unknown references (categories, codex entries), nonfinite or negative numbers
-and an unnamed enum value. Creepjoiner form, benefit and downside rows (#1740: weights, combat-point
+and an unnamed enum value. Creepjoiner form, benefit and downside rows (weights, combat-point
 gates, requires/excludes, granted traits, skills, hediffs and abilities, a
 downside's timing and worker) are included; monolith level defs are not, their
 child adds them. The thing rows duplicate what the generated
-ThingDef rows of #1720 will carry (comps, stat bases); they become Go views
+ThingDef rows will carry (comps, stat bases); they become Go views
 over those rows when it lands. Def numbers in the anomaly catalog and `min_containment_strength` are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator `studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
 
 `PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
@@ -534,7 +533,7 @@ entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
 (held on a platform and which, the ordered `EntityContainmentMode`, escaping,
 bioferrite extraction, whether it can be captured) and its `CompStudiable`
 state (enabled, completed, progress, points, knowledge gained, the knowledge
-category and amount the game resolves). Three threat facts (#1739) feed the
+category and amount the game resolves). Three threat facts feed the
 defense tactics: `hidden_from_player` (`InvisibilityUtility.IsHiddenFromPlayer`:
 the player cannot see or target the pawn, so no attack order names it),
 `psychic_ritual_invoker` (the pawn's role in its lord's psychic ritual is the
@@ -544,7 +543,7 @@ abilities is `ai_IsOffensive`; an entity or mutant that is melee only fights
 as a charging pack, so squad defense and the manhunter tactic apply). Each is
 read alone: a failed read is absent with a `ReadIssue` named for it.
 Hostility stays `PawnState.hostile`.
-A pawn with a creepjoiner tracker carries `anomaly.creepjoiner` (#1740): its
+A pawn with a creepjoiner tracker carries `anomaly.creepjoiner`: its
 form and benefit def names (both shown to a player in the offer letter) and
 `downside_triggered`, the tracker's private `triggeredDownside`, read natively
 and true only once a timed downside has fired. The downside def is hidden
@@ -570,8 +569,8 @@ a failed sub-read leaves its block absent and adds a `ReadIssue` named
 (persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
 no study state.
 
-`ColonyFactsSnapshot.anomaly` (`AnomalySection`, #1738) is the colony-wide
-Anomaly read, one keyed section with the snapshot's seq/tick (#1347); it is
+`ColonyFactsSnapshot.anomaly` (`AnomalySection`) is the colony-wide
+Anomaly read, one keyed section with the snapshot's seq/tick; it is
 absent without Anomaly and `Unavailable` when the read failed. It carries what
 no row holds: `knowledge` (per `KnowledgeCategoryDef`: the project the research
 manager funds from it, the knowledge stored for that project, whether any
@@ -598,7 +597,7 @@ the Odyssey section today.
 
 ## Room-role furniture
 
-`ThingDefFacts.room_roles` (#1728, #1690, #1731) lists the roles the game's code
+`ThingDefFacts.room_roles` lists the roles the game's code
 names a building definition for, sorted: `Toy`, `Decoration`, `Board` and `Desk`
 (its `ThingDefOf` toy box, baby decoration, blackboard and school desk, the rows
 its baby and school jobs name). Go derives the other two from the def rows:
@@ -612,8 +611,8 @@ own counting is unverified against these rules (native acceptance verifies).
 
 ## Biotech colony section
 
-`ColonyFactsSnapshot.biotech` (`BiotechSection`, #1679) is the colony-wide
-Biotech read, one keyed section with the snapshot's seq/tick (#1347); it is
+`ColonyFactsSnapshot.biotech` (`BiotechSection`) is the colony-wide
+Biotech read, one keyed section with the snapshot's seq/tick; it is
 absent without Biotech and `Unavailable` when the read failed. The pollution
 cell grid is unchanged: the section carries `PollutionGrid` totals and the
 player's pollution-clear area size, then rows for what makes pollution
@@ -633,7 +632,7 @@ unique ids per table, cells on the map, nonnegative counts) and projects them
 into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
 held in Go memory (persistence-contracts.md); it adds no store.
 
-Gene-building rows (#1930, design note on #1693) sit in the same section:
+Gene-building rows sit in the same section:
 `gene_banks` (any building with `CompGenepackContainer`: powered, capacity,
 held pack ids, auto-load), `gene_assemblers` (`Building_GeneAssembler`: powered,
 working, `max_complexity` from `MaxComplexity()`, linked bank ids; while
@@ -645,7 +644,7 @@ cumulative power-cut ticks), `genepacks` (each pack held by a bank, with
 points, `Genepack.Deteriorating`, auto-load) and `xenogerms` (spawned items
 with genes and the pending implant target). Complexity, metabolism and archite
 totals on packs and xenogerms are the game's own `GeneSet` values, never
-summed in Go. Each xenogerm also carries `implant_metabolism` (#1931): the
+summed in Go. Each xenogerm also carries `implant_metabolism`: the
 game's `GeneUtility.MetabolismAfterImplanting` for every colonist, slave or
 colony prisoner on its map (one row per pawn id; the implant is refused below
 the biostat range minimum). Run facts are absent while idle, a banked pack has no cell, and
@@ -657,7 +656,7 @@ one place, a bank listed in `gene_banks` or a cell
 `Xenogerms`. Read-only: no write or goal consumes these yet.
 
 `pollution` also counts the polluted pollutable cells (`polluted_cells`) and
-those outside the pollution-clear area (`polluted_uncovered_cells`, #1683).
+those outside the pollution-clear area (`polluted_uncovered_cells`).
 `RoundsFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
 verdicts and that count; it is unknown without Biotech, and `ManagePollution`
 (maintained, priority 3, labor Hauling) is assessed only while it is known. Its
@@ -667,7 +666,7 @@ HAUL (`wastepack_haul`). Siting freezer storage is not planned yet (open on #168
 
 ## Polluting-building flag
 
-`observation.PlanningDefinition.Pollutes` (#1684, #1731) is a view over the def
+`observation.PlanningDefinition.Pollutes` is a view over the def
 row: true when the building def carries `CompProperties_Toxifier`,
 `CompProperties_PolluteOverTime` or `CompProperties_WasteProducer` (the comps
 behind the colony section's polluters and wastepack producers), false for any
@@ -681,14 +680,14 @@ a def-name list.
 `QuestLookTargets` entry on a map; both are absent when native has none (a
 quest anchored only to a world object has no `map_id`). `QuestReward.favor` is
 the royal favor a `Reward_RoyalFavor` grants; summed per `choice_index`, it is
-what the Empire quest planner (#1604) maximises. The Go read carries
+what the Empire quest planner maximises. The Go read carries
 `FactionState` id and hostile beside the quests, and a quest with no
 `map_id` or one off the identity map is off-map. Favor granted outside a
 reward-choice part is not read.
 
 ## Obtainable operation preconditions
 
-References are `Ref {id}` (#1342); an `EntityRef` is only a row head (id,
+References are `Ref {id}`; an `EntityRef` is only a row head (id,
 definition, label, map, position). A write's CAS token is a `SnapshotRef`
 sibling of the reference (`pawn_snapshot`, `source_snapshot`, ...), required,
 context-scoped and bound to the exact ID; a reference without one cannot supply
@@ -721,6 +720,6 @@ unavailable are distinct. Cleanup compares the unchanged claim even after
 authority is revoked. Trade line IDs are opaque and sheet-scoped, catalog group
 IDs catalog-scoped; neither is derived from labels or definition names.
 
-Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. Salvage evidence on the rows outside Home is read only when the request sets `include_salvage` (#984); the rounds and the planner that execute remote salvage set it, the shelter ruin holds and claims do not. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and a standing deconstruct designation (no ownership flag). The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.
+Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. Salvage evidence on the rows outside Home is read only when the request sets `include_salvage`; the rounds and the planner that execute remote salvage set it, the shelter ruin holds and claims do not. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and a standing deconstruct designation (no ownership flag). The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.
 
 Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed state, Home overlap, caskets with hit points and contents, guards once the interior is unfogged, and the perimeter walls that can be deconstructed without a roof-support blocker. No readiness judgement, breach or casket order consumes this census yet (#456).

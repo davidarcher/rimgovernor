@@ -27,7 +27,7 @@ Save keys, controller checkpoint metadata and browser storage keys also use the
 RimGovernor identity. Profiles and checkpoints created with different product
 identifiers are not directly compatible. Use a fresh prepared profile and runtime
 directory; retain existing saves and checkpoints separately rather than overwriting
-them. Rebuilding application code does not migrate those artifacts or browser drafts.
+them. Rebuilding does not migrate those artifacts or browser drafts.
 
 See [setup](../players/setup.md)
 and [save/resume](../players/save-and-resume.md) for deployment procedures.

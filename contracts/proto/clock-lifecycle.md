@@ -53,7 +53,7 @@ watch-latched with its operation outcome, authority changes (owner-less when
 observed outside an epoch), pause-failure, external pause/speed, lease,
 unavailable/watcher/journal errors, force-pause waiting/cleared events and
 `STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
-game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch (#156). Like a
+game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch. Like a
 letter pause it is a non-benign stop the player acknowledges; the controller
 answers the dialog through a `DialogIntent` on Actions/Apply and starts a new epoch, and
 a start attempted while such a window is open is refused as unavailable rather
@@ -94,7 +94,7 @@ Load timeout is 1000–120000 ms. Map readiness and optional visual readiness ar
 distinct; completion carries the newly observed identity. A timeout after dispatch
 is `pending`, with unavailable readiness facts absent. Do not retry loading from
 an ambiguous acknowledgement. Load starts Manual and invalidates authority,
-input/UI captures, pending actions and observation cursors (drafts are plan-owned, #939, and carry no native claim to invalidate). There
+input/UI captures, pending actions and observation cursors (drafts are plan-owned and carry no native claim to invalidate). There
 is no saved-lease restoration, old-format conversion or compatibility override.
 The lifecycle facade uses the existing SDK implementation; its method descriptor
 does not imply another in-game loader or native process server.

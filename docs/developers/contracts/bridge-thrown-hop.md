@@ -2,47 +2,36 @@
 
 [Contracts](README.md) · [Developer guide](../README.md)
 
-Finding for #1887 (epic #1668, fail-loudly). Question: when a bridge hop
-(the body handed to `ProtoBoundary.OnMainThread`/`RunHop`) throws, does the
-host reply with an error, drop the connection, or take the bridge down?
-
-**Answer: a rethrow is safe.** The host turns it into an ordinary tool reply
-with `success: false`; the connection, the game thread and later calls are
-untouched. No catch is needed to protect the bridge, so a swallow whose only
-reason is "do not break the hop" has no reason left.
-
-## Evidence
-
-Decompiled `RimBridgeServer.dll`/`RimBridgeServer.Core.dll` with `ilspycmd`,
-then confirmed on the running game: a scratch throw in the
-`rimgovernor/clock_read_status` hop body (not committed), called over the
-GABP connection three times (normal, throwing, normal). The throwing call
-returned in 43 ms, the third call answered normally in 3 ms, and the
-connection stayed up. The game log carried no line for the throw.
+When a bridge hop (the body handed to `ProtoBoundary.OnMainThread`/`RunHop`)
+throws, the host replies with an ordinary tool result carrying `success: false`.
+The connection, the game thread and later calls are untouched, so **a rethrow is
+safe**: no catch is needed to protect the bridge. Verified by decompiling
+`RimBridgeServer.dll`/`RimBridgeServer.Core.dll` (`ilspycmd`) and by a scratch throw
+in a hop body on the running game (the call after it answered normally).
 
 ## Path of a throw
 
 1. `MainThreadAdmission.Run` catches it and fails the hop's completion
-   (`TrySetException`); a thrown body never reaches the host's pump, so the
-   game thread never sees the exception (the host's own pumps also catch and
-   `Log.Error` anything that escapes). `RunHop`'s `finally` still closes the
-   watchdog entry and the frame account.
-2. The tool method's `await` rethrows the original exception (not a
-   `TargetInvocationException`: tool methods are async, so `method.Invoke`
-   returns a faulted task).
+   (`TrySetException`); the host's pump and the game thread never see it.
+   `RunHop`'s `finally` still closes the watchdog entry and the frame account.
+2. The tool method's `await` rethrows the original exception (tool methods are
+   async, so there is no `TargetInvocationException`).
 3. `AnnotatedExtensionCapabilityProvider` runs the method under
-   `OperationRunner.RunAsync`, which catches `Exception` and returns an
-   `OperationEnvelope` with status Failed, error code `capability.failed`.
-   `OperationCanceledException` maps to Cancelled (`capability.cancelled`),
-   `TimeoutException` to TimedOut (`capability.timed_out`), and a
-   `MissingMethodException`/`TypeLoadException` naming `RimBridgeServer.Sdk`
-   to `capability.sdk_mismatch`.
-4. `LegacyToolExecution.InvokeAlias` (the registered GABP handler) never
-   throws for a failed envelope; it composes the reply below.
+   `OperationRunner.RunAsync`, which returns an `OperationEnvelope`:
+
+   | Exception | Status | Error code |
+   | --- | --- | --- |
+   | any `Exception` | Failed | `capability.failed` |
+   | `OperationCanceledException` | Cancelled | `capability.cancelled` |
+   | `TimeoutException` | TimedOut | `capability.timed_out` |
+   | `MissingMethodException`/`TypeLoadException` naming `RimBridgeServer.Sdk` | | `capability.sdk_mismatch` |
+
+4. `LegacyToolExecution.InvokeAlias` (the registered GABP handler) never throws
+   for a failed envelope; it composes the reply below.
 
 ## The reply
 
-A normal GABP tool result (`isError` false on the wire), a JSON object:
+A normal GABP tool result (`isError` false on the wire):
 
 ```
 {"success": false,
@@ -56,36 +45,28 @@ A normal GABP tool result (`isError` false on the wire), a JSON object:
                          "Details": "<exception.ToString()>"}}}
 ```
 
-A hop that completes carries `Status: 2`, `Success: true` and the tool's own
+A completed hop carries `Status: 2`, `Success: true` and the tool's own
 `payload`/`proto` field; a thrown hop has no `payload`, `proto`, `slot` or
-`timing` block, so a caller that reads those fields sees them absent.
+`timing`. `bridge.decodeReceipt` treats `success: false` as a `*Refusal` with
+`Cause` lifted from the first line of `exception`
+(`System.InvalidOperationException: <message>`), so a throw surfaces as a named
+refusal, never as empty data. `capability.failed` and `ExceptionType` appear only
+in the structured receipt.
 
-On the Go side `bridge.decodeReceipt` already treats `success: false` as a
-`*Refusal`, with `Cause` lifted from the `exception` field's first line
-(`System.InvalidOperationException: <message>`), so a thrown hop surfaces as a
-named refusal with the exception type and message, never as empty data. The
-`capability.failed` code and `ExceptionType` are only in the structured
-receipt.
-
-## What this means for #1668
+## Rules
 
 - A read may rethrow instead of returning a default. Prefer a typed
-  `Failure`/`Unavailable` reply where the caller can act on it; rethrow where
-  the failure is a bug and the named refusal is the right signal.
-- A rethrow costs the caller the typed reply (no `Failure` message, only the
-  exception text), and the stack trace rides in every such reply, so keep
-  rethrow for faults, not for expected game states.
-- A frame section that throws fails the frame (#1905). The snapshot stream
-  is not a tool hop, so a rethrow would only skip the frame and leave Go on
-  a stale one. Native instead publishes a frame carrying only
-  `BundleSnapshot.failure` (`NATIVE_FAILURE`, detail `snapshot section
-  <name>: <ExceptionType>: <message>`) for `colonyFacts`, `population`,
-  `research` and `pawns`, and `bridge/frames.go` turns it into a
-  `*Refusal` (tool `snapshot_frame`) whose cause names the section. No
-  omit-and-fall-back-to-GABP path remains for those four.
-- A catch stays only where the game itself throws on legitimate input; give
-  it a one-line reason.
+  `Failure`/`Unavailable` reply where the caller can act on it; rethrow for bugs.
+  A rethrow loses the typed reply and the stack trace rides in every such reply,
+  so never rethrow for expected game states.
+- A frame section that throws fails the frame. The snapshot stream is not a tool
+  hop, so a rethrow would only skip the frame and leave Go on a stale one. Native
+  publishes a frame carrying only `BundleSnapshot.failure` (`NATIVE_FAILURE`, detail
+  `snapshot section <name>: <ExceptionType>: <message>`) for `colonyFacts`,
+  `population`, `research` and `pawns`; `bridge/frames.go` turns it into a
+  `*Refusal` (tool `snapshot_frame`) naming the section.
+- A catch stays only where the game itself throws on legitimate input; give it a
+  one-line reason.
 - Not covered: exceptions outside a tool call (Harmony hooks such as
-  `ObservationFrameHook`/`PlayerSpeedHook` patch bodies, tick handlers). Not
-  probed; they run on the game thread outside any tool call, so the findings
-  above do not apply to them.
+  `ObservationFrameHook`/`PlayerSpeedHook`, tick handlers). They run on the game
+  thread outside any tool call, so none of the above applies.

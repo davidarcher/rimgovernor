@@ -1,7 +1,6 @@
 # Colony extent contract
 
-The colony extent is the controller's one shared territory model (#453,
-milestone 2 of #338): where the colony *is*, recorded with why each cell
+The colony extent is the controller's one shared territory model: where the colony *is*, recorded with why each cell
 belongs, kept per world (colony, map), and read by layout and resource policies
 through one bounded query. It is distinct from native Home coverage (what
 the game maintains and cleans) and from resource-operation reach (where
@@ -24,11 +23,11 @@ knowledge about the colony; the game holds no copy of it.
 ## Derivation
 
 `policy.DeriveColonyExtent` joins the complete `CurrentConstruction`
-player-faction building census (#475), optional action provenance
+player-faction building census, optional action provenance
 (`ConstructionClaims`) and each target's complete
 `HomeCoverageTarget.ExtentGeometry` (enclosed roofed interior and observed
 corridor cells, same geometry rules as Home, and every census stockpile's
-whole `zone` footprint whoever zoned it, #719) into sorted
+whole `zone` footprint whoever zoned it) into sorted
 four-neighbour regions. Every cell carries provenance: `facility`,
 `enclosed_interior`, `corridor` or `margin`, with the facility identity and,
 when known, the plan, action and concern that built it. A margin is an explicit
@@ -45,11 +44,11 @@ cells, interior islands not connected to their footprint, ambiguous
 provenance) is an error. Details: [colony upkeep
 contracts](upkeep-contracts.md#maintained-jobs).
 
-## Persistence and recovery (slice B, #517)
+## Persistence and recovery
 
 Established regions are an append-only session cache per world (colony,
 map). A world change empties it and the new session re-establishes its
-extent from the live world (#1009, #976 U4b); another colony or map starts
+extent from the live world; another colony or map starts
 empty. See [persistence
 contracts](persistence-contracts.md#what-must-survive).
 
@@ -58,7 +57,7 @@ facilities lost, threats present, routes unobserved. Historical Home
 exclusions are not recorded: Home removals are current restorable state
 that autonomous play overwrites, not player vetoes.
 
-## Eligibility (slice C, #518)
+## Eligibility
 
 `policy.ExtentEligibility` overlays same-world current evidence on the
 established history without mutating it. Each region reports its stage,
@@ -81,7 +80,7 @@ extent, not from its own per-facility derivation:
    only as far as keeps the consumer's focus cell (a planner's Home cell)
    inside, then clipped to the map. The result names its source: `extent`
    when the shared extent anchored it, `focus` when the extent was unknown
-   or empty and the consumer's previous focus-centred derivation applies.
+   or empty and the consumer's own focus-centred derivation applies.
 2. Read observations inside that window through the consumer's existing
    native read; the window chooses *which cells to read*, nothing more.
 3. Plan from those observations as before. The window grants no
@@ -110,7 +109,7 @@ adopting the extent window there follows the same three steps.
 Extent growth alone never changes the native Home mask. Establishing a
 region and widening a consumer's window are Go-side records; the only path that paints Home is the existing
 `AreaIntent` home set_cells, driven by the per-facility Home coverage
-review (#452, #461), whose targets and batches do not read the extent.
+review whose targets and batches do not read the extent.
 Home coverage over a corridor between two controller-owned facilities is
 therefore produced, and restored, by that path whether or not the corridor
 is inside the extent. The converse also holds: Home cells are an *input* to derivation

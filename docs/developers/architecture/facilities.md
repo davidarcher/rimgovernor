@@ -62,7 +62,7 @@ Each rung reports an explicit reason when it cannot proceed
 Laboratory row: when the research ladder's next rung is locked only for lack
 of a bench, `RoundsResearchPlanner` walks the same furnish-or-shell ladder
 under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
-plans) and selects the rung once it stands (#254).
+plans) and selects the rung once it stands.
 
 ## Electrical safety
 
@@ -96,15 +96,15 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 | Workshop | implemented | Barracks, Room | the bench the recipe catalog names for the deficit |
 | Laboratory | implemented | Workshop, Barracks, Room | SimpleResearchBench |
 | ThroneRoom (Royalty) | implemented (own planned room) | | the title's throne definitions, then bedroom furnishing |
-| Barn | implemented (own planned room, #1633) | | AnimalSleepingSpot and a powered heater (#1867); its interior is the `Barn` area pen animals shelter in during exposure (#1869); the vet room (a controller role, natively scored Barn) takes AnimalBed |
+| Barn | implemented (own planned room) | | AnimalSleepingSpot and a powered heater; its interior is the `Barn` area pen animals shelter in during exposure; the vet room (a controller role, natively scored Barn) takes AnimalBed |
 | Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb | pending | | |
-| Nursery (Biotech) | implemented (own planned room, #1680) | | catalog role BabyBed |
-| Playroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Toy, Decoration |
-| Classroom (Biotech) | implemented (own planned room, #1680) | | catalog roles Board, Desk |
-| WorshipRoom (Ideology) | implemented (own planned room, #1658) | | the buildings the ideoligion requires, read from the game |
-| DeathrestChamber (Biotech) | implemented (own planned room, #1690) | | catalog roles DeathrestCasket, DeathrestAccelerator |
-| ContainmentCell (Anomaly) | implemented (own planned room, #1741) | | the holding platform the defs name |
-| IsolationRoom (Anomaly) | implemented (own planned room, #1740) | | plan role only; the bed is the `bed_humanlike` def |
+| Nursery (Biotech) | implemented (own planned room) | | catalog role BabyBed |
+| Playroom (Biotech) | implemented (own planned room) | | catalog roles Toy, Decoration |
+| Classroom (Biotech) | implemented (own planned room) | | catalog roles Board, Desk |
+| WorshipRoom (Ideology) | implemented (own planned room) | | the buildings the ideoligion requires, read from the game |
+| DeathrestChamber (Biotech) | implemented (own planned room) | | catalog roles DeathrestCasket, DeathrestAccelerator |
+| ContainmentCell (Anomaly) | implemented (own planned room) | | the holding platform the defs name |
+| IsolationRoom (Anomaly) | implemented (own planned room) | | plan role only; the bed is the `bed_humanlike` def |
 | CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 ### Child rooms (Biotech)
@@ -161,7 +161,7 @@ standing target-count bill for the baby-edible recipe (bulk first) through
 `ProductionBillIntent`, sized to the babies' native nutrition per day over
 the seasonal food target days, less other baby foods in stock.
 Native's human-food test (ColonyFacts census, cooking recipes, food storage
-zones; #1752) judges each food per eater class: a baby is an eater only of a
+zones) judges each food per eater class: a baby is an eater only of a
 `babiesCanIngest` food (the game's `FoodIsSuitable`), so a baby in the colony does
 not remove meals from the human food census.
 
@@ -206,10 +206,10 @@ capture rule's (below).
 
 A cell is owed only when its predicted strength reaches the demand (the
 highest `min_containment_strength` among the entities) plus the capture
-margin (#1742): the door term of the strength formula, the strength a holder
+margin: the door term of the strength formula, the strength a holder
 loses when its door is forced open (`policy.CaptureMargin`).
 
-**Capture rule (#1742).** A downed hostile entity is captured only when the
+**Capture rule.** A downed hostile entity is captured only when the
 strongest available standing platform's native strength reaches the entity's
 `min_containment_strength` plus that margin (`policy.EntityVerdicts`); an
 entity the game does not let the colony capture, or no available platform
@@ -221,7 +221,7 @@ Capture whose native side, for a pawn with `CompHoldingPlatformTarget`, sets
 the entity's `targetHolder` and gives the carrier `CarryToEntityHolder` to the
 available platform of highest strength (the game's own order); MaintainPopulation's
 custody step carries it. `ContainmentDefs.Predict` is the game's
-`StatWorker_ContainmentStrength` (decompile, recorded on #1741): the
+`StatWorker_ContainmentStrength` (decompile): the
 holder's stat base plus facility offsets plus (lighting + wall + door +
 floor, each times 0.9 per other holder, + roof) times the holder's
 `containmentFactor`. The defs supply the wall and door `MaxHitPoints`
@@ -241,7 +241,7 @@ that reaches the demand owes no cell. One catalog file,
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
-**Cell lamp (#1743).** The cell is furnished with one standing lamp beside the
+**Cell lamp.** The cell is furnished with one standing lamp beside the
 platform (`policy.ContainmentLampDefinition`, an Optional `ChildFurniture` the
 child-room staging places like any piece; left out until the catalog offers
 it). Power rides the existing power planner: an unpowered, unconnected lamp is
@@ -250,7 +250,7 @@ as for any other consumer; there is no cell-specific conduit or source action.
 The predicted strength still counts no glow, so a lamp never makes a cell owed
 and the native strength read once built is the check.
 
-**Upkeep and breach response (#1743).** MaintainPopulation's custody step,
+**Upkeep and breach response.** MaintainPopulation's custody step,
 once no capture or custody is owed, keeps a held entity contained
 (`rounds_population_containment.go`, facts in `policy/entity_upkeep.go`).
 Doors: the native holder row carries the room's `Building_Door`s
@@ -269,7 +269,7 @@ by id) with a doctor chosen by `SelectTend`; no eligible pair logs
 is a live hostile and falls to the existing defense tactics
 (`TestEscapedEntityFallsToTheExistingDefense`).
 
-**Study rule (#1744).** A held entity is studied through the work type
+**Study rule.** A held entity is studied through the work type
 `DarkStudy` (Anomaly `StudyInteract` work giver; relevant skill Intellectual).
 `policy.StudyWork` owes one `DarkStudy` owner to the work planner while any
 held entity's `study.currently_studiable` is true; the planner then ranks
@@ -368,7 +368,7 @@ identified by the read's quest id, not its script def). The ritual starts
 only on the player's command (the bestower's Wait toil gizmo): once the
 bestower waits and the ritual is known not to have started
 (`CeremonyStart`), the same MaintainPopulation planner issues the generic
-`Ritual` action (`bestowing`/`start`, #1639) and native runs the gizmo's
+`Ritual` action (`bestowing`/`start`) and native runs the gizmo's
 action. No draft avoidance beyond combat's own rules is applied (a raid
 outranks a ceremony).
 

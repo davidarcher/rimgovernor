@@ -25,7 +25,7 @@ At most4096 pawn records per unsaved Game and256 queued jobs/target entries are
 supported; overflow is explicit. This is a draft-control CAS, not a health/settings
 snapshot or permission to issue arbitrary orders.
 
-Drafts are plan-owned (#939): native keeps no draft claim or release ticket.
+Drafts are plan-owned: native keeps no draft claim or release ticket.
 The draft setter hook (`DraftOwnership`) only advances the per-pawn draft
 revision the snapshot token covers; the controller's undraft sweep undrafts
 pawns no live plan needs.

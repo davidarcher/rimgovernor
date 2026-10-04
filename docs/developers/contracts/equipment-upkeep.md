@@ -29,13 +29,13 @@ policy the [apparel-policy operation](apparel-policy.md) assigns) and do not
 create forced entries. A loadout carries at most 8 candidates, the
 best by gain then thing id; the eligible items past that bound count as
 `filtered` in the loadout's completeness, so the routine colony facts do not
-grow with pawns x loose items (issue #320). MaintainEquipment only wears the
-best funded candidate, and the wear order's own census applies the same bound.
-The census candidates are apparel only; loose weapons are the equip family's
-(issue #339). A `gear_replace` whose candidate the fresh census no longer offers
-as apparel, or whose wear preview refuses `NOT_FOUND`, is cancelled rather than
-held, so the plan closes and the concern's development slot frees at the next
-review, as haul and supply do for a thing that left its cell.
+grow with pawns x loose items. MaintainEquipment only wears the best funded
+candidate, and the wear order's own census applies the same bound. The census
+candidates are apparel only; loose weapons are the equip family's. A
+`gear_replace` whose candidate the fresh census no longer offers as apparel, or
+whose wear preview refuses `NOT_FOUND`, is cancelled rather than held, so the
+concern's development slot frees at the next review (as haul and supply do for a
+thing that left its cell).
 
 ## Production and resource protection
 
@@ -48,10 +48,9 @@ and respect player reserves, stopped spending and shared plan commitments. The
 inspected stuff is a preference: a worn-out cloth shirt is replaced from cloth
 when cloth is funded and otherwise from any funded material the recipe accepts
 (leather from hunting is the usual interim before a cotton field). Native
-bills replace their ingredient membership with the funded material set, retained
-through persistence and the applied intent. Native ingredient
-admission and consumption keep stock committed to construction and other
-pawns' bill jobs. Required work types feed the shared work-allocation method: while the
+bills carry the funded material set as their ingredient membership, retained
+through persistence and the applied intent. Native ingredient admission and
+consumption keep stock committed to construction and other pawns' bill jobs. Required work types feed the shared work-allocation method: while the
 concern is in deficit, every standing bench recipe that produces a reported
 replacement need contributes its work type to `EnsureWorkAssignments` before
 any bill exists, the same way a resource deficit covers its benches, because
@@ -85,7 +84,7 @@ worn garment, the eligible loose or stored candidates and the producible
 definitions whose recipe research is finished (one stuff each, the most
 stocked), at most 64 unworn options, each an id, def, stuff, quality,
 condition and flags (tainted, locked, smoke-pop). Everything def-static is
-the catalog's (#1732): Go takes each option's layers and body-part groups,
+the catalog's: Go takes each option's layers and body-part groups,
 shield, psychic and move-speed offsets from the ThingDef row, and armor,
 insulation and market value from the stat table for its def and stuff (a
 stat the game does not show for the def is a stat the garment lacks); the
@@ -94,7 +93,7 @@ options. The pawn row carries the wear inputs the rows cannot say: gender,
 developmental stage and the body-part groups the pawn still has a part in.
 Go applies the wear filter (gender, stage, a present part in one of the
 garment's groups) to the apparel rows to list the definitions the pawn can
-wear (`ApparelPolicyState.definitions` is gone); armor is the Soldier outfit
+wear; armor is the Soldier outfit
 tag without Worker, and a def covers the body with a Torso or Legs group.
 Go derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
@@ -138,7 +137,7 @@ break). Hunters require ranged range at least 25 and favor warm outerwear;
 workers reject movement penalties, indoor workers reduce thermal weight,
 soldiers favor sharp then blunt armor with helmets gated by Smithing and
 shields restricted to melee, children select Kid/Apparel_Kid definitions, and
-slaves, prisoners and unrevealed creepjoiners take the constraint mode (#1859):
+slaves, prisoners and unrevealed creepjoiners take the constraint mode:
 cover legs and torso, meet min(thermal need, item capacity) from the comfort
 band against the seasonal range, then pick minimum acquisition cost (worn gear
 is free). Tainted (dead-man) apparel is excluded unless the wearer is
@@ -146,7 +145,7 @@ taint-free, slave-only apparel (the def's `slaveApparel`) goes only to slaves,
 and weapons are never planned. Garment stats and conflict metadata determine combinations
 such as a flak vest beneath a duster; definitions are not hard-coded.
 
-Armor ladder (#470). An option carries its recipe's research and ingredients;
+Armor ladder. An option carries its recipe's research and ingredients;
 it is eligible only once the input's finished-research census names every
 project, so a soldier's gaps progress simple helmet (Smithing), then flak vest
 and flak helmet, then flak jacket and pants (FlakArmor), and recon or marine
@@ -155,7 +154,7 @@ refuse armor at or past the `GearArmorSpeedFloor` (-0.5 c/s: plate and
 cataphract, never). `Budget` is `GearMaterialBudget`: the supply census less
 MaintainResource reserves and holds, the floor food bills honour; the gear
 planner's holds add `policy.MaterialHolds`, what standing blueprints and frames
-still need and live bill jobs have promised (#1354); a bill option
+still need and live bill jobs have promised; a bill option
 whose ingredients exceed it is refused (nil is unbudgeted, an unmeasured
 material unfunded). Shield belts go to melee soldiers and the medic (highest
 work priority Doctor); a psychic foil helmet only after a psychic-drone letter;
@@ -174,7 +173,7 @@ allocates each physical supply once. `GearProductionDemand` sums only actionable
 bill gaps by definition and stuff; quality does not split demand. These are
 product quantities, not ingredient reservations or promises of crafted quality.
 
-Personal share gate (#1842): `GearLoadoutInput.Share` is the colonist's
+Personal share gate: `GearLoadoutInput.Share` is the colonist's
 `policy.PersonalShare`, stamped per pawn from `PersonalShareOf` after the
 routine reading's shares are held (`stampGearShares`); the zero value is
 ungated. `PlanGearLoadout` drops, at gap-build time, an upgrade gap whose
@@ -204,7 +203,7 @@ preserved. Production also rechecks the retained pawn/loadout prerequisite and
 available replacements before adding its bill.
 
 On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
-(#939, `NativeGearOperations`). Native checks the pawn, the apparel and a
+(`NativeGearOperations`). Native checks the pawn, the apparel and a
 material native gain live, then issues the `Wear` job as ordered (not forced)
 work. A pawn already wearing the apparel or walking to it applies again.
 Weapons use the `EQUIP` kind.
@@ -222,17 +221,16 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 
 ## Acceptance
 
-The gear planner's decisions (#472) replay from colony snapshots recorded
-off the former `gear/*` native cases (#748), in
-`go/internal/policy/gear_snapshot_test.go`: the season lookahead (#467)
+The gear planner's decisions replay from recorded colony snapshots in
+`go/internal/policy/gear_snapshot_test.go`: the season lookahead
 asks every colonist for a cloth parka or jacket plus a tuque before the
-first winter twelfth; tainted apparel (#468) moves everyone to the worker
+first winter twelfth; tainted apparel moves everyone to the worker
 policy and never orders the tainted parka; a stripped twelve-pawn roster
-(#469) is dressed from stored spares, each pawn and each item once, with
-no bill while an offer stands. The soldier loadout (#470, #471) is covered
+is dressed from stored spares, each pawn and each item once, with
+no bill while an offer stands. The soldier loadout is covered
 by [weapon planner](weapon-planner.md#acceptance). The single
-shirt-from-leather path is a colony snapshot test (#894,
-`buildingruntime/rounds_ladder_snapshot_test.go`): with no tailoring bench the
+shirt-from-leather path is a colony snapshot test
+(`buildingruntime/rounds_ladder_snapshot_test.go`): with no tailoring bench the
 workshop step builds a HandTailoringBench, and once it stands the gear step
 produces the shirt on it from plain leather.
 

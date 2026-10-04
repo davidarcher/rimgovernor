@@ -44,8 +44,8 @@ Protobuf parsing/formatting. Generated compile inputs come from
 `contracts/generated/protobuf/csharp`.
 
 `Zones/Preview` is the zone siting read; every write is an
-`Actions/Apply` intent (the Operation message is gone, #990, #1130). The presence of intent arms does not advertise
-the entire operations schema as implemented. `Protocol/NativeConstruction.cs`
+`Actions/Apply` intent. The presence of intent arms does not advertise the
+entire operations schema as implemented. `Protocol/NativeConstruction.cs`
 owns native placement and tracked construction transitions;
 `Protocol/NativeConstructionCausality.cs` checks exact factory/spawn attribution.
 `Protocol/NativeConstructionHookSet.cs` verifies each required live patch before
@@ -64,10 +64,6 @@ The private `scripts/fixtures/GuardedConstructionFixture.cs` supplies
 `test/guarded_construction_prepare` under the fixture compile condition. It
 requires exclusion from production discovery.
 
-`home/placement_previews` and `home/colony_identity` have been removed, with no
-alias. All other retained production exports keep their current source
-ownership entries.
-
 `Observations/ListBuildings` returns complete bounded building, blueprint and frame
 rows, including individual walls and construction work/resources. Entity CAS,
 settings, bills, inspect detail and network/service/thermal facts remain explicitly
@@ -80,16 +76,12 @@ Exact definition/region filters and complete bounded item, holder and corpse lis
 replace samples. Worn gear, orbital stock and delivered construction materials are
 excluded. Disabling held stock leaves held counters unknown with explicit issues.
 No CAS snapshots or frozen pages are issued; oversized or unreadable traversals
-return unavailable. Use `native_supplies_acceptance.py` through the standard
-container scenario launcher for native quantity, completeness and paused-read checks.
-
+return unavailable.
 Typed clock controls use the shared per-load attempt ledger and capture the original
 authority grant, epoch owner and observation context before the initial safety probe.
 Leases use monotonic time. Exact-owner pause remains available for cleanup after
 revocation. Event reads expose immutable observed context and explicit history gaps;
-missing evidence never becomes an empty successful observation. Existing untyped
-epochs and journal rows cannot supply canonical ownership evidence.
-
+missing evidence never becomes an empty successful observation.
 Presentation reads expose native graphical camera/selection facts and spawned
 colonists on loaded maps. Camera and selection are explicitly unavailable in
 headless mode. Selection does not enumerate gizmos or inspect tabs, issue captured
@@ -110,9 +102,7 @@ facts without initializing saved progress dictionaries or category slots. Option
 unlocks and map-local bench/researcher rows retain unknown optional fields. Native
 selection eligibility uses colony-wide bench requirements, which ignore power.
 Oversized collections refuse rather than truncate; no frozen paging or CAS token
-is issued. `native_research_acceptance.py` uses a private read-only fingerprint
-fixture to verify saved-state invariance before a separate native getter audit.
-
+is issued.
 `Observations/ListRooms` returns complete bounded native room geometry, statistics
 and memberships. Exact room/region filters and optional cells/boundary contents
 preserve unknown optional facts through issues; oversized results refuse without
@@ -121,8 +111,8 @@ Headless and rendered acceptance cross-check populated indoor structures against
 native reads and preserve paused context. Populated bed, pawn and stockpile
 memberships remain acceptance gaps.
 
-Live current-map pawns expose opaque control snapshots. Drafts are plan-owned
-(#939): native keeps no draft claim, and the controller's undraft sweep undrafts
+Live current-map pawns expose opaque control snapshots. Drafts are plan-owned:
+native keeps no draft claim, and the controller's undraft sweep undrafts
 every drafted colonist no live plan needs. Animals without draft controllers
 expose target snapshots and remain ineligible for drafting. Tokens cover
 identity, draft and successful ordered-job revisions, position, eligibility and
@@ -160,9 +150,7 @@ acceptance verifies an ordinary assault rifle's attributed target death, player
 override, fresh owned recovery and completed-before-Manual cleanup. Native shield,
 callback side-damage, tracking-capacity and late-flight interruption scenarios
 remain separate acceptance work; compiled tests cover their attribution guards.
-The same package also passes native melee death and ownership recovery. Interrupted
-notification/health trials remain failure evidence alongside the successful runs.
-
+The same package also passes native melee death and ownership recovery.
 Source declarations do not establish gameplay acceptance. Actual installed
 discovery must match the private build and prove fixture exclusion. Generated
 compile inputs are checked by `task protobuf:build` (`.github/workflows/ci.yml`); identity,

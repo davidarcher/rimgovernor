@@ -29,8 +29,8 @@ or incomplete run exits nonzero. It recomputes case coverage and native verdicts
 a supplied top-level success flag cannot override a failed case. Missing files,
 duplicate keys, unknown versions/statuses, incorrect digests, mixed identities
 and unexpected shard/case assignments fail closed. The selection must follow
-`dependency-round-robin-v2` (or legacy `sorted-round-robin-v1`). Source identity and authenticated planner provenance
-are checked on import, where the tested Git objects are available.
+`dependency-budget-lpt-v3` (legacy `dependency-round-robin-v2` and `sorted-round-robin-v1` still import). Source identity and authenticated planner
+provenance are checked on import, where the tested Git objects are available.
 
 An attempt's `evidence` can reference a native case report (`case` or `name`) or
 an existing suite report containing its named row. Suite row metrics and other
@@ -44,19 +44,18 @@ required diagnostic references; absent optional fields do not assert that a
 diagnostic was captured. Resumed, staged and postmortem-only rows retain their
 markers and cannot become a fresh remote pass.
 
-An eligible infrastructure failure followed by a pass can be represented and
-checked without losing its first evidence. Import additionally enforces the
-current production policy, `native-read-v1-empty` (#381): no production retry
-is authorized yet. Enabling a classifier requires coordinated executor and
-importer policy support; a manifest classification is not authorization.
+An eligible infrastructure failure followed by a pass is represented and
+checked without losing its first evidence. Import enforces the production
+policy `native-read-v1-empty`: no production retry is authorized. Enabling a
+classifier requires coordinated executor and importer policy support; a
+manifest classification is not authorization.
 
 Upload only the sanitized diagnostic tree. The importer accepts generated PNG frame captures (decoded and dimension-bounded) and regular JSON,
 JSONL, log, text and Markdown files, rejects links, Windows path aliases,
 case collisions and path escapes. Downloads are bounded by the compressed size
 authenticated through GitHub metadata and verified against its SHA-256 digest.
 ZIP entries are streamed with declared-size, checksum and integer-overflow
-checks; there is no separate hard-coded 1 GiB import quota.
-This extension allowlist is not a content sanitizer:
+checks. This extension allowlist is not a content sanitizer:
 the trusted workflow must remove secrets and licensed contents before upload.
 Keep all attempt logs, metrics and flight recorder segments in the artifact;
 do not upload a whole game, profile or worker directory.
@@ -95,15 +94,14 @@ dirty tracked files need matching evidence. The normal lane merge does not
 trigger another check run. Keep the archive and `evidence/` together and import
 before artifact expiry; offline or expired metadata does not establish trust.
 
-Smoke evidence is accepted for landing under #387. The nightly full tier owns
-broader affected-area validation. Local resumed suites retain their existing
-landing semantics; remote v1 evidence remains fresh and restaged.
+Smoke evidence is accepted for landing; the nightly full tier owns broader
+affected-area validation. Remote v1 evidence is fresh and restaged; local
+resumed suites keep their own landing semantics.
 
 ## Fast validation
 
 `go run ./cmd/test` covers synthetic complete imports, retry-history retention,
 case-failure injection, missing/duplicate/cancelled evidence, unsafe archives,
-wrong provenance/source, local tampering and clean main-merge reuse. Fixtures
-marked `fixture_only` are rejected by import; these checks prove tooling behavior,
-not native pawn outcomes. #383 records the real remote smoke report and later
-rollout measurements.
+wrong provenance/source, local tampering and clean main-merge reuse. Import
+rejects fixtures marked `fixture_only`. These checks prove tooling behavior,
+not native pawn outcomes.

@@ -2,282 +2,222 @@
 
 [All docs](../README.md) · [Working agreement](../../AGENTS.md) · [Choosing checks](testing/choose-tests.md)
 
-The machine-level facts a session needs before it touches the game or the
-build: what is shared with peer sessions, what is private to a worktree, and
-the commands that keep them apart. Several agent sessions run on this one
-Windows machine at once, each in its own worktree, several with a headless
-RimWorld running.
+Machine-level facts a session needs before it touches the game or the build:
+what is shared with peer sessions, what is private to a worktree, and the
+commands that keep them apart. Several agent sessions share one Windows machine,
+each in its own worktree, several with a headless RimWorld running.
 
-For remote runs, follow the [maintainer-to-agent handoff](testing/remote-handoff.md)
-for publication, dispatch, diagnostics, import, cancellation and bundle rotation.
-Clean remote Windows runners use [encrypted bundles and bootstrap](remote-bundles.md).
-Their explicit setup uses job-local dependencies and never discovers Steam, peer
-worktrees or player preferences. Local sessions follow the steps below.
+Remote runs follow the [maintainer-to-agent handoff](testing/remote-handoff.md)
+(publication, dispatch, diagnostics, import, cancellation, bundle rotation).
+Clean remote Windows runners use [encrypted bundles and bootstrap](remote-bundles.md):
+job-local dependencies, no discovery of Steam, peer worktrees or player
+preferences.
 
 ## Session start
 
-1. `git fetch origin main && git merge origin/main` once (the branch's
-   `cmd/test` and `cmd/land` come from `main`; a branch that predates them
-   has neither).
-2. Nothing else until the task needs the game. Go work needs no game and no
-   mod build; `go run ./cmd/test` (about 30 s, `-short`) is the loop;
-   `go run ./cmd/test -full` runs every test once at the end of an epic,
-   and the nightly runs the whole module.
+1. `git fetch origin main && git merge origin/main` once.
+2. Go work needs no game and no mod build; `go run ./cmd/test` from `go/` is the
+   loop (`-full` once at the end of an epic).
 3. Before the first native acceptance run, `go run
-   ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the
-   private layout below (game copy, bridge root, fixture mod, binaries) and
-   prints the first run command. After merging `main` a plain `acceptance
-   run` heals a stale mod itself (below); `setup` again is only for a
-   layout change. `acceptance doctor -root <root> [-rimgovernor <bin>]`
-   checks the environment in a second or two (below). Then keep to the
-   run pattern.
+   ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the private
+   layout below and prints the first run command. A plain `acceptance run`
+   heals a stale mod itself after merging `main`; rerun `setup` only for a
+   layout change. `acceptance doctor -root <root> [-rimgovernor <bin>]` checks
+   the environment in seconds.
 
 ## Shared with peers: never touch these from a task
 
 - **The Go build cache** (`%LOCALAPPDATA%\go-build`). Keep the default
-  `GOCACHE`; never `go clean -cache` and never point `GOCACHE` at a private
-  directory. The cache is what makes a repeated `cmd/test` report
-  `(cached)` in seconds. If a build fails on a missing
-  `go-build\..\<hash>-d` file, rerun the command: the entry repopulates. (A
-  single `go clean -cache` on 2026-09-17 took ten sessions down at once and
-  taught each of them the wrong lesson.)
+  `GOCACHE`; never `go clean -cache` or set a private one. If a build fails on a
+  missing `go-build\..\<hash>-d` file, rerun the command.
 - **The Steam RimWorld install** and the shared `.rimgovernor/isolated-rimworld`
   copy. Peers' games run from them; never replace a DLL under either.
-- **Running games**. Never kill `RimWorldWin64.exe` by image
-  name (`taskkill /IM`, `Stop-Process -Name`): that ends every session's
-  game (it shows up there as the bridge session dropping). Stop your own with `gamesstop -root <root>`; for a
-  stray, select only the pid whose command line contains your worktree path
+- **Running games.** Never kill `RimWorldWin64.exe` by image name (`taskkill
+  /IM`, `Stop-Process -Name`); that ends every session's game. Stop your own
+  with `acceptance stop -root <root>`; for a stray, select only the pid whose
+  command line contains your worktree path
   (`Get-CimInstance Win32_Process | Where-Object CommandLine -like '*<worktree>*'`).
-  A worktree removed without `acceptance stop -root` first leaves its game
-  (and `rimgovernor.exe`) running with nothing able to reach it
-  (#346); `acceptance doctor -root <root> -heal` sweeps every such orphan on
-  the machine by pid, and a `run`'s preflight does the same unless `-no-heal`.
-- **The landing lock** (`.git/rimgovernor-land.lock`). `cmd/land` waits on
-  it; remove it by hand only when its recorded pid is gone.
-- **`main`'s checkout**. The lane commits there; never edit or integrate in
-  it yourself.
+  Removing a worktree without `acceptance stop -root` first orphans its game and
+  `rimgovernor.exe`; `acceptance doctor -root <root> -heal` stops every such
+  orphan by pid, and a `run`'s preflight does the same unless `-no-heal`.
+- **The landing lock** (`.git/rimgovernor-land.lock`). `cmd/land` waits on it;
+  remove it by hand only when its recorded pid is gone.
+- **`main`'s checkout.** The lane commits there; never edit or integrate in it.
 
 ## Private to the worktree
 
-`acceptance setup` (from `go/`: `go run ./internal/nativeaccept/cmd/acceptance
-setup`) makes all of this and is idempotent: it discovers the Steam
-RimWorld install, the workshop Harmony
-(`-rimworld`, `-harmony` or `RIMGOVERNOR_RIMWORLD_DIR`,
-`RIMGOVERNOR_HARMONY_DLL` override discovery),
-skips the mod build when the installed manifest already matches the
-worktree's native sources and fixture set, and refuses to install while a
-game runs from the copy. `-fixture A,B` narrows the build (every class
-`build_native_mod.ps1` accepts by default), `-rebuild` forces a build,
-`-skip-mod`/`-skip-binaries` leave those parts alone. Keep the worktree
-under `.claude/worktrees/`: RimWorld cannot open its own Defs from a copy
-whose path passes ~140 characters (`setup` refuses one).
+`acceptance setup` (from `go/`) makes all of this and is idempotent. It
+discovers the Steam RimWorld install and workshop Harmony (`-rimworld`,
+`-harmony`, `RIMGOVERNOR_RIMWORLD_DIR`, `RIMGOVERNOR_HARMONY_DLL` override),
+skips the mod build when the installed manifest matches the worktree's native
+sources and fixture set, and refuses to install while a game runs from the copy.
+`-fixture A,B` narrows the build, `-rebuild` forces it, `-skip-mod` /
+`-skip-binaries` leave those parts alone. Keep the worktree under
+`.claude/worktrees/`: RimWorld cannot open its Defs from a copy whose path
+passes ~140 characters (`setup` refuses one).
 
-What it produces:
-
-- **The game copy**, `.rimgovernor/native-rimworld/`: the Steam install's
-  loose files copied, `Data`, `RimWorldWin64_Data`, `MonoBleedingEdge` and
-  `Mods/RimBridgeServer` as NTFS junctions to Steam, and `Mods/RimGovernor`
-  from this worktree's own build.
-- **The bridge root**, `.rimgovernor/bridge/` (or whatever `-root` you pass):
-  `config/config.json` whose `games.<id>.target` is the private exe (the
-  launch spec the controller reads; it records the running game in
-  `config/<id>/endpoint.json`),
-  `profile/Config/{ModsConfig,Prefs}.xml` (Prefs from the player's own
-  RimWorld profile when there is one), `profile/Saves/` (Prepare stages
-  the committed `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
-  there itself, replacing an older copy).
-- **The mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
-  `scripts/build_native_mod.ps1`, installed over the copy's
-  `Mods/RimGovernor`. Always go through `acceptance setup -rebuild
-  [-fixture A,B]`: it supplies the script's three Steam
-  paths (`-RimWorldManagedDir`, `-HarmonyAssembly`, `-RimBridgeSdkDir`),
-  calls it in-process (`pwsh -File` does not parse the fixture list), and
-  refuses to install while a game of yours runs. Do not call the script
-  from an agent session: the harness blocks any PowerShell command whose
-  arguments contain `C:\Program Files`, which those Steam paths do. The
-  build is copied in **only while no game of yours is running**. `Prepare` refuses a stale install before
-  boot (`na.RequireCurrentPackage`) and its error names the rebuild
-  command; `acceptance run` does the rebuild itself (the heal, below).
-  Rebuild whenever `integrations/rimgovernor-native` or
-  `scripts/fixtures` changed, including after merging `main`.
-- **The controller binaries**, `.rimgovernor/bin/{acceptance,rimgovernor}.exe`
-  (a serve-driven case takes `-rimgovernor <path>`). Never rebuild them,
-  or the mod, while a case is running from them: the service restart reads
-  EOF and the run dies.
+- **Game copy**, `.rimgovernor/native-rimworld/`: the Steam install's loose
+  files copied; `Data`, `RimWorldWin64_Data`, `MonoBleedingEdge` and
+  `Mods/RimBridgeServer` are NTFS junctions to Steam; `Mods/RimGovernor` is this
+  worktree's build.
+- **Bridge root**, `.rimgovernor/bridge/` (or `-root`): `config/config.json`
+  (`games.<id>.target` is the private exe; the running game is recorded in
+  `config/<id>/endpoint.json`), `profile/Config/{ModsConfig,Prefs}.xml` (Prefs
+  from the player's own profile when present), `profile/Saves/` (Prepare stages
+  `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws` there).
+- **Mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
+  `scripts/build_native_mod.ps1`, installed over the copy's `Mods/RimGovernor`
+  only while no game of yours runs. Always build through `acceptance setup
+  -rebuild [-fixture A,B]`: it supplies the script's three Steam paths and
+  calls it in-process (`pwsh -File` does not parse the fixture list). Never call
+  the script from an agent session: the harness blocks PowerShell commands whose
+  arguments contain `C:\Program Files`. `Prepare` refuses a stale install
+  (`na.RequireCurrentPackage`) and names the rebuild command; `acceptance run`
+  rebuilds itself (the heal). Rebuild whenever `integrations/rimgovernor-native`
+  or `scripts/fixtures` changed, including after merging `main`.
+- **Controller binaries**, `.rimgovernor/bin/{acceptance,rimgovernor}.exe` (a
+  serve-driven case takes `-rimgovernor <path>`). Never rebuild them, or the
+  mod, while a case runs from them: the service restart reads EOF and the run
+  dies.
 
 ## Running a case
 
-- There is one runner, `go/internal/nativeaccept/cmd/acceptance`
-  (`list`, `run <area>/<case>...`, `suite`, `stop`, `doctor`, `why`, `prune`). Build it to an exe
-  and launch it detached: `Start-Process -WindowStyle Hidden -PassThru`
-  with stdout/stderr redirected under `.rimgovernor/`.
-- Run outputs are never cleaned up for you and a suite is hundreds of
-  megabytes: a worktree with a few weeks of runs under `.rimgovernor/out/`
-  holds gigabytes. `acceptance prune -output <abs .rimgovernor/out> [-keep 5]
-  [-dry-run]` deletes the oldest run and suite outputs there (and the
-  `<name>.log`/`.err` a detached launch wrote beside each), keeps the
-  newest `-keep`, and leaves loose files and any directory without a
-  `result.json` alone. Runs whose checkpoint ring you still mean to
-  `-resume` live under `-root`, not there.
-  The tool shell caps a command at ten minutes even in the background, and
-  without `-WindowStyle Hidden` a console window opens on the user's
-  desktop. A suite of more than a handful of cases (a land tier past
-  ~10 rows, any full tier) only ever runs detached: an in-shell attempt
-  the cap kills leaves its worker games orphaned under
+- One runner, `go/internal/nativeaccept/cmd/acceptance` (`list`, `run
+  <area>/<case>...`, `suite`, `stop`, `doctor`, `why`, `prune`). Build it to an
+  exe and launch it detached: `Start-Process -WindowStyle Hidden -PassThru`
+  with stdout/stderr redirected under `.rimgovernor/`. The tool shell caps a
+  command at ten minutes even in the background, and without `-WindowStyle
+  Hidden` a console window opens on the user's desktop. A suite of more than a
+  handful of cases (a land tier past ~10 rows, any full tier) only runs detached:
+  a killed in-shell attempt orphans its worker games under
   `<output>/workers/<n>`, to be stopped by pid.
-- `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is
-  the preflight (#277): one line per known pitfall with its fix -- the
-  root and its game copy (path past ~140 characters), the
-  installed mod (present, stale against the worktree), the
-  baseline save (an expansion it needs that the game copy lacks), the profile's `ModsConfig.xml` against what the kept
-  process launched with, your own leftover game processes, the clock
-  journal backlog under a kept process, a private `GOCACHE`, the runner
-  and `rimgovernor` binaries against the worktree and `main`, an
-  occupied output directory, and `orphans`: game and
-  `rimgovernor.exe` processes whose path lies under a
-  `.claude/worktrees/<name>` that `git worktree list` no longer has (#346),
-  stopped by `-heal`. The `game` line also flags a boot that never finished
-  (a working set under 250 MB with a core pegged for over five minutes). It exits non-zero only on a check that would
-  certainly fail the run; `run` and `suite` run the same checks first,
-  print only the failing ones and refuse on a failure (`-no-doctor` on
-  `run` skips it), with one exception: a stale installed mod, or one
-  lacking a fixture the run's cases call, is **healed** by `run` (#276)
-  rather than refused. The heal stops this root's own kept game (by the pid in
-  its endpoint record, then any leftover pid running from the worktree's private
-  copy -- never by image name), rebuilds the mod through `setup` with the
-  installed fixture set plus the cases' own, installs it and lets the run
-  launch fresh; the checks run again and `result.json` lists the heal
-  under `healed` (`stale_mod`, `missing_fixture`, `relaunched`, `orphans`)
-  so a slow first run is explained. It only heals a root that launches the
-  worktree's own `.rimgovernor/native-rimworld`. `-no-heal` restores the
-  refusal; `suite`, the landing gate's form, never heals.
-- Pass absolute paths (`-root`, `-output`, `-OutputRoot`): the PowerShell
-  tool's working directory follows the last `cd` in the Bash tool.
-- Expect 170-250 ticks/s of game time with peers running whatever speed you
-  ask for (`RIMGOVERNOR_ACCEPT_CLOCK_SPEED=Ultrafast`); a harness whose
-  fixture has to play into its precondition is the slow part, not the box.
+- Outputs are never cleaned up for you (a suite is hundreds of MB).
+  `acceptance prune -output <abs .rimgovernor/out> [-keep 5] [-dry-run]` deletes
+  the oldest run and suite outputs there (and their detached `.log`/`.err`),
+  keeping the newest `-keep`; loose files and directories without a
+  `result.json` are left alone. Checkpoint rings for `-resume` live under
+  `-root`, not there.
+- `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is the
+  preflight: one line per known pitfall with its fix (root and game-copy path
+  length, installed mod present/stale, baseline save's expansions, `ModsConfig`
+  against the kept process, your leftover game processes, clock journal backlog,
+  private `GOCACHE`, binaries against the worktree and `main`, occupied output
+  directory, orphans, and a boot that never finished: working set under 250 MB
+  with a core pegged over five minutes). It exits non-zero only on a check that
+  would certainly fail the run. `run` and `suite` run the same checks, print
+  only failures and refuse on one (`-no-doctor` on `run` skips). Exception: `run`
+  heals a stale installed mod or one lacking a fixture the cases call. It stops
+  this root's own kept game (by endpoint pid, then leftover pids from the
+  worktree's private copy, never by image name), rebuilds through `setup` with
+  the installed fixtures plus the cases' own, installs, and launches fresh;
+  `result.json` lists it under `healed` (`stale_mod`, `missing_fixture`,
+  `relaunched`, `orphans`). It heals only a root launching the worktree's own
+  `.rimgovernor/native-rimworld`. `-no-heal` restores the refusal; `suite`, the
+  landing gate's form, never heals.
+- Pass absolute paths (`-root`, `-output`, `-OutputRoot`): the PowerShell tool's
+  working directory follows the last `cd` in the Bash tool.
+- Expect 170-250 ticks/s of game time with peers running
+  (`RIMGOVERNOR_ACCEPT_CLOCK_SPEED=Ultrafast`); a fixture that must play into its
+  precondition is the slow part, not the box.
 - A kept process (`RIMGOVERNOR_ACCEPT_KEEP_GAME`, the default) keeps its
-  `ModsConfig`: a save that needs DLC fails `save.missing_mods` on a
-  Core-only kept process; `gamesstop` first. A production (fixture-less)
-  build cannot be kept and always pays a fresh boot.
-- `acceptance warm -root <root>` prepares the profile and boots the game
-  to the menu ahead of the first run so it attaches (~0.3s) instead of
-  launching (~11s headless); `-background` detaches the boot (log under
-  `<root>/acceptance/warm/warm.log`) so a post-build step can fire it
-  right after the mod is installed. It refuses a stale package like a
-  run does and a mod rebuilt afterwards relaunches on the package check
-  (#285).
-- Before copying a rebuilt mod in by hand, look for your own leftover
-  `RimWorldWin64.exe` from an earlier kept run (command-line filter on the
-  worktree path) and stop it by pid; the heal does this for you.
+  `ModsConfig`: a DLC save fails `save.missing_mods` on a Core-only kept process;
+  `acceptance stop` first. A production (fixture-less) build cannot be kept and
+  always pays a fresh boot.
+- `acceptance warm -root <root>` prepares the profile and boots to the menu so
+  the first run attaches (~0.3 s) instead of launching (~11 s headless);
+  `-background` detaches the boot (log `<root>/acceptance/warm/warm.log`). A mod
+  rebuilt afterwards relaunches on the package check.
+- Before copying a rebuilt mod in by hand, stop your own leftover
+  `RimWorldWin64.exe` by pid; the heal does this for you.
 - Read the digest first: a failed case writes `diagnosis` at the top of
-  its `result.json` and `diagnosis.txt` beside it (`acceptance why
-  <output>/<area>/<case>` reprints it, `-json` for the structure): the run
-  binary's revision against `main`, the last native refusals, the routine
-  review's refused development rows and selected concerns with no method,
-  unsuccessful stages, native job failures, authority generation flips
-  and pooled-job mismatches, each line naming its file and row (#278).
-  Failed step receipts also identify the native tool and distinguish fixture
-  exceptions, blocking attentions (with IDs and sample messages), and refusals.
-  It reads `service.sqlite` raw, so an old schema does not stop it.
-- Diagnosis before latency: a harness that stalls with policies refusing
-  `not_ready`/`StaleFacts` usually has an action prepared under an older
-  native generation (`transitions` in `service.sqlite`, read-only), not a
-  transport problem; `[worker] ... bridge transport failure` lines repeat a
-  handful of real failures (`native_error` rows in the flight recorder).
-- A failed case resumes from its last checkpoint on the next `run` of it
-  in the same root (first output line says so); pass `-fresh` to start
-  over, `-rewind N` to step back. Report a resumed pass as such and land
-  on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
-- A case that declares `Stages` opens on its newest cached stage bundle
-  in the root (first output line says so; #329) and skips the staging
-  blocks it covers; `-restage` stages again, and a landing suite always
-  does. Say `staged_from` in a report the same way as `resumed_from`.
-  To iterate on the tails of several staged cases at once, `acceptance
-  suite -cases a,b -stages` (#527) schedules each case's missing stages
-  as their own work items (`run -through <stage>`) from the bundles
-  cached in `-root`, publishes new bundles back and runs the tails in
-  parallel; refused with `-tier land` and by `cmd/land -results`.
-- Iterating on a case's asserts, not its scenario: `acceptance run
-  <case> -postmortem-only [-from t+7m] -output <empty dir>` reloads the
-  failed bundle on the kept process and runs only the case's
-  `Postmortem` phase (#275), ~20 s; a case without one says so.
-- Iterating on planner or policy code a serve-driven case exercises late
-  in its run: `acceptance dev <area>/<case> -root <root> [-from t+7m]
-  [-watch]` builds `rimgovernor`, reloads the bundle (the ring's next
-  entry by default) on the kept process and runs the case's `Run` and
-  `Postmortem` from there as a resumed run, then waits for Enter (or,
-  with `-watch`, a `.go` change) and goes again (#274): the stage under
-  test plus a reload per iteration instead of the whole replay. Each
-  iteration writes `<output>/dev/<n>/<case>`; the ring, the stage cache
-  and the metrics series are untouched, and a `dev` pass is never a
-  landing pass.
-- Looking at the colony instead of diagnosing it from text (why is
-  nobody building, where did the meal go): `acceptance run <case> -root
-  <root> -break stage=<name>|tick=<n>|minute=<m> -headless=false` stops
-  the run there, bundles it into the ring and leaves the game loaded,
-  paused and visible on the kept process (`BREAK`, exit 3; #280).
-  `acceptance resume -root <root>` continues it from the bundle,
-  `acceptance stop -root <root>` discards it. Stage names are the case's
-  declared `Stages`; tick and minute (run phase) work for any case that
-  checkpoints.
-- Flake or regression: `result.json` `world` names the seed, save hash
-  and fixture hash the run had, and `flake` its recent failure share.
-  `acceptance run <case> -repeat N` measures the pass rate under one
-  build; `-seed <s>` reruns a debug or scenario start on a recorded
-  seed (#281). Say which in the issue instead of "reroll the world".
-- Report evidence from `result.json`/`report.json` and the retained logs;
-  name the cases you ran in the commit message.
-- Iterating on a fixture op: `acceptance fixture <op> [k=v ...] -root
-  <root>` runs it on the baseline (or `-loaded`, the world the last call
-  left) and prints the reply and a world census; no case around it
-  (choose-tests, "Stage the precondition").
+  `result.json` and `diagnosis.txt` beside it (`acceptance why
+  <output>/<area>/<case>`, `-json` for structure): the run binary's revision
+  against `main`, last native refusals, refused development rows and selected
+  concerns with no method, unsuccessful stages, native job failures, authority
+  generation flips and pooled-job mismatches, each naming its file and row.
+  Failed step receipts name the native tool and separate fixture exceptions,
+  blocking attentions (IDs, sample messages) and refusals. It reads
+  `service.sqlite` raw, so an old schema does not stop it.
+- Diagnose before blaming latency: policies refusing `not_ready`/`StaleFacts`
+  usually mean an action prepared under an older native generation
+  (`transitions` in `service.sqlite`, read-only), not transport;
+  `[worker] ... bridge transport failure` lines repeat a few real failures
+  (`native_error` rows in the flight recorder).
+- A failed case resumes from its last checkpoint on the next `run` in the same
+  root (first output line says so); `-fresh` starts over, `-rewind N` steps
+  back. Report a resumed pass as such and land on a fresh one: `acceptance
+  suite` and the `cmd/test` hint run fresh.
+- A case that declares `Stages` opens on its newest cached stage bundle in the
+  root (first output line says so) and skips the staging blocks it covers;
+  `-restage` stages again and a landing suite always does. Report `staged_from`
+  like `resumed_from`. `acceptance suite -cases a,b -stages` schedules each
+  case's missing stages as work items (`run -through <stage>`) from bundles
+  cached in `-root`, publishes new bundles back and runs the tails in parallel;
+  refused with `-tier land` and by `cmd/land -results`.
+- Iterating on asserts, not the scenario: `acceptance run <case>
+  -postmortem-only [-from t+7m] -output <empty dir>` reloads the failed bundle
+  on the kept process and runs only `Postmortem` (~20 s).
+- Iterating on planner or policy code a serve-driven case exercises late:
+  `acceptance dev <area>/<case> -root <root> [-from t+7m] [-watch]` builds
+  `rimgovernor`, reloads the bundle (the ring's next entry by default) on the
+  kept process, runs `Run` and `Postmortem` as a resumed run, then waits for
+  Enter (or a `.go` change with `-watch`) and repeats. Each iteration writes
+  `<output>/dev/<n>/<case>`; the ring, stage cache and metrics series are
+  untouched, and a `dev` pass is never a landing pass.
+- To look at the colony: `acceptance run <case> -root <root> -break
+  stage=<name>|tick=<n>|minute=<m> -headless=false` stops there, bundles into the
+  ring and leaves the game loaded, paused and visible (`BREAK`, exit 3).
+  `acceptance resume -root <root>` continues; `acceptance stop -root <root>`
+  discards. Stage names are the case's declared `Stages`; tick and minute work
+  for any case that checkpoints.
+- Flake or regression: `result.json` `world` names the seed, save hash and
+  fixture hash, and `flake` its recent failure share. `acceptance run <case>
+  -repeat N` measures the pass rate under one build; `-seed <s>` reruns a debug
+  or scenario start on a recorded seed.
+- Report evidence from `result.json`/`report.json` and retained logs; name the
+  cases you ran in the commit message.
+- `acceptance fixture <op> [k=v ...] -root <root>` runs a fixture op on the
+  baseline (or `-loaded`, the world the last call left) and prints the reply and
+  a world census (choose-tests, "Stage the precondition").
 
 ## Landing
 
-`go run ./cmd/test` from `go/`, then `go run ./cmd/land` from the
-branch worktree. The lane merges `main`, squash-lands on the `main`
-checkout, resets the branch and closes the issue named in the branch
-(`claude/github-issue-128-…`; `-issue N` to name it, `-no-close` to skip).
-Call it once, then `git fetch origin main && git push origin main`. A
-conflict comes back as an error: `git merge origin/main`, resolve,
-commit, call it again. A conflict only on a generated protobuf file:
-merge, regenerate (`generatego`/`generatecsharp`, absolute `--output`),
-commit, land. `rerere.enabled` is on, so a resolution replays on later
-merges.
+`go run ./cmd/test` from `go/`, then `go run ./cmd/land` from the branch
+worktree (`-issue N` names the issue, `-no-close` skips closing), once; then
+`git fetch origin main && git push origin main`. On a conflict: `git merge
+origin/main`, resolve, commit, land again. A conflict only in a generated
+protobuf file: merge, regenerate (`generatego`/`generatecsharp`, absolute
+`--output`), commit, land. `rerere.enabled` replays resolutions.
 
 ## Vocabulary glossary (epic #1964)
 
-"Goal" meant three things (a kind id, a Standard row, any owner of Methods),
-so the epic [#1964](https://github.com/davidarcher/rimgovernor/issues/1964)
-renamed it everywhere. This table is the one source of truth: grep an old word
-here to find the new one. The rename is complete: code, storage, logs and
-docs use the new words, and the "In code" column records which child landed
-each row.
+"Goal" meant three things (a kind id, a Standard row, any owner of Methods), so
+epic [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) renames it
+everywhere. This table is the one source of truth: grep an old word to find the
+new one. The rename is complete: code, storage, logs and docs use the new words,
+and the "In code" column records which child landed each row.
 
-The governor makes **Rounds**, running an **Inspection** on each **Concern**
-in its **Department**. A Concern takes one **Type**: a **Standard** (kept up),
-a **Project** (built once) or an **Incident** (handled when it happens).
-**Safeguards** veto unsafe Plans, and the chosen **Method** produces a
-**Plan**.
+The governor makes **Rounds**, running an **Inspection** on each **Concern** in
+its **Department**. A Concern takes one **Type**: a **Standard** (kept up), a
+**Project** (built once) or an **Incident** (handled when it happens).
+**Safeguards** veto unsafe Plans, and the chosen **Method** produces a **Plan**.
 
 | Old word | New word | Meaning | In code |
 | --- | --- | --- | --- |
-| `GoalID` (e.g. `EnsureFoodSupply`) | Concern | A kind the governor watches. The id strings do not change. | done (#1968) |
-| `GoalDetector` | Inspection | Checks one Concern. | done (#1968) |
-| `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done (#1968) |
-| `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done (#1968) |
-| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings. Log word "routine review" is now "rounds" (the `rounds ran` flight-recorder row and clock event are `rounds_review`, formerly `routine_review`; the SQLite table is `rounds` since #1976). The whole `Routine*` family is now `Rounds*` (bare `config.Routine` is `config.Rounds`; C# fixtures `Routine*Fixture` became `Rounds*Fixture`). | done (#1975, #1979) |
-| `Goal` row, `goals` table | Standard | `Open / Settled / Voided` (was `Cancelled` too; the player-goal path is deleted). | done #1972, #1976 (table `standards`, blob key `standard/<id>`, status words open / settled / voided) |
-| `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. | done #1972, #1976 (column and JSON key `episode`) |
-| `Project` | Project | `Open / Completed / Voided`. | done #1972 |
-| `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | done #1972 |
-| `Rule` | Safeguard | An admission veto; not a Type. | done (#1970) |
-| `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. | done #1973, #1976 (JSON keys `Finding` / `Situation`), #2002 (values unclear / unmet / met; Situation unclear / active / clear) |
-| `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (a Standard, Project or Incident); one table per owner (`standard_methods`, `project_methods`, `incident_methods`) plus `plan_owner` and the `plan_methods` view. | done #1974 (`domain.Method`, field `Owner`); tables since #1976; split per owner #1980 |
-| player goals (`GoalSource`, `GoalKind`, `CreateGoal`, `CancelPlayerGoal`, `PlayerGoals`, `/goals`) | deleted | Play is autonomous (#719). | done (#1967) |
-| `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, launcher, native panel, player docs | the new words | Player-visible surfaces take the same words. | Go JSON shapes done (#1977: `concern`, `concerns`); native non-panel comments and player docs done #1978; native panel keys left to #1983 |
+| `GoalID` (e.g. `EnsureFoodSupply`) | Concern | A kind the governor watches. The id strings do not change. | done |
+| `GoalDetector` | Inspection | Checks one Concern. | done |
+| `GoalConcept`, "concept" | Type | Standard, Project or Incident. | done |
+| `Domain`, `GoalDomain` | Department | The colony area a Concern serves; groups panels only. | done |
+| `RoutineReview`, `RoutineReviewer`, `RoutineReviewResult`, `RoutineNeeds` | Rounds, Rounder, RoundsResult, RoundsFindings | The routine review and its runner, result and findings; the whole `Routine*` family is `Rounds*` (`config.Rounds`, C# `Rounds*Fixture`). The `rounds ran` flight-recorder row and clock event are `rounds_review` (formerly `routine_review`); the SQLite table is `rounds`. | done |
+| `Goal` row, `goals` table | Standard | `Open / Settled / Voided`. Table `standards`, blob key `standard/<id>`. | done |
+| `Epoch` | Episode | Count of times a Standard went unmet again after settling (0 is the first); Methods are keyed by it. Projects have none. Column and JSON key `episode`. | done |
+| `Project` | Project | `Open / Completed / Voided`. | done |
+| `Response` concept, `Incident` row | Incident | Both the Type and the row: opens on Active, closes on Clear. "Response" is prose only, for the Methods and Plan chosen for an Incident. | done |
+| `Rule` | Safeguard | An admission veto; not a Type. | done |
+| `NeedState` (unknown / deficit / recovered) | Finding, Situation | Finding for Standards and Projects: Met / Unmet / Unclear. Situation for Incidents: Active / Clear / Unclear. JSON keys `Finding` / `Situation`. | done |
+| `GoalMethod`, `goal_methods` | Method, `methods` | One Method with a single owner (`domain.Method`, field `Owner`); one table per owner (`standard_methods`, `project_methods`, `incident_methods`) plus `plan_owner` and the `plan_methods` view. | done |
+| `Goal*` types in `httpapi`, `interpreter`, `spectator`, `colonyreview`, launcher, native panel, player docs | the new words | Player-visible surfaces take the same words (JSON `concern`, `concerns`). | Go JSON and player docs done; native panel keys left to #1983 |
 
-Unchanged: Plan, Method id, Priority, the Concern id strings and the log
-format (#295; only message words change). No GABP wire field changes.
-#1981 adds a guard against the retired words.
+Unchanged: Plan, Method id, Priority, the Concern id strings and the log format
+(only message words change). No GABP wire field changes. A guard against the
+retired words is tracked in #1981.

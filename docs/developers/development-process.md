@@ -5,25 +5,21 @@
 ## Scope the change
 
 Read the [architecture](architecture/overview.md), [source map](source-map.md),
-affected contracts and [backlog issues](https://github.com/davidarcher/rimgovernor/issues). Identify the outcome, owning
-component, changed contracts and acceptance cases. A few sentences suffice for
-a small fix. Size the slice to a coherent milestone, not the smallest possible
-step: game and acceptance checks are slow, so batch the related work a milestone
-needs into one iteration rather than stopping after each small increment. Once
-checks pass, commit and deliver. Keep incomplete capabilities gated and record
-unrelated discoveries and remaining work in the backlog. When a task spans
-multiple milestones, continue to the next one instead of stopping to be re-prompted.
+affected contracts and [backlog issues](https://github.com/davidarcher/rimgovernor/issues).
+Identify the outcome, owning component, changed contracts and acceptance cases
+(a few sentences suffice for a small fix). Size the slice to a coherent
+milestone: game and acceptance checks are slow, so batch the related work into
+one iteration. Keep incomplete capabilities gated, record unrelated discoveries
+in the backlog, and continue to the next milestone of a multi-milestone task
+without waiting to be re-prompted.
 
-Check Git status before editing. Use a separate task worktree and `codex/` branch
-when peers may be active. Coordinate shared interfaces and integration.
-
-Follow the [working agreement](../../AGENTS.md#the-loop).
-Default to one agent. For requested teams, establish ownership and an integration
-owner once, then work independently. Communicate actual overlaps, contract changes,
-blockers and ready handoffs; do not narrate edits or seek speculative conflict checks.
-When landing is authorized, stream verified commits into main without waiting for
-unrelated teams. Inspect actual diffs and preserve applicable test evidence across
-clean integration; a new main HEAD alone is not a reason to rerun tests.
+Check Git status before editing. Use a separate task worktree when peers may be
+active, and coordinate shared interfaces. The loop is the
+[working agreement](../../AGENTS.md#the-loop). Default to one agent; for a
+requested team, set ownership and an integration owner once, then work
+independently. Communicate actual overlaps, contract changes, blockers and ready
+handoffs, not edits. Stream verified commits into `main`; inspect actual diffs
+and keep test evidence across a clean integration.
 
 ## Follow the existing execution path
 
@@ -31,20 +27,20 @@ clean integration; a new main HEAD alone is not a reason to rerun tests.
 
 Policy selects work; the plan owns durable concerns and progress; Hands owns
 automated writes and reconciliation. Runtime owns lifecycle and authority.
-Adapters handle transport, persistence and presentation. RimWorld owns simulation.
-Advisers cannot issue orders or own colony invariants.
+Adapters handle transport, persistence and presentation. RimWorld owns
+simulation. Advisers cannot issue orders or own colony invariants.
 
 A gameplay feature needs typed observations and actions, admission and resource
 checks, a registered Hands handler, observed postconditions, recovery and player
-feedback. Add these together or as explicitly gated prerequisites. A receipt
+feedback; add them together or as explicitly gated prerequisites. A receipt
 cannot establish completed pawn work. Observe uncertain writes before retrying.
 Colony/map/load changes and tick rewinds invalidate pending work; Manual only
 suspends routine concerns and their open work until control resumes.
 
-Give mutable state one owner. Keep domain logic independent of transport, database,
-web and model SDKs. Pass narrow typed inputs and interfaces; construct dependencies
-at the entry point. Add a module only for a coherent responsibility with a real caller.
-Make cancellation, concurrency and resource cleanup explicit.
+Give mutable state one owner. Keep domain logic independent of transport,
+database, web and model SDKs. Pass narrow typed inputs and interfaces; construct
+dependencies at the entry point. Add a module only for a coherent responsibility
+with a real caller. Make cancellation, concurrency and cleanup explicit.
 
 ## Keep contracts strict
 
@@ -53,101 +49,91 @@ Make cancellation, concurrency and resource cleanup explicit.
 | Go | Concrete structs, distinct IDs, explicit variants and small interfaces. Keep `map[string]any`, reflection dispatch and unchecked assertions out of domain logic. Test handler coverage. |
 | C# | Concrete DTOs and typed operations with explicit null/error handling compatible with `net472` and installed Unity/Mono. |
 
-Distinguish unknown from zero/false, absent from null, and refusal from an uncertain
-write. Use integer game ticks and distinct colony, map, load and action
-identities. Validate bounds and variants at entry; unsupported mutations fail closed.
-Discover native definitions instead of hard-coding modded game facts.
+Distinguish unknown from zero/false, absent from null, and refusal from an
+uncertain write. Use integer game ticks and distinct colony, map, load and
+action identities. Validate bounds and variants at entry; unsupported mutations
+fail closed. Discover native definitions instead of hard-coding modded game
+facts.
 
-Version shared schemas and generate language models from them.
-Generated types still need runtime decoding validation. Keep unavoidable typing
-escapes inside a documented adapter with a boundary test; no blanket suppressions.
+Version shared schemas and generate language models from them; generated types
+still need runtime decoding validation. Keep unavoidable typing escapes inside a
+documented adapter with a boundary test; no blanket suppressions.
 
 ### What is enforced and what is policy
 
-`go run ./cmd/test` from `go/` runs the affected Go checks. Use
-`task build && task test` from the repository root when the change touches
-protobuf or C# projects. There is no
-hosted CI: checks run on the developer's machine before work lands on
-`main`. Whole-module race checks and repeated package-wide race stress runs
-belong in nightly validation, not the local landing loop. The nightly
-`remote-acceptance` workflow runs the whole module with `-race` on Linux.
-For a concurrency fix, use a focused local `go test -race -run <tests>`
-check when useful; repeat only those tests to reproduce a timing flake.
-`task go:test:race` remains an explicit whole-module diagnostic and needs
-a C compiler such as WinLibs MinGW-w64 on `PATH`. Windows race instrumentation
-is substantially slower; prefer synchronized events or virtual time, and
-allow at least 5s for unavoidable wall-clock deadlines.
+`go run ./cmd/test` from `go/` runs the affected Go checks; `task build && task
+test` from the repository root covers protobuf and C# projects. There is no
+hosted CI: checks run on the developer's machine before work lands on `main`.
+Race checks: see [AGENTS.md](../../AGENTS.md#checks); `task go:test:race` is an
+explicit whole-module diagnostic and needs a C compiler such as WinLibs
+MinGW-w64 on `PATH`. Windows race instrumentation is slow: allow at least 5 s
+for unavoidable wall-clock deadlines.
+
 [Task](https://taskfile.dev) installs with `winget install Task.Task` or
 `go install github.com/go-task/task/v3/cmd/task@latest`. The root
-`Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and
-includes every project; each project directory ships its own `Taskfile.yml`
-with `build` (compilation plus the static gates that fail a build) and `test`
-(tests only), so `task go:build`, `task protobuf:build` and so on run one
-project. Projects with nothing to test say so. Projects that need
-machine-local inputs (the game's managed assemblies, Harmony, the
-RimBridgeServer SDK) report `unavailable` naming the missing path instead of
-passing; override the defaults with `RIMWORLD_MANAGED_DIR`, `HARMONY_ASSEMBLY`
-and `RIMBRIDGE_SDK_DIR`. Outputs and evidence land under `.rimgovernor/task/`;
-the protobuf exchange and the native build are checksum-skipped while their
-inputs are unchanged (`task --force` reruns them). Everything in the first
-table fails the gate; everything in the second is reviewed by hand.
+`Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and includes
+every project; each project directory has its own `Taskfile.yml` with `build`
+(compilation plus the static gates) and `test` (tests only), so `task go:build`,
+`task protobuf:build` and so on run one project. Projects needing machine-local
+inputs (game managed assemblies, Harmony, RimBridgeServer SDK) report
+`unavailable` naming the missing path; override with `RIMWORLD_MANAGED_DIR`,
+`HARMONY_ASSEMBLY` and `RIMBRIDGE_SDK_DIR`. Outputs land under
+`.rimgovernor/task/`; the protobuf exchange and native build are
+checksum-skipped while inputs are unchanged (`task --force` reruns). The first
+table fails the gate; the second is reviewed by hand.
 
 | Enforced by `task build` / `task test` | Project (`Taskfile.yml`) |
 | --- | --- |
 | Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
 | Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
-| Go tests under a 60 s per-test hang guard (`-race` is opt-in via `task go:test:race`); the nightly also enforces a 1 s `-short` budget and reports `slow:` skips | `go` (`checktesttimes`) |
+| Go tests under a 60 s per-test hang guard (`-race` opt-in via `task go:test:race`); the nightly also enforces a 1 s `-short` budget and reports `slow:` skips | `go` (`checktesttimes`) |
 | Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |
 | C# `TreatWarningsAsErrors` and `RestoreLockedMode` on Bridge, Runtime, contract probes and both fixture projects; nullable reference types on Runtime | `native`, `probes` (`contracts/tests`, ungated probes only), `fixtures` (`scripts/fixtures`) |
 
 | Policy only (review by hand) | Notes |
 | --- | --- |
-| Go: no `map[string]any`, reflection dispatch or unchecked assertions in domain logic | Telemetry maps stay inside `internal/bridge` flight recording; `internal/nativeaccept` harnesses are the excluded legacy path. |
+| Go: no `map[string]any`, reflection dispatch or unchecked assertions in domain logic | Telemetry maps stay inside `internal/bridge` flight recording; `internal/nativeaccept` harnesses are excluded. |
 | C# nullable on `RimGovernor.Bridge` and the contract probes; five Runtime persistence files carry a `#nullable disable` header | [#85](https://github.com/davidarcher/rimgovernor/issues/85) |
 
 ## Verify and commit
 
 Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-budget-and-evidence-reuse).
-Run `go run ./cmd/test` from `go/` before landing. It checks affected Go
-packages and their importers; test-only edits check their owning package.
-Do not follow it with a full Go suite. Use `task build && task test` for
-changes touching protobuf or C# projects. Reuse successful
-results when the relevant source and environment are unchanged.
+Run `go run ./cmd/test` from `go/` before landing (test-only edits check their
+owning package); do not follow it with a full Go suite. Reuse successful results
+while the relevant source and environment are unchanged.
 
 Test behavior at its owning boundary: pure policy with fixtures, wire formats
 with real decoders, recovery with temporary storage and fault injection, native
 writes with observed game outcomes. Test model interpretation separately from
-execution. Use configured local LM Studio models with no paid-provider fallback.
+execution, with configured local LM Studio models and no paid-provider fallback.
 
-Native runs use the registered acceptance cases and the setup and run commands
-in the [agent runbook](agent-runbook.md). Never replace installed DLLs while any game is running.
-Keep failed evidence and report unavailable platform, model or gameplay coverage.
+Native runs use the registered acceptance cases and the commands in the
+[agent runbook](agent-runbook.md). Never replace installed DLLs while any game
+is running. Keep failed evidence and report unavailable platform, model or
+gameplay coverage.
 
 Review ownership, failure handling, compatibility and unnecessary abstractions.
-Commit each completed iteration with its checks and limitations. Keep generated
-builds, logs, saves, databases and temporary scripts out of commits. Report the
-branch and commit. Land authorized work on local `main` through the landing
-lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
-commit per milestone; the loop is in [AGENTS.md](../../AGENTS.md), the
-machine setup in the [agent runbook](agent-runbook.md)); pull requests are
-disabled and every agent, local or remote, pushes its own landings to
-`origin/main` ([AGENTS.md](../../AGENTS.md#pushing-to-originmain)). `go run ./cmd/test`
-from `go/` is the test loop and the pre-land check (the lane runs no
-tests). Landing needs no acceptance run: the nightly full tier over `main`
-proves the affected areas (#387), and `-tier smoke` or `-tier land` proves
-them before landing when the change warrants it (pass the output to
-`cmd/land -results`). Do not run the areas separately first. `main` moving afterwards
-is never a reason to rerun.
+Commit each completed iteration with its checks and limitations; keep generated
+builds, logs, saves, databases and temporary scripts out. Land with `go run
+./cmd/land` from `go/` in the branch worktree (one squash commit per milestone;
+see [AGENTS.md](../../AGENTS.md#the-loop)); pull requests are disabled and every
+agent pushes its own landings to `origin/main`
+([AGENTS.md](../../AGENTS.md#pushing-to-originmain)). The lane runs no tests and
+landing needs no acceptance run: the nightly full tier proves the affected
+areas, and `-tier smoke` or `-tier land` proves them earlier when warranted
+(pass the output to `cmd/land -results`). `main` moving afterwards is never a
+reason to rerun.
 
 ## Keep deployment and docs maintainable
 
 Validate configuration at startup, configure endpoints explicitly and bind local
-services to loopback. Pin dependencies and separate build, release and run inputs.
-Keep one automated writer per colony, paired checkpoints and bounded shutdown.
-Player preferences and game state belong in their durable owners, not environment
-variables. Redact secrets and include session/action identity in diagnostics.
+services to loopback. Pin dependencies and separate build, release and run
+inputs. Keep one automated writer per colony, paired checkpoints and bounded
+shutdown. Player preferences and game state belong in their durable owners, not
+environment variables. Redact secrets and include session/action identity in
+diagnostics.
 
-Update the relevant player or developer page when behavior changes. Prefer short
-instructions, exact contracts and useful examples. Put pending work in the backlog,
-verification evidence in artifacts and commits, and source notices beside retained
-dependencies. Avoid change diaries and repeated project-wide rules on topic pages.
+Update the relevant player or developer page when behavior changes: short
+instructions, exact contracts, useful examples. Pending work goes in the
+backlog, evidence in artifacts and commits, source notices beside retained
+dependencies. No change diaries or project-wide rules repeated on topic pages.

@@ -57,7 +57,7 @@ native-method branch here. No automatic fallback to UI input is permitted.
 Generated service names and caller-supplied viewer/direction values do not grant
 it. Deny its RPCs to advisers and automated Hands. Taking control must first
 invalidate prior player direction and automation authority, enter Manual, pause
-through the clock owner, (drafted pawns stay drafted, #939), and
+through the clock owner, (drafted pawns stay drafted), and
 verify actual native pause. `InputLeaseGranted` follows those checks. If pause or
 native acquisition has begun but confirmation fails, return
 `InputLeaseUncertain` with the exact request, any known acquired lease and optional

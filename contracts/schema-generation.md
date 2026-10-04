@@ -76,7 +76,7 @@ Mapping, with no allow-list and no name lists:
   (`ThingDef.verbs`, `SimpleCurve.points`) is def data; the only exclusions are
   `[Unsaved]` and runtime state, below. (Stated from the loader's behaviour as
   known; the reference assemblies carry no method bodies, so the generator
-  cannot check it. Confirmed from the decompiled game, #1794:
+  cannot check it. Confirmed from the decompiled game:
   `XmlToObjectUtils.SearchTypeHierarchy` uses `GetField(name, Instance | Public
   | NonPublic)` up the base chain, and `DirectXmlToObject.ObjectFromXml`
   builds with `Activator.CreateInstance(type)`, so a class with no public

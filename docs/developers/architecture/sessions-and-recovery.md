@@ -9,7 +9,7 @@ exists: authority is the load token (which world instance), the native tick (no 
 and the native order generation (no native order-history drift), plus a pause flag.
 Control intents are `resume` and `pause` for an exact world; resume runs the bot under
 that world's empty root plan (`root/<colony>/<load>/<map>`), and routine methods and
-player submissions dispatch under it once authorized. "Manual" in older contract text
+player submissions dispatch under it once authorized. "Manual" in contract text
 means the paused state.
 Observation revisions and native context are separate from authority: background
 refreshes cannot authorize new work. Recheck load token, tick and generation before
@@ -42,16 +42,13 @@ and `GABS_GAME_ID` in its environment, records the endpoint in
 mistaken for the game) and speaks GABP to RimBridgeServer directly
 (`go/internal/gabp`). The GABP connection correlates concurrent requests by
 id, so a held `clock_read_events` long poll does not stall planner reads
-behind it (issue #115). The game is spawned detached and keeps running when
+behind it. The game is spawned detached and keeps running when
 the controller ends; a restarted controller reattaches through the endpoint
-record. On the game side RimBridgeServer ran each companion-mod
-tool on the GABP connection's reader thread; the companion re-registers its
-tools off that thread (`ExtensionDispatchPatch`, issue #227), so a held
-journal read no longer makes the routine worker's dispatch of the successor
-order or the lease renew wait its full length (issue #162). The service
-therefore holds its journal read (`wait_ms`, 4 s) while a colony window it
-admitted is running, so a stop is seen as soon as its row lands, and keeps
-an unheld 1 s cadence between windows, while the planners read.
+record. The companion mod registers its tools off the GABP reader thread
+(`ExtensionDispatchPatch`), so a held journal read never delays the routine
+worker's dispatch or the lease renew. The service holds its journal read
+(`wait_ms`, 4 s) while a colony window it admitted is running, and keeps an
+unheld 1 s cadence between windows while the planners read.
 
 A game connection lost while the service runs (the GABP connection
 dropping) is recovered in-process: the bridge client drops the session as

@@ -2,7 +2,7 @@
 
 The active package is `integrations/rimgovernor-native`, installed as
 `Mods/RimGovernor` with package ID `davidarcher.rimgovernor.native`.
-Historical captures do not gate active development; use new disposable state.
+Use new disposable state; saved-game compatibility is not required.
 
 ## Build and loading
 
@@ -19,8 +19,7 @@ Normal startup leaves headless suppression inactive. Fixture build properties
 include only explicitly requested test sources and must produce separately
 identified artifacts. Production discovery must contain no test tools.
 
-The old projects are removed. PawnSettingsRead.cs and StockpileFilter.cs are compiled helpers.
-Native state is still owned by its current runtime components until N01.06 wires
+PawnSettingsRead.cs and StockpileFilter.cs are compiled helpers. Native state is still owned by its current runtime components until N01.06 wires
 replacement consumers; assembly consolidation alone does not move bookkeeping
 into SQLite or establish typed contracts.
 
@@ -41,8 +40,7 @@ Build against the installed game/SDK references. Package acceptance (new-game
 production discovery, loader/component boundary checks, paused preview
 verification and batch/graphical startup mode checks) is Go native acceptance
 tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
-Current-game safety and gameplay changes need their own native outcomes; no
-old-save import or historical byte-parity campaign is required.
+Safety and gameplay changes need their own native outcomes.
 
 See [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22) for remaining typed
 contracts, lifecycle ownership, persistence and supported-platform acceptance.

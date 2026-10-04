@@ -1,6 +1,6 @@
 # Observation capture and frame accounting probe
 
-Phase accounting for the observation capture path (#642), part of the
+Phase accounting for the observation capture path, part of the
 consolidated `NativeContractProbes.csproj`. It compiles the production
 `ObservationWorkAccounting` and drives it with supplied clocks:
 `FrameAccounting.UpdateAt` takes the monotonic timestamp and every

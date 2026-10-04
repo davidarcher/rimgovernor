@@ -2,9 +2,7 @@
 
 Source baseline: `3fea7d5c`. This source audit contributes to
 [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22); it does not approve
-state removal or establish save compatibility. Acceptance scripts named below
-were removed in [G01.13](https://github.com/davidarcher/rimgovernor/issues/33);
-equivalent Go coverage is tracked in
+state removal or establish save compatibility. Go coverage is tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). N01.06 owns
 the proposed migrations below.
 
@@ -43,11 +41,10 @@ ambiguous association must hold and preserve newer history separately.
 
 ## Construction lineage
 
-Removed (#1355). Go matches each applied building intent to the blueprint,
-frame or building standing with its definition, stuff, anchor and rotation
-(`policy.WorkOpen`); a match placed by anyone is the same end state.
-`ConstructionLineageState` survives only as an empty stand-in so older saves
-load; its records are dropped.
+No native lineage records. Go matches each applied building intent to the
+blueprint, frame or building standing with its definition, stuff, anchor and
+rotation (`policy.WorkOpen`); a match placed by anyone is the same end state.
+`ConstructionLineageState` is an empty stand-in that drops any records on load.
 
 ## Guarded designations
 
@@ -65,7 +62,7 @@ Sources: [saved types](../integrations/rimgovernor-native/src/Runtime/Persistenc
 | `DrillingState.Drills/rimgovernorDrilling` (deep `DrillingRecord`) | SQL | No. |
 
 One ledger holds every guarded designation: enclosure, mine_safety,
-wall_upgrade and acquisition (#1350, #1351). A Mine record is keyed by cell and
+wall_upgrade and acquisition. A Mine record is keyed by cell and
 rock definition, so compressed rock recreated with fresh ids on load stays
 guarded. The job hooks re-check the guard before work lands; a failed check
 drops the designation and closes the record. Revoking authority releases
@@ -100,10 +97,9 @@ or an exact owned stockpile.
 Set, Clear and Invert advance that revision. Removing Home during Manual
 becomes restoration work after Auto resumes, under the
 [Manual control contract](../docs/developers/architecture/control-loop.md#manual-control).
-Legacy `rimgovernorHomeInitialized` and
-`rimgovernorHomeExcluded` save fields are no longer read or written; old saves
-therefore resume autonomous restoration. The compatibility wire field
-`excluded_cells` is emitted as zero.
+The `rimgovernorHomeInitialized` and
+`rimgovernorHomeExcluded` save fields are neither read nor written, so restoration
+is always autonomous. The wire field `excluded_cells` is emitted as zero.
 
 Acceptance: `upkeep/home-coverage` proves connected coverage, restoration,
 stale proposal refusal and native Home persistence across a save reload.

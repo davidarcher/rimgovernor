@@ -13,7 +13,7 @@ control. Autopilot needs no model.
 
 This is a development setup requiring licensed RimWorld files, native mods
 and a prepared save. See the [player guide](docs/players/README.md) for
-controls, saving and troubleshooting. Broader survival coverage remains tracked in
+controls, saving and troubleshooting. Open work is in
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues).
 
 ## Develop

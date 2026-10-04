@@ -2,8 +2,7 @@
 
 The native supervisor (`integrations/rimgovernor-native/src/Bridge/SupervisedPlayTool.cs`)
 guards a running clock window with a hazard probe (`Probe`) and reports the
-facts that changed under it with a digest pass (`PublishFactChanges`). Since
-#626 the two are separate: the probe is paced in game ticks so its detection
+facts that changed under it with a digest pass (`PublishFactChanges`). The two are separate: the probe is paced in game ticks so its detection
 gap holds at every production `TimeSpeed`, and the digests never run inside
 it. `SupervisedPlayHazards.cs` declares the constants and the per-class
 table below; the native contract probe (`native-clock`) drives the pure
@@ -22,7 +21,7 @@ ticks a frame carries (Ultrafast with the ultra-speed boost runs hundreds
 per frame), consecutive probes are at most 30 ticks apart. The wall gate
 only tightens it at slow speeds: at Normal (60 ticks/s) it fires every 6
 ticks, at Fast every 18, at Superfast the tick gate fires first. Under the
-acceptance test acceleration (`testAcceleration`, #109) the tick hook calls
+acceptance test acceleration (`testAcceleration`) the tick hook calls
 the frame path itself, so the same gates apply.
 
 `max_probe_tick_gap` on the clock status (per epoch) and
@@ -36,7 +35,7 @@ bound. The speedmatrix row carries them as `max_probe_tick_gap` and
 The bound is the most game ticks a hazard of that class can exist before a
 probe evaluates it, at every production speed (Normal, Fast, Superfast,
 Ultrafast) and under test acceleration. `detect_ticks` on a stop
-(`detected_tick` less `occurrence_tick`, #621) is the measured gap; the
+(`detected_tick` less `occurrence_tick`) is the measured gap; the
 `hazard/*` acceptance cases (`go/internal/nativeaccept/cases/hazard`,
 injecting through `scripts/fixtures/HazardFixture.cs` and the letter
 fixture) run a window at Ultrafast, inject the class mid-window and assert
@@ -54,15 +53,14 @@ reports every class unhooked and the polled interval bound still holds.
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
 | `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within `InjurySeverityFloorTicks` (5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
 | `colonist_health` | a combat health threshold crossed | polled | 30 | the newest wound's age | (defense/* areas) |
-| ~~`medical_rest_changed`~~ | a resting patient no longer eligible -- no longer a stop (#584): the watch is discharged and the medical facts invalidated | polled | 30 | absent | (medical/* areas) |
 
 Non-stopping observations (`alert_new`, `hostiles_cleared`,
 `injury_observed`) ride the same probe and carry the same 30-tick bound.
 
 A wound under the severity floor, and a resting patient who lost their
-eligibility, are demoted tiers (#584): the probe journals the observation
+eligibility, are demoted tiers, not stops: the probe journals the observation
 and an `observation_invalidated` row over the `pawns` and `emergency`
-families -- the review the stop used to buy -- and the window runs on, so
+families (a medical review without a stop) and the window runs on, so
 neither costs a stop-to-readmit pause. A pawn's demoted injury invalidates
 again at most every `MedicalWakeIntervalTicks` (600), so a brawl cannot
 replan the colony every probe; the wake raised for a discharged rest watch
@@ -94,7 +92,7 @@ carry the two counters apart. The [throughput
 measure](../testing/measure-throughput.md) reports `digest_share` per
 speedmatrix row.
 
-## Armed combat stops (#849)
+## Armed combat stops
 
 A `WATCH_MODE_COMBAT` epoch also stops on the armed events in
 `WatchPolicy.combat_stop_events` with a bound of **0 ticks**: the stop

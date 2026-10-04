@@ -2,95 +2,84 @@
 
 [Documentation](../../README.md)
 
-Vocabulary follows [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) ([glossary](../agent-runbook.md#vocabulary-glossary-epic-1964)); stored names follow it since the schema bump (#1976): tables `standards`, `methods` (`standard_id`, `episode`) and `rounds`, blob keys `standard/<id>`, the `standard` and `episode` JSON keys, and the status words `open`/`settled`/`voided` (Standards) and `open`/`completed`/`voided` (Projects). The finding strings are `unclear`/`unmet`/`met` (#2002; Incident bindings store `unclear`/`active`/`clear`), schema 196. Old-version databases and saves are refused; there is no adoption path.
+Vocabulary follows the [glossary](../agent-runbook.md#vocabulary-glossary-epic-1964). Stored names: tables
+`standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
+`standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards) and
+`open`/`completed`/`voided` (Projects). Finding strings are `unclear`/`unmet`/`met` (Incident bindings
+store `unclear`/`active`/`clear`); schema 196. Databases and saves from other versions are refused;
+there is no adoption path.
 
-Every fact has exactly one home, chosen by what must happen to it when a
-save is reloaded. A second copy of a fact is a bug, not a cache.
+Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
+copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`: ManageCreepJoiners' inspection record, #1740), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record, #1926), family plans (`family/*`) and the soldier squad (`family/soldier_squad`), written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
-| Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition, #1350, #1351; deep drilling; home coverage) | Follows the save |
+| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`, a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), Projects (`project/<id>`, `GovernorProjectBlob`; finished Projects stay as the record), family plans (`family/*`) and the soldier squad (`family/soldier_squad`); written by Go, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
+| Native save, other components | Colony identity and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; deep drilling; home coverage) | Follows the save |
 | SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
-| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token, #1340) and the animal race catalog derived from its race rows (#1722); the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`, #1354); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
+| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (read once per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `projects`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards and Projects under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | `flight.jsonl` | All controller telemetry; `--debug` goes to stderr only; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 
-Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go
-keeps no durable copy of what the save holds. Decided 2026-10-02 (#1355).
-The rest of this page details the session journal.
+Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
+the save holds. The rest of this page details the session journal.
 
 ## What must survive
 
-- **Receipts for uncertain writes.** Every native write is journaled before
-  dispatch and settled by observation, never by transport replay. A reply
-  lost after dispatch leaves the action uncertain; it is reconciled from the
-  next observation, and its plan stays live until that happens.
-- **Request-ID replay.** Player submissions (policies, decisions,
-  building and research intents, control intents, clock acknowledgements) are keyed by the caller's request ID within a world. Repeating an ID
-  returns the recorded outcome; a changed body under the same ID is a
-  conflict.
-- **The Rounds cursor and policy inputs.** Latches, recovery
-  histories and the current Standard bindings let the next Rounds continue where
-  the last one stopped; population and resource policies and
+- **Receipts for uncertain writes.** Every native write is journaled before dispatch and settled by
+  observation, never by transport replay. A reply lost after dispatch leaves the action uncertain; it
+  is reconciled from the next observation, and its plan stays live until then.
+- **Request-ID replay.** Player submissions (policies, decisions, building and research intents,
+  control intents, clock acknowledgements) are keyed by the caller's request ID within a world.
+  Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
+- **The Rounds cursor and policy inputs.** Latches, recovery histories and the current Standard
+  bindings let the next Rounds continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
-- **Clock inbox and source cursors.** Native clock reads journal fetched
-  events with their source cursor before advancing; delivery consumes the
-  inbox atomically with the review. Colony-scoped cursors survive load
-  changes; history beyond a bounded tail is retired once reviewed.
-
-- **Colony extent history.** Established extent regions (with their
-  provenance and the tick and native generation that first observed them)
-  are an append-only session cache per world (colony, map)
-  (`store.EstablishColonyExtent`). A read sees the world's entries at or before its
-  tick. A world change empties it and the new session re-establishes its
-  extent from the live world (#1009, #976 U4b); another colony or map sees
-  nothing.
-  Historical Home exclusions are not recorded here: they are current
-  restorable state, not player vetoes. Ownership and the consumer contract:
-  [colony extent contract](colony-extent.md).
-
-- **Layout tidies.** The re-sites `TidyLayout` moved or is moving
-  (`store.RecordLayoutTidy`, `LayoutTidies`, #611) are a session cache per
-  world (colony, map), rebuilt from the save's `family/tidies` blob on a
-  world change (#1005): each status change (moving, done, abandoned) is a
-  row, and the latest row per item at or before the tick is its state.
+- **Clock inbox and source cursors.** Native clock reads journal fetched events with their source
+  cursor before advancing; delivery consumes the inbox atomically with the review. Colony-scoped
+  cursors survive load changes; history beyond a bounded tail is retired once reviewed.
+- **Colony extent history.** Established extent regions (with provenance and the tick and native
+  generation that first observed them) are an append-only session cache per world (colony, map)
+  (`store.EstablishColonyExtent`). A read sees the world's entries at or before its tick. A world
+  change empties it and the new session re-establishes the extent from the live world; another colony
+  or map sees nothing. Historical Home exclusions are not recorded: they are current restorable
+  state, not player vetoes. Ownership and consumer contract: [colony extent](colony-extent.md).
+- **Layout tidies.** The re-sites `TidyLayout` moved or is moving (`store.RecordLayoutTidy`,
+  `LayoutTidies`) are a session cache per world (colony, map), rebuilt from the save's
+  `family/tidies` blob on a world change. Each status change (moving, done, abandoned) is a row; the
+  latest row per item at or before the tick is its state.
 
 ## What is re-derived
 
-Routine Standards are re-derived from observation every Rounds. A world change
-(new load token, or a tick rewind in the same load) invalidates the previous
-bindings, cancels their pending work and starts fresh Rounds under the new
-world's root plan; only work already dispatched keeps its recovery
-requirement. A pause in the same world suspends the bindings and leaves
-their work open; the next enabled review reactivates the same Standards. The
-storage plan (`policy.PlanStorage`, the desired room-bound stockpile sites)
-is re-derived the same way every `MaintainStockpiles` pass; the standing
-zones are its only record. Durable Standards come back from the save blobs, so nothing here needs a
-restore step.
+Routine Standards are re-derived from observation every Rounds. A world change (new load token, or a
+tick rewind in the same load) invalidates the previous bindings, cancels their pending work and
+starts fresh Rounds under the new world's root plan; only already dispatched work keeps its recovery
+requirement. A pause in the same world suspends the bindings and leaves their work open; the next
+enabled review reactivates the same Standards. The storage plan (`policy.PlanStorage`, the desired
+room-bound stockpile sites) is re-derived on every `MaintainStockpiles` pass; the standing zones are
+its only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
 ## Method ownership
 
-A Method binds one Plan to one owner in `standard_methods` (keyed by Standard,
-Episode and MethodID), `project_methods` or `incident_methods` (keyed by owner
-and MethodID). `plan_owner(plan_id PRIMARY KEY, kind)` holds one row per bound
-plan and each method table references it by `(plan_id, kind)` with a constant
-`kind`, so a plan has at most one owner across the three tables. Plan-to-owner
-lookups read the `plan_methods` view (plan_id, kind, owner_id, episode,
-method_id, priority, reason; episode is NULL outside Standards).
+A Method binds one Plan to one owner in `standard_methods` (keyed by Standard, Episode and MethodID),
+`project_methods` or `incident_methods` (keyed by owner and MethodID). `plan_owner(plan_id PRIMARY
+KEY, kind)` holds one row per bound plan and each method table references it by `(plan_id, kind)` with
+a constant `kind`, so a plan has at most one owner across the three tables. Plan-to-owner lookups read
+the `plan_methods` view (plan_id, kind, owner_id, episode, method_id, priority, reason; episode is NULL
+outside Standards).
 
 ## Bounded working set
 
-Settled autopilot plans and superseded invalidated Standards are marked retired
-rather than deleted: their IDs, methods and receipts stay readable for
-duplicate prevention (a method that completed in the current Episode is
-not proposed again; a deficit measured after the Standard's settling, once no
-plan's effects are open, starts a new Episode so the same Method can repair a
-regression such as a lamp removed behind a lit bench) and for
-`inspect`-style reads, but they leave active
-capacity and cannot be modified or reused. Retirement records a per-world
-observation-tick floor so an older observation cannot make retired
-reservations spendable again. The database still grows with completed work;
-each launch opens a fresh database by default, which is the retention bound.
+Settled autopilot plans and superseded invalidated Standards are marked retired, not deleted. Their
+IDs, methods and receipts stay readable for `inspect`-style reads and duplicate prevention, but they
+leave active capacity and cannot be modified or reused.
+
+- A method that completed in the current Episode is not proposed again. A deficit measured after the
+  Standard's settling, once no plan's effects are open, starts a new Episode so the same Method can
+  repair a regression (a lamp removed behind a lit bench).
+- Retirement records a per-world observation-tick floor so an older observation cannot make retired
+  reservations spendable again.
+- The database grows with completed work; each launch opens a fresh database by default, which is the
+  retention bound.
 
 ## Related reading
 

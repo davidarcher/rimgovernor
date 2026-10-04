@@ -10,14 +10,14 @@ timed condition, the native remaining ticks. Remaining time is planning evidence
 only; an episode ends when the condition is no longer observed, never when the
 count runs out. A condition starting or ending under a running clock window
 invalidates the `colony` fact family (see the clock contract), because such
-events arrive as non-stopping letters. The existing food, production,
+events arrive as non-stopping letters. The food, production,
 sleeping, shelter, temperature, cooking, power and storage gates determine affected
 services; a complete native recovery census supplies infrastructure evidence.
 Named conditions also shape ordinary reviews: a solar flare suspends power
 building, cooks the warm stock ahead and treats turrets as absent, an eclipse
 zeroes solar output and lights outdoor work cells, and a psychic drone widens
 mood entry for the pawns it affects ([upkeep contracts](upkeep-contracts.md),
-[power contracts](power-contracts.md), [mood relief](mood-control.md); #408).
+[power contracts](power-contracts.md), [mood relief](mood-control.md)).
 
 An observed Zzztt letter also starts recovery without a game condition.
 `DevelopmentFacts.short_circuit_tick` reports the latest matching map-local
@@ -66,8 +66,7 @@ proposals.
 
 Candidates require fresh native preview of pawn eligibility, reachability,
 reservations, supplies, area safety and non-widening restrictions. Native job and
-area-lease dispatch remain unavailable until the shared action family is connected.
-Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
+area-lease dispatch are not connected. Proposals do not allocate resources, alter areas, issue jobs or prove recovery.
 
 Manual clears candidates and suspends the recovery concern while retaining observation
 history; the episode survives a resume. Colony/load/map replacement or tick rewind

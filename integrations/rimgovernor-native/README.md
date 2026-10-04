@@ -57,13 +57,13 @@ blueprint, frame or instant building. Pawn completion requires a separate progre
 read following the exact native object transitions. Lost transition evidence
 remains unknown. New loads start without authority or attempt history.
 
-Movement and combat require a drafted pawn (the draft intent, #939) and exact pawn
+Movement and combat require a drafted pawn (the draft intent) and exact pawn
 snapshots. Animals without draft controllers have target snapshots but cannot be
 drafted. Movement completion follows the issued job to its exact destination.
 Melee completion requires native positive damage from that exact attack to cause
 target death or requested standing-target downing. Ordinary direct bullets retain
 exact launch/impact lineage; explosive and custom projectile paths remain unavailable.
-Drafts are plan-owned (#939): native keeps no draft claim, and the
+Drafts are plan-owned: native keeps no draft claim, and the
 controller undrafts pawns no live plan needs.
 
 Work-detail pawn reads provide work-only settings snapshots for eligible workers.
@@ -107,21 +107,15 @@ supply section once plus animal, crop and patient rows. Upkeep, development and
 other unported sections remain explicitly unavailable.
 Oversized collections/replies return unavailable.
 
-The `scripts/native_protobuf_acceptance.py`/`container_scenario.py`,
-`native_go_service_acceptance.py` and `native_guarded_construction_acceptance.py`
-scenario scripts this section once described (protobuf wire acceptance against a
-private production package, a Go read-only service handoff check, and a guarded
-construction cancellation check) were removed with the rest of the Python
-acceptance toolchain in
-[G01.13](https://github.com/davidarcher/rimgovernor/issues/33); equivalent Go
-harnesses are tracked in
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
+Go acceptance harnesses cover the wire, service handoff and guarded construction
+paths against a real game ([#38](https://github.com/davidarcher/rimgovernor/issues/38)
+tracks gaps).
 
-The focused `native-proto-*` and `native-authority*` probes in the consolidated
+The focused `native-proto-*` and `native-authority*` probes in
 `contracts/tests/NativeContractProbes.csproj` (run with `dotnet run --project
-contracts/tests/NativeContractProbes.csproj -- <probe-name>`) still test parsing, SDK
+contracts/tests/NativeContractProbes.csproj -- <probe-name>`) test parsing, SDK
 binding and authority semantics independent of a live game run.
 
-The headless GPL-3.0 notice and both upstream provenance records remain in Notices.
+The headless GPL-3.0 notice and both upstream provenance records are in Notices.
 Companion provenance records the absence of an upstream redistribution license;
 this local development package does not grant redistribution rights.

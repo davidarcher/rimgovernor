@@ -1,304 +1,231 @@
 # Working agreement
 
-`AGENTS.md` is the source of these instructions; `CLAUDE.md` is a symlink to
-it. Machine-level setup (game copy, mod build, running harnesses) is the
-[agent runbook](docs/developers/agent-runbook.md); which checks a change
-needs is [choose-tests](docs/developers/testing/choose-tests.md).
+`AGENTS.md` is the source; `CLAUDE.md` is a symlink to it. Machine setup (game
+copy, mod build, harnesses) is the [agent runbook](docs/developers/agent-runbook.md);
+which checks a change needs is [choose-tests](docs/developers/testing/choose-tests.md).
 
 ## The loop
 
-Take the shortest valid path. Run only the required checks, stop exploring
-once acceptance passes, and land immediately.
+Take the shortest valid path: run only the required checks, stop exploring once
+acceptance passes, land immediately.
 
-1. Work on a task branch in your own worktree; `git fetch origin main &&
-   git merge origin/main` once at session start (local `main` may be
-   behind: every agent pushes `origin/main` directly).
-2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
-   packages the working tree changed and their in-module importers
-   (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
-   harnesses the change touches. It passes `-short`, which skips the slow
-   tests (git-heavy, planner and solver suites), so it stays near 30 s.
-   Run `go run ./cmd/test -full` (every test) only at the end of an epic
-   or when you changed the code a skipped test covers; the nightly runs
-   the whole module. Do not follow it with `go test ./...`, and never
-   rerun it to filter its output. It prints `still running: ...` every
-   30 s and always ends with `test: PASS (...)` or `test: FAIL (...)`.
-   Redirect it to a file (`go run ./cmd/test > ../test.out 2>&1`) and read
-   the file; never pipe it through `tail`/`grep`. Wait for the final line;
-   do not poll or probe the process.
-3. Commit each completed iteration. Checkpoint commits are authorized; do
-   not ask. Size an iteration to a coherent milestone, not the smallest
-   possible edit, so slow checks run once against meaningful progress.
-4. No acceptance run before landing; the required check is one
-   `go run ./cmd/test`. The on-demand full tier (#752) and the nightly
-   (`-tier nightly`, a signal, not a gate) prove the rest. If you did run a
-   tier, hand its output to `cmd/land -results` and name it in the commit
-   message; tier and `-resume` details are in
-   [choose-tests](docs/developers/testing/choose-tests.md).
+1. Work on a task branch in your own worktree; run `git fetch origin main &&
+   git merge origin/main` once at session start (local `main` may be behind:
+   every agent pushes `origin/main` directly).
+2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the changed
+   packages and their in-module importers (`./...` only when `go.mod`/`go.sum`
+   changed), passes `-short` (skips slow git/planner/solver tests, ~30 s) and
+   names the acceptance harnesses the change touches. Use `-full` only at the
+   end of an epic or when you changed code a skipped test covers. Do not follow
+   it with `go test ./...` or rerun it to filter output. Redirect it to a file
+   (`go run ./cmd/test > ../test.out 2>&1`), never pipe it, and wait for the
+   final `test: PASS (...)` / `test: FAIL (...)` line without polling.
+3. Commit each completed iteration (checkpoint commits are authorized). Size an
+   iteration to a coherent milestone so slow checks run once.
+4. No acceptance run before landing; the required check is one `cmd/test`. The
+   on-demand full tier and the nightly (a signal, not a gate) prove the rest.
+   If you ran a tier, pass its output to `cmd/land -results` and name it in the
+   commit message ([choose-tests](docs/developers/testing/choose-tests.md)).
 5. `go run ./cmd/land [-results <suite output>]` from the branch worktree,
-   never piped (redirect to a file if you must keep the output). The lane
-   titles the squash with the branch tip's commit subject, so make the
-   milestone commit the tip and fold fixups into it first.
-   The lane takes the repository lock, fetches `origin/main` and
-   fast-forwards local `main` to it (refusing a diverged `main`), merges
-   `main` into the branch,
-   refuses a presented suite that failed (resumed rows are recorded),
-   squash-lands on the
-   `main` checkout, resets the branch to `main` and closes the branch's
-   GitHub issue with the landing commit (only when the branch name carries
-   the number, `issue-<n>-...`, or you pass `-issue <n>`). It does not
-   push: push straight after (see below). `-test` runs the same `-short`
-   tests as `cmd/test`; do not run `cmd/test` and then `land -test`. Call it once and move on; land
-   each ready milestone rather than holding a branch until the whole task
-   is done. Rebase or merge by hand only to resolve a conflict it reports.
-   An orchestrator that spawned worktree agents removes each agent's
-   worktree once the agent reports (`git worktree remove <path>`, then
-   `git branch -D <branch>` when the branch holds nothing off `main`);
-   the harness locks a running agent's worktree, so neither the agent
-   nor the lane can remove it.
-   The issue closes when the landing meets the acceptance written in its
-   body, not when every follow-up you can think of is done: comment the
-   follow-ups in one line (or file them as issues) and let the lane close
-   it. An issue left open with a "remaining:" paragraph reads as blocked to
-   every other agent sequencing against it.
-6. Continue to the next milestone of an authorized task without waiting to
-   be re-prompted. An issue is finished or you are still working it:
-   landing a milestone is not a stopping point, and a comment listing
-   remaining work you could do yourself is not a reason to stop. Stop only
-   on a blocker you cannot clear, and name it (a commit, an issue number,
-   a decision needed). Readiness checks and assessments that change
-   nothing are not work; do not post them.
-   An issue whose acceptance is an acceptance case is finished once the
-   case is written, registered and builds clean: it runs in the next
-   full tier, and a failure there opens a new issue. Do not hold the issue
-   open to run the case yourself.
+   never piped (redirect if you need the output). The lane titles the squash
+   with the branch tip's commit subject, so make the milestone commit the tip
+   and fold fixups into it first. It takes the repository lock, fast-forwards
+   local `main` to `origin/main` (refusing a diverged `main`), merges `main`
+   into the branch, refuses a failed presented suite, squash-lands on the
+   `main` checkout, resets the branch to `main`, and closes the branch's issue
+   (only when the branch is `issue-<n>-...` or you pass `-issue <n>`). It does
+   not push. `-test` runs the same `-short` tests as `cmd/test`; never run both.
+   Call it once; land each ready milestone rather than holding a branch. Merge
+   by hand only to resolve a conflict it reports.
+   An orchestrator removes each agent's worktree once the agent reports
+   (`git worktree remove <path>`, then `git branch -D <branch>` if nothing is
+   off `main`); the harness locks a running agent's worktree.
+   An issue closes when the landing meets the acceptance in its body, not when
+   every follow-up is done: comment follow-ups in one line (or file issues). An
+   issue left open with a "remaining:" paragraph reads as blocked.
+6. Continue to the next milestone of an authorized task without being
+   re-prompted; stop only on a blocker you cannot clear, and name it (commit,
+   issue number, decision needed). Do not post readiness checks or assessments
+   that change nothing. An issue whose acceptance is an acceptance case is
+   finished once the case is written, registered and builds clean; a failure in
+   the next full tier opens a new issue.
 
-`main` moves constantly and that is never a reason to redo anything: a test
-or harness that passed on the branch's code stays passed, the lane's merge
-does not invalidate it, and a second rerun-and-land cycle for one milestone
-is forbidden. After resolving a merge conflict, run `go build ./...` (and
-`go vet` on the touched packages when Go files conflicted), not the tests
-again. A test that fails under load and passes alone is not a reason to
-rerun the suite: land and say so in the commit body. If something is left unverified, say what in the commit
-body; do not open an issue for it. The next
-full-suite pass (#363, acceptance on CI) verifies every unverified landing
-at once; per-landing issues only pile up until then.
+`main` moves constantly; that is never a reason to redo anything. A test that
+passed on the branch's code stays passed after the lane's merge, and a second
+rerun-and-land cycle per milestone is forbidden. After resolving a conflict,
+run `go build ./...` (plus `go vet` on touched packages when Go files
+conflicted), not the tests. A test that fails under load and passes alone is
+not a reason to rerun: land and say so in the commit body. Say what is left
+unverified in the commit body; do not open an issue for it (the next full-suite
+pass verifies it).
 
 ## Pushing to origin/main
 
-Local agents (on the maintainer's Windows machine) and remote agents (cloud
-sessions in a fresh Linux clone, with no shared `main` checkout and no
-game) all land against GitHub's `main`, and the maintainer pushes there at
-any time too, so every agent:
+Local agents (maintainer's Windows machine) and remote agents (cloud sessions
+in a fresh Linux clone, no game) all land against GitHub's `main`, and the
+maintainer pushes there too. Every agent:
 
-1. Starts from `origin/main`: `git fetch origin main`, then branches from
-   `origin/main`.
-2. Lands with the loop above (`go run ./cmd/land` fetches and
-   fast-forwards `main` to `origin/main` itself).
-3. Runs `git fetch origin main`, then `git push origin main` immediately.
-   If the push is rejected, `git fetch origin main` and run
-   `go run ./cmd/land` again (it fast-forwards or creates local `main` from
-   `origin/main` and re-lands the branch; nothing is retested), then push.
-   Never force-push `main`, and never push a branch SHA to `main`
-   (`git push origin <sha>:main`): that skips the lane's squash and issue
-   close.
+1. Branches from a freshly fetched `origin/main`.
+2. Lands with `go run ./cmd/land`.
+3. Runs `git fetch origin main`, then `git push origin main` immediately. If
+   rejected, fetch and run `go run ./cmd/land` again (it re-lands the branch;
+   nothing is retested), then push. Never force-push `main` or push a branch
+   SHA to `main` (`git push origin <sha>:main`): that skips the squash and
+   issue close.
 
 Remote agents additionally:
 
-1. Run no acceptance; say `Unverified: no acceptance run
-   (remote agent)` in the commit body; the land-tier run on every push to
-   `main` verifies it (its summary lists failing cases).
-2. Compile-check a C# change with `scripts/build_native_ref.sh`
-   (fixture switches pass through, e.g. `-p:UpkeepFixture=true`): it builds
-   against public NuGet reference assemblies, never the game. It needs
-   `apt-get install -y dotnet-sdk-8.0` (Microsoft's installer host is
-   blocked by the cloud proxy).
+1. Run no acceptance; put `Unverified: no acceptance run (remote agent)` in the
+   commit body. The land-tier run on every push to `main` verifies it.
+2. Compile-check C# with `scripts/build_native_ref.sh` (fixture switches pass
+   through, e.g. `-p:UpkeepFixture=true`); it builds against public NuGet
+   reference assemblies, never the game. It needs
+   `apt-get install -y dotnet-sdk-8.0` (Microsoft's installer host is blocked
+   by the cloud proxy).
 
 ## Simplify before you extend
 
 Before adding a layer (flag, fallback, retry, cache, special case, wrapper,
-parallel path), check whether the problem comes from an earlier layer that
-should not exist; if so, say so and propose removing it instead. Cite the
-issue text or user message that asks for any new behaviour; if you cannot,
-it is an assumption: flag it, do not build on it silently. When a second
-fix for the same symptom would add another guard, stop and explain why the
-first fix failed. Every landing report ends with one line:
+parallel path), check whether an earlier layer that should not exist causes the
+problem; if so, propose removing it. Cite the issue text or user message that
+asks for new behaviour; otherwise it is an assumption: flag it. When a second
+fix for one symptom would add another guard, explain why the first failed.
+Every landing report ends with
 `Complexity: added X / removed Y / deletion candidate: Z` (or `none`).
 
 ## Never
 
-- Open a pull request (they are disabled), push any branch but `main`, or
-  force-push. Push `main` only as
-  [Pushing to origin/main](#pushing-to-originmain) describes.
-- `git reset --soft main` to squash, or edit the `main` checkout directly,
-  not even to try a fix on the user's launcher game (which builds from
-  `main`): land it, then restart the launcher (#965).
-- Kill `RimWorldWin64.exe` by image name; peers' games run
-  beside yours. Stop your own by root or pid (runbook).
-- Replace a DLL under a game install some RimWorld is running from. Only a
-  game started from that same install counts: your worktree's mod lives in
-  its private `.rimgovernor/native-rimworld/` copy, so peers' games and the
-  user's launcher game (from `main`) never block `acceptance setup
-  -rebuild` in your worktree; stop your own game first (`acceptance stop
-  -root <root>`). The Steam install and the shared
-  `.rimgovernor/isolated-rimworld` copy are never yours to replace (runbook).
+- Open a pull request (disabled), push any branch but `main`, or force-push.
+- `git reset --soft main` to squash, or edit the `main` checkout directly (the
+  user's launcher game builds from it): land, then restart the launcher.
+- Kill `RimWorldWin64.exe` by image name; peers' games run beside yours. Stop
+  your own by root or pid (runbook).
+- Replace a DLL under a game install a running RimWorld uses. Your worktree's
+  mod lives in its private `.rimgovernor/native-rimworld/` copy, so peers' games
+  and the launcher game never block `acceptance setup -rebuild`; stop your own
+  game first (`acceptance stop -root <root>`). The Steam install and the shared
+  `.rimgovernor/isolated-rimworld` copy are never yours to replace.
 - `go clean -cache`, or set a private `GOCACHE`.
-- Rebuild the controller binary or the mod while a harness is running from
-  them.
+- Rebuild the controller binary or the mod while a harness runs from them.
 - Commit generated builds, logs, saves, databases or temporary scripts.
-- Add Python to the repository. Tooling, acceptance cases and analysis
-  are Go (`go/cmd`, `go/internal/nativeaccept/cases/<area>`); throwaway
-  Python stays in the scratchpad.
+- Add Python to the repository. Tooling, acceptance cases and analysis are Go
+  (`go/cmd`, `go/internal/nativeaccept/cases/<area>`); throwaway Python stays in
+  the scratchpad.
 
 ## Tool pitfalls (Windows harness)
 
-Each of these fails the same way in every session; none is a judgment call.
-
-- Build the mod through `acceptance setup` (`-rebuild`, `-fixture A,B`),
-  never `scripts/build_native_mod.ps1` by hand: the
-  harness refuses any PowerShell command carrying a `C:\Program Files`
-  argument, and the script needs three Steam paths `setup` discovers itself.
-- Never `sleep N && <check>` to wait on a run; the harness blocks it. Launch
-  long commands with `run_in_background: true` and wait for the notification,
-  or use `Monitor` with an until-loop.
-- Never start background timers, sleeps or poll loops ("wait for test output",
-  "pause", "timer") to wait on an agent or a background command; both
-  re-invoke the session when they finish. Report status and end the turn.
-- Write files with the Write tool, not `cat <<'EOF'` in Bash: the Bash tool
-  re-escapes heredoc bodies, so any apostrophe or backslash in the content
-  breaks the whole command (`unexpected EOF while looking for matching`).
-  CRLF files (docs, AGENTS.md) need newline-preserving edits.
-- `python`, not `python3`; `python3` is the Microsoft Store stub.
-- Read GitHub issues with `go run ./cmd/issue <n>` (from `go/`): body and
-  comments in one call, the full text also written to `issue-<n>.md`; `-last k`
-  for the newest comments. Not `gh issue view --comments`: redirected, it
-  prints only the comments and nothing on an uncommented issue. Never
-  WebFetch a github.com URL.
+- Build the mod through `acceptance setup` (`-rebuild`, `-fixture A,B`), never
+  `scripts/build_native_mod.ps1` by hand: the harness refuses PowerShell
+  commands carrying a `C:\Program Files` argument.
+- Never `sleep N && <check>` or start background timers/poll loops to wait on a
+  run or agent; the harness blocks or re-invokes on them. Launch long commands
+  with `run_in_background: true` and wait for the notification (or `Monitor`
+  with an until-loop); otherwise report status and end the turn.
+- Write files with the Write tool, not Bash heredocs (the Bash tool re-escapes
+  apostrophes and backslashes).
+- `python`, not `python3` (the Microsoft Store stub).
+- Read issues with `go run ./cmd/issue <n>` from `go/` (body and comments in
+  one call, also written to `issue-<n>.md`; `-last k` for the newest comments).
+  Not `gh issue view --comments`, never WebFetch a github.com URL.
 
 ## Issues
 
-Open a GitHub issue (`gh issue create`) for anything you would otherwise
-leave as "follow-up" or ask about in a summary: bugs found in passing,
-deferred scope, decisions needed. Also for what you notice while developing
-and are not fixing: a slow test or check, a workflow step that makes no
-sense, a performance problem, an architecture problem or smell (a layer in
-the wrong place, duplicated logic, an interface that fights its callers).
-Do not swallow these; the issue is how they get scheduled. Not for an
-unverified landing (see step 5 above). One issue per
-item, terse title, concrete evidence (file, commit, log line), what would
-resolve it, labeled `priority:P0`/`P1`/`P2` or `area:G01`/`N01`/`tooling`.
-Check open issues first and comment on a match instead of duplicating.
-Cite the number in your report instead of restating it. Status goes in
-issue comments, not chat: a sentence on what landed or remains and the
-commit, not a file-by-file narrative.
+Open a GitHub issue (`gh issue create`) for anything you would otherwise leave
+as "follow-up" or ask about in a summary: bugs found in passing, deferred scope,
+decisions needed, and what you notice but are not fixing (slow test, senseless
+workflow step, performance or architecture smell). Not for an unverified
+landing. One issue per item: terse title, concrete evidence (file, commit, log
+line), what would resolve it, labeled `priority:P0`/`P1`/`P2` or
+`area:G01`/`N01`/`tooling`. Check open issues first and comment on a match.
+Cite numbers instead of restating. Status goes in issue comments, not chat: a
+sentence on what landed or remains and the commit.
 
 ## Checks
 
-- Whole-module race checks and repeated package-wide race stress runs belong
-  in nightly validation, not the local landing loop. Do not run them locally
-  unless explicitly requested. For a concurrency fix, use a focused
-  `go test -race -run <tests>` check when useful; repeat only those tests to
-  reproduce a flake. Prefer synchronized events or virtual time over
-  scheduling-sensitive wall-clock bounds. The nightly `remote-acceptance`
-  workflow runs the whole module with `-race` on Linux.
-- Test deadlines are hang guards, not latency assertions. A test that fails
-  on `context deadline exceeded` or a `checktesttimes` breach under load
-  (`./...`, `-race`, a busy CI runner) has measured the machine, not the
-  code: widen the guard to the accepted maximum (bridge `testBudget`,
-  `playerFixture` CallTimeout, the 60 s `checktesttimes` hang guard) or assert
-  the event instead of the wall clock. Never tighten a deadline per test,
-  shave a test to fit a budget, or open a per-test timing issue for it
-  (#546, #551-#557 were all this, closed by one landing).
-- Pyramid: many fast Go unit tests (via `cmd/test`), fewer integration
-  tests, a small set of targeted native acceptance cases run by
-  `go/internal/nativeaccept/cmd/acceptance` (`acceptance run
-  <area>/<case>`, `acceptance suite`; `cmd/test` names the areas a change
-  owes) against a real headless RimWorld.
-  Before a slow check, say what changed behaviour it verifies and why the
-  cheaper check is insufficient.
-- `task build && task test` runs every project's gates (protobuf, C#); use it when the change touches those, not for Go-only
-  work.
+- Whole-module race checks and repeated race stress runs are nightly work; do
+  not run them locally unless asked. For a concurrency fix use a focused
+  `go test -race -run <tests>`; repeat only those tests to reproduce a flake.
+  Prefer synchronized events or virtual time over wall-clock bounds.
+- Test deadlines are hang guards, not latency assertions. A
+  `context deadline exceeded` or `checktesttimes` breach under load measured the
+  machine: widen the guard to the accepted maximum (bridge `testBudget`,
+  `playerFixture` CallTimeout, the 60 s `checktesttimes` guard) or assert the
+  event. Never tighten a deadline per test, shave a test to fit a budget, or
+  open a per-test timing issue.
+- Pyramid: many fast Go unit tests (`cmd/test`), fewer integration tests, a
+  small set of native acceptance cases run by
+  `go/internal/nativeaccept/cmd/acceptance` (`acceptance run <area>/<case>`,
+  `acceptance suite`) against a real headless RimWorld. Before a slow check, say
+  what changed behaviour it verifies and why a cheaper check is insufficient.
+- `task build && task test` runs every project's gates (protobuf, C#); use it
+  when the change touches those, not for Go-only work.
 - A receipt does not prove pawn work completed: assert the native
   postcondition. Distinguish compilation/protocol checks from gameplay
   validation.
-- After an acceptance failure, add a fast regression test where feasible
-  and rerun that case. The rerun resumes from the run's last checkpoint
-  by default (`resuming <case> from t+7m ...` on its first line; #249);
-  `-fresh` starts over; the land suite runs fresh unless `-resume`. An
-  edit to a case's reads or asserts alone reruns with `-postmortem-only`
-  (#275), which reloads the failed bundle and runs only its `Postmortem`
-  phase; an edit to the code a case's late stage exercises iterates with
-  `acceptance dev <case>` (#274), which rebuilds `rimgovernor` and reruns
-  `Run` and `Postmortem` from a bundle on the kept process each time.
-- Native performance work (a snapshot family's cost) iterates with
-  `acceptance profile-capture -root <dir>` (#1320), not a sustained run:
-  it heals a stale native mod, reloads the newest `sustained/colony`
-  checkpoint (its own root first, then the main checkout's and peer
-  worktrees'; `-from latest-ci` downloads the CI fixture factory's,
-  #1376; `-from`, `-case`, `-save`) on the kept process, times
-  `SnapshotFrames.Capture` `-n` times paused (`test/profile_capture`) and
-  prints p50/p90/max and rows per family and `ObservationWork.Detail`
-  span; `-equality` adds the ColonyFacts optimizations off/on check.
-- A new case starts from a fixture that already exercises the behaviour
-  (a committed save, a `test/*_prepare` op, or a programmatic start) and
-  follows the performance checklist in choose-tests: Core-only, quiet
-  storyteller, stall-bounded waits, minute-scale budgets. Playing a colony
-  into its precondition for 20 minutes is a fixture bug.
-- A new fixture case starts on `cases.LabStart()` (the blank 100x100 lab,
-  #729) and spawns what it needs at known offsets from the centre the op
-  replies; it never searches a random world for a site.
-  `TestFixtureCasesStartPinned` refuses an unpinned random start unless
+- After an acceptance failure, add a fast regression test where feasible and
+  rerun the case. The rerun resumes from the last checkpoint by default;
+  `-fresh` starts over (the land suite runs fresh unless `-resume`).
+  `-postmortem-only` reloads the failed bundle and runs only `Postmortem` (for
+  edits to a case's reads or asserts); `acceptance dev <case>` rebuilds
+  `rimgovernor` and reruns `Run` and `Postmortem` on the kept process (for
+  edits to the code a late stage exercises).
+- Native performance work iterates with `acceptance profile-capture -root <dir>`
+  (flags `-from` incl. `latest-ci`, `-case`, `-save`, `-n`, `-equality`), not a
+  sustained run: it times `SnapshotFrames.Capture` paused on the newest
+  `sustained/colony` checkpoint and prints p50/p90/max per family.
+- A new case starts from a fixture that already exercises the behaviour (a
+  committed save, a `test/*_prepare` op, or a programmatic start) and follows
+  the performance checklist in choose-tests: Core-only, quiet storyteller,
+  stall-bounded waits, minute-scale budgets. Playing a colony into its
+  precondition for 20 minutes is a fixture bug.
+- A new fixture case starts on `cases.LabStart()` (blank 100x100 lab) and spawns
+  what it needs at known offsets from the centre; it never searches a random
+  world. `TestFixtureCasesStartPinned` refuses an unpinned random start unless
   the case is on its exemption list with a terrain reason.
-- Snapshot first (#738). A new native case states, in its scope text, why
-  a Go snapshot test over recorded colony facts cannot cover it (a native
-  op or read contract, an end-to-end signal, vanilla physics). A planner
-  decision is a snapshot test, not a case.
-- A failing planner-decision case (bucket A in #738) is replaced by a
-  snapshot test and deregistered, not fixed: do not repair its fixture,
-  budget or staging.
-- Checks named in old commits or issues may no longer exist; trust
-  `go/internal/nativeaccept/cmd/` over history.
+- Snapshot first: a new native case states in its scope text why a Go snapshot
+  test over recorded colony facts cannot cover it (native op or read contract,
+  end-to-end signal, vanilla physics). A planner decision is a snapshot test,
+  not a case; a failing planner-decision case is replaced by a snapshot test and
+  deregistered, not repaired.
+- Trust `go/internal/nativeaccept/cmd/` over checks named in old commits or
+  issues.
 
 ## Architecture
 
 Start with the [documentation map](docs/README.md), the
 [system overview](docs/developers/architecture/overview.md) and the
 [development process](docs/developers/development-process.md); read the
-component guide and contracts for the subsystem you change. Runtime: Go
-(`go/`, including the launcher), RimBridgeServer (over GABP) and
-`integrations/rimgovernor-native`; native acceptance tooling is Go.
+component guide and contracts for the subsystem you change. Runtime: Go (`go/`,
+including the launcher), RimBridgeServer (over GABP) and
+`integrations/rimgovernor-native`.
 
-Non-negotiables: RimWorld owns simulation and normal game rules hold
-(discover native schemas; editor/cheat operations stay outside model
-execution). One shared Concern/action system with deterministic Hands;
-advisers never write game orders or own colony invariants. Local LM Studio
-models only, no silent paid-provider fallback. Typed contracts at
-boundaries; explicit component ownership; integrate through the existing
-architecture. State placement is one table in
-[persistence contracts](docs/developers/contracts/persistence-contracts.md):
-Go intent lives in the save, the session journal in SQLite, derived
-state in memory, telemetry in `flight.jsonl`; a change that adds a second
-copy of a fact or a new store amends that table first. Manual control
-semantics are in the
-[control loop guide](docs/developers/architecture/control-loop.md#manual-control).
+Non-negotiables: RimWorld owns simulation and normal game rules hold (discover
+native schemas; editor/cheat operations stay outside model execution). One
+shared Concern/action system with deterministic Hands; advisers never write game
+orders or own colony invariants. Local LM Studio models only, no silent
+paid-provider fallback. Typed contracts at boundaries; explicit component
+ownership; integrate through the existing architecture. State placement is one
+table in [persistence contracts](docs/developers/contracts/persistence-contracts.md)
+(Go intent in the save, session journal in SQLite, derived state in memory,
+telemetry in `flight.jsonl`); a second copy of a fact or a new store amends that
+table first. Manual control: [control loop guide](docs/developers/architecture/control-loop.md#manual-control).
 
 ## Docs and comments
 
-Concise and forward-looking: current behaviour, contracts, constraints,
-useful rationale. No design archaeology, implementation diaries or
-accounts of superseded approaches, in prose or in commit messages beyond
-the evidence. Organise for players and developers; link rather than
-repeat; keep the [documentation map](docs/README.md) current and update
-architecture and procedure docs when behaviour changes.
+Concise and forward-looking: current behaviour, contracts, constraints, useful
+rationale. No design archaeology, implementation diaries or superseded
+approaches, in prose or commit messages. Organise for players and developers;
+link rather than repeat; keep the [documentation map](docs/README.md) current
+and update architecture and procedure docs when behaviour changes.
 
 ## Vocabulary (epic #1964)
 
-The governor makes **Rounds**, running an **Inspection** on each **Concern**
-in its **Department**; a Concern takes one **Type**: **Standard**,
-**Project** or **Incident**. The rename of
+The governor makes **Rounds**, running an **Inspection** on each **Concern** in
+its **Department**; a Concern takes one **Type**: **Standard**, **Project** or
+**Incident**. The rename of
 [#1964](https://github.com/davidarcher/rimgovernor/issues/1964) is complete:
-code, storage and logs use the new words, and the table maps the old words
-for grep and history. Full table and per-rename status:
+code, storage and logs use the new words, and the table maps the old words for
+grep and history. Per-rename status:
 [agent runbook glossary](docs/developers/agent-runbook.md#vocabulary-glossary-epic-1964).
 
 | Old | New |

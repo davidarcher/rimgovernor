@@ -27,7 +27,6 @@
 | Fixture | A declared test input or scenario setup. A native-shaped JSON fixture is not a live game observation. |
 | GABP | The wire protocol the controller speaks directly to RimBridgeServer inside the game (tool discovery and calls). |
 | RimBridgeServer | The native bridge providing general game and UI tools; the colony companion extends its capabilities. |
-| Outpost | The former dashboard's display name, no longer used; repository and package names remain RimGovernor. |
 | Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
 | Storage planner | `policy.PlanStorage`: the one function that decides every room-bound stockpile (warehouse, yard, workstation, meal, medicine, food, gear); derived each pass, applied by `MaintainStockpiles`. See [storage](architecture/storage.md). |
 | Warehouse / yard | The roofed Low-priority general store (`indoor_only` filter) and the unroofed Low-priority store for items safe outside (`outdoor_safe` filter). |

@@ -58,8 +58,8 @@ score descending, then kind and stable source ID; input order cannot break ties.
 These are alternatives, not a batch allocation or permission to dispatch. Consumers
 must bound selected work and refresh demand, reach, native safety and storage before
 using the existing concerns and Hands path. Remote loot consumes it through the
-[supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach)
-(#522). Surface mining uses the same reach ceiling and one-rock demand batches
+[supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach).
+Surface mining uses the same reach ceiling and one-rock demand batches
 ([mining contract](../contracts/mining-contracts.md)); salvage reads the
 [upkeep contract](../contracts/upkeep-contracts.md). All three report the same
 [explicit holds](../contracts/controller-contracts.md#remote-work-holds-and-resume)
@@ -70,7 +70,7 @@ and revalidate safety at dispatch.
 `MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game
 days of journal history (at least one day). No consumption is charged to that
 window: a bill intent's receipt is terminal, so nothing observes what its
-iterations spent (#941), and the rate reads zero. A deficit is then stock below
+iterations spent, and the rate reads zero. A deficit is then stock below
 the reserve floor.
 
 Usable stock is stock above the larger configured acquisition/reserve floor.
@@ -106,37 +106,21 @@ Future phases reserve no land. A player can adopt an inspected existing room,
 including an irregular shelter, and furnish it while preserving connected access.
 Repairs use normal construction before the room can count as habitable.
 
-Room functions are the game's own `Room.Role`, read from the typed room census;
-the controller never assigns a role, it only observes which one the game scored.
-The facility catalog (`policy.FacilityCatalog`) is the per-role matrix over every
-installed RoomRoleDef: which roles a planner pursues, which other roles may host
-the same function as a shared room, and the furniture that gives the room its
-role. Each implemented role follows one ladder — reuse a room the game already
-scores as hosting the function, then furnish an existing hosting room, then stage
-a starter shell and furnish it once roofed. Dining, recreation, workshop and hospital
-are the implemented rows; every other role is an explicit pending row, and
-content-gated roles are pursued only when their definitions exist in the
-planning census.
+Room functions are the game's own `Room.Role`, read from the typed room census; the
+controller never assigns a role. Each planner pursues a role through the facility
+ladder (reuse, furnish a hosting room, stage a starter shell and furnish it once
+roofed); the ladder and the per-role matrix (`policy.FacilityCatalog`) are in
+[facilities](facilities.md).
 
-The workshop row is the first production facility on that ladder. A
-`MaintainResource` deficit that no existing bench can produce first discovers,
-from the native recipe catalog, which player-buildable bench definitions host a
-recipe for the resource; the first candidate the planning census reports
-available and buildable by a builder the colony has (unpowered first, powered
-once a generator definition is buildable) is furnished into a Workshop-hosting
-room (a Workshop, a generic Room, or the starter shell once the sleeping spots
-have made it a Barracks — the bench keeps working there and a second ring would
-split the same builders), or a starter shell is staged when no such room
-exists or the only room is too full to site the bench (one sleeping spot per
-colonist can fill the starter hut). A bench gated only by research records its projects as the derived
-`EnsureResearch` target (`workshop_research_needed`); one needing a skilled
-builder, or power no generator can supply, is an explicit
-`workshop_bench_unavailable` prerequisite. Once a bench with the recipe exists
-the workshop planner steps aside: an allow-list stockpile for the recipe's
-ingredients is placed in the Workshop room, and the resource concern's bill path,
-worker coverage for the bench's own work type, and native readback of the
-rising item count carry the deficit to recovery. The full ladder and the
-per-role matrix are in [facilities](facilities.md).
+The workshop row is the first production facility on that ladder: a
+`MaintainResource` deficit that no existing bench can produce discovers, from the
+native recipe catalog, which buildable benches host a recipe for the resource.
+The bench is furnished into a Workshop-hosting room (a Workshop, a generic Room, or
+the starter shell once sleeping spots have made it a Barracks, since a second ring
+would split the same builders), or a starter shell is staged when no such room
+exists or the only room is too full. Research-gated and unbuildable benches are
+explicit prerequisites. The full ladder, reason codes and per-role matrix are in
+[facilities](facilities.md).
 
 Stone blocks ride the same ladder without the operator naming the stone:
 the default floor `policy.DefaultStoneBlockTarget` (150) is kept for the block definition of
@@ -176,10 +160,10 @@ one through the typed `assign` operation, and only when nobody can be
 assigned is one bed staged in a Bedroom-hosting room (Bedroom, Barracks or
 generic Room) whose observed temperature lies inside the comfortable band of
 every colonist still unhoused, one bed per method, assigned on a later review.
-The bed is the best rung available (#1181): `Bed`, else a `Bedroll` built from
+The bed is the best rung available: `Bed`, else a `Bedroll` built from
 the first native stuff option the colony has in stock (a couple's `DoubleBed`
 or `BedrollDouble` first); a bedroom furnished for a spot owner falls back to a
-`SleepingSpot` (#1182). A bedroll is a suitable bed only while `Bed` is
+`SleepingSpot`. A bedroll is a suitable bed only while `Bed` is
 unavailable and a spot never, so spot owners walk into bedrooms first; neither the
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.

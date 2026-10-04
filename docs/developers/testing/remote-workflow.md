@@ -55,8 +55,7 @@ revalidation, not automatic use of paid Windows minutes.
 
 Each job uses `windows-2022`, one native worker, up to 32 nonempty shards and at
 most 20 active shard jobs per run. The default smoke dispatch uses two shards.
-Manual, scheduled and push runs overlap; no concurrency group serializes or
-cancels them. GitHub enforces the account-wide runner capacity.
+Runs overlap; no concurrency group serializes or cancels them. GitHub enforces the account-wide runner capacity.
 Planner/aggregation jobs have ten-minute limits; shard jobs have
 360 minutes including a shared 345-minute allowance across both role suites.
 Known case budgets must fit before workers start. The production retry classifier
@@ -135,7 +134,7 @@ Every remote run records [colony snapshot streams](colony-snapshots.md):
 `remote_workflow.ps1` sets `RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots`,
 so each shard's public diagnostics carry
 `<shard>/<role>/snapshots/<area>/<case>/routine-stream-*.jsonl` (under a
-`REMOTE_ARTIFACT_MAX_BYTES` cap a stream that no longer fits is left out
+`REMOTE_ARTIFACT_MAX_BYTES` cap a stream that does not fit is left out
 rather than failing the shard), and the factory artifact carries
 `snapshots/sustained/colony/` beside its ring. `fetch-fixture` names the
 downloaded streams on stderr; a snapshot test loads one review with

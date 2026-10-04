@@ -6,58 +6,61 @@ recorded from a native run and replayed in `go test` (package
 ("does the review open `MaintainCleanFacilities` on this colony?") into a
 millisecond unit test over the facts that colony really produced.
 
+A snapshot proves decisions over recorded facts, never native behavior.
+
 ## What a snapshot holds
 
 `snapshot.Routine`, one JSON file:
 
-- `Facts`: the `policy.RoundsFacts` the review passed
-  `policy.DetectRounds`, after the journal's enrichment (runways, claims,
-  recovered comfort and sleep, filtered salvage). Every census a planner
-  of that tick reads rides in it: upkeep rooms and
-  clearance, research, resources, work profiles.
-- `Latches` and `Policy`: the prior latches and the staged policy the
-  review detected against, so replay reproduces hysteresis and stage
-  budgets.
-- `Review`: the journal's rounds cursor after the review filed
-  (concern bindings, progress records, stage, dependencies).
-- `Projection`: the colony reading the review took, holding what the
-  planners read beyond `Facts`: site `Cells`, planning `Definitions`,
+- `Facts`: the `policy.RoundsFacts` the review passed `policy.DetectRounds`,
+  after the journal's enrichment (runways, claims, recovered comfort and
+  sleep, filtered salvage). Every census a planner of that tick reads rides
+  in it: upkeep rooms and clearance, research, resources, work profiles.
+- `Latches` and `Policy`: the prior latches and the staged policy the review
+  detected against, so replay reproduces hysteresis and stage budgets.
+- `Review`: the journal's rounds cursor after the review filed (concern
+  bindings, progress records, stage, dependencies).
+- `Projection`: the colony reading the review took, holding what planners
+  read beyond `Facts`: site `Cells`, planning `Definitions`,
   `PowerPlanning`, `Rooms`, `Bounds` (its zone read and window are not
   recorded). `Load` restores its `Facts` from `Facts`.
 - `Recorded`, `Snapshot`, `Tick`: provenance.
 
-`domain.Fact` values are carried exactly: a known fact is `{"v": value}`,
-an unknown one is absent or `null`. Fields are named by their Go names and
-zero fields are left out. A field the code no longer has fails the load
-with `re-record the snapshot`.
+`domain.Fact` values are carried exactly: a known fact is `{"v": value}`, an
+unknown one is absent or `null`. Fields are named by their Go names and zero
+fields are left out. A field the code no longer has fails the load with
+`re-record the snapshot`.
 
 ## Recording
 
-Set `RIMGOVERNOR_SNAPSHOT_DIR` to an absolute directory for any serve.
-Each serve appends every enabled review to one stream there,
-`routine-stream-<first tick>-<pid>.jsonl` (#756): a keyframe holding the
-whole review, then a field-level patch per review against the previous one
+Set `RIMGOVERNOR_SNAPSHOT_DIR` to an absolute directory for any serve. Each
+serve appends every enabled review to one stream there,
+`routine-stream-<first tick>-<pid>.jsonl`: a keyframe holding the whole
+review, then a field-level patch per review against the previous one
 (objects patched key by key, slices by index or replaced whole), with a
-fresh keyframe every 20 reviews to bound a replay. The colony mirror's
-sections (#795: planning cells, zones, buildings, bills, and any section
-that joins the mirror later) ride the same stream as section lines, taken
-from the mirror as it publishes them: a keyframe per section, then the
-rows it upserted and the keys it dropped, stamped with the section's
-watermark and version (`internal/snapshot/mirror.go`). A review whose site
-cells are exactly the mirror's leaves them out and names the section
-version instead; replay puts them back, so a review materialises exactly
-what it read either way. Every review keyframe after the first is a sync
-point: each section is written again as a keyframe just before it, so
-loading one review or step read (`LoadReview`, `trim`) replays from the
-last sync point before it, never from the stream's start. `snapshot.MirrorAt` gives every section as held
-at one review. Reviews are named
-`<tick>-<seq>`, `<seq>` counting from 1 for several at one paused tick;
-a failed write is
-a `[routine] colony snapshot not recorded` service-log line, never a review
-error. Writes run on one background goroutine in order (`snapshot.Later`,
-flushed when the serve exits), so recording never holds the facts store's lock,
-the player gate or a planner step. The acceptance harness passes its environment to the serves it
-launches, so from `go/`:
+fresh keyframe every 20 reviews to bound a replay.
+
+The colony mirror's sections (planning cells, zones, buildings, bills, and
+any section that joins the mirror) ride the same stream as section lines
+taken as the mirror publishes them: a keyframe per section, then the rows
+upserted and keys dropped, stamped with the section's watermark and version
+(`internal/snapshot/mirror.go`). A review whose site cells are exactly the
+mirror's leaves them out and names the section version; replay puts them
+back. Every review keyframe after the first is a sync point: each section is
+rewritten as a keyframe just before it, so loading one review or step read
+(`LoadReview`, `trim`) replays from the last sync point, never from the
+stream's start. `snapshot.MirrorAt` gives every section as held at one
+review.
+
+Reviews are named `<tick>-<seq>`, `<seq>` counting from 1 for several at one
+paused tick. A failed write is a `[routine] colony snapshot not recorded`
+service-log line, never a review error. Writes run in order on one
+background goroutine (`snapshot.Later`, flushed when the serve exits), so
+recording never holds the facts store's lock, the player gate or a planner
+step.
+
+The acceptance harness passes its environment to the serves it launches, so
+from `go/`:
 
 ```bash
 RIMGOVERNOR_SNAPSHOT_DIR=<abs dir> go run ./internal/nativeaccept/cmd/acceptance run clean/filthy -output <fresh dir>
@@ -67,22 +70,26 @@ records every review of that case. A checkpoint save is recorded the same
 way: resume or `acceptance dev` the case from the bundle, or serve the save
 by hand, with the variable set. Pick the tick that shows the decision under
 test (`trim -list <stream>` lists them; `snapshot.Replay` steps through a
-range in Go) and materialise it into the consuming package's `testdata/`
-with
-`go run ./internal/snapshot/cmd/trim -tick <t> [-seq <s>] <stream> testdata/<name>.json.gz`,
-naming what it shows (`clean-filthy-kitchen.json.gz`); name the case and
-commit it came from in the test's comment. Trim writes gzipped compact
-JSON without the site cells (tens of KB instead of megabytes);
-`-keep-cells` keeps them for a test that runs a site search.
+range in Go) and materialise it into the consuming package's `testdata/`:
 
-Add `-case <area/case>` to the trim to register the file in
+```bash
+go run ./internal/snapshot/cmd/trim -tick <t> [-seq <s>] <stream> testdata/<name>.json.gz
+```
+
+Name the file for what it shows (`clean-filthy-kitchen.json.gz`) and name
+the case and commit it came from in the test's comment. Trim writes gzipped
+compact JSON without the site cells (tens of KB instead of megabytes);
+`-keep-cells` keeps them for a test that runs a site search. Commit
+recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
+
+Add `-case <area/case>` to register the file in
 `internal/snapshot/recordings.json` (source case plus review tick or step
-read), so it can be refreshed later without a hand trim.
+read) so it can be refreshed without a hand trim.
 
 Re-record when a load fails on a renamed or removed field, or when the
-recorded facts no longer describe what the review now reads. Every CI run
-already records each case's stream, so download a shard artifact (or run
-the case locally with the variable set) and refresh from it:
+recorded facts no longer describe what the review reads. Every CI run
+records each case's stream, so download a shard artifact (or run the case
+locally with the variable set) and refresh from it:
 
 ```bash
 go run ./internal/snapshot/cmd/rerecord -from <dir> [testdata files...]
@@ -91,9 +98,9 @@ go run ./internal/snapshot/cmd/rerecord -from <dir> [testdata files...]
 It finds each registered file's case stream under `<dir>`, re-cuts the
 review at the recorded tick (else the first after it; a new run's ticks
 differ, and steps match on planner and concern), and updates the registry's
-tick. `-list` prints the registry. Keep the assertions, since they state
-the behaviour, not the recording; a failure after a refresh means the
-fresh run no longer shows it at that point, so pick another tick by hand.
+tick. `-list` prints the registry. Keep the assertions, since they state the
+behavior, not the recording; a failure after a refresh means the fresh run
+no longer shows it at that point, so pick another tick by hand.
 
 ## Replaying
 
@@ -103,64 +110,60 @@ needs, err := r.Detect()                                  // policy.DetectRounds
 a, err := r.Assessment(policy.MaintainCleanFacilities)   // one concern's assessment
 ```
 
-A planner is a policy function over the same facts: call it with
-`r.Facts` (and `r.Policy`), or a building planner's `select*` with
-`*r.Projection` (`internal/buildingruntime/rounds_snapshot_test.go`),
-and assert the chosen method, target or refusal.
-Tests edit the loaded facts to probe a variant of the recorded colony
-instead of hand-building a whole fixture.
-
-A snapshot proves decisions over recorded facts, never native behaviour:
-the facts are whatever the native read returned at that tick.
+A planner is a policy function over the same facts: call it with `r.Facts`
+(and `r.Policy`), or a building planner's `select*` with `*r.Projection`
+(`internal/buildingruntime/rounds_snapshot_test.go`), and assert the chosen
+method, target or refusal. Edit the loaded facts to probe a variant of the
+recorded colony instead of hand-building a fixture.
 
 ## Planner steps
 
-Planners whose decisions read the colony at step time, not from the
-review's facts, record separately (#745, #746): with the recording
-variable set, each step writes `planner-<concern>-<tick>-<seq>.json`
-(`snapshot.Planner`) holding the policy inputs it noted: shelter starter
-searches, dig search, native excavation site reads by purpose and
-dig-or-shell choices; chunk dump sites; animal feed method inputs;
-shrine defender squads and breach readiness requests; the resource
-step's bill selections, the workshop bench censuses, the gear step's
-method requests and the research step's census with its needs (#894).
-Several steps at
-one paused tick each keep their own file. Load it with `snapshot.LoadPlanner` and call the
-policy function on the recorded request. Under the acceptance harness the
-recording directory gets `<area>/<case>` appended per case. Commit
-recordings gzipped (`*.json.gz`); `Load` and `LoadPlanner` gunzip them.
+Planners whose decisions read the colony at step time, not from the review's
+facts, record separately: with the recording variable set, each step writes
+`planner-<concern>-<tick>-<seq>.json` (`snapshot.Planner`) holding the policy
+inputs it noted:
+
+- shelter starter searches, dig search, native excavation site reads by
+  purpose and dig-or-shell choices
+- chunk dump sites
+- animal feed method inputs
+- shrine defender squads and breach readiness requests
+- the resource step's bill selections, the workshop bench censuses, the gear
+  step's method requests and the research step's census with its needs
+
+Several steps at one paused tick each keep their own file. Load one with
+`snapshot.LoadPlanner` and call the policy function on the recorded request.
+Under the acceptance harness the recording directory gets `<area>/<case>`
+appended per case.
 
 ## Planner step reads
 
-The building, bill, hospital and deep drill planners decide from their
-own colony read at step time, which carries what the review's read lacks:
-rooms, the step's own definitions (every policy lamp for lighting), fresh
-benches, the deep resource census. With the
-recording variable set, each such step also appends its read to the
-serve's stream (`snapshot.Step`, #794, #795): the projection it read,
-Facts included, as a patch against the last review's projection, its site
-cells left to the mirror section when they match. `trim -list` names the
-step reads `step-<building|bill|hospital|deepdrill>-<concern>-<tick>-<seq>`, and
-`trim -step <name> <stream> testdata/<name>.json.gz` materialises one
-(a `step-*.json` file recorded before the stream carried them trims as
-before), dropping the site cells unless `-keep-cells` (a lighting or
-placement test needs them). A test loads it with `loadStep` in
-`internal/buildingruntime/rounds_snapshot_test.go` and calls the
-selector on `step.Projection`, taking the policy and latches from the
-review recording of the same run (`loadRecorded`, `recordedPlanner`).
+The building, bill, hospital and deep drill planners decide from their own
+colony read at step time, which carries what the review's read lacks: rooms,
+the step's own definitions (every policy lamp for lighting), fresh benches,
+the deep resource census. With the recording variable set, each such step
+appends its read to the serve's stream (`snapshot.Step`): the projection it
+read, Facts included, as a patch against the last review's projection, its
+site cells left to the mirror section when they match. `trim -list` names
+them `step-<building|bill|hospital|deepdrill>-<concern>-<tick>-<seq>`, and
+`trim -step <name> <stream> testdata/<name>.json.gz` materialises one,
+dropping the site cells unless `-keep-cells` (a lighting or placement test
+needs them). A test loads it with `loadStep` in
+`internal/buildingruntime/rounds_snapshot_test.go` and calls the selector on
+`step.Projection`, taking the policy and latches from the review recording
+of the same run (`loadRecorded`, `recordedPlanner`).
 
 ## Defense snapshots
 
-A threat response is not a Rounds pass: `RoundsDefensePlanner` reads
-the emergency census, the combat pawn rows and (for a hostile building)
-the lines of fire itself. With the recording variable set, every defense
-step that read the emergency census also writes
-`defense-<tick>-<reason>.json` (`snapshot.Defense`): those replies
-(protobuf ones as protojson), the stored layout record and the step's
-reason and admitted method. `replayDefense` in `internal/buildingruntime`
-serves them, re-addressed to the fixture world, to a real planner over a
-fresh journal; several files replay in order on one journal, so a hold
-and its breach fallback replay as steps (#744).
+A threat response is not a Rounds pass: `RoundsDefensePlanner` reads the
+emergency census, the combat pawn rows and (for a hostile building) the
+lines of fire itself. With the recording variable set, every defense step
+that read the emergency census also writes `defense-<tick>-<reason>.json`
+(`snapshot.Defense`): those replies (protobuf ones as protojson), the stored
+layout record and the step's reason and admitted method. `replayDefense` in
+`internal/buildingruntime` serves them, re-addressed to the fixture world, to
+a real planner over a fresh journal; several files replay in order on one
+journal, so a hold and its breach fallback replay as steps.
 
 The defensive layout planner records its three policy decisions as
 `layout-<point>-<tick>.json` (`snapshot.Layout`): `propose` (the

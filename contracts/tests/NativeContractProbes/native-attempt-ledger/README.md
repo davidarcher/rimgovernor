@@ -9,7 +9,7 @@ production `NativeAttemptLedger` and canonical official generated messages, has
 no game/SDK access and executes no native mutations.
 
 One unsaved ledger belongs to one colony/load across maps and admits clock
-control only (Operations/Execute is gone, #990). `InspectClock`/`AdmitClock`
+control only. `InspectClock`/`AdmitClock`
 accept only official StartRequest, RenewRequest and SpeedRequest messages with
 their exact RPC names. Call `InspectClock` before rechecking a changed lease:
 replay returns prior evidence, not new permission. If New, validate current

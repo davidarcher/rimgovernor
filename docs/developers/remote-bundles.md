@@ -39,13 +39,14 @@ go run ./cmd/remotebundle pack -repo C:\rg\src `
 
 The destination must be new. `GamePaths` in `internal/remotebundle/pack.go` is
 the game inclusion list: executable, Unity/Mono runtime, Core and every official
-expansion's data (the baseline save records all six, #1260), version and
-license notices. All Core/Unity media is retained; the media removal allowlist
-is empty. Rendered cases therefore retain their textures/shaders but still need
-a suitable display/graphics environment; headless extraction does not prove
-rendered-case support. Other mods, profiles and player saves are not selected. Harmony and the bridge runtime/SDK are separate inventoried
-components. Source junctions are materialized into regular files. Packaging
-never writes to the source install or copies branch-built RimGovernor binaries.
+expansion's data (the baseline save records all six), version and license
+notices. All Core/Unity media is retained, so rendered cases keep their
+textures/shaders but still need a suitable display/graphics environment;
+headless extraction does not prove rendered-case support. Other mods, profiles
+and player saves are not selected. Harmony and the bridge runtime/SDK are
+separate inventoried components. Source junctions are materialized into regular
+files. Packaging never writes to the source install or copies branch-built
+RimGovernor binaries.
 
 `inventory.json` records every plaintext file and its digest. `bundle.draft.json`
 records exact dependency versions, component inventory digests, encryption key
@@ -71,10 +72,9 @@ GitHub releases, Actions caches or ordinary workflow artifacts.
 
 To refresh, produce and verify a new bundle and change the trusted manifest pin.
 To roll back, select the previous manifest digest and matching age identity.
-Never replace old assets in place. A corrupt download fails validation;
-retry or republish. Key rotation creates
-a new recipient/key ID and fresh encrypted assets; previously public ciphertext
-cannot be revoked if its old identity is compromised.
+Never replace old assets in place. A corrupt download fails validation; retry
+or republish. Key rotation creates a new recipient/key ID and fresh encrypted
+assets; public ciphertext cannot be revoked if its identity is compromised.
 
 ## Fixtures and generated starts
 

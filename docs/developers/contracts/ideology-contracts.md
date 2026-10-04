@@ -1,15 +1,15 @@
 # Ideology contracts
 
-[Contracts](README.md) · epic #1653, read side #1654
+[Contracts](README.md)
 
-How the ideoligion reaches Go. It follows the wire pattern of #1333: each
+How the ideoligion reaches Go. It follows the wire pattern: each
 concept is modelled once, and there is no Ideology read tool.
 
 | Fact | Where it rides | Go |
 | --- | --- | --- |
 | Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the catalog's generated def mirror (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
 | Per-pawn: ideoligion id, held role, certainty | Pawn row's `policy_inputs` (`ideo_id`, `ideo_role`, `ideo_certainty`) | `policy.PawnPolicyInputs` |
-| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` (#1347) | `bridge.RoundsFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
+| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` | `bridge.RoundsFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
 
 Native names are from the game's reference assemblies (`PreceptDef`,
 `PreceptComp`, `MemeDef`, `RitualPatternDef`, `Ideo`, `Precept_Role`,
@@ -57,7 +57,7 @@ per load, and a row a def names that the catalog lacks is an error.
 (`FactionIdeosTracker.PrimaryIdeo`): its memes, the precepts in force (roles,
 rituals and building precepts held apart), each role's holders as pawn row
 refs, each ritual's raw `lastFinishedTick`, active obligation count, repeat
-penalty flag and whether a lord job of it runs (`running`, #1660), and each
+penalty flag and whether a lord job of it runs (`running`), and each
 building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; Go then holds
 `Facts.Ideology` unknown.
 
@@ -73,7 +73,7 @@ required buildings).
 
 ## Precept rule
 
-`policy.ActionStance(facts.Ideology, action, subject)` (#1655) answers whether the precepts in force
+`policy.ActionStance(facts.Ideology, action, subject)` answers whether the precepts in force
 allow, approve, penalise or forbid an action, for the colony or one pawn. The action is the
 `HistoryEventDef` it raises (callers bind their action to the event; no def is listed in policy), or
 `Apparel`. The verdict carries the stance, the doer's and witnesses' mood cost (worst stage of each
@@ -82,7 +82,7 @@ traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPA
 payload on the wire), is `unknown`: callers hold. There is no `required` stance yet: the apparel, burial and room comps are
 in the rows, no stance reads them.
 
-Consumers (#1656): slavery (`EnslavedPrisoner`), organ harvest and sale
+Consumers: slavery (`EnslavedPrisoner`), organ harvest and sale
 (`HarvestedOrgan`, `SoldOrgan`; the doer's cost once, witnesses' on every
 colonist) and the diet facts (`AteHumanMeat*`, `AteInsectMeat*`, `AteMeat`,
 `AteNonMeat`, `AteFungus*`) read the rule; no precept name is listed. A pawn's
@@ -90,16 +90,14 @@ diet reads the pawn row's own `precepts` against the catalog defs
 (`Ideoligion.HeldBy`), since a pawn's ideoligion may differ from the primary
 one. Apparel stays native: the nudity requirement is the game's
 `IdeoPrefersNudityForGender`, the apparel precepts and role requirements are
-typed rows on the pawn.
-
-Consumers: human butchery (`policy.SelectHumanButcher`, #1657) skips a worker the rule forbids for
-`HistoryEventDefOf.ButcheredHuman`, or cannot answer for (#1922): an unread ideoligion with Ideology
+typed rows on the pawn. Human butchery (`policy.SelectHumanButcher`) skips a worker the rule forbids for
+`HistoryEventDefOf.ButcheredHuman`, or cannot answer for: an unread ideoligion with Ideology
 installed holds. The native disposition still gates the worker. Selling a surplus prisoner to the
-tribute collector (`policy.FavorPrisonersHeld`, #1971) asks the rule about `SoldPrisoner` for the
+tribute collector (`policy.FavorPrisonersHeld`) asks the rule about `SoldPrisoner` for the
 colony and sells only when it is allowed or approved: a mood cost, a refusal or an unread ideoligion
 with Ideology installed holds; without Ideology it sells.
 
-`BundleSnapshot.ideology_active` (#1922, `ModsConfig.IdeologyActive`, carried on every frame) is the
+`BundleSnapshot.ideology_active` (`ModsConfig.IdeologyActive`, carried on every frame) is the
 distinct DLC-absent signal: an absent ideology section alone is unread, never absent. `false` is
 `policy.IdeologyRead.Absent`: the rule answers `allowed` ("Ideology not installed") and butchery
 falls through; unknown or `true` with no section stays unread and holds. An ideology section with
@@ -109,7 +107,7 @@ burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing t
 
 ## Role assignment
 
-`MaintainIdeoRoles` (#1661, `policy.RoleAssignments`) keeps the role precepts
+`MaintainIdeoRoles` (`policy.RoleAssignments`) keeps the role precepts
 filled. Each review gives every active role with fewer holders than its def's
 `maxCount` to the available believer (same `ideo_id`, no role yet, skills
 read) who best fits it: a pawn must meet, for every role requirement that
@@ -124,7 +122,7 @@ tries per pawn and role per Episode. Composed by the `ideo-roles` routine family
 
 ## Ritual scheduling
 
-`MaintainRituals` (#1660, `policy.PlanRituals`) begins each due ritual precept
+`MaintainRituals` (`policy.PlanRituals`) begins each due ritual precept
 through the Ritual `begin` verb ([action contracts](action-contracts.md)).
 Every value is read from the game; no ritual, building or role name is listed
 in Go.
@@ -169,9 +167,7 @@ routine family.
 
 ## Not here
 
-The Ritual `begin` verb (#1659,
-[action contracts](action-contracts.md)) names a held ritual by its
+The Ritual `begin` verb ([action contracts](action-contracts.md)) names a held ritual by its
 `IdeoRitual.id` and fills the role slots of the behavior's `RitualRole`s.
-Building and room planning (#1658)
-consumes `RequiredBuildings`:
+Building and room planning consumes `RequiredBuildings`:
 [worship room](../architecture/facilities.md#worship-room-ideology).

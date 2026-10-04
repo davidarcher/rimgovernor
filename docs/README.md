@@ -40,6 +40,5 @@ its contracts and run the relevant checks.
   features and acceptance, labeled by priority (`priority:P0`/`P1`/`P2`)
   or area (`area:G01`/`N01`/`simplify`/`tooling`)
 
-Keep docs close to the reader's task. Explain current behavior, give the commands
-or contracts they need, and link to detail. Put unfinished work in the backlog
-and implementation history in commits.
+Keep docs close to the reader's task: current behavior, the commands or
+contracts needed, links to detail. Unfinished work belongs in the backlog.
