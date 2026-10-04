@@ -49,7 +49,7 @@ type StorageRequest struct {
 	// known to be met; see FoodStore.
 	Food *FoodStore
 	// Gear is the serviceable gear held and the gear stores' filters; nil
-	// while the catalog names no armor (see GearStore).
+	// while the gear census is unread (see GearStore).
 	Gear *GearStore
 	// Zones are the standing stockpile zones, read for the warehouse siting.
 	Zones []StockpileZone
@@ -81,6 +81,10 @@ type StoragePlan struct {
 	// Incinerator is the site layout should reserve for the incinerator
 	// (#1814); zero when it stands, nothing waits or no ground fits.
 	Incinerator IncineratorSite
+	// Err joins the sites the planner could not make usable (a room that
+	// stands but cannot host its store, ErrArmoryNearPrison); the rest of the
+	// plan stands.
+	Err error
 }
 
 // PlanStorage returns the room demand and the desired storage sites: the meal store, the
@@ -90,9 +94,13 @@ type StoragePlan struct {
 // kitchen. The armory and wardrobe stores fill their standing rooms, and the
 // dumps stand outdoors while things wait for them.
 func PlanStorage(r StorageRequest) StoragePlan {
-	plan := StoragePlan{RoomDemand: r.Gear.demand()}
+	warehouse := r.warehouseReading()
+	plan := StoragePlan{RoomDemand: r.Gear.demand(warehouse.full)}
 	plan.RoomDemand.Known = r.Gear != nil
-	plan.RoomDemand.Storage, plan.RoomDemand.StorageIdle = r.storageRoomsWanted()
+	plan.RoomDemand.Storage, plan.RoomDemand.StorageIdle = warehouse.storageRoomsWanted()
+	if r.gearRoomPending(plan.RoomDemand) {
+		plan.RoomDemand.Storage = 0
+	}
 	if r.Meals != nil && r.Meals.Room.ID != "" {
 		plan.Sites = append(plan.Sites, r.mealSite(*r.Meals))
 	}
@@ -109,7 +117,8 @@ func PlanStorage(r StorageRequest) StoragePlan {
 		plan.Sites = append(plan.Sites, r.morgueSites()...)
 		plan.Sites = append(plan.Sites, r.warehouseSites()...)
 		plan.Sites = append(plan.Sites, r.yardSites()...)
-		plan.Sites = append(plan.Sites, r.gearSites()...)
+		gear, err := r.gearSites()
+		plan.Sites, plan.Err = append(plan.Sites, gear...), err
 	}
 	plan.Sites = append(plan.Sites, r.foodSites()...)
 	plan.Sites = append(plan.Sites, r.dumpSites(shelved)...)

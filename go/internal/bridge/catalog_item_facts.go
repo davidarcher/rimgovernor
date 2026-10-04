@@ -96,7 +96,19 @@ func buildItemFacts(catalog *DefinitionCatalog) (policy.ItemFacts, error) {
 // properties: only the game's Soldier outfit tag names it, not Worker too
 // (the Soldier outfit wears it, the Worker outfit does not). The rule reads
 // ApparelProperties.defaultOutfitTags, the tags the game's own Worker and
-// Soldier outfit filters select apparel by.
+// Soldier outfit filters select apparel by (RimWorld.OutfitDatabase
+// GenerateStartingOutfits, decompiled with ilspycmd).
+//
+// Checked against every non-abstract apparel ThingDef of Core, Royalty,
+// Ideology, Biotech, Anomaly and Odyssey (Data/*/Defs, ParentName chains
+// resolved, Inherit="False" honoured; 112 defs, 31 armor). Soldier without
+// Worker holds exactly the flak, plate, recon, power, marine, cataphract and
+// locust armors and their helmets, the war mask and veil, the kid helmet, and
+// the Royalty psyfocus gear and eltex skullcap/gunlink. Parka, tuque, shirts,
+// pants and tribal wear carry Soldier and Worker, so they are clothing;
+// untagged and Worker-only defs (packs, belts, hats, robes, the mechanitor
+// headsets whose tags reset empty) are clothing as well. No def needed a
+// different rule.
 func ApparelIsArmor(a *d.ApparelProperties) bool {
 	tags := a.GetDefaultOutfitTags()
 	return slices.Contains(tags, "Soldier") && !slices.Contains(tags, "Worker")

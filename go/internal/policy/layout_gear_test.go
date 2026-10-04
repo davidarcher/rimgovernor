@@ -1,6 +1,11 @@
 package policy
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 func gearTestPlan() LayoutPlan {
 	return Grow(LayoutPlan{Zones: coreTestZones()}, 6, 1, BuildTierCamp)
@@ -99,23 +104,56 @@ func TestPlanStorageSignalsGearDemand(t *testing.T) {
 		want    RoomDemand
 	}{
 		{"nothing", nil, 0, RoomDemand{Known: true}},
-		{"room to spare", []GearStock{stock("Apparel_FlakVest", 2, 9, 1), stock("Apparel_Parka", 2, 9, 3)}, 2, RoomDemand{Known: true}},
-		{"weapons and armor fill the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 2)}, 2, RoomDemand{Known: true, Armory: true}},
-		{"clothing fills the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 2), stock("Apparel_Duster", 3, 10, 2)}, 0, RoomDemand{Known: true, Wardrobe: true}},
+		{"one weapon asks for the armory", nil, 1, RoomDemand{Known: true, Armory: true}},
+		{"armor asks for the armory", []GearStock{stock("Apparel_FlakVest", 2, 9, 1)}, 0, RoomDemand{Known: true, Armory: true}},
+		{"clothing asks for the wardrobe", []GearStock{stock("Apparel_Parka", 2, 9, 1)}, 0, RoomDemand{Known: true, Wardrobe: true}},
+		{"both kinds", []GearStock{stock("Apparel_FlakVest", 2, 9, 2), stock("Apparel_Parka", 2, 9, 3)}, 2, RoomDemand{Known: true, Armory: true, Wardrobe: true}},
 		{"poor and worn gear is for the dump", []GearStock{stock("Apparel_Parka", 1, 9, 4), stock("Apparel_FlakVest", 2, 4, 4)}, 0, RoomDemand{Known: true}},
 	} {
-		gear, ok, err := NewGearStore(items, tc.stored, tc.weapons)
-		if err != nil || !ok {
-			t.Fatalf("%s: store %v %v", tc.name, ok, err)
+		gear, err := NewGearStore(items, tc.stored, tc.weapons)
+		if err != nil {
+			t.Fatalf("%s: store %v", tc.name, err)
 		}
-		if got := PlanStorage(StorageRequest{Gear: &gear}).RoomDemand; got != tc.want {
-			t.Errorf("%s: %+v, want %+v", tc.name, got, tc.want)
+		first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
+		req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
+		req.Gear = &gear
+		want := tc.want
+		want.Storage = 2
+		if got := PlanStorage(req).RoomDemand; got != want {
+			t.Errorf("%s, warehouse full: %+v, want %+v", tc.name, got, want)
+		}
+		// While the warehouse can still take the gear, no gear room is asked for.
+		req = storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 7))
+		req.Gear = &gear
+		if got := PlanStorage(req).RoomDemand; got != (RoomDemand{Known: true, StorageIdle: true}) {
+			t.Errorf("%s, warehouse with room: %+v", tc.name, got)
 		}
 	}
-	if _, ok, err := NewGearStore(ItemFacts{}, nil, 9); ok || err != nil {
-		t.Errorf("a catalog without armor must give no store: %v %v", ok, err)
+	if _, err := NewGearStore(ItemFacts{}, nil, 9); !errors.Is(err, ErrNoArmorDefs) {
+		t.Errorf("a catalog without armor must fail with ErrNoArmorDefs: %v", err)
 	}
 	if got := PlanStorage(StorageRequest{}).RoomDemand; got != (RoomDemand{}) {
 		t.Errorf("no gear store asks for rooms: %+v", got)
+	}
+}
+
+// A planned gear room not yet standing will take gear out of the warehouse:
+// the planner holds back the further storage room until it stands.
+func TestGearRoomPendingHoldsBackAnotherStorageRoom(t *testing.T) {
+	t.Parallel()
+	gear, err := NewGearStore(ItemFacts{Armor: []Resource{"Apparel_FlakVest"}}, nil, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := Rectangle{X: 10, Z: 10, Width: 3, Height: 3}
+	req := storeRequest(1, 1, warehouseZone("a", domain.GeneralRole, first, 8))
+	req.Gear = &gear
+	req.Layout.Rooms = append(req.Layout.Rooms, LayoutRoom{Role: ModuleArmory, Interior: Rectangle{X: 30, Z: 10, Width: 3, Height: 3}, Door: domain.Cell{X: 31, Z: 9}})
+	if got := PlanStorage(req).RoomDemand; !got.Armory || got.Storage != 0 {
+		t.Fatalf("armory planned, not standing: %+v", got)
+	}
+	req.Rooms.Rooms = append(req.Rooms.Rooms, Room{ID: "armory", Enclosed: domain.Known(true), Cells: rectCells(Rectangle{X: 30, Z: 10, Width: 3, Height: 3})})
+	if got := PlanStorage(req).RoomDemand; !got.Armory || got.Storage != 2 {
+		t.Fatalf("armory standing: %+v", got)
 	}
 }

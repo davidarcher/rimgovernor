@@ -149,6 +149,9 @@ type StockpileRequest struct {
 	// Incinerator is the planner's incinerator site for layout (#1814); the
 	// review itself does not read it.
 	Incinerator IncineratorSite
+	// SiteErr is the storage planner's report of sites it could not make
+	// usable (StoragePlan.Err); the review itself does not read it.
+	SiteErr error
 	// Shells are the planned storage-planner rooms (storage, armory and wardrobe,
 	// #1774) not yet standing: each is a StockpileShell edit.
 	Shells []ModuleRole

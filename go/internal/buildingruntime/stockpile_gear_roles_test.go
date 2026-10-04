@@ -1,6 +1,8 @@
 package buildingruntime
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -18,9 +20,9 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	projection.Facts.Items = policy.ItemFacts{Armor: []policy.Resource{"Apparel_FlakVest"}}
 	armory := policy.LayoutRoom{Role: policy.ModuleArmory, Interior: policy.Rectangle{X: 0, Z: 0, Width: 5, Height: 5}, Door: domain.Cell{X: 5, Z: 2}}
 	projection.LayoutPlan = domain.Known(policy.LayoutPlan{Rooms: []policy.LayoutRoom{armory}})
-	gear, ok, err := policy.NewGearStore(projection.Facts.Items, nil, 0)
-	if err != nil || !ok {
-		t.Fatal(ok, err)
+	gear, err := policy.NewGearStore(projection.Facts.Items, nil, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
 	request := withoutOpening(stockpileRequest(projection, nil, nil, domain.Unknown[map[string]bool](), nil, &gear, nil))
 	if len(request.Shells) != 1 || request.Shells[0] != policy.ModuleArmory {
@@ -57,5 +59,17 @@ func TestArmoryShellsThenFillsItsRoomAndRetiresTheOldZone(t *testing.T) {
 	}
 	if !deleted || created != 25 {
 		t.Fatalf("deleted %v, armory cells %d", deleted, created)
+	}
+}
+
+// A catalog that names no armor fails the stockpile review with the named
+// error instead of quietly planning no gear storage (#1804).
+func TestGearStoreFailsWithoutCatalogArmor(t *testing.T) {
+	t.Parallel()
+	projection, _ := mealSpotColony(1.6)
+	projection.Facts.Items = policy.ItemFacts{}
+	var r RoutineReviewer
+	if _, err := r.gearStore(context.Background(), domain.GenerationSnapshot{}, projection); !errors.Is(err, policy.ErrNoArmorDefs) {
+		t.Fatalf("gearStore error %v", err)
 	}
 }

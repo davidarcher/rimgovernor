@@ -90,12 +90,19 @@ func growModuleRoom(plan LayoutPlan, role ModuleRole, sizes [][2]int32) (LayoutP
 		bedrooms += len(plan.Wings[i].Rooms)
 	}
 	g.carveBedroomWings(plan.Wings, bedrooms)
+	clear := weaponClearance(plan, role)
+	for _, r := range clear {
+		g.carve(r)
+	}
 	for _, size := range sizes {
 		spine, rooms, placed, _ := g.placeRole(append([]SpineSegment(nil), plan.Spine...), append([]LayoutRoom(nil), plan.Rooms...), plan.Wings, role, size)
 		if placed {
 			plan.Spine, plan.Rooms = spine, rooms
 			return plan, true, nil
 		}
+	}
+	if len(clear) > 0 {
+		return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot clear of the weapon clearance round the plan's armory and prisons fits one (interior sizes tried: %v)", role, sizes)
 	}
 	return plan, false, fmt.Errorf("the plan needs a %s room but no free core slot fits one (interior sizes tried: %v)", role, sizes)
 }

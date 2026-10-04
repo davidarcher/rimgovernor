@@ -28,17 +28,37 @@ func (r StorageRequest) plannedStorageRooms() []LayoutRoom {
 // idle reports a true no-demand reading (#1825): a standing room's zone is
 // under StockpileGrowFill or can still grow. A 0 without idle is only a
 // wait on a planned room not yet built or a zone not yet sited.
-func (r StorageRequest) storageRoomsWanted() (wanted int, idle bool) {
+func (w warehouseReading) storageRoomsWanted() (wanted int, idle bool) {
+	if w.rooms == 0 || w.idle || w.pending {
+		return 0, w.idle
+	}
+	return w.rooms + 1, false
+}
+
+// warehouseReading is the warehouse zones' state across the planned storage
+// rooms: rooms planned; idle when a standing room's zone is under
+// StockpileGrowFill or can still grow; pending when a planned room is not
+// standing or holds no warehouse zone yet; full when some warehouse zone
+// stands and every one is at or over StockpileGrowFill with no cell left to
+// grow onto, whatever else is pending. Full is what the warehouse can no
+// longer hold, the demand for the gear rooms (GearStore).
+type warehouseReading struct {
+	rooms               int
+	idle, pending, full bool
+}
+
+func (r StorageRequest) warehouseReading() warehouseReading {
 	rooms := r.plannedStorageRooms()
+	w := warehouseReading{rooms: len(rooms)}
 	if len(rooms) == 0 {
-		return 0, false
+		return w
 	}
 	open := newStockpileOpen(StockpileRequest{Cells: r.Cells, Bounds: r.Bounds, Protected: r.Protected})
-	pending := false
+	zones := false
 	for _, planned := range rooms {
 		room, ok := PlannedRoomStanding(planned, *r.Rooms)
 		if !ok {
-			pending = true
+			w.pending = true
 			continue
 		}
 		inRoom := cellSet(room.Cells)
@@ -48,23 +68,21 @@ func (r StorageRequest) storageRoomsWanted() (wanted int, idle bool) {
 			if !isWarehouseRole(z.Role) || !stockpileTouches(z.Cells, inRoom) {
 				continue
 			}
-			served = true
+			served, zones = true, true
 			if z.Fill() < StockpileGrowFill {
-				idle = true
+				w.idle = true
 				continue
 			}
 			if _, grows := stockpileGrowEdit(open, z); grows {
-				idle = true
+				w.idle = true
 			}
 		}
 		if !served {
-			pending = true
+			w.pending = true
 		}
 	}
-	if idle || pending {
-		return 0, idle
-	}
-	return len(rooms) + 1, false
+	w.full = zones && !w.idle
+	return w
 }
 
 // StorageRoomsOwed is how many storage rooms demand asks for that plan lacks.

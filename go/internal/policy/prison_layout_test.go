@@ -78,3 +78,21 @@ func TestNoWeaponsNearPrison(t *testing.T) {
 		t.Fatal("a cell seven from the wall is clear")
 	}
 }
+
+// Layout keeps a new armory, and a new prison, the weapon clearance apart
+// (#1805): the armory's room and walls stand outside nearPrison.
+func TestGrowGearRoomsKeepsTheArmoryClearOfPrisons(t *testing.T) {
+	t.Parallel()
+	plan := gearTestPlan()
+	if len(plan.roomsOf(ModulePrison)) == 0 {
+		t.Fatal("the test plan has no prison")
+	}
+	grown, added, err := growGearRooms(plan, RoomDemand{Armory: true})
+	if err != nil || !added {
+		t.Fatalf("armory added=%v err=%v", added, err)
+	}
+	armory, _ := roomOf(grown, ModuleArmory)
+	if nearPrison(rectCells(pad(armory.Interior, 1)), PrisonCells(grown)) {
+		t.Fatalf("armory %+v within the weapon clearance of a prison", armory.Interior)
+	}
+}

@@ -1,6 +1,11 @@
 package policy
 
-import "github.com/davidarcher/RimGovernor/go/internal/domain"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+)
 
 // The armory and wardrobe stockpiles (#1774, epic #1765): once layout's
 // armory (#1773) stands, one zone over its free cells keeps weapons and armor
@@ -10,9 +15,9 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // and the gear quality and hit-point floors ride the filters
 // (domain.ArmoryFilter, domain.WardrobeFilter).
 
-// gearRoomMinItems is the serviceable gear of a kind that asks layout for its
-// room: the cells of the 2x2 zone it replaces (StockpileMinCells).
-const gearRoomMinItems = StockpileMinCells
+// ErrNoArmorDefs is the catalog naming no armor def: without the armor split
+// the armory and wardrobe have no filters, so gear storage cannot be planned.
+var ErrNoArmorDefs = errors.New("the catalog lists no armor defs (ApparelProperties.defaultOutfitTags Soldier without Worker), so the armory and wardrobe cannot be planned")
 
 // GearFilters are the armory's and the wardrobe's filters for the catalog's
 // armor defs.
@@ -29,8 +34,8 @@ func GearFilters(armor []Resource) (armory, wardrobe domain.StockpileFilter, err
 }
 
 // GearStore is the colony's serviceable gear (hit points and quality over the
-// gear floors) and the gear stores' filters. Nil on a StorageRequest while
-// the catalog names no armor: neither gear room is then asked for or stocked.
+// gear floors) and the gear stores' filters. Nil on a StorageRequest while the
+// gear census is unread: neither gear room is then asked for or stocked.
 type GearStore struct {
 	Armory, Wardrobe domain.StockpileFilter
 	// Weapons, ArmorHeld and Clothing count the serviceable weapons, armor
@@ -39,17 +44,17 @@ type GearStore struct {
 }
 
 // NewGearStore counts the serviceable stored apparel of stored by the
-// catalog's armor split, beside the weapons lying on the map. False while
-// the catalog names no armor (a frame without its stat table); an error when
-// the armor defs do not make valid filters.
-func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, bool, error) {
+// catalog's armor split, beside the weapons lying on the map. It fails with
+// ErrNoArmorDefs while the catalog names no armor, and when the armor defs do
+// not make valid filters.
+func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, error) {
 	if len(items.Armor) == 0 {
-		return GearStore{}, false, nil
+		return GearStore{}, ErrNoArmorDefs
 	}
 	g := GearStore{Weapons: weapons}
 	var err error
 	if g.Armory, g.Wardrobe, err = GearFilters(items.Armor); err != nil {
-		return GearStore{}, false, err
+		return GearStore{}, err
 	}
 	armor := map[Resource]bool{}
 	for _, def := range items.Armor {
@@ -64,28 +69,53 @@ func NewGearStore(items ItemFacts, stored []GearStock, weapons int) (GearStore, 
 			g.Clothing += row.Count
 		}
 	}
-	return g, true, nil
+	return g, nil
 }
 
-// demand reads enough serviceable gear of a kind as stored gear outgrowing
-// the warehouse's share: weapons and armor ask for the armory, clothing for
-// the wardrobe.
-func (g *GearStore) demand() RoomDemand {
-	if g == nil {
+// demand asks for a gear room once the warehouse can no longer hold what the
+// colony has (full, see warehouseReading) and serviceable gear of the room's
+// kind is held: weapons and armor ask for the armory, clothing for the
+// wardrobe (#1803).
+func (g *GearStore) demand(full bool) RoomDemand {
+	if g == nil || !full {
 		return RoomDemand{}
 	}
-	return RoomDemand{Armory: g.Weapons+g.ArmorHeld >= gearRoomMinItems, Wardrobe: g.Clothing >= gearRoomMinItems}
+	return RoomDemand{Armory: g.Weapons+g.ArmorHeld > 0, Wardrobe: g.Clothing > 0}
 }
+
+// gearRoomPending reports a gear room demand asks for that the plan holds but
+// does not yet stand: it will take gear out of the warehouse, so the
+// warehouse waits before asking for another storage room.
+func (r StorageRequest) gearRoomPending(demand RoomDemand) bool {
+	if r.Layout == nil || r.Rooms == nil {
+		return false
+	}
+	for _, planned := range r.Layout.AllRooms() {
+		if planned.Role == ModuleArmory && demand.Armory || planned.Role == ModuleWardrobe && demand.Wardrobe {
+			if _, ok := PlannedRoomStanding(planned, *r.Rooms); !ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ErrArmoryNearPrison is a standing armory with every free cell within the
+// weapon clearance of a prison: layout keeps the armory clear of prisons, so
+// this names a plan that predates the rule or ground it could not clear.
+var ErrArmoryNearPrison = errors.New("the armory has no free cell clear of a prison, so no armory stockpile can be sited")
 
 // gearSites are the armory and wardrobe zones: each standing gear room is
 // one site over its free cells. The armory never takes a cell within the
-// weapon clearance of a prison (nearPrison).
-func (r StorageRequest) gearSites() []StockpileSite {
+// weapon clearance of a prison (nearPrison); a room whose free cells all are
+// is reported (ErrArmoryNearPrison), not silently left unzoned.
+func (r StorageRequest) gearSites() ([]StockpileSite, error) {
 	if r.Layout == nil || r.Rooms == nil || r.Gear == nil {
-		return nil
+		return nil, nil
 	}
 	prisons := PrisonCells(*r.Layout)
 	var out []StockpileSite
+	var err error
 	for _, gear := range []struct {
 		module ModuleRole
 		prefix string
@@ -99,10 +129,17 @@ func (r StorageRequest) gearSites() []StockpileSite {
 			if !ok || len(room.Cells) == 0 {
 				continue
 			}
-			var pool []domain.Cell
-			for _, c := range roomPool(room.Cells, r.Cells, r.Protected) {
-				if gear.module != ModuleArmory || !nearPrison([]domain.Cell{c}, prisons) {
-					pool = append(pool, c)
+			free := roomPool(room.Cells, r.Cells, r.Protected)
+			pool := free
+			if gear.module == ModuleArmory {
+				pool = nil
+				for _, c := range free {
+					if !nearPrison([]domain.Cell{c}, prisons) {
+						pool = append(pool, c)
+					}
+				}
+				if len(free) > 0 && len(pool) == 0 {
+					err = fmt.Errorf("%w (room %s)", ErrArmoryNearPrison, room.ID)
 				}
 			}
 			out = append(out, StockpileSite{Role: gear.prefix + room.ID, Room: room.Cells, Filter: gear.filter, Priority: domain.PreferredPriority, Remainder: true,
@@ -110,5 +147,5 @@ func (r StorageRequest) gearSites() []StockpileSite {
 			break
 		}
 	}
-	return out
+	return out, err
 }

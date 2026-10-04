@@ -32,6 +32,23 @@ type stockpileMemory struct {
 	demand      policy.RoomDemand
 	incinerator policy.IncineratorSite
 	demandWorld string
+	// siteErr is the last storage-plan site report logged, so a standing
+	// failure logs once and again when it changes or clears.
+	siteErr string
+}
+
+// siteErrChanged records err and reports a non-nil report that differs from
+// the last one logged.
+func (m *stockpileMemory) siteErrChanged(err error) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	text := ""
+	if err != nil {
+		text = err.Error()
+	}
+	changed := text != "" && text != m.siteErr
+	m.siteErr = text
+	return changed
 }
 
 // setDemand records the planner's layout demands for world.
@@ -153,7 +170,7 @@ func stockpileRequest(projection *observation.ColonyProjection, owned []store.Ow
 	}
 	storage.BenchInputs = inputs
 	plan := policy.PlanStorage(storage)
-	request.Sited, request.RoomDemand, request.Incinerator = plan.Sites, plan.RoomDemand, plan.Incinerator
+	request.Sited, request.RoomDemand, request.Incinerator, request.SiteErr = plan.Sites, plan.RoomDemand, plan.Incinerator, plan.Err
 	return request
 }
 
@@ -171,6 +188,9 @@ func (r *RoutineReviewer) reviewStockpiles(ctx context.Context, snapshot domain.
 	}
 	r.stockpiles.observe(stockpileWorld(snapshot), request.Tick, request.Zones)
 	r.stockpiles.setDemand(stockpileWorld(snapshot), request.RoomDemand, request.Incinerator)
+	if r.stockpiles.siteErrChanged(request.SiteErr) {
+		clockSchedulerLog("storage plan has unusable sites: %v", request.SiteErr)
+	}
 	review := policy.PlanStockpileMaintenance(request)
 	projection.Facts.Stockpiles = domain.Known(review)
 	for _, e := range review.Edits {
@@ -304,11 +324,11 @@ func (r *RoutineReviewer) reservedGround(ctx context.Context, snapshot domain.Ge
 // wardrobe (#1774): the stored apparel the gear census counts, split into
 // armor and clothing by the catalog (ItemFacts.Armor), and the weapons lying
 // on the map. The weapons read is skipped once layout plans the armory, which
-// no longer needs the count. Nil while the catalog names no armor; an unknown
-// stored census counts nothing.
+// no longer needs the count. A catalog naming no armor fails with
+// policy.ErrNoArmorDefs; an unknown stored census counts nothing.
 func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.GenerationSnapshot, projection *observation.ColonyProjection) (*policy.GearStore, error) {
 	if len(projection.Facts.Items.Armor) == 0 {
-		return nil, nil
+		return nil, policy.ErrNoArmorDefs
 	}
 	weapons := 0
 	if plan, known := projection.LayoutPlan.Value(); !known || len(policy.GearRoomsOwed(plan, policy.RoomDemand{Armory: true})) > 0 {
@@ -321,8 +341,8 @@ func (r *RoutineReviewer) gearStore(ctx context.Context, snapshot domain.Generat
 	if gear, ok := projection.Facts.Gear.Value(); ok {
 		stored, _ = gear.Stored.Value()
 	}
-	held, ok, err := policy.NewGearStore(projection.Facts.Items, stored, weapons)
-	if err != nil || !ok {
+	held, err := policy.NewGearStore(projection.Facts.Items, stored, weapons)
+	if err != nil {
 		return nil, err
 	}
 	return &held, nil

@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -34,9 +35,9 @@ func gearField(t *testing.T, prison *LayoutRoom) StorageRequest {
 		cells = append(cells, SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false),
 			Roofed: domain.Known(roofed[c]), Indoors: domain.Known(roofed[c]), StorageEmpty: domain.Known(true)})
 	}
-	gear, ok, err := NewGearStore(gearTestItems, nil, 0)
-	if err != nil || !ok {
-		t.Fatal(ok, err)
+	gear, err := NewGearStore(gearTestItems, nil, 0)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return StorageRequest{Bounds: Bounds{Width: 100, Height: 100}, Cells: cells, Layout: &layout, Rooms: &rooms, Gear: &gear}
 }
@@ -136,6 +137,20 @@ func TestPlanStorageArmoryKeepsAwayFromPrisons(t *testing.T) {
 	wardrobe, _ := gearSite(r, domain.WardrobeRolePrefix)
 	if len(wardrobe.Candidates[0]) != 25 {
 		t.Fatalf("wardrobe pool %d", len(wardrobe.Candidates[0]))
+	}
+}
+
+// An armory whose every free cell is within the weapon clearance of a prison
+// is a named failure of the plan, not a silent absence of the zone (#1805).
+func TestPlanStorageNamesAnArmoryNearAPrison(t *testing.T) {
+	t.Parallel()
+	prison := LayoutRoom{Role: ModulePrison, Interior: Rectangle{X: 58, Z: 40, Width: 3, Height: 3}}
+	plan := PlanStorage(gearField(t, &prison))
+	if !errors.Is(plan.Err, ErrArmoryNearPrison) {
+		t.Fatalf("plan error %v", plan.Err)
+	}
+	if err := PlanStorage(gearField(t, nil)).Err; err != nil {
+		t.Fatalf("plan error %v with no prison", err)
 	}
 }
 

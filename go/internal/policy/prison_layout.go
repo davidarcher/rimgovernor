@@ -8,7 +8,8 @@ import (
 
 // Prison layout (#1081, epic #845 prison break): mini-turrets stand just
 // outside the prison doors, and no weapon stockpile stands near a prison,
-// so an escapee finds neither an open exit nor a weapon.
+// so an escapee finds neither an open exit nor a weapon. Layout keeps the
+// armory and every prison that far apart (weaponClearance).
 
 const (
 	// TierPrisonTurretPrefix names the prison turret sections under the
@@ -129,6 +130,23 @@ func PrisonCells(plan LayoutPlan) []domain.Cell {
 	for _, r := range plan.AllRooms() {
 		if r.Role == ModulePrison {
 			out = append(out, rectCells(pad(r.Interior, 1))...)
+		}
+	}
+	return out
+}
+
+// weaponClearance is the ground a new room of role keeps off so the armory
+// and the prisons stay prisonWeaponClearance apart (#1805): round every
+// prison for an armory (its walls included, as PrisonCells), round every
+// armory interior for a prison.
+func weaponClearance(plan LayoutPlan, role ModuleRole) []Rectangle {
+	var out []Rectangle
+	for _, r := range plan.AllRooms() {
+		switch {
+		case role == ModuleArmory && r.Role == ModulePrison:
+			out = append(out, pad(r.Interior, 1+prisonWeaponClearance))
+		case role == ModulePrison && r.Role == ModuleArmory:
+			out = append(out, pad(r.Interior, prisonWeaponClearance))
 		}
 	}
 	return out

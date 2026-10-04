@@ -266,9 +266,11 @@ armor, the wardrobe one `wardrobe:<roomID>` zone holding clothing, both
 Preferred and above the gear floors (hit points over half, Normal quality or
 better); armor is every apparel def the catalog tags for the Soldier outfit
 without Worker (`ItemFacts.Armor`, `bridge.ApparelIsArmor`), clothing the rest.
-The armory leaves out cells within six of a prison. The planner signals layout
-for a room once four serviceable items of its kind are held (`GearStore`: stored
-apparel from the gear census, weapons on the map); a planned room not yet
+The armory leaves out cells within six of a prison, and layout keeps both
+rooms out of each other's clearance. The planner signals layout for a room when
+the warehouse can no longer hold what the colony has (every warehouse zone full
+with no cell to grow onto) and serviceable gear of its kind is held (`GearStore`:
+stored apparel from the gear census, weapons on the map); a planned room not yet
 standing is a `shell` edit, which `RoutineStockpilePlanner` raises through the
 planned-room shell path ahead of the zone edits.
 

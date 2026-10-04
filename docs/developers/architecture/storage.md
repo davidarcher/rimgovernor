@@ -39,11 +39,17 @@ again. The opening corpse dump (no planner yet) stands from the first pass.
 
 ## Gear rooms
 
-When a gear zone has every cell holding something, the planner raises
-`RoomDemand` (armory for weapons, wardrobe for apparel) and layout adds
-the room: the armory beside the barracks, the wardrobe beside the workshop
-with the tailor bench, with no wealth gate. Apparel cannot yet be told armor
-from clothing, so apparel demand asks for the wardrobe only.
+When every warehouse zone is full and cannot grow in its room (the state that
+also asks for a further storage room), the planner raises `RoomDemand` for each
+kind of serviceable gear the colony holds (armory for weapons and armor,
+wardrobe for clothing) and layout adds the room: the armory beside the
+barracks, the wardrobe beside the workshop with the tailor bench, with no
+wealth gate and no item-count threshold. A planned gear room not yet standing
+holds back the further storage room. Layout keeps the armory and every prison
+out of each other's weapon clearance; a standing armory with no free cell clear
+of a prison is `ErrArmoryNearPrison` on `StoragePlan.Err`, logged by the
+reviewer. A catalog naming no armor def fails the stockpile review with
+`ErrNoArmorDefs`.
 
 ## Growth, shrink and churn
 

@@ -188,6 +188,37 @@ func TestDefinitionCatalogRefusesADifferentCalendar(t *testing.T) {
 	_ = proto.Int32
 }
 
+// ApparelIsArmor on the outfit tags the game's own XML gives real defs (Core,
+// Royalty, Biotech 1.6 Data/*/Defs; see the rule's comment).
+func TestApparelIsArmorOnRealOutfitTags(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		def   string
+		tags  []string
+		armor bool
+	}{
+		{"Apparel_FlakVest", []string{"Soldier"}, true},
+		{"Apparel_PlateArmor", []string{"Soldier"}, true},
+		{"Apparel_SimpleHelmet", []string{"Soldier"}, true},
+		{"Apparel_PowerArmor", []string{"Soldier", "Spacefarer"}, true},
+		{"Apparel_ArmorCataphract", []string{"Soldier", "Spacefarer"}, true},
+		{"Apparel_PsyfocusVest", []string{"Soldier"}, true},
+		{"Apparel_KidHelmet", []string{"Soldier"}, true},
+		{"Apparel_Parka", []string{"Worker", "Soldier"}, false},
+		{"Apparel_Tuque", []string{"Worker", "Soldier"}, false},
+		{"Apparel_Pants", []string{"Worker", "Soldier", "Spacefarer"}, false},
+		{"Apparel_TribalA", []string{"Worker", "Soldier", "Spacefarer"}, false},
+		{"Apparel_Duster", []string{"Worker"}, false},
+		{"Apparel_Vacsuit", []string{"Spacefarer"}, false},
+		{"Apparel_IntegratorHeadset", nil, false},
+		{"Apparel_ShieldBelt", nil, false},
+	} {
+		if got := ApparelIsArmor(&d.ApparelProperties{DefaultOutfitTags: tc.tags}); got != tc.armor {
+			t.Errorf("%s %v: armor %v, want %v", tc.def, tc.tags, got, tc.armor)
+		}
+	}
+}
+
 // The armory-versus-wardrobe split is the catalog's: an apparel def only the
 // Soldier outfit tag names (not Worker too) is armor, sorted by name.
 func TestDefinitionCatalogItemFactsArmorSplit(t *testing.T) {
