@@ -251,7 +251,7 @@ func (v Verdict) String() string {
 	return strings.Join(parts, ":")
 }
 
-// Text is the one plain-English rendering of a verdict, for the status strip
+// Text is the one plain-English rendering of a verdict, for the dashboard
 // and the journal: each outcome and kind has a sentence template and the
 // subject and detail fill it in.
 func (v Verdict) Text() string {

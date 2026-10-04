@@ -38,9 +38,7 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 		"unknown":           {Owner: owned, Event: &k.Event_OperationOutcome{OperationOutcome: &k.OperationOutcome{Attempt: clockTestAttempt(1), LatchedTick: proto.Int64(1), Outcome: &k.OperationOutcome_Unknown{Unknown: &r.UnknownEffect{}}}}},
 		"authority owned":   {Owner: owned, Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(3), PreviousGeneration: proto.Uint64(2), Reason: proto.String("Manual")}}},
 		"authority unowned": {Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(3)}}},
-		// #957: a panel button press arrives without an epoch owner.
-		"player request": {Event: &k.Event_PlayerRequest{PlayerRequest: &k.PlayerRequest{Action: proto.String("replan_layout"), RequestId: proto.String("0123abcd")}}},
-		"watch stop":     {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{Outcome: clockTestOutcome(), TickDeadline: proto.Int64(612)}}}}},
+		"watch stop":        {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_WATCH_LATCHED.Enum(), Evidence: &k.StopEvent_Watch{Watch: &k.WatchLatched{Outcome: clockTestOutcome(), TickDeadline: proto.Int64(612)}}}}},
 		// #886: a combat-event stop row failed every poll and wedged the served planner.
 		"combat stop": {Owner: owned, Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_COMBAT_EVENT.Enum(), Evidence: &k.StopEvent_Combat{Combat: &k.CombatEventStop{Event: k.CombatEvent_COMBAT_EVENT_ENTERED_RANGE.Enum(), ThingId: proto.String("Thing_Human6804"), Reason: proto.String("EnteredRange")}}}}},
 	} {
@@ -52,9 +50,6 @@ func TestClockWatchEventsAndOwnerlessAuthority(t *testing.T) {
 		"ownerless outcome":  {Event: &k.Event_OperationOutcome{OperationOutcome: clockTestOutcome()}},
 		"ownerless stop":     {Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), Evidence: &k.StopEvent_Pause{Pause: &k.PauseEvidence{}}}}},
 		"zero generation":    {Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(0)}}},
-		"request no id":      {Event: &k.Event_PlayerRequest{PlayerRequest: &k.PlayerRequest{Action: proto.String("replan_layout")}}},
-		"request non-ascii":  {Event: &k.Event_PlayerRequest{PlayerRequest: &k.PlayerRequest{Action: proto.String("replan\u00e9"), RequestId: proto.String("1")}}},
-		"request spaced":     {Event: &k.Event_PlayerRequest{PlayerRequest: &k.PlayerRequest{Action: proto.String("replan layout"), RequestId: proto.String("1")}}},
 		"previous not older": {Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(2), PreviousGeneration: proto.Uint64(2)}}},
 		"no outcome":         {Owner: owned, Event: &k.Event_OperationOutcome{OperationOutcome: &k.OperationOutcome{Attempt: clockTestAttempt(1), LatchedTick: proto.Int64(1)}}},
 		"no attempt":         {Owner: owned, Event: &k.Event_OperationOutcome{OperationOutcome: &k.OperationOutcome{LatchedTick: proto.Int64(1), Outcome: &k.OperationOutcome_Unknown{Unknown: &r.UnknownEffect{}}}}},

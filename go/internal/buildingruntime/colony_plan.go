@@ -190,9 +190,6 @@ func (r *Rounder) reviewLayoutPlan(ctx context.Context, snapshot domain.Generati
 			}
 		}
 	}
-	if layout, haveLayout, err = r.servePlayerRequests(ctx, snapshot, projection, layout, haveLayout); err != nil {
-		return err
-	}
 	if haveLayout {
 		projection.LayoutPlan = domain.Known(layout.Plan)
 	}
@@ -226,7 +223,6 @@ func (r *Rounder) drawLayoutOverlay(ctx context.Context, snapshot domain.Generat
 		return
 	}
 	r.drawHeatOverlay(ctx, native, snapshot, projection)
-	r.drawProposalOverlay(ctx, native, snapshot, projection, layout)
 	tick := projection.Identity.Tick
 	if !r.layoutOverlay || !haveLayout {
 		if !r.overlayCleared {

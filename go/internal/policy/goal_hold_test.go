@@ -1,56 +1,8 @@
 package policy
 
 import (
-	"strings"
 	"testing"
 )
-
-func TestStatusRowsActionableFirstHeldCollapsed(t *testing.T) {
-	rows := StatusRows(StatusInput{Progress: []GoalProgress{
-		{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage},
-		{Goal: EnsureResearch, Method: "assess", Blocked: BlockedNoMethod},
-		{Goal: MaintainResource, Method: "mine"},
-		{Goal: EnsureBasicPower, Method: "assess", Planner: "no space found for it (verified space)", Blocked: BlockedPlanner("no space found for it (verified space)")},
-		{Goal: EnsureFoodSupply, Method: "cook", Blocked: BlockedPrerequisite(EnsureCooking)},
-		{Goal: MaintainLighting, Method: "assess", Blocked: HeldLabor(WorkConstruction)},
-	}})
-	var got []string
-	for _, r := range rows {
-		got = append(got, r.Text)
-		if r.Key == "goal.EnsureResearch" && r.Severity != StatusWarning {
-			t.Fatalf("actionable row not a warning: %+v", r)
-		}
-	}
-	want := []string{
-		"goal MaintainResource: mine",
-		"population ?/100, intent ?, downed raiders die ?, unrecruitable ?",
-		"Food",
-		"held EnsureFoodSupply",
-		"Shelter",
-		"held EnsureComfort, MaintainLighting",
-		"Industry",
-		"Project EnsureResearch - nothing to do right now",
-		"Project EnsureBasicPower - no space found for it (verified space)",
-		"Standard MaintainResource: mine",
-	}
-	if len(got) != len(want) {
-		t.Fatalf("%q", got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("%q, want %q", got, want)
-		}
-	}
-	// Nothing worked: the top row is the first actionable goal, not a held one.
-	rows = StatusRows(StatusInput{Progress: []GoalProgress{{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage}, {Goal: EnsureResearch, Method: "assess", Blocked: BlockedNoMethod}}})
-	if rows[0].Text != "goal EnsureResearch - blocked: nothing to do right now" || rows[0].Severity != StatusWarning {
-		t.Fatalf("%+v", rows[0])
-	}
-	rows = StatusRows(StatusInput{Progress: []GoalProgress{{Goal: EnsureComfort, Method: "assess", Blocked: HeldStage}}})
-	if rows[0].Text != "goal EnsureComfort - waiting on the colony's earlier needs first" || rows[0].Severity != StatusInfo {
-		t.Fatalf("%+v", rows[0])
-	}
-}
 
 func TestPlannerRefusalNamesTheBlock(t *testing.T) {
 	c := GoalProgressContract("", DefaultRoutinePolicy())
@@ -66,8 +18,7 @@ func TestPlannerRefusalNamesTheBlock(t *testing.T) {
 	}
 }
 
-// A waiting goal reads as a wait, not a block: the strip says what it waits
-// on without a warning, in the headline and in its domain section, and a
+// A waiting goal reads as a wait, not a block, and a
 // review that recomputes the record keeps the wait.
 func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
 	const text = "waiting for work it already started"
@@ -75,19 +26,6 @@ func TestWaitingGoalSaysWhatItWaitsOn(t *testing.T) {
 	p := ReviewGoalProgress(GoalProgress{Goal: EnsureComfort, Method: "assess", Planner: text, PlannerWaiting: true}, EnsureComfort, c, ProgressEvidence{}, 10)
 	if p.Blocked != BlockedWaiting(text) || p.Blocked.Actionable() || p.Blocked.Held() || !p.Blocked.Waiting() || ValidateGoalProgress(p, 10) != nil {
 		t.Fatalf("%+v", p)
-	}
-	rows := StatusRows(StatusInput{Progress: []GoalProgress{p}})
-	if rows[0].Text != "goal EnsureComfort - "+text || rows[0].Severity != StatusInfo {
-		t.Fatalf("headline %+v", rows[0])
-	}
-	var detail StatusRow
-	for _, r := range rows {
-		if r.Key == "goal.EnsureComfort" {
-			detail = r
-		}
-	}
-	if detail.Text == "" || detail.Severity != StatusInfo || !strings.HasSuffix(detail.Text, " - "+text) {
-		t.Fatalf("detail %+v", detail)
 	}
 }
 

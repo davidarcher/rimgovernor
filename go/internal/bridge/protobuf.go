@@ -284,7 +284,6 @@ var reviewedNativeMethods = map[string]bool{
 	plantCutCensusTool:                                 true,
 	"rimgovernor/lifecycle_save":                       true,
 	"rimgovernor/presentation_overlay":                 true,
-	"rimgovernor/presentation_status_strip":            true,
 	"rimgovernor/lifecycle_read_save":                  true,
 	"rimgovernor/lifecycle_load":                       true,
 	"rimgovernor/lifecycle_read_load":                  true,

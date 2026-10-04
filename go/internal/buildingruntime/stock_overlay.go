@@ -45,19 +45,19 @@ func (r *Rounder) drawStockOverlay(ctx context.Context, snapshot domain.Generati
 				clockSchedulerLog("stock overlay not cleared: %v", err)
 				return
 			}
-			r.stock = statusStripState{cleared: true}
+			r.stock = overlayState{cleared: true}
 		}
 		return
 	}
 	key := fmt.Sprint(layer)
-	if key == r.stock.key && tick >= r.stock.drawn && tick-r.stock.drawn < statusRedrawEvery {
+	if key == r.stock.key && tick >= r.stock.drawn && tick-r.stock.drawn < overlayResendEvery {
 		return
 	}
 	if _, _, err := native.DrawOverlay(ctx, controlIdentity(snapshot), policy.StockLayer, layer, true); err != nil {
 		clockSchedulerLog("stock overlay not drawn: %v", err)
 		return
 	}
-	r.stock = statusStripState{key: key, drawn: tick}
+	r.stock = overlayState{key: key, drawn: tick}
 }
 
 // stockZones is every stockpile the zone census lists (#719), its cells

@@ -932,9 +932,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, errors.Join(err, s.session.Disable())
 		}
 	}
-	if s.config.Routine != nil {
-		s.config.Routine.drawReviewing(call, loaded.Context.GetIdentity())
-	}
 	if s.config.WorldReady != nil {
 		reset, e := s.config.WorldReady(call, loaded.Context)
 		if e != nil {
@@ -1537,9 +1534,6 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	defer wave.cancelOptional()
 	defer s.recordWave(call, sel, wave, status.Context.GetTick())
 	began := time.Now()
-	if s.config.Routine != nil {
-		s.config.Routine.pause = clockPause(status)
-	}
 	// Under player acceleration the critical wave is the evidence the
 	// backoff keeps inside the horizon, aged from the step's status read.
 	watched := func(time.Duration, bool) {}

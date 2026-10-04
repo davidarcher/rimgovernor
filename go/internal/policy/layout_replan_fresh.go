@@ -1,16 +1,13 @@
 package policy
 
 import (
-	"fmt"
 	"maps"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// The player's Replan layout action (#957). Unlike ReplanLayoutWithRooms, which only
-// grows the saved plan, ReplanFresh lays the plan out again around what the
-// colony has already built; the result is a proposal the player applies or
-// discards from the in-game panel.
+// ReplanFresh, unlike ReplanLayoutWithRooms (which only grows the saved
+// plan), lays the plan out again around what the colony has already built.
 
 // ReplanFresh re-derives plan over a fresh survey. A room with anything
 // built on its walls or floor (built marks those cells) is kept where it
@@ -158,91 +155,5 @@ func coreWithout(zones []LayoutZone, cells map[domain.Cell]bool) []LayoutZone {
 		z.Runs = runs
 		out = append(out, z)
 	}
-	return out
-}
-
-// LayoutProposalDiff counts the rooms a proposal adds and drops against
-// the current plan (rooms match by role and interior).
-func LayoutProposalDiff(current, proposal LayoutPlan) (added, removed int) {
-	a, r := roomDiff(current, proposal)
-	return len(a), len(r)
-}
-
-func roomDiff(current, proposal LayoutPlan) (added, removed []LayoutRoom) {
-	key := func(r LayoutRoom) string { return fmt.Sprint(r.Role, r.Interior) }
-	have, next := map[string]bool{}, map[string]bool{}
-	for _, r := range current.AllRooms() {
-		have[key(r)] = true
-	}
-	for _, r := range proposal.AllRooms() {
-		next[key(r)] = true
-		if !have[key(r)] {
-			added = append(added, r)
-		}
-	}
-	for _, r := range current.AllRooms() {
-		if !next[key(r)] {
-			removed = append(removed, r)
-		}
-	}
-	return added, removed
-}
-
-// ProposalOverlay draws a layout proposal against the current plan: rooms
-// and hallway cells it adds tinted green, those it drops red, each room
-// labelled "+role" or "-role". What both share is left to the layout
-// layer.
-func ProposalOverlay(current, proposal LayoutPlan, bounds Bounds) LayoutOverlay {
-	var out LayoutOverlay
-	added, removed := roomDiff(current, proposal)
-	hallway := func(p LayoutPlan) map[domain.Cell]bool {
-		cells := map[domain.Cell]bool{}
-		for _, r := range spineRects(p.Hallways()) {
-			for _, c := range RectangleCells(r) {
-				cells[c] = true
-			}
-		}
-		return cells
-	}
-	was, now := hallway(current), hallway(proposal)
-	var gained, lost []domain.Cell
-	for c := range now {
-		if !was[c] {
-			gained = append(gained, c)
-		}
-	}
-	for c := range was {
-		if !now[c] {
-			lost = append(lost, c)
-		}
-	}
-	tint := func(hue overlayHue, sign string, rooms []LayoutRoom, cells []domain.Cell) {
-		layer := OverlayLayer{Style: OverlayFill, Label: sign + "proposal", Color: OverlayColor{hue.R, hue.G, hue.B, 0.45}}
-		for _, r := range rooms {
-			if c, ok := clip(roomWalls(r), bounds); ok {
-				layer.Rects = append(layer.Rects, c)
-			}
-			label := string(r.Role)
-			if style, ok := roomOverlay[r.Role]; ok {
-				label = style.label
-			}
-			at := domain.Cell{X: r.Interior.X + r.Interior.Width/2, Z: r.Interior.Z + r.Interior.Height/2}
-			if at.X >= 0 && at.Z >= 0 && at.X < bounds.Width && at.Z < bounds.Height {
-				out.Labels = append(out.Labels, OverlayLabel{Text: sign + label, Cell: at})
-			}
-		}
-		if len(cells) > 0 {
-			for _, r := range cellRuns(cells) {
-				if c, ok := clipRun(r, bounds); ok {
-					layer.Runs = append(layer.Runs, c)
-				}
-			}
-		}
-		if len(layer.Rects)+len(layer.Runs) > 0 {
-			out.Layers = append(out.Layers, layer)
-		}
-	}
-	tint(planRed, "-", removed, lost)
-	tint(planGreen, "+", added, gained)
 	return out
 }

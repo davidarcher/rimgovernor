@@ -105,32 +105,3 @@ func TestReplanFreshKeepsNewRoomsOffBuiltGround(t *testing.T) {
 		}
 	}
 }
-
-func TestProposalOverlayTintsAddedAndDroppedRooms(t *testing.T) {
-	kept := LayoutRoom{Role: ModuleKitchen, Interior: Rectangle{X: 10, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 12, Z: 9}, DoorRot: domain.South}
-	gone := LayoutRoom{Role: ModuleBedroom, Interior: Rectangle{X: 20, Z: 10, Width: 5, Height: 5}, Door: domain.Cell{X: 22, Z: 9}, DoorRot: domain.South}
-	added := LayoutRoom{Role: ModuleLab, Interior: Rectangle{X: 30, Z: 10, Width: 6, Height: 5}, Door: domain.Cell{X: 32, Z: 9}, DoorRot: domain.South}
-	current := LayoutPlan{Rooms: []LayoutRoom{kept, gone}, Spine: []SpineSegment{{From: domain.Cell{X: 10, Z: 7}, To: domain.Cell{X: 25, Z: 7}}}}
-	next := LayoutPlan{Rooms: []LayoutRoom{kept, added}, Spine: []SpineSegment{{From: domain.Cell{X: 10, Z: 7}, To: domain.Cell{X: 35, Z: 7}}}}
-	if a, r := LayoutProposalDiff(current, next); a != 1 || r != 1 {
-		t.Fatal(a, r)
-	}
-	o := ProposalOverlay(current, next, Bounds{Width: 100, Height: 100})
-	var labels []string
-	for _, l := range o.Labels {
-		labels = append(labels, l.Text)
-	}
-	if !slices.Equal(labels, []string{"-bedroom", "+research"}) {
-		t.Fatal(labels)
-	}
-	if len(o.Layers) != 2 || o.Layers[0].Color.R < o.Layers[0].Color.G || o.Layers[1].Color.G < o.Layers[1].Color.R {
-		t.Fatalf("want a red then a green layer: %+v", o.Layers)
-	}
-	// The dropped room's walls and the added hallway stretch are tinted.
-	if len(o.Layers[0].Rects) != 1 || o.Layers[0].Rects[0] != roomWalls(gone) || len(o.Layers[1].Runs) == 0 {
-		t.Fatalf("%+v", o.Layers)
-	}
-	if o := ProposalOverlay(current, current, Bounds{Width: 100, Height: 100}); len(o.Layers)+len(o.Labels) != 0 {
-		t.Fatal("an unchanged proposal drew", o)
-	}
-}

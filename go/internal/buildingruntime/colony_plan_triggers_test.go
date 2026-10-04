@@ -23,6 +23,16 @@ func (n countingSurvey) ReadMapSurvey(context.Context, *c.Identity, policy.Bound
 	return n.survey, bridge.Result{}, nil
 }
 
+func openSurvey(n int32) policy.MapSurvey {
+	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
+	for z := int32(0); z < n; z++ {
+		for x := int32(0); x < n; x++ {
+			s.Cells = append(s.Cells, policy.SurveyCell{Cell: domain.Cell{X: x, Z: z}, Walkable: true, Fertility: 1})
+		}
+	}
+	return s
+}
+
 // #1290: every layout trigger is hourly. An unchanged colony reads the
 // survey at most once an hour and replans nothing; a new pawn or a new
 // tier replans at the next hourly review.

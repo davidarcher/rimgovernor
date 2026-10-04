@@ -96,11 +96,9 @@ func clockEvent(event *k.Event) error {
 	if event == nil {
 		return contract("clock event required")
 	}
-	// Only an authority change observed outside any epoch and a player
-	// request have no owner.
+	// Only an authority change observed outside any epoch has no owner.
 	_, authority := event.Event.(*k.Event_AuthorityChanged)
-	_, request := event.Event.(*k.Event_PlayerRequest)
-	if event.Owner != nil || !authority && !request {
+	if event.Owner != nil || !authority {
 		if err := clockOwner(event.Owner); err != nil {
 			return err
 		}
@@ -174,11 +172,6 @@ func clockEvent(event *k.Event) error {
 		a := v.AuthorityChanged
 		if a == nil || a.Generation == nil || a.GetGeneration() == 0 || (a.PreviousGeneration != nil && a.GetPreviousGeneration() >= a.GetGeneration()) || !diagnostic(a.Reason) {
 			return contract("clock authority change evidence")
-		}
-	case *k.Event_PlayerRequest:
-		r := v.PlayerRequest
-		if r == nil || r.Action == nil || r.RequestId == nil || !PanelID(r.GetAction()) || !PanelID(r.GetRequestId()) {
-			return contract("clock player request evidence")
 		}
 	case *k.Event_ObservationInvalidated:
 		o := v.ObservationInvalidated

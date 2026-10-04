@@ -124,23 +124,10 @@ type Rounder struct {
 	overlayCleared bool
 	heatDrawn      domain.Tick
 	heatCleared    bool
-	// strip is the last status strip sent (#823); see drawStatusStrip.
-	strip statusStripState
 	// safety is the last safety layer sent (#824); see drawSafetyOverlay.
-	safety statusStripState
+	safety overlayState
 	// stock is the last stock layer sent (#825); see drawStockOverlay.
-	stock statusStripState
-	// pause is who stopped the clock the scheduler's step read (#847),
-	// set before the review; see clockPause.
-	pause policy.ClockPause
-	// requests are the panel's player requests the poll handed over
-	// (#957); proposal is the layout replan awaiting Apply or Discard,
-	// note the last layout request's outcome and proposalDrawn the
-	// proposal layer last drawn. See servePlayerRequests.
-	requests      playerRequests
-	proposal      *layoutProposal
-	note          layoutNote
-	proposalDrawn string
+	stock overlayState
 }
 
 // staged is the configured policy with its goal budgets set by the colony
@@ -671,7 +658,6 @@ func (r *Rounder) step(ctx, epoch context.Context, arbiter *stepArbiter, partial
 		clockEvent(ctx, "routine", "routine_review", "rounds ran", append(append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals) + len(result.Projects), "emergency", routineEmergencyNames(result.Emergency)}, routineStageAttrs(result.Review.Stage)...), routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 		r.logColonyStage(ctx, result.Review)
 		recordRoutineSnapshot(ctx, state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection)
-		r.drawStatusStrip(ctx, state.Snapshot, &reading.Projection, result)
 		r.drawSafetyOverlay(ctx, state.Snapshot, &reading.Projection, reading.Emergency)
 		r.drawStockOverlay(ctx, state.Snapshot, &reading.Projection, result)
 	}

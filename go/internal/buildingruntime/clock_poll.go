@@ -256,11 +256,6 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		if s.facts.apply(page) && s.config.Routine != nil {
 			s.config.Routine.census.invalidate()
 		}
-		// The panel's button presses (#957): the page wakes the step,
-		// whose review serves them.
-		if s.config.Routine != nil {
-			s.config.Routine.requests.push(clockPlayerRequests(page, s.history.cursor))
-		}
 	}
 	review, err = s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
