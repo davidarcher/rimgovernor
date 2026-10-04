@@ -132,6 +132,10 @@ namespace HomeBridge.BridgeTools
             return gift ? target > 0 : target < 0;
         }
 
+        // The open session pays in the trader faction's royal favor (the Royalty
+        // tribute collector), not silver; the favor row has no ThingDef.
+        internal static bool IsFavorSession() => SafeBool(() => TradeSession.Active && TradeSession.TradeCurrency == TradeCurrency.Favor);
+
         private static Tradeable? SafeCurrencyTradeable(TradeDeal deal) { try { return deal.CurrencyTradeable; } catch { return null; } }
         private static void SafeUpdateCurrency(TradeDeal deal) { try { deal.UpdateCurrencyCount(); } catch { } }
 
@@ -498,11 +502,15 @@ namespace HomeBridge.BridgeTools
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic reserve policy is malformed."); return false; }
                     floors[f.DefName] = f.HasCount ? f.Count : 0;
                 }
-                if (!floors.ContainsKey("Silver") || SafeBool(() => TradeSession.giftMode))
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Economic policy requires a silver reserve and an ordinary trade."); return false; }
+                // A favor session pays royal favor to the negotiator, so it needs
+                // no silver reserve; its currency rows are exempt below.
+                var favorSession = IsFavorSession();
+                if (!favorSession && !floors.ContainsKey("Silver") || SafeBool(() => TradeSession.giftMode))
+                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, favorSession ? "Economic policy requires an ordinary trade." : "Economic policy requires a silver reserve and an ordinary trade."); return false; }
                 var exportThings = new HashSet<string>(command.ExportThingIds, StringComparer.Ordinal);
                 foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) < 0 || SafeBool(() => t.IsCurrency)))
                 {
+                    if (favorSession && SafeBool(() => row.IsCurrency)) continue;
                     var def = SafeDef(row);
                     if (def == null || !floors.TryGetValue(def.defName, out var floor)
                         || SafeInt(() => row.thingsColony.Where(t => !t.Destroyed).Sum(t => t.stackCount)) + SafeInt(() => row.CountToTransfer) < floor)
@@ -532,6 +540,8 @@ namespace HomeBridge.BridgeTools
                 if (source.Any(t => t.Destroyed || (t.stackCount > 0 && !available.Contains(t))) || !row.CanAdjustTo(row.CountToTransfer).Accepted)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade stock changed or is no longer eligible."); return false; }
             }
+            if (IsFavorSession() && !SafeBool(() => TradeSession.giftMode) && (_sessionNegotiator?.royalty == null || _sessionTrader?.Faction == null))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A favor deal needs a negotiator with a royalty tracker and a faction trader."); return false; }
             if (!SafeBool(() => TradeSession.giftMode))
             {
                 var currency = SafeCurrencyTradeable(deal);
@@ -539,7 +549,7 @@ namespace HomeBridge.BridgeTools
                 var traderAffordable = SafeBool(() => deal.DoesTraderHaveEnoughSilver());
                 if (!affordable || !traderAffordable)
                 {
-                    failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, currency == null ? "This deal has no silver row."
+                    failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, currency == null ? (IsFavorSession() ? "This deal has no favor row." : "This deal has no silver row.")
                         : !affordable ? "The colony cannot afford this deal." : "The trader cannot afford this deal.");
                     return false;
                 }

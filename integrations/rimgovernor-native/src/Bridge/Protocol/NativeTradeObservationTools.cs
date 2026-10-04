@@ -98,6 +98,7 @@ namespace HomeBridge.BridgeTools
         {
             ThingDef? def; try { def = t.ThingDef; } catch { def = null; }
             var pawn = IsPawnRow(t);
+            var favor = SafeBool(() => t.IsFavor);
             var line = new Obs.TradeLine
             {
                 Index = (uint)index, LineId = "#" + index,
@@ -111,11 +112,11 @@ namespace HomeBridge.BridgeTools
                 BuyPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerBuys)), SellPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerSells)),
                 BuyPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerBuys)), SellPriceType = SafePrice(() => t.PriceTypeFor(TradeAction.PlayerSells)),
                 MarketValue = SafeFloat(() => t.BaseMarketValue),
-                TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn,
+                TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = pawn, Favor = favor,
                 TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
                 // The same classification AcceptTrade's economic floors refuse
                 // to export, so selection never stages what acceptance rejects.
-                ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t),
+                ProtectedExport = !favor && (def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn && !NativeTradeOperations.IsSellableAnimal(t)),
                 Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (!pawn)
@@ -195,6 +196,7 @@ namespace HomeBridge.BridgeTools
                 CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),
                 TraderHasEnoughSilver = SafeBool(() => deal.DoesTraderHaveEnoughSilver()),
                 DealSignature = session.DealSignature,
+                CurrencyKind = NativeTradeOperations.IsFavorSession() ? Obs.TradeCurrencyKind.Favor : Obs.TradeCurrencyKind.Silver,
             };
             if (currency != null)
             {

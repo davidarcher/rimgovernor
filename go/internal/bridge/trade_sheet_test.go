@@ -88,6 +88,37 @@ func TestReadTradeSheetReadsTheCompleteSheetOnce(t *testing.T) {
 	}
 }
 
+func TestReadTradeSheetFavorCurrencyAndSilverSheets(t *testing.T) {
+	silver, _, err := func() (TradeSheetRead, Result, error) {
+		client, _ := tradeSheetClient(t, tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-1", "Steel", 1, 0)}))
+		return client.ReadTradeSheet(context.Background(), pbIdentity())
+	}()
+	if err != nil || silver.FavorCurrency || silver.Rows[0].Favor {
+		t.Fatalf("a sheet without a currency kind must read as silver: %+v %v", silver, err)
+	}
+
+	favorRow := tradeSheetLine("line-2", "", 0, 99999)
+	favorRow.Currency, favorRow.Favor, favorRow.BuyPrice, favorRow.SellPrice = proto.Bool(true), proto.Bool(true), nil, nil
+	favorRow.TransferCount = proto.Int64(6)
+	sheet := tradeSheetFixture([]*o.TradeLine{tradeSheetLine("line-1", "Steel", 1, 0), favorRow})
+	sheet.CurrencyKind = o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR.Enum()
+	client, _ := tradeSheetClient(t, sheet)
+	out, _, err := client.ReadTradeSheet(context.Background(), pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !out.FavorCurrency || out.Rows[0].Favor || !out.Rows[1].Favor || !out.Rows[1].Currency || out.Rows[1].DefName != "" || out.Rows[1].TransferNow != 6 || out.Rows[0].SellPrice != 5 {
+		t.Fatalf("favor sheet %+v", out)
+	}
+
+	// An empty definition is only the favor currency row's.
+	bad := tradeSheetLine("line-3", "", 0, 0)
+	client, _ = tradeSheetClient(t, tradeSheetFixture([]*o.TradeLine{bad}))
+	if _, _, err := client.ReadTradeSheet(context.Background(), pbIdentity()); err == nil {
+		t.Fatal("an empty definition on an ordinary row must be refused")
+	}
+}
+
 func TestReadTradeSheetCarriesAbsentFieldsAsUnknown(t *testing.T) {
 	line := tradeSheetLine("line-1", "Steel", 0, 0)
 	line.BuyPrice, line.SellPrice, line.TraderWillTrade, line.Currency, line.Pawn, line.ProtectedExport = nil, nil, nil, nil, nil, nil

@@ -40,6 +40,8 @@ type TradeSheetRow struct {
 	PawnKnown            bool
 	ProtectedExport      bool
 	ProtectedExportKnown bool
+	// Favor marks the favor currency row, which has no ThingDef (empty DefName).
+	Favor bool
 
 	// A pawn row's purchase facts (#1037): the offered pawn's load id,
 	// skills with passions, and whether it can do violence. Absent on
@@ -88,8 +90,13 @@ type TradeSheetRead struct {
 	BalanceKnown    bool
 	ColonyCanAfford bool
 	TraderHasSilver bool
-	DealSignature   string
-	Rows            []TradeSheetRow
+	// FavorCurrency is a session paid in the trader faction's royal favor
+	// (the Royalty tribute collector): SellPrice is then each row's favor
+	// value and the Favor row's TransferNow the favor the negotiator gains.
+	// Absent on the wire reads as silver.
+	FavorCurrency bool
+	DealSignature string
+	Rows          []TradeSheetRow
 }
 
 // ReadTradeSheet reads the whole trade sheet of the live session,
@@ -137,6 +144,7 @@ func (client *Client) ReadTradeSheet(ctx context.Context, identity *c.Identity) 
 	out.Trader, out.Negotiator, out.GiftMode, out.CanTradeNow = header.Trader, header.Negotiator, header.GiftMode, header.CanTradeNow
 	out.Balance, out.BalanceKnown = header.Balance, header.BalanceKnown
 	out.ColonyCanAfford, out.TraderHasSilver, out.DealSignature = header.ColonyCanAfford, header.TraderHasSilver, header.DealSignature
+	out.FavorCurrency = header.FavorCurrency
 	return out, raw, ctx.Err()
 }
 
@@ -159,7 +167,7 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 		Trader: v.GetTrader().GetId(), Negotiator: v.GetNegotiator().GetId(), GiftMode: v.GetGiftMode(),
 		CanTradeNow: v.GetCanTradeNow(), Balance: v.GetBalance(), BalanceKnown: v.Balance != nil,
 		ColonyCanAfford: v.GetColonyCanAfford(), TraderHasSilver: v.GetTraderHasEnoughSilver(),
-		DealSignature: v.GetDealSignature(),
+		DealSignature: v.GetDealSignature(), FavorCurrency: v.GetCurrencyKind() == o.TradeCurrencyKind_TRADE_CURRENCY_KIND_FAVOR,
 	}
 	for _, line := range v.Lines {
 		row, err := tradeSheetRow(line)
@@ -176,7 +184,9 @@ func tradeSheetPage(v *o.TradeSheet, identity *c.Identity, seen map[string]bool,
 }
 
 func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
-	if v == nil || validID(v.GetLineId()) != nil || v.Definition == nil || validID(v.Definition.GetDefName()) != nil {
+	// The favor currency row has no ThingDef, so its definition is empty.
+	favor := v != nil && v.GetFavor() && v.GetCurrency()
+	if v == nil || validID(v.GetLineId()) != nil || v.Definition == nil || validID(v.Definition.GetDefName()) != nil && !(favor && v.Definition.GetDefName() == "") {
 		return TradeSheetRow{}, contract("invalid trade sheet line")
 	}
 	if !diagnostic(v.Stuff) || !diagnostic(v.Category) {
@@ -219,6 +229,6 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 		TraderWillTrade: v.GetTraderWillTrade(), TraderWillTradeKnown: v.TraderWillTrade != nil,
 		Currency: v.GetCurrency(), CurrencyKnown: v.Currency != nil,
 		Pawn: v.GetPawn(), PawnKnown: v.Pawn != nil,
-		ProtectedExport: v.GetProtectedExport(), ProtectedExportKnown: v.ProtectedExport != nil,
+		ProtectedExport: v.GetProtectedExport(), ProtectedExportKnown: v.ProtectedExport != nil, Favor: favor,
 	}, nil
 }

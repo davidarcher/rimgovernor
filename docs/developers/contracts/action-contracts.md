@@ -132,7 +132,14 @@ Every trade operation is an idempotent intent naming the session's trader and
 negotiator; accept also carries the preview signature covering exact rows,
 counts, stock identities and prices. Native acceptance rechecks stock
 eligibility, both silver balances and trader availability after any viewing
-delay. Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
+delay. A favor-currency session (the Royalty tribute collector, #1941) says so
+with `TradeSheet.currency_kind` (absent reads as silver): every row's
+`sell_price` is the item's favor value, the favor row is `TradeLine.favor`
+with an empty definition (a currency row, never `protected_export`), and its
+`transfer_count` is the favor the game grants the negotiator on accept. Accept
+needs no `Silver` economic floor there and exempts the currency rows from the
+reserve check, but still refuses a negotiator without a royalty tracker.
+Trade is an intent-mode kind (`domain.ActionKind.IntentMode`): an
 applied receipt completes the action with no observation phase, a refused
 one fails it, and a lost receipt sends the intent again. An accept whose
 deal the game declines to execute (`TryExecute` false) still closes the
