@@ -241,6 +241,25 @@ that reaches the demand owes no cell. One catalog file,
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
+**Upkeep and breach response (#1743).** MaintainPopulation's custody step,
+once no capture or custody is owed, keeps a held entity contained
+(`routine_population_containment.go`, facts in `policy/entity_upkeep.go`).
+Doors: the native holder row carries the room's `Building_Door`s
+(`EntityHolderState.doors`: open, hold_open, containment_breached,
+blocked_open). A holder with a held pawn whose door is held open owes one
+`close_door` action per door, which is the existing combat door CLOSE write
+(`CombatOrders`, mode CLOSE) for that cell; CLOSE clears the hold. A breached
+door that is neither held nor blocked closes by itself (the game's
+`ContainmentBreached` is the door staying open past its delay), and a breached
+door that stays blocked open is reported only (`containment_upkeep_issue`),
+since no order clears a blockage. Unread door facts are reported, never
+guessed. Bleeding captives: a held, downed, living entity whose health reads
+`needs_tend` is tended through the ordinary Tend action (bleeding first, then
+by id) with a doctor chosen by `SelectTend`; no eligible pair logs
+`entity_tend_unavailable`. A breach has no dedicated tactic: an escaped entity
+is a live hostile and falls to the existing defense tactics
+(`TestEscapedEntityFallsToTheExistingDefense`).
+
 **Study rule (#1744).** A held entity is studied through the work type
 `DarkStudy` (Anomaly `StudyInteract` work giver; relevant skill Intellectual).
 `policy.StudyWork` owes one `DarkStudy` owner to the work planner while any

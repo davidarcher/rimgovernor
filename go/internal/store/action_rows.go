@@ -159,6 +159,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,pawn) VALUES(?,?,?,'quest_accept',?,?,?)", a.ID(), plan, ordinal, accept.Quest(), strconv.FormatInt(int64(accept.RewardChoice()), 10), accepter)
 	} else if ignite, ok := a.Ignite(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,x,z) VALUES(?,?,?,'ignite',?,?,?)", a.ID(), plan, ordinal, ignite.Pawn(), ignite.Cell().X, ignite.Cell().Z)
+	} else if door, ok := a.CloseDoor(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,x,z) VALUES(?,?,?,'close_door',?,?)", a.ID(), plan, ordinal, door.Cell().X, door.Cell().Z)
 	} else if ability, ok := a.Ability(); ok {
 		// definition is the source key ("permit:<faction>:<permit>"); target is
 		// "pawn:<id>" or "thing:<id>", x and z a cell target, none for no
@@ -1087,6 +1089,15 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewIgniteAction(id, ignite)
+		return a, ordinal, err
+	}
+	if kind == "close_door" && x.Valid && z.Valid && !pawn.Valid && !def.Valid && !target.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil &&
+		x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		door, err := domain.NewCloseDoor(domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewCloseDoorAction(id, door)
 		return a, ordinal, err
 	}
 	if kind == "ability" && pawn.Valid && def.Valid && !rotation.Valid && !stuff.Valid && !draftAction.Valid && work == nil && zone == nil {

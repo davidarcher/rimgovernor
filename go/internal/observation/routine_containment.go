@@ -114,7 +114,7 @@ func builtHolders(rows iter.Seq[*o.BuildingState]) domain.Fact[[]policy.BuiltHol
 		if !sk || !ak {
 			return domain.Unknown[[]policy.BuiltHolder]()
 		}
-		holders = append(holders, policy.BuiltHolder{Strength: strength, Available: available})
+		holders = append(holders, policy.BuiltHolder{Strength: strength, Available: available, HeldPawn: holder.HeldPawn, Doors: holder.Doors})
 	}
 	return domain.Known(holders)
 }

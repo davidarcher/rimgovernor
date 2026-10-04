@@ -245,7 +245,8 @@ namespace HomeBridge.BridgeTools
                 if (pawn.GetComp<CompHoldingPlatformTarget>() is CompHoldingPlatformTarget target)
                 {
                     var held = new Obs.HeldState { Held = target.CurrentlyHeldOnPlatform, Mode = NativeEnums.ContainmentMode(target.containmentMode),
-                        Escaping = target.isEscaping, ExtractBioferrite = target.extractBioferrite, CanBeCaptured = target.CanBeCaptured };
+                        Escaping = target.isEscaping, ExtractBioferrite = target.extractBioferrite, CanBeCaptured = target.CanBeCaptured,
+                        NeedsTend = pawn.health.HasHediffsNeedingTend(false), Bleeding = Finite(pawn.health.hediffSet.BleedRateTotal) && pawn.health.hediffSet.BleedRateTotal > 0 };
                     if (target.HeldPlatform is Building_HoldingPlatform platform) held.Platform = NativeRef.Thing(platform);
                     row.Held = held;
                 }
@@ -278,6 +279,20 @@ namespace HomeBridge.BridgeTools
             return state;
         }
 
+        // The doors the game counts for a holder's room: the Building_Door
+        // things among the room's contained and adjacent things, which is
+        // what StatWorker_ContainmentStrength.AnyDoorForcedOpen walks. None
+        // for a holder in no room or a room that is psychologically outdoors
+        // (the game reads no door there either).
+        private static IEnumerable<Obs.AnomalyDoor> Doors(Thing holder)
+        {
+            var room = holder.GetRoom();
+            if (room == null || room.PsychologicallyOutdoors) yield break;
+            foreach (var door in room.ContainedAndAdjacentThings.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
+                yield return new Obs.AnomalyDoor { Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z }, Open = door.Open, HoldOpen = door.HoldOpen,
+                    ContainmentBreached = door.ContainmentBreached, BlockedOpen = door.BlockedOpenMomentary };
+        }
+
         // The building row block; null without Anomaly or when the building
         // is neither an entity holder nor studiable.
         internal static Obs.AnomalyBuilding? Building(Thing thing)
@@ -293,6 +308,8 @@ namespace HomeBridge.BridgeTools
                     if (Finite(strength)) state.ContainmentStrength = strength;
                     if (holder.HeldPawn is Pawn held) state.HeldPawn = NativeRef.Thing(held);
                     row.Holder = state;
+                    try { state.Doors.Add(Doors(thing)); }
+                    catch (Exception ex) { state.Doors.Clear(); row.Issues.Add(Failed("doors", ex)); }
                 }
             }
             catch (Exception ex) { row.Issues.Add(Failed("holder", ex)); }

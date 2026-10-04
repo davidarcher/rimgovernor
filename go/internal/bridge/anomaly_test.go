@@ -217,6 +217,52 @@ func anomalyBuildingFixture() *o.BuildingState {
 	}}
 }
 
+// TestBuildingAnomalyDoors (#1743): a holder's room doors lift with their
+// four Building_Door facts; a failed door read leaves them unknown without
+// hiding the holder's strength; a door with no cell is refused.
+func TestBuildingAnomalyDoors(t *testing.T) {
+	row := anomalyBuildingFixture()
+	row.Anomaly.Holder.Doors = []*o.AnomalyDoor{{Cell: &c.Cell{X: proto.Int32(7), Z: proto.Int32(2)}, Open: proto.Bool(true), HoldOpen: proto.Bool(true),
+		ContainmentBreached: proto.Bool(true), BlockedOpen: proto.Bool(false)}}
+	if err := validateBuildingAnomaly(row.Anomaly); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := BuildingAnomaly(row).Value()
+	holder, _ := a.Holder.Value()
+	doors, ok := holder.Doors.Value()
+	if !ok || len(doors) != 1 || doors[0].Cell != (domain.Cell{X: 7, Z: 2}) {
+		t.Fatalf("%+v %v", doors, ok)
+	}
+	for name, fact := range map[string]domain.Fact[bool]{"open": doors[0].Open, "hold_open": doors[0].HoldOpen, "breached": doors[0].Breached} {
+		if v, known := fact.Value(); !known || !v {
+			t.Errorf("%s %v %v", name, v, known)
+		}
+	}
+	if v, known := doors[0].BlockedOpen.Value(); !known || v {
+		t.Errorf("blocked_open %v %v", v, known)
+	}
+	if s, ok := holder.ContainmentStrength.Value(); !ok || s != 42.5 {
+		t.Fatal("strength", s, ok)
+	}
+	failed := anomalyBuildingFixture()
+	failed.Anomaly.Issues = []*o.ReadIssue{{Field: proto.String("doors"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
+	if err := validateBuildingAnomaly(failed.Anomaly); err != nil {
+		t.Fatal(err)
+	}
+	a, _ = BuildingAnomaly(failed).Value()
+	holder, _ = a.Holder.Value()
+	if _, ok := holder.Doors.Value(); ok {
+		t.Fatal("a failed door read must stay unknown")
+	}
+	if s, ok := holder.ContainmentStrength.Value(); !ok || s != 42.5 {
+		t.Fatal("a failed door read hid the strength", s, ok)
+	}
+	row.Anomaly.Holder.Doors = []*o.AnomalyDoor{{}}
+	if validateBuildingAnomaly(row.Anomaly) == nil {
+		t.Fatal("a door without a cell was accepted")
+	}
+}
+
 // TestBuildingAnomalyRow (#1737): a holding platform's containment strength
 // and held pawn lift into typed facts and a block native could not read
 // stays unknown.

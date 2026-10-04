@@ -43,6 +43,10 @@ type BuiltHolder struct {
 	Strength float64
 	// Available is whether the platform can take a pawn now.
 	Available bool
+	// HeldPawn is the pawn on the platform ("" when none) and Doors the
+	// doors of its room (#1743).
+	HeldPawn string
+	Doors    domain.Fact[[]ContainmentDoor]
 }
 
 // ContainmentPlanning is the projection's containment inputs. Each unknown

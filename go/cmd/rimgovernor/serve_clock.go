@@ -590,7 +590,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 		}
 		if populationCustody {
-			custodyNative, ok := reads.(buildingruntime.RoutineRescueSource)
+			custodyNative, ok := reads.(buildingruntime.RoutineCustodySource)
 			if !ok {
 				return nil, errors.New("population custody plans require typed combat observations")
 			}

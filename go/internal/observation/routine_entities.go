@@ -23,7 +23,8 @@ func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.Captur
 		if entity, known := a.Entity.Value(); known && !entity {
 			continue
 		}
-		e := policy.CapturableEntity{Pawn: domain.PawnID(row.GetPawn().GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed), CanBeCaptured: domain.Unknown[bool](), Held: domain.Unknown[bool](), Need: a.MinContainmentStrength, CurrentlyStudiable: domain.Unknown[bool]()}
+		e := policy.CapturableEntity{Pawn: domain.PawnID(row.GetPawn().GetId()), Dead: optional(row.Dead), Downed: optional(row.Downed), CanBeCaptured: domain.Unknown[bool](), Held: domain.Unknown[bool](), Need: a.MinContainmentStrength, CurrentlyStudiable: domain.Unknown[bool](),
+			NeedsTend: domain.Unknown[bool](), Bleeding: domain.Unknown[bool]()}
 		if study, known := a.Study.Value(); known {
 			e.CurrentlyStudiable = domain.Known(false)
 			if study != nil {
@@ -38,7 +39,7 @@ func capturableEntities(rows iter.Seq[*o.PawnState]) domain.Fact[[]policy.Captur
 					e.CanBeCaptured, e.Held = domain.Known(false), domain.Known(false)
 				}
 			} else {
-				e.CanBeCaptured, e.Held = held.CanBeCaptured, held.Held
+				e.CanBeCaptured, e.Held, e.NeedsTend, e.Bleeding = held.CanBeCaptured, held.Held, held.NeedsTend, held.Bleeding
 			}
 		}
 		out = append(out, e)

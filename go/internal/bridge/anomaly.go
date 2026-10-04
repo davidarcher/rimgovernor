@@ -211,6 +211,11 @@ func validateBuildingAnomaly(b *o.AnomalyBuilding) error {
 		if h.HeldPawn != nil && !validRef(h.HeldPawn) {
 			return contract("invalid anomaly held pawn")
 		}
+		for _, door := range h.Doors {
+			if err := validCell(door.GetCell()); err != nil {
+				return contract("anomaly holder door: %v", err)
+			}
+		}
 	}
 	if err := validateStudyState(b.Study); err != nil {
 		return err
@@ -258,6 +263,7 @@ func PawnAnomaly(a *o.PawnAnomaly) domain.Fact[policy.PawnAnomaly] {
 		var held *policy.EntityHeld
 		if h := a.Held; h != nil {
 			held = &policy.EntityHeld{Held: optionalFact(h.Held), Escaping: optionalFact(h.Escaping), ExtractBioferrite: optionalFact(h.ExtractBioferrite),
+				NeedsTend: optionalFact(h.NeedsTend), Bleeding: optionalFact(h.Bleeding),
 				CanBeCaptured: optionalFact(h.CanBeCaptured), Platform: domain.Known(h.GetPlatform().GetId()), Mode: domain.Unknown[policy.ContainmentMode]()}
 			if h.Mode != nil {
 				held.Mode = domain.Known(containmentMode(h.GetMode()))
@@ -296,7 +302,15 @@ func BuildingAnomaly(row *o.BuildingState) domain.Fact[policy.BuildingAnomaly] {
 	if !failed["holder"] {
 		var holder *policy.EntityHolder
 		if h := b.Holder; h != nil {
-			holder = &policy.EntityHolder{ContainmentStrength: optionalFact(h.ContainmentStrength), Available: optionalFact(h.Available), HeldPawn: h.GetHeldPawn().GetId()}
+			holder = &policy.EntityHolder{ContainmentStrength: optionalFact(h.ContainmentStrength), Available: optionalFact(h.Available), HeldPawn: h.GetHeldPawn().GetId(), Doors: domain.Unknown[[]policy.ContainmentDoor]()}
+			if !failed["doors"] {
+				doors := make([]policy.ContainmentDoor, 0, len(h.Doors))
+				for _, d := range h.Doors {
+					doors = append(doors, policy.ContainmentDoor{Cell: domain.Cell{X: d.GetCell().GetX(), Z: d.GetCell().GetZ()}, Open: optionalFact(d.Open), HoldOpen: optionalFact(d.HoldOpen),
+						Breached: optionalFact(d.ContainmentBreached), BlockedOpen: optionalFact(d.BlockedOpen)})
+				}
+				holder.Doors = domain.Known(doors)
+			}
 		}
 		r.Holder = domain.Known(holder)
 	}

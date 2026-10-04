@@ -149,6 +149,7 @@ type Action struct {
 	royalty             Royalty
 	ability             Ability
 	ignite              Ignite
+	closeDoor           CloseDoor
 	mineAcquisition     Acquisition
 	wallRemoval         WallRemoval
 	excavation          Excavation
@@ -319,6 +320,8 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 			canonical, err = NewQuestAcceptAction(a.id, a.questAccept)
 		case IgniteAction:
 			canonical, err = NewIgniteAction(a.id, a.ignite)
+		case CloseDoorAction:
+			canonical, err = NewCloseDoorAction(a.id, a.closeDoor)
 		case AbilityAction:
 			canonical, err = NewAbilityAction(a.id, a.ability)
 		case MineAcquisitionAction:

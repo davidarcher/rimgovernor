@@ -6,6 +6,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -45,6 +48,31 @@ func TestContainmentDemandCountsCapturableUnheldEntities(t *testing.T) {
 
 func platformRow(strength float64, available bool) *o.BuildingState {
 	return &o.BuildingState{Anomaly: &o.AnomalyBuilding{Holder: &o.EntityHolderState{ContainmentStrength: proto.Float64(strength), Available: proto.Bool(available)}}}
+}
+
+// TestBuiltHoldersCarryTheHeldPawnAndDoors (#1743): the held pawn and the
+// room's doors ride the holder into the planning facts.
+func TestBuiltHoldersCarryTheHeldPawnAndDoors(t *testing.T) {
+	row := platformRow(180, false)
+	row.Anomaly.Holder.HeldPawn = &c.Ref{Id: proto.String("Thing_Fleshbeast1")}
+	row.Anomaly.Holder.Doors = []*o.AnomalyDoor{{Cell: &c.Cell{X: proto.Int32(4), Z: proto.Int32(5)}, Open: proto.Bool(true), HoldOpen: proto.Bool(true),
+		ContainmentBreached: proto.Bool(false), BlockedOpen: proto.Bool(false)}}
+	got, ok := builtHolders(slices.Values([]*o.BuildingState{row})).Value()
+	if !ok || len(got) != 1 || got[0].HeldPawn != "Thing_Fleshbeast1" {
+		t.Fatalf("%+v %v", got, ok)
+	}
+	doors, known := got[0].Doors.Value()
+	if !known || len(doors) != 1 || doors[0].Cell.X != 4 || doors[0].Cell.Z != 5 {
+		t.Fatalf("%+v %v", doors, known)
+	}
+	if hold, _ := doors[0].HoldOpen.Value(); !hold {
+		t.Fatal("hold_open lost")
+	}
+	// The planner closes that door.
+	p := policy.ContainmentPlanning{Holders: domain.Known(got)}
+	if cell, ok := policy.ContainmentDoorTarget(p); !ok || cell.X != 4 || cell.Z != 5 {
+		t.Fatalf("%v %v", cell, ok)
+	}
 }
 
 func TestBuiltHoldersAreTheNativeStrengthAndAvailability(t *testing.T) {

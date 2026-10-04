@@ -51,8 +51,11 @@ type CreepJoiner struct {
 // on which platform (known "" when on none) and under which order.
 type EntityHeld struct {
 	Held, Escaping, ExtractBioferrite, CanBeCaptured domain.Fact[bool]
-	Platform                                         domain.Fact[string]
-	Mode                                             domain.Fact[ContainmentMode]
+	// NeedsTend is HasHediffsNeedingTend and Bleeding a positive bleed rate
+	// (#1743).
+	NeedsTend, Bleeding domain.Fact[bool]
+	Platform            domain.Fact[string]
+	Mode                domain.Fact[ContainmentMode]
 }
 
 // StudyState is a studiable thing's CompStudiable state. ProgressPercent is
@@ -80,4 +83,16 @@ type EntityHolder struct {
 	ContainmentStrength domain.Fact[float64]
 	Available           domain.Fact[bool]
 	HeldPawn            string
+	// Doors are the doors the game counts for the holder's room (#1743);
+	// unknown when the door read failed, empty for a room with none.
+	Doors domain.Fact[[]ContainmentDoor]
+}
+
+// ContainmentDoor is one door of a holder's room: Open and HoldOpen are the
+// Building_Door's, Breached is ContainmentBreached (open 600 ticks or more,
+// which zeroes the room's door strength) and BlockedOpen is
+// BlockedOpenMomentary (a thing or pawn in the doorway keeps it from closing).
+type ContainmentDoor struct {
+	Cell                                  domain.Cell
+	Open, HoldOpen, Breached, BlockedOpen domain.Fact[bool]
 }

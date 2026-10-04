@@ -2230,10 +2230,13 @@ message CreepJoinerState { optional string form = 1; optional string benefit = 2
 // CompHoldingPlatformTarget: held is CurrentlyHeldOnPlatform and platform the
 // Building_HoldingPlatform holding the pawn; mode the ordered containment
 // mode; escaping the pawn has begun to escape; can_be_captured whether the
-// game lets the player capture it.
+// game lets the player capture it. needs_tend is Pawn.health
+// HasHediffsNeedingTend and bleeding a positive BleedRateTotal (#1743): a
+// held entity is tended like any patient or bleeds out.
 message HeldState {
   optional bool held = 1; rimgovernor.common.v1.Ref platform = 2; optional EntityContainmentModeKind mode = 3; optional bool escaping = 4;
   optional bool extract_bioferrite = 5; optional bool can_be_captured = 6;
+  optional bool needs_tend = 7; optional bool bleeding = 8;
 }
 // CompStudiable: progress_percent is 0..1; knowledge_category and
 // anomaly_knowledge are the values the game resolves for this thing;
@@ -2249,8 +2252,17 @@ message StudyState {
 message AnomalyBuilding { EntityHolderState holder = 1; StudyState study = 2; repeated ReadIssue issues = 3; }
 // CompEntityHolder: containment_strength is the strength the holder's room
 // provides now (CompEntityHolder.ContainmentStrength), available whether it can take
-// a pawn, held_pawn the pawn it holds.
-message EntityHolderState { optional double containment_strength = 1; optional bool available = 2; rimgovernor.common.v1.Ref held_pawn = 3; }
+// a pawn, held_pawn the pawn it holds. doors are the Building_Door things the
+// game counts for the holder's room (StatWorker_ContainmentStrength
+// CalculateDoorStats: the doors in its boundary), read in their own try: a
+// failed read leaves them empty with a ReadIssue named doors (#1743).
+message EntityHolderState { optional double containment_strength = 1; optional bool available = 2; rimgovernor.common.v1.Ref held_pawn = 3; repeated AnomalyDoor doors = 4; }
+// One door of a holder's room: its cell, Building_Door.Open and HoldOpen,
+// ContainmentBreached (open for 600 or more ticks, Building_Door
+// TicksOpenToBreach, which zeroes the room's door strength) and
+// BlockedOpenMomentary (a thing or pawn stands in the doorway, or the door is
+// stuck open, so it cannot close).
+message AnomalyDoor { rimgovernor.common.v1.Cell cell = 1; optional bool open = 2; optional bool hold_open = 3; optional bool containment_breached = 4; optional bool blocked_open = 5; }
 message DefinitionCatalogRequest { ReadScope scope = 1; }
 message DefinitionCatalogReply { oneof outcome { DefinitionCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message SnapshotStreamOpened {

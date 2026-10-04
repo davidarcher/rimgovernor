@@ -26,14 +26,14 @@ import (
 // undrafted colonist, exactly like a CriticalMedicine rescuer.
 type RoutinePopulationCustodyPlanner struct {
 	reviewer *RoutineReviewer
-	native   RoutineRescueSource
+	native   RoutineCustodySource
 }
 type RoutinePopulationCustodyResult struct {
 	Verdict
 	Plan domain.PlanID
 }
 
-func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native RoutineRescueSource) (*RoutinePopulationCustodyPlanner, error) {
+func NewRoutinePopulationCustodyPlanner(reviewer *RoutineReviewer, native RoutineCustodySource) (*RoutinePopulationCustodyPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, fmt.Errorf("%w: NewRoutinePopulationCustodyPlanner: reviewer == nil || native == nil", ErrControl)
 	}
@@ -101,6 +101,11 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		if entity, ok := policy.EntityCaptureTarget(read.Projection.Facts.Containment); ok {
 			choice = policy.CustodyChoice{Pawn: entity, Decision: policy.CustodyCapture}
 		}
+	}
+	if choice.Reason == policy.CustodyNoDeficit {
+		// No custody work stands: a held entity's cell door and wounds are
+		// the upkeep left (#1743).
+		return r.stepContainment(call, epoch, p, state, started, goal, read.Projection.Facts.Containment, arbiter)
 	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
