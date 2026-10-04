@@ -63,6 +63,45 @@ func TestFieldLedgerRichSoilToHighestDemand(t *testing.T) {
 	}
 }
 
+// A courtyard plan on a non-rectangular (plus-shaped) rich patch is still
+// farmed: planFieldBlock returns cells of the patch, rich ones first, none
+// of them under a room or hallway (#1960).
+func TestFieldBlockFarmsCourtyardPatch(t *testing.T) {
+	const n = 140
+	patch := func(x, z int32) bool {
+		return (x >= 60 && x < 80 && z >= 66 && z < 74) || (x >= 66 && x < 74 && z >= 60 && z < 80)
+	}
+	s := policy.MapSurvey{Bounds: policy.Bounds{Width: n, Height: n}}
+	facts := observation.ColonyProjection{BuildTier: domain.Known(policy.BuildTierCamp)}
+	rich := map[domain.Cell]bool{}
+	for z := int32(0); z < n; z++ {
+		for x := int32(0); x < n; x++ {
+			f := 0.5
+			if patch(x, z) {
+				f = 1.4
+				rich[domain.Cell{X: x, Z: z}] = true
+			}
+			c := domain.Cell{X: x, Z: z}
+			s.Cells = append(s.Cells, policy.SurveyCell{Cell: c, Walkable: true, Fertility: f})
+			facts.Cells = append(facts.Cells, policy.SiteCell{Cell: c, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), ZoneID: domain.Known(""), Roofed: domain.Known(false), Fertility: domain.Known(f)})
+		}
+	}
+	plan, ok := policy.DeriveLayoutPlan(s, 8, policy.BuildTierCamp, nil, 30).Value()
+	if !ok {
+		t.Fatal("no plan")
+	}
+	facts.LayoutPlan = domain.Known(plan)
+	edit, reason, ok := planFieldBlock(facts, domain.Cell{X: 70, Z: 70}, rice(60), nil)
+	if !ok || len(edit.Cells) == 0 {
+		t.Fatalf("the courtyard is not farmed: %+v %q", edit, reason)
+	}
+	for _, c := range edit.Cells {
+		if !rich[c] {
+			t.Fatalf("block cell %v is off the patch", c)
+		}
+	}
+}
+
 // blockFacts is a Camp-tier colony with two 4x2 plan field blocks at
 // x 0-3 and x 6-9 on rows 0-1, fertile open ground everywhere else.
 func blockFacts() observation.ColonyProjection {

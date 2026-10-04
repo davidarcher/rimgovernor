@@ -2,6 +2,7 @@ package layout
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -121,7 +122,9 @@ func builtCells(plan policy.LayoutPlan) map[domain.Cell]string {
 // auditSoil checks the plan and crop zones against the survey:
 //  1. planned rooms and hallways cover at most richOverlapBudget of the
 //     rich cells;
-//  2. each rich patch of a field zone is one block and touches no other;
+//  2. each rich patch of a field zone is one block and touches no other,
+//     and a rich patch of any footprint (an L, a plus, a courtyard that is
+//     no rectangle) is farmed as one 4-connected block;
 //  3. the growing zones inside each field zone form one 4-connected
 //     block.
 func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell) soilAudit {
@@ -216,6 +219,38 @@ func auditSoil(plan policy.LayoutPlan, s policy.MapSurvey, crops [][]domain.Cell
 					note(&a.PatchSplit, "field zones %d and %d touch at %v", i, owner[n]-1, c)
 				}
 			}
+		}
+	}
+
+	// A rich patch of any shape (the survey's 4-connected rich cells, an L,
+	// a plus or a ring as much as a rectangle) is farmed as one block: the
+	// field cells over it form one 4-connected set, so a room or hallway
+	// cut through it splits it into two and is caught here even inside the
+	// overlap budget.
+	left := maps.Clone(rich)
+	for _, start := range sortedCells(left) {
+		if !left[start] {
+			continue
+		}
+		patch := map[domain.Cell]bool{start: true}
+		delete(left, start)
+		for q := []domain.Cell{start}; len(q) > 0; q = q[1:] {
+			for _, d := range four {
+				if n := step(q[0], d); left[n] {
+					delete(left, n)
+					patch[n] = true
+					q = append(q, n)
+				}
+			}
+		}
+		farmed := map[domain.Cell]bool{}
+		for c := range patch {
+			if owner[c] != 0 {
+				farmed[c] = true
+			}
+		}
+		if !connected(farmed) {
+			note(&a.PatchSplit, "rich patch at %v is farmed in more than one block", sortedCells(patch)[0])
 		}
 	}
 
