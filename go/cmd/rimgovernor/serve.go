@@ -105,20 +105,15 @@ type serveConfig struct {
 	refresh                         time.Duration
 	clockTestAcceleration           bool
 	clockBlindTicks                 uint
-	chat                            bool
 	resume                          bool
 	pprof                           bool
 	debug                           bool
-	chatModel                       string
-	chatBaseURL                     string
 }
 
 // Fixed serve settings that were flags until #875.
 const (
 	serveRefresh                  = 3 * time.Second // observation refresh interval (tests shorten serveConfig.refresh)
 	worldEvaluationFoodMarginDays = 0.5             // caravan food days beyond the home route
-	chatContextTokens             = 8192            // approximate model context window
-	chatMaxOutputTokens           = 1024            // output tokens per chat completion
 )
 
 // routineFamiliesEnv names the environment variable that narrows the routine
@@ -150,8 +145,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.BoolVar(&c.layoutOverlay, "layout-overlay", true, "draw the colony layout plan as a color-coded native overlay with role labels (#817); false deletes the overlay")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
-	flags.StringVar(&c.chatModel, "chat-model", "", "model name as loaded by the local OpenAI-compatible server; enables POST /api/chat")
-	flags.StringVar(&c.chatBaseURL, "chat-base-url", "http://127.0.0.1:1234/v1", "local OpenAI-compatible base URL (e.g. LM Studio) chat sends completions to")
 	if err := flags.Parse(args); err != nil {
 		return c, err
 	}
@@ -161,7 +154,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-test-acceleration", "chat-model", "chat-base-url", "resume"} {
+		for _, name := range []string{"profile", "clock-test-acceleration", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -171,7 +164,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 		}
 	} else {
 		c.playerControl, c.clockControl, c.routineReviews, c.routineMethods = true, true, true, true
-		c.chat = c.chatModel != ""
 		if err := c.selectRoutineFamilies(lookupEnv(routineFamiliesEnv)); err != nil {
 			return c, err
 		}
@@ -208,9 +200,6 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	// the profile owns. Acceptance names its per-case path explicitly.
 	if c.flightRecorder == "" && c.profile != "" {
 		c.flightRecorder = filepath.Join(c.profile, "flight", "flight.jsonl")
-	}
-	if !c.chat && (explicit["chat-base-url"]) {
-		return c, errors.New("--chat-base-url requires --chat-model")
 	}
 	return c, nil
 }

@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -86,52 +85,4 @@ func (r *RoutineReviewer) mirroredColony(ctx context.Context, identity *c.Identi
 	generationValue, _ := expected.NativeGeneration.Value()
 	scope := facts.Scope{Load: string(expected.Load), Map: int32(expected.Map), Generation: uint64(generationValue)}
 	return colonyTables(r.store, scope, census.colony)
-}
-
-// ColonyFacts serves the session's colony facts reads outside the routine
-// planners (chat, caravan departure, deconstruction) from the review's
-// mirrored census under the same reuse rule once a routine reviewer is
-// bound (NewClockScheduler); unbound, every read is native.
-type ColonyFacts struct {
-	mu       sync.Mutex
-	reviewer *RoutineReviewer
-}
-
-func (f *ColonyFacts) bind(r *RoutineReviewer) {
-	if f == nil {
-		return
-	}
-	f.mu.Lock()
-	f.reviewer = r
-	f.mu.Unlock()
-}
-
-func (f *ColonyFacts) read(ctx context.Context, native colonyFactsReader, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
-	var r *RoutineReviewer
-	if f != nil {
-		f.mu.Lock()
-		r = f.reviewer
-		f.mu.Unlock()
-	}
-	if r == nil {
-		return native.ReadColonyFacts(ctx, identity, planning)
-	}
-	return r.servedColonyFacts(ctx, native, identity, planning)
-}
-
-// Chat is native with its colony facts read served by f.
-func (f *ColonyFacts) Chat(native ChatFactsNative) ChatFactsNative {
-	if native == nil {
-		return nil
-	}
-	return chatColonyFacts{native, f}
-}
-
-type chatColonyFacts struct {
-	ChatFactsNative
-	facts *ColonyFacts
-}
-
-func (n chatColonyFacts) ReadColonyFacts(ctx context.Context, identity *c.Identity, planning bool) (*o.ColonyFactsReply, bridge.Result, error) {
-	return n.facts.read(ctx, n.ChatFactsNative, identity, planning)
 }

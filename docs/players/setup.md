@@ -10,9 +10,7 @@ A clean checkout needs:
   them through Steam's libraries).
 - The Microsoft Edge WebView2 Runtime (preinstalled on Windows 11).
 
-There is no local-model requirement: the autopilot (routine work) needs no
-model. Chat is optional and needs LM Studio serving the model you name in the
-launcher's settings.
+There is no local-model requirement: the autopilot needs no model.
 
 ## Build the launcher once
 

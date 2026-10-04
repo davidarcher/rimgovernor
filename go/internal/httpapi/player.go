@@ -178,7 +178,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 	}
 	path := r.URL.Path
 	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/research-selects/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission"
-	write := path == "/api/chat" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
+	write := path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/research-selects/plans" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update"
 	if !read && !write {
 		return false
 	}
@@ -254,14 +254,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if write {
-		if path == "/api/chat" {
-			if s.chat == nil || s.chatNative == nil || s.chatJournal == nil {
-				s.failure(w, r, 501, "unsupported", "Chat is not enabled on this controller")
-				return true
-			}
-			s.submitChat(w, r, ctx)
-			return true
-		}
 		if path == "/api/buildings/plans" {
 			q, err := decodeBuildingSubmission(r.Body)
 			if err != nil {

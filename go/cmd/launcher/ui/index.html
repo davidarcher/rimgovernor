@@ -191,12 +191,6 @@
     </details>
 
     <details>
-      <summary>Chat</summary>
-      <div class="field"><label for="chatModel">Model</label><input type="text" id="chatModel" placeholder="Off"></div>
-      <div class="field"><label for="chatBaseURL">LM Studio URL</label><input type="text" id="chatBaseURL" placeholder="http://127.0.0.1:1234/v1"></div>
-    </details>
-
-    <details>
       <summary>Advanced</summary>
       <div class="check"><input type="checkbox" id="debug"><label for="debug">Debug logging</label></div>
       <div class="field"><label for="extraArgs">Extra serve arguments</label><input type="text" id="extraArgs" spellcheck="false"></div>
@@ -214,7 +208,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const bools = ['autoStart', 'layoutOverlay', 'debug'];
-const texts = ['chatModel', 'chatBaseURL', 'extraArgs', 'loadSave'];
+const texts = ['extraArgs', 'loadSave'];
 let view = null, loaded = false, busyAction = false;
 
 function fill(s) {
@@ -235,7 +229,7 @@ function read() {
 // Observe only never writes to the game: play settings do not apply.
 function policyEnabled() {
   const observe = $('modeObserve').checked;
-  ['autoStart', 'layoutOverlay', 'chatModel', 'chatBaseURL']
+  ['autoStart', 'layoutOverlay']
     .forEach(k => $(k).disabled = observe);
 }
 

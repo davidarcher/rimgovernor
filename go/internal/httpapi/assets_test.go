@@ -80,15 +80,6 @@ func TestAssetBoundaryDoesNotListOrMaskMissingAPI(t *testing.T) {
 	if response.StatusCode != 403 {
 		t.Fatal("asset bypassed local host protection")
 	}
-	request, _ = http.NewRequest("POST", server.URL+"/api/chat", strings.NewReader("{}"))
-	response, err = http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response.Body.Close()
-	if response.StatusCode != 501 {
-		t.Fatal("assets masked unsupported mutation")
-	}
 }
 func TestAssetsRejectEscapingSymlink(t *testing.T) {
 	directory, api := assetFixture(t)

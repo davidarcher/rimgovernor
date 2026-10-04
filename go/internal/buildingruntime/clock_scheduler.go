@@ -653,9 +653,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 		config.Routine.foodGapZero = config.Faults.FoodGapZero
-		if session != nil {
-			session.colonyFacts.bind(config.Routine)
-		}
 	}
 	return scheduler, nil
 }

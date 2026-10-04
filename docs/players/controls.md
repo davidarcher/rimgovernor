@@ -4,7 +4,7 @@
 
 | View | Use it to |
 | --- | --- |
-| Watch | Pause or resume the colony, see what it is doing now, and send chat requests. |
+| Watch | Pause or resume the colony, see what it is doing now. |
 | Work | Follow plans, progress, blockers and development priorities. |
 | Colony | Inspect colonists, jobs, skills, gear, health and mood. |
 | Governor | Follow the controller's live telemetry. |
@@ -27,12 +27,7 @@ Viewing a colony does not take control of it.
 
 ## Give a request
 
-Chat needs the configured local model in LM Studio. Ask what the autopilot is
-doing and why, or nudge it: activate or cancel a maintained goal, cap the
-population, decide for a named pawn, or reserve or
-restrict a resource. Each reply explains, and shows the one policy change it
-applied, if any. Chat never places buildings or issues orders; the autopilot
-reads the changed policy on its next review, so check Work for the result.
+The autopilot reads policy on its next review, so check Work for the result.
 
 Manual permits explicit player requests while routine automation stays off.
 Cancelling a goal stops further pursuit but leaves issued game orders in place.

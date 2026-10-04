@@ -26,8 +26,7 @@ The rest of this page details the session journal.
   lost after dispatch leaves the action uncertain; it is reconciled from the
   next observation, and its plan stays live until that happens.
 - **Request-ID replay.** Player submissions (policies, decisions,
-  building and research intents, control intents, clock acknowledgements,
-  chat) are keyed by the caller's request ID within a world. Repeating an ID
+  building and research intents, control intents, clock acknowledgements) are keyed by the caller's request ID within a world. Repeating an ID
   returns the recorded outcome; a changed body under the same ID is a
   conflict.
 - **The Rounds cursor and policy inputs.** Latches, recovery

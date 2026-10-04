@@ -242,7 +242,6 @@ func TestRejectsCrossOriginAndUnsupportedRequests(t *testing.T) {
 		{"GET", "/api/state", "", "http://evil.example", "", "", 403},
 		{"GET", "/api/state", "", "", "cross-site", "", 403},
 		{"POST", "/api/state", "", "", "", "", 405},
-		{"POST", "/api/chat", "", "", "", "{}", 501},
 		{"GET", "/api/plan", "", "", "", "", 400},
 		{"GET", "/api/plan?id=a&id=b", "", "", "", "", 400},
 		{"GET", "/api/state?unexpected=1", "", "", "", "", 400},

@@ -3,7 +3,7 @@
 [All docs](../README.md)
 
 RimGovernor helps run a colony under normal RimWorld rules. You can let Autopilot
-handle routine needs, give explicit requests through chat, or take control yourself.
+handle routine needs, or take control yourself.
 It is still a development build; setup requires a prepared game profile and save.
 
 Open **Help** in the dashboard to read this guide without leaving your colony.
@@ -18,8 +18,6 @@ Open **Help** in the dashboard to read this guide without leaving your colony.
 - **Manual:** routine automation is off. Choose Automate when ready to resume.
 - **Work is blocked:** inspect the goal in Work and its reason before changing
   priorities. Issued orders still depend on available pawns, materials and access.
-- **Chat is unavailable:** start LM Studio's local server and load the configured
-  model. Autopilot can run independently.
 - **No game image:** a headless session supplies colony data only.
 - **Launch fails:** check the [setup prerequisites](setup.md).
   Setup does not download the game or the required baseline save.

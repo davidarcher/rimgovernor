@@ -33,14 +33,14 @@ func TestServeArgsDefaults(t *testing.T) {
 
 func TestServeArgsEverything(t *testing.T) {
 	s := DefaultSettings()
-	s.AutoStart, s.ChatModel, s.ChatBaseURL = true, "qwen", "http://x/v1"
+	s.AutoStart = true
 	s.LayoutOverlay, s.Debug, s.ExtraArgs = false, true, `--routine-silver-reserve 3 --x "a b"`
 	got, err := ServeArgs(s, testPaths, 9000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tail := strings.Join(got[13:], " ")
-	want := "--resume --chat-model qwen --chat-base-url http://x/v1 --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
+	want := "--resume --layout-overlay=false --debug --routine-silver-reserve 3 --x a b"
 	if got[12] != "127.0.0.1:9000" || tail != want {
 		t.Fatalf("got %q", got)
 	}
@@ -51,7 +51,7 @@ func TestServeArgsEverything(t *testing.T) {
 
 func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	s := DefaultSettings()
-	s.Observe, s.AutoStart, s.ChatModel = true, true, "m"
+	s.Observe, s.AutoStart = true, true
 	got, err := ServeArgs(s, testPaths, 8787)
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestServeArgsObserveDropsPlayFlags(t *testing.T) {
 	if !strings.Contains(joined, "--observe") {
 		t.Fatal(joined)
 	}
-	for _, f := range []string{"--profile", "--resume", "--chat-model"} {
+	for _, f := range []string{"--profile", "--resume"} {
 		if strings.Contains(joined, f) {
 			t.Errorf("observe passes %s: %s", f, joined)
 		}

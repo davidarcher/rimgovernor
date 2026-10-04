@@ -44,9 +44,6 @@ ProtoJSON with official runtimes, and re-emit separate echoes. Their scope is
 serialization, generated compilation and platform runtime support. Fresh game
 acceptance remains necessary when adapters are integrated.
 
-The model interpreter validates its own bounded proposal format before catalog
-matching and domain construction; it does not define the shared native boundary.
-
 ## Def mirror
 
 `tools/defmirror` (C#, locked restore) reflects the game's managed assemblies

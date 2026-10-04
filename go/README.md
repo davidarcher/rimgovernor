@@ -51,11 +51,9 @@ and talks GABP to RimBridgeServer directly.
   typed player endpoints under `internal/httpapi/player.go`), the clock worker
   (event polling, epoch renewal, bounded supervised windows: 600 ticks, 30-second
   lease), durable routine reviews with method execution across every routine
-  planner family, caravan journey tracking and world evaluation. Free-text
-  player chat (`POST /api/chat`, through a local OpenAI-compatible model such
-  as LM Studio) turns on when `--chat-model` is set; 501 otherwise.
+  planner family, caravan journey tracking and world evaluation..
 - `serve --observe ...` is **observation only**: read the running game, never
-  acquire control or write to it. Tuning flags and chat are rejected.
+  acquire control or write to it. Tuning flags are rejected.
 
 | Flag | Effect |
 | --- | --- |
@@ -65,7 +63,6 @@ and talks GABP to RimBridgeServer directly.
 | `--clock-test-acceleration` | Acceptance only: every window at boosted Ultrafast. Otherwise each window runs at the speed the player last chose in game (Ultrafast under player pacing when none was chosen, #875). |
 | `--routine-resource-*` | Routine tuning: resource reserves/stops (MaintainResource keeps the default floors: Steel 200, ComponentIndustrial 10, stone blocks 150; trade buys components toward the same floor). |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
-| `--chat-model`, `--chat-base-url` | Local model chat; `--chat-base-url` requires `--chat-model`. |
 | `--flight-recorder <path>` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`) (see [Native request diagnostics](#native-request-diagnostics)). |
 
 **Configuration sources and precedence.** `serve` reads exactly two sources,
@@ -91,7 +88,7 @@ in short thrashing bursts ([issue #42](https://github.com/davidarcher/rimgoverno
 `serve` fails at the native bridge handshake (`bridge transport failure:
 initialize: ...`). That failure, `go build`, `go vet` and `go test ./cmd/...` are compilation/protocol/wiring checks, not gameplay evidence.
 
-## Player API and chat
+## Player API
 
 The dashboard detects the Go backend (`GET /api/health` reports
 `backend: "go"`) and renders `ObservationDashboard`/`PlayerControls`. The
@@ -106,13 +103,7 @@ draft, husbandry, recovery service, bed assignment, movement, building
 temperature, surgery, caravans, quests, settlement gifts, trade, zone edits and
 room shells were removed in
 [issue #54](https://github.com/davidarcher/rimgovernor/issues/54); those
-families are reached only through the routine planners. Chat (`POST /api/chat`) is
-guidance only: the local model reads bounded colony and policy facts, answers
-with an explanation and at most one nudge (activate or cancel a goal, set the
-population or expedition policy, or a per-pawn population decision),
-and the nudge is applied through the same store submission the matching policy
-route uses. Chat never places buildings, selects research or issues orders
-([issue #56](https://github.com/davidarcher/rimgovernor/issues/56)).
+families are reached only through the routine planners. 
 
 Two player commands are configuration rather than plans of native actions and
 live outside the plan/action tables, each with request-ID replay safety and one
@@ -772,13 +763,6 @@ completes.
 Clock acceptance additionally requires a healthy colony and verifies clock
 advancement and construction.
 
-## Local interpretation
-
-`interpreter.NewLocal` checks the configured LM Studio instance before each
-interpretation and uses the smaller of its loaded context window and the configured
-budget. Missing or ambiguous instances fail explicitly. It does not load or switch
-models. Proposals remain unsubmitted until a player runtime admits them.
-
 ## Observation service
 
 Build the executable above, then use `rimgovernor serve --observe` with absolute
@@ -845,7 +829,7 @@ lock. The service starts paused; it never restores a live lease from SQLite.
 With built dashboard assets, player controls accept a building definition,
 material, map coordinates and rotation. Submitting stores guidance; **Resume**
 runs the bot for the observed world and **Pause** stops it, and Pause remains
-available while a resume is pending. The building and chat forms share current
+available while a resume is pending. The building form shares current
 permission and control history. Form drafts and request IDs survive background
 refreshes, and result checks only read the recorded request.
 Player controls are hidden when the service runs read-only.

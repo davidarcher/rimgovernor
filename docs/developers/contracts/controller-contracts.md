@@ -14,12 +14,6 @@ starter terrain/support affordances and actual definition costs. Native growers 
 ownership of cultivated crop harvest timing. Unknown observations never certify
 recovery.
 
-## Chat entry
-
-Only a new human chat message invokes the interpreter. Mode changes and routine native
-events do not invoke inference. Model failure is reported to the player while
-deterministic operation can continue.
-
 ## Priority evaluation
 
 The priority tree evaluates combat, critical medicine, food, shelter, temperature,

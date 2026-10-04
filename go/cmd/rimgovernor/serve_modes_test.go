@@ -38,7 +38,7 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods || c.chat {
+	if !c.playerControl || !c.clockControl || !c.routineReviews || !c.routineMethods {
 		t.Fatalf("autonomous composition: %+v", c)
 	}
 	families := routineFamilies(&c)
@@ -88,7 +88,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--chat-model", "m"}, {"--resume"}, {"--clock-test-acceleration"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--resume"}, {"--clock-test-acceleration"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}
@@ -140,20 +140,6 @@ func TestServeResumeFlag(t *testing.T) {
 	}
 	if c, err = parseServe(append(serveBase(dir), "--profile", dir, "--resume"), io.Discard); err != nil || !c.resume {
 		t.Fatal(c, err)
-	}
-}
-
-func TestServeChatEnabledByModelName(t *testing.T) {
-	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
-	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--chat-model", "local"), io.Discard)
-	if err != nil || !c.chat || c.chatModel != "local" {
-		t.Fatal(c, err)
-	}
-	for _, extra := range [][]string{{"--chat-base-url", "http://127.0.0.1:1/v1"}} {
-		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
-			t.Fatalf("accepted %v", extra)
-		}
 	}
 }
 

@@ -22,7 +22,6 @@ control uses these routes.
 | GET | `/api/buildings/submission?requestId=…` | Read a building submission |
 | POST | `/api/research-selects/plans` | Store one research-selection intent |
 | GET | `/api/research-selects/submission?requestId=…` | Read a research-selection submission |
-| POST | `/api/chat` | Answer one plain-language message with an explanation and at most one applied policy nudge (population decision); never a build or order |
 | GET/POST | `/api/player/population-decision`, `…/replace` | Per-pawn population decision |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
@@ -106,7 +105,7 @@ same Player and store used by the worker.
 
 ## Dashboard behavior
 
-The building and chat forms share token bootstrap, current permission and
+The building form shares token bootstrap, current permission and
 the Resume/Pause history. Submissions are guidance: the forms no longer enable
 a plan; the heading's Resume runs the bot for the observed world and Pause
 stops it. An unresolved Resume (pending or uncertain) blocks another Resume

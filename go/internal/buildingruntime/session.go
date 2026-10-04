@@ -29,7 +29,6 @@ type SessionConfig struct {
 // Only an explicit trusted player path may call Acquire or create submitted plans.
 type Session struct {
 	routineMethods bool
-	colonyFacts    *ColonyFacts
 	control        *Control
 	executor       *executor.Executor
 	journal        *store.Store
@@ -124,7 +123,6 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if journal == nil || native == nil || authority == nil || writer == nil || clock == nil {
 		return nil, errors.New("building session dependencies required")
 	}
-	colonyFacts := &ColonyFacts{}
 	if config.Movement != nil && config.Movement.Writer == nil {
 		return nil, errors.New("complete movement capabilities required")
 	}
@@ -214,7 +212,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 		}
 		return cleanup(err)
 	}
-	return &Session{routineMethods: config.RoutineMethods, colonyFacts: colonyFacts, control: control, executor: worker, journal: journal, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
+	return &Session{routineMethods: config.RoutineMethods, control: control, executor: worker, journal: journal, clock: coordinator, clockWorkers: sink.clockWorkers}, nil
 }
 
 // Publish only after the final fallible construction check. Until publication,
@@ -279,7 +277,3 @@ func (s *Session) RunBatch(ctx context.Context, plan domain.PlanID, actions []do
 func (s *Session) Close(ctx context.Context) error { return s.control.Close(ctx) }
 
 func (s *Session) RoutineMethodsEnabled() bool { return s.routineMethods }
-
-// ColonyFacts serves the session's colony facts reads from the routine
-// review's mirrored census once a scheduler binds its reviewer.
-func (s *Session) ColonyFacts() *ColonyFacts { return s.colonyFacts }

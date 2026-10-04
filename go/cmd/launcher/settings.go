@@ -26,9 +26,7 @@ type Settings struct {
 	AutoStart bool `json:"autoStart"`
 	// ContinueState reuses the newest .rimgovernor/go/state-*.sqlite when
 	// the bot was running there (see StatePath).
-	ContinueState bool   `json:"continueState"`
-	ChatModel     string `json:"chatModel"`
-	ChatBaseURL   string `json:"chatBaseURL"`
+	ContinueState bool `json:"continueState"`
 
 	// LoadSave is a save name (no .rws) to load once the controller is up;
 	// "" leaves the game at its main menu (or the continued colony's save).
@@ -107,12 +105,6 @@ func ServeArgs(s Settings, p Paths, port int) ([]string, error) {
 	if !s.Observe {
 		if s.AutoStart {
 			args = append(args, "--resume")
-		}
-		if m := strings.TrimSpace(s.ChatModel); m != "" {
-			args = append(args, "--chat-model", m)
-			if u := strings.TrimSpace(s.ChatBaseURL); u != "" {
-				args = append(args, "--chat-base-url", u)
-			}
 		}
 		for _, f := range []struct {
 			on   bool

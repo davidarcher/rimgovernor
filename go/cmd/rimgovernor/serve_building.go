@@ -18,8 +18,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
-	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
-	"github.com/davidarcher/RimGovernor/go/internal/model"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -334,22 +332,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		return err
 	}
 	defer func() { result = errors.Join(result, server.Close()) }()
-	if config.chat {
-		raw, ok := client.reads.(*bridge.Client)
-		if !ok {
-			return errors.New("chat requires a live native bridge client")
-		}
-		modelClient, err := model.NewClient(model.Config{Model: config.chatModel, BaseURL: config.chatBaseURL, Timeout: 20 * time.Second, MaxResponseBytes: 1 << 20})
-		if err != nil {
-			return err
-		}
-		defer func() { result = errors.Join(result, modelClient.Close()) }()
-		interp, err := interpreter.NewLocal(interpreter.Config{ContextTokens: chatContextTokens, MaxOutputTokens: chatMaxOutputTokens}, modelClient)
-		if err != nil {
-			return err
-		}
-		server.EnableChat(interp, session.ColonyFacts().Chat(raw), database)
-	}
 	pollDone = make(chan struct{})
 	go func() { defer close(pollDone); reads.Poll(lifetime, config.refresh) }()
 	superviseDone := make(chan struct{})

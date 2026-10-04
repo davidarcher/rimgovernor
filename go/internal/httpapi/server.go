@@ -17,9 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -34,17 +32,6 @@ type Server struct {
 	telemetry   *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
 	closeOnce   sync.Once
 	closeErr    error
-	chat        *interpreter.Interpreter
-	chatNative  buildingruntime.ChatFactsNative
-	chatJournal buildingruntime.ChatFactsJournal
-}
-
-// EnableChat wires the guidance chat endpoint (POST /api/chat) into a server
-// already constructed with NewWithPlayer. All three dependencies are required
-// together: without them the route responds 501, matching every other
-// not-available mutation under /api/.
-func (s *Server) EnableChat(interp *interpreter.Interpreter, native buildingruntime.ChatFactsNative, journal buildingruntime.ChatFactsJournal) {
-	s.chat, s.chatNative, s.chatJournal = interp, native, journal
 }
 
 func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, error) {

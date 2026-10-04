@@ -25,19 +25,11 @@ Settings persist to `.rimgovernor/launcher.json`.
 
 - **Main**: Autopilot or Observe only (no writes); start the bot automatically
   on every load (`--resume`); game speed (Ultrafast adaptive paces ticks to
-  your frame rate); continue the last state database or start fresh; optional
-  chat model and LM Studio URL.
+  your frame rate); continue the last state database or start fresh.
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
 - **Advanced**: debug logging and extra `rimgovernor serve` arguments
   (`rimgovernor serve -h` lists them).
-
-## Natural-language chat
-
-Chat appears in the dashboard when a chat model is set (with the LM Studio URL
-pointing at its local server). It answers questions about the autopilot and
-applies at most one policy nudge per message; see
-[controls](controls.md#give-a-request).
 
 ## Related reading
 

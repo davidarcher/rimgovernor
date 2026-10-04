@@ -11,8 +11,6 @@ required field presence, complete costs and occupied cells. Refused or unavailab
 facts cannot become free construction or an empty site. The controller must apply
 resource, ownership and safety policy before guarded execution.
 
-Go bridge and observation adapters consume the official messages. The model
-interpreter owns a separate bounded proposal format and resolves definitions,
-materials and anchors against supplied facts before domain construction. Native
+Go bridge and observation adapters consume the official messages. Native
 adapter integration and gameplay acceptance remain tracked in
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues).

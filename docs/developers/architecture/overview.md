@@ -2,17 +2,13 @@
 
 [Developer guide](../README.md) · [Source map](../source-map.md)
 
-Routine colony control is deterministic. A local model interprets explicit player
-chat and offers advice. Both submit work to the same durable plan and Hands executor;
-RimWorld determines legality and simulates the result.
+Routine colony control is deterministic. RimWorld determines legality and simulates the result.
 
 ```mermaid
 flowchart LR
     Game[RimWorld] --> Facts[Native observations]
     Facts --> Policy[Deterministic policy]
-    Chat[Player chat] --> Model[Local interpreter]
     Policy --> Plan[Shared plan and validation]
-    Model --> Plan
     Plan --> Hands[Hands executor]
     Hands --> Bridge[RimBridgeServer over GABP]
     Bridge --> Game

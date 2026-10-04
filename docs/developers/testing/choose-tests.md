@@ -317,8 +317,7 @@ raid (`test/defense_setup raid`) and requires no hostile standing after a
 day. The single-failure faults are Go tests against fakes, not cases:
 `buildingruntime/faults_test.go` (a failing optional planner is isolated, a
 hung critical planner admits nothing, a dropped renewal writes nothing so the
-lease lapses), `httpapi` chat and viewer tests (a dead chat model is a 502
-with no policy write, a viewer disconnecting and reconnecting issues no
+lease lapses), `httpapi` viewer tests (a viewer disconnecting and reconnecting issues no
 control operation).
 
 ## Isolated food channels
