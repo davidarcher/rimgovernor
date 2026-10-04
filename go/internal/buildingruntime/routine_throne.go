@@ -61,7 +61,11 @@ func (r *RoutineReviewer) reviewRoyalty(ctx context.Context, snapshot domain.Gen
 		return nil
 	}
 	facts = &mirrored
-	projection.Royalty = domain.Known(*facts)
+	royalty := projection.WithRoyaltyColony(*facts)
+	if _, known := royalty.Value(); !known {
+		return nil
+	}
+	projection.Royalty = royalty
 	if err := projection.AddDefinitions(reading.Frame, append(throneThings(*facts), throneFloorTerrains(reading.Frame.Catalog, *facts)...)); err != nil {
 		return err
 	}

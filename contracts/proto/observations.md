@@ -371,16 +371,22 @@ favor, permit points, taken permits, and per taken permit its native cooldown:
 `cooldown_remaining_ticks`, 0 when ready, #1607; `Client.FreshRoyaltyFacts`
 bypasses the reuse window to re-read a cooldown). Each rung also carries the title's
 bedroom requirements (`RoyalTitleDef.bedroomRequirements`: minimum area and
-impressiveness, floor, furniture rows; without a holder's ideo exemptions) and
-`ceremonies` lists each offered or ongoing bestowing-ceremony quest
-(`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`): quest id, colonist,
-bestower, awarded title, accepted, bestower waiting in the lord's Wait toil,
-started, spot and the lord's colonist attendees (#1602). `thrones` lists every
-spawned player throne (`Building_Throne`) with its assigned owner, absent when
-unassigned (#1601); a throne appears once it stands, so the planner treats one
-the read does not list as built after it. It is separate from the pawn row and
-slow-changing: the Go client reuses a read for `RoyaltyRefreshTicks` and
-decodes it into `policy.RoyaltyFacts`, where an absent scalar is unknown.
+impressiveness, floor, furniture rows; without a holder's ideo exemptions). It is separate from the
+pawn row and slow-changing: the Go client reuses a read for
+`RoyaltyRefreshTicks` and decodes it into `policy.RoyaltyFacts`, where an
+absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
+thrones are not in it: they are the colony section
+`ColonyFactsSnapshot.royalty` (`RoyaltySection`, #1877), absent without
+Royalty and `Unavailable` when the read failed, read on every colony frame.
+`neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
+held, craftable and tradeable; `ceremonies` lists each offered or ongoing
+bestowing-ceremony quest (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`):
+quest id, colonist, bestower, awarded title, accepted, bestower waiting in the
+lord's Wait toil, started, spot and the lord's colonist attendees (#1602);
+`thrones` lists every spawned player throne (`Building_Throne`) with its
+assigned owner, absent when unassigned (#1601). `policy.RoyaltyFacts.WithColony`
+joins the section to the read; a colony frame without the section leaves the
+royalty fact unknown.
 Without Royalty the reply is `Unavailable(NOT_APPLICABLE)`, which the client
 returns as no facts. Reads are derived state (persistence-contracts.md); the
 read adds no store.

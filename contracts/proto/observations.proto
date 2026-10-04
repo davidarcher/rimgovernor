@@ -1163,7 +1163,14 @@ message BestowingCeremony { optional string quest = 10; rimgovernor.common.v1.Re
 // assigned. A throne appears once it stands, so a throne missing from the
 // list was built after the read.
 message RoyalThrone { rimgovernor.common.v1.Ref thing = 1; optional string def_name = 2; rimgovernor.common.v1.Ref owner = 3; }
-message RoyaltyFacts { rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; reserved 4; repeated NeuroformerStock neuroformers = 5; repeated BestowingCeremony ceremonies = 6; repeated RoyalThrone thrones = 7; }
+// Neuroformer stock, bestowing ceremonies and thrones are colony facts, read in
+// ColonyFactsSnapshot.royalty (#1877), not here.
+message RoyaltyFacts { reserved 5, 6, 7; reserved "neuroformers", "ceremonies", "thrones"; rimgovernor.common.v1.ObservationContext context = 1; repeated RoyalTitleRung ladder = 2; repeated RoyalPermitDef permits = 3; reserved 4; }
+// Royalty colony facts (#1877), a keyed colony section (#1347): the neuroformer
+// stock, the pending bestowing ceremonies and the standing thrones. Absent
+// without Royalty.
+message RoyaltySection { oneof outcome { RoyaltyColonyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+message RoyaltyColonyFacts { repeated NeuroformerStock neuroformers = 1; repeated BestowingCeremony ceremonies = 2; repeated RoyalThrone thrones = 3; }
 message RoyaltyFactsRequest { ReadScope scope = 1; }
 message RoyaltyFactsReply { oneof outcome { RoyaltyFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // reachable_benches lists the player work tables whose position the animal
@@ -1436,6 +1443,8 @@ message ColonyFactsSnapshot {
   OdysseySection odyssey = 52;
   // Anomaly containment, knowledge and incident state (#1738); absent without Anomaly.
   AnomalySection anomaly = 53;
+  // Royalty neuroformer stock, bestowing ceremonies and thrones (#1877); absent without Royalty.
+  RoyaltySection royalty = 54;
 }
 // Odyssey colony facts (#1709), a keyed colony section (#1347). A scalar
 // absent is unknown, never zero.

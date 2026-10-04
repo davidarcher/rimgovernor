@@ -2,7 +2,6 @@ package bridge
 
 import (
 	"context"
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -71,7 +70,7 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		return nil, contract("invalid royalty context")
 	}
 	out := &policy.RoyaltyFacts{Permits: map[string]policy.RoyalPermit{}, Holders: map[policy.PawnID][]policy.RoyalHolding{},
-		Psycasts: map[policy.PawnID][]policy.Psycast{}, Casters: map[policy.PawnID]policy.PsycasterState{}, Neuroformers: map[string]policy.Neuroformer{}}
+		Psycasts: map[policy.PawnID][]policy.Psycast{}, Casters: map[policy.PawnID]policy.PsycasterState{}}
 	titles := map[string]bool{}
 	for _, row := range v.Ladder {
 		if validID(row.GetDefName()) != nil || titles[row.GetDefName()] {
@@ -107,47 +106,6 @@ func DecodeRoyaltyFacts(v *o.RoyaltyFacts, identity *c.Identity) (*policy.Royalt
 		}
 		out.Permits[name] = policy.RoyalPermit{Name: name, MinTitle: optionalFact(row.MinTitle), PermitPoints: optionalFact(intPtr(row.PermitPoints)), Acts: optionalFact(row.Acts),
 			FavorCost: optionalFact(intPtr(row.FavorCost)), CooldownDays: optionalFact(row.CooldownDays), Worker: row.GetWorkerClass()}
-	}
-	for _, row := range v.Neuroformers {
-		name := row.GetDefName()
-		if validID(name) != nil || row.TeachesPsycast != nil && validID(row.GetTeachesPsycast()) != nil || row.GetHeld() < 0 {
-			return nil, contract("invalid royalty neuroformer")
-		}
-		if _, exists := out.Neuroformers[name]; exists {
-			return nil, contract("duplicate royalty neuroformer %s", name)
-		}
-		out.Neuroformers[name] = policy.Neuroformer{Def: name, TeachesPsycast: row.GetTeachesPsycast(), Held: optionalFact(intPtr(row.Held)),
-			Craftable: optionalFact(row.Craftable), Tradeable: optionalFact(row.Tradeable)}
-	}
-	seen := map[string]bool{}
-	for _, row := range v.Ceremonies {
-		pawn, bestower := row.GetPawn().GetId(), row.GetBestower().GetId()
-		if validID(pawn) != nil || bestower != "" && validID(bestower) != nil || validID(row.GetQuest()) != nil || row.FactionDef != nil && validID(row.GetFactionDef()) != nil ||
-			row.Title != nil && validID(row.GetTitle()) != nil || seen[pawn+"/"+row.GetFactionDef()] {
-			return nil, contract("invalid royalty ceremony")
-		}
-		seen[pawn+"/"+row.GetFactionDef()] = true
-		c := policy.BestowingCeremony{Quest: domain.QuestID(row.GetQuest()), Pawn: policy.PawnID(pawn), Bestower: policy.PawnID(bestower), Faction: row.GetFactionDef(), Title: row.GetTitle(),
-			Accepted: optionalFact(row.Accepted), BestowerWaiting: optionalFact(row.BestowerWaiting), Started: optionalFact(row.Started)}
-		if row.Spot != nil {
-			c.Spot = domain.Known(domain.Cell{X: row.Spot.GetX(), Z: row.Spot.GetZ()})
-		}
-		for _, a := range row.Attendees {
-			if validID(a.GetId()) != nil {
-				return nil, contract("invalid royalty ceremony attendee")
-			}
-			c.Attendees = append(c.Attendees, policy.PawnID(a.GetId()))
-		}
-		out.Ceremonies = append(out.Ceremonies, c)
-	}
-	thrones := map[string]bool{}
-	for _, row := range v.Thrones {
-		id, owner := row.GetThing().GetId(), row.GetOwner().GetId()
-		if validID(id) != nil || owner != "" && validID(owner) != nil || row.DefName != nil && validID(row.GetDefName()) != nil || thrones[id] {
-			return nil, contract("invalid royalty throne")
-		}
-		thrones[id] = true
-		out.Thrones = append(out.Thrones, policy.RoyalThrone{ID: id, Def: row.GetDefName(), Owner: policy.PawnID(owner)})
 	}
 	return out, nil
 }
@@ -223,7 +181,7 @@ func WithPawnRoyalty(facts policy.RoyaltyFacts, pawns *o.PawnSnapshot) (policy.R
 	return facts, nil
 }
 
-var psycastTargets =map[o.PsycastTargetKind]policy.PsycastTarget{
+var psycastTargets = map[o.PsycastTargetKind]policy.PsycastTarget{
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_UNSPECIFIED: "",
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_SELF:        policy.PsycastTargetSelf,
 	o.PsycastTargetKind_PSYCAST_TARGET_KIND_PAWN:        policy.PsycastTargetPawn,

@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -16,16 +15,9 @@ func royaltyRead() *o.RoyaltyFacts {
 			{DefName: proto.String("Knight"), Seniority: proto.Int32(100), FavorNeeded: proto.Int32(6), BedroomMinImpressiveness: proto.Int32(50), BedroomFloored: proto.Bool(true), BedroomThings: []*o.BedroomThingRequirement{{AnyOf: []string{"EndTable"}, Count: proto.Int32(1)}}},
 			{DefName: proto.String("Yeoman")},
 		},
-		Ceremonies: []*o.BestowingCeremony{{Quest: proto.String("Quest_4"), Pawn: &c.Ref{Id: proto.String("Human12")}, Bestower: &c.Ref{Id: proto.String("Human30")}, FactionDef: proto.String("Empire"),
-			Title: proto.String("Knight"), Accepted: proto.Bool(true), BestowerWaiting: proto.Bool(true), Spot: &c.Cell{X: proto.Int32(4), Z: proto.Int32(9)}, Attendees: []*c.Ref{{Id: proto.String("Human13")}}}},
 		Permits: []*o.RoyalPermitDef{
 			{DefName: proto.String("CallLaborerPack"), MinTitle: proto.String("Knight"), PermitPoints: proto.Int32(1), Acts: proto.Bool(true), FavorCost: proto.Int32(6), CooldownDays: proto.Float64(30), WorkerClass: proto.String("RoyalTitlePermitWorker_CallLaborers")},
 			{DefName: proto.String("TradeSettlement"), Acts: proto.Bool(false)},
-		},
-		Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}, DefName: proto.String("Throne"), Owner: &c.Ref{Id: proto.String("Human12")}}, {Thing: &c.Ref{Id: proto.String("Throne_2")}, DefName: proto.String("Throne")}},
-		Neuroformers: []*o.NeuroformerStock{
-			{DefName: proto.String("PsychicAmplifier"), Held: proto.Int32(2), Craftable: proto.Bool(false), Tradeable: proto.Bool(true)},
-			{DefName: proto.String("Neurotrainer_Skip"), TeachesPsycast: proto.String("Skip")},
 		},
 	}
 }
@@ -153,29 +145,11 @@ func TestDecodeRoyaltyFacts(t *testing.T) {
 	if _, ok := casts[1].PsyfocusCost.Value(); ok || casts[1].Target != "" {
 		t.Fatalf("absent psycast facts read as known: %+v", casts[1])
 	}
-	amp := facts.Neuroformers["PsychicAmplifier"]
-	if held, ok := amp.Held.Value(); !ok || held != 2 {
-		t.Fatalf("held %v %v", held, ok)
-	}
-	if tradeable, ok := amp.Tradeable.Value(); !ok || !tradeable {
-		t.Fatalf("tradeable %v %v", tradeable, ok)
-	}
-	if craftable, ok := amp.Craftable.Value(); !ok || craftable {
-		t.Fatalf("craftable %v %v", craftable, ok)
-	}
-	trainer := facts.Neuroformers["Neurotrainer_Skip"]
-	if trainer.TeachesPsycast != "Skip" {
-		t.Fatalf("trainer %+v", trainer)
-	}
-	if _, ok := trainer.Held.Value(); ok {
-		t.Fatal("absent held read as known")
-	}
 }
 
-// TestDecodeRoyaltyFactsCeremonyAndBedroom (#1602, #1605): the bestowing
-// ceremony and the rung's bedroom requirements decode; an absent flag stays
-// unknown.
-func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
+// TestDecodeRoyaltyFactsBedroom (#1605): the rung's bedroom requirements
+// decode; an absent flag stays unknown.
+func TestDecodeRoyaltyFactsBedroom(t *testing.T) {
 	facts, err := DecodeRoyaltyFacts(royaltyRead(), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -187,39 +161,13 @@ func TestDecodeRoyaltyFactsCeremonyAndBedroom(t *testing.T) {
 	if _, ok := rung.BedroomMinArea.Value(); ok {
 		t.Fatal("absent bedroom area read as known")
 	}
-	// The throne-owner fact (#1601): an owned throne and an unowned one.
-	if len(facts.Thrones) != 2 || facts.Thrones[0] != (policy.RoyalThrone{ID: "Throne_1", Def: "Throne", Owner: "Human12"}) || facts.Thrones[1] != (policy.RoyalThrone{ID: "Throne_2", Def: "Throne"}) {
-		t.Fatalf("thrones %+v", facts.Thrones)
-	}
-	if len(facts.Ceremonies) != 1 {
-		t.Fatalf("ceremonies %+v", facts.Ceremonies)
-	}
-	cm := facts.Ceremonies[0]
-	if cm.Quest != "Quest_4" || cm.Pawn != "Human12" || cm.Bestower != "Human30" || cm.Title != "Knight" || len(cm.Attendees) != 1 || cm.Attendees[0] != "Human13" {
-		t.Fatalf("ceremony %+v", cm)
-	}
-	if w, ok := cm.BestowerWaiting.Value(); !ok || !w {
-		t.Fatal("bestower waiting")
-	}
-	if _, ok := cm.Started.Value(); ok {
-		t.Fatal("absent started read as known")
-	}
-	if spot, ok := cm.Spot.Value(); !ok || spot.X != 4 || spot.Z != 9 {
-		t.Fatalf("spot %+v", spot)
-	}
 }
 
 func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
-	for _, change := range []string{"ceremony-quest", "ceremony-duplicate", "ceremony-attendee", "bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title", "neuroformer-duplicate", "neuroformer-held", "throne-duplicate", "throne-owner"} {
+	for _, change := range []string{"bedroom-count", "bedroom-def", "world", "title-duplicate", "title-id", "permit-duplicate", "permit-min-title"} {
 		t.Run(change, func(t *testing.T) {
 			v := royaltyRead()
 			switch change {
-			case "ceremony-quest":
-				v.Ceremonies[0].Quest = proto.String("")
-			case "ceremony-duplicate":
-				v.Ceremonies = append(v.Ceremonies, v.Ceremonies[0])
-			case "ceremony-attendee":
-				v.Ceremonies[0].Attendees[0].Id = proto.String("")
 			case "bedroom-count":
 				v.Ladder[0].BedroomThings[0].Count = proto.Int32(0)
 			case "bedroom-def":
@@ -234,14 +182,6 @@ func TestDecodeRoyaltyFactsRefusesMalformedRows(t *testing.T) {
 				v.Permits = append(v.Permits, v.Permits[0])
 			case "permit-min-title":
 				v.Permits[0].MinTitle = proto.String("")
-			case "neuroformer-duplicate":
-				v.Neuroformers = append(v.Neuroformers, v.Neuroformers[0])
-			case "throne-duplicate":
-				v.Thrones = append(v.Thrones, v.Thrones[0])
-			case "throne-owner":
-				v.Thrones[0].Owner.Id = proto.String(" ")
-			case "neuroformer-held":
-				v.Neuroformers[0].Held = proto.Int32(-1)
 			}
 			if _, err := DecodeRoyaltyFacts(v, pbIdentity()); err == nil {
 				t.Fatal("malformed royalty facts accepted")

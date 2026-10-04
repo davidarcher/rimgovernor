@@ -16,7 +16,9 @@ type RoyaltyFacts struct {
 	// Casters maps a psycaster to its psyfocus and neural heat at the read
 	// (#1611).
 	Casters map[PawnID]PsycasterState
-	// Neuroformers is the colony's neuroformer stock by def (#1600).
+	// Neuroformers, Ceremonies and Thrones are the colony section's (#1877,
+	// RoyaltyFacts.WithColony), not the royalty read's. Neuroformers is the
+	// colony's neuroformer stock by def (#1600).
 	Neuroformers map[string]Neuroformer
 	// Ceremonies are the pending bestowing ceremonies (#1602), by pawn.
 	Ceremonies []BestowingCeremony
@@ -146,4 +148,19 @@ func (f *RoyaltyFacts) PermitUsedSince(pawn PawnID, faction, permit string, sinc
 		}
 	}
 	return false
+}
+
+// RoyaltyColony is the Royalty colony section (#1877): the neuroformer stock,
+// the pending bestowing ceremonies and the standing thrones.
+type RoyaltyColony struct {
+	Neuroformers map[string]Neuroformer
+	Ceremonies   []BestowingCeremony
+	Thrones      []RoyalThrone
+}
+
+// WithColony is f with the colony section's neuroformers, ceremonies and
+// thrones, which the royalty read does not carry.
+func (f RoyaltyFacts) WithColony(colony RoyaltyColony) RoyaltyFacts {
+	f.Neuroformers, f.Ceremonies, f.Thrones = colony.Neuroformers, colony.Ceremonies, colony.Thrones
+	return f
 }

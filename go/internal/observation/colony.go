@@ -74,6 +74,8 @@ type ColonyProjection struct {
 	Biotech       domain.Fact[BiotechColony]
 	Odyssey       domain.Fact[OdysseyColony]
 	Anomaly       domain.Fact[AnomalyColony]
+	// RoyaltyColony is the Royalty colony section (#1877); unknown without Royalty or when the read failed.
+	RoyaltyColony domain.Fact[policy.RoyaltyColony]
 	// Isolation is the creepjoiner isolation room's inputs (#1740), set by the routine review.
 	Isolation policy.IsolationPlanning
 	// Shapes are the catalog's piece shapes and the furniture its rules choose
@@ -378,6 +380,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity, tables bridge.Ta
 	r.Biotech = colonyBiotech(v.Biotech)
 	r.Odyssey = colonyOdyssey(v.Odyssey)
 	r.Anomaly = colonyAnomaly(v.Anomaly)
+	if r.RoyaltyColony, err = colonyRoyalty(v.Royalty); err != nil {
+		return ColonyProjection{}, err
+	}
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.MapBounds = domain.Known(r.Bounds)
 	r.Facts.ShelterArea = shelterArea(r.Policies)

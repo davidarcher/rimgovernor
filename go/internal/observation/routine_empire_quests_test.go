@@ -38,6 +38,7 @@ func TestRoutineQuestCensusJoinsFactionAndMapAndReadsRoyalty(t *testing.T) {
 	if err := protojson.Unmarshal(data, base); err != nil {
 		t.Fatal(err)
 	}
+	base.GetObserved().Royalty = &o.RoyaltySection{Outcome: &o.RoyaltySection_Observed{Observed: &o.RoyaltyColonyFacts{Thrones: []*o.RoyalThrone{{Thing: &c.Ref{Id: proto.String("Throne_1")}}}}}}
 	identity := &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 	expected, err := DecodeIdentity(identity)
 	if err != nil {

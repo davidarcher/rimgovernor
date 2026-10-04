@@ -190,7 +190,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		if facts, err := royalty.RoyaltyFacts(ctx, id, frame.Colony.GetContext().GetTick()); err == nil && facts != nil && pawns != nil {
 			// The colonists' own holdings and psycasts ride their pawn rows (#1876).
 			if merged, err := bridge.WithPawnRoyalty(*facts, pawns); err == nil {
-				p.Facts.Royalty = domain.Known(merged)
+				p.Facts.Royalty = p.WithRoyaltyColony(merged)
 			}
 		}
 	}

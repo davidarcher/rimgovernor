@@ -137,6 +137,7 @@ namespace HomeBridge.BridgeTools
             result.DeepResources = NativeDeepResources.Read(map);
             result.Policies = NativePolicyFacts.Read(map);
             result.Biotech = NativeBiotechColony.Read(map);
+            result.Royalty = NativeRoyaltyColony.Read(map);
             result.Odyssey = NativeOdysseyColony.Read(map);
             result.Anomaly = NativeAnomalyColony.Read(map);
             result.TileMutators.Add(NativeOdysseyFacts.MapMutators(map));
