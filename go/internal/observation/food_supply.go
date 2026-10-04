@@ -86,14 +86,16 @@ func decodeFoodSupply(v *o.FoodSupplyFacts, rows map[string]*o.Thing, catalog *b
 		if row.GetForbidden() && !stock.Corpse {
 			stock.Reserve = policy.ReserveFoodDefinition(stock.DefName)
 			barred = !stock.Reserve
-			if barred && !stock.IsHumanMeat {
-				continue
-			}
 		}
 		stock.Forbidden = optional(row.Forbidden)
 		stock.MeatAmount = optional(row.MeatAmount)
 		stock.BodySize = optional(row.BodySize)
 		stock.TileFootprint = optional(row.TileFootprint)
+		if barred && !stock.IsHumanMeat {
+			// Census-only row (Barred): no eaters, outside the forecast.
+			supply.Barred = append(supply.Barred, stock)
+			continue
+		}
 		for _, id := range bridge.RefIDs(s.Eaters) {
 			if barred {
 				break

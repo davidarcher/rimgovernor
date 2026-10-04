@@ -142,9 +142,23 @@ func TestFoodReserveIsForbiddenReserveFood(t *testing.T) {
 	if supply, err = decodeFood(t, wire, things); err != nil || supply.Stocks[0].Reserve {
 		t.Fatal(supply, err)
 	}
-	// Any other forbidden food is not counted.
+	// Any other forbidden food is not counted: it joins the storage census only.
 	things.At("rice").Thing.DefName, things.At("rice").Forbidden = proto.String("Rice"), proto.Bool(true)
-	if supply, err = decodeFood(t, wire, things); err != nil || len(supply.Stocks) != 1 || supply.Stocks[0].ID != "pack" {
+	if supply, err = decodeFood(t, wire, things); err != nil || len(supply.Stocks) != 1 || supply.Stocks[0].ID != "pack" || len(supply.Barred) != 1 || supply.Barred[0].ID != "rice" {
 		t.Fatal(supply, err)
+	}
+	if forbidden, known := supply.Barred[0].Forbidden.Value(); !known || !forbidden || len(supply.Barred[0].Eaters) != 0 {
+		t.Fatal(supply.Barred[0])
+	}
+	census := policy.FoodStorageStocks(supply, 10)
+	if rows, _ := census.Stocks.Value(); len(rows) != 2 {
+		t.Fatal(rows)
+	}
+	// The forecast and the reserve totals ignore it.
+	barred, err := policy.ForecastFood(supply, nil)
+	supply.Barred = nil
+	plain, perr := policy.ForecastFood(supply, nil)
+	if err != nil || perr != nil || barred.UsableNutrition != plain.UsableNutrition || barred.InventoryNutrition != plain.InventoryNutrition {
+		t.Fatal(barred, plain, err, perr)
 	}
 }

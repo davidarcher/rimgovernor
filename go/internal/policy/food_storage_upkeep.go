@@ -22,8 +22,8 @@ type FoodStorageStock struct {
 // FoodStorageStocks lifts a food-supply census into the storage-upkeep census.
 // chilledMaxC is the catalog's full-rot-rate temperature.
 func FoodStorageStocks(supply FoodSupply, chilledMaxC float64) FoodStorageObservation {
-	rows := make([]FoodStorageStock, 0, len(supply.Stocks))
-	for _, stock := range supply.Stocks {
+	rows := make([]FoodStorageStock, 0, len(supply.Stocks)+len(supply.Barred))
+	for _, stock := range append(append([]FoodStock(nil), supply.Stocks...), supply.Barred...) {
 		rows = append(rows, FoodStorageStock{Stock: stock})
 	}
 	return FoodStorageObservation{Stocks: domain.Known(rows), Larder: supply.Larder, ChilledMaxC: chilledMaxC}

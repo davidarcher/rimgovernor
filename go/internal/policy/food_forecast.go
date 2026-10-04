@@ -57,7 +57,10 @@ type FoodSupply struct {
 	Complete  domain.Fact[bool]
 	Consumers []FoodConsumer
 	Stocks    []FoodStock
-	Larder    domain.Fact[FoodLarder]
+	// Barred holds forbidden ordinary food stacks: census rows for the storage
+	// review only, never forecast or reserve input.
+	Barred []FoodStock
+	Larder domain.Fact[FoodLarder]
 }
 type ConsumerFoodForecast struct {
 	ID                                                               PawnID

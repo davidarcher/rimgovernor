@@ -198,6 +198,18 @@ func stuckObservation(forbidden domain.Fact[bool]) FoodStorageObservation {
 	return FoodStorageObservation{ChilledMaxC: testChilledMaxC, Stocks: domain.Known([]FoodStorageStock{stock})}
 }
 
+// A forbidden ordinary stack carried as Barred reaches the census and names
+// stack_forbidden without adding to the forecast.
+func TestFoodStorageBarredStackIsStuckForbidden(t *testing.T) {
+	barred := riskyStock("rice", 10, false).Stock
+	barred.Forbidden = domain.Known(true)
+	supply := FoodSupply{Barred: []FoodStock{barred}}
+	obs := FoodStorageStocks(supply, testChilledMaxC)
+	if got := FoodStorageStuckReason(obs, DefaultFoodStoragePolicy(), domain.Known([]PawnID{"p1"})); got != FoodStuckForbidden {
+		t.Fatalf("got %q", got)
+	}
+}
+
 func TestFoodStorageStuckReasons(t *testing.T) {
 	one := domain.Known([]PawnID{"p1"})
 	none := domain.Known([]PawnID{})
