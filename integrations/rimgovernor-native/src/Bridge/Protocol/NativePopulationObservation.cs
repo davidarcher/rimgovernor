@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.PopulationReply { Failure = failure });
                 try { return ProtoBoundary.Encode(new Obs.PopulationReply { Observed = Population(map, parsed, context) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native population facts could not be read completely.") }); }
+                catch (Exception error) { Log.Error("[RimGovernor] Population read failed: " + error); return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native population facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
         {
             snapshot = null;
             try { snapshot = Population(map, request, context); return true; }
-            catch (Exception) { return false; }
+            catch (Exception error) { Log.Error(ObservationWork.Failed("population", error)); return false; }
         }
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)

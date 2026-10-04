@@ -32,31 +32,19 @@ namespace HomeBridge.BridgeTools
         internal static WorkGiverJobResult? TryJob(Pawn? pawn, Thing? thing, Func<WorkGiverDef, bool> accept, out string? failReason, JobDef? jobDef = null)
         {
             failReason = null;
-            List<WorkTypeDef> types;
-            try { types = DefDatabase<WorkTypeDef>.AllDefsListForReading.ToList(); }
-            catch { types = new List<WorkTypeDef>(); }
+            var types = DefDatabase<WorkTypeDef>.AllDefsListForReading.ToList();
 
-            Pawn? previous = null;
-            var swapped = false;
+            var previous = FloatMenuMakerMap.makingFor;
+            FloatMenuMakerMap.makingFor = pawn;
             try
             {
-                try
-                {
-                    previous = FloatMenuMakerMap.makingFor;
-                    FloatMenuMakerMap.makingFor = pawn;
-                    swapped = true;
-                }
-                catch { swapped = false; }
-
-                try { JobFailReason.Clear(); } catch { }
+                JobFailReason.Clear();
 
                 foreach (var type in types)
                 {
                     if (type == null)
                         continue;
-                    List<WorkGiverDef> givers;
-                    try { givers = type.workGiversByPriority; }
-                    catch { givers = null!; }
+                    var givers = type.workGiversByPriority;
                     if (givers == null)
                         continue;
 
@@ -78,7 +66,7 @@ namespace HomeBridge.BridgeTools
                         if (job == null || (jobDef != null && job.def != jobDef))
                             continue;
 
-                        try { job.workGiverDef = scanner.def; } catch { }
+                        job.workGiverDef = scanner.def;
                         return new WorkGiverJobResult { Job = job, Scanner = scanner, Giver = giver, WorkType = type };
                     }
                 }
@@ -90,11 +78,8 @@ namespace HomeBridge.BridgeTools
             }
             finally
             {
-                if (swapped)
-                {
-                    try { FloatMenuMakerMap.makingFor = previous; } catch { }
-                }
-                try { JobFailReason.Clear(); } catch { }
+                FloatMenuMakerMap.makingFor = previous;
+                JobFailReason.Clear();
             }
         }
 

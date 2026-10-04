@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
                     if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                         return new Obs.ListPawnsReply { Failure = invalid };
                     try { return new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }; }
-                    catch (Exception error) { return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
+                    catch (Exception error) { Log.Error("[RimGovernor] Pawn facts read failed: " + error); return new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
                         PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }; }
                 }, cancellationToken).ConfigureAwait(false);
                 var owned = lease; lease = null;
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
         {
             snapshot = null;
             try { snapshot = Read(map, request, context); return true; }
-            catch (Exception) { return false; }
+            catch (Exception error) { Log.Error(ObservationWork.Failed("pawns", error)); return false; }
         }
 
         // On the main thread.

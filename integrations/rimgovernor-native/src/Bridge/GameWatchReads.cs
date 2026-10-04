@@ -12,8 +12,9 @@ namespace HomeBridge.BridgeTools
     /// <summary>
     /// The guarded reads the supervised clock watches between ticks: the
     /// letter stack, live transient messages, active alerts and the spawned
-    /// pawns. Every read swallows a native exception into an empty or false
-    /// answer; none of them recalculates an alert or calls a getter that logs
+    /// pawns. A native exception propagates to the watch's tool call (the
+    /// host answers it as a named failure, #1887) except one alert's own
+    /// getters; none of them recalculates an alert or calls a getter that logs
     /// (Verse.Log.Error pauses the game).
     /// </summary>
     internal static class GameWatchReads
@@ -29,47 +30,25 @@ namespace HomeBridge.BridgeTools
 
         internal static List<Letter> Letters()
         {
-            try
-            {
-                var list = Find.LetterStack?.LettersListForReading;
-                return list == null ? new List<Letter>() : list.Where(l => l != null).ToList();
-            }
-            catch
-            {
-                return new List<Letter>();
-            }
+            var list = Find.LetterStack?.LettersListForReading;
+            return list == null ? new List<Letter>() : list.Where(l => l != null).ToList();
         }
 
-        internal static string SafeLetterId(Letter letter)
-        {
-            try { return letter.GetUniqueLoadID(); }
-            catch { return "letter-" + letter.ID; }
-        }
+        internal static string SafeLetterId(Letter letter) => letter.GetUniqueLoadID();
 
         internal static List<Message> LiveMessages()
         {
             if (LiveMessagesField == null)
                 return new List<Message>();
-            try
-            {
-                var live = LiveMessagesField.GetValue(null) as List<Message>;
-                return live == null ? new List<Message>() : live.Where(m => m != null).ToList();
-            }
-            catch
-            {
-                return new List<Message>();
-            }
+            var live = LiveMessagesField.GetValue(null) as List<Message>;
+            return live == null ? new List<Message>() : live.Where(m => m != null).ToList();
         }
 
-        internal static string SafeMessageId(Message message)
-        {
-            try { return message.GetUniqueLoadID(); }
-            catch { return "message-" + message.startingTick + "-" + (message.text ?? string.Empty).GetHashCode(); }
-        }
+        internal static string SafeMessageId(Message message) => message.GetUniqueLoadID();
 
-        internal static string? SafeMessageText(Message message) { try { return message.text; } catch { return null; } }
-        internal static string? SafeMessageType(Message message) { try { return message.def != null ? message.def.defName : null; } catch { return null; } }
-        internal static int SafeMessageTick(Message message) { try { return message.startingTick; } catch { return 0; } }
+        internal static string? SafeMessageText(Message message) => message.text;
+        internal static string? SafeMessageType(Message message) => message.def != null ? message.def.defName : null;
+        internal static int SafeMessageTick(Message message) => message.startingTick;
 
         /// <summary>
         /// Active alerts at or above <paramref name="min"/>, as key/label pairs,
@@ -83,9 +62,7 @@ namespace HomeBridge.BridgeTools
             var result = sink ?? new List<KeyValuePair<string, string>>();
             if (ActiveAlertsField == null)
                 return result;
-            List<Alert>? active;
-            try { active = Find.Alerts == null ? null : ActiveAlertsField.GetValue(Find.Alerts) as List<Alert>; }
-            catch { return result; }
+            var active = Find.Alerts == null ? null : ActiveAlertsField.GetValue(Find.Alerts) as List<Alert>;
             if (active == null)
                 return result;
             foreach (var alert in active)
@@ -104,6 +81,8 @@ namespace HomeBridge.BridgeTools
                 }
                 catch
                 {
+                    // A vanilla alert's Priority/Label getter throws for an alert whose own
+                    // data is half-built; that one alert is skipped, the rest still read.
                     continue;
                 }
                 result.Add(new KeyValuePair<string, string>(type + "|" + priority + "|" + NormalizeAlertLabel(label), label));
@@ -129,53 +108,35 @@ namespace HomeBridge.BridgeTools
 
         internal static List<Pawn> SpawnedPawns(Map map)
         {
-            try
-            {
-                var all = map?.mapPawns?.AllPawnsSpawned;
-                return all == null ? new List<Pawn>() : all.ToList();
-            }
-            catch
-            {
-                return new List<Pawn>();
-            }
+            var all = map?.mapPawns?.AllPawnsSpawned;
+            return all == null ? new List<Pawn>() : all.ToList();
         }
 
         /// <summary>A manhunter, or a pawn of a faction hostile to the player.</summary>
         internal static bool IsHostile(Pawn pawn, out string reason)
         {
             reason = "none";
-            try
+            var mental = pawn.MentalStateDef?.defName;
+            if (!string.IsNullOrEmpty(mental) && mental!.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                var mental = pawn.MentalStateDef?.defName;
-                if (!string.IsNullOrEmpty(mental) && mental!.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    reason = "manhunter:" + mental;
-                    return true;
-                }
+                reason = "manhunter:" + mental;
+                return true;
             }
-            catch { }
-            try
+            var faction = pawn.Faction;
+            var player = PlayerFaction();
+            if (player != null && pawn.HostFaction == player)
             {
-                var faction = pawn.Faction;
-                var player = PlayerFaction();
-                if (player != null && pawn.HostFaction == player)
-                {
-                    // A held prisoner is hostile only while breaking out (#1080).
-                    if (!PrisonBreakUtility.IsPrisonBreaking(pawn)) return false;
-                    reason = "prison_break";
-                    return true;
-                }
-                if (faction == null || player == null || faction == player)
-                    return false;
-                if (faction.HostileTo(player))
-                {
-                    reason = "faction:" + faction.Name;
-                    return true;
-                }
+                // A held prisoner is hostile only while breaking out (#1080).
+                if (!PrisonBreakUtility.IsPrisonBreaking(pawn)) return false;
+                reason = "prison_break";
+                return true;
             }
-            catch
+            if (faction == null || player == null || faction == player)
+                return false;
+            if (faction.HostileTo(player))
             {
-                reason = "unknown";
+                reason = "faction:" + faction.Name;
+                return true;
             }
             return false;
         }
@@ -188,40 +149,21 @@ namespace HomeBridge.BridgeTools
         internal static bool PreyBelongsToPlayer(Pawn predator, out Pawn? prey)
         {
             prey = null;
-            try
-            {
-                var thing = predator?.CurJob?.targetA.Thing;
-                prey = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
-                var player = PlayerFaction();
-                if (prey == null || player == null)
-                    return false;
-                return prey.Faction == player || prey.HostFaction == player;
-            }
-            catch
-            {
+            var thing = predator?.CurJob?.targetA.Thing;
+            prey = thing as Pawn ?? (thing as Corpse)?.InnerPawn;
+            var player = PlayerFaction();
+            if (prey == null || player == null)
                 return false;
-            }
+            return prey.Faction == player || prey.HostFaction == player;
         }
 
-        internal static string? SafeName(Pawn pawn)
-        {
-            try { return pawn.LabelShortCap.ToString(); }
-            catch
-            {
-                try { return pawn.LabelCap.ToString(); }
-                catch { return null; }
-            }
-        }
+        internal static string? SafeName(Pawn pawn) => pawn.LabelShortCap.ToString();
 
-        internal static bool SafeIsColonist(Pawn pawn) { try { return pawn.IsColonist; } catch { return false; } }
-        internal static bool SafeDowned(Pawn pawn) { try { return pawn.Downed; } catch { return false; } }
-        internal static bool SafeDead(Pawn pawn) { try { return pawn.Dead; } catch { return false; } }
+        internal static bool SafeIsColonist(Pawn pawn) => pawn.IsColonist;
+        internal static bool SafeDowned(Pawn pawn) => pawn.Downed;
+        internal static bool SafeDead(Pawn pawn) => pawn.Dead;
 
         // Faction.OfPlayer logs (and so pauses) when the faction is missing.
-        private static Faction? PlayerFaction()
-        {
-            try { return Faction.OfPlayerSilentFail; }
-            catch { return null; }
-        }
+        private static Faction? PlayerFaction() => Faction.OfPlayerSilentFail;
     }
 }

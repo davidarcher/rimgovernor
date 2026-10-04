@@ -157,7 +157,7 @@ namespace HomeBridge.BridgeTools
                         row.LandingCells.AddRange(cells.Select(c => new Common.Cell { X = c.x, Z = c.z }));
                     });
             }
-            catch { }
+            catch { } // Harmony hook inside vanilla code, outside any tool call: a throw would reach the game (not probed in #1887)
         }
 
         /// Record appends an event row on thing's map while combat is active,
@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
                 Stamp(other, mark, 0);
                 _dirty = true;
             }
-            catch { }
+            catch { } // called from Harmony hooks inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         /// Capture fills a frame's combat sections on the game thread: every
@@ -263,8 +263,8 @@ namespace HomeBridge.BridgeTools
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
             var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
-            try { if (pawn.Faction != null) row.Faction = NativeRef.Of(pawn.Faction); } catch { }
-            try { var lord = pawn.GetLord(); if (lord != null) row.LordId = lord.GetUniqueLoadID(); } catch { }
+            try { if (pawn.Faction != null) row.Faction = NativeRef.Of(pawn.Faction); } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+            try { var lord = pawn.GetLord(); if (lord != null) row.LordId = lord.GetUniqueLoadID(); } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             if (pawn.MentalStateDef != null) row.MentalState = pawn.MentalStateDef.defName;
             if (pawn.drafter != null)
             {
@@ -298,7 +298,7 @@ namespace HomeBridge.BridgeTools
                 row.MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1);
                 row.MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1);
             }
-            catch { }
+            catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             // Enemy drugs (#1056).
             row.GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh");
             row.LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction");
@@ -311,16 +311,16 @@ namespace HomeBridge.BridgeTools
                     row.ShieldEnergy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0;
                     row.ShieldBroken = shield.ShieldState == ShieldState.Resetting;
                 }
-                catch { }
+                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
             if (side == Mirror.CombatSide.Colonist)
             {
                 try { row.Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05); }
-                catch { }
+                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
-            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row.StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30; } catch { }
+            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row.StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             row.ShieldBelt = shield != null;
-            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { }
+            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row.MedicalSkill = medicine.Level; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
             if (weapon != null && verb != null)
@@ -328,7 +328,7 @@ namespace HomeBridge.BridgeTools
                 row.Weapon = weapon.def.defName;
                 row.WeaponWarmupTicks = verb.verbProps.warmupTime.SecondsToTicks();
                 try { row.WeaponCooldownTicks = weapon.GetStatValue(verb.IsMeleeAttack ? StatDefOf.MeleeWeapon_CooldownMultiplier : StatDefOf.RangedWeapon_Cooldown).SecondsToTicks(); }
-                catch { }
+                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
             }
             return row;
         }
@@ -336,7 +336,7 @@ namespace HomeBridge.BridgeTools
         internal static string LoadId(Thing thing)
         {
             try { return thing.GetUniqueLoadID(); }
-            catch { return "Thing_" + thing.thingIDNumber.ToString(CultureInfo.InvariantCulture); }
+            catch { /* a thing without a load id keeps a stable synthetic one */ return "Thing_" + thing.thingIDNumber.ToString(CultureInfo.InvariantCulture); }
         }
 
         // Hooks. Each is one static read unless combat is active.
@@ -357,7 +357,7 @@ namespace HomeBridge.BridgeTools
                 Record(Mirror.CombatLogKind.ShotFired, Clock.CombatEvent.Unspecified, caster, target.Thing, __instance.EquipmentSource?.def.defName ?? __instance.verbProps.label,
                     null, caster.Position);
             }
-            catch { }
+            catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         private static void OnExplosion(Explosion __instance)
@@ -365,14 +365,14 @@ namespace HomeBridge.BridgeTools
             if (!Active) return;
             try { Record(Mirror.CombatLogKind.Explosion, Clock.CombatEvent.Unspecified, __instance, __instance.instigator, __instance.damType?.defName,
                 "radius " + __instance.radius.ToString("0.#", CultureInfo.InvariantCulture)); }
-            catch { }
+            catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         private static void OnFire(Fire __instance)
         {
             if (!Active) return;
             try { Record(Mirror.CombatLogKind.FireStarted, Clock.CombatEvent.Unspecified, __instance, __instance.parent, null, null); }
-            catch { }
+            catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         private static void OnDoorPrefix(Building_Door __instance, out bool __state) { __state = __instance != null && __instance.Open; }
@@ -398,8 +398,8 @@ namespace HomeBridge.BridgeTools
             if (job == null) return "";
             var name = job.GetType().Name;
             var t = Traverse.Create(job);
-            try { if (t.Field("sappers").FieldExists() && t.Field("sappers").GetValue<bool>()) name += "+sappers"; } catch { }
-            try { if (t.Field("breachers").FieldExists() && t.Field("breachers").GetValue<bool>()) name += "+breachers"; } catch { }
+            try { if (t.Field("sappers").FieldExists() && t.Field("sappers").GetValue<bool>()) name += "+sappers"; } catch { } // reflection over a LordJob field a mod may type differently; the name omits the suffix
+            try { if (t.Field("breachers").FieldExists() && t.Field("breachers").GetValue<bool>()) name += "+breachers"; } catch { } // reflection over a LordJob field a mod may type differently; the name omits the suffix
             return name;
         }
     }

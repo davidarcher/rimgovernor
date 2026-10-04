@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                     if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                         return new Obs.ColonyFactsReply { Failure = invalid };
                     try { return new Obs.ColonyFactsReply { Observed = Read(map, parsed, context) }; }
-                    catch (Exception) { return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }; }
+                    catch (Exception error) { Log.Error("[RimGovernor] Colony facts read failed: " + error); return new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message)) }; }
                 }, cancellationToken).ConfigureAwait(false);
                 var owned = lease; lease = null;
                 return await ProtoBoundary.EncodeDetached(captured, owned, reply => EncodeFacts(reply, parsed), cancellationToken).ConfigureAwait(false);
@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
         {
             snapshot = null;
             try { snapshot = Read(map, request, context); return true; }
-            catch (Exception) { return false; }
+            catch (Exception error) { Log.Error(ObservationWork.Failed("colonyFacts", error)); return false; }
         }
 
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
@@ -185,17 +185,17 @@ namespace HomeBridge.BridgeTools
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
-            catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
             Span("cf.climate");
             try { NativePlantAcquisition.Read(result, map, center, humanFood); }
-            catch (Exception) {
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error);
                 result.Acquisition.Clear(); result.ClearPendingFoodNutrition(); result.ClearPendingWoodUnits(); result.ClearPendingHunts();
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
                     result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
             }
             Span("cf.acquisition");
             try { NativeCutPlant.Read(result, map, center); }
-            catch (Exception) { result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
             Span("cf.cutPlant");
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
@@ -253,7 +253,7 @@ namespace HomeBridge.BridgeTools
                 };
                 return new Obs.ThreatSection { Observed = facts };
             }
-            catch (Exception) { return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
         }
 
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things)
@@ -261,7 +261,7 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.UpkeepFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) }; }
-            catch (Exception) { result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.Comfort = new Obs.ComfortSection { Unavailable = Unsupported("Complete comfort facts are unavailable.") }; }
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             NativeUpkeepFacts.Populate(map, things, result);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
@@ -298,7 +298,7 @@ namespace HomeBridge.BridgeTools
                 var row = new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
                     Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) };
                 // A turret's observed damage per second (#1188).
-                try { var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value); } catch { }
+                var dps = NativeDefenseStats.TurretDps(building); if (dps.HasValue) row.TurretDps = Finite(dps.Value);
                 result.Power.Add(row);
             }
             foreach (var battery in batteries) {
@@ -381,7 +381,7 @@ namespace HomeBridge.BridgeTools
             var result = new Obs.PlanningFacts { };
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { result.Gear = NativeGearFacts.Read(map, context); }
-            catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
             result.Crops.Add(Crops(map));
@@ -394,7 +394,7 @@ namespace HomeBridge.BridgeTools
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
             var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
             try { result.Environment = Environment(map, min, max); }
-            catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
+            catch (Exception error) { Log.Error("[RimGovernor] Colony facts section failed: " + error); result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }
             return result;
         }
 

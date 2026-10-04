@@ -404,7 +404,7 @@ namespace HomeBridge.BridgeTools
                 var capability = ctx?.CapabilityId; var operation = ctx?.OperationId;
                 return (string.IsNullOrEmpty(capability) ? "tool" : capability!) + (string.IsNullOrEmpty(operation) ? "" : " op=" + operation);
             }
-            catch (Exception) { return "tool"; }
+            catch (Exception) { return "tool"; } // the label only names a log line; a context that cannot answer has no better name
         }
 
         // The caller's trace argument, or null when it sent none or the raw

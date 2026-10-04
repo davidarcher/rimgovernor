@@ -367,3 +367,25 @@ func TestDescribeOncePerSession(t *testing.T) {
 		t.Fatalf("failed describe cached: describes %d calls %d", n, calls)
 	}
 }
+
+// A hop that throws is answered by the host as success:false with the
+// exception text and no proto field (docs/developers/contracts/bridge-thrown-hop.md,
+// #1887). Every typed read and call must surface it as a named refusal, never
+// as an empty reply (#1889).
+func TestThrownHopReplyIsANamedRefusal(t *testing.T) {
+	thrown := `{"success":false,"message":"Pause before drain","exception":"System.InvalidOperationException: Pause before drain\r\n   at HomeBridge","operation":{"Success":false,"Status":3,"Result":null,"Error":{"Code":"capability.failed","Message":"Pause before drain","ExceptionType":"System.InvalidOperationException"}}}`
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*callResult, error) {
+		return structured(thrown), nil
+	}}
+	client := testClient(t, s, testBudget)
+	const want = "System.InvalidOperationException: Pause before drain"
+	if _, _, err := client.Tick(context.Background()); !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), want) {
+		t.Fatalf("typed read of a thrown hop = %v", err)
+	}
+	if _, _, err := client.Status(context.Background(), pbIdentity()); !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), want) {
+		t.Fatalf("typed status read of a thrown hop = %v", err)
+	}
+	if _, err := client.protoCall(context.Background(), "rimgovernor/clock_pause", &l.IdentityRequest{}, &l.IdentityReply{}); !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), want) {
+		t.Fatalf("typed call of a thrown hop = %v", err)
+	}
+}
