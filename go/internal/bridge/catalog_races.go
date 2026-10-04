@@ -109,7 +109,10 @@ func (catalog *DefinitionCatalog) animalRace(name string, row *d.ThingDef, facts
 	if p, ok := power[name]; ok {
 		race.CombatPower = domain.Known(p)
 	}
-	race.Products = raceProducts(row)
+	race.MateMtbHours = domain.Known(float64(props.GetMateMtbHours()))
+	if race.Products, err = catalog.raceProducts(row); err != nil {
+		return race, err
+	}
 	for _, item := range produced {
 		if !slices.Contains(race.Edible, item) {
 			continue
@@ -164,7 +167,7 @@ func (catalog *DefinitionCatalog) producedIngestibles() []string {
 
 // raceProducts are the periodic yields of the race's comps: milk, wool, eggs
 // and spawned items (chemfuel).
-func raceProducts(row *d.ThingDef) []policy.RaceProduct {
+func (catalog *DefinitionCatalog) raceProducts(row *d.ThingDef) ([]policy.RaceProduct, error) {
 	var out []policy.RaceProduct
 	known := func(v float64) domain.Fact[float64] { return domain.Known(v) }
 	if milk := compOf(row, (*d.CompPropertiesAny).GetCompProperties_Milkable); milk != nil && milk.GetMilkDef() != "" {
@@ -180,12 +183,23 @@ func raceProducts(row *d.ThingDef) []policy.RaceProduct {
 		}
 		if def != "" {
 			count := float64(egg.GetEggCountRange().GetMin()+egg.GetEggCountRange().GetMax()) * 0.5
-			out = append(out, policy.RaceProduct{Kind: "eggs", Def: policy.Resource(def), Amount: known(count), IntervalDays: known(float64(egg.GetEggLayIntervalDays()))})
+			product := policy.RaceProduct{Kind: "eggs", Def: policy.Resource(def), Amount: known(count), IntervalDays: known(float64(egg.GetEggLayIntervalDays())),
+				FertilizationCountMax: int(egg.GetEggFertilizationCountMax()), FemaleOnly: egg.GetEggLayFemaleOnly()}
+			if fertilized := egg.GetEggFertilizedDef(); fertilized != "" {
+				hatcher := compOf(catalog.ThingDef(fertilized), (*d.CompPropertiesAny).GetCompProperties_Hatcher)
+				if hatcher == nil {
+					return nil, contract("race %s lays fertilized egg %s with no hatcher comp", row.GetDefName(), fertilized)
+				}
+				product.FertilizedDef = policy.Resource(fertilized)
+				product.HatchDays = known(float64(hatcher.GetHatcherDaystoHatch()))
+				product.HatchPawn = policy.Resource(hatcher.GetHatcherPawn())
+			}
+			out = append(out, product)
 		}
 	}
 	if spawner := compOf(row, (*d.CompPropertiesAny).GetCompProperties_Spawner); spawner != nil && spawner.GetThingToSpawn() != "" {
 		ticks := float64(spawner.GetSpawnIntervalRange().GetMin()+spawner.GetSpawnIntervalRange().GetMax()) * 0.5
 		out = append(out, policy.RaceProduct{Kind: "spawner", Def: policy.Resource(spawner.GetThingToSpawn()), Amount: known(float64(spawner.GetSpawnCount())), IntervalDays: known(ticks / float64(domain.TicksPerDay))})
 	}
-	return out
+	return out, nil
 }

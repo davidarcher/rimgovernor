@@ -49,6 +49,9 @@ type EggLayerAnimal struct {
 	Progress                  domain.Fact[float64]
 	NutritionPerDay, LeadDays domain.Fact[float64]
 	Active                    domain.Fact[bool]
+	// Fertilized: the hen's next egg is the fertilized def (CompEggLayer
+	// fertilizationCount > 0).
+	Fertilized domain.Fact[bool]
 }
 type PasteDispenser struct {
 	BuildingID      string
@@ -94,7 +97,7 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.Gatherable = append(r.Gatherable, GatherableAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), Fullness: optional(row.Fullness), Resource: optional(row.Resource), HandlerReachable: optional(row.HandlerReachable), NutritionPerDay: optional(row.NutritionPerDay), WorkPerDay: optional(row.WorkPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active)})
 	}
 	for _, row := range v.EggLayer {
-		r.EggLayer = append(r.EggLayer, EggLayerAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), CanLayNow: optional(row.CanLayNow), Progress: optional(row.Progress), NutritionPerDay: optional(row.NutritionPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active)})
+		r.EggLayer = append(r.EggLayer, EggLayerAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), CanLayNow: optional(row.CanLayNow), Progress: optional(row.Progress), NutritionPerDay: optional(row.NutritionPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active), Fertilized: optional(row.Fertilized)})
 	}
 	for _, row := range v.PasteDispenser {
 		r.PasteDispenser = append(r.PasteDispenser, PasteDispenser{BuildingID: row.GetBuildingId(), Powered: optional(row.Powered), HopperNutrition: optional(row.HopperNutrition), AdjacentRoomID: optional(row.AdjacentRoomId)})

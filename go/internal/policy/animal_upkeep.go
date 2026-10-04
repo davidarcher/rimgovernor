@@ -294,6 +294,16 @@ type RaceProduct struct {
 	Def          Resource
 	Amount       domain.Fact[float64]
 	IntervalDays domain.Fact[float64]
+	// Eggs only (#1897), from the egg layer and hatcher comp defs:
+	// FertilizedDef is the egg a fertilized hen lays (empty when the layer
+	// cannot be fertilized), FertilizationCountMax the eggs one mating
+	// fertilizes, FemaleOnly whether only females lay, HatchDays and
+	// HatchPawn the fertilized egg's hatcherDaystoHatch and hatcherPawn.
+	FertilizedDef         Resource
+	FertilizationCountMax int
+	FemaleOnly            bool
+	HatchDays             domain.Fact[float64]
+	HatchPawn             Resource
 }
 
 // AnimalRace is the static facts of one animal race (#1625), the same for
@@ -329,6 +339,9 @@ type AnimalRace struct {
 	// Comfort is the comfortable outdoor temperature range (#1869); unknown
 	// when the game shows neither comfort stat for the race.
 	Comfort domain.Fact[AnimalComfort]
+	// MateMtbHours is RaceProperties.mateMtbHours: the mean hours between
+	// mating attempts of an eligible pair (#1897).
+	MateMtbHours domain.Fact[float64]
 }
 
 // RaceFeedItem is one producible feed item and its nutrition per item.

@@ -35,7 +35,7 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 	f := &o.FoodChannelsFacts{
 		Grazing:        []*o.PenGrazing{{PenId: proto.String("pen"), DemandPerDay: proto.Float64(2), PasturePerDay: proto.Float64(0), StoredNutrition: proto.Float64(0)}},
 		Gatherable:     []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow"), Fullness: proto.Float64(0), Resource: proto.String("Milk"), HandlerReachable: proto.Bool(false), NutritionPerDay: proto.Float64(.9), WorkPerDay: proto.Float64(400), LeadDays: proto.Float64(1), Active: proto.Bool(true)}, {PawnId: proto.String("dog"), Race: proto.String("LabradorRetriever")}},
-		EggLayer:       []*o.EggLayerAnimal{{PawnId: proto.String("hen"), Race: proto.String("Chicken"), CanLayNow: proto.Bool(false), Progress: proto.Float64(0)}, {PawnId: proto.String("cow"), Race: proto.String("Cow")}},
+		EggLayer:       []*o.EggLayerAnimal{{PawnId: proto.String("hen"), Race: proto.String("Chicken"), CanLayNow: proto.Bool(false), Progress: proto.Float64(0), Fertilized: proto.Bool(true)}, {PawnId: proto.String("cow"), Race: proto.String("Cow")}},
 		PasteDispenser: []*o.PasteDispenser{{BuildingId: proto.String("paste"), Powered: proto.Bool(false), HopperNutrition: proto.Float64(0), AdjacentRoomId: proto.String("12")}},
 		PollutedCells:  proto.Uint32(0), Forage: []*o.ForagePlant{{DefName: proto.String("Plant_Berry"), GrowingTwelfths: []int32{3, 4}, GrowingNow: proto.Bool(false)}}}
 	reply.GetObserved().FoodChannels = &o.FoodChannelsSection{Outcome: &o.FoodChannelsSection_Observed{Observed: f}}
@@ -69,6 +69,12 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 	}
 	if _, k := p.EggLayer[1].CanLayNow.Value(); k {
 		t.Fatal("missing egg comp became false")
+	}
+	if v, k := p.EggLayer[0].Fertilized.Value(); !k || !v {
+		t.Fatal("fertilized hen decoded", v, k)
+	}
+	if _, k := p.EggLayer[1].Fertilized.Value(); k {
+		t.Fatal("an unread fertilization must stay unknown")
 	}
 	if v, k := p.EggLayer[0].Progress.Value(); !k || v != 0 {
 		t.Fatal("known egg progress lost")

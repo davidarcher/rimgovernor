@@ -30826,6 +30826,7 @@ type EggLayerAnimal struct {
 	NutritionPerDay *float64               `protobuf:"fixed64,5,opt,name=nutrition_per_day,json=nutritionPerDay,proto3,oneof" json:"nutrition_per_day,omitempty"`
 	LeadDays        *float64               `protobuf:"fixed64,6,opt,name=lead_days,json=leadDays,proto3,oneof" json:"lead_days,omitempty"`
 	Active          *bool                  `protobuf:"varint,7,opt,name=active,proto3,oneof" json:"active,omitempty"`
+	Fertilized      *bool                  `protobuf:"varint,8,opt,name=fertilized,proto3,oneof" json:"fertilized,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -30905,6 +30906,13 @@ func (x *EggLayerAnimal) GetLeadDays() float64 {
 func (x *EggLayerAnimal) GetActive() bool {
 	if x != nil && x.Active != nil {
 		return *x.Active
+	}
+	return false
+}
+
+func (x *EggLayerAnimal) GetFertilized() bool {
+	if x != nil && x.Fertilized != nil {
+		return *x.Fertilized
 	}
 	return false
 }
@@ -46366,7 +46374,7 @@ const file_observations_proto_rawDesc = "" +
 	"\r_work_per_dayB\f\n" +
 	"\n" +
 	"_lead_daysB\t\n" +
-	"\a_active\"\xde\x02\n" +
+	"\a_active\"\x92\x03\n" +
 	"\x0eEggLayerAnimal\x12\x1c\n" +
 	"\apawn_id\x18\x01 \x01(\tH\x00R\x06pawnId\x88\x01\x01\x12\x17\n" +
 	"\x04race\x18\x02 \x01(\tH\x01R\x04race\x88\x01\x01\x12#\n" +
@@ -46374,7 +46382,10 @@ const file_observations_proto_rawDesc = "" +
 	"\bprogress\x18\x04 \x01(\x01H\x03R\bprogress\x88\x01\x01\x12/\n" +
 	"\x11nutrition_per_day\x18\x05 \x01(\x01H\x04R\x0fnutritionPerDay\x88\x01\x01\x12 \n" +
 	"\tlead_days\x18\x06 \x01(\x01H\x05R\bleadDays\x88\x01\x01\x12\x1b\n" +
-	"\x06active\x18\a \x01(\bH\x06R\x06active\x88\x01\x01B\n" +
+	"\x06active\x18\a \x01(\bH\x06R\x06active\x88\x01\x01\x12#\n" +
+	"\n" +
+	"fertilized\x18\b \x01(\bH\aR\n" +
+	"fertilized\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\a\n" +
 	"\x05_raceB\x0e\n" +
@@ -46383,7 +46394,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x12_nutrition_per_dayB\f\n" +
 	"\n" +
 	"_lead_daysB\t\n" +
-	"\a_active\"\xfa\x01\n" +
+	"\a_activeB\r\n" +
+	"\v_fertilized\"\xfa\x01\n" +
 	"\x0ePasteDispenser\x12$\n" +
 	"\vbuilding_id\x18\x01 \x01(\tH\x00R\n" +
 	"buildingId\x88\x01\x01\x12\x1d\n" +

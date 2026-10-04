@@ -18,6 +18,7 @@ namespace HomeBridge.BridgeTools
         private static readonly FieldInfo? EggProgress = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
         private static readonly PropertyInfo? Resource = typeof(CompHasGatherableBodyResource).GetProperty("ResourceDef", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? GatherActive = typeof(CompHasGatherableBodyResource).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo? EggFertilization = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "fertilizationCount");
         private static readonly PropertyInfo? EggActive = typeof(CompEggLayer).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? EggStopped = typeof(CompEggLayer).GetProperty("ProgressStoppedBecauseUnfertilized", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -75,6 +76,8 @@ namespace HomeBridge.BridgeTools
                     {
                         eggRow.CanLayNow = egg.CanLayNow;
                         if (EggProgress?.GetValue(egg) is float progress) eggRow.Progress = Finite(progress);
+                        // The next egg is the fertilized def exactly when NextEggType picks it.
+                        if (EggFertilization?.GetValue(egg) is int fertilization) eggRow.Fertilized = fertilization > 0;
                         if (EggActive?.GetValue(egg) is bool active && EggStopped?.GetValue(egg) is bool stopped)
                         {
                             var resource = egg.NextEggType();
