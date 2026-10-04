@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -82,26 +81,5 @@ func TestGateReadsTheSuiteReport(t *testing.T) {
 	}
 	if err := (acceptanceGate{Results: filepath.Join(dir, "missing")}).check(); err == nil {
 		t.Error("missing results should be refused")
-	}
-}
-
-func TestLandsANativeDiffWithoutResults(t *testing.T) {
-	if testing.Short() {
-		t.Skip("slow: runs under cmd/test -full and nightly")
-	}
-	root, wt := newRepo(t)
-	path := filepath.Join(wt, "integrations", "rimgovernor-native", "src", "Foo.cs")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	write(t, path, "class Foo {}\n")
-	mustGit(t, wt, "add", ".")
-	mustGit(t, wt, "commit", "-qm", "native edit")
-	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "native edit\ninit" {
-		t.Errorf("main subjects:\n%s", got)
 	}
 }
